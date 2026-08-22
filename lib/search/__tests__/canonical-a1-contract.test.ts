@@ -385,6 +385,13 @@ describe('A1 · only authorised readers import the canonical package', () => {
       // provider member would silently become sale inventory. Reading the
       // canonical module is what collapses the two back to one answer.
       'lib/search/crm-idx-mapper.ts',
+      // The IDX fetch layer renders the SAME sale/rental universe to OData at
+      // four sites (full, incremental, keyset and backfill traversals). Until
+      // 2026-08-22 every one of them emitted `PropertyType ne 'ResidentialLease'`
+      // for sale while the canonical contract rendered a positive predicate —
+      // two paths, two definitions of what a sale IS. Reading the canonical
+      // module is what keeps the four traversals and the CRM filter identical.
+      'lib/idx/fetch.ts',
     ]);
     expect(offenders.filter((f) => !AUTHORISED.has(f))).toEqual([]);
   }, 60000);

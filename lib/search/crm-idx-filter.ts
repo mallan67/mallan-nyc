@@ -1,3 +1,4 @@
+import { propertyTypeUniverseOData } from "@/lib/search/canonical/property-type-universe";
 import neighborhoodAliases from "@/data/rls/geo/neighborhood-aliases.json";
 import {
   parsePropertySubTypeCriterion,
@@ -42,11 +43,21 @@ function stripStreetSuffix(value: string): string {
 export function buildCrmIdxODataFilter(params: URLSearchParams): string {
   const parts: string[] = [];
 
+  // STEP 2 — the universe comes from the canonical contract, rendered as a
+  // POSITIVE predicate on both sides.
+  //
+  // This emitted `PropertyType ne 'ResidentialLease'` for sale. Measured live on
+  // 2026-08-22 that returns exactly the same 215,388 rows as
+  // `eq 'Residential'`, so it looked correct — but only because the other
+  // eleven PropertyType members are unpopulated. It silently absorbs Land,
+  // CommercialSale, MultiFamily, ResidentialIncome, Farm and
+  // BusinessOpportunity into residential SALE inventory the moment any one is
+  // populated, with no code change and no warning.
   const type = params.get("type");
   if (type === "sale") {
-    parts.push("PropertyType ne 'ResidentialLease'");
+    parts.push(propertyTypeUniverseOData("sale"));
   } else if (type === "rent" || type === "rental") {
-    parts.push("PropertyType eq 'ResidentialLease'");
+    parts.push(propertyTypeUniverseOData("rental"));
   }
 
   const minPrice = params.get("minPrice");

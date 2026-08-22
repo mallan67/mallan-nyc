@@ -189,7 +189,22 @@ nothing and returns the whole population
 verified on one Cotality enum may not be carried to another merely because both
 are enums.** Probe the exact field/operator pair.
 
-### 4.2 Compound filters
+### 4.2 `$orderby`
+
+Probed directly, because a sortability claim was made in the registry before it
+was measured and had to be earned or withdrawn.
+
+| query | result |
+|---|---|
+| `$orderby=PropertyType` | SUPPORTED, HTTP 200 |
+| `$orderby=StandardStatus` | SUPPORTED, HTTP 200 |
+| `$orderby=MlsStatus` | **PROVIDER_REJECTED, HTTP 400** |
+
+`MlsStatus` is refused for ordering as well as filtering, so its registry
+capability is `unsupported` (the provider cannot) rather than `no` (Mallan chose
+not to offer it).
+
+### 4.3 Compound filters
 
 `StandardStatus eq 'Active' and PropertyType eq 'Residential'` → 6,965.
 SUPPORTED; conjunction across the two enums works.
@@ -211,6 +226,34 @@ else is pending or historical.
 ---
 
 ## 6. How Mallan's code stood against this
+
+### 6.0 SIX writers carried the negation, and the first pass fixed none of them
+
+The first attempt at this correction (commit `cca79786`) built the canonical
+contract, wired the MAPPER to it, and proved both with 60 green assertions. It
+did not touch a single OData writer. The suite went green while the defect kept
+shipping, and an existing test actively REQUIRED it:
+
+    lib/search/__tests__/crm-idx-filter.test.ts:17
+        expect(filter).toContain("PropertyType ne 'ResidentialLease'")
+
+A complete sweep found six production sites, not one:
+
+| site | disposition |
+|---|---|
+| `lib/search/crm-idx-filter.ts:47` | corrected |
+| `lib/idx/fetch.ts:488, 517, 549, 569` | corrected — four traversals |
+| `lib/search/public-listing-trestle.ts:163` | **NOT touched — protected `public-listing-*` boundary** |
+| `lib/market-report/generator.ts`, `app/api/listings/similar`, `app/api/market` | already positive `eq` |
+
+Two existing tests asserted the defect and were corrected with the reason
+recorded inline: `crm-idx-filter.test.ts` and
+`lib/idx/__tests__/incremental-filter.test.ts`.
+
+**The public consumer writer still emits the negation.** `public-listing-*` is
+inside the declared zero-delta boundary, so it is reported rather than changed.
+It carries the identical latent defect: the moment any other `PropertyType`
+member is populated, the public site's sale search absorbs it.
 
 ### 6.1 The sale/rental split was a substring test — corrected
 

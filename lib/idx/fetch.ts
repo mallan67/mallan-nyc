@@ -1,3 +1,4 @@
+import { propertyTypeUniverseOData } from "@/lib/search/canonical/property-type-universe";
 // lib/idx/fetch.ts
 // OData v4 listing fetch from Trestle/REBNY RLS.
 // Handles pagination via @odata.nextLink. Selects IDX Plus Property fields.
@@ -485,9 +486,12 @@ export function buildIncrementalFilter(
   const parts = [keyed ?? `(ModificationTimestamp ge ${timestamp})`];
 
   if (listingType === "sale") {
-    parts.push("PropertyType ne 'ResidentialLease'");
+    // STEP 2 — positive membership, never the complement of rental. See
+    // lib/search/canonical/property-type-universe.ts for why the negation is
+    // indistinguishable from correct on today's feed and wrong as a definition.
+    parts.push(propertyTypeUniverseOData("sale"));
   } else if (listingType === "rent") {
-    parts.push("PropertyType eq 'ResidentialLease'");
+    parts.push(propertyTypeUniverseOData("rental"));
   }
 
   return parts.join(" and ");
@@ -514,9 +518,12 @@ export function buildActiveFilter(
   ];
 
   if (listingType === "sale") {
-    parts.push("PropertyType ne 'ResidentialLease'");
+    // STEP 2 — positive membership, never the complement of rental. See
+    // lib/search/canonical/property-type-universe.ts for why the negation is
+    // indistinguishable from correct on today's feed and wrong as a definition.
+    parts.push(propertyTypeUniverseOData("sale"));
   } else if (listingType === "rent") {
-    parts.push("PropertyType eq 'ResidentialLease'");
+    parts.push(propertyTypeUniverseOData("rental"));
   }
 
   return parts.map((p) => `(${p})`).join(" and ");
@@ -546,9 +553,12 @@ export function buildAgentHistoricalFilter(
   const parts = [agentFilter, `(${statusFilter})`];
 
   if (listingType === "sale") {
-    parts.push("PropertyType ne 'ResidentialLease'");
+    // STEP 2 — positive membership, never the complement of rental. See
+    // lib/search/canonical/property-type-universe.ts for why the negation is
+    // indistinguishable from correct on today's feed and wrong as a definition.
+    parts.push(propertyTypeUniverseOData("sale"));
   } else if (listingType === "rent") {
-    parts.push("PropertyType eq 'ResidentialLease'");
+    parts.push(propertyTypeUniverseOData("rental"));
   }
 
   return parts.join(" and ");
@@ -566,9 +576,12 @@ export function buildAgentAllFilter(
   const parts = [`(ListAgentMlsId eq '${escapedId}' or BuyerAgentMlsId eq '${escapedId}')`];
 
   if (listingType === "sale") {
-    parts.push("PropertyType ne 'ResidentialLease'");
+    // STEP 2 — positive membership, never the complement of rental. See
+    // lib/search/canonical/property-type-universe.ts for why the negation is
+    // indistinguishable from correct on today's feed and wrong as a definition.
+    parts.push(propertyTypeUniverseOData("sale"));
   } else if (listingType === "rent") {
-    parts.push("PropertyType eq 'ResidentialLease'");
+    parts.push(propertyTypeUniverseOData("rental"));
   }
 
   return parts.join(" and ");

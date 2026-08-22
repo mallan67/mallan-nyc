@@ -14,7 +14,14 @@ describe("buildCrmIdxODataFilter", () => {
       borough: "Manhattan",
     }));
 
-    expect(filter).toContain("PropertyType ne 'ResidentialLease'");
+    // CHANGED 2026-08-22. This line previously required
+    // `PropertyType ne 'ResidentialLease'` — the test actively asserted the
+    // defect, which is why the canonical universe work went green while the
+    // real writer kept shipping a sale-by-negation filter. Sale is now positive
+    // membership, and the absence of the negation is asserted alongside it in
+    // step2-real-writer-universe.test.ts.
+    expect(filter).toContain("PropertyType eq 'Residential'");
+    expect(filter).not.toContain("ne 'ResidentialLease'");
     expect(filter).toContain("ListPrice ge 1000000");
     expect(filter).toContain("ListPrice le 2000000");
     expect(filter).toContain("BedroomsTotal ge 2");
