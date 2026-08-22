@@ -120,9 +120,19 @@ function setCache(key: string, data: unknown): void {
  * Split provider rows by whether they carry a usable identity.
  *
  * `ListingId` and `SourceSystemKey` are BOTH nullable on live Property, so a row
- * with neither is a legitimate provider state — and one we cannot act on. Such a
- * row must not enter the authoritative universe: it cannot be selected, counted,
- * reported, saved, sent to a client or reconciled against a canonical listing.
+ * with neither is a legitimate provider state — and one we cannot act on.
+ *
+ * SCOPE OF THE GUARANTEE, precisely: an identityless row never enters the
+ * RETURNED LISTING UNIVERSE on this page, nor any downstream consumer of it —
+ * gates, mapping, result rows, building upsert, Map, selection, reports.
+ *
+ * It does NOT repair `total`/`hasMore`. Those still come from the provider's
+ * `$count`, which is computed before any Mallan filtering and therefore still
+ * includes identityless rows on pages we have not fetched. That is the KNOWN
+ * pre-final-universe count defect and it belongs to Step 6. Subtracting this
+ * page's identity failures from `odataCount` would NOT fix it — it would create
+ * a differently-wrong global total, because the count of identityless rows on
+ * unvisited pages is unknown.
  *
  * It is COUNTED rather than silently dropped. A provider row we cannot identify
  * is an integrity failure, not a filtered result, and the two must not look the
@@ -138,6 +148,37 @@ export function partitionByListingIdentity(
     else identityless++;
   }
   return { usable, identityless };
+}
+
+/**
+ * The three DISTINCT outcomes a fetched provider row can have.
+ *
+ * `gatedOut` used to be `totalFetched - displayable`, which folded identity
+ * failures into the distribution-gate count while `identityless` was ALSO
+ * reported separately — so an unidentifiable row was counted twice and the gate
+ * figure overstated how many rows a compliance gate actually rejected.
+ *
+ *   provider rows fetched -> identity failures -> gate failures -> returned rows
+ *
+ * The three categories account for every fetched row exactly once.
+ */
+export function searchIntegrityCounts(args: {
+  providerRowsFetched: number;
+  identityless: number;
+  displayable: number;
+}): {
+  providerRowsFetched: number;
+  identityFailures: number;
+  distributionGateFailures: number;
+  returnedRows: number;
+} {
+  const identified = args.providerRowsFetched - args.identityless;
+  return {
+    providerRowsFetched: args.providerRowsFetched,
+    identityFailures: args.identityless,
+    distributionGateFailures: Math.max(0, identified - args.displayable),
+    returnedRows: args.displayable,
+  };
 }
 
 /**
@@ -426,8 +467,23 @@ export async function GET(req: NextRequest) {
         filter,
         totalFromAPI: result.totalFetched,
         odataCount: result.odataCount,
-        gatedOut: result.totalFetched - displayable.length,
-        identityless,
+        // Three distinct concepts, each counted once. `gatedOut` is now ONLY the
+        // distribution-gate rejections; identity failures are their own category.
+        ...(() => {
+          const c = searchIntegrityCounts({
+            providerRowsFetched: result.totalFetched,
+            identityless,
+            displayable: displayable.length,
+          });
+          return {
+            gatedOut: c.distributionGateFailures,
+            identityless: c.identityFailures,
+            providerRowsFetched: c.providerRowsFetched,
+          };
+        })(),
+        // total/hasMore below are the provider's PRE-Mallan-filtering figures and
+        // do NOT describe the returned universe. Known defect, owned by Step 6.
+        totalIsPreFinalUniverse: true,
         mediaStrategy: useInlineMedia ? "expand" : "lazy",
         mediaBackfilled,
         sponsorFiltered,

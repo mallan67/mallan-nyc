@@ -54,3 +54,50 @@ describe('partitionByListingIdentity', () => {
     expect(out.usable).toEqual([a, b]);
   });
 });
+
+/**
+ * THE DIAGNOSTICS MUST CARRY THREE DISTINCT CONCEPTS.
+ *
+ * `gatedOut` was `result.totalFetched - displayable.length`, which folded
+ * identity failures INTO the distribution-gate count — while `identityless` was
+ * also reported separately. So an unidentifiable row was counted twice, and the
+ * gate figure overstated how many rows a compliance gate actually rejected.
+ *
+ * The honest chain is:
+ *
+ *   provider rows fetched
+ *     → identity failures
+ *     → distribution-gate failures
+ *     → returned rows
+ *
+ * and those three categories must account for every fetched row exactly once.
+ */
+import { searchIntegrityCounts } from '@/app/api/idx/search/route';
+
+describe('searchIntegrityCounts', () => {
+  it('separates identity failures from distribution-gate failures', () => {
+    // 100 fetched, 4 unidentifiable, 90 of the remaining 96 pass the gates.
+    const c = searchIntegrityCounts({ providerRowsFetched: 100, identityless: 4, displayable: 90 });
+    expect(c.identityFailures).toBe(4);
+    expect(c.distributionGateFailures).toBe(6); // 96 identified - 90 displayable
+    expect(c.returnedRows).toBe(90);
+  });
+
+  it('does NOT fold identity failures into the gate count', () => {
+    const c = searchIntegrityCounts({ providerRowsFetched: 100, identityless: 4, displayable: 90 });
+    // The old expression gave 10 here — 4 identity failures counted a second time.
+    expect(c.distributionGateFailures).not.toBe(10);
+  });
+
+  it('accounts for every fetched row exactly once', () => {
+    for (const [fetched, idless, disp] of [[100, 4, 90], [200, 0, 200], [50, 50, 0], [7, 2, 5]]) {
+      const c = searchIntegrityCounts({ providerRowsFetched: fetched, identityless: idless, displayable: disp });
+      expect(c.identityFailures + c.distributionGateFailures + c.returnedRows).toBe(fetched);
+    }
+  });
+
+  it('reports zero gate failures when nothing was gated, not a negative', () => {
+    const c = searchIntegrityCounts({ providerRowsFetched: 10, identityless: 0, displayable: 10 });
+    expect(c.distributionGateFailures).toBe(0);
+  });
+});
