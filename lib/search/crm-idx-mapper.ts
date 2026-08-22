@@ -1,5 +1,6 @@
 import { resolveListingMedia } from "@/lib/media/listing-media-resolver";
 import { classifyPropertyType } from "@/lib/search/canonical/property-type-universe";
+import { standardStatusToCrmToken } from "@/lib/search/canonical/status-token-contract";
 
 // REBNY IDX Plus pre-filter: REBNY/Cotality removes non-displayable rows from
 // the IDX Plus feed upstream, leaving InternetEntireListingDisplayYN and
@@ -200,42 +201,59 @@ export function mapTrestleToCrmListing(
     else era = "Pre-War";
   }
 
-  // The provider's SILENCE is not "Active". An absent status leaves mlsStatus
-  // empty, which falls through the map below to UNKNOWN — the safe sentinel.
-  const mlsStatus = String(raw.MlsStatus || raw.StandardStatus || "");
-  const statusMap: Record<string, string> = {
-    Active: "ACTIVE",
-    ComingSoon: "COMING_SOON",
-    "Coming Soon": "COMING_SOON",
-    ActiveUnderContract: "PENDING",
-    "Active Under Contract": "PENDING",
-    Pending: "PENDING",
-    Closed: "CLOSED",
-    Expired: "EXPIRED",
-    Withdrawn: "WITHDRAWN",
-    Hold: "HOLD",
-    Incomplete: "INCOMPLETE",
-    Canceled: "CANCELLED",
-    Cancelled: "CANCELLED",
-    // ── UCBA Art. I §5(D) — "Off-Market" labeling is prohibited.
-    // Some MLS feeds (or stale data sources) may emit "Off Market" /
-    // "Off-Market" / "OffMarket" in MlsStatus. Map all variants to
-    // "WITHDRAWN", the closest UCBA-compliant canonical status.
-    // Without this mapping, the prior `mlsStatus.toUpperCase()`
-    // fallback would produce "OFF MARKET" — a literal violation.
-    "Off Market": "WITHDRAWN",
-    "Off-Market": "WITHDRAWN",
-    OffMarket: "WITHDRAWN",
-    offMarket: "WITHDRAWN",
-    "off market": "WITHDRAWN",
-  };
-  // Unmapped values fall through to "UNKNOWN" — a SAFE default that
-  // never accidentally surfaces non-canonical status text in UCBA-
-  // sensitive contexts. Renderers should treat UNKNOWN as a non-active
-  // sentinel and either suppress badges or show a neutral indicator.
-  // (Was: `mlsStatus.toUpperCase()` which could produce "OFF MARKET",
-  // "FUTURE", or any other vendor-specific string in the UI.)
-  const status = statusMap[mlsStatus] || "UNKNOWN";
+  // The provider's SILENCE is not "Active". An absent status resolves to
+  // UNKNOWN through the canonical contract — the safe sentinel.
+  //
+  // STEP 2 — StandardStatus is the canonical provider status for this path.
+  //
+  // This read `raw.MlsStatus || raw.StandardStatus`, substituting a 25-member
+  // vocabulary for an 11-member one whenever MlsStatus was populated. They are
+  // different fields with different values — MlsStatus carries Leased,
+  // AttorneyReview, Contingent, CompSold, PendingShortSale, none of which
+  // StandardStatus has — and the provider suppresses MlsStatus for filtering and
+  // ordering at licence level (HTTP 400). It is provider EVIDENCE, never the
+  // canonical input, and inventing Mallan meanings for its members is a product
+  // decision nobody has made.
+  const standardStatus = raw.StandardStatus;
+  // One token per member, via the canonical contract. `ActiveUnderContract`
+  // used to map to "PENDING" alongside `Pending`, collapsing two distinct
+  // provider states into one — the exact inverse of the browser sending
+  // "PENDING" out as `ActiveUnderContract`. The two substitutions cancelled on a
+  // round trip, which is how the defect stayed invisible from either end.
+  const status = standardStatusToCrmToken(standardStatus);
+  // Unrecognised or absent falls through to "UNKNOWN" inside the contract — a
+  // SAFE sentinel that never surfaces non-canonical status text in
+  // UCBA-sensitive contexts, and in particular never reads as ACTIVE.
+  // Renderers treat UNKNOWN as non-active and show a neutral indicator.
+  //
+  // UCBA Art. I §5(D) note, preserved: "Off-Market" labelling is prohibited.
+  // Those variants only ever arrived via MlsStatus, which is no longer a status
+  // input at all, so they can no longer reach a renderer through this path.
+
+  // `mlsStatus` is the EFFECTIVE PROVIDER STATUS STRING, and it must keep being
+  // that. Downstream consumers read it as such, including a COMPLIANCE GATE:
+  //
+  //   lib/compliance/idx-display-gate.ts:39
+  //       if (listing.mlsStatus === 'Closed' || … === 'Expired') return false;
+  //   lib/compliance/reso-mapper.ts:190
+  //       MLSStatus: statusMap[listing.mlsStatus] || 'Active'
+  //
+  // Narrowing this field to the raw MlsStatus would make it NULL on this feed
+  // (MlsStatus is unpopulated), so a Closed listing would stop matching that
+  // gate and would PASS a display check it must fail — and the RESO mapper would
+  // default it to 'Active'. That is a fail-OPEN regression of exactly the shape
+  // canonicalised in memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md.
+  //
+  // It therefore carries StandardStatus, which is what the old
+  // `MlsStatus || StandardStatus` expression already resolved to on every row of
+  // this feed. Behaviour for those consumers is unchanged BY CONSTRUCTION.
+  const mlsStatus = standardStatus != null ? String(standardStatus) : "";
+
+  // The raw provider MlsStatus, kept SEPARATELY as evidence: verbatim, unmapped,
+  // and never an input to any Mallan status decision. Its 25-member vocabulary
+  // (Leased, AttorneyReview, Contingent, CompSold …) has no agreed Mallan
+  // meaning, and the provider suppresses the field for filtering and ordering.
+  const providerMlsStatus = raw.MlsStatus != null ? String(raw.MlsStatus) : null;
 
   // ── Coming Soon date (UCBA Art. I §16(C)) ──────────────────────────
   // UCBA requires "No Showings or Open House until [date]" disclosure
@@ -284,6 +302,7 @@ export function mapTrestleToCrmListing(
     intSqft: raw.LivingArea != null ? Number(raw.LivingArea) : null,
     status,
     mlsStatus,
+    providerMlsStatus,
     ownership: String(raw.CommonInterest || raw.OwnershipType || ""),
     propertyType: mapDisplayPropertyType(raw),
     propertySubType: String(raw.PropertySubType || ""),

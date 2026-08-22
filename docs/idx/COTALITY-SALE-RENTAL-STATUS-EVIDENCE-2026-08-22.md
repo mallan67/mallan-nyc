@@ -302,7 +302,29 @@ Not changed in this pass. Recorded as a named follow-up rather than fixed
 speculatively, because deciding what `Leased` *means* to a Mallan workflow is a
 product decision, not a mapping one.
 
-### 6.3 No Mallan query filters on `MlsStatus`
+### 6.3 CORRECTION — Mallan DOES filter on `MlsStatus`, and those queries are broken
+
+An earlier pass of this document claimed no Mallan query filters on `MlsStatus`,
+"verified across `lib/` and `app/`". **That was wrong**: the grep behind it
+matched only `$filter`/`filterParts`/`buildFilter` shapes and missed a route that
+assembles the predicate inline.
+
+`app/api/market/route.ts` filters on the suppressed field twice:
+
+    :200   $filter: `MlsStatus eq 'Active' and ${propertyClass}${boroughFilter}`
+    :219   $filter: `(MlsStatus eq 'Closed' or StandardStatus eq 'Closed') and …`
+
+Both were replayed against the live API in the exact shape the route builds:
+
+    MlsStatus eq 'Active' and PropertyType eq 'Residential'          -> HTTP 400
+    (MlsStatus eq 'Closed' or StandardStatus eq 'Closed') and …      -> HTTP 400
+
+**These market queries fail every time they run.** Not corrected in this pass:
+the market route is a separate surface from the Search status path, and the fix
+is a decision about what the market panel should ask for, not a mechanical
+substitution.
+
+### 6.4 The Search status path is the only one corrected here
 
 Verified by search across `lib/` and `app/`. The provider suppression breaks
 nothing today. `app/api/idx/search/route.ts:39` `$select`s the field, which is

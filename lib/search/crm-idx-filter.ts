@@ -1,3 +1,4 @@
+import { isStandardStatusMember } from "@/lib/search/canonical/status-token-contract";
 import { propertyTypeUniverseOData } from "@/lib/search/canonical/property-type-universe";
 import neighborhoodAliases from "@/data/rls/geo/neighborhood-aliases.json";
 import {
@@ -114,11 +115,25 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
   if (status === "*") {
     // Intentionally no status filter; used by RLS tracker for total count.
   } else if (status) {
-    const statuses = status.split(",").map((value) => {
-      const normalized = value.trim().replace(/\s+/g, "");
-      return `StandardStatus eq '${escapeOData(normalized)}'`;
-    });
-    parts.push(`(${statuses.join(" or ")})`);
+    // STEP 2 — only a value that is a REAL StandardStatus member may be sent.
+    //
+    // This previously interpolated whatever arrived, so a Mallan-only token like
+    // `OFFEROUT` became `StandardStatus eq 'OFFEROUT'` and the provider answered
+    // HTTP 400 — a whole search lost to a criterion the provider cannot express.
+    // A criterion with no provider member is DROPPED rather than sent as if it
+    // could work; substituting a near neighbour is what sent Pending searches to
+    // the empty ActiveUnderContract member.
+    const requested = status.split(",").map((v) => v.trim().replace(/\s+/g, ""));
+    const members = requested.filter(isStandardStatusMember);
+    const unsupported = requested.filter((v) => v && !isStandardStatusMember(v));
+    if (unsupported.length > 0) {
+      console.warn(
+        `[crm-idx-filter] dropped status criteria with no live StandardStatus member: ${unsupported.join(", ")}`,
+      );
+    }
+    if (members.length > 0) {
+      parts.push(`(${members.map((m) => `StandardStatus eq '${escapeOData(m)}'`).join(" or ")})`);
+    }
   } else {
     parts.push("(StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')");
   }

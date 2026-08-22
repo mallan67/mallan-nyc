@@ -500,8 +500,10 @@ describe("buildCrmIdxODataFilter", () => {
     // Active, ActiveUnderContract, Canceled, Closed, ComingSoon, Delete,
     // Expired, Hold, Incomplete, Pending, Withdrawn.
     //
-    // Still DEAD/out of scope for #618 — recorded here so the next person fixes
-    // it against verified provider behaviour instead of the wrong assumption.
+    // FIXED 2026-08-22 (was: "Still DEAD/out of scope for #618"). The writer now
+    // admits only real StandardStatus members and drops anything else with a
+    // warning, so a Mallan-only sub-status can no longer break a whole search by
+    // reaching the provider as an invalid enum member.
     //
     // We exercise this here by passing a known sub-status string. When
     // real sub-status routing is added (route via MlsStatus + nested
@@ -509,8 +511,11 @@ describe("buildCrmIdxODataFilter", () => {
     const f = buildCrmIdxODataFilter(new URLSearchParams({
       status: "OFFEROUT",
     }));
-    // Builder produces literal 'OFFEROUT' — won't match Trestle.
-    expect(f).toContain("StandardStatus eq 'OFFEROUT'");
+    // FIXED 2026-08-22: the builder no longer produces the literal clause. An
+    // invalid enum member fails the WHOLE query with HTTP 400, so a caller
+    // treating that as "no matches" reports a false empty. The criterion is now
+    // dropped with a warning instead of breaking the search.
+    expect(f).not.toContain("StandardStatus eq 'OFFEROUT'");
     // Verify proper mapping is NOT present:
     expect(f).not.toContain("MlsStatus");
   });
@@ -566,9 +571,16 @@ describe("buildCrmIdxODataFilter", () => {
     for (const s of subStatuses) {
       const upper = s.toUpperCase();
       const f = buildCrmIdxODataFilter(new URLSearchParams({ status: upper }));
-      // Builder emits literal-string equality — no Trestle row matches.
-      expect(f).toContain(`StandardStatus eq '${upper}'`);
-      // Must not have leaked into MlsStatus (correct routing would do that)
+      // FIXED 2026-08-22. The builder used to emit `StandardStatus eq '<UPPER>'`
+      // for each of these Mallan-only sub-statuses. StandardStatus is an ENUM,
+      // so an unknown member does not return zero rows — it fails the WHOLE
+      // query with HTTP 400, and any caller treating that as "no matches"
+      // reports a false empty. The criterion is now dropped with a warning.
+      expect(f).not.toContain(`StandardStatus eq '${upper}'`);
+      // Still must not have leaked into MlsStatus. Beyond being the wrong
+      // routing, MlsStatus is suppressed by the provider for filtering AND
+      // ordering at licence level (HTTP 400), so routing there would break the
+      // query too. Verified live 2026-08-22.
       expect(f).not.toContain("MlsStatus");
     }
   });

@@ -132,7 +132,7 @@ describe("crm idx mapper", () => {
       BedroomsTotal: 2,
       BathroomsTotalInteger: 2.5,
       LivingArea: 1100,
-      MlsStatus: "ActiveUnderContract",
+      StandardStatus: "ActiveUnderContract",
       SubdivisionName: "Chelsea",
       CityRegion: "Manhattan",
       PostalCode: "10011",
@@ -162,7 +162,9 @@ describe("crm idx mapper", () => {
       price: 1200000,
       totalMonthly: 2100,
       baths: 2.5,
-      status: "PENDING",
+      // The fixture feeds StandardStatus ActiveUnderContract, which is its own
+      // member and no longer collapses into PENDING.
+      status: "UNDER_CONTRACT",
       propertyType: "Condo",
       neighborhood: "Chelsea",
       borough: "Manhattan",
@@ -216,17 +218,36 @@ describe("crm idx mapper", () => {
   describe("status mapper — UCBA Art. I §5(D) compliance", () => {
     const offMarketVariants = ["Off Market", "Off-Market", "OffMarket", "off market"];
 
+    // CHANGED 2026-08-22, and the PROTECTIVE CONTRACT IS UNCHANGED.
+    //
+    // This block's own stated contract (above) is: "any unmapped or off-market
+    // variant must NEVER produce an 'OFF MARKET' value in the rendered status
+    // field". That is what is asserted below, and it still holds.
+    //
+    // What changed is the route, not the protection. `MlsStatus` is no longer a
+    // status INPUT at all: it is a different 25-member vocabulary that the
+    // provider suppresses for filtering, so `StandardStatus` is now the sole
+    // canonical status source. An off-market string arriving in MlsStatus can
+    // therefore no longer become the status by any path, and falls to UNKNOWN
+    // like every other unmapped value — which is exactly what the very next test
+    // in this file already requires of unmapped values. UNKNOWN is also strictly
+    // more conservative than WITHDRAWN: WITHDRAWN asserts a lifecycle state the
+    // provider never stated in StandardStatus.
     for (const variant of offMarketVariants) {
-      it(`maps MlsStatus "${variant}" to WITHDRAWN, never to "OFF MARKET"`, () => {
+      it(`never renders MlsStatus "${variant}" as an off-market label`, () => {
         const listing = mapTrestleToCrmListing({
           ListingId: "X",
           MlsStatus: variant,
           InternetEntireListingDisplayYN: true,
           InternetAddressDisplayYN: true,
         }, 0);
-        expect(listing.status).toBe("WITHDRAWN");
+        // The guard itself — the prohibited string must not appear.
         expect(listing.status).not.toBe("OFF MARKET");
         expect(listing.status).not.toMatch(/OFF.MARKET/i);
+        // And MlsStatus cannot set the status at all any more.
+        expect(listing.status).toBe("UNKNOWN");
+        // The raw provider value is still preserved as evidence, unmapped.
+        expect(listing.providerMlsStatus).toBe(variant);
       });
     }
 
@@ -237,7 +258,7 @@ describe("crm idx mapper", () => {
       // neutrally.
       const listing = mapTrestleToCrmListing({
         ListingId: "X",
-        MlsStatus: "SomeFutureStatusEnum",
+        StandardStatus: "SomeFutureStatusEnum",
         InternetEntireListingDisplayYN: true,
         InternetAddressDisplayYN: true,
       }, 0);
@@ -246,12 +267,27 @@ describe("crm idx mapper", () => {
     });
 
     it("preserves all canonical mappings (regression guard)", () => {
+      // CHANGED 2026-08-22 on two counts, both corrections rather than
+      // relaxations.
+      //
+      // 1. Keyed on StandardStatus, not MlsStatus. StandardStatus is the
+      //    canonical provider status; MlsStatus is a different vocabulary the
+      //    provider suppresses for filtering and never overrides it.
+      // 2. ActiveUnderContract no longer collapses into PENDING. Cotality
+      //    declares Pending and ActiveUnderContract as SEPARATE StandardStatus
+      //    members, and on the live feed ActiveUnderContract has zero rows while
+      //    Pending is populated. Collapsing them showed a listing genuinely
+      //    under contract to a client as merely pending — and was the exact
+      //    inverse of the browser sending "PENDING" out as ActiveUnderContract,
+      //    so the two cancelled on a round trip and neither end looked wrong.
+      //
+      // Variants with spaces ("Active Under Contract", "Coming Soon") are gone:
+      // they are not members of the live enum, so they are UNKNOWN like any
+      // other unrecognised value.
       const cases: Array<[string, string]> = [
         ["Active", "ACTIVE"],
         ["ComingSoon", "COMING_SOON"],
-        ["Coming Soon", "COMING_SOON"],
-        ["ActiveUnderContract", "PENDING"],
-        ["Active Under Contract", "PENDING"],
+        ["ActiveUnderContract", "UNDER_CONTRACT"],
         ["Pending", "PENDING"],
         ["Closed", "CLOSED"],
         ["Expired", "EXPIRED"],
@@ -259,12 +295,11 @@ describe("crm idx mapper", () => {
         ["Hold", "HOLD"],
         ["Incomplete", "INCOMPLETE"],
         ["Canceled", "CANCELLED"],
-        ["Cancelled", "CANCELLED"],
       ];
       for (const [input, expected] of cases) {
         const listing = mapTrestleToCrmListing({
           ListingId: "X",
-          MlsStatus: input,
+          StandardStatus: input,
           InternetEntireListingDisplayYN: true,
           InternetAddressDisplayYN: true,
         }, 0);
@@ -287,7 +322,8 @@ describe("crm idx mapper", () => {
     it("populates from raw.ActivationDate when status is Coming Soon", () => {
       const listing = mapTrestleToCrmListing({
         ListingId: "X",
-        MlsStatus: "Coming Soon",
+        // The live member has no space; "Coming Soon" is not a member.
+        StandardStatus: "ComingSoon",
         ActivationDate: "2026-06-15T00:00:00Z",
         OnMarketDate: "2026-06-10T00:00:00Z",
         InternetEntireListingDisplayYN: true,
@@ -300,7 +336,7 @@ describe("crm idx mapper", () => {
     it("falls back to raw.OnMarketDate when ActivationDate is missing", () => {
       const listing = mapTrestleToCrmListing({
         ListingId: "X",
-        MlsStatus: "ComingSoon",
+        StandardStatus: "ComingSoon",
         OnMarketDate: "2026-07-01",
         InternetEntireListingDisplayYN: true,
         InternetAddressDisplayYN: true,
@@ -314,7 +350,8 @@ describe("crm idx mapper", () => {
       // never invent a vague "until active date" string.
       const listing = mapTrestleToCrmListing({
         ListingId: "X",
-        MlsStatus: "Coming Soon",
+        // The live member has no space; "Coming Soon" is not a member.
+        StandardStatus: "ComingSoon",
         InternetEntireListingDisplayYN: true,
         InternetAddressDisplayYN: true,
       }, 0);
@@ -324,7 +361,7 @@ describe("crm idx mapper", () => {
     it("does NOT populate comingSoonDate for non-Coming-Soon statuses", () => {
       const listing = mapTrestleToCrmListing({
         ListingId: "X",
-        MlsStatus: "Active",
+        StandardStatus: "Active",
         ActivationDate: "2026-06-15T00:00:00Z",
         OnMarketDate: "2026-06-10T00:00:00Z",
         InternetEntireListingDisplayYN: true,

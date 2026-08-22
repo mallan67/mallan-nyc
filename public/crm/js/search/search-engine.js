@@ -456,9 +456,25 @@
             if (criteria.unitsMin) params.minUnits = criteria.unitsMin;
             if (criteria.unitsMax) params.maxUnits = criteria.unitsMax;
             if (criteria.buildingName) params.buildingName = criteria.buildingName;
-            // Status: CRM uppercase -> RESO PascalCase
+            // Status: CRM uppercase -> the live StandardStatus member.
+            //
+            // STEP 2 CORRECTION 2026-08-22. 'PENDING' used to map to
+            // 'ActiveUnderContract'. Cotality declares Pending and
+            // ActiveUnderContract as SEPARATE StandardStatus members, and on the
+            // live feed ActiveUnderContract has ZERO rows while Pending is
+            // populated - so a broker ticking "Pending" asked for an empty
+            // member and concluded there was no pending inventory.
+            //
+            // The mapper performed the exact inverse collapse
+            // (ActiveUnderContract -> PENDING), so a round trip appeared to
+            // preserve the value. It did not preserve it; it laundered it, which
+            // is why neither end looked wrong on its own.
+            //
+            // CONTRACT and UNDER_CONTRACT still map to ActiveUnderContract -
+            // that is the genuine contract state, and it stays DISTINCT from
+            // Pending. Selecting both now yields two criteria, not one.
             if (criteria.statuses && criteria.statuses.length > 0) {
-                var statusMap = { 'ACTIVE': 'Active', 'COMING_SOON': 'ComingSoon', 'PENDING': 'ActiveUnderContract', 'CONTRACT': 'ActiveUnderContract', 'UNDER_CONTRACT': 'ActiveUnderContract', 'CLOSED': 'Closed', 'WITHDRAWN': 'Withdrawn', 'CANCELED': 'Canceled', 'CANCELLED': 'Canceled', 'EXPIRED': 'Expired', 'HOLD': 'Hold', 'FUTURE': 'Incomplete', 'INCOMPLETE': 'Incomplete' };
+                var statusMap = { 'ACTIVE': 'Active', 'COMING_SOON': 'ComingSoon', 'PENDING': 'Pending', 'CONTRACT': 'ActiveUnderContract', 'UNDER_CONTRACT': 'ActiveUnderContract', 'CLOSED': 'Closed', 'WITHDRAWN': 'Withdrawn', 'CANCELED': 'Canceled', 'CANCELLED': 'Canceled', 'EXPIRED': 'Expired', 'HOLD': 'Hold', 'FUTURE': 'Incomplete', 'INCOMPLETE': 'Incomplete' };
                 var resoStatuses = criteria.statuses.map(function(s) { return statusMap[s] || s; }).filter(function(s, i, arr) { return arr.indexOf(s) === i; });
                 params.status = resoStatuses.join(',');
             }
