@@ -10,7 +10,7 @@
 import type { IDXListing } from './types';
 import { RESO_TO_RLS_RENAMES, ALL_RLS_FIELDS, REQUIRED_RLS_FIELDS } from './trestle-mapper';
 import { normalizeStreetCase } from './normalize-street-case';
-import { classifyTrestleMediaCategory } from '@/lib/media/media-sync-service';
+import { classifyTrestleMediaCategory, type CanonicalMediaType } from '@/lib/media/media-sync-service';
 
 /**
  * RESO Data Dictionary field names — complete set.
@@ -337,7 +337,7 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
       // so floorplans/tours classified as Photo and could become the hero.
       // ShortDescription floor-plan heuristic retained (classifier is
       // category-only).
-      let mediaType: 'Photo' | 'Video' | 'VirtualTour' | 'FloorPlan' =
+      let mediaType: CanonicalMediaType =
         classifyTrestleMediaCategory(item.MediaCategory as string | null | undefined);
       if (desc.includes('floor plan') || desc.includes('floorplan')) mediaType = 'FloorPlan';
       return {

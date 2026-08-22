@@ -2445,6 +2445,16 @@ export const MAX_FEED_MIRROR_PHOTOS_PER_LISTING = 1;
  * approval. Values are the canonical `CanonicalMediaType` strings written
  * by `classifyTrestleMediaCategory` (the only writer of
  * `listing_media.media_type`).
+ *
+ * STEP 1 NOTE — 'Unclassified' is deliberately absent from both lists.
+ * `classifyTrestleMediaCategory` no longer answers "Photo" for media the feed
+ * sent with no MediaCategory; it records 'Unclassified'. On the next sync such
+ * rows therefore stop being admitted to the mirror, where they previously were
+ * admitted under a label nobody had earned. That is a NARROWING and it fails
+ * closed — media Mallan cannot classify is not retained under a policy that
+ * names exact types. Adding 'Unclassified' here would be precisely the policy
+ * widening this docblock reserves for Maya, so it was not done. Pinned by
+ * lib/media/__tests__/step1-media-category-not-invented.test.ts.
  */
 export const MALLAN_MIRROR_MEDIA_TYPES: readonly string[] = ["Photo", "FloorPlan"];
 

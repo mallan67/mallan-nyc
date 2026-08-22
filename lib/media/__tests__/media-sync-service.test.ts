@@ -312,15 +312,30 @@ describe("media sync service", () => {
       expect(classifyTrestleMediaCategory("virtualtour")).toBe("VirtualTour");
     });
 
-    it('defaults to "Photo" for missing / null / undefined / empty', () => {
-      expect(classifyTrestleMediaCategory(undefined)).toBe("Photo");
-      expect(classifyTrestleMediaCategory(null)).toBe("Photo");
-      expect(classifyTrestleMediaCategory("")).toBe("Photo");
+    // CHANGED EXPECTATION, STEP 1 — these two tests encoded the defect.
+    //
+    // They asserted that a missing or unrecognised MediaCategory becomes
+    // "Photo", citing a "Trestle default convention". That convention is a
+    // claim about what the Cotality feed MEANS by an empty field, and no live
+    // evidence for it exists in this repo. It was not harmless: media-sync.ts
+    // :1702-1706 documents a floor plan stored as media_type='Photo' because of
+    // it, so Listing.photo_count exceeded the public gallery.
+    //
+    // The classifier now records what it does not know. Display behaviour is
+    // deliberately unchanged — listing-media-resolver.ts still shows an
+    // unclassified item, so nothing disappears from a gallery — and what an
+    // empty MediaCategory actually means is Step 2's question for the live feed.
+    it('records missing / null / undefined / empty as "Unclassified", not "Photo"', () => {
+      expect(classifyTrestleMediaCategory(undefined)).toBe("Unclassified");
+      expect(classifyTrestleMediaCategory(null)).toBe("Unclassified");
+      expect(classifyTrestleMediaCategory("")).toBe("Unclassified");
     });
 
-    it('treats any non-recognised string as "Photo" (Trestle default convention)', () => {
-      expect(classifyTrestleMediaCategory("Unknown")).toBe("Photo");
-      expect(classifyTrestleMediaCategory("Other")).toBe("Photo");
+    it('records any non-recognised string as "Unclassified" rather than guessing', () => {
+      expect(classifyTrestleMediaCategory("Unknown")).toBe("Unclassified");
+      // Note "Other" maps to Unclassified too — it is NOT preserved as its own
+      // bucket, because inventing "Other" would be the same defect renamed.
+      expect(classifyTrestleMediaCategory("Other")).toBe("Unclassified");
     });
   });
 

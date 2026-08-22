@@ -1,3 +1,4 @@
+import type { CanonicalMediaType } from '@/lib/media/media-sync-service';
 /**
  * IDX/MLS Canonical Types
  *
@@ -157,7 +158,13 @@ export interface IDXListing {
   // Media
   media: {
     url: string;
-    mediaType: 'Photo' | 'Video' | 'VirtualTour' | 'FloorPlan';
+    /**
+     * STEP 1: widened to include 'Unclassified'. The Cotality feed can omit
+     * MediaCategory, and the classifier no longer answers "Photo" on its
+     * behalf. Consumers that COUNT photos must exclude 'Unclassified';
+     * consumers that DISPLAY media must still show it — the file exists.
+     */
+    mediaType: CanonicalMediaType;
     order: number;
   }[];
   photosCount?: number;
