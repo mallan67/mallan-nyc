@@ -7,20 +7,51 @@ re-verified at this head: the production→head delta contains no `app/search`,
 
 > ## READ THIS BEFORE ANYTHING ELSE
 >
-> ### 1. Authority resolution — this branch does NOT contain the master
+> ### 0. AUTHORITY BOOTSTRAP — run this first, every session
+>
+> ```
+> node scripts/resolve-master-authority.mjs
+> ```
+>
+> *(Invoked directly rather than as an npm script: `package.json` currently carries
+> uncommitted changes from another workstream, and adding a line would mean committing
+> their work. Add `"authority:resolve"` once that settles.)*
 >
 > `MALLAN-PLATFORM-MASTER-PLAN.md` and `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md`
-> are **not tracked on this branch.** They live on the still-open **PR #595**, which defines
-> them as the single product authority and the continuation mechanism.
+> are **not tracked on this branch.** They live on the still-open **PR #595**, which is the
+> single product authority. The bootstrap re-resolves #595's **current head SHA** from
+> GitHub and reads both files **read-only at that exact commit**.
 >
-> **Consequence, and it is a real governance risk:** an agent working only from #618 sees
-> the Search audit, the PR body, this handoff, the coverage matrix and the historical docs
-> with **no master above them**, and can treat them as competing authorities.
+> **Resolution order — deterministic, not negotiable:**
 >
-> **Rule while that is true:** `MALLAN-PLATFORM-MASTER-PLAN.md` (PR #595) outranks every
-> document in this branch. Nothing here may be read as overriding it. If a conflict appears
-> and the master cannot be read, **stop and ask** — do not resolve it from the documents
-> that happen to be present.
+> ```
+> CURRENT #595 HEAD → MASTER PLAN → CONTINUOUS EXECUTION STATE
+>   → CURRENT #618 HANDOFF → SEARCH EVIDENCE
+> ```
+>
+> **Conflict rule: #595 wins automatically.** A #618 audit, matrix or handoff that disagrees
+> with the master is simply overridden — **this is not escalated to Maya.** Only a genuine
+> ambiguity *within the master itself* comes back to her.
+>
+> The master states the same thing in its own words: *"Audits, issue registries, PRs,
+> technical notes, temporary ledgers and historical plans are evidence/reference only and may
+> not become competing master plans."*
+>
+> **Never:**
+> - copy either file into #618 — two physical copies can drift, which is worse than the gap;
+> - modify #595, #618 or #620 to resolve authority;
+> - proceed from whatever #618 happens to contain when the master cannot be read. The
+>   bootstrap **fails loud** (exit 2) rather than degrading to that, because *"master
+>   unavailable → read #618 → ask Maya"* permits exactly the context-loss loop this exists to
+>   close.
+>
+> The SHA is re-resolved every run and never hardcoded, so a stale master cannot be silently
+> pinned. The cache lives under `.cache/` (**gitignored — verified**) and is rewritten each
+> run.
+>
+> **REMOVE THIS when #595 merges.** The script detects a non-OPEN #595, exits 3, and tells
+> you to read the authority from the normal tree and delete the bootstrap.
+
 >
 > ### 2. The work is NOT at "one engine" yet, and must not jump there
 >
@@ -36,11 +67,29 @@ re-verified at this head: the production→head delta contains no `app/search`,
 > **`docs/search/CRM-UI-BROKERAGE-AUDIT-2026-08-21.md` §10** — reconciled across three
 > independent reviews. Order:
 >
-> `0` governance · `1` stop false information · `2` raw contract → verified mapping ·
-> `3` mapping → storage/projection · `4` prove projection completeness ·
-> `5` ONE search universe · `6` count/paging/sort/cache · `7` results workbench ·
-> `8` detail-resource hydration · `9` map · `10` reports · `11` CMA · `12` calculators ·
-> `13` device proof.
+> `0` **governance bootstrap** — #595 authority deterministically readable every session
+> `1` **stop provably false behaviour** — fake transit/commute, fabricated showing
+>     instructions, `photoCount || 6`, unknown → 0 / Manhattan / Active / Exclusive /
+>     permitted, and the Google client/report links
+> `2` **Cotality RAW CONTRACT → VERIFIED MAPPING** — Sale/Rental/status semantics,
+>     classifications, fee frequencies, direct Property fields, exact enums, permissions,
+>     the Media contract. **No guessing.**
+> `3` **VERIFIED MAPPING → MALLAN STORAGE/PROJECTION** — stop discarding `ClosePrice`,
+>     `LeaseAmount`, frequencies, dates and fees. **Exhaust existing schema/JSON first.**
+> `4` **PROJECTION READINESS PROOF** — 1 eligible listing ↔ exactly 1 projection row · zero
+>     missing · zero orphan · material parity · freshness. **No provider fallback.**
+> `5` **ONE Search engine/universe** — only after `4`
+> `6` **count / paging / sort / cache correctness**
+> `7` **listing-open hydration** — `CustomProperty` · `OpenHouse` · `Office` · `Member` ·
+>     `Media`. The three direct Property fields stay in the Property mapping — **not**
+>     `$expand`.
+> `8+` results workbench → Map → Reports → CMA → calculators → 1440/1024/390 proof.
+>
+> **Steps 1 and 2 are two distinct closure groups, not one pass.**
+>
+> **Broad auditing is CLOSED.** The architecture defect is known. New investigation happens
+> only when a specific implementation step meets an unresolved Cotality fact or an impact
+> dependency.
 >
 > Follows the chain **COTALITY RAW CONTRACT → VERIFIED MAPPING → MALLAN STORAGE →
 > BUSINESS RULE / SEARCH UNIVERSE → AGENT CONSUMERS**.
