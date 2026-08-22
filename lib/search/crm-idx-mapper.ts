@@ -10,7 +10,7 @@ function isIdxPlusDisplayFlagOn(v: unknown): boolean {
   return v !== false && v !== "false" && v !== "FALSE";
 }
 
-export function mapDisplayPropertyType(raw: Record<string, unknown>): string {
+export function mapDisplayPropertyType(raw: Record<string, unknown>): string | null {
   const ci = raw.CommonInterest ? String(raw.CommonInterest) : "";
   if (ci === "Condominium") return "Condo";
   if (ci === "StockCooperative") return "Co-op";
@@ -26,7 +26,12 @@ export function mapDisplayPropertyType(raw: Record<string, unknown>): string {
   if (sub.includes("multi")) return "Multi-Family";
   if (sub === "apartment") return "Residential";
   if (sub) return String(raw.PropertySubType);
-  return String(raw.PropertyType || "Residential");
+  // The provider's SILENCE is not "Residential". PropertyType is a nullable enum
+  // on live Property, and this label drives the display type, the Sale/Rental
+  // split and every report grouping.
+  return raw.PropertyType != null && String(raw.PropertyType) !== ""
+    ? String(raw.PropertyType)
+    : null;
 }
 
 export function classifyMediaCategory(media: Record<string, unknown>): string {
@@ -50,6 +55,32 @@ function num(value: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/**
+ * The provider identity for a row, or null when it has none.
+ *
+ * Live `$metadata`: `ListingId` and `SourceSystemKey` are BOTH nullable strings,
+ * so a row with neither is a legitimate provider state — and an unusable one.
+ */
+function listingIdentity(raw: Record<string, unknown>): string | null {
+  for (const key of ['ListingId', 'SourceSystemKey'] as const) {
+    const v = raw[key];
+    if (v !== null && v !== undefined && String(v) !== '') return String(v);
+  }
+  return null;
+}
+
+/**
+ * Can this provider row be trusted with an identity at all?
+ *
+ * A row that cannot be identified must not enter the authoritative result
+ * universe: it cannot be selected, reported, saved, sent to a client or
+ * reconciled against a canonical listing. Callers should exclude it and record
+ * an integrity failure rather than let it through with a fabricated id.
+ */
+export function hasUsableListingIdentity(raw: Record<string, unknown>): boolean {
+  return listingIdentity(raw) !== null;
+}
+
 /** A provider boolean, or null when unstated. Never invents `true` or `false`. */
 function boolOrNull(value: unknown): boolean | null {
   if (value === true || value === "true" || value === 1 || value === "1") return true;
@@ -61,6 +92,9 @@ export function mapTrestleToCrmListing(
   raw: Record<string, unknown>,
   index: number,
 ): Record<string, unknown> {
+  // `index` is retained for call-site compatibility only. It must NEVER become
+  // part of a listing's identity — see `listingIdentity` below.
+  void index;
   const streetParts = [
     raw.StreetNumber,
     raw.StreetDirPrefix,
@@ -214,7 +248,12 @@ export function mapTrestleToCrmListing(
   }
 
   return {
-    id: String(raw.ListingId || raw.SourceSystemKey || index + 1),
+    // NEVER manufacture identity. This used to fall back to `index + 1`, so an
+    // identityless provider row became listing "1" — an id that then keys
+    // selection, client history, reports, saved searches and reconciliation
+    // while pointing at nothing. Callers must use `hasUsableListingIdentity`
+    // to exclude such a row BEFORE it enters the authoritative universe.
+    id: listingIdentity(raw),
     address: displayAddress,
     unit: String(raw.UnitNumber || ""),
     price,
@@ -283,13 +322,23 @@ export function mapTrestleToCrmListing(
       : raw.VirtualTourURLBranded
         ? String(raw.VirtualTourURLBranded)
         : null,
-    // NOT changed to null in Step 1, and the reason matters: on the IDX Plus feed
-    // this flag is REBNY-PRE-FILTERED, so NULL GENUINELY MEANS DISPLAYABLE. That is
-    // the documented contract from the 2026-04-30 incident
-    // (memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md) — assuming null meant suppressed
-    // is exactly what corrupted 7,594 rows. `isIdxPlusDisplayFlagOn` encodes it.
-    // The previous hard-coded `true` WAS wrong, because it ignored an explicit
-    // `false`; reading the flag fixes that without re-creating the incident.
+    // NOT changed to null in Step 1, and the EVIDENCE CLASS matters:
+    //
+    //   EXISTING IDX PLUS RUNTIME/DISTRIBUTION CONTRACT — preserved for safety.
+    //   LIVE SEMANTIC VERIFICATION BELONGS TO STEP 2.
+    //
+    // What live $metadata establishes today is only that
+    // InternetEntireListingDisplayYN is a NULLABLE Boolean. Metadata does not
+    // define what null MEANS operationally. The "null = displayable" convention
+    // comes from the 2026-04-30 incident and the repo's distribution contract
+    // (memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md), where assuming null meant
+    // suppressed corrupted 7,594 rows.
+    //
+    // So this is deliberately NOT flipped to null-when-absent during Step 1 —
+    // that would risk repeating the suppression failure — and it is equally NOT
+    // recorded as a live-verified provider semantic. Step 2 verifies it.
+    // The previous hard-coded `true` WAS wrong regardless, because it ignored an
+    // explicit `false`; reading the flag fixes that without touching the convention.
     idxDisplayYN: isIdxPlusDisplayFlagOn(raw.InternetEntireListingDisplayYN),
     internetDisplayYN: isIdxPlusDisplayFlagOn(raw.InternetEntireListingDisplayYN),
     addressDisplayYN,
@@ -312,9 +361,9 @@ export function mapTrestleToCrmListing(
       syndication: boolOrNull(raw.SyndicateTo),
     },
     ListingAgreement: raw.ListingAgreement ? String(raw.ListingAgreement) : null,
-    LandLeaseYN: raw.LandLeaseYN === true || raw.LandLeaseYN === "true",
-    CoolingYN: raw.CoolingYN === true || raw.CoolingYN === "true",
-    GarageYN: raw.GarageYN === true || raw.GarageYN === "true",
+    LandLeaseYN: boolOrNull(raw.LandLeaseYN),
+    CoolingYN: boolOrNull(raw.CoolingYN),
+    GarageYN: boolOrNull(raw.GarageYN),
     DirectionFaces: raw.DirectionFaces ? String(raw.DirectionFaces) : null,
     View: raw.View ? String(raw.View) : null,
     OwnerPays: raw.OwnerPays ? String(raw.OwnerPays) : null,
@@ -330,11 +379,11 @@ export function mapTrestleToCrmListing(
     PatioAndPorchFeatures: raw.PatioAndPorchFeatures ? String(raw.PatioAndPorchFeatures) : null,
     AssociationAmenities: raw.AssociationAmenities ? String(raw.AssociationAmenities) : null,
     CurrentFinancing: raw.CurrentFinancing ? String(raw.CurrentFinancing) : null,
-    PetsAllowedYN: raw.PetsAllowedYN === true || raw.PetsAllowedYN === "true",
+    PetsAllowedYN: boolOrNull(raw.PetsAllowedYN),
     AvailableLeaseType: raw.AvailableLeaseType ? String(raw.AvailableLeaseType) : null,
     ExistingLeaseType: raw.ExistingLeaseType ? String(raw.ExistingLeaseType) : null,
     ConstructionMaterials: raw.ConstructionMaterials ? String(raw.ConstructionMaterials) : null,
-    NewConstructionYN: raw.NewConstructionYN === true || raw.NewConstructionYN === "true",
+    NewConstructionYN: boolOrNull(raw.NewConstructionYN),
     PriceChangeTimestamp: raw.PriceChangeTimestamp ? String(raw.PriceChangeTimestamp) : null,
     _source: "idx",
     _listingKey: String(raw.ListingId || raw.SourceSystemKey || ""),

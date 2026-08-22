@@ -20,7 +20,7 @@ import { logFetchAttempt } from "@/lib/idx/logger";
 import { upsertBuildingFromSearchResult } from "@/lib/buildings/upsert";
 import { buildCrmIdxODataFilter } from "@/lib/search/crm-idx-filter";
 import { UnknownPropertySubTypeError } from "@/lib/search/canonical/property-subtype-contract";
-import { mapTrestleToCrmListing } from "@/lib/search/crm-idx-mapper";
+import { hasUsableListingIdentity, mapTrestleToCrmListing } from "@/lib/search/crm-idx-mapper";
 
 // ── Fields we actually need (validated against IDX Plus feed 2026-03-04) ──
 // Fields NOT on IDX Plus removed: SourceSystemModificationTimestamp, ComingSoonDate,
@@ -114,6 +114,30 @@ function setCache(key: string, data: unknown): void {
     if (firstKey !== undefined) cache.delete(firstKey);
   }
   cache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS });
+}
+
+/**
+ * Split provider rows by whether they carry a usable identity.
+ *
+ * `ListingId` and `SourceSystemKey` are BOTH nullable on live Property, so a row
+ * with neither is a legitimate provider state — and one we cannot act on. Such a
+ * row must not enter the authoritative universe: it cannot be selected, counted,
+ * reported, saved, sent to a client or reconciled against a canonical listing.
+ *
+ * It is COUNTED rather than silently dropped. A provider row we cannot identify
+ * is an integrity failure, not a filtered result, and the two must not look the
+ * same in the diagnostics.
+ */
+export function partitionByListingIdentity(
+  records: readonly Record<string, unknown>[],
+): { usable: Record<string, unknown>[]; identityless: number } {
+  const usable: Record<string, unknown>[] = [];
+  let identityless = 0;
+  for (const record of records) {
+    if (hasUsableListingIdentity(record)) usable.push(record);
+    else identityless++;
+  }
+  return { usable, identityless };
 }
 
 /**
@@ -234,9 +258,17 @@ export async function GET(req: NextRequest) {
     // Trestle's IDX Plus feed already pre-filters Participant-Only records, so the
     // bypass would only fire if Trestle leaked one — which is exactly the case
     // where we must NOT show it. All 6 gates are now enforced uniformly.
+    // Identity first: a row we cannot identify never reaches the gates, the
+    // count, the map or a report. Counted separately — an unidentifiable
+    // provider row is an integrity failure, not a filtered result.
+    const { usable: identifiedRecords, identityless } = partitionByListingIdentity(result.records);
+    if (identityless > 0) {
+      console.error(`[IDX Search] INTEGRITY: ${identityless} provider row(s) carried neither ListingId nor SourceSystemKey and were excluded.`);
+    }
+
     const displayable: Record<string, unknown>[] = [];
     const gateBlockedReasons: Record<string, number> = {};
-    for (const record of result.records) {
+    for (const record of identifiedRecords) {
       const gate = checkDistributionGates(record);
       if (gate.displayable) {
         displayable.push(record);
@@ -248,7 +280,7 @@ export async function GET(req: NextRequest) {
 
     // Silent building upsert — populate building DB from search results
     const seenBuildingKeys = new Set<number>();
-    for (const record of result.records) {
+    for (const record of identifiedRecords) {
       const bk = record.BuildingKeyNumeric;
       if (bk != null && !seenBuildingKeys.has(Number(bk))) {
         seenBuildingKeys.add(Number(bk));
@@ -395,6 +427,7 @@ export async function GET(req: NextRequest) {
         totalFromAPI: result.totalFetched,
         odataCount: result.odataCount,
         gatedOut: result.totalFetched - displayable.length,
+        identityless,
         mediaStrategy: useInlineMedia ? "expand" : "lazy",
         mediaBackfilled,
         sponsorFiltered,

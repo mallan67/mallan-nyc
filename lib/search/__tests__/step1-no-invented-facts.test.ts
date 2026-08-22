@@ -19,7 +19,11 @@
  * NOT in scope here: changing Sale/Rental filtering, engines, schema, or
  * expanding Cotality resources.
  */
-import { mapTrestleToCrmListing } from "@/lib/search/crm-idx-mapper";
+import {
+  hasUsableListingIdentity,
+  mapDisplayPropertyType,
+  mapTrestleToCrmListing,
+} from "@/lib/search/crm-idx-mapper";
 
 /** A provider row carrying ONLY identity — every other fact absent. */
 const EMPTY_ROW = { ListingId: "RLS20000001" } as Record<string, unknown>;
@@ -81,13 +85,18 @@ describe("numbers are never invented", () => {
 });
 
 describe("compliance gates fail CLOSED, never open", () => {
-  // CORRECTED. My first version of this test asserted idxDisplayYN must not be
-  // true when absent. That is WRONG for this field and would have re-created the
-  // 2026-04-30 incident from the other side: on the IDX Plus feed
-  // InternetEntireListingDisplayYN is REBNY-PRE-FILTERED, so null IS the
-  // provider's evidence that the row is displayable. Treating null as suppressed
-  // corrupted 7,594 rows. The real defect was the hard-coded `true`, which
-  // ignored an explicit `false`.
+  // CORRECTED TWICE, and the second correction is about EVIDENCE CLASS.
+  //
+  // (1) My first version asserted idxDisplayYN must not be true when absent.
+  //     That risked repeating the 2026-04-30 suppression failure from the other
+  //     side, so the existing convention is preserved.
+  // (2) My second version called "null means displayable" a live-verified
+  //     Cotality semantic. It is NOT. Live $metadata establishes only that the
+  //     field is a nullable Boolean; metadata does not define what null MEANS.
+  //     The convention is the EXISTING IDX PLUS RUNTIME/DISTRIBUTION CONTRACT,
+  //     preserved here for safety, with live semantic verification deferred to
+  //     Step 2. The real Step 1 defect was the hard-coded `true`, which ignored
+  //     an explicit provider `false`.
   it("honours the IDX Plus pre-filter: null means displayable", () => {
     expect(mapped().idxDisplayYN).toBe(true);
   });
@@ -134,5 +143,87 @@ describe("photo count is never invented", () => {
 describe("status already fails safe — pin it so it cannot regress", () => {
   it("is UNKNOWN, not ACTIVE, when the provider supplied no status", () => {
     expect(mapped().status).toBe("UNKNOWN");
+  });
+});
+
+/**
+ * STEP 1a CLOSURE — three same-class defects inside the file Step 1a changed.
+ *
+ * Live `$metadata`: `PropertyType` is a nullable enum; `LandLeaseYN`,
+ * `CoolingYN`, `GarageYN`, `PetsAllowedYN` and `NewConstructionYN` are nullable
+ * Booleans; `ListingId` and `SourceSystemKey` are both nullable strings. None
+ * declares `Nullable="false"`, so absence is a legitimate provider state for
+ * every one of them.
+ */
+describe("property type is never invented", () => {
+  it("does not default an absent PropertyType to Residential", () => {
+    // The provider's silence is not "Residential". That label drives the
+    // display type, the Sale/Rental split and every report grouping.
+    expect(mapDisplayPropertyType({})).not.toBe("Residential");
+  });
+
+  it("reports an absent PropertyType as unknown", () => {
+    expect(mapDisplayPropertyType({})).toBeNull();
+  });
+
+  it("still maps a PropertyType the provider DID supply", () => {
+    expect(mapDisplayPropertyType({ PropertyType: "Residential" })).toBe("Residential");
+    expect(mapDisplayPropertyType({ CommonInterest: "Condominium" })).toBe("Condo");
+  });
+});
+
+describe("nullable provider booleans carry THREE states, not two", () => {
+  const FLAGS = ["LandLeaseYN", "CoolingYN", "GarageYN", "PetsAllowedYN", "NewConstructionYN"] as const;
+
+  it.each(FLAGS)("%s is null when the provider said nothing", (flag) => {
+    // `x === true || x === "true"` collapsed "the provider said false" and
+    // "the provider said nothing" into the same false — so a listing with no
+    // garage fact reads as having no garage.
+    expect(mapped()[flag]).toBeNull();
+  });
+
+  it.each(FLAGS)("%s is false when the provider explicitly said false", (flag) => {
+    const out = mapTrestleToCrmListing({ ...EMPTY_ROW, [flag]: false }, 0) as Record<string, unknown>;
+    expect(out[flag]).toBe(false);
+  });
+
+  it.each(FLAGS)("%s is true when the provider explicitly said true", (flag) => {
+    const out = mapTrestleToCrmListing({ ...EMPTY_ROW, [flag]: true }, 0) as Record<string, unknown>;
+    expect(out[flag]).toBe(true);
+  });
+
+  it.each(FLAGS)("%s accepts the string form the feed also emits", (flag) => {
+    const t = mapTrestleToCrmListing({ ...EMPTY_ROW, [flag]: "true" }, 0) as Record<string, unknown>;
+    const f = mapTrestleToCrmListing({ ...EMPTY_ROW, [flag]: "false" }, 0) as Record<string, unknown>;
+    expect(t[flag]).toBe(true);
+    expect(f[flag]).toBe(false);
+  });
+});
+
+describe("identity is NEVER manufactured", () => {
+  it("does not fall back to a positional index as the listing id", () => {
+    // `String(ListingId || SourceSystemKey || index + 1)` gave an identityless
+    // row the id "1". That id then keys selection, client history, reports,
+    // saved searches and reconciliation — all pointing at nothing.
+    const out = mapTrestleToCrmListing({}, 0) as Record<string, unknown>;
+    expect(out.id).not.toBe("1");
+  });
+
+  it("reports an identityless row as having no id", () => {
+    expect((mapTrestleToCrmListing({}, 5) as Record<string, unknown>).id).toBeNull();
+  });
+
+  it("exposes a predicate so callers can exclude the row before it is trusted", () => {
+    expect(hasUsableListingIdentity({})).toBe(false);
+    expect(hasUsableListingIdentity({ ListingId: "" })).toBe(false);
+    expect(hasUsableListingIdentity({ ListingId: "RLS20000001" })).toBe(true);
+    expect(hasUsableListingIdentity({ SourceSystemKey: "1183681390" })).toBe(true);
+  });
+
+  it("still uses the provider identity when one exists", () => {
+    const byId = mapTrestleToCrmListing({ ListingId: "RLS20000001" }, 7) as Record<string, unknown>;
+    expect(byId.id).toBe("RLS20000001");
+    const byKey = mapTrestleToCrmListing({ SourceSystemKey: "1183681390" }, 7) as Record<string, unknown>;
+    expect(byKey.id).toBe("1183681390");
   });
 });
