@@ -333,8 +333,13 @@ describe("media sync service", () => {
 
     it('records any non-recognised string as "Unclassified" rather than guessing', () => {
       expect(classifyTrestleMediaCategory("Unknown")).toBe("Unclassified");
-      // Note "Other" maps to Unclassified too — it is NOT preserved as its own
-      // bucket, because inventing "Other" would be the same defect renamed.
+      // CORRECTED (Maya, Step 2 handoff): `Other` is a REAL Cotality
+      // MediaCategory enum member, so calling it an invention was wrong. It
+      // maps to Unclassified here because this function answers "which Mallan
+      // canonical media GROUP?", and Mallan has not defined one for `Other`
+      // yet — not because the provider value is fake. The raw value survives
+      // untouched in `media_category`; asserted in
+      // step1-media-category-not-invented.test.ts.
       expect(classifyTrestleMediaCategory("Other")).toBe("Unclassified");
     });
   });

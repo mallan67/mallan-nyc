@@ -184,9 +184,25 @@ export function classifyTrestleMediaCategory(
   }
   if (cat === "photo") return "Photo";
 
-  // An unrecognised value is a fact about the provider, not permission to pick
-  // a category. Note it is NOT rewritten to some other invented bucket such as
-  // "Other" either — that would be the same defect under a new name.
+  // CORRECTED (Maya, Step 2 handoff). An earlier version of this comment said
+  // that mapping to "Other" would itself be an invention. That was WRONG:
+  // `Other` is a genuine Cotality MediaCategory enum member, alongside Photo,
+  // FloorPlan, Video, Document, Disclosure, Addendum, Survey, Restriction,
+  // RentalDocuments, AgentPhoto, OfficePhoto and others.
+  //
+  // The distinction that actually matters:
+  //
+  //     RAW COTALITY FACT  ≠  MALLAN MEDIA GROUP
+  //
+  // The raw provider value is preserved verbatim in `media_category` (and
+  // `media_classification`) at line ~1260 of lib/idx/media-sync.ts — a listing
+  // whose category is `Other` still stores `Other` there, losslessly. What THIS
+  // function answers is the narrower question of which Mallan canonical media
+  // GROUP the item belongs to, and Mallan has not yet defined a group for
+  // `Other`, `Document`, `Disclosure`, `Survey` and the rest.
+  //
+  // So the answer is "not yet grouped", not "not a real value". Defining those
+  // groups needs the live Cotality Media contract — Step 2.
   return "Unclassified";
 }
 

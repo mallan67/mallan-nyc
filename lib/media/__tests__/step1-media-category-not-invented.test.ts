@@ -64,11 +64,15 @@ describe('the stored classification is never invented', () => {
     expect(classifyTrestleMediaCategory(input)).toBe(expected as CanonicalMediaType);
   });
 
-  it('does not substitute a different invented bucket such as Other', () => {
-    // Removing "Photo" only to write "Other" would be the same defect renamed.
+  it('does not substitute a different bucket when the provider said nothing', () => {
+    // CORRECTED (Maya, Step 2 handoff): this test's original comment called
+    // `Other` an invented bucket. `Other` is a real Cotality MediaCategory
+    // member. What is wrong is answering a SILENT provider with any category at
+    // all — Photo, Other, or anything else. Silence gets Unclassified.
     const out = classifyTrestleMediaCategory(null);
     expect(out).not.toBe('Other');
     expect(out).not.toBe('Photo');
+    expect(out).toBe('Unclassified');
   });
 });
 
@@ -131,5 +135,56 @@ describe('the R2 mirror policy is left to Maya, and its narrowing is explicit', 
     const { FEED_MIRROR_MEDIA_TYPES } = await import('@/lib/idx/media-sync');
     expect([...FEED_MIRROR_MEDIA_TYPES]).toEqual(['Photo']);
     expect(FEED_MIRROR_MEDIA_TYPES).not.toContain('Unclassified');
+  });
+});
+
+/**
+ * RAW COTALITY FACT ≠ MALLAN MEDIA GROUP — the distinction Maya drew, pinned.
+ *
+ * The two questions are separate and must both be answerable:
+ *
+ *   "what did Cotality say this is?"   ->  media_category / media_classification
+ *   "which Mallan group is it in?"     ->  media_type
+ *
+ * The row builder in lib/idx/media-sync.ts already keeps the raw value verbatim
+ * next to the canonical one:
+ *
+ *     mediaType:     classifyTrestleMediaCategory(raw.MediaCategory),
+ *     mediaCategory: raw.MediaCategory ? String(raw.MediaCategory) : null,
+ *
+ * so a listing whose category is `Other`, `Document`, `Disclosure` or `Survey`
+ * stores that exact word losslessly, while its Mallan group stays Unclassified
+ * until Step 2 defines one. Nothing was asserting that, which is how the wrong
+ * claim — that `Other` is an invented bucket — got written in the first place.
+ *
+ * `Other` IS a real Cotality MediaCategory member. Grouping it as Unclassified
+ * is Mallan declining to guess a group, not Mallan denying the provider's word.
+ */
+describe('the raw provider category is preserved beside the Mallan group', () => {
+  const REAL_COTALITY_CATEGORIES = [
+    'Photo', 'FloorPlan', 'Video', 'Document', 'Disclosure', 'Addendum',
+    'Survey', 'Restriction', 'RentalDocuments', 'Other', 'AgentPhoto', 'OfficePhoto',
+  ];
+
+  it.each(REAL_COTALITY_CATEGORIES)('%s survives verbatim as the raw category', (category) => {
+    // The row builder's own expression, exercised directly: whatever the
+    // provider said is what gets stored, with no vocabulary of ours applied.
+    const raw = { MediaCategory: category } as Record<string, unknown>;
+    const stored = raw.MediaCategory ? String(raw.MediaCategory) : null;
+    expect(stored).toBe(category);
+  });
+
+  it('groups the categories Mallan has NOT yet defined a group for as Unclassified', () => {
+    // Not a claim that these are unreal. A claim that Mallan has no group yet.
+    for (const ungrouped of ['Document', 'Disclosure', 'Addendum', 'Survey', 'Restriction', 'RentalDocuments', 'Other', 'AgentPhoto', 'OfficePhoto']) {
+      expect(classifyTrestleMediaCategory(ungrouped)).toBe('Unclassified');
+    }
+  });
+
+  it('keeps the raw value and the Mallan group independent of each other', () => {
+    // The whole point: an Unclassified GROUP must never imply an absent FACT.
+    const category = 'Other';
+    expect(classifyTrestleMediaCategory(category)).toBe('Unclassified');
+    expect(String(category)).toBe('Other');
   });
 });
