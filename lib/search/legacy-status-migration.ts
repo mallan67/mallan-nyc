@@ -1,5 +1,5 @@
 /**
- * LEGACY SAVED-SEARCH STATUS MIGRATION — a boundary, not a contract.
+ * LEGACY STATUS MIGRATION — an inbound boundary, not a contract.
  *
  * This file exists so that backward compatibility does NOT live inside the
  * canonical Cotality contract. `lib/search/canonical/status-token-contract.ts`
@@ -9,6 +9,12 @@
  * keeps a second vocabulary alive.
  *
  * ─────────────────────────────────────────────────────────────────────────────
+ * RENAMED 2026-08-22 from legacy-saved-search-status-migration.ts. Saved
+ * searches were the first boundary that needed it; an API payload is another.
+ * `app/api/crm/agent-inquiry` accepts `listing_status` from a caller that may
+ * still send the old spelling, and a boundary named for only one of its callers
+ * invites a second copy for the next one.
+ *
  * WHY LEGACY VALUES EXIST AT ALL
  *
  * Saved searches persisted before 2026-08-22 hold an uppercase vocabulary the
@@ -74,7 +80,7 @@ const LEGACY_SPELLINGS: Readonly<Record<string, StandardStatusMember>> = Object.
  * substitute a neighbour and never drop the criterion, since dropping widens
  * the restored search rather than narrowing it.
  */
-export function migrateLegacySavedSearchStatus(stored: unknown): StandardStatusMember | null {
+export function migrateLegacyStatusValue(stored: unknown): StandardStatusMember | null {
   if (typeof stored !== 'string') return null;
   const trimmed = stored.trim();
   if (isStandardStatusMember(trimmed)) return trimmed;
@@ -85,14 +91,14 @@ export function migrateLegacySavedSearchStatus(stored: unknown): StandardStatusM
 }
 
 /** Migrate a whole persisted criterion list, reporting what could not be migrated. */
-export function migrateLegacySavedSearchStatuses(stored: readonly unknown[]): {
+export function migrateLegacyStatusValues(stored: readonly unknown[]): {
   members: StandardStatusMember[];
   unmigratable: string[];
 } {
   const members: StandardStatusMember[] = [];
   const unmigratable: string[] = [];
   for (const value of stored) {
-    const member = migrateLegacySavedSearchStatus(value);
+    const member = migrateLegacyStatusValue(value);
     if (member === null) unmigratable.push(String(value));
     else if (!members.includes(member)) members.push(member);
   }

@@ -110,7 +110,7 @@ const TOKEN_TO_MEMBER: Readonly<Record<string, StandardStatusMember>> = Object.f
  *
  * Saved searches written before 2026-08-22 do hold those spellings. They are
  * migrated at an explicitly separate boundary,
- * lib/search/legacy-saved-search-status-migration.ts, which converts them ONCE
+ * lib/search/legacy-status-migration.ts, which converts them ONCE
  * on the way in and hands this contract an exact member. A legacy spelling
  * never becomes provider truth, is never persisted again, and never reaches
  * Cotality.

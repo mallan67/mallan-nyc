@@ -228,7 +228,7 @@ describe('the canonical contract no longer translates invented spellings', () =>
   // resolved INSIDE the canonical Cotality contract. Compatibility does not
   // belong there — a contract that accepts non-provider spellings keeps a second
   // vocabulary alive. They are now rejected here and migrated only at
-  // lib/search/legacy-saved-search-status-migration.ts, asserted in
+  // lib/search/legacy-status-migration.ts, asserted in
   // step2-status-readside.test.ts.
   it.each(['CONTRACT', 'CANCELED', 'COMINGSOON', 'UNDER_CONTRACT', 'PENDING'])(
     '%s is rejected by the canonical contract',
@@ -283,7 +283,7 @@ describe('legacy spellings live at the migration boundary, not in the contract',
   // boundary so compatibility can never masquerade as provider truth. Full
   // coverage lives in step2-status-readside.test.ts.
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { migrateLegacySavedSearchStatus } = require('@/lib/search/legacy-saved-search-status-migration');
+  const { migrateLegacyStatusValue } = require('@/lib/search/legacy-status-migration');
 
   it.each([
     ['UNDER_CONTRACT', 'ActiveUnderContract'],
@@ -292,20 +292,20 @@ describe('legacy spellings live at the migration boundary, not in the contract',
     ['CANCELLED', 'Canceled'],
     ['PENDING', 'Pending'],
   ])('%s migrates to %s at the boundary', (legacy, member) => {
-    expect(migrateLegacySavedSearchStatus(legacy)).toBe(member);
+    expect(migrateLegacyStatusValue(legacy)).toBe(member);
     // ...and is rejected by the canonical contract itself.
     expect(crmTokenToStandardStatus(legacy)).toBeNull();
   });
 
   it('a migrated value renders as the MEMBER predicate, not the legacy word', () => {
-    const member = migrateLegacySavedSearchStatus('UNDER_CONTRACT');
+    const member = migrateLegacyStatusValue('UNDER_CONTRACT');
     const { filter } = standardStatusOData([member]);
     expect(filter).toBe("StandardStatus eq 'ActiveUnderContract'");
     expect(filter).not.toContain('UNDER_CONTRACT');
   });
 
   it.each(['FUTURE', 'OFFEROUT'])('%s does not migrate and is not accepted', (v) => {
-    expect(migrateLegacySavedSearchStatus(v)).toBeNull();
+    expect(migrateLegacyStatusValue(v)).toBeNull();
     expect(() => standardStatusOData([v])).toThrow(/Unsupported status criterion/);
   });
 });

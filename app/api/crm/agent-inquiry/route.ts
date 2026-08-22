@@ -41,6 +41,8 @@
 // Lead/Inquiry rows are NOT created — agent-to-agent inquiries are
 // not consumer leads.
 
+import { migrateLegacyStatusValue } from '@/lib/search/legacy-status-migration';
+import { statusDisplayLabel } from '@/lib/search/canonical/status-token-contract';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAgentOrBroker, isAuthError } from '@/lib/auth';
 import prisma from '@/lib/prisma';
@@ -82,16 +84,26 @@ function statusLabel(raw: string | null | undefined): string {
   //
   // An absent status no longer reads as 'Active': telling a client an unknown
   // listing is on the market is the defect this whole pass exists to remove.
-  if (!raw) return 'Status Unavailable';
-  if (raw === 'ComingSoon') return 'Coming Soon';
-  if (raw === 'Pending') return 'Pending';
-  if (raw === 'ActiveUnderContract') return 'In Contract';
-  if (raw === 'Closed') return 'Closed';
-  if (raw === 'Withdrawn') return 'Withdrawn';
-  if (raw === 'Active') return 'Active';
-  // For non-canonical/unmapped values, lowercase-and-capitalize for safety
-  // (post-A14 mapper guarantees canonical input, but defensive here).
-  return raw.charAt(0) + raw.slice(1).toLowerCase().replace(/_/g, ' ');
+  // THIS IS AN INBOUND API BOUNDARY. `listing_status` arrives in a caller's
+  // payload and may still carry a legacy spelling, so it is migrated to the
+  // exact Cotality member HERE, explicitly, before anything is rendered.
+  //
+  // The previous version compared exact members directly and let anything else
+  // fall through to a defensive `charAt(0) + slice(1).toLowerCase()` reformat.
+  // A caller sending the legacy `COMING_SOON` therefore produced "Coming soon"
+  // - lower-case s - in an email to a listing agent. CI caught it. Reformatting
+  // an unrecognised machine value into something that LOOKS like a label is the
+  // same class of invention as the vocabulary this pass removed.
+  const member = migrateLegacyStatusValue(raw);
+  if (member === null) return 'Status Unavailable';
+
+  // Surface-specific wording. This email is addressed to a listing agent, where
+  // "In Contract" is the term of art; the shared statusDisplayLabel() says
+  // "Under Contract" for broker-facing UI. Different audience, same underlying
+  // member - presentation may vary, the value may not.
+  if (member === 'ActiveUnderContract') return 'In Contract';
+
+  return statusDisplayLabel(member);
 }
 
 function buildAgentInquiryHtml(opts: {

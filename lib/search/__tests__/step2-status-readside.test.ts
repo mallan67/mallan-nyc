@@ -28,7 +28,7 @@ import {
   standardStatusOData,
   statusDisplayLabel,
 } from '@/lib/search/canonical/status-token-contract';
-import { migrateLegacySavedSearchStatus } from '@/lib/search/legacy-saved-search-status-migration';
+import { migrateLegacyStatusValue } from '@/lib/search/legacy-status-migration';
 import { mapTrestleToCrmListing } from '@/lib/search/crm-idx-mapper';
 
 const mapped = (raw: Record<string, unknown>) =>
@@ -80,19 +80,19 @@ describe('legacy compatibility is an isolated migration boundary', () => {
     ['CANCELLED', 'Canceled'],
     ['PENDING', 'Pending'],
   ])('a saved search holding %s migrates to %s', (legacy, member) => {
-    expect(migrateLegacySavedSearchStatus(legacy)).toBe(member);
+    expect(migrateLegacyStatusValue(legacy)).toBe(member);
   });
 
   it.each(STANDARD_STATUS_MEMBERS)('%s is already canonical and passes through', (member) => {
-    expect(migrateLegacySavedSearchStatus(member)).toBe(member);
+    expect(migrateLegacyStatusValue(member)).toBe(member);
   });
 
   it.each(['FUTURE', 'OFFEROUT'])('%s has no proven member and does NOT migrate', (v) => {
-    expect(migrateLegacySavedSearchStatus(v)).toBeNull();
+    expect(migrateLegacyStatusValue(v)).toBeNull();
   });
 
   it('a migrated value is the MEMBER, so it renders as the member predicate', () => {
-    const member = migrateLegacySavedSearchStatus('UNDER_CONTRACT');
+    const member = migrateLegacyStatusValue('UNDER_CONTRACT');
     expect(standardStatusOData([member]).filter).toBe("StandardStatus eq 'ActiveUnderContract'");
   });
 });
@@ -115,5 +115,59 @@ describe('human labels are presentation, and do not change the value', () => {
 
   it('an unknown value gets a neutral label, not an invented status', () => {
     expect(statusDisplayLabel('UNKNOWN')).toBe('Status Unavailable');
+  });
+});
+
+/**
+ * THE INBOUND API BOUNDARY — caught by CI, not by me.
+ *
+ * `app/api/crm/agent-inquiry` accepts `listing_status` in a caller's payload.
+ * After the read-side closure its label function compared exact members and let
+ * anything else fall through to a defensive
+ * `raw.charAt(0) + raw.slice(1).toLowerCase().replace(/_/g, ' ')`.
+ *
+ * A caller still sending the legacy `COMING_SOON` therefore produced
+ * **"Coming soon"** — lower-case s — in an email to a listing agent. The whole
+ * point of that assertion is that a raw machine enum must never leak into
+ * client-facing text, and a cosmetically reformatted one is the same defect
+ * wearing a nicer coat: it LOOKS like a label, so nobody checks it.
+ *
+ * The fix is not another label branch. It is to migrate at the boundary — the
+ * same one-way migration saved searches use — and then label from the exact
+ * member.
+ */
+describe('an inbound API boundary migrates legacy input before labelling', () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { migrateLegacyStatusValue } = require('@/lib/search/legacy-status-migration');
+
+  it('the legacy value CI caught resolves to the member', () => {
+    expect(migrateLegacyStatusValue('COMING_SOON')).toBe('ComingSoon');
+  });
+
+  it('and the member produces the correctly-cased label', () => {
+    expect(statusDisplayLabel(migrateLegacyStatusValue('COMING_SOON'))).toBe('Coming Soon');
+  });
+
+  it.each([
+    ['COMING_SOON', 'Coming Soon'],
+    ['ComingSoon', 'Coming Soon'],
+    ['PENDING', 'Pending'],
+    ['Pending', 'Pending'],
+  ])('%s labels as %s whichever spelling arrives', (input, label) => {
+    expect(statusDisplayLabel(migrateLegacyStatusValue(input))).toBe(label);
+  });
+
+  it('never cosmetically reformats an unrecognised value into a label', () => {
+    // 'Coming soon', 'Offer out', 'Some future status' — all of these LOOK like
+    // labels, which is exactly why they are dangerous.
+    for (const junk of ['OFFEROUT', 'SOME_FUTURE_STATUS', 'Leased']) {
+      const member = migrateLegacyStatusValue(junk);
+      expect(member).toBeNull();
+      expect(statusDisplayLabel(member)).toBe('Status Unavailable');
+    }
+  });
+
+  it('an absent status does not read as Active', () => {
+    expect(statusDisplayLabel(migrateLegacyStatusValue(null))).toBe('Status Unavailable');
   });
 });

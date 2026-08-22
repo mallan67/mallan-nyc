@@ -420,7 +420,13 @@ describe('A1 · only authorised readers import the canonical package', () => {
       // reads the member vocabulary in order to convert an old persisted
       // spelling into an exact member ONCE, on the way in. Reading the canonical
       // module is what stops it becoming a second, drifting status vocabulary.
-      'lib/search/legacy-saved-search-status-migration.ts',
+      'lib/search/legacy-status-migration.ts',
+      // Inbound API boundary. `listing_status` arrives in a caller's payload and
+      // may carry a legacy spelling, so it migrates to the exact member and then
+      // labels from the shared presentation helper. It reads the canonical module
+      // rather than keeping its own label table - which is precisely what let a
+      // legacy COMING_SOON reformat into "Coming soon" in a client-facing email.
+      'app/api/crm/agent-inquiry/route.ts',
     ]);
     expect(offenders.filter((f) => !AUTHORISED.has(f))).toEqual([]);
   }, 60000);
