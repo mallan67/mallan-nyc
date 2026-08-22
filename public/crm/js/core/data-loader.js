@@ -13,12 +13,13 @@
         // Add default permissions to all listings that don't have explicit permissions set
         listings.forEach(function(l) {
             if (!l.permissions) {
-                l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false, syndication: true };
+                l.permissions = { ownerOptOut: null, participantOnly: null, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false, syndication: null }; // Step 1: unknown is null, never an affirmative false/true. The two display flags keep the IDX Plus pre-filter rule (null = displayable).
             }
         });
 
-        // Add borough to all listings that don't have it
-        listings.forEach(function(l) { if (!l.borough) l.borough = 'Manhattan'; });
+        // STEP 1: borough is NOT defaulted. An unknown borough is unknown — it is
+        // not Manhattan. This ran at module load and silently relabelled every
+        // listing whose CityRegion the provider had not supplied.
 
         // ── NeighborhoodCanonical: resolve SubdivisionName → canonical polygon name on ingest ──
         // This runs at ingest time so every listing has a stable canonical name for map-based search.
@@ -381,25 +382,24 @@
             newData.forEach(function(l) { listings.push(l); });
             // Ensure all fields used by renderers have safe defaults
             listings.forEach(function(l) {
-                if (l.price == null) l.price = 0;
-                if (l.totalMonthly == null) l.totalMonthly = 0;
-                if (l.maintCC == null) l.maintCC = 0;
-                if (l.reTaxes == null) l.reTaxes = 0;
-                if (l.beds == null) l.beds = 0;
-                if (l.baths == null) l.baths = 0;
-                if (l.rooms == null) l.rooms = 0;
-                if (l.dom == null) l.dom = 0;
-                if (l.photoCount == null) l.photoCount = (l.images && l.images.length) || 0;
-                if (!l.status) l.status = 'ACTIVE';
+                // STEP 1 — the unknown-to-value defaults are REMOVED.
+                // These re-invented, after the server had answered, exactly what
+                // crm-idx-mapper.ts refuses to invent: an unknown fee became $0,
+                // an unknown status became ACTIVE, an unknown borough became
+                // Manhattan. Renderers must show unknown as unavailable.
+                // A photo count is still derived from media ACTUALLY PRESENT —
+                // that is evidence, not a default. Absent both, it stays unknown.
+                if (l.photoCount == null && l.images && l.images.length > 0) l.photoCount = l.images.length;
                 if (!l.address) l.address = 'Address Unavailable';
                 if (!l.unit) l.unit = '';
                 if (!l.neighborhood) l.neighborhood = '';
                 if (!l.zip) l.zip = '';
-                if (!l.borough) l.borough = 'Manhattan';
+                // borough is NOT defaulted — a Brooklyn listing read as Manhattan is wrong on
+                // the card, the map, the report and every saved search.
                 if (!l.listedDate) l.listedDate = '--';
                 if (!l.company) l.company = '';
                 if (!l.permissions) {
-                    l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false, syndication: true };
+                    l.permissions = { ownerOptOut: null, participantOnly: null, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false, syndication: null }; // Step 1: unknown is null, never an affirmative false/true. The two display flags keep the IDX Plus pre-filter rule (null = displayable).
                 }
             });
             listings.forEach(function(l) { resolveNeighborhoodCanonical(l); });

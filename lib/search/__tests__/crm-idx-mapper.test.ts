@@ -43,11 +43,18 @@ describe("crm idx mapper", () => {
     expect(listing.address).toBe("100 W 72ND STREET");
     expect(listing.addressDisplayYN).toBe(true);
     expect(listing.internetDisplayYN).toBe(true);
+    // CORRECTED (Step 1): ownerOptOut/participantOnly were hard-coded `false`,
+    // which is an AFFIRMATIVE claim that the owner did not opt out. The provider
+    // supplied no such fact, so they are now null. Every consumer tests `=== true`
+    // (compliance-gates-and-output.js:21,27), so behaviour is unchanged — the
+    // value is simply no longer an invention.
+    // The two DISPLAY flags stay true: on IDX Plus they are REBNY-pre-filtered and
+    // null genuinely means displayable (2026-04-30 incident contract).
     expect(listing.permissions).toMatchObject({
       idxDisplay: true,
       internetDisplay: true,
-      ownerOptOut: false,
-      participantOnly: false,
+      ownerOptOut: null,
+      participantOnly: null,
     });
   });
 

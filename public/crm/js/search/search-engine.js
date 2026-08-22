@@ -547,21 +547,20 @@
 
                 // Apply neighborhood resolution and defaults
                 serverListings.forEach(function(l) {
-                    if (l.price == null) l.price = 0;
-                    if (l.totalMonthly == null) l.totalMonthly = 0;
-                    if (l.maintCC == null) l.maintCC = 0;
-                    if (l.reTaxes == null) l.reTaxes = 0;
-                    if (l.beds == null) l.beds = 0;
-                    if (l.baths == null) l.baths = 0;
-                    if (l.rooms == null) l.rooms = 0;
-                    if (l.dom == null) l.dom = 0;
-                    if (l.photoCount == null) l.photoCount = (l.images && l.images.length) || 0;
-                    if (!l.status) l.status = 'ACTIVE';
+                    // STEP 1 — the unknown-to-value defaults are REMOVED.
+                    // These re-invented, after the server had answered, exactly what
+                    // crm-idx-mapper.ts refuses to invent: an unknown fee became $0,
+                    // an unknown status became ACTIVE, an unknown borough became
+                    // Manhattan. Renderers must show unknown as unavailable.
+                    // A photo count is still derived from media ACTUALLY PRESENT —
+                    // that is evidence, not a default. Absent both, it stays unknown.
+                    if (l.photoCount == null && l.images && l.images.length > 0) l.photoCount = l.images.length;
                     if (!l.address) l.address = 'Address Unavailable';
                     if (!l.unit) l.unit = '';
                     if (!l.neighborhood) l.neighborhood = '';
                     if (!l.zip) l.zip = '';
-                    if (!l.borough) l.borough = 'Manhattan';
+                    // borough is NOT defaulted — a Brooklyn listing read as Manhattan is wrong on
+                    // the card, the map, the report and every saved search.
                     if (!l.listedDate) l.listedDate = '--';
                     if (!l.company) l.company = '';
                     if (!l.permissions) l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: true, internetDisplay: true, syndication: true };

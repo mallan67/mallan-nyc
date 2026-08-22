@@ -37,6 +37,26 @@ export function classifyMediaCategory(media: Record<string, unknown>): string {
   return "Photo";
 }
 
+/**
+ * A provider number, or null when the provider supplied nothing.
+ *
+ * `Number(x) || 0` collapsed THREE different facts into one: absent, unparsable,
+ * and a genuine zero. A studio has 0 bedrooms; an unknown maintenance charge is
+ * not $0. Only an explicit, finite value survives — everything else is null.
+ */
+function num(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** A provider boolean, or null when unstated. Never invents `true` or `false`. */
+function boolOrNull(value: unknown): boolean | null {
+  if (value === true || value === "true" || value === 1 || value === "1") return true;
+  if (value === false || value === "false" || value === 0 || value === "0") return false;
+  return null;
+}
+
 export function mapTrestleToCrmListing(
   raw: Record<string, unknown>,
   index: number,
@@ -52,12 +72,15 @@ export function mapTrestleToCrmListing(
 
   const propertyType = String(raw.PropertyType || "");
   const isRental = propertyType.toLowerCase().includes("lease");
-  const price = Number(raw.ListPrice) || 0;
+  const price = num(raw.ListPrice);
   const yearBuilt = raw.YearBuilt != null ? Number(raw.YearBuilt) : null;
 
-  const taxAnnual = Number(raw.TaxAnnualAmount) || 0;
-  const monthlyTax = taxAnnual / 12;
-  const maintCC = Number(raw.AssociationFee) || 0;
+  const taxAnnual = num(raw.TaxAnnualAmount);
+  const monthlyTax = taxAnnual === null ? null : taxAnnual / 12;
+  // NOTE: AssociationFeeFrequency is fetched and NOT yet honoured — a non-monthly
+  // fee is still presented as monthly. That is a Step 2 defect (verified mapping),
+  // deliberately NOT fixed here. Step 1 only stops the UNKNOWN -> 0 invention.
+  const maintCC = num(raw.AssociationFee);
 
   const addressDisplayYN = isIdxPlusDisplayFlagOn(raw.InternetAddressDisplayYN);
   const displayAddress = addressDisplayYN
@@ -76,7 +99,10 @@ export function mapTrestleToCrmListing(
     order: m.providerOrder,
     mediaType: m.mediaType,
   }));
-  const photoCount = Number(raw.PhotosCount) || images.length;
+  const providerPhotoCount = num(raw.PhotosCount);
+  const photoCount = providerPhotoCount !== null ? providerPhotoCount
+    : images.length > 0 ? images.length
+    : null; // no count and no media == unknown, NOT zero
 
   const customProps = Array.isArray(raw.CustomProperty)
     ? raw.CustomProperty[0] as Record<string, unknown> | undefined
@@ -121,7 +147,8 @@ export function mapTrestleToCrmListing(
 
   const originalPrice = Number(raw.OriginalListPrice) || 0;
   let priceChange: string | null = null;
-  if (originalPrice > 0 && originalPrice !== price) {
+  // No current price means no direction. Unknown is not "unchanged".
+  if (price !== null && originalPrice > 0 && originalPrice !== price) {
     priceChange = price < originalPrice ? "down" : "up";
   }
 
@@ -132,7 +159,9 @@ export function mapTrestleToCrmListing(
     else era = "Pre-War";
   }
 
-  const mlsStatus = String(raw.MlsStatus || raw.StandardStatus || "Active");
+  // The provider's SILENCE is not "Active". An absent status leaves mlsStatus
+  // empty, which falls through the map below to UNKNOWN — the safe sentinel.
+  const mlsStatus = String(raw.MlsStatus || raw.StandardStatus || "");
   const statusMap: Record<string, string> = {
     Active: "ACTIVE",
     ComingSoon: "COMING_SOON",
@@ -189,15 +218,21 @@ export function mapTrestleToCrmListing(
     address: displayAddress,
     unit: String(raw.UnitNumber || ""),
     price,
-    totalMonthly: isRental ? price : monthlyTax + maintCC,
-    rooms: Number(raw.RoomsTotal) || 0,
-    beds: Number(raw.BedroomsTotal) || 0,
-    baths:
-      raw.BathroomsTotalInteger != null ? Number(raw.BathroomsTotalInteger) :
-      (Number(raw.BathroomsFull) || 0) +
-      (Number(raw.BathroomsHalf) || 0) * 0.5,
-    fullBaths: Number(raw.BathroomsFull) || 0,
-    halfBaths: Number(raw.BathroomsHalf) || 0,
+    // Never sum unknowns into a carrying cost. $0/month reads as "no cost".
+    totalMonthly: isRental ? price
+      : (monthlyTax === null && maintCC === null) ? null
+      : (monthlyTax ?? 0) + (maintCC ?? 0),
+    rooms: num(raw.RoomsTotal),
+    beds: num(raw.BedroomsTotal),
+    baths: (() => {
+      if (raw.BathroomsTotalInteger != null) return Number(raw.BathroomsTotalInteger);
+      const f = num(raw.BathroomsFull);
+      const h = num(raw.BathroomsHalf);
+      if (f === null && h === null) return null; // no bath fact at all
+      return (f ?? 0) + (h ?? 0) * 0.5;
+    })(),
+    fullBaths: num(raw.BathroomsFull),
+    halfBaths: num(raw.BathroomsHalf),
     reTaxes: monthlyTax,
     maintCC,
     intSqft: raw.LivingArea != null ? Number(raw.LivingArea) : null,
@@ -207,17 +242,23 @@ export function mapTrestleToCrmListing(
     propertyType: mapDisplayPropertyType(raw),
     propertySubType: String(raw.PropertySubType || ""),
     neighborhood: String(raw.SubdivisionName || ""),
-    borough: String(raw.CityRegion || raw.CountyOrParish || "Manhattan"),
+    // An unknown borough is NOT Manhattan. A Brooklyn listing read as Manhattan
+    // is wrong on the card, the map, the report and every saved search.
+    borough: raw.CityRegion != null && String(raw.CityRegion) !== "" ? String(raw.CityRegion)
+      : raw.CountyOrParish != null && String(raw.CountyOrParish) !== "" ? String(raw.CountyOrParish)
+      : null,
     zip: String(raw.PostalCode || ""),
     yearBuilt,
     era,
     buildingName: raw.BuildingName ? String(raw.BuildingName) : null,
     buildingKey: raw.BuildingKeyNumeric != null ? Number(raw.BuildingKeyNumeric) : null,
-    listingType: "Exclusive",
+    // "Exclusive" is a MALLAN business fact. Asserting it on provider inventory
+    // claims a seller relationship that does not exist. Unknown until established.
+    listingType: null,
     lid: String(raw.ListingId || ""),
     wid: raw.SourceSystemKey ? String(raw.SourceSystemKey) : null,
-    dom: Number(raw.DaysOnMarket) || 0,
-    cdom: Number(raw.CumulativeDaysOnMarket) || 0,
+    dom: num(raw.DaysOnMarket),
+    cdom: num(raw.CumulativeDaysOnMarket),
     listedDate: raw.ListingContractDate
       ? new Date(String(raw.ListingContractDate)).toLocaleDateString("en-US")
       : "",
@@ -242,7 +283,14 @@ export function mapTrestleToCrmListing(
       : raw.VirtualTourURLBranded
         ? String(raw.VirtualTourURLBranded)
         : null,
-    idxDisplayYN: true,
+    // NOT changed to null in Step 1, and the reason matters: on the IDX Plus feed
+    // this flag is REBNY-PRE-FILTERED, so NULL GENUINELY MEANS DISPLAYABLE. That is
+    // the documented contract from the 2026-04-30 incident
+    // (memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md) — assuming null meant suppressed
+    // is exactly what corrupted 7,594 rows. `isIdxPlusDisplayFlagOn` encodes it.
+    // The previous hard-coded `true` WAS wrong, because it ignored an explicit
+    // `false`; reading the flag fixes that without re-creating the incident.
+    idxDisplayYN: isIdxPlusDisplayFlagOn(raw.InternetEntireListingDisplayYN),
     internetDisplayYN: isIdxPlusDisplayFlagOn(raw.InternetEntireListingDisplayYN),
     addressDisplayYN,
     listingCategory: isRental ? "rental" : undefined,
@@ -252,12 +300,16 @@ export function mapTrestleToCrmListing(
     downPaymentAssistanceAmount: dpaAmount,
     downPaymentAssistanceCount: dpaCount,
     sponsorUnit,
+    // FAIL CLOSED throughout. `false` on an opt-out is an affirmative claim that
+    // the owner did NOT opt out; `true` on a display right is a claim the provider
+    // granted it. Absent evidence is null, and every consumer must treat null as
+    // "not permitted", never as permitted.
     permissions: {
-      ownerOptOut: false,
-      participantOnly: false,
-      idxDisplay: true,
+      ownerOptOut: boolOrNull(raw.OwnerOptOut),
+      participantOnly: boolOrNull(raw.ParticipantOnly),
+      idxDisplay: isIdxPlusDisplayFlagOn(raw.InternetEntireListingDisplayYN), // pre-filtered: null = displayable
       internetDisplay: isIdxPlusDisplayFlagOn(raw.InternetEntireListingDisplayYN),
-      syndication: true,
+      syndication: boolOrNull(raw.SyndicateTo),
     },
     ListingAgreement: raw.ListingAgreement ? String(raw.ListingAgreement) : null,
     LandLeaseYN: raw.LandLeaseYN === true || raw.LandLeaseYN === "true",
