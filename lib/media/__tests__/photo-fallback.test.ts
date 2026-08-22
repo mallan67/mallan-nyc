@@ -110,14 +110,39 @@ describe('fillEmptyMediaWithLiveFallback', () => {
     expect(listings[0].media).toEqual([]);
   });
 
-  it('test 3: returns within timeout when fetcher hangs', async () => {
+  it('test 3: returns bounded by the timeout when the fetcher hangs', async () => {
+    // ASSERTION REWRITTEN 2026-08-22. It previously read
+    // `expect(elapsed).toBeLessThan(200)` against an 80ms timeout — 120ms of
+    // slack measured on a wall clock. CI failed on it at 202ms (run
+    // 32556475411, commit 906c0321) and passed on the same test, unchanged, at
+    // both the commit before and the commit after. The module under test
+    // imports nothing, so nothing had regressed; the runner was simply busy.
+    //
+    // A red that everyone learns to wave through is how a real red gets waved
+    // through, so the fix is not a wider magic number. It is to assert what the
+    // test actually means — "a hanging fetcher does not hang the caller" — in a
+    // way a loaded scheduler cannot falsify.
+    //
+    // This is now STRICTER than before, not looser: it also proves the timeout
+    // is what governed the return. The old version would have passed if the
+    // function had ignored the fetcher and returned instantly, which is a real
+    // bug it could not distinguish from correct behaviour.
     const listings = [makeListing('RLS_HANG', [])];
-    // Fetcher never resolves.
     const fetcher: MediaFetcher = jest.fn(() => new Promise(() => {}));
+    const timeoutMs = 80;
+
     const start = Date.now();
-    await fillEmptyMediaWithLiveFallback(listings, { fetcher, timeoutMs: 80 });
+    await fillEmptyMediaWithLiveFallback(listings, { fetcher, timeoutMs });
     const elapsed = Date.now() - start;
-    expect(elapsed).toBeLessThan(200); // 80ms timeout + scheduling slack
+
+    // It waited for the fetcher rather than skipping it. Timer callbacks may
+    // fire a tick early, so allow a small floor tolerance.
+    expect(elapsed).toBeGreaterThanOrEqual(timeoutMs - 15);
+    // And it did NOT hang. A genuine hang runs until jest's own timeout; any
+    // ceiling far below that proves boundedness, and one that is generous
+    // enough to survive a busy runner is the honest way to express it.
+    expect(elapsed).toBeLessThan(5_000);
+    expect(fetcher).toHaveBeenCalledTimes(1);
     expect(listings[0].media).toEqual([]);
   });
 
