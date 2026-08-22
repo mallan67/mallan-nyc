@@ -549,7 +549,7 @@
                                             ? '<div class="border-b border-gray-100 pb-1.5 pl-4"><span class="px-2 py-1 bg-purple-50 text-purple-700 rounded text-xs font-semibold"><i class="fas fa-ban mr-1"></i>Coming Soon. No Showings or Open House until ' + (listing.comingSoonDate || 'active date') + '.</span></div>'
                                             : ''
                                         }
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Showing Instructions</span><span class="font-semibold text-right max-w-[200px] truncate">${listing.showingInstructions || '(UCOM) ' + (listing.agentName || '') + ' ' + (listing.agentPhone || '')}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Showing Instructions</span><span class="font-semibold text-right max-w-[200px] truncate">${listing.showingInstructions || 'Not provided'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Broker Comments</span><span class="font-semibold">---</span></div>
                                         <div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold mt-2">Co-Listing Agent</div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Company</span><span class="font-semibold">---</span></div>
@@ -1010,7 +1010,7 @@
                                     <i class="fas fa-chevron-up si-chevron ml-auto text-gray-300 text-[9px]"></i>
                                 </button>
                                 <div class="mt-2 text-[12px] text-gray-600 leading-relaxed">
-                                    ${escapeHtml(listing.showingInstructions || '(UCOM) ' + (listing.agentName || '---') + ' ' + (listing.agentPhone || ''))}
+                                    ${escapeHtml(listing.showingInstructions || 'Not provided')}
                                 </div>
                             </div>
                         </div>
@@ -1646,6 +1646,15 @@
             var statusLabel = (!listing.status || listing.status === 'UNKNOWN') ? 'STATUS UNAVAILABLE'
                 : listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
             var today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            // The client sheet formats the same way the screen now does: a
+            // number the provider supplied, or the word unavailable. Never $0.
+            var money = function(v) { return v == null ? 'Unavailable' : '$' + Number(v).toLocaleString(); };
+            var num = function(v) { return v == null ? '--' : v; };
+            var txt = function(v) { return (v === null || v === undefined || v === '') ? '---' : v; };
+            var perUnitPrice = function(divisor) {
+                if (listing.price == null || !divisor) return null;
+                return '$' + Math.round(listing.price / divisor).toLocaleString();
+            };
             var primaryPhoto = listing.images && listing.images[0] ? listing.images[0].url : '';
 
             var _agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', licenseTitle: 'Licensed Real Estate Broker', phone: '', email: '', company: '', companyLicense: '', license: '', address: '' };
@@ -1700,36 +1709,36 @@
             else h += '<div style="width:100%;height:280px;background:#f0f0f0;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#ccc"><i class="fas fa-camera" style="font-size:48px"></i></div>';
             h += '<div style="display:flex;flex-direction:column;justify-content:center">';
             h += '<div class="print-title">' + displayAddress + displayUnit + '</div>';
-            h += '<div class="print-subtitle">' + escapeHtml(listing.era || '') + ' &middot; ' + ownershipLabel(listing.ownership) + ' &middot; ' + escapeHtml(listing.neighborhood) + ', NY ' + escapeHtml(listing.zip) + '</div>';
-            h += '<div class="print-price">$' + listing.price.toLocaleString() + '</div>';
-            h += '<div class="print-price-sub">' + (isSale ? 'Maint/CC: $' + listing.maintCC.toLocaleString() + '/mo' : 'Monthly Rent') + ' &middot; Est. Monthly: $' + listing.totalMonthly.toLocaleString() + '</div>';
-            h += '<div class="print-specs"><span><strong>' + listing.rooms + '</strong> Rooms</span><span><strong>' + listing.beds + '</strong> Beds</span><span><strong>' + listing.baths + '</strong> Baths</span><span><strong>' + (listing.intSqft ? listing.intSqft.toLocaleString() : '---') + '</strong> SqFt</span></div>';
+            h += '<div class="print-subtitle">' + escapeHtml(listing.era || '') + ' &middot; ' + txt(ownershipLabel(listing.ownership)) + ' &middot; ' + escapeHtml(txt(listing.neighborhood)) + ', NY ' + escapeHtml(txt(listing.zip)) + '</div>';
+            h += '<div class="print-price">' + money(listing.price) + '</div>';
+            h += '<div class="print-price-sub">' + (isSale ? 'Maint/CC: ' + money(listing.maintCC) + '/mo' : 'Monthly Rent') + ' &middot; Est. Monthly: ' + money(listing.totalMonthly) + '</div>';
+            h += '<div class="print-specs"><span><strong>' + num(listing.rooms) + '</strong> Rooms</span><span><strong>' + num(listing.beds) + '</strong> Beds</span><span><strong>' + num(listing.baths) + '</strong> Baths</span><span><strong>' + (listing.intSqft ? listing.intSqft.toLocaleString() : '---') + '</strong> SqFt</span></div>';
             h += '<div style="display:flex;gap:8px;margin-top:4px"><span style="padding:3px 10px;border-radius:4px;font-size:11px;font-weight:700;background:#dbeafe;color:#1d4ed8">' + statusLabel + '</span><span style="padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600;border:1px solid #ddd;color:#666">L-ID: ' + (listing.lid || '---') + '</span><span style="padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600;border:1px solid #ddd;color:#666">W-ID: ' + (listing.wid || '---') + '</span></div>';
             h += '</div></div>';
 
             // Status bar
-            h += '<div class="print-status-bar"><div><div class="label">Status</div><strong>' + statusLabel + '</strong></div><div><div class="label">Updated</div><strong>' + (listing.updatedDate || '---') + '</strong></div><div><div class="label">Listed</div><strong>' + listing.listedDate + '</strong></div><div><div class="label">DOM</div><strong>' + listing.dom + '</strong></div><div><div class="label">CDOM</div><strong>' + (listing.cdom || listing.dom) + '</strong></div></div>';
+            h += '<div class="print-status-bar"><div><div class="label">Status</div><strong>' + statusLabel + '</strong></div><div><div class="label">Updated</div><strong>' + (listing.updatedDate || '---') + '</strong></div><div><div class="label">Listed</div><strong>' + txt(listing.listedDate) + '</strong></div><div><div class="label">DOM</div><strong>' + num(listing.dom) + '</strong></div><div><div class="label">CDOM</div><strong>' + num(listing.cdom != null ? listing.cdom : listing.dom) + '</strong></div></div>';
 
             // Description
             if (listing.description) h += '<div class="print-desc">' + escapeHtml(listing.description) + '</div>';
 
             // Financial Details
             h += '<div class="print-section"><h3><i class="fas fa-dollar-sign" style="margin-right:6px"></i> Financial</h3><div class="print-grid">';
-            h += '<div class="pf"><span>' + (isSale ? 'List Price' : 'Monthly Rent') + '</span><span>$' + listing.price.toLocaleString() + '</span></div>';
+            h += '<div class="pf"><span>' + (isSale ? 'List Price' : 'Monthly Rent') + '</span><span>' + money(listing.price) + '</span></div>';
             if (listing.originalPrice) h += '<div class="pf"><span>Original Price</span><span>$' + listing.originalPrice.toLocaleString() + '</span></div>';
-            h += '<div class="pf"><span>' + (isSale ? 'Maint/CC' : 'Net Effective') + '</span><span>$' + listing.maintCC.toLocaleString() + '</span></div>';
+            h += '<div class="pf"><span>' + (isSale ? 'Maint/CC' : 'Net Effective') + '</span><span>' + money(listing.maintCC) + '</span></div>';
             h += '<div class="pf"><span>RE Taxes</span><span>' + (listing.reTaxes ? '$' + listing.reTaxes.toLocaleString() + '/mo' : '---') + '</span></div>';
-            h += '<div class="pf"><span>Est. Monthly</span><span>$' + listing.totalMonthly.toLocaleString() + '</span></div>';
-            h += '<div class="pf"><span>$/SqFt</span><span>' + (listing.intSqft ? '$' + Math.round(listing.price / listing.intSqft).toLocaleString() : '---') + '</span></div>';
+            h += '<div class="pf"><span>Est. Monthly</span><span>' + money(listing.totalMonthly) + '</span></div>';
+            h += '<div class="pf"><span>$/SqFt</span><span>' + (perUnitPrice(listing.intSqft) || '---') + '</span></div>';
             h += '</div></div>';
 
             // Unit Details
             h += '<div class="print-section"><h3><i class="fas fa-door-open" style="margin-right:6px"></i> Unit Details</h3><div class="print-grid">';
             h += '<div class="pf"><span>Type</span><span>' + (listing.propertySubType || '---') + '</span></div>';
             h += '<div class="pf"><span>Rooms</span><span>' + (listing.rooms || '---') + '</span></div>';
-            h += '<div class="pf"><span>Bedrooms</span><span>' + listing.beds + '</span></div>';
-            h += '<div class="pf"><span>Full Baths</span><span>' + (listing.fullBaths || listing.baths) + '</span></div>';
-            h += '<div class="pf"><span>Half Baths</span><span>' + (listing.halfBaths || 0) + '</span></div>';
+            h += '<div class="pf"><span>Bedrooms</span><span>' + num(listing.beds) + '</span></div>';
+            h += '<div class="pf"><span>Full Baths</span><span>' + num(listing.fullBaths != null ? listing.fullBaths : listing.baths) + '</span></div>';
+            h += '<div class="pf"><span>Half Baths</span><span>' + num(listing.halfBaths) + '</span></div>';
             h += '<div class="pf"><span>Int. SqFt</span><span>' + (listing.intSqft ? listing.intSqft.toLocaleString() : '---') + '</span></div>';
             h += '<div class="pf"><span>Floor</span><span>' + (listing.floor || '---') + '</span></div>';
             h += '<div class="pf"><span>Exposure</span><span>' + (listing.exposures || '---') + '</span></div>';
@@ -1739,15 +1748,15 @@
             // Building
             h += '<div class="print-section"><h3><i class="fas fa-building" style="margin-right:6px"></i> Building</h3><div class="print-grid">';
             h += '<div class="pf"><span>Building</span><span>' + (listing.buildingName || '---') + '</span></div>';
-            h += '<div class="pf"><span>Ownership</span><span>' + ownershipLabel(listing.ownership) + '</span></div>';
+            h += '<div class="pf"><span>Ownership</span><span>' + txt(ownershipLabel(listing.ownership)) + '</span></div>';
             h += '<div class="pf"><span>Era</span><span>' + (listing.era || '---') + '</span></div>';
             h += '<div class="pf"><span>Year Built</span><span>' + (listing.yearBuilt || '---') + '</span></div>';
-            h += '<div class="pf"><span>Neighborhood</span><span>' + listing.neighborhood + '</span></div>';
+            h += '<div class="pf"><span>Neighborhood</span><span>' + txt(listing.neighborhood) + '</span></div>';
             h += '<div class="pf"><span>Cross Street</span><span>' + (listing.crossStreet || '---') + '</span></div>';
             h += '</div></div>';
 
             // Showing Instructions
-            h += '<div class="print-section"><h3><i class="fas fa-eye" style="margin-right:6px"></i> Showing Instructions</h3><div style="font-size:13px;color:#444">' + (listing.showingInstructions || '(UCOM) ' + (listing.agentName || '') + ' ' + (listing.agentPhone || '')) + '</div></div>';
+            h += '<div class="print-section"><h3><i class="fas fa-eye" style="margin-right:6px"></i> Showing Instructions</h3><div style="font-size:13px;color:#444">' + (listing.showingInstructions || 'Not provided') + '</div></div>';
 
             // Reference line
             h += '<div class="print-ref">Reference: L-ID ' + (listing.lid || '---') + ' &middot; W-ID ' + (listing.wid || '---') + ' &middot; SourceSystemKey ' + (listing.wid || listing.lid || listing.id) + '</div>';
