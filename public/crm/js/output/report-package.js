@@ -570,7 +570,6 @@
                     linkHtml += '<p style="margin:4px 0;font-size:12px;font-family:' + B.fontBody + '"><i class="fas fa-link" style="color:' + B.gold + ';margin-right:6px;width:14px;text-align:center"></i><a href="#" style="color:' + B.goldDeep + ';text-decoration:none">View on mallan.nyc</a></p>';
                     if (l.virtualTourUrl) linkHtml += '<p style="margin:4px 0;font-size:12px;font-family:' + B.fontBody + '"><i class="fas fa-vr-cardboard" style="color:' + B.gold + ';margin-right:6px;width:14px;text-align:center"></i><a href="' + l.virtualTourUrl + '" style="color:' + B.goldDeep + ';text-decoration:none">3D Virtual Tour</a></p>';
                     if (l.videoTourUrl) linkHtml += '<p style="margin:4px 0;font-size:12px;font-family:' + B.fontBody + '"><i class="fas fa-video" style="color:' + B.gold + ';margin-right:6px;width:14px;text-align:center"></i><a href="' + l.videoTourUrl + '" style="color:' + B.goldDeep + ';text-decoration:none">Video Tour</a></p>';
-                    linkHtml += '<p style="margin:4px 0;font-size:12px;font-family:' + B.fontBody + '"><i class="fas fa-map-marker-alt" style="color:' + B.gold + ';margin-right:6px;width:14px;text-align:center"></i><a href="https://maps.google.com/?q=' + encodeURIComponent(_displayAddr(l) + ' New York NY') + '" style="color:' + B.goldDeep + ';text-decoration:none">Google Map</a></p>';
                     h += '<div style="border:1px solid ' + B.line + ';border-radius:12px;padding:16px;margin-bottom:24px">' +
                         '<h3 style="font-weight:700;color:' + B.text + ';margin:0 0 12px;font-size:14px;font-family:' + B.fontDisplay + '"><i class="fas fa-external-link-alt" style="color:' + B.gold + ';margin-right:8px"></i>Links</h3>' + linkHtml + '</div>';
 
@@ -763,7 +762,6 @@
                     var fsLinks = '';
                     fsLinks += '<p style="margin:4px 0;font-size:11px;font-family:' + B.fontBody + '"><i class="fas fa-link" style="color:' + B.gold + ';margin-right:6px;width:14px;text-align:center"></i><a href="#" style="color:' + B.goldDeep + ';text-decoration:none">View on mallan.nyc</a></p>';
                     if (l.virtualTourUrl) fsLinks += '<p style="margin:4px 0;font-size:11px;font-family:' + B.fontBody + '"><i class="fas fa-video" style="color:' + B.gold + ';margin-right:6px;width:14px;text-align:center"></i><a href="' + l.virtualTourUrl + '" style="color:' + B.goldDeep + ';text-decoration:none">Virtual Tour</a></p>';
-                    fsLinks += '<p style="margin:4px 0;font-size:11px;font-family:' + B.fontBody + '"><i class="fas fa-map-marker-alt" style="color:' + B.gold + ';margin-right:6px;width:14px;text-align:center"></i><a href="https://maps.google.com/?q=' + encodeURIComponent(_displayAddr(l) + ' New York NY') + '" style="color:' + B.goldDeep + ';text-decoration:none">Google Map</a></p>';
                     h += '<div style="border:1px solid ' + B.line + ';border-radius:12px;padding:16px;margin-bottom:20px">' +
                         '<h3 style="font-weight:700;color:' + B.text + ';margin:0 0 10px;font-size:13px;font-family:' + B.fontDisplay + '"><i class="fas fa-external-link-alt" style="color:' + B.gold + ';margin-right:6px"></i>Links</h3>' + fsLinks + '</div>';
 
@@ -931,9 +929,19 @@
                 }
 
                 // Links
+                    // STEP 1 — the Google Map link that stood here is gone. It sent the
+                    // property address in the query string of a third party's URL,
+                    // out of an authenticated broker report. Two of the three sites
+                    // emitted it regardless of the "Google Map Link" option, so a
+                    // broker who left that box unchecked sent it anyway.
+                    //
+                    // Nothing replaces it: swapping Google for another outside
+                    // location authority is the same dependency renamed. Mallan's
+                    // map capability stays where it already lives — the
+                    // MapLibre/OpenFreeMap panels in js/render/results-map.js and
+                    // js/render/neighborhood-map.js. The report keeps the address.
                 var ohLinks = '';
                 ohLinks += '<span style="margin-right:16px;font-size:12px;font-family:' + B.fontBody + '"><i class="fas fa-link" style="color:' + B.gold + ';margin-right:4px"></i><a href="#" style="color:' + B.goldDeep + ';text-decoration:none">View on mallan.nyc</a></span>';
-                ohLinks += '<span style="margin-right:16px;font-size:12px;font-family:' + B.fontBody + '"><i class="fas fa-map-marker-alt" style="color:' + B.gold + ';margin-right:4px"></i><a href="https://maps.google.com/?q=' + encodeURIComponent(_displayAddr(l) + ' New York NY') + '" style="color:' + B.goldDeep + ';text-decoration:none">Google Map</a></span>';
                 if (l.virtualTourUrl) ohLinks += '<span style="font-size:12px;font-family:' + B.fontBody + '"><i class="fas fa-video" style="color:' + B.gold + ';margin-right:4px"></i><a href="' + l.virtualTourUrl + '" style="color:' + B.goldDeep + ';text-decoration:none">Virtual Tour</a></span>';
                 h += '<div style="margin-bottom:24px">' + ohLinks + '</div>';
 

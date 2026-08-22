@@ -97,7 +97,7 @@
                 listingTypeCompany: false, listingContact: false, dom: false,
                 updatedSoldDate: false, priceSqft: false, originalPrice: false,
                 nextOpenHouse: false, mediaViewerLink: false, listingWebLink: false,
-                googleMapLink: false, acrisLink: false, listingImages: false,
+                acrisLink: false, listingImages: false,
                 listingFloorplans: false, buildingImages: false, buildingSummaryCoverPage: false,
                 customAgentComments: false, importPersonalComments: false,
                 commentsAboutCustomer: false, appointmentTime: false,

@@ -11484,7 +11484,6 @@ function toggleSection(header) {
                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="nextOpenHouse"> Next Open House</label>
                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="mediaViewerLink"> Media Viewer Link</label>
                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="listingWebLink"> Listing Web Link</label>
-                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="googleMapLink"> Google Map Link</label>
                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="acrisLink"> ACRIS Link</label>
                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="listingImages"> Listing Images</label>
                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="buildingImages"> Building Images</label>
@@ -20173,7 +20172,7 @@ function manageShowToast(msg) {
                 listingTypeCompany: false, listingContact: false, dom: false,
                 updatedSoldDate: false, priceSqft: false, originalPrice: false,
                 nextOpenHouse: false, mediaViewerLink: false, listingWebLink: false,
-                googleMapLink: false, acrisLink: false, listingImages: false,
+                acrisLink: false, listingImages: false,
                 listingFloorplans: false, buildingImages: false, buildingSummaryCoverPage: false,
                 customAgentComments: false, importPersonalComments: false,
                 commentsAboutCustomer: false, appointmentTime: false,
@@ -26637,7 +26636,6 @@ function openPrintableWindow(html, options) {
             linkHtml += '<p style="margin:4px 0;font-size:13px"><i class="fas fa-link" style="color:#C4A052;margin-right:6px;width:14px;text-align:center"></i><a href="#" style="color:#C4A052;text-decoration:none">View on mallan.nyc</a></p>';
             if (first.virtualTourUrl) linkHtml += '<p style="margin:4px 0;font-size:13px"><i class="fas fa-vr-cardboard" style="color:#C4A052;margin-right:6px;width:14px;text-align:center"></i><a href="' + first.virtualTourUrl + '" style="color:#C4A052;text-decoration:none">3D Virtual Tour</a></p>';
             if (first.videoTourUrl) linkHtml += '<p style="margin:4px 0;font-size:13px"><i class="fas fa-video" style="color:#C4A052;margin-right:6px;width:14px;text-align:center"></i><a href="' + first.videoTourUrl + '" style="color:#C4A052;text-decoration:none">Video Tour</a></p>';
-            linkHtml += '<p style="margin:4px 0;font-size:13px"><i class="fas fa-map-marker-alt" style="color:#C4A052;margin-right:6px;width:14px;text-align:center"></i><a href="https://maps.google.com/?q=' + encodeURIComponent(displayAddr(first) + ' New York NY') + '" style="color:#C4A052;text-decoration:none">Google Map</a></p>';
             linkHtml += '<p style="margin:4px 0;font-size:13px"><i class="fas fa-file-alt" style="color:#C4A052;margin-right:6px;width:14px;text-align:center"></i><a href="#" style="color:#C4A052;text-decoration:none">ACRIS Records</a></p>';
             d += '<div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:24px">' +
                 '<h3 style="font-weight:700;color:#111827;margin:0 0 12px;font-size:15px"><i class="fas fa-external-link-alt" style="color:#6b7280;margin-right:8px"></i>Links</h3>' + linkHtml + '</div>';
@@ -27098,9 +27096,19 @@ function openPrintableWindow(html, options) {
             // Media section for open house
             oh += renderMediaSection(ohFirst, optContent);
             // Links section
+                    // STEP 1 — the Google Map link that stood here is gone. It sent the
+                    // property address in the query string of a third party's URL,
+                    // out of an authenticated broker report. Two of the three sites
+                    // emitted it regardless of the "Google Map Link" option, so a
+                    // broker who left that box unchecked sent it anyway.
+                    //
+                    // Nothing replaces it: swapping Google for another outside
+                    // location authority is the same dependency renamed. Mallan's
+                    // map capability stays where it already lives — the
+                    // MapLibre/OpenFreeMap panels in js/render/results-map.js and
+                    // js/render/neighborhood-map.js. The report keeps the address.
             var ohLinks = '';
             if (optContent.listingWebLink) ohLinks += '<span style="margin-right:16px;font-size:13px"><i class="fas fa-link" style="color:#C4A052;margin-right:4px"></i><a href="#" style="color:#C4A052;text-decoration:none">View on mallan.nyc</a></span>';
-            if (optContent.googleMapLink) ohLinks += '<span style="margin-right:16px;font-size:13px"><i class="fas fa-map-marker-alt" style="color:#C4A052;margin-right:4px"></i><a href="https://maps.google.com/?q=' + encodeURIComponent(displayAddr(ohFirst) + ' New York NY') + '" style="color:#C4A052;text-decoration:none">Google Map</a></span>';
             if (optContent.mediaViewerLink && ohFirst.virtualTourUrl) ohLinks += '<span style="font-size:13px"><i class="fas fa-video" style="color:#C4A052;margin-right:4px"></i><a href="' + ohFirst.virtualTourUrl + '" style="color:#C4A052;text-decoration:none">Virtual Tour</a></span>';
             if (ohLinks) oh += '<div style="margin-bottom:24px">' + ohLinks + '</div>';
             // Agent contact card (prominent)
@@ -27973,7 +27981,10 @@ function openPrintableWindow(html, options) {
                 '<p style="margin:4px 0;font-size:13px"><a href="#" style="color:#C4A052;text-decoration:none">View on mallan.nyc</a></p>';
             if (l.virtualTourUrl) html += '<p style="margin:4px 0;font-size:13px"><a href="' + l.virtualTourUrl + '" style="color:#C4A052;text-decoration:none">3D Virtual Tour</a></p>';
             if (l.videoTourUrl) html += '<p style="margin:4px 0;font-size:13px"><a href="' + l.videoTourUrl + '" style="color:#C4A052;text-decoration:none">Video Tour</a></p>';
-            html += '<p style="margin:4px 0;font-size:13px"><a href="https://maps.google.com/?q=' + encodeURIComponent(da(l) + ' New York NY') + '" style="color:#C4A052;text-decoration:none">Google Map</a></p></div>';
+            // Closes the links block. The Google Map link removed from here had
+            // been carrying this closing tag, so it is restored on its own line
+            // where it belongs rather than riding on a content statement.
+            html += '</div>';
 
             // ── NO listing agent info or building contact (customer version) ──
 
