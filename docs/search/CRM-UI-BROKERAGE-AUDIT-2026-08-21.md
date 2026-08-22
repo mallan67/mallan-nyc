@@ -9,7 +9,13 @@
 
 Not independently reproduced by a second party outside this session.
 
-**No code was changed by this audit.** It is a map, and the order at the end is the point.
+**No code was changed by THIS AUDIT.** That is not the same as "no code changed in #618" —
+45 files under `app/`, `lib/` and `public/` have changed since production `a0db2dac`,
+including `/api/idx/search`, Saved Search execution, compliance gates, source identity,
+the projection engine, the field registry, `search-engine.js`, reports and toolbar logic.
+**The public consumer boundary is holding** — verified: the production→head delta contains
+no `app/search`, `SearchFilterPanel`, `/api/listings` or `lib/search/public-listing-*`
+change. This document is a map; the order at the end is the point.
 
 ---
 
@@ -515,25 +521,63 @@ a sequence, not a menu — later phases depend on earlier ones.
 
 ### P0 — nothing else starts until these are done
 
-**Reconciled across three reviews.** Two items were promoted to P0 by the second
-independent audit: **semantics** (the Sale universe and status mapping are objectively
-wrong, not merely imprecise) and **mapping loss** (facts already paid for and discarded).
+> ### CORRECTED — the previous ordering in this document was unsafe
+>
+> An earlier version put **"ONE Search engine"** at P0-2. That cannot be step two, and the
+> reason is recorded in this repo's own capability matrix:
+>
+> > **Structural: YES.** `ListingSearchProjection` is already populated from both sides.
+> > **Capability: NO, not yet.** It cannot replace `/api/idx/search` today without silently
+> > losing substantial broker Search capability.
+> > — `docs/search/PROJECTION-CAPABILITY-GAP-MATRIX-2026-08-21.md:9,14`
+>
+> Unifying onto an engine that cannot yet execute the verified contract would either
+> **delete broker capability** or force a provider fallback — and a fallback simply
+> recreates the two-engine problem it was meant to end.
+>
+> The ordering must follow the architecture chain, not whichever layer is easiest to patch:
+>
+> **COTALITY RAW CONTRACT → VERIFIED MAPPING → MALLAN STORAGE → MALLAN BUSINESS RULE /
+> SEARCH UNIVERSE → AGENT CONSUMERS**
+>
+> Not: build one engine → discover its data is incomplete → patch fields → discover reports
+> disagree → patch reports → repeat. That is the loop, expressed as a plan.
 
-| # | P0 | why it is P0 |
+### THE SEQUENCE
+
+| # | step | gate before moving on |
 |---|---|---|
-| 1 | **Stop false information** | brokerage risk today — fabricated transit, commute, showing instructions, photo counts, and every unknown-becomes-a-value default |
-| 2 | **ONE Search engine and one universe** | Engine A (live passthrough) and Engine B (projection) execute the same saved search differently — documented at `criteria-to-prisma.ts:336` |
-| 3 | **Sale / Rental / status semantics** | `PropertyType ne 'ResidentialLease'` is not residential sale; the agent's "Pending" searches `ActiveUnderContract`; `Leased` is unmapped |
-| 4 | **Count / paging / sort** | `total` is post-gate while `hasMore` is pre-gate; the cache key omits sort; sort changes the universe |
-| 5 | **Close the mapping loss** | `ClosePrice`, `LeaseAmount` and ~13 more are fetched and dropped before the agent — CMA cannot work without `ClosePrice` |
-| 6 | **Cotality subresource hydration** | `CustomProperty`, `OpenHouse`, `Office`, `Member`, plus `DocumentsAvailable` (94), `ShowingRequirements` (39), `Disclosures` (119) |
-| 7 | **Media contract + permissions** | 18 categories read through a 2-category premise; permissions must be evaluated on the Media row, not inherited from Property |
+| **0** | **GOVERNANCE** — handoff carries the true head and the new P0; master authority resolvable from this branch | no product implementation until this is closed |
+| **1** | **STOP FALSE INFORMATION** | fabricated transit / commute / showing instructions / photo counts removed; unknown → 0 / Manhattan / Active / Exclusive / permitted eliminated in **both** the mapper and `search-engine.js` |
+| **2** | **RAW CONTRACT → VERIFIED MAPPING** | Sale and Rental universes defined explicitly; status semantics split from Mallan deal state; fee/lease **frequency** honoured; Media category/classification/type kept distinct with row-level permissions; `managementCompany` marked **UNAVAILABLE** rather than substituted; the three direct Property fields added to the verified mapping |
+| **3** | **MAPPING → MALLAN STORAGE / PROJECTION** | `ClosePrice`, `LeaseAmount`, the frequency fields, availability and rental fees stop being discarded. **Exhaust existing typed columns, JSON and projection fields before proposing any schema.** This is also where the projection's capability gaps close |
+| **4** | **PROVE PROJECTION COMPLETENESS** | eligible listing ↔ **exactly one** projection row · zero missing · zero orphan · field parity · freshness. A missing projection row may **never** trigger a provider fallback. Requires the Neon hold to permit the census |
+| **5** | **ONE SEARCH UNIVERSE** | Mallan canonical local **+** synchronized third-party Cotality **−** suppressed Mallan representations, with audience/distribution eligibility applied **separately**. Only here does the live passthrough stop being authoritative |
+| **6** | **COUNT → PAGINATION → SORT → CACHE** | one universe behind every number; cache key includes canonical sort; sort orders, never re-scopes |
+| **7** | **RESULTS WORKBENCH** | one universe powers Grid · Gallery · Summary · Master/Detail · Map |
+| **8** | **DETAIL-RESOURCE HYDRATION** | `CustomProperty` · `OpenHouse` · `Office` · `Member` · `Media` — on **opening a listing**, never on every search |
+| **9** | **MAP** | exact coordinate → exact pin; neighborhood only → area, never a point; unresolvable → no pin |
+| **10** | **REPORTS** | canonical Search snapshot server-side; verified fields only; real delivery status; per-listing attribution; no Google output |
+| **11** | **CMA** | consumes corrected Search; real subject; `ClosePrice` evidence; comps; adjustments |
+| **12** | **CALCULATORS** | one input contract; verified facts vs marked assumptions; duplicates collapsed |
+| **13** | **DEVICE PROOF** | 1440 / 1024 / 390 on the **same** criteria and the **same** universe |
 
-**Hydration architecture, explicitly:** do **not** `$expand` everything on every search —
-that produces a slow, bloated Search. Synchronization hydrates into canonical storage;
-**Search returns a compact row, and opening a listing hydrates the full workspace.**
+### The two P0 categories that were mislabelled
+
+**Direct `Property` fields — these belong in the verified Property mapping and projection.
+Do NOT `$expand` them and do NOT build a fetch service for them:**
+`DocumentsAvailable` (94) · `ShowingRequirements` (39) · `Disclosures` (119).
+
+**Related resources / navigation — these are the hydration problem, and they belong at
+step 8, on listing open:**
+`CustomProperty` · `OpenHouse` · `Office` · `Member` · `Media`.
+
+Collapsing the two under one "subresource hydration" heading invites exactly the wrong fix.
+
 
 ---
+
+The phase detail below still applies; only the ORDER above is authoritative.
 
 ### PHASE 1 — STOP FALSE INFORMATION
 

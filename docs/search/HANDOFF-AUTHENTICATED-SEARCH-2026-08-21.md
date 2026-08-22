@@ -1,7 +1,77 @@
 # Handoff — authenticated backend Search (#618)
 
-**Head `b064ea66` · 26 commits ahead of production `a0db2dac` · draft, preview-only.**
-Public consumer Search is **zero-delta** against production and must stay that way.
+**Head `56855a54` · 38 commits ahead of production `a0db2dac` · draft, preview-only.**
+Public consumer Search is **zero-delta** against production and must stay that way —
+re-verified at this head: the production→head delta contains no `app/search`,
+`SearchFilterPanel`, `/api/listings` or `lib/search/public-listing-*` change.
+
+> ## READ THIS BEFORE ANYTHING ELSE
+>
+> ### 1. Authority resolution — this branch does NOT contain the master
+>
+> `MALLAN-PLATFORM-MASTER-PLAN.md` and `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md`
+> are **not tracked on this branch.** They live on the still-open **PR #595**, which defines
+> them as the single product authority and the continuation mechanism.
+>
+> **Consequence, and it is a real governance risk:** an agent working only from #618 sees
+> the Search audit, the PR body, this handoff, the coverage matrix and the historical docs
+> with **no master above them**, and can treat them as competing authorities.
+>
+> **Rule while that is true:** `MALLAN-PLATFORM-MASTER-PLAN.md` (PR #595) outranks every
+> document in this branch. Nothing here may be read as overriding it. If a conflict appears
+> and the master cannot be read, **stop and ask** — do not resolve it from the documents
+> that happen to be present.
+>
+> ### 2. The work is NOT at "one engine" yet, and must not jump there
+>
+> `docs/search/PROJECTION-CAPABILITY-GAP-MATRIX-2026-08-21.md` records:
+> **Structural: YES · Capability: NO, not yet** — the projection "cannot replace
+> `/api/idx/search` today without silently losing substantial broker Search capability."
+>
+> So unifying the engines is **step 5**, not step 2. Doing it earlier either deletes broker
+> capability or forces a provider fallback, and a fallback recreates the two-engine problem.
+>
+> ### 3. The current authoritative sequence
+>
+> **`docs/search/CRM-UI-BROKERAGE-AUDIT-2026-08-21.md` §10** — reconciled across three
+> independent reviews. Order:
+>
+> `0` governance · `1` stop false information · `2` raw contract → verified mapping ·
+> `3` mapping → storage/projection · `4` prove projection completeness ·
+> `5` ONE search universe · `6` count/paging/sort/cache · `7` results workbench ·
+> `8` detail-resource hydration · `9` map · `10` reports · `11` CMA · `12` calculators ·
+> `13` device proof.
+>
+> Follows the chain **COTALITY RAW CONTRACT → VERIFIED MAPPING → MALLAN STORAGE →
+> BUSINESS RULE / SEARCH UNIVERSE → AGENT CONSUMERS**.
+>
+> ### 4. P0 defects found since this file was last accurate
+>
+> | defect | evidence |
+> |---|---|
+> | **Two engines** — live passthrough (A) vs projection (B), different criteria vocabularies; a saved search replays into a different universe | `criteria-to-prisma.ts:336-339` |
+> | **`total` is post-gate, `hasMore` is pre-gate** — the code calls it "a known limitation" | `app/api/idx/search/route.ts:362-366,383-385` |
+> | **Sale universe is wrong** — `PropertyType ne 'ResidentialLease'` admits CommercialLease/Land/Farm/Specialty; a CommercialLease can enter via Sale and leave as a rental row | `crm-idx-filter.ts` + mapper |
+> | **Agent "Pending" searches `ActiveUnderContract`**; live `StandardStatus` carries both separately; `MlsStatus` has 25 members and `Leased` is unmapped | `search-engine.js:461` |
+> | **Facts fetched then discarded** — `ClosePrice`, `LeaseAmount` appear **zero** times in the mapper; CMA is built on `ClosePrice` | `SEARCH_SELECT_FIELDS` vs `crm-idx-mapper.ts` |
+> | **Fees assumed monthly** — `AssociationFeeFrequency` (16 live members) ignored; `$12,000 Annual` can present as `$12,000/month`; `\|\| 0` turns unknown into zero | `crm-idx-mapper.ts:60,192` |
+> | **Sort cache collision** — cache key omits sort | `route.ts:199` |
+> | **Sort changes the universe** — re-fetch rebuilds only price/beds/baths/one neighborhood | `toolbar-functions.js` |
+> | **Media read through a false premise** — code says "only 2 categories"; live `MediaCategory` has **18**; missing category defaults to `Photo`; `DOCUMENT-*` inferred as FloorPlan | `media/batch/route.ts:19`, `media-sync.ts:1700` |
+> | **Three rich Property fields never selected** — `DocumentsAvailable` (94), `ShowingRequirements` (39), `Disclosures` (119). These are **direct Property fields, not subresources** — do not `$expand` them | live `$metadata` |
+> | **Fabrications** — synthetic "Live MTA" arrivals, a commute calculator that ignores the address, `(UCOM)` showing instructions, `photoCount \|\| 6`, twelve unbound amenity cards, `RLS-*` demo cards carrying `data-source="REBNY-RLS"` | audit §2, §8b, §8c |
+> | **Google still in the product** — `reports.js:1301` emails a `maps.google.com` link | `public/crm/js/output/reports.js` |
+> | **Search writes during a GET** — building upsert inside the search request | `route.ts:255` |
+>
+> ### 5. Standing evidence rule
+>
+> Every claim carries **how** it is known (`LIVE` / `CODE` / `CI` / `INFERENCE` /
+> `RECOMMENDATION`) **and who** established it (`CLAUDE_LIVE_RUN` /
+> `INDEPENDENTLY_REPRODUCED` / `CURRENT_GITHUB_CODE`). `LIVE` alone never means two parties
+> agree. **If a claim is about the product, the scan must cover the product** — three
+> reports here were narrower than they read, most recently a "Google is removed" claim whose
+> scan excluded `public/crm`.
+
 
 ---
 
