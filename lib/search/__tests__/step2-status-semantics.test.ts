@@ -225,3 +225,89 @@ describe('legitimate UI aliases resolve in the ONE contract', () => {
     expect(crmTokenToStandardStatus('FUTURE')).toBeNull();
   });
 });
+
+/**
+ * THE CANONICAL EXECUTABLE VALUE IS THE EXACT COTALITY MEMBER.
+ *
+ * Mallan does not mint a parallel vocabulary for the Search foundation and then
+ * translate it. A criterion, a persisted saved search, and an outgoing $filter
+ * all carry the provider's own words: `Pending`, `ActiveUnderContract`,
+ * `ComingSoon`.
+ *
+ * The DOM already agreed — the status checkboxes carry
+ * `data-value="Active" / "ComingSoon" / "Pending"`. The uppercase tokens were
+ * invented purely in the JavaScript in between, and THREE separate tables
+ * existed to translate them back: search-engine.js, saved-searches.js, and the
+ * server contract. All three are gone.
+ *
+ * Legacy uppercase spellings survive ONLY as boundary migration for saved
+ * searches written before this, applied once on the way in. They are never
+ * persisted again and never reach Cotality.
+ */
+describe('exact Cotality members are the canonical criterion values', () => {
+  it.each(STANDARD_STATUS_MEMBERS)('%s passes through unchanged', (member) => {
+    expect(crmTokenToStandardStatus(member)).toBe(member);
+  });
+
+  it.each(STANDARD_STATUS_MEMBERS)('%s renders as its own exact predicate', (member) => {
+    const { filter } = standardStatusOData([member]);
+    expect(filter).toBe(`StandardStatus eq '${member}'`);
+  });
+
+  it('an outgoing filter never contains a Mallan-invented term', () => {
+    const { filter } = standardStatusOData(['Active', 'Pending', 'ActiveUnderContract']);
+    for (const invented of ['UNDER_CONTRACT', 'COMING_SOON', 'CANCELLED', 'CONTRACT', 'FUTURE', 'OFFEROUT']) {
+      expect(filter).not.toContain(invented);
+    }
+  });
+});
+
+describe('legacy spellings migrate at the boundary and never become truth', () => {
+  it.each([
+    ['UNDER_CONTRACT', 'ActiveUnderContract'],
+    ['CONTRACT', 'ActiveUnderContract'],
+    ['COMING_SOON', 'ComingSoon'],
+    ['CANCELLED', 'Canceled'],
+    ['PENDING', 'Pending'],
+    ['Coming Soon', 'ComingSoon'],
+  ])('a saved search holding %s resolves to the member %s', (legacy, member) => {
+    expect(crmTokenToStandardStatus(legacy)).toBe(member);
+  });
+
+  it('a migrated legacy value produces the MEMBER predicate, not the legacy word', () => {
+    const { filter } = standardStatusOData(['UNDER_CONTRACT']);
+    expect(filter).toBe("StandardStatus eq 'ActiveUnderContract'");
+    expect(filter).not.toContain('UNDER_CONTRACT');
+  });
+
+  it.each(['FUTURE', 'OFFEROUT'])('%s is NOT migrated — it has no proven member', (v) => {
+    expect(crmTokenToStandardStatus(v)).toBeNull();
+    expect(() => standardStatusOData([v])).toThrow(/Unsupported status criterion/);
+  });
+});
+
+describe('the browser emits exact members — no table left to drift', () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const fs = require('node:fs'), path = require('node:path');
+  const read = (rel: string) =>
+    fs.readFileSync(path.join(__dirname, '..', '..', '..', rel), 'utf8')
+      .split(String.fromCharCode(10))
+      .filter((l: string) => !l.trim().startsWith('//'))
+      .join(String.fromCharCode(10));
+
+  it('search-engine.js pushes Cotality members, not invented tokens', () => {
+    const src = read('public/crm/js/search/search-engine.js');
+    expect(src).toContain("statuses.push('ActiveUnderContract')");
+    expect(src).not.toContain("statuses.push('UNDER_CONTRACT')");
+    expect(src).not.toContain("statuses.push('COMING_SOON')");
+    expect(src).not.toContain("statuses.push('PENDING')");
+  });
+
+  it('search-engine.js keeps no status translation table', () => {
+    expect(read('public/crm/js/search/search-engine.js')).not.toMatch(/var statusMap = \{/);
+  });
+
+  it('saved-searches.js no longer reverse-maps an invented vocabulary', () => {
+    expect(read('public/crm/js/search/saved-searches.js')).not.toMatch(/statusReverseMap/);
+  });
+});

@@ -375,10 +375,22 @@
             // Restore status checkboxes
             if (criteria.status && Array.isArray(criteria.status) && criteria.status.length > 0) {
                 // Map saved statuses back to checkbox data-value attributes
-                var statusReverseMap = {
+                // THE THIRD TRANSLATION TABLE, REMOVED 2026-08-22.
+                //
+                // Criteria are now persisted as EXACT Cotality StandardStatus
+                // members, which is exactly what the checkbox data-value
+                // attributes already held - so restoring is a lookup, not a
+                // translation. This map existed only because the JS layer had
+                // invented an uppercase vocabulary in between.
+                //
+                // The legacy spellings a saved search written BEFORE that may
+                // still contain are migrated here, at the boundary, on the way
+                // in. They are never persisted again and never sent to Cotality.
+                var legacyStatusAliases = {
                     'ACTIVE': 'Active', 'COMING_SOON': 'ComingSoon', 'PENDING': 'Pending',
+                    'UNDER_CONTRACT': 'ActiveUnderContract', 'CONTRACT': 'ActiveUnderContract',
                     'CLOSED': 'Closed', 'WITHDRAWN': 'Withdrawn', 'CANCELED': 'Canceled',
-                    'EXPIRED': 'Expired', 'HOLD': 'Hold'
+                    'CANCELLED': 'Canceled', 'EXPIRED': 'Expired', 'HOLD': 'Hold'
                 };
                 // First uncheck all status checkboxes in the active form
                 var activeForm = document.getElementById(tab === 'rent' ? 'searchBasicModeRental' : 'searchBasicMode');
@@ -387,7 +399,8 @@
                 }
                 // Then check the saved ones
                 criteria.status.forEach(function(s) {
-                    var resoVal = statusReverseMap[s] || s;
+                    // An exact member passes straight through; only a legacy spelling is mapped.
+                    var resoVal = legacyStatusAliases[s] || s;
                     var cb = activeForm ? activeForm.querySelector('[data-field="MlsStatus"][data-value="' + resoVal + '"]') : null;
                     if (cb) cb.checked = true;
                 });

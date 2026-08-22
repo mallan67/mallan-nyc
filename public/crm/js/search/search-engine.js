@@ -474,8 +474,8 @@
             // that is the genuine contract state, and it stays DISTINCT from
             // Pending. Selecting both now yields two criteria, not one.
             if (criteria.statuses && criteria.statuses.length > 0) {
-                // The browser sends CANONICAL MALLAN TOKENS unchanged. It no
-                // longer keeps a second status table.
+                // The browser sends EXACT COTALITY StandardStatus MEMBERS. It no
+                // longer keeps a status table at all.
                 //
                 // There used to be a JS map here translating tokens to RESO
                 // PascalCase, maintained by hand in parallel with the server's
@@ -1077,11 +1077,19 @@
                             parts.forEach(function(part) {
                                 var s = part.trim();
                                 // Map to uppercase
-                                if (s === 'Active' || s === 'BackOnMarket') criteria.statuses.push('ACTIVE');
-                                else if (s === 'ComingSoon') criteria.statuses.push('COMING_SOON');
+                                if (s === 'Active' || s === 'BackOnMarket') criteria.statuses.push('Active');
+                                else if (s === 'ComingSoon') criteria.statuses.push('ComingSoon');
+                                // 'Future' is DELIBERATELY carried through as-is.
+                                // It has no proven Cotality member, so the server
+                                // rejects it with a typed 400 naming the value -
+                                // which tells the broker exactly what in their
+                                // saved search cannot be run. Dropping it here
+                                // would silently widen the restored search
+                                // instead, which is the failure mode this whole
+                                // status pass exists to remove.
                                 else if (s === 'Future') criteria.statuses.push('FUTURE');
-                                else if (s === 'Pending') criteria.statuses.push('PENDING');
-                                else if (s === 'Closed') criteria.statuses.push('CLOSED');
+                                else if (s === 'Pending') criteria.statuses.push('Pending');
+                                else if (s === 'Closed') criteria.statuses.push('Closed');
                                 else if (s === 'Withdrawn') criteria.statuses.push('WITHDRAWN');
                                 else if (s === 'Canceled') criteria.statuses.push('CANCELED');
                                 else if (s === 'Expired') criteria.statuses.push('EXPIRED');
@@ -2044,15 +2052,15 @@
             var statuses = c.statuses || ['ACTIVE'];
             var el;
             el = document.getElementById('refineStatusActive');
-            if (el) el.checked = statuses.indexOf('ACTIVE') !== -1;
+            if (el) el.checked = statuses.indexOf('Active') !== -1;
             el = document.getElementById('refineStatusComingSoon');
-            if (el) el.checked = statuses.indexOf('COMING_SOON') !== -1;
+            if (el) el.checked = statuses.indexOf('ComingSoon') !== -1;
             el = document.getElementById('refineStatusPending');
-            if (el) el.checked = statuses.indexOf('PENDING') !== -1;
+            if (el) el.checked = statuses.indexOf('Pending') !== -1;
             el = document.getElementById('refineStatusContract');
-            if (el) el.checked = statuses.indexOf('CONTRACT') !== -1 || statuses.indexOf('UNDER_CONTRACT') !== -1;
+            if (el) el.checked = statuses.indexOf('ActiveUnderContract') !== -1;
             el = document.getElementById('refineStatusClosed');
-            if (el) el.checked = statuses.indexOf('CLOSED') !== -1;
+            if (el) el.checked = statuses.indexOf('Closed') !== -1;
 
             // Build applied filters pills
             buildRefineFilterPills(c);
@@ -2165,11 +2173,11 @@
 
             // Statuses
             var statuses = [];
-            if (document.getElementById('refineStatusActive') && document.getElementById('refineStatusActive').checked) statuses.push('ACTIVE');
-            if (document.getElementById('refineStatusComingSoon') && document.getElementById('refineStatusComingSoon').checked) statuses.push('COMING_SOON');
-            if (document.getElementById('refineStatusPending') && document.getElementById('refineStatusPending').checked) statuses.push('PENDING');
-            if (document.getElementById('refineStatusContract') && document.getElementById('refineStatusContract').checked) { statuses.push('CONTRACT'); statuses.push('UNDER_CONTRACT'); }
-            if (document.getElementById('refineStatusClosed') && document.getElementById('refineStatusClosed').checked) statuses.push('CLOSED');
+            if (document.getElementById('refineStatusActive') && document.getElementById('refineStatusActive').checked) statuses.push('Active');
+            if (document.getElementById('refineStatusComingSoon') && document.getElementById('refineStatusComingSoon').checked) statuses.push('ComingSoon');
+            if (document.getElementById('refineStatusPending') && document.getElementById('refineStatusPending').checked) statuses.push('Pending');
+            if (document.getElementById('refineStatusContract') && document.getElementById('refineStatusContract').checked) { statuses.push('ActiveUnderContract'); statuses.push('ActiveUnderContract'); }
+            if (document.getElementById('refineStatusClosed') && document.getElementById('refineStatusClosed').checked) statuses.push('Closed');
             if (statuses.length > 0) c.statuses = statuses; else delete c.statuses;
 
             // Update activeSearchCriteria

@@ -128,25 +128,47 @@ const MEMBER_TO_TOKEN: Readonly<Record<StandardStatusMember, CrmStatusToken>> = 
 });
 
 /**
- * Legacy / UI spellings that mean an existing canonical token.
+ * LEGACY BOUNDARY COMPATIBILITY — not canonical, and never outgoing.
  *
- * These live HERE, in the one authority, rather than in a second table in the
- * browser. An alias may only be added when it is a SPELLING of a token that
- * already exists — never when it is a new concept hoping to borrow a member.
+ * THE CANONICAL EXECUTABLE VALUE IS THE EXACT COTALITY MEMBER. A criterion, a
+ * persisted saved search, and an outgoing `$filter` all carry `Pending`,
+ * `ActiveUnderContract`, `ComingSoon` — the provider's own words. Mallan does
+ * not mint a parallel vocabulary for the Search foundation and then translate.
  *
- * `FUTURE` is deliberately ABSENT. The browser used to send it as `Incomplete`.
- * Cotality declares `Incomplete`; it does not declare `Future`. That one exists
- * establishes nothing about the other's meaning — the same unverified-equivalence
- * mistake as `PENDING -> ActiveUnderContract`. `FUTURE` stays unsupported until
- * Mallan decides what it means, and an unsupported criterion FAILS rather than
- * being dropped.
+ * The DOM already agreed: the status checkboxes carry
+ * `data-value="Active" / "ComingSoon" / "Pending"`. The uppercase tokens were
+ * invented purely in the JavaScript in between, and THREE separate tables then
+ * existed to translate them back — in search-engine.js, in saved-searches.js,
+ * and here.
+ *
+ * This map exists ONLY to migrate a SAVED SEARCH written before that. It is
+ * applied at the boundary, once, on the way in. A legacy spelling never becomes
+ * provider truth, is never persisted again, and never reaches Cotality.
+ *
+ * `FUTURE` and `OFFEROUT` are deliberately ABSENT. `FUTURE` used to be sent as
+ * `Incomplete`; Cotality declares `Incomplete` and does not declare `Future`,
+ * and one existing establishes nothing about the other's meaning — the same
+ * unverified-equivalence mistake as `PENDING -> ActiveUnderContract`. They stay
+ * unsupported until Mallan decides what they mean, and an unsupported criterion
+ * FAILS rather than being silently dropped or substituted.
  */
-const TOKEN_ALIASES: Readonly<Record<string, Exclude<CrmStatusToken, 'UNKNOWN'>>> = Object.freeze({
-  CONTRACT: 'UNDER_CONTRACT',
-  ACTIVEUNDERCONTRACT: 'UNDER_CONTRACT',
-  'ACTIVE_UNDER_CONTRACT': 'UNDER_CONTRACT',
-  CANCELED: 'CANCELLED',
-  COMINGSOON: 'COMING_SOON',
+const LEGACY_CRITERION_ALIASES: Readonly<Record<string, StandardStatusMember>> = Object.freeze({
+  ACTIVE: 'Active',
+  PENDING: 'Pending',
+  UNDER_CONTRACT: 'ActiveUnderContract',
+  CONTRACT: 'ActiveUnderContract',
+  ACTIVEUNDERCONTRACT: 'ActiveUnderContract',
+  ACTIVE_UNDER_CONTRACT: 'ActiveUnderContract',
+  COMING_SOON: 'ComingSoon',
+  COMINGSOON: 'ComingSoon',
+  CLOSED: 'Closed',
+  WITHDRAWN: 'Withdrawn',
+  CANCELLED: 'Canceled',
+  CANCELED: 'Canceled',
+  EXPIRED: 'Expired',
+  HOLD: 'Hold',
+  INCOMPLETE: 'Incomplete',
+  DELETE: 'Delete',
 });
 
 /**
@@ -187,13 +209,19 @@ export function isStandardStatusMember(value: unknown): value is StandardStatusM
  */
 export function crmTokenToStandardStatus(token: unknown): StandardStatusMember | null {
   if (typeof token !== 'string') return null;
-  // Whitespace is stripped before lookup so the spaced UI spellings
-  // ("Coming Soon", "Active Under Contract") resolve through the SAME alias
-  // table as everything else. The previous writer stripped whitespace itself;
-  // doing it here keeps one authority instead of two normalisers.
-  const raw = token.trim().replace(/\s+/g, '').toUpperCase();
-  const key = (TOKEN_ALIASES[raw] ?? raw) as Exclude<CrmStatusToken, 'UNKNOWN'>;
-  return TOKEN_TO_MEMBER[key] ?? null;
+  const trimmed = token.trim();
+
+  // THE CANONICAL FORM: an exact live member, used verbatim. This is the normal
+  // path — criteria, saved searches and outgoing filters all carry the
+  // provider's own words.
+  if (isStandardStatusMember(trimmed)) return trimmed;
+
+  // LEGACY ONLY, migrated at the boundary. Whitespace is stripped so the spaced
+  // spellings an older saved search may hold ("Coming Soon", "Active Under
+  // Contract") migrate through the SAME table, rather than a second normaliser
+  // existing somewhere else.
+  const legacy = trimmed.replace(/\s+/g, '').toUpperCase();
+  return LEGACY_CRITERION_ALIASES[legacy] ?? null;
 }
 
 /**

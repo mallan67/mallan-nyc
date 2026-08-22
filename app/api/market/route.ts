@@ -4,7 +4,7 @@ import { cachedPublicRead, SEARCH_CACHE_TAG } from '@/lib/cache/public-cache';
 import type { Prisma } from '@prisma/client';
 import { getAccessToken } from '@/lib/idx/auth';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
-import { normalizeMarketType, marketActiveStatusFilter, marketClosedStatusFilter } from '@/lib/market/query-contract';
+import { normalizeMarketType, marketPropertyClass, marketActiveStatusFilter, marketClosedStatusFilter } from '@/lib/market/query-contract';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
@@ -191,7 +191,11 @@ export async function GET(request: Request) {
         const isRental = normalizeMarketType(type) === 'rental';
         // Cotality PropertyType is camelCase 'ResidentialLease' (no space) — the space variant
         // matched 0 live rows, silently emptying every rental market stat (AGENTS.md §1 invariant 7).
-        const propertyClass = isRental ? "PropertyType eq 'ResidentialLease'" : "PropertyType eq 'Residential'";
+        // Was re-derived here as two string literals. A canonical helper the real
+        // writer ignores is not closure — that is precisely how the Sale/Rental
+        // negation survived a "fixed" contract last round. This now resolves
+        // route -> market contract -> canonical PropertyType universe.
+        const propertyClass = marketPropertyClass(isRental ? 'rental' : 'sale');
         const boroughFilter = borough ? ` and CityRegion eq '${borough.replace(/'/g, "''")}'` : '';
         // $select fields verified against live Trestle $metadata (2026-04-19):
         // IDXEntireListingDisplayYN / OwnerOptOut / ParticipantOnlyYN do NOT

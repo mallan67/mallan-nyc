@@ -44,6 +44,7 @@
  * not a reason to change it.
  */
 import { standardStatusOData } from '@/lib/search/canonical/status-token-contract';
+import { propertyTypeUniverseOData } from '@/lib/search/canonical/property-type-universe';
 
 export type MarketType = 'sale' | 'rental';
 
@@ -58,11 +59,17 @@ export function normalizeMarketType(raw: unknown): MarketType {
   return value === 'rent' || value === 'rental' ? 'rental' : 'sale';
 }
 
-/** The PropertyType predicate, from the verified Sale/Rental universe. */
+/**
+ * The PropertyType predicate, DELEGATED to the verified Sale/Rental universe.
+ *
+ * This function previously re-derived the two predicates as string literals.
+ * That is the very defect this file exists to close, one level down: a canonical
+ * helper that copies the rule instead of consuming it drifts exactly as easily
+ * as a route that copies it. `propertyTypeUniverseOData` is the single authority
+ * for what Sale and Rental MEAN as a provider predicate.
+ */
 export function marketPropertyClass(type: MarketType): string {
-  return type === 'rental'
-    ? "PropertyType eq 'ResidentialLease'"
-    : "PropertyType eq 'Residential'";
+  return propertyTypeUniverseOData(type === 'rental' ? 'rental' : 'sale');
 }
 
 /**
@@ -73,14 +80,14 @@ export function marketPropertyClass(type: MarketType): string {
  * widen the set.
  */
 export function marketActiveStatusFilter(): string {
-  const { filter } = standardStatusOData(['ACTIVE', 'COMING_SOON', 'UNDER_CONTRACT']);
+  const { filter } = standardStatusOData(['Active', 'ComingSoon', 'ActiveUnderContract']);
   if (!filter) throw new Error('[market] active status set rendered empty');
   return filter;
 }
 
 /** The CLOSED market. `MlsStatus` is not consulted — the provider refuses it. */
 export function marketClosedStatusFilter(): string {
-  const { filter } = standardStatusOData(['CLOSED']);
+  const { filter } = standardStatusOData(['Closed']);
   if (!filter) throw new Error('[market] closed status set rendered empty');
   return filter;
 }
