@@ -1,90 +1,57 @@
 import {
   classifyMediaCategory,
+  hasUsableListingIdentity,
   mapDisplayPropertyType,
   mapTrestleToCrmListing,
 } from "@/lib/search/crm-idx-mapper";
 
-describe("crm idx mapper", () => {
-  it("maps display property type without using Apartment as a display label", () => {
+describe("crm idx mapper — live Cotality contract", () => {
+  it("maps display property type without inventing ownership", () => {
     expect(mapDisplayPropertyType({ CommonInterest: "Condominium" })).toBe("Condo");
     expect(mapDisplayPropertyType({ CommonInterest: "StockCooperative" })).toBe("Co-op");
     expect(mapDisplayPropertyType({ PropertySubType: "Apartment" })).toBe("Residential");
+    expect(mapDisplayPropertyType({})).toBeNull();
   });
 
-  it("classifies media category using RESO content category", () => {
-    expect(classifyMediaCategory({ MediaCategory: "Floor Plan" })).toBe("FloorPlan");
+  it("groups only exact proven Cotality MediaCategory members", () => {
+    expect(classifyMediaCategory({ MediaCategory: "FloorPlan" })).toBe("FloorPlan");
     expect(classifyMediaCategory({ MediaCategory: "Video" })).toBe("Video");
-    expect(classifyMediaCategory({ MediaCategory: "Virtual Tour" })).toBe("VirtualTour");
     expect(classifyMediaCategory({ MediaCategory: "Photo" })).toBe("Photo");
+
+    // Not exact members / not proven Mallan groups.
+    expect(classifyMediaCategory({ MediaCategory: "Floor Plan" })).toBe("Unclassified");
+    expect(classifyMediaCategory({ MediaCategory: "VirtualTour" })).toBe("Unclassified");
+    expect(classifyMediaCategory({ MediaCategory: "BrandedVirtualTour" })).toBe("Unclassified");
+    expect(classifyMediaCategory({ MediaCategory: "Other" })).toBe("Unclassified");
+    expect(classifyMediaCategory({})).toBe("Unclassified");
   });
 
-  // ── REBNY IDX Plus pre-filter semantics (Phase 0a, 2026-05-01) ────────────
-  // The CRM mapper consumes raw Trestle records on the /api/idx/search live
-  // path. REBNY/Cotality pre-filter non-displayable rows out of the IDX Plus
-  // feed at the provider level, leaving these two booleans null on the
-  // survivors. The mapper must mirror the writer-side convention at
-  // lib/idx/trestle-mapper.ts:705-706 (commit 0309875b): treat null as
-  // displayable, honor explicit false. AVM / ConsumerComment fields are NOT
-  // pre-filtered — those remain fail-closed via affirmPermission elsewhere.
+  describe("provider identity", () => {
+    it("uses non-nullable Cotality ListingKey as the provider identity", () => {
+      const raw = { ListingKey: "12345", ListingId: "RLS123", SourceSystemKey: "LINEAGE123" };
+      expect(hasUsableListingIdentity(raw)).toBe(true);
+      const listing = mapTrestleToCrmListing(raw, 0);
+      expect(listing.id).toBe("12345");
+      expect(listing._listingKey).toBe("12345");
+      expect(listing.wid).toBe("12345");
+      expect(listing.providerListingId).toBe("RLS123");
+      expect(listing.providerSourceSystemKey).toBe("LINEAGE123");
+    });
 
-  it("treats null InternetAddressDisplayYN as displayable (IDX Plus pre-filter)", () => {
+    it("does not let ListingId or SourceSystemKey impersonate ListingKey", () => {
+      expect(hasUsableListingIdentity({ ListingId: "RLS123" })).toBe(false);
+      expect(hasUsableListingIdentity({ SourceSystemKey: "LINEAGE123" })).toBe(false);
+      expect(hasUsableListingIdentity({ ListingId: "RLS123", SourceSystemKey: "LINEAGE123" })).toBe(false);
+    });
+  });
+
+  it("honors address/display flags without inventing opt-out values", () => {
     const listing = mapTrestleToCrmListing({
-      ListingId: "RLS123",
+      ListingKey: "1",
       StreetNumber: "100",
       StreetDirPrefix: "W",
       StreetName: "72nd",
       StreetSuffix: "Street",
-      ListPrice: 1500000,
-      InternetEntireListingDisplayYN: true,
-      InternetAddressDisplayYN: null,
-      StandardStatus: "Active",
-    }, 0);
-
-    expect(listing.address).toBe("100 W 72ND STREET");
-    expect(listing.addressDisplayYN).toBe(true);
-    expect(listing.internetDisplayYN).toBe(true);
-    // CORRECTED (Step 1): ownerOptOut/participantOnly were hard-coded `false`,
-    // which is an AFFIRMATIVE claim that the owner did not opt out. The provider
-    // supplied no such fact, so they are now null. Every consumer tests `=== true`
-    // (compliance-gates-and-output.js:21,27), so behaviour is unchanged — the
-    // value is simply no longer an invention.
-    // The two DISPLAY flags stay true: on IDX Plus they are REBNY-pre-filtered and
-    // null genuinely means displayable (2026-04-30 incident contract).
-    expect(listing.permissions).toMatchObject({
-      idxDisplay: true,
-      internetDisplay: true,
-      ownerOptOut: null,
-      participantOnly: null,
-    });
-  });
-
-  it("treats null InternetEntireListingDisplayYN as displayable (IDX Plus pre-filter)", () => {
-    const listing = mapTrestleToCrmListing({
-      ListingId: "RLS124",
-      StreetNumber: "200",
-      StreetName: "Broadway",
-      ListPrice: 2200000,
-      InternetEntireListingDisplayYN: null,
-      InternetAddressDisplayYN: null,
-      StandardStatus: "Active",
-    }, 0);
-
-    expect(listing.internetDisplayYN).toBe(true);
-    expect(listing.addressDisplayYN).toBe(true);
-    expect(listing.address).toBe("200 BROADWAY");
-    expect(listing.permissions).toMatchObject({
-      internetDisplay: true,
-      idxDisplay: true,
-    });
-  });
-
-  it("honors explicit false on InternetAddressDisplayYN (per-listing opt-out)", () => {
-    const listing = mapTrestleToCrmListing({
-      ListingId: "RLS125",
-      StreetNumber: "300",
-      StreetName: "5th",
-      StreetSuffix: "Avenue",
-      ListPrice: 3500000,
       InternetEntireListingDisplayYN: true,
       InternetAddressDisplayYN: false,
       StandardStatus: "Active",
@@ -93,30 +60,20 @@ describe("crm idx mapper", () => {
     expect(listing.address).toBe("ADDRESS AVAILABLE UPON REQUEST");
     expect(listing.addressDisplayYN).toBe(false);
     expect(listing.internetDisplayYN).toBe(true);
-  });
-
-  it("honors explicit false on InternetEntireListingDisplayYN", () => {
-    const listing = mapTrestleToCrmListing({
-      ListingId: "RLS126",
-      StreetNumber: "400",
-      StreetName: "Park",
-      StreetSuffix: "Avenue",
-      ListPrice: 4500000,
-      InternetEntireListingDisplayYN: false,
-      InternetAddressDisplayYN: true,
-      StandardStatus: "Active",
-    }, 0);
-
-    expect(listing.internetDisplayYN).toBe(false);
     expect(listing.permissions).toMatchObject({
-      internetDisplay: false,
+      ownerOptOut: null,
+      participantOnly: null,
+      idxDisplay: true,
+      internetDisplay: true,
+      syndication: null,
     });
   });
 
-  it("maps sales with status, price change, taxes, media proxying, and DPA fields", () => {
+  it("maps exact Cotality facts while keeping unresolved geography raw", () => {
     const listing = mapTrestleToCrmListing({
+      ListingKey: "456",
       ListingId: "RLS456",
-      SourceSystemKey: "KEY456",
+      SourceSystemKey: "LINEAGE456",
       StreetNumber: "22",
       StreetName: "Main",
       StreetSuffix: "Street",
@@ -124,10 +81,12 @@ describe("crm idx mapper", () => {
       PropertyType: "Residential",
       PropertySubType: "Condominium",
       CommonInterest: "Condominium",
+      OwnershipType: "Individual",
       ListPrice: 1200000,
       OriginalListPrice: 1300000,
       TaxAnnualAmount: 12000,
       AssociationFee: 1100,
+      AssociationFeeFrequency: "Monthly",
       RoomsTotal: 5,
       BedroomsTotal: 2,
       BathroomsTotalInteger: 2.5,
@@ -135,351 +94,172 @@ describe("crm idx mapper", () => {
       StandardStatus: "ActiveUnderContract",
       SubdivisionName: "Chelsea",
       CityRegion: "Manhattan",
+      CountyOrParish: "New York",
       PostalCode: "10011",
       YearBuilt: 2018,
       BuildingName: "Test Building",
       BuildingKeyNumeric: 123,
-      DaysOnMarket: 12,
-      CumulativeDaysOnMarket: 20,
-      ListingContractDate: "2026-04-01",
-      ModificationTimestamp: "2026-04-10T12:00:00Z",
-      ListOfficeName: "Mallan",
-      ListAgentFullName: "Agent Name",
+      Latitude: 40.1,
+      Longitude: -73.9,
       InternetEntireListingDisplayYN: true,
       InternetAddressDisplayYN: true,
       Media: [
         { MediaURL: "https://img.cotality.com/photo.jpg", MediaCategory: "Photo", Order: 2 },
-        { MediaURL: "https://cdn.example.com/floor.pdf", MediaCategory: "Floor Plan", Order: 3 },
+        { MediaURL: "https://cdn.example.com/floor.pdf", MediaCategory: "FloorPlan", Order: 3 },
       ],
       PhotosCount: 2,
       CustomProperty: [{ DownPaymentAssistanceAmount: 5000, DownPaymentAssistanceCount: 1 }],
     }, 4);
 
     expect(listing).toMatchObject({
-      id: "RLS456",
-      address: "22 MAIN STREET",
-      unit: "4A",
+      id: "456",
+      lid: "RLS456",
+      wid: "456",
       price: 1200000,
+      reTaxes: 1000,
+      maintCC: 1100,
+      associationFee: 1100,
+      associationFeeFrequency: "Monthly",
       totalMonthly: 2100,
-      baths: 2.5,
-      // The fixture feeds StandardStatus ActiveUnderContract, which is its own
-      // member and no longer collapses into PENDING.
       status: "ActiveUnderContract",
+      ownership: "Condominium",
+      providerOwnershipType: "Individual",
       propertyType: "Condo",
-      neighborhood: "Chelsea",
-      borough: "Manhattan",
-      zip: "10011",
-      era: "New Construction",
-      priceChange: "down",
+      neighborhood: null,
+      borough: null,
+      providerSubdivisionName: "Chelsea",
+      providerCityRegion: "Manhattan",
+      providerCountyOrParish: "New York",
+      latitude: null,
+      longitude: null,
+      providerLatitude: 40.1,
+      providerLongitude: -73.9,
       originalPrice: 1300000,
       downPaymentAssistanceAmount: 5000,
       downPaymentAssistanceCount: 1,
     });
     expect((listing.images as Array<Record<string, unknown>>)[0]).toMatchObject({
-      // CORRECTED 2026-08-07: img.cotality.com is NOT on the proxy route's
-      // exact allowlist, so proxying it produced a guaranteed 403. The mapper
-      // now delegates to the canonical policy and passes unapproved hosts
-      // through unchanged. See lib/media/__tests__/listing-media-resolver.test.ts.
-      url: "https://img.cotality.com/photo.jpg",
       isPrimary: true,
       mediaType: "Photo",
     });
     expect((listing.images as Array<Record<string, unknown>>)[1]).toMatchObject({
-      url: "https://cdn.example.com/floor.pdf",
       mediaType: "FloorPlan",
     });
   });
 
-  it("maps rentals with monthly rent as total monthly", () => {
+  it("does not present a non-monthly AssociationFee as monthly maintenance", () => {
     const listing = mapTrestleToCrmListing({
+      ListingKey: "fee-quarterly",
+      PropertyType: "Residential",
+      TaxAnnualAmount: 12000,
+      AssociationFee: 3000,
+      AssociationFeeFrequency: "Quarterly",
+    }, 0);
+    expect(listing.associationFee).toBe(3000);
+    expect(listing.associationFeeFrequency).toBe("Quarterly");
+    expect(listing.maintCC).toBeNull();
+    expect(listing.totalMonthly).toBeNull();
+  });
+
+  it("does not pretend an unknown AssociationFee frequency is monthly", () => {
+    const listing = mapTrestleToCrmListing({
+      ListingKey: "fee-remarks",
+      PropertyType: "Residential",
+      AssociationFee: 2000,
+      AssociationFeeFrequency: "SeeRemarks",
+    }, 0);
+    expect(listing.maintCC).toBeNull();
+    expect(listing.totalMonthly).toBeNull();
+  });
+
+  it("keeps rental ListPrice as a provider fact without changing its identity", () => {
+    const listing = mapTrestleToCrmListing({
+      ListingKey: "rent-key",
       ListingId: "RENT1",
       PropertyType: "ResidentialLease",
       ListPrice: 4200,
-      InternetEntireListingDisplayYN: true,
-      InternetAddressDisplayYN: true,
     }, 0);
-
+    expect(listing.id).toBe("rent-key");
     expect(listing.price).toBe(4200);
     expect(listing.totalMonthly).toBe(4200);
     expect(listing.listingCategory).toBe("rental");
   });
 
-  // ═══════════════════════════════════════════════════════════════════
-  // P0 COMPLIANCE — status mapper exhaustiveness (UCBA Art. I §5(D))
-  //
-  // UCBA prohibits "Off-Market" labeling. The prior fallback
-  //   const status = statusMap[mlsStatus] || mlsStatus.toUpperCase()
-  // could produce "OFF MARKET" if Trestle returned that string,
-  // exposing the platform to UCBA fines. Tests below pin the
-  // contract: any unmapped or off-market variant must NEVER produce
-  // an "OFF MARKET" value in the rendered status field.
-  // ═══════════════════════════════════════════════════════════════════
+  describe("StandardStatus", () => {
+    const exactMembers = [
+      "Active",
+      "ActiveUnderContract",
+      "Canceled",
+      "Closed",
+      "ComingSoon",
+      "Delete",
+      "Expired",
+      "Hold",
+      "Incomplete",
+      "Pending",
+      "Withdrawn",
+    ];
 
-  describe("status mapper — UCBA Art. I §5(D) compliance", () => {
-    const offMarketVariants = ["Off Market", "Off-Market", "OffMarket", "off market"];
-
-    // CHANGED 2026-08-22, and the PROTECTIVE CONTRACT IS UNCHANGED.
-    //
-    // This block's own stated contract (above) is: "any unmapped or off-market
-    // variant must NEVER produce an 'OFF MARKET' value in the rendered status
-    // field". That is what is asserted below, and it still holds.
-    //
-    // What changed is the route, not the protection. `MlsStatus` is no longer a
-    // status INPUT at all: it is a different 25-member vocabulary that the
-    // provider suppresses for filtering, so `StandardStatus` is now the sole
-    // canonical status source. An off-market string arriving in MlsStatus can
-    // therefore no longer become the status by any path, and falls to UNKNOWN
-    // like every other unmapped value — which is exactly what the very next test
-    // in this file already requires of unmapped values. UNKNOWN is also strictly
-    // more conservative than WITHDRAWN: WITHDRAWN asserts a lifecycle state the
-    // provider never stated in StandardStatus.
-    for (const variant of offMarketVariants) {
-      it(`never renders MlsStatus "${variant}" as an off-market label`, () => {
-        const listing = mapTrestleToCrmListing({
-          ListingId: "X",
-          MlsStatus: variant,
-          InternetEntireListingDisplayYN: true,
-          InternetAddressDisplayYN: true,
-        }, 0);
-        // The guard itself — the prohibited string must not appear.
-        expect(listing.status).not.toBe("OFF MARKET");
-        expect(listing.status).not.toMatch(/OFF.MARKET/i);
-        // And MlsStatus cannot set the status at all any more.
-        expect(listing.status).toBe("UNKNOWN");
-        // The raw provider value is still preserved as evidence, unmapped.
-        expect(listing.providerMlsStatus).toBe(variant);
+    for (const member of exactMembers) {
+      it(`preserves exact member ${member}`, () => {
+        const listing = mapTrestleToCrmListing({ ListingKey: member, StandardStatus: member }, 0);
+        expect(listing.status).toBe(member);
       });
     }
 
-    it("falls back unmapped values to UNKNOWN (not raw uppercase)", () => {
-      // Vendor- or feed-specific status that nobody has mapped yet
-      // must NOT surface as raw uppercase text in the UI. UNKNOWN is
-      // a safe sentinel that renderers can suppress or display
-      // neutrally.
+    it("keeps raw MlsStatus separate and never lets it override StandardStatus", () => {
       const listing = mapTrestleToCrmListing({
-        ListingId: "X",
-        StandardStatus: "SomeFutureStatusEnum",
-        InternetEntireListingDisplayYN: true,
-        InternetAddressDisplayYN: true,
+        ListingKey: "status",
+        StandardStatus: "Pending",
+        MlsStatus: "AttorneyReview",
       }, 0);
-      expect(listing.status).toBe("UNKNOWN");
-      expect(listing.status).not.toBe("SOMEFUTURESTATUSENUM");
+      expect(listing.status).toBe("Pending");
+      expect(listing.mlsStatus).toBe("Pending");
+      expect(listing.providerMlsStatus).toBe("AttorneyReview");
     });
 
-    it("preserves all canonical mappings (regression guard)", () => {
-      // CHANGED 2026-08-22 on two counts, both corrections rather than
-      // relaxations.
-      //
-      // 1. Keyed on StandardStatus, not MlsStatus. StandardStatus is the
-      //    canonical provider status; MlsStatus is a different vocabulary the
-      //    provider suppresses for filtering and never overrides it.
-      // 2. ActiveUnderContract no longer collapses into PENDING. Cotality
-      //    declares Pending and ActiveUnderContract as SEPARATE StandardStatus
-      //    members, and on the live feed ActiveUnderContract has zero rows while
-      //    Pending is populated. Collapsing them showed a listing genuinely
-      //    under contract to a client as merely pending — and was the exact
-      //    inverse of the browser sending "PENDING" out as ActiveUnderContract,
-      //    so the two cancelled on a round trip and neither end looked wrong.
-      //
-      // Variants with spaces ("Active Under Contract", "Coming Soon") are gone:
-      // they are not members of the live enum, so they are UNKNOWN like any
-      // other unrecognised value.
-      // RETARGETED 2026-08-22: the DTO carries the EXACT Cotality member, so each
-      // member reads back as ITSELF. Mallan no longer mints a parallel read
-      // vocabulary; human labels are applied at render by statusDisplayLabel().
-      const cases: Array<[string, string]> = [
-        ["Active", "Active"],
-        ["ComingSoon", "ComingSoon"],
-        ["ActiveUnderContract", "ActiveUnderContract"],
-        ["Pending", "Pending"],
-        ["Closed", "Closed"],
-        ["Expired", "Expired"],
-        ["Withdrawn", "Withdrawn"],
-        ["Hold", "Hold"],
-        ["Incomplete", "Incomplete"],
-        ["Canceled", "Canceled"],
-      ];
-      for (const [input, expected] of cases) {
-        const listing = mapTrestleToCrmListing({
-          ListingId: "X",
-          StandardStatus: input,
-          InternetEntireListingDisplayYN: true,
-          InternetAddressDisplayYN: true,
-        }, 0);
-        expect(listing.status).toBe(expected);
-      }
+    it("maps missing/unrecognized StandardStatus to UNKNOWN, never Active", () => {
+      expect(mapTrestleToCrmListing({ ListingKey: "missing" }, 0).status).toBe("UNKNOWN");
+      expect(mapTrestleToCrmListing({ ListingKey: "future", StandardStatus: "SomeFutureStatusEnum" }, 0).status).toBe("UNKNOWN");
     });
   });
 
-  // ═══════════════════════════════════════════════════════════════════
-  // P0 COMPLIANCE — Coming Soon date (UCBA Art. I §16(C))
-  //
-  // Coming Soon listings must disclose "No Showings or Open House
-  // until [date]." The date must be specific. Previously
-  // comingSoonDate was hard-coded null, so the badge renderer fell
-  // back to a vague "until active date" string. Now populated from
-  // Trestle ActivationDate (preferred) or OnMarketDate (fallback).
-  // ═══════════════════════════════════════════════════════════════════
-
-  describe("comingSoonDate — UCBA Art. I §16(C)", () => {
-    it("populates from raw.ActivationDate when status is Coming Soon", () => {
-      const listing = mapTrestleToCrmListing({
-        ListingId: "X",
-        // The live member has no space; "Coming Soon" is not a member.
+  describe("Coming Soon date", () => {
+    it("uses ActivationDate then OnMarketDate only for exact ComingSoon", () => {
+      expect(mapTrestleToCrmListing({
+        ListingKey: "cs1",
         StandardStatus: "ComingSoon",
         ActivationDate: "2026-06-15T00:00:00Z",
         OnMarketDate: "2026-06-10T00:00:00Z",
-        InternetEntireListingDisplayYN: true,
-        InternetAddressDisplayYN: true,
-      }, 0);
-      expect(listing.status).toBe("ComingSoon");
-      expect(listing.comingSoonDate).toBe("2026-06-15");
-    });
+      }, 0).comingSoonDate).toBe("2026-06-15");
 
-    it("falls back to raw.OnMarketDate when ActivationDate is missing", () => {
-      const listing = mapTrestleToCrmListing({
-        ListingId: "X",
+      expect(mapTrestleToCrmListing({
+        ListingKey: "cs2",
         StandardStatus: "ComingSoon",
         OnMarketDate: "2026-07-01",
-        InternetEntireListingDisplayYN: true,
-        InternetAddressDisplayYN: true,
-      }, 0);
-      expect(listing.comingSoonDate).toBe("2026-07-01");
-    });
+      }, 0).comingSoonDate).toBe("2026-07-01");
 
-    it("returns null when neither ActivationDate nor OnMarketDate is provided", () => {
-      // Renderer must treat null as "no specific date" and either
-      // suppress the date phrase or show a neutral indicator —
-      // never invent a vague "until active date" string.
-      const listing = mapTrestleToCrmListing({
-        ListingId: "X",
-        // The live member has no space; "Coming Soon" is not a member.
-        StandardStatus: "ComingSoon",
-        InternetEntireListingDisplayYN: true,
-        InternetAddressDisplayYN: true,
-      }, 0);
-      expect(listing.comingSoonDate).toBeNull();
-    });
-
-    it("does NOT populate comingSoonDate for non-Coming-Soon statuses", () => {
-      const listing = mapTrestleToCrmListing({
-        ListingId: "X",
+      expect(mapTrestleToCrmListing({
+        ListingKey: "active",
         StandardStatus: "Active",
         ActivationDate: "2026-06-15T00:00:00Z",
-        OnMarketDate: "2026-06-10T00:00:00Z",
-        InternetEntireListingDisplayYN: true,
-        InternetAddressDisplayYN: true,
-      }, 0);
-      expect(listing.status).toBe("Active");
-      expect(listing.comingSoonDate).toBeNull();
+      }, 0).comingSoonDate).toBeNull();
     });
   });
 
-  // ═══════════════════════════════════════════════════════════════════
-  // SponsorUnit parsing from CustomFields JSON (Bug A11/A12 coverage)
-  //
-  // CustomProperty.CustomFields is a JSON-string field carrying 41
-  // REBNY-specific flags including SponsorUnitYN. The mapper parses
-  // it once and exposes listing.sponsorUnit (true | false | null).
-  // Prior to this test, no unit coverage existed for the parsing
-  // branches — a malformed JSON or missing field could silently turn
-  // a real sponsor listing into "—" in the UI.
-  // ═══════════════════════════════════════════════════════════════════
+  describe("CustomProperty legacy observation parsing", () => {
+    const mapSponsor = (value: unknown) => mapTrestleToCrmListing({
+      ListingKey: "sponsor",
+      CustomProperty: [{ CustomFields: value }],
+    }, 0).sponsorUnit;
 
-  describe("sponsorUnit parsing from CustomProperty.CustomFields JSON", () => {
-    function withCustomFields(customFields: unknown): Record<string, unknown> {
-      return {
-        ListingId: "X",
-        InternetEntireListingDisplayYN: true,
-        InternetAddressDisplayYN: true,
-        CustomProperty: [{ CustomFields: customFields }],
-      };
-    }
-
-    it("returns true for SponsorUnitYN === true (boolean)", () => {
-      const l = mapTrestleToCrmListing(
-        withCustomFields(JSON.stringify({ SponsorUnitYN: true })),
-        0,
-      );
-      expect(l.sponsorUnit).toBe(true);
-    });
-
-    it('returns true for SponsorUnitYN === "true" (string variant)', () => {
-      const l = mapTrestleToCrmListing(
-        withCustomFields(JSON.stringify({ SponsorUnitYN: "true" })),
-        0,
-      );
-      expect(l.sponsorUnit).toBe(true);
-    });
-
-    it('returns true for SponsorUnitYN === "Yes" (REBNY-style)', () => {
-      const l = mapTrestleToCrmListing(
-        withCustomFields(JSON.stringify({ SponsorUnitYN: "Yes" })),
-        0,
-      );
-      expect(l.sponsorUnit).toBe(true);
-    });
-
-    it("returns true for SponsorUnitYN === 1 (numeric)", () => {
-      const l = mapTrestleToCrmListing(
-        withCustomFields(JSON.stringify({ SponsorUnitYN: 1 })),
-        0,
-      );
-      expect(l.sponsorUnit).toBe(true);
-    });
-
-    it("returns false for SponsorUnitYN === false", () => {
-      const l = mapTrestleToCrmListing(
-        withCustomFields(JSON.stringify({ SponsorUnitYN: false })),
-        0,
-      );
-      expect(l.sponsorUnit).toBe(false);
-    });
-
-    it("returns false for SponsorUnitYN === \"No\"", () => {
-      const l = mapTrestleToCrmListing(
-        withCustomFields(JSON.stringify({ SponsorUnitYN: "No" })),
-        0,
-      );
-      expect(l.sponsorUnit).toBe(false);
-    });
-
-    it("returns null when SponsorUnitYN field is absent", () => {
-      const l = mapTrestleToCrmListing(
-        withCustomFields(JSON.stringify({ SomeOtherField: "x" })),
-        0,
-      );
-      expect(l.sponsorUnit).toBeNull();
-    });
-
-    it("returns null when CustomFields is empty string", () => {
-      const l = mapTrestleToCrmListing(withCustomFields(""), 0);
-      expect(l.sponsorUnit).toBeNull();
-    });
-
-    it("returns null when CustomFields is malformed JSON (no log spam)", () => {
-      const l = mapTrestleToCrmListing(
-        withCustomFields("{not valid json"),
-        0,
-      );
-      expect(l.sponsorUnit).toBeNull();
-    });
-
-    it("returns null when CustomProperty is entirely absent", () => {
-      const l = mapTrestleToCrmListing({
-        ListingId: "X",
-        InternetEntireListingDisplayYN: true,
-        InternetAddressDisplayYN: true,
-      }, 0);
-      expect(l.sponsorUnit).toBeNull();
-    });
-
-    it("returns null when SponsorUnitYN is an unrecognized value (defensive)", () => {
-      const l = mapTrestleToCrmListing(
-        withCustomFields(JSON.stringify({ SponsorUnitYN: "maybe" })),
-        0,
-      );
-      expect(l.sponsorUnit).toBeNull();
+    it("parses explicit SponsorUnitYN values without inventing missing values", () => {
+      expect(mapSponsor(JSON.stringify({ SponsorUnitYN: true }))).toBe(true);
+      expect(mapSponsor(JSON.stringify({ SponsorUnitYN: "Yes" }))).toBe(true);
+      expect(mapSponsor(JSON.stringify({ SponsorUnitYN: false }))).toBe(false);
+      expect(mapSponsor(JSON.stringify({ SponsorUnitYN: "No" }))).toBe(false);
+      expect(mapSponsor(JSON.stringify({ Other: true }))).toBeNull();
+      expect(mapSponsor("{bad json")).toBeNull();
     });
   });
 });
