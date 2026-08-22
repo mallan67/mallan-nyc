@@ -137,6 +137,59 @@ function isLikelySecret(value) {
 }
 
 /**
+ * The annotation that lets a file opt OUT of SECRET scanning, specifically.
+ *
+ * CORRECTED. The first version of this reused the validator's general
+ * `IDX-VALIDATE-IGNORE` / `IDX-VALIDATE-OK` waivers. That was wrong, and the
+ * exemption-audit test caught it: those waivers are written for other rules
+ * entirely, so an unrelated one would silently switch off secret detection for
+ * the whole file. Two real files in this repo would have been affected —
+ *
+ *   lib/idx/trestle-mapper.ts    waived for a CeilingHeight field exclusion
+ *   app/api/unsubscribe/route.ts waived as intentionally unauthenticated
+ *                                (CAN-SPAM §7704(a)(3)(A)(ii))
+ *
+ * — neither of which says anything about credentials. A waiver for one rule
+ * must never grant a waiver for another, least of all this one.
+ */
+const SECRET_SCAN_EXEMPT_ANNOTATION = 'IDX-VALIDATE-SECRET-OK';
+
+/**
+ * Should this file be skipped by the secret scanner?
+ *
+ * WHAT THIS REPLACED, AND WHY.
+ *
+ * Section 13 used to skip any file whose PATH CONTAINED the substring "test":
+ *
+ *     if (file.includes('test') || file.includes('__tests__')) continue;
+ *
+ * Two problems, both real:
+ *
+ *   1. A genuine credential committed in an ordinary test file was
+ *      UNDETECTABLE. Test files are committed, pushed and published exactly
+ *      like any other source; a leaked key does not become safe by sitting
+ *      next to an `it()`.
+ *   2. Being a SUBSTRING match on the path, it swallowed files that are not
+ *      tests at all. `lib/compliance/test-validation.ts` — production
+ *      compliance code — was exempt purely because its name starts with
+ *      "test". 165 of 980 scanned files were being skipped in total.
+ *
+ * An exemption is now something a file DECLARES, with an annotation that means
+ * ONLY this — `IDX-VALIDATE-SECRET-OK` — not something its filename accidentally
+ * earns and not something an unrelated waiver grants by accident. Every
+ * exemption is greppable and reviewable.
+ * Measured at the time of the change: zero files in lib/ or app/ were exempt
+ * other than the pre-existing Sentry carve-out, so narrowing cost nothing and
+ * closed the hole. That is asserted by the test suite, not assumed here.
+ */
+function isSecretScanExempt(filePath, content) {
+  // Pre-existing carve-out, preserved: a Sentry DSN is public by design.
+  if (String(filePath).includes('sentry')) return true;
+  const text = typeof content === 'string' ? content : '';
+  return text.includes(SECRET_SCAN_EXEMPT_ANNOTATION);
+}
+
+/**
  * Every quoted 40+ char candidate in `content` that survives the exclusion.
  *
  * Returns the matched STRINGS, not just a boolean, so the validator can name
@@ -152,4 +205,10 @@ function findSecretCandidates(content) {
   return found;
 }
 
-module.exports = { isLikelySecret, findSecretCandidates, looksLikeIdentifierList, isWordShaped };
+module.exports = {
+  isLikelySecret,
+  findSecretCandidates,
+  looksLikeIdentifierList,
+  isWordShaped,
+  isSecretScanExempt,
+};

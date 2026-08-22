@@ -188,3 +188,95 @@ describe('and the real field lists are still not secrets', () => {
     expect(isLikelySecret(list)).toBe(false);
   });
 });
+
+/**
+ * GATE 0 CLOSURE — the blanket test-file exclusion.
+ *
+ * Section 13 skipped any file whose PATH CONTAINED the substring "test":
+ *
+ *     if (file.includes('test') || file.includes('__tests__')) continue;
+ *
+ * Two separate problems.
+ *
+ * 1. A real credential committed in an ordinary test file was undetectable.
+ *    Test files are committed, pushed and public exactly like any other source,
+ *    and a leaked key does not become safe by sitting next to an `it()`.
+ *
+ * 2. It is a SUBSTRING match on the path, so it silently swallowed files that
+ *    are not tests at all. `lib/compliance/test-validation.ts` — production
+ *    compliance code — was exempt from secret scanning purely because its name
+ *    begins with "test". 165 of 980 scanned files were being skipped.
+ *
+ * The replacement is an EXPLICIT annotation rather than an implicit path rule.
+ * A file that legitimately carries a secret-shaped fixture says so, using the
+ * validator's existing `IDX-VALIDATE-IGNORE` / `IDX-VALIDATE-OK` convention.
+ * That makes every exemption greppable and reviewable, which a path heuristic
+ * never was.
+ */
+const { isSecretScanExempt } = require('../../scripts/lib/secret-heuristics.js');
+
+describe('a real secret in a test file is still a real secret', () => {
+  const KEY = 'AIzaSyC1qL8mNpQ7rTuVwXyZ0aBcDeFgHiJkLmNo';
+
+  it.each([
+    'lib/media/__tests__/something.test.ts',
+    'app/api/thing/route.test.ts',
+    'lib/idx/__tests__/fixtures.ts',
+  ])('%s is scanned, not skipped', (file) => {
+    expect(isSecretScanExempt(file, `const k = "${KEY}";`)).toBe(false);
+  });
+
+  it('a production file whose name merely contains "test" is scanned', () => {
+    // The concrete regression: lib/compliance/test-validation.ts is compliance
+    // code, not a test, and the substring rule exempted it.
+    expect(isSecretScanExempt('lib/compliance/test-validation.ts', `const k = "${KEY}";`)).toBe(false);
+  });
+
+  const NEWLINE = String.fromCharCode(10);
+
+  it('exempts a file only when it annotates itself for SECRETS specifically', () => {
+    const annotated = '// IDX-VALIDATE-SECRET-OK: fixture key' + NEWLINE + 'const k = "' + KEY + '";';
+    expect(isSecretScanExempt('lib/x/__tests__/a.test.ts', annotated)).toBe(true);
+  });
+
+  it('an unrelated validator waiver does NOT switch off secret scanning', () => {
+    // CORRECTED after this suite's own exemption audit caught it. Reusing the
+    // general IDX-VALIDATE-IGNORE / IDX-VALIDATE-OK waivers meant a waiver
+    // written for a completely different rule silently disabled secret
+    // detection for the whole file. Two real files would have been affected:
+    //   lib/idx/trestle-mapper.ts     waived for a CeilingHeight exclusion
+    //   app/api/unsubscribe/route.ts  waived as intentionally unauthenticated
+    // A waiver for one rule must not grant a waiver for another.
+    const authWaiver = '// IDX-VALIDATE-OK: unauthenticated by design' + NEWLINE + 'const k = "' + KEY + '";';
+    const fieldWaiver = '/* IDX-VALIDATE-IGNORE: derived field */' + NEWLINE + 'const k = "' + KEY + '";';
+    expect(isSecretScanExempt('lib/idx/x.ts', authWaiver)).toBe(false);
+    expect(isSecretScanExempt('lib/idx/x.ts', fieldWaiver)).toBe(false);
+  });
+
+  it('still exempts the Sentry DSN case the old rule carved out', () => {
+    expect(isSecretScanExempt('lib/sentry/config.ts', 'const dsn = "…";')).toBe(true);
+  });
+
+  it('no file in the repo is exempt by accident today', () => {
+    // If this ever fails, an exemption was added — deliberately, with an
+    // annotation someone can find. That is the whole point of the change.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const fs = require('node:fs'), path = require('node:path');
+    const root = path.join(__dirname, '..', '..');
+    const walk = (d: string, ext: string, out: string[] = []): string[] => {
+      for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+        const p = path.join(d, e.name);
+        if (e.isDirectory()) { if (!['node_modules', '.next', '.git'].includes(e.name)) walk(p, ext, out); }
+        else if (p.endsWith(ext)) out.push(p);
+      }
+      return out;
+    };
+    const files = [
+      ...walk(path.join(root, 'lib'), '.ts'),
+      ...walk(path.join(root, 'app'), '.ts'),
+    ];
+    const exempt = files.filter((f: string) => isSecretScanExempt(f, fs.readFileSync(f, 'utf8')));
+    const nonSentry = exempt.filter((f: string) => !f.includes('sentry'));
+    expect(nonSentry).toEqual([]);
+  });
+});

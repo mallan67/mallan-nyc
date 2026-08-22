@@ -73,7 +73,7 @@
 const fs = require('fs');
 const path = require('path');
 const { parse } = require('csv-parse/sync');
-const { findSecretCandidates } = require('./lib/secret-heuristics.js');
+const { findSecretCandidates, isSecretScanExempt } = require('./lib/secret-heuristics.js');
 
 const ROOT = path.resolve(__dirname, '..');
 const args = process.argv.slice(2);
@@ -759,14 +759,17 @@ function section13() {
   for (const file of srcFiles) {
     const content = readFile(file);
     if (!content) continue;
-    if (file.includes('test') || file.includes('__tests__')) continue;
+    // A file is exempt only if it SAYS so. The rule here used to be
+    // `file.includes('test')`, which made a real credential in an ordinary test
+    // file undetectable and also swallowed non-test files whose name merely
+    // contained "test" (lib/compliance/test-validation.ts among them).
+    if (isSecretScanExempt(file, content)) continue;
 
     // 40+ char base64-alphabet candidates, minus human-written identifier
     // lists. The finding now names the STRING it matched: the previous message
     // gave only the file and the rule, which is why a false positive could sit
     // unresolved — nobody could see what had actually tripped it.
-    // Sentry DSNs stay exempt, as before.
-    if (!file.includes('sentry')) {
+    {
       for (const candidate of findSecretCandidates(content)) {
         const shown = candidate.length > 48 ? candidate.slice(0, 48) + '…' : candidate;
         critical(
