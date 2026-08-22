@@ -353,6 +353,117 @@ financing state. Only the first is a Cotality status.
 
 ---
 
+## 8c. SECOND INDEPENDENT AUDIT — verified here, and it corrects me again
+
+A third-party audit of the **authenticated Agent/CRM Search only** at head `be53e7d0`.
+Every claim below I re-checked myself. **All confirmed.** Three change the P0 list.
+
+### It refuted my own Google statement — the third scope failure
+
+I reported the geocoding vendor removed and named the directories I scanned:
+`lib/search`, `lib/listings`, `lib/idx`, `lib/compliance`, `tests/runtime`. **That scan
+excluded `public/crm` — the surface a broker actually sees.** Live in the CRM today:
+
+```js
+// public/crm/js/output/reports.js:1301
+'<a href="https://maps.google.com/?q=' + encodeURIComponent(displayAddr(first) + ' New York NY')
+  + '" ...>Google Map</a>'
+```
+
+Plus a `googleMapLink` report option (`data-loader.js:99`) and three more generators in
+`report-package.js` (the 1,050-line orphan). So the product **emails clients a Google Maps
+link** while the architecture layer declares no vendor. Stating a scope is not the same as
+having a true claim — this is the third time the narrow version was accurate and the
+impression was not.
+
+### The two-engine split is documented in the code itself
+
+```
+// lib/search/criteria-to-prisma.ts:336-339
+// Saved searches can be created from the CRM live-Trestle search (Engine A).
+// Alerts replay through the Postgres projection (Engine B) ...
+// Engine B's criteria vocabulary is a strict subset of Engine A's
+```
+
+An agent can build a search, see a result, save it, replay it, and **get a different
+universe because a different engine executed it.** This is the architectural reason Search
+loops, and it is written down in the repo.
+
+### Count and `hasMore` describe different populations — the code admits it
+
+```
+// app/api/idx/search/route.ts:362-366
+// Post-fetch filtering means total counts reflect the post-filter
+// page size, not the unfiltered Trestle total. ...
+// This is a known limitation
+```
+
+`total: finalTotal` is post-gate; `hasMore: result.hasMore` (line 385) comes straight from
+the provider's pre-gate query. So the number and the "is there more" flag are computed from
+**two different universes**, and with sponsor filtering a third appears — the sponsor rows
+found inside the current page.
+
+### The Sale universe is objectively wrong
+
+The sale filter is `PropertyType ne 'ResidentialLease'`. Live `PropertyType` has **13**
+members: `BusinessOpportunity` · `CommercialLease` · `CommercialSale` ·
+`DisasterReliefRental` · `Farm` · `HighRise` · `Land` · `ManufacturedInPark` · `MultiFamily`
+· `Residential` · `ResidentialIncome` · `ResidentialLease` · `Specialty`.
+
+**"Not ResidentialLease" is not "residential sale."** It admits commercial leases, land,
+farm, business opportunity and specialty into a Sale search. And because the mapper treats
+anything whose `PropertyType` contains *"lease"* as a rental, **a `CommercialLease` can enter
+through Sale criteria and leave as a rental row.**
+
+### Status: the agent's "Pending" does not search Pending
+
+```js
+// public/crm/js/search/search-engine.js:461
+{ 'ACTIVE':'Active', 'COMING_SOON':'ComingSoon', 'PENDING':'ActiveUnderContract',
+  'CONTRACT':'ActiveUnderContract', ..., 'FUTURE':'Incomplete' }
+```
+
+Live `StandardStatus` has **11** members and carries `Pending` **and**
+`ActiveUnderContract` as **separate** values. Live `MlsStatus` has **25** — including
+`Leased`, `Contingent`, `AttorneyReview`, `PendingInspection`, `CompSold`, `PrepShow` — and
+the mapper covers a subset, so the rest fall to `UNKNOWN`. `Leased` being unmapped matters
+for every rental.
+
+### Facts fetched from Cotality and then thrown away
+
+`ClosePrice` and `LeaseAmount` are in `SEARCH_SELECT_FIELDS` and appear **zero times** in
+`crm-idx-mapper.ts`. Mallan pays the request cost for the fact and discards it before the
+agent — or CMA — can use it. `ClosePrice` is the transaction truth a CMA is built on.
+
+Same shape for `PreviousListPrice`, `AvailabilityDate`, `AssociationFeeFrequency`,
+`LeaseAmountFrequency`, `Furnished`, `MoveInCosts`, `OngoingFees`, `TenantPays`,
+`TenantPaysDescription`, `StoriesTotal`, `NumberOfUnitsTotal`.
+
+### Association fees are assumed monthly
+
+```js
+// lib/search/crm-idx-mapper.ts:60,192
+const maintCC = Number(raw.AssociationFee) || 0;
+totalMonthly: isRental ? price : monthlyTax + maintCC,
+```
+
+`AssociationFeeFrequency` is fetched, has **16 live members** (Annual, Quarterly,
+SemiAnnual, Weekly, OneTime …), and is ignored. A `$12,000 Annual` fee can present as
+`$12,000/month`. The `|| 0` also converts unknown into zero, and that number flows into
+carrying cost, reports and every calculator. `LeaseAmountFrequency` has 16 members too.
+
+### Two more fabrications and one wrong sort field
+
+- `reports.js:1796,1799` — `(l.photoCount || 6)` renders **"6 photos"** and lays out six
+  image slots when the count is missing or zero.
+- `toolbar-functions.js:65` — sorting by **"Listed Date" orders by `ModificationTimestamp`**.
+  Those are different facts; a re-listed row sorts as new.
+- `managementCompany` maps to `ListOfficeName` — the **listing brokerage**, not the managing
+  agent. Live `Property` declares no `ManagementCompany`. The honest answer is UNAVAILABLE,
+  not a substitution.
+
+---
+
 ## 9. WHY THIS KEEPS LOOPING
 
 ### A bug shape the deeper pass found twice — READ-THEN-DISCARD
@@ -404,15 +515,23 @@ a sequence, not a menu — later phases depend on earlier ones.
 
 ### P0 — nothing else starts until these are done
 
+**Reconciled across three reviews.** Two items were promoted to P0 by the second
+independent audit: **semantics** (the Sale universe and status mapping are objectively
+wrong, not merely imprecise) and **mapping loss** (facts already paid for and discarded).
+
 | # | P0 | why it is P0 |
 |---|---|---|
-| 1 | **Stop false information** (Phase 1) | brokerage risk today |
-| 2 | **Complete Search universe** (Phase 3) | contaminates counts, paging, sort, map, reports, CMA, alerts |
-| 3 | **Cotality subresource hydration** (Phase 2) | every downstream surface is starved by one `$select` |
-| 4 | **Media classification + permissions** | an 18-category contract read through a 2-category premise |
-| 5 | **Sort + count correctness** | includes the cache-key bug; sort currently changes the universe |
-| 6 | **Fabricated transportation** | the single most misleading feature |
-| 7 | **Reports/CMA on partial rows** | "All Search Results" is a browser window |
+| 1 | **Stop false information** | brokerage risk today — fabricated transit, commute, showing instructions, photo counts, and every unknown-becomes-a-value default |
+| 2 | **ONE Search engine and one universe** | Engine A (live passthrough) and Engine B (projection) execute the same saved search differently — documented at `criteria-to-prisma.ts:336` |
+| 3 | **Sale / Rental / status semantics** | `PropertyType ne 'ResidentialLease'` is not residential sale; the agent's "Pending" searches `ActiveUnderContract`; `Leased` is unmapped |
+| 4 | **Count / paging / sort** | `total` is post-gate while `hasMore` is pre-gate; the cache key omits sort; sort changes the universe |
+| 5 | **Close the mapping loss** | `ClosePrice`, `LeaseAmount` and ~13 more are fetched and dropped before the agent — CMA cannot work without `ClosePrice` |
+| 6 | **Cotality subresource hydration** | `CustomProperty`, `OpenHouse`, `Office`, `Member`, plus `DocumentsAvailable` (94), `ShowingRequirements` (39), `Disclosures` (119) |
+| 7 | **Media contract + permissions** | 18 categories read through a 2-category premise; permissions must be evaluated on the Media row, not inherited from Property |
+
+**Hydration architecture, explicitly:** do **not** `$expand` everything on every search —
+that produces a slow, bloated Search. Synchronization hydrates into canonical storage;
+**Search returns a compact row, and opening a listing hydrates the full workspace.**
 
 ---
 
@@ -546,6 +665,19 @@ provably misleading gets deleted.
 The subagent reports were **not** accepted as written. An adversarial pass re-checked 203
 sampled claims and refuted 9. I then personally re-verified every claim this document acts
 on. Three survived-the-verifier claims still failed when I checked them at source:
+
+### A SIXTH failure — my own, and the third of its kind
+
+**"Google is no longer named anywhere" / "removed from the architecture surfaces" was false
+for the product.** My scan named its directories — `lib/search`, `lib/listings`, `lib/idx`,
+`lib/compliance`, `tests/runtime` — and **excluded `public/crm`**, which is the only surface
+a broker or client actually sees. `reports.js:1301` emails a `maps.google.com` link labelled
+"Google Map", there is a `googleMapLink` report option, and `report-package.js` has three
+more generators.
+
+Three times now the narrow claim was accurate and the impression was broader than the check.
+**Stating a scope does not make a claim true — it only makes the gap findable.** The
+standing rule from here: if the claim is about the product, the scan covers the product.
 
 ### FIVE agent claims failed my own check
 
