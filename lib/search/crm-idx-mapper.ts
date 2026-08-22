@@ -1,4 +1,5 @@
 import { resolveListingMedia } from "@/lib/media/listing-media-resolver";
+import { classifyPropertyType } from "@/lib/search/canonical/property-type-universe";
 
 // REBNY IDX Plus pre-filter: REBNY/Cotality removes non-displayable rows from
 // the IDX Plus feed upstream, leaving InternetEntireListingDisplayYN and
@@ -105,7 +106,13 @@ export function mapTrestleToCrmListing(
   const address = streetParts.join(" ").toUpperCase() || "";
 
   const propertyType = String(raw.PropertyType || "");
-  const isRental = propertyType.toLowerCase().includes("lease");
+  // STEP 2 — sale/rental comes from the verified PropertyType universe, not from
+  // a substring test. `includes("lease")` classified `DisasterReliefRental` (a
+  // rental, no "lease" in the name) as a SALE, and swept `CommercialLease` into
+  // residential rentals. Membership is positive on both sides and anything else
+  // is UNKNOWN — never silently absorbed into sale.
+  const universe = classifyPropertyType(propertyType);
+  const isRental = universe === "rental";
   const price = num(raw.ListPrice);
   const yearBuilt = raw.YearBuilt != null ? Number(raw.YearBuilt) : null;
 
@@ -342,7 +349,12 @@ export function mapTrestleToCrmListing(
     idxDisplayYN: isIdxPlusDisplayFlagOn(raw.InternetEntireListingDisplayYN),
     internetDisplayYN: isIdxPlusDisplayFlagOn(raw.InternetEntireListingDisplayYN),
     addressDisplayYN,
-    listingCategory: isRental ? "rental" : undefined,
+    // Explicit on both sides. This was `isRental ? "rental" : undefined`, which
+    // made SALE the leftover: every PropertyType member Cotality has not yet
+    // populated — Land, CommercialSale, MultiFamily, ResidentialIncome — would
+    // have become residential sale inventory the moment it appeared, with no
+    // code change and no warning. Unknown now stays undefined and is NOT sale.
+    listingCategory: universe === "unknown" ? undefined : universe,
     closedDate: raw.CloseDate ? String(raw.CloseDate) : null,
     contractDate: raw.ListingContractDate ? String(raw.ListingContractDate) : null,
     comingSoonDate,

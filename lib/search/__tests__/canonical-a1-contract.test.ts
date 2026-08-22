@@ -374,6 +374,17 @@ describe('A1 · only authorised readers import the canonical package', () => {
       // Without the canonical error class the route would have to string-match
       // its own message — a second, drifting definition of the same condition.
       'app/api/idx/search/route.ts',
+      // Reads the canonical SALE/RENTAL UNIVERSE, for the same reason
+      // crm-idx-filter.ts reads the sub-type contract: the filter renders that
+      // universe to OData while the mapper classifies the rows that come back.
+      // Until 2026-08-22 the mapper used its own rule — a substring test,
+      // `propertyType.toLowerCase().includes('lease')` — so the two paths could
+      // and did disagree about what a listing IS. That test called
+      // `DisasterReliefRental` a sale and `CommercialLease` a residential
+      // rental, and made SALE the leftover of RENTAL so every unpopulated
+      // provider member would silently become sale inventory. Reading the
+      // canonical module is what collapses the two back to one answer.
+      'lib/search/crm-idx-mapper.ts',
     ]);
     expect(offenders.filter((f) => !AUTHORISED.has(f))).toEqual([]);
   }, 60000);
