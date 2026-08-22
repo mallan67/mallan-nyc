@@ -69,9 +69,17 @@ Only `MediaKey` carries `Nullable="false"`. The other 55 omit the attribute.
 Under OData 4.0 the default is nullable — that is an inference from the
 specification, **not** an observation, and is marked as such.
 
-There is **no `ListingKey` and no `ListingId` on `Media`**. The declared linkage
-to a listing is `ResourceRecordKey` / `ResourceRecordKeyNumeric` /
-`ResourceRecordID`, qualified by `ResourceName`.
+There is **no `ListingKey` and no `ListingId` on `Media`**. Listing linkage is
+carried instead by `ResourceRecordKey`, `ResourceRecordKeyNumeric` and
+`ResourceRecordID`, qualified by `ResourceName` (whose vocabulary includes
+`Property`). `Media` additionally declares `OriginatingSystemResourceRecordKey`,
+`OriginatingSystemResourceRecordId` and `SourceSystemResourceRecordKey`.
+
+**These are several linkage fields, not one.** `ResourceRecordKey` is the
+stronger identity domain and is what Mallan reconciles canonical media through;
+`ResourceRecordID` is a provider linkage and evidence field, present and usable,
+not absent. Nothing here weakens the existing rule that media joins stay in the
+provider key domain rather than being repointed at a Mallan local id.
 
 Gate-shaped properties, as declared: `HumanModifiedYN`,
 `InternetEntireListingDisplayYN`, `PreferredPhotoYN`, `Permission`,
@@ -265,13 +273,26 @@ The stored value is member `DOCUMENT` (=4). `eq 'Document'` resolves the *name*
 case-insensitively and matches those rows. `ne 'Document'` compares
 *member-exactly* against member `Document` (=0) and therefore excludes **nothing**.
 
-**Consequence: an exclusion filter written as `X ne 'Value'` on these enums can
-be a silent no-op.** It does not error. It returns a plausible, wrong set. Any
-Mallan query using `ne` against `MediaCategory` or `MediaClassification` must
-either enumerate both casings or be rewritten as a positive `eq` predicate.
+**Consequence, scoped to what was actually probed:** on `MediaClassification`,
+an exclusion written as `ne 'Document'` is a silent no-op. It does not error. It
+returns a plausible, wrong set. Any `ne` against `MediaClassification` must
+account for the exact stored member and its casing, or be rewritten as a positive
+`eq` predicate.
 
-`MediaStatus` has no case-variant members, so the trap does not apply to it —
-but see §5.3.
+**CORRECTED — this was over-generalised on first writing.** The original text
+said the restriction applied to `MediaCategory` as well. It does not, and this
+document contained its own counter-evidence: `MediaCategory ne 'FloorPlan'`
+(§6.1) and `MediaCategory ne 'Photo'` (§4) were both used successfully here to
+establish set relationships, returning `0` and `1` respectively — correct,
+meaningful results. The mechanism also cannot arise there: the trap requires a
+pair of members differing only in case, and `MediaCategory`'s eighteen members
+contain no such pair (§2.1). `MediaStatus`'s three members contain none either.
+
+**The general rule this establishes is about method, not about `ne`:** an
+operator behaviour verified on one Cotality enum may not be carried to another
+merely because both are enums. Probe the exact field/operator pair before
+relying on it. That is the same discipline `$metadata` over-declaration demands
+(§5.5) — a declaration, or a behaviour observed next door, is not a capability.
 
 ### 5.2 `$filter` on `MediaURL` disagrees with the projection
 

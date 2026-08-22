@@ -33,6 +33,13 @@
  *     set -a && . <file> && set +a && npx jest media-contract-drift
  */
 
+// This file declares top-level constants and has no imports, which would make
+// TypeScript treat it as a global SCRIPT rather than a module — putting `BASE`
+// into the global scope, where it collided with the identically-named constant
+// in tests/runtime/release-safety-smoke.test.ts and failed the build. An empty
+// export marks it a module so its top-level names stay its own.
+export {};
+
 const HAS_CREDENTIALS = Boolean(process.env.IDX_CLIENT_ID && process.env.IDX_CLIENT_SECRET);
 const BASE = (process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle').replace(/\/$/, '');
 
