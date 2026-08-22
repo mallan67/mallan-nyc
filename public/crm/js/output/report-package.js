@@ -974,13 +974,14 @@
 
                     // Photo grid
                     h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
-                    var pCount = l.photoCount || _getListingPhotos(l).length || 0;
-                    var imgArr = _getListingPhotos(l);
-                    var showCount = Math.min(pCount || 6, 9);
-                    for (var pi = 0; pi < showCount; pi++) {
+                    // Same rule as reports.js, from the same shared helper. This file
+                    // is not referenced by any HTML page today, so it does not execute —
+                    // fixed anyway so the defect cannot arrive with a future wire-up.
+                    var imgArr = typeof reportPhotoTiles === 'function' ? reportPhotoTiles(l) : _getListingPhotos(l).slice(0, 9);
+                    for (var pi = 0; pi < imgArr.length; pi++) {
                         var span = pi === 0 ? 'grid-column:span 2;grid-row:span 2;' : '';
                         var imgHgt = pi === 0 ? '240px' : '112px';
-                        var imgUrl = imgArr[pi % Math.max(imgArr.length,1)] ? imgArr[pi % imgArr.length].url : _getPhoto(l);
+                        var imgUrl = imgArr[pi].url;
                         if (imgUrl) {
                             h += '<div style="' + span + 'height:' + imgHgt + ';border-radius:8px;overflow:hidden;position:relative;background:#f1f5f9">' +
                                 '<img src="' + imgUrl + '" alt="" style="width:100%;height:100%;object-fit:cover" onerror="' + _imgErr + '">' +

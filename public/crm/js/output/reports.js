@@ -1793,15 +1793,17 @@
                 img += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #e5e7eb">' +
                     '<div><h3 style="font-weight:700;color:#111827;margin:0;font-size:15px">' + addrLink(l, imgAddrText) + '</h3>' +
                     '<p style="font-size:13px;color:#6b7280;margin:2px 0 0">' + imgStats + '</p></div>' +
-                    '<span style="padding:4px 10px;background:rgba(196,160,82,0.06);color:#B8860B;font-size:12px;border-radius:4px;font-weight:600"><i class="fas fa-images" style="margin-right:4px"></i>' + (l.photoCount||6) + ' photos</span></div>';
+                    '<span style="padding:4px 10px;background:rgba(196,160,82,0.06);color:#B8860B;font-size:12px;border-radius:4px;font-weight:600"><i class="fas fa-images" style="margin-right:4px"></i>' + (reportedPhotoCount(l) == null ? 'Photo count not provided' : reportedPhotoCount(l) + ' photos') + '</span></div>';
                 // Photo grid 3-col
                 img += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
-                var pCount = l.photoCount || 6;
-                var imgArr = getListingPhotos(l);
-                for (var pi = 0; pi < Math.min(pCount, 9); pi++) {
+                // The grid renders the media that exists, once each. It used to
+                // render `photoCount || 6` tiles and fill them with `imgArr[pi % len]`,
+                // so two real photos became a six-tile grid of repeats numbered 1..6.
+                var imgArr = reportPhotoTiles(l);
+                for (var pi = 0; pi < imgArr.length; pi++) {
                     var hgt = pi === 0 ? '180px' : '120px';
                     var span = pi === 0 ? 'grid-column:span 2;grid-row:span 2;' : '';
-                    var imgUrl = imgArr[pi % imgArr.length] ? imgArr[pi % imgArr.length].url : getListingPhoto(l);
+                    var imgUrl = imgArr[pi].url;
                     img += '<div style="' + span + 'height:' + (pi===0?'260px':hgt) + ';border-radius:6px;overflow:hidden;position:relative;background:#f1f5f9">' +
                         '<img src="' + imgUrl + '" alt="" style="width:100%;height:100%;object-fit:cover;filter:contrast(1.05) brightness(1.03)" onerror="' + _imgErr + '">' +
                         '<span style="position:absolute;bottom:4px;right:6px;font-size:10px;color:rgba(255,255,255,0.8);background:rgba(0,0,0,0.5);padding:1px 4px;border-radius:2px">' + (pi+1) + '</span></div>';
