@@ -9,7 +9,6 @@
     <meta http-equiv="Expires" content="0">
     <title>MALLAN NYC - Search Standalone</title>
     <script>
-    // Global error handler — catches any JS errors during page load
     window.onerror = function(msg, url, line, col, error) {
         var errDiv = document.getElementById('jsErrorBanner');
         if (!errDiv) {
@@ -23,23 +22,19 @@
         return false;
     };
     </script>
-    <!-- Render-blocking: hide everything until JS restores the correct search state -->
     <style id="searchRenderBlock">body{opacity:0!important}</style>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.18"></script>
     <style type="text/tailwindcss">
         @import "tailwindcss";
     </style>
-    <!-- Font Awesome 6.7.2 — preload critical font files for instant icon rendering -->
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/webfonts/fa-solid-900.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/webfonts/fa-regular-400.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&family=Urbanist:wght@200;300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- EmailJS SDK — client-side email delivery (free: 200/month) -->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
-    <!-- ═══ CSS Modules ═══ -->
     <link rel="stylesheet" href="css/base.css">
     <link rel="stylesheet" href="css/search-form.css">
     <link rel="stylesheet" href="css/results.css">
@@ -51,7 +46,6 @@
 </head>
 <body class="bg-gray-100 min-h-screen">
 
-<!-- Early utility functions needed by onclick handlers in HTML -->
 <script>
 function toggleSection(header) {
     var content = header.nextElementSibling;
@@ -61,14 +55,12 @@ function toggleSection(header) {
 }
 </script>
 
-<!-- ═══ HTML Sections ═══ -->
 <!-- @include html/nav.html -->
 <!-- @include html/search-form-and-results.html -->
 <!-- @include html/my-searches.html -->
 <!-- @include html/last-search.html -->
 <!-- @include html/manage-listings.html -->
 
-<!-- ═══ Modals ═══ -->
 <!-- @include html/modals/grid-layouts.html -->
 <!-- @include html/modals/reports.html -->
 <!-- @include html/modals/save-search.html -->
@@ -77,11 +69,8 @@ function toggleSection(header) {
 <!-- @include html/modals/listing-type-info.html -->
 <!-- @include html/modals/neighborhood-map.html -->
 
-<!-- ═══ JavaScript ═══ -->
 <script>
-// ═══════════════════════════════════════════════════════
 // MAIN SCRIPT BLOCK
-// ═══════════════════════════════════════════════════════
 </script>
 
 <!-- Core -->
@@ -97,6 +86,9 @@ function toggleSection(header) {
 <!-- Search -->
 <script src="js/search/date-range-picker.js"></script>
 <script src="js/search/search-engine.js"></script>
+<!-- Exact live-Cotality executable-criteria boundary. Must load immediately
+     after the historical collector so only verified provider values can leave it. -->
+<script src="js/search/cotality-criteria-boundary.js"></script>
 <script src="js/search/form-ui-helpers.js"></script>
 <script src="js/search/agent-functions.js"></script>
 <script src="js/search/search-actions.js"></script>
@@ -119,61 +111,36 @@ function toggleSection(header) {
 <script src="js/render/render-master-detail.js"></script>
 <script src="js/render/photo-loader.js"></script>
 
-<!-- Selection -->
 <script src="js/listing/listing-selection.js"></script>
-
-<!-- Saved Searches -->
 <script src="js/search/saved-searches.js"></script>
-
-<!-- Grid Layouts -->
 <script src="js/render/grid-layouts.js"></script>
-
-<!-- Neighborhood Map -->
 <script src="js/render/neighborhood-geodata.js"></script>
 <script src="js/render/neighborhood-map.js"></script>
-
-<!-- Results Split-View Map -->
 <script src="js/render/results-map.js"></script>
-
-<!-- Print Helper (CSP-safe Blob URL) -->
 <script src="js/output/print-helper.js"></script>
-
-<!-- Reports (Comparables) -->
 <script src="js/output/reports.js"></script>
 <script src="js/output/report-customize.js"></script>
 <script src="js/output/calculators.js"></script>
-
-<!-- Search: Pagination, Rent vs Buy, Filter -->
 <script src="js/search/pagination.js"></script>
 <script src="js/search/rent-vs-buy.js"></script>
 <script src="js/search/filter-modal.js"></script>
 <script src="js/search/neighborhood-autocomplete.js"></script>
-
-<!-- Listing: Flags, Toolbar -->
 <script src="js/listing/listing-flags.js"></script>
 <script src="js/listing/toolbar-functions.js"></script>
 
 <!-- Init -->
 <script src="js/init/init-ui.js"></script>
-
-<!-- RLS Listing Tracker -->
 <script src="js/init/init-tracker.js"></script>
-
-<!-- Hash routing -->
 <script src="js/init/init-hash-routing.js"></script>
-
-<!-- Disable CRM search controls that don't reach the backend (Batch 3, 2026-05-04) -->
 <script src="js/init/init-disable-dead-controls.js"></script>
 
-<!-- Compliance: REBNY Gates + Fair Housing + Content Scanners -->
+<!-- Compliance/output boundary -->
 <script src="js/compliance/fair-housing.js"></script>
 <script src="js/compliance/content-scanners.js"></script>
 <script src="js/compliance/compliance-gates-and-output.js"></script>
 
-<!-- Listing email campaigns (investor / 1031) -->
 <script src="js/campaigns/listing-campaign.js"></script>
 
-<!-- ═══ Test Framework (conditional) ═══ -->
 <script>
 if (window.location.search.indexOf('test') !== -1) {
     var s = document.createElement('script');
