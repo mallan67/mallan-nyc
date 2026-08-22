@@ -26,7 +26,7 @@
         // ── Coming Soon Badge Helper — full version (Gallery/ShortSum/Summary/MasterDetail) ──
         // UCBA Art. I Sec. 5(C): No showings, open houses, or negotiations. D7/D2/D1.
         function comingSoonBadge(listing) {
-            if (listing.status !== 'COMING_SOON') return '';
+            if (listing.status !== 'ComingSoon') return '';
             var dateTag = listing.comingSoonDate ? ' <span' + resoData('comingSoonDate', listing.comingSoonDate) + '>' + listing.comingSoonDate + '</span>' : '';
             return '<div class="bg-purple-50 border-b border-purple-200 px-3 py-1.5 text-xs text-purple-700 font-semibold"'
                 + ' data-reso-field="MlsStatus" data-reso-value="ComingSoon"'
@@ -40,7 +40,7 @@
 
         // ── Coming Soon Badge — compact version (Grid/Map) ──
         function comingSoonBadgeCompact(listing) {
-            if (listing.status !== 'COMING_SOON') return '';
+            if (listing.status !== 'ComingSoon') return '';
             return '<span class="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[9px] font-bold"'
                 + ' data-reso-field="MlsStatus" data-reso-value="ComingSoon"'
                 + ' data-compliance="coming-soon-badge"'
@@ -77,7 +77,7 @@
         // Returns a text notice for Coming Soon listings: "No Showings or Open House until [date]"
         // Used in detail views and action bars to inform agent that showings are blocked.
         function comingSoonShowingNotice(listing) {
-            if (listing.status !== 'COMING_SOON') return '';
+            if (listing.status !== 'ComingSoon') return '';
             var dateStr = listing.comingSoonDate || 'active date';
             return '<div class="bg-purple-50 border border-purple-200 rounded px-2.5 py-1.5 text-xs text-purple-700 font-medium"'
                 + ' data-reso-field="MlsStatus" data-reso-value="ComingSoon"'
@@ -91,7 +91,7 @@
         // ── Helper: is listing Coming Soon? ──
         // Used to conditionally disable Schedule Showing buttons across views.
         function isComingSoon(listing) {
-            if (listing.status === 'COMING_SOON') return true;
+            if (listing.status === 'ComingSoon') return true;
             if (listing.comingSoonDate) {
                 var csDate = new Date(listing.comingSoonDate);
                 if (!isNaN(csDate.getTime()) && csDate > new Date()) return true;
@@ -149,9 +149,9 @@
             if (dom == null) return '<span class="text-xs text-gray-400">--</span>';
             var status = 'accruing';
             if (listing.permissions && listing.permissions.participantOnly) status = 'exempt';
-            else if (listing.status === 'COMING_SOON' || listing.status === 'Coming Soon') status = 'exempt';
+            else if (listing.status === 'ComingSoon' || listing.status === 'ComingSoon') status = 'exempt';
             else if (listing.status === 'Temp Off Market' || listing.status === 'WITHDRAWN' || listing.status === 'Withdrawn') status = 'paused';
-            else if (listing.status === 'CLOSED' || listing.status === 'Sold' || listing.status === 'Leased') status = 'stopped';
+            else if (listing.status === 'Closed' || listing.status === 'Sold' || listing.status === 'Leased') status = 'stopped';
 
             var color;
             if (status === 'exempt') color = '#9ca3af';

@@ -36,7 +36,11 @@ describe("buildCrmIdxODataFilter", () => {
     const filter = buildCrmIdxODataFilter(new URLSearchParams({
       type: "rental",
       neighborhood: "NoSuchNeighborhoodForAlias",
-      status: "Coming Soon,Active Under Contract",
+      // RETARGETED 2026-08-22: criteria carry EXACT Cotality members. The spaced
+      // spellings are not members; a saved search holding them is migrated at
+      // lib/search/legacy-saved-search-status-migration.ts before it reaches the
+      // writer, and reaching the writer un-migrated now fails loudly by design.
+      status: "ComingSoon,ActiveUnderContract",
     }));
 
     expect(filter).toContain("PropertyType eq 'ResidentialLease'");

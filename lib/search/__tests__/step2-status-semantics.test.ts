@@ -20,10 +20,13 @@
  * These tests assert each leg separately AND the round trip, because a round
  * trip alone cannot distinguish "preserved" from "laundered".
  */
+/** The read value is now the exact member itself; UNKNOWN when unrecognised. */
+const standardStatusRead = (v: unknown): string => (isMember(v) ? String(v) : 'UNKNOWN');
+
 import {
   STANDARD_STATUS_MEMBERS,
   crmTokenToStandardStatus,
-  standardStatusToCrmToken,
+  isStandardStatusMember as isMember,
   standardStatusOData,
   isStandardStatusMember,
 } from '@/lib/search/canonical/status-token-contract';
@@ -31,29 +34,38 @@ import { buildCrmIdxODataFilter } from '@/lib/search/crm-idx-filter';
 import { mapTrestleToCrmListing } from '@/lib/search/crm-idx-mapper';
 
 describe('Pending and ActiveUnderContract are distinct in BOTH directions', () => {
-  it('PENDING asks for Pending, not ActiveUnderContract', () => {
-    expect(crmTokenToStandardStatus('PENDING')).toBe('Pending');
+  // RETARGETED. The criterion is now the EXACT member, so these assert that a
+  // member asks for itself. The old uppercase spellings are rejected by the
+  // canonical contract and migrate only at the legacy boundary — asserted in
+  // step2-status-readside.test.ts.
+  it('Pending asks for Pending, not ActiveUnderContract', () => {
+    expect(crmTokenToStandardStatus('Pending')).toBe('Pending');
+    expect(crmTokenToStandardStatus('Pending')).not.toBe('ActiveUnderContract');
   });
 
-  it('UNDER_CONTRACT asks for ActiveUnderContract', () => {
-    expect(crmTokenToStandardStatus('UNDER_CONTRACT')).toBe('ActiveUnderContract');
+  it('ActiveUnderContract asks for ActiveUnderContract', () => {
+    expect(crmTokenToStandardStatus('ActiveUnderContract')).toBe('ActiveUnderContract');
   });
 
-  it('raw Pending reads back as PENDING', () => {
-    expect(standardStatusToCrmToken('Pending')).toBe('PENDING');
+  // RETARGETED 2026-08-22. These asserted a Mallan-invented read vocabulary
+  // (PENDING / UNDER_CONTRACT). The DTO now carries the EXACT Cotality member,
+  // so the real assertion is that each member reads back as ITSELF and the two
+  // never converge.
+  it('raw Pending reads back as Pending', () => {
+    expect(standardStatusRead('Pending')).toBe('Pending');
   });
 
-  it('raw ActiveUnderContract does NOT read back as PENDING', () => {
-    expect(standardStatusToCrmToken('ActiveUnderContract')).toBe('UNDER_CONTRACT');
+  it('raw ActiveUnderContract does NOT read back as Pending', () => {
+    expect(standardStatusRead('ActiveUnderContract')).toBe('ActiveUnderContract');
   });
 
-  it('the two tokens never resolve to the same provider member', () => {
-    expect(crmTokenToStandardStatus('PENDING')).not.toBe(crmTokenToStandardStatus('UNDER_CONTRACT'));
+  it('the two never resolve to the same provider member', () => {
+    expect(crmTokenToStandardStatus('Pending')).not.toBe(crmTokenToStandardStatus('ActiveUnderContract'));
   });
 
   it('selecting both produces TWO predicates, not one de-duplicated to one', () => {
     // The old map sent both to 'ActiveUnderContract' and then de-duplicated.
-    const { members, filter } = standardStatusOData(['PENDING', 'UNDER_CONTRACT']);
+    const { members, filter } = standardStatusOData(['Pending', 'ActiveUnderContract']);
     expect(members).toHaveLength(2);
     expect(filter).toContain("StandardStatus eq 'Pending'");
     expect(filter).toContain("StandardStatus eq 'ActiveUnderContract'");
@@ -62,20 +74,19 @@ describe('Pending and ActiveUnderContract are distinct in BOTH directions', () =
 
 describe('the mapping is a true inverse for every live member', () => {
   it.each(STANDARD_STATUS_MEMBERS)('%s round-trips to itself', (member) => {
-    const token = standardStatusToCrmToken(member);
-    expect(crmTokenToStandardStatus(token)).toBe(member);
+    expect(crmTokenToStandardStatus(standardStatusRead(member))).toBe(member);
   });
 
-  it('no two members share a token', () => {
-    const tokens = STANDARD_STATUS_MEMBERS.map(standardStatusToCrmToken);
-    expect(new Set(tokens).size).toBe(STANDARD_STATUS_MEMBERS.length);
+  it('no two members collapse to the same read value', () => {
+    const values = STANDARD_STATUS_MEMBERS.map(standardStatusRead);
+    expect(new Set(values).size).toBe(STANDARD_STATUS_MEMBERS.length);
   });
 });
 
 describe('unknown stays unknown, and never becomes Active', () => {
   it.each([null, undefined, '', 'Leased', 'AttorneyReview', 'Contingent', 'OFFEROUT'])(
     '%p reads as UNKNOWN',
-    (v) => expect(standardStatusToCrmToken(v)).toBe('UNKNOWN'),
+    (v) => expect(standardStatusRead(v)).toBe('UNKNOWN'),
   );
 
   it.each(['Leased', 'AttorneyReview', 'PendingShortSale', 'CompSold'])(
@@ -124,18 +135,19 @@ describe('the mapper reads StandardStatus and never lets MlsStatus override it',
   const mapped = (raw: Record<string, unknown>) =>
     mapTrestleToCrmListing({ ListingId: 'RLS1', ...raw }, 0) as Record<string, unknown>;
 
-  it('reports a Pending listing as PENDING', () => {
-    expect(mapped({ StandardStatus: 'Pending' }).status).toBe('PENDING');
+  // RETARGETED: the DTO now carries the EXACT Cotality member.
+  it('reports a Pending listing as Pending', () => {
+    expect(mapped({ StandardStatus: 'Pending' }).status).toBe('Pending');
   });
 
-  it('reports an ActiveUnderContract listing as UNDER_CONTRACT, not PENDING', () => {
-    expect(mapped({ StandardStatus: 'ActiveUnderContract' }).status).toBe('UNDER_CONTRACT');
+  it('reports an ActiveUnderContract listing as ActiveUnderContract, not Pending', () => {
+    expect(mapped({ StandardStatus: 'ActiveUnderContract' }).status).toBe('ActiveUnderContract');
   });
 
   it('a populated MlsStatus does NOT replace StandardStatus', () => {
     // MlsStatus is a different 25-member vocabulary and the provider suppresses
     // it for filtering entirely. It is evidence, never the canonical input.
-    expect(mapped({ StandardStatus: 'Active', MlsStatus: 'Leased' }).status).toBe('ACTIVE');
+    expect(mapped({ StandardStatus: 'Active', MlsStatus: 'Leased' }).status).toBe('Active');
   });
 
   it('an MlsStatus-only row is UNKNOWN, not guessed from that vocabulary', () => {
@@ -211,20 +223,23 @@ describe('an unsupported status criterion fails closed', () => {
   });
 });
 
-describe('legitimate UI aliases resolve in the ONE contract', () => {
-  it.each([
-    ['CONTRACT', 'ActiveUnderContract'],
-    ['CANCELED', 'Canceled'],
-    ['COMINGSOON', 'ComingSoon'],
-  ])('%s resolves to %s', (token, member) => {
-    expect(crmTokenToStandardStatus(token)).toBe(member);
-  });
+describe('the canonical contract no longer translates invented spellings', () => {
+  // MOVED 2026-08-22. These used to assert that CONTRACT / CANCELED / COMINGSOON
+  // resolved INSIDE the canonical Cotality contract. Compatibility does not
+  // belong there — a contract that accepts non-provider spellings keeps a second
+  // vocabulary alive. They are now rejected here and migrated only at
+  // lib/search/legacy-saved-search-status-migration.ts, asserted in
+  // step2-status-readside.test.ts.
+  it.each(['CONTRACT', 'CANCELED', 'COMINGSOON', 'UNDER_CONTRACT', 'PENDING'])(
+    '%s is rejected by the canonical contract',
+    (legacy) => expect(crmTokenToStandardStatus(legacy)).toBeNull(),
+  );
 
-  it('an alias is a spelling, never a new concept borrowing a member', () => {
-    // FUTURE is not aliased to INCOMPLETE, though the member exists.
-    expect(crmTokenToStandardStatus('FUTURE')).toBeNull();
+  it('an exact member is accepted', () => {
+    expect(crmTokenToStandardStatus('ActiveUnderContract')).toBe('ActiveUnderContract');
   });
 });
+
 
 /**
  * THE CANONICAL EXECUTABLE VALUE IS THE EXACT COTALITY MEMBER.
@@ -262,29 +277,39 @@ describe('exact Cotality members are the canonical criterion values', () => {
   });
 });
 
-describe('legacy spellings migrate at the boundary and never become truth', () => {
+describe('legacy spellings live at the migration boundary, not in the contract', () => {
+  // MOVED 2026-08-22. These called the canonical contract, which now rejects any
+  // Mallan-invented spelling outright. Migration is a separate, explicitly named
+  // boundary so compatibility can never masquerade as provider truth. Full
+  // coverage lives in step2-status-readside.test.ts.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { migrateLegacySavedSearchStatus } = require('@/lib/search/legacy-saved-search-status-migration');
+
   it.each([
     ['UNDER_CONTRACT', 'ActiveUnderContract'],
     ['CONTRACT', 'ActiveUnderContract'],
     ['COMING_SOON', 'ComingSoon'],
     ['CANCELLED', 'Canceled'],
     ['PENDING', 'Pending'],
-    ['Coming Soon', 'ComingSoon'],
-  ])('a saved search holding %s resolves to the member %s', (legacy, member) => {
-    expect(crmTokenToStandardStatus(legacy)).toBe(member);
+  ])('%s migrates to %s at the boundary', (legacy, member) => {
+    expect(migrateLegacySavedSearchStatus(legacy)).toBe(member);
+    // ...and is rejected by the canonical contract itself.
+    expect(crmTokenToStandardStatus(legacy)).toBeNull();
   });
 
-  it('a migrated legacy value produces the MEMBER predicate, not the legacy word', () => {
-    const { filter } = standardStatusOData(['UNDER_CONTRACT']);
+  it('a migrated value renders as the MEMBER predicate, not the legacy word', () => {
+    const member = migrateLegacySavedSearchStatus('UNDER_CONTRACT');
+    const { filter } = standardStatusOData([member]);
     expect(filter).toBe("StandardStatus eq 'ActiveUnderContract'");
     expect(filter).not.toContain('UNDER_CONTRACT');
   });
 
-  it.each(['FUTURE', 'OFFEROUT'])('%s is NOT migrated — it has no proven member', (v) => {
-    expect(crmTokenToStandardStatus(v)).toBeNull();
+  it.each(['FUTURE', 'OFFEROUT'])('%s does not migrate and is not accepted', (v) => {
+    expect(migrateLegacySavedSearchStatus(v)).toBeNull();
     expect(() => standardStatusOData([v])).toThrow(/Unsupported status criterion/);
   });
 });
+
 
 describe('the browser emits exact members — no table left to drift', () => {
   // eslint-disable-next-line @typescript-eslint/no-var-requires

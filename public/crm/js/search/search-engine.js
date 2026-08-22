@@ -1659,7 +1659,7 @@
                 // No filtering here — Coming Soon listings are visible in IDX search.
 
                 // Gate 6: Closed Status — suppress listings closed > 24 hours
-                if (listing.status === 'CLOSED' && listing.closedDate) {
+                if (listing.status === 'Closed' && listing.closedDate) {
                     var closedTime = new Date(listing.closedDate).getTime();
                     var now = Date.now();
                     var hoursSinceClosed = (now - closedTime) / (1000 * 60 * 60);

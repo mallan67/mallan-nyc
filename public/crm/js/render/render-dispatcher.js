@@ -123,7 +123,7 @@
                 }
                 // CRM: no Gate 3 filtering
                 // Gate 6: Closed >24h — suppress (UCBA Art. I Sec. 6-7)
-                if (l.status === 'CLOSED') {
+                if (l.status === 'Closed') {
                     var closedTs = l.updatedDate ? new Date(l.updatedDate) : null;
                     if (closedTs && !isNaN(closedTs.getTime())) {
                         var hoursSinceClosed = (Date.now() - closedTs.getTime()) / (1000 * 60 * 60);

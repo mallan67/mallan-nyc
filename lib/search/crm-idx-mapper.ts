@@ -1,6 +1,6 @@
 import { resolveListingMedia } from "@/lib/media/listing-media-resolver";
 import { classifyPropertyType } from "@/lib/search/canonical/property-type-universe";
-import { standardStatusToCrmToken } from "@/lib/search/canonical/status-token-contract";
+import { isStandardStatusMember } from "@/lib/search/canonical/status-token-contract";
 
 // REBNY IDX Plus pre-filter: REBNY/Cotality removes non-displayable rows from
 // the IDX Plus feed upstream, leaving InternetEntireListingDisplayYN and
@@ -220,7 +220,19 @@ export function mapTrestleToCrmListing(
   // provider states into one — the exact inverse of the browser sending
   // "PENDING" out as `ActiveUnderContract`. The two substitutions cancelled on a
   // round trip, which is how the defect stayed invisible from either end.
-  const status = standardStatusToCrmToken(standardStatus);
+  // THE EXACT COTALITY VALUE. `listing.status` is machine-readable — reports,
+  // maps, pagination, CRM workflow and COMPLIANCE GATES branch on it — so it
+  // carries the provider's own word, not a Mallan translation of it.
+  //
+  // It used to emit an uppercase vocabulary (PENDING, COMING_SOON) while the
+  // exact value was returned separately under the misleading name `mlsStatus`.
+  // The database has always stored the exact member
+  // (prisma/schema.prisma:447, "RESO StandardStatus"), so this removes a split
+  // rather than creating one.
+  //
+  // Human labels are applied at render time by statusDisplayLabel(); an unknown
+  // value stays "UNKNOWN" and must never read as ACTIVE.
+  const status = isStandardStatusMember(standardStatus) ? standardStatus : "UNKNOWN";
   // Unrecognised or absent falls through to "UNKNOWN" inside the contract — a
   // SAFE sentinel that never surfaces non-canonical status text in
   // UCBA-sensitive contexts, and in particular never reads as ACTIVE.
@@ -265,7 +277,8 @@ export function mapTrestleToCrmListing(
   //   OnMarketDate      — RESO standard fallback
   // Format as ISO YYYY-MM-DD for downstream display.
   let comingSoonDate: string | null = null;
-  if (status === "COMING_SOON") {
+  // UCBA Art. I §16(C). Compares the EXACT member now that status carries it.
+  if (status === "ComingSoon") {
     const dateRaw = raw.ActivationDate ?? raw.OnMarketDate;
     if (dateRaw) {
       comingSoonDate = String(dateRaw).split("T")[0];

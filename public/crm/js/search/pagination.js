@@ -122,7 +122,7 @@
             // An unknown status shown as a status is a broker telling a client
             // the listing is on the market. Unknown says unknown.
             var statusLabel = (!listing.status || listing.status === 'UNKNOWN') ? 'STATUS UNAVAILABLE'
-                : listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
+                : listing.status === 'ComingSoon' ? 'COMING SOON' : listing.status;
             var isSale = listing.listingCategory !== 'rental';
             var transitScore = computeTransitScore(listing);
             var bikeScore = computeBikeScore(listing);
@@ -1086,7 +1086,7 @@
             var nearbyListings = allListings.filter(function(l) { return l.id !== listing.id && l.neighborhood !== listing.neighborhood; }).slice(0, 3);
             var renderMiniCard = function(l) {
                 var addr = l.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(l.address);
-                var st = l.status === 'COMING_SOON' ? 'CS' : l.status;
+                var st = l.status === 'ComingSoon' ? 'CS' : l.status;
                 return '<div class="border rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onclick="openListingInNewTab(\'' + l.id + '\')">'
                     + '<div class="h-[140px] cm-photo-wrap"><img src="' + getListingPhoto(l) + '" alt="' + addr + '" class="cm-photo" loading="lazy"></div>'
                     + '<div class="p-3"><div class="font-semibold text-sm truncate">' + addr + (l.unit ? ', ' + escapeHtml(l.unit) : '') + '</div>'
@@ -1256,8 +1256,8 @@
             // Status — render the canonical mapped status (post-A14
             // mapper exhaustiveness guarantees no "OFF MARKET" string).
             var status = listing.status || 'ACTIVE';
-            var statusLabel = status === 'COMING_SOON' ? 'Coming Soon'
-                : status === 'PENDING' ? 'In Contract'
+            var statusLabel = status === 'ComingSoon' ? 'Coming Soon'
+                : status === 'Pending' ? 'In Contract'
                 : status.charAt(0) + status.slice(1).toLowerCase();
             var agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : {};
             var fromName = agent.name || '';
@@ -1644,7 +1644,7 @@
             // An unknown status shown as a status is a broker telling a client
             // the listing is on the market. Unknown says unknown.
             var statusLabel = (!listing.status || listing.status === 'UNKNOWN') ? 'STATUS UNAVAILABLE'
-                : listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
+                : listing.status === 'ComingSoon' ? 'COMING SOON' : listing.status;
             var today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
             // The client sheet formats the same way the screen now does: a
             // number the provider supplied, or the word unavailable. Never $0.
@@ -2323,7 +2323,7 @@
                     detail: '$' + listing.originalPrice.toLocaleString() + ' → $' + listing.price.toLocaleString()
                 });
             }
-            if (listing.status && listing.status !== 'ACTIVE') {
+            if (listing.status && listing.status !== 'Active') {
                 events.push({ date: listing.updatedDate || 'N/A', label: 'Status: ' + listing.status, detail: '' });
             }
             events.push({ date: 'Current', label: 'DOM: ' + (listing.dom || 0) + ' | CDOM: ' + (listing.cdom || 0), detail: '$' + (listing.price || 0).toLocaleString() });

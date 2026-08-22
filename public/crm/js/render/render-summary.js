@@ -3,9 +3,9 @@
             container.innerHTML = getFilteredListings().map(listing => {
                 var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(listing.address);
                 var displayUnit = listing.addressDisplayYN === false ? '' : (listing.unit ? ', ' + escapeHtml(listing.unit) : '');
-                var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
-                var stC = listing.status === 'ACTIVE' ? '#16a34a' : listing.status === 'PENDING' ? '#ea580c' : listing.status === 'COMING_SOON' ? '#7c3aed' : '#6b7280';
-                var stB = listing.status === 'ACTIVE' ? '#dcfce7' : listing.status === 'PENDING' ? '#fff7ed' : listing.status === 'COMING_SOON' ? '#f5f3ff' : '#f3f4f6';
+                var statusLabel = listing.status === 'ComingSoon' ? 'COMING SOON' : listing.status;
+                var stC = listing.status === 'Active' ? '#16a34a' : listing.status === 'Pending' ? '#ea580c' : listing.status === 'ComingSoon' ? '#7c3aed' : '#6b7280';
+                var stB = listing.status === 'Active' ? '#dcfce7' : listing.status === 'Pending' ? '#fff7ed' : listing.status === 'ComingSoon' ? '#f5f3ff' : '#f3f4f6';
                 var selected = searchResultsState.selectedListings.includes(listing.id);
                 return `
                 <div class="listing-card mb-4 bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" data-listing-lid="${escapeHtml(listing.lid || '')}" style="box-shadow: 0 2px 12px rgba(0,0,0,0.04);">

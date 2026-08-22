@@ -116,7 +116,7 @@
     var el = document.createElement('div');
     el.className = 'results-map-pin';
     var bg = '#1a1a1a';
-    if (status === 'COMING_SOON') bg = '#d97706';
+    if (status === 'ComingSoon') bg = '#d97706';
     else if (status === 'ACTIVE_UNDER_CONTRACT') bg = '#7c3aed';
     el.style.cssText = 'background:' + bg + ';color:#fff;font-size:11px;font-weight:700;padding:4px 8px;border-radius:6px;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25);border:2px solid #fff;';
     el.textContent = fmtPrice(price);

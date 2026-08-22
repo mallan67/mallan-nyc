@@ -164,7 +164,7 @@ describe("crm idx mapper", () => {
       baths: 2.5,
       // The fixture feeds StandardStatus ActiveUnderContract, which is its own
       // member and no longer collapses into PENDING.
-      status: "UNDER_CONTRACT",
+      status: "ActiveUnderContract",
       propertyType: "Condo",
       neighborhood: "Chelsea",
       borough: "Manhattan",
@@ -284,17 +284,20 @@ describe("crm idx mapper", () => {
       // Variants with spaces ("Active Under Contract", "Coming Soon") are gone:
       // they are not members of the live enum, so they are UNKNOWN like any
       // other unrecognised value.
+      // RETARGETED 2026-08-22: the DTO carries the EXACT Cotality member, so each
+      // member reads back as ITSELF. Mallan no longer mints a parallel read
+      // vocabulary; human labels are applied at render by statusDisplayLabel().
       const cases: Array<[string, string]> = [
-        ["Active", "ACTIVE"],
-        ["ComingSoon", "COMING_SOON"],
-        ["ActiveUnderContract", "UNDER_CONTRACT"],
-        ["Pending", "PENDING"],
-        ["Closed", "CLOSED"],
-        ["Expired", "EXPIRED"],
-        ["Withdrawn", "WITHDRAWN"],
-        ["Hold", "HOLD"],
-        ["Incomplete", "INCOMPLETE"],
-        ["Canceled", "CANCELLED"],
+        ["Active", "Active"],
+        ["ComingSoon", "ComingSoon"],
+        ["ActiveUnderContract", "ActiveUnderContract"],
+        ["Pending", "Pending"],
+        ["Closed", "Closed"],
+        ["Expired", "Expired"],
+        ["Withdrawn", "Withdrawn"],
+        ["Hold", "Hold"],
+        ["Incomplete", "Incomplete"],
+        ["Canceled", "Canceled"],
       ];
       for (const [input, expected] of cases) {
         const listing = mapTrestleToCrmListing({
@@ -329,7 +332,7 @@ describe("crm idx mapper", () => {
         InternetEntireListingDisplayYN: true,
         InternetAddressDisplayYN: true,
       }, 0);
-      expect(listing.status).toBe("COMING_SOON");
+      expect(listing.status).toBe("ComingSoon");
       expect(listing.comingSoonDate).toBe("2026-06-15");
     });
 
@@ -367,7 +370,7 @@ describe("crm idx mapper", () => {
         InternetEntireListingDisplayYN: true,
         InternetAddressDisplayYN: true,
       }, 0);
-      expect(listing.status).toBe("ACTIVE");
+      expect(listing.status).toBe("Active");
       expect(listing.comingSoonDate).toBeNull();
     });
   });

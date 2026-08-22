@@ -88,7 +88,7 @@ function _mapApiListingToManage(api) {
             idxDisplayYN: api.idx_display_yn !== false,
             webDisplayed: api.idx_display_yn !== false && !api.owner_opt_out && !api.participant_only
         },
-        comingSoonStartDate: displayStatus === 'Coming Soon' ? _formatManageDate(api.first_active_date || api.status_changed_at) : null
+        comingSoonStartDate: displayStatus === 'ComingSoon' ? _formatManageDate(api.first_active_date || api.status_changed_at) : null
     };
 }
 
@@ -1036,7 +1036,7 @@ function manageValidateTransition(listing, newStatus) {
     }
 
     // Coming Soon restrictions (D1, D2, D10)
-    if (newStatus === 'Coming Soon') {
+    if (newStatus === 'ComingSoon') {
         if (listing.category === 'rentals') {
             result.valid = false;
             result.blocks.push('UCBA D1: Coming Soon status is available for SALES listings only.');
@@ -1086,7 +1086,7 @@ function manageStatusApply(newStatus) {
     }
 
     // Coming Soon: record start date
-    if (newStatus === 'Coming Soon') {
+    if (newStatus === 'ComingSoon') {
         listing.comingSoonStartDate = manageTodayStr();
     }
 

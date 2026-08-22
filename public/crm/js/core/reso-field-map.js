@@ -216,11 +216,11 @@
 
         function getStatusBadgeClasses(status) {
             switch(status) {
-                case 'ACTIVE': return 'bg-green-100 text-green-700';
-                case 'PENDING': return 'bg-orange-100 text-orange-700';
-                case 'CLOSED': return 'bg-gray-200 text-gray-600';
-                case 'COMING_SOON': case 'ComingSoon': return 'bg-purple-100 text-purple-700';
-                case 'WITHDRAWN': case 'Withdrawn': return 'bg-red-100 text-red-600';
+                case 'Active': return 'bg-green-100 text-green-700';
+                case 'Pending': return 'bg-orange-100 text-orange-700';
+                case 'Closed': return 'bg-gray-200 text-gray-600';
+                case 'ComingSoon': case 'ComingSoon': return 'bg-purple-100 text-purple-700';
+                case 'Withdrawn': case 'Withdrawn': return 'bg-red-100 text-red-600';
                 default: return 'bg-gray-100 text-gray-600';
             }
         }

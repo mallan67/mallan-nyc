@@ -23,7 +23,7 @@
                         <div class="flex items-start justify-between gap-1">
                             <h4 class="font-bold text-xs truncate">${displayAddress}${listing.addressDisplayYN !== false && listing.unit ? ', ' + escapeHtml(listing.unit) : ''}</h4>
                             ${syndicationBadgeCompact(listing)}
-                            <span class="px-1.5 py-0.5 ${getStatusBadgeClasses(listing.status)} rounded text-[10px] font-semibold flex-shrink-0">${listing.status === 'COMING_SOON' ? 'CS' : listing.status}</span>
+                            <span class="px-1.5 py-0.5 ${getStatusBadgeClasses(listing.status)} rounded text-[10px] font-semibold flex-shrink-0">${listing.status === 'ComingSoon' ? 'CS' : listing.status}</span>
                         </div>
                         <div class="flex items-center justify-between mt-0.5">
                             <div class="flex items-center gap-1 text-[10px] text-gray-500">
@@ -81,7 +81,7 @@
                         <button class="text-gray-400 text-xs"><i class="fas fa-external-link-alt"></i></button>
                     </div>
                     <div class="flex items-center gap-2">
-                        <span class="px-2 py-0.5 ${getStatusBadgeClasses(listing.status)} rounded text-xs font-semibold">${listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status}</span>
+                        <span class="px-2 py-0.5 ${getStatusBadgeClasses(listing.status)} rounded text-xs font-semibold">${listing.status === 'ComingSoon' ? 'COMING SOON' : listing.status}</span>
                         ${comingSoonBadgeCompact(listing)}
                         ${participantOnlyBadge(listing)}
                         ${syndicationBadge(listing)}

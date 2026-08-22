@@ -387,7 +387,7 @@
                 // still contain are migrated here, at the boundary, on the way
                 // in. They are never persisted again and never sent to Cotality.
                 var legacyStatusAliases = {
-                    'ACTIVE': 'Active', 'COMING_SOON': 'ComingSoon', 'PENDING': 'Pending',
+                    'ACTIVE': 'Active', 'ComingSoon': 'ComingSoon', 'Pending': 'Pending',
                     'UNDER_CONTRACT': 'ActiveUnderContract', 'CONTRACT': 'ActiveUnderContract',
                     'CLOSED': 'Closed', 'WITHDRAWN': 'Withdrawn', 'CANCELED': 'Canceled',
                     'CANCELLED': 'Canceled', 'EXPIRED': 'Expired', 'HOLD': 'Hold'

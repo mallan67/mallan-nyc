@@ -95,7 +95,7 @@
                     'WITHDRAWN': { bg: '#f3f4f6', color: '#6b7280' },
                     'HOLD': { bg: '#f3f4f6', color: '#6b7280' },
                     'CANCELED': { bg: '#f3f4f6', color: '#6b7280' },
-                    'COMING_SOON': { bg: '#f5f3ff', color: '#7c3aed' }
+                    'ComingSoon': { bg: '#f5f3ff', color: '#7c3aed' }
                 };
                 return m[s] || { bg: '#f3f4f6', color: '#4b5563' };
             }
@@ -105,9 +105,9 @@
                 var sc = _statusColor(s);
                 var label = s.replace(/_/g, ' ');
                 // UCBA Art. I Sec. 16: Coming Soon badge must include showing restriction text
-                if (s === 'COMING_SOON' && listing && listing.firstShowingDate) {
+                if (s === 'ComingSoon' && listing && listing.firstShowingDate) {
                     label = 'Coming Soon \u2014 No Showings or Open House until ' + listing.firstShowingDate;
-                } else if (s === 'COMING_SOON') {
+                } else if (s === 'ComingSoon') {
                     label = 'Coming Soon \u2014 No Showings or Open House until Scheduled Date';
                 }
                 return '<span style="display:inline-block;padding:2px 10px;background:' + sc.bg + ';color:' + sc.color + ';font-size:11px;border-radius:9999px;font-weight:600;font-family:' + B.fontBody + ';letter-spacing:0.02em">' + label + '</span>';

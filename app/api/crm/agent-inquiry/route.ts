@@ -76,12 +76,19 @@ function isValidEmail(email: string): boolean {
 }
 
 function statusLabel(raw: string | null | undefined): string {
-  if (!raw) return 'Active';
-  if (raw === 'COMING_SOON') return 'Coming Soon';
-  if (raw === 'PENDING') return 'In Contract';
-  if (raw === 'CLOSED') return 'Closed';
-  if (raw === 'WITHDRAWN') return 'Withdrawn';
-  if (raw === 'ACTIVE') return 'Active';
+  // Labels are derived from the EXACT Cotality StandardStatus member, which is
+  // what `status` now carries end to end. This compared against a Mallan
+  // uppercase vocabulary that no longer exists in the data.
+  //
+  // An absent status no longer reads as 'Active': telling a client an unknown
+  // listing is on the market is the defect this whole pass exists to remove.
+  if (!raw) return 'Status Unavailable';
+  if (raw === 'ComingSoon') return 'Coming Soon';
+  if (raw === 'Pending') return 'Pending';
+  if (raw === 'ActiveUnderContract') return 'In Contract';
+  if (raw === 'Closed') return 'Closed';
+  if (raw === 'Withdrawn') return 'Withdrawn';
+  if (raw === 'Active') return 'Active';
   // For non-canonical/unmapped values, lowercase-and-capitalize for safety
   // (post-A14 mapper guarantees canonical input, but defensive here).
   return raw.charAt(0) + raw.slice(1).toLowerCase().replace(/_/g, ' ');

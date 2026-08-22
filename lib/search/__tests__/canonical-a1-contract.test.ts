@@ -415,6 +415,12 @@ describe('A1 · only authorised readers import the canonical package', () => {
       // Active + ComingSoon + ActiveUnderContract. Reading the canonical status
       // contract is what stops one endpoint answering two different questions.
       'lib/market/query-contract.ts',
+      // The legacy saved-search migration boundary. It exists precisely so that
+      // backward compatibility does NOT live inside the canonical contract: it
+      // reads the member vocabulary in order to convert an old persisted
+      // spelling into an exact member ONCE, on the way in. Reading the canonical
+      // module is what stops it becoming a second, drifting status vocabulary.
+      'lib/search/legacy-saved-search-status-migration.ts',
     ]);
     expect(offenders.filter((f) => !AUTHORISED.has(f))).toEqual([]);
   }, 60000);

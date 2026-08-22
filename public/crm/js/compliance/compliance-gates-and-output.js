@@ -58,12 +58,12 @@ function checkListingCompliance(listingIds, displayContext) {
 
         // Gate 5: Coming Soon — show but with restrictions
         // UCBA Art. I Sec. 5(C): No showings, open houses, or negotiations permitted.
-        if (listing.status === 'COMING_SOON') {
+        if (listing.status === 'ComingSoon') {
             result.warnings.push({ id: id, address: listing.address, reason: 'Coming Soon — No showings or open house permitted until ' + (listing.comingSoonDate || 'active date') + ' (UCBA Art. I Sec. 5(C))' });
         }
 
         // Gate 6: Closed Status — suppress after 24 hours
-        if (listing.status === 'CLOSED' && listing.closedDate) {
+        if (listing.status === 'Closed' && listing.closedDate) {
             var closedTime = new Date(listing.closedDate).getTime();
             var hoursSinceClosed = (Date.now() - closedTime) / (1000 * 60 * 60);
             if (hoursSinceClosed > 24) {
@@ -108,10 +108,10 @@ function generateSingleListingSheet(listing, suppressAddress) {
 
     var statusClass = '';
     switch(listing.status) {
-        case 'ACTIVE': statusClass = 'background:#2563eb;color:white;'; break;
-        case 'PENDING': statusClass = 'background:#f59e0b;color:white;'; break;
-        case 'CLOSED': statusClass = 'background:#16a34a;color:white;'; break;
-        case 'COMING_SOON': statusClass = 'background:#8b5cf6;color:white;'; break;
+        case 'Active': statusClass = 'background:#2563eb;color:white;'; break;
+        case 'Pending': statusClass = 'background:#f59e0b;color:white;'; break;
+        case 'Closed': statusClass = 'background:#16a34a;color:white;'; break;
+        case 'ComingSoon': statusClass = 'background:#8b5cf6;color:white;'; break;
         default: statusClass = 'background:#6b7280;color:white;'; break;
     }
 
@@ -1702,7 +1702,7 @@ function REBNYWiringTest(options) {
         if (typeof getStatusBadgeClasses === 'function') {
             checks.push('statusHelper:exists');
             var active = getStatusBadgeClasses('ACTIVE');
-            var pending = getStatusBadgeClasses('PENDING');
+            var pending = getStatusBadgeClasses('Pending');
             if (active !== pending) checks.push('statusHelper:dynamic');
             else issues.push('Status helper returns same for ACTIVE/PENDING');
         } else { issues.push('getStatusBadgeClasses helper missing'); }

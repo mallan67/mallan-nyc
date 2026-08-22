@@ -76,20 +76,6 @@ export const STANDARD_STATUS_MEMBERS = [
 
 export type StandardStatusMember = (typeof STANDARD_STATUS_MEMBERS)[number];
 
-/** The canonical status the CRM stores and displays. */
-export type CrmStatusToken =
-  | 'ACTIVE'
-  | 'UNDER_CONTRACT'
-  | 'PENDING'
-  | 'COMING_SOON'
-  | 'CLOSED'
-  | 'WITHDRAWN'
-  | 'CANCELLED'
-  | 'EXPIRED'
-  | 'HOLD'
-  | 'INCOMPLETE'
-  | 'DELETE'
-  | 'UNKNOWN';
 
 /**
  * CRM token → the ONE `StandardStatus` member it means.
@@ -97,8 +83,7 @@ export type CrmStatusToken =
  * `PENDING` and `UNDER_CONTRACT` are deliberately distinct entries pointing at
  * distinct members. That is the entire correction.
  */
-const TOKEN_TO_MEMBER: Readonly<Record<Exclude<CrmStatusToken, 'UNKNOWN'>, StandardStatusMember>> =
-  Object.freeze({
+const TOKEN_TO_MEMBER: Readonly<Record<string, StandardStatusMember>> = Object.freeze({
     ACTIVE: 'Active',
     UNDER_CONTRACT: 'ActiveUnderContract',
     PENDING: 'Pending',
@@ -112,64 +97,24 @@ const TOKEN_TO_MEMBER: Readonly<Record<Exclude<CrmStatusToken, 'UNKNOWN'>, Stand
     DELETE: 'Delete',
   });
 
-/** `StandardStatus` member → the ONE CRM token it means. The exact inverse. */
-const MEMBER_TO_TOKEN: Readonly<Record<StandardStatusMember, CrmStatusToken>> = Object.freeze({
-  Active: 'ACTIVE',
-  ActiveUnderContract: 'UNDER_CONTRACT',
-  Pending: 'PENDING',
-  ComingSoon: 'COMING_SOON',
-  Closed: 'CLOSED',
-  Withdrawn: 'WITHDRAWN',
-  Canceled: 'CANCELLED',
-  Expired: 'EXPIRED',
-  Hold: 'HOLD',
-  Incomplete: 'INCOMPLETE',
-  Delete: 'DELETE',
-});
 
 /**
- * LEGACY BOUNDARY COMPATIBILITY — not canonical, and never outgoing.
+ * NOTE: there is NO legacy alias table in this file, by design.
  *
- * THE CANONICAL EXECUTABLE VALUE IS THE EXACT COTALITY MEMBER. A criterion, a
- * persisted saved search, and an outgoing `$filter` all carry `Pending`,
- * `ActiveUnderContract`, `ComingSoon` — the provider's own words. Mallan does
- * not mint a parallel vocabulary for the Search foundation and then translate.
+ * THE CANONICAL VALUE IS THE EXACT COTALITY MEMBER. A contract that quietly
+ * accepts `UNDER_CONTRACT` or `COMING_SOON` is a contract that keeps a second
+ * vocabulary alive, and this codebase has now been bitten three times by
+ * exactly that: two opposite substitutions that cancelled, three separate
+ * browser/server translation tables, and a four-vocabulary chain that made the
+ * UCBA Coming Soon badge stop matching.
  *
- * The DOM already agreed: the status checkboxes carry
- * `data-value="Active" / "ComingSoon" / "Pending"`. The uppercase tokens were
- * invented purely in the JavaScript in between, and THREE separate tables then
- * existed to translate them back — in search-engine.js, in saved-searches.js,
- * and here.
- *
- * This map exists ONLY to migrate a SAVED SEARCH written before that. It is
- * applied at the boundary, once, on the way in. A legacy spelling never becomes
- * provider truth, is never persisted again, and never reaches Cotality.
- *
- * `FUTURE` and `OFFEROUT` are deliberately ABSENT. `FUTURE` used to be sent as
- * `Incomplete`; Cotality declares `Incomplete` and does not declare `Future`,
- * and one existing establishes nothing about the other's meaning — the same
- * unverified-equivalence mistake as `PENDING -> ActiveUnderContract`. They stay
- * unsupported until Mallan decides what they mean, and an unsupported criterion
- * FAILS rather than being silently dropped or substituted.
+ * Saved searches written before 2026-08-22 do hold those spellings. They are
+ * migrated at an explicitly separate boundary,
+ * lib/search/legacy-saved-search-status-migration.ts, which converts them ONCE
+ * on the way in and hands this contract an exact member. A legacy spelling
+ * never becomes provider truth, is never persisted again, and never reaches
+ * Cotality.
  */
-const LEGACY_CRITERION_ALIASES: Readonly<Record<string, StandardStatusMember>> = Object.freeze({
-  ACTIVE: 'Active',
-  PENDING: 'Pending',
-  UNDER_CONTRACT: 'ActiveUnderContract',
-  CONTRACT: 'ActiveUnderContract',
-  ACTIVEUNDERCONTRACT: 'ActiveUnderContract',
-  ACTIVE_UNDER_CONTRACT: 'ActiveUnderContract',
-  COMING_SOON: 'ComingSoon',
-  COMINGSOON: 'ComingSoon',
-  CLOSED: 'Closed',
-  WITHDRAWN: 'Withdrawn',
-  CANCELLED: 'Canceled',
-  CANCELED: 'Canceled',
-  EXPIRED: 'Expired',
-  HOLD: 'Hold',
-  INCOMPLETE: 'Incomplete',
-  DELETE: 'Delete',
-});
 
 /**
  * A status criterion carried a token with no live provider member.
@@ -210,31 +155,12 @@ export function isStandardStatusMember(value: unknown): value is StandardStatusM
 export function crmTokenToStandardStatus(token: unknown): StandardStatusMember | null {
   if (typeof token !== 'string') return null;
   const trimmed = token.trim();
-
-  // THE CANONICAL FORM: an exact live member, used verbatim. This is the normal
-  // path — criteria, saved searches and outgoing filters all carry the
-  // provider's own words.
-  if (isStandardStatusMember(trimmed)) return trimmed;
-
-  // LEGACY ONLY, migrated at the boundary. Whitespace is stripped so the spaced
-  // spellings an older saved search may hold ("Coming Soon", "Active Under
-  // Contract") migrate through the SAME table, rather than a second normaliser
-  // existing somewhere else.
-  const legacy = trimmed.replace(/\s+/g, '').toUpperCase();
-  return LEGACY_CRITERION_ALIASES[legacy] ?? null;
+  // EXACT MEMBERS ONLY. A Mallan-invented spelling is not translated here; see
+  // the note above and the separate migration boundary.
+  return isStandardStatusMember(trimmed) ? trimmed : null;
 }
 
-/**
- * INBOUND. The CRM token a provider `StandardStatus` value means.
- *
- * Unrecognised or absent → `'UNKNOWN'`. Never `'ACTIVE'`: telling a broker an
- * unknown listing is on the market is the failure this codebase has corrected
- * twice already.
- */
-export function standardStatusToCrmToken(standardStatus: unknown): CrmStatusToken {
-  if (!isStandardStatusMember(standardStatus)) return 'UNKNOWN';
-  return MEMBER_TO_TOKEN[standardStatus];
-}
+
 
 /**
  * The OData predicate for a set of CRM tokens.
@@ -285,4 +211,33 @@ export function standardStatusOData(tokens: readonly unknown[]): {
         : `(${members.map((m) => `StandardStatus eq '${m}'`).join(' or ')})`;
 
   return { filter, members, unsupportedTokens };
+}
+
+/**
+ * The human label for a status. PRESENTATION ONLY.
+ *
+ * Formatting happens at render time and never changes the stored, DTO, or
+ * search value. `ActiveUnderContract` displays as "Under Contract"; it does not
+ * BECOME "UNDER_CONTRACT" anywhere.
+ *
+ * An unrecognised value gets a neutral label rather than an invented status —
+ * a renderer must never turn "we do not know" into a status a broker can quote.
+ */
+const STATUS_LABELS: Readonly<Record<StandardStatusMember, string>> = Object.freeze({
+  Active: 'Active',
+  ActiveUnderContract: 'Under Contract',
+  Pending: 'Pending',
+  ComingSoon: 'Coming Soon',
+  Closed: 'Closed',
+  Withdrawn: 'Withdrawn',
+  Canceled: 'Canceled',
+  Expired: 'Expired',
+  Hold: 'Hold',
+  Incomplete: 'Incomplete',
+  Delete: 'Removed',
+});
+
+export function statusDisplayLabel(status: unknown): string {
+  if (isStandardStatusMember(status)) return STATUS_LABELS[status];
+  return 'Status Unavailable';
 }

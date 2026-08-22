@@ -647,7 +647,7 @@
                     'WITHDRAWN': { bg: '#f3f4f6', color: '#6b7280' },
                     'HOLD': { bg: '#f3f4f6', color: '#6b7280' },
                     'CANCELED': { bg: '#f3f4f6', color: '#6b7280' },
-                    'COMING_SOON': { bg: '#f5f3ff', color: '#7c3aed' }
+                    'ComingSoon': { bg: '#f5f3ff', color: '#7c3aed' }
                 };
                 return m[s] || { bg: '#f3f4f6', color: '#4b5563' };
             }
@@ -656,9 +656,9 @@
                 var sc = statusColor(s);
                 var label = s.replace(/_/g, ' ');
                 // UCBA Art. I Sec. 16: Coming Soon badge must include showing restriction text
-                if (s === 'COMING_SOON' && listing && listing.firstShowingDate) {
+                if (s === 'ComingSoon' && listing && listing.firstShowingDate) {
                     label = 'Coming Soon \u2014 No Showings or Open House until ' + listing.firstShowingDate;
-                } else if (s === 'COMING_SOON') {
+                } else if (s === 'ComingSoon') {
                     label = 'Coming Soon \u2014 No Showings or Open House until Scheduled Date';
                 }
                 return '<span style="display:inline-block;padding:2px 8px;background:' + sc.bg + ';color:' + sc.color + ';font-size:12px;border-radius:4px;font-weight:500">' + label + '</span>';
@@ -1018,7 +1018,7 @@
             listings.forEach(function(l, idx) {
                 var isRental = l.listingCategory === 'rental';
                 var stC = statusColor(l.status);
-                var statusLabel = (l.status === 'COMING_SOON') ? 'COMING SOON' : (l.status || 'ACTIVE');
+                var statusLabel = (l.status === 'ComingSoon') ? 'COMING SOON' : (l.status || 'ACTIVE');
                 var bedsLabel = l.beds === 0 ? 'Studio' : l.beds;
                 var photo = getListingPhoto(l);
 
@@ -2020,14 +2020,18 @@
             var firstName = preparedFor ? preparedFor.split(' ')[0] : '';
 
             // Status color map (inline — email safe)
+            // Keyed on the EXACT Cotality StandardStatus member, which is what
+            // listing.status now carries end to end.
             var statusColors = {
-                'ACTIVE': { bg: '#dcfce7', color: '#166534' },
-                'PENDING': { bg: '#fef3c7', color: '#92400e' },
-                'CONTRACT': { bg: '#ede9fe', color: '#5b21b6' },
-                'CLOSED': { bg: '#fee2e2', color: '#991b1b' },
-                'COMING_SOON': { bg: '#f5f3ff', color: '#7c3aed' },
-                'WITHDRAWN': { bg: '#f3f4f6', color: '#6b7280' },
-                'HOLD': { bg: '#f3f4f6', color: '#6b7280' }
+                'Active': { bg: '#dcfce7', color: '#166534' },
+                'Pending': { bg: '#fef3c7', color: '#92400e' },
+                'ActiveUnderContract': { bg: '#ede9fe', color: '#5b21b6' },
+                'Closed': { bg: '#fee2e2', color: '#991b1b' },
+                'ComingSoon': { bg: '#f5f3ff', color: '#7c3aed' },
+                'Withdrawn': { bg: '#f3f4f6', color: '#6b7280' },
+                'Canceled': { bg: '#f3f4f6', color: '#6b7280' },
+                'Expired': { bg: '#f3f4f6', color: '#6b7280' },
+                'Hold': { bg: '#f3f4f6', color: '#6b7280' }
             };
 
             var h = '';
@@ -2484,10 +2488,10 @@
             function da(listing) { return listing.addressDisplayYN === false ? 'Available Upon Request' : listing.address + (listing.unit ? ', ' + listing.unit : ''); }
             function sBadge(s, listing) {
                 s = (s || 'Active').toUpperCase();
-                var m = { 'ACTIVE':['#dcfce7','#15803d'], 'OFFER IN':['#ffedd5','#c2410c'], 'IN CONTRACT':['#f3e8ff','#7e22ce'], 'SOLD':['#dbeafe','#1d4ed8'], 'COMING_SOON':['#f5f3ff','#7c3aed'] };
+                var m = { 'ACTIVE':['#dcfce7','#15803d'], 'OFFER IN':['#ffedd5','#c2410c'], 'IN CONTRACT':['#f3e8ff','#7e22ce'], 'SOLD':['#dbeafe','#1d4ed8'], 'ComingSoon':['#f5f3ff','#7c3aed'] };
                 var c = m[s] || ['#f3f4f6','#4b5563'];
                 var label = s.replace(/_/g,' ');
-                if (s === 'COMING_SOON') label = listing && listing.firstShowingDate ? 'Coming Soon \u2014 No Showings until ' + listing.firstShowingDate : 'Coming Soon';
+                if (s === 'ComingSoon') label = listing && listing.firstShowingDate ? 'Coming Soon \u2014 No Showings until ' + listing.firstShowingDate : 'Coming Soon';
                 return '<span style="display:inline-block;padding:2px 8px;background:' + c[0] + ';color:' + c[1] + ';font-size:12px;border-radius:4px;font-weight:500">' + label + '</span>';
             }
             function dr(label, val) {

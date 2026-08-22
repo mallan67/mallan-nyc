@@ -14454,7 +14454,7 @@ function _mapApiListingToManage(api) {
             idxDisplayYN: api.idx_display_yn !== false,
             webDisplayed: api.idx_display_yn !== false && !api.owner_opt_out && !api.participant_only
         },
-        comingSoonStartDate: displayStatus === 'Coming Soon' ? _formatManageDate(api.first_active_date || api.status_changed_at) : null
+        comingSoonStartDate: displayStatus === 'ComingSoon' ? _formatManageDate(api.first_active_date || api.status_changed_at) : null
     };
 }
 
@@ -15402,7 +15402,7 @@ function manageValidateTransition(listing, newStatus) {
     }
 
     // Coming Soon restrictions (D1, D2, D10)
-    if (newStatus === 'Coming Soon') {
+    if (newStatus === 'ComingSoon') {
         if (listing.category === 'rentals') {
             result.valid = false;
             result.blocks.push('UCBA D1: Coming Soon status is available for SALES listings only.');
@@ -15452,7 +15452,7 @@ function manageStatusApply(newStatus) {
     }
 
     // Coming Soon: record start date
-    if (newStatus === 'Coming Soon') {
+    if (newStatus === 'ComingSoon') {
         listing.comingSoonStartDate = manageTodayStr();
     }
 
@@ -17933,7 +17933,7 @@ function manageShowToast(msg) {
                 // No filtering here — Coming Soon listings are visible in IDX search.
 
                 // Gate 6: Closed Status — suppress listings closed > 24 hours
-                if (listing.status === 'CLOSED' && listing.closedDate) {
+                if (listing.status === 'Closed' && listing.closedDate) {
                     var closedTime = new Date(listing.closedDate).getTime();
                     var now = Date.now();
                     var hoursSinceClosed = (now - closedTime) / (1000 * 60 * 60);
@@ -20097,11 +20097,11 @@ function manageShowToast(msg) {
 
         function getStatusBadgeClasses(status) {
             switch(status) {
-                case 'ACTIVE': return 'bg-green-100 text-green-700';
-                case 'PENDING': return 'bg-orange-100 text-orange-700';
-                case 'CLOSED': return 'bg-gray-200 text-gray-600';
-                case 'COMING_SOON': case 'ComingSoon': return 'bg-purple-100 text-purple-700';
-                case 'WITHDRAWN': case 'Withdrawn': return 'bg-red-100 text-red-600';
+                case 'Active': return 'bg-green-100 text-green-700';
+                case 'Pending': return 'bg-orange-100 text-orange-700';
+                case 'Closed': return 'bg-gray-200 text-gray-600';
+                case 'ComingSoon': case 'ComingSoon': return 'bg-purple-100 text-purple-700';
+                case 'Withdrawn': case 'Withdrawn': return 'bg-red-100 text-red-600';
                 default: return 'bg-gray-100 text-gray-600';
             }
         }
@@ -20349,7 +20349,17 @@ function manageShowToast(msg) {
                 reTaxes: parseFloat(feat.RealEstateTax || 0) / 12,
                 maintCC: parseFloat(feat.AssociationFee || 0),
                 intSqft: parseFloat(apiListing.living_area) || null,
-                status: (apiListing.status || 'ACTIVE').toUpperCase(),
+                // THE EXACT COTALITY MEMBER, unaltered.
+                //
+                // This was `(apiListing.status || 'ACTIVE').toUpperCase()`, which
+                // did two damaging things. It DEFAULTED an unknown status to
+                // ACTIVE - telling a broker an unknown listing is on the market.
+                // And it uppercased the exact member the database stores
+                // (prisma/schema.prisma:447, "RESO StandardStatus"), so
+                // 'ComingSoon' became 'COMINGSOON' while every renderer compared
+                // against 'COMING_SOON'. The UCBA Art. I s16 Coming Soon badge
+                // never matched for a DB-path listing as a result.
+                status: apiListing.status || 'UNKNOWN',
                 ownership: feat.CommonInterest || apiListing.property_type || '',
                 propertyType: apiListing.property_type || 'Residential',
                 propertySubType: apiListing.property_sub_type || '',
@@ -21571,7 +21581,7 @@ function parseBudgetValue(td) {
                 }
                 // CRM: no Gate 3 filtering
                 // Gate 6: Closed >24h — suppress (UCBA Art. I Sec. 6-7)
-                if (l.status === 'CLOSED') {
+                if (l.status === 'Closed') {
                     var closedTs = l.updatedDate ? new Date(l.updatedDate) : null;
                     if (closedTs && !isNaN(closedTs.getTime())) {
                         var hoursSinceClosed = (Date.now() - closedTs.getTime()) / (1000 * 60 * 60);
@@ -21736,7 +21746,7 @@ function parseBudgetValue(td) {
             reTaxes:          { label: 'RE TAXES',       reso: 'TaxAnnualAmount',         render: function(l) { return '<span' + resoData('reTaxes', l.reTaxes) + '>$' + l.reTaxes.toLocaleString() + '</span>'; } },
             maintCC:          { label: 'MAINT/CC',       reso: 'AssociationFee',          render: function(l) { return '<span' + resoData('maintCC', l.maintCC) + '>$' + l.maintCC.toLocaleString() + '</span>'; } },
             intSqft:          { label: 'INT SQFT',       reso: 'LivingArea',              render: function(l) { return '<span' + resoData('intSqft', l.intSqft) + '>' + (l.intSqft || '--') + '</span>'; } },
-            status:           { label: 'STATUS',         reso: 'MlsStatus',          render: function(l) { var c = l.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : l.status === 'PENDING' ? 'bg-orange-100 text-orange-700' : l.status === 'COMING_SOON' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'; var label = l.status === 'COMING_SOON' ? 'COMING SOON' : l.status; var badge = '<span class="px-1.5 py-0.5 ' + c + ' rounded text-[10px] font-semibold"' + resoData('status', l.status) + '>' + label + '</span>'; badge += comingSoonBadgeCompact(l) + participantOnlyBadge(l); return badge; } },
+            status:           { label: 'STATUS',         reso: 'MlsStatus',          render: function(l) { var c = l.status === 'Active' ? 'bg-green-100 text-green-700' : l.status === 'Pending' ? 'bg-orange-100 text-orange-700' : l.status === 'ComingSoon' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'; var label = l.status === 'ComingSoon' ? 'COMING SOON' : l.status; var badge = '<span class="px-1.5 py-0.5 ' + c + ' rounded text-[10px] font-semibold"' + resoData('status', l.status) + '>' + label + '</span>'; badge += comingSoonBadgeCompact(l) + participantOnlyBadge(l); return badge; } },
             ownership:        { label: 'OWNERSHIP',      reso: 'CommonInterest',          render: function(l) { return '<span' + resoData('ownership', l.ownership) + '>' + ownershipLabel(l.ownership) + '</span>'; } },
             openHouse:        { label: 'OPEN HOUSE',     reso: 'OpenHouseDate',           render: function(l) { return '--'; } },
             // REBNY: "Market time will not accrue when permission is set to Participant Only."
@@ -21962,7 +21972,7 @@ function parseBudgetValue(td) {
         // ── Coming Soon Badge Helper — full version (Gallery/ShortSum/Summary/MasterDetail) ──
         // UCBA Art. I Sec. 5(C): No showings, open houses, or negotiations. D7/D2/D1.
         function comingSoonBadge(listing) {
-            if (listing.status !== 'COMING_SOON') return '';
+            if (listing.status !== 'ComingSoon') return '';
             var dateTag = listing.comingSoonDate ? ' <span' + resoData('comingSoonDate', listing.comingSoonDate) + '>' + listing.comingSoonDate + '</span>' : '';
             return '<div class="bg-purple-50 border-b border-purple-200 px-3 py-1.5 text-xs text-purple-700 font-semibold"'
                 + ' data-reso-field="MlsStatus" data-reso-value="ComingSoon"'
@@ -21976,7 +21986,7 @@ function parseBudgetValue(td) {
 
         // ── Coming Soon Badge — compact version (Grid/Map) ──
         function comingSoonBadgeCompact(listing) {
-            if (listing.status !== 'COMING_SOON') return '';
+            if (listing.status !== 'ComingSoon') return '';
             return '<span class="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[9px] font-bold"'
                 + ' data-reso-field="MlsStatus" data-reso-value="ComingSoon"'
                 + ' data-compliance="coming-soon-badge"'
@@ -22013,7 +22023,7 @@ function parseBudgetValue(td) {
         // Returns a text notice for Coming Soon listings: "No Showings or Open House until [date]"
         // Used in detail views and action bars to inform agent that showings are blocked.
         function comingSoonShowingNotice(listing) {
-            if (listing.status !== 'COMING_SOON') return '';
+            if (listing.status !== 'ComingSoon') return '';
             var dateStr = listing.comingSoonDate || 'active date';
             return '<div class="bg-purple-50 border border-purple-200 rounded px-2.5 py-1.5 text-xs text-purple-700 font-medium"'
                 + ' data-reso-field="MlsStatus" data-reso-value="ComingSoon"'
@@ -22027,7 +22037,7 @@ function parseBudgetValue(td) {
         // ── Helper: is listing Coming Soon? ──
         // Used to conditionally disable Schedule Showing buttons across views.
         function isComingSoon(listing) {
-            if (listing.status === 'COMING_SOON') return true;
+            if (listing.status === 'ComingSoon') return true;
             if (listing.comingSoonDate) {
                 var csDate = new Date(listing.comingSoonDate);
                 if (!isNaN(csDate.getTime()) && csDate > new Date()) return true;
@@ -22085,9 +22095,9 @@ function parseBudgetValue(td) {
             if (dom == null) return '<span class="text-xs text-gray-400">--</span>';
             var status = 'accruing';
             if (listing.permissions && listing.permissions.participantOnly) status = 'exempt';
-            else if (listing.status === 'COMING_SOON' || listing.status === 'Coming Soon') status = 'exempt';
+            else if (listing.status === 'ComingSoon' || listing.status === 'ComingSoon') status = 'exempt';
             else if (listing.status === 'Temp Off Market' || listing.status === 'WITHDRAWN' || listing.status === 'Withdrawn') status = 'paused';
-            else if (listing.status === 'CLOSED' || listing.status === 'Sold' || listing.status === 'Leased') status = 'stopped';
+            else if (listing.status === 'Closed' || listing.status === 'Sold' || listing.status === 'Leased') status = 'stopped';
 
             var color;
             if (status === 'exempt') color = '#9ca3af';
@@ -22114,13 +22124,13 @@ function parseBudgetValue(td) {
         function renderGalleryView() {
             var container = document.getElementById('galleryResults');
             container.innerHTML = getFilteredListings().map(listing => {
-                var stC = listing.status === 'ACTIVE' ? '#16a34a' : listing.status === 'PENDING' ? '#ea580c' : listing.status === 'COMING_SOON' ? '#7c3aed' : '#6b7280';
-                var stB = listing.status === 'ACTIVE' ? '#dcfce7' : listing.status === 'PENDING' ? '#fff7ed' : listing.status === 'COMING_SOON' ? '#f5f3ff' : '#f3f4f6';
-                var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
+                var stC = listing.status === 'Active' ? '#16a34a' : listing.status === 'Pending' ? '#ea580c' : listing.status === 'ComingSoon' ? '#7c3aed' : '#6b7280';
+                var stB = listing.status === 'Active' ? '#dcfce7' : listing.status === 'Pending' ? '#fff7ed' : listing.status === 'ComingSoon' ? '#f5f3ff' : '#f3f4f6';
+                var statusLabel = listing.status === 'ComingSoon' ? 'COMING SOON' : listing.status;
                 var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(listing.address);
                 var displayUnit = listing.addressDisplayYN !== false ? escapeHtml(listing.unit) : '';
                 var selected = searchResultsState.selectedListings.includes(listing.id);
-                var csGalleryBadge = listing.status === 'COMING_SOON' ? '<div class="absolute bottom-3 left-3 px-2.5 py-1 bg-purple-600 text-white text-[11px] font-bold rounded-lg z-10" data-reso-field="MlsStatus" data-reso-value="ComingSoon" data-compliance="coming-soon-badge" title="UCBA D7: Coming Soon — max 14 days (D2). No showings or open houses.">Coming Soon' + (listing.comingSoonDate ? ' &mdash; No Showings Until <span' + resoData('comingSoonDate', listing.comingSoonDate) + '>' + escapeHtml(listing.comingSoonDate) + '</span>' : '') + '</div>' : '';
+                var csGalleryBadge = listing.status === 'ComingSoon' ? '<div class="absolute bottom-3 left-3 px-2.5 py-1 bg-purple-600 text-white text-[11px] font-bold rounded-lg z-10" data-reso-field="MlsStatus" data-reso-value="ComingSoon" data-compliance="coming-soon-badge" title="UCBA D7: Coming Soon — max 14 days (D2). No showings or open houses.">Coming Soon' + (listing.comingSoonDate ? ' &mdash; No Showings Until <span' + resoData('comingSoonDate', listing.comingSoonDate) + '>' + escapeHtml(listing.comingSoonDate) + '</span>' : '') + '</div>' : '';
                 return `
                 <div class="listing-card gallery-card bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-reso-field="SourceSystemKey" data-reso-value="${escapeHtml(listing.wid || listing.lid || listing.id)}" data-listing-id="${listing.id}" data-listing-lid="${escapeHtml(listing.lid || '')}" data-source="REBNY-RLS">
                     <!-- Photo -->
@@ -22178,7 +22188,7 @@ function parseBudgetValue(td) {
             container.innerHTML = getFilteredListings().map(listing => {
                 var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(listing.address);
                 var displayUnit = listing.addressDisplayYN === false ? '' : (listing.unit ? ', ' + escapeHtml(listing.unit) : '');
-                var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
+                var statusLabel = listing.status === 'ComingSoon' ? 'COMING SOON' : listing.status;
                 return `
                 <div class="border-b hover:bg-gray-50 cursor-pointer ${searchResultsState.selectedListings.includes(listing.id) ? 'bg-blue-50' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" onclick="openListingInNewTab('${listing.id}'); if (typeof isResultsMapOpen === 'function' && isResultsMapOpen()) { if (typeof panToListing === 'function') panToListing('${listing.id}'); }">
                     ${comingSoonBadge(listing)}
@@ -22274,9 +22284,9 @@ function parseBudgetValue(td) {
             container.innerHTML = getFilteredListings().map(listing => {
                 var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(listing.address);
                 var displayUnit = listing.addressDisplayYN === false ? '' : (listing.unit ? ', ' + escapeHtml(listing.unit) : '');
-                var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
-                var stC = listing.status === 'ACTIVE' ? '#16a34a' : listing.status === 'PENDING' ? '#ea580c' : listing.status === 'COMING_SOON' ? '#7c3aed' : '#6b7280';
-                var stB = listing.status === 'ACTIVE' ? '#dcfce7' : listing.status === 'PENDING' ? '#fff7ed' : listing.status === 'COMING_SOON' ? '#f5f3ff' : '#f3f4f6';
+                var statusLabel = listing.status === 'ComingSoon' ? 'COMING SOON' : listing.status;
+                var stC = listing.status === 'Active' ? '#16a34a' : listing.status === 'Pending' ? '#ea580c' : listing.status === 'ComingSoon' ? '#7c3aed' : '#6b7280';
+                var stB = listing.status === 'Active' ? '#dcfce7' : listing.status === 'Pending' ? '#fff7ed' : listing.status === 'ComingSoon' ? '#f5f3ff' : '#f3f4f6';
                 var selected = searchResultsState.selectedListings.includes(listing.id);
                 return `
                 <div class="listing-card mb-4 bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" data-listing-lid="${escapeHtml(listing.lid || '')}" style="box-shadow: 0 2px 12px rgba(0,0,0,0.04);">
@@ -22407,7 +22417,7 @@ function parseBudgetValue(td) {
                         <div class="flex items-start justify-between gap-1">
                             <h4 class="font-bold text-xs truncate">${displayAddress}${listing.addressDisplayYN !== false && listing.unit ? ', ' + escapeHtml(listing.unit) : ''}</h4>
                             ${syndicationBadgeCompact(listing)}
-                            <span class="px-1.5 py-0.5 ${getStatusBadgeClasses(listing.status)} rounded text-[10px] font-semibold flex-shrink-0">${listing.status === 'COMING_SOON' ? 'CS' : listing.status}</span>
+                            <span class="px-1.5 py-0.5 ${getStatusBadgeClasses(listing.status)} rounded text-[10px] font-semibold flex-shrink-0">${listing.status === 'ComingSoon' ? 'CS' : listing.status}</span>
                         </div>
                         <div class="flex items-center justify-between mt-0.5">
                             <div class="flex items-center gap-1 text-[10px] text-gray-500">
@@ -22465,7 +22475,7 @@ function parseBudgetValue(td) {
                         <button class="text-gray-400 text-xs"><i class="fas fa-external-link-alt"></i></button>
                     </div>
                     <div class="flex items-center gap-2">
-                        <span class="px-2 py-0.5 ${getStatusBadgeClasses(listing.status)} rounded text-xs font-semibold">${listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status}</span>
+                        <span class="px-2 py-0.5 ${getStatusBadgeClasses(listing.status)} rounded text-xs font-semibold">${listing.status === 'ComingSoon' ? 'COMING SOON' : listing.status}</span>
                         ${comingSoonBadgeCompact(listing)}
                         ${participantOnlyBadge(listing)}
                         ${syndicationBadge(listing)}
@@ -23562,7 +23572,7 @@ function parseBudgetValue(td) {
                 // still contain are migrated here, at the boundary, on the way
                 // in. They are never persisted again and never sent to Cotality.
                 var legacyStatusAliases = {
-                    'ACTIVE': 'Active', 'COMING_SOON': 'ComingSoon', 'PENDING': 'Pending',
+                    'ACTIVE': 'Active', 'ComingSoon': 'ComingSoon', 'Pending': 'Pending',
                     'UNDER_CONTRACT': 'ActiveUnderContract', 'CONTRACT': 'ActiveUnderContract',
                     'CLOSED': 'Closed', 'WITHDRAWN': 'Withdrawn', 'CANCELED': 'Canceled',
                     'CANCELLED': 'Canceled', 'EXPIRED': 'Expired', 'HOLD': 'Hold'
@@ -24842,7 +24852,7 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
     var el = document.createElement('div');
     el.className = 'results-map-pin';
     var bg = '#1a1a1a';
-    if (status === 'COMING_SOON') bg = '#d97706';
+    if (status === 'ComingSoon') bg = '#d97706';
     else if (status === 'ACTIVE_UNDER_CONTRACT') bg = '#7c3aed';
     el.style.cssText = 'background:' + bg + ';color:#fff;font-size:11px;font-weight:700;padding:4px 8px;border-radius:6px;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25);border:2px solid #fff;';
     el.textContent = fmtPrice(price);
@@ -26035,7 +26045,7 @@ function openPrintableWindow(html, options) {
                     'WITHDRAWN': { bg: '#f3f4f6', color: '#6b7280' },
                     'HOLD': { bg: '#f3f4f6', color: '#6b7280' },
                     'CANCELED': { bg: '#f3f4f6', color: '#6b7280' },
-                    'COMING_SOON': { bg: '#f5f3ff', color: '#7c3aed' }
+                    'ComingSoon': { bg: '#f5f3ff', color: '#7c3aed' }
                 };
                 return m[s] || { bg: '#f3f4f6', color: '#4b5563' };
             }
@@ -26044,9 +26054,9 @@ function openPrintableWindow(html, options) {
                 var sc = statusColor(s);
                 var label = s.replace(/_/g, ' ');
                 // UCBA Art. I Sec. 16: Coming Soon badge must include showing restriction text
-                if (s === 'COMING_SOON' && listing && listing.firstShowingDate) {
+                if (s === 'ComingSoon' && listing && listing.firstShowingDate) {
                     label = 'Coming Soon \u2014 No Showings or Open House until ' + listing.firstShowingDate;
-                } else if (s === 'COMING_SOON') {
+                } else if (s === 'ComingSoon') {
                     label = 'Coming Soon \u2014 No Showings or Open House until Scheduled Date';
                 }
                 return '<span style="display:inline-block;padding:2px 8px;background:' + sc.bg + ';color:' + sc.color + ';font-size:12px;border-radius:4px;font-weight:500">' + label + '</span>';
@@ -26406,7 +26416,7 @@ function openPrintableWindow(html, options) {
             listings.forEach(function(l, idx) {
                 var isRental = l.listingCategory === 'rental';
                 var stC = statusColor(l.status);
-                var statusLabel = (l.status === 'COMING_SOON') ? 'COMING SOON' : (l.status || 'ACTIVE');
+                var statusLabel = (l.status === 'ComingSoon') ? 'COMING SOON' : (l.status || 'ACTIVE');
                 var bedsLabel = l.beds === 0 ? 'Studio' : l.beds;
                 var photo = getListingPhoto(l);
 
@@ -27408,14 +27418,18 @@ function openPrintableWindow(html, options) {
             var firstName = preparedFor ? preparedFor.split(' ')[0] : '';
 
             // Status color map (inline — email safe)
+            // Keyed on the EXACT Cotality StandardStatus member, which is what
+            // listing.status now carries end to end.
             var statusColors = {
-                'ACTIVE': { bg: '#dcfce7', color: '#166534' },
-                'PENDING': { bg: '#fef3c7', color: '#92400e' },
-                'CONTRACT': { bg: '#ede9fe', color: '#5b21b6' },
-                'CLOSED': { bg: '#fee2e2', color: '#991b1b' },
-                'COMING_SOON': { bg: '#f5f3ff', color: '#7c3aed' },
-                'WITHDRAWN': { bg: '#f3f4f6', color: '#6b7280' },
-                'HOLD': { bg: '#f3f4f6', color: '#6b7280' }
+                'Active': { bg: '#dcfce7', color: '#166534' },
+                'Pending': { bg: '#fef3c7', color: '#92400e' },
+                'ActiveUnderContract': { bg: '#ede9fe', color: '#5b21b6' },
+                'Closed': { bg: '#fee2e2', color: '#991b1b' },
+                'ComingSoon': { bg: '#f5f3ff', color: '#7c3aed' },
+                'Withdrawn': { bg: '#f3f4f6', color: '#6b7280' },
+                'Canceled': { bg: '#f3f4f6', color: '#6b7280' },
+                'Expired': { bg: '#f3f4f6', color: '#6b7280' },
+                'Hold': { bg: '#f3f4f6', color: '#6b7280' }
             };
 
             var h = '';
@@ -27872,10 +27886,10 @@ function openPrintableWindow(html, options) {
             function da(listing) { return listing.addressDisplayYN === false ? 'Available Upon Request' : listing.address + (listing.unit ? ', ' + listing.unit : ''); }
             function sBadge(s, listing) {
                 s = (s || 'Active').toUpperCase();
-                var m = { 'ACTIVE':['#dcfce7','#15803d'], 'OFFER IN':['#ffedd5','#c2410c'], 'IN CONTRACT':['#f3e8ff','#7e22ce'], 'SOLD':['#dbeafe','#1d4ed8'], 'COMING_SOON':['#f5f3ff','#7c3aed'] };
+                var m = { 'ACTIVE':['#dcfce7','#15803d'], 'OFFER IN':['#ffedd5','#c2410c'], 'IN CONTRACT':['#f3e8ff','#7e22ce'], 'SOLD':['#dbeafe','#1d4ed8'], 'ComingSoon':['#f5f3ff','#7c3aed'] };
                 var c = m[s] || ['#f3f4f6','#4b5563'];
                 var label = s.replace(/_/g,' ');
-                if (s === 'COMING_SOON') label = listing && listing.firstShowingDate ? 'Coming Soon \u2014 No Showings until ' + listing.firstShowingDate : 'Coming Soon';
+                if (s === 'ComingSoon') label = listing && listing.firstShowingDate ? 'Coming Soon \u2014 No Showings until ' + listing.firstShowingDate : 'Coming Soon';
                 return '<span style="display:inline-block;padding:2px 8px;background:' + c[0] + ';color:' + c[1] + ';font-size:12px;border-radius:4px;font-weight:500">' + label + '</span>';
             }
             function dr(label, val) {
@@ -29503,7 +29517,7 @@ function emailCurrentCalc() {
             // An unknown status shown as a status is a broker telling a client
             // the listing is on the market. Unknown says unknown.
             var statusLabel = (!listing.status || listing.status === 'UNKNOWN') ? 'STATUS UNAVAILABLE'
-                : listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
+                : listing.status === 'ComingSoon' ? 'COMING SOON' : listing.status;
             var isSale = listing.listingCategory !== 'rental';
             var transitScore = computeTransitScore(listing);
             var bikeScore = computeBikeScore(listing);
@@ -30467,7 +30481,7 @@ function emailCurrentCalc() {
             var nearbyListings = allListings.filter(function(l) { return l.id !== listing.id && l.neighborhood !== listing.neighborhood; }).slice(0, 3);
             var renderMiniCard = function(l) {
                 var addr = l.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(l.address);
-                var st = l.status === 'COMING_SOON' ? 'CS' : l.status;
+                var st = l.status === 'ComingSoon' ? 'CS' : l.status;
                 return '<div class="border rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onclick="openListingInNewTab(\'' + l.id + '\')">'
                     + '<div class="h-[140px] cm-photo-wrap"><img src="' + getListingPhoto(l) + '" alt="' + addr + '" class="cm-photo" loading="lazy"></div>'
                     + '<div class="p-3"><div class="font-semibold text-sm truncate">' + addr + (l.unit ? ', ' + escapeHtml(l.unit) : '') + '</div>'
@@ -30637,8 +30651,8 @@ function emailCurrentCalc() {
             // Status — render the canonical mapped status (post-A14
             // mapper exhaustiveness guarantees no "OFF MARKET" string).
             var status = listing.status || 'ACTIVE';
-            var statusLabel = status === 'COMING_SOON' ? 'Coming Soon'
-                : status === 'PENDING' ? 'In Contract'
+            var statusLabel = status === 'ComingSoon' ? 'Coming Soon'
+                : status === 'Pending' ? 'In Contract'
                 : status.charAt(0) + status.slice(1).toLowerCase();
             var agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : {};
             var fromName = agent.name || '';
@@ -31025,7 +31039,7 @@ function emailCurrentCalc() {
             // An unknown status shown as a status is a broker telling a client
             // the listing is on the market. Unknown says unknown.
             var statusLabel = (!listing.status || listing.status === 'UNKNOWN') ? 'STATUS UNAVAILABLE'
-                : listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
+                : listing.status === 'ComingSoon' ? 'COMING SOON' : listing.status;
             var today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
             // The client sheet formats the same way the screen now does: a
             // number the provider supplied, or the word unavailable. Never $0.
@@ -31704,7 +31718,7 @@ function emailCurrentCalc() {
                     detail: '$' + listing.originalPrice.toLocaleString() + ' → $' + listing.price.toLocaleString()
                 });
             }
-            if (listing.status && listing.status !== 'ACTIVE') {
+            if (listing.status && listing.status !== 'Active') {
                 events.push({ date: listing.updatedDate || 'N/A', label: 'Status: ' + listing.status, detail: '' });
             }
             events.push({ date: 'Current', label: 'DOM: ' + (listing.dom || 0) + ' | CDOM: ' + (listing.cdom || 0), detail: '$' + (listing.price || 0).toLocaleString() });
@@ -34441,12 +34455,12 @@ function checkListingCompliance(listingIds, displayContext) {
 
         // Gate 5: Coming Soon — show but with restrictions
         // UCBA Art. I Sec. 5(C): No showings, open houses, or negotiations permitted.
-        if (listing.status === 'COMING_SOON') {
+        if (listing.status === 'ComingSoon') {
             result.warnings.push({ id: id, address: listing.address, reason: 'Coming Soon — No showings or open house permitted until ' + (listing.comingSoonDate || 'active date') + ' (UCBA Art. I Sec. 5(C))' });
         }
 
         // Gate 6: Closed Status — suppress after 24 hours
-        if (listing.status === 'CLOSED' && listing.closedDate) {
+        if (listing.status === 'Closed' && listing.closedDate) {
             var closedTime = new Date(listing.closedDate).getTime();
             var hoursSinceClosed = (Date.now() - closedTime) / (1000 * 60 * 60);
             if (hoursSinceClosed > 24) {
@@ -34491,10 +34505,10 @@ function generateSingleListingSheet(listing, suppressAddress) {
 
     var statusClass = '';
     switch(listing.status) {
-        case 'ACTIVE': statusClass = 'background:#2563eb;color:white;'; break;
-        case 'PENDING': statusClass = 'background:#f59e0b;color:white;'; break;
-        case 'CLOSED': statusClass = 'background:#16a34a;color:white;'; break;
-        case 'COMING_SOON': statusClass = 'background:#8b5cf6;color:white;'; break;
+        case 'Active': statusClass = 'background:#2563eb;color:white;'; break;
+        case 'Pending': statusClass = 'background:#f59e0b;color:white;'; break;
+        case 'Closed': statusClass = 'background:#16a34a;color:white;'; break;
+        case 'ComingSoon': statusClass = 'background:#8b5cf6;color:white;'; break;
         default: statusClass = 'background:#6b7280;color:white;'; break;
     }
 
@@ -36085,7 +36099,7 @@ function REBNYWiringTest(options) {
         if (typeof getStatusBadgeClasses === 'function') {
             checks.push('statusHelper:exists');
             var active = getStatusBadgeClasses('ACTIVE');
-            var pending = getStatusBadgeClasses('PENDING');
+            var pending = getStatusBadgeClasses('Pending');
             if (active !== pending) checks.push('statusHelper:dynamic');
             else issues.push('Status helper returns same for ACTIVE/PENDING');
         } else { issues.push('getStatusBadgeClasses helper missing'); }

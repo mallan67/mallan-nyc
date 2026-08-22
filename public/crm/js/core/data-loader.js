@@ -237,7 +237,17 @@
                 reTaxes: parseFloat(feat.RealEstateTax || 0) / 12,
                 maintCC: parseFloat(feat.AssociationFee || 0),
                 intSqft: parseFloat(apiListing.living_area) || null,
-                status: (apiListing.status || 'ACTIVE').toUpperCase(),
+                // THE EXACT COTALITY MEMBER, unaltered.
+                //
+                // This was `(apiListing.status || 'ACTIVE').toUpperCase()`, which
+                // did two damaging things. It DEFAULTED an unknown status to
+                // ACTIVE - telling a broker an unknown listing is on the market.
+                // And it uppercased the exact member the database stores
+                // (prisma/schema.prisma:447, "RESO StandardStatus"), so
+                // 'ComingSoon' became 'COMINGSOON' while every renderer compared
+                // against 'COMING_SOON'. The UCBA Art. I s16 Coming Soon badge
+                // never matched for a DB-path listing as a result.
+                status: apiListing.status || 'UNKNOWN',
                 ownership: feat.CommonInterest || apiListing.property_type || '',
                 propertyType: apiListing.property_type || 'Residential',
                 propertySubType: apiListing.property_sub_type || '',
