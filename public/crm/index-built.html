@@ -21774,15 +21774,29 @@ function parseBudgetValue(td) {
                 if (listings.length === 0) {
                     tbodyHTML += '<tr><td colspan="' + (cols.length + 3) + '" class="px-4 py-8 text-center text-gray-400"><i class="fas fa-search text-2xl mb-2"></i><br>No results found. ' + (listings.length || 0) + ' listings loaded.</td></tr>';
                 } else {
-                    listings.forEach(function(listing) {
+                    listings.forEach(function(sharedListing) {
                         try {
-                            // Ensure required fields have safe defaults
+                            // STEP 1 — render from a COPY. `getFilteredListings()`
+                            // returns references into the shared `listings` array,
+                            // so the default block that used to sit here did not
+                            // default a display value — it rewrote the inventory,
+                            // on every render, over every row. Grid is the default
+                            // results view, so the first paint of the first search
+                            // overwrote every null the mapper and both loaders had
+                            // carefully preserved.
+                            //
+                            // A renderer may format the record. It may not edit it.
+                            var listing = Object.assign({}, sharedListing);
+
+                            // Display-only fallbacks, on the copy, so a column
+                            // renderer cannot throw mid-row. Status is NOT among
+                            // them: an unknown status shown as ACTIVE tells the
+                            // broker the listing is on the market.
                             if (listing.price == null) listing.price = 0;
                             if (listing.totalMonthly == null) listing.totalMonthly = 0;
                             if (listing.beds == null) listing.beds = 0;
                             if (listing.baths == null) listing.baths = 0;
                             if (!listing.address) listing.address = 'Address Unavailable';
-                            if (!listing.status) listing.status = 'ACTIVE';
                             if (!listing.permissions) listing.permissions = {};
 
                             var selected = searchResultsState.selectedListings.includes(listing.id);
@@ -29325,10 +29339,34 @@ function emailCurrentCalc() {
 
         function showListingDetail(listingId) {
             try {
-            var listing = listings.find(l => l.id === listingId);
-            if (!listing) return;
-            // Null-safe defaults for detail view rendering
-            if (listing.price == null) listing.price = 0;
+            // STEP 1 — the shared inventory record is never rewritten.
+            //
+            // `listings.find()` returns a REFERENCE. The block that used to sit
+            // here wrote display defaults (price 0, beds 0, status 'ACTIVE', ...)
+            // straight back into it, so opening ONE detail panel permanently
+            // rewrote that listing for the result grid, the selection set,
+            // reports and the CMA — silently undoing the Step 1a correction in
+            // the mapper and in both browser loaders.
+            //
+            // Work on a copy instead, and let the two facts a broker actually
+            // relays to a client — price and status — render as unknown when
+            // they are unknown.
+            //
+            // BOUNDED FOLLOW-UP, reported rather than silently done: the
+            // remaining display-only numerics still fall back to 0 ON THE COPY
+            // so this ~1,000-line template cannot throw mid-render. Making all
+            // ~94 render sites null-honest is its own item, not this one.
+            var listingRecord = listings.find(l => l.id === listingId);
+            if (!listingRecord) return;
+            var listing = Object.assign({}, listingRecord);
+
+            var priceKnown = listing.price != null;
+            var money = function(v) { return v == null ? 'Unavailable' : '$' + Number(v).toLocaleString(); };
+            var perUnitPrice = function(divisor) {
+                if (!priceKnown || !divisor) return null;
+                return '$' + Math.round(listing.price / divisor).toLocaleString();
+            };
+
             if (listing.totalMonthly == null) listing.totalMonthly = 0;
             if (listing.maintCC == null) listing.maintCC = 0;
             if (listing.reTaxes == null) listing.reTaxes = 0;
@@ -29336,7 +29374,6 @@ function emailCurrentCalc() {
             if (listing.baths == null) listing.baths = 0;
             if (listing.rooms == null) listing.rooms = 0;
             if (listing.dom == null) listing.dom = 0;
-            if (!listing.status) listing.status = 'ACTIVE';
             if (!listing.address) listing.address = 'Address Unavailable';
             if (!listing.unit) listing.unit = '';
             if (!listing.neighborhood) listing.neighborhood = '';
@@ -29363,7 +29400,10 @@ function emailCurrentCalc() {
             }
             var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(listing.address);
             var displayUnit = listing.addressDisplayYN !== false && listing.unit ? ', ' + escapeHtml(listing.unit) : '';
-            var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
+            // An unknown status shown as a status is a broker telling a client
+            // the listing is on the market. Unknown says unknown.
+            var statusLabel = (!listing.status || listing.status === 'UNKNOWN') ? 'STATUS UNAVAILABLE'
+                : listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
             var isSale = listing.listingCategory !== 'rental';
             var transitScore = computeTransitScore(listing);
             var bikeScore = computeBikeScore(listing);
@@ -29383,7 +29423,7 @@ function emailCurrentCalc() {
             // Header right: status + price + financials
             document.getElementById('detailHeaderRight').innerHTML =
                 '<span class="px-2 py-0.5 ' + getStatusBadgeClasses(listing.status) + ' rounded text-xs font-semibold">' + statusLabel + '</span>'
-                + '<span class="text-lg font-bold ml-2">$' + listing.price.toLocaleString() + '</span>'
+                + '<span class="text-lg font-bold ml-2">' + money(listing.price) + '</span>'
                 + '<div class="flex items-center gap-4 ml-4 text-xs text-gray-500">'
                 + '<div class="text-right"><div class="uppercase text-[10px] text-gray-400">' + (isSale ? 'Maintenance' : 'Rent') + '</div><div class="font-semibold text-gray-700">$' + listing.maintCC.toLocaleString() + '</div></div>'
                 + '<div class="text-right"><div class="uppercase text-[10px] text-gray-400">Est. Monthly</div><div class="font-semibold text-gray-700">$' + listing.totalMonthly.toLocaleString() + ' <i class="fas fa-calculator text-gray-400"></i></div></div>'
@@ -29444,7 +29484,7 @@ function emailCurrentCalc() {
                     <div class="lux-stat-item"><div class="lux-stat-value">${listing.beds === 0 ? 'Studio' : listing.beds}</div><div class="lux-stat-label">Beds</div></div>
                     <div class="lux-stat-item"><div class="lux-stat-value">${listing.baths}</div><div class="lux-stat-label">Baths</div></div>
                     <div class="lux-stat-item"><div class="lux-stat-value">${listing.intSqft ? listing.intSqft.toLocaleString() : '—'}</div><div class="lux-stat-label">SqFt</div></div>
-                    <div class="lux-stat-item"><div class="lux-stat-value">${listing.intSqft ? '$' + Math.round(listing.price / listing.intSqft).toLocaleString() : '—'}</div><div class="lux-stat-label">$/SqFt</div></div>
+                    <div class="lux-stat-item"><div class="lux-stat-value">${perUnitPrice(listing.intSqft) || '—'}</div><div class="lux-stat-label">$/SqFt</div></div>
                 </div>
 
                 <!-- Tab Navigation -->
@@ -29479,13 +29519,13 @@ function emailCurrentCalc() {
                         <div class="lux-card mb-4">
                             <h3 class="lux-section-title"><i class="fas fa-dollar-sign text-gray-400"></i> Financial</h3>
                             <div class="grid grid-cols-3 gap-x-6 gap-y-1 text-sm">
-                                <div class="lux-field"><span>${isSale ? 'List Price' : 'Monthly Rent'}</span><span class="text-base font-bold">$${listing.price.toLocaleString()}</span></div>
+                                <div class="lux-field"><span>${isSale ? 'List Price' : 'Monthly Rent'}</span><span class="text-base font-bold">${money(listing.price)}</span></div>
                                 ${listing.originalPrice && listing.originalPrice !== listing.price ? '<div class="lux-field"><span>Original Price</span><span class="text-red-600">$' + listing.originalPrice.toLocaleString() + '</span></div>' : ''}
                                 <div class="lux-field"><span>${isSale ? 'Maint/CC' : 'Net Effective'}</span><span>$${listing.maintCC.toLocaleString()}/mo</span></div>
                                 ${listing.reTaxes ? '<div class="lux-field"><span>RE Taxes</span><span>$' + listing.reTaxes.toLocaleString() + '/mo</span></div>' : ''}
                                 <div class="lux-field"><span>Est. Total Monthly</span><span class="text-green-700 font-bold">$${listing.totalMonthly.toLocaleString()}/mo</span></div>
-                                ${listing.intSqft ? '<div class="lux-field"><span>$/SqFt</span><span>$' + Math.round(listing.price / listing.intSqft).toLocaleString() + '</span></div>' : ''}
-                                ${listing.rooms ? '<div class="lux-field"><span>$/Room</span><span>$' + Math.round(listing.price / listing.rooms).toLocaleString() + '</span></div>' : ''}
+                                ${perUnitPrice(listing.intSqft) ? '<div class="lux-field"><span>$/SqFt</span><span>' + perUnitPrice(listing.intSqft) + '</span></div>' : ''}
+                                ${perUnitPrice(listing.rooms) ? '<div class="lux-field"><span>$/Room</span><span>' + perUnitPrice(listing.rooms) + '</span></div>' : ''}
                                 ${isSale ? '<div class="lux-field"><span>Financing</span><span>---</span></div><div class="lux-field"><span>Flip Tax</span><span>---</span></div>' : ''}
                                 ${!isSale ? '<div class="lux-field"><span>Security Deposit</span><span>---</span></div>' : ''}
                             </div>
@@ -29558,13 +29598,13 @@ function emailCurrentCalc() {
                                 <div class="grid grid-cols-3 gap-x-8">
                                     <!-- Col 1: Price / Financial -->
                                     <div class="space-y-2 text-sm">
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">${isSale ? 'List Price' : 'Monthly Rent'}</span><span class="font-semibold">$${listing.price.toLocaleString()}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">${isSale ? 'List Price' : 'Monthly Rent'}</span><span class="font-semibold">${money(listing.price)}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Original Price</span><span class="font-semibold">${listing.originalPrice ? '$' + listing.originalPrice.toLocaleString() : '$' + listing.price.toLocaleString()}</span></div>
                                         ${isSale ? '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Maintenance / CC</span><span class="font-semibold">$' + listing.maintCC.toLocaleString() + '</span></div>' : '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Net Effective Rent</span><span class="font-semibold">---</span></div>'}
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">RE Taxes</span><span class="font-semibold">${listing.reTaxes ? '$' + listing.reTaxes.toLocaleString() + '/mo' : '---'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Est. Total Monthly</span><span class="font-semibold">$${listing.totalMonthly.toLocaleString()}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">$ Per SqFt</span><span class="font-semibold">${listing.intSqft ? '$' + Math.round(listing.price / listing.intSqft).toLocaleString() : '---'}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">$ Per Room</span><span class="font-semibold">${listing.rooms ? '$' + Math.round(listing.price / listing.rooms).toLocaleString() : '---'}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">$ Per SqFt</span><span class="font-semibold">${perUnitPrice(listing.intSqft) || '---'}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">$ Per Room</span><span class="font-semibold">${perUnitPrice(listing.rooms) || '---'}</span></div>
                                         ${isSale ? '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Shares</span><span class="font-semibold">---</span></div>' : '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Security Deposit</span><span class="font-semibold">---</span></div>'}
                                         ${isSale ? '<div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold">Flip Tax</div><div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Amount</span><span class="font-semibold">---</span></div><div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Type</span><span class="font-semibold">---</span></div><div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Paid By</span><span class="font-semibold">---</span></div><div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Remarks</span><span class="font-semibold">---</span></div>' : ''}
                                         ${isSale ? '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Tax Deduction %</span><span class="font-semibold">---</span></div>' : ''}
@@ -30033,16 +30073,10 @@ function emailCurrentCalc() {
                                     <div class="space-y-3" id="detailTransitStations">
                                         ${buildTransitStationsHTML(listing)}
                                     </div>
-                                    <div class="mt-3 flex items-center justify-between">
-                                        <div class="flex items-center gap-2 text-[10px] text-gray-500">
-                                            <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span> Live — MTA schedule data &middot; Refreshes every 30s
-                                        </div>
-                                        <button onclick="refreshTransitArrivals(); this.querySelector('i').classList.add('fa-spin'); var btn=this; setTimeout(function(){btn.querySelector('i').classList.remove('fa-spin')},500)" class="text-[10px] text-blue-500 hover:text-blue-700 font-medium"><i class="fas fa-sync-alt"></i> Refresh</button>
-                                    </div>
                                 </div>
                                 <div class="w-full lg:w-[360px] flex-shrink-0">
                                     <div class="h-[300px] bg-gray-100 rounded-xl flex items-center justify-center text-gray-400 border">
-                                        <div class="text-center"><i class="fas fa-map-marked-alt text-4xl mb-3 text-gray-300"></i><div class="text-sm font-medium">${listing.neighborhood}</div><div class="text-xs">${listing.borough || 'Manhattan'}, NY ${listing.zip}</div></div>
+                                        <div class="text-center"><i class="fas fa-map-marked-alt text-4xl mb-3 text-gray-300"></i><div class="text-sm font-medium">${listing.neighborhood || 'Neighborhood not provided'}</div><div class="text-xs">${listing.borough || 'Borough not provided'}, NY ${listing.zip}</div></div>
                                     </div>
                                     <button class="flex items-center gap-2 text-blue-600 text-sm mt-3 hover:underline font-medium"><i class="fas fa-directions"></i> Get Directions</button>
                                 </div>
@@ -30074,20 +30108,20 @@ function emailCurrentCalc() {
                                         <div class="text-[10px] text-amber-500 font-semibold uppercase">Walking</div>
                                     </div>
                                 </div>
-                                <p class="text-[10px] text-gray-400">Estimates based on average transit times. Actual commute times may vary.</p>
+                                <p class="text-[10px] text-gray-400">Commute routing is not connected to a verified source, so no time is shown.</p>
                             </div>
                         </div>
 
                         <!-- Scores -->
                         <div class="grid grid-cols-3 gap-4 mb-4">
                             <div class="lux-score-card">
-                                <div class="flex items-center gap-3"><div class="lux-score-circle" style="background: conic-gradient(#10b981 ${(listing.walkScore || 0) * 3.6}deg, #e5e7eb 0)">${listing.walkScore || '---'}</div><div><div class="font-bold">Walk Score</div><div class="text-xs text-gray-500">${listing.walkScore >= 90 ? "Walker's Paradise" : listing.walkScore >= 70 ? 'Very Walkable' : 'Somewhat Walkable'}</div></div></div>
+                                <div class="flex items-center gap-3"><div class="lux-score-circle" style="background: conic-gradient(#10b981 ${(listing.walkScore || 0) * 3.6}deg, #e5e7eb 0)">${listing.walkScore || '---'}</div><div><div class="font-bold">Walk Score</div><div class="text-xs text-gray-500">${listing.walkScore == null ? 'Not provided' : listing.walkScore >= 90 ? "Walker's Paradise" : listing.walkScore >= 70 ? 'Very Walkable' : 'Somewhat Walkable'}</div></div></div>
                             </div>
                             <div class="lux-score-card">
-                                <div class="flex items-center gap-3"><div class="lux-score-circle" style="background: conic-gradient(#3b82f6 ${(transitScore || 0) * 3.6}deg, #e5e7eb 0)">${transitScore || '---'}</div><div><div class="font-bold">Transit Score</div><div class="text-xs text-gray-500">${transitScore >= 90 ? 'Rider\'s Paradise' : transitScore >= 70 ? 'Excellent Transit' : transitScore >= 50 ? 'Good Transit' : 'Some Transit'}</div></div></div>
+                                <div class="flex items-center gap-3"><div class="lux-score-circle" style="background: conic-gradient(#3b82f6 ${(transitScore || 0) * 3.6}deg, #e5e7eb 0)">${transitScore || '---'}</div><div><div class="font-bold">Transit Score</div><div class="text-xs text-gray-500">Not verified</div></div></div>
                             </div>
                             <div class="lux-score-card">
-                                <div class="flex items-center gap-3"><div class="lux-score-circle" style="background: conic-gradient(#f59e0b ${(bikeScore || 0) * 3.6}deg, #e5e7eb 0)">${bikeScore || '---'}</div><div><div class="font-bold">Bike Score</div><div class="text-xs text-gray-500">${bikeScore >= 90 ? 'Biker\'s Paradise' : bikeScore >= 70 ? 'Very Bikeable' : bikeScore >= 50 ? 'Bikeable' : 'Somewhat Bikeable'}</div></div></div>
+                                <div class="flex items-center gap-3"><div class="lux-score-circle" style="background: conic-gradient(#f59e0b ${(bikeScore || 0) * 3.6}deg, #e5e7eb 0)">${bikeScore || '---'}</div><div><div class="font-bold">Bike Score</div><div class="text-xs text-gray-500">Not verified</div></div></div>
                             </div>
                         </div>
 
@@ -30853,13 +30887,6 @@ function emailCurrentCalc() {
             var historyPanel = document.getElementById('detailPanelHistory');
             if (historyPanel) historyPanel.classList.toggle('hidden', tab !== 'details');
 
-            // Start/stop live transit refresh
-            if (tab === 'neighborhood') {
-                startTransitRefresh();
-            } else if (_transitRefreshTimer) {
-                clearInterval(_transitRefreshTimer);
-                _transitRefreshTimer = null;
-            }
         }
 
         // Legacy aliases for backward compatibility
@@ -30895,7 +30922,10 @@ function emailCurrentCalc() {
             var isSale = listing.listingCategory !== 'rental';
             var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : listing.address;
             var displayUnit = listing.addressDisplayYN !== false && listing.unit ? ', ' + listing.unit : '';
-            var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
+            // An unknown status shown as a status is a broker telling a client
+            // the listing is on the market. Unknown says unknown.
+            var statusLabel = (!listing.status || listing.status === 'UNKNOWN') ? 'STATUS UNAVAILABLE'
+                : listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
             var today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
             var primaryPhoto = listing.images && listing.images[0] ? listing.images[0].url : '';
 
@@ -31146,382 +31176,84 @@ function emailCurrentCalc() {
             document.body.appendChild(modal);
         }
 
-        // ═══════════════════════════════════════════════════════════
-        // TRANSIT SYSTEM — Subway line colors + station builder
-        // ═══════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════
+        // TRANSPORTATION — capability retained, fabricated data removed
+        // ══════════════════════════════════════════════════════════
+        //
+        // Roughly 370 lines used to live here. What they actually did:
+        //
+        //   NYC_TRANSIT_STATIONS   a hand-authored 92-entry constant with no
+        //                          cited source, against a system of 472 subway
+        //                          stations. A listing outside its coverage was
+        //                          shown whichever station it happened to hold.
+        //   getNextArrivals()      synthesized departure times AND directions
+        //                          from `line.charCodeAt(0)` arithmetic, then
+        //                          rendered them under a pulsing green "Live"
+        //                          badge attributed to transit-authority
+        //                          schedules, on a 30-second refresh timer. No
+        //                          request was ever made to anyone.
+        //   buildTransitStationsHTML()
+        //                          defaulted a missing listing coordinate to
+        //                          40.7831 / -73.9554 — the Upper East Side — so
+        //                          every coordinate-less listing in the five
+        //                          boroughs showed UES stations as "nearby".
+        //   computeTransitScore()  scored against that same constant, and
+        //                          returned a flat 40 when it matched nothing.
+        //   computeBikeScore()     `(walkScore || 70) * 0.82` plus an offset
+        //                          derived from the listing IDENTIFIER — a
+        //                          number about the primary key, shown to the
+        //                          broker as a fact about the property.
+        //   calculateCommute()     took the work address the broker typed, used
+        //                          it only as a non-empty check, then measured
+        //                          straight-line distance to a hardcoded point
+        //                          in Midtown and multiplied by a constant.
+        //
+        // Why nothing was wired up in their place:
+        //
+        // Mallan already has a station dataset behind `/api/transit/nearby`
+        // (`data/transit/stations.json`). It is deliberately NOT used here. Its
+        // own header declares 152 stations while the file contains 157, and 157
+        // of 472 is not coverage. Swapping an invented number for a differently
+        // invented one is the same defect committed twice, and Step 1 removes
+        // false information rather than replacing it. Verifying that dataset —
+        // or contracting a real feed — belongs to Step 2.
+        //
+        // The Transportation and Commute sections stay in the product. They now
+        // report the only thing currently true: we do not know.
 
-        var SUBWAY_COLORS = {
-            '1': '#EE352E', '2': '#EE352E', '3': '#EE352E',
-            '4': '#00933C', '5': '#00933C', '6': '#00933C', '6X': '#00933C',
-            '7': '#B933AD', '7X': '#B933AD',
-            'A': '#2850AD', 'C': '#2850AD', 'E': '#2850AD',
-            'B': '#FF6319', 'D': '#FF6319', 'F': '#FF6319', 'FX': '#FF6319', 'M': '#FF6319',
-            'G': '#6CBE45',
-            'J': '#996633', 'Z': '#996633',
-            'L': '#A7A9AC',
-            'N': '#FCCC0A', 'Q': '#FCCC0A', 'R': '#FCCC0A', 'W': '#FCCC0A',
-            'S': '#808183', 'SI': '#2850AD', 'SIR': '#2850AD',
-            'PATH': '#003DA5'
-        };
+        var TRANSIT_NOT_VERIFIED_HTML =
+            '<div class="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4 text-center">'
+            + '<i class="fas fa-subway text-gray-300 text-2xl mb-2"></i>'
+            + '<div class="text-sm font-medium text-gray-600">Transit data not verified</div>'
+            + '<div class="text-xs text-gray-500 mt-1">Mallan has no verified transit source for this '
+            + 'listing yet. Nearby stations and departure times are shown as unavailable rather than '
+            + 'estimated.</div>'
+            + '</div>';
 
-        // Embedded NYC transit stations — auto-matched to listing lat/lng from IDX data
-        var NYC_TRANSIT_STATIONS = [
-            // ── Upper East Side / Lenox Hill ──
-            { name: '86th St', lines: ['4','5','6'], lat: 40.7798, lng: -73.9555, type: 'subway' },
-            { name: '77th St', lines: ['6'], lat: 40.7736, lng: -73.9597, type: 'subway' },
-            { name: '96th St', lines: ['6'], lat: 40.7855, lng: -73.9510, type: 'subway' },
-            { name: '96th St', lines: ['Q'], lat: 40.7844, lng: -73.9472, type: 'subway' },
-            { name: '72nd St', lines: ['Q'], lat: 40.7687, lng: -73.9584, type: 'subway' },
-            { name: '86th St', lines: ['Q'], lat: 40.7779, lng: -73.9514, type: 'subway' },
-            { name: '68th St-Hunter College', lines: ['6'], lat: 40.7683, lng: -73.9639, type: 'subway' },
-            { name: '59th St', lines: ['4','5','6','N','R','W'], lat: 40.7628, lng: -73.9680, type: 'subway' },
-            { name: '103rd St', lines: ['6'], lat: 40.7906, lng: -73.9475, type: 'subway' },
-            { name: '110th St', lines: ['6'], lat: 40.7954, lng: -73.9440, type: 'subway' },
-            // ── Upper West Side ──
-            { name: '86th St', lines: ['1','2'], lat: 40.7888, lng: -73.9766, type: 'subway' },
-            { name: '79th St', lines: ['1'], lat: 40.7839, lng: -73.9797, type: 'subway' },
-            { name: '96th St', lines: ['1','2','3'], lat: 40.7936, lng: -73.9722, type: 'subway' },
-            { name: '72nd St', lines: ['1','2','3'], lat: 40.7784, lng: -73.9819, type: 'subway' },
-            { name: '66th St-Lincoln Center', lines: ['1'], lat: 40.7733, lng: -73.9835, type: 'subway' },
-            { name: '103rd St', lines: ['1'], lat: 40.7995, lng: -73.9686, type: 'subway' },
-            // ── Morningside Heights / Columbia ──
-            { name: 'Cathedral Pkwy-110th St', lines: ['1'], lat: 40.8029, lng: -73.9668, type: 'subway' },
-            { name: '116th St-Columbia Univ', lines: ['1'], lat: 40.8073, lng: -73.9641, type: 'subway' },
-            { name: 'Cathedral Pkwy-110th St', lines: ['B','C'], lat: 40.7997, lng: -73.9617, type: 'subway' },
-            // ── Harlem ──
-            { name: 'Central Park North-110th St', lines: ['2','3'], lat: 40.7991, lng: -73.9518, type: 'subway' },
-            { name: '116th St', lines: ['2','3'], lat: 40.8029, lng: -73.9496, type: 'subway' },
-            { name: '125th St', lines: ['2','3'], lat: 40.8071, lng: -73.9458, type: 'subway' },
-            { name: '125th St', lines: ['4','5','6'], lat: 40.8043, lng: -73.9378, type: 'subway' },
-            { name: '125th St', lines: ['A','B','C','D'], lat: 40.8110, lng: -73.9526, type: 'subway' },
-            { name: '116th St', lines: ['B','C'], lat: 40.8055, lng: -73.9549, type: 'subway' },
-            { name: '135th St', lines: ['2','3'], lat: 40.8142, lng: -73.9408, type: 'subway' },
-            { name: '135th St', lines: ['B','C'], lat: 40.8144, lng: -73.9548, type: 'subway' },
-            // ── Hamilton Heights / Sugar Hill ──
-            { name: '137th St-City College', lines: ['1'], lat: 40.8180, lng: -73.9541, type: 'subway' },
-            { name: '145th St', lines: ['1'], lat: 40.8263, lng: -73.9500, type: 'subway' },
-            { name: '145th St', lines: ['3'], lat: 40.8207, lng: -73.9366, type: 'subway' },
-            { name: '145th St', lines: ['A','B','C','D'], lat: 40.8246, lng: -73.9441, type: 'subway' },
-            { name: '148th St-Lenox Terminal', lines: ['3'], lat: 40.8234, lng: -73.9361, type: 'subway' },
-            // ── Washington Heights ──
-            { name: '155th St', lines: ['C'], lat: 40.8306, lng: -73.9416, type: 'subway' },
-            { name: '157th St', lines: ['1'], lat: 40.8344, lng: -73.9414, type: 'subway' },
-            { name: '163rd St-Amsterdam Av', lines: ['C'], lat: 40.8360, lng: -73.9396, type: 'subway' },
-            { name: '168th St', lines: ['A','C','1'], lat: 40.8408, lng: -73.9390, type: 'subway' },
-            { name: '175th St', lines: ['A'], lat: 40.8471, lng: -73.9397, type: 'subway' },
-            { name: '181st St', lines: ['A'], lat: 40.8519, lng: -73.9377, type: 'subway' },
-            { name: '181st St', lines: ['1'], lat: 40.8496, lng: -73.9335, type: 'subway' },
-            // ── Fort George / Inwood ──
-            { name: '190th St', lines: ['A'], lat: 40.8590, lng: -73.9340, type: 'subway' },
-            { name: '191st St', lines: ['1'], lat: 40.8554, lng: -73.9291, type: 'subway' },
-            { name: 'Dyckman St', lines: ['A'], lat: 40.8610, lng: -73.9253, type: 'subway' },
-            { name: 'Dyckman St', lines: ['1'], lat: 40.8605, lng: -73.9249, type: 'subway' },
-            { name: '207th St', lines: ['1'], lat: 40.8647, lng: -73.9188, type: 'subway' },
-            { name: 'Inwood-207th St', lines: ['A'], lat: 40.8680, lng: -73.9199, type: 'subway' },
-            // ── Midtown ──
-            { name: '50th St', lines: ['1'], lat: 40.7619, lng: -73.9838, type: 'subway' },
-            { name: '50th St', lines: ['C','E'], lat: 40.7622, lng: -73.9859, type: 'subway' },
-            { name: 'Times Sq-42nd St', lines: ['1','2','3','7','N','Q','R','W','S'], lat: 40.7553, lng: -73.9870, type: 'subway' },
-            { name: '42nd St-Port Authority', lines: ['A','C','E'], lat: 40.7575, lng: -73.9904, type: 'subway' },
-            { name: '34th St-Penn Station', lines: ['1','2','3'], lat: 40.7506, lng: -73.9910, type: 'subway' },
-            { name: '34th St-Hudson Yards', lines: ['7'], lat: 40.7560, lng: -73.9998, type: 'subway' },
-            { name: 'Grand Central-42nd St', lines: ['4','5','6','7','S'], lat: 40.7527, lng: -73.9772, type: 'subway' },
-            { name: '51st St', lines: ['6'], lat: 40.7571, lng: -73.9718, type: 'subway' },
-            // ── Chelsea ──
-            { name: '23rd St', lines: ['C','E'], lat: 40.7459, lng: -73.9980, type: 'subway' },
-            { name: '23rd St', lines: ['1'], lat: 40.7419, lng: -73.9957, type: 'subway' },
-            { name: '14th St', lines: ['A','C','E'], lat: 40.7408, lng: -74.0005, type: 'subway' },
-            // ── Union Square / East Village ──
-            { name: '14th St-Union Sq', lines: ['4','5','6','N','Q','R','W','L'], lat: 40.7356, lng: -73.9906, type: 'subway' },
-            { name: 'Astor Pl', lines: ['6'], lat: 40.7305, lng: -73.9910, type: 'subway' },
-            // ── Lower Manhattan ──
-            { name: 'Canal St', lines: ['1','N','Q','R','W','6','J','Z'], lat: 40.7192, lng: -74.0001, type: 'subway' },
-            { name: 'Chambers St', lines: ['1','2','3'], lat: 40.7154, lng: -74.0092, type: 'subway' },
-            { name: 'World Trade Center', lines: ['E'], lat: 40.7126, lng: -74.0099, type: 'subway' },
-            { name: 'Fulton St', lines: ['2','3','4','5','A','C','J','Z'], lat: 40.7094, lng: -74.0065, type: 'subway' },
-            { name: 'Wall St', lines: ['2','3'], lat: 40.7068, lng: -74.0093, type: 'subway' },
-            { name: 'Rector St', lines: ['1'], lat: 40.7075, lng: -74.0131, type: 'subway' },
-            { name: 'Broad St', lines: ['J','Z'], lat: 40.7065, lng: -74.0110, type: 'subway' },
-            // ── Brooklyn (key stations) ──
-            { name: 'Jay St-MetroTech', lines: ['A','C','F','R'], lat: 40.6923, lng: -73.9872, type: 'subway' },
-            { name: 'Atlantic Av-Barclays Ctr', lines: ['2','3','4','5','B','D','N','Q','R'], lat: 40.6842, lng: -73.9776, type: 'subway' },
-            { name: 'DeKalb Av', lines: ['B','D','N','Q','R'], lat: 40.6907, lng: -73.9818, type: 'subway' },
-            { name: 'Borough Hall', lines: ['2','3','4','5'], lat: 40.6926, lng: -73.9900, type: 'subway' },
-            // ── Ferry ──
-            { name: 'East 90th St Ferry', lines: ['Ferry'], lat: 40.7802, lng: -73.9440, type: 'ferry' },
-            { name: 'Wall St/Pier 11 Ferry', lines: ['Ferry'], lat: 40.7033, lng: -74.0084, type: 'ferry' },
-            { name: 'East 34th St Ferry', lines: ['Ferry'], lat: 40.7440, lng: -73.9717, type: 'ferry' },
-            { name: 'Greenpoint Ferry', lines: ['Ferry'], lat: 40.7323, lng: -73.9597, type: 'ferry' },
-            { name: 'West Midtown Ferry', lines: ['Ferry'], lat: 40.7628, lng: -73.9999, type: 'ferry' },
-            // ── Bus (major crosstown/express routes) ──
-            { name: 'M86 Crosstown', lines: ['M86'], lat: 40.7843, lng: -73.9620, type: 'bus' },
-            { name: 'M79 Crosstown', lines: ['M79'], lat: 40.7779, lng: -73.9700, type: 'bus' },
-            { name: 'M72 Crosstown', lines: ['M72'], lat: 40.7719, lng: -73.9700, type: 'bus' },
-            { name: 'M96 Crosstown', lines: ['M96'], lat: 40.7890, lng: -73.9580, type: 'bus' },
-            { name: 'M15 (1st/2nd Av)', lines: ['M15'], lat: 40.7600, lng: -73.9560, type: 'bus' },
-            { name: 'M101/102/103 (Lex/3rd)', lines: ['M101','M102','M103'], lat: 40.7750, lng: -73.9590, type: 'bus' },
-            { name: 'M116 Crosstown', lines: ['M116'], lat: 40.8050, lng: -73.9500, type: 'bus' },
-            { name: 'M60-SBS (LaGuardia)', lines: ['M60'], lat: 40.8100, lng: -73.9530, type: 'bus' },
-            { name: 'Bx15 (3rd/Willis)', lines: ['Bx15'], lat: 40.8200, lng: -73.9440, type: 'bus' },
-            { name: 'M4/5 (Ft Tryon-Midtown)', lines: ['M4','M5'], lat: 40.8500, lng: -73.9340, type: 'bus' },
-            { name: 'M23 Crosstown', lines: ['M23'], lat: 40.7460, lng: -73.9930, type: 'bus' },
-            { name: 'M42 Crosstown', lines: ['M42'], lat: 40.7550, lng: -73.9870, type: 'bus' },
-            // ── PATH ──
-            { name: 'World Trade Center PATH', lines: ['PATH'], lat: 40.7126, lng: -74.0099, type: 'path' },
-            { name: '33rd St PATH', lines: ['PATH'], lat: 40.7490, lng: -73.9882, type: 'path' },
-            { name: 'Christopher St PATH', lines: ['PATH'], lat: 40.7330, lng: -74.0073, type: 'path' },
-            { name: '9th St PATH', lines: ['PATH'], lat: 40.7342, lng: -74.0028, type: 'path' },
-            { name: '14th St PATH', lines: ['PATH'], lat: 40.7375, lng: -73.9971, type: 'path' },
-            { name: '23rd St PATH', lines: ['PATH'], lat: 40.7430, lng: -73.9928, type: 'path' }
-        ];
+        function buildTransitStationsHTML(listing) {
+            return TRANSIT_NOT_VERIFIED_HTML;
+        }
 
-        // ── Transit/Bike Score Computation (auto-computed from IDX listing location) ──
-
+        // A score with no verified source is not a score. Returning null makes
+        // every renderer show "---" instead of a number nobody can stand behind.
         function computeTransitScore(listing) {
-            var lat = listing.latitude;
-            var lng = listing.longitude;
-            if (!lat || !lng) return null;
-
-            var stationsInHalfMile = 0;
-            var uniqueLines = {};
-            var closestDist = Infinity;
-
-            NYC_TRANSIT_STATIONS.forEach(function(s) {
-                if (s.type !== 'subway') return;
-                var dist = haversineDistance(lat, lng, s.lat, s.lng);
-                if (dist < closestDist) closestDist = dist;
-                if (dist <= 0.5) {
-                    stationsInHalfMile++;
-                    s.lines.forEach(function(l) { uniqueLines[l] = true; });
-                }
-            });
-
-            if (closestDist === Infinity) return 40;
-            var lineCount = Object.keys(uniqueLines).length;
-            // Proximity bonus: 0-30 pts (closer = higher)
-            var proximityBonus = Math.max(0, (0.5 - Math.min(closestDist, 0.5)) / 0.5 * 30);
-            // Station density: 0-40 pts
-            var stationBonus = Math.min(40, stationsInHalfMile * 7);
-            // Line diversity: 0-30 pts
-            var lineBonus = Math.min(30, lineCount * 3.5);
-            return Math.min(100, Math.round(proximityBonus + stationBonus + lineBonus));
+            return null;
         }
 
         function computeBikeScore(listing) {
-            var ws = listing.walkScore || 70;
-            // Deterministic offset based on listing ID (no randomness)
-            var offset = ((listing.id * 7 + 3) % 13) - 6;
-            return Math.min(100, Math.max(30, Math.round(ws * 0.82 + offset)));
-        }
-
-        // ── Live Transit Arrivals (schedule-based, refreshes with real time) ──
-
-        var MTA_HEADWAYS = {
-            // Typical NYC subway headways by time of day (minutes)
-            rushHour: { min: 2, max: 5 },    // 7-10am, 4-7pm
-            midday: { min: 5, max: 8 },      // 10am-4pm
-            evening: { min: 8, max: 12 },    // 7pm-11pm
-            overnight: { min: 12, max: 20 }, // 11pm-6am
-            weekend: { min: 6, max: 10 }     // Sat-Sun daytime
-        };
-
-        function getCurrentHeadway() {
-            var now = new Date();
-            var hour = now.getHours();
-            var day = now.getDay(); // 0=Sun, 6=Sat
-            var isWeekend = (day === 0 || day === 6);
-
-            if (isWeekend && hour >= 7 && hour < 23) return MTA_HEADWAYS.weekend;
-            if (hour >= 7 && hour < 10) return MTA_HEADWAYS.rushHour;
-            if (hour >= 10 && hour < 16) return MTA_HEADWAYS.midday;
-            if (hour >= 16 && hour < 19) return MTA_HEADWAYS.rushHour;
-            if (hour >= 19 && hour < 23) return MTA_HEADWAYS.evening;
-            return MTA_HEADWAYS.overnight;
-        }
-
-        function getNextArrivals(stationName, lines, count) {
-            count = count || 3;
-            var now = new Date();
-            var headway = getCurrentHeadway();
-            var arrivals = [];
-
-            for (var i = 0; i < lines.length; i++) {
-                // Stagger arrivals per line using line char code as seed
-                var lineCode = lines[i].charCodeAt(0);
-                var offset = ((lineCode * 37 + now.getMinutes()) % (headway.max - headway.min)) + headway.min;
-                for (var j = 0; j < 3; j++) {
-                    var minFromNow = offset + j * (headway.min + Math.floor((headway.max - headway.min) * ((lineCode * (j+1) * 13) % 100) / 100));
-                    var arrTime = new Date(now.getTime() + minFromNow * 60000);
-                    arrivals.push({
-                        line: lines[i],
-                        minutes: minFromNow,
-                        time: arrTime.getHours().toString().padStart(2,'0') + ':' + arrTime.getMinutes().toString().padStart(2,'0'),
-                        direction: (lineCode + j) % 2 === 0 ? 'Uptown' : 'Downtown'
-                    });
-                }
-            }
-
-            // Sort by minutes, take top N
-            arrivals.sort(function(a, b) { return a.minutes - b.minutes; });
-            return arrivals.slice(0, count);
-        }
-
-        function formatArrivalTime(min) {
-            if (min <= 1) return '<span class="text-green-600 font-bold">NOW</span>';
-            if (min < 60) return '<span class="font-bold">' + min + '</span> min';
-            return Math.floor(min/60) + 'h ' + (min%60) + 'm';
-        }
-
-        var _transitRefreshTimer = null;
-
-        function refreshTransitArrivals() {
-            var container = document.getElementById('detailTransitStations');
-            if (!container) return;
-            // Update just the arrival times, not the full station list
-            var arrivalEls = container.querySelectorAll('[data-arrival-station]');
-            arrivalEls.forEach(function(el) {
-                var stationName = el.getAttribute('data-arrival-station');
-                var lines = el.getAttribute('data-arrival-lines').split(',');
-                var arrivals = getNextArrivals(stationName, lines, 3);
-                var html = '';
-                arrivals.forEach(function(a) {
-                    html += '<div class="flex items-center gap-2 text-[11px]">' + getLineBadge(a.line) + ' <span class="text-gray-500">' + a.direction + '</span> <span class="ml-auto">' + formatArrivalTime(a.minutes) + '</span></div>';
-                });
-                el.innerHTML = html;
-            });
-        }
-
-        function startTransitRefresh() {
-            if (_transitRefreshTimer) clearInterval(_transitRefreshTimer);
-            refreshTransitArrivals();
-            _transitRefreshTimer = setInterval(refreshTransitArrivals, 30000); // refresh every 30s
-        }
-
-        function haversineDistance(lat1, lon1, lat2, lon2) {
-            var R = 3959; // Earth radius in miles
-            var dLat = (lat2 - lat1) * Math.PI / 180;
-            var dLon = (lon2 - lon1) * Math.PI / 180;
-            var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                    Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
-                    Math.sin(dLon/2) * Math.sin(dLon/2);
-            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        }
-
-        function walkingTime(distMiles) {
-            return Math.max(1, Math.round(distMiles / 3 * 60)); // 3 mph avg
-        }
-
-        function getLineBadge(line) {
-            var color = SUBWAY_COLORS[line] || '#6b7280';
-            var textColor = (line === 'N' || line === 'Q' || line === 'R' || line === 'W') ? '#333' : '#fff';
-            if (line === 'Ferry') return '<span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:#0891b2;color:#fff;font-size:10px;font-weight:700;flex-shrink:0"><i class="fas fa-ship" style="font-size:10px"></i></span>';
-            if (line === 'PATH') return '<span style="display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;border-radius:12px;background:#003DA5;color:#fff;font-size:9px;font-weight:700;padding:0 6px;flex-shrink:0">PATH</span>';
-            if (/^(M\d|Bx|B\d|Q\d|S\d)/.test(line)) return '<span style="display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;border-radius:12px;background:#1d4ed8;color:#fff;font-size:9px;font-weight:700;padding:0 6px;flex-shrink:0">' + line + '</span>';
-            return '<span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:' + color + ';color:' + textColor + ';font-size:11px;font-weight:700;flex-shrink:0">' + line + '</span>';
-        }
-
-        function buildTransitStationsHTML(listing) {
-            var lat = listing.latitude || 40.7831;
-            var lng = listing.longitude || -73.9554;
-
-            // Calculate distance for each station from listing lat/lng (auto from IDX)
-            var stationsWithDist = NYC_TRANSIT_STATIONS.map(function(s) {
-                var dist = haversineDistance(lat, lng, s.lat, s.lng);
-                return { name: s.name, lines: s.lines, dist: dist, type: s.type, walkMin: walkingTime(dist) };
-            });
-
-            stationsWithDist.sort(function(a, b) { return a.dist - b.dist; });
-
-            var subway = stationsWithDist.filter(function(s) { return s.type === 'subway' && s.dist <= 0.75; }).slice(0, 5);
-            var bus = stationsWithDist.filter(function(s) { return s.type === 'bus' && s.dist <= 0.75; }).slice(0, 3);
-            var ferry = stationsWithDist.filter(function(s) { return s.type === 'ferry' && s.dist <= 1.0; }).slice(0, 2);
-            var path = stationsWithDist.filter(function(s) { return s.type === 'path' && s.dist <= 1.5; }).slice(0, 2);
-
-            var html = '';
-
-            function buildStationCard(s, bgClass) {
-                var arrivals = getNextArrivals(s.name, s.lines, 4);
-                var card = '<div class="' + bgClass + ' rounded-xl mb-2 overflow-hidden">';
-                // Station header row
-                card += '<div class="flex items-center gap-3 p-3">';
-                card += '<div class="flex items-center gap-1 flex-wrap">';
-                s.lines.forEach(function(l) { card += getLineBadge(l); });
-                card += '</div>';
-                card += '<div class="flex-1"><div class="text-sm font-medium">' + s.name + '</div>';
-                card += '<div class="text-xs text-gray-500">' + s.dist.toFixed(2) + ' mi &middot; ' + s.walkMin + ' min walk</div></div>';
-                // Live indicator
-                card += '<div class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span><span class="text-[9px] text-green-600 font-bold uppercase">Live</span></div>';
-                card += '</div>';
-                // Next arrivals
-                if (arrivals.length) {
-                    card += '<div class="px-3 pb-3 space-y-1" data-arrival-station="' + s.name + '" data-arrival-lines="' + s.lines.join(',') + '">';
-                    arrivals.forEach(function(a) {
-                        card += '<div class="flex items-center gap-2 text-[11px]">' + getLineBadge(a.line) + ' <span class="text-gray-500">' + a.direction + '</span> <span class="ml-auto">' + formatArrivalTime(a.minutes) + '</span></div>';
-                    });
-                    card += '</div>';
-                }
-                card += '</div>';
-                return card;
-            }
-
-            // Subway
-            if (subway.length) {
-                html += '<div class="flex items-center gap-2 mb-2"><span class="text-xs font-bold text-gray-500 uppercase tracking-wider"><i class="fas fa-subway mr-1"></i> Subway</span><span class="text-[9px] text-gray-400 ml-auto">Next departures</span></div>';
-                subway.forEach(function(s) { html += buildStationCard(s, 'bg-gray-50'); });
-            }
-
-            // Bus
-            if (bus.length) {
-                html += '<div class="flex items-center gap-2 mb-2 mt-4"><span class="text-xs font-bold text-gray-500 uppercase tracking-wider"><i class="fas fa-bus mr-1"></i> Bus</span></div>';
-                bus.forEach(function(s) { html += buildStationCard(s, 'bg-gray-50'); });
-            }
-
-            // Ferry
-            if (ferry.length) {
-                html += '<div class="flex items-center gap-2 mb-2 mt-4"><span class="text-xs font-bold text-gray-500 uppercase tracking-wider"><i class="fas fa-ship mr-1"></i> Ferry</span></div>';
-                ferry.forEach(function(s) { html += buildStationCard(s, 'bg-cyan-50'); });
-            }
-
-            // PATH
-            if (path.length) {
-                html += '<div class="flex items-center gap-2 mb-2 mt-4"><span class="text-xs font-bold text-gray-500 uppercase tracking-wider"><i class="fas fa-train mr-1"></i> PATH</span></div>';
-                path.forEach(function(s) { html += buildStationCard(s, 'bg-blue-50'); });
-            }
-
-            if (!html) {
-                html = '<div class="text-sm text-gray-400 text-center py-4">No transit stations found within 0.75 miles</div>';
-            }
-
-            return html;
+            return null;
         }
 
         function calculateCommute(listingId) {
-            var address = document.getElementById('detailCommuteAddress').value.trim();
-            if (!address) { showToast('Please enter your work address.', 'warning'); return; }
-
+            // The destination the broker typed is real input. What is missing is
+            // a routing engine to answer it. Declining is the honest response;
+            // the previous code answered anyway, against Midtown, regardless of
+            // what was typed.
+            showToast('Commute times are unavailable — Mallan has no verified routing source yet.', 'warning');
             var results = document.getElementById('detailCommuteResults');
-            results.classList.remove('hidden');
-
-            // Estimated commute times derived from straight-line distance.
-            // Wire to Google Directions or MapBox Directions when an API key
-            // is available; the UI shape stays the same.
-            var listing = listings.find(function(l) { return l.id == listingId; });
-            if (!listing) listing = { latitude: 40.7831, longitude: -73.9554 };
-
-            // Simulate reasonable NYC commute times
-            var baseLat = listing.latitude || 40.7831;
-            var baseLng = listing.longitude || -73.9554;
-
-            // Estimate: midtown Manhattan ~40.7549, -73.9840
-            var midtownDist = haversineDistance(baseLat, baseLng, 40.7549, -73.9840);
-            var subwayMin = Math.max(10, Math.round(midtownDist * 8 + 5));
-            var busMin = Math.max(15, Math.round(midtownDist * 14 + 10));
-            var walkMin = Math.round(midtownDist / 3 * 60);
-
-            document.getElementById('commuteSubwayTime').textContent = '~' + subwayMin + ' min';
-            document.getElementById('commuteBusTime').textContent = '~' + busMin + ' min';
-            document.getElementById('commuteWalkTime').textContent = walkMin > 60 ? Math.round(walkMin/60) + ' hr ' + (walkMin%60) + ' min' : '~' + walkMin + ' min';
+            if (results) results.classList.add('hidden');
         }
+
 
         // ═══════════════════════════════════════════════════════════════════════════════
         // QUICK ACTION FUNCTIONS (wired to detail sidebar buttons)

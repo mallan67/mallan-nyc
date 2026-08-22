@@ -32,15 +32,29 @@
                 if (listings.length === 0) {
                     tbodyHTML += '<tr><td colspan="' + (cols.length + 3) + '" class="px-4 py-8 text-center text-gray-400"><i class="fas fa-search text-2xl mb-2"></i><br>No results found. ' + (listings.length || 0) + ' listings loaded.</td></tr>';
                 } else {
-                    listings.forEach(function(listing) {
+                    listings.forEach(function(sharedListing) {
                         try {
-                            // Ensure required fields have safe defaults
+                            // STEP 1 — render from a COPY. `getFilteredListings()`
+                            // returns references into the shared `listings` array,
+                            // so the default block that used to sit here did not
+                            // default a display value — it rewrote the inventory,
+                            // on every render, over every row. Grid is the default
+                            // results view, so the first paint of the first search
+                            // overwrote every null the mapper and both loaders had
+                            // carefully preserved.
+                            //
+                            // A renderer may format the record. It may not edit it.
+                            var listing = Object.assign({}, sharedListing);
+
+                            // Display-only fallbacks, on the copy, so a column
+                            // renderer cannot throw mid-row. Status is NOT among
+                            // them: an unknown status shown as ACTIVE tells the
+                            // broker the listing is on the market.
                             if (listing.price == null) listing.price = 0;
                             if (listing.totalMonthly == null) listing.totalMonthly = 0;
                             if (listing.beds == null) listing.beds = 0;
                             if (listing.baths == null) listing.baths = 0;
                             if (!listing.address) listing.address = 'Address Unavailable';
-                            if (!listing.status) listing.status = 'ACTIVE';
                             if (!listing.permissions) listing.permissions = {};
 
                             var selected = searchResultsState.selectedListings.includes(listing.id);
