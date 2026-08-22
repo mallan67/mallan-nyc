@@ -265,6 +265,94 @@ Mobile specifics:
 
 ---
 
+## 8b. FINDINGS FROM THE INDEPENDENT BROKERAGE REVIEW — all verified here
+
+A second reviewer went through this as a brokerage operating system at head `25df5b18`.
+**Every new claim below I re-checked myself** — the live ones against the `$metadata`
+inventory captured this session, the code ones at source. All confirmed.
+
+### The server bug I missed entirely
+
+**The Search cache key omits the sort expression.**
+
+```js
+// app/api/idx/search/route.ts:199
+const cacheKey = `idx:${filter}:${limit}:${skip}`;
+```
+
+`sort` is read and passed to `fetchFromTrestle` as `orderby`, but is **not in the key**. Two
+requests with identical criteria and page but **different sort** collide in the 5-minute
+cache, so the second one is served the first one's ordering. `LIVE`/`CODE`, verified.
+
+### Sorting does not just mis-order — it can change the universe
+
+The toolbar's server re-fetch reconstructs only **price, beds, baths and at most one
+neighborhood** from the active criteria. Advanced criteria are not carried back. So a sort
+can return a **different result set**, not a reordering of the same one. Sort must never
+change the universe.
+
+### Media: the load-bearing comment is factually wrong
+
+```js
+// app/api/media/batch/route.ts:19
+// Trestle Media has only 2 categories: Photo and FloorPlan.
+```
+
+**Live `Media.MediaCategory` has 18 members**, verified in the captured inventory:
+
+`Addendum · AerialView · AgentPhoto · BrandedVirtualTour · Disclosure · Document ·
+FloorPlan · Map · OfficeLogo · OfficePhoto · Other · Photo · RentalDocuments · Restriction ·
+Survey · Topography · UnbrandedVirtualTour · Video`
+
+And `MediaClassification` has **6**, `MediaType` has **44** — three *different* fields, as
+the coverage matrix already required. Two unsafe inferences sit on top of that false premise
+(`media-sync.ts:1700-1706`, quoting the repo's own comment):
+
+- `classifyTrestleMediaCategory` **defaults a MISSING `MediaCategory` to `Photo`**;
+- a `DOCUMENT-*` URL shape is inferred to be a **FloorPlan**.
+
+With 18 live categories, both inferences will misfile `Disclosure`, `Document`,
+`RentalDocuments`, `Restriction`, `Survey` and `Addendum`. The classifier itself is good
+architecture — one `classifyMediaItem`, reused rather than duplicated. **The premise it
+reasons from is wrong.**
+
+### Three rich provider families the search route does not even select
+
+| field | live shape | in `SEARCH_SELECT_FIELDS`? |
+|---|---|---|
+| `Property.DocumentsAvailable` | **multi-enum, 94 members** — `BuildingRules`, `BylawsAndAmendments`, `Financials`, `Floorplan`, `OfferingPlan`, `Deed`, `Appraisal`, `EngineeringReport` … | **no** |
+| `Property.ShowingRequirements` | **multi-enum, 39 members** — `AppointmentOnly`, `TwentyFourHourNotice`, `CallListingAgent`, `DoNotDisturbTenant`, `Lockbox`, `ShowAnytime` … | **no** |
+| `Property.Disclosures` | **multi-enum, 119 members** — not mentioned by either review until now | **no** |
+
+The detail UI meanwhile renders document cards for Building Rules, Bylaws, Financial
+Statement, Offering Plan and Board Package as **static boxes**. The provider has a
+94-value structured field for exactly this and it is never requested.
+
+**And the fabricated showing instruction exists while `ShowingRequirements` — 39 structured
+values describing precisely that — is not selected.** The invention and the real fact are
+one `$select` entry apart.
+
+### Reports and CMA, verified at source
+
+| claim | verified |
+|---|---|
+| CMA treats the first row as the subject | `reports.js:1590` — `var subject = listings[0] || {};` |
+| report fields fall through to whatever the row happens to have | `reports.js:483` — `map[field] !== undefined ? map[field] : (listing[field] \|\| '')` |
+| Search GET performs a building-DB upsert while an agent searches | `route.ts:255` — `upsertBuildingFromSearchResult(...)` inside the request |
+
+The last one matters architecturally: **search consumption is doing ingestion.** Building
+data should arrive from synchronization, and Search should read it.
+
+### The status panel mixes provider status with Mallan deal state
+
+`Active` · `Coming Soon` · `Back on Market` sit in the same tree as `Offer`, `Offer Out`,
+`Contract Signed`, `Board Approved`, `ACRIS Verified`, `Financed`, `No Financing` — all
+bound as if they were one provider status dimension. They are at least six different facts:
+provider listing status, offer state, contract state, board state, recording state and
+financing state. Only the first is a Cotality status.
+
+---
+
 ## 9. WHY THIS KEEPS LOOPING
 
 ### A bug shape the deeper pass found twice — READ-THEN-DISCARD
@@ -302,66 +390,154 @@ unavailability visible, and collapsing duplicates to one implementation.**
 
 ---
 
-## 10. CORRECTION MAP — ordered, bounded
+## 10. THE LOCKED CORRECTION SEQUENCE
 
-Each step is independently shippable and independently verifiable. Nothing new is
-introduced.
+**This supersedes the earlier six-step map in this document.** Two independent reviews
+produced the same diagnosis and two different orderings; this is the reconciled one. It is
+a sequence, not a menu — later phases depend on earlier ones.
 
-### STEP 0 — REMOVE WHAT IS FALSE (do first, no dependencies)
+> **The single sentence:** you are not missing another twenty filters. You are missing **one
+> completed information chain** —
+> `Cotality fact → exact mapping → storage → Search universe → result → workspace → map →
+> report → CMA → client delivery`. Every piece has been allowed to build its own
+> interpretation of incomplete data. That is the loop.
 
-Not fixes — deletions. Each removes a statement the system cannot support.
+### P0 — nothing else starts until these are done
 
-| delete | file |
+| # | P0 | why it is P0 |
+|---|---|---|
+| 1 | **Stop false information** (Phase 1) | brokerage risk today |
+| 2 | **Complete Search universe** (Phase 3) | contaminates counts, paging, sort, map, reports, CMA, alerts |
+| 3 | **Cotality subresource hydration** (Phase 2) | every downstream surface is starved by one `$select` |
+| 4 | **Media classification + permissions** | an 18-category contract read through a 2-category premise |
+| 5 | **Sort + count correctness** | includes the cache-key bug; sort currently changes the universe |
+| 6 | **Fabricated transportation** | the single most misleading feature |
+| 7 | **Reports/CMA on partial rows** | "All Search Results" is a browser window |
+
+---
+
+### PHASE 1 — STOP FALSE INFORMATION
+
+Deletions and one behaviour change. No dependencies; ship first.
+
+- Synthetic "Live — MTA schedule data" arrivals + the commute calculator.
+- The `(UCOM)` fabricated showing instruction → `---`.
+- The twelve static building-amenity cards; the static document boxes.
+- The fabricated `RLS-*` demo cards carrying `data-source="REBNY-RLS"`.
+- **The mapper's invented defaults** — the highest-leverage item in the phase:
+
+| today | must become |
 |---|---|
-| the whole Transportation block + synthesized arrivals + commute calculator + the 92-entry inline station array | `pagination.js:760-783, 1901-2009, 2061-2131, 2238-2257` |
-| `transit-search.js` (never script-tagged, absent from the built output) + `mta-stations-manhattan.json` | whole files |
-| the 12 static building-amenity cards | `pagination.js:643-654` |
-| the `(UCOM)` fabricated showing instruction → render `---` | `pagination.js:526` |
-| the fabricated demo listing cards + `#resultsGridLegacy` (656 lines) | `search-form-and-results.html:7153-7821` |
-| `#searchBasicModeRental` + `#searchBasicModeBuilding` (1,250 lines, 153 controls) | `search-form-and-results.html:963-2211` |
-| the 180-entry unbound neighborhood tree + its cascade handler | `search-form-and-results.html:2862-3065`, `search-engine.js:1459-1490` |
-| the 108 unbound advanced checkboxes — **including the agent-scoping and "RLS Participant Only" rows, which read as compliance controls** | `search-form-and-results.html` (11 blocks) |
-| the Sale Investment Calculator panel (15 IDs, zero JS refs) | `search-form-and-results.html:3593-3719` |
-| `report-package.js` (1,050 lines, zero callers) | whole file |
-| "Shareable Link" tile + generator (copies a 404) | `reports.html:183-186`, `reports.js:2347-2366` |
-| the 6 never-read + 3 validation-only report checkboxes | `reports.html:101-123` |
-| the dead `href="#"` links in report Detail/Open House panels | `reports.js:1298, 1302, 1763` |
-| the dead `responsive.css` blocks targeting an absent DOM | `responsive.css:15-30, 35, 41, 45, 50-56, 87, 102, 120-124, 151-153` |
-| `toggleSortOrder()` — **or wire it (Step 2). Do not leave it unreachable** | `toolbar-functions.js:56-119` |
+| missing borough → `Manhattan` | **unknown** |
+| provider listing → `Exclusive` | **unknown** |
+| absent owner opt-out / participant-only → `false` | **unknown → fail closed** |
+| `idxDisplay` / syndication → `true` | **unknown → fail closed** |
+| missing numeric → `0` | **unknown** |
+| missing status → `Active` | **unknown** |
+| missing `MediaCategory` → `Photo` | **unknown** |
 
-### STEP 1 — MAKE UNAVAILABILITY VISIBLE
+  `search-engine.js` re-applies several of the same defaults after the server responds, so
+  both layers must change together.
 
-One shared "unavailable" treatment, applied everywhere a placeholder is rendered today.
-`--`, `---`, `$0` and `0%` must stop being indistinguishable from values. This is the single
-change that stops the loop, because after it a dead control is visible to whoever ships it.
+- Simulated email must stop writing a delivered status. Three honest states:
+  **sent · failed · not configured.**
 
-### STEP 2 — MAKE THE RESULT SET HONEST
+**UNKNOWN is a real state.** Unknown borough is not Manhattan. Unknown fee is not $0.
+Unknown permission is not permitted. This is the same change as "make unavailability
+visible" in the earlier map, and it is what stops the loop.
 
-- Report the **provider count**, not the slice size; one number, one source.
-- Say the set is truncated when it is.
-- Sorting re-queries the provider (`toggleSortOrder` already does it — wire it to the
-  dropdown and the grid headers) **or** the UI stops claiming to sort the result set.
+### PHASE 2 — CLOSE THE COTALITY READING CONTRACT
 
-### STEP 3 — FIX MOBILE, IN THE ORDER THAT UNBLOCKS WORK
+One exact map for `Property` · `CustomProperty`/`CustomFields` · `Media` · `OpenHouse` ·
+`Member` · `Office`, plus verified building/parcel inputs. Per fact: path · type ·
+enum/multi-enum · semantics · permissions · null/sentinel behaviour · Mallan canonical fact ·
+storage · searchability · workspace/report use. **No second registry.**
 
-1. `liquid-theme.css` specificity — restore the 44px / 16px rules.
-2. The date picker's clamp order (`date-range-picker.js:231`) — one-line fix, unblocks 16 controls.
-3. Remove `thead/tbody { display: table }` — actively harmful, breaks tablet too.
-4. Give List/Grid, Short Summary and Summary real mobile layouts, or hide the views that
-   cannot have one.
-5. Add the first viewport tests — there are none.
+Add to the select what is currently absent and structured: `DocumentsAvailable` (94),
+`ShowingRequirements` (39), `Disclosures` (119).
 
-### STEP 4 — COLLAPSE THE DUPLICATES TO ONE
+### PHASE 3 — FINISH THE CANONICAL SEARCH UNIVERSE
 
-One mansion-tax implementation. One transfer-tax implementation. One geocode fallback
-policy. Separate the **buyer's** costs from the **seller's** — a combined "Closing Costs
-(NYC)" total is correct for nobody.
+Replace provider-passthrough result authority with, through `ListingSearchProjection`:
 
-### STEP 5 — THEN, AND ONLY THEN, EXPAND THE DATA
+> Mallan canonical local listings **+** synchronized third-party Cotality inventory
+> **−** suppressed Cotality representations of Mallan listings
 
-This is where the existing defect register resumes: `CustomProperty` expand (D1–D3), then
-Media as a real resource, then OpenHouse. **Expanding the data before Steps 0–2 just adds
-more surfaces that can lie.**
+Then: complete count · complete paging · complete sort · the same criteria on every page and
+every sort · **no 200-row universe cap**. Fix the cache key to include the canonical sort.
+Move the building upsert out of the search GET — synchronization ingests, Search reads.
+
+### PHASE 4 — FIX SEARCH SEMANTICS AS GROUPS, NOT FIELDS
+
+Sale · Rental · Building, each with one canonical meaning per criterion and one exact
+execution path. **Split the status panel**: Listing Status from verified Cotality facts;
+Mallan Deal/CRM State (offer · contract · board · closing · financing) as its own dimension.
+
+### PHASE 5 — RESULTS WORKBENCH
+
+One universe powers Grid · Gallery · Summary · Master/Detail · Map. Server-side sort against
+the full criteria. In-result filtering and search are explicitly **secondary**. Selection
+persists across view changes. The Map shares exact Search state.
+
+### PHASE 6 — LISTING WORKSPACE HYDRATION
+
+Keep the existing structure; rebuild the data under it. Canonical section order:
+
+Identity & Attribution · Address/Parcel/Building · Listing/Transaction · Unit ·
+Financial & Carrying Costs · **Co-op/Condo Purchase Requirements** (financing limit · flip
+tax · tax deductibility · abatement · board · sublet/pied-à-terre/guarantor) · Amenities
+(unit **and** building, separated) · Building · Showing & Access · Open Houses · Media ·
+Documents & Disclosures · Neighborhood/Map/Transportation (verified only) · CRM.
+
+The test: an agent answers all of it from one screen — what is it, who listed it, what does
+it cost, what does the building allow, what financing is permitted, flip tax, fees,
+amenities, showing rules, open houses, media, documents, where, what transit is verified,
+what changed, and what have I done with this listing.
+
+### PHASE 7 — MAP
+
+Keep MapLibre/OpenFreeMap. Correct the geometry hierarchy: exact coordinate → exact pin;
+neighborhood only → **polygon or labelled area, never a point**; unresolvable → **no pin**.
+Then device modes — desktop split, tablet toggle, mobile full-screen either/or. Restore
+bounds search only after that.
+
+### PHASE 8 — REPORTS
+
+Keep every format. Connect them to a **canonical Search snapshot**, not loaded browser rows.
+Offer a field only when it is VERIFIED + HYDRATED + AUTHORIZED for that audience. Real
+delivery status. **Per-listing attribution**, since the universe mixes Mallan-authored and
+third-party inventory — one blanket footer cannot be correct for both.
+
+### PHASE 9 — CMA
+
+Not another engine — CMA consumes corrected Search:
+subject → comp criteria → candidate universe → broker include/exclude/reorder →
+Closed/Pending/Active → adjustments → value range → report. The existing renderer becomes
+the last step and stops treating the first row as the subject.
+
+### PHASE 10 — CALCULATORS
+
+Keep all six. One calculation-input contract: verified facts auto-fill, **unknown stays
+blank**, agent assumptions marked as assumptions. Collapse the duplicate mansion-tax and
+transfer-tax implementations to one. Separate buyer costs from seller costs.
+
+### PHASE 11 — DEVICE PROOF
+
+Only after the data contract is correct. 1440 / 1024 / 390 through
+Search → Results → Detail → Map → Report → Send, testing touch targets, date picker,
+selection, sort, filters, map, gallery, modal scrolling, calculator, report preview and
+client send — with **the same criteria and the same result universe on all three**.
+
+---
+
+### DO NOT REMOVE
+
+Map · Transportation **as a capability** · Reports · CMA · Calculators · Townhouse ·
+Multi-Family · Building search · Advanced criteria · Media · Documents · Saved searches ·
+Comparison · Client actions.
+
+**Their current implementations need correction. The capabilities are right.** Only what is
+provably misleading gets deleted.
 
 ---
 
