@@ -2,12 +2,11 @@ import { resolveListingMedia } from "@/lib/media/listing-media-resolver";
 import { classifyPropertyType } from "@/lib/search/canonical/property-type-universe";
 import { isStandardStatusMember } from "@/lib/search/canonical/status-token-contract";
 
-// REBNY IDX Plus pre-filter: REBNY/Cotality removes non-displayable rows from
-// the IDX Plus feed upstream, leaving InternetEntireListingDisplayYN and
-// InternetAddressDisplayYN null on the survivors. Treat null as displayable;
-// honor explicit false. Mirrors the writer-side convention at
-// lib/idx/trestle-mapper.ts:705-706 (commit 0309875b 2026-04-30) and the
-// reader-side gate at lib/compliance/gates.ts (idxPlusPreFiltered option).
+/**
+ * Existing authenticated-feed display convention. This is a Mallan runtime
+ * convention, NOT a claim about Cotality null semantics. Explicit false is
+ * always honored; the separate compliance gate remains authoritative.
+ */
 function isIdxPlusDisplayFlagOn(v: unknown): boolean {
   return v !== false && v !== "false" && v !== "FALSE";
 }
@@ -28,29 +27,28 @@ export function mapDisplayPropertyType(raw: Record<string, unknown>): string | n
   if (sub.includes("multi")) return "Multi-Family";
   if (sub === "apartment") return "Residential";
   if (sub) return String(raw.PropertySubType);
-  // The provider's SILENCE is not "Residential". PropertyType is a nullable enum
-  // on live Property, and this label drives the display type, the Sale/Rental
-  // split and every report grouping.
   return raw.PropertyType != null && String(raw.PropertyType) !== ""
     ? String(raw.PropertyType)
     : null;
 }
 
+/**
+ * Mallan media GROUPING from the exact Cotality MediaCategory value.
+ *
+ * Live Cotality declares Photo, FloorPlan and Video as exact members. It does
+ * NOT declare a generic VirtualTour member, and every other declared category
+ * remains unclassified until its business equivalence is separately proven.
+ * Unknown/null is never a photograph.
+ */
 export function classifyMediaCategory(media: Record<string, unknown>): string {
-  const cat = String(media.MediaCategory || "").toLowerCase();
-  if (cat.includes("floor plan")) return "FloorPlan";
-  if (cat.includes("video")) return "Video";
-  if (cat.includes("virtual tour")) return "VirtualTour";
-  return "Photo";
+  const category = media.MediaCategory == null ? "" : String(media.MediaCategory);
+  if (category === "Photo") return "Photo";
+  if (category === "FloorPlan") return "FloorPlan";
+  if (category === "Video") return "Video";
+  return "Unclassified";
 }
 
-/**
- * A provider number, or null when the provider supplied nothing.
- *
- * `Number(x) || 0` collapsed THREE different facts into one: absent, unparsable,
- * and a genuine zero. A studio has 0 bedrooms; an unknown maintenance charge is
- * not $0. Only an explicit, finite value survives — everything else is null.
- */
+/** Provider number or null. Absent/unparsable is never silently zero. */
 function num(value: unknown): number | null {
   if (value === null || value === undefined || value === "") return null;
   const n = Number(value);
@@ -58,32 +56,23 @@ function num(value: unknown): number | null {
 }
 
 /**
- * The provider identity for a row, or null when it has none.
+ * Exact Cotality provider identity for Property.
  *
- * Live `$metadata`: `ListingId` and `SourceSystemKey` are BOTH nullable strings,
- * so a row with neither is a legitimate provider state — and an unusable one.
+ * Live authenticated $metadata: Property.ListingKey is String(20) and
+ * Nullable=false. ListingId is separately nullable; SourceSystemKey is provider
+ * lineage. Neither is permitted to impersonate ListingKey.
  */
 function listingIdentity(raw: Record<string, unknown>): string | null {
-  for (const key of ['ListingId', 'SourceSystemKey'] as const) {
-    const v = raw[key];
-    if (v !== null && v !== undefined && String(v) !== '') return String(v);
-  }
-  return null;
+  const value = raw.ListingKey;
+  if (value === null || value === undefined || String(value) === "") return null;
+  return String(value);
 }
 
-/**
- * Can this provider row be trusted with an identity at all?
- *
- * A row that cannot be identified must not enter the authoritative result
- * universe: it cannot be selected, reported, saved, sent to a client or
- * reconciled against a canonical listing. Callers should exclude it and record
- * an integrity failure rather than let it through with a fabricated id.
- */
 export function hasUsableListingIdentity(raw: Record<string, unknown>): boolean {
   return listingIdentity(raw) !== null;
 }
 
-/** A provider boolean, or null when unstated. Never invents `true` or `false`. */
+/** Provider boolean or null. Never invents true/false. */
 function boolOrNull(value: unknown): boolean | null {
   if (value === true || value === "true" || value === 1 || value === "1") return true;
   if (value === false || value === "false" || value === 0 || value === "0") return false;
@@ -94,9 +83,8 @@ export function mapTrestleToCrmListing(
   raw: Record<string, unknown>,
   index: number,
 ): Record<string, unknown> {
-  // `index` is retained for call-site compatibility only. It must NEVER become
-  // part of a listing's identity — see `listingIdentity` below.
   void index;
+
   const streetParts = [
     raw.StreetNumber,
     raw.StreetDirPrefix,
@@ -107,11 +95,6 @@ export function mapTrestleToCrmListing(
   const address = streetParts.join(" ").toUpperCase() || "";
 
   const propertyType = String(raw.PropertyType || "");
-  // STEP 2 — sale/rental comes from the verified PropertyType universe, not from
-  // a substring test. `includes("lease")` classified `DisasterReliefRental` (a
-  // rental, no "lease" in the name) as a SALE, and swept `CommercialLease` into
-  // residential rentals. Membership is positive on both sides and anything else
-  // is UNKNOWN — never silently absorbed into sale.
   const universe = classifyPropertyType(propertyType);
   const isRental = universe === "rental";
   const price = num(raw.ListPrice);
@@ -119,20 +102,22 @@ export function mapTrestleToCrmListing(
 
   const taxAnnual = num(raw.TaxAnnualAmount);
   const monthlyTax = taxAnnual === null ? null : taxAnnual / 12;
-  // NOTE: AssociationFeeFrequency is fetched and NOT yet honoured — a non-monthly
-  // fee is still presented as monthly. That is a Step 2 defect (verified mapping),
-  // deliberately NOT fixed here. Step 1 only stops the UNKNOWN -> 0 invention.
-  const maintCC = num(raw.AssociationFee);
+
+  // Cotality carries the unit in a separate FeeFrequency enum. A fee is a
+  // monthly carrying cost ONLY when the provider explicitly says Monthly.
+  // Quarterly/annual/semi-monthly/etc. are preserved raw for later business
+  // normalization; Other/SeeAgent/SeeRemarks/NotApplicable are not periods at all.
+  const associationFee = num(raw.AssociationFee);
+  const associationFeeFrequency = raw.AssociationFeeFrequency != null
+    ? String(raw.AssociationFeeFrequency)
+    : null;
+  const maintCC = associationFeeFrequency === "Monthly" ? associationFee : null;
 
   const addressDisplayYN = isIdxPlusDisplayFlagOn(raw.InternetAddressDisplayYN);
   const displayAddress = addressDisplayYN
     ? address
     : "ADDRESS AVAILABLE UPON REQUEST";
 
-  // Photo-first media ordering — single source of truth in
-  // lib/media/listing-media-resolver.ts. Replaces the prior
-  // `isPrimary: i === 0` index-based assignment which would mark a FloorPlan
-  // as primary whenever Trestle returned floor-plan rows ahead of photo rows.
   const media = Array.isArray(raw.Media) ? raw.Media : [];
   const resolved = resolveListingMedia(media);
   const images = resolved.map(m => ({
@@ -144,34 +129,25 @@ export function mapTrestleToCrmListing(
   const providerPhotoCount = num(raw.PhotosCount);
   const photoCount = providerPhotoCount !== null ? providerPhotoCount
     : images.length > 0 ? images.length
-    : null; // no count and no media == unknown, NOT zero
+    : null;
 
   const customProps = Array.isArray(raw.CustomProperty)
     ? raw.CustomProperty[0] as Record<string, unknown> | undefined
     : raw.CustomProperty as Record<string, unknown> | undefined;
-  // DownPaymentAssistance* are live Property fields (migrated from CustomProperty,
-  // 2026-06-04). Read Property first; fall back to legacy CustomProperty values
-  // ONLY when the Property field is blank/null — protects old raw_data that stored
-  // these under CustomProperty.
+
+  // Legacy raw_data compatibility only. These are now declared Property fields;
+  // no new provider mapping is inferred from the old CustomProperty shape.
   const dpaAmountSrc =
-    raw.DownPaymentAssistanceAmount != null && raw.DownPaymentAssistanceAmount !== ''
+    raw.DownPaymentAssistanceAmount != null && raw.DownPaymentAssistanceAmount !== ""
       ? raw.DownPaymentAssistanceAmount
       : customProps?.DownPaymentAssistanceAmount;
-  const dpaAmount = dpaAmountSrc != null && dpaAmountSrc !== '' ? Number(dpaAmountSrc) : null;
+  const dpaAmount = dpaAmountSrc != null && dpaAmountSrc !== "" ? Number(dpaAmountSrc) : null;
   const dpaCountSrc =
-    raw.DownPaymentAssistanceCount != null && raw.DownPaymentAssistanceCount !== ''
+    raw.DownPaymentAssistanceCount != null && raw.DownPaymentAssistanceCount !== ""
       ? raw.DownPaymentAssistanceCount
       : customProps?.DownPaymentAssistanceCount;
-  const dpaCount = dpaCountSrc != null && dpaCountSrc !== '' ? Number(dpaCountSrc) : null;
+  const dpaCount = dpaCountSrc != null && dpaCountSrc !== "" ? Number(dpaCountSrc) : null;
 
-  // CustomFields is a REBNY-specific JSON string on CustomProperty that
-  // carries 41 NYC-specific flags (per CLAUDE.md). SponsorUnitYN is the
-  // canonical source-of-truth for "Is this a sponsor sale?" — the prior
-  // CRM rendering (grid-column-defs.js:63) showed a static '--' because
-  // there was no source. Now we parse the JSON once and expose
-  // sponsorUnit: true | false | null on the flat listing shape.
-  // null = unknown (CustomProperty not expanded, or field absent in JSON).
-  // Listing-detail and column renderers can read l.sponsorUnit directly.
   let sponsorUnit: boolean | null = null;
   const customFieldsRaw = customProps?.CustomFields;
   if (typeof customFieldsRaw === "string" && customFieldsRaw.length > 0) {
@@ -181,16 +157,13 @@ export function mapTrestleToCrmListing(
       if (v === true || v === "true" || v === "Yes" || v === 1) sponsorUnit = true;
       else if (v === false || v === "false" || v === "No" || v === 0) sponsorUnit = false;
     } catch {
-      // Malformed JSON — leave sponsorUnit as null. No log spam: CustomFields
-      // is provider-controlled and may legitimately be empty / non-JSON
-      // for older listings or non-REBNY MLOs.
+      sponsorUnit = null;
     }
   }
 
-  const originalPrice = Number(raw.OriginalListPrice) || 0;
+  const originalPrice = num(raw.OriginalListPrice);
   let priceChange: string | null = null;
-  // No current price means no direction. Unknown is not "unchanged".
-  if (price !== null && originalPrice > 0 && originalPrice !== price) {
+  if (price !== null && originalPrice !== null && originalPrice !== price) {
     priceChange = price < originalPrice ? "down" : "up";
   }
 
@@ -201,140 +174,86 @@ export function mapTrestleToCrmListing(
     else era = "Pre-War";
   }
 
-  // The provider's SILENCE is not "Active". An absent status resolves to
-  // UNKNOWN through the canonical contract — the safe sentinel.
-  //
-  // STEP 2 — StandardStatus is the canonical provider status for this path.
-  //
-  // This read `raw.MlsStatus || raw.StandardStatus`, substituting a 25-member
-  // vocabulary for an 11-member one whenever MlsStatus was populated. They are
-  // different fields with different values — MlsStatus carries Leased,
-  // AttorneyReview, Contingent, CompSold, PendingShortSale, none of which
-  // StandardStatus has — and the provider suppresses MlsStatus for filtering and
-  // ordering at licence level (HTTP 400). It is provider EVIDENCE, never the
-  // canonical input, and inventing Mallan meanings for its members is a product
-  // decision nobody has made.
   const standardStatus = raw.StandardStatus;
-  // One token per member, via the canonical contract. `ActiveUnderContract`
-  // used to map to "PENDING" alongside `Pending`, collapsing two distinct
-  // provider states into one — the exact inverse of the browser sending
-  // "PENDING" out as `ActiveUnderContract`. The two substitutions cancelled on a
-  // round trip, which is how the defect stayed invisible from either end.
-  // THE EXACT COTALITY VALUE. `listing.status` is machine-readable — reports,
-  // maps, pagination, CRM workflow and COMPLIANCE GATES branch on it — so it
-  // carries the provider's own word, not a Mallan translation of it.
-  //
-  // It used to emit an uppercase vocabulary (PENDING, COMING_SOON) while the
-  // exact value was returned separately under the misleading name `mlsStatus`.
-  // The database has always stored the exact member
-  // (prisma/schema.prisma:447, "RESO StandardStatus"), so this removes a split
-  // rather than creating one.
-  //
-  // Human labels are applied at render time by statusDisplayLabel(); an unknown
-  // value stays "UNKNOWN" and must never read as ACTIVE.
   const status = isStandardStatusMember(standardStatus) ? standardStatus : "UNKNOWN";
-  // Unrecognised or absent falls through to "UNKNOWN" inside the contract — a
-  // SAFE sentinel that never surfaces non-canonical status text in
-  // UCBA-sensitive contexts, and in particular never reads as ACTIVE.
-  // Renderers treat UNKNOWN as non-active and show a neutral indicator.
-  //
-  // UCBA Art. I §5(D) note, preserved: "Off-Market" labelling is prohibited.
-  // Those variants only ever arrived via MlsStatus, which is no longer a status
-  // input at all, so they can no longer reach a renderer through this path.
 
-  // `mlsStatus` is the EFFECTIVE PROVIDER STATUS STRING, and it must keep being
-  // that. Downstream consumers read it as such, including a COMPLIANCE GATE:
-  //
-  //   lib/compliance/idx-display-gate.ts:39
-  //       if (listing.mlsStatus === 'Closed' || … === 'Expired') return false;
-  //   lib/compliance/reso-mapper.ts:190
-  //       MLSStatus: statusMap[listing.mlsStatus] || 'Active'
-  //
-  // Narrowing this field to the raw MlsStatus would make it NULL on this feed
-  // (MlsStatus is unpopulated), so a Closed listing would stop matching that
-  // gate and would PASS a display check it must fail — and the RESO mapper would
-  // default it to 'Active'. That is a fail-OPEN regression of exactly the shape
-  // canonicalised in memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md.
-  //
-  // It therefore carries StandardStatus, which is what the old
-  // `MlsStatus || StandardStatus` expression already resolved to on every row of
-  // this feed. Behaviour for those consumers is unchanged BY CONSTRUCTION.
+  // Transitional field name: downstream consumers currently read mlsStatus as
+  // effective StandardStatus. Raw Cotality MlsStatus is preserved separately and
+  // never participates in status decisions.
   const mlsStatus = standardStatus != null ? String(standardStatus) : "";
-
-  // The raw provider MlsStatus, kept SEPARATELY as evidence: verbatim, unmapped,
-  // and never an input to any Mallan status decision. Its 25-member vocabulary
-  // (Leased, AttorneyReview, Contingent, CompSold …) has no agreed Mallan
-  // meaning, and the provider suppresses the field for filtering and ordering.
   const providerMlsStatus = raw.MlsStatus != null ? String(raw.MlsStatus) : null;
 
-  // ── Coming Soon date (UCBA Art. I §16(C)) ──────────────────────────
-  // UCBA requires "No Showings or Open House until [date]" disclosure
-  // for Coming Soon listings. The date must be specific. Previously
-  // comingSoonDate was hard-coded to null in the return object, and
-  // the badge renderer fell back to the vague string "until active
-  // date". Pull the actual date from Trestle:
-  //   ActivationDate    — REBNY's "showings begin" timestamp
-  //   OnMarketDate      — RESO standard fallback
-  // Format as ISO YYYY-MM-DD for downstream display.
   let comingSoonDate: string | null = null;
-  // UCBA Art. I §16(C). Compares the EXACT member now that status carries it.
   if (status === "ComingSoon") {
     const dateRaw = raw.ActivationDate ?? raw.OnMarketDate;
-    if (dateRaw) {
-      comingSoonDate = String(dateRaw).split("T")[0];
-    }
+    if (dateRaw) comingSoonDate = String(dateRaw).split("T")[0];
   }
 
+  const listingKey = listingIdentity(raw);
+
   return {
-    // NEVER manufacture identity. This used to fall back to `index + 1`, so an
-    // identityless provider row became listing "1" — an id that then keys
-    // selection, client history, reports, saved searches and reconciliation
-    // while pointing at nothing. Callers must use `hasUsableListingIdentity`
-    // to exclude such a row BEFORE it enters the authoritative universe.
-    id: listingIdentity(raw),
+    id: listingKey,
     address: displayAddress,
     unit: String(raw.UnitNumber || ""),
     price,
-    // Never sum unknowns into a carrying cost. $0/month reads as "no cost".
+
+    // Rental list price remains a Cotality fact. Sale "total monthly" is only a
+    // TOTAL when both tax and an explicitly-monthly association fee are known.
     totalMonthly: isRental ? price
-      : (monthlyTax === null && maintCC === null) ? null
-      : (monthlyTax ?? 0) + (maintCC ?? 0),
+      : (monthlyTax !== null && maintCC !== null) ? monthlyTax + maintCC
+      : null,
+
     rooms: num(raw.RoomsTotal),
     beds: num(raw.BedroomsTotal),
     baths: (() => {
       if (raw.BathroomsTotalInteger != null) return Number(raw.BathroomsTotalInteger);
       const f = num(raw.BathroomsFull);
       const h = num(raw.BathroomsHalf);
-      if (f === null && h === null) return null; // no bath fact at all
+      if (f === null && h === null) return null;
       return (f ?? 0) + (h ?? 0) * 0.5;
     })(),
     fullBaths: num(raw.BathroomsFull),
     halfBaths: num(raw.BathroomsHalf),
     reTaxes: monthlyTax,
     maintCC,
+    associationFee,
+    associationFeeFrequency,
     intSqft: raw.LivingArea != null ? Number(raw.LivingArea) : null,
+
     status,
     mlsStatus,
     providerMlsStatus,
-    ownership: String(raw.CommonInterest || raw.OwnershipType || ""),
+
+    // CommonInterest is the verified ownership fact. OwnershipType is a
+    // separate Cotality field and is preserved separately rather than used as a
+    // silent fallback.
+    ownership: raw.CommonInterest != null ? String(raw.CommonInterest) : "",
+    providerOwnershipType: raw.OwnershipType != null ? String(raw.OwnershipType) : null,
     propertyType: mapDisplayPropertyType(raw),
     propertySubType: String(raw.PropertySubType || ""),
-    neighborhood: String(raw.SubdivisionName || ""),
-    // An unknown borough is NOT Manhattan. A Brooklyn listing read as Manhattan
-    // is wrong on the card, the map, the report and every saved search.
-    borough: raw.CityRegion != null && String(raw.CityRegion) !== "" ? String(raw.CityRegion)
-      : raw.CountyOrParish != null && String(raw.CountyOrParish) !== "" ? String(raw.CountyOrParish)
-      : null,
+
+    // Geography semantics are not yet closed against live Cotality. Preserve the
+    // raw facts without asserting that SubdivisionName/CityRegion/CountyOrParish
+    // are the Mallan neighborhood/borough concepts.
+    neighborhood: null,
+    borough: null,
+    providerSubdivisionName: raw.SubdivisionName != null ? String(raw.SubdivisionName) : null,
+    providerCityRegion: raw.CityRegion != null ? String(raw.CityRegion) : null,
+    providerCountyOrParish: raw.CountyOrParish != null ? String(raw.CountyOrParish) : null,
     zip: String(raw.PostalCode || ""),
+
     yearBuilt,
     era,
     buildingName: raw.BuildingName ? String(raw.BuildingName) : null,
     buildingKey: raw.BuildingKeyNumeric != null ? Number(raw.BuildingKeyNumeric) : null,
-    // "Exclusive" is a MALLAN business fact. Asserting it on provider inventory
-    // claims a seller relationship that does not exist. Unknown until established.
     listingType: null,
-    lid: String(raw.ListingId || ""),
-    wid: raw.SourceSystemKey ? String(raw.SourceSystemKey) : null,
+
+    // Distinct provider identity/lineage domains.
+    lid: raw.ListingId != null ? String(raw.ListingId) : "",
+    wid: listingKey,
+    providerListingId: raw.ListingId != null ? String(raw.ListingId) : null,
+    providerSourceSystemKey: raw.SourceSystemKey != null ? String(raw.SourceSystemKey) : null,
+
     dom: num(raw.DaysOnMarket),
     cdom: num(raw.CumulativeDaysOnMarket),
     listedDate: raw.ListingContractDate
@@ -348,11 +267,17 @@ export function mapTrestleToCrmListing(
     agentEmail: String(raw.ListAgentEmail || ""),
     agentPhone: String(raw.ListAgentDirectPhone || ""),
     priceChange,
-    originalPrice: originalPrice > 0 && originalPrice !== price ? originalPrice : null,
+    originalPrice: originalPrice !== null && originalPrice !== price ? originalPrice : null,
     photoCount,
     images,
-    latitude: raw.Latitude != null ? Number(raw.Latitude) : null,
-    longitude: raw.Longitude != null ? Number(raw.Longitude) : null,
+
+    // Raw provider coordinate evidence. Canonical map coordinates are a
+    // different Mallan fact and are not asserted here.
+    latitude: null,
+    longitude: null,
+    providerLatitude: raw.Latitude != null ? Number(raw.Latitude) : null,
+    providerLongitude: raw.Longitude != null ? Number(raw.Longitude) : null,
+
     crossStreet: String(raw.CrossStreet || ""),
     floor: null,
     description: String(raw.PublicRemarks || ""),
@@ -361,31 +286,10 @@ export function mapTrestleToCrmListing(
       : raw.VirtualTourURLBranded
         ? String(raw.VirtualTourURLBranded)
         : null,
-    // NOT changed to null in Step 1, and the EVIDENCE CLASS matters:
-    //
-    //   EXISTING IDX PLUS RUNTIME/DISTRIBUTION CONTRACT — preserved for safety.
-    //   LIVE SEMANTIC VERIFICATION BELONGS TO STEP 2.
-    //
-    // What live $metadata establishes today is only that
-    // InternetEntireListingDisplayYN is a NULLABLE Boolean. Metadata does not
-    // define what null MEANS operationally. The "null = displayable" convention
-    // comes from the 2026-04-30 incident and the repo's distribution contract
-    // (memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md), where assuming null meant
-    // suppressed corrupted 7,594 rows.
-    //
-    // So this is deliberately NOT flipped to null-when-absent during Step 1 —
-    // that would risk repeating the suppression failure — and it is equally NOT
-    // recorded as a live-verified provider semantic. Step 2 verifies it.
-    // The previous hard-coded `true` WAS wrong regardless, because it ignored an
-    // explicit `false`; reading the flag fixes that without touching the convention.
+
     idxDisplayYN: isIdxPlusDisplayFlagOn(raw.InternetEntireListingDisplayYN),
     internetDisplayYN: isIdxPlusDisplayFlagOn(raw.InternetEntireListingDisplayYN),
     addressDisplayYN,
-    // Explicit on both sides. This was `isRental ? "rental" : undefined`, which
-    // made SALE the leftover: every PropertyType member Cotality has not yet
-    // populated — Land, CommercialSale, MultiFamily, ResidentialIncome — would
-    // have become residential sale inventory the moment it appeared, with no
-    // code change and no warning. Unknown now stays undefined and is NOT sale.
     listingCategory: universe === "unknown" ? undefined : universe,
     closedDate: raw.CloseDate ? String(raw.CloseDate) : null,
     contractDate: raw.ListingContractDate ? String(raw.ListingContractDate) : null,
@@ -393,17 +297,18 @@ export function mapTrestleToCrmListing(
     downPaymentAssistanceAmount: dpaAmount,
     downPaymentAssistanceCount: dpaCount,
     sponsorUnit,
-    // FAIL CLOSED throughout. `false` on an opt-out is an affirmative claim that
-    // the owner did NOT opt out; `true` on a display right is a claim the provider
-    // granted it. Absent evidence is null, and every consumer must treat null as
-    // "not permitted", never as permitted.
+
     permissions: {
-      ownerOptOut: boolOrNull(raw.OwnerOptOut),
-      participantOnly: boolOrNull(raw.ParticipantOnly),
-      idxDisplay: isIdxPlusDisplayFlagOn(raw.InternetEntireListingDisplayYN), // pre-filtered: null = displayable
+      // No live Property field named OwnerOptOut/ParticipantOnly has been
+      // established for this mapper. Unknown stays unknown rather than being
+      // manufactured from unrelated provider facts.
+      ownerOptOut: null,
+      participantOnly: null,
+      idxDisplay: isIdxPlusDisplayFlagOn(raw.InternetEntireListingDisplayYN),
       internetDisplay: isIdxPlusDisplayFlagOn(raw.InternetEntireListingDisplayYN),
-      syndication: boolOrNull(raw.SyndicateTo),
+      syndication: null,
     },
+
     ListingAgreement: raw.ListingAgreement ? String(raw.ListingAgreement) : null,
     LandLeaseYN: boolOrNull(raw.LandLeaseYN),
     CoolingYN: boolOrNull(raw.CoolingYN),
@@ -429,7 +334,8 @@ export function mapTrestleToCrmListing(
     ConstructionMaterials: raw.ConstructionMaterials ? String(raw.ConstructionMaterials) : null,
     NewConstructionYN: boolOrNull(raw.NewConstructionYN),
     PriceChangeTimestamp: raw.PriceChangeTimestamp ? String(raw.PriceChangeTimestamp) : null,
+
     _source: "idx",
-    _listingKey: String(raw.ListingId || raw.SourceSystemKey || ""),
+    _listingKey: listingKey ?? "",
   };
 }
