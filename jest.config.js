@@ -12,6 +12,8 @@ module.exports = {
     '<rootDir>/lib/search/jest.config.js',
     // lib/idx tests (ts-jest) — sync cursor + backfill eligibility (PCT gap)
     '<rootDir>/lib/idx/jest.config.js',
+    // lib/cotality tests (ts-jest) — the verified provider projection reader.
+    '<rootDir>/lib/cotality/jest.config.js',
     // lib/media tests (ts-jest) — photo fallback (PR-E.1.a, 2026-05-14),
     // listing-media resolver, and media-sync service. The per-directory
     // jest.config.js existed but was previously NOT wired into the root

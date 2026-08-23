@@ -17,7 +17,7 @@
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { field as cotalityField } from '@/lib/cotality/live-contract';
+import { field as cotalityField } from '@/lib/cotality/verified-contract';
 
 const FORM_PATH = resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html');
 const formHtml = readFileSync(FORM_PATH, 'utf8');

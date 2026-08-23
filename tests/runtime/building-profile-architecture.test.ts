@@ -11,7 +11,7 @@
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { field as cotalityField } from '@/lib/cotality/live-contract';
+import { field as cotalityField } from '@/lib/cotality/verified-contract';
 
 const FORM = readFileSync(resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html'), 'utf8');
 const hasField = (f: string) => cotalityField('Property', f) !== null;

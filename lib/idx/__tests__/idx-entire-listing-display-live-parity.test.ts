@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { mapCotalityToInternal } from '../mapping';
-import { allFieldNames } from '@/lib/cotality/live-contract';
+import { allFieldNames } from '@/lib/cotality/verified-contract';
 
 /**
  * PR-live-2 (2026-06-04) — the entire-listing display gate must be driven

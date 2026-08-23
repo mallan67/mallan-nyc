@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { allFieldNames } from '@/lib/cotality/live-contract';
+import { allFieldNames } from '@/lib/cotality/verified-contract';
 import {
   FORBIDDEN_FIELDS,
   FORBIDDEN_LIVE_ALLOWLIST,

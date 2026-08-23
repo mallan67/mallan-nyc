@@ -21,7 +21,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { fieldsOn } from '@/lib/cotality/live-contract';
+import { fieldsOn } from '@/lib/cotality/verified-contract';
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const read = (p: string) => fs.readFileSync(path.join(REPO_ROOT, p), 'utf8');

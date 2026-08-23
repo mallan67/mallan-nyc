@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { allFieldNames } from '@/lib/cotality/live-contract';
+import { allFieldNames } from '@/lib/cotality/verified-contract';
 import {
   RAW_DATA_KEEP_FIELDS,
   RAW_DATA_KEEP_SET,

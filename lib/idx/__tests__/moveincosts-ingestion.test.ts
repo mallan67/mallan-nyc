@@ -2,7 +2,7 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { IDX_PLUS_SELECT_FIELDS, COTALITY_PROPERTY_SELECT_FIELDS } from '../trestle-mapper';
 import { RAW_DATA_KEEP_SET } from '@/lib/compliance/raw-data-keep-fields';
-import { allFieldNames } from '@/lib/cotality/live-contract';
+import { allFieldNames } from '@/lib/cotality/verified-contract';
 
 /**
  * End-to-end ingestion guard for the move-in cost fields (Codex review on #342).

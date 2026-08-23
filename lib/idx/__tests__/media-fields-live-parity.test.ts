@@ -1,7 +1,7 @@
 import { readFileSync } from "fs";
 import { resolve } from "path";
 import { B26_MEDIA } from "../trestle-mapper";
-import { allFieldNames } from '@/lib/cotality/live-contract';
+import { allFieldNames } from '@/lib/cotality/verified-contract';
 
 /**
  * Live-parity guard for the B26 media field group.
