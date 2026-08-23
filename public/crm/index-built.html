@@ -9,7 +9,6 @@
     <meta http-equiv="Expires" content="0">
     <title>MALLAN NYC - Search Standalone</title>
     <script>
-    // Global error handler — catches any JS errors during page load
     window.onerror = function(msg, url, line, col, error) {
         var errDiv = document.getElementById('jsErrorBanner');
         if (!errDiv) {
@@ -23,23 +22,19 @@
         return false;
     };
     </script>
-    <!-- Render-blocking: hide everything until JS restores the correct search state -->
     <style id="searchRenderBlock">body{opacity:0!important}</style>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.18"></script>
     <style type="text/tailwindcss">
         @import "tailwindcss";
     </style>
-    <!-- Font Awesome 6.7.2 — preload critical font files for instant icon rendering -->
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/webfonts/fa-solid-900.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/webfonts/fa-regular-400.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&family=Urbanist:wght@200;300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- EmailJS SDK — client-side email delivery (free: 200/month) -->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
-    <!-- ═══ CSS Modules ═══ -->
     <style>
     /* ═══ css/base.css ═══ */
 /* ═══════════════════════════════════════════════════════
@@ -3227,7 +3222,6 @@ input[type="range"] {
 </head>
 <body class="bg-gray-100 min-h-screen">
 
-<!-- Early utility functions needed by onclick handlers in HTML -->
 <script>
 function toggleSection(header) {
     var content = header.nextElementSibling;
@@ -3237,7 +3231,6 @@ function toggleSection(header) {
 }
 </script>
 
-<!-- ═══ HTML Sections ═══ -->
 <!-- ═══ html/nav.html ═══ -->
 <!-- HEADER / NAV -->
 <header class="bg-[#1a1a1a] text-white sticky top-0 z-50">
@@ -11328,7 +11321,6 @@ function toggleSection(header) {
 </div>
 
 
-<!-- ═══ Modals ═══ -->
 <!-- ═══ html/modals/grid-layouts.html ═══ -->
 <!-- GRID LAYOUTS MODAL (extracted from section-main) -->
 <div id="gridLayoutsModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center" onclick="if(event.target===this)closeGridLayoutsModal()" role="dialog" aria-modal="true" aria-labelledby="gridLayoutsModalTitle">
@@ -13160,11 +13152,8 @@ function toggleSection(header) {
 </div>
 
 
-<!-- ═══ JavaScript ═══ -->
 <script>
-// ═══════════════════════════════════════════════════════
 // MAIN SCRIPT BLOCK
-// ═══════════════════════════════════════════════════════
 </script>
 
 <!-- Core -->
@@ -19387,6 +19376,152 @@ function manageShowToast(msg) {
 
 
 </script>
+<!-- Exact live-Cotality executable-criteria boundary. Must load immediately
+     after the historical collector so only verified provider values can leave it. -->
+<script>
+// ═══ js/search/cotality-criteria-boundary.js ═══
+/*
+ * Authenticated Search executable-criteria boundary.
+ *
+ * Provider authority is the live Cotality API. The browser may contain old UI
+ * labels/markup for compatibility, but no non-Cotality status is allowed to
+ * leave this boundary as a provider criterion.
+ *
+ * The server independently validates StandardStatus again. This file is a
+ * browser safety boundary, not a competing provider mapping authority.
+ */
+(function installCotalityCriteriaBoundary() {
+    'use strict';
+
+    var STANDARD_STATUS = Object.freeze([
+        'Active',
+        'ActiveUnderContract',
+        'Canceled',
+        'Closed',
+        'ComingSoon',
+        'Delete',
+        'Expired',
+        'Hold',
+        'Incomplete',
+        'Pending',
+        'Withdrawn'
+    ]);
+    var STANDARD_STATUS_SET = new Set(STANDARD_STATUS);
+
+    // One-way compatibility for values produced by older Mallan UI/saved state.
+    // These are NOT canonical Search values and are never persisted/sent after
+    // this boundary. Unsupported business sub-statuses deliberately have no map.
+    var LEGACY_STATUS = Object.freeze({
+        ACTIVE: 'Active',
+        UNDER_CONTRACT: 'ActiveUnderContract',
+        CONTRACT: 'ActiveUnderContract',
+        ACTIVEUNDERCONTRACT: 'ActiveUnderContract',
+        ACTIVE_UNDER_CONTRACT: 'ActiveUnderContract',
+        CANCELED: 'Canceled',
+        CANCELLED: 'Canceled',
+        CLOSED: 'Closed',
+        COMING_SOON: 'ComingSoon',
+        COMINGSOON: 'ComingSoon',
+        EXPIRED: 'Expired',
+        HOLD: 'Hold',
+        INCOMPLETE: 'Incomplete',
+        PENDING: 'Pending',
+        WITHDRAWN: 'Withdrawn',
+        DELETE: 'Delete'
+    });
+
+    function migrateOnce(value) {
+        var raw = String(value == null ? '' : value).trim();
+        if (!raw) return null;
+        if (STANDARD_STATUS_SET.has(raw)) return raw;
+        return LEGACY_STATUS[raw] || null;
+    }
+
+    function exactStatuses(values) {
+        var out = [];
+        var rejected = [];
+        (Array.isArray(values) ? values : []).forEach(function(value) {
+            var migrated = migrateOnce(value);
+            if (!migrated) {
+                rejected.push(String(value));
+                return;
+            }
+            if (out.indexOf(migrated) === -1) out.push(migrated);
+        });
+        if (rejected.length) {
+            var err = new Error(
+                'Unsupported Cotality status criterion: ' + rejected.join(', ') +
+                '. This filter cannot be sent because it is not a live StandardStatus member.'
+            );
+            err.code = 'UNSUPPORTED_CRITERION';
+            err.criterion = 'status';
+            err.unsupportedValues = rejected;
+            throw err;
+        }
+        return out;
+    }
+
+    function disableNonCotalityStatusControls() {
+        document.querySelectorAll('[data-field="MlsStatus"][data-sub-status]').forEach(function(el) {
+            el.checked = false;
+            el.disabled = true;
+            el.setAttribute('aria-disabled', 'true');
+            el.setAttribute(
+                'title',
+                'Unavailable: this historical Mallan sub-status is not a live Cotality StandardStatus criterion.'
+            );
+            var label = el.closest('label');
+            if (label) {
+                label.classList.add('opacity-50');
+                label.setAttribute('data-cotality-unsupported', 'status-substatus');
+            }
+        });
+    }
+
+    function installSerializerGuard() {
+        if (typeof window.buildIdxSearchParams !== 'function') return false;
+        if (window.buildIdxSearchParams.__cotalityExactStatusBoundary) return true;
+
+        var original = window.buildIdxSearchParams;
+        var wrapped = function(criteria) {
+            var input = criteria || {};
+            var normalized = Object.assign({}, input);
+            if (Array.isArray(input.statuses) && input.statuses.length) {
+                normalized.statuses = exactStatuses(input.statuses);
+            }
+
+            var params = original(normalized);
+            if (normalized.statuses && normalized.statuses.length) {
+                // Exact members only; no browser mapping table and no invented
+                // aliases cross the provider boundary.
+                params.status = normalized.statuses.join(',');
+            }
+            return params;
+        };
+        wrapped.__cotalityExactStatusBoundary = true;
+        window.buildIdxSearchParams = wrapped;
+        return true;
+    }
+
+    // Expose only for focused tests/diagnostics.
+    window.CotalityStatusCriteria = Object.freeze({
+        members: STANDARD_STATUS.slice(),
+        migrateOnce: migrateOnce,
+        exactStatuses: exactStatuses
+    });
+
+    disableNonCotalityStatusControls();
+    installSerializerGuard();
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            disableNonCotalityStatusControls();
+            installSerializerGuard();
+        }, { once: true });
+    }
+})();
+
+</script>
 <script>
 // ═══ js/search/form-ui-helpers.js ═══
         function addQuickSearchAddressRow(btn) {
@@ -22847,7 +22982,6 @@ function parseBudgetValue(td) {
 
 </script>
 
-<!-- Selection -->
 <script>
 // ═══ js/listing/listing-selection.js ═══
         // ═══════════════════════════════════════════════════════════════════════════════
@@ -23179,8 +23313,6 @@ function parseBudgetValue(td) {
         }
 
 </script>
-
-<!-- Saved Searches -->
 <script>
 // ═══ js/search/saved-searches.js ═══
         // ═══════════════════════════════════════════════════════════════════════════════
@@ -23888,8 +24020,6 @@ function parseBudgetValue(td) {
 
 
 </script>
-
-<!-- Grid Layouts -->
 <script>
 // ═══ js/render/grid-layouts.js ═══
         // ═══════════════════════════════════════════════════════════════════════════════
@@ -24096,8 +24226,6 @@ function parseBudgetValue(td) {
 
 
 </script>
-
-<!-- Neighborhood Map -->
 <script>
 // ═══ js/render/neighborhood-geodata.js ═══
 // Embedded GeoJSON for neighborhood map (works on file:// protocol)
@@ -24730,8 +24858,6 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
 })();
 
 </script>
-
-<!-- Results Split-View Map -->
 <script>
 // ═══ js/render/results-map.js ═══
 /**
@@ -25355,8 +25481,6 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
 })();
 
 </script>
-
-<!-- Print Helper (CSP-safe Blob URL) -->
 <script>
 // ═══ js/output/print-helper.js ═══
 /**
@@ -25392,8 +25516,6 @@ function openPrintableWindow(html, options) {
 }
 
 </script>
-
-<!-- Reports (Comparables) -->
 <script>
 // ═══ js/output/reports.js ═══
         // ═══════════════════════════════════════════════════════════════════════════════
@@ -29389,8 +29511,6 @@ function emailCurrentCalc() {
 }
 
 </script>
-
-<!-- Search: Pagination, Rent vs Buy, Filter -->
 <script>
 // ═══ js/search/pagination.js ═══
         // Pagination functions — use getFilteredListings(true) to get total count without pagination
@@ -32427,8 +32547,6 @@ function emailCurrentCalc() {
 })();
 
 </script>
-
-<!-- Listing: Flags, Toolbar -->
 <script>
 // ═══ js/listing/listing-flags.js ═══
         // ── Listing flags (per-agent, persisted to localStorage) ──
@@ -33135,8 +33253,6 @@ function emailCurrentCalc() {
         // ═══════════════════════════════════════════════════════════════
 
 </script>
-
-<!-- RLS Listing Tracker -->
 <script>
 // ═══ js/init/init-tracker.js ═══
         // ═══════════════════════════════════════════════════════════════════
@@ -33323,8 +33439,6 @@ function emailCurrentCalc() {
         });
 
 </script>
-
-<!-- Hash routing -->
 <script>
 // ═══ js/init/init-hash-routing.js ═══
     document.addEventListener('DOMContentLoaded', function() {
@@ -33713,8 +33827,6 @@ function emailCurrentCalc() {
     }
 
 </script>
-
-<!-- Disable CRM search controls that don't reach the backend (Batch 3, 2026-05-04) -->
 <script>
 // ═══ js/init/init-disable-dead-controls.js ═══
         // ═══════════════════════════════════════════════════════════════════
@@ -33990,7 +34102,7 @@ function emailCurrentCalc() {
 
 </script>
 
-<!-- Compliance: REBNY Gates + Fair Housing + Content Scanners -->
+<!-- Compliance/output boundary -->
 <script>
 // ═══ js/compliance/fair-housing.js ═══
         // ============================================================
@@ -37558,7 +37670,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 </script>
 
-<!-- Listing email campaigns (investor / 1031) -->
 <script>
 // ═══ js/campaigns/listing-campaign.js ═══
 // ═══════════════════════════════════════════════════════════════════════════
@@ -37890,7 +38001,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 </script>
 
-<!-- ═══ Test Framework (conditional) ═══ -->
 <script>
 if (window.location.search.indexOf('test') !== -1) {
     var s = document.createElement('script');
