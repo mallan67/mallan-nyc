@@ -90,7 +90,7 @@
               "cron": "dom-reset|resetDom"
             },
             "expected_aggregate": "PASS",
-            "notes": "DOM reset constant + helper + cron job all required. UCBA Art. I §11."
+            "notes": "DOM reset constant + helper + cron job all required. UCBA Art. I \u00a711."
           }
         },
         {
@@ -215,12 +215,12 @@
               "helper": "circumvent|reset|same.address"
             },
             "expected_aggregate": "UNVERIFIED",
-            "notes": "Semantic rule: cannot circumvent DOM by re-naming or re-listing same address. Detection requires same-address windowed query — needs human review of edge cases."
+            "notes": "Semantic rule: cannot circumvent DOM by re-naming or re-listing same address. Detection requires same-address windowed query \u2014 needs human review of edge cases."
           }
         },
         {
           "id": "A6",
-          "name": "Protected Period — 6 Names",
+          "name": "Protected Period \u2014 6 Names",
           "ucbaRef": "Art. II, Sec. 13",
           "requirement": "Within 7 business days after listing expiration, Exclusive Broker delivers up to 6 names to Owner",
           "verdict": "PASS",
@@ -262,7 +262,7 @@
         },
         {
           "id": "A7",
-          "name": "Protected Period — 90 Days",
+          "name": "Protected Period \u2014 90 Days",
           "ucbaRef": "Art. II, Sec. 13",
           "requirement": "If contract/lease executed within 90 days with one of the 6 names, Exclusive Broker entitled to compensation",
           "verdict": "PASS",
@@ -308,7 +308,7 @@
             "public/crm/js/crm/protected-periods.js"
           ],
           "verifyPattern": "listing_expiration|protected_period|notify.*broker|Notify Broker",
-          "verifyDescription": "Broker notified via listing_expiration notifications on expiration + missed deadline. CRM detail modal shows period info. Internal audit document — notice not sent to RLS.",
+          "verifyDescription": "Broker notified via listing_expiration notifications on expiration + missed deadline. CRM detail modal shows period info. Internal audit document \u2014 notice not sent to RLS.",
           "validation_v2": {
             "validation_mode": "workflow",
             "ci_policy": "must_pass",
@@ -664,7 +664,7 @@
               "schema": "status_changed_at|idx_display_yn"
             },
             "expected_aggregate": "PASS",
-            "notes": "REBNY §2.05: closed listings removed/hidden within 24h. Cron + Trestle mapper both enforce."
+            "notes": "REBNY \u00a72.05: closed listings removed/hidden within 24h. Cron + Trestle mapper both enforce."
           }
         },
         {
@@ -824,7 +824,7 @@
               "gate": "PropertyType.*[Ss]ale|sale.*only|coming.*soon.*sale"
             },
             "expected_aggregate": "PASS",
-            "notes": "Coming Soon is sales-only — rentals never use it (UCBA Art. I §16)."
+            "notes": "Coming Soon is sales-only \u2014 rentals never use it (UCBA Art. I \u00a716)."
           }
         },
         {
@@ -854,7 +854,7 @@
               "gate": "COMING_SOON_MAX_DAYS|14-day\\s+maximum|14\\s*day(?:s)?\\s*max"
             },
             "expected_aggregate": "PASS",
-            "notes": "Coming Soon max 14 calendar days (UCBA Art. I §16(B))."
+            "notes": "Coming Soon max 14 calendar days (UCBA Art. I \u00a716(B))."
           }
         },
         {
@@ -985,7 +985,7 @@
               "route": "existingActivationDate|D12\\s*immutability|ActivationDate.*[Ii]mmutab|first_active_date"
             },
             "expected_aggregate": "PASS",
-            "notes": "Coming Soon → Active activation date is immutable once set. Tightened patterns per Codex review (PR #70): bare 'status' would match anything in a *status* route file; bare '14' would match any unrelated number 14 in the gate file."
+            "notes": "Coming Soon \u2192 Active activation date is immutable once set. Tightened patterns per Codex review (PR #70): bare 'status' would match anything in a *status* route file; bare '14' would match any unrelated number 14 in the gate file."
           }
         }
       ]
@@ -1021,7 +1021,7 @@
               "route": "BuyerRep|buyer.rep|agreement"
             },
             "expected_aggregate": "PASS",
-            "notes": "Showing requires executed Buyer Rep agreement (UCBA Art. II §16)."
+            "notes": "Showing requires executed Buyer Rep agreement (UCBA Art. II \u00a716)."
           }
         }
       ]
@@ -1236,7 +1236,7 @@
               "frontend_display": "Listing\\s+Courtesy\\s+of|REBNY|listing_courtesy"
             },
             "expected_aggregate": "PASS",
-            "notes": "Attribution on every listing display. UCBA Art. III §2(C)."
+            "notes": "Attribution on every listing display. UCBA Art. III \u00a72(C)."
           }
         },
         {
@@ -1359,7 +1359,7 @@
           "id": "H10",
           "name": "Protect Confidential Fields",
           "ucbaRef": "Art. VIII, Sec. 2",
-          "requirement": "InternetAddressDisplayYN=False → hide address. ExpirationDate → never display.",
+          "requirement": "InternetAddressDisplayYN=False \u2192 hide address. ExpirationDate \u2192 never display.",
           "verdict": "PASS",
           "verifyFiles": [
             "lib/compliance/dto.ts"
@@ -1462,7 +1462,7 @@
               "route": "checkDistributionGates|OwnerOptOut"
             },
             "expected_aggregate": "PASS",
-            "notes": "Gate 1: Owner Opt-Out — listing hidden from ALL public surfaces."
+            "notes": "Gate 1: Owner Opt-Out \u2014 listing hidden from ALL public surfaces."
           }
         },
         {
@@ -1504,14 +1504,14 @@
               "route": "checkDistributionGates|ParticipantOnly"
             },
             "expected_aggregate": "PASS",
-            "notes": "Gate 2: Participant Only — RLS participants only, never public."
+            "notes": "Gate 2: Participant Only \u2014 RLS participants only, never public."
           }
         },
         {
           "id": "GATE-3",
           "name": "IDX Display",
           "ucbaRef": "Art. III, Sec. 2(C)",
-          "requirement": "InternetEntireListingDisplayYN=False → excluded from IDX websites (no separate IDXEntireListingDisplayYN on Trestle)",
+          "requirement": "InternetEntireListingDisplayYN=False \u2192 excluded from IDX websites (no separate IDXEntireListingDisplayYN on Trestle)",
           "verdict": "PASS",
           "verifyFiles": [
             "lib/idx/trestle-mapper.ts",
@@ -1553,7 +1553,7 @@
           "id": "GATE-4",
           "name": "Syndication",
           "ucbaRef": "UCBA General",
-          "requirement": "SyndicateTo disabled → excluded from syndication portals (UCBA: SyndicateYN)",
+          "requirement": "SyndicateTo disabled \u2192 excluded from syndication portals (UCBA: SyndicateYN)",
           "verdict": "PASS",
           "verifyFiles": [
             "lib/compliance/rls-enforcement.ts"
@@ -1673,7 +1673,7 @@
             "public/crm/SALE-FORM-REDESIGN.html"
           ],
           "verifyPattern": "NumberOfShares|saleUnitShares",
-          "verifyDescription": "Check field exists WITHOUT data-rls-ignore AND is mapped in payload builder to NumberOfShares",
+          "verifyDescription": "Co-op share count is collected: #saleUnitShares exists, is marked required, and is validated by form-validation.js.",
           "validation_v2": {
             "validation_mode": "pattern",
             "ci_policy": "must_pass",
@@ -1687,10 +1687,10 @@
               ]
             },
             "surface_patterns": {
-              "ui_form": "NumberOfShares|number.of.shares|saleNumberOfShares"
+              "ui_form": "saleUnitShares|NumberOfShares|number.of.shares"
             },
             "expected_aggregate": "PASS",
-            "notes": "Co-op listings must collect NumberOfShares."
+            "notes": "Co-op listings must collect the unit share count. Evidence is the control itself (#saleUnitShares, required), not a provider field name in markup."
           }
         },
         {

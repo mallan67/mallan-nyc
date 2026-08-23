@@ -2,9 +2,6 @@
   "_meta": {
     "description": "Mallan form fields that never leave Mallan. Internal notes, agent contact details and workflow state are Mallan's own data; they are withheld regardless of what any provider does or does not expose.",
     "authority": "Mallan business rule, enforced by scripts/ci-compliance-check.js check 29e",
-    "migratedFrom": "data/rls-internal-only.json",
-    "migratedOn": "2026-08-23",
-    "why": "The classification is a MALLAN concept and was framed in provider terms. Provider vocabulary cannot decide which of Mallan's own fields are internal.",
     "count": 619
   },
   "internalOnlyFields": [

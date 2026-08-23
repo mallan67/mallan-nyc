@@ -34,7 +34,7 @@ const manifest = {
     eventHandlers: [],       // onclick, onchange, oninput, etc.
     formFields: [],          // input, select, textarea with id or name or data-field
     modals: [],              // elements that look like modal containers
-    dataAttributes: [],      // data-cotality-field, data-rls-field, data-field, etc.
+    dataAttributes: [],      // data-cotality-field, data-mallan-group, data-field, etc.
     cssClasses: [],          // unique classes used in class="" attributes
     scriptSources: [],       // external script src references
     sections: [],            // major section div IDs
@@ -78,10 +78,10 @@ while ((match = fieldRegex.exec(html)) !== null) {
     const name = (tag.match(/\bname="([^"]+)"/) || [])[1] || null;
     const type = (tag.match(/\btype="([^"]+)"/) || [])[1] || null;
     const dataField = (tag.match(/\bdata-field="([^"]+)"/) || [])[1] || null;
-    const dataReso = (tag.match(/\bdata-cotality-field="([^"]+)"/) || [])[1] || null;
-    const dataRls = (tag.match(/\bdata-rls-field="([^"]+)"/) || [])[1] || null;
-    if (id || name || dataField || dataReso || dataRls) {
-        fields.push({ id, name, type, dataField, dataReso, dataRls });
+    const dataCotalityField = (tag.match(/\bdata-cotality-field="([^"]+)"/) || [])[1] || null;
+    const dataMallanGroup = (tag.match(/\bdata-mallan-group="([^"]+)"/) || [])[1] || null;
+    if (id || name || dataField || dataCotalityField || dataMallanGroup) {
+        fields.push({ id, name, type, dataField, dataCotalityField, dataMallanGroup });
     }
 }
 manifest.formFields = fields;

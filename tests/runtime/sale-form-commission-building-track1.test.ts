@@ -72,13 +72,13 @@ describe('Commission collision fix', () => {
 });
 
 describe('Building — phantom fields reclassified internal (match Cotality)', () => {
-  it('saleBldgNumElevators is no longer tagged as Cotality ElevatorsTotal', () => {
-    expect(formHtml).toMatch(/id="saleBldgNumElevators"[^>]*data-rls-ignore="true"[^>]*data-removed-field="ElevatorsTotal"/);
-    expect(formHtml).not.toMatch(/id="saleBldgNumElevators"[^>]*data-rls-field="ElevatorsTotal"/);
+  it('saleBldgNumElevators is Mallan-internal, not a provider field', () => {
+    expect(formHtml).toMatch(/id="saleBldgNumElevators"[^>]*data-mallan-internal="true"/);
+    expect(formHtml).not.toMatch(/id="saleBldgNumElevators"[^>]*data-cotality-field="ElevatorsTotal"/);
   });
-  it('saleBldgNewDevelopment is no longer tagged as Cotality (was duplicating NewConstructionYN)', () => {
-    expect(formHtml).toMatch(/id="saleBldgNewDevelopment"[^>]*data-rls-ignore="true"[^>]*data-removed-field="NewDevelopmentYN"/);
-    expect(formHtml).not.toMatch(/id="saleBldgNewDevelopment"[^>]*data-rls-field="NewConstructionYN"/);
+  it('saleBldgNewDevelopment is Mallan-internal, not a provider field', () => {
+    expect(formHtml).toMatch(/id="saleBldgNewDevelopment"[^>]*data-mallan-internal="true"/);
+    expect(formHtml).not.toMatch(/id="saleBldgNewDevelopment"[^>]*data-cotality-field="NewConstructionYN"/);
   });
   it('collect no longer emits the phantom canonical keys; NewConstructionYN (real) still emitted', () => {
     const collect = extractFn(formHtml, 'collectSaleFormData');

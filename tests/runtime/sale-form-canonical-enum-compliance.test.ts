@@ -173,7 +173,7 @@ describe('BuildingFeatures translation table — Herringbone-class PR #270 fix',
     expect(populateBody).toMatch(/raw\.saleBuildingFeaturesInternal/);
   });
 
-  it('non-amenity inputs no longer carry data-rls-field="BuildingFeatures" mis-tag', () => {
+  it('non-amenity inputs no longer carry data-mallan-group="buildingFeatures" mis-tag', () => {
     // The 9 mis-tagged inputs (Historic / LEED / Conversion + 5 policies +
     // 1 Yes/No radio) must NOT be tagged BuildingFeatures anymore — they
     // have their own SALE_FIELD_MAP / SALE_RADIO_MAP entries.
@@ -184,7 +184,7 @@ describe('BuildingFeatures translation table — Herringbone-class PR #270 fix',
     ];
     for (const id of misTaggedIds) {
       const tag = formHtml.match(new RegExp(`<input[^>]*id="${id}"[^>]*>`, ''))?.[0] || '';
-      expect({ id, stillTagged: /data-rls-field="BuildingFeatures"/.test(tag) }).toEqual({
+      expect({ id, stillTagged: /data-mallan-group="buildingFeatures"/.test(tag) }).toEqual({
         id,
         stillTagged: false,
       });
@@ -193,7 +193,7 @@ describe('BuildingFeatures translation table — Herringbone-class PR #270 fix',
 
   it('only the 19 SALE_BUILDING_FEATURE_IDS amenity checkboxes carry the BuildingFeatures tag', () => {
     // Count occurrences in HTML inputs (excludes the JS query string).
-    const inputMatches = formHtml.match(/<input[^>]*data-rls-field="BuildingFeatures"[^>]*>/g) || [];
+    const inputMatches = formHtml.match(/<input[^>]*data-mallan-group="buildingFeatures"[^>]*>/g) || [];
     expect(inputMatches.length).toBe(19);
   });
 });
@@ -215,11 +215,11 @@ describe('Flooring — demoted to Mallan internal (Codex PR #270 review)', () =>
     expect(codeOnly).not.toMatch(/data\.Flooring\s*=\s*\[\]/);
   });
 
-  it('Flooring inputs are marked data-rls-ignore (legacy validator attribute, Mallan internal)', () => {
+  it('Flooring inputs are marked data-mallan-internal (Mallan-owned classificationute, Mallan internal)', () => {
     const flooringInputs = formHtml.match(/<input[^>]*name="saleFlooring"[^>]*>/g) || [];
     expect(flooringInputs.length).toBe(5);
     for (const tag of flooringInputs) {
-      expect(tag).toContain('data-rls-ignore="true"');
+      expect(tag).toContain('data-mallan-internal="true"');
     }
   });
 

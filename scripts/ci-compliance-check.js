@@ -999,10 +999,9 @@ function git(cmd) {
 
   // 29e. Internal-only fields must never reach a public surface.
   //
-  // MALLAN-OWNED CLASSIFICATION. These are Mallan's own form fields - internal
-  // notes, agent contact details, workflow state - which never leave Mallan
-  // regardless of what any provider does or does not expose. Formerly
-  // data/rls-internal-only.json, which framed a Mallan concept in provider terms.
+  // MALLAN-OWNED CLASSIFICATION. Mallan's own form fields - internal notes,
+  // agent contact details, workflow state - which never leave Mallan regardless
+  // of what any provider does or does not expose.
   const internalRules = path.join(ROOT, 'compliance/rules/mallan-internal-only-fields.json');
   if (!fs.existsSync(internalRules)) {
     fail('Mallan internal-only field classification missing (compliance/rules/mallan-internal-only-fields.json)');
