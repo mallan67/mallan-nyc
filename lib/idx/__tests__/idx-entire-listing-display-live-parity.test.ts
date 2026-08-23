@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { mapRESOToInternal } from '../mapping';
+import { mapCotalityToInternal } from '../mapping';
 
 /**
  * PR-live-2 (2026-06-04) — the entire-listing display gate must be driven
@@ -41,9 +41,9 @@ const BASE_RAW: Record<string, unknown> = {
   ListOfficeName: 'Compass',
 };
 
-describe('mapRESOToInternal — entire-listing display is driven only by InternetEntireListingDisplayYN', () => {
+describe('mapCotalityToInternal — entire-listing display is driven only by InternetEntireListingDisplayYN', () => {
   it('phantom IDXEntireListingDisplayYN:false is ignored (only Internet* drives the gate)', () => {
-    const dto = mapRESOToInternal({
+    const dto = mapCotalityToInternal({
       ...BASE_RAW,
       IDXEntireListingDisplayYN: false, // phantom — must NOT affect output
       // InternetEntireListingDisplayYN intentionally absent (null upstream)
@@ -55,7 +55,7 @@ describe('mapRESOToInternal — entire-listing display is driven only by Interne
   });
 
   it('explicit InternetEntireListingDisplayYN:false suppresses BOTH the public key and the internal field', () => {
-    const dto = mapRESOToInternal({
+    const dto = mapCotalityToInternal({
       ...BASE_RAW,
       InternetEntireListingDisplayYN: false,
     });
@@ -65,7 +65,7 @@ describe('mapRESOToInternal — entire-listing display is driven only by Interne
   });
 
   it('null/absent InternetEntireListingDisplayYN = displayable (IDX Plus pre-filter convention)', () => {
-    const dto = mapRESOToInternal({
+    const dto = mapCotalityToInternal({
       ...BASE_RAW,
       InternetEntireListingDisplayYN: null,
     });

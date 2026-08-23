@@ -1,5 +1,5 @@
 /**
- * C1 fix (2026-05-13) — `mapRESOToInternal` must honor IDX Plus pre-filter
+ * C1 fix (2026-05-13) — `mapCotalityToInternal` must honor IDX Plus pre-filter
  * semantics on `InternetEntireListingDisplayYN` and `InternetAddressDisplayYN`.
  *
  * Before the fix:
@@ -19,7 +19,7 @@
  * not touched here.
  */
 
-import { mapRESOToInternal } from '../mapping';
+import { mapCotalityToInternal } from '../mapping';
 
 const BASE_RAW: Record<string, unknown> = {
   ListingId: 'RLS20059088',
@@ -45,7 +45,7 @@ const BASE_RAW: Record<string, unknown> = {
   ListOfficeName: 'Compass',
 };
 
-describe('mapRESOToInternal — IDX Plus pre-filter parity (C1)', () => {
+describe('mapCotalityToInternal — IDX Plus pre-filter parity (C1)', () => {
   it('treats null InternetAddressDisplayYN as displayable', () => {
     // The common case on the IDX Plus feed: REBNY/Cotality pre-filters
     // non-displayable rows out, so survivors arrive with this field null.
@@ -54,7 +54,7 @@ describe('mapRESOToInternal — IDX Plus pre-filter parity (C1)', () => {
       InternetEntireListingDisplayYN: null,
       InternetAddressDisplayYN: null,
     };
-    const result = mapRESOToInternal(raw);
+    const result = mapCotalityToInternal(raw);
     expect(result).not.toBeNull();
     expect(result!.internetAddressDisplayYN).toBe(true);
     expect(result!.internetEntireListingDisplayYN).toBe(true);
@@ -66,7 +66,7 @@ describe('mapRESOToInternal — IDX Plus pre-filter parity (C1)', () => {
     // No explicit assignment leaves the keys missing.
     delete (raw as Record<string, unknown>).InternetEntireListingDisplayYN;
     delete (raw as Record<string, unknown>).InternetAddressDisplayYN;
-    const result = mapRESOToInternal(raw);
+    const result = mapCotalityToInternal(raw);
     expect(result).not.toBeNull();
     expect(result!.internetAddressDisplayYN).toBe(true);
     expect(result!.internetEntireListingDisplayYN).toBe(true);
@@ -80,7 +80,7 @@ describe('mapRESOToInternal — IDX Plus pre-filter parity (C1)', () => {
       InternetEntireListingDisplayYN: true,
       InternetAddressDisplayYN: false,
     };
-    const result = mapRESOToInternal(raw);
+    const result = mapCotalityToInternal(raw);
     expect(result).not.toBeNull();
     expect(result!.internetAddressDisplayYN).toBe(false);
     expect(result!.internetEntireListingDisplayYN).toBe(true);
@@ -92,7 +92,7 @@ describe('mapRESOToInternal — IDX Plus pre-filter parity (C1)', () => {
       InternetEntireListingDisplayYN: false,
       InternetAddressDisplayYN: true,
     };
-    const result = mapRESOToInternal(raw);
+    const result = mapCotalityToInternal(raw);
     expect(result).not.toBeNull();
     expect(result!.internetEntireListingDisplayYN).toBe(false);
   });
@@ -103,7 +103,7 @@ describe('mapRESOToInternal — IDX Plus pre-filter parity (C1)', () => {
       InternetEntireListingDisplayYN: true,
       InternetAddressDisplayYN: true,
     };
-    const result = mapRESOToInternal(raw);
+    const result = mapCotalityToInternal(raw);
     expect(result).not.toBeNull();
     expect(result!.internetAddressDisplayYN).toBe(true);
     expect(result!.internetEntireListingDisplayYN).toBe(true);
@@ -117,7 +117,7 @@ describe('mapRESOToInternal — IDX Plus pre-filter parity (C1)', () => {
       ...BASE_RAW,
       InternetEntireListingDisplayYN: null,
     };
-    const result = mapRESOToInternal(raw);
+    const result = mapCotalityToInternal(raw);
     expect(result).not.toBeNull();
     expect(result!.idxEntireListingDisplayYN).toBe(true);
   });

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { fetchFromTrestle } from '@/lib/idx/fetch';
 import { getAccessToken } from '@/lib/idx/auth';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
-import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
+import { mapCotalityToInternal, generateAttributionText } from '@/lib/idx/mapping';
 import { toPublicDTO, annotateCoListedSiblings } from '@/lib/idx/public-dto';
 import { CARD_SELECT_FIELDS } from '@/lib/idx/card-fields';
 import prisma from '@/lib/prisma';
@@ -149,7 +149,7 @@ function checkRateLimit(ip: string): boolean {
  * COMPLIANCE PIPELINE (Option A — distribution gates on raw Trestle data):
  *   fetchFromTrestle() → raw records
  *   checkDistributionGates(raw) → filter non-displayable
- *   mapRESOToInternal(raw) → IDXListing
+ *   mapCotalityToInternal(raw) → IDXListing
  *   toPublicDTO(listing) → PublicListingDTO (strips private data, suppresses address)
  *
  * When IDX_ENABLED=true: fetches from Trestle/REBNY RLS via OData v4.
@@ -879,7 +879,7 @@ export async function GET(request: Request) {
 
         // Step 2: Map to IDXListing
         const mapped = subTypeFiltered
-          .map((raw) => mapRESOToInternal(raw))
+          .map((raw) => mapCotalityToInternal(raw))
           .filter((l): l is NonNullable<typeof l> => l !== null);
 
         // Step 3: Post-fetch filters (can't push to OData)

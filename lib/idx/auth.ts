@@ -1,5 +1,7 @@
 // lib/idx/auth.ts
-// OAuth2 client credentials flow for Trestle/REBNY RLS API.
+// OAuth2 client credentials flow for the Cotality API.
+// Cotality is the sole provider Mallan authenticates to; there is no second
+// provider API behind it.
 // Caches token until 5 minutes before expiry.
 
 import { recordTokenRequest, recordTokenRefresh } from "./cotality-telemetry";

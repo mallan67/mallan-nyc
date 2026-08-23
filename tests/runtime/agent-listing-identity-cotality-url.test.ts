@@ -32,7 +32,7 @@ describe('cross-source dedupe — DB DTO vs Trestle DTO address shapes', () => {
     id: 'SL-0004',
     address: { streetNumber: '333', streetDirPrefix: 'E', streetName: '46th Street', unitNumber: '2G', postalCode: '10017' },
   };
-  // Trestle shape (toPublicDTO via mapRESOToInternal): no streetDirPrefix,
+  // Trestle shape (toPublicDTO via mapCotalityToInternal): no streetDirPrefix,
   // streetName already = "<dir> <name> <suffix>".
   const RLS_20093870: DedupeCandidate = {
     id: 'RLS20093870',

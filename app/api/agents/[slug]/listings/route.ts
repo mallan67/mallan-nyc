@@ -3,7 +3,7 @@ import prisma from '@/lib/prisma';
 import { excludeMallanRlsReturnCopies } from "@/lib/listings/mallan-source-identity";
 import { fetchFromTrestle } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
-import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
+import { mapCotalityToInternal, generateAttributionText } from '@/lib/idx/mapping';
 import { toPublicDTO, type PublicListingDTO } from '@/lib/idx/public-dto';
 import { getAccessToken } from '@/lib/idx/auth';
 import { filterDisplayableDbListings, dbListingToPublicDTO, type DbListing } from '@/lib/idx/db-to-public-dto';
@@ -175,7 +175,7 @@ async function fetchTrestleAgentListings(agentName: string, trestleMlsId?: strin
     const processRecords = (records: Record<string, unknown>[]): IDXListing[] => {
       const displayable = records.filter((raw) => checkDistributionGates(raw).displayable);
       return displayable
-        .map((raw) => mapRESOToInternal(raw))
+        .map((raw) => mapCotalityToInternal(raw))
         .filter((l): l is IDXListing => l !== null);
     };
 

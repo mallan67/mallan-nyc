@@ -1,6 +1,13 @@
 // lib/idx/trestle-mapper.ts
-// Trestle/REBNY RLS to Prisma Listing model mapper (902 IDX Plus fields across 7 resources).
-// Maps ALL 29 RLS categories. Handles 23 RESO-to-RLS renames.
+// Cotality API -> Mallan canonical storage (Prisma Listing model).
+//
+// The provider is the Cotality API. There is no RESO layer and no RLS layer in
+// between: field names, types and enum members are whatever the live Cotality
+// contract exposes. REBNY/RLS is a Mallan compliance layer far downstream and
+// never redefines a Cotality fact.
+//
+// Field groups below are MALLAN INGESTION/SELECT GROUPS — how Mallan organises
+// its $select, not a taxonomy Cotality defines.
 // READ-ONLY: maps inbound data only — nothing goes back to Trestle.
 
 import { affirmPermission } from "@/lib/compliance/gates";
@@ -9,38 +16,46 @@ import { slimRawData } from "@/lib/compliance/raw-data-keep-fields";
 import { classifyMediaItem } from "@/lib/media/listing-media-resolver";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 
-// ═══════════════════════════════════════════════════════════
-// RESO-to-RLS RENAMES (23 fields)
-// Trestle sends the RLS name; we normalize to our canonical name.
-// ═══════════════════════════════════════════════════════════
-export const RESO_TO_RLS_RENAMES: Record<string, string> = {
-  SourceSystemKey: "ListingKey",
-  MlsStatus: "StandardStatus",
-  SourceSystemModificationTimestamp: "ModificationTimestamp",
-  BuyerAgentMlsId: "BuyerAgentKey",
-  BuyerOfficeMlsId: "BuyerOfficeKey",
-  BuyerTeamMlsId: "BuyerTeamKey",
-  CableTVExpense: "CableTvExpense",
-  CoBuyerAgentMlsId: "CoBuyerAgentKey",
-  CoBuyerOfficeMlsId: "CoBuyerOfficeKey",
-  DuplicateListingIDs: "CoExclusiveListingKey",
-  CoListAgent2MLSID: "CoListAgent2Key",
-  CoListAgent3MLSID: "CoListAgent3Key",
-  CoListAgentMlsId: "CoListAgentKey",
-  ListAgentMlsId: "ListAgentKey",
-  ListOfficeMlsId: "ListOfficeKey",
-  ListTeamMlsId: "ListTeamKey",
-  LotSizeSource: "LotDimensionsSource",
-  ShowingContactPhone: "ShowingContactPhoneExt",
-  UnParsedAddress: "UnparsedAddress",
-};
+// ═══════════════════════════════════════
+// PROVIDER FIELD RENAMES — REMOVED 2026-08-23. Do not reintroduce.
+//
+// A provider-field rename table lived here and copied one real Cotality field's
+// value into a DIFFERENT real Cotality field's name, on the premise stated in
+// its own comment: that the feed sends one name and Mallan normalises it to
+// another.
+//
+// THAT PREMISE IS FALSE. Verified against live Cotality $metadata 2026-08-23:
+// of its 19 pairs, THIRTEEN had BOTH names declared as separate Cotality
+// fields; ONE had neither name declared at all (DuplicateListingIDs ->
+// CoExclusiveListingKey); five had a source Cotality does not declare, so they
+// never fired. Cotality sends both names. There is nothing to normalize.
+//
+// The two most damaging entries:
+//
+//   MlsStatus       -> StandardStatus    two DIFFERENT enums, 25 members vs 11.
+//                                        `Leased` is an MlsStatus member with no
+//                                        StandardStatus equivalent at all.
+//   SourceSystemKey -> ListingKey        two of the three distinct listing
+//                                        identities the canonical field registry
+//                                        deliberately separates.
+//
+// plus every *MlsId -> *Key pair, which Cotality exposes as distinct fields.
+//
+// There is no RESO layer and no RLS layer between Cotality and Mallan. Cotality
+// is the provider; each of its fields keeps its own name and its own value. If
+// Mallan needs a business status derived from the detailed MlsStatus, that is an
+// explicit Mallan business rule AFTER the verified provider mapping — never a
+// pretence that Cotality supplied a different field.
+//
+// Guarded by lib/idx/__tests__/cotality-provider-boundary.test.ts.
 
 // CeilingHeightFeet + CeilingHeightInches → CeilingHeight (split into 2)
 // Handled specially in mapTrestleToPrisma
 
 // ═══════════════════════════════════════════════════════════
 // ALL RLS PROPERTY FIELD NAMES (for $select query)
-// Grouped by the 29 RLS categories (B1–B29)
+// Grouped into 29 MALLAN INGESTION GROUPS (B1–B29). These are how Mallan
+// organises its $select, NOT a taxonomy the Cotality contract defines.
 // ═══════════════════════════════════════════════════════════
 
 // B1: Address (25 fields)
@@ -58,8 +73,10 @@ const B1_ADDRESS = [
 const B2_CLASSIFICATION = [
   // `ListingKey` is REQUIRED by the Property keyset cursor (2026-08-13).
   //
-  // `SourceSystemKey` alone is not enough. RESO_TO_RLS_RENAMES maps
-  // SourceSystemKey -> ListingKey defensively, but this feed sends ListingKey
+  // `SourceSystemKey` alone is not enough, and it is NOT a substitute: they are
+  // two distinct Cotality fields. A rename table used to copy SourceSystemKey
+  // into ListingKey "defensively"; it was removed 2026-08-23 (see the note at
+  // the top of this file). This feed sends ListingKey
   // DIRECTLY and leaves SourceSystemKey NULL. Verified live against
   // api.cotality.com the same day: a $select of both returns
   // ListingKey="1091862396" with SourceSystemKey=null on every sampled row.
@@ -338,7 +355,7 @@ export const B26_MEDIA = [
 
 // B27: Rental-Specific
 // Live-Trestle truth (verified 2026-04-19; MoveInCosts* re-verified 2026-06-04):
-//   - PossessionDate is a RESO field that Trestle ignores (CLAUDE.md "fields
+//   - PossessionDate is a field the Cotality contract ignores (CLAUDE.md "fields
 //     that DO NOT exist on Trestle"). Use AvailabilityDate.
 //   - MoveInCostsAmount (Edm.Decimal) + MoveInCostsComments (Edm.String) ARE live
 //     Property fields as of 2026-06-04 (the cached snapshot had lagged). Both are
@@ -381,7 +398,7 @@ const B29_OTHER = [
 ];
 
 /** All REBNY IDX Plus Property field names combined. Deduplicated. */
-export const ALL_RLS_FIELDS: string[] = [...new Set([
+export const COTALITY_PROPERTY_SELECT_FIELDS: string[] = [...new Set([
   ...B1_ADDRESS, ...B2_CLASSIFICATION, ...B3_LISTING_AGREEMENT,
   ...B4_STATUS_DATES, ...B5_PRICING, ...B6_DISPLAY_FLAGS,
   ...B7_REMARKS, ...B8_LIST_AGENT, ...B9_COLIST_AGENT,
@@ -470,10 +487,10 @@ const IDX_PLUS_EXCLUDED_FIELDS = new Set([
 
 /**
  * Fields validated for the IDX Plus feed $select query.
- * = ALL_RLS_FIELDS minus fields not available on the IDX Plus feed.
+ * = COTALITY_PROPERTY_SELECT_FIELDS minus fields not available on the IDX Plus feed.
  * Use this for $select in fetchFromTrestle() to avoid 400 errors.
  */
-export const IDX_PLUS_SELECT_FIELDS: string[] = ALL_RLS_FIELDS.filter(
+export const IDX_PLUS_SELECT_FIELDS: string[] = COTALITY_PROPERTY_SELECT_FIELDS.filter(
   (f) => !IDX_PLUS_EXCLUDED_FIELDS.has(f)
 );
 
@@ -572,14 +589,20 @@ function pick(
   return result;
 }
 
-/** Normalize rename: if Trestle sends RLS name, map to our canonical name. */
+/**
+ * Cotality-only normalisation.
+ *
+ * The provider-field rename pass was REMOVED here (see the note at the top of
+ * this file): it copied one Cotality field into another Cotality field's name.
+ * Every Cotality field now keeps its own name and its own value.
+ *
+ * What remains is a genuine Mallan DERIVATION, not a rename: Cotality exposes
+ * ceiling height as two separate numeric fields, and Mallan stores one combined
+ * value. That is a Mallan business computation from two real provider fields,
+ * which is exactly where such logic belongs.
+ */
 function normalizeRenames(raw: Record<string, unknown>): Record<string, unknown> {
   const normalized = { ...raw };
-  for (const [rlsName, canonicalName] of Object.entries(RESO_TO_RLS_RENAMES)) {
-    if (rlsName in normalized && !(canonicalName in normalized)) {
-      normalized[canonicalName] = normalized[rlsName];
-    }
-  }
   // Special: CeilingHeightFeet + CeilingHeightInches → combined
   // /* IDX-VALIDATE-IGNORE: CeilingHeight fields excluded from IDX Plus — only populated on CRM listing submissions, not IDX fetch */
   if (normalized.CeilingHeightFeet || normalized.CeilingHeightInches) {
@@ -1331,8 +1354,8 @@ export function checkDistributionGates(raw: Record<string, unknown>): {
   return { displayable: false, reason: result.reason };
 }
 
-/** 41 required REBNY RLS fields that must be present for a valid listing. */
-export const REQUIRED_RLS_FIELDS = [
+/** The Cotality fields Mallan requires before it will accept a listing. */
+export const COTALITY_REQUIRED_FIELDS = [
   // Absolute minimum to identify and store a listing.
   // Verified against live Trestle data — only fields that are ALWAYS present.
   // Many UCBA "mandatory" fields are mandatory for LISTING INPUT (via LMP),
@@ -1355,7 +1378,7 @@ export function validateRequiredFields(raw: Record<string, unknown>): {
   missingFields: string[];
 } {
   const normalized = normalizeRenames(raw);
-  const missing = REQUIRED_RLS_FIELDS.filter(
+  const missing = COTALITY_REQUIRED_FIELDS.filter(
     (field) => normalized[field] === undefined || normalized[field] === null
   );
   return { valid: missing.length === 0, missingFields: missing };

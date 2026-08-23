@@ -10,7 +10,7 @@
  * become the hero / leak onto agent cards.
  */
 
-import { mapRESOToInternal } from "../mapping";
+import { mapCotalityToInternal } from "../mapping";
 import { mapAgentCardMedia } from "../agent-card-media";
 
 function rawListing(media: Array<Record<string, unknown>>): Record<string, unknown> {
@@ -30,9 +30,9 @@ function rawListing(media: Array<Record<string, unknown>>): Record<string, unkno
   };
 }
 
-describe("P1C3 — mapRESOToInternal media classification (lib/idx/mapping.ts)", () => {
+describe("P1C3 — mapCotalityToInternal media classification (lib/idx/mapping.ts)", () => {
   it("classifies feed-form 'FloorPlan' (no space) as FloorPlan, sorted last — never the hero", () => {
-    const listing = mapRESOToInternal(
+    const listing = mapCotalityToInternal(
       rawListing([
         { MediaURL: "https://cdn/fp.jpg", MediaCategory: "FloorPlan", Order: 0 },
         { MediaURL: "https://cdn/photo.jpg", MediaCategory: "Photo", Order: 1 },
@@ -46,7 +46,7 @@ describe("P1C3 — mapRESOToInternal media classification (lib/idx/mapping.ts)",
   });
 
   it("classifies 'UnbrandedVirtualTour' / 'BrandedVirtualTour' as VirtualTour (not Photo)", () => {
-    const listing = mapRESOToInternal(
+    const listing = mapCotalityToInternal(
       rawListing([
         { MediaURL: "https://cdn/tour1.mp4", MediaCategory: "UnbrandedVirtualTour", Order: 0 },
         { MediaURL: "https://cdn/tour2.mp4", MediaCategory: "BrandedVirtualTour", Order: 1 },
@@ -57,7 +57,7 @@ describe("P1C3 — mapRESOToInternal media classification (lib/idx/mapping.ts)",
   });
 
   it("retains the ShortDescription floor-plan heuristic (classifier is category-only)", () => {
-    const listing = mapRESOToInternal(
+    const listing = mapCotalityToInternal(
       rawListing([
         { MediaURL: "https://cdn/x.jpg", MediaCategory: "Photo", ShortDescription: "Floor plan - 2BR", Order: 0 },
       ]),
@@ -66,7 +66,7 @@ describe("P1C3 — mapRESOToInternal media classification (lib/idx/mapping.ts)",
   });
 
   it("preferred photo keeps the -1 order sentinel and photos-first sort is unchanged", () => {
-    const listing = mapRESOToInternal(
+    const listing = mapCotalityToInternal(
       rawListing([
         { MediaURL: "https://cdn/b.jpg", MediaCategory: "Photo", Order: 5 },
         { MediaURL: "https://cdn/a.jpg", MediaCategory: "Photo", Order: 9, PreferredPhotoYN: true },

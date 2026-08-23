@@ -23,7 +23,7 @@
  * these tests fail and surface the regression before deploy.
  */
 
-import { mapRESOToInternal } from '../../lib/idx/mapping';
+import { mapCotalityToInternal } from '../../lib/idx/mapping';
 import { toPublicDTO } from '../../lib/idx/public-dto';
 import {
   dbListingToPublicDTO,
@@ -125,7 +125,7 @@ describe('list/detail DTO parity for the same logical listing (C1)', () => {
       InternetEntireListingDisplayYN: null,
       InternetAddressDisplayYN: null,
     };
-    const idxListing = mapRESOToInternal(trestleRaw);
+    const idxListing = mapCotalityToInternal(trestleRaw);
     expect(idxListing).not.toBeNull();
     const detailDto = toPublicDTO(idxListing!);
 
@@ -151,7 +151,7 @@ describe('list/detail DTO parity for the same logical listing (C1)', () => {
       InternetEntireListingDisplayYN: true,
       InternetAddressDisplayYN: false,
     };
-    const idxListing = mapRESOToInternal(trestleRaw);
+    const idxListing = mapCotalityToInternal(trestleRaw);
     const detailDto = toPublicDTO(idxListing!);
     expect(detailDto.address.streetName).toBe('Address Undisclosed');
     expect(detailDto.address.unitNumber).toBeNull();
@@ -177,7 +177,7 @@ describe('list/detail DTO parity for the same logical listing (C1)', () => {
       InternetEntireListingDisplayYN: true,
       InternetAddressDisplayYN: true,
     };
-    const idxListing = mapRESOToInternal(trestleRaw);
+    const idxListing = mapCotalityToInternal(trestleRaw);
     const detailDto = toPublicDTO(idxListing!);
     expect(detailDto._displayCompliance.disclaimerRequired).toBe(true);
   });
@@ -212,7 +212,7 @@ describe('public identity semantics across source paths', () => {
   };
 
   it('public `id` AGREES across both paths — this is the stable public identity', () => {
-    const detailDto = toPublicDTO(mapRESOToInternal(trestleRaw)!);
+    const detailDto = toPublicDTO(mapCotalityToInternal(trestleRaw)!);
     const listDto = dbListingToPublicDTO(DB_ROW_BASE);
     expect(detailDto.id).toBe('RLS20059088');
     expect(listDto.id).toBe('RLS20059088');
@@ -220,7 +220,7 @@ describe('public identity semantics across source paths', () => {
   });
 
   it('DOCUMENTED DIVERGENCE: `mlsId` does NOT agree across paths', () => {
-    const detailDto = toPublicDTO(mapRESOToInternal(trestleRaw)!);
+    const detailDto = toPublicDTO(mapCotalityToInternal(trestleRaw)!);
     const listDto = dbListingToPublicDTO(DB_ROW_BASE);
 
     // Trestle path publishes the numeric provider ListingKey.
@@ -404,7 +404,7 @@ describe('third-party listings are never attributed to Mallan', () => {
 
   it('Trestle path: attribution never claims Mallan for a Compass listing', () => {
     const detailDto = toPublicDTO(
-      mapRESOToInternal({
+      mapCotalityToInternal({
         ...TRESTLE_RAW_BASE,
         InternetEntireListingDisplayYN: true,
         InternetAddressDisplayYN: true,

@@ -2,21 +2,24 @@
  * RESO-Aligned Field Mapping
  *
  * COMPLIANCE NOTE:
- * Maps RESO Data Dictionary field names to our internal canonical representation.
- * 902 REBNY IDX Plus fields across 7 resources. 23 RESO-to-RLS renames handled.
- * Field truth = the live api.cotality.com/trestle $metadata (RESO-shaped OData model).
+ * Maps live Cotality API field names to the Mallan internal canonical shape.
+ * Cotality API -> Mallan canonical shape. No RESO layer, no RLS layer: each
+ * Cotality field keeps its own name, type and enum as the live contract exposes them.
+ * Field truth = the live api.cotality.com/trestle $metadata. Whatever that
+ * document declares IS the contract — names, EDM types and enum members alike.
+ * Mallan does not model it as anything else.
  */
 
 import type { IDXListing } from './types';
-import { RESO_TO_RLS_RENAMES, ALL_RLS_FIELDS, REQUIRED_RLS_FIELDS } from './trestle-mapper';
+import { COTALITY_PROPERTY_SELECT_FIELDS, COTALITY_REQUIRED_FIELDS } from './trestle-mapper';
 import { normalizeStreetCase } from './normalize-street-case';
 import { classifyTrestleMediaCategory, type CanonicalMediaType } from '@/lib/media/media-sync-service';
 
 /**
- * RESO Data Dictionary field names — complete set.
+ * Cotality API field names — the set Mallan reads.
  * Organized by category per REBNY RLS structure.
  */
-export const RESO_FIELDS = {
+export const COTALITY_FIELDS = {
   // Identifiers
   ListingId: 'ListingId',
   ListingKey: 'ListingKey',
@@ -164,106 +167,103 @@ export const RESO_FIELDS = {
 } as const;
 
 /**
- * Field mapping configuration — maps RESO field names to internal flat paths.
+ * Field mapping configuration — maps Cotality API field names to internal flat paths.
  * Complete mapping for all explicitly tracked fields.
  */
 export const FIELD_MAP: Record<string, string> = {
-  [RESO_FIELDS.ListingId]: 'listingId',
-  [RESO_FIELDS.ListingKey]: 'mlsId',
-  [RESO_FIELDS.StandardStatus]: 'standardStatus',
-  [RESO_FIELDS.ListPrice]: 'listPrice',
-  [RESO_FIELDS.OriginalListPrice]: 'originalListPrice',
-  [RESO_FIELDS.PreviousListPrice]: 'previousListPrice',
-  [RESO_FIELDS.ClosePrice]: 'closePrice',
-  [RESO_FIELDS.PropertyType]: 'propertyType',
-  [RESO_FIELDS.PropertySubType]: 'propertySubType',
-  [RESO_FIELDS.CommonInterest]: 'commonInterest',
-  [RESO_FIELDS.OwnershipType]: 'ownershipType',
-  [RESO_FIELDS.StructureType]: 'structureType',
-  [RESO_FIELDS.BedroomsTotal]: 'bedroomsTotal',
-  [RESO_FIELDS.BathroomsFull]: 'bathroomsFull',
-  [RESO_FIELDS.BathroomsHalf]: 'bathroomsHalf',
-  [RESO_FIELDS.BathroomsTotal]: 'bathroomsTotal',
-  [RESO_FIELDS.LivingArea]: 'livingArea',
-  [RESO_FIELDS.LivingAreaUnits]: 'livingAreaUnits',
-  [RESO_FIELDS.BuildingAreaTotal]: 'buildingAreaTotal',
-  [RESO_FIELDS.LotSizeArea]: 'lotSizeArea',
-  [RESO_FIELDS.LotSizeUnits]: 'lotSizeUnits',
-  [RESO_FIELDS.YearBuilt]: 'yearBuilt',
-  [RESO_FIELDS.StoriesTotal]: 'storiesTotal',
-  [RESO_FIELDS.RoomsTotal]: 'roomsTotal',
-  [RESO_FIELDS.BuildingName]: 'buildingName',
-  [RESO_FIELDS.ArchitecturalStyle]: 'architecturalStyle',
-  [RESO_FIELDS.ConstructionMaterials]: 'constructionMaterials',
-  [RESO_FIELDS.Heating]: 'heating',
-  [RESO_FIELDS.Cooling]: 'cooling',
-  [RESO_FIELDS.FloorNumber]: 'floorNumber',
-  [RESO_FIELDS.Flooring]: 'flooring',
-  [RESO_FIELDS.Appliances]: 'appliances',
-  [RESO_FIELDS.LaundryFeatures]: 'laundryFeatures',
-  [RESO_FIELDS.SecurityFeatures]: 'securityFeatures',
-  [RESO_FIELDS.AttendanceType]: 'attendanceType',
-  [RESO_FIELDS.CommunityFeatures]: 'communityFeatures',
-  [RESO_FIELDS.AssociationAmenities]: 'associationAmenities',
-  [RESO_FIELDS.ParkingFeatures]: 'parkingFeatures',
-  [RESO_FIELDS.ParkingTotal]: 'parkingTotal',
-  [RESO_FIELDS.GarageSpaces]: 'garageSpaces',
-  [RESO_FIELDS.AssociationFee]: 'associationFee',
-  [RESO_FIELDS.AssociationFeeFrequency]: 'associationFeeFrequency',
-  [RESO_FIELDS.TaxAnnualAmount]: 'taxAnnualAmount',
-  [RESO_FIELDS.TaxYear]: 'taxYear',
-  [RESO_FIELDS.DaysOnMarket]: 'daysOnMarket',
-  [RESO_FIELDS.CumulativeDaysOnMarket]: 'cumulativeDaysOnMarket',
-  [RESO_FIELDS.ListingContractDate]: 'listingContractDate',
-  [RESO_FIELDS.ModificationTimestamp]: 'modificationTimestamp',
-  [RESO_FIELDS.OnMarketDate]: 'onMarketDate',
-  [RESO_FIELDS.CloseDate]: 'closeDate',
-  [RESO_FIELDS.ActivationDate]: 'activationDate',
-  [RESO_FIELDS.AvailabilityDate]: 'availabilityDate',
-  [RESO_FIELDS.ListAgentMlsId]: 'listAgentMlsId',
-  [RESO_FIELDS.ListAgentFullName]: 'listAgentFullName',
-  [RESO_FIELDS.ListAgentEmail]: 'listAgentEmail',
-  [RESO_FIELDS.ListOfficeMlsId]: 'listOfficeMlsId',
-  [RESO_FIELDS.ListOfficeName]: 'listOfficeName',
-  [RESO_FIELDS.PhotosCount]: 'photosCount',
-  [RESO_FIELDS.VirtualTourURLBranded]: 'virtualTourURLBranded',
-  [RESO_FIELDS.VirtualTourURLUnbranded]: 'virtualTourURLUnbranded',
-  [RESO_FIELDS.PublicRemarks]: 'publicRemarks',
+  [COTALITY_FIELDS.ListingId]: 'listingId',
+  [COTALITY_FIELDS.ListingKey]: 'mlsId',
+  [COTALITY_FIELDS.StandardStatus]: 'standardStatus',
+  [COTALITY_FIELDS.ListPrice]: 'listPrice',
+  [COTALITY_FIELDS.OriginalListPrice]: 'originalListPrice',
+  [COTALITY_FIELDS.PreviousListPrice]: 'previousListPrice',
+  [COTALITY_FIELDS.ClosePrice]: 'closePrice',
+  [COTALITY_FIELDS.PropertyType]: 'propertyType',
+  [COTALITY_FIELDS.PropertySubType]: 'propertySubType',
+  [COTALITY_FIELDS.CommonInterest]: 'commonInterest',
+  [COTALITY_FIELDS.OwnershipType]: 'ownershipType',
+  [COTALITY_FIELDS.StructureType]: 'structureType',
+  [COTALITY_FIELDS.BedroomsTotal]: 'bedroomsTotal',
+  [COTALITY_FIELDS.BathroomsFull]: 'bathroomsFull',
+  [COTALITY_FIELDS.BathroomsHalf]: 'bathroomsHalf',
+  [COTALITY_FIELDS.BathroomsTotal]: 'bathroomsTotal',
+  [COTALITY_FIELDS.LivingArea]: 'livingArea',
+  [COTALITY_FIELDS.LivingAreaUnits]: 'livingAreaUnits',
+  [COTALITY_FIELDS.BuildingAreaTotal]: 'buildingAreaTotal',
+  [COTALITY_FIELDS.LotSizeArea]: 'lotSizeArea',
+  [COTALITY_FIELDS.LotSizeUnits]: 'lotSizeUnits',
+  [COTALITY_FIELDS.YearBuilt]: 'yearBuilt',
+  [COTALITY_FIELDS.StoriesTotal]: 'storiesTotal',
+  [COTALITY_FIELDS.RoomsTotal]: 'roomsTotal',
+  [COTALITY_FIELDS.BuildingName]: 'buildingName',
+  [COTALITY_FIELDS.ArchitecturalStyle]: 'architecturalStyle',
+  [COTALITY_FIELDS.ConstructionMaterials]: 'constructionMaterials',
+  [COTALITY_FIELDS.Heating]: 'heating',
+  [COTALITY_FIELDS.Cooling]: 'cooling',
+  [COTALITY_FIELDS.FloorNumber]: 'floorNumber',
+  [COTALITY_FIELDS.Flooring]: 'flooring',
+  [COTALITY_FIELDS.Appliances]: 'appliances',
+  [COTALITY_FIELDS.LaundryFeatures]: 'laundryFeatures',
+  [COTALITY_FIELDS.SecurityFeatures]: 'securityFeatures',
+  [COTALITY_FIELDS.AttendanceType]: 'attendanceType',
+  [COTALITY_FIELDS.CommunityFeatures]: 'communityFeatures',
+  [COTALITY_FIELDS.AssociationAmenities]: 'associationAmenities',
+  [COTALITY_FIELDS.ParkingFeatures]: 'parkingFeatures',
+  [COTALITY_FIELDS.ParkingTotal]: 'parkingTotal',
+  [COTALITY_FIELDS.GarageSpaces]: 'garageSpaces',
+  [COTALITY_FIELDS.AssociationFee]: 'associationFee',
+  [COTALITY_FIELDS.AssociationFeeFrequency]: 'associationFeeFrequency',
+  [COTALITY_FIELDS.TaxAnnualAmount]: 'taxAnnualAmount',
+  [COTALITY_FIELDS.TaxYear]: 'taxYear',
+  [COTALITY_FIELDS.DaysOnMarket]: 'daysOnMarket',
+  [COTALITY_FIELDS.CumulativeDaysOnMarket]: 'cumulativeDaysOnMarket',
+  [COTALITY_FIELDS.ListingContractDate]: 'listingContractDate',
+  [COTALITY_FIELDS.ModificationTimestamp]: 'modificationTimestamp',
+  [COTALITY_FIELDS.OnMarketDate]: 'onMarketDate',
+  [COTALITY_FIELDS.CloseDate]: 'closeDate',
+  [COTALITY_FIELDS.ActivationDate]: 'activationDate',
+  [COTALITY_FIELDS.AvailabilityDate]: 'availabilityDate',
+  [COTALITY_FIELDS.ListAgentMlsId]: 'listAgentMlsId',
+  [COTALITY_FIELDS.ListAgentFullName]: 'listAgentFullName',
+  [COTALITY_FIELDS.ListAgentEmail]: 'listAgentEmail',
+  [COTALITY_FIELDS.ListOfficeMlsId]: 'listOfficeMlsId',
+  [COTALITY_FIELDS.ListOfficeName]: 'listOfficeName',
+  [COTALITY_FIELDS.PhotosCount]: 'photosCount',
+  [COTALITY_FIELDS.VirtualTourURLBranded]: 'virtualTourURLBranded',
+  [COTALITY_FIELDS.VirtualTourURLUnbranded]: 'virtualTourURLUnbranded',
+  [COTALITY_FIELDS.PublicRemarks]: 'publicRemarks',
   // idxEntireListingDisplayYN and participantOnlyYN are legacy DTO field names
   // — IDXEntireListingDisplayYN and ParticipantOnlyYN do NOT exist on live
   // Trestle (verified 2026-04-19). Kept here as legacy guard so existing
   // consumers reading dto.idxEntireListingDisplayYN don't break; new code
   // should consult dto.internetEntireListingDisplayYN + Permission instead.
-  [RESO_FIELDS.IDXEntireListingDisplayYN]: 'idxEntireListingDisplayYN',
-  [RESO_FIELDS.InternetEntireListingDisplayYN]: 'internetEntireListingDisplayYN',
-  [RESO_FIELDS.InternetAddressDisplayYN]: 'internetAddressDisplayYN',
-  [RESO_FIELDS.ParticipantOnlyYN]: 'participantOnlyYN',
-  [RESO_FIELDS.LeaseAmount]: 'leaseAmount',
-  [RESO_FIELDS.LeaseAmountFrequency]: 'leaseAmountFrequency',
-  [RESO_FIELDS.PetsAllowed]: 'petsAllowed',
-  [RESO_FIELDS.Furnished]: 'furnished',
-  [RESO_FIELDS.MoveInCosts]: 'moveInCosts',
-  [RESO_FIELDS.OngoingFees]: 'ongoingFees',
-  [RESO_FIELDS.TenantPays]: 'tenantPays',
-  [RESO_FIELDS.TenantPaysDescription]: 'tenantPaysDescription',
-  [RESO_FIELDS.AdditionalFee]: 'additionalFee',
-  [RESO_FIELDS.AdditionalFeeDescription]: 'additionalFeeDescription',
-  [RESO_FIELDS.AdditionalFeeYN]: 'additionalFeeYN',
-  [RESO_FIELDS.FeeFrequency]: 'feeFrequency',
+  [COTALITY_FIELDS.IDXEntireListingDisplayYN]: 'idxEntireListingDisplayYN',
+  [COTALITY_FIELDS.InternetEntireListingDisplayYN]: 'internetEntireListingDisplayYN',
+  [COTALITY_FIELDS.InternetAddressDisplayYN]: 'internetAddressDisplayYN',
+  [COTALITY_FIELDS.ParticipantOnlyYN]: 'participantOnlyYN',
+  [COTALITY_FIELDS.LeaseAmount]: 'leaseAmount',
+  [COTALITY_FIELDS.LeaseAmountFrequency]: 'leaseAmountFrequency',
+  [COTALITY_FIELDS.PetsAllowed]: 'petsAllowed',
+  [COTALITY_FIELDS.Furnished]: 'furnished',
+  [COTALITY_FIELDS.MoveInCosts]: 'moveInCosts',
+  [COTALITY_FIELDS.OngoingFees]: 'ongoingFees',
+  [COTALITY_FIELDS.TenantPays]: 'tenantPays',
+  [COTALITY_FIELDS.TenantPaysDescription]: 'tenantPaysDescription',
+  [COTALITY_FIELDS.AdditionalFee]: 'additionalFee',
+  [COTALITY_FIELDS.AdditionalFeeDescription]: 'additionalFeeDescription',
+  [COTALITY_FIELDS.AdditionalFeeYN]: 'additionalFeeYN',
+  [COTALITY_FIELDS.FeeFrequency]: 'feeFrequency',
 };
 
 /**
  * Map raw RESO/Trestle response to internal IDXListing type.
- * Handles RESO-to-RLS renames and field normalization.
+ * Maps a raw Cotality Property record to the Mallan internal shape.
  */
-export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | null {
-  // Apply renames
+export function mapCotalityToInternal(raw: Record<string, unknown>): IDXListing | null {
+  // NO RENAME PASS. Every Cotality field keeps its own name and its own value.
+  // A table here used to copy one real Cotality field into another real
+  // Cotality field's name - see the note at the top of trestle-mapper.ts.
   const normalized = { ...raw };
-  for (const [rlsName, canonicalName] of Object.entries(RESO_TO_RLS_RENAMES)) {
-    if (rlsName in normalized && !(canonicalName in normalized)) {
-      normalized[canonicalName] = normalized[rlsName];
-    }
-  }
 
   const listingId = String(normalized.ListingId || normalized.ListingKey || '');
   if (!listingId) return null;
@@ -300,7 +300,20 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
     listingId,
     listingKeyNumeric,
     mlsId: String(normalized.ListingKey || listingId),
-    standardStatus: String(normalized.StandardStatus || normalized.MlsStatus || 'Active') as IDXListing['standardStatus'],
+    // COTALITY FIELD, NOT A BLEND. This read
+    //   String(StandardStatus || MlsStatus || 'Active')
+    // which is the same 25-into-11 vocabulary conflation the deleted rename
+    // table performed, hardcoded inline - MlsStatus carries members such as
+    // Leased, AttorneyReview and PendingShortSale that StandardStatus does not
+    // have - and it DEFAULTED an unknown listing to 'Active', telling a client
+    // a listing is on the market when the provider never said so.
+    //
+    // StandardStatus only. Absent stays absent; a Mallan business status derived
+    // from the detailed MlsStatus would be an explicit Mallan rule AFTER this
+    // boundary, never a pretence that Cotality supplied StandardStatus.
+    standardStatus: (normalized.StandardStatus != null
+      ? String(normalized.StandardStatus)
+      : undefined) as IDXListing['standardStatus'],
     listingType: isRental ? 'rent' : 'sale',
     address: addr,
     listPrice: Number(normalized.ListPrice) || 0,
@@ -356,7 +369,7 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
     publicRemarks: normalized.PublicRemarks ? String(normalized.PublicRemarks) : undefined,
     // Distribution gate flags — IDX Plus pre-filter convention (`!== false`).
     //
-    // C1 fix (2026-05-13): mapRESOToInternal is called exclusively on raw
+    // C1 fix (2026-05-13): mapCotalityToInternal is called exclusively on raw
     // Trestle records pulled from the REBNY IDX Plus feed. Per CLAUDE.md
     // 2026-04-30 (commit 0309875b), REBNY/Cotality removes non-displayable
     // rows upstream and leaves the two display flags as null on the
@@ -450,21 +463,19 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
 }
 
 /**
- * Validate that a raw response contains all 41 required REBNY RLS fields.
+ * Validate that a raw Cotality response carries every field Mallan requires.
  */
-export function validateRESOResponse(raw: Record<string, unknown>): {
+export function validateCotalityResponse(raw: Record<string, unknown>): {
   valid: boolean;
   missingFields: string[];
 } {
-  // Apply renames first
+  // NO RENAME PASS. The validator previously applied the same conflation table
+  // before checking required fields, so a payload MISSING a required Cotality
+  // field could be declared valid because a DIFFERENT field had been copied
+  // into its name - the validator manufacturing the thing it validates.
   const normalized = { ...raw };
-  for (const [rlsName, canonicalName] of Object.entries(RESO_TO_RLS_RENAMES)) {
-    if (rlsName in normalized && !(canonicalName in normalized)) {
-      normalized[canonicalName] = normalized[rlsName];
-    }
-  }
 
-  const missingFields = REQUIRED_RLS_FIELDS.filter(field => !(field in normalized));
+  const missingFields = COTALITY_REQUIRED_FIELDS.filter(field => !(field in normalized));
 
   return {
     valid: missingFields.length === 0,
@@ -508,4 +519,4 @@ export function generateAttributionText(timestamp: Date = new Date()): string {
 }
 
 // Re-export for convenience
-export { ALL_RLS_FIELDS, REQUIRED_RLS_FIELDS, RESO_TO_RLS_RENAMES };
+export { COTALITY_PROPERTY_SELECT_FIELDS, COTALITY_REQUIRED_FIELDS };

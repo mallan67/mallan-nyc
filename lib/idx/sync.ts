@@ -2748,7 +2748,7 @@ export async function syncAgentHistory(
               // bug this replaces.
               const mediaType = classifyTrestleMediaCategory(m.MediaCategory as string | null | undefined);
               const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
-              // Same stable-identity fix as the syncListings batch above: supply the RESO MediaKey
+              // Same stable-identity fix as the syncListings batch above: supply the Cotality MediaKey
               // so the comparator's authoritative branch is reachable instead of the URL leg, which
               // Cotality's rotating path signature defeats on every cycle. Omitted when absent so an
               // unknown key degrades into the existing URL fallback.

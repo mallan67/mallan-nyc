@@ -285,7 +285,7 @@ interface LegacyMediaItem {
   url: string;
   mediaType: string;
   order: number;
-  /** Stable RESO MediaKey when the writer preserved it (authoritative identity). */
+  /** Stable Cotality MediaKey when the writer preserved it (authoritative identity). */
   mediaKey?: string | null;
 }
 

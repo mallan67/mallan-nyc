@@ -3,7 +3,7 @@ import listingsData from '@/data/listings.json';
 import { sanitizeForPublicDisplay } from '@/lib/compliance/idx-display-gate';
 import { fetchSingleListing, fetchListingMedia } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
-import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
+import { mapCotalityToInternal, generateAttributionText } from '@/lib/idx/mapping';
 import { toPublicDTO } from '@/lib/idx/public-dto';
 import { geocodeListings } from '@/lib/geo/geocode';
 import prisma from '@/lib/prisma';
@@ -20,7 +20,7 @@ type Props = {
  * COMPLIANCE PIPELINE (Option A — distribution gates on raw Trestle data):
  *   fetchSingleListing(listingKey) → raw record
  *   checkDistributionGates(raw) → reject if non-displayable
- *   mapRESOToInternal(raw) → IDXListing
+ *   mapCotalityToInternal(raw) → IDXListing
  *   toPublicDTO(listing) → PublicListingDTO (strips private data, suppresses address)
  *
  * When IDX_ENABLED=true: fetches from Trestle by ListingKey.
@@ -77,7 +77,7 @@ export async function GET(request: Request, { params }: Props) {
           }
 
           // Step 2: Map to IDXListing
-          const listing = mapRESOToInternal(raw);
+          const listing = mapCotalityToInternal(raw);
           if (!listing) {
             return NextResponse.json(
               { success: false, error: 'Listing not found' },

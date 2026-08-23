@@ -25,13 +25,14 @@ export interface TrestleAuthToken {
 }
 
 /**
- * Raw listing record from Trestle API (902 IDX Plus fields across 7 resources).
+ * Raw listing record from the Cotality API.
  */
 export type TrestleRawListing = Record<string, unknown>;
 
 /**
  * Canonical listing type for internal use.
- * Aligned with RESO Data Dictionary where applicable.
+ * Field names, types and enum members are whatever the live Cotality contract
+ * exposes. There is no RESO layer between Cotality and Mallan.
  * Expanded to cover all field categories.
  */
 export interface IDXListing {
