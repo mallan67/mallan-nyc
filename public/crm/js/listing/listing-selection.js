@@ -244,7 +244,7 @@
                 if (!exists) {
                     client.portfolio.listings.push({
                         id: listingId,
-                        // Store ONLY safe RESO fields — never store prohibited RLS fields
+                        // Store ONLY safe Cotality fields — never store prohibited RLS fields
                         address: listing.addressDisplayYN !== false ? listing.address : 'Address Upon Request',
                         addedDate: new Date().toISOString(),
                         status: 'new', // new, liked, disliked, viewed
@@ -280,7 +280,7 @@
         // ═══════════════════════════════════════════════════════════════════════════════
         // CLIENT FEEDBACK: LIKE / DISLIKE ON LISTING CARDS
         // Agent marks on behalf of client. Stored per-agent-per-client in localStorage.
-        // Like/dislike is agent-entered metadata (not RLS data) — no RESO tagging required.
+        // Like/dislike is agent-entered metadata (not RLS data) — no Cotality tagging required.
         // ═══════════════════════════════════════════════════════════════════════════════
 
         function markClientFeedback(listingId, feedback) {

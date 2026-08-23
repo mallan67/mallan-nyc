@@ -28,7 +28,7 @@ if (!CLIENT_ID || !CLIENT_SECRET) {
 }
 
 // Resources we care about — the IDX Plus 7 + a couple Trestle extras
-const RESOURCES = ['Property', 'CustomProperty', 'Member', 'Office', 'Media', 'PropertyUnitTypes', 'OpenHouse'];
+const COTALITYURCES = ['Property', 'CustomProperty', 'Member', 'Office', 'Media', 'PropertyUnitTypes', 'OpenHouse'];
 
 async function getToken(): Promise<string> {
   const tokenUrl = `${TRESTLE_BASE}/oidc/connect/token`;
@@ -119,7 +119,7 @@ async function main() {
   const csvFields = parseCsvFields();
   const liveByResource = new Map<string, Set<string>>();
 
-  for (const resource of RESOURCES) {
+  for (const resource of COTALITYURCES) {
     console.log(`── ${resource} ${'─'.repeat(50 - resource.length)}`);
     const liveFields = await fetchMetadataFields(token, resource);
     if (!liveFields) {

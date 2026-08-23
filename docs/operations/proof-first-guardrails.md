@@ -24,7 +24,7 @@ crosses, with each layer's evidence captured in the closing report.**
 The standard layer chain for a public-facing data issue:
 
 ```
-source (Trestle / RESO / external feed)
+source (Trestle / Cotality / external feed)
   → sync (lib/idx/sync.ts and the 5 non-sync writers in H1 Tier-1)
     → DB (listings.* columns, listing_search_projection.*, audit_events, sync_errors)
       → API / DTO (app/api/listings/*, lib/idx/db-to-public-dto.ts, lib/idx/public-dto.ts)

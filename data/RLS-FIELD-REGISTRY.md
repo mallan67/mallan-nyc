@@ -84,7 +84,7 @@ These fields exist on the Trestle Property entity (confirmed via `metadata.xml`)
 
 | Field | Correct Trestle Equivalent | Notes |
 |-------|---------------------------|-------|
-| `IDXEntireListingDisplayYN` | `InternetEntireListingDisplayYN` | RESO standard name; Trestle does not have IDX-prefixed gates |
+| `IDXEntireListingDisplayYN` | `InternetEntireListingDisplayYN` | Cotality standard name; Trestle does not have IDX-prefixed gates |
 | `SyndicateYN` | `SyndicateTo` (String List, Multi) | Boolean doesn't exist; use picklist field |
 | `VOWEntireListingDisplayYN` | — | Does not exist on Trestle |
 | `VOWAutomatedValuationDisplayYN` | — | Does not exist on Trestle |
@@ -93,7 +93,7 @@ These fields exist on the Trestle Property entity (confirmed via `metadata.xml`)
 | `YearRenovated` | — | Does not exist on Trestle |
 | `BuyerAgentRLSParticipantYN` | — | Does not exist on Trestle |
 | `FirstShowingDate` | `ActivationDate` | Confirmed 2026-03-19: not accepted |
-| `PossessionDate` | — | RESO field, Trestle ignores |
+| `PossessionDate` | — | Cotality field, Trestle ignores |
 
 > **Correction (2026-06-04):** `MoveInCostsComments` (live Property `Edm.String(1024)`) and
 > `MoveInCostsAmount` (live Property `Edm.Decimal(14,2)`) are **live Property fields** and the
@@ -259,7 +259,7 @@ Access pattern: `$expand=CustomProperty` → parse `CustomFields` JSON string �
 | Field | Status | Notes |
 |-------|--------|-------|
 | `FirstShowingDate` | NOT used, NOT accepted | Use `ActivationDate` for Coming Soon → Active |
-| `PossessionDate` | NOT sent, NOT accepted | RESO field, Trestle ignores |
+| `PossessionDate` | NOT sent, NOT accepted | Cotality field, Trestle ignores |
 
 ### Remapping Applied
 

@@ -3,12 +3,12 @@
     "extractedFrom": "public/crm/ (html + js + css)",
     "extractedAt": "2026-03-05",
     "purpose": "Complete search field definitions for interface rebuild — ALL fields are RLS-mapped",
-    "compliance": "REBNY RLS via Trestle (Cotality) — RLS TRUMPS ALL. RESO/IDX fills gaps only.",
+    "compliance": "REBNY RLS via Trestle (Cotality) — RLS TRUMPS ALL. Cotality/IDX fills gaps only.",
     "trestleApi": "api.cotality.com/trestle (deadline: March 31, 2026)",
     "totalFields": 450,
     "searchModes": ["sale", "rental", "building", "comparables"],
     "comparableLayers": ["subjectProperty", "subjectBuildings", "generalCriteria"],
-    "fieldAuthority": "1. UCBA → 2. RLS fields → 3. RESO/IDX fills gaps → 4. INTERNAL-ONLY → 5. Fail closed (non-display)"
+    "fieldAuthority": "1. UCBA → 2. RLS fields → 3. Cotality/IDX fills gaps → 4. INTERNAL-ONLY → 5. Fail closed (non-display)"
   },
 
   "searchTabs": {
@@ -950,7 +950,7 @@
     "apiUrl": "api.cotality.com/trestle",
     "oldUrlsNote": "Deprecated hosts removed (ceased March 31, 2026)",
     "migrationDeadline": "2026-03-31",
-    "dataStandard": "RESO DD 2.0",
+    "dataStandard": "Cotality DD 2.0",
     "lmp": "RealPlus (listing input to RLS)",
     "idx_display": "Trestle IDX Plus WebAPI (Trestle-11371-20) — read-only on mallan.nyc",
     "compensationFieldsRemoved": "2025-08-01",

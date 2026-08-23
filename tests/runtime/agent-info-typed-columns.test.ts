@@ -14,7 +14,7 @@ import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-colum
 import { buildExclusiveAgentAssignment } from "@/lib/listings/exclusive-agent-assignment";
 
 describe("typedAgentColumnsFromJson — the producer seam", () => {
-  it("maps PascalCase RESO keys (Trestle/CRM) to all 8 typed columns", () => {
+  it("maps PascalCase Cotality keys (Trestle/CRM) to all 8 typed columns", () => {
     const t = typedAgentColumnsFromJson({
       ListAgentFullName: "Jane Doe",
       ListOfficeName: "Acme Realty",

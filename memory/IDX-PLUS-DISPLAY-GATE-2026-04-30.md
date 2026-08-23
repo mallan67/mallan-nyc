@@ -2,19 +2,19 @@
 
 > Self-contained capture of today's full session. Read before resuming PR 4 work.
 
-## Three-layer model (clarified 2026-05-01 after RESO Desktop Client review)
+## Three-layer model (clarified 2026-05-01 after Cotality Desktop Client review)
 
 This incident is specifically about the REBNY IDX Plus feed served via Cotality/Trestle. Three distinct layers must stay separate when reasoning about feed behavior:
 
 | Layer | What it is | Role here |
 |---|---|---|
-| **REBNY** | MLS / RLS organization, data owner, policy layer | Owns the policy that pre-filters non-displayable rows out of the IDX Plus feed. RESO Desktop Client UOI: `T00000046` |
+| **REBNY** | MLS / RLS organization, data owner, policy layer | Owns the policy that pre-filters non-displayable rows out of the IDX Plus feed. Cotality Desktop Client UOI: `T00000046` |
 | **Cotality / Trestle** | API / feed platform implementing + serving the data | REBNY's data feed, served read-only via `api.cotality.com/trestle`. |
-| **RESO** | The OData / field-naming model the feed exposes | Defines the Property entity type, field names, and enum values — the model the Cotality feed returns. Field truth = the live `$metadata`, not an external standard. |
+| **Cotality** | The OData / field-naming model the feed exposes | Defines the Property entity type, field names, and enum values — the model the Cotality feed returns. Field truth = the live `$metadata`, not an external standard. |
 
-**Why this matters for the bug:** the null-handling behavior below is **specific to REBNY's policy layer applied at Cotality's data-serving boundary**. It is NOT a universal property of all Trestle feeds. Other MLSes served via Cotality/Trestle could have different policy layers and different runtime behavior on the same RESO fields.
+**Why this matters for the bug:** the null-handling behavior below is **specific to REBNY's policy layer applied at Cotality's data-serving boundary**. It is NOT a universal property of all Trestle feeds. Other MLSes served via Cotality/Trestle could have different policy layers and different runtime behavior on the same Cotality fields.
 
-**Universal rule learned:** Runtime payload behavior must be verified per feed (REBNY+Cotality, OneKey+OneKey-platform, NY-State-MLS+their-platform, etc.) — not assumed from the RESO certification metadata alone. RESO certification tells you which fields the platform CAN expose; it does not tell you what each MLS's policy layer will populate at runtime.
+**Universal rule learned:** Runtime payload behavior must be verified per feed (REBNY+Cotality, OneKey+OneKey-platform, NY-State-MLS+their-platform, etc.) — not assumed from the Cotality certification metadata alone. Cotality certification tells you which fields the platform CAN expose; it does not tell you what each MLS's policy layer will populate at runtime.
 
 ## Status at session close
 
@@ -34,7 +34,7 @@ This incident is specifically about the REBNY IDX Plus feed served via Cotality/
 
 ## What happened (chronological)
 
-1. **Read-only RESO live coverage probe** identified `InternetEntireListingDisplayYN` and `InternetAddressDisplayYN` as universally null in mallan.nyc's REBNY IDX Plus feed (via Cotality/Trestle) + not OData-filterable (HTTP 400 "Results from 'RLS' has been suppressed (provider Level)") → REBNY's policy layer pre-filters non-displayable rows out of the feed at Cotality's data-serving boundary. Behavior is REBNY-feed-specific, not universal Cotality behavior.
+1. **Read-only Cotality live coverage probe** identified `InternetEntireListingDisplayYN` and `InternetAddressDisplayYN` as universally null in mallan.nyc's REBNY IDX Plus feed (via Cotality/Trestle) + not OData-filterable (HTTP 400 "Results from 'RLS' has been suppressed (provider Level)") → REBNY's policy layer pre-filters non-displayable rows out of the feed at Cotality's data-serving boundary. Behavior is REBNY-feed-specific, not universal Cotality behavior.
 2. **Read-only DB-state investigation** confirmed 7,516 corrupted rows; commit `55803f87` (2026-04-23) had wrapped both fields in `affirmPermission()` which collapsed null → false on every Trestle-sourced row.
 3. **Mapper fix** (commit `0309875b`) — `lib/idx/trestle-mapper.ts:662-663` reverted to `!== false` for the two pre-filtered fields. AVM/ConsumerComment kept fail-closed via `affirmPermission` (per-row opt-out). 18 writer-side gate-coercion tests added. 3 regression-guard checks added to `scripts/ci-compliance-check.js` (compliance-check 87 → 90).
 4. **First recovery** — bounded transactional UPDATE flipped `internet_entire_listing_display_yn`, `internet_address_display_yn`, `idx_display_yn` from false → true on 7,545 rows in `listings` and 7,545 in `listing_search_projection` where `last_synced_from_trestle >= '2026-04-23' AND entire = false AND owner_opt_out = false AND participant_only = false`.
@@ -227,7 +227,7 @@ Run:
 - npm run ops:r2-health
 - npm run compliance-check
 - npm run idx:validate
-- npm run reso:analyze
+- npm run cotality:analyze
 - npm run ops:media-sync -- --limit=100 --batch=25
 
 Also verify:

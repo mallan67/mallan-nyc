@@ -115,7 +115,7 @@ export async function GET(req: NextRequest) {
         phone: agent.phone || null,
         license: agent.license_no || null,
         licenseTitle: licenseTitle(agent.license_type),
-        // Cotality/Trestle MLS member id (RESO ListAgentMlsId). This — NOT the
+        // Cotality/Trestle MLS member id (Cotality ListAgentMlsId). This — NOT the
         // NY State `license` and NOT the internal `id` — is the authoritative
         // cross-source agent identifier. The sale form stamps it onto
         // agent_info.ListAgentMlsId so CRM exclusives are Cotality-matchable.

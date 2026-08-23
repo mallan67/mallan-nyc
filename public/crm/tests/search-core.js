@@ -1,6 +1,6 @@
 /**
  * search-core.js — Single Source of Truth for Search Engine
- * REBNY RLS / IDX / RESO / Trestle Compliant
+ * REBNY RLS / IDX / Cotality / Trestle Compliant
  * Mallan Real Estate Inc. — Brokerage License #10991205323
  *
  * RULES:
@@ -34,7 +34,7 @@
 /**
  * STATUS_MAP: Maps UI checkbox data-value tokens to listing.status values.
  * Checkbox data-value (left) → mock data status strings (right).
- * Both sale and rental use the same RESO StandardStatus values.
+ * Both sale and rental use the same Cotality StandardStatus values.
  */
 var SearchCore = (function() {
 
@@ -77,10 +77,10 @@ var SearchCore = (function() {
     };
 
     /**
-     * OWNERSHIP_MAP: Maps RESO CommonInterest data-value tokens to
+     * OWNERSHIP_MAP: Maps Cotality CommonInterest data-value tokens to
      * display labels used in mock listing data (listing.ownership).
      *
-     * The checkboxes use RESO field values; the mock data uses NYC common names.
+     * The checkboxes use Cotality field values; the mock data uses NYC common names.
      * This bridge prevents the mismatch that caused ownership filters to return 0 results.
      */
     var OWNERSHIP_MAP = {
@@ -101,8 +101,8 @@ var SearchCore = (function() {
     };
 
     /**
-     * PROPERTY_TYPE_MATRIX: Maps NYC common name → RESO trio.
-     * Used for RESO-correct filtering and future Trestle integration.
+     * PROPERTY_TYPE_MATRIX: Maps NYC common name → Cotality trio.
+     * Used for Cotality-correct filtering and future Trestle integration.
      */
     var PROPERTY_TYPE_MATRIX = {
         'Condo':              { PropertyType: 'Residential',  CommonInterest: 'Condominium',   PropertySubType: 'Condominium' },
@@ -467,7 +467,7 @@ var SearchCore = (function() {
             ownerCbs.forEach(function(cb) {
                 var val = cb.getAttribute('data-value') || cb.value;
                 if (val) {
-                    // Map RESO token → display label using OWNERSHIP_MAP
+                    // Map Cotality token → display label using OWNERSHIP_MAP
                     var displayLabel = OWNERSHIP_MAP[val] || val;
                     if (criteria.ownership.indexOf(displayLabel) === -1) {
                         criteria.ownership.push(displayLabel);
@@ -518,7 +518,7 @@ var SearchCore = (function() {
      * RULES:
      *   - beds=0 (Studio) is valid — uses explicit !== undefined checks
      *   - null sqft → listing is EXCLUDED when sqft filter is set
-     *   - Ownership comparison uses OWNERSHIP_MAP for RESO→display translation
+     *   - Ownership comparison uses OWNERSHIP_MAP for Cotality→display translation
      *   - Status comparison is case-insensitive
      *   - Condo must NOT match Condop (exact match, not indexOf)
      *   - IDX opted-out listings are always excluded
@@ -559,7 +559,7 @@ var SearchCore = (function() {
             });
         }
 
-        // Step 3: Ownership filter (exact match, RESO-mapped)
+        // Step 3: Ownership filter (exact match, Cotality-mapped)
         if (criteria.ownership && criteria.ownership.length > 0) {
             step('Ownership (' + criteria.ownership.join(', ') + ')', function(listing) {
                 var listingOwn = (listing.ownership || '').toLowerCase();

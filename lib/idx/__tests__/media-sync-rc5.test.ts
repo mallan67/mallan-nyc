@@ -8,7 +8,7 @@
  * batch re-fetched every run forever (the 2026-06-09 production freeze).
  *
  * RC5 semantics under test:
- *   1. ghost → RESOLVED skip (ok:true): the watermark advances past it to the
+ *   1. ghost → COTALITYLVED skip (ok:true): the watermark advances past it to the
  *      last fully-processed listing.
  *   2. valid listings BEHIND the ghost still process media (fetch + summary).
  *   3. ghost is counted + ids recorded in the run result.

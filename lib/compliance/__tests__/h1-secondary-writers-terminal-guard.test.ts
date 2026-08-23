@@ -96,7 +96,7 @@ describe('H1 — secondary-writer terminal-status guard', () => {
     });
 
     it('case sensitivity — "closed" lowercase is NOT in the canonical set', () => {
-      // The cron predicate matches exact-case RESO strings; mirroring it
+      // The cron predicate matches exact-case Cotality strings; mirroring it
       // here keeps writer and cron in lock-step. Documents the contract,
       // not a desired behavior — Trestle emits exact-case canonical
       // values, and any drift would require coordinated change on both

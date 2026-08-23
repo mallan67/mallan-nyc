@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * scripts/reso/analyze.js — One-shot read-only "what is the current
+ * scripts/cotality/analyze.js — One-shot read-only "what is the current
  * state of my site" report. Pulls live counts from Trestle, the
  * project DB, and the public site, and prints a single-screen summary.
  *
@@ -9,8 +9,8 @@
  * so it's still safe to run during the master-plan migration.
  *
  * Usage:
- *   node scripts/reso/analyze.js
- *   node scripts/reso/analyze.js --json
+ *   node scripts/cotality/analyze.js
+ *   node scripts/cotality/analyze.js --json
  *
  * Read-only. No DB writes. No Trestle writes. Safe to re-run any time.
  */
@@ -238,7 +238,7 @@ function ago(iso) {
 
   // Human view
   console.log('═'.repeat(72));
-  console.log(`mallan.nyc — RESO Toolkit Analyze (${report.captured_at})`);
+  console.log(`mallan.nyc — Cotality Toolkit Analyze (${report.captured_at})`);
   console.log('═'.repeat(72));
 
   console.log('\n┌─ Trestle / Cotality (live) ────────────────────────────────────┐');

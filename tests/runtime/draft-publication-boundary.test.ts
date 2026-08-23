@@ -18,7 +18,7 @@
  * So a Mallan pre-publication workspace row was absent from search but servable
  * as a public page. The defect was PRE-EXISTING, not introduced by this branch.
  *
- * HOW IT IS RESOLVED — and why not with either obvious fix
+ * HOW IT IS COTALITYLVED — and why not with either obvious fix
  *
  * (a) Gating detail on ACTIVE_DISPLAY_STATUSES would be wrong: that set
  *     excludes `Pending`, of which the LIVE Cotality feed carries 6,103 rows

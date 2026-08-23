@@ -42,7 +42,7 @@ PR branch. The intended change-set is the Phase 0/0.4 test+validator+doc edits b
 | `crm:test` | PASS | 39/39 | ✅ |
 | `test:scanner` | **PASS** | 323/323 · 10/10 suites | ✅ **fixed in 0.2** (was 2 failed / RED) |
 | `ucba:audit` | PASS | 46 PASS · 0 FAIL · **0 REGRESSIONS** | ✅ |
-| `compliance-check` | PASS | 92 passed · 0 failed (BLOCKER+STRICT) · 1 warn · **0 unverified** | ✅ **EXCEPTION B RESOLVED (Phase 0.4)** |
+| `compliance-check` | PASS | 92 passed · 0 failed (BLOCKER+STRICT) · 1 warn · **0 unverified** | ✅ **EXCEPTION B COTALITYLVED (Phase 0.4)** |
 | `rls:validate` | PASS | 0 errors · 1 warning · 0 missing | ✅ (warning = pre-existing) |
 | `idx:validate` | **FAIL** | 1284 pass · **1 critical** · 3 warning · 38 info | ❌ **EXCEPTION A** |
 | `audit:display-compliance` | PASS | 11/11 listing routes gated | ✅ |
@@ -60,7 +60,7 @@ PR branch. The intended change-set is the Phase 0/0.4 test+validator+doc edits b
 - Phase 0 changes (a scanner-test edit + an idx **test**-file rename) cannot affect a cron
   schedule check. **Confirmed not a regression.**
 
-### EXCEPTION B — RESOLVED (Phase 0.4, 2026-06-07)
+### EXCEPTION B — COTALITYLVED (Phase 0.4, 2026-06-07)
 - Was: `compliance-check` 1 unverified because `ci-compliance-check.js`'s `execSync` threw
   on the validator's by-design non-zero exit (it was never a crash). **Fixed** by making the
   validator exit 0 in `--json`/report mode (gating preserved in standalone mode) + a runtime

@@ -31,7 +31,7 @@
 
 Every fact below came from an HTTP response received during the session named
 above. Per `CLAUDE.md` §A.0, a repo constant, a mapper table, a code comment, a
-committed `artifacts/metadata.xml`, a prior audit, RESO documentation and model
+committed `artifacts/metadata.xml`, a prior audit, Cotality documentation and model
 memory are **not** evidence and were not used as such.
 
 **Probe helper.** All queries went through one script that appends
@@ -127,7 +127,7 @@ Active=0   Deleted=1   Other=2
 
 File format, not content type: `Bmp, Doc, Docx, Gif, Htm, Html, Jpeg, Mov, Mp4,
 Mpeg, Pdf, Png, Pptx, Quicktime, Rtf, Svg, Tiff, Txt, Wmv, Wps, Xls, Xlsx` and
-the same 22 again in lower case. RESO separates `MediaType` (format) from
+the same 22 again in lower case. Cotality separates `MediaType` (format) from
 `MediaCategory` (content). `lib/idx/mapping.ts` already documents this
 correctly.
 

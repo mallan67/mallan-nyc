@@ -66,7 +66,7 @@ var rebnyCompanyNames = { 'mallan': 'Mallan Real Estate Inc.' };  // hardcoded s
 
 | Form line | Mapping | Problem |
 |---|---|---|
-| `data.ListAgentMlsId = data.saleUpdatingAgent` | `saleUpdatingAgent = u.id` = internal **Agent.id ("1")** | Should be `trestle_mls_id` (**39361**). RESO `ListAgentMlsId` ≠ internal PK. |
+| `data.ListAgentMlsId = data.saleUpdatingAgent` | `saleUpdatingAgent = u.id` = internal **Agent.id ("1")** | Should be `trestle_mls_id` (**39361**). Cotality `ListAgentMlsId` ≠ internal PK. |
 | `data.ListOfficeKey = data.saleUpdatingAgentCompanyKey` | `= "mallan"` (slug) | Should be Cotality `ListOfficeKey` (**5671398**). |
 | (no mapping) | `ListOfficeMlsId` | **Never captured** (should be **7041**). |
 | `data.ListAgentFullName / Email / DirectPhone` | from session | OK in principle. |

@@ -39,7 +39,7 @@ const MALLAN_BROKERAGE_NAME = "Mallan Real Estate Inc.";
 const args = process.argv.slice(2);
 const APPLY = args.includes("--apply");
 const VERIFY = args.includes("--verify");
-// Phase C: by default only repair rows whose RESOLVED (typed-first) name is BLANK.
+// Phase C: by default only repair rows whose COTALITYLVED (typed-first) name is BLANK.
 // --force restamps even when a name is already present (still blank-only fill, manual wins).
 const FORCE = args.includes("--force");
 const listingFilter = (args.find((a) => a.startsWith("--listing=")) || "").split("=")[1] || null;

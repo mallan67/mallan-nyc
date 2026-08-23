@@ -1,16 +1,16 @@
 /**
- * RESO Data Dictionary Mapper
+ * Cotality Data Dictionary Mapper
  *
- * Maps between internal listing format and RESO Web API compliant format.
+ * Maps between internal listing format and Cotality Web API compliant format.
  * Supports Trestle Web API for REBNY RLS integration.
  */
 
 import type { Listing } from '@/lib/types/listing';
 
 /**
- * RESO-compliant listing interface (Trestle Web API format)
+ * Cotality-compliant listing interface (Trestle Web API format)
  */
-export interface RESOListing {
+export interface COTALITYListing {
   // Required identification
   ListingKey: string;
   ListingId: string;
@@ -142,20 +142,20 @@ export interface RESOListing {
 }
 
 /**
- * Helper to map association fee frequency to RESO format
+ * Helper to map association fee frequency to Cotality format
  */
 function mapAssociationFeeFrequency(
   freq: 'Monthly' | 'Quarterly' | 'Annual' | null
-): RESOListing['AssociationFeeFrequency'] {
+): COTALITYListing['AssociationFeeFrequency'] {
   if (!freq) return 'Monthly';
   if (freq === 'Annual') return 'Annually';
   return freq;
 }
 
 /**
- * Map internal Listing to RESO-compliant format for Trestle Web API
+ * Map internal Listing to Cotality-compliant format for Trestle Web API
  */
-export function mapListingToRESO(listing: Listing): RESOListing {
+export function mapListingToRESO(listing: Listing): COTALITYListing {
   const isRental = listing.listingType === 'rent';
 
   // Calculate bathrooms total
@@ -163,10 +163,10 @@ export function mapListingToRESO(listing: Listing): RESOListing {
     listing.propertyInfo.bathroomsFull + listing.propertyInfo.bathroomsHalf * 0.5;
 
   // Map property type
-  const propertyType: RESOListing['PropertyType'] = isRental ? 'ResidentialLease' : 'Residential';
+  const propertyType: COTALITYListing['PropertyType'] = isRental ? 'ResidentialLease' : 'Residential';
 
   // Map MLS status
-  const statusMap: Record<string, RESOListing['MLSStatus']> = {
+  const statusMap: Record<string, COTALITYListing['MLSStatus']> = {
     Active: 'Active',
     Pending: 'Pending',
     Sold: 'Sold',
@@ -176,13 +176,13 @@ export function mapListingToRESO(listing: Listing): RESOListing {
   };
 
   // Map common interest
-  const commonInterestMap: Record<string, RESOListing['CommonInterest']> = {
+  const commonInterestMap: Record<string, COTALITYListing['CommonInterest']> = {
     Condo: 'Condominium',
     'Co-op': 'StockCooperative',
     Condop: 'Condop',
   };
 
-  const reso: RESOListing = {
+  const cotality: COTALITYListing = {
     // Identification
     ListingKey: listing.id,
     ListingId: listing.mlsId,
@@ -306,14 +306,14 @@ export function mapListingToRESO(listing: Listing): RESOListing {
     SyndicationOptOutYN: listing.compliance.syndicationOptOut,
   };
 
-  return reso;
+  return cotality;
 }
 
 /**
- * Map RESO-compliant format back to internal Listing format
+ * Map Cotality-compliant format back to internal Listing format
  */
-export function mapRESOToListing(reso: RESOListing): Partial<Listing> {
-  const isRental = reso.PropertyType === 'ResidentialLease';
+export function mapCOTALITYToListing(cotality: COTALITYListing): Partial<Listing> {
+  const isRental = cotality.PropertyType === 'ResidentialLease';
 
   // Reverse map common interest
   const commonInterestReverseMap: Record<string, 'Condo' | 'Co-op' | 'Condop' | null> = {
@@ -336,80 +336,80 @@ export function mapRESOToListing(reso: RESOListing): Partial<Listing> {
   };
 
   return {
-    id: reso.ListingKey,
-    mlsId: reso.ListingId,
-    mlsStatus: statusReverseMap[reso.MLSStatus] || 'Active',
+    id: cotality.ListingKey,
+    mlsId: cotality.ListingId,
+    mlsStatus: statusReverseMap[cotality.MLSStatus] || 'Active',
     listingType: isRental ? 'rent' : 'sale',
-    status: reso.MLSStatus === 'Active' ? 'active' : 'inactive',
+    status: cotality.MLSStatus === 'Active' ? 'active' : 'inactive',
 
     address: {
-      streetNumber: reso.StreetNumber,
-      streetName: reso.StreetName,
-      unit: reso.UnitNumber || '',
+      streetNumber: cotality.StreetNumber,
+      streetName: cotality.StreetName,
+      unit: cotality.UnitNumber || '',
       city: 'New York',
-      state: reso.StateOrProvince,
-      zip: reso.PostalCode,
-      county: reso.CountyOrParish,
-      borough: reso.City as Listing['address']['borough'],
-      cityRegion: reso.City,
-      neighborhood: reso.SubdivisionName || '',
-      neighborhoodDisplay: reso.SubdivisionName || reso.City,
-      buildingTaxLot: reso.BuildingTaxLot,
+      state: cotality.StateOrProvince,
+      zip: cotality.PostalCode,
+      county: cotality.CountyOrParish,
+      borough: cotality.City as Listing['address']['borough'],
+      cityRegion: cotality.City,
+      neighborhood: cotality.SubdivisionName || '',
+      neighborhoodDisplay: cotality.SubdivisionName || cotality.City,
+      buildingTaxLot: cotality.BuildingTaxLot,
     },
 
     price: {
-      listPrice: reso.ListPrice,
-      pricePerSqft: reso.PricePerSquareFoot || null,
-      originalListPrice: reso.OriginalListPrice,
-      closePrice: reso.ClosePrice || null,
+      listPrice: cotality.ListPrice,
+      pricePerSqft: cotality.PricePerSquareFoot || null,
+      originalListPrice: cotality.OriginalListPrice,
+      closePrice: cotality.ClosePrice || null,
       closePricePerSqft: null,
     },
 
     propertyInfo: {
-      propertyType: (reso.PropertySubType as Listing['propertyInfo']['propertyType']) || 'Condo',
-      propertySubType: reso.PropertySubType || 'Residential',
+      propertyType: (cotality.PropertySubType as Listing['propertyInfo']['propertyType']) || 'Condo',
+      propertySubType: cotality.PropertySubType || 'Residential',
       buildingType: '',
-      architecturalStyle: reso.ArchitecturalStyle?.[0] || '',
-      yearBuilt: reso.YearBuilt || 0,
-      totalRooms: reso.Rooms || 0,
-      bedroomsTotal: reso.BedroomsTotal,
-      bathroomsFull: reso.BathroomsFull,
-      bathroomsHalf: reso.BathroomsHalf,
-      aboveGradeFinishedArea: reso.LivingArea || 0,
+      architecturalStyle: cotality.ArchitecturalStyle?.[0] || '',
+      yearBuilt: cotality.YearBuilt || 0,
+      totalRooms: cotality.Rooms || 0,
+      bedroomsTotal: cotality.BedroomsTotal,
+      bathroomsFull: cotality.BathroomsFull,
+      bathroomsHalf: cotality.BathroomsHalf,
+      aboveGradeFinishedArea: cotality.LivingArea || 0,
       belowGradeFinishedArea: 0,
       lotSizeArea: null,
       storiesTotal: 1,
-      floorsInBuilding: reso.StoriesTotal || 1,
+      floorsInBuilding: cotality.StoriesTotal || 1,
       unitFloor: 1,
     },
 
     nycSpecific: {
-      coopCondo: commonInterestReverseMap[reso.CommonInterest || ''] || null,
-      maintenanceFee: reso.MaintenanceFee || reso.AssociationFee || null,
-      commonCharges: reso.CommonInterest === 'Condominium' ? reso.AssociationFee || null : null,
-      realEstateTaxes: reso.RealEstateTax || null,
-      taxesAnnual: reso.RealEstateTax ? reso.RealEstateTax * 12 : null,
+      coopCondo: commonInterestReverseMap[cotality.CommonInterest || ''] || null,
+      maintenanceFee: cotality.MaintenanceFee || cotality.AssociationFee || null,
+      commonCharges: cotality.CommonInterest === 'Condominium' ? cotality.AssociationFee || null : null,
+      realEstateTaxes: cotality.RealEstateTax || null,
+      taxesAnnual: cotality.RealEstateTax ? cotality.RealEstateTax * 12 : null,
       assessedValue: null,
-      flipTax: reso.FlipTaxYN || null,
-      flipTaxPercent: reso.FlipTaxAmount || null,
+      flipTax: cotality.FlipTaxYN || null,
+      flipTaxPercent: cotality.FlipTaxAmount || null,
       percentOwned: null,
-      sublettingAllowed: reso.SubletAllowed || null,
+      sublettingAllowed: cotality.SubletAllowed || null,
       sublettingRestrictions: null,
-      piedATerre: reso.PiedATerreAllowed || null,
+      piedATerre: cotality.PiedATerreAllowed || null,
       guarantorsAllowed: null,
       giftAllowed: null,
-      financingAllowed: reso.MaxFinancing ? true : null,
-      maxFinancing: reso.MaxFinancing || null,
-      boardApprovalRequired: reso.CommonInterest !== 'Condominium',
+      financingAllowed: cotality.MaxFinancing ? true : null,
+      maxFinancing: cotality.MaxFinancing || null,
+      boardApprovalRequired: cotality.CommonInterest !== 'Condominium',
     },
 
-    description: reso.PublicRemarks,
-    privateRemarks: reso.PrivateRemarks || null,
+    description: cotality.PublicRemarks,
+    privateRemarks: cotality.PrivateRemarks || null,
   };
 }
 
 /**
- * Validate that a listing can be exported to RESO format
+ * Validate that a listing can be exported to Cotality format
  */
 export function canExportToRESO(listing: Listing): { valid: boolean; missingFields: string[] } {
   const requiredFields = [

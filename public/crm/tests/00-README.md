@@ -9,7 +9,7 @@
 
 ## Architecture
 
-All 67 browser tests (compliance doctor, wiring, behavior, extended, no-VOW, allowlist, search, security, a11y/RESO/perf, regression, integrity) are **bundled in** `public/crm/js/compliance/compliance-gates-and-output.js` (3,199 lines). They run automatically on page load (broker-only, silent — badge only, no modal).
+All 67 browser tests (compliance doctor, wiring, behavior, extended, no-VOW, allowlist, search, security, a11y/Cotality/perf, regression, integrity) are **bundled in** `public/crm/js/compliance/compliance-gates-and-output.js` (3,199 lines). They run automatically on page load (broker-only, silent — badge only, no modal).
 
 The standalone source files (01-18) were **removed 2026-03-24** as duplicates — they were never loaded by any HTML file.
 
@@ -30,7 +30,7 @@ The standalone source files (01-18) were **removed 2026-03-24** as duplicates �
 
 | File | Lines | Description |
 |------|-------|-------------|
-| `sale-form-doctor.js` | 1,390 | Sale form diagnostic: DQ, CF, UN, RESO, NYC checks |
+| `sale-form-doctor.js` | 1,390 | Sale form diagnostic: DQ, CF, UN, Cotality, NYC checks |
 | `rental-form-doctor.js` | 1,574 | Rental form diagnostic: validation, Fair Housing, SOI, content scan |
 | `search-doctor.js` | 1,186 | Search diagnostic: wiring, Fair Housing, REBNY compliance |
 | `search-core.js` | 1,102 | Core search functions + reference data (STATUS_MAP, OWNERSHIP_MAP) |
@@ -85,7 +85,7 @@ REBNYTestSuite (master runner)
 ├── AllowlistLeakTests           — 5 tests (AL1-AL5)
 ├── SearchCorrectnessTests       — 4 tests (S1-S4)
 ├── SecurityHardeningV2Tests     — 3 tests (X1-X3)
-├── AccessibilityRESOPerfTests   — 7 tests (A11Y, RESO, PERF)
+├── AccessibilityCOTALITYPerfTests   — 7 tests (A11Y, Cotality, PERF)
 ├── MutationRegressionTests      — 3 tests (R1-R3)
 ├── teardownStrictGuards()
 ├── StrictIntegrityTests         — 7 tests

@@ -128,7 +128,7 @@ export async function POST(
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
 
-  // Cotality-shaped storage: CRM media lives in the `listing_media` table in the
+  // Cotality-contract storage: CRM media lives in the `listing_media` table in the
   // `crm:` key namespace. The media_key is derived from the content hash, so a
   // re-upload of the same image yields the same key → the @unique constraint
   // gives content-dedup. (Cotality/IDX Plus is the source of truth for the shape.)

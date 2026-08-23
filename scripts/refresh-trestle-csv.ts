@@ -45,7 +45,7 @@ if (!CLIENT_ID || !CLIENT_SECRET) {
   process.exit(1);
 }
 
-const RESOURCES = [
+const COTALITYURCES = [
   { name: 'Property',          csvLabel: 'Property' },
   { name: 'CustomProperty',    csvLabel: 'Custom Property' },
   { name: 'Member',            csvLabel: 'Member' },
@@ -153,7 +153,7 @@ async function main() {
   const csvByResource = new Map<string, Set<string>>();
   const liveByResource = new Map<string, Set<string>>();
 
-  for (const r of RESOURCES) {
+  for (const r of COTALITYURCES) {
     if (resourceFilter && r.name !== resourceFilter) continue;
     const liveFields = extractFieldsForResource(xml, r.name);
     totalLive += liveFields.length;

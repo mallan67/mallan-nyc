@@ -8,8 +8,8 @@
  * FIELD AUTHORITY ORDER (ENFORCED):
  *   1. UCBA governs everything
  *   2. REBNY RLS rules + fields — RLS TRUMPS ALL
- *   3. RLS overrides RESO/IDX
- *   4. RESO/IDX fills gaps only
+ *   3. RLS overrides Cotality/IDX
+ *   4. Cotality/IDX fills gaps only
  *   5. INTERNAL-ONLY otherwise
  *   6. Fail closed = REJECT
  *
@@ -307,24 +307,24 @@ export function assertRlsCompliantPayload(
   }
 
   // PropertyType validation — REBNY RLS only accepts "Residential" or "ResidentialLease".
-  // Website-only listings (commercial, rls_eligible=false) can use any RESO PropertyType.
+  // Website-only listings (commercial, rls_eligible=false) can use any Cotality PropertyType.
   const pt = payload.PropertyType as string | undefined;
   if (pt) {
     const RLS_PROPERTY_TYPES = ["Residential", "ResidentialLease"];
-    const RESO_PROPERTY_TYPES = [
+    const COTALITY_PROPERTY_TYPES = [
       "Residential", "ResidentialLease", "ResidentialIncome",
       "Commercial", "CommercialLease", "CommercialSale",
       "Land", "Farm", "MultiFamily",
     ];
     if (ctx.rlsEligible === false) {
-      // Website-only: accept any RESO type, warn on unknown
-      if (!RESO_PROPERTY_TYPES.includes(pt)) {
+      // Website-only: accept any Cotality type, warn on unknown
+      if (!COTALITY_PROPERTY_TYPES.includes(pt)) {
         warnings.push({
           code: "MF-004W",
           severity: "WARNING",
           field: "PropertyType",
-          message: `PropertyType "${pt}" is non-standard. Expected one of: ${RESO_PROPERTY_TYPES.join(", ")}.`,
-          ucbaRef: "RESO Data Dictionary",
+          message: `PropertyType "${pt}" is non-standard. Expected one of: ${COTALITY_PROPERTY_TYPES.join(", ")}.`,
+          ucbaRef: "Cotality Data Dictionary",
         });
       }
     } else {

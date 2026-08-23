@@ -68,7 +68,7 @@ const ALLOWLIST: ReadonlySet<string> = new Set<string>([
   "app/api/crm/listings/[id]/media-order/route.ts",
   // Writes ONLY listing.modification_timestamp (ISR/edit-load touch) on media
   // soft-delete + set-as-main. The actual media changes live on listing_media
-  // rows (Cotality-shaped, PR #276 P0); projection mirrors neither the media nor
+  // rows (Cotality-contract, PR #276 P0); projection mirrors neither the media nor
   // a few-minute modification_timestamp skew. No projection-relevant column changes.
   "app/api/crm/listings/[id]/media/[mediaId]/route.ts",
 ]);

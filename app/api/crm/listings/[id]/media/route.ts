@@ -1,5 +1,5 @@
 // GET /api/crm/listings/[id]/media
-// READ-ONLY. Returns the listing's Cotality-shaped media rows (active), with
+// READ-ONLY. Returns the listing's Cotality-contract media rows (active), with
 // stable media_key, so the sales form can render, reorder, set-as-main, delete.
 //
 // This endpoint NEVER writes (Codex media P0 finding #1). The legacy

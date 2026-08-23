@@ -73,7 +73,7 @@ async function viaExpand(nav: string): Promise<Probe> {
   } catch { return { state: 'UNVERIFIED', status: 200, detail: 'unparsable body' }; }
 }
 
-const RESOURCES = [
+const COTALITYURCES = [
   'Property', 'Member', 'Office', 'Media', 'OpenHouse', 'CustomProperty',
   'PropertyRooms', 'PropertyUnitTypes', 'PropertyGreenVerification',
   'HistoryTransactional', 'Teams', 'TeamMembers', 'Building',
@@ -88,7 +88,7 @@ const NAVIGATION = [
 
 const out: Record<string, unknown> = { probedAt: new Date().toISOString(), api: API, collections: {}, navigation: {} };
 
-for (const r of RESOURCES) {
+for (const r of COTALITYURCES) {
   (out.collections as Record<string, Probe>)[r] = await collection(r);
   await sleep(200);
 }

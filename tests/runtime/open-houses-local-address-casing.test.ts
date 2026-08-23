@@ -1,7 +1,7 @@
 /// <reference types="jest" />
 /**
  * P1 open-house display fix: local (CRM) open houses were dropped because /api/open-houses read the
- * listing address with camelCase keys, but CRM listings store the address JSON in RESO PascalCase
+ * listing address with camelCase keys, but CRM listings store the address JSON in Cotality PascalCase
  * (StreetNumber/StreetName/UnitNumber). The empty address then failed the `hasData` filter, so a
  * Mallan website-only exclusive (e.g. SL-0007) with a valid open house never reached the global
  * page OR the listing-detail panel. Fix: case-tolerant address extraction (PascalCase + camelCase).
@@ -114,7 +114,7 @@ async function getOpenHouses() {
 
 beforeEach(() => jest.clearAllMocks());
 
-describe('pickAddressParts — case-tolerant RESO street parts', () => {
+describe('pickAddressParts — case-tolerant Cotality street parts', () => {
   it('reads PascalCase (CRM-saved) address keys', () => {
     const p = pickAddressParts(PASCAL_ADDR);
     expect(p.streetNumber).toBe('400');
@@ -132,7 +132,7 @@ describe('pickAddressParts — case-tolerant RESO street parts', () => {
     expect(pickAddressParts({}).streetNumber).toBe('');
   });
   it('canonical PascalCase wins over STALE legacy camelCase when both are present (Codex #463)', () => {
-    // The CRM PATCH merges new PascalCase RESO keys over the existing address JSON without deleting
+    // The CRM PATCH merges new PascalCase Cotality keys over the existing address JSON without deleting
     // old camelCase keys (app/api/crm/listings/[id]/route.ts:366-368), so an edited row can carry
     // both. The current (PascalCase) value must win, not the stale camelCase one.
     const p = pickAddressParts({

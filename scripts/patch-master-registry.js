@@ -305,7 +305,7 @@ reg._meta.trestleArchitecture = {
   lastUpdated: "2026-03-13",
   mechanisms: {
     "1_PropertyEntity": {
-      description: "Standard RESO fields on the Trestle Property entity. Accessed directly via OData $select.",
+      description: "Standard Cotality fields on the Trestle Property entity. Accessed directly via OData $select.",
       fieldCount: "~580 fields",
       examples: ["ListPrice", "BedroomsTotal", "Heating", "PetsAllowed"]
     },
@@ -345,7 +345,7 @@ reg._meta.trestleArchitecture = {
         "CoBrokeAgreement",
         "Permissions"
       ],
-      nycContext: "These fields exist because NYC real estate has unique concepts (doorman types, co-op board rules, flip tax, rent stabilization, UCBA co-broke terms) not found in national RESO standard."
+      nycContext: "These fields exist because NYC real estate has unique concepts (doorman types, co-op board rules, flip tax, rent stabilization, UCBA co-broke terms) not found in national Cotality standard."
     }
   },
   knownCsvErrors: [

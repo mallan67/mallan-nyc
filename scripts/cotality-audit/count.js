@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * scripts/reso/count.js — Fast `$count` against any Trestle entity, with
+ * scripts/cotality/count.js — Fast `$count` against any Trestle entity, with
  * optional `$filter`. Prints JSON.
  *
  * Usage:
- *   node scripts/reso/count.js --entity=Property
- *   node scripts/reso/count.js --entity=Property --filter="StandardStatus eq 'Active'"
- *   node scripts/reso/count.js --entity=Media
+ *   node scripts/cotality/count.js --entity=Property
+ *   node scripts/cotality/count.js --entity=Property --filter="StandardStatus eq 'Active'"
+ *   node scripts/cotality/count.js --entity=Media
  *
  * Exit code: 0 on success, 1 on error.
  */
@@ -23,7 +23,7 @@ function arg(name, fallback) {
   const entity = arg('entity');
   const filter = arg('filter');
   if (!entity) {
-    console.error('Usage: node scripts/reso/count.js --entity=<Resource> [--filter="..."]');
+    console.error('Usage: node scripts/cotality/count.js --entity=<Resource> [--filter="..."]');
     process.exit(1);
   }
   try {

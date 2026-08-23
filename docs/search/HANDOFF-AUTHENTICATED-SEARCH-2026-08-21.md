@@ -429,8 +429,8 @@ which matches `/['"][A-Za-z0-9+/=]{40,}['"]/`. Present at HEAD; not introduced h
    with an empty result is not an unsupported one. **Never "dead"** merely
    because one candidate field is unpopulated.
 
-5. ~~**RESOURCE / FIELD-FAMILY COVERAGE MATRIX**~~ — **BUILT 2026-08-21.**
-   **`docs/search/COTALITY-RESOURCE-FIELD-FAMILY-COVERAGE-2026-08-21.md`** is now the
+5. ~~**COTALITYURCE / FIELD-FAMILY COVERAGE MATRIX**~~ — **BUILT 2026-08-21.**
+   **`docs/search/COTALITY-COTALITYURCE-FIELD-FAMILY-COVERAGE-2026-08-21.md`** is now the
    execution artifact beneath the master plan and `FIELD_REGISTRY`. All 17 entity types
    endpoint-probed, 15 field families with consumer roles, the 52-key observed-extension
    family, a Media contract and a 9-item defect register.
@@ -513,7 +513,7 @@ Production is the only frozen SHA. Never hard-code either moving head.
 
 ---
 
-## METHOD CORRECTION — AUDIT FIELD FAMILIES AND PROVIDER RESOURCES, NOT "CONTROLS"
+## METHOD CORRECTION — AUDIT FIELD FAMILIES AND PROVIDER COTALITYURCES, NOT "CONTROLS"
 
 **The 39-control inventory is CURRENT UI WIRING ONLY.** It is not the Cotality Property
 capability inventory, and it is not the required Mallan brokerage Search/workspace

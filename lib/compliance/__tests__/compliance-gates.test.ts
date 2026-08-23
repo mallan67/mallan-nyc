@@ -284,7 +284,7 @@ describe('toPublicDTO', () => {
   });
 
   it('sets comingSoon flag in _displayCompliance for Coming Soon listings', () => {
-    // Canonical value — the DB stores 'ComingSoon' (no space) per RESO.
+    // Canonical value — the DB stores 'ComingSoon' (no space) per Cotality.
     // This was previously 'Coming Soon' which never fired the badge branch
     // because public-dto compared against the wrong format.
     const listing = buildMockListing({ standardStatus: 'ComingSoon' });

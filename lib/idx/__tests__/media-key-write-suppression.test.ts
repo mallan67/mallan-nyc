@@ -3,7 +3,7 @@
  *
  * DEFECT THIS PINS
  * ----------------
- * `mediaArraysMateriallyEqual` prefers a stable RESO `mediaKey` when BOTH sides carry one and only
+ * `mediaArraysMateriallyEqual` prefers a stable Cotality `mediaKey` when BOTH sides carry one and only
  * falls back to URL identity otherwise. The legacy Cotality media writers never selected or
  * serialized `MediaKey`, so the authoritative branch was structurally unreachable and every photo
  * took the URL leg.

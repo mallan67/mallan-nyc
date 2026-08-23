@@ -12,7 +12,7 @@
 These are Maya's standing constraints for this lane. Every section below obeys them; call out any place a reader thinks they are violated.
 
 1. **Cotality API is the field source of truth — always live, never a copy (AGENTS.md §7, Maya law).** Field names, enums, and populations come from the live `api.cotality.com/trestle` (`$metadata`/`$count`). The current generated authority is **`data/cotality-enums.live.json`** (regenerated live via `npm run cotality:pull`, guarded by `npm run cotality:verify`). The legacy `data/rebny-rls-property-fields.csv` and `artifacts/metadata.xml` are historical snapshots, **not** authority.
-2. **No RESO language in field-contract sections.** RESO is the standards body; Cotality is the provider. The two are not interchangeable here.
+2. **No Cotality language in field-contract sections.** Cotality is the standards body; Cotality is the provider. The two are not interchangeable here.
 3. **No REBNY / RLS / IDX / VOW field names introduced into field-contract sections.** Those terms appear ONLY in the compliance/syndication sub-sections where they are the actual governing rule.
 4. **ACRIS is the only public-record closed-sale-history source.** Public closed sale = ACRIS, never a raw Cotality `ClosePrice`.
 5. **Preserve agent/private intelligence power.** This is an agent-intelligence backend, not a public-cleanup pass. The full lifecycle and full dataset are retained for agent/internal/report audiences.
@@ -89,7 +89,7 @@ Twelve+ distinct surfaces answer "search" questions, split across **three engine
 
 ~70 fields across 10 categories. Columns per field (condensed here; full grid retained in the auditor output): **Cotality field · public DTO path · DB column · projection column · CRM filter param · UI control · sortable? · filterable? · alert-capable? · attribution/compliance role · known bug**.
 
-Because RESO/REBNY/IDX field names are barred from this section, fields below are named by their **Cotality API** identifier.
+Because Cotality/REBNY/IDX field names are barred from this section, fields below are named by their **Cotality API** identifier.
 
 ### A. Identity / source / attribution
 `ListingKey` · `ListingId` · `ListAgentFullName` · `ListOfficeName` · `ListAgentMlsId` · `SourceSystemName` · (Mallan-exclusive flag, internal). **Bug B-12:** public `mlsId` DTO is set to the internal `listing_id`, **not** the Cotality `ListingKey`/`ListingId` (`db-to-public-dto:361`) [E]. **Gap:** no typed `source` column — provenance is inferred, not stored (§3, §9).
@@ -224,7 +224,7 @@ Guardrail: the merged Backend-Search-0 `visibility-contract.ts` is the current c
 ### The 8-bucket lifecycle (retained for agent/internal/report; restricted for public)
 `active · pending · temp_off_market · withdrawn · canceled · expired · closed_sold · closed_rented`. Public sees only the active-family + ACRIS `closed_sold`; agent/internal/report see everything; sold ≠ rented always. This is correct and locked by `visibility-contract.test.ts` (26 assertions).
 
-### D6-1 — unknown-status fail-open [RESOLVED — Backend-Search-0.1, PR #489 / squash `f1b26b28`]
+### D6-1 — unknown-status fail-open [COTALITYLVED — Backend-Search-0.1, PR #489 / squash `f1b26b28`]
 **Historical context / lesson learned — this is now fixed on `main`.** `toLifecycleStatus` previously defaulted an unrecognized/blank Cotality StandardStatus to `'active'` — the one bucket the public branch of `resolveVisibility` allows — so an untrusted status *could* have been publicly displayed (latent only because public callers hardcoded `'closed_sold'`/ACRIS). **Current behavior:** unknown/unrecognized Cotality API `StandardStatus` → **`lifecycle_status: "unknown"` → public fail-closed** (agent / internal_report / client still see it, so private intelligence is not suppressed). Backend-Search-1 **builds on this fixed behavior** — there is nothing to "flip." The lesson to carry forward: fail-closed safety must live in the contract's default, not in caller discipline.
 
 ### Other status findings [E]
@@ -398,7 +398,7 @@ The single structural finding that dominates everything: **the current framing i
 
 | Finding | Section | What it is | Sev | Status / home |
 |---|---|---|---|---|
-| Visibility unknown-status default | §6 | unknown/unrecognized status → public fail-open | HIGH | **RESOLVED — Backend-Search-0.1, PR #489 (`f1b26b28`)** |
+| Visibility unknown-status default | §6 | unknown/unrecognized status → public fail-open | HIGH | **COTALITYLVED — Backend-Search-0.1, PR #489 (`f1b26b28`)** |
 | CMA close-price valuation bug | §8 | closed comps valued on `list_price`; display gate excludes terminals | HIGH | **candidate P0** — separate reports/CMA track |
 | Public DB filter-after-pagination | §4 | 6 filters post-paginated → inflated count, ragged pages | HIGH | candidate — route, spec'd by contract |
 | Amenities no-op on Cotality fallback | §4 | all but pet-friendly silently dropped | HIGH | candidate — contract capability flag + route |

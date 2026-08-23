@@ -35,7 +35,7 @@ export interface ListingForEligibility {
   source?: string | null;
   /** Diagnostic only — NEVER used to drive the eligibility decision. */
   agent_id?: bigint | number | null;
-  /** RESO StandardStatus — "Active" / "ComingSoon" / terminal values */
+  /** Cotality StandardStatus — "Active" / "ComingSoon" / terminal values */
   status?: string | null;
   /** Free-text — used only for diagnostics in Layer 1d's reason logging */
   list_office_name?: string | null;

@@ -1,24 +1,24 @@
 #!/usr/bin/env node
 /**
- * scripts/reso/drift.js — Track field-set drift between three sources
+ * scripts/cotality/drift.js — Track field-set drift between three sources
  * of truth: Trestle's live $metadata, the REBNY IDX Plus field CSV,
  * and (optionally) a snapshot from a prior run.
  *
- * The "Trestle is behind on RESO updates" reality: Cotality's Trestle
- * tier is currently certified on RESO Web API Core 2.0.0 + DD 2.0 +
- * DD 1.7. RESO has DD 2.1 published; Trestle hasn't certified there
+ * The "Trestle is behind on Cotality updates" reality: Cotality's Trestle
+ * tier is currently certified on Cotality Web API Core 2.0.0 + DD 2.0 +
+ * DD 1.7. Cotality has DD 2.1 published; Trestle hasn't certified there
  * yet. REBNY has its own IDX Plus subset (902 fields) which they update
  * on their own cadence. So the three sources can drift independently:
  *
  *   1. Trestle live $metadata (what the feed actually exposes)
  *   2. REBNY IDX Plus CSV (what REBNY documents we should see)
- *   3. RESO DD reference (the canonical standard)
+ *   3. Cotality DD reference (the canonical standard)
  *
  * What this tool does:
  *   - Parse Trestle's $metadata (cached at artifacts/metadata.xml)
  *   - Parse REBNY IDX Plus field list (data/rebny-rls-property-fields.csv)
  *   - Diff the two sets
- *   - Save a dated snapshot to artifacts/reso-drift/YYYY-MM-DDTHHmmssZ.json
+ *   - Save a dated snapshot to artifacts/cotality-drift/YYYY-MM-DDTHHmmssZ.json
  *   - Diff against the previous drift snapshot (if any) and surface the delta
  *
  * What this tool does NOT do:
@@ -28,10 +28,10 @@
  *     from burning IDX Plus quota on every run.
  *
  * Usage:
- *   npm run reso:drift                 # produce + persist a drift snapshot
- *   npm run reso:drift -- --json
- *   npm run reso:drift -- --resource=Property
- *   npm run reso:drift -- --resource=Member
+ *   npm run cotality:drift                 # produce + persist a drift snapshot
+ *   npm run cotality:drift -- --json
+ *   npm run cotality:drift -- --resource=Property
+ *   npm run cotality:drift -- --resource=Member
  *
  * Read-only. No DB writes. No Trestle calls.
  */
@@ -41,7 +41,7 @@ const path = require('path');
 const REPO_ROOT = process.cwd();
 const METADATA_XML = path.join(REPO_ROOT, 'artifacts', 'metadata.xml');
 const REBNY_FIELDS_CSV = path.join(REPO_ROOT, 'data', 'rebny-rls-property-fields.csv');
-const DRIFT_DIR = path.join(REPO_ROOT, 'artifacts', 'reso-drift');
+const DRIFT_DIR = path.join(REPO_ROOT, 'artifacts', 'cotality-drift');
 
 function arg(name, fallback) {
   const prefix = `--${name}=`;
@@ -155,7 +155,7 @@ function ts() {
       trestle_metadata: path.relative(REPO_ROOT, METADATA_XML),
       rebny_field_csv: path.relative(REPO_ROOT, REBNY_FIELDS_CSV),
     },
-    note: 'Cotality/Trestle is currently certified on RESO Web API Core 2.0.0 + DD 2.0 + DD 1.7. RESO has DD 2.1 published; Trestle has NOT certified there yet (per the 2026-04-29 RESO Desktop Client session). REBNY publishes its own IDX Plus subset on its own cadence.',
+    note: 'Cotality/Trestle is currently certified on Cotality Web API Core 2.0.0 + DD 2.0 + DD 1.7. Cotality has DD 2.1 published; Trestle has NOT certified there yet (per the 2026-04-29 Cotality Desktop Client session). REBNY publishes its own IDX Plus subset on its own cadence.',
     resources: {},
   };
 

@@ -11,7 +11,7 @@
  * JSON source (Codex #420 blocker).
  *
  * Invariants:
- *   - skip a row when the RESOLVED (typed-first) full name is already present, unless `force`.
+ *   - skip a row when the COTALITYLVED (typed-first) full name is already present, unless `force`.
  *   - fill ONLY blank resolved values from the Agent row / default brokerage (manual wins).
  *   - NEVER null a typed column that already has a value (MLS IDs are preserved as resolved —
  *     they are not on the Agent row).

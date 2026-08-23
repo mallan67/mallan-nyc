@@ -391,7 +391,7 @@ for (const [trestleField, reg] of regByTrestle) {
   supplementCount++;
 }
 
-// Pass 3: ALL remaining Trestle fields not in REBNY (broader RESO standard)
+// Pass 3: ALL remaining Trestle fields not in REBNY (broader Cotality standard)
 for (const trestle of trestleProps) {
   if (fields[trestle.name]) continue; // already from REBNY or supplement
   const displayTier = classifyDisplay(trestle.name, null);
@@ -424,7 +424,7 @@ for (const trestle of trestleProps) {
 console.log(C.green(`     ${Object.keys(fields).length} total fields merged`));
 console.log(`       ${C.cyan(rebnyCount)} REBNY RLS fields (NY-specific)`);
 console.log(`       ${C.cyan(supplementCount)} CRM supplement fields`);
-console.log(`       ${C.cyan(trestleOnlyCount)} Trestle-only fields (broader RESO)`);
+console.log(`       ${C.cyan(trestleOnlyCount)} Trestle-only fields (broader Cotality)`);
 
 // Display tier breakdown
 const tierCounts = { idx: 0, vow: 0, internal: 0, system: 0 };
@@ -700,7 +700,7 @@ const registry = {
     sources: [
       'data/rebny-rls-property-fields.csv (902 REBNY IDX Plus fields across 7 resources)',
       'data/rebny-rls-property-lookup.csv (105 REBNY enums / 1,942 picklist values)',
-      'data/trestle-dictionary/trestle-schema.json (744 Trestle fields — full RESO)',
+      'data/trestle-dictionary/trestle-schema.json (744 Trestle fields — full Cotality)',
       'data/FIELD_REGISTRY.json (65 CRM canonical mappings)',
       'data/SEARCH_CONTROL_MAP.json (search DOM mappings)',
       'trestle-metadata.xml (OData baseline)',
@@ -750,7 +750,7 @@ console.log(C.bold('  Stats:\n'));
 console.log(`  Fields (total):    ${C.cyan(Object.keys(fields).length)}`);
 console.log(`    REBNY RLS:       ${C.green(rebnyCount)} (NY-specific, what REBNY accepts)`);
 console.log(`    CRM supplement:  ${C.cyan(supplementCount)}`);
-console.log(`    Trestle-only:    ${C.dim(trestleOnlyCount)} (broader RESO, not in REBNY CSV)`);
+console.log(`    Trestle-only:    ${C.dim(trestleOnlyCount)} (broader Cotality, not in REBNY CSV)`);
 console.log(`    Required:        ${C.cyan(requiredCount)}`);
 console.log(`    Conditional:     ${C.cyan(conditionalCount)}`);
 console.log(`    Read-only:       ${C.dim(readOnlyCount)}`);

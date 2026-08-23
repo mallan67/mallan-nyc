@@ -19,7 +19,7 @@ CREATE TABLE "listing_search_projection" (
   "id" BIGSERIAL PRIMARY KEY,
   "listing_id" TEXT NOT NULL,
 
-  -- RESO/Trestle source tracking
+  -- Cotality/Trestle source tracking
   "listing_key" TEXT,
   "source_system" TEXT,
   "mls_status" TEXT,

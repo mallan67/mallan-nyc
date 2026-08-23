@@ -1,5 +1,5 @@
 // lib/media/crm-media.ts
-// Shared helpers for CRM-owned media stored in the Cotality-shaped `listing_media`
+// Shared helpers for CRM-owned media stored in the Cotality-contract `listing_media`
 // table. Cotality/IDX Plus is the source of truth — CRM uploads are mapped onto
 // the SAME row shape the Trestle sync writes (media_key, media_type, order,
 // preferred_photo_yn, media_category), in a separate `crm:` key namespace so the
@@ -133,7 +133,7 @@ export function legacyItemBasis(item: LegacyMediaItem): string {
 }
 
 /**
- * Idempotently import a listing's legacy `listing.media` JSON into Cotality-shaped
+ * Idempotently import a listing's legacy `listing.media` JSON into Cotality-contract
  * `listing_media` rows. Skips items whose `media_key` already exists, so it is safe
  * to call repeatedly (lazily on upload, and in bulk from the migration script).
  *

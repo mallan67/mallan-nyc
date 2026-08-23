@@ -58,7 +58,7 @@ For each column (`raw_data`, `compliance`, `features`, `agent_info`, `address`, 
   (public listing page / search card / portal / **public `/api/open-houses` payload** / agent page /
   sitemap) · **CRM-critical** · **archive-critical** ·
   **syndication-critical** · **projection-critical** (the search-projection builder reads it) ·
-  **RESO-critical** (the RESO / IDX-feed mapper reads it) · ETL/re-derivation only · dead/unused.
+  **Cotality-critical** (the Cotality / IDX-feed mapper reads it) · ETL/re-derivation only · dead/unused.
 - **CRM-critical reads are BLOCKERS, not a free pass (Codex #404).** A column is **NOT** "safe to
   drop" merely because no public render reads it — the CRM has production dependencies that lose
   data:
@@ -122,7 +122,7 @@ For each column (`raw_data`, `compliance`, `features`, `agent_info`, `address`, 
      `media`). **String-built `$queryRawUnsafe` can't be statically resolved — each call site needs a
      manual read.**
   5. **Mapper / builder / parser functions** that take a JSON column as input — e.g.
-     `extractSavedProfileValues`, `dbListingToPublicDTO`, the projection builder, the RESO mapper —
+     `extractSavedProfileValues`, `dbListingToPublicDTO`, the projection builder, the Cotality mapper —
      trace their callers even when the column name doesn't appear at the call site.
   6. **Writer / upsert / update paths** — `lib/idx/sync.ts:330-335`, `:1161-1166` re-upsert the JSON;
      these REPOPULATE a stripped column (see the writer/refill blocker below). Includes operational
@@ -141,15 +141,15 @@ For each column (`raw_data`, `compliance`, `features`, `agent_info`, `address`, 
   not treat as the whole list):
   - **`raw_data`** → **render** (public DB DTO derives virtualTourURL / previousListPrice / DOM / lease / availability / on-close dates ONLY from `raw_data` — `app/api/listings/route.ts:348-356`, `lib/idx/db-to-public-dto.ts:298`) + archive (`:225-228`) + CRM PATCH (`:101-103`). Render-critical — live-row reclaim needs the public-DTO migration too.
   - **`agent_info`** → public/portal/agent-page DTO (`lib/compliance/dto.ts:270,282,368`; `app/api/open-houses/route.ts:368-370` office attribution; `app/api/agents/[slug]/listings`) + archive + CRM + **syndication**.
-  - **`features`** → render DTO `lib/compliance/dto.ts:366` + `lib/idx/db-to-public-dto.ts:272`; **public `/api/open-houses` property-type display** (`app/api/open-houses/route.ts:363`, `features.CommonInterest`); **search projection** `lib/search/listing-search-projection.ts:194,227,260,304,555`; RESO `lib/compliance/reso-mapper.ts:239-253`; CRM PATCH `app/api/crm/listings/[id]/route.ts:329`.
-  - **`media`** (JSON) → DTO `lib/compliance/dto.ts:367` + **public `/api/open-houses` first-photo image** (`app/api/open-houses/route.ts:350-351`) + projection `:261,556` + RESO `lib/compliance/reso-mapper.ts:281` + CRM media routes (`importJsonMediaToRows`).
+  - **`features`** → render DTO `lib/compliance/dto.ts:366` + `lib/idx/db-to-public-dto.ts:272`; **public `/api/open-houses` property-type display** (`app/api/open-houses/route.ts:363`, `features.CommonInterest`); **search projection** `lib/search/listing-search-projection.ts:194,227,260,304,555`; Cotality `lib/compliance/cotality-mapper.ts:239-253`; CRM PATCH `app/api/crm/listings/[id]/route.ts:329`.
+  - **`media`** (JSON) → DTO `lib/compliance/dto.ts:367` + **public `/api/open-houses` first-photo image** (`app/api/open-houses/route.ts:350-351`) + projection `:261,556` + Cotality `lib/compliance/cotality-mapper.ts:281` + CRM media routes (`importJsonMediaToRows`).
   - **`compliance`** → **render** (detail-page `publicRemarks` ← `compliance.PublicRemarks` — `app/listing/[...slug]/page.tsx:545,621`) + **syndication** `lib/syndication/eligibility.ts`. Render-critical, not syndication-only.
   - **`address`** → render (incl. **public `/api/open-houses` street build**, `app/api/open-houses/route.ts:333-342`) + CRM + archive (`address_line`, `route.ts:198-209`) + sitemap (`app/sitemap.ts:97`) + **projection/search** (street parts + city → projection search text, `lib/search/listing-search-projection.ts:195-202,305`). Normalizing/dropping `address` requires re-deriving the projection builder from the new structured columns, else the next projection sync/backfill loses address keyword text used by customer-facing search.
   **Conclusion: NO JSON column is freely strippable today.** Each per-column verdict MUST be
   re-derived from the live Step-5 grep (above), not from this prose; the only `raw_data`/JSON reclaim
   available now is the archive path (terminal rows). This makes Free further off, reinforcing $19 as
   the floor.
-- **PROJECTION-critical and RESO-critical reads are ALSO BLOCKERS (Codex #404) — not just listed in
+- **PROJECTION-critical and Cotality-critical reads are ALSO BLOCKERS (Codex #404) — not just listed in
   the map above, but BLOCKING in the verdict:**
   - **Projection:** `lib/search/listing-search-projection.ts:193-290` derives searchable text,
     amenity keys, and media flags from `features`/`media` **and `address`** (street parts +
@@ -159,7 +159,7 @@ For each column (`raw_data`, `compliance`, `features`, `agent_info`, `address`, 
     data** → broken search (including loss of address keyword text). The projection is the PR-5B
     *read* target but is itself a *consumer/builder* of the JSON. **`address` normalization MUST
     re-point the projection builder at the new structured columns before the JSON is dropped.**
-  - **RESO/IDX-feed:** `lib/compliance/reso-mapper.ts:239-253,281` maps `features`/`media` into RESO
+  - **Cotality/IDX-feed:** `lib/compliance/cotality-mapper.ts:239-253,281` maps `features`/`media` into Cotality
     output. Stripping before migrating it blanks feed/syndication output fields.
 - **WRITER / REFILL is a SEVENTH blocker (Codex #406-r5) — and it gates DURABILITY, not just
   correctness.** idx-sync re-upserts `address`/`features`/`compliance`/`agent_info`/`raw_data` on
@@ -169,16 +169,16 @@ For each column (`raw_data`, `compliance`, `features`, `agent_info`, `address`, 
   reclaim is creditable for the downgrade until a "no writer/refill repopulates this column" proof
   passes.**
 - Verdict per column — **SAFE TO DROP requires NO render-critical, NO CRM-critical, NO
-  archive-critical, NO syndication-critical, NO projection-critical, NO RESO-critical read, AND a
+  archive-critical, NO syndication-critical, NO projection-critical, NO Cotality-critical read, AND a
   proven no-writer/refill-repopulation path.** Otherwise: **DROP only AFTER migrating every critical
   reader off the column AND migrating the writer** — PR 5B (public read → projection) **+** CRM
   migration **+** archiver migration **+** syndication migration **+** **projection-builder
-  migration** (derive from structured columns) **+** **RESO-mapper migration** **+** **idx-sync
+  migration** (derive from structured columns) **+** **Cotality-mapper migration** **+** **idx-sync
   writer/backfill migration**; or **NORMALIZE FIRST** (`address`, `agent_info` feed display, CRM,
-  archiver, syndication). **Any render / CRM / archive / syndication / projection / RESO critical
+  archiver, syndication). **Any render / CRM / archive / syndication / projection / Cotality critical
   read — OR any live writer/refill path — = a required migration or exclusion BEFORE drop.**
 - **Output:** a per-column dependency matrix (render + CRM + archive + syndication + projection +
-  RESO + **writer/refill**) feeding Step 5's proof.
+  Cotality + **writer/refill**) feeding Step 5's proof.
 
 ## Probe 3 — Required normalization fields (for `address` / `agent_info`)
 **Goal:** identify the exact sub-fields the render paths need from `address`/`agent_info`, so a

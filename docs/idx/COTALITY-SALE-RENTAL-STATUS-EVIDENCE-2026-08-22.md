@@ -47,7 +47,7 @@ $filter=PropertyType eq 'Commercial'  ->  HTTP 400
 "The string 'Commercial' is not a valid enumeration type constant."
 ```
 
-This matters because `lib/compliance/reso-mapper.ts:17` types `PropertyType` as
+This matters because `lib/compliance/cotality-mapper.ts:17` types `PropertyType` as
 `'Residential' | 'ResidentialLease' | 'Commercial' | 'Land'`. `Commercial` is an
 invented member. `Land` is real. Recorded in §5.
 
@@ -330,11 +330,11 @@ Verified by search across `lib/` and `app/`. The provider suppression breaks
 nothing today. `app/api/idx/search/route.ts:39` `$select`s the field, which is
 permitted and returns null.
 
-### 6.4 `reso-mapper.ts` types an invented `PropertyType`
+### 6.4 `cotality-mapper.ts` types an invented `PropertyType`
 
-`lib/compliance/reso-mapper.ts:17` declares
+`lib/compliance/cotality-mapper.ts:17` declares
 `'Residential' | 'ResidentialLease' | 'Commercial' | 'Land'`. `Commercial` is not
-a member of the live enum (§1.1). Recorded, not changed — this is the RESO
+a member of the live enum (§1.1). Recorded, not changed — this is the Cotality
 *export* shape, and whether it should mirror the Cotality vocabulary exactly is a
 separate question from what the Search universe means.
 

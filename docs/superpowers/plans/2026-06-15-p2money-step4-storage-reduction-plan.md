@@ -60,7 +60,7 @@
    |---|---|
    | Today | ~1,135 MB |
    | Archive drain (terminal rows): reclaims `raw_data` 223 + `compliance` 170 + `media` ≈ 398 MB | ~737 MB |
-   | + bulk-strip `compliance` (live) + `media` + `features` — **only AFTER migrating their render/projection/RESO/CRM/syndication READERS *and* stopping the WRITERS** (idx-sync re-upserts these JSON on every update — `lib/idx/sync.ts:330-335`,`:1161-1166`; `backfillEmptyMedia` re-fetches `media` when it sees `[]`/null — `:696-702`). **Without the writer/refill migration the strip is TRANSIENT — the next sync repopulates it and the cap breaches again** (Codex #404/#406-r5; see §A + probe plan) | ~600 MB |
+   | + bulk-strip `compliance` (live) + `media` + `features` — **only AFTER migrating their render/projection/Cotality/CRM/syndication READERS *and* stopping the WRITERS** (idx-sync re-upserts these JSON on every update — `lib/idx/sync.ts:330-335`,`:1161-1166`; `backfillEmptyMedia` re-fetches `media` when it sees `[]`/null — `:696-702`). **Without the writer/refill migration the strip is TRANSIENT — the next sync repopulates it and the cap breaches again** (Codex #404/#406-r5; see §A + probe plan) | ~600 MB |
    | + audit compaction (the 35 MB diagnostic burst) | ~565 MB |
    | + normalize `address`/`agent_info` → structured columns, then strip JSON | ~490 MB |
    | + **migrate archiver AND public render DTO off `raw_data`**, then reclaim the ~35 MB live-row `raw_data` | **~455–490 MiB — STRADDLES the ~477 MiB cap; clears only at the low end, no margin** |
@@ -73,7 +73,7 @@
 6. **$19 Launch remains the low-maintenance floor** unless the JSON-drop path is COMPLETED AND
    PROVEN. **Bottom line (unchanged across 6 review rounds): NO JSON column is freely strippable
    today.** Reaching Free is not a cleanup job — it requires **(1) a six-front consumer migration**
-   (render DTO · CRM · archiver · syndication · search projection · RESO/IDX-feed), **PLUS (2) a
+   (render DTO · CRM · archiver · syndication · search projection · Cotality/IDX-feed), **PLUS (2) a
    writer/refill migration** (idx-sync upserts + media backfill stop repopulating the JSON), **PLUS
    (3) measured Neon billed bytes** under 500,000,000 (~477 MiB) AFTER the row-rewrite + GC-past-PITR
    (Step 6) — never an estimate. Even when all three complete, projected size lands **at or just over
@@ -112,7 +112,7 @@
   `/api/open-houses` payload (address/media/features/agent_info, `app/api/open-houses/route.ts:278-375`);
   the search **projection** (`lib/search/listing-search-projection.ts:193-290` derives searchable
   text, amenity keys, and media flags — used by `lib/search/core.ts:114-121` for **production listing
-  search**); **RESO/IDX-feed output** (`lib/compliance/reso-mapper.ts:239-253,281`); CRM PATCH
+  search**); **Cotality/IDX-feed output** (`lib/compliance/cotality-mapper.ts:239-253,281`); CRM PATCH
   (`app/api/crm/listings/[id]/route.ts`); **syndication** (`lib/syndication/eligibility.ts` reads
   `compliance` + `agent_info`). **The companion probe plan is the authority for the SAFE TO DROP
   gate** (`2026-06-15-step4-readonly-probe-plan.md`); do NOT approve a strip from this summary alone.
@@ -143,8 +143,8 @@
   | `address` | render + CRM + archive + **projection/search** (street parts + city → projection search text, `lib/search/listing-search-projection.ts:195-202,305`) — NORMALIZE to structured columns AND re-derive the projection builder from those structured fields first |
   | `agent_info` | render + CRM + archive + **syndication** — normalize + syndication migration |
   | `compliance` | **render** (detail-page `publicRemarks` falls back to `compliance.PublicRemarks` — `app/listing/[...slug]/page.tsx:545,621`) **+ syndication** (`compliance.syndication`/`mallan_control_verification`/`seller_advertising_authorization`/`media_rights`) — HELD until render migration AND syndication migration |
-  | `features` | **render + projection/search + RESO + CRM** — HELD until the projection builder + RESO mapper are migrated/re-derived |
-  | `media` | **render + projection/search + RESO + CRM** media routes — HELD until projection + RESO migration |
+  | `features` | **render + projection/search + Cotality + CRM** — HELD until the projection builder + Cotality mapper are migrated/re-derived |
+  | `media` | **render + projection/search + Cotality + CRM** media routes — HELD until projection + Cotality migration |
 
 ## B. The archive eligibility bug (now scoped as a STANDALONE correction)
 Root cause (code-proven, `data-retention/route.ts:162-168`): the T+180 archive filters

@@ -65,7 +65,7 @@ describe("listing page wires the not-found-vs-error contract", () => {
   it("fetchListing delegates to fetchFromDB without a swallowing try/catch (W1 tag-attach happens AFTER resolution, outside any try)", () => {
     // Pin the post-W1 body: fetchFromDB is awaited bare (no try/catch — infra
     // errors still propagate so ISR can never cache a 404 over a valid
-    // listing), and the One Cycle W1 tag attach runs only on a RESOLVED
+    // listing), and the One Cycle W1 tag attach runs only on a COTALITYLVED
     // result (attachListingCacheTags carries its own internal fail-open
     // handling and cannot swallow fetch errors).
     // REVISED 2026-08-15: fetchFromDB is now reached through the persistent Data Cache

@@ -3,7 +3,7 @@
  *
  * LIVE COTALITY IS THE SOLE PROVIDER AUTHORITY.
  *
- * This verifier deliberately does NOT consult RLS CSVs, RESO dictionaries, old
+ * This verifier deliberately does NOT consult RLS CSVs, Cotality dictionaries, old
  * audits, repo comments, or UI labels to decide provider truth. Repo files are
  * inspected only to answer a different question: "what is Mallan currently
  * trying to do with the provider contract?"
@@ -230,9 +230,9 @@ for (const legacy of ['FUTURE', 'OFFEROUT', 'COMING_SOON', 'UNDER_CONTRACT', 'CA
   const re = new RegExp(`criteria\\.statuses\\.push\\(['\"]${legacy}['\"]\\)`);
   if (re.test(searchEngine)) defects.push(`NON_COTALITY_STATUS_VALUE: CRM can emit '${legacy}' as executable status`);
 }
-const resoStatusRefs = [...searchEngine.matchAll(/\bresoStatuses\b/g)].length;
-if (resoStatusRefs === 1) {
-  defects.push('STATUS_SERIALIZER_DROPS_OUTPUT: buildIdxSearchParams creates resoStatuses but never attaches it to outgoing params');
+const cotalityStatusRefs = [...searchEngine.matchAll(/\bresoStatuses\b/g)].length;
+if (cotalityStatusRefs === 1) {
+  defects.push('STATUS_SERIALIZER_DROPS_OUTPUT: buildIdxSearchParams creates cotalityStatuses but never attaches it to outgoing params');
 }
 
 const liveFieldDeclarations = Object.values(entities).reduce((n, e) => n + Object.keys(e.properties).length, 0);

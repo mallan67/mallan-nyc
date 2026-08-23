@@ -1,7 +1,7 @@
 # Sales-Form True-Flow Audit — 2026-05-30
 
 **Source of truth: Cotality `$metadata` ONLY** (`artifacts/metadata.xml`, live OData $metadata,
-745 Property fields). No RESO CSV, no RLS registry, no other source. Field names that are not
+745 Property fields). No Cotality CSV, no RLS registry, no other source. Field names that are not
 in Cotality `$metadata` are flagged below as **phantom/old** unless they are deliberate
 Mallan-internal extensions stored in `raw_data` (building-level / NYC-specific data that
 Cotality's unit-level Property resource does not carry).
@@ -71,7 +71,7 @@ Method: read line-by-line from code (no spot checks). Every claim cites `file:li
   saleHasViews` **by name** (radio value if checked → explicit No respected, else "Yes" when a
   detail box is checked) and drops the id-keyed strays. Fixes the id-vs-name collect gap + the
   edit-reload checkbox-only case (Codex #280).
-- Explicit RESO/Cotality-name emits (`:7157`–`:7416`): arrays `Heating`,`Cooling`,`PetsAllowed`,
+- Explicit Cotality/Cotality-name emits (`:7157`–`:7416`): arrays `Heating`,`Cooling`,`PetsAllowed`,
   `BuildingFeatures`,`AttendanceType`,`SyndicateTo`,… and scalars `BuildingName`,`StructureType`,
   `TaxBlock`,`CrossStreet`,`AssociationName`,`Concessions`,`ListPrice`,`BedroomsTotal`, etc.
 - Building modal + media modal fields collected separately (`:7134`,`:7145`).

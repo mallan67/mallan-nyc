@@ -7,7 +7,7 @@
 
 > ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
 > 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
-> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+> 3. **REBNY overrides Cotality/IDX.** 4. **Cotality/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
 
 ---
 
@@ -121,7 +121,7 @@ When `InternetEntireListingDisplayYN = False`, these fields AUTO-CASCADE to Fals
 | Requirement | Source | Implementation |
 |-------------|--------|----------------|
 | Listing broker attribution | Art. III, Sec. 2(C) | "Listing Courtesy of [ListOfficeName]" — font not smaller than median |
-| Data timestamp | RESO IDX Rules | "Last updated: [date/time]" |
+| Data timestamp | Cotality IDX Rules | "Last updated: [date/time]" |
 | Fair Housing logo/link | Federal + NYC HRL | Equal Housing Opportunity icon |
 | Commission negotiability | Art. I, Sec. 17 | Disclosure accessible from listing |
 

@@ -5,7 +5,7 @@
  * live listings suppressed, dead/sold listings shown, projection mirror drift, missing live
  * inventory, sudden volume shifts, abnormal ghost transitions, and Cotality API health.
  *
- * Cotality/RESO source fields (authoritative): `StandardStatus`, `ListingId`, `MlsStatus`,
+ * Cotality/Cotality source fields (authoritative): `StandardStatus`, `ListingId`, `MlsStatus`,
  * `CloseDate`, `ModificationTimestamp`. DB columns: `listings.status`, `listings.idx_display_yn`,
  * `listing_search_projection.mls_status`, `listing_search_projection.idx_display_yn`.
  *

@@ -36,7 +36,7 @@ const CACHE_TTL_MIN = Math.round(CACHE_TTL_MS / 60000);
 const LOCAL_METADATA_FALLBACK = path.resolve(__dirname, '../../artifacts/metadata.xml');
 
 // Known resources on Trestle (for validation + listing)
-const KNOWN_RESOURCES = [
+const KNOWN_COTALITYURCES = [
   'Property', 'CustomProperty', 'Member', 'Office', 'Media',
   'PropertyUnitTypes', 'OpenHouse', 'PropertyRooms', 'Teams',
   'TeamMembers', 'PropertyGreenVerification', 'Building',
@@ -44,7 +44,7 @@ const KNOWN_RESOURCES = [
   'Field', 'Lookup', 'Model', 'DataSystem', 'Enumeration',
 ] as const;
 
-type ResourceName = typeof KNOWN_RESOURCES[number];
+type ResourceName = typeof KNOWN_COTALITYURCES[number];
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -61,7 +61,7 @@ interface FieldInfo {
   isMultiEnum: boolean;
   isEnum: boolean;
   trestleName?: string;  // from annotation if different
-  standardName?: string; // RESO standard name from annotation
+  standardName?: string; // Cotality standard name from annotation
 }
 
 interface EnumValue {
@@ -167,13 +167,13 @@ function simplifyType(rawType: string): {
   if (rawType === 'Edm.Date')             return { type: 'Date',     isEnum: false, isMultiEnum: false };
   if (rawType === 'Edm.DateTimeOffset')   return { type: 'DateTime', isEnum: false, isMultiEnum: false };
 
-  // Multi-enum: Cotality.DataStandard.RESO.DD.Enums.Multi.XxxYyy
+  // Multi-enum: Cotality.DataStandard.Cotality.DD.Enums.Multi.XxxYyy
   const multiMatch = rawType.match(/Enums\.Multi\.(.+)$/);
   if (multiMatch) {
     return { type: 'Multi-Enum', isEnum: true, isMultiEnum: true, enumName: multiMatch[1] };
   }
 
-  // Single enum: Cotality.DataStandard.RESO.DD.Enums.XxxYyy
+  // Single enum: Cotality.DataStandard.Cotality.DD.Enums.XxxYyy
   const enumMatch = rawType.match(/Enums\.(.+)$/);
   if (enumMatch) {
     return { type: 'Enum', isEnum: true, isMultiEnum: false, enumName: enumMatch[1] };
@@ -189,7 +189,7 @@ function parseMetadataXml(xml: string): ParsedMetadata {
     allowBooleanAttributes: true,
     parseAttributeValue: true,
     // 'Schema' MUST be here: the live Cotality $metadata has FIVE <Schema> namespaces
-    // (RESO.DD holds EntityTypes, RESO.DD.Enums + .Enums.Multi hold EnumTypes). The prior
+    // (Cotality.DD holds EntityTypes, Cotality.DD.Enums + .Enums.Multi hold EnumTypes). The prior
     // code read a single `Schema` object, so with the multi-schema doc it saw `undefined`
     // for EntityType/EnumType and parsed ZERO fields — every lookup wrongly returned "not found".
     isArray: (tagName) => ['Schema', 'Property', 'NavigationProperty', 'EnumType', 'Member', 'EntityType', 'Annotation'].includes(tagName),
@@ -427,7 +427,7 @@ server.tool(
       if (f.precision) lines.push(`- **Precision/Scale:** ${f.precision}/${f.scale ?? 0}`);
       lines.push(`- **Nullable:** ${f.nullable}`);
       if (f.trestleName && f.trestleName !== f.name) lines.push(`- **Trestle Name:** ${f.trestleName}`);
-      if (f.standardName) lines.push(`- **RESO Standard Name:** ${f.standardName}`);
+      if (f.standardName) lines.push(`- **Cotality Standard Name:** ${f.standardName}`);
 
       if (f.isEnum && f.enumName) {
         const enumValues = meta.enums.get(f.enumName.toLowerCase());
@@ -651,7 +651,7 @@ server.tool(
       'Common reasons:',
       '- Wrong case (field names are PascalCase, e.g. `ListPrice` not `list_price`)',
       '- Field belongs to a different resource (e.g. `CustomProperty` not `Property`)',
-      '- Field was renamed between RESO versions',
+      '- Field was renamed between Cotality versions',
     ];
 
     if (suggestions.length > 0) {

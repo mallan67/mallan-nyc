@@ -6,7 +6,7 @@
  * showed the gray placeholder for the same listing (both ran
  * `rows.length > 0 ? fromRows : legacyJson` but fed it different row sets).
  *
- * FIX: a shared DB-only policy `resolveDbListingMedia` keyed on RESOLVED active
+ * FIX: a shared DB-only policy `resolveDbListingMedia` keyed on COTALITYLVED active
  * media + LISTING PROVENANCE (never raw rows.length, never mls_id):
  *   1. relational active media wins;
  *   2. zero usable → fall back to legacy Cotality JSON for third-party listings;

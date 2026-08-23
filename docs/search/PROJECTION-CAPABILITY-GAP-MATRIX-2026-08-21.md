@@ -79,7 +79,7 @@ itself the count/pagination defect pattern.
 | `keyword` | keywords | `searchable_text` | **A** | yes | verify what the text is built from |
 | `ownership` | ownership | `feature_flags.is_condo/coop/condop` | **B** | yes | — |
 | **`propertySubType`** | property_sub_type | **`property_sub_type` EXISTS** | **A** | **CLOSED 2026-08-21** | Was a translator gap. `criteriaToProjectionWhere` now executes it as an exact `IN` against the live-verified 75-member enum. The projection column exists and the projection writer maps `Listing.property_sub_type` into it; **actual eligible-row population/parity remains UNVERIFIED until the Neon cutover census** — code proves a writer, not production population. See §2c |
-| **`listingId`** | listing_id_mls | `listing_id`, `listing_key` | **A** | **NO** | **NOT a translator gap — an IDENTITY-RESOLUTION capability. See §2b** |
+| **`listingId`** | listing_id_mls | `listing_id`, `listing_key` | **A** | **NO** | **NOT a translator gap — an IDENTITY-COTALITYLUTION capability. See §2b** |
 | **`unit`** | unit | — | **D** | no | `Listing.address.UnitNumber` |
 | **`address`** | address | — | **D** | no | `Listing.address` structured parts; needs the address field-family contract |
 | **`buildingName`** | building_name | — | **D** | no | `features/raw_data.BuildingName` (live 3,903/8,056) |
@@ -97,7 +97,7 @@ entirely (§2b); the rest are class C/D promotions or translator work.
 
 ---
 
-## 2b. `listingId` IS IDENTITY RESOLUTION, NOT A SCALAR FILTER
+## 2b. `listingId` IS IDENTITY COTALITYLUTION, NOT A SCALAR FILTER
 
 Calling this "a translator gap — the columns exist" collapses the identity problem this
 workstream spent its longest stretch fixing. It cannot be closed with another

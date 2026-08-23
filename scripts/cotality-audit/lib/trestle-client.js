@@ -1,6 +1,6 @@
 /**
- * scripts/reso/lib/trestle-client.js
- * Shared OAuth + OData helpers for the read-only RESO toolkit.
+ * scripts/cotality/lib/trestle-client.js
+ * Shared OAuth + OData helpers for the read-only Cotality toolkit.
  *
  * Wraps the IDX_CLIENT_ID / IDX_CLIENT_SECRET pair from .env.local against
  * Cotality's Trestle OData endpoint. Token TTL is ~12 minutes; we cache

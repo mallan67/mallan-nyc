@@ -4,7 +4,7 @@
  * fields: Cotality auto-fill (A), Mallan Building Profile internal (B), unit
  * Cotality suggestions (C). Enforces:
  *  - internal/manual building-profile fields carry NO data-rls-field and are
- *    not labeled "RLS/RESO/IDX/Trestle" (phantom fields are not Cotality);
+ *    not labeled "RLS/Cotality/IDX/Trestle" (phantom fields are not Cotality);
  *  - Management company / building staff / board contacts persist + reload;
  *  - a Cotality building lookup never overwrites manual profile policy/contacts;
  *  - real Cotality fields still auto-fill.
@@ -65,13 +65,13 @@ describe('Bucket-B internal fields carry NO data-rls-field', () => {
   });
 });
 
-describe('Labels — no false RLS/RESO/IDX on internal/manual fields', () => {
+describe('Labels — no false RLS/Cotality/IDX on internal/manual fields', () => {
   it('phantom internal sections are relabeled "Mallan Building Profile"', () => {
     expect(FORM).not.toMatch(/RLS Field: AttendanceType/);
     expect(FORM).not.toMatch(/RLS: BuildingLaundryFeatures/);
     expect(FORM).not.toMatch(/RLS Field: BuildingPetsAllowed/);
-    expect(FORM).not.toMatch(/RLS\/RESO\/IDX: BuildingHeating/);
-    expect(FORM).not.toMatch(/RLS\/RESO\/IDX: BuildingCooling/);
+    expect(FORM).not.toMatch(/RLS\/Cotality\/IDX: BuildingHeating/);
+    expect(FORM).not.toMatch(/RLS\/Cotality\/IDX: BuildingCooling/);
     expect(FORM).toMatch(/Mallan Building Profile — internal building laundry policy/);
     expect(FORM).toMatch(/Mallan Building Profile — internal building pet policy/);
   });

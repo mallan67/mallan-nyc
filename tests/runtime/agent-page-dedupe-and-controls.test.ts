@@ -88,7 +88,7 @@ describe('Task B — set-listing-primary-photo ops script only mutates CRM media
   });
 });
 
-describe('Task B — agent route uses RESOLVED media (hero-first), consistent with Featured/detail', () => {
+describe('Task B — agent route uses COTALITYLVED media (hero-first), consistent with Featured/detail', () => {
   const route = readFileSync(resolve(__dirname, '../../app/api/agents/[slug]/listings/route.ts'), 'utf8');
   it('selects the relational listing_media table (active, ordered) so the hero matches other surfaces', () => {
     expect(route).toMatch(/listing_media:\s*\{[\s\S]*?where:\s*\{\s*status:\s*'active'\s*\}/);

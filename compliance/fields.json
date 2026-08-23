@@ -7,9 +7,9 @@
     "fieldAuthorityOrder": [
       "1. UCBA governs everything (contractual obligations, timing, statuses, agent conduct)",
       "2. REBNY RLS rules + RLS fields (permissions, timing, statuses, mapping, IDs, dissemination)",
-      "3. RLS overrides RESO/IDX — if RLS rule/field exists, it overrides RESO/IDX schema or vendor defaults",
-      "4. RESO/IDX fills gaps — if no RLS rule/field exists, use RESO definitions for naming/types/enums",
-      "5. INTERNAL-ONLY — if neither RLS nor RESO/IDX governs, must not affect public display eligibility",
+      "3. RLS overrides Cotality/IDX — if RLS rule/field exists, it overrides Cotality/IDX schema or vendor defaults",
+      "4. Cotality/IDX fills gaps — if no RLS rule/field exists, use Cotality definitions for naming/types/enums",
+      "5. INTERNAL-ONLY — if neither RLS nor Cotality/IDX governs, must not affect public display eligibility",
       "6. Fail closed — any uncertainty or missing permission data defaults to NON-DISPLAY"
     ],
     "stats": {
@@ -20,7 +20,7 @@
       "searchable": 429,
       "readOnly": 87
     },
-    "resoToRlsRenames": {
+    "cotalityToRlsRenames": {
       "BuildingSocialMedia": "BuildingSocialMediaURL",
       "BuyerAgentKey": "BuyerAgentMlsId",
       "BuyerOfficeKey": "BuyerOfficeMlsId",
@@ -50,7 +50,7 @@
   },
   "fields": {
     "AboveGradeFinishedArea": {
-      "reso": "AboveGradeFinishedArea",
+      "cotality": "AboveGradeFinishedArea",
       "rls": "AboveGradeFinishedArea",
       "description": "Finished area within the structure that is at or above the surface of the ground.",
       "required": "optional",
@@ -61,7 +61,7 @@
       "authority": "RLS"
     },
     "AboveGradeFinishedAreaSource": {
-      "reso": "AboveGradeFinishedAreaSource",
+      "cotality": "AboveGradeFinishedAreaSource",
       "rls": "AboveGradeFinishedAreaSource",
       "description": "The source of the measurements. This is a pick list of options showing the source of the measurement. i.e. Agent, Assessor, Estimate, etc.",
       "required": "optional",
@@ -72,7 +72,7 @@
       "authority": "RLS"
     },
     "AboveGradeFinishedAreaUnits": {
-      "reso": "AboveGradeFinishedAreaUnits",
+      "cotality": "AboveGradeFinishedAreaUnits",
       "rls": "AboveGradeFinishedAreaUnits",
       "description": "A pick list of the unit of measurement for the area. i.e. Square Feet, Square Meters, Acres, etc.",
       "required": "conditional",
@@ -83,7 +83,7 @@
       "authority": "RLS"
     },
     "AccessibilityFeatures": {
-      "reso": "AccessibilityFeatures",
+      "cotality": "AccessibilityFeatures",
       "rls": "AccessibilityFeatures",
       "description": "A list or description of the accessibility features included in the sale/lease.",
       "required": "optional",
@@ -94,7 +94,7 @@
       "authority": "RLS"
     },
     "ActivationDate": {
-      "reso": "ActivationDate",
+      "cotality": "ActivationDate",
       "rls": "ActivationDate",
       "description": "The date a Coming Soon listing is expected to become available as Active in the Source System",
       "required": "conditional",
@@ -105,7 +105,7 @@
       "authority": "RLS"
     },
     "ActivationTimestamp": {
-      "reso": "ActivationTimestamp",
+      "cotality": "ActivationTimestamp",
       "rls": "ActivationTimestamp",
       "description": "The timestamp that a Coming Soon listing was made Active in  the RLS System",
       "required": "optional",
@@ -116,7 +116,7 @@
       "authority": "RLS"
     },
     "ActiveOpenHouseCount": {
-      "reso": "ActiveOpenHouseCount",
+      "cotality": "ActiveOpenHouseCount",
       "rls": "ActiveOpenHouseCount",
       "description": "Calculated count in Matrix of active open houses",
       "required": "optional",
@@ -127,7 +127,7 @@
       "authority": "RLS"
     },
     "AlternateStreetDirPrefix": {
-      "reso": "AlternateStreetDirPrefix",
+      "cotality": "AlternateStreetDirPrefix",
       "rls": "AlternateStreetDirPrefix",
       "description": "The direction indicator that precedes the listed property's alternate street name.",
       "required": "optional",
@@ -138,7 +138,7 @@
       "authority": "RLS"
     },
     "AlternateStreetDirSuffix": {
-      "reso": "AlternateStreetDirSuffix",
+      "cotality": "AlternateStreetDirSuffix",
       "rls": "AlternateStreetDirSuffix",
       "description": "The direction indicator that follows a listed property's alternate street address.",
       "required": "optional",
@@ -149,7 +149,7 @@
       "authority": "RLS"
     },
     "AlternateStreetName": {
-      "reso": "AlternateStreetName",
+      "cotality": "AlternateStreetName",
       "rls": "AlternateStreetName",
       "description": "The street name portion of a listed property's alternate street address.",
       "required": "conditional",
@@ -160,7 +160,7 @@
       "authority": "RLS"
     },
     "AlternateStreetNumber": {
-      "reso": "AlternateStreetNumber",
+      "cotality": "AlternateStreetNumber",
       "rls": "AlternateStreetNumber",
       "description": "The street number portion of a listed property's alternate street address. In some areas the street number may contain non-numeric characters. This field can also contain extensions and modifiers to the street number, such as \"1/2\" or \"-B\". This street number field should not include Prefixes, Direc",
       "required": "conditional",
@@ -171,7 +171,7 @@
       "authority": "RLS"
     },
     "AlternateStreetSuffix": {
-      "reso": "AlternateStreetSuffix",
+      "cotality": "AlternateStreetSuffix",
       "rls": "AlternateStreetSuffix",
       "description": "The suffix portion of a listed property's alternate street address.",
       "required": "optional",
@@ -182,7 +182,7 @@
       "authority": "RLS"
     },
     "Appliances": {
-      "reso": "Appliances",
+      "cotality": "Appliances",
       "rls": "Appliances",
       "description": "A list of the appliances that will be included in the sale/lease of the listing",
       "required": "optional",
@@ -193,7 +193,7 @@
       "authority": "RLS"
     },
     "ArchitectName": {
-      "reso": "ArchitectName",
+      "cotality": "ArchitectName",
       "rls": "ArchitectName",
       "description": "Name of the architect who designed the building.",
       "required": "optional",
@@ -204,7 +204,7 @@
       "authority": "RLS"
     },
     "ArchitecturalStyle": {
-      "reso": "ArchitecturalStyle",
+      "cotality": "ArchitecturalStyle",
       "rls": "ArchitecturalStyle",
       "description": "A list describing the style of the structure. For example, Prewar, Highrise, Walkup, etc.",
       "required": "optional",
@@ -215,7 +215,7 @@
       "authority": "RLS"
     },
     "AreaOverFAR": {
-      "reso": "AreaOverFAR",
+      "cotality": "AreaOverFAR",
       "rls": "AreaOverFAR",
       "description": "Area over FAR in square feet.",
       "required": "optional",
@@ -226,7 +226,7 @@
       "authority": "RLS"
     },
     "AreaUnderFAR": {
-      "reso": "AreaUnderFAR",
+      "cotality": "AreaUnderFAR",
       "rls": "AreaUnderFAR",
       "description": "Area under FAR in square feet.",
       "required": "optional",
@@ -237,7 +237,7 @@
       "authority": "RLS"
     },
     "AssociationFee": {
-      "reso": "AssociationFee",
+      "cotality": "AssociationFee",
       "rls": "AssociationFee",
       "description": "A fee paid by the homeowner to the Homeowners Association which is used for the upkeep of the common area, neighborhood or other association related benefits. Also known as monthly maintenance fee for coop/condop or monthly common charges for condo. The AssociationFee field does not to include taxes",
       "required": "conditional",
@@ -248,7 +248,7 @@
       "authority": "RLS"
     },
     "AssociationFee2": {
-      "reso": "AssociationFee2",
+      "cotality": "AssociationFee2",
       "rls": "AssociationFee2",
       "description": "A fee paid by the homeowner to the second of two Homeowners Associations, which is used for the upkeep of the common area, neighborhood or other association related benefits. This can also be used fo",
       "required": "optional",
@@ -259,7 +259,7 @@
       "authority": "RLS"
     },
     "AssociationFee2Frequency": {
-      "reso": "AssociationFee2Frequency",
+      "cotality": "AssociationFee2Frequency",
       "rls": "AssociationFee2Frequency",
       "description": "The frequency the association fee is paid. For example, Weekly, Monthly, Annually, Bi-Monthly, One Time, etc.",
       "required": "conditional",
@@ -270,7 +270,7 @@
       "authority": "RLS"
     },
     "AssociationFeeFrequency": {
-      "reso": "AssociationFeeFrequency",
+      "cotality": "AssociationFeeFrequency",
       "rls": "AssociationFeeFrequency",
       "description": "The frequency the association fee is paid. For example, Weekly, Monthly, Annually, Bi-Monthly, One Time, etc.",
       "required": "conditional",
@@ -281,7 +281,7 @@
       "authority": "RLS"
     },
     "AssociationFeeIncludes": {
-      "reso": "AssociationFeeIncludes",
+      "cotality": "AssociationFeeIncludes",
       "rls": "AssociationFeeIncludes",
       "description": "Services included with the association fee. For example Landscaping, Trash, Water, etc.",
       "required": "optional",
@@ -292,7 +292,7 @@
       "authority": "RLS"
     },
     "AssociationName": {
-      "reso": "AssociationName",
+      "cotality": "AssociationName",
       "rls": "AssociationName",
       "description": "The name of the Homeowners Association or the legal name of the condo/co-op corporation (as on the stock certificate).",
       "required": "optional",
@@ -303,7 +303,7 @@
       "authority": "RLS"
     },
     "AssociationYN": {
-      "reso": "AssociationYN",
+      "cotality": "AssociationYN",
       "rls": "AssociationYN",
       "description": "Is there a Homeowners Association. A separate Y/N field is needed because not all associations have dues.",
       "required": "optional",
@@ -314,7 +314,7 @@
       "authority": "RLS"
     },
     "AttachedGarageYN": {
-      "reso": "AttachedGarageYN",
+      "cotality": "AttachedGarageYN",
       "rls": "AttachedGarageYN",
       "description": "A flag indicating that the garage is attached/connected to the dwelling and can be accessed from the building",
       "required": "optional",
@@ -325,7 +325,7 @@
       "authority": "RLS"
     },
     "AttendanceType": {
-      "reso": "AttendanceType",
+      "cotality": "AttendanceType",
       "rls": "AttendanceType",
       "description": "The types of building attendants on the property.",
       "required": "mandatory",
@@ -336,7 +336,7 @@
       "authority": "RLS"
     },
     "AvailabilityDate": {
-      "reso": "AvailabilityDate",
+      "cotality": "AvailabilityDate",
       "rls": "AvailabilityDate",
       "description": "The date the property will be available for possession/occupation.",
       "required": "conditional",
@@ -347,7 +347,7 @@
       "authority": "RLS"
     },
     "BackOnMarketDate": {
-      "reso": "BackOnMarketDate",
+      "cotality": "BackOnMarketDate",
       "rls": "BackOnMarketDate",
       "description": "The date a listing, which had previously gone off market, went back to being on market in the Source System. This date typically will reflect contractual dates.",
       "required": "optional",
@@ -358,7 +358,7 @@
       "authority": "RLS"
     },
     "BackOnMarketTimestamp": {
-      "reso": "BackOnMarketTimestamp",
+      "cotality": "BackOnMarketTimestamp",
       "rls": "BackOnMarketTimestamp",
       "description": "The date a listing, which had previously gone off market, went back to being on market in the RLS System. This date typically will reflect contractual dates.",
       "required": "optional",
@@ -369,7 +369,7 @@
       "authority": "RLS"
     },
     "Basement": {
-      "reso": "Basement",
+      "cotality": "Basement",
       "rls": "Basement",
       "description": "A list of information and features about the basement. i.e. None/Slab, Finished, Partially Finished, Crawl Space, Dirt, Outside Entrance, Radon Mitigation.",
       "required": "conditional",
@@ -380,7 +380,7 @@
       "authority": "RLS"
     },
     "BasementYN": {
-      "reso": "BasementYN",
+      "cotality": "BasementYN",
       "rls": "BasementYN",
       "description": "Indicates whether or not the listing that is for sale/lease has a basement.",
       "required": "optional",
@@ -391,7 +391,7 @@
       "authority": "RLS"
     },
     "BathroomCondition": {
-      "reso": "BathroomCondition",
+      "cotality": "BathroomCondition",
       "rls": "BathroomCondition",
       "description": "General condition of the property's bathroom(s).",
       "required": "optional",
@@ -402,7 +402,7 @@
       "authority": "RLS"
     },
     "BathroomsFull": {
-      "reso": "BathroomsFull",
+      "cotality": "BathroomsFull",
       "rls": "BathroomsFull",
       "description": "A room containing all 4 of the 4 elements constituting a bath, which are; Toilet, Sink, Bathtub or Shower Head. A Full Bath will typically contain four elements; Sink, Toilet, Tub and Shower Head (in tub or stall). However, some may considered a Sink, Toilet and Tub (without a shower) a Full Bath, o",
       "required": "mandatory",
@@ -413,7 +413,7 @@
       "authority": "RLS"
     },
     "BathroomsHalf": {
-      "reso": "BathroomsHalf",
+      "cotality": "BathroomsHalf",
       "rls": "BathroomsHalf",
       "description": "A room containing 2 of the 4 elements constituting a bath, which are; Toilet, Sink, Bathtub or Shower Head. A Half Bath will typically contain a Sink and Toilet.",
       "required": "mandatory",
@@ -424,7 +424,7 @@
       "authority": "RLS"
     },
     "BathroomsOneQuarter": {
-      "reso": "BathroomsOneQuarter",
+      "cotality": "BathroomsOneQuarter",
       "rls": "BathroomsOneQuarter",
       "description": "A room containing 1 of the 4 elements constituting a bath which are; Toilet, Sink, Bathtub or Shower Head. Examples are a vanity with a sink or a WC (Water Closet, which is a room with only a toilet).",
       "required": "optional",
@@ -435,7 +435,7 @@
       "authority": "RLS"
     },
     "BathroomsPartial": {
-      "reso": "BathroomsPartial",
+      "cotality": "BathroomsPartial",
       "rls": "BathroomsPartial",
       "description": "The number of partial bathrooms in the property being sold/leased. When used in combination with the BathroomsFull field, this replaces (or is the sum of) all Half and One Quarter bathrooms; and in the event BathroomsThreeQuarter is not used, BathroomsFull replaces (or is the sum of) all Full and Th",
       "required": "optional",
@@ -446,7 +446,7 @@
       "authority": "RLS"
     },
     "BathroomsThreeQuarter": {
-      "reso": "BathroomsThreeQuarter",
+      "cotality": "BathroomsThreeQuarter",
       "rls": "BathroomsThreeQuarter",
       "description": "A room containing 3 of the 4 elements constituting a bath, which are; Toilet, Sink, Bathtub or Shower Head. A typical Three Quarter Bath will contain Sink, Toilet and Shower. Some may considered a Sink, Toilet and Tub (without a shower) a Three Quarter Bath, others consider this to be a Full Bath.",
       "required": "optional",
@@ -457,7 +457,7 @@
       "authority": "RLS"
     },
     "BathroomsTotal": {
-      "reso": "BathroomsTotal",
+      "cotality": "BathroomsTotal",
       "rls": "BathroomsTotal",
       "description": "Sum of the number of bathrooms with half baths expressed as a decimal.",
       "required": "mandatory",
@@ -468,7 +468,7 @@
       "authority": "RLS"
     },
     "BathroomsTotalInteger": {
-      "reso": "BathroomsTotalInteger",
+      "cotality": "BathroomsTotalInteger",
       "rls": "BathroomsTotalInteger",
       "description": "The simple sum of the number of bathrooms. For example for a property with two Full Bathrooms and one Half Bathroom, the Bathrooms Total Integer will be 3. Expressing this example as 2.5, you will need to use a non-standard field name. Decimal based bathrooms are not recommended but possible via the",
       "required": "optional",
@@ -479,7 +479,7 @@
       "authority": "RLS"
     },
     "BedroomsTotal": {
-      "reso": "BedroomsTotal",
+      "cotality": "BedroomsTotal",
       "rls": "BedroomsTotal",
       "description": "The total number of bedrooms in the dwelling.",
       "required": "mandatory",
@@ -490,7 +490,7 @@
       "authority": "RLS"
     },
     "BelowGradeFinishedArea": {
-      "reso": "BelowGradeFinishedArea",
+      "cotality": "BelowGradeFinishedArea",
       "rls": "BelowGradeFinishedArea",
       "description": "Finished area within the structure that is below ground.",
       "required": "optional",
@@ -501,7 +501,7 @@
       "authority": "RLS"
     },
     "BelowGradeFinishedAreaSource": {
-      "reso": "BelowGradeFinishedAreaSource",
+      "cotality": "BelowGradeFinishedAreaSource",
       "rls": "BelowGradeFinishedAreaSource",
       "description": "The source of the measurements. This is a pick list of options showing the source of the measurement. i.e. Agent, Assessor, Estimate, etc.",
       "required": "optional",
@@ -512,7 +512,7 @@
       "authority": "RLS"
     },
     "BelowGradeFinishedAreaUnits": {
-      "reso": "BelowGradeFinishedAreaUnits",
+      "cotality": "BelowGradeFinishedAreaUnits",
       "rls": "BelowGradeFinishedAreaUnits",
       "description": "A pick list of the unit of measurement for the area. i.e. Square Feet, Square Meters, Acres, etc.",
       "required": "conditional",
@@ -523,7 +523,7 @@
       "authority": "RLS"
     },
     "BuilderName": {
-      "reso": "BuilderName",
+      "cotality": "BuilderName",
       "rls": "BuilderName",
       "description": "Name of the builder or developer of the property.",
       "required": "optional",
@@ -534,7 +534,7 @@
       "authority": "RLS"
     },
     "BuildingAccessibilityFeatures": {
-      "reso": "BuildingAccessibilityFeatures",
+      "cotality": "BuildingAccessibilityFeatures",
       "rls": "BuildingAccessibilityFeatures",
       "description": "A list or description of the accessibility features in the building. (Not pertaining to the specific listing that is for sale or lease)",
       "required": "optional",
@@ -545,7 +545,7 @@
       "authority": "RLS"
     },
     "BuildingAreaSource": {
-      "reso": "BuildingAreaSource",
+      "cotality": "BuildingAreaSource",
       "rls": "BuildingAreaSource",
       "description": "The source of the measurements. This is a pick list of options showing the source of the measurement. i.e. Agent, Assessor, Estimate, etc.",
       "required": "optional",
@@ -556,7 +556,7 @@
       "authority": "RLS"
     },
     "BuildingAreaTotal": {
-      "reso": "BuildingAreaTotal",
+      "cotality": "BuildingAreaTotal",
       "rls": "BuildingAreaTotal",
       "description": "Total area of the structure. Includes both finished and unfinished areas.",
       "required": "conditional",
@@ -567,7 +567,7 @@
       "authority": "RLS"
     },
     "BuildingAreaUnits": {
-      "reso": "BuildingAreaUnits",
+      "cotality": "BuildingAreaUnits",
       "rls": "BuildingAreaUnits",
       "description": "A pick list of the unit of measurement for the area. i.e. Square Feet, Square Meters, Acres, etc.",
       "required": "conditional",
@@ -578,7 +578,7 @@
       "authority": "RLS"
     },
     "BuildingCondition": {
-      "reso": "BuildingCondition",
+      "cotality": "BuildingCondition",
       "rls": "BuildingCondition",
       "description": "A listing describing the condition of the building.",
       "required": "optional",
@@ -589,7 +589,7 @@
       "authority": "RLS"
     },
     "BuildingCooling": {
-      "reso": "BuildingCooling",
+      "cotality": "BuildingCooling",
       "rls": "BuildingCooling",
       "description": "A list describing the cooling features of the buildings common areas.",
       "required": "optional",
@@ -600,7 +600,7 @@
       "authority": "RLS"
     },
     "BuildingEntryLocation": {
-      "reso": "BuildingEntryLocation",
+      "cotality": "BuildingEntryLocation",
       "rls": "BuildingEntryLocation",
       "description": "A description of the main entryway to the building. i.e. Elevator, Ground Level w/ Steps, Ground Level w/o Steps, Mid Level, Top Level, etc.",
       "required": "optional",
@@ -611,7 +611,7 @@
       "authority": "RLS"
     },
     "BuildingExteriorFeatures": {
-      "reso": "BuildingExteriorFeatures",
+      "cotality": "BuildingExteriorFeatures",
       "rls": "BuildingExteriorFeatures",
       "description": "A list of features or description of the exterior of the building.",
       "required": "optional",
@@ -622,7 +622,7 @@
       "authority": "RLS"
     },
     "BuildingFeatures": {
-      "reso": "BuildingFeatures",
+      "cotality": "BuildingFeatures",
       "rls": "BuildingFeatures",
       "description": "Features or amenities of the building or business park.",
       "required": "optional",
@@ -633,7 +633,7 @@
       "authority": "RLS"
     },
     "BuildingFencing": {
-      "reso": "BuildingFencing",
+      "cotality": "BuildingFencing",
       "rls": "BuildingFencing",
       "description": "A list of types of fencing found at the building.",
       "required": "optional",
@@ -644,7 +644,7 @@
       "authority": "RLS"
     },
     "BuildingHeating": {
-      "reso": "BuildingHeating",
+      "cotality": "BuildingHeating",
       "rls": "BuildingHeating",
       "description": "A list describing the heating features of the building.",
       "required": "optional",
@@ -655,7 +655,7 @@
       "authority": "RLS"
     },
     "BuildingLaundryFeatures": {
-      "reso": "BuildingLaundryFeatures",
+      "cotality": "BuildingLaundryFeatures",
       "rls": "BuildingLaundryFeatures",
       "description": "Pick list of features/services and locations where the laundry is located in the building including dry cleaning/laundry services.",
       "required": "mandatory",
@@ -666,7 +666,7 @@
       "authority": "RLS"
     },
     "BuildingName": {
-      "reso": "BuildingName",
+      "cotality": "BuildingName",
       "rls": "BuildingName",
       "description": "Name of the building or business park including the marketing or vanity building.",
       "required": "optional",
@@ -677,7 +677,7 @@
       "authority": "RLS"
     },
     "BuildingParkingFeatures": {
-      "reso": "BuildingParkingFeatures",
+      "cotality": "BuildingParkingFeatures",
       "rls": "BuildingParkingFeatures",
       "description": "A list of features or description of the parking included in the building.",
       "required": "optional",
@@ -688,7 +688,7 @@
       "authority": "RLS"
     },
     "BuildingParkingTotal": {
-      "reso": "BuildingParkingTotal",
+      "cotality": "BuildingParkingTotal",
       "rls": "BuildingParkingTotal",
       "description": "The total number of parking spaces available for the building, not particularly assigned to the specific unit/listing.",
       "required": "optional",
@@ -699,7 +699,7 @@
       "authority": "RLS"
     },
     "BuildingPatioAndPorchFeatures": {
-      "reso": "BuildingPatioAndPorchFeatures",
+      "cotality": "BuildingPatioAndPorchFeatures",
       "rls": "BuildingPatioAndPorchFeatures",
       "description": "A list of features or description of the patio or porch on the property. This includes: terrace or roof deck",
       "required": "optional",
@@ -710,7 +710,7 @@
       "authority": "RLS"
     },
     "BuildingPetsAllowed": {
-      "reso": "BuildingPetsAllowed",
+      "cotality": "BuildingPetsAllowed",
       "rls": "BuildingPetsAllowed",
       "description": "Indicate the pet policy for the building. Please note, the building policy can be different from what the unit owner will permit.",
       "required": "mandatory",
@@ -721,7 +721,7 @@
       "authority": "RLS"
     },
     "BuildingPetsAllowedComments": {
-      "reso": "BuildingPetsAllowedComments",
+      "cotality": "BuildingPetsAllowedComments",
       "rls": "BuildingPetsAllowedComments",
       "description": "Description of what is permitted or restrictions whether there is a number or size limit or breed restrictions",
       "required": "conditional",
@@ -732,7 +732,7 @@
       "authority": "RLS"
     },
     "BuildingPoolFeatures": {
-      "reso": "BuildingPoolFeatures",
+      "cotality": "BuildingPoolFeatures",
       "rls": "BuildingPoolFeatures",
       "description": "A list of features or description of the pool for common use or access for the building residents",
       "required": "optional",
@@ -743,7 +743,7 @@
       "authority": "RLS"
     },
     "BuildingRules": {
-      "reso": "BuildingRules",
+      "cotality": "BuildingRules",
       "rls": "BuildingRules",
       "description": "Building-level property rules.",
       "required": "optional",
@@ -754,7 +754,7 @@
       "authority": "RLS"
     },
     "BuildingSecurityFeatures": {
-      "reso": "BuildingSecurityFeatures",
+      "cotality": "BuildingSecurityFeatures",
       "rls": "BuildingSecurityFeatures",
       "description": "A list describing the security features on the property",
       "required": "optional",
@@ -765,7 +765,7 @@
       "authority": "RLS"
     },
     "BuildingSmokeFreeYN": {
-      "reso": "BuildingSmokeFreeYN",
+      "cotality": "BuildingSmokeFreeYN",
       "rls": "BuildingSmokeFreeYN",
       "description": "A building is 100% smoke-free where smoking tobacco products are prohibited within the building. This means no smoking in individual apartments or common indoor and outdoor areas. Some smoke-free buildings may allow smoking only in a limited designated outdoor area. Please refer to the Smoke Free Ai",
       "required": "optional",
@@ -776,7 +776,7 @@
       "authority": "RLS"
     },
     "BuildingSocialMediaURL": {
-      "reso": "BuildingSocialMedia",
+      "cotality": "BuildingSocialMedia",
       "rls": "BuildingSocialMediaURL",
       "description": "Building social media URL",
       "required": "optional",
@@ -787,7 +787,7 @@
       "authority": "RLS"
     },
     "BuildingStaffType": {
-      "reso": "BuildingStaffType",
+      "cotality": "BuildingStaffType",
       "rls": "BuildingStaffType",
       "description": "Types of staff employed by the building or association.",
       "required": "optional",
@@ -798,7 +798,7 @@
       "authority": "RLS"
     },
     "BuildingTaxLot": {
-      "reso": "BuildingTaxLot",
+      "cotality": "BuildingTaxLot",
       "rls": "BuildingTaxLot",
       "description": "Specific to the Building. A type of legal description for land in developed areas where streets or other rights-of-ways delineate large parcels of land referred to as divided into lots on which homes or other types of developments are built. An example would read \"Lot 12 of Block 45 of Tract 3002 of",
       "required": "mandatory",
@@ -809,7 +809,7 @@
       "authority": "RLS"
     },
     "BuildingTotalGrossFootage": {
-      "reso": "BuildingTotalGrossFootage",
+      "cotality": "BuildingTotalGrossFootage",
       "rls": "BuildingTotalGrossFootage",
       "description": "The entire square footage of a building. GSF typically includes areas such as the building core, maintenance and operations areas, stairwells, elevator shafts, equipment areas, attics, garages, balconies, excavated basement areas, mezzanines, corridors and walkways.",
       "required": "optional",
@@ -820,7 +820,7 @@
       "authority": "RLS"
     },
     "BuildingTotalNetSquareFootage": {
-      "reso": "BuildingTotalNetSquareFootage",
+      "cotality": "BuildingTotalNetSquareFootage",
       "rls": "BuildingTotalNetSquareFootage",
       "description": "The area of usable space that’s available for furnishings, equipment, and personnel of a Building. BuildingTotalNetSquareFootage is essentially BuildingGrossSquareFootage minus unusable space.",
       "required": "optional",
@@ -831,7 +831,7 @@
       "authority": "RLS"
     },
     "BusinessType": {
-      "reso": "BusinessType",
+      "cotality": "BusinessType",
       "rls": "BusinessType",
       "description": "List of type of business on premise or part of the building, if Building Description is mix-use building. Retail, Wholesale, Grocery, Food & Bev, etc. Not to be used to describe the listing that is for lease or sale.",
       "required": "optional",
@@ -842,7 +842,7 @@
       "authority": "RLS"
     },
     "BuyerAgentDirectPhone": {
-      "reso": "BuyerAgentDirectPhone",
+      "cotality": "BuyerAgentDirectPhone",
       "rls": "BuyerAgentDirectPhone",
       "description": "North American 10 digit phone numbers should be in the format of ###-###-#### (separated by hyphens). Other conventions should use the common local standard. International numbers should be preceded by a plus symbol.",
       "required": "conditional",
@@ -853,7 +853,7 @@
       "authority": "RLS"
     },
     "BuyerAgentEmail": {
-      "reso": "BuyerAgentEmail",
+      "cotality": "BuyerAgentEmail",
       "rls": "BuyerAgentEmail",
       "description": "The email address of the Buyer's Agent.",
       "required": "conditional",
@@ -864,7 +864,7 @@
       "authority": "RLS"
     },
     "BuyerAgentFullName": {
-      "reso": "BuyerAgentFullName",
+      "cotality": "BuyerAgentFullName",
       "rls": "BuyerAgentFullName",
       "description": "The full name of the buyer's agent as registered with DOS",
       "required": "conditional",
@@ -875,7 +875,7 @@
       "authority": "RLS"
     },
     "BuyerAgentKeyNumeric": {
-      "reso": "BuyerAgentKeyNumeric",
+      "cotality": "BuyerAgentKeyNumeric",
       "rls": "BuyerAgentKeyNumeric",
       "description": "Unique identifier of the Buyer Agent. This is the foreign key that relates to the Member resource MemberKeyNumeric",
       "required": "optional",
@@ -886,7 +886,7 @@
       "authority": "RLS"
     },
     "BuyerAgentMlsId": {
-      "reso": "BuyerAgentKey",
+      "cotality": "BuyerAgentKey",
       "rls": "BuyerAgentMlsId",
       "description": "A system unique identifier. Specifically, in aggregation systems, the Key is the system unique identifier from the system that the record was just retrieved. This may be identical to the related xxxId identifier, but the key is guaranteed unique for this record set. This is a foreign key relating to",
       "required": "mandatory",
@@ -897,7 +897,7 @@
       "authority": "RLS"
     },
     "BuyerAgentRLSParticipantYN": {
-      "reso": "BuyerAgentRLSParticipantYN",
+      "cotality": "BuyerAgentRLSParticipantYN",
       "rls": "BuyerAgentRLSParticipantYN",
       "description": "Indicate whether the buyer agent is a RLS Participant.",
       "required": "conditional",
@@ -908,7 +908,7 @@
       "authority": "RLS"
     },
     "BuyerAgentStateLicense": {
-      "reso": "BuyerAgentStateLicense",
+      "cotality": "BuyerAgentStateLicense",
       "rls": "BuyerAgentStateLicense",
       "description": "The license of the buyers agent. Separate multiple licenses with a comma and space.",
       "required": "conditional",
@@ -919,7 +919,7 @@
       "authority": "RLS"
     },
     "BuyerAgentURL": {
-      "reso": "BuyerAgentURL",
+      "cotality": "BuyerAgentURL",
       "rls": "BuyerAgentURL",
       "description": "The website URL of the buyers agent.",
       "required": "optional",
@@ -930,7 +930,7 @@
       "authority": "RLS"
     },
     "BuyerFinancing": {
-      "reso": "BuyerFinancing",
+      "cotality": "BuyerFinancing",
       "rls": "BuyerFinancing",
       "description": "A list of options that describe the type of financing used. This field is used when setting a listing to Closed. i.e. cash, FHA loan, etc.",
       "required": "optional",
@@ -941,7 +941,7 @@
       "authority": "RLS"
     },
     "BuyerOfficeEmail": {
-      "reso": "BuyerOfficeEmail",
+      "cotality": "BuyerOfficeEmail",
       "rls": "BuyerOfficeEmail",
       "description": "The email address of the Buyer's Office.",
       "required": "optional",
@@ -952,7 +952,7 @@
       "authority": "RLS"
     },
     "BuyerOfficeKeyNumeric": {
-      "reso": "BuyerOfficeKeyNumeric",
+      "cotality": "BuyerOfficeKeyNumeric",
       "rls": "BuyerOfficeKeyNumeric",
       "description": "Unique identifier of the Buyer Office. This is the foreign key that relates to the Office resource OfficeKeyNumeric",
       "required": "optional",
@@ -963,7 +963,7 @@
       "authority": "RLS"
     },
     "BuyerOfficeMlsId": {
-      "reso": "BuyerOfficeKey",
+      "cotality": "BuyerOfficeKey",
       "rls": "BuyerOfficeMlsId",
       "description": "A system unique identifier. Specifically, in aggregation systems, the Key is the system unique identifier from the system that the record was just retrieved. This may be identical to the related xxxId identifier, but the key is guaranteed unique for this record set. This is a foreign key relating to",
       "required": "optional",
@@ -974,7 +974,7 @@
       "authority": "RLS"
     },
     "BuyerOfficeName": {
-      "reso": "BuyerOfficeName",
+      "cotality": "BuyerOfficeName",
       "rls": "BuyerOfficeName",
       "description": "The legal name of the brokerage representing the buyer.",
       "required": "conditional",
@@ -985,7 +985,7 @@
       "authority": "RLS"
     },
     "BuyerOfficePhone": {
-      "reso": "BuyerOfficePhone",
+      "cotality": "BuyerOfficePhone",
       "rls": "BuyerOfficePhone",
       "description": "North American 10 digit phone numbers should be in the format of ###-###-#### (separated by hyphens). Other conventions should use the common local standard. International numbers should be preceded by a plus symbol.",
       "required": "conditional",
@@ -996,7 +996,7 @@
       "authority": "RLS"
     },
     "BuyerOfficeURL": {
-      "reso": "BuyerOfficeURL",
+      "cotality": "BuyerOfficeURL",
       "rls": "BuyerOfficeURL",
       "description": "The website URL for the buyers office.",
       "required": "optional",
@@ -1007,7 +1007,7 @@
       "authority": "RLS"
     },
     "BuyerTeamKeyNumeric": {
-      "reso": "BuyerTeamKeyNumeric",
+      "cotality": "BuyerTeamKeyNumeric",
       "rls": "BuyerTeamKeyNumeric",
       "description": "Unique identifier of the Buyer Team. This is the foreign key that relates to the Team resource Team KeyNumeric",
       "required": "optional",
@@ -1018,7 +1018,7 @@
       "authority": "RLS"
     },
     "BuyerTeamMlsId": {
-      "reso": "BuyerTeamKey",
+      "cotality": "BuyerTeamKey",
       "rls": "BuyerTeamMlsId",
       "description": "A system unique identifier. Specifically, in aggregation systems, the Key is the system unique identifier from the system that the record was just retrieved. This may be identical to the related xxxId identifier, but the key is guaranteed unique for this record set. This is a foreign key relating to",
       "required": "optional",
@@ -1029,7 +1029,7 @@
       "authority": "RLS"
     },
     "BuyerTeamName": {
-      "reso": "BuyerTeamName",
+      "cotality": "BuyerTeamName",
       "rls": "BuyerTeamName",
       "description": "The name of the team representing the buyer.",
       "required": "optional",
@@ -1040,7 +1040,7 @@
       "authority": "RLS"
     },
     "CableTVExpense": {
-      "reso": "CableTvExpense",
+      "cotality": "CableTvExpense",
       "rls": "CableTVExpense",
       "description": "The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.",
       "required": "optional",
@@ -1051,7 +1051,7 @@
       "authority": "RLS"
     },
     "CancellationDate": {
-      "reso": "CancellationDate",
+      "cotality": "CancellationDate",
       "rls": "CancellationDate",
       "description": "Date the listing contract between the seller and listing agent was cancelled. This is the date entered by the agent reflecting when the change occurred contractually, not a timestamp of when the change was made in the RLS.",
       "required": "conditional",
@@ -1062,7 +1062,7 @@
       "authority": "RLS"
     },
     "CapitalReservesTotal": {
-      "reso": "CapitalReservesTotal",
+      "cotality": "CapitalReservesTotal",
       "rls": "CapitalReservesTotal",
       "description": "Indicate the total capital reserves amount",
       "required": "optional",
@@ -1073,7 +1073,7 @@
       "authority": "RLS"
     },
     "CapitalReservesYN": {
-      "reso": "CapitalReservesYN",
+      "cotality": "CapitalReservesYN",
       "rls": "CapitalReservesYN",
       "description": "Indicate whether the building or property has capital reserve.",
       "required": "optional",
@@ -1084,7 +1084,7 @@
       "authority": "RLS"
     },
     "CapRate": {
-      "reso": "CapRate",
+      "cotality": "CapRate",
       "rls": "CapRate",
       "description": "Cap Rate is equivalent to the return on investment you would receive if you pay cash for a property. The ratio between the net operating income produced by an asset and its capital cost (the original price paid to buy the asset) or alternatively its current market value.",
       "required": "optional",
@@ -1095,7 +1095,7 @@
       "authority": "RLS"
     },
     "CarportSpaces": {
-      "reso": "CarportSpaces",
+      "cotality": "CarportSpaces",
       "rls": "CarportSpaces",
       "description": "The number of carport spaces included in the sale.",
       "required": "optional",
@@ -1106,7 +1106,7 @@
       "authority": "RLS"
     },
     "CarportYN": {
-      "reso": "CarportYN",
+      "cotality": "CarportYN",
       "rls": "CarportYN",
       "description": "A flag indicating that the listing has a car port.",
       "required": "optional",
@@ -1117,7 +1117,7 @@
       "authority": "RLS"
     },
     "CeilingHeightFeet": {
-      "reso": "CeilingHeight",
+      "cotality": "CeilingHeight",
       "rls": "CeilingHeightFeet",
       "description": "The average height of the ceilings of the listing that is for sale/lease in Feet. The total ceiling height should be the combination for CeilingHeightFeet and CeilingHeightInches. For example, Ceiling Height is 9 Feet 6 Inches.",
       "required": "conditional",
@@ -1128,7 +1128,7 @@
       "authority": "RLS"
     },
     "CeilingHeightInches": {
-      "reso": "CeilingHeight",
+      "cotality": "CeilingHeight",
       "rls": "CeilingHeightInches",
       "description": "The average height of the ceilings of the listing that is for sale/lease in Inches.  The total ceiling height should be the combination for CeilingHeightFeet and CeilingHeightInches. For example, Ceiling Height is 9 Feet 6 Inches.",
       "required": "conditional",
@@ -1139,7 +1139,7 @@
       "authority": "RLS"
     },
     "CertificateOfOccupancyYN": {
-      "reso": "CertificateOfOccupancyYN",
+      "cotality": "CertificateOfOccupancyYN",
       "rls": "CertificateOfOccupancyYN",
       "description": "Indicates whether or not the building has a certificate of occupancy.",
       "required": "optional",
@@ -1150,7 +1150,7 @@
       "authority": "RLS"
     },
     "City": {
-      "reso": "City",
+      "cotality": "City",
       "rls": "City",
       "description": "The city in listing address. ALL listings entered in the RLS must be in New York City. Please note this field is not to indicate on postal or mailing refer to Postal City.",
       "required": "mandatory",
@@ -1161,7 +1161,7 @@
       "authority": "RLS"
     },
     "CityRegion": {
-      "reso": "CityRegion",
+      "cotality": "CityRegion",
       "rls": "CityRegion",
       "description": "The borough where the listing that is for sale/lease resides.",
       "required": "optional",
@@ -1172,7 +1172,7 @@
       "authority": "RLS"
     },
     "CloseDate": {
-      "reso": "CloseDate",
+      "cotality": "CloseDate",
       "rls": "CloseDate",
       "description": "With for-sale listings, the date the purchase agreement was fulfilled.  With lease listings, the date the requirements were fulfilled, such as contract and/or deposit.   This is the date entered by the agent reflecting when the change occurred contractually, not a timestamp of when the change was ma",
       "required": "conditional",
@@ -1183,7 +1183,7 @@
       "authority": "RLS"
     },
     "ClosePrice": {
-      "reso": "ClosePrice",
+      "cotality": "ClosePrice",
       "rls": "ClosePrice",
       "description": "The amount paid by the purchaser to the seller for the property under the agreement. For lease/rent, the amount agreed on the monthly rent price between the landlord and the tenant.",
       "required": "conditional",
@@ -1194,7 +1194,7 @@
       "authority": "RLS"
     },
     "ClosetsTotal": {
-      "reso": "ClosetsTotal",
+      "cotality": "ClosetsTotal",
       "rls": "ClosetsTotal",
       "description": "The number of closets on the property/unit that is listed.",
       "required": "optional",
@@ -1205,7 +1205,7 @@
       "authority": "RLS"
     },
     "CoBrokeAgreement": {
-      "reso": "CoBrokeAgreement",
+      "cotality": "CoBrokeAgreement",
       "rls": "CoBrokeAgreement",
       "description": "REBNY co-brokerage agreement type.  REBNY Universal Co-broke/REBNY New Development Co-broke/RUNDBA.",
       "required": "mandatory",
@@ -1216,7 +1216,7 @@
       "authority": "RLS"
     },
     "CoBuyerAgentDirectPhone": {
-      "reso": "CoBuyerAgentDirectPhone",
+      "cotality": "CoBuyerAgentDirectPhone",
       "rls": "CoBuyerAgentDirectPhone",
       "description": "North American 10 digit phone numbers should be in the format of ###-###-#### (separated by hyphens). Other conventions should use the common local standard. International numbers should be preceded by a plus symbol.",
       "required": "conditional",
@@ -1227,7 +1227,7 @@
       "authority": "RLS"
     },
     "CoBuyerAgentEmail": {
-      "reso": "CoBuyerAgentEmail",
+      "cotality": "CoBuyerAgentEmail",
       "rls": "CoBuyerAgentEmail",
       "description": "The email address of the Buyer's Co Agent.",
       "required": "conditional",
@@ -1238,7 +1238,7 @@
       "authority": "RLS"
     },
     "CoBuyerAgentFullName": {
-      "reso": "CoBuyerAgentFullName",
+      "cotality": "CoBuyerAgentFullName",
       "rls": "CoBuyerAgentFullName",
       "description": "The full name of the co-buyer's agent as registered with DOS Licensing",
       "required": "conditional",
@@ -1249,7 +1249,7 @@
       "authority": "RLS"
     },
     "CoBuyerAgentKeyNumeric": {
-      "reso": "CoBuyerAgentKeyNumeric",
+      "cotality": "CoBuyerAgentKeyNumeric",
       "rls": "CoBuyerAgentKeyNumeric",
       "description": "Unique identifier of the Co Buyer Agent. This is the foreign key that relates to the Member resource MemberKeyNumeric",
       "required": "optional",
@@ -1260,7 +1260,7 @@
       "authority": "RLS"
     },
     "CoBuyerAgentMlsId": {
-      "reso": "CoBuyerAgentKey",
+      "cotality": "CoBuyerAgentKey",
       "rls": "CoBuyerAgentMlsId",
       "description": "A system unique identifier. Specifically, in aggregation systems, the Key is the system unique identifier from the system that the record was just retrieved. This may be identical to the related xxxId identifier, but the key is guaranteed unique for this record set. This is a foreign key relating to",
       "required": "conditional",
@@ -1271,7 +1271,7 @@
       "authority": "RLS"
     },
     "CoBuyerAgentRLSParticipantYN": {
-      "reso": "CoBuyerAgentRLSParticipantYN",
+      "cotality": "CoBuyerAgentRLSParticipantYN",
       "rls": "CoBuyerAgentRLSParticipantYN",
       "description": "Indicate whether the cobuyer agent is an active  RLS Participant.",
       "required": "conditional",
@@ -1282,7 +1282,7 @@
       "authority": "RLS"
     },
     "CoBuyerAgentStateLicense": {
-      "reso": "CoBuyerAgentStateLicense",
+      "cotality": "CoBuyerAgentStateLicense",
       "rls": "CoBuyerAgentStateLicense",
       "description": "The license of the co-buyers agent. Separate multiple licenses with a comma and space.",
       "required": "conditional",
@@ -1293,7 +1293,7 @@
       "authority": "RLS"
     },
     "CoBuyerAgentURL": {
-      "reso": "CoBuyerAgentURL",
+      "cotality": "CoBuyerAgentURL",
       "rls": "CoBuyerAgentURL",
       "description": "The website URL of the co-buyers agent.",
       "required": "optional",
@@ -1304,7 +1304,7 @@
       "authority": "RLS"
     },
     "CoBuyerOfficeEmail": {
-      "reso": "CoBuyerOfficeEmail",
+      "cotality": "CoBuyerOfficeEmail",
       "rls": "CoBuyerOfficeEmail",
       "description": "The email address of the Buyer's Co Office.",
       "required": "optional",
@@ -1315,7 +1315,7 @@
       "authority": "RLS"
     },
     "CoBuyerOfficeKeyNumeric": {
-      "reso": "CoBuyerOfficeKeyNumeric",
+      "cotality": "CoBuyerOfficeKeyNumeric",
       "rls": "CoBuyerOfficeKeyNumeric",
       "description": "Unique identifier of the Co Buyer Office. This is the foreign key that relates to the Office resource Office KeyNumeric",
       "required": "optional",
@@ -1326,7 +1326,7 @@
       "authority": "RLS"
     },
     "CoBuyerOfficeMlsId": {
-      "reso": "CoBuyerOfficeKey",
+      "cotality": "CoBuyerOfficeKey",
       "rls": "CoBuyerOfficeMlsId",
       "description": "A system unique identifier. Specifically, in aggregation systems, the Key is the system unique identifier from the system that the record was just retrieved. This may be identical to the related xxxId identifier, but the key is guaranteed unique for this record set. This is a foreign key relating to",
       "required": "conditional",
@@ -1337,7 +1337,7 @@
       "authority": "RLS"
     },
     "CoBuyerOfficeName": {
-      "reso": "CoBuyerOfficeName",
+      "cotality": "CoBuyerOfficeName",
       "rls": "CoBuyerOfficeName",
       "description": "The legal name of the brokerage co-representing the buyer.",
       "required": "conditional",
@@ -1348,7 +1348,7 @@
       "authority": "RLS"
     },
     "CoBuyerOfficePhone": {
-      "reso": "CoBuyerOfficePhone",
+      "cotality": "CoBuyerOfficePhone",
       "rls": "CoBuyerOfficePhone",
       "description": "North American 10 digit phone numbers should be in the format of ###-###-#### (separated by hyphens). Other conventions should use the common local standard. International numbers should be preceded by a plus symbol.",
       "required": "conditional",
@@ -1359,7 +1359,7 @@
       "authority": "RLS"
     },
     "CoBuyerOfficeURL": {
-      "reso": "CoBuyerOfficeURL",
+      "cotality": "CoBuyerOfficeURL",
       "rls": "CoBuyerOfficeURL",
       "description": "The website URL for the co-buyers office.",
       "required": "optional",
@@ -1370,7 +1370,7 @@
       "authority": "RLS"
     },
     "CoListAgent2DirectPhone": {
-      "reso": "CoListAgent2DirectPhone",
+      "cotality": "CoListAgent2DirectPhone",
       "rls": "CoListAgent2DirectPhone",
       "description": "North American 10 digit phone numbers should be in the format of ###-###-#### (separated by hyphens). Other conventions should use the common local standard. International numbers should be preceded by a plus symbol.",
       "required": "optional",
@@ -1381,7 +1381,7 @@
       "authority": "RLS"
     },
     "CoListAgent2Email": {
-      "reso": "CoListAgent2Email",
+      "cotality": "CoListAgent2Email",
       "rls": "CoListAgent2Email",
       "description": "The email address of the Co Listing Agent 2.",
       "required": "optional",
@@ -1392,7 +1392,7 @@
       "authority": "RLS"
     },
     "CoListAgent2FullName": {
-      "reso": "CoListAgent2FullName",
+      "cotality": "CoListAgent2FullName",
       "rls": "CoListAgent2FullName",
       "description": "The full name of the co-listing agent 2 as registered with DOS Licensing",
       "required": "optional",
@@ -1403,7 +1403,7 @@
       "authority": "RLS"
     },
     "CoListAgent2KeyNumeric": {
-      "reso": "CoListAgent2KeyNumeric",
+      "cotality": "CoListAgent2KeyNumeric",
       "rls": "CoListAgent2KeyNumeric",
       "description": "Unique identifier of the Co List 2 Agent. This is the foreign key that relates to the Member resource MemberKeyNumeric",
       "required": "optional",
@@ -1414,7 +1414,7 @@
       "authority": "RLS"
     },
     "CoListAgent2MLSID": {
-      "reso": "CoListAgent2Key",
+      "cotality": "CoListAgent2Key",
       "rls": "CoListAgent2MLSID",
       "description": "A system unique identifier. Specifically, in aggregation systems, the Key is the system unique identifier from the system that the record was just retrieved. This may be identical to the related xxxId identifier, but the key is guaranteed unique for this record set. This is a foreign key relating to",
       "required": "optional",
@@ -1425,7 +1425,7 @@
       "authority": "RLS"
     },
     "CoListAgent2Nickname": {
-      "reso": "CoListAgent2Nickname",
+      "cotality": "CoListAgent2Nickname",
       "rls": "CoListAgent2Nickname",
       "description": "The Alternate name used by the Co Listing Agent 2",
       "required": "optional",
@@ -1436,7 +1436,7 @@
       "authority": "RLS"
     },
     "CoListAgent2StateLicense": {
-      "reso": "CoListAgent2StateLicense",
+      "cotality": "CoListAgent2StateLicense",
       "rls": "CoListAgent2StateLicense",
       "description": "The State License Number of the Co Listing Agent 2.",
       "required": "optional",
@@ -1447,7 +1447,7 @@
       "authority": "RLS"
     },
     "CoListAgent2URL": {
-      "reso": "CoListAgent2URL",
+      "cotality": "CoListAgent2URL",
       "rls": "CoListAgent2URL",
       "description": "The website URL of the co-listing agent 2",
       "required": "optional",
@@ -1458,7 +1458,7 @@
       "authority": "RLS"
     },
     "CoListAgent3DirectPhone": {
-      "reso": "CoListAgent3DirectPhone",
+      "cotality": "CoListAgent3DirectPhone",
       "rls": "CoListAgent3DirectPhone",
       "description": "North American 10 digit phone numbers should be in the format of ###-###-#### (separated by hyphens). Other conventions should use the common local standard. International numbers should be preceded by a plus symbol.",
       "required": "optional",
@@ -1469,7 +1469,7 @@
       "authority": "RLS"
     },
     "CoListAgent3Email": {
-      "reso": "CoListAgent3Email",
+      "cotality": "CoListAgent3Email",
       "rls": "CoListAgent3Email",
       "description": "The email address of the Co Listing Agent 3.",
       "required": "optional",
@@ -1480,7 +1480,7 @@
       "authority": "RLS"
     },
     "CoListAgent3FullName": {
-      "reso": "CoListAgent3FullName",
+      "cotality": "CoListAgent3FullName",
       "rls": "CoListAgent3FullName",
       "description": "The full name of the co-listing agent 3 as registered with DOS Licensing",
       "required": "optional",
@@ -1491,7 +1491,7 @@
       "authority": "RLS"
     },
     "CoListAgent3KeyNumeric": {
-      "reso": "CoListAgent3KeyNumeric",
+      "cotality": "CoListAgent3KeyNumeric",
       "rls": "CoListAgent3KeyNumeric",
       "description": "Unique identifier of the Co List 3 Agent. This is the foreign key that relates to the Member resource MemberKeyNumeric",
       "required": "optional",
@@ -1502,7 +1502,7 @@
       "authority": "RLS"
     },
     "CoListAgent3MLSID": {
-      "reso": "CoListAgent3Key",
+      "cotality": "CoListAgent3Key",
       "rls": "CoListAgent3MLSID",
       "description": "A system unique identifier. Specifically, in aggregation systems, the Key is the system unique identifier from the system that the record was just retrieved. This may be identical to the related xxxId identifier, but the key is guaranteed unique for this record set. This is a foreign key relating to",
       "required": "optional",
@@ -1513,7 +1513,7 @@
       "authority": "RLS"
     },
     "CoListAgent3Nickname": {
-      "reso": "CoListAgent3Nickname",
+      "cotality": "CoListAgent3Nickname",
       "rls": "CoListAgent3Nickname",
       "description": "The Alternate name used by the Co List Agent 3",
       "required": "optional",
@@ -1524,7 +1524,7 @@
       "authority": "RLS"
     },
     "CoListAgent3StateLicense": {
-      "reso": "CoListAgent3StateLicense",
+      "cotality": "CoListAgent3StateLicense",
       "rls": "CoListAgent3StateLicense",
       "description": "The State License Number of the Co Listing Agent 3.",
       "required": "optional",
@@ -1535,7 +1535,7 @@
       "authority": "RLS"
     },
     "CoListAgent3URL": {
-      "reso": "CoListAgent3URL",
+      "cotality": "CoListAgent3URL",
       "rls": "CoListAgent3URL",
       "description": "The website URL of the co-listing agent 3.",
       "required": "optional",
@@ -1546,7 +1546,7 @@
       "authority": "RLS"
     },
     "CoListAgentDirectPhone": {
-      "reso": "CoListAgentDirectPhone",
+      "cotality": "CoListAgentDirectPhone",
       "rls": "CoListAgentDirectPhone",
       "description": "North American 10 digit phone numbers should be in the format of ###-###-#### (separated by hyphens). Other conventions should use the common local standard. International numbers should be preceded by a plus symbol.",
       "required": "optional",
@@ -1557,7 +1557,7 @@
       "authority": "RLS"
     },
     "CoListAgentEmail": {
-      "reso": "CoListAgentEmail",
+      "cotality": "CoListAgentEmail",
       "rls": "CoListAgentEmail",
       "description": "The email address of the Co Listing Agent.",
       "required": "optional",
@@ -1568,7 +1568,7 @@
       "authority": "RLS"
     },
     "CoListAgentFullName": {
-      "reso": "CoListAgentFullName",
+      "cotality": "CoListAgentFullName",
       "rls": "CoListAgentFullName",
       "description": "The full name of the co-listing agent as registered with DOS Licensing",
       "required": "optional",
@@ -1579,7 +1579,7 @@
       "authority": "RLS"
     },
     "CoListAgentKeyNumeric": {
-      "reso": "CoListAgentKeyNumeric",
+      "cotality": "CoListAgentKeyNumeric",
       "rls": "CoListAgentKeyNumeric",
       "description": "Unique identifier of the Co List Agent. This is the foreign key that relates to the Member resource MemberKeyNumeric",
       "required": "optional",
@@ -1590,7 +1590,7 @@
       "authority": "RLS"
     },
     "CoListAgentMlsId": {
-      "reso": "CoListAgentKey",
+      "cotality": "CoListAgentKey",
       "rls": "CoListAgentMlsId",
       "description": "A system unique identifier. Specifically, in aggregation systems, the Key is the system unique identifier from the system that the record was just retrieved. This may be identical to the related xxxId identifier, but the key is guaranteed unique for this record set. This is a foreign key relating to",
       "required": "optional",
@@ -1601,7 +1601,7 @@
       "authority": "RLS"
     },
     "CoListAgentNickname": {
-      "reso": "CoListAgentNickname",
+      "cotality": "CoListAgentNickname",
       "rls": "CoListAgentNickname",
       "description": "The Alternate name used by the Co List Agent",
       "required": "optional",
@@ -1612,7 +1612,7 @@
       "authority": "RLS"
     },
     "CoListAgentStateLicense": {
-      "reso": "CoListAgentStateLicense",
+      "cotality": "CoListAgentStateLicense",
       "rls": "CoListAgentStateLicense",
       "description": "The State License Number of the Co Listing Agent.",
       "required": "optional",
@@ -1623,7 +1623,7 @@
       "authority": "RLS"
     },
     "CoListAgentURL": {
-      "reso": "CoListAgentURL",
+      "cotality": "CoListAgentURL",
       "rls": "CoListAgentURL",
       "description": "The website URL of the co-listing agent.",
       "required": "optional",
@@ -1634,7 +1634,7 @@
       "authority": "RLS"
     },
     "ComingSoonTimestamp": {
-      "reso": "ComingSoonTimestamp",
+      "cotality": "ComingSoonTimestamp",
       "rls": "ComingSoonTimestamp",
       "description": "The transactional timestamp automatically recorded by the RLS system representing the date/time the listing first entered the Coming Soon status.",
       "required": "optional",
@@ -1645,7 +1645,7 @@
       "authority": "RLS"
     },
     "CommercialUnitsYN": {
-      "reso": "CommercialUnitsYN",
+      "cotality": "CommercialUnitsYN",
       "rls": "CommercialUnitsYN",
       "description": "Indicates the building contains commercial units. Commercial units are exclusively for business-related purposes or to provide a workspace rather than as a living space, which would instead constitute residential real estate.",
       "required": "optional",
@@ -1656,7 +1656,7 @@
       "authority": "RLS"
     },
     "CommonInterest": {
-      "reso": "CommonInterest",
+      "cotality": "CommonInterest",
       "rls": "CommonInterest",
       "description": "Common Interest is a type of ownership in a property that is composed of an individual lot or unit and a share of the ownership or use of common areas. A Common Interest Development (CID) is usually governed by a recorded set of Covenants, Conditions & Restrictions (CC&Rs). This will be used to indi",
       "required": "mandatory",
@@ -1667,7 +1667,7 @@
       "authority": "RLS"
     },
     "Concessions": {
-      "reso": "Concessions",
+      "cotality": "Concessions",
       "rls": "Concessions",
       "description": "Are there concessions included in the sales/lease agreement? Yes, No or Call Listing Agent",
       "required": "mandatory",
@@ -1678,7 +1678,7 @@
       "authority": "RLS"
     },
     "ConcessionsAmount": {
-      "reso": "ConcessionsAmount",
+      "cotality": "ConcessionsAmount",
       "rls": "ConcessionsAmount",
       "description": "The dollar amount of the concessions. If the concessions are made by the seller, some may subtract this value from the sales price as a means of calculating their own true price. If concessions are made by the buyer, some may add this amount to the sale price to create their own true price. Concessi",
       "required": "conditional",
@@ -1689,7 +1689,7 @@
       "authority": "RLS"
     },
     "ConcessionsBuyerBrokerFee": {
-      "reso": "ConcessionsBuyerBrokerFee",
+      "cotality": "ConcessionsBuyerBrokerFee",
       "rls": "ConcessionsBuyerBrokerFee",
       "description": "The dollar amount of the concession agreed upon at closing for the buyer broker fee.  Accepted for Closed status listings only.",
       "required": "optional",
@@ -1700,7 +1700,7 @@
       "authority": "RLS"
     },
     "ConcessionsClosingCosts": {
-      "reso": "ConcessionsClosingCosts",
+      "cotality": "ConcessionsClosingCosts",
       "rls": "ConcessionsClosingCosts",
       "description": "The dollar amount of the concession agreed upon at closing for the closing costs.",
       "required": "optional",
@@ -1711,7 +1711,7 @@
       "authority": "RLS"
     },
     "ConcessionsComments": {
-      "reso": "ConcessionsComments",
+      "cotality": "ConcessionsComments",
       "rls": "ConcessionsComments",
       "description": "Comments describing the concessions made by the buyer or the seller/landlord.",
       "required": "conditional",
@@ -1722,7 +1722,7 @@
       "authority": "RLS"
     },
     "ConcessionsOtherCosts": {
-      "reso": "ConcessionsOtherCosts",
+      "cotality": "ConcessionsOtherCosts",
       "rls": "ConcessionsOtherCosts",
       "description": "The dollar amount of the concession agreed upon at closing for the other costs.  Accepted for Closed status listings only.",
       "required": "optional",
@@ -1733,7 +1733,7 @@
       "authority": "RLS"
     },
     "ConcessionsPropertyImprovementCosts": {
-      "reso": "ConcessionsPropertyImprovementCosts",
+      "cotality": "ConcessionsPropertyImprovementCosts",
       "rls": "ConcessionsPropertyImprovementCosts",
       "description": "The dollar amount of the concession agreed upon at closing for the property improvements. Accepted for Closed status listings only.",
       "required": "optional",
@@ -1744,7 +1744,7 @@
       "authority": "RLS"
     },
     "ConstructionMaterials": {
-      "reso": "ConstructionMaterials",
+      "cotality": "ConstructionMaterials",
       "rls": "ConstructionMaterials",
       "description": "A list of the materials that were used in the construction of the property.",
       "required": "optional",
@@ -1755,7 +1755,7 @@
       "authority": "RLS"
     },
     "Cooling": {
-      "reso": "Cooling",
+      "cotality": "Cooling",
       "rls": "Cooling",
       "description": "A list describing the cooling or air conditioning features of the property.",
       "required": "conditional",
@@ -1766,7 +1766,7 @@
       "authority": "RLS"
     },
     "CoolingYN": {
-      "reso": "CoolingYN",
+      "cotality": "CoolingYN",
       "rls": "CoolingYN",
       "description": "The property has cooling or Air Conditioning.",
       "required": "optional",
@@ -1777,7 +1777,7 @@
       "authority": "RLS"
     },
     "CoOwnershipInterest": {
-      "reso": "CoOwnershipInterest",
+      "cotality": "CoOwnershipInterest",
       "rls": "CoOwnershipInterest",
       "description": "Describe the interest or shares in which the listing is for. This should be fractional or percentage.",
       "required": "conditional",
@@ -1788,7 +1788,7 @@
       "authority": "RLS"
     },
     "CoOwnershipRemarks": {
-      "reso": "CoOwnershipRemarks",
+      "cotality": "CoOwnershipRemarks",
       "rls": "CoOwnershipRemarks",
       "description": "Describe the co-ownership, the usage, or limitations/restrictions",
       "required": "optional",
@@ -1799,7 +1799,7 @@
       "authority": "RLS"
     },
     "Country": {
-      "reso": "Country",
+      "cotality": "Country",
       "rls": "Country",
       "description": "The country abbreviation in a postal address.",
       "required": "conditional",
@@ -1810,7 +1810,7 @@
       "authority": "RLS"
     },
     "CountyOrParish": {
-      "reso": "CountyOrParish",
+      "cotality": "CountyOrParish",
       "rls": "CountyOrParish",
       "description": "The County, Parish or other regional authority",
       "required": "optional",
@@ -1821,7 +1821,7 @@
       "authority": "RLS"
     },
     "CrossStreet": {
-      "reso": "CrossStreet",
+      "cotality": "CrossStreet",
       "rls": "CrossStreet",
       "description": "Nearest cross streets to the property. This field is in addition to, and independent of, the driving directions field.",
       "required": "optional",
@@ -1832,7 +1832,7 @@
       "authority": "RLS"
     },
     "CumulativeDaysOnMarket": {
-      "reso": "CumulativeDaysOnMarket",
+      "cotality": "CumulativeDaysOnMarket",
       "rls": "CumulativeDaysOnMarket",
       "description": "The number of days the property is on market, as defined by the RLS business rules.",
       "required": "optional",
@@ -1843,7 +1843,7 @@
       "authority": "RLS"
     },
     "CurrentPrice": {
-      "reso": "CurrentPrice",
+      "cotality": "CurrentPrice",
       "rls": "CurrentPrice",
       "description": "The current price of the listing. CurrentPrice = ListPrice for all statuses except for Closed. CurrentPrice = ClosePrice for closed listings.",
       "required": "optional",
@@ -1854,7 +1854,7 @@
       "authority": "RLS"
     },
     "CurrentUse": {
-      "reso": "CurrentUse",
+      "cotality": "CurrentUse",
       "rls": "CurrentUse",
       "description": "A list of the type(s) of current use of the listing that is for sale or lease within the residential building. The current use of the property is an important factor in understanding the overall condition of the listing and determining its appropriateness for intended use. This is not to be used to ",
       "required": "optional",
@@ -1865,7 +1865,7 @@
       "authority": "RLS"
     },
     "DaysOnMarket": {
-      "reso": "DaysOnMarket",
+      "cotality": "DaysOnMarket",
       "rls": "DaysOnMarket",
       "description": "The number of days the listing is on market, as defined by the RLS business rules. Please refer to the UCBA to make the appropriate calculation for DaysOnMarket.",
       "required": "optional",
@@ -1876,7 +1876,7 @@
       "authority": "RLS"
     },
     "DeliveredVacantYN": {
-      "reso": "DeliveredVacantYN",
+      "cotality": "DeliveredVacantYN",
       "rls": "DeliveredVacantYN",
       "description": "Will the property be delivered vacant?",
       "required": "optional",
@@ -1887,7 +1887,7 @@
       "authority": "RLS"
     },
     "DepositAmount": {
-      "reso": "DepositAmount",
+      "cotality": "DepositAmount",
       "rls": "DepositAmount",
       "description": "The security deposit the tenant/buyer must pay to the landlord/seller, expressed as a dollar amount.",
       "required": "optional",
@@ -1898,7 +1898,7 @@
       "authority": "RLS"
     },
     "DevelopmentStatus": {
-      "reso": "DevelopmentStatus",
+      "cotality": "DevelopmentStatus",
       "rls": "DevelopmentStatus",
       "description": "A list of the Development Status of the property. The developmental status of land is an important factor in selling, purchasing and developing of land properties.",
       "required": "optional",
@@ -1909,7 +1909,7 @@
       "authority": "RLS"
     },
     "DiningType": {
-      "reso": "DiningType",
+      "cotality": "DiningType",
       "rls": "DiningType",
       "description": "The property's primary type of dining.",
       "required": "optional",
@@ -1920,7 +1920,7 @@
       "authority": "RLS"
     },
     "DirectionFaces": {
-      "reso": "DirectionFaces",
+      "cotality": "DirectionFaces",
       "rls": "DirectionFaces",
       "description": "The compass direction that the main entrance to the building faces. For example, North, South, East, West, South-West, etc. It may also be known as the building exposure.",
       "required": "optional",
@@ -1931,7 +1931,7 @@
       "authority": "RLS"
     },
     "Directions": {
-      "reso": "Directions",
+      "cotality": "Directions",
       "rls": "Directions",
       "description": "Driving directions to the property.",
       "required": "optional",
@@ -1942,7 +1942,7 @@
       "authority": "RLS"
     },
     "DocumentsAvailable": {
-      "reso": "DocumentsAvailable",
+      "cotality": "DocumentsAvailable",
       "rls": "DocumentsAvailable",
       "description": "A list of the Documents available for the property. Knowing what documents are available for the property is valuable information.",
       "required": "optional",
@@ -1953,7 +1953,7 @@
       "authority": "RLS"
     },
     "DocumentsChangeTimestamp": {
-      "reso": "DocumentsChangeTimestamp",
+      "cotality": "DocumentsChangeTimestamp",
       "rls": "DocumentsChangeTimestamp",
       "description": "System generated timestamp of when the last update or change to the documents for this listing was made.",
       "required": "optional",
@@ -1964,7 +1964,7 @@
       "authority": "RLS"
     },
     "DocumentsCount": {
-      "reso": "DocumentsCount",
+      "cotality": "DocumentsCount",
       "rls": "DocumentsCount",
       "description": "The total number of documents or supplements included with the listings.",
       "required": "optional",
@@ -1975,7 +1975,7 @@
       "authority": "RLS"
     },
     "DoorFeatures": {
-      "reso": "DoorFeatures",
+      "cotality": "DoorFeatures",
       "rls": "DoorFeatures",
       "description": "A list of features or description of the doors included in the sale/lease.",
       "required": "optional",
@@ -1986,7 +1986,7 @@
       "authority": "RLS"
     },
     "DuplicateListingIDs": {
-      "reso": "CoExclusiveListingKey",
+      "cotality": "CoExclusiveListingKey",
       "rls": "DuplicateListingIDs",
       "description": "Only to be used if the property have two listings submitted for the purpose of  1) Coexclusive  2) Property is listed both for sale and lease",
       "required": "optional",
@@ -1997,7 +1997,7 @@
       "authority": "RLS"
     },
     "Electric": {
-      "reso": "Electric",
+      "cotality": "Electric",
       "rls": "Electric",
       "description": "A list of electric-service related features of the property (e.g. 110 Volt, 3 Phase, 220 Volt, RV Hookup). Note: the previous \"Electric\" field was renamed to DistanceToElectricComments",
       "required": "optional",
@@ -2008,7 +2008,7 @@
       "authority": "RLS"
     },
     "ElectricExpense": {
-      "reso": "ElectricExpense",
+      "cotality": "ElectricExpense",
       "rls": "ElectricExpense",
       "description": "The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.",
       "required": "optional",
@@ -2019,7 +2019,7 @@
       "authority": "RLS"
     },
     "ElectricOnPropertyYN": {
-      "reso": "ElectricOnPropertyYN",
+      "cotality": "ElectricOnPropertyYN",
       "rls": "ElectricOnPropertyYN",
       "description": "Does the property currently have electrical utility available on the property.",
       "required": "optional",
@@ -2030,7 +2030,7 @@
       "authority": "RLS"
     },
     "ElevatorsTotal": {
-      "reso": "ElevatorsTotal",
+      "cotality": "ElevatorsTotal",
       "rls": "ElevatorsTotal",
       "description": "Number of elevators in the building. If there is no elevator then enter '0'. If ElevatorsTotal is greater than 0 then BuildingFeatures to have Elevator(s) as value.",
       "required": "mandatory",
@@ -2041,7 +2041,7 @@
       "authority": "RLS"
     },
     "EntryLevel": {
-      "reso": "EntryLevel",
+      "cotality": "EntryLevel",
       "rls": "EntryLevel",
       "description": "A numeric field that describes the level within the structure, SFR or a unit in a building, where the main entry to the dwelling is located. Entry Level is not used for the unit but for the building in which the property is located.",
       "required": "optional",
@@ -2052,7 +2052,7 @@
       "authority": "RLS"
     },
     "Exclusions": {
-      "reso": "Exclusions",
+      "cotality": "Exclusions",
       "rls": "Exclusions",
       "description": "Elements of the property that will not be included in the sale. i.e. Chandeliers will be removed prior to close.",
       "required": "optional",
@@ -2063,7 +2063,7 @@
       "authority": "RLS"
     },
     "ExpirationDate": {
-      "reso": "ExpirationDate",
+      "cotality": "ExpirationDate",
       "rls": "ExpirationDate",
       "description": "The date when the listing agreement will expire. This is the date entered by the agent reflecting when the change occurred, or will occur, contractually, not a timestamp of when the change was made in the MLS. The expiration date of listings, prior to their expiration, cancellation, sale or lease, i",
       "required": "optional",
@@ -2074,7 +2074,7 @@
       "authority": "RLS"
     },
     "Exposures": {
-      "reso": "Exposures",
+      "cotality": "Exposures",
       "rls": "Exposures",
       "description": "All cardinal direction exposures of the listing that is for sale/lease",
       "required": "optional",
@@ -2085,7 +2085,7 @@
       "authority": "RLS"
     },
     "ExteriorFeatures": {
-      "reso": "ExteriorFeatures",
+      "cotality": "ExteriorFeatures",
       "rls": "ExteriorFeatures",
       "description": "A list of features or description of the exterior of the property included in the sale/lease. (For Building specific, refer to the BuildingExteriorFeatures)",
       "required": "optional",
@@ -2096,7 +2096,7 @@
       "authority": "RLS"
     },
     "Fencing": {
-      "reso": "Fencing",
+      "cotality": "Fencing",
       "rls": "Fencing",
       "description": "A list of types of fencing found at the property being sold.",
       "required": "optional",
@@ -2107,7 +2107,7 @@
       "authority": "RLS"
     },
     "FireplaceFeatures": {
-      "reso": "FireplaceFeatures",
+      "cotality": "FireplaceFeatures",
       "rls": "FireplaceFeatures",
       "description": "A list of features or description of the fireplace(s) included in the sale/lease.",
       "required": "conditional",
@@ -2118,7 +2118,7 @@
       "authority": "RLS"
     },
     "FireplacesTotal": {
-      "reso": "FireplacesTotal",
+      "cotality": "FireplacesTotal",
       "rls": "FireplacesTotal",
       "description": "The total number of fireplaces included in the listing.",
       "required": "conditional",
@@ -2129,7 +2129,7 @@
       "authority": "RLS"
     },
     "FireplaceYN": {
-      "reso": "FireplaceYN",
+      "cotality": "FireplaceYN",
       "rls": "FireplaceYN",
       "description": "Does the property include a fireplace.",
       "required": "conditional",
@@ -2140,7 +2140,7 @@
       "authority": "RLS"
     },
     "FlipTax": {
-      "reso": "FlipTax",
+      "cotality": "FlipTax",
       "rls": "FlipTax",
       "description": "The flip tax or transfer fee to be paid for this sale/lease, expressed as either a percentage or a constant currency amount.",
       "required": "conditional",
@@ -2151,7 +2151,7 @@
       "authority": "RLS"
     },
     "FlipTaxRemarks": {
-      "reso": "FlipTaxRemarks",
+      "cotality": "FlipTaxRemarks",
       "rls": "FlipTaxRemarks",
       "description": "A text description of the flip tax or transfer fee to be paid for this sale/lease.",
       "required": "conditional",
@@ -2162,7 +2162,7 @@
       "authority": "RLS"
     },
     "FlipTaxType": {
-      "reso": "FlipTaxType",
+      "cotality": "FlipTaxType",
       "rls": "FlipTaxType",
       "description": "A list of types to clarify the value entered in the FlipTax field. For example $, % or some other clarification of the FlipTax.",
       "required": "conditional",
@@ -2173,7 +2173,7 @@
       "authority": "RLS"
     },
     "Flooring": {
-      "reso": "Flooring",
+      "cotality": "Flooring",
       "rls": "Flooring",
       "description": "A list of the type(s) of flooring found within the listing.",
       "required": "optional",
@@ -2184,7 +2184,7 @@
       "authority": "RLS"
     },
     "FloorNumber": {
-      "reso": "FloorNumber",
+      "cotality": "FloorNumber",
       "rls": "FloorNumber",
       "description": "Floor number of unit (or main entrance to unit if unit duplex/unit triplex/etc.)",
       "required": "optional",
@@ -2195,7 +2195,7 @@
       "authority": "RLS"
     },
     "FoundationArea": {
-      "reso": "FoundationArea",
+      "cotality": "FoundationArea",
       "rls": "FoundationArea",
       "description": "The area or dimensions of the footprint of the structure on the lot.",
       "required": "optional",
@@ -2206,7 +2206,7 @@
       "authority": "RLS"
     },
     "FoundationDetails": {
-      "reso": "FoundationDetails",
+      "cotality": "FoundationDetails",
       "rls": "FoundationDetails",
       "description": "A list of the type(s) of foundation on which the property sits.",
       "required": "optional",
@@ -2217,7 +2217,7 @@
       "authority": "RLS"
     },
     "FractionalUnitNumber": {
-      "reso": "FractionalUnitNumber",
+      "cotality": "FractionalUnitNumber",
       "rls": "FractionalUnitNumber",
       "description": "Unit Number Plus Weeks Assigned (For Example 501-Week 52)",
       "required": "conditional",
@@ -2228,7 +2228,7 @@
       "authority": "RLS"
     },
     "FuelExpense": {
-      "reso": "FuelExpense",
+      "cotality": "FuelExpense",
       "rls": "FuelExpense",
       "description": "The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.",
       "required": "optional",
@@ -2239,7 +2239,7 @@
       "authority": "RLS"
     },
     "Furnished": {
-      "reso": "Furnished",
+      "cotality": "Furnished",
       "rls": "Furnished",
       "description": "The listing being leased is furnished, unfurnished or partially furnished.",
       "required": "conditional",
@@ -2250,7 +2250,7 @@
       "authority": "RLS"
     },
     "FurnishedListPrice": {
-      "reso": "FurnishedListPrice",
+      "cotality": "FurnishedListPrice",
       "rls": "FurnishedListPrice",
       "description": "The current price of the listing when furnishings are included. Depending on the listing, this may or may not be equal to the list price.",
       "required": "conditional",
@@ -2261,7 +2261,7 @@
       "authority": "RLS"
     },
     "FurnishedMaxLeaseMonths": {
-      "reso": "FurnishedMaxLeaseMonths",
+      "cotality": "FurnishedMaxLeaseMonths",
       "rls": "FurnishedMaxLeaseMonths",
       "description": "The maximum length of the lease when furnished, expressed as a number of months.",
       "required": "conditional",
@@ -2272,7 +2272,7 @@
       "authority": "RLS"
     },
     "FurnishedMinLeaseMonths": {
-      "reso": "FurnishedMinLeaseMonths",
+      "cotality": "FurnishedMinLeaseMonths",
       "rls": "FurnishedMinLeaseMonths",
       "description": "The minimum length of the lease when furnished, expressed as a number of months.",
       "required": "conditional",
@@ -2283,7 +2283,7 @@
       "authority": "RLS"
     },
     "GarageSpaces": {
-      "reso": "GarageSpaces",
+      "cotality": "GarageSpaces",
       "rls": "GarageSpaces",
       "description": "The number of spaces in the garage assigned or part of the listing that is for sale/lease.",
       "required": "conditional",
@@ -2294,7 +2294,7 @@
       "authority": "RLS"
     },
     "GarageSpacesAssignedYN": {
-      "reso": "GarageSpacesAssignedYN",
+      "cotality": "GarageSpacesAssignedYN",
       "rls": "GarageSpacesAssignedYN",
       "description": "Indicate whether the unit or listing has a designated parking assigned or included in the sale/lease.",
       "required": "optional",
@@ -2305,7 +2305,7 @@
       "authority": "RLS"
     },
     "GarageYN": {
-      "reso": "GarageYN",
+      "cotality": "GarageYN",
       "rls": "GarageYN",
       "description": "A flag indicating that the property/building has garage space.",
       "required": "mandatory",
@@ -2316,7 +2316,7 @@
       "authority": "RLS"
     },
     "GardenerExpense": {
-      "reso": "GardenerExpense",
+      "cotality": "GardenerExpense",
       "rls": "GardenerExpense",
       "description": "The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.",
       "required": "optional",
@@ -2327,7 +2327,7 @@
       "authority": "RLS"
     },
     "GreenBuildingVerificationType": {
-      "reso": "GreenBuildingVerificationType",
+      "cotality": "GreenBuildingVerificationType",
       "rls": "GreenBuildingVerificationType",
       "description": "The name of the verification or certification awarded to a new or pre-existing residential or commercial structure. For example: LEED, Energy Star, ICC-700. In cases where more than one certification have been awarded, leverage multiple iterations of the green verification fields via the repeating e",
       "required": "optional",
@@ -2338,7 +2338,7 @@
       "authority": "RLS"
     },
     "GreenBuildingYN": {
-      "reso": "GreenBuildingYN",
+      "cotality": "GreenBuildingYN",
       "rls": "GreenBuildingYN",
       "description": "A building has been certified as green in which  design, construction or operation, reduces or eliminates negative impacts, and can create positive impacts, on our climate and natural environment.",
       "required": "optional",
@@ -2349,7 +2349,7 @@
       "authority": "RLS"
     },
     "GreenEnergyEfficient": {
-      "reso": "GreenEnergyEfficient",
+      "cotality": "GreenEnergyEfficient",
       "rls": "GreenEnergyEfficient",
       "description": "Pick list of general green attributes such as energy efficient doors, or appliances without naming specific elements with ratings that may wane over time.",
       "required": "optional",
@@ -2360,7 +2360,7 @@
       "authority": "RLS"
     },
     "GreenEnergyGeneration": {
-      "reso": "GreenEnergyGeneration",
+      "cotality": "GreenEnergyGeneration",
       "rls": "GreenEnergyGeneration",
       "description": "Methods of generating power that are included in the sale or lease.",
       "required": "optional",
@@ -2371,7 +2371,7 @@
       "authority": "RLS"
     },
     "GreenIndoorAirQuality": {
-      "reso": "GreenIndoorAirQuality",
+      "cotality": "GreenIndoorAirQuality",
       "rls": "GreenIndoorAirQuality",
       "description": "Pick list of indoor air quality measures without naming specific elements with ratings that may wane over time.",
       "required": "optional",
@@ -2382,7 +2382,7 @@
       "authority": "RLS"
     },
     "GreenLocation": {
-      "reso": "GreenLocation",
+      "cotality": "GreenLocation",
       "rls": "GreenLocation",
       "description": "Pick list describing efficiencies involved with the property's location such as walkability or transportation proximity without naming specific elements with ratings that may wane over time.",
       "required": "optional",
@@ -2393,7 +2393,7 @@
       "authority": "RLS"
     },
     "GreenSustainability": {
-      "reso": "GreenSustainability",
+      "cotality": "GreenSustainability",
       "rls": "GreenSustainability",
       "description": "Pick list of sustainable elements used in the construction of the structure without naming specific elements with ratings that may wane over time.",
       "required": "optional",
@@ -2404,7 +2404,7 @@
       "authority": "RLS"
     },
     "GreenWaterConservation": {
-      "reso": "GreenWaterConservation",
+      "cotality": "GreenWaterConservation",
       "rls": "GreenWaterConservation",
       "description": "Pick list of general water conserving attributes of the property such as landscaping or reclamation without naming specific elements with ratings that may wane over time.",
       "required": "optional",
@@ -2415,7 +2415,7 @@
       "authority": "RLS"
     },
     "GuarantorsAcceptedYN": {
-      "reso": "GuarantorsAcceptedYN",
+      "cotality": "GuarantorsAcceptedYN",
       "rls": "GuarantorsAcceptedYN",
       "description": "Indicate whether a guarantor is accepted on listing/unit level. Refer to the buildingrules for building policies.",
       "required": "optional",
@@ -2426,7 +2426,7 @@
       "authority": "RLS"
     },
     "Heating": {
-      "reso": "Heating",
+      "cotality": "Heating",
       "rls": "Heating",
       "description": "A list describing the heating features of the property.",
       "required": "conditional",
@@ -2437,7 +2437,7 @@
       "authority": "RLS"
     },
     "HeatingYN": {
-      "reso": "HeatingYN",
+      "cotality": "HeatingYN",
       "rls": "HeatingYN",
       "description": "Indicates whether or not the property has heating.",
       "required": "optional",
@@ -2448,7 +2448,7 @@
       "authority": "RLS"
     },
     "HomeWarrantyYN": {
-      "reso": "HomeWarrantyYN",
+      "cotality": "HomeWarrantyYN",
       "rls": "HomeWarrantyYN",
       "description": "Indicates whether or not a home warranty is included in the sale of the property.",
       "required": "optional",
@@ -2460,7 +2460,7 @@
     },
     "IDXEntireListingDisplayYN": {
       "_trestleNote": "This field does NOT exist on Trestle. Internal code name mapped to InternetEntireListingDisplayYN. Kept for backward compatibility with internal validation logic.",
-      "reso": "IDXEntireListingDisplayYN",
+      "cotality": "IDXEntireListingDisplayYN",
       "rls": "InternetEntireListingDisplayYN",
       "description": "If this is True and the ListOfficeIDXParticipationYN is True, then the listing can be sent to an IDX website.",
       "required": "optional",
@@ -2471,7 +2471,7 @@
       "authority": "RLS"
     },
     "Inclusions": {
-      "reso": "Inclusions",
+      "cotality": "Inclusions",
       "rls": "Inclusions",
       "description": "Portable elements of the property that will be included in the sale.",
       "required": "optional",
@@ -2482,7 +2482,7 @@
       "authority": "RLS"
     },
     "InsuranceExpense": {
-      "reso": "InsuranceExpense",
+      "cotality": "InsuranceExpense",
       "rls": "InsuranceExpense",
       "description": "The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.",
       "required": "optional",
@@ -2493,7 +2493,7 @@
       "authority": "RLS"
     },
     "InteriorFeatures": {
-      "reso": "InteriorFeatures",
+      "cotality": "InteriorFeatures",
       "rls": "InteriorFeatures",
       "description": "A list of features or description of the interior of the property included in the sale/lease.",
       "required": "optional",
@@ -2504,7 +2504,7 @@
       "authority": "RLS"
     },
     "InternetAddressDisplayYN": {
-      "reso": "InternetAddressDisplayYN",
+      "cotality": "InternetAddressDisplayYN",
       "rls": "InternetAddressDisplayYN",
       "description": "A yes/no field that states the seller has allowed the listing address to be displayed on Internet sites.",
       "required": "mandatory",
@@ -2515,7 +2515,7 @@
       "authority": "RLS"
     },
     "InternetAutomatedValuationDisplayYN": {
-      "reso": "InternetAutomatedValuationDisplayYN",
+      "cotality": "InternetAutomatedValuationDisplayYN",
       "rls": "InternetAutomatedValuationDisplayYN",
       "description": "A yes/no field that states the seller allows the listing can be displayed with an AVM on Internet sites.",
       "required": "mandatory",
@@ -2526,7 +2526,7 @@
       "authority": "RLS"
     },
     "InternetConsumerCommentYN": {
-      "reso": "InternetConsumerCommentYN",
+      "cotality": "InternetConsumerCommentYN",
       "rls": "InternetConsumerCommentYN",
       "description": "A yes/no field that states the seller allows a comment or blog system to be attached to the listing on Internet sites.",
       "required": "mandatory",
@@ -2537,7 +2537,7 @@
       "authority": "RLS"
     },
     "InternetEntireListingDisplayYN": {
-      "reso": "InternetEntireListingDisplayYN",
+      "cotality": "InternetEntireListingDisplayYN",
       "rls": "InternetEntireListingDisplayYN",
       "description": "A yes/no field that states the seller has allowed the listing address to be displayed on Internet sites.  Sale listings with Permissions=Null are not allowed to submit InternetEntireListingDisplayYN=False.    Listing alerts and auto-sharing must be disabled/turned off for any non-exclusive agent’s l",
       "required": "mandatory",
@@ -2548,7 +2548,7 @@
       "authority": "RLS"
     },
     "KitchenCondition": {
-      "reso": "KitchenCondition",
+      "cotality": "KitchenCondition",
       "rls": "KitchenCondition",
       "description": "General condition of the property's kitchen(s).",
       "required": "optional",
@@ -2559,7 +2559,7 @@
       "authority": "RLS"
     },
     "LaborInformation": {
-      "reso": "LaborInformation",
+      "cotality": "LaborInformation",
       "rls": "LaborInformation",
       "description": "Information about labor laws that are applicable to the building. i.e. Union, Non-Union, Employee License Required.",
       "required": "optional",
@@ -2570,7 +2570,7 @@
       "authority": "RLS"
     },
     "LandAssessedValue": {
-      "reso": "LandAssessedValue",
+      "cotality": "LandAssessedValue",
       "rls": "LandAssessedValue",
       "description": "Assessed value of the land only.",
       "required": "optional",
@@ -2581,7 +2581,7 @@
       "authority": "RLS"
     },
     "LandLeaseAmount": {
-      "reso": "LandLeaseAmount",
+      "cotality": "LandLeaseAmount",
       "rls": "LandLeaseAmount",
       "description": "When the land is not included in the sale, but is leased, the amount of the lease. This is the Space Rent for Mobile homes in a Park.",
       "required": "optional",
@@ -2592,7 +2592,7 @@
       "authority": "RLS"
     },
     "LandLeaseAmountFrequency": {
-      "reso": "LandLeaseAmountFrequency",
+      "cotality": "LandLeaseAmountFrequency",
       "rls": "LandLeaseAmountFrequency",
       "description": "When the land is not included in the sale, but is leased, the frequency the Land Lease Fee is paid.",
       "required": "optional",
@@ -2603,7 +2603,7 @@
       "authority": "RLS"
     },
     "LandLeaseExpirationDate": {
-      "reso": "LandLeaseExpirationDate",
+      "cotality": "LandLeaseExpirationDate",
       "rls": "LandLeaseExpirationDate",
       "description": "When the land is not included in the sale, but is leased, the expiration date of the Land Lease.",
       "required": "optional",
@@ -2614,7 +2614,7 @@
       "authority": "RLS"
     },
     "LandLeaseYN": {
-      "reso": "LandLeaseYN",
+      "cotality": "LandLeaseYN",
       "rls": "LandLeaseYN",
       "description": "The land is not included in the sale and a lease exists.",
       "required": "optional",
@@ -2625,7 +2625,7 @@
       "authority": "RLS"
     },
     "LandmarkStatusYN": {
-      "reso": "LandmarkStatusYN",
+      "cotality": "LandmarkStatusYN",
       "rls": "LandmarkStatusYN",
       "description": "Indicates whether a property has been designated landmark status by the government. Having some sort of historic, artistic, or aesthetic value.",
       "required": "optional",
@@ -2636,7 +2636,7 @@
       "authority": "RLS"
     },
     "Latitude": {
-      "reso": "Latitude",
+      "cotality": "Latitude",
       "rls": "Latitude",
       "description": "The geographic latitude of some reference point on the property, specified in degrees and decimal parts. Positive numbers must not include the plus symbol.",
       "required": "optional",
@@ -2647,7 +2647,7 @@
       "authority": "RLS"
     },
     "LaundryFeatures": {
-      "reso": "LaundryFeatures",
+      "cotality": "LaundryFeatures",
       "rls": "LaundryFeatures",
       "description": "Add this pick list of features and locations where the laundry is located in the property being sold/leased. Refer to BuildingLaundryFeatures for building specific details.",
       "required": "optional",
@@ -2658,7 +2658,7 @@
       "authority": "RLS"
     },
     "LeaseRenewalOptionYN": {
-      "reso": "LeaseRenewalOptionYN",
+      "cotality": "LeaseRenewalOptionYN",
       "rls": "LeaseRenewalOptionYN",
       "description": "Indicates whether or not there is an option to renew the lease for the listing.",
       "required": "optional",
@@ -2669,7 +2669,7 @@
       "authority": "RLS"
     },
     "LeaseType": {
-      "reso": "LeaseType",
+      "cotality": "LeaseType",
       "rls": "LeaseType",
       "description": "The lease type. Options are Stabilized lease and Non-stabilized lease.",
       "required": "conditional",
@@ -2680,7 +2680,7 @@
       "authority": "RLS"
     },
     "LegalRoomsTotal": {
-      "reso": "LegalRoomsTotal",
+      "cotality": "LegalRoomsTotal",
       "rls": "LegalRoomsTotal",
       "description": "The number of legal rooms in the building.",
       "required": "optional",
@@ -2691,7 +2691,7 @@
       "authority": "RLS"
     },
     "Levels": {
-      "reso": "Levels",
+      "cotality": "Levels",
       "rls": "Levels",
       "description": "The number of levels in the property being sold/leased. For example, One Level, Two Levels, Three or More Levels, Multi/Split, Loft. A discreet horizontal plane of interior living space (excluding basements).",
       "required": "optional",
@@ -2702,7 +2702,7 @@
       "authority": "RLS"
     },
     "LicensesExpense": {
-      "reso": "LicensesExpense",
+      "cotality": "LicensesExpense",
       "rls": "LicensesExpense",
       "description": "The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.",
       "required": "optional",
@@ -2713,7 +2713,7 @@
       "authority": "RLS"
     },
     "ListAgentDirectPhone": {
-      "reso": "ListAgentDirectPhone",
+      "cotality": "ListAgentDirectPhone",
       "rls": "ListAgentDirectPhone",
       "description": "North American 10 digit phone numbers should be in the format of ###-###-#### (separated by hyphens). Other conventions should use the common local standard. International numbers should be preceded by a plus symbol.",
       "required": "optional",
@@ -2724,7 +2724,7 @@
       "authority": "RLS"
     },
     "ListAgentEmail": {
-      "reso": "ListAgentEmail",
+      "cotality": "ListAgentEmail",
       "rls": "ListAgentEmail",
       "description": "The email address of the Listing Agent.",
       "required": "optional",
@@ -2735,7 +2735,7 @@
       "authority": "RLS"
     },
     "ListAgentFullName": {
-      "reso": "ListAgentFullName",
+      "cotality": "ListAgentFullName",
       "rls": "ListAgentFullName",
       "description": "The full name of the list agent as registered with DOS Licensing",
       "required": "optional",
@@ -2746,7 +2746,7 @@
       "authority": "RLS"
     },
     "ListAgentHasOwnershipInterestYN": {
-      "reso": "ListAgentHasOwnershipInterestYN",
+      "cotality": "ListAgentHasOwnershipInterestYN",
       "rls": "ListAgentHasOwnershipInterestYN",
       "description": "Indicates if list agent or list broker have ownership interest of the listing.",
       "required": "optional",
@@ -2757,7 +2757,7 @@
       "authority": "RLS"
     },
     "ListAgentKeyNumeric": {
-      "reso": "ListAgentKeyNumeric",
+      "cotality": "ListAgentKeyNumeric",
       "rls": "ListAgentKeyNumeric",
       "description": "Unique identifier of the List Agent. This is the foreign key that relates to the Member resource MemberKeyNumeric",
       "required": "optional",
@@ -2768,7 +2768,7 @@
       "authority": "RLS"
     },
     "ListAgentMlsId": {
-      "reso": "ListAgentKey",
+      "cotality": "ListAgentKey",
       "rls": "ListAgentMlsId",
       "description": "The local, well-known identifier for the member. This value may not be unique, specifically in the case of aggregation systems, this value should be the identifier from the original system.",
       "required": "mandatory",
@@ -2779,7 +2779,7 @@
       "authority": "RLS"
     },
     "ListAgentNickname": {
-      "reso": "ListAgentNickname",
+      "cotality": "ListAgentNickname",
       "rls": "ListAgentNickname",
       "description": "The Alternate name used by the List Agent",
       "required": "optional",
@@ -2790,7 +2790,7 @@
       "authority": "RLS"
     },
     "ListAgentStateLicense": {
-      "reso": "ListAgentStateLicense",
+      "cotality": "ListAgentStateLicense",
       "rls": "ListAgentStateLicense",
       "description": "The license of the listing agent. Separate multiple licenses with a comma and space.",
       "required": "optional",
@@ -2801,7 +2801,7 @@
       "authority": "RLS"
     },
     "ListAgentURL": {
-      "reso": "ListAgentURL",
+      "cotality": "ListAgentURL",
       "rls": "ListAgentURL",
       "description": "The website URL of the listing agent.",
       "required": "optional",
@@ -2812,7 +2812,7 @@
       "authority": "RLS"
     },
     "ListingAgreement": {
-      "reso": "ListingAgreement",
+      "cotality": "ListingAgreement",
       "rls": "ListingAgreement",
       "description": "The nature of the agreement between the seller and the listing agent. Examples are Exclusive Agency, Open Listing, CoExclusive, etc. Please note: Per UCBA, RLS comprises of all exclusive listings. Please reference the UCBA for further details.",
       "required": "optional",
@@ -2823,7 +2823,7 @@
       "authority": "RLS"
     },
     "ListingContractDate": {
-      "reso": "ListingContractDate",
+      "cotality": "ListingContractDate",
       "rls": "ListingContractDate",
       "description": "The effective date of the agreement between the seller landlord and the seller's broker. This is the date entered by the agent reflecting when the change occurred contractually, not a timestamp of when the change was made in the RLS.   This date is not editable once submitted.",
       "required": "optional",
@@ -2834,7 +2834,7 @@
       "authority": "RLS"
     },
     "ListingID": {
-      "reso": "ListingID",
+      "cotality": "ListingID",
       "rls": "ListingID",
       "description": "The local, well-known identifier for the Listing. This value may not be unique, specifically in the case of aggregation systems, this value should be the identifier from the original system.",
       "required": "optional",
@@ -2845,7 +2845,7 @@
       "authority": "RLS"
     },
     "ListingIssues": {
-      "reso": "ListingIssues",
+      "cotality": "ListingIssues",
       "rls": "ListingIssues",
       "description": "This field specifies an issue with the listing that requires restrictions and/or corrections",
       "required": "optional",
@@ -2856,7 +2856,7 @@
       "authority": "RLS"
     },
     "ListingKeyNumeric": {
-      "reso": "ListingKeyNumeric",
+      "cotality": "ListingKeyNumeric",
       "rls": "ListingKeyNumeric",
       "description": "The unique identifier for the listing.",
       "required": "optional",
@@ -2867,7 +2867,7 @@
       "authority": "RLS"
     },
     "ListingSocialMediaURL": {
-      "reso": "ListingSocialMedia",
+      "cotality": "ListingSocialMedia",
       "rls": "ListingSocialMediaURL",
       "description": "The URL for social media related to this listing.",
       "required": "optional",
@@ -2878,7 +2878,7 @@
       "authority": "RLS"
     },
     "ListingTerms": {
-      "reso": "ListingTerms",
+      "cotality": "ListingTerms",
       "rls": "ListingTerms",
       "description": "Terms of the listing such as Lien Release, Subject to Court Approval or Owner Will Carry. Also may include options that describe the financing terms that are acceptable to the seller, i.e. cash, assumable, FHA loan, etc.",
       "required": "optional",
@@ -2889,7 +2889,7 @@
       "authority": "RLS"
     },
     "ListingURL": {
-      "reso": "ListingURL",
+      "cotality": "ListingURL",
       "rls": "ListingURL",
       "description": "Provides a link to the specific listing on a brokerage website, agent website or other public-facing source.",
       "required": "optional",
@@ -2900,7 +2900,7 @@
       "authority": "RLS"
     },
     "ListOfficeIDXParticipationYN": {
-      "reso": "ListOfficeIDXParticipationYN",
+      "cotality": "ListOfficeIDXParticipationYN",
       "rls": "ListOfficeIDXParticipationYN",
       "description": "Does the List Office/Broker participate in IDX? True value allows the listing to be sent to an IDX (provided that the list office participates in IDX). This is generated from the IDXOfficeParticipationYN attribute in Member resource and managed through the REBNY membership directory.",
       "required": "optional",
@@ -2911,7 +2911,7 @@
       "authority": "RLS"
     },
     "ListOfficeKeyNumeric": {
-      "reso": "ListOfficeKeyNumeric",
+      "cotality": "ListOfficeKeyNumeric",
       "rls": "ListOfficeKeyNumeric",
       "description": "Unique identifier of the List Office. This is the foreign key that relates to the Office resource OfficeKeyNumeric",
       "required": "optional",
@@ -2922,7 +2922,7 @@
       "authority": "RLS"
     },
     "ListOfficeMlsId": {
-      "reso": "ListOfficeKey",
+      "cotality": "ListOfficeKey",
       "rls": "ListOfficeMlsId",
       "description": "The local, well-known identifier. This value may not be unique, specifically in the case of aggregation systems, this value should be the identifier from the original system.",
       "required": "optional",
@@ -2933,7 +2933,7 @@
       "authority": "RLS"
     },
     "ListOfficeName": {
-      "reso": "ListOfficeName",
+      "cotality": "ListOfficeName",
       "rls": "ListOfficeName",
       "description": "The legal name of the brokerage representing the seller.",
       "required": "optional",
@@ -2944,7 +2944,7 @@
       "authority": "RLS"
     },
     "ListOfficePhone": {
-      "reso": "ListOfficePhone",
+      "cotality": "ListOfficePhone",
       "rls": "ListOfficePhone",
       "description": "North American 10 digit phone numbers should be in the format of ###-###-#### (separated by hyphens). Other conventions should use the common local standard. International numbers should be preceded by a plus symbol.",
       "required": "optional",
@@ -2955,7 +2955,7 @@
       "authority": "RLS"
     },
     "ListOfficeURL": {
-      "reso": "ListOfficeURL",
+      "cotality": "ListOfficeURL",
       "rls": "ListOfficeURL",
       "description": "The website URL for the listing office.",
       "required": "optional",
@@ -2966,7 +2966,7 @@
       "authority": "RLS"
     },
     "ListPrice": {
-      "reso": "ListPrice",
+      "cotality": "ListPrice",
       "rls": "ListPrice",
       "description": "The current price of the property as determined by the seller/landlord. For auctions this is the minimum or reserve price. For rent/leasing, it must reflect the the gross monthly rent/lease for the listing (not net-effective rent).",
       "required": "mandatory",
@@ -2977,7 +2977,7 @@
       "authority": "RLS"
     },
     "ListTeamKeyNumeric": {
-      "reso": "ListTeamKeyNumeric",
+      "cotality": "ListTeamKeyNumeric",
       "rls": "ListTeamKeyNumeric",
       "description": "Unique identifier of the List Team. This is the foreign key that relates to the Team resource TeamKeyNumeric",
       "required": "optional",
@@ -2988,7 +2988,7 @@
       "authority": "RLS"
     },
     "ListTeamMlsId": {
-      "reso": "ListTeamKey",
+      "cotality": "ListTeamKey",
       "rls": "ListTeamMlsId",
       "description": "The local, well-known identifier. This value may not be unique, specifically in the case of aggregation systems, this value should be the identifier from the original system.",
       "required": "optional",
@@ -2999,7 +2999,7 @@
       "authority": "RLS"
     },
     "ListTeamName": {
-      "reso": "ListTeamName",
+      "cotality": "ListTeamName",
       "rls": "ListTeamName",
       "description": "The name of the team representing the seller/landlord",
       "required": "optional",
@@ -3010,7 +3010,7 @@
       "authority": "RLS"
     },
     "LivingArea": {
-      "reso": "LivingArea",
+      "cotality": "LivingArea",
       "rls": "LivingArea",
       "description": "The total livable area within the structure of the unit or property in which it is for sale or lease.",
       "required": "conditional",
@@ -3021,7 +3021,7 @@
       "authority": "RLS"
     },
     "LivingAreaSource": {
-      "reso": "LivingAreaSource",
+      "cotality": "LivingAreaSource",
       "rls": "LivingAreaSource",
       "description": "The source of the measurements. This is a pick list of options showing the source of the measurement (e.g., Agent, Assessor, Estimate).",
       "required": "optional",
@@ -3032,7 +3032,7 @@
       "authority": "RLS"
     },
     "LivingAreaUnits": {
-      "reso": "LivingAreaUnits",
+      "cotality": "LivingAreaUnits",
       "rls": "LivingAreaUnits",
       "description": "A pick list of the unit of measurement for the area. i.e. Square Feet, Square Meters, Acres, etc.",
       "required": "conditional",
@@ -3043,7 +3043,7 @@
       "authority": "RLS"
     },
     "Longitude": {
-      "reso": "Longitude",
+      "cotality": "Longitude",
       "rls": "Longitude",
       "description": "The geographic longitude of some reference point on the property, specified in degrees and decimal parts. Positive numbers must not include the plus symbol.",
       "required": "optional",
@@ -3054,7 +3054,7 @@
       "authority": "RLS"
     },
     "LotFeatures": {
-      "reso": "LotFeatures",
+      "cotality": "LotFeatures",
       "rls": "LotFeatures",
       "description": "A list of features or description of the lot included in the sale/lease.",
       "required": "optional",
@@ -3065,7 +3065,7 @@
       "authority": "RLS"
     },
     "LotSizeArea": {
-      "reso": "LotSizeArea",
+      "cotality": "LotSizeArea",
       "rls": "LotSizeArea",
       "description": "The total area of the lot. See Lot Size Units for the units of measurement (Square Feet, Square Meters, Acres, etc.).",
       "required": "conditional",
@@ -3076,7 +3076,7 @@
       "authority": "RLS"
     },
     "LotSizeDimensions": {
-      "reso": "LotSizeDimensions",
+      "cotality": "LotSizeDimensions",
       "rls": "LotSizeDimensions",
       "description": "The dimensions of the lot minimally represented as length and width (i.e. 250 x 180) or a measurement of all sides of the polygon representing the property lines of the property. i.e. 30 x 50 x 120 x 60 x 22.",
       "required": "conditional",
@@ -3087,7 +3087,7 @@
       "authority": "RLS"
     },
     "LotSizeSource": {
-      "reso": "LotSizeSource",
+      "cotality": "LotSizeSource",
       "rls": "LotSizeSource",
       "description": "The source of the measurements. This may be a pick list of options showing the source of the measurement. i.e. Agent, Assessor, Estimate, etc.",
       "required": "optional",
@@ -3098,7 +3098,7 @@
       "authority": "RLS"
     },
     "LotSizeUnits": {
-      "reso": "LotSizeUnits",
+      "cotality": "LotSizeUnits",
       "rls": "LotSizeUnits",
       "description": "A pick list of the unit of measurement for the area. i.e. Square Feet, Square Meters, Acres, etc.",
       "required": "conditional",
@@ -3109,7 +3109,7 @@
       "authority": "RLS"
     },
     "MaintenanceExpense": {
-      "reso": "MaintenanceExpense",
+      "cotality": "MaintenanceExpense",
       "rls": "MaintenanceExpense",
       "description": "The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.",
       "required": "optional",
@@ -3120,7 +3120,7 @@
       "authority": "RLS"
     },
     "MajorChangeTimestamp": {
-      "reso": "MajorChangeTimestamp",
+      "cotality": "MajorChangeTimestamp",
       "rls": "MajorChangeTimestamp",
       "description": "Timestamp of the last major change on the listing (see also MajorChangeType).",
       "required": "optional",
@@ -3131,7 +3131,7 @@
       "authority": "RLS"
     },
     "MajorChangeType": {
-      "reso": "MajorChangeType",
+      "cotality": "MajorChangeType",
       "rls": "MajorChangeType",
       "description": "Description of the last major change on the listing, i.e. “price reduction”, “back on market”, etc. May be used to display on a summary view of listing results to quickly identify listings that have had major changes recently.",
       "required": "optional",
@@ -3142,7 +3142,7 @@
       "authority": "RLS"
     },
     "ManagerExpense": {
-      "reso": "ManagerExpense",
+      "cotality": "ManagerExpense",
       "rls": "ManagerExpense",
       "description": "The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations. This is for an individual manager. Use ProfessionalManagementExpense for a management company.",
       "required": "optional",
@@ -3153,7 +3153,7 @@
       "authority": "RLS"
     },
     "ManagingAgencyListingYN": {
-      "reso": "ManagingAgencyListingYN",
+      "cotality": "ManagingAgencyListingYN",
       "rls": "ManagingAgencyListingYN",
       "description": "This field distinguishes between a listing that is handled directly by an owner or an owner’s Managing Agency (having signed up with REBNY), versus a listing that is handled through a standard real estate brokerage company.",
       "required": "optional",
@@ -3164,7 +3164,7 @@
       "authority": "RLS"
     },
     "MatrixTesting": {
-      "reso": "MatrixTesting",
+      "cotality": "MatrixTesting",
       "rls": "MatrixTesting",
       "description": "Flag to identify whether it is a test listing submitted. This will be automatically flagged for the LMPs as they are currently testing.  This flag will not be available once migrated to production",
       "required": "optional",
@@ -3175,7 +3175,7 @@
       "authority": "RLS"
     },
     "MaximumFinancingAmount": {
-      "reso": "MaximumFinancingAmount",
+      "cotality": "MaximumFinancingAmount",
       "rls": "MaximumFinancingAmount",
       "description": "The maximum amount a lender will finance for the listing, expressed as an amount.",
       "required": "optional",
@@ -3186,7 +3186,7 @@
       "authority": "RLS"
     },
     "MaximumFinancingPercent": {
-      "reso": "MaximumFinancingPercent",
+      "cotality": "MaximumFinancingPercent",
       "rls": "MaximumFinancingPercent",
       "description": "The maximum amount a lender will finance for the listing, expressed as a percentage of the sale price.",
       "required": "conditional",
@@ -3197,7 +3197,7 @@
       "authority": "RLS"
     },
     "MaximumFinancingRemarks": {
-      "reso": "MaximumFinancingRemarks",
+      "cotality": "MaximumFinancingRemarks",
       "rls": "MaximumFinancingRemarks",
       "description": "Text description of the maximum allowed financing.",
       "required": "conditional",
@@ -3208,7 +3208,7 @@
       "authority": "RLS"
     },
     "MaxLeaseMonths": {
-      "reso": "MaxLeaseMonths",
+      "cotality": "MaxLeaseMonths",
       "rls": "MaxLeaseMonths",
       "description": "The maximum length of the lease expressed as a number of months.",
       "required": "optional",
@@ -3219,7 +3219,7 @@
       "authority": "RLS"
     },
     "MinLeaseMonths": {
-      "reso": "MinLeaseMonths",
+      "cotality": "MinLeaseMonths",
       "rls": "MinLeaseMonths",
       "description": "The minimum length of the lease expressed as a number of months.",
       "required": "conditional",
@@ -3230,7 +3230,7 @@
       "authority": "RLS"
     },
     "MlsMajorChangeType": {
-      "reso": "MlsMajorChangeType",
+      "cotality": "MlsMajorChangeType",
       "rls": "MlsMajorChangeType",
       "description": "Description of the last MLS status major change on the listing, i.e. “price reduction”, “back on market”, etc. May be used to display on a summary view of listing results to quickly identify listings that have had major changes recently.",
       "required": "optional",
@@ -3241,7 +3241,7 @@
       "authority": "RLS"
     },
     "MlsStatus": {
-      "reso": "StandardStatus",
+      "cotality": "StandardStatus",
       "rls": "MlsStatus",
       "description": "RLS Status. Each MlsStatus maps to a single StandardStatus. Multiple MlsStatus may map to a single StandardStatus.",
       "required": "mandatory",
@@ -3252,7 +3252,7 @@
       "authority": "RLS"
     },
     "ModificationTimestamp": {
-      "reso": "ModificationTimestamp",
+      "cotality": "ModificationTimestamp",
       "rls": "ModificationTimestamp",
       "description": "The transactional timestamp automatically recorded by the RLS system representing the date/time the listing was last modified.",
       "required": "optional",
@@ -3263,7 +3263,7 @@
       "authority": "RLS"
     },
     "MoveInCosts": {
-      "reso": "MoveInCosts",
+      "cotality": "MoveInCosts",
       "rls": "MoveInCosts",
       "description": "Specific fees not included in the base rent or deposit that apply to the listing (e.g., application fees, move-in fees).",
       "required": "optional",
@@ -3274,7 +3274,7 @@
       "authority": "RLS"
     },
     "MoveInCostsComments": {
-      "reso": "MoveInCostsComments",
+      "cotality": "MoveInCostsComments",
       "rls": "MoveInCostsComments",
       "description": "Comments or clarifications regarding the additional listing fees.Comments or clarifications regarding the Move In Costs.",
       "required": "optional",
@@ -3285,7 +3285,7 @@
       "authority": "RLS"
     },
     "MoveInCostsAmountTotal": {
-      "reso": "MoveInCostsAmountTotal",
+      "cotality": "MoveInCostsAmountTotal",
       "rls": "MoveInCostsAmountTotal",
       "description": "The total monetary value of all Move In Costs associated with the listing.",
       "required": "conditional",
@@ -3296,7 +3296,7 @@
       "authority": "RLS"
     },
     "NetMonthlyRent": {
-      "reso": "NetMonthlyRent",
+      "cotality": "NetMonthlyRent",
       "rls": "NetMonthlyRent",
       "description": "The lease monthly amount a lessee pays on average per month of a lease period, a mathematical calculation that takes into account free months on the lease as if they'd been paid for.",
       "required": "optional",
@@ -3307,7 +3307,7 @@
       "authority": "RLS"
     },
     "NetOperatingIncome": {
-      "reso": "NetOperatingIncome",
+      "cotality": "NetOperatingIncome",
       "rls": "NetOperatingIncome",
       "description": "Net operating income is the revenue from a property after operating expenses have been deducted, but before deducting income taxes and financing expenses (interest and Principal Payments). For example, Gross Income - Operating Expenses = Net Operating Income (NOI).",
       "required": "optional",
@@ -3318,7 +3318,7 @@
       "authority": "RLS"
     },
     "NewConstructionYN": {
-      "reso": "NewConstructionYN",
+      "cotality": "NewConstructionYN",
       "rls": "NewConstructionYN",
       "description": "Indicates whether or not the property is newly constructed and has not been previously occupied.",
       "required": "mandatory",
@@ -3329,7 +3329,7 @@
       "authority": "RLS"
     },
     "NewDevelopmentYN": {
-      "reso": "NewDevelopmentYN",
+      "cotality": "NewDevelopmentYN",
       "rls": "NewDevelopmentYN",
       "description": "Indicates whether or not the property with a structure(s) that is(are) newly constructed, converted or both selling individual units.",
       "required": "optional",
@@ -3340,7 +3340,7 @@
       "authority": "RLS"
     },
     "NewlyConvertedUnitYN": {
-      "reso": "NewlyConvertedUnitYN",
+      "cotality": "NewlyConvertedUnitYN",
       "rls": "NewlyConvertedUnitYN",
       "description": "Indicate whether the unit was newly converted from rental or any other property type to condo/coop.",
       "required": "optional",
@@ -3351,7 +3351,7 @@
       "authority": "RLS"
     },
     "NewTaxesExpense": {
-      "reso": "NewTaxesExpense",
+      "cotality": "NewTaxesExpense",
       "rls": "NewTaxesExpense",
       "description": "The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.",
       "required": "optional",
@@ -3362,7 +3362,7 @@
       "authority": "RLS"
     },
     "NumberOfBuildings": {
-      "reso": "NumberOfBuildings",
+      "cotality": "NumberOfBuildings",
       "rls": "NumberOfBuildings",
       "description": "Total number of separate buildings on the premise.",
       "required": "optional",
@@ -3373,7 +3373,7 @@
       "authority": "RLS"
     },
     "NumberOfProfessionalUnitsTotal": {
-      "reso": "NumberOfProfessionalUnitsTotal",
+      "cotality": "NumberOfProfessionalUnitsTotal",
       "rls": "NumberOfProfessionalUnitsTotal",
       "description": "Total number of professional units in building.",
       "required": "optional",
@@ -3384,7 +3384,7 @@
       "authority": "RLS"
     },
     "NumberOfRetailUnits": {
-      "reso": "NumberOfRetailUnits",
+      "cotality": "NumberOfRetailUnits",
       "rls": "NumberOfRetailUnits",
       "description": "Total number of retail units in building.",
       "required": "optional",
@@ -3395,7 +3395,7 @@
       "authority": "RLS"
     },
     "NumberOfSeparateElectricMeters": {
-      "reso": "NumberOfSeparateElectricMeters",
+      "cotality": "NumberOfSeparateElectricMeters",
       "rls": "NumberOfSeparateElectricMeters",
       "description": "Total number of separate meters included/part of the listing.",
       "required": "optional",
@@ -3406,7 +3406,7 @@
       "authority": "RLS"
     },
     "NumberOfSeparateGasMeters": {
-      "reso": "NumberOfSeparateGasMeters",
+      "cotality": "NumberOfSeparateGasMeters",
       "rls": "NumberOfSeparateGasMeters",
       "description": "Total number of separate meters  included/part of the listing.",
       "required": "optional",
@@ -3417,7 +3417,7 @@
       "authority": "RLS"
     },
     "NumberOfSeparateWaterMeters": {
-      "reso": "NumberOfSeparateWaterMeters",
+      "cotality": "NumberOfSeparateWaterMeters",
       "rls": "NumberOfSeparateWaterMeters",
       "description": "Total number of separate meters  included/part of the listing.",
       "required": "optional",
@@ -3428,7 +3428,7 @@
       "authority": "RLS"
     },
     "NumberOfShares": {
-      "reso": "NumberOfShares",
+      "cotality": "NumberOfShares",
       "rls": "NumberOfShares",
       "description": "The number of shares allocated to the specific listing.",
       "required": "conditional",
@@ -3439,7 +3439,7 @@
       "authority": "RLS"
     },
     "NumberOfUnitsInCommunity": {
-      "reso": "NumberOfUnitsInCommunity",
+      "cotality": "NumberOfUnitsInCommunity",
       "rls": "NumberOfUnitsInCommunity",
       "description": "The total number of units in the building, complex or community. This is not the number of units being sold, but rather the size of the community in which the dwelling being sold is located.",
       "required": "optional",
@@ -3450,7 +3450,7 @@
       "authority": "RLS"
     },
     "NumberOfUnitsTotal": {
-      "reso": "NumberOfUnitsTotal",
+      "cotality": "NumberOfUnitsTotal",
       "rls": "NumberOfUnitsTotal",
       "description": "Total number of residential units included in the property, occupied or unoccupied.",
       "required": "mandatory",
@@ -3461,7 +3461,7 @@
       "authority": "RLS"
     },
     "NumberOfUnitsVacant": {
-      "reso": "NumberOfUnitsVacant",
+      "cotality": "NumberOfUnitsVacant",
       "rls": "NumberOfUnitsVacant",
       "description": "The number of units currently vacant.",
       "required": "optional",
@@ -3472,7 +3472,7 @@
       "authority": "RLS"
     },
     "OccupantType": {
-      "reso": "OccupantType",
+      "cotality": "OccupantType",
       "rls": "OccupantType",
       "description": "A field that describes the type of occupant, i.e. Owner, Tenant, Vacant.",
       "required": "optional",
@@ -3483,7 +3483,7 @@
       "authority": "RLS"
     },
     "OffMarketDate": {
-      "reso": "OffMarketDate",
+      "cotality": "OffMarketDate",
       "rls": "OffMarketDate",
       "description": "The date the listing was taken off market in the Source System. Where possible, this date is reflective of the date entered by the agent reflecting when the change occurred contractually, not a timestamp of when the change was made in the RLS.",
       "required": "conditional",
@@ -3494,7 +3494,7 @@
       "authority": "RLS"
     },
     "OffMarketTimestamp": {
-      "reso": "OffMarketTimestamp",
+      "cotality": "OffMarketTimestamp",
       "rls": "OffMarketTimestamp",
       "description": "The transactional timestamp automatically recorded by the MLS system representing the most recent date/time the listing's status was set to and off market status (not Active or Backup)",
       "required": "optional",
@@ -3505,7 +3505,7 @@
       "authority": "RLS"
     },
     "OnMarketDate": {
-      "reso": "OnMarketDate",
+      "cotality": "OnMarketDate",
       "rls": "OnMarketDate",
       "description": "The date the listing was placed on market in the Source System. Where possible, this date is reflective of the date entered by the agent reflecting when the change occurred contractually, not a timestamp of when the change was made in the RLS.",
       "required": "conditional",
@@ -3516,7 +3516,7 @@
       "authority": "RLS"
     },
     "OnMarketTimestamp": {
-      "reso": "OnMarketTimestamp",
+      "cotality": "OnMarketTimestamp",
       "rls": "OnMarketTimestamp",
       "description": "The transactional timestamp automatically recorded by the MLS system representing the most recent date/time the listing's status was set to Active or Backup. This also includes initial input of the listing to Active/Backup or from a draft or approval status to Active/Backup.",
       "required": "optional",
@@ -3527,7 +3527,7 @@
       "authority": "RLS"
     },
     "OpenHouseCount": {
-      "reso": "OpenHouseCount",
+      "cotality": "OpenHouseCount",
       "rls": "OpenHouseCount",
       "description": "Total count of open house rows",
       "required": "optional",
@@ -3538,7 +3538,7 @@
       "authority": "RLS"
     },
     "OpenHousePublicCount": {
-      "reso": "OpenHousePublicCount",
+      "cotality": "OpenHousePublicCount",
       "rls": "OpenHousePublicCount",
       "description": "Total count of open house rows where OpenHouseType is public",
       "required": "optional",
@@ -3549,7 +3549,7 @@
       "authority": "RLS"
     },
     "OpenHousePublicUpcoming": {
-      "reso": "OpenHousePublicUpcoming",
+      "cotality": "OpenHousePublicUpcoming",
       "rls": "OpenHousePublicUpcoming",
       "description": "Total count of open house rows where OpenHouse Type is public and Open House Start Time is in the future",
       "required": "optional",
@@ -3560,7 +3560,7 @@
       "authority": "RLS"
     },
     "OpenHouseUpcoming": {
-      "reso": "OpenHouseUpcoming",
+      "cotality": "OpenHouseUpcoming",
       "rls": "OpenHouseUpcoming",
       "description": "Total count of open house rows where OpenHouseStartTime is in the future",
       "required": "optional",
@@ -3571,7 +3571,7 @@
       "authority": "RLS"
     },
     "OpenParkingSpaces": {
-      "reso": "OpenParkingSpaces",
+      "cotality": "OpenParkingSpaces",
       "rls": "OpenParkingSpaces",
       "description": "The number of open or uncovered parking spaces included in the sale.",
       "required": "conditional",
@@ -3582,7 +3582,7 @@
       "authority": "RLS"
     },
     "OpenParkingYN": {
-      "reso": "OpenParkingYN",
+      "cotality": "OpenParkingYN",
       "rls": "OpenParkingYN",
       "description": "Indicates whether that any parking spaces associated with the property are not covered by a roof.",
       "required": "optional",
@@ -3593,7 +3593,7 @@
       "authority": "RLS"
     },
     "OperatingExpense": {
-      "reso": "OperatingExpense",
+      "cotality": "OperatingExpense",
       "rls": "OperatingExpense",
       "description": "The costs associated with the operation and maintenance of an income-producing property.",
       "required": "optional",
@@ -3604,7 +3604,7 @@
       "authority": "RLS"
     },
     "OriginalDetailYN": {
-      "reso": "OriginalDetailYN",
+      "cotality": "OriginalDetailYN",
       "rls": "OriginalDetailYN",
       "description": "Indicates whether the building still have the original detail.",
       "required": "optional",
@@ -3615,7 +3615,7 @@
       "authority": "RLS"
     },
     "OriginalEntryTimestamp": {
-      "reso": "OriginalEntryTimestamp",
+      "cotality": "OriginalEntryTimestamp",
       "rls": "OriginalEntryTimestamp",
       "description": "The transactional timestamp automatically recorded by the RLS system representing the date/time the listing was entered and made visible to members of the RLS.",
       "required": "mandatory",
@@ -3626,7 +3626,7 @@
       "authority": "RLS"
     },
     "OriginalListPrice": {
-      "reso": "OriginalListPrice",
+      "cotality": "OriginalListPrice",
       "rls": "OriginalListPrice",
       "description": "The initial list price that was entered into the system or advertised. This differs to PreviousListPrice which is autogenerated by the RLS.",
       "required": "conditional",
@@ -3637,7 +3637,7 @@
       "authority": "RLS"
     },
     "OtherEquipment": {
-      "reso": "OtherEquipment",
+      "cotality": "OtherEquipment",
       "rls": "OtherEquipment",
       "description": "A list of other equipment that will be included in the listing that is for sale/lease.",
       "required": "optional",
@@ -3648,7 +3648,7 @@
       "authority": "RLS"
     },
     "OtherExpense": {
-      "reso": "OtherExpense",
+      "cotality": "OtherExpense",
       "rls": "OtherExpense",
       "description": "The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.",
       "required": "optional",
@@ -3659,7 +3659,7 @@
       "authority": "RLS"
     },
     "OtherExpenseRemarks": {
-      "reso": "OtherExpenseRemarks",
+      "cotality": "OtherExpenseRemarks",
       "rls": "OtherExpenseRemarks",
       "description": "Description of other expenses incurred on the property.",
       "required": "optional",
@@ -3670,7 +3670,7 @@
       "authority": "RLS"
     },
     "OtherStructures": {
-      "reso": "OtherStructures",
+      "cotality": "OtherStructures",
       "rls": "OtherStructures",
       "description": "A list of structures other than the main dwelling. For example, Guest House, Barn, Shed, etc.",
       "required": "optional",
@@ -3681,7 +3681,7 @@
       "authority": "RLS"
     },
     "OwnerPays": {
-      "reso": "OwnerPays",
+      "cotality": "OwnerPays",
       "rls": "OwnerPays",
       "description": "A list of expenses for the property paid for by the owner/landlord as opposed to the tenant (e.g. Water, Trash, Electric). The attribute should be used for listings that are being leased by individual owners or listings with less than 5 units.  Please refer to attributes such as AssociationAmenities",
       "required": "optional",
@@ -3692,7 +3692,7 @@
       "authority": "RLS"
     },
     "OwnerPaysPlusConcessionsYN": {
-      "reso": "OwnerPaysPlusConcessionsYN",
+      "cotality": "OwnerPaysPlusConcessionsYN",
       "rls": "OwnerPaysPlusConcessionsYN",
       "description": "True means owner will pay commission portion and provide concession. False means owner will not provide both.",
       "required": "optional",
@@ -3703,7 +3703,7 @@
       "authority": "RLS"
     },
     "OwnerPaysRemarks": {
-      "reso": "OwnerPaysRemarks",
+      "cotality": "OwnerPaysRemarks",
       "rls": "OwnerPaysRemarks",
       "description": "Describes the detail of what the owner/landlord will pay opposed to the tenant.",
       "required": "optional",
@@ -3714,7 +3714,7 @@
       "authority": "RLS"
     },
     "ParcelNumber": {
-      "reso": "ParcelNumber",
+      "cotality": "ParcelNumber",
       "rls": "ParcelNumber",
       "description": "A number used to uniquely identify a parcel or lot. This number is typically issued by the county or county assessor. The AP number format varies from county to county. It is recommended that all Parcel Numbers be transmitted without dashes or hyphens.",
       "required": "optional",
@@ -3725,7 +3725,7 @@
       "authority": "RLS"
     },
     "ParkingFeatures": {
-      "reso": "ParkingFeatures",
+      "cotality": "ParkingFeatures",
       "rls": "ParkingFeatures",
       "description": "A list of features or description of the parking included in the sale/lease.",
       "required": "optional",
@@ -3736,7 +3736,7 @@
       "authority": "RLS"
     },
     "ParkingTotal": {
-      "reso": "ParkingTotal",
+      "cotality": "ParkingTotal",
       "rls": "ParkingTotal",
       "description": "The total number of parking spaces included in the sale or lease.",
       "required": "optional",
@@ -3747,7 +3747,7 @@
       "authority": "RLS"
     },
     "PatioAndPorchFeatures": {
-      "reso": "PatioAndPorchFeatures",
+      "cotality": "PatioAndPorchFeatures",
       "rls": "PatioAndPorchFeatures",
       "description": "A list of features or description of the patio or porch included in the sale/lease.",
       "required": "optional",
@@ -3758,7 +3758,7 @@
       "authority": "RLS"
     },
     "PendingTimestamp": {
-      "reso": "PendingTimestamp",
+      "cotality": "PendingTimestamp",
       "rls": "PendingTimestamp",
       "description": "The transactional timestamp automatically recorded by the RLS system representing the most recent date/time the listing's status was set to Pending.",
       "required": "optional",
@@ -3769,7 +3769,7 @@
       "authority": "RLS"
     },
     "PercentOfCommonElements": {
-      "reso": "PercentOfCommonElements",
+      "cotality": "PercentOfCommonElements",
       "rls": "PercentOfCommonElements",
       "description": "For condominiums, ownership of common elements expressed as a percentage. Value entered should be on 0-100 scale, not fractional.",
       "required": "conditional",
@@ -3780,7 +3780,7 @@
       "authority": "RLS"
     },
     "Permissions": {
-      "reso": "Permissions",
+      "cotality": "Permissions",
       "rls": "Permissions",
       "description": "The level of access permission for the listing. Only listings marked Private (Participant's Only Listing) will be accessible.",
       "required": "optional",
@@ -3791,7 +3791,7 @@
       "authority": "RLS"
     },
     "PestControlExpense": {
-      "reso": "PestControlExpense",
+      "cotality": "PestControlExpense",
       "rls": "PestControlExpense",
       "description": "The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.",
       "required": "optional",
@@ -3802,7 +3802,7 @@
       "authority": "RLS"
     },
     "PetDepositFee": {
-      "reso": "PetDepositFee",
+      "cotality": "PetDepositFee",
       "rls": "PetDepositFee",
       "description": "If pets allowed, the fee required for deposit.",
       "required": "optional",
@@ -3813,7 +3813,7 @@
       "authority": "RLS"
     },
     "PetsAllowed": {
-      "reso": "PetsAllowed",
+      "cotality": "PetsAllowed",
       "rls": "PetsAllowed",
       "description": "Indicates whether or not pets are allowed for the specific listing/unit.  For building specific policy, please refer to BuildingPetsAllowed field.",
       "required": "optional",
@@ -3824,7 +3824,7 @@
       "authority": "RLS"
     },
     "PetsAllowedComments": {
-      "reso": "PetsAllowedComments",
+      "cotality": "PetsAllowedComments",
       "rls": "PetsAllowedComments",
       "description": "Any comments or additional information to expand on the PetsAllowed attribute.",
       "required": "conditional",
@@ -3835,7 +3835,7 @@
       "authority": "RLS"
     },
     "PhotosChangeTimestamp": {
-      "reso": "PhotosChangeTimestamp",
+      "cotality": "PhotosChangeTimestamp",
       "rls": "PhotosChangeTimestamp",
       "description": "System generated timestamp of when the last update or change to the photos for this listing was made.",
       "required": "optional",
@@ -3846,7 +3846,7 @@
       "authority": "RLS"
     },
     "PhotosCount": {
-      "reso": "PhotosCount",
+      "cotality": "PhotosCount",
       "rls": "PhotosCount",
       "description": "The total number of pictures or photos included with the listing.",
       "required": "optional",
@@ -3857,7 +3857,7 @@
       "authority": "RLS"
     },
     "PoolExpense": {
-      "reso": "PoolExpense",
+      "cotality": "PoolExpense",
       "rls": "PoolExpense",
       "description": "The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.",
       "required": "optional",
@@ -3868,7 +3868,7 @@
       "authority": "RLS"
     },
     "PoolFeatures": {
-      "reso": "PoolFeatures",
+      "cotality": "PoolFeatures",
       "rls": "PoolFeatures",
       "description": "A list of features or description of the pool on the property.",
       "required": "optional",
@@ -3879,7 +3879,7 @@
       "authority": "RLS"
     },
     "Possession": {
-      "reso": "Possession",
+      "cotality": "Possession",
       "rls": "Possession",
       "description": "A list defining when possession will occur. i.e. COE, COE+1, etc.",
       "required": "optional",
@@ -3890,7 +3890,7 @@
       "authority": "RLS"
     },
     "PossibleUse": {
-      "reso": "PossibleUse",
+      "cotality": "PossibleUse",
       "rls": "PossibleUse",
       "description": "A list of the type(s) of possible or best uses of the property. Probable use gives a good indication of what the best use or potential use of the property could be (e.g., Residential, Recreational, Commercial, Retail).",
       "required": "optional",
@@ -3901,7 +3901,7 @@
       "authority": "RLS"
     },
     "PostalCity": {
-      "reso": "PostalCity",
+      "cotality": "PostalCity",
       "rls": "PostalCity",
       "description": "The official city per the U.S. Postal Service (USPS), which may be different from the recorded city. For example \"Astoria, NY\", PostalCity = Astoria.",
       "required": "mandatory",
@@ -3912,7 +3912,7 @@
       "authority": "RLS"
     },
     "PostalCode": {
-      "reso": "PostalCode",
+      "cotality": "PostalCode",
       "rls": "PostalCode",
       "description": "The postal code portion of a street or mailing address.",
       "required": "mandatory",
@@ -3923,7 +3923,7 @@
       "authority": "RLS"
     },
     "PostalCodePlus4": {
-      "reso": "PostalCodePlus4",
+      "cotality": "PostalCodePlus4",
       "rls": "PostalCodePlus4",
       "description": "The postal code + 4 portion of a street or mailing address.",
       "required": "optional",
@@ -3934,7 +3934,7 @@
       "authority": "RLS"
     },
     "PreviousListPrice": {
-      "reso": "PreviousListPrice",
+      "cotality": "PreviousListPrice",
       "rls": "PreviousListPrice",
       "description": "The most recent previous ListPrice of the listing.",
       "required": "optional",
@@ -3945,7 +3945,7 @@
       "authority": "RLS"
     },
     "PreviousStatus": {
-      "reso": "PreviousStatus",
+      "cotality": "PreviousStatus",
       "rls": "PreviousStatus",
       "description": "The most recent previous Status of the listing.",
       "required": "optional",
@@ -3956,7 +3956,7 @@
       "authority": "RLS"
     },
     "PriceChangeTimestamp": {
-      "reso": "PriceChangeTimestamp",
+      "cotality": "PriceChangeTimestamp",
       "rls": "PriceChangeTimestamp",
       "description": "The transactional timestamp automatically recorded by the RLS system representing the date/time the listing's price was last changed.",
       "required": "optional",
@@ -3967,7 +3967,7 @@
       "authority": "RLS"
     },
     "PrivateOutdoorSpaceRemarks": {
-      "reso": "PrivateOutdoorSpaceRemarks",
+      "cotality": "PrivateOutdoorSpaceRemarks",
       "rls": "PrivateOutdoorSpaceRemarks",
       "description": "Describes in detail the type of private outdoor space available including the dimensions of any outdoor spaces.",
       "required": "optional",
@@ -3978,7 +3978,7 @@
       "authority": "RLS"
     },
     "PrivateOutdoorSpaceSize": {
-      "reso": "PrivateOutdoorSpaceSize",
+      "cotality": "PrivateOutdoorSpaceSize",
       "rls": "PrivateOutdoorSpaceSize",
       "description": "Indicates the estimated size of the private outdoor space that is available with the listing.",
       "required": "conditional",
@@ -3989,7 +3989,7 @@
       "authority": "RLS"
     },
     "PrivateRemarks": {
-      "reso": "PrivateRemarks",
+      "cotality": "PrivateRemarks",
       "rls": "PrivateRemarks",
       "description": "The PrivateRemarks is to be used to share key details across the community that are to be seen only by RLS Participants.",
       "required": "optional",
@@ -4000,7 +4000,7 @@
       "authority": "RLS"
     },
     "ProfessionalManagementExpense": {
-      "reso": "ProfessionalManagementExpense",
+      "cotality": "ProfessionalManagementExpense",
       "rls": "ProfessionalManagementExpense",
       "description": "The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations. This is for a management company. Use ManagerExpense for a individual manager.",
       "required": "optional",
@@ -4011,7 +4011,7 @@
       "authority": "RLS"
     },
     "PropertyCondition": {
-      "reso": "PropertyCondition",
+      "cotality": "PropertyCondition",
       "rls": "PropertyCondition",
       "description": "A listing describing the condition of the listing that is for sale/lease. All items in the definition must be met. This attribute is only permitted for agent view ONLY. This cannot be shared or displayed to any consumer/clients. Disclaimer must be conspicuously present on the page where the Property",
       "required": "conditional",
@@ -4022,7 +4022,7 @@
       "authority": "RLS"
     },
     "PropertySubType": {
-      "reso": "PropertySubType",
+      "cotality": "PropertySubType",
       "rls": "PropertySubType",
       "description": "A list of types of residential properties of the listing and not to describe the property that the listing may reside.",
       "required": "mandatory",
@@ -4033,7 +4033,7 @@
       "authority": "RLS"
     },
     "PropertyType": {
-      "reso": "PropertyType",
+      "cotality": "PropertyType",
       "rls": "PropertyType",
       "description": "A list of types of properties such as Residential Sale or Residential Lease. This attribute will classify whether this is a Sale vs Lease. Any sales should be classified as either Residential Sale; Any leases should be classified as Residential Lease.",
       "required": "mandatory",
@@ -4044,7 +4044,7 @@
       "authority": "RLS"
     },
     "PublicRemarks": {
-      "reso": "PublicRemarks",
+      "cotality": "PublicRemarks",
       "rls": "PublicRemarks",
       "description": "Text remarks that may be displayed to the public. This information is intended to be visible online and distributed. This is typically information that describes the selling points of the listing that is for sale/lease. Please refer to the UCBA for requirements of what is permitted and not permitted",
       "required": "mandatory",
@@ -4055,7 +4055,7 @@
       "authority": "RLS"
     },
     "PurchaseContractDate": {
-      "reso": "PurchaseContractDate",
+      "cotality": "PurchaseContractDate",
       "rls": "PurchaseContractDate",
       "description": "This is the date of when the offer was accepted and contract was fully executed. This contract date should match what is recorded under public records. This is not to be confused with the CloseDate which is a separate attribute.",
       "required": "conditional",
@@ -4066,7 +4066,7 @@
       "authority": "RLS"
     },
     "RentingAllowedYN": {
-      "reso": "RentingAllowedYN",
+      "cotality": "RentingAllowedYN",
       "rls": "RentingAllowedYN",
       "description": "Indicates whether or not tenant is permitted to rent/sublet the unit/property",
       "required": "optional",
@@ -4077,7 +4077,7 @@
       "authority": "RLS"
     },
     "RoofRightsYN": {
-      "reso": "RoofRightsYN",
+      "cotality": "RoofRightsYN",
       "rls": "RoofRightsYN",
       "description": "Indicating whether or not the unit/property have permission to access the building roof.",
       "required": "optional",
@@ -4088,7 +4088,7 @@
       "authority": "RLS"
     },
     "RoomCount": {
-      "reso": "RoomCount",
+      "cotality": "RoomCount",
       "rls": "RoomCount",
       "description": "Matrix field that calculates the total number of room rows",
       "required": "optional",
@@ -4099,7 +4099,7 @@
       "authority": "RLS"
     },
     "RoomsTotal": {
-      "reso": "RoomsTotal",
+      "cotality": "RoomsTotal",
       "rls": "RoomsTotal",
       "description": "The total number of rooms included in the property listing for sale or lease. For clarification on what constitutes a room, please refer to the NYC Administrative Code.",
       "required": "mandatory",
@@ -4110,7 +4110,7 @@
       "authority": "RLS"
     },
     "SecurityFeatures": {
-      "reso": "SecurityFeatures",
+      "cotality": "SecurityFeatures",
       "rls": "SecurityFeatures",
       "description": "A list describing the security features on the property.",
       "required": "optional",
@@ -4121,7 +4121,7 @@
       "authority": "RLS"
     },
     "SeniorCommunityYN": {
-      "reso": "SeniorCommunityYN",
+      "cotality": "SeniorCommunityYN",
       "rls": "SeniorCommunityYN",
       "description": "Indicates whether or not a community is a senior community.",
       "required": "optional",
@@ -4132,7 +4132,7 @@
       "authority": "RLS"
     },
     "ShowingContactName": {
-      "reso": "ShowingContactName",
+      "cotality": "ShowingContactName",
       "rls": "ShowingContactName",
       "description": "The name of the contact for the showing of the listed property.",
       "required": "optional",
@@ -4143,7 +4143,7 @@
       "authority": "RLS"
     },
     "ShowingContactPhone": {
-      "reso": "ShowingContactPhoneExt",
+      "cotality": "ShowingContactPhoneExt",
       "rls": "ShowingContactPhone",
       "description": "The extension of the given phone number (if applicable).",
       "required": "optional",
@@ -4154,7 +4154,7 @@
       "authority": "RLS"
     },
     "ShowingContactType": {
-      "reso": "ShowingContactType",
+      "cotality": "ShowingContactType",
       "rls": "ShowingContactType",
       "description": "The type of contact for the showing. i.e. Agent, Broker, Seller.",
       "required": "optional",
@@ -4165,7 +4165,7 @@
       "authority": "RLS"
     },
     "ShowingDays": {
-      "reso": "ShowingDays",
+      "cotality": "ShowingDays",
       "rls": "ShowingDays",
       "description": "The days of the week that the property is available for showing. i.e. Sundays, Mondays, Tuesdays, Wednesdays, Thursdays, Fridays, Saturdays",
       "required": "optional",
@@ -4176,7 +4176,7 @@
       "authority": "RLS"
     },
     "ShowingEndTime": {
-      "reso": "ShowingEndTime",
+      "cotality": "ShowingEndTime",
       "rls": "ShowingEndTime",
       "description": "From the days selected in the ShowingDays field, the end time that the property is available for showing.",
       "required": "conditional",
@@ -4187,7 +4187,7 @@
       "authority": "RLS"
     },
     "ShowingInstructions": {
-      "reso": "ShowingInstructions",
+      "cotality": "ShowingInstructions",
       "rls": "ShowingInstructions",
       "description": "Remarks that detail the seller's instructions for showing the subject property. Showing instructions may include: contact information, showing times, notice required or other information. These remarks are privileged and are not for public viewing.",
       "required": "mandatory",
@@ -4198,7 +4198,7 @@
       "authority": "RLS"
     },
     "ShowingStartTime": {
-      "reso": "ShowingStartTime",
+      "cotality": "ShowingStartTime",
       "rls": "ShowingStartTime",
       "description": "From the days selected in the ShowingDays field, the start time that the property is available for showing.",
       "required": "conditional",
@@ -4209,7 +4209,7 @@
       "authority": "RLS"
     },
     "SizeDimensions": {
-      "reso": "SizeDimensions",
+      "cotality": "SizeDimensions",
       "rls": "SizeDimensions",
       "description": "The dimensions of the building minimally represented as length and width (i.e. 250 x 180) or a measurement of all sides of the polygon representing the property. i.e. 30 x 50 x 120 x 60 x 22",
       "required": "optional",
@@ -4220,7 +4220,7 @@
       "authority": "RLS"
     },
     "SourceSystemKey": {
-      "reso": "ListingKey",
+      "cotality": "ListingKey",
       "rls": "SourceSystemKey",
       "description": "A unique identifier for this record from the immediate source. This is a string that can include URI or other forms. Alternatively use the ListingKeyNumeric for a numeric only key field. This is the local key of the system. When records are received from other systems, a local key is commonly applie",
       "required": "mandatory",
@@ -4231,7 +4231,7 @@
       "authority": "RLS"
     },
     "SourceSystemModificationTimestamp": {
-      "reso": "ModificationTimestamp",
+      "cotality": "ModificationTimestamp",
       "rls": "SourceSystemModificationTimestamp",
       "description": "The transactional timestamp automatically recorded by the source system representing the date/time the listing was last modified at the source.",
       "required": "optional",
@@ -4242,7 +4242,7 @@
       "authority": "RLS"
     },
     "SourceSystemName": {
-      "reso": "SourceSystemName",
+      "cotality": "SourceSystemName",
       "rls": "SourceSystemName",
       "description": "The name of the immediate record provider. The system from which the record was directly received. LMP's Company Name",
       "required": "optional",
@@ -4253,7 +4253,7 @@
       "authority": "RLS"
     },
     "SpaFeatures": {
-      "reso": "SpaFeatures",
+      "cotality": "SpaFeatures",
       "rls": "SpaFeatures",
       "description": "A list of features or description of the spa included in the sale/lease.",
       "required": "optional",
@@ -4264,7 +4264,7 @@
       "authority": "RLS"
     },
     "SpaYN": {
-      "reso": "SpaYN",
+      "cotality": "SpaYN",
       "rls": "SpaYN",
       "description": "Indicate whether or not there is a hot tub in the unit or part of the listing that is for sale/lease.",
       "required": "optional",
@@ -4275,7 +4275,7 @@
       "authority": "RLS"
     },
     "SpecialAssessmentExpirationDateTime": {
-      "reso": "SpecialAssessmentExpirationDateTime",
+      "cotality": "SpecialAssessmentExpirationDateTime",
       "rls": "SpecialAssessmentExpirationDateTime",
       "description": "The date when the special assessment expires",
       "required": "optional",
@@ -4286,7 +4286,7 @@
       "authority": "RLS"
     },
     "SpecialListingConditions": {
-      "reso": "SpecialListingConditions",
+      "cotality": "SpecialListingConditions",
       "rls": "SpecialListingConditions",
       "description": "A list of options that describe the type of sale. i.e. Standard, REO, Short Sale, Probate, Auction, NOD, etc., at the time of listing. This includes whether the applicant is required for board approval.",
       "required": "conditional",
@@ -4297,7 +4297,7 @@
       "authority": "RLS"
     },
     "SponsorUnitYN": {
-      "reso": "SponsorUnitYN",
+      "cotality": "SponsorUnitYN",
       "rls": "SponsorUnitYN",
       "description": "A unit offered by the developer/sponsor/owner of the building, usually indicating that the unit is being sold for the first time.  SPONSOR UNIT MUST BE PURSUANT TO AN OFFERING PLAN (AND OR FILED AMENDMENT) AS APPROVED BY THE ATTORNEY GENERAL OF THE STATE OF NY.",
       "required": "conditional",
@@ -4308,7 +4308,7 @@
       "authority": "RLS"
     },
     "StandardStatus": {
-      "reso": "StandardStatus",
+      "cotality": "StandardStatus",
       "rls": "StandardStatus",
       "description": "The status of the listing as it reflects the state of the contract between the listing agent and seller, or an agreement with a buyer (e.g.Incomplete, Active, Active Under Contract, Canceled, Closed, Expired, Pending, Withdrawn). This is a single-select field.",
       "required": "mandatory",
@@ -4319,7 +4319,7 @@
       "authority": "RLS"
     },
     "StateOrProvince": {
-      "reso": "StateOrProvince",
+      "cotality": "StateOrProvince",
       "rls": "StateOrProvince",
       "description": "Text field containing the accepted postal abbreviation for the state or province. RLS database contains listing in the 5 Boroughs of NYC therefore all listings should indicate New York for this attribute.",
       "required": "mandatory",
@@ -4330,7 +4330,7 @@
       "authority": "RLS"
     },
     "StatusChangeTimestamp": {
-      "reso": "StatusChangeTimestamp",
+      "cotality": "StatusChangeTimestamp",
       "rls": "StatusChangeTimestamp",
       "description": "The transactional timestamp automatically recorded by the RLS system representing the date/time the listing's status was last changed.",
       "required": "optional",
@@ -4341,7 +4341,7 @@
       "authority": "RLS"
     },
     "Stories": {
-      "reso": "Stories",
+      "cotality": "Stories",
       "rls": "Stories",
       "description": "The number of floors in the property being listed for sale or lease.",
       "required": "optional",
@@ -4352,7 +4352,7 @@
       "authority": "RLS"
     },
     "StoriesTotal": {
-      "reso": "StoriesTotal",
+      "cotality": "StoriesTotal",
       "rls": "StoriesTotal",
       "description": "The total number of floors in the building. In the case of multi-dwelling structures, this is the entire structure and not the individual dwelling being sold.",
       "required": "mandatory",
@@ -4363,7 +4363,7 @@
       "authority": "RLS"
     },
     "StreetDirPrefix": {
-      "reso": "StreetDirPrefix",
+      "cotality": "StreetDirPrefix",
       "rls": "StreetDirPrefix",
       "description": "The direction indicator that precedes the listed property's street name.",
       "required": "optional",
@@ -4374,7 +4374,7 @@
       "authority": "RLS"
     },
     "StreetDirSuffix": {
-      "reso": "StreetDirSuffix",
+      "cotality": "StreetDirSuffix",
       "rls": "StreetDirSuffix",
       "description": "The direction indicator that follows a listed property's street address.",
       "required": "optional",
@@ -4385,7 +4385,7 @@
       "authority": "RLS"
     },
     "StreetName": {
-      "reso": "StreetName",
+      "cotality": "StreetName",
       "rls": "StreetName",
       "description": "The street name portion of a listed property's street address.",
       "required": "optional",
@@ -4396,7 +4396,7 @@
       "authority": "RLS"
     },
     "StreetNumber": {
-      "reso": "StreetNumber",
+      "cotality": "StreetNumber",
       "rls": "StreetNumber",
       "description": "The street number portion of a listed property's street address. In some areas the street number may contain non-numeric characters. This field can also contain extensions and modifiers to the street number, such as \"1/2\" or \"-B\". This street number field should not include Prefixes, Direction or Su",
       "required": "mandatory",
@@ -4407,7 +4407,7 @@
       "authority": "RLS"
     },
     "StreetNumberNumeric": {
-      "reso": "StreetNumberNumeric",
+      "cotality": "StreetNumberNumeric",
       "rls": "StreetNumberNumeric",
       "description": "The integer portion of the street number.",
       "required": "optional",
@@ -4418,7 +4418,7 @@
       "authority": "RLS"
     },
     "StreetSuffix": {
-      "reso": "StreetSuffix",
+      "cotality": "StreetSuffix",
       "rls": "StreetSuffix",
       "description": "The suffix portion of a listed property's street address.",
       "required": "optional",
@@ -4429,7 +4429,7 @@
       "authority": "RLS"
     },
     "StructureType": {
-      "reso": "StructureType",
+      "cotality": "StructureType",
       "rls": "StructureType",
       "description": "The type of structure that the property completely or partially encompasses. For example: House are the overall sold or leased as a whole. Multi Family or Mixed-Use may be sold/leased in whole, but are often sold or leased by units. This field is the type of structure as opposed to style, which is u",
       "required": "mandatory",
@@ -4440,7 +4440,7 @@
       "authority": "RLS"
     },
     "SubdivisionName": {
-      "reso": "SubdivisionName",
+      "cotality": "SubdivisionName",
       "rls": "SubdivisionName",
       "description": "A neighborhood, community, or complex.",
       "required": "mandatory",
@@ -4451,7 +4451,7 @@
       "authority": "RLS"
     },
     "SuperExpense": {
-      "reso": "SuperExpense",
+      "cotality": "SuperExpense",
       "rls": "SuperExpense",
       "description": "The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations. This is for superintendent.",
       "required": "optional",
@@ -4462,7 +4462,7 @@
       "authority": "RLS"
     },
     "SuppliesExpense": {
-      "reso": "SuppliesExpense",
+      "cotality": "SuppliesExpense",
       "rls": "SuppliesExpense",
       "description": "The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.",
       "required": "optional",
@@ -4474,7 +4474,7 @@
     },
     "SyndicateYN": {
       "_trestleNote": "UCBA references SyndicateYN as boolean. Trestle field is SyndicateTo (portal selection). Kept for backward compatibility with internal validation logic.",
-      "reso": "SyndicateYN",
+      "cotality": "SyndicateYN",
       "rls": "SyndicateTo",
       "description": "Indicates whether a listing can be syndicated to approved data license portals. The Principal Broker, on behalf of the firm, are permitted to select the vendors they wish to opt-in to through the Trestle platform.",
       "required": "optional",
@@ -4485,7 +4485,7 @@
       "authority": "RLS"
     },
     "TaxAbatementComments": {
-      "reso": "TaxAbatementComments",
+      "cotality": "TaxAbatementComments",
       "rls": "TaxAbatementComments",
       "description": "Description of the tax abatement",
       "required": "conditional",
@@ -4496,7 +4496,7 @@
       "authority": "RLS"
     },
     "TaxAbatementExpirationYear": {
-      "reso": "TaxAbatementExpirationYear",
+      "cotality": "TaxAbatementExpirationYear",
       "rls": "TaxAbatementExpirationYear",
       "description": "Indicate the year the tax abatement expires",
       "required": "conditional",
@@ -4507,7 +4507,7 @@
       "authority": "RLS"
     },
     "TaxAbatementYN": {
-      "reso": "TaxAbatementYN",
+      "cotality": "TaxAbatementYN",
       "rls": "TaxAbatementYN",
       "description": "Indicate whether there is a tax abatement",
       "required": "conditional",
@@ -4518,7 +4518,7 @@
       "authority": "RLS"
     },
     "TaxAnnualAmount": {
-      "reso": "TaxAnnualAmount",
+      "cotality": "TaxAnnualAmount",
       "rls": "TaxAnnualAmount",
       "description": "The annual property tax amount as of the last assessment made by the taxing authority for the building.",
       "required": "conditional",
@@ -4529,7 +4529,7 @@
       "authority": "RLS"
     },
     "TaxBlock": {
-      "reso": "TaxBlock",
+      "cotality": "TaxBlock",
       "rls": "TaxBlock",
       "description": "A type of legal description for land in developed areas where streets or other rights-of-ways delineate large parcels of land referred to as divided into lots on which homes or other types of developments are built. An example would read \"Lot 12 of Block 45 of Tract 3002 of the City of San Dunes, De",
       "required": "mandatory",
@@ -4540,7 +4540,7 @@
       "authority": "RLS"
     },
     "TaxDeductionAmount": {
-      "reso": "TaxDeductionAmount",
+      "cotality": "TaxDeductionAmount",
       "rls": "TaxDeductionAmount",
       "description": "The amount of tax deduction an owner can claim for the property.",
       "required": "optional",
@@ -4551,7 +4551,7 @@
       "authority": "RLS"
     },
     "TaxDeductionPercent": {
-      "reso": "TaxDeductionPercent",
+      "cotality": "TaxDeductionPercent",
       "rls": "TaxDeductionPercent",
       "description": "The amount of tax deduction an owner can claim for the property, expressed as a percentage of the sale price.",
       "required": "optional",
@@ -4562,7 +4562,7 @@
       "authority": "RLS"
     },
     "TaxDeductionRemarks": {
-      "reso": "TaxDeductionRemarks",
+      "cotality": "TaxDeductionRemarks",
       "rls": "TaxDeductionRemarks",
       "description": "Remarks relating to the amount of tax deduction an owner can claim for the property.",
       "required": "optional",
@@ -4573,7 +4573,7 @@
       "authority": "RLS"
     },
     "TaxLot": {
-      "reso": "TaxLot",
+      "cotality": "TaxLot",
       "rls": "TaxLot",
       "description": "Specific to the Unit, if different from the whole property/building. For example condominiums in NYC typically have their own designated lot number per unit.  A type of legal description for land in developed areas where streets or other rights-of-ways delineate large parcels of land referred to as ",
       "required": "conditional",
@@ -4584,7 +4584,7 @@
       "authority": "RLS"
     },
     "TaxMonthlyAmount": {
-      "reso": "TaxMonthlyAmount",
+      "cotality": "TaxMonthlyAmount",
       "rls": "TaxMonthlyAmount",
       "description": "The monthly amount of tax for condos. Please refer to Building Resource>TaxAnnualAmount for Townhouse, Single Homes, or Building, Lots.",
       "required": "conditional",
@@ -4595,7 +4595,7 @@
       "authority": "RLS"
     },
     "TotalDocumentsCount": {
-      "reso": "TotalDocumentsCount",
+      "cotality": "TotalDocumentsCount",
       "rls": "TotalDocumentsCount",
       "description": "Total Count of all documents including public and private documents",
       "required": "optional",
@@ -4606,7 +4606,7 @@
       "authority": "RLS"
     },
     "TotalMonthlyMaintPlusTax": {
-      "reso": "TotalMonthlyMaintPlusTax",
+      "cotality": "TotalMonthlyMaintPlusTax",
       "rls": "TotalMonthlyMaintPlusTax",
       "description": "Monthly Tax Amount + Monthly maintenance or common charges.",
       "required": "optional",
@@ -4617,7 +4617,7 @@
       "authority": "RLS"
     },
     "TotalPhotosCount": {
-      "reso": "TotalPhotosCount",
+      "cotality": "TotalPhotosCount",
       "rls": "TotalPhotosCount",
       "description": "Total Count of all photos including public and private photos",
       "required": "optional",
@@ -4628,7 +4628,7 @@
       "authority": "RLS"
     },
     "TransferredFromKey": {
-      "reso": "TransferredFromKey",
+      "cotality": "TransferredFromKey",
       "rls": "TransferredFromKey",
       "description": "The previous LMP unique identifier for this record prior to the transfer.",
       "required": "optional",
@@ -4639,7 +4639,7 @@
       "authority": "RLS"
     },
     "TransferredFromSystemName": {
-      "reso": "TransferredFromSystemName",
+      "cotality": "TransferredFromSystemName",
       "rls": "TransferredFromSystemName",
       "description": "The previous system from which the record was directly received. LMP's Company Name",
       "required": "optional",
@@ -4650,7 +4650,7 @@
       "authority": "RLS"
     },
     "TransferredToSystemName": {
-      "reso": "TransferredToSystemName",
+      "cotality": "TransferredToSystemName",
       "rls": "TransferredToSystemName",
       "description": "The name of the new source system (LMP) after the transfer. This should match with the Sourcey System Name after the listing have been claimed",
       "required": "optional",
@@ -4661,7 +4661,7 @@
       "authority": "RLS"
     },
     "TrashExpense": {
-      "reso": "TrashExpense",
+      "cotality": "TrashExpense",
       "rls": "TrashExpense",
       "description": "The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.",
       "required": "optional",
@@ -4672,7 +4672,7 @@
       "authority": "RLS"
     },
     "UnitCount": {
-      "reso": "UnitCount",
+      "cotality": "UnitCount",
       "rls": "UnitCount",
       "description": "Count of all rows for Units Subtable - used for Residential Income",
       "required": "optional",
@@ -4683,7 +4683,7 @@
       "authority": "RLS"
     },
     "UnitLine": {
-      "reso": "UnitLine",
+      "cotality": "UnitLine",
       "rls": "UnitLine",
       "description": "Physical line of the property's unit.",
       "required": "optional",
@@ -4694,7 +4694,7 @@
       "authority": "RLS"
     },
     "UnitNumber": {
-      "reso": "UnitNumber",
+      "cotality": "UnitNumber",
       "rls": "UnitNumber",
       "description": "Text field containing the number or portion of a larger building or complex. Unit Number should appear following the street suffix or, if it exists, the street suffix direction, in the street address. Examples are: \"APT G\", \"55\", etc.",
       "required": "conditional",
@@ -4705,7 +4705,7 @@
       "authority": "RLS"
     },
     "UnitTypes": {
-      "reso": "UnitTypes",
+      "cotality": "UnitTypes",
       "rls": "UnitTypes",
       "description": "A collection of types of units included in the income (multifamily) property. The collection includes a type, beds, baths and other aspects of the type of unit behind described.",
       "required": "optional",
@@ -4716,7 +4716,7 @@
       "authority": "RLS"
     },
     "UnitTypeType": {
-      "reso": "UnitTypeType",
+      "cotality": "UnitTypeType",
       "rls": "UnitTypeType",
       "description": "This field is a list of the types used in the Unit Type repeating elements. The type is a list of possible unit types (i.e., 1 Bedroom, 2 Bedroom, 3 Bedroom, Studio, Loft, etc.). Each selected item is expected to appear as the type in the related UnitType fields in a flattened implementation. The fa",
       "required": "optional",
@@ -4727,7 +4727,7 @@
       "authority": "RLS"
     },
     "UnitsFurnished": {
-      "reso": "UnitsFurnished",
+      "cotality": "UnitsFurnished",
       "rls": "UnitsFurnished",
       "description": "Total Calculated field of unit rows that are furnished. Are the units furnished? i.e. All Units, Varies By Unit, None.",
       "required": "optional",
@@ -4738,7 +4738,7 @@
       "authority": "RLS"
     },
     "UnParsedAddress": {
-      "reso": "UnparsedAddress",
+      "cotality": "UnparsedAddress",
       "rls": "UnParsedAddress",
       "description": "The UnparsedAddress is a text representation of the address. Includes Street Number, Street Dir Prefix, Street Name, Street Dir Suffix, Street Suffix. DO NOT INCLUDE UNIT NUMBER in the UnparsedAddress.",
       "required": "mandatory",
@@ -4749,7 +4749,7 @@
       "authority": "RLS"
     },
     "Video2URL": {
-      "reso": "Video2URL",
+      "cotality": "Video2URL",
       "rls": "Video2URL",
       "description": "",
       "required": "optional",
@@ -4760,7 +4760,7 @@
       "authority": "RLS"
     },
     "Video3URL": {
-      "reso": "Video3URL",
+      "cotality": "Video3URL",
       "rls": "Video3URL",
       "description": "",
       "required": "optional",
@@ -4771,7 +4771,7 @@
       "authority": "RLS"
     },
     "Video4URL": {
-      "reso": "Video4URL",
+      "cotality": "Video4URL",
       "rls": "Video4URL",
       "description": "",
       "required": "optional",
@@ -4782,7 +4782,7 @@
       "authority": "RLS"
     },
     "VideosChangeTimestamp": {
-      "reso": "VideosChangeTimestamp",
+      "cotality": "VideosChangeTimestamp",
       "rls": "VideosChangeTimestamp",
       "description": "System generated timestamp of when the last update or change to the videos for this listing was made.",
       "required": "optional",
@@ -4793,7 +4793,7 @@
       "authority": "RLS"
     },
     "VideosCount": {
-      "reso": "VideosCount",
+      "cotality": "VideosCount",
       "rls": "VideosCount",
       "description": "The total number of videos or virtual tours included with the listing.",
       "required": "optional",
@@ -4804,7 +4804,7 @@
       "authority": "RLS"
     },
     "VideoURL": {
-      "reso": "VideoURL",
+      "cotality": "VideoURL",
       "rls": "VideoURL",
       "description": "",
       "required": "optional",
@@ -4815,7 +4815,7 @@
       "authority": "RLS"
     },
     "View": {
-      "reso": "View",
+      "cotality": "View",
       "rls": "View",
       "description": "For unit, a view as seen from the listed unit. For building sale/lease, a view as seen from the property.",
       "required": "conditional",
@@ -4826,7 +4826,7 @@
       "authority": "RLS"
     },
     "ViewRemarks": {
-      "reso": "ViewRemarks",
+      "cotality": "ViewRemarks",
       "rls": "ViewRemarks",
       "description": "Detail description of the view as seen from the listed sale/lease.",
       "required": "conditional",
@@ -4837,7 +4837,7 @@
       "authority": "RLS"
     },
     "ViewYN": {
-      "reso": "ViewYN",
+      "cotality": "ViewYN",
       "rls": "ViewYN",
       "description": "The listed for sale/lease has a view.",
       "required": "optional",
@@ -4848,7 +4848,7 @@
       "authority": "RLS"
     },
     "VirtualTourURLBranded": {
-      "reso": "VirtualTourURLBranded",
+      "cotality": "VirtualTourURLBranded",
       "rls": "VirtualTourURLBranded",
       "description": "A text field that holds the URL for an branded virtual tour of the property.",
       "required": "optional",
@@ -4859,7 +4859,7 @@
       "authority": "RLS"
     },
     "VirtualTourURLUnbranded": {
-      "reso": "VirtualTourURLUnbranded",
+      "cotality": "VirtualTourURLUnbranded",
       "rls": "VirtualTourURLUnbranded",
       "description": "A text field that holds the URL for an unbranded virtual tour of the property.",
       "required": "optional",
@@ -4870,7 +4870,7 @@
       "authority": "RLS"
     },
     "VirtualTourURLUnbranded2": {
-      "reso": "VirtualTourURLUnbranded2",
+      "cotality": "VirtualTourURLUnbranded2",
       "rls": "VirtualTourURLUnbranded2",
       "description": "A text field that holds the URL for a 2nd unbranded virtual tour of the property.",
       "required": "optional",
@@ -4881,7 +4881,7 @@
       "authority": "RLS"
     },
     "VirtualTourURLUnbranded3": {
-      "reso": "VirtualTourURLUnbranded3",
+      "cotality": "VirtualTourURLUnbranded3",
       "rls": "VirtualTourURLUnbranded3",
       "description": "A text field that holds the URL for a 3rd unbranded virtual tour of the property.",
       "required": "optional",
@@ -4892,7 +4892,7 @@
       "authority": "RLS"
     },
     "WaterfrontYN": {
-      "reso": "WaterfrontYN",
+      "cotality": "WaterfrontYN",
       "rls": "WaterfrontYN",
       "description": "The property is on the waterfront.",
       "required": "optional",
@@ -4903,7 +4903,7 @@
       "authority": "RLS"
     },
     "WaterSewerExpense": {
-      "reso": "WaterSewerExpense",
+      "cotality": "WaterSewerExpense",
       "rls": "WaterSewerExpense",
       "description": "The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.",
       "required": "optional",
@@ -4914,7 +4914,7 @@
       "authority": "RLS"
     },
     "WindowFeatures": {
-      "reso": "WindowFeatures",
+      "cotality": "WindowFeatures",
       "rls": "WindowFeatures",
       "description": "A list of features or description of the windows included in the sale/lease.",
       "required": "optional",
@@ -4925,7 +4925,7 @@
       "authority": "RLS"
     },
     "WithdrawnDate": {
-      "reso": "WithdrawnDate",
+      "cotality": "WithdrawnDate",
       "rls": "WithdrawnDate",
       "description": "Date the listing was withdrawn from the market in the Source System. This is not when a listing contract was cancelled or closed, but a withdrawal from the market while the contract between the seller and listing agent is still in effect and an offer has not been accepted. This is the date entered b",
       "required": "conditional",
@@ -4936,7 +4936,7 @@
       "authority": "RLS"
     },
     "WorkmansCompensationExpense": {
-      "reso": "WorkmansCompensationExpense",
+      "cotality": "WorkmansCompensationExpense",
       "rls": "WorkmansCompensationExpense",
       "description": "The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.",
       "required": "optional",
@@ -4947,7 +4947,7 @@
       "authority": "RLS"
     },
     "YearBuilt": {
-      "reso": "YearBuilt",
+      "cotality": "YearBuilt",
       "rls": "YearBuilt",
       "description": "The year that an occupancy permit is first granted for the house or other local measure of initial habitability of the build. The type definition permits an empty value with an attribute noting that it is an unknown date or that the building is new construction. While constraints have not been appli",
       "required": "optional",
@@ -4958,7 +4958,7 @@
       "authority": "RLS"
     },
     "YearRenovated": {
-      "reso": "YearRenovated",
+      "cotality": "YearRenovated",
       "rls": "YearRenovated",
       "description": "The year the unit was renovated.",
       "required": "optional",
@@ -4969,7 +4969,7 @@
       "authority": "RLS"
     },
     "ZoningDescription": {
-      "reso": "ZoningDescription",
+      "cotality": "ZoningDescription",
       "rls": "ZoningDescription",
       "description": "A list of descriptions of the zoning of the property. The zoning codes are often non-descriptive and variant. Zoning Description is a more descriptive form of the zoning for the property, i.e. Agricultural, Residential, Rezone Possible, etc. Specific zone codes must be added to the Zoning field.",
       "required": "optional",

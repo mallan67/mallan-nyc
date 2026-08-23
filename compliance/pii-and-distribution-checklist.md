@@ -59,7 +59,7 @@ All 6 gates are enforced at the API layer. UI may only DISPLAY gate status (read
 | Total RLS fields | 902 |
 | Required fields | 41 |
 | Conditional fields | 86 |
-| RESO-to-RLS renames | 23 |
+| provider-field renames (REMOVED) | 23 |
 | Picklist values | 2,066 across 117 lookups |
 | Field mapping source of truth | `data/rebny-rls-property-fields.csv` (mallan-nyc) |
 | Validator | `npm run rls:validate` — 10 sections, 0 UNKNOWN required |

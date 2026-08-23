@@ -187,8 +187,8 @@
             { id: 'internalListingNum', label: 'Internal Listing #', locked: false, category: 'ids' },
             { id: 'acrisId', label: 'ACRIS ID', locked: false, category: 'ids' },
             { id: 'acrisDocuments', label: 'ACRIS Documents', locked: false, category: 'ids' },
-            { id: 'propertyType', label: 'Property Type (RLS/RESO/IDX)', locked: false, category: 'ids' },
-            { id: 'propertySubType', label: 'Property Sub-Type (RLS/RESO/IDX)', locked: false, category: 'ids' },
+            { id: 'propertyType', label: 'Property Type (RLS/Cotality/IDX)', locked: false, category: 'ids' },
+            { id: 'propertySubType', label: 'Property Sub-Type (RLS/Cotality/IDX)', locked: false, category: 'ids' },
             { id: 'verifiedEstimated', label: 'Verified/Estimated', locked: false, category: 'ids' },
             { id: 'verifiedBuyer', label: 'Verified Buyer', locked: false, category: 'ids' },
             { id: 'verifiedSeller', label: 'Verified Seller', locked: false, category: 'ids' },
@@ -212,7 +212,7 @@
         // ═══════════════════════════════════════════════════════════════════════════════
 
         /**
-         * Transform API listing (Prisma/RESO format) into the flat object shape
+         * Transform API listing (Prisma/Cotality format) into the flat object shape
          * that 905+ search functions expect.
          */
         function transformAPIListing(apiListing, index) {
@@ -243,7 +243,7 @@
                 // did two damaging things. It DEFAULTED an unknown status to
                 // ACTIVE - telling a broker an unknown listing is on the market.
                 // And it uppercased the exact member the database stores
-                // (prisma/schema.prisma:447, "RESO StandardStatus"), so
+                // (prisma/schema.prisma:447, "Cotality StandardStatus"), so
                 // 'ComingSoon' became 'COMINGSOON' while every renderer compared
                 // against 'COMING_SOON'. The UCBA Art. I s16 Coming Soon badge
                 // never matched for a DB-path listing as a result.

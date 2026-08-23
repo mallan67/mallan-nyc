@@ -355,18 +355,18 @@ body { font-family: Manrope, sans-serif; }
             </div>
         </div>
 
-        <!-- Team Information (RLS/RESO/IDX: BuyerTeamName, BuyerTeamMlsId) -->
+        <!-- Team Information (RLS/Cotality/IDX: BuyerTeamName, BuyerTeamMlsId) -->
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-people-group"></i> Team Information</div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                    <!-- RLS/RESO/IDX: BuyerTeamName (Optional — CLOSE distribution) -->
-                    <label class="field-label">Buyer Team Name <span class="text-xs text-gray-400">(RLS/RESO/IDX: BuyerTeamName)</span></label>
+                    <!-- RLS/Cotality/IDX: BuyerTeamName (Optional — CLOSE distribution) -->
+                    <label class="field-label">Buyer Team Name <span class="text-xs text-gray-400">(RLS/Cotality/IDX: BuyerTeamName)</span></label>
                     <input type="text" id="buyerTeamName" placeholder="e.g., The Allan Team" class="field-input">
                 </div>
                 <div>
-                    <!-- RLS/RESO/IDX: BuyerTeamMlsId (Optional — CLOSE distribution) -->
-                    <label class="field-label">Buyer Team MLS ID <span class="text-xs text-gray-400">(RLS/RESO/IDX: BuyerTeamMlsId)</span></label>
+                    <!-- RLS/Cotality/IDX: BuyerTeamMlsId (Optional — CLOSE distribution) -->
+                    <label class="field-label">Buyer Team MLS ID <span class="text-xs text-gray-400">(RLS/Cotality/IDX: BuyerTeamMlsId)</span></label>
                     <input type="text" id="buyerTeamMlsId" placeholder="Team MLS ID" class="field-input">
                 </div>
             </div>
@@ -409,7 +409,7 @@ body { font-family: Manrope, sans-serif; }
                     <option value="Cancelled">Cancelled</option>
                     <option value="DealFellThrough">Deal Fell Through</option>
                 </select>
-                <!-- RESO Status Display -->
+                <!-- Cotality Status Display -->
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
                         <p class="text-[10px] text-gray-500 uppercase">Days in Pipeline</p>
@@ -420,8 +420,8 @@ body { font-family: Manrope, sans-serif; }
                         <p class="text-xs font-medium text-gray-700" id="buyerStatusChangeTimestamp">--</p>
                     </div>
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
-                        <p class="text-[10px] text-gray-500 uppercase">RESO MlsStatus</p>
-                        <p class="text-xs font-medium text-blue-700" id="buyerResoMlsStatus">--</p>
+                        <p class="text-[10px] text-gray-500 uppercase">Cotality MlsStatus</p>
+                        <p class="text-xs font-medium text-blue-700" id="buyerCotalityMlsStatus">--</p>
                     </div>
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
                         <p class="text-[10px] text-gray-500 uppercase">Deal Source</p>
@@ -1465,7 +1465,7 @@ function updateBuyerHeaderBar() {
 // ══════════════════════════════════════════════════════
 // STATUS LOGIC
 // ══════════════════════════════════════════════════════
-var BUYER_CRM_TO_RESO = {
+var BUYER_CRM_TO_Cotality = {
     'Draft': 'Incomplete', 'Searching': 'Active', 'Showing': 'Active',
     'OfferOut': 'Pending', 'OfferAccepted': 'Pending', 'OfferRejected': 'Active', 'OfferCountered': 'Pending',
     'ContractOut': 'Pending', 'ContractSigned': 'Pending', 'BoardApproved': 'Pending',
@@ -1477,7 +1477,7 @@ function updateBuyerStatusFields() {
     var status = (document.getElementById('buyerDealStatus') || {}).value || 'Draft';
     var now = new Date().toLocaleString();
     document.getElementById('buyerStatusChangeTimestamp').textContent = now;
-    document.getElementById('buyerResoMlsStatus').textContent = BUYER_CRM_TO_RESO[status] || '--';
+    document.getElementById('buyerCotalityMlsStatus').textContent = BUYER_CRM_TO_Cotality[status] || '--';
 
     // Show/hide sold price and close date fields
     var isClosed = (status === 'Sold' || status === 'SoldThruUs');

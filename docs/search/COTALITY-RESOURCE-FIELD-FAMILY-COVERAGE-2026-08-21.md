@@ -1,4 +1,4 @@
-# COTALITY RESOURCE / FIELD-FAMILY COVERAGE MATRIX
+# COTALITY COTALITYURCE / FIELD-FAMILY COVERAGE MATRIX
 
 **The execution artifact beneath `MALLAN-PLATFORM-MASTER-PLAN.md` and `FIELD_REGISTRY`.**
 Not another audit — the map that replaces the one-field loop.
@@ -82,7 +82,7 @@ appears in any downstream summary, it did not come from here.
 
 ---
 
-## PART A — RESOURCE COVERAGE (all 17 declared entity types, endpoint-probed)
+## PART A — COTALITYURCE COVERAGE (all 17 declared entity types, endpoint-probed)
 
 **Evidence level: `LIVE`** for every declared-field count, collection state, row count
 and `$expand` result below — each is an HTTP response captured in

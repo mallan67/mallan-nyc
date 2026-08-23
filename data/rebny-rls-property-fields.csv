@@ -904,8 +904,8 @@
 ,AccessCode,,AccessCode,,Property,Edm.String,live-discovered
 ,BuildingKey,,BuildingKey,,Property,Edm.String,live-discovered
 ,BuildingKeyNumeric,,BuildingKeyNumeric,,Property,Edm.Int64,live-discovered
-,BuyerAgentAOR,,BuyerAgentAOR,,Property,Cotality.DataStandard.RESO.DD.Enums.AOR,live-discovered
-,BuyerAgentDesignation,,BuyerAgentDesignation,,Property,Cotality.DataStandard.RESO.DD.Enums.Multi.BuyerAgentDesignation,live-discovered
+,BuyerAgentAOR,,BuyerAgentAOR,,Property,Cotality.DataStandard.Cotality.DD.Enums.AOR,live-discovered
+,BuyerAgentDesignation,,BuyerAgentDesignation,,Property,Cotality.DataStandard.Cotality.DD.Enums.Multi.BuyerAgentDesignation,live-discovered
 ,BuyerAgentDirectPhone,,BuyerAgentDirectPhone,,Property,Edm.String,live-discovered
 ,BuyerAgentEmail,,BuyerAgentEmail,,Property,Edm.String,live-discovered
 ,BuyerAgentFax,,BuyerAgentFax,,Property,Edm.String,live-discovered
@@ -930,8 +930,8 @@
 ,BuyerAgentVoiceMail,,BuyerAgentVoiceMail,,Property,Edm.String,live-discovered
 ,BuyerAgentVoiceMailExt,,BuyerAgentVoiceMailExt,,Property,Edm.String,live-discovered
 ,BuyerBrokerageCompensation,,BuyerBrokerageCompensation,,Property,Edm.String,live-discovered
-,BuyerBrokerageCompensationType,,BuyerBrokerageCompensationType,,Property,Cotality.DataStandard.RESO.DD.Enums.CompensationType,live-discovered
-,BuyerOfficeAOR,,BuyerOfficeAOR,,Property,Cotality.DataStandard.RESO.DD.Enums.AOR,live-discovered
+,BuyerBrokerageCompensationType,,BuyerBrokerageCompensationType,,Property,Cotality.DataStandard.Cotality.DD.Enums.CompensationType,live-discovered
+,BuyerOfficeAOR,,BuyerOfficeAOR,,Property,Cotality.DataStandard.Cotality.DD.Enums.AOR,live-discovered
 ,BuyerOfficeEmail,,BuyerOfficeEmail,,Property,Edm.String,live-discovered
 ,BuyerOfficeFax,,BuyerOfficeFax,,Property,Edm.String,live-discovered
 ,BuyerOfficeKeyNumeric,,BuyerOfficeKeyNumeric,,Property,Edm.Int64,live-discovered
@@ -943,8 +943,8 @@
 ,BuyerTeamKeyNumeric,,BuyerTeamKeyNumeric,,Property,Edm.Int64,live-discovered
 ,BuyerTeamName,,BuyerTeamName,,Property,Edm.String,live-discovered
 ,CancellationDate,,CancellationDate,,Property,Edm.Date,live-discovered
-,CoBuyerAgentAOR,,CoBuyerAgentAOR,,Property,Cotality.DataStandard.RESO.DD.Enums.AOR,live-discovered
-,CoBuyerAgentDesignation,,CoBuyerAgentDesignation,,Property,Cotality.DataStandard.RESO.DD.Enums.Multi.CoBuyerAgentDesignation,live-discovered
+,CoBuyerAgentAOR,,CoBuyerAgentAOR,,Property,Cotality.DataStandard.Cotality.DD.Enums.AOR,live-discovered
+,CoBuyerAgentDesignation,,CoBuyerAgentDesignation,,Property,Cotality.DataStandard.Cotality.DD.Enums.Multi.CoBuyerAgentDesignation,live-discovered
 ,CoBuyerAgentDirectPhone,,CoBuyerAgentDirectPhone,,Property,Edm.String,live-discovered
 ,CoBuyerAgentEmail,,CoBuyerAgentEmail,,Property,Edm.String,live-discovered
 ,CoBuyerAgentFax,,CoBuyerAgentFax,,Property,Edm.String,live-discovered
@@ -968,7 +968,7 @@
 ,CoBuyerAgentURL,,CoBuyerAgentURL,,Property,Edm.String,live-discovered
 ,CoBuyerAgentVoiceMail,,CoBuyerAgentVoiceMail,,Property,Edm.String,live-discovered
 ,CoBuyerAgentVoiceMailExt,,CoBuyerAgentVoiceMailExt,,Property,Edm.String,live-discovered
-,CoBuyerOfficeAOR,,CoBuyerOfficeAOR,,Property,Cotality.DataStandard.RESO.DD.Enums.AOR,live-discovered
+,CoBuyerOfficeAOR,,CoBuyerOfficeAOR,,Property,Cotality.DataStandard.Cotality.DD.Enums.AOR,live-discovered
 ,CoBuyerOfficeEmail,,CoBuyerOfficeEmail,,Property,Edm.String,live-discovered
 ,CoBuyerOfficeFax,,CoBuyerOfficeFax,,Property,Edm.String,live-discovered
 ,CoBuyerOfficeKeyNumeric,,CoBuyerOfficeKeyNumeric,,Property,Edm.Int64,live-discovered
@@ -984,8 +984,8 @@
 ,CoListOfficeNationalAssociationId,,CoListOfficeNationalAssociationId,,Property,Edm.String,live-discovered
 ,CompensationComments,,CompensationComments,,Property,Edm.String,live-discovered
 ,ConcessionInPrice,,ConcessionInPrice,,Property,Edm.Decimal,live-discovered
-,ConcessionInPriceType,,ConcessionInPriceType,,Property,Cotality.DataStandard.RESO.DD.Enums.ConcessionInPriceType,live-discovered
-,Concessions,,Concessions,,Property,Cotality.DataStandard.RESO.DD.Enums.Concessions,live-discovered
+,ConcessionInPriceType,,ConcessionInPriceType,,Property,Cotality.DataStandard.Cotality.DD.Enums.ConcessionInPriceType,live-discovered
+,Concessions,,Concessions,,Property,Cotality.DataStandard.Cotality.DD.Enums.Concessions,live-discovered
 ,ConcessionsAmount,,ConcessionsAmount,,Property,Edm.Int32,live-discovered
 ,ConcessionsBuyerBrokerFee,,ConcessionsBuyerBrokerFee,,Property,Edm.Int32,live-discovered
 ,ConcessionsClosingCosts,,ConcessionsClosingCosts,,Property,Edm.Int32,live-discovered
@@ -994,7 +994,7 @@
 ,ConcessionsOtherCosts,,ConcessionsOtherCosts,,Property,Edm.Int32,live-discovered
 ,ConcessionsPropertyImprovementCosts,,ConcessionsPropertyImprovementCosts,,Property,Edm.Int32,live-discovered
 ,CopyrightNotice,,CopyrightNotice,,Property,Edm.String,live-discovered
-,Country,,Country,,Property,Cotality.DataStandard.RESO.DD.Enums.Country,live-discovered
+,Country,,Country,,Property,Cotality.DataStandard.Cotality.DD.Enums.Country,live-discovered
 ,CountryRegion,,CountryRegion,,Property,Edm.String,live-discovered
 ,CropsIncludedYN,,CropsIncludedYN,,Property,Edm.Boolean,live-discovered
 ,CultivatedArea,,CultivatedArea,,Property,Edm.Decimal,live-discovered
@@ -1003,63 +1003,63 @@
 ,DaysOnMarketReplication,,DaysOnMarketReplication,,Property,Edm.Int32,live-discovered
 ,DaysOnMarketReplicationDate,,DaysOnMarketReplicationDate,,Property,Edm.Date,live-discovered
 ,DaysOnMarketReplicationIncreasingYN,,DaysOnMarketReplicationIncreasingYN,,Property,Edm.Boolean,live-discovered
-,Disclosures,,Disclosures,,Property,Cotality.DataStandard.RESO.DD.Enums.Multi.Disclosures,live-discovered
+,Disclosures,,Disclosures,,Property,Cotality.DataStandard.Cotality.DD.Enums.Multi.Disclosures,live-discovered
 ,DistanceToBusComments,,DistanceToBusComments,,Property,Edm.String,live-discovered
 ,DistanceToBusNumeric,,DistanceToBusNumeric,,Property,Edm.Int32,live-discovered
-,DistanceToBusUnits,,DistanceToBusUnits,,Property,Cotality.DataStandard.RESO.DD.Enums.LinearUnits,live-discovered
+,DistanceToBusUnits,,DistanceToBusUnits,,Property,Cotality.DataStandard.Cotality.DD.Enums.LinearUnits,live-discovered
 ,DistanceToElectricComments,,DistanceToElectricComments,,Property,Edm.String,live-discovered
 ,DistanceToElectricNumeric,,DistanceToElectricNumeric,,Property,Edm.Int32,live-discovered
-,DistanceToElectricUnits,,DistanceToElectricUnits,,Property,Cotality.DataStandard.RESO.DD.Enums.LinearUnits,live-discovered
+,DistanceToElectricUnits,,DistanceToElectricUnits,,Property,Cotality.DataStandard.Cotality.DD.Enums.LinearUnits,live-discovered
 ,DistanceToFreewayComments,,DistanceToFreewayComments,,Property,Edm.String,live-discovered
 ,DistanceToFreewayNumeric,,DistanceToFreewayNumeric,,Property,Edm.Int32,live-discovered
-,DistanceToFreewayUnits,,DistanceToFreewayUnits,,Property,Cotality.DataStandard.RESO.DD.Enums.LinearUnits,live-discovered
+,DistanceToFreewayUnits,,DistanceToFreewayUnits,,Property,Cotality.DataStandard.Cotality.DD.Enums.LinearUnits,live-discovered
 ,DistanceToGasComments,,DistanceToGasComments,,Property,Edm.String,live-discovered
 ,DistanceToGasNumeric,,DistanceToGasNumeric,,Property,Edm.Int32,live-discovered
-,DistanceToGasUnits,,DistanceToGasUnits,,Property,Cotality.DataStandard.RESO.DD.Enums.LinearUnits,live-discovered
+,DistanceToGasUnits,,DistanceToGasUnits,,Property,Cotality.DataStandard.Cotality.DD.Enums.LinearUnits,live-discovered
 ,DistanceToPhoneServiceComments,,DistanceToPhoneServiceComments,,Property,Edm.String,live-discovered
 ,DistanceToPhoneServiceNumeric,,DistanceToPhoneServiceNumeric,,Property,Edm.Int32,live-discovered
-,DistanceToPhoneServiceUnits,,DistanceToPhoneServiceUnits,,Property,Cotality.DataStandard.RESO.DD.Enums.LinearUnits,live-discovered
+,DistanceToPhoneServiceUnits,,DistanceToPhoneServiceUnits,,Property,Cotality.DataStandard.Cotality.DD.Enums.LinearUnits,live-discovered
 ,DistanceToPlaceofWorshipComments,,DistanceToPlaceofWorshipComments,,Property,Edm.String,live-discovered
 ,DistanceToPlaceofWorshipNumeric,,DistanceToPlaceofWorshipNumeric,,Property,Edm.Int32,live-discovered
-,DistanceToPlaceofWorshipUnits,,DistanceToPlaceofWorshipUnits,,Property,Cotality.DataStandard.RESO.DD.Enums.LinearUnits,live-discovered
+,DistanceToPlaceofWorshipUnits,,DistanceToPlaceofWorshipUnits,,Property,Cotality.DataStandard.Cotality.DD.Enums.LinearUnits,live-discovered
 ,DistanceToSchoolBusComments,,DistanceToSchoolBusComments,,Property,Edm.String,live-discovered
 ,DistanceToSchoolBusNumeric,,DistanceToSchoolBusNumeric,,Property,Edm.Int32,live-discovered
-,DistanceToSchoolBusUnits,,DistanceToSchoolBusUnits,,Property,Cotality.DataStandard.RESO.DD.Enums.LinearUnits,live-discovered
+,DistanceToSchoolBusUnits,,DistanceToSchoolBusUnits,,Property,Cotality.DataStandard.Cotality.DD.Enums.LinearUnits,live-discovered
 ,DistanceToSchoolsComments,,DistanceToSchoolsComments,,Property,Edm.String,live-discovered
 ,DistanceToSchoolsNumeric,,DistanceToSchoolsNumeric,,Property,Edm.Int32,live-discovered
-,DistanceToSchoolsUnits,,DistanceToSchoolsUnits,,Property,Cotality.DataStandard.RESO.DD.Enums.LinearUnits,live-discovered
+,DistanceToSchoolsUnits,,DistanceToSchoolsUnits,,Property,Cotality.DataStandard.Cotality.DD.Enums.LinearUnits,live-discovered
 ,DistanceToSewerComments,,DistanceToSewerComments,,Property,Edm.String,live-discovered
 ,DistanceToSewerNumeric,,DistanceToSewerNumeric,,Property,Edm.Int32,live-discovered
-,DistanceToSewerUnits,,DistanceToSewerUnits,,Property,Cotality.DataStandard.RESO.DD.Enums.LinearUnits,live-discovered
+,DistanceToSewerUnits,,DistanceToSewerUnits,,Property,Cotality.DataStandard.Cotality.DD.Enums.LinearUnits,live-discovered
 ,DistanceToShoppingComments,,DistanceToShoppingComments,,Property,Edm.String,live-discovered
 ,DistanceToShoppingNumeric,,DistanceToShoppingNumeric,,Property,Edm.Int32,live-discovered
-,DistanceToShoppingUnits,,DistanceToShoppingUnits,,Property,Cotality.DataStandard.RESO.DD.Enums.LinearUnits,live-discovered
+,DistanceToShoppingUnits,,DistanceToShoppingUnits,,Property,Cotality.DataStandard.Cotality.DD.Enums.LinearUnits,live-discovered
 ,DistanceToStreetComments,,DistanceToStreetComments,,Property,Edm.String,live-discovered
 ,DistanceToStreetNumeric,,DistanceToStreetNumeric,,Property,Edm.Int32,live-discovered
-,DistanceToStreetUnits,,DistanceToStreetUnits,,Property,Cotality.DataStandard.RESO.DD.Enums.LinearUnits,live-discovered
+,DistanceToStreetUnits,,DistanceToStreetUnits,,Property,Cotality.DataStandard.Cotality.DD.Enums.LinearUnits,live-discovered
 ,DistanceToWaterComments,,DistanceToWaterComments,,Property,Edm.String,live-discovered
 ,DistanceToWaterNumeric,,DistanceToWaterNumeric,,Property,Edm.Int32,live-discovered
-,DistanceToWaterUnits,,DistanceToWaterUnits,,Property,Cotality.DataStandard.RESO.DD.Enums.LinearUnits,live-discovered
+,DistanceToWaterUnits,,DistanceToWaterUnits,,Property,Cotality.DataStandard.Cotality.DD.Enums.LinearUnits,live-discovered
 ,DualOrVariableRateCommissionYN,,DualOrVariableRateCommissionYN,,Property,Edm.Boolean,live-discovered
 ,ExpirationDate,,ExpirationDate,,Property,Edm.Date,live-discovered
 ,FarmCreditServiceInclYN,,FarmCreditServiceInclYN,,Property,Edm.Boolean,live-discovered
-,FarmLandAreaSource,,FarmLandAreaSource,,Property,Cotality.DataStandard.RESO.DD.Enums.AreaSource,live-discovered
-,FarmLandAreaUnits,,FarmLandAreaUnits,,Property,Cotality.DataStandard.RESO.DD.Enums.AreaUnits,live-discovered
+,FarmLandAreaSource,,FarmLandAreaSource,,Property,Cotality.DataStandard.Cotality.DD.Enums.AreaSource,live-discovered
+,FarmLandAreaUnits,,FarmLandAreaUnits,,Property,Cotality.DataStandard.Cotality.DD.Enums.AreaUnits,live-discovered
 ,GrazingPermitsBlmYN,,GrazingPermitsBlmYN,,Property,Edm.Boolean,live-discovered
 ,GrazingPermitsForestServiceYN,,GrazingPermitsForestServiceYN,,Property,Edm.Boolean,live-discovered
 ,GrazingPermitsPrivateYN,,GrazingPermitsPrivateYN,,Property,Edm.Boolean,live-discovered
 ,HeadBrokerMemberKey,,HeadBrokerMemberKey,,Property,Edm.String,live-discovered
 ,HeadBrokerMemberMlsId,,HeadBrokerMemberMlsId,,Property,Edm.String,live-discovered
-,HorseAmenities,,HorseAmenities,,Property,Cotality.DataStandard.RESO.DD.Enums.Multi.HorseAmenities,live-discovered
+,HorseAmenities,,HorseAmenities,,Property,Cotality.DataStandard.Cotality.DD.Enums.Multi.HorseAmenities,live-discovered
 ,HorseYN,,HorseYN,,Property,Edm.Boolean,live-discovered
 ,InternetAddressDisplayYN,,InternetAddressDisplayYN,,Property,Edm.Boolean,live-discovered
 ,InternetEntireListingDisplayYN,,InternetEntireListingDisplayYN,,Property,Edm.Boolean,live-discovered
-,IrrigationSource,,IrrigationSource,,Property,Cotality.DataStandard.RESO.DD.Enums.Multi.IrrigationSource,live-discovered
+,IrrigationSource,,IrrigationSource,,Property,Cotality.DataStandard.Cotality.DD.Enums.Multi.IrrigationSource,live-discovered
 ,IrrigationWaterRightsAcres,,IrrigationWaterRightsAcres,,Property,Edm.Decimal,live-discovered
 ,IrrigationWaterRightsYN,,IrrigationWaterRightsYN,,Property,Edm.Boolean,live-discovered
 ,Latitude,,Latitude,,Property,Edm.Decimal,live-discovered
 ,LeaseExpiration,,LeaseExpiration,,Property,Edm.Date,live-discovered
-,LeaseRenewalCompensation,,LeaseRenewalCompensation,,Property,Cotality.DataStandard.RESO.DD.Enums.Multi.LeaseRenewalCompensation,live-discovered
+,LeaseRenewalCompensation,,LeaseRenewalCompensation,,Property,Cotality.DataStandard.Cotality.DD.Enums.Multi.LeaseRenewalCompensation,live-discovered
 ,ListAgentHomePhone,,ListAgentHomePhone,,Property,Edm.String,live-discovered
 ,ListAgentMobilePhone,,ListAgentMobilePhone,,Property,Edm.String,live-discovered
 ,ListAgentStateLicense,,ListAgentStateLicense,,Property,Edm.String,live-discovered
@@ -1067,7 +1067,7 @@
 ,ListTeamKeyNumeric,,ListTeamKeyNumeric,,Property,Edm.Int64,live-discovered
 ,LockBoxLocation,,LockBoxLocation,,Property,Edm.String,live-discovered
 ,LockBoxSerialNumber,,LockBoxSerialNumber,,Property,Edm.String,live-discovered
-,LockBoxType,,LockBoxType,,Property,Cotality.DataStandard.RESO.DD.Enums.Multi.LockBoxType,live-discovered
+,LockBoxType,,LockBoxType,,Property,Cotality.DataStandard.Cotality.DD.Enums.Multi.LockBoxType,live-discovered
 ,Longitude,,Longitude,,Property,Edm.Decimal,live-discovered
 ,MajorChangeTimestamp,,MajorChangeTimestamp,,Property,Edm.DateTimeOffset,live-discovered
 ,MapCoordinate,,MapCoordinate,,Property,Edm.String,live-discovered
@@ -1075,15 +1075,15 @@
 ,MapURL,,MapURL,,Property,Edm.String,live-discovered
 ,MLSAreaMajor,,MLSAreaMajor,,Property,Edm.String,live-discovered
 ,MLSAreaMinor,,MLSAreaMinor,,Property,Edm.String,live-discovered
-,MlsStatus,,MlsStatus,,Property,Cotality.DataStandard.RESO.DD.Enums.MlsStatus,live-discovered
-,MobileDimUnits,,MobileDimUnits,,Property,Cotality.DataStandard.RESO.DD.Enums.LinearUnits,live-discovered
+,MlsStatus,,MlsStatus,,Property,Cotality.DataStandard.Cotality.DD.Enums.MlsStatus,live-discovered
+,MobileDimUnits,,MobileDimUnits,,Property,Cotality.DataStandard.Cotality.DD.Enums.LinearUnits,live-discovered
 ,MobileHomeRemainsYN,,MobileHomeRemainsYN,,Property,Edm.Boolean,live-discovered
 ,MobileLength,,MobileLength,,Property,Edm.Int32,live-discovered
 ,MobileWidth,,MobileWidth,,Property,Edm.Int32,live-discovered
 ,Model,,Model,,Property,Edm.String,live-discovered
 ,OccupantName,,OccupantName,,Property,Edm.String,live-discovered
 ,OccupantPhone,,OccupantPhone,,Property,Edm.String,live-discovered
-,OccupantType,,OccupantType,,Property,Cotality.DataStandard.RESO.DD.Enums.OccupantType,live-discovered
+,OccupantType,,OccupantType,,Property,Cotality.DataStandard.Cotality.DD.Enums.OccupantType,live-discovered
 ,OriginatingSystemBuyerAgentMemberKey,,OriginatingSystemBuyerAgentMemberKey,,Property,Edm.String,live-discovered
 ,OriginatingSystemBuyerOfficeKey,,OriginatingSystemBuyerOfficeKey,,Property,Edm.String,live-discovered
 ,OriginatingSystemCoBuyerAgentMemberKey,,OriginatingSystemCoBuyerAgentMemberKey,,Property,Edm.String,live-discovered
@@ -1093,60 +1093,60 @@
 ,OwnerName2,,OwnerName2,,Property,Edm.String,live-discovered
 ,OwnerPhone,,OwnerPhone,,Property,Edm.String,live-discovered
 ,PastureArea,,PastureArea,,Property,Edm.Decimal,live-discovered
-,PreviousStandardStatus,,PreviousStandardStatus,,Property,Cotality.DataStandard.RESO.DD.Enums.StandardStatus,live-discovered
+,PreviousStandardStatus,,PreviousStandardStatus,,Property,Cotality.DataStandard.Cotality.DD.Enums.StandardStatus,live-discovered
 ,PrivateOfficeRemarks,,PrivateOfficeRemarks,,Property,Edm.String,live-discovered
 ,PrivateRemarks,,PrivateRemarks,,Property,Edm.String,live-discovered
-,PropertyCondition,,PropertyCondition,,Property,Cotality.DataStandard.RESO.DD.Enums.Multi.PropertyCondition,live-discovered
+,PropertyCondition,,PropertyCondition,,Property,Cotality.DataStandard.Cotality.DD.Enums.Multi.PropertyCondition,live-discovered
 ,PublicSurveyRange,,PublicSurveyRange,,Property,Edm.String,live-discovered
 ,RangeArea,,RangeArea,,Property,Edm.Decimal,live-discovered
 ,RVParkingDimensions,,RVParkingDimensions,,Property,Edm.String,live-discovered
 ,SellerConsiderConcessionYN,,SellerConsiderConcessionYN,,Property,Edm.Boolean,live-discovered
 ,ShowingAdvanceNotice,,ShowingAdvanceNotice,,Property,Edm.Int32,live-discovered
 ,ShowingAttendedYN,,ShowingAttendedYN,,Property,Edm.Boolean,live-discovered
-,ShowingConsiderations,,ShowingConsiderations,,Property,Cotality.DataStandard.RESO.DD.Enums.Multi.ShowingConsiderations,live-discovered
-,ShowingDays,,ShowingDays,,Property,Cotality.DataStandard.RESO.DD.Enums.Multi.ShowingDays,live-discovered
+,ShowingConsiderations,,ShowingConsiderations,,Property,Cotality.DataStandard.Cotality.DD.Enums.Multi.ShowingConsiderations,live-discovered
+,ShowingDays,,ShowingDays,,Property,Cotality.DataStandard.Cotality.DD.Enums.Multi.ShowingDays,live-discovered
 ,ShowingEndTime,,ShowingEndTime,,Property,Edm.DateTimeOffset,live-discovered
 ,ShowingInstructions,,ShowingInstructions,,Property,Edm.String,live-discovered
-,ShowingRequirements,,ShowingRequirements,,Property,Cotality.DataStandard.RESO.DD.Enums.Multi.ShowingRequirements,live-discovered
-,ShowingServiceName,,ShowingServiceName,,Property,Cotality.DataStandard.RESO.DD.Enums.ShowingServiceName,live-discovered
+,ShowingRequirements,,ShowingRequirements,,Property,Cotality.DataStandard.Cotality.DD.Enums.Multi.ShowingRequirements,live-discovered
+,ShowingServiceName,,ShowingServiceName,,Property,Cotality.DataStandard.Cotality.DD.Enums.ShowingServiceName,live-discovered
 ,ShowingStartTime,,ShowingStartTime,,Property,Edm.DateTimeOffset,live-discovered
 ,SourceSystemKey,,SourceSystemKey,,Property,Edm.String,live-discovered
 ,SourceSystemName,,SourceSystemName,,Property,Edm.String,live-discovered
 ,SubAgencyCompensation,,SubAgencyCompensation,,Property,Edm.String,live-discovered
-,SubAgencyCompensationType,,SubAgencyCompensationType,,Property,Cotality.DataStandard.RESO.DD.Enums.CompensationType,live-discovered
+,SubAgencyCompensationType,,SubAgencyCompensationType,,Property,Cotality.DataStandard.Cotality.DD.Enums.CompensationType,live-discovered
 ,SyndicationRemarks,,SyndicationRemarks,,Property,Edm.String,live-discovered
 ,TransactionBrokerCompensation,,TransactionBrokerCompensation,,Property,Edm.String,live-discovered
-,TransactionBrokerCompensationType,,TransactionBrokerCompensationType,,Property,Cotality.DataStandard.RESO.DD.Enums.CompensationType,live-discovered
+,TransactionBrokerCompensationType,,TransactionBrokerCompensationType,,Property,Cotality.DataStandard.Cotality.DD.Enums.CompensationType,live-discovered
 ,UniversalPropertySubId,,UniversalPropertySubId,,Property,Edm.String,live-discovered
-,Vegetation,,Vegetation,,Property,Cotality.DataStandard.RESO.DD.Enums.Multi.Vegetation,live-discovered
-,X_GeocodeSource,,X_GeocodeSource,,Property,Cotality.DataStandard.RESO.DD.Enums.GeocodeSource,live-discovered
+,Vegetation,,Vegetation,,Property,Cotality.DataStandard.Cotality.DD.Enums.Multi.Vegetation,live-discovered
+,X_GeocodeSource,,X_GeocodeSource,,Property,Cotality.DataStandard.Cotality.DD.Enums.GeocodeSource,live-discovered
 ,AdditionalInfo1,,AdditionalInfo1,,Custom Property,Edm.String,live-discovered
 ,AdditionalInfo2,,AdditionalInfo2,,Custom Property,Edm.String,live-discovered
 ,AdditionalInfo3,,AdditionalInfo3,,Custom Property,Edm.String,live-discovered
 ,ApplicationFee,,ApplicationFee,,Custom Property,Edm.Decimal,live-discovered
 ,CommunityDevelopmentDistrictYN,,CommunityDevelopmentDistrictYN,,Custom Property,Edm.Boolean,live-discovered
 ,ConsumerRemarks,,ConsumerRemarks,,Custom Property,Edm.String,live-discovered
-,GulfAccessType,,GulfAccessType,,Custom Property,Cotality.DataStandard.RESO.DD.Enums.Multi.GulfAccessType,live-discovered
+,GulfAccessType,,GulfAccessType,,Custom Property,Cotality.DataStandard.Cotality.DD.Enums.Multi.GulfAccessType,live-discovered
 ,GulfAccessYN,,GulfAccessYN,,Custom Property,Edm.Boolean,live-discovered
 ,LakeChainName,,LakeChainName,,Custom Property,Edm.String,live-discovered
 ,LakeId,,LakeId,,Custom Property,Edm.String,live-discovered
 ,LakeName,,LakeName,,Custom Property,Edm.String,live-discovered
 ,LakeSize,,LakeSize,,Custom Property,Edm.String,live-discovered
-,LandTenure,,LandTenure,,Custom Property,Cotality.DataStandard.RESO.DD.Enums.Multi.LandTenure,live-discovered
+,LandTenure,,LandTenure,,Custom Property,Cotality.DataStandard.Cotality.DD.Enums.Multi.LandTenure,live-discovered
 ,ListingKey,,ListingKey,,Custom Property,Edm.String,live-discovered
-,Membership,,Membership,,Custom Property,Cotality.DataStandard.RESO.DD.Enums.Multi.Membership,live-discovered
+,Membership,,Membership,,Custom Property,Cotality.DataStandard.Cotality.DD.Enums.Multi.Membership,live-discovered
 ,MembershipDescription,,MembershipDescription,,Custom Property,Edm.String,live-discovered
 ,MembershipFee,,MembershipFee,,Custom Property,Edm.Decimal,live-discovered
 ,MembershipRequiredYN,,MembershipRequiredYN,,Custom Property,Edm.Boolean,live-discovered
-,MineralRights,,MineralRights,,Custom Property,Cotality.DataStandard.RESO.DD.Enums.Multi.MineralRights,live-discovered
+,MineralRights,,MineralRights,,Custom Property,Cotality.DataStandard.Cotality.DD.Enums.Multi.MineralRights,live-discovered
 ,ModificationTimestamp,,ModificationTimestamp,,Custom Property,Edm.DateTimeOffset,live-discovered
 ,OffMarketDate,,OffMarketDate,,Custom Property,Edm.Date,live-discovered
 ,OffSeasonRate,,OffSeasonRate,,Custom Property,Edm.String,live-discovered
 ,OriginatingSystemName,,OriginatingSystemName,,Custom Property,Edm.String,live-discovered
-,Permission,,Permission,,Custom Property,Cotality.DataStandard.RESO.DD.Enums.Multi.ListingPermission,live-discovered
+,Permission,,Permission,,Custom Property,Cotality.DataStandard.Cotality.DD.Enums.Multi.ListingPermission,live-discovered
 ,PrivateShowingInstructions,,PrivateShowingInstructions,,Custom Property,Edm.String,live-discovered
-,PropertySubType,,PropertySubType,,Custom Property,Cotality.DataStandard.RESO.DD.Enums.PropertySubType,live-discovered
-,PropertySubTypeAdditional,,PropertySubTypeAdditional,,Custom Property,Cotality.DataStandard.RESO.DD.Enums.Multi.PropertySubTypeAdditional,live-discovered
+,PropertySubType,,PropertySubType,,Custom Property,Cotality.DataStandard.Cotality.DD.Enums.PropertySubType,live-discovered
+,PropertySubTypeAdditional,,PropertySubTypeAdditional,,Custom Property,Cotality.DataStandard.Cotality.DD.Enums.Multi.PropertySubTypeAdditional,live-discovered
 ,RentSpreeURL,,RentSpreeURL,,Custom Property,Edm.String,live-discovered
 ,RentSpreeYN,,RentSpreeYN,,Custom Property,Edm.Boolean,live-discovered
 ,RiverName,,RiverName,,Custom Property,Edm.String,live-discovered
@@ -1158,21 +1158,21 @@
 ,JobTitle,,JobTitle,,Member,Edm.String,live-discovered
 ,LastLoginTimestamp,,LastLoginTimestamp,,Member,Edm.DateTimeOffset,live-discovered
 ,MemberAssociationComments,,MemberAssociationComments,,Member,Edm.String,live-discovered
-,MemberBillingPreference,,MemberBillingPreference,,Member,Cotality.DataStandard.RESO.DD.Enums.BillingPreference,live-discovered
+,MemberBillingPreference,,MemberBillingPreference,,Member,Cotality.DataStandard.Cotality.DD.Enums.BillingPreference,live-discovered
 ,MemberHomePhone,,MemberHomePhone,,Member,Edm.String,live-discovered
 ,MemberKey,,MemberKey,,Member,Edm.String,live-discovered
 ,MemberLoginId,,MemberLoginId,,Member,Edm.String,live-discovered
-,MemberMlsSecurityClass,,MemberMlsSecurityClass,,Member,Cotality.DataStandard.RESO.DD.Enums.MemberMlsSecurityClass,live-discovered
+,MemberMlsSecurityClass,,MemberMlsSecurityClass,,Member,Cotality.DataStandard.Cotality.DD.Enums.MemberMlsSecurityClass,live-discovered
 ,MemberPager,,MemberPager,,Member,Edm.String,live-discovered
 ,MemberStateLicense,,MemberStateLicense,,Member,Edm.String,live-discovered
-,MemberStateLicenseState,,MemberStateLicenseState,,Member,Cotality.DataStandard.RESO.DD.Enums.StateOrProvince,live-discovered
+,MemberStateLicenseState,,MemberStateLicenseState,,Member,Cotality.DataStandard.Cotality.DD.Enums.StateOrProvince,live-discovered
 ,MemberStateLicenseType,,MemberStateLicenseType,,Member,Edm.String,live-discovered
 ,ModificationTimestamp,,ModificationTimestamp,,Member,Edm.DateTimeOffset,live-discovered
 ,OriginatingSystemName,,OriginatingSystemName,,Member,Edm.String,live-discovered
-,Permission,,Permission,,Member,Cotality.DataStandard.RESO.DD.Enums.Multi.ListingPermission,live-discovered
-,SocialMediaType,,SocialMediaType,,Member,Cotality.DataStandard.RESO.DD.Enums.SocialMediaType,live-discovered
+,Permission,,Permission,,Member,Cotality.DataStandard.Cotality.DD.Enums.Multi.ListingPermission,live-discovered
+,SocialMediaType,,SocialMediaType,,Member,Cotality.DataStandard.Cotality.DD.Enums.SocialMediaType,live-discovered
 ,SourceSystemID,,SourceSystemID,,Member,Edm.String,live-discovered
-,SyndicateTo,,SyndicateTo,,Member,Cotality.DataStandard.RESO.DD.Enums.Multi.SyndicateTo,live-discovered
+,SyndicateTo,,SyndicateTo,,Member,Cotality.DataStandard.Cotality.DD.Enums.Multi.SyndicateTo,live-discovered
 ,FranchiseAffiliation,,FranchiseAffiliation,,Office,Edm.String,live-discovered
 ,ModificationTimestamp,,ModificationTimestamp,,Office,Edm.DateTimeOffset,live-discovered
 ,OfficeAssociationComments,,OfficeAssociationComments,,Office,Edm.String,live-discovered
@@ -1182,22 +1182,22 @@
 ,OfficeManagerKeyNumeric,,OfficeManagerKeyNumeric,,Office,Edm.Int64,live-discovered
 ,OfficeManagerMlsId,,OfficeManagerMlsId,,Office,Edm.String,live-discovered
 ,OriginatingSystemName,,OriginatingSystemName,,Office,Edm.String,live-discovered
-,Permission,,Permission,,Office,Cotality.DataStandard.RESO.DD.Enums.Multi.ListingPermission,live-discovered
-,SocialMediaType,,SocialMediaType,,Office,Cotality.DataStandard.RESO.DD.Enums.SocialMediaType,live-discovered
-,SyndicateAgentOption,,SyndicateAgentOption,,Office,Cotality.DataStandard.RESO.DD.Enums.SyndicateAgentOption,live-discovered
-,SyndicateTo,,SyndicateTo,,Office,Cotality.DataStandard.RESO.DD.Enums.Multi.SyndicateTo,live-discovered
-,MediaAlteration,,MediaAlteration,,Media,Cotality.DataStandard.RESO.DD.Enums.Multi.MediaAlteration,live-discovered
+,Permission,,Permission,,Office,Cotality.DataStandard.Cotality.DD.Enums.Multi.ListingPermission,live-discovered
+,SocialMediaType,,SocialMediaType,,Office,Cotality.DataStandard.Cotality.DD.Enums.SocialMediaType,live-discovered
+,SyndicateAgentOption,,SyndicateAgentOption,,Office,Cotality.DataStandard.Cotality.DD.Enums.SyndicateAgentOption,live-discovered
+,SyndicateTo,,SyndicateTo,,Office,Cotality.DataStandard.Cotality.DD.Enums.Multi.SyndicateTo,live-discovered
+,MediaAlteration,,MediaAlteration,,Media,Cotality.DataStandard.Cotality.DD.Enums.Multi.MediaAlteration,live-discovered
 ,MediaKey,,MediaKey,,Media,Edm.String,live-discovered
 ,MediaStatusDescription,,MediaStatusDescription,,Media,Edm.String,live-discovered
 ,ModificationTimestamp,,ModificationTimestamp,,Media,Edm.DateTimeOffset,live-discovered
 ,OriginatingSystemName,,OriginatingSystemName,,Media,Edm.String,live-discovered
 ,OriginatingSystemResourceRecordId,,OriginatingSystemResourceRecordId,,Media,Edm.String,live-discovered
-,Permission,,Permission,,Media,Cotality.DataStandard.RESO.DD.Enums.Multi.Permission,live-discovered
+,Permission,,Permission,,Media,Cotality.DataStandard.Cotality.DD.Enums.Multi.Permission,live-discovered
 ,SourceSystemResourceRecordKey,,SourceSystemResourceRecordKey,,Media,Edm.String,live-discovered
 ,X_MediaStream,,X_MediaStream,,Media,Edm.String,live-discovered
 ,ModificationTimestamp,,ModificationTimestamp,,Property UnitTypes,Edm.DateTimeOffset,live-discovered
 ,OriginatingSystemName,,OriginatingSystemName,,Property UnitTypes,Edm.String,live-discovered
-,Permission,,Permission,,Property UnitTypes,Cotality.DataStandard.RESO.DD.Enums.Multi.ListingPermission,live-discovered
+,Permission,,Permission,,Property UnitTypes,Cotality.DataStandard.Cotality.DD.Enums.Multi.ListingPermission,live-discovered
 ,UnitTypeDescription,,UnitTypeDescription,,Property UnitTypes,Edm.String,live-discovered
 ,UnitTypeKey,,UnitTypeKey,,Property UnitTypes,Edm.String,live-discovered
 ,UnitTypeLeaseExpires,,UnitTypeLeaseExpires,,Property UnitTypes,Edm.DateTimeOffset,live-discovered
@@ -1206,7 +1206,7 @@
 ,OpenHouseKey,,OpenHouseKey,,Open House,Edm.String,live-discovered
 ,OpenHouseRemarks,,OpenHouseRemarks,,Open House,Edm.String,live-discovered
 ,OriginatingSystemName,,OriginatingSystemName,,Open House,Edm.String,live-discovered
-,Permission,,Permission,,Open House,Cotality.DataStandard.RESO.DD.Enums.Multi.ListingPermission,live-discovered
+,Permission,,Permission,,Open House,Cotality.DataStandard.Cotality.DD.Enums.Multi.ListingPermission,live-discovered
 ,SourceSystemKey,,SourceSystemKey,,Open House,Edm.String,live-discovered
 ,SourceSystemListingKey,,SourceSystemListingKey,,Open House,Edm.String,live-discovered
 ,DownPaymentAssistanceAmount,,DownPaymentAssistanceAmount,,Property,Edm.Decimal,live-discovered

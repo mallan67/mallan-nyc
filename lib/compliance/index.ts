@@ -2,7 +2,7 @@
  * REBNY RLS Compliance Module
  *
  * This module provides validation and compliance checking for NYC real estate listings
- * against REBNY RLS Data Rules, RESO standards, and Fair Housing regulations.
+ * against REBNY RLS Data Rules, Cotality standards, and Fair Housing regulations.
  *
  * @module lib/compliance
  */
@@ -17,7 +17,7 @@ export {
   type ListingData,
 } from './rebny-validator';
 
-export { mapListingToRESO, mapRESOToListing, canExportToRESO } from './reso-mapper';
+export { mapListingToRESO, mapCOTALITYToListing, canExportToRESO } from './cotality-mapper';
 
 export {
   getCurrentRLSRules,

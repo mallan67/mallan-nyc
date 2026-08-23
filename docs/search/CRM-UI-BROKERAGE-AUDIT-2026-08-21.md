@@ -555,7 +555,7 @@ a sequence, not a menu — later phases depend on earlier ones.
 | **5** | **ONE SEARCH UNIVERSE** | Mallan canonical local **+** synchronized third-party Cotality **−** suppressed Mallan representations, with audience/distribution eligibility applied **separately**. Only here does the live passthrough stop being authoritative |
 | **6** | **COUNT → PAGINATION → SORT → CACHE** | one universe behind every number; cache key includes canonical sort; sort orders, never re-scopes |
 | **7** | **RESULTS WORKBENCH** | one universe powers Grid · Gallery · Summary · Master/Detail · Map |
-| **8** | **DETAIL-RESOURCE HYDRATION** | `CustomProperty` · `OpenHouse` · `Office` · `Member` · `Media` — on **opening a listing**, never on every search |
+| **8** | **DETAIL-COTALITYURCE HYDRATION** | `CustomProperty` · `OpenHouse` · `Office` · `Member` · `Media` — on **opening a listing**, never on every search |
 | **9** | **MAP** | exact coordinate → exact pin; neighborhood only → area, never a point; unresolvable → no pin |
 | **10** | **REPORTS** | canonical Search snapshot server-side; verified fields only; real delivery status; per-listing attribution; no Google output |
 | **11** | **CMA** | consumes corrected Search; real subject; `ClosePrice` evidence; comps; adjustments |

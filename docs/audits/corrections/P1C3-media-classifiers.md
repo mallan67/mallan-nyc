@@ -33,7 +33,7 @@
   `app/api/agents/[slug]/listings/route.ts` (batchFetchPhotos loop → helper call) · new
   `lib/idx/agent-card-media.ts` (pure helper; route files cannot export helpers) · new
   `lib/idx/__tests__/media-classification-p1c3.test.ts` · this Trace Record.
-- **Transitive (declared; tristle-completed caller set):** every `mapRESOToInternal` caller —
+- **Transitive (declared; tristle-completed caller set):** every `mapCOTALITYToInternal` caller —
   `app/api/listings/route.ts:813` (search Trestle-merge) · `app/listing/[...slug]/page.tsx:234`
   (detail) · `app/api/listings/[id]/route.ts` (detail API) · the agents route. All read/render
   paths — NO cron writer calls this mapper (idx-sync uses `mapTrestleToPrisma`), so the change is

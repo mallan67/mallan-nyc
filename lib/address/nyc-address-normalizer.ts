@@ -1,6 +1,6 @@
 /**
  * NYC address normalizer — parses free-form NYC address strings into
- * canonical RESO/Trestle address components.
+ * canonical Cotality/Trestle address components.
  *
  * @module lib/address/nyc-address-normalizer
  */
@@ -86,10 +86,10 @@ function normalizeOrdinal(num: string): string {
 }
 
 /**
- * Canonicalize an already-parsed street DIRECTION token to its RESO/Trestle
+ * Canonicalize an already-parsed street DIRECTION token to its Cotality/Trestle
  * abbreviation: "East"/"e."/"E" → "E". Returns '' for blank; returns the
  * trimmed input unchanged when it is not a recognized direction (so it never
- * destroys data). Used by callers that compare RESO address COMPONENTS (not a
+ * destroys data). Used by callers that compare Cotality address COMPONENTS (not a
  * free-form string) — e.g. building-identity matching, where one source may
  * carry "East" and another "E" for the same building.
  */
@@ -101,7 +101,7 @@ export function canonicalizeDirection(token: string): string {
 }
 
 /**
- * Canonicalize an already-parsed street SUFFIX token to its RESO/Trestle
+ * Canonicalize an already-parsed street SUFFIX token to its Cotality/Trestle
  * abbreviation: "Street"/"st." → "St", "Avenue" → "Ave". Returns '' for blank;
  * returns the trimmed input unchanged when not a recognized suffix.
  */
@@ -129,7 +129,7 @@ export function canonicalizeStreetName(name: string): string {
 }
 
 /**
- * Parse a free-form NYC address string into canonical RESO components.
+ * Parse a free-form NYC address string into canonical Cotality components.
  *
  * Handles:
  *   "333 E 46th St Apt 2G"

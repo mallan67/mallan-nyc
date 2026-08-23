@@ -1,9 +1,9 @@
 // lib/idx/trestle-mapper.ts
 // Cotality API -> Mallan canonical storage (Prisma Listing model).
 //
-// The provider is the Cotality API. There is no RESO layer and no RLS layer in
-// between: field names, types and enum members are whatever the live Cotality
-// contract exposes. REBNY/RLS is a Mallan compliance layer far downstream and
+// The provider is the Cotality API, and nothing sits between it and Mallan:
+// field names, types and enum members are whatever the live Cotality contract
+// exposes. REBNY/RLS is a Mallan compliance layer far downstream and
 // never redefines a Cotality fact.
 //
 // Field groups below are MALLAN INGESTION/SELECT GROUPS — how Mallan organises
@@ -41,8 +41,8 @@ import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-colum
 //
 // plus every *MlsId -> *Key pair, which Cotality exposes as distinct fields.
 //
-// There is no RESO layer and no RLS layer between Cotality and Mallan. Cotality
-// is the provider; each of its fields keeps its own name and its own value. If
+// Nothing sits between the Cotality API and Mallan. Cotality is the provider;
+// each of its fields keeps its own name and its own value. If
 // Mallan needs a business status derived from the detailed MlsStatus, that is an
 // explicit Mallan business rule AFTER the verified provider mapping — never a
 // pretence that Cotality supplied a different field.
@@ -53,7 +53,7 @@ import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-colum
 // Handled specially in mapTrestleToPrisma
 
 // ═══════════════════════════════════════════════════════════
-// ALL RLS PROPERTY FIELD NAMES (for $select query)
+// ALL COTALITY PROPERTY FIELD NAMES (for $select query)
 // Grouped into 29 MALLAN INGESTION GROUPS (B1–B29). These are how Mallan
 // organises its $select, NOT a taxonomy the Cotality contract defines.
 // ═══════════════════════════════════════════════════════════
@@ -117,7 +117,7 @@ const B4_STATUS_DATES = [
   "DaysOnMarket", "CumulativeDaysOnMarket",
   "PendingTimestamp", "ContingentDate",
   "AvailabilityDate",
-  // PossessionDate is RESO-standard but Trestle ignores it (CLAUDE.md, verified
+  // PossessionDate is Cotality-standard but Trestle ignores it (CLAUDE.md, verified
   // 2026-04-19). Use AvailabilityDate for rental availability and CloseDate for
   // sale possession.
   "ComingSoonDate", "ComingSoonTimestamp",
@@ -412,7 +412,7 @@ export const COTALITY_PROPERTY_SELECT_FIELDS: string[] = [...new Set([
 
 // ═══════════════════════════════════════════════════════════
 // IDX PLUS FEED — FIELD EXCLUSIONS
-// These 85 fields exist in the full RLS spec but are NOT available
+// These 85 fields are declared by the Cotality contract but are NOT available
 // on the IDX Plus feed ("IDX Plus feed for Mallan Real Estate Inc").
 // Validated live against Trestle on 2026-03-04.
 //
@@ -437,7 +437,7 @@ const IDX_PLUS_EXCLUDED_FIELDS = new Set([
   "NewDevelopmentYN",
   // Listing agreement
   "DuplicateListingIDs", "ParticipantTypes", "ExclusiveAgency",
-  // Status & dates (PossessionDate already removed from B4_STATUS_DATES — RESO-only)
+  // Status & dates (PossessionDate already removed from B4_STATUS_DATES — Cotality-only)
   "SourceSystemModificationTimestamp", "ActivationTimestamp",
   "CancelationDate",
   "ComingSoonDate", "ComingSoonTimestamp",
@@ -639,7 +639,7 @@ function inferBorough(raw: Record<string, unknown>): string | null {
 }
 
 /**
- * RESO StandardStatus values that mean "no longer publicly displayable on IDX."
+ * Cotality StandardStatus values that mean "no longer publicly displayable on IDX."
  *
  * Mirrors the data-retention cron predicate at
  * `app/api/cron/data-retention/route.ts:79`. Cron and writer agree on the
@@ -664,7 +664,7 @@ export const TERMINAL_STATUSES: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * RESO StandardStatus values that are publicly displayable on IDX.
+ * Cotality StandardStatus values that are publicly displayable on IDX.
  *
  * Mirrors `DISPLAYABLE_STATUSES` in `lib/idx/db-to-public-dto.ts:155`. Kept
  * here so callers of `normalizeStandardStatus` can fold input strings like
@@ -695,7 +695,7 @@ const CRM_LIFECYCLE_STATUSES: ReadonlySet<string> = new Set([
  * normalizer rewrites to the canonical REBNY/Trestle form. Limited to
  * canonical-equivalent spellings — never coerces an arbitrary unknown string
  * into a terminal value. Examples:
- *   - "canceled" (US English single-L) → "Cancelled" (RESO canonical double-L)
+ *   - "canceled" (US English single-L) → "Cancelled" (Cotality canonical double-L)
  *
  * Add a new entry here only when a real-world client has been observed
  * submitting that variant. The alias map is the only place where one status
@@ -726,7 +726,7 @@ const STATUS_ALIASES: Record<string, string> = {
  *   - Anything else                                 → trimmed input (preserved)
  *
  * Unknown statuses are NOT silently rewritten to a known value. If a new
- * RESO status emerges, add it to the right set (TERMINAL_STATUSES,
+ * Cotality status emerges, add it to the right set (TERMINAL_STATUSES,
  * ACTIVE_STATUSES, CRM_LIFECYCLE_STATUSES) and the normalizer picks it up
  * automatically.
  */
@@ -818,7 +818,7 @@ export function normalizeStandardStatus(input: unknown): string {
 //     of the other flags (this is the H1 fix at writer-side; the cron is
 //     belt-and-suspenders for DB-direct mutation paths).
 export interface ComputeGateColumnsInput {
-  /** REBNY/RESO StandardStatus value. Normalized internally via
+  /** REBNY/Cotality StandardStatus value. Normalized internally via
    * `normalizeStandardStatus`; safe to pass un-normalized strings. */
   status: unknown;
   /** Trestle / form field. null = displayable per IDX Plus pre-filter. */
@@ -918,7 +918,7 @@ export function derivePermissionGates(raw: Record<string, unknown>): PermissionG
   // REBNY Gate 2 — "Participant Only" = Permissions enum value 'Private' per
   // UCBA 2026 H4 / Definitions (W) and data/rebny-rls-property-lookup.csv:1643.
   // `Property.Permission` is a MULTI-ENUM (live type
-  // `Cotality.DataStandard.RESO.DD.Enums.Multi.ListingPermission`), and the feed
+  // `Cotality.DataStandard.Cotality.DD.Enums.Multi.ListingPermission`), and the feed
   // delivers multi-token values — `IDX,SyndicateOptOut` occurs live.
   //
   // This previously did `permissions === 'Private'` on a scalar read, so a
@@ -1097,7 +1097,7 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
   // Three layers to keep separate:
   //   REBNY  — the MLS/RLS organization, data owner, and policy layer
   //   Cotality/Trestle — the API/feed platform that implements + serves the data
-  //   RESO   — the certification/data-standard framework (the Property entity
+  //   Cotality   — the certification/data-standard framework (the Property entity
   //            type, field names, and DD versions all originate here)
   //
   // The behavior below is SPECIFIC to mallan.nyc's REBNY IDX Plus feed served
@@ -1109,7 +1109,7 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
   // Under REBNY's policy layer, non-displayable rows are filtered out of the
   // IDX Plus feed BEFORE they reach this mapper. Two consequences:
   //   1. InternetEntireListingDisplayYN and InternetAddressDisplayYN return
-  //      null for the vast majority of records (the field exists in the RESO
+  //      null for the vast majority of records (the field exists in the Cotality
   //      schema and Cotality exposes it, but REBNY's policy layer leaves it
   //      unset because the upstream filter already enforced the policy).
   //   2. These fields are NOT OData-filterable — the feed returns HTTP 400
@@ -1132,7 +1132,7 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
   // writer-side gate coercion tests in
   // lib/compliance/__tests__/compliance-gates.test.ts.
   //
-  // Runtime payload behavior must be verified per feed, not assumed from RESO
+  // Runtime payload behavior must be verified per feed, not assumed from Cotality
   // certification alone. If mallan.nyc later subscribes to OneKey, NY State
   // MLS, or another non-REBNY MLS (per the parked external-inventory spec
   // Phase 2-A), the policy layer will be different and this null-handling

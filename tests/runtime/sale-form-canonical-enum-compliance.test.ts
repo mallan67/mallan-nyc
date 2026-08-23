@@ -225,7 +225,7 @@ describe('Flooring — demoted to Mallan internal (Codex PR #270 review)', () =>
 
   it('SALE_CHECKBOX_ARRAY_MAP entry for saleFlooring uses Mallan internal rls key', () => {
     expect(formHtml).toMatch(/\{\s*rls:\s*'saleFlooring'\s*,\s*name:\s*'saleFlooring'/);
-    // The old RESO-canonical mapping `{ rls: 'Flooring', name: 'saleFlooring' }`
+    // The old Cotality-canonical mapping `{ rls: 'Flooring', name: 'saleFlooring' }`
     // should no longer be present.
     expect(formHtml).not.toMatch(/\{\s*rls:\s*'Flooring'\s*,\s*name:\s*'saleFlooring'/);
   });

@@ -18,7 +18,7 @@
  */
 
 import {
-  RESOURCE_MEDIA,
+  COTALITYURCE_MEDIA,
   pickKeysetWatermark,
   type ProcessedListing,
 } from "../media-sync";
@@ -206,7 +206,7 @@ describe("lost-update PROBE (persistence has no compare-and-set)", () => {
     // (a) The upsert is keyed ONLY on `resource` — there is NO optimistic-
     //     concurrency guard (no stored-cursor comparison in the WHERE clause).
     expect(Object.keys(args.where)).toEqual(["resource"]);
-    expect(args.where).toEqual({ resource: RESOURCE_MEDIA });
+    expect(args.where).toEqual({ resource: COTALITYURCE_MEDIA });
     // (b) It writes the STALE LOW value unconditionally — so if the DB actually
     //     held a HIGHER cursor (written concurrently), this run would REGRESS it.
     expect(args.update.last_listing_key).toBe("1000000000");

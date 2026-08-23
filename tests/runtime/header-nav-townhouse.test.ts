@@ -12,7 +12,7 @@
  *       (no filter applied) on 2026-05-15.
  *     - `Townhouse` is not a value present in the live `propertyType` /
  *       `propertySubType` distribution. NYC townhouses are classified
- *       `SingleFamilyResidence` per RESO. Verified via probe: 483 listings
+ *       `SingleFamilyResidence` per Cotality. Verified via probe: 483 listings
  *       returned for `?subTypes=SingleFamilyResidence` (e.g. 4 E 79th St,
  *       25 Riverside Dr, 18 E 80th St — all classic UES/UWS townhouses).
  *

@@ -704,7 +704,7 @@ export async function syncListings(
           `[IDX Sync] Skipping record (missing fields): ${validation.missingFields.join(", ")}`
         );
         skippedValidation++;
-        // RESOLVED skip — the cursor MUST advance past it. See the note on the
+        // COTALITYLVED skip — the cursor MUST advance past it. See the note on the
         // new-terminal skip below for why a skip that does not record a position
         // livelocks the whole sync.
         recordCursorPosition(raw, true);
@@ -841,7 +841,7 @@ export async function syncListings(
       if (shouldSkipNewTerminalListing(existing, mapped.status)) {
         skippedNewTerminal++;
         if (skippedNewTerminalSample.length < 25) skippedNewTerminalSample.push(mapped.listing_id);
-        // RESOLVED skip — record the position so the cursor can move past it.
+        // COTALITYLVED skip — record the position so the cursor can move past it.
         //
         // A deliberate skip is a TERMINAL DECISION about the record, not a
         // failure. If it records no position, the record is invisible to
@@ -1323,7 +1323,7 @@ export async function syncListings(
               // history of this bug.
               const mediaType = classifyTrestleMediaCategory(m.MediaCategory as string | null | undefined);
               const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
-              // Stable RESO identity for write suppression. `mediaArraysMateriallyEqual` prefers
+              // Stable Cotality identity for write suppression. `mediaArraysMateriallyEqual` prefers
               // `mediaKey` when BOTH sides carry one and only then falls back to URL identity.
               // Cotality rotates a signed epoch + HMAC inside the URL *path* (not the query), so
               // `rotatingUrlIdentity` cannot neutralize it and the URL leg reports every photo as

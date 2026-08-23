@@ -93,7 +93,7 @@ describe('Sale form save/load retention — PR-B saleStatus overwrite removed', 
   it('populate does NOT contain the legacy unconditional canonical-status overwrite (the line we removed)', () => {
     // Before PR-B, populate had a second:
     //   setVal('saleStatus', listing.status || raw.StandardStatus || raw.MlsStatus || 'Draft');
-    // that clobbered the workflow value with the canonical RESO value. This
+    // that clobbered the workflow value with the canonical Cotality value. This
     // test asserts that exact pattern no longer executes.
     expect(populateBody).not.toMatch(
       /setVal\(['"]saleStatus['"]\s*,\s*listing\.status\s*\|\|\s*raw\.StandardStatus\s*\|\|\s*raw\.MlsStatus\s*\|\|\s*['"]Draft['"]\s*\)/,

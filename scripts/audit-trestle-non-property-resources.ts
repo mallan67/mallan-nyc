@@ -21,7 +21,7 @@ if (!CLIENT_ID || !CLIENT_SECRET) {
   process.exit(1);
 }
 
-const RESOURCES = [
+const COTALITYURCES = [
   'Member', 'Office', 'Media', 'OpenHouse', 'PropertyUnitTypes',
   'Building', 'Teams', 'TeamMembers', 'PropertyGreenVerification',
   'PropertyRooms', 'CustomProperty',
@@ -106,7 +106,7 @@ interface Finding {
       // multiple lines or be in a separate URLSearchParams call — so instead
       // of regexing one line, look for a Resource URL on this line and then
       // search the next 30 lines for `$select` set or string.
-      for (const resource of RESOURCES) {
+      for (const resource of COTALITYURCES) {
         const urlPattern = new RegExp(`/odata/${resource}\\b`);
         if (!urlPattern.test(line)) continue;
         const liveFields = liveByResource.get(resource);
@@ -170,7 +170,7 @@ interface Finding {
     }
   }
 
-  console.log('═══ NON-PROPERTY RESOURCE $SELECT AUDIT ═══');
+  console.log('═══ NON-PROPERTY COTALITYURCE $SELECT AUDIT ═══');
   console.log('');
   if (findings.length === 0) {
     console.log('✓ Every $select against non-Property resources uses fields that exist on that resource.');

@@ -127,8 +127,8 @@ direct Read.
 - **Disambiguation:** only the `listings.features` JSON column is in scope — NOT the projection's
   derived feature storage (`ListingSearchProjection` has only `amenity_keys`/`feature_flags` Json
   columns, `prisma/schema.prisma:2562-2563` — the migration *destination*; it does **not** define
-  `*_features String[]` columns), nor the DTO-shaped `listing.features.interior/...` TS type. The RESO
-  mapper (`reso-mapper.ts:239-253`) reads the **DTO**, not this column.
+  `*_features String[]` columns), nor the DTO-shaped `listing.features.interior/...` TS type. The Cotality
+  mapper (`cotality-mapper.ts:239-253`) reads the **DTO**, not this column.
 - **Readers (render-critical):** public DTO `lib/idx/db-to-public-dto.ts:272,392-468` reads **~50
   keys** (CommonInterest, PublicRemarks, FARE-Act fee group MoveInCosts/OngoingFees/TenantPays/
   AdditionalFee/FeeFrequency, AssociationFee, TaxAnnualAmount, amenity arrays, YearBuilt, …); detail

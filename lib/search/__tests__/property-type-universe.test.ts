@@ -53,7 +53,7 @@ describe('the vocabulary matches the live provider enum', () => {
   it.each(['Commercial', 'Rental', 'Sale', 'residential', ''])(
     '%p is NOT a member',
     (v) => {
-      // 'Commercial' in particular: lib/compliance/reso-mapper.ts types
+      // 'Commercial' in particular: lib/compliance/cotality-mapper.ts types
       // PropertyType as including it, but the live API rejects it with
       // HTTP 400 "not a valid enumeration type constant".
       expect(isPropertyTypeMember(v)).toBe(false);

@@ -26,7 +26,7 @@ export interface FeeDisclosureResult {
  * Display-ready = the listing is (or is becoming) publicly displayed: Active or
  * ComingSoon. Draft / Incomplete / terminal / withdrawn are NOT display-ready.
  *
- * The CRM rental form maps its "Draft" UI to RESO MlsStatus "Incomplete" on save,
+ * The CRM rental form maps its "Draft" UI to Cotality MlsStatus "Incomplete" on save,
  * so a draft save must be treated as non-display-ready — otherwise the FARE gate
  * would 422 a normal draft save (Codex #348). Input is normalized first so
  * "incomplete"/"Active"/etc. fold to canonical form.

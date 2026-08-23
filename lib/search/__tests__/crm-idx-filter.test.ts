@@ -483,7 +483,7 @@ describe("buildCrmIdxODataFilter", () => {
 
   it("DEAD: status sub-statuses (OfferOut / ContractSigned / etc) become uppercase strings that don't match any enum", () => {
     // The frontend collects sub-status into criteria.statuses then maps
-    // CRM-uppercase to RESO-PascalCase via search-engine.js:285 statusMap.
+    // CRM-uppercase to Cotality-PascalCase via search-engine.js:285 statusMap.
     // Sub-statuses like 'OfferOut' get .toUpperCase() → 'OFFEROUT' which
     // isn't in the statusMap, so it falls through unchanged.
     // The resulting OData clause is:

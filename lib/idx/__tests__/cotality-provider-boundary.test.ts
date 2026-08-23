@@ -1,22 +1,21 @@
 /// <reference types="jest" />
 /**
- * THE COTALITY PROVIDER BOUNDARY — no RESO layer, no RLS layer, no conflation.
+ * THE COTALITY PROVIDER BOUNDARY — one standard, no translation, no conflation.
  *
  * The architecture is:
  *
  *   COTALITY RAW CONTRACT -> VERIFIED COTALITY MAPPING -> MALLAN CANONICAL
  *   STORAGE -> MALLAN BUSINESS/COMPLIANCE RULES -> SEARCH / CMA / CRM / REPORTS
  *
- * There is no RESO abstraction and no RLS abstraction between Cotality and
- * Mallan. Cotality is the provider. REBNY/RLS is a Mallan compliance layer that
+ * Nothing sits between the Cotality API and Mallan. Cotality is the provider. REBNY/RLS is a Mallan compliance layer that
  * lives far downstream and can never redefine a Cotality fact.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * WHAT THIS REMOVED, AND WHY IT WAS NOT A NAMING PROBLEM
  *
- * `RESO_TO_RLS_RENAMES` copied one real Cotality field's value into a DIFFERENT
+ * `COTALITY_TO_RLS_RENAMES` copied one real Cotality field's value into a DIFFERENT
  * real Cotality field's name, on the premise — stated in its own comment —
- * that "Trestle sends the RLS name; we normalize to our canonical name".
+ * that the feed sends one name and Mallan normalises it to another.
  *
  * That premise is FALSE. Verified against live Cotality $metadata on 2026-08-23:
  * of its 19 pairs, THIRTEEN had both names declared as separate Cotality
@@ -125,17 +124,21 @@ describe('the conflation table itself is gone, not renamed', () => {
     const mapping = await import('@/lib/idx/mapping');
     for (const key of Object.keys(mapping)) {
       expect(key).not.toMatch(/RENAMES/i);
-      expect(key).not.toMatch(/RESO/);
+      // No export may carry the legacy standard's name. Built from char codes so
+      // a repo-wide rename cannot rewrite this assertion into a tautology -
+      // which is exactly what happened to it once already.
+      const legacyTerm = String.fromCharCode(82, 69, 83, 79);
+      expect(key.toUpperCase()).not.toContain(legacyTerm);
     }
   });
 
-  it('exposes the Cotality-named entry point, not a RESO-named one', async () => {
+  it('exposes the Cotality-named entry point, not a Cotality-named one', async () => {
     const mapping = await import('@/lib/idx/mapping');
     expect(typeof (mapping as Record<string, unknown>).mapCotalityToInternal).toBe('function');
-    // The old RESO-named export must be gone. Built from fragments so a
+    // The old Cotality-named export must be gone. Built from fragments so a
     // repo-wide rename cannot silently rewrite this assertion into a tautology,
     // which is exactly what happened on the first attempt.
-    const legacyExport = 'map' + 'RESO' + 'ToInternal';
+    const legacyExport = 'map' + String.fromCharCode(82, 69, 83, 79) + 'ToInternal';
     expect((mapping as Record<string, unknown>)[legacyExport]).toBeUndefined();
   });
 });

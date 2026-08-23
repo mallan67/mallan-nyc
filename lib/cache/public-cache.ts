@@ -56,7 +56,7 @@ export const SYNC_CADENCE_SECONDS = 10 * 60;
  * 1. INVALIDATION COVERAGE — incomplete, and one gap is LIVE IN PRODUCTION.
  *    A tag that no writer emits can never expire an entry that has no TTL.
  *
- *    RESOLVED so far, stated from the CURRENT code (an earlier revision of
+ *    COTALITYLVED so far, stated from the CURRENT code (an earlier revision of
  *    this block described a different, since-reverted state):
  *      - app/api/crm/convert — creates status Draft, which the canonical
  *        active-display set excludes, so its rows are NOT members of any
@@ -90,7 +90,7 @@ export const SYNC_CADENCE_SECONDS = 10 * 60;
  *      - app/api/market: `periodStart` is derived from `new Date()` INSIDE the
  *        cached predicates and the key carries only the period LABEL
  *        ('30d'/'90d'/'1y'). Without a TTL the rolling window freezes at the
- *        date of first assembly. Fixable only by keying on the RESOLVED
+ *        date of first assembly. Fixable only by keying on the COTALITYLVED
  *        boundary date, which changes the cache key contract.
  *      - lib/buildings/public-building-data `_compliance.attribution` embeds
  *        a formatted current date inside the cached payload, so the

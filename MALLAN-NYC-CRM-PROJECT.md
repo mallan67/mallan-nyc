@@ -47,7 +47,7 @@ This repository is the **single source of truth** for the Mallan NYC brokerage p
 This project integrates **REBNY Residential Listing Service (RLS) IDX data** under a broker-direct license held by **Mallan Real Estate Inc.** All use of MLS/IDX data must comply with:
 
 - REBNY RLS Rules
-- RESO Standards
+- Cotality Standards
 - Fair Housing Act
 - New York State Real Estate Advertising Law
 
@@ -114,7 +114,7 @@ Upon termination of license, all MLS/IDX data must be purged within the timefram
 **License Holder:** Mallan Real Estate Inc.
 
 ### Compliance Requirements
-- RESO Standards (Real Estate Standards Organization)
+- Cotality Standards (Real Estate Standards Organization)
 - REBNY RLS Rules (Real Estate Board of New York)
 - New York State Real Estate Advertising Laws (NY DOS)
 - Fair Housing Act

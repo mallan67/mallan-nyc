@@ -930,7 +930,7 @@ code deploy is needed, it rides with the #608 deploy):
 ```
 1. create ONE replacement Upstash Redis (no data migration — the preflight blob
    is a disposable cache that rebuilds itself on the first successful cycle)
-2. nslookup <new-host>.upstash.io           -> must RESOLVE
+2. nslookup <new-host>.upstash.io           -> must COTALITYLVE
 3. disposable health key round-trip:  SET mallan:health:<ts> -> GET -> DEL
 4. set UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN in Vercel PRODUCTION
 5. merge #608 -> that deployment picks up BOTH the new code and the new env

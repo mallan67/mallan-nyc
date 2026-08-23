@@ -477,7 +477,7 @@
                 // The browser sends EXACT COTALITY StandardStatus MEMBERS. It no
                 // longer keeps a status table at all.
                 //
-                // There used to be a JS map here translating tokens to RESO
+                // There used to be a JS map here translating tokens to Cotality
                 // PascalCase, maintained by hand in parallel with the server's
                 // contract. Two authorities for one mapping is how 'PENDING'
                 // came to mean ActiveUnderContract on one side and Pending on
@@ -489,7 +489,7 @@
                 // mapping, and it FAILS CLOSED - a token with no provider member
                 // returns HTTP 400 UNSUPPORTED_CRITERION rather than being
                 // dropped, which would widen the search instead of narrowing it.
-                var resoStatuses = criteria.statuses.filter(function(s, i, arr) { return arr.indexOf(s) === i; });
+                var cotalityStatuses = criteria.statuses.filter(function(s, i, arr) { return arr.indexOf(s) === i; });
             }
             // Bug A11 — SponsorUnit lives inside CustomProperty.CustomFields
             // (REBNY-specific JSON-string field), NOT a top-level OData

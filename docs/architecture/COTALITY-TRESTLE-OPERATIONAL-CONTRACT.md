@@ -1,6 +1,6 @@
 # Cotality/Trestle Operational Contract
 
-> Source of truth for all Cotality/Trestle/RESO integration on mallan.nyc.
+> Source of truth for all Cotality/Trestle/Cotality integration on mallan.nyc.
 > Every PR touching files listed in section 15 must cite this contract.
 
 ---
@@ -74,7 +74,7 @@ Referenced in `data/RLS-FIELD-REGISTRY.md` (**DEPRECATED / HISTORICAL SNAPSHOT 2
 
 ## 4. Address/building lookup contract
 
-### RESO structured address fields (from `artifacts/metadata.xml`)
+### Cotality structured address fields (from `artifacts/metadata.xml`)
 
 | Field | Type | Example | Purpose |
 |---|---|---|---|
@@ -131,7 +131,7 @@ and contains(tolower(StreetName),'46')
 | `contains(StreetName,'46TH')` without `tolower()` | Case-sensitive. Fails on mixed-case data. |
 | `contains(StreetName,'EAST')` | "East" is in `StreetDirPrefix`, not `StreetName` |
 | `StreetNumber eq '333'` for partial/typeahead | Too strict for incremental input. Use `startswith`. |
-| Guessing from unparsed full address | Must parse into RESO components first |
+| Guessing from unparsed full address | Must parse into Cotality components first |
 
 ---
 

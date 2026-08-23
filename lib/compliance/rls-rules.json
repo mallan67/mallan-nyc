@@ -2,7 +2,7 @@
   "version": "2025-09-30-v4.0",
   "lastUpdated": "2026-03-19",
   "source": "REBNY RLS Data Migration 2025_LMP — data/rebny-rls-property-fields.csv (902 IDX Plus fields across 7 resources)",
-  "note": "Generated from authoritative RLS CSV. BuyerAgentCommission/Type removed per NAR Settlement (Aug 2025). Field Authority: UCBA > RLS > RESO/IDX > Internal > Fail Closed.",
+  "note": "Generated from authoritative RLS CSV. BuyerAgentCommission/Type removed per NAR Settlement (Aug 2025). Field Authority: UCBA > RLS > Cotality/IDX > Internal > Fail Closed.",
   "totalFields": 1015,
   "fields": [
     {
@@ -1336,7 +1336,7 @@
     {
       "field": "City",
       "matrixFieldName": "City",
-      "description": "City where the property is located. RESO DD 2.0: Now a Lookup type.",
+      "description": "City where the property is located. Cotality DD 2.0: Now a Lookup type.",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "Yes"
@@ -2376,7 +2376,7 @@
     {
       "field": "CountyOrParish",
       "matrixFieldName": "CountyOrParish",
-      "description": "County where the property is located (NYC: New York, Kings, Queens, Bronx, Richmond). RESO DD 2.0: Now a Lookup type.",
+      "description": "County where the property is located (NYC: New York, Kings, Queens, Bronx, Richmond). Cotality DD 2.0: Now a Lookup type.",
       "lmpAddEdit": "Yes",
       "lmpSearch": "Yes",
       "requirements": "Yes; CityRegion must match with CountyOrParish:\r\nKings-Brooklyn\r\nQueens- Queens\r\nNew York- Manhattan\r\nRichmond- Staten Island\r\nBronx-Bronx"
@@ -4952,7 +4952,7 @@
     {
       "field": "ModificationTimestamp",
       "matrixFieldName": "ModificationTimestamp",
-      "description": "Timestamp of the last modification. RESO DD 2.0: Only updates for on-market listings.",
+      "description": "Timestamp of the last modification. Cotality DD 2.0: Only updates for on-market listings.",
       "lmpAddEdit": "No",
       "lmpSearch": "Yes",
       "requirements": "No"

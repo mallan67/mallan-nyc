@@ -6,7 +6,7 @@
 > wins** — do not act on stale chat memory.
 
 This project is a **live Cotality API synchronization platform** — not "an IDX website" and not a
-RESO/RLS-backed application. It has downstream consumers: search, CRM, portal, media, compliance,
+Cotality/RLS-backed application. It has downstream consumers: search, CRM, portal, media, compliance,
 archive, email, contact.
 
 ---
@@ -35,7 +35,7 @@ archive, email, contact.
    proof, or a direct source read (static claims only). Source-grep alone never proves rendering/behavior.
 4. **Fail-closed** — if a live Cotality API behavior or a REBNY/UCBA/FARE/Fair-Housing compliance rule is
    unclear or a canonical compliance file is missing, STOP and report; do not guess, and do not substitute
-   RESO, RLS, legacy field registries, old snapshots, or another feed as provider authority.
+   Cotality, RLS, legacy field registries, old snapshots, or another feed as provider authority.
 5. **Review the current HEAD** — a Codex/reviewer comment against an older commit is **not** a blocker if
    the current HEAD already addresses it. Always check the PR's current head SHA first.
 6. **Compliance-first** — anything touching listings, provider data, syndication, CRM lead/contact, intake
@@ -43,7 +43,7 @@ archive, email, contact.
 7. **Cotality API is the sole external provider authority — always live, never a copy, never a spot-check**
    (Maya law). Every provider field name, type, picklist value, relationship, population claim, filter,
    sort, expansion, permission, and capability verdict must be verified against the **live authenticated
-   Cotality API** in the current session. Repo code, RESO/RLS material, vendor documents, historical
+   Cotality API** in the current session. Repo code, Cotality/RLS material, vendor documents, historical
    field registries, tests, comments, snapshots, generated JSON, prior audits, another agent's report,
    or model/chat memory are **not provider evidence**. Generated Cotality contract files may be used as
    drift evidence or runtime inputs only after they are checked against the live API; they never replace
@@ -51,10 +51,10 @@ archive, email, contact.
    Cotality's own OData wire format may contain namespace strings chosen by Cotality; those strings are
    transport syntax, not a second provider authority, and must not be promoted into Mallan architecture,
    UI terminology, field registries, or business rules.
-8. **No RESO/RLS field layer.** Do not create, retain, consult, or validate Search against a RESO field
-   map, RLS field registry, RLS rename table, `data-reso-*` rendering contract, or similar parallel mapping
+8. **No Cotality/RLS field layer.** Do not create, retain, consult, or validate Search against a Cotality field
+   map, RLS field registry, RLS rename table, `data-cotality-*` rendering contract, or similar parallel mapping
    source. Search mappings must resolve from live Cotality API evidence into Mallan's single canonical
-   mapping layer. If old RESO/RLS field-layer code is encountered, remove or replace it rather than
+   mapping layer. If old Cotality/RLS field-layer code is encountered, remove or replace it rather than
    extending it. Raw provider values must still be preserved exactly when provenance requires them.
 9. **Mallan listing ownership and feed topology are explicit.** A Mallan Real Estate listing entered
    directly into Mallan is **Mallan-owned, canonical, editable by authorized Mallan broker/agents, and

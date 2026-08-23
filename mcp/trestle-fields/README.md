@@ -31,7 +31,7 @@ the code is "fixed" but the running server still uses the old build.
 ## Fix history
 
 - **2026-07-05 — multi-schema parse fix + cadence + dynamic resources.** The live Cotality
-  `$metadata` has **5** `<Schema>` namespaces (`RESO.DD` = entities, `RESO.DD.Enums` +
+  `$metadata` has **5** `<Schema>` namespaces (`Cotality.DD` = entities, `Cotality.DD.Enums` +
   `.Enums.Multi` = enums). The parser read a single `Schema`, so it saw `undefined` for
   `EntityType`/`EnumType` and parsed **0 fields** — every lookup wrongly returned "not found"
   (broke at the CoreLogic→Cotality rebrand). Fixed to iterate all schemas. Refresh cadence

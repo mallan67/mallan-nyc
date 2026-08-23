@@ -25,7 +25,7 @@ export function isDisplayableInIDX(listing: Listing): boolean {
   // Gate 1: IDX opt-out — owner has opted out of IDX display
   if (listing.compliance?.idxOptOut) return false;
 
-  // Gate 2: Internet Entire Listing Display — RESO standard field
+  // Gate 2: Internet Entire Listing Display — Cotality standard field
   if (listing.compliance?.internetEntireListingDisplayYN === false) return false;
 
   // Gate 3: Participant Only Network — only visible to RLS participants (broker CRM)

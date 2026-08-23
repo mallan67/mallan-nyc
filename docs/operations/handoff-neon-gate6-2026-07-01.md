@@ -141,5 +141,5 @@ Fact-check of the above against same-day evidence:
   states, and the rehydration mechanism (`lib/idx/sync.ts:385-424` restoring `raw_data:415`,
   `sync_status:419`) — **all match** the dashboard auto tier, Vercel `list_deployments`
   capture, and the 2026-07-01 operations audit.
-- **Working-tree caveat RESOLVED 2026-07-02:** #466 merged — the registry and all governance
+- **Working-tree caveat COTALITYLVED 2026-07-02:** #466 merged — the registry and all governance
   rules are on `main`; the "Read First" list is fully satisfiable from `main`.

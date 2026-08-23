@@ -74,8 +74,8 @@ async function collect(label: string, filter: string, cap = 4000): Promise<SetRe
 }
 
 const ACTIVE = "StandardStatus eq 'Active'";
-const NS_SUBTYPE_ADDL = 'Cotality.DataStandard.RESO.DD.Enums.Multi.PropertySubTypeAdditional';
-const NS_STRUCTURE = 'Cotality.DataStandard.RESO.DD.Enums.Multi.StructureType';
+const NS_SUBTYPE_ADDL = 'Cotality.DataStandard.Cotality.DD.Enums.Multi.PropertySubTypeAdditional';
+const NS_STRUCTURE = 'Cotality.DataStandard.Cotality.DD.Enums.Multi.StructureType';
 
 /** All four surfaces for one token, scoped to Active. */
 function surfaces(token: string): Array<[string, string]> {

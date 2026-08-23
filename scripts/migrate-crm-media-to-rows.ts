@@ -1,5 +1,5 @@
 // scripts/migrate-crm-media-to-rows.ts
-// Migrate CRM exclusives' legacy `listing.media` JSON → Cotality-shaped
+// Migrate CRM exclusives' legacy `listing.media` JSON → Cotality-contract
 // `listing_media` rows (crm: key namespace). Reuses the SAME importer the upload
 // route uses (lib/media/crm-media.ts) so dry-run and runtime stay identical.
 //

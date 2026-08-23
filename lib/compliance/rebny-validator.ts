@@ -3,7 +3,7 @@
  *
  * Validates listing data against:
  * - REBNY RLS Data Rules (2025_LMP migration)
- * - RESO standards via Trestle Web API
+ * - Cotality standards via Trestle Web API
  * - NYC regulations (NY DOS advertising, Fair Housing Act)
  *
  * @see https://docs.google.com/spreadsheets/d/1OiO7SQcMrLE8yMOoePWtv-dtcf2nXc-1iBssRJaOhxQ
@@ -51,7 +51,7 @@ export interface ValidationResult {
   enhancedData?: Record<string, unknown>;
   compliance: {
     rebnyRls: boolean;
-    reso: boolean;
+    cotality: boolean;
     fairHousing: boolean;
     nycDos: boolean;
   };
@@ -114,7 +114,7 @@ export function validateListing(listing: ListingData): ValidationResult {
 
   // Track compliance categories
   let rebnyRlsCompliant = true;
-  let resoCompliant = true;
+  let cotalityCompliant = true;
   let fairHousingCompliant = true;
   let nycDosCompliant = true;
 
@@ -204,11 +204,11 @@ export function validateListing(listing: ListingData): ValidationResult {
   }
   suggestions.push(...nycResult.suggestions);
 
-  // 4. RESO format validation
-  const resoResult = validateRESOFormat(listing);
-  if (!resoResult.valid) {
-    warnings.push(...resoResult.errors);
-    resoCompliant = false;
+  // 4. Cotality format validation
+  const cotalityResult = validateCOTALITYFormat(listing);
+  if (!cotalityResult.valid) {
+    warnings.push(...cotalityResult.errors);
+    cotalityCompliant = false;
   }
 
   // 5. Generate enhanced data suggestions
@@ -223,7 +223,7 @@ export function validateListing(listing: ListingData): ValidationResult {
     enhancedData: Object.keys(enhancedData).length > 0 ? enhancedData : undefined,
     compliance: {
       rebnyRls: rebnyRlsCompliant,
-      reso: resoCompliant,
+      cotality: cotalityCompliant,
       fairHousing: fairHousingCompliant,
       nycDos: nycDosCompliant,
     },
@@ -606,24 +606,24 @@ function validateNYCSpecific(listing: ListingData): {
 }
 
 /**
- * RESO format validation
+ * Cotality format validation
  */
-function validateRESOFormat(listing: ListingData): {
+function validateCOTALITYFormat(listing: ListingData): {
   valid: boolean;
   errors: string[];
 } {
   const errors: string[] = [];
 
-  // Check for RESO-compliant field naming (PascalCase)
-  const nonResoFields = Object.keys(listing).filter((key) => {
-    // RESO fields should be PascalCase
+  // Check for Cotality-compliant field naming (PascalCase)
+  const nonCotalityFields = Object.keys(listing).filter((key) => {
+    // Cotality fields should be PascalCase
     return key !== key.charAt(0).toUpperCase() + key.slice(1) && !key.startsWith('_');
   });
 
-  if (nonResoFields.length > 0) {
+  if (nonCotalityFields.length > 0) {
     errors.push(
-      `[RESO] Non-standard field naming detected. RESO uses PascalCase. ` +
-        `Consider renaming: ${nonResoFields.slice(0, 5).join(', ')}${nonResoFields.length > 5 ? '...' : ''}`
+      `[Cotality] Non-standard field naming detected. Cotality uses PascalCase. ` +
+        `Consider renaming: ${nonCotalityFields.slice(0, 5).join(', ')}${nonCotalityFields.length > 5 ? '...' : ''}`
     );
   }
 
@@ -633,7 +633,7 @@ function validateRESOFormat(listing: ListingData): {
     const value = listing[field];
     if (value && typeof value === 'string') {
       if (!isValidDate(value)) {
-        errors.push(`[RESO] ${field}: Should be ISO 8601 date format (YYYY-MM-DD)`);
+        errors.push(`[Cotality] ${field}: Should be ISO 8601 date format (YYYY-MM-DD)`);
       }
     }
   }
@@ -779,7 +779,7 @@ export function getRequiredFields(propertyType: string, commonInterest?: string)
 export function generatePublicRemarks(listing: ListingData): string {
   const parts: string[] = [];
 
-  // Property type and size - handle both RESO and internal format
+  // Property type and size - handle both Cotality and internal format
   const propertyInfo = listing.propertyInfo as Record<string, unknown> | undefined;
   const beds = listing.BedroomsTotal || propertyInfo?.bedroomsTotal;
   const baths = listing.BathroomsTotal || propertyInfo?.bathroomsFull;

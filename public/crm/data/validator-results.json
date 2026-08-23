@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-08-14T02:47:33.255Z",
-  "pass": 1278,
+  "timestamp": "2026-08-23T06:21:36.568Z",
+  "pass": 1265,
   "critical": 0,
   "warning": 4,
   "info": 37,
@@ -9,7 +9,7 @@
       "section": 1,
       "title": "$select Field Completeness",
       "category": "IDX Pipeline",
-      "pass": 375,
+      "pass": 376,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -36,7 +36,7 @@
       "section": 4,
       "title": "REQUIRED vs IDX Plus Availability",
       "category": "IDX Pipeline",
-      "pass": 12,
+      "pass": 0,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -54,7 +54,7 @@
       "section": 6,
       "title": "Picklist / Value Canonicalization",
       "category": "IDX Pipeline",
-      "pass": 14,
+      "pass": 13,
       "critical": 0,
       "warning": 0,
       "info": 8
@@ -333,7 +333,7 @@
       "section": 37,
       "title": "Search Flow Integrity",
       "category": "Search",
-      "pass": 6,
+      "pass": 5,
       "critical": 0,
       "warning": 0,
       "info": 2
@@ -349,7 +349,7 @@
     },
     {
       "section": 39,
-      "title": "data-field vs Trestle/RESO Validation",
+      "title": "data-field vs Trestle/Cotality Validation",
       "category": "Search",
       "pass": 3,
       "critical": 0,

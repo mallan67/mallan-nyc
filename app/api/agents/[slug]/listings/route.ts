@@ -239,7 +239,7 @@ async function fetchDbAgentListings(agentId: bigint): Promise<{
         address: true,
         features: true,
         // PR 4 reader: the relational listing_media table is the authoritative,
-        // RESOLVED media source (hero-first, deduped). Without it here,
+        // COTALITYLVED media source (hero-first, deduped). Without it here,
         // dbListingToPublicDTO falls back to the legacy `media` JSON, so the
         // agent-page card showed a DIFFERENT hero than Featured/detail for the
         // same listing (e.g. a card-variant photo instead of the living-room

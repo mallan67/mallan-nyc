@@ -4,7 +4,7 @@
     "version": "1.0.0",
     "created": "2026-02-13",
     "sources": [
-      "RESO_FIELD_MAP in SEARCH-STANDALONE.html (70 mappings)",
+      "COTALITY_FIELD_MAP in SEARCH-STANDALONE.html (70 mappings)",
       "gridColumnDefs in SEARCH-STANDALONE.html (80 columns)",
       "mockListings data shape (45 keys)",
       "data/rebny-rls-property-fields.csv (902 REBNY IDX Plus fields across 7 resources)",
@@ -231,7 +231,7 @@
       "sale": true,
       "rental": true,
       "vow_only": false,
-      "notes": "Part of RESO trio: PropertyType + CommonInterest + PropertySubType"
+      "notes": "Part of Cotality trio: PropertyType + CommonInterest + PropertySubType"
     },
     {
       "canonical_key": "propertySubType",
@@ -244,7 +244,7 @@
       "sale": true,
       "rental": true,
       "vow_only": false,
-      "notes": "Part of RESO trio. 'Apartment' used for rental building units."
+      "notes": "Part of Cotality trio. 'Apartment' used for rental building units."
     },
     {
       "canonical_key": "neighborhood",
@@ -270,7 +270,7 @@
       "sale": true,
       "rental": true,
       "vow_only": false,
-      "notes": "Used for borough-level filtering. Maps to CountyOrParish in RESO."
+      "notes": "Used for borough-level filtering. Maps to CountyOrParish in Cotality."
     },
     {
       "canonical_key": "zip",

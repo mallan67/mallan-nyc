@@ -26,7 +26,7 @@
 import { paginateMedia, type MediaPage } from '../media-pagination';
 
 const LISTING_ID = 'RLS20105333';
-const RESOURCE_RECORD_KEY = '1178013994';
+const COTALITYURCE_RECORD_KEY = '1178013994';
 const PAGE_1 = 50;
 const PAGE_2 = 18;
 const TOTAL_MEDIA = PAGE_1 + PAGE_2; // 68
@@ -125,8 +125,8 @@ describe('classification — PhotosCount is NOT the photo count', () => {
 
 describe('identity — the DB id and the provider record key are NOT interchangeable', () => {
   it('they are different values on this live specimen', () => {
-    expect(LISTING_ID).not.toBe(RESOURCE_RECORD_KEY);
-    expect(/^\d+$/.test(RESOURCE_RECORD_KEY)).toBe(true);
+    expect(LISTING_ID).not.toBe(COTALITYURCE_RECORD_KEY);
+    expect(/^\d+$/.test(COTALITYURCE_RECORD_KEY)).toBe(true);
     expect(/^\d+$/.test(LISTING_ID)).toBe(false);
   });
 
@@ -154,11 +154,11 @@ describe('identity — the DB id and the provider record key are NOT interchange
   });
 
   it('fetchListingMedia is never called with the public listing id when a provider key exists', () => {
-    const raw = { ListingId: LISTING_ID, ListingKey: RESOURCE_RECORD_KEY, SourceSystemKey: RESOURCE_RECORD_KEY };
+    const raw = { ListingId: LISTING_ID, ListingKey: COTALITYURCE_RECORD_KEY, SourceSystemKey: COTALITYURCE_RECORD_KEY };
     const listingId = String(raw.ListingId || 'x');
     const mediaResourceKey = String(raw.ListingKey || raw.SourceSystemKey || raw.ListingId || 'x');
     expect(listingId).toBe(LISTING_ID);
-    expect(mediaResourceKey).toBe(RESOURCE_RECORD_KEY);
+    expect(mediaResourceKey).toBe(COTALITYURCE_RECORD_KEY);
     expect(mediaResourceKey).not.toBe(listingId);
   });
 });

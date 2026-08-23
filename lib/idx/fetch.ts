@@ -712,7 +712,7 @@ export async function fetchListingMedia(
   records = authorized;
 
   return records.map((m: Record<string, unknown>, i: number) => {
-    // RESO DD: MediaCategory = content type (Photo, Floor Plan, Video, Virtual Tour)
+    // Cotality DD: MediaCategory = content type (Photo, Floor Plan, Video, Virtual Tour)
     //          MediaType = file format (jpeg, png) — NOT content type
     const cat = String(m.MediaCategory || "").toLowerCase();
     const desc = String(m.ShortDescription || "").toLowerCase();

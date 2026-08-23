@@ -67,7 +67,7 @@ export async function PATCH(
     last_synced_from_trestle: listing.last_synced_from_trestle,
   });
 
-  // Persist per-item order onto the Cotality-shaped rows the public resolver
+  // Persist per-item order onto the Cotality-contract rows the public resolver
   // actually reads (replaces the old raw_data.media_order, which the resolver
   // ignored). Scoped to THIS listing so a stray key can't reorder another
   // listing's media.

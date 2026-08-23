@@ -1452,7 +1452,7 @@
 ,Property,MlsStatus,Closed,,MlsStatus,Closed,The purchase agreement has been fulfilled or the lease agreement has been executed.,Yes,Yes,"When is Closed, if StatusChangeDateTime is greater than 3 days ago, then:
 1. MLSStatus cannot be changed
 2. PublicRemarks and all address fields cannot be changed
-3. RESO Member and Office associations cannot be changed (the data will remain frozen so if the Member or Office details changes the details will remain as is)
+3. Cotality Member and Office associations cannot be changed (the data will remain frozen so if the Member or Office details changes the details will remain as is)
 4. Any API request including changes to the relevant attributes will be rejected
 5. Any API request including changes to other attributes (i.e. BuyerAgent) will be accepted, assuming other validations are satisfied
 
@@ -1460,7 +1460,7 @@ Listings must be Pending prior to changing status to Closed."
 ,Property,MlsStatus,ComingSoon,,MlsStatus,ComingSoon,"This is a listing that has not yet been on market but will be on market soon. A listing contract has been executed. Coming Soon is different from Hold and Withdrawn, as the property, under the current listing contract only, has not been previously on market.",Yes,Yes,"-ListingContractDate is the indicated date when the Property Record will be changed to MLSStatus = Active
 -Submission of a Property Record where MLSStatus = ComingSoon requires a Media Record where SupplementType = ComingSoonOwnerAuthorization
 -Acceptance of a Property Record where MLSStatus = ComingSoon triggers an auto generation timestamp in the ComingSoonTimestamp field
--Acceptance of a Property Record where MLSStatus= ComingSoon will set utilize the MajorChangeType field as ComingSoon is now an acceptable field in the RESO data model
+-Acceptance of a Property Record where MLSStatus= ComingSoon will set utilize the MajorChangeType field as ComingSoon is now an acceptable field in the Cotality data model
 -Submission of Property Record where MLSStatus = ComingSoon are rejected if
    -NewDevelopmentYN = true
    -PropertyType = ResidentialLease

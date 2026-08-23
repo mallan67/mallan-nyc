@@ -625,7 +625,7 @@ Phase 0 (CRM Buildout) ──→ Phase 1 (Data) ──→ Phase 2 (Auth) ──�
 - Trestle keys stored server-side only (never in client bundles)
 - Proxy layer handles all outbound API calls
 - Client attempts to call external APIs fail CORS by design
-- Without this, RESO/Trestle keys are exposed
+- Without this, Cotality/Trestle keys are exposed
 
 ## Rule 4: No deprecated Trestle URLs in codebase
 

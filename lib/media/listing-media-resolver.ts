@@ -419,7 +419,7 @@ export function resolveListingMedia(items: unknown, options: ResolveListingMedia
   }));
 }
 
-/** The public DTO media shape. `order` is the RESOLVED (photo-first) index; `isPrimary` is the hero flag. */
+/** The public DTO media shape. `order` is the COTALITYLVED (photo-first) index; `isPrimary` is the hero flag. */
 export interface DtoMedia {
   url: string;
   thumbUrl: string;

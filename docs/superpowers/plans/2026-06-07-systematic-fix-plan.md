@@ -130,7 +130,7 @@ change. Pure guard code + tests only. **`rotate-db-keys` must not be dispatched.
 
 | Step | Fix | Checkpoint |
 |---|---|---|
-| **4.1** | **Media classifier divergence.** `lib/idx/mapping.ts:335` `mapRESOToInternal` must call the canonical `classifyTrestleMediaCategory` (handles `"FloorPlan"` no-space) instead of inlining `includes('floor plan')` — stops floorplan-as-photo/hero on the live Trestle-direct path. | Failing test (Trestle `MediaCategory:"FloorPlan"` → classified floorplan, not hero) green + HARNESS green + live probe on an affected listing. |
+| **4.1** | **Media classifier divergence.** `lib/idx/mapping.ts:335` `mapCOTALITYToInternal` must call the canonical `classifyTrestleMediaCategory` (handles `"FloorPlan"` no-space) instead of inlining `includes('floor plan')` — stops floorplan-as-photo/hero on the live Trestle-direct path. | Failing test (Trestle `MediaCategory:"FloorPlan"` → classified floorplan, not hero) green + HARNESS green + live probe on an affected listing. |
 | **4.2** | **Move-in fee DTO asymmetry.** `toPublicDTO` omits `moveInCostsAmount/Comments` that `dbListingToPublicDTO` sets — same listing discloses FARE fee on one path, not the other. Reconcile the two builders. | Test (both builders emit identical move-in fee fields) green + HARNESS green. |
 | **4.3** | **Unbounded public `findMany`.** Add explicit `take` to `app/sitemap.ts:80` and `app/api/open-houses/route.ts:270`. | Test/assert bounded + HARNESS green. |
 | **4.4** | **CRM cap outliers.** Normalize 500/1000 caps (communications, ce-courses, referrals, growth-tools, listing-engagement, idx/search) to the 200 standard + NaN guards. | Test (oversized `?limit=` clamps; `?limit=abc`→default) green + HARNESS green. |

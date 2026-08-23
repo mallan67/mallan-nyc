@@ -547,7 +547,7 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
     // Media is sourced ONLY from the synchronized Neon copy via the SHARED DB-only
     // policy `resolveDbListingMedia`: resolve the relational `listing_media` rows
     // (R2-cached URLs) first, and fall back to the legacy `Listing.media` JSON ONLY
-    // when they yield zero USABLE media. The fallback is keyed on the RESOLVED
+    // when they yield zero USABLE media. The fallback is keyed on the COTALITYLVED
     // active-media count + listing type — NOT on raw `rows.length`. That closes the
     // 2026-07-16 card/detail P0: a third-party IDX/RLS listing whose relational rows
     // are all deleted/replaced (so they resolve to []) now falls back to its

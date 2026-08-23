@@ -131,7 +131,7 @@ export function generateListingSlug(listing: {
   const parts: string[] = [];
 
   if (streetNumber) parts.push(streetNumber);
-  // StreetDirPrefix (E, W, N, S) is a separate RESO field; include it
+  // StreetDirPrefix (E, W, N, S) is a separate Cotality field; include it
   // explicitly so "333 E 46th St" doesn't lose the direction in the slug.
   if (streetDirPrefix) parts.push(streetDirPrefix);
   if (streetName) parts.push(streetName);

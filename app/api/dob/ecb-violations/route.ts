@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
   try {
     const ecbUrl = new URL(ECB_ENDPOINT);
     let where = `bin='${bin.replace(/'/g, "''")}'`;
-    if (openOnly) where += ` AND ecb_violation_status != 'RESOLVE'`;
+    if (openOnly) where += ` AND ecb_violation_status != 'COTALITYLVE'`;
     ecbUrl.searchParams.set('$where', where);
     ecbUrl.searchParams.set('$order', 'issue_date DESC');
     ecbUrl.searchParams.set('$limit', '100');

@@ -392,7 +392,7 @@ function logAuditEntry(action, details) {
 
 // ═══════════════════════════════════════════════════════════════
 // SAVED SEARCH MATCH ALERTING (#15 / Step 15)
-// Tag search criteria with RESO names, match badges, Gates 1-2
+// Tag search criteria with Cotality names, match badges, Gates 1-2
 // ═══════════════════════════════════════════════════════════════
 
 // Saved searches load from /api/crm/saved-searches when the panel renders.
@@ -412,8 +412,8 @@ function renderSavedSearchMatches() {
         html += '<div><span class="text-sm font-semibold text-gray-900">' + s.name + '</span> ' + savedSearchMatchBadge(s);
         html += '<div class="text-[10px] text-gray-400 mt-0.5">Criteria: ';
         Object.keys(s.criteria).forEach(function(k, i) {
-            var resoName = s.reso[k] || k;
-            html += (i > 0 ? ', ' : '') + '<span' + (typeof resoData === 'function' ? resoData(k, s.criteria[k]) : '') + '>' + k + '=' + s.criteria[k] + '</span>';
+            var cotalityName = s.cotality[k] || k;
+            html += (i > 0 ? ', ' : '') + '<span' + (typeof cotalityData === 'function' ? cotalityData(k, s.criteria[k]) : '') + '>' + k + '=' + s.criteria[k] + '</span>';
         });
         html += '</div></div>';
         html += '<div class="text-[9px] text-gray-400">Checked: ' + new Date(s.lastChecked).toLocaleTimeString() + '</div>';
@@ -462,8 +462,8 @@ function closingDeadlineBanner(listing) {
     }
     html += '</span>';
     html += '<div class="mt-1 flex items-center gap-2">';
-    html += '<span data-reso-field="ClosePrice"' + ' class="text-gray-500">Close Price: ' + (listing.closePrice ? '$' + listing.closePrice.toLocaleString() : '<em>required</em>') + '</span>';
-    html += '<span data-reso-field="CloseDate"' + ' class="text-gray-500">Close Date: ' + (listing.closeDate || '<em>required</em>') + '</span>';
+    html += '<span data-cotality-field="ClosePrice"' + ' class="text-gray-500">Close Price: ' + (listing.closePrice ? '$' + listing.closePrice.toLocaleString() : '<em>required</em>') + '</span>';
+    html += '<span data-cotality-field="CloseDate"' + ' class="text-gray-500">Close Date: ' + (listing.closeDate || '<em>required</em>') + '</span>';
     html += '</div>';
     html += '</div>';
     return html;
@@ -615,13 +615,13 @@ function renderEnhancedNotes(clientId) {
         if (n.listingId) {
             html += '<div class="mt-1 inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 rounded text-[10px] text-blue-700" data-listing-id="' + n.listingId + '" data-source="REBNY-RLS">';
             html += '<i class="fas fa-link"></i> ' + (n.listingAddress || 'Listing #' + n.listingId);
-            if (n.listingPrice) html += ' <span' + (typeof resoData === 'function' ? resoData('price', n.listingPrice) : '') + '>$' + n.listingPrice.toLocaleString() + '</span>';
+            if (n.listingPrice) html += ' <span' + (typeof cotalityData === 'function' ? cotalityData('price', n.listingPrice) : '') + '>$' + n.listingPrice.toLocaleString() + '</span>';
             html += '</div>';
         }
 
         // Status change fields
-        if (n.resoField) {
-            html += '<div class="mt-1 inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 rounded text-[10px] text-gray-600" data-reso-field="' + n.resoField + '">';
+        if (n.cotalityField) {
+            html += '<div class="mt-1 inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 rounded text-[10px] text-gray-600" data-cotality-field="' + n.cotalityField + '">';
             html += '<i class="fas fa-exchange-alt"></i> ' + (n.oldValue || '') + ' → ' + (n.newValue || '');
             html += '</div>';
         }
@@ -650,12 +650,12 @@ function renderClientListingCard(listing) {
     html += '<div class="flex items-start gap-3">';
     html += '<div class="w-20 h-16 rounded bg-gray-100 flex-shrink-0 flex items-center justify-center"><i class="fas fa-camera text-gray-300"></i></div>';
     html += '<div class="flex-1 min-w-0">';
-    html += '<p class="text-sm font-bold truncate"' + (typeof resoData === 'function' ? resoData('address', displayAddress) : '') + '>' + displayAddress + '</p>';
-    html += '<p class="text-sm font-semibold text-gray-900"' + (typeof resoData === 'function' ? resoData('price', safe.price) : '') + '>$' + (safe.price || 0).toLocaleString() + '</p>';
+    html += '<p class="text-sm font-bold truncate"' + (typeof cotalityData === 'function' ? cotalityData('address', displayAddress) : '') + '>' + displayAddress + '</p>';
+    html += '<p class="text-sm font-semibold text-gray-900"' + (typeof cotalityData === 'function' ? cotalityData('price', safe.price) : '') + '>$' + (safe.price || 0).toLocaleString() + '</p>';
     html += '<div class="flex items-center gap-2 text-xs text-gray-500 mt-0.5">';
-    html += '<span' + (typeof resoData === 'function' ? resoData('beds', safe.beds) : '') + '>' + (safe.beds || '--') + ' bd</span>';
-    html += '<span' + (typeof resoData === 'function' ? resoData('baths', safe.baths) : '') + '>' + (safe.baths || '--') + ' ba</span>';
-    html += '<span' + (typeof resoData === 'function' ? resoData('intSqft', safe.intSqft) : '') + '>' + (safe.intSqft ? safe.intSqft.toLocaleString() + ' sf' : '--') + '</span>';
+    html += '<span' + (typeof cotalityData === 'function' ? cotalityData('beds', safe.beds) : '') + '>' + (safe.beds || '--') + ' bd</span>';
+    html += '<span' + (typeof cotalityData === 'function' ? cotalityData('baths', safe.baths) : '') + '>' + (safe.baths || '--') + ' ba</span>';
+    html += '<span' + (typeof cotalityData === 'function' ? cotalityData('intSqft', safe.intSqft) : '') + '>' + (safe.intSqft ? safe.intSqft.toLocaleString() + ' sf' : '--') + '</span>';
     html += '</div>';
     html += '</div></div>';
 
@@ -683,7 +683,7 @@ function renderClientListingCard(listing) {
 
 // ═══════════════════════════════════════════════════════════════
 // CLIENT PORTAL SEARCH RESULTS (#21 / Step 21)
-// Sanitized listings with full RESO chain, attribution, FARE Act, EHO
+// Sanitized listings with full Cotality chain, attribution, FARE Act, EHO
 // ═══════════════════════════════════════════════════════════════
 
 function renderClientPortalResults(listings) {
@@ -715,12 +715,12 @@ function renderClientPortalResults(listings) {
 
 var mockAuditEntries = [
     { id: 'A-001', action: 'listing_created', timestamp: '2026-02-10T09:00:00', agent: 'Demo Agent', listingId: 'ML-S006', details: { address: '45 E 89th St #10A', status: 'Coming Soon' } },
-    { id: 'A-002', action: 'status_change', timestamp: '2026-02-10T09:01:00', agent: 'Demo Agent', listingId: 'ML-S006', details: { from: 'Draft', to: 'Coming Soon', resoField: 'MlsStatus' } },
+    { id: 'A-002', action: 'status_change', timestamp: '2026-02-10T09:01:00', agent: 'Demo Agent', listingId: 'ML-S006', details: { from: 'Draft', to: 'Coming Soon', cotalityField: 'MlsStatus' } },
     { id: 'A-003', action: 'listing_search', timestamp: '2026-02-11T10:15:00', agent: 'Demo Agent', clientId: 'CL-001', details: { criteria: 'UES 2BR <$2M', results: 12 } },
     { id: 'A-004', action: 'listing_email', timestamp: '2026-02-11T10:20:00', agent: 'Demo Agent', clientId: 'CL-001', listingId: 1, details: { recipient: 'sarah.chen@email.com', count: 3 } },
     { id: 'A-005', action: 'showing_scheduled', timestamp: '2026-02-12T14:00:00', agent: 'Demo Agent', listingId: 1, clientId: 'CL-001', details: { date: '2026-02-14', time: '2:00 PM' } },
     { id: 'A-006', action: 'compliance_check', timestamp: '2026-02-12T15:00:00', agent: 'System', details: { score: 87, passed: 52, failed: 8 } },
-    { id: 'A-007', action: 'price_change', timestamp: '2026-02-13T11:30:00', agent: 'Demo Agent', listingId: 'ML-S001', details: { from: 4500000, to: 4250000, resoField: 'ListPrice' } },
+    { id: 'A-007', action: 'price_change', timestamp: '2026-02-13T11:30:00', agent: 'Demo Agent', listingId: 'ML-S001', details: { from: 4500000, to: 4250000, cotalityField: 'ListPrice' } },
     { id: 'A-008', action: 'violation_detected', timestamp: '2026-02-13T12:00:00', agent: 'System', details: { type: 'data_quality', listing: 'ML-S005', rule: 'M13', message: 'Missing photos' } },
     { id: 'A-009', action: 'client_invite', timestamp: '2026-02-14T08:30:00', agent: 'Demo Agent', clientId: 'CL-002', details: { email: 'james.park@email.com', type: 'buyer' } },
     { id: 'A-010', action: 'report_generate', timestamp: '2026-02-14T09:00:00', agent: 'Demo Agent', details: { format: 'CMA', count: 5 } },
@@ -728,7 +728,7 @@ var mockAuditEntries = [
     { id: 'A-012', action: 'fare_act_disclosure', timestamp: '2026-02-15T10:00:00', agent: 'System', listingId: 'ML-R001', details: { brokerFeePaidBy: 'Owner', applicationFee: 20 } },
     { id: 'A-013', action: 'portal_access', timestamp: '2026-02-15T11:00:00', agent: 'System', clientId: 'CL-001', details: { page: 'search_results', listings_viewed: 8 } },
     { id: 'A-014', action: 'client_feedback', timestamp: '2026-02-15T11:05:00', agent: 'System', clientId: 'CL-001', listingId: 1, details: { feedback: 'love', address: '400 E 90th St #17C' } },
-    { id: 'A-015', action: 'status_change', timestamp: '2026-02-15T14:00:00', agent: 'Demo Agent', listingId: 'ML-S004', details: { from: 'Active', to: 'Contract Signed', resoField: 'MlsStatus' } },
+    { id: 'A-015', action: 'status_change', timestamp: '2026-02-15T14:00:00', agent: 'Demo Agent', listingId: 'ML-S004', details: { from: 'Active', to: 'Contract Signed', cotalityField: 'MlsStatus' } },
     { id: 'A-016', action: 'compliance_alert', timestamp: '2026-02-16T08:00:00', agent: 'System', listingId: 'ML-S006', details: { rule: 'D2', message: 'Coming Soon Day 6 \u2014 8 days remaining' } },
     { id: 'A-017', action: 'search_shared', timestamp: '2026-02-16T09:30:00', agent: 'Demo Agent', clientId: 'CL-002', details: { searchName: 'Tribeca Loft 1500+ SF', matchCount: 1 } },
     { id: 'A-018', action: 'document_uploaded', timestamp: '2026-02-16T10:00:00', agent: 'Demo Agent', details: { document: 'Exhibit G \u2014 Coming Soon Addendum', listing: 'ML-S006', ucbaRule: 'D10' } },
@@ -777,7 +777,7 @@ function renderAuditTrailViewer() {
         if (e.listingId) html += '<span class="text-[9px] text-blue-600" data-listing-id="' + e.listingId + '" data-source="REBNY-RLS">' + e.listingId + '</span>';
         if (e.clientId) html += '<span class="text-[9px] text-green-600" data-client-id="' + e.clientId + '">' + e.clientId + '</span>';
         if (isViolation) html += '<span class="px-1 py-0.5 bg-red-100 text-red-700 rounded text-[9px] font-bold" data-compliance="violation" data-ucba-rule="' + ((e.details || {}).rule || '') + '">Violation</span>';
-        if (e.details && e.details.resoField) html += '<span class="text-[9px] text-gray-400" data-reso-field="' + e.details.resoField + '">' + e.details.resoField + '</span>';
+        if (e.details && e.details.cotalityField) html += '<span class="text-[9px] text-gray-400" data-cotality-field="' + e.details.cotalityField + '">' + e.details.cotalityField + '</span>';
         html += '</div>';
         html += '<div class="text-[9px] text-gray-500 mt-0.5">';
         html += '<span>' + new Date(e.timestamp).toLocaleDateString() + ' ' + new Date(e.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) + '</span>';
@@ -815,13 +815,13 @@ function shareSearchToClient(clientId, searchCriteria) {
         sharedAt: new Date().toISOString(),
         agent: typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE.name : 'Agent',
         criteria: criteria,
-        resoCriteria: {}
+        cotalityCriteria: {}
     };
 
-    // Tag criteria with RESO names
-    var fieldMap = typeof RESO_FIELD_MAP !== 'undefined' ? RESO_FIELD_MAP : {};
+    // Tag criteria with Cotality names
+    var fieldMap = typeof COTALITY_FIELD_MAP !== 'undefined' ? COTALITY_FIELD_MAP : {};
     Object.keys(criteria).forEach(function(k) {
-        if (fieldMap[k]) sharedSearch.resoCriteria[fieldMap[k]] = criteria[k];
+        if (fieldMap[k]) sharedSearch.cotalityCriteria[fieldMap[k]] = criteria[k];
     });
 
     // Get matching listings (respecting Gates 1-2)
@@ -840,17 +840,17 @@ function shareSearchToClient(clientId, searchCriteria) {
 
 // ═══════════════════════════════════════════════════════════════
 // ACTIVITY SUMMARY ON CLIENT CARDS (#24 / Step 24)
-// Listing refs, budget via resoData
+// Listing refs, budget via cotalityData
 // ═══════════════════════════════════════════════════════════════
 
 function renderClientActivitySummary(client) {
     if (!client) return '';
     var html = '<div class="space-y-1.5 text-xs">';
 
-    // Budget with RESO tag
+    // Budget with Cotality tag
     if (client.budget || client.maxBudget) {
         var budget = client.budget || client.maxBudget;
-        html += '<div class="flex items-center gap-2"><i class="fas fa-dollar-sign text-green-500 w-4"></i><span>Budget: <strong' + (typeof resoData === 'function' ? resoData('price', budget) : '') + '>$' + budget.toLocaleString() + '</strong></span></div>';
+        html += '<div class="flex items-center gap-2"><i class="fas fa-dollar-sign text-green-500 w-4"></i><span>Budget: <strong' + (typeof cotalityData === 'function' ? cotalityData('price', budget) : '') + '>$' + budget.toLocaleString() + '</strong></span></div>';
     }
 
     // Recent activity items
@@ -874,7 +874,7 @@ function renderClientActivitySummary(client) {
         client.recentListings.slice(0, 3).forEach(function(l) {
             html += '<div class="flex items-center gap-2 py-0.5" data-listing-id="' + l.id + '" data-source="REBNY-RLS">';
             html += '<span class="text-blue-600 truncate">' + (l.address || 'Listing #' + l.id) + '</span>';
-            if (l.price) html += '<span class="text-gray-500"' + (typeof resoData === 'function' ? resoData('price', l.price) : '') + '>$' + l.price.toLocaleString() + '</span>';
+            if (l.price) html += '<span class="text-gray-500"' + (typeof cotalityData === 'function' ? cotalityData('price', l.price) : '') + '>$' + l.price.toLocaleString() + '</span>';
             html += '</div>';
         });
         html += '</div>';
@@ -905,8 +905,8 @@ function renderMessageWithListingShare(message) {
             var safe = typeof sanitizeListingSnapshot === 'function' ? sanitizeListingSnapshot(l) : l;
             html += '<div class="flex items-center gap-2 px-2 py-1.5 bg-white rounded border text-xs" data-listing-id="' + safe.id + '" data-source="REBNY-RLS">';
             html += '<i class="fas fa-home text-blue-400"></i>';
-            html += '<span class="font-medium"' + (typeof resoData === 'function' ? resoData('address', safe.address) : '') + '>' + (safe.address || 'Address Available Upon Request') + '</span>';
-            html += '<span' + (typeof resoData === 'function' ? resoData('price', safe.price) : '') + '>$' + (safe.price || 0).toLocaleString() + '</span>';
+            html += '<span class="font-medium"' + (typeof cotalityData === 'function' ? cotalityData('address', safe.address) : '') + '>' + (safe.address || 'Address Available Upon Request') + '</span>';
+            html += '<span' + (typeof cotalityData === 'function' ? cotalityData('price', safe.price) : '') + '>$' + (safe.price || 0).toLocaleString() + '</span>';
             html += '<span class="text-gray-400">' + (safe.beds || '--') + 'bd/' + (safe.baths || '--') + 'ba</span>';
             html += '</div>';
         });
@@ -919,7 +919,7 @@ function renderMessageWithListingShare(message) {
 
 // ═══════════════════════════════════════════════════════════════
 // SEARCH HISTORY LOG (#26 / Step 26)
-// Criteria with RESO names, timestamped
+// Criteria with Cotality names, timestamped
 // ═══════════════════════════════════════════════════════════════
 
 var mockSearchHistory = [
@@ -930,7 +930,7 @@ var mockSearchHistory = [
     { id: 'SHL-005', timestamp: '2026-02-14T09:00:00', criteria: { status: 'COMING_SOON' }, resultCount: 2, duration: '0.1s' }
 ];
 
-var searchHistoryResoMap = {
+var searchHistoryCotalityMap = {
     neighborhood: 'SubdivisionName',
     minBeds: 'BedroomsTotal',
     maxPrice: 'ListPrice',
@@ -953,8 +953,8 @@ function renderSearchHistoryLog() {
         html += '<div class="flex-1">';
         html += '<div class="flex items-center flex-wrap gap-1">';
         Object.keys(s.criteria).forEach(function(k) {
-            var resoName = searchHistoryResoMap[k] || k;
-            html += '<span class="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px]"' + (typeof resoData === 'function' ? resoData(k, s.criteria[k]) : '') + ' title="RLS/RESO/IDX: ' + resoName + '">' + k + ': ' + s.criteria[k] + '</span>';
+            var cotalityName = searchHistoryCotalityMap[k] || k;
+            html += '<span class="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px]"' + (typeof cotalityData === 'function' ? cotalityData(k, s.criteria[k]) : '') + ' title="RLS/Cotality/IDX: ' + cotalityName + '">' + k + ': ' + s.criteria[k] + '</span>';
         });
         html += '</div>';
         html += '<div class="text-[10px] text-gray-400 mt-0.5">' + s.resultCount + ' results &middot; ' + s.duration + '</div>';
@@ -982,14 +982,14 @@ function renderAgentPerformanceMetrics() {
     var html = '<div class="grid grid-cols-2 lg:grid-cols-4 gap-3">';
 
     var metrics = [
-        { label: 'Active Listings', value: active.length, icon: 'fa-home', color: '#3b82f6', reso: 'MlsStatus' },
-        { label: 'Pipeline Value', value: '$' + (pipelineValue / 1000000).toFixed(1) + 'M', icon: 'fa-chart-line', color: '#10b981', reso: 'ListPrice' },
-        { label: 'Avg DOM', value: avgDOM + 'd', icon: 'fa-clock', color: '#f59e0b', reso: 'DaysOnMarket' },
-        { label: 'Closed YTD', value: closed.length + ' ($' + (closedValue / 1000000).toFixed(1) + 'M)', icon: 'fa-check-circle', color: '#8b5cf6', reso: 'ClosePrice' }
+        { label: 'Active Listings', value: active.length, icon: 'fa-home', color: '#3b82f6', cotality: 'MlsStatus' },
+        { label: 'Pipeline Value', value: '$' + (pipelineValue / 1000000).toFixed(1) + 'M', icon: 'fa-chart-line', color: '#10b981', cotality: 'ListPrice' },
+        { label: 'Avg DOM', value: avgDOM + 'd', icon: 'fa-clock', color: '#f59e0b', cotality: 'DaysOnMarket' },
+        { label: 'Closed YTD', value: closed.length + ' ($' + (closedValue / 1000000).toFixed(1) + 'M)', icon: 'fa-check-circle', color: '#8b5cf6', cotality: 'ClosePrice' }
     ];
 
     metrics.forEach(function(m) {
-        html += '<div class="bg-white rounded-xl border p-4 text-center"' + (m.reso ? ' data-reso-field="' + m.reso + '"' : '') + '>';
+        html += '<div class="bg-white rounded-xl border p-4 text-center"' + (m.cotality ? ' data-cotality-field="' + m.cotality + '"' : '') + '>';
         html += '<i class="fas ' + m.icon + ' text-2xl mb-2" style="color:' + m.color + '"></i>';
         html += '<div class="text-lg font-bold text-gray-900">' + m.value + '</div>';
         html += '<div class="text-xs text-gray-500">' + m.label + '</div>';
@@ -1190,19 +1190,19 @@ function REBNYComplianceDoctor(options) {
 
     // ─── Test 3: Status Accuracy ───────────────────────────────────────────
     (function test3_Status() {
-        // RESO StandardStatus values — both underscore and camelCase forms accepted
+        // Cotality StandardStatus values — both underscore and camelCase forms accepted
         var validStatuses = [
             'ACTIVE', 'PENDING', 'CLOSED', 'COMING_SOON', 'COMINGSOON',
             'WITHDRAWN', 'EXPIRED', 'CANCELED', 'HOLD', 'INCOMPLETE'
         ];
-        var statusElements = document.querySelectorAll('[data-reso-field="MlsStatus"]');
+        var statusElements = document.querySelectorAll('[data-cotality-field="MlsStatus"]');
         var invalidCount = 0;
         var totalChecked = 0;
         var invalidValues = [];
 
         statusElements.forEach(function(el) {
-            var val = el.getAttribute('data-reso-value');
-            if (!val) return; // Skip elements without data-reso-value (column headers, labels)
+            var val = el.getAttribute('data-cotality-value');
+            if (!val) return; // Skip elements without data-cotality-value (column headers, labels)
             totalChecked++;
             val = val.trim().toUpperCase();
             if (validStatuses.indexOf(val) === -1) { invalidCount++; invalidValues.push(val); }
@@ -1220,7 +1220,7 @@ function REBNYComplianceDoctor(options) {
         });
 
         if (invalidCount === 0 && totalChecked > 0) {
-            addResult(3, 'Status Accuracy', 'PASS', totalChecked + ' status values checked, all valid RESO StandardStatus');
+            addResult(3, 'Status Accuracy', 'PASS', totalChecked + ' status values checked, all valid Cotality StandardStatus');
         } else if (invalidCount === 0) {
             addResult(3, 'Status Accuracy', 'FAIL', 'No status elements found in current view to validate — required infrastructure missing');
         } else {
@@ -1233,7 +1233,7 @@ function REBNYComplianceDoctor(options) {
         var violations = [];
         PROHIBITED_DISPLAY_FIELDS.forEach(function(field) {
             var found = document.querySelectorAll(
-                '[data-reso-field="' + field + '"], [data-field="' + field + '"]'
+                '[data-cotality-field="' + field + '"], [data-field="' + field + '"]'
             );
             found.forEach(function(el) {
                 var parent = el.closest('[data-access-level]');
@@ -1276,7 +1276,7 @@ function REBNYComplianceDoctor(options) {
         ];
         var fhViolations = [];
         var descriptionAreas = document.querySelectorAll(
-            '#publicDescription, [data-reso-field="PublicRemarks"], .listing-description'
+            '#publicDescription, [data-cotality-field="PublicRemarks"], .listing-description'
         );
         descriptionAreas.forEach(function(el) {
             var text = el.textContent || el.value || '';
@@ -1297,7 +1297,7 @@ function REBNYComplianceDoctor(options) {
 
     // ─── Test 6: Required Field Display ────────────────────────────────────
     (function test6_RequiredFields() {
-        var requiredResoFields = [
+        var requiredCotalityFields = [
             'UnparsedAddress', 'ListPrice', 'BedroomsTotal', 'BathroomsTotalInteger',
             'MlsStatus', 'PropertyType', 'ListAgentFullName', 'ListOfficeName',
             'ListingId', 'OnMarketDate'
@@ -1307,9 +1307,9 @@ function REBNYComplianceDoctor(options) {
         if (typeof gridColumnDefs !== 'undefined') {
             var definedReso = [];
             Object.keys(gridColumnDefs).forEach(function(key) {
-                if (gridColumnDefs[key].reso) definedReso.push(gridColumnDefs[key].reso);
+                if (gridColumnDefs[key].cotality) definedReso.push(gridColumnDefs[key].cotality);
             });
-            requiredResoFields.forEach(function(field) {
+            requiredCotalityFields.forEach(function(field) {
                 var found = definedReso.some(function(d) {
                     return d === field || d.indexOf(field) !== -1 || field.indexOf(d) !== -1;
                 });
@@ -1318,9 +1318,9 @@ function REBNYComplianceDoctor(options) {
         }
 
         if (missingFields.length === 0) {
-            addResult(6, 'Required Field Display', 'PASS', 'All ' + requiredResoFields.length + ' required RESO fields defined in grid columns');
+            addResult(6, 'Required Field Display', 'PASS', 'All ' + requiredCotalityFields.length + ' required Cotality fields defined in grid columns');
         } else {
-            addResult(6, 'Required Field Display', 'FAIL', missingFields.length + ' required RESO field(s) missing from grid columns: ' + missingFields.join(', '));
+            addResult(6, 'Required Field Display', 'FAIL', missingFields.length + ' required Cotality field(s) missing from grid columns: ' + missingFields.join(', '));
         }
     })();
 
@@ -1535,10 +1535,10 @@ function REBNYWiringTest(options) {
     // ── W1: Field Parity Test ──────────────────────────────────────────
     (function() {
         var ALLOWED = ['SourceSystemKey','ListPrice','MlsStatus','PropertyType','PropertySubType','BedroomsTotal','BathroomsTotalInteger','LivingArea','YearBuilt','UnparsedAddress','City','StateOrProvince','PostalCode','Latitude','Longitude','ListAgentFullName','ListOfficeName','ListingAgreement','InternetEntireListingDisplayYN','InternetAddressDisplayYN','OwnerOptOut','ParticipantOnly','IDXEntireListingDisplayYN','SyndicateTo','ComingSoonTimestamp','ActivationDate','PublicRemarks','PrivateRemarks','ShowingInstructions','ListAgentEmail','ListAgentDirectPhone','MaintenanceFee','TaxAnnualAmount','CommonCharges','neighborhood','borough','photoCount','daysOnMarket','pricePerSqft','updatedDate','listedDate','buildingName','lotSize','stories','units','parkingFeatures','garageSpaces','listingCategory','CommonInterest','Ownership','PetsAllowed','LaundryFeatures','Amenities','CoolingYN','HeatingYN','FireplacesTotal','WaterfrontYN','ViewYN','TaxBlock','TaxLot','Zoning','FloorNumber','UnitNumber','Concessions','FinancialDataSource','AssociationFee','RentIncludes','NumberOfUnitsTotal','StoriesTotal','LotSizeArea','GarageYN','AssociationFee+TaxAnnualAmount','RoomsTotal','BathroomsFull','SubdivisionName','OnMarketDate','DaysOnMarket','CumulativeDaysOnMarket','OpenHouseDate','AssociationName','SecurityFeatures','PropertyCondition','PurchaseContractDate','BuyerFinancing','BuildingAreaTotal','PreviousListPrice','OriginalListPrice','PriceChangeTimestamp','ListAgentDirectPhone','PatioAndPorchFeatures','NewConstructionYN','SourceSystemModificationTimestamp','ListingId','EntryLevel','CrossStreet','Exposures','WalkScore','BathroomsHalf','BuildingName','CloseDate','ClosePrice','PhotosCount','VirtualTourURLBranded','View','Flooring','Cooling','Heating','ParkingFeatures','ParkingTotal','PetsAllowedYN','AssociationAmenities','InteriorFeatures'];
-        var resoEls = document.querySelectorAll('[data-reso-field]');
+        var cotalityEls = document.querySelectorAll('[data-cotality-field]');
         var unknown = [], seen = {};
-        resoEls.forEach(function(el) {
-            var f = el.getAttribute('data-reso-field');
+        cotalityEls.forEach(function(el) {
+            var f = el.getAttribute('data-cotality-field');
             seen[f] = true;
             if (ALLOWED.indexOf(f) === -1 && unknown.indexOf(f) === -1) unknown.push(f);
         });
@@ -1546,7 +1546,7 @@ function REBNYWiringTest(options) {
         var bodyText = document.body.innerText || '';
         var leaked = LEAKS.filter(function(n) { return bodyText.indexOf(n) !== -1; });
         if (unknown.length === 0 && leaked.length === 0) {
-            addResult('W1', 'Field Parity', 'PASS', Object.keys(seen).length + ' RESO fields, all in allowlist');
+            addResult('W1', 'Field Parity', 'PASS', Object.keys(seen).length + ' Cotality fields, all in allowlist');
         } else {
             var d = [];
             if (unknown.length) d.push('Unknown: ' + unknown.join(', '));
@@ -1559,14 +1559,14 @@ function REBNYWiringTest(options) {
     (function() {
         var issues = [];
         var VS = ['Active','Pending','Closed','ComingSoon','Coming Soon','COMING_SOON','COMINGSOON','Withdrawn','Expired','Canceled','Hold','Incomplete','ActiveUnderContract','ACTIVE','PENDING','CLOSED','WITHDRAWN','EXPIRED','CANCELED','HOLD','INCOMPLETE','ACTIVE_UNDER_CONTRACT'];
-        document.querySelectorAll('[data-reso-field="MlsStatus"][data-reso-value]').forEach(function(el) {
-            var val = el.getAttribute('data-reso-value');
+        document.querySelectorAll('[data-cotality-field="MlsStatus"][data-cotality-value]').forEach(function(el) {
+            var val = el.getAttribute('data-cotality-value');
             if (!val) return;
             val.split(',').forEach(function(v) { v = v.trim(); if (v && VS.indexOf(v) === -1) issues.push('Status:"' + v + '"'); });
         });
         var VB = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island','The Bronx'];
-        document.querySelectorAll('[data-reso-field="borough"][data-reso-value]').forEach(function(el) {
-            var v = el.getAttribute('data-reso-value'); if (v && VB.indexOf(v) === -1) issues.push('Borough:"' + v + '"');
+        document.querySelectorAll('[data-cotality-field="borough"][data-cotality-value]').forEach(function(el) {
+            var v = el.getAttribute('data-cotality-value'); if (v && VB.indexOf(v) === -1) issues.push('Borough:"' + v + '"');
         });
         if (typeof listings !== 'undefined') {
             listings.forEach(function(l) {
@@ -1579,7 +1579,7 @@ function REBNYWiringTest(options) {
     // ── W3: Null Handling Test ─────────────────────────────────────────
     (function() {
         var problems = [];
-        document.querySelectorAll('td, [data-listing-id], [data-reso-value]').forEach(function(el) {
+        document.querySelectorAll('td, [data-listing-id], [data-cotality-value]').forEach(function(el) {
             if (el.offsetParent === null) return;
             var t = el.textContent.trim();
             if (t === 'undefined' || t === 'null' || t === 'NaN' || t === '$NaN' || t === '$undefined') problems.push('"' + t + '" in <' + el.tagName.toLowerCase() + '>');
@@ -1971,7 +1971,7 @@ function REBNYTestSuite(options) {
     var allowlist = safeSuiteCall(AllowlistLeakTests, { runActive: runActive, context: context }, 'allowlist');
     var searchCorr = safeSuiteCall(SearchCorrectnessTests, { runActive: runActive, context: context }, 'search_correctness');
     var secV2 = safeSuiteCall(SecurityHardeningV2Tests, { runActive: runActive, context: context }, 'security_v2');
-    var arp = safeSuiteCall(AccessibilityRESOPerfTests, { runActive: runActive, context: context }, 'a11y_reso_perf');
+    var arp = safeSuiteCall(AccessibilityCOTALITYPerfTests, { runActive: runActive, context: context }, 'a11y_cotality_perf');
     var regression = safeSuiteCall(MutationRegressionTests, { runActive: runActive, context: context }, 'regression');
 
     // ── STRICT INTEGRITY v2.0: Teardown guards, then run integrity checks ──
@@ -1993,7 +1993,7 @@ function REBNYTestSuite(options) {
         agent: typeof LOGGED_IN_AGENT !== 'undefined' ? LOGGED_IN_AGENT.name : 'unknown',
         suites: { wiring: wiring, behavior: behavior, compliance_core: doctor, compliance_extended: extended,
                   no_vow: noVow, allowlist: allowlist, search_correctness: searchCorr,
-                  security_v2: secV2, a11y_reso_perf: arp, regression: regression,
+                  security_v2: secV2, a11y_cotality_perf: arp, regression: regression,
                   strict_integrity: integrity, source_integrity: source },
         summary: { passed: tP, failed: tF, warnings: tW, skipped: skipped, total: tT }
     };
@@ -2091,8 +2091,8 @@ function showTestSuiteModal(report, initialTab) {
         { id: 'allowlist', label: 'Allowlist', icon: 'fa-filter', results: report.suites.allowlist.results, summary: report.suites.allowlist.summary },
         { id: 'search', label: 'Search+', icon: 'fa-search', results: report.suites.search_correctness.results, summary: report.suites.search_correctness.summary },
         { id: 'hardening', label: 'Hardening', icon: 'fa-lock',
-            results: report.suites.security_v2.results.concat(report.suites.a11y_reso_perf.results).concat(report.suites.regression.results),
-            summary: { passed: report.suites.security_v2.summary.passed + report.suites.a11y_reso_perf.summary.passed + report.suites.regression.summary.passed, failed: report.suites.security_v2.summary.failed + report.suites.a11y_reso_perf.summary.failed + report.suites.regression.summary.failed, warnings: (report.suites.security_v2.summary.warnings||0) + (report.suites.a11y_reso_perf.summary.warnings||0) + (report.suites.regression.summary.warnings||0), total: report.suites.security_v2.summary.total + report.suites.a11y_reso_perf.summary.total + report.suites.regression.summary.total } },
+            results: report.suites.security_v2.results.concat(report.suites.a11y_cotality_perf.results).concat(report.suites.regression.results),
+            summary: { passed: report.suites.security_v2.summary.passed + report.suites.a11y_cotality_perf.summary.passed + report.suites.regression.summary.passed, failed: report.suites.security_v2.summary.failed + report.suites.a11y_cotality_perf.summary.failed + report.suites.regression.summary.failed, warnings: (report.suites.security_v2.summary.warnings||0) + (report.suites.a11y_cotality_perf.summary.warnings||0) + (report.suites.regression.summary.warnings||0), total: report.suites.security_v2.summary.total + report.suites.a11y_cotality_perf.summary.total + report.suites.regression.summary.total } },
         { id: 'integrity', label: 'Integrity', icon: 'fa-fingerprint',
             results: report.suites.strict_integrity.results.concat(report.suites.source_integrity.results),
             summary: { passed: report.suites.strict_integrity.summary.passed + report.suites.source_integrity.summary.passed, failed: report.suites.strict_integrity.summary.failed + report.suites.source_integrity.summary.failed, warnings: 0, total: report.suites.strict_integrity.summary.total + report.suites.source_integrity.summary.total } }
@@ -2149,7 +2149,7 @@ function showTestSuiteModal(report, initialTab) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // EXTENDED REBNY TEST SUITE v1.1 — 27 New Tests
 // No-VOW Drift (NV1-5) | Allowlist Leak (AL1-5) | Search Correctness (S1-4)
-// Security Hardening (X1-3) | A11Y + RESO + Perf (7) | Mutation/Regression (R1-3)
+// Security Hardening (X1-3) | A11Y + Cotality + Perf (7) | Mutation/Regression (R1-3)
 //
 // STRICT NO-SUBSTITUTE / NO-BYPASS ENFORCEMENT (v1.1)
 // ALL tests are binary PASS/FAIL only. No WARN status. No thresholds.
@@ -2325,7 +2325,7 @@ function StrictIntegrityTests(options) {
     (function() {
         var FORBIDDEN = ['autoFix','repair\\(','fallback\\(','normalize\\(','coerce\\(','defaultValue','fixStatus','patchData','correctField','healData','maskError','hideError','gracefulDeg','tolerateErr','softPass','softFail'];
         var FORBIDDEN_RX = new RegExp('\\b(' + FORBIDDEN.join('|') + ')', 'i');
-        var TEST_FNS = ['NoVOWDriftTests','AllowlistLeakTests','SearchCorrectnessTests','SecurityHardeningV2Tests','AccessibilityRESOPerfTests','MutationRegressionTests','REBNYComplianceDoctor','REBNYWiringTest','REBNYBehaviorTest','REBNYComplianceExtended'];
+        var TEST_FNS = ['NoVOWDriftTests','AllowlistLeakTests','SearchCorrectnessTests','SecurityHardeningV2Tests','AccessibilityCOTALITYPerfTests','MutationRegressionTests','REBNYComplianceDoctor','REBNYWiringTest','REBNYBehaviorTest','REBNYComplianceExtended'];
         var violations = [];
         TEST_FNS.forEach(function(fn) {
             if (typeof window[fn] === 'function') {
@@ -2391,7 +2391,7 @@ function StrictIntegrityTests(options) {
 
     // INT-06: No conditional skip-to-pass logic in test source
     (function() {
-        var TEST_FNS = ['NoVOWDriftTests','AllowlistLeakTests','SearchCorrectnessTests','SecurityHardeningV2Tests','AccessibilityRESOPerfTests','MutationRegressionTests','REBNYComplianceDoctor','REBNYWiringTest','REBNYBehaviorTest','REBNYComplianceExtended'];
+        var TEST_FNS = ['NoVOWDriftTests','AllowlistLeakTests','SearchCorrectnessTests','SecurityHardeningV2Tests','AccessibilityCOTALITYPerfTests','MutationRegressionTests','REBNYComplianceDoctor','REBNYWiringTest','REBNYBehaviorTest','REBNYComplianceExtended'];
         var violations = [];
         // Forbidden: if (!x) { ... 'PASS' ... return; }  or  if (!x) return 'PASS'
         var skipPassRx = /if\s*\(\s*![\w.]+\s*\)\s*\{[^}]*'PASS'[^}]*return/;
@@ -2879,8 +2879,8 @@ function SecurityHardeningV2Tests(options) {
     return { mode: 'security_v2', results: results, summary: { passed: passed, failed: failed, warnings: warnings, total: results.length } };
 }
 
-// ─── COMBINED: A11Y + RESO + PERF (7) ─────────────────────────────────────
-function AccessibilityRESOPerfTests(options) {
+// ─── COMBINED: A11Y + Cotality + PERF (7) ─────────────────────────────────────
+function AccessibilityCOTALITYPerfTests(options) {
     options = options || {};
     var runActive = options.runActive || false;
     var results = [], passed = 0, failed = 0, warnings = 0;
@@ -2949,9 +2949,9 @@ function AccessibilityRESOPerfTests(options) {
             unlabeled === 0 ? total + ' inputs, all labeled' : total + ' inputs, ' + unlabeled + ' UNLABELED: ' + unlabeledList.join(' | '));
     })();
 
-    // RESO1: Field type coercion (numeric fields are numbers)
+    // Cotality1: Field type coercion (numeric fields are numbers)
     (function() {
-        if (typeof listings === 'undefined' || listings.length === 0) { addResult('RESO1', 'Field Type Coercion', 'FAIL', 'listings undefined or empty — required test data missing'); return; }
+        if (typeof listings === 'undefined' || listings.length === 0) { addResult('Cotality1', 'Field Type Coercion', 'FAIL', 'listings undefined or empty — required test data missing'); return; }
         var issues = [];
         var numericFields = ['price','beds','baths','sqft','daysOnMarket','pricePerSqft','lotSize','stories','units','garageSpaces'];
         listings.forEach(function(l, idx) {
@@ -2962,13 +2962,13 @@ function AccessibilityRESOPerfTests(options) {
                 }
             });
         });
-        addResult('RESO1', 'Field Type Coercion', issues.length === 0 ? 'PASS' : 'FAIL',
+        addResult('Cotality1', 'Field Type Coercion', issues.length === 0 ? 'PASS' : 'FAIL',
             issues.length === 0 ? 'All numeric fields valid across all ' + listings.length + ' listings' : issues.slice(0, 10).join('; '));
     })();
 
-    // RESO2: Required fields completeness
+    // Cotality2: Required fields completeness
     (function() {
-        if (typeof listings === 'undefined' || listings.length === 0) { addResult('RESO2', 'Required Fields', 'FAIL', 'listings undefined or empty — required test data missing'); return; }
+        if (typeof listings === 'undefined' || listings.length === 0) { addResult('Cotality2', 'Required Fields', 'FAIL', 'listings undefined or empty — required test data missing'); return; }
         var coreRequired = ['id','address','price','status','beds','baths','neighborhood'];
         var extended = ['borough','listingCategory'];
         var coreViolations = [];
@@ -2981,13 +2981,13 @@ function AccessibilityRESOPerfTests(options) {
                 if (l[f] === undefined || l[f] === null || l[f] === '') extViolations.push('L-' + l.id + '.' + f);
             });
         });
-        addResult('RESO2', 'Required Fields', coreViolations.length === 0 ? 'PASS' : 'FAIL',
+        addResult('Cotality2', 'Required Fields', coreViolations.length === 0 ? 'PASS' : 'FAIL',
             coreViolations.length === 0 ? listings.length + ' listings, all ' + coreRequired.length + ' core fields present' + (extViolations.length > 0 ? ' (' + extViolations.length + ' extended missing)' : '') : coreViolations.length + ' core field violations: ' + coreViolations.slice(0, 10).join(', '));
     })();
 
-    // RESO3: Enumeration enforcement
+    // Cotality3: Enumeration enforcement
     (function() {
-        if (typeof listings === 'undefined') { addResult('RESO3', 'Enum Enforcement', 'FAIL', 'listings undefined — required test data missing'); return; }
+        if (typeof listings === 'undefined') { addResult('Cotality3', 'Enum Enforcement', 'FAIL', 'listings undefined — required test data missing'); return; }
         var validStatuses = ['Active','Pending','Closed','ComingSoon','Coming Soon','Withdrawn','Expired','Canceled','Hold','Incomplete','ActiveUnderContract',
             'ACTIVE','PENDING','CLOSED','COMING_SOON','COMINGSOON','WITHDRAWN','EXPIRED','CANCELED','HOLD','INCOMPLETE','ACTIVE_UNDER_CONTRACT'];
         var validBoroughs = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island','The Bronx'];
@@ -2998,7 +2998,7 @@ function AccessibilityRESOPerfTests(options) {
             if (l.borough && validBoroughs.indexOf(l.borough) === -1) issues.push('Borough:"' + l.borough + '" L-' + l.id);
             if (l.listingCategory && validCategories.indexOf(l.listingCategory) === -1) issues.push('Category:"' + l.listingCategory + '" L-' + l.id);
         });
-        addResult('RESO3', 'Enum Enforcement', issues.length === 0 ? 'PASS' : 'FAIL',
+        addResult('Cotality3', 'Enum Enforcement', issues.length === 0 ? 'PASS' : 'FAIL',
             issues.length === 0 ? 'All status/borough/category enums valid across ' + listings.length + ' listings' : issues.slice(0, 5).join('; '));
     })();
 
@@ -3025,7 +3025,7 @@ function AccessibilityRESOPerfTests(options) {
             '50 filter+sort cycles in ' + ms + 'ms (avg ' + avg + 'ms, hard limit: 50ms/cycle)');
     })();
 
-    return { mode: 'a11y_reso_perf', results: results, summary: { passed: passed, failed: failed, warnings: warnings, total: results.length } };
+    return { mode: 'a11y_cotality_perf', results: results, summary: { passed: passed, failed: failed, warnings: warnings, total: results.length } };
 }
 
 // ─── R: MUTATION / REGRESSION TESTS (3) ────────────────────────────────────
@@ -3150,7 +3150,7 @@ document.addEventListener('DOMContentLoaded', function() {
     ['performSearch','collectSearchCriteria','filterListings','initializeSearchResults',
      'renderSearchResults','showSearchSection','toggleSearchTab','backToSearch','renderManageSection','toggleManageMode','toggleManageView','renderManageCards','toggleOHOverview','renderOHOverview',
      'clearSearchForm','updateResultsCount','getFilteredListings','REBNYComplianceDoctor','REBNYWiringTest','REBNYBehaviorTest','REBNYComplianceExtended','REBNYTestSuite',
-     'NoVOWDriftTests','AllowlistLeakTests','SearchCorrectnessTests','SecurityHardeningV2Tests','AccessibilityRESOPerfTests','MutationRegressionTests',
+     'NoVOWDriftTests','AllowlistLeakTests','SearchCorrectnessTests','SecurityHardeningV2Tests','AccessibilityCOTALITYPerfTests','MutationRegressionTests',
      'StrictIntegrityTests','SourceIntegrityTests','setupStrictGuards','teardownStrictGuards','markFallbackUsed','computeDatasetHash','safeSuiteCall'].forEach(function(fn) {
         if (typeof window[fn] !== 'function') missing.push(fn);
     });

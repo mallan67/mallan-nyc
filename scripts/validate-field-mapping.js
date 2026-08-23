@@ -60,9 +60,9 @@ if (exMatch) {
   while ((m = exRe.exec(exMatch[1])) !== null) excludedFields.add(m[1]);
 }
 
-// Extract RESO_TO_RLS_RENAMES
+// Extract COTALITY_TO_RLS_RENAMES
 const renames = {};
-const renameMatch = mapperSrc.match(/RESO_TO_RLS_RENAMES[^{]*\{([\s\S]*?)\}/);
+const renameMatch = mapperSrc.match(/COTALITY_TO_RLS_RENAMES[^{]*\{([\s\S]*?)\}/);
 if (renameMatch) {
   const renRe = /['"](\w+)['"]\s*:\s*['"](\w+)['"]/g;
   while ((m = renRe.exec(renameMatch[1])) !== null) renames[m[1]] = m[2];

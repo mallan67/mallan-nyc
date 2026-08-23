@@ -145,8 +145,8 @@ export function normalizeAddressKey(parts: {
   return key;
 }
 
-/** Case-tolerant RESO street parts from a stored listing `address` JSON. CRM/local listings persist
- *  the address in RESO **PascalCase** (`StreetNumber`/`StreetName`/`UnitNumber`…), while some legacy
+/** Case-tolerant Cotality street parts from a stored listing `address` JSON. CRM/local listings persist
+ *  the address in Cotality **PascalCase** (`StreetNumber`/`StreetName`/`UnitNumber`…), while some legacy
  *  rows use camelCase. Reading only one casing produced an EMPTY address for CRM listings, which the
  *  open-house `hasData` filter then dropped — the SL-0007 P1 bug. Shared by the public open-house
  *  route (display address) and the local banner path (address-key). Returns '' per missing part. */
@@ -168,7 +168,7 @@ export function pickAddressParts(address: unknown): {
     return '';
   };
   return {
-    // Canonical RESO PascalCase FIRST; camelCase only as a legacy fallback. The CRM PATCH merges new
+    // Canonical Cotality PascalCase FIRST; camelCase only as a legacy fallback. The CRM PATCH merges new
     // PascalCase keys over the existing address JSON without deleting old camelCase keys
     // (app/api/crm/listings/[id]/route.ts), so a mixed row can carry both — the PascalCase value is
     // the current one. camelCase-first would surface the stale value (Codex #463).
