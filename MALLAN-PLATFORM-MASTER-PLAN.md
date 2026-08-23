@@ -16,6 +16,257 @@
 
 ---
 
+# 0. WORKING WITH THE COTALITY API
+
+> Everything in this section was read from the live API. Re-derive from the API,
+> never from this text, a CSV, a captured file or a prior audit. Where this text and
+> the API disagree, the API is right and this text is stale.
+
+## 0.1 The connection
+
+```text
+host      https://api.cotality.com
+service   https://api.cotality.com/trestle/odata        OData v4
+token     POST https://api.cotality.com/trestle/oidc/connect/token
+          grant_type=client_credentials  scope=api
+issuer    https://api.cotality.com        audience  .../resources
+lifetime  28,800 s (8 h)   role API   scopes offered: api, rets, offline_access
+```
+
+Only `scope=api` issues a token; `rets` and `offline_access` are advertised and refused.
+There is one licence on this credential and no second tier:
+
+```text
+GET /odata/DataSystem
+  ID    Trestle-11371-20
+  Name  IDX Plus feed for Mallan Real Estate Inc
+  DD    2.0        Transport 1.0.0
+```
+
+`DataSystem` is the entitlement record and the first thing to read. Comparing it with
+the service document is diagnostic: 18 entity sets advertised, 16 provisioned.
+
+## 0.2 The API documents itself — do not maintain a local dictionary
+
+| Resource | Rows | What it gives you |
+|---|---:|---|
+| `Field` | 2,246 | every field: resource, name, display name, **definition**, type, length, backing lookup |
+| `Lookup` | 191,323 | every permitted picklist value, **with definitions** |
+| `Model` | 17 | the resource models |
+| `DataSystem` | 1 | this licence and its provisioned resources |
+
+`Field` and `Lookup` are the **platform-wide** catalogue shared across every MLS on
+Trestle — 336 different `SystemReferences` appear in them. **`$metadata` is what THIS
+licence serves.** Use `$metadata` for what Mallan has; use `Field`/`Lookup` for
+definitions, display names and vocabularies.
+
+A tag such as `RLS` inside `SystemReferences` is one tenant marker among 336 and is NOT
+a selector for Mallan's fields. Filtering the dictionary by it returns 534 of 2,246 rows
+and silently drops the 1,068 that carry no tag at all — which are precisely the
+normalized fields. Do not select fields that way.
+
+## 0.3 What this licence actually serves
+
+| Resource | Fields | Rows | Notes |
+|---|---:|---:|---|
+| Property | 757 | 591,229 | the hub; 14 navigation targets |
+| CustomProperty | 142 | 591,271 | local extension, joins on `ListingKey` |
+| Media | 56 | 1,978,482 | joins on `ResourceRecordKey` |
+| Member | 91 | 11,152 | |
+| Office | 80 | 575 | |
+| OpenHouse | 47 | 2,721 | |
+| PropertyUnitTypes | 52 | 1 | effectively unpopulated |
+| PropertyRooms | 39 | 86 | effectively unpopulated |
+| Field / Lookup / Model | 15 / 15 / 8 | 2,246 / 191,323 / 17 | self-description |
+| **Building** | **1** | — | **stub: `BuildingKey` only**, 403 direct |
+
+Provisioned but not working, three distinct faults:
+
+| Resource | HTTP | Provider message | Cause |
+|---|---|---|---|
+| Building | 403 | `Resource ... Building not available` | entitlement |
+| HistoryTransactional, Teams, TeamMembers | 400 | `No OriginatingSystemNames available for querying` | configuration |
+| PropertyGreenVerification | 404 | `Page not found` | not served |
+| Enumeration | 404 | advertised, not provisioned | expected |
+
+## 0.4 Identity — five levels, and none of them is BuildingKey
+
+```text
+LISTING     ListingKey        String(20)  NOT NULL   the provider primary key
+            ListingId         RLS20110644            provider-assigned, prefixed
+            SourceSystemKey   String(255) NULLABLE    upstream id, never an identity
+UNIT        CLIP              539,188                Cotality property id
+            ParcelNumber      380,474                block-lot form
+            UniversalPropertyId 380,468
+BUILDING    TaxBlock          591,229  (100%)        + TaxLot 266,520  = BBL
+            BuildingName      220,923                where named
+BLOCK       TaxBlock alone
+PROVENANCE  OriginatingSystemName     "RLS"          where the record came from
+            OriginatingSystemSubName  "RLS_REBNY"    NOT a schema, NOT a selector
+            SourceSystemID            "TRESTLE"
+```
+
+**`BuildingKey` is a dead end.** It is the join key to a resource that is an empty stub
+in this licence, it is null on every row, and it is rejected for filtering. Building
+identity is `TaxBlock` + `TaxLot`, cross-checked with `BuildingName` and street address.
+Measured on one building: address components grouped 45 units, `BuildingName` grouped 50.
+Use both; neither alone is complete.
+
+## 0.5 THERE IS NO GEOGRAPHY IN THIS FEED
+
+`Latitude`, `Longitude`, `MapCoordinate`, `MapCoordinateSource`, `MapURL`,
+`MLSAreaMajor`, `MLSAreaMinor` are declared in `$metadata`, **null on every row**, and
+rejected for filtering.
+
+**Mallan creates its own geography and Search depends on it.** Neighborhood polygons,
+centroids, geocoding and any map, radius or polygon search are Mallan-owned and must be
+built and maintained here. The provider supplies `SubdivisionName` (591,229, filterable)
+and address components; everything spatial is derived by Mallan from those.
+
+This is not a gap to work around later. It is a permanent property of the feed.
+
+## 0.6 Filter capability is narrower than the data
+
+The critical distinction: **`$select` returns data that `$filter` refuses.**
+
+| Resource | Fields | Filterable | With data | Unavailable to filter |
+|---|---:|---:|---:|---:|
+| Property | 757 | 536 | 312 | 175 suppressed + 46 |
+| OpenHouse | 47 | 27 | 23 | 16 |
+| CustomProperty | 142 | 44 | 11 | 91 |
+| Media | 56 | 17 | 7 | 39 |
+| Member | 91 | 13 | 7 | 76 |
+| **Office** | 80 | **0** | 0 | 80 |
+
+Office, Member, Media and CustomProperty all return complete rows on `$select` —
+office names, MLS ids, agent names and emails, media URLs. **The data is available; only
+querying by it is blocked.**
+
+### Consequence for the two Search products
+
+```text
+BACKEND AGENT SEARCH   everything is available.
+                       Where the API refuses a filter, retrieve with $select and
+                       apply the criterion in Mallan's layer. Never drop it.
+
+PUBLIC SEARCH          the suppressed set is what the public may receive.
+                       Public restriction is applied by Mallan, on top.
+```
+
+Both IDX display gates — `InternetEntireListingDisplayYN` and `InternetAddressDisplayYN`
+— are refused for filtering on Property, so the provider cannot gate for Mallan. Every
+display decision happens in Mallan's layer after retrieval. A Search design that assumes
+provider-side gating silently returns listings that must not be shown.
+
+`InternetEntireListingDisplayYN` IS filterable on **Media** (1,694,011 true / 284,409
+false), which is a usable path where Property refuses it.
+
+## 0.7 Suppression, classified
+
+175 Property fields are suppressed. They are not one thing:
+
+| Class | Count | Assessment |
+|---|---:|---|
+| Buyer-side (`BuyerAgent*`, `CoBuyer*`, `BuyerBrokerage*`) | 72 | expected for a public IDX product |
+| Rural / agricultural (`DistanceTo*`, `Grazing*`, `Crops*`, `Farm*`) | 59 | irrelevant to NYC; unresolved configuration |
+| **Genuine problem set** | **44** | must be available to backend Agent Search |
+
+The 44 include `DaysOnMarket`, `CumulativeDaysOnMarket`, `DaysOnMarketReplication*`,
+`Disclosures`, `CopyrightNotice`, `MlsStatus`, `PreviousStandardStatus`,
+`PropertyCondition`, `OccupantType`, `SourceSystemKey`, the display gates and the
+geography fields.
+
+A further **197 non-rural fields are filterable but null on every row** —
+`AssociationAmenities`, `DocumentsAvailable`, `Contingency`, `DelayedMarketingYN`,
+`AttributionContact`, `Disclaimer`, `CommonWalls` among them. Configured, queryable,
+empty.
+
+`DaysOnMarket` and `CumulativeDaysOnMarket` are additionally **null on every row** while
+`OnMarketDate` is populated. REBNY UCBA Art. I §11 requires 30-day DOM tracking, so
+Mallan derives DOM from `OnMarketDate` and does not rely on the provider fields.
+
+## 0.8 Picklist strings — the failure that returns nothing
+
+Every `Lookup` row carries the value in up to four forms, and they are not
+interchangeable. Of 172,507 values, **28,740 differ between them**.
+
+| Column | Purpose | Example |
+|---|---|---|
+| `LookupValue` | **the query string** | `WheelchairAccess` |
+| `LegacyODataValue` | equals `LookupValue` in practice | `WheelchairAccess` |
+| `StandardLookupValue` | **the display string** | `Wheelchair Access` |
+| `OdataOverride` | replaces the query string where present (3 values) | `St Antoine` |
+
+```text
+Permission has 'SyndicateOptOut'    -> 9,436 rows
+Permission has 'Syndicate Opt Out'  -> HTTP 400, string is not valid
+```
+
+Display `StandardLookupValue`; query `LookupValue`. Sending the display form is a hard
+400, not an empty result, so a UI built on it fails on every picklist containing spaces.
+
+## 0.9 Query mechanics, verified
+
+| Capability | State |
+|---|---|
+| `eq` `ne` `and` `or` | supported |
+| `ge` `le` on Number, Date, Timestamp | supported |
+| `contains()` `startswith()` on String | supported |
+| `has` on multi-select, **bare value** | supported |
+| `contains()` / `any()` on multi-select | rejected, HTTP 400 |
+| `$orderby` single and multi-key | supported |
+| `$expand` Media, OpenHouse, CustomProperty, ListAgent, ListOffice, Rooms, UnitTypes | supported |
+| `$expand` Building | accepted, returns nothing |
+| `$top` to 5000, `$skip`, `@odata.nextLink` | supported |
+| incremental: `ModificationTimestamp gt <iso>` | supported (Property and Media) |
+| replication ordering: `$orderby=ModificationTimestamp,ListingKey` | supported |
+
+## 0.10 Status — two independent enums
+
+`StandardStatus` (11 values) and `MlsStatus` (25) are separate fields. Neither is derived
+from the other. **The same label carries a different integer code in each** — Canceled 2
+vs 4, Closed 3 vs 6, Pending 9 vs 16, Withdrawn 10 vs 24 — so substituting one for the
+other corrupts the value even when the string matches. `StandardStatus` filters and
+orders; `MlsStatus` does neither.
+
+## 0.11 Media
+
+1,978,482 rows, joined to a listing by `ResourceRecordKey` (100% populated). Verified:
+a listing with `PhotosCount` 16 returns exactly 16 Media rows.
+
+| Category | Rows | With a URL |
+|---|---:|---:|
+| Photo | 1,396,097 | 527,271 |
+| FloorPlan | 582,384 | 38,601 |
+| Video, Document, Other, VirtualTour | 0 | 0 |
+
+All rows are `MediaStatus = Active`. **Only 28.6% carry a URL** — a media row is not a
+retrievable asset, and code must handle the majority that are not.
+
+## 0.12 The route — how to establish any of this again
+
+```text
+1  POST /trestle/oidc/connect/token          scope=api
+2  GET  /odata/DataSystem                    the licence and its resources
+3  GET  /odata/                              what the service advertises
+4  GET  /odata/$metadata                     what THIS licence serves
+5  GET  /odata/Field                         definitions, display names, lookups
+6  GET  /odata/Lookup?$filter=LookupName eq 'X'   the permitted values
+7  PROBE each field:  $top=0&$count=true&$filter=<field> ne null
+       -> SUPPORTED / PROVIDER_REJECTED / UNVERIFIED. Never collapse them.
+       An HTTP error is not zero rows.
+8  Record the result here.
+```
+
+Traps already paid for:
+
+- `$metadata` and the `Field` resource disagree — `Nucleus_RecordDeleteFlag` is in one
+  and not the other. A field is real only when a query for it succeeds.
+- Provisioned is not available; declared is not permitted; **accepted is not populated**
+  — `$expand=Building` returns 200 and no data.
+- Page to exhaustion. A cap makes a partial answer look complete.
+
+---
 # 1. ONE MALLAN OPERATING SYSTEM
 
 Mallan is the operating system of a New York City real-estate brokerage.
@@ -678,273 +929,6 @@ Every criterion is either:
 Never render a control that is silently ignored or silently broadens/narrows Search.
 
 Unsupported criteria fail visibly and specifically.
-
-### 5.5.1 Verified Cotality Search contract
-
-> Read directly from the live Cotality API. Everything below is provider-answered, not
-> inferred from a snapshot, a CSV or a repo constant. If this text and the API ever
-> disagree, re-derive from the API — never the reverse.
-
-**Mallan's field surface is defined by the provider, not by a local list.** The Cotality
-`Field` resource is self-describing: it publishes every field with its resource, type,
-length, display name, definition, backing lookup, and the `SystemReferences` list of the
-systems that carry it. Mallan's subset is the set carrying the `RLS` system reference — a
-Cotality-authored system code, not Mallan vocabulary.
-
-```text
-Cotality Field resource   -> which fields exist, their types and lookups
-Cotality Lookup resource  -> every permitted picklist value, with definitions
-live $metadata            -> resources, enums, relationships, nullability
-live probe                -> what is actually PERMITTED, which is narrower
-```
-
-**534 fields carry the RLS system reference**, across 13 resources (343 standard vocabulary, 191 local extensions):
-
-| Resource | Fields | | Resource | Fields |
-|---|---:|---|---|---:|
-| Property | 230 | | Field | 20 |
-| Building | 58 | | Lookup | 19 |
-| Member | 41 | | Model | 12 |
-| HistoryTransactional | 38 | | Custom_Property | 10 |
-| Office | 36 | | PropertyUnitTypes | 10 |
-| OpenHouse | 26 | | PropertyRooms | 10 |
-| Media | 24 | |  |  |
-
-`Custom_Property` is how the `Field` resource spells it; the OData entity set is
-`CustomProperty`. `Building` carries 58 fields and is reachable only through `$expand`.
-
-#### Property search surface
-
-Property declares 757 fields in `$metadata`. **230 of them carry the RLS
-system reference** — that, not the 757, is Mallan's Property surface.
-
-| Type | Count | Query operator | UI control |
-|---|---:|---|---|
-| Number | 37 | `ge` / `le` range, `eq` | numeric range control |
-| Date | 11 | `ge` / `le` range, `eq` | date range control |
-| Timestamp | 12 | `gt` / `ge` / `le` | changed-since control |
-| String | 94 | `eq`, `contains()`, `startswith()` | text control |
-| String List, Single | 30 | `eq` against the live lookup | single-select from lookup |
-| String List, Multi | 30 | `has` with a bare value (`eq` behaves identically) | multi-select from lookup |
-| Boolean | 16 | `eq true` / `eq false` — WHERE PERMITTED | toggle |
-
-Multi-select uses `has` with a **bare value** — `Appliances has 'Dishwasher'`.
-`contains()` and an `any()` lambda are both rejected with HTTP 400.
-
-#### Permitted is narrower than declared — verify, never assume
-
-A field appearing in `$metadata` or in the `Field` resource does **not** mean it can be
-queried. These are declared and refused at provider level:
-
-| Field | Declared | Filter | Order |
-|---|---|---|---|
-| `MlsStatus` | yes, 25 values | **refused** | **refused** |
-| `InternetEntireListingDisplayYN` | yes | **refused** | — |
-| `InternetAddressDisplayYN` | yes | **refused** | — |
-| `DaysOnMarketReplicationIncreasingYN` | yes | **refused** | — |
-| `Nucleus_RecordDeleteFlag` | in `Field` | **absent from `$metadata`** | — |
-
-**Consequence for Search, and it is structural:** the two IDX display gates cannot be
-applied in the query. Cotality will not filter them. Every display-gate decision therefore
-happens in Mallan's layer after retrieval, which is why the distribution gates and the
-public DTO exist. Any Search design that assumes provider-side gate filtering is wrong and
-will silently return listings that must not be shown.
-
-`InternetConsumerCommentYN` and `InternetAutomatedValuationDisplayYN` ARE filterable — the
-suppression is specific, not a blanket rule about display fields.
-
-#### Status: two independent enums, never interchangeable
-
-`StandardStatus` (11 values) and `MlsStatus` (25 values) are separate Property fields.
-They are not aliases and neither is generated from the other. The same label carries a
-**different integer code in each** — Canceled 2 vs 4, Closed 3 vs 6, Pending 9 vs 16,
-Withdrawn 10 vs 24 — so substituting one for the other corrupts the value even when the
-string matches. `StandardStatus` filters and orders; `MlsStatus` does neither.
-
-#### Verified query capability
-
-| Capability | State |
-|---|---|
-| `$filter` eq / ne / and / or | supported |
-| `$filter` ge / le on Number, Date, Timestamp | supported |
-| `$filter` `contains()` / `startswith()` on String | supported |
-| `$filter` `has` on multi-select, bare value | supported |
-| `$orderby` single and multi-key | supported |
-| `$expand` Media, OpenHouse, CustomProperty, ListAgent, ListOffice, Rooms, UnitTypes, Building | supported |
-| `$top` to 5000, `$skip`, `@odata.nextLink` | supported |
-
-#### Readable resources
-
-11 of 17 declared resources answer. Declaration is not permission:
-
-| Readable | Rows | | Refused | HTTP |
-|---|---:|---|---|---|
-| Property | 591,229 | | Building | 403 |
-| CustomProperty | 591,271 | | HistoryTransactional | 400 |
-| Media | 1,978,482 | | Teams | 400 |
-| Lookup | 191,323 | | TeamMembers | 400 |
-| Member | 11,152 | | PropertyGreenVerification | 404 |
-| OpenHouse | 2,721 | | Enumeration | 404 |
-| Field | 2,246 | | | |
-| Office | 575 | | | |
-| PropertyRooms | 86 | | | |
-| Model | 17 | | | |
-| PropertyUnitTypes | 1 | | | |
-
-`Building` refuses as a resource but its fields are reachable through `$expand` from
-Property. `PropertyRooms` and `PropertyUnitTypes` answer but are effectively unpopulated.
-
-#### Picklist vocabulary comes from the Lookup resource
-
-Permitted values are published by Cotality, with definitions. No local CSV or JSON may
-define, extend or override them. Property picklist sizes, live:
-
-| Lookup | Values | | Lookup | Values |
-|---|---:|---|---|---:|
-| PostalCity | 18,313 | | Appliances | 125 |
-| City | 7,370 | | RoomType | 114 |
-| CountyOrParish | 2,986 | | ArchitecturalStyle | 108 |
-| AOR | 810 | | ConstructionMaterials | 85 |
-| StreetSuffix | 286 | | View | 84 |
-| Country | 161 | | WaterfrontFeatures | 77 |
-| BusinessType | 139 | | BuildingFeatures | 73 |
-| CommunityFeatures | 136 | | StateOrProvince | 68 |
-| AssociationAmenities | 136 | | AssociationFeeIncludes | 61 |
-
-A single-select control is populated from its field's `LookupName`; a multi-select control
-from the same, queried with `has`.
-
-#### Every resource Mallan carries, and its shape
-
-Field counts and lookup counts are the provider's own, from the `Field` resource.
-
-| Resource | Fields | Lookups | Composition |
-|---|---:|---:|---|
-| `Property` | 230 | 69 | String 94, Number 37, Single 30, Multi 30, Boolean 16, Timestamp 12, Date 11 |
-| `Building` | 58 | 12 | String 27, Number 17, Single 9, Boolean 3, Timestamp 1, Multi 1 |
-| `Member` | 41 | 7 | String 31, Single 6, Number 2, Boolean 1, Multi 1 |
-| `HistoryTransactional` | 38 | 10 | String 21, Single 5, Multi 3, DateTime 3, Boolean 2, Number 2, Date 1, Timestamp 1 |
-| `Office` | 36 | 7 | String 25, Single 4, Number 4, Boolean 2, Multi 1 |
-| `OpenHouse` | 26 | 3 | String 17, Boolean 2, Single 2, Timestamp 2, Number 2, Date 1 |
-| `Media` | 24 | 5 | String 14, Single 4, Number 3, Boolean 2, Timestamp 1 |
-| `Field` | 20 | 0 | String 9, Number 5, Boolean 3, DateTime 2, Timestamp 1 |
-| `Lookup` | 19 | 0 | String 12, Boolean 2, Number 2, DateTime 2, Timestamp 1 |
-| `Model` | 12 | 0 | String 6, Number 2, DateTime 2, Boolean 1, Timestamp 1 |
-| `Custom_Property` | 10 | 1 | String 6, Number 3, Multi 1 |
-| `PropertyUnitTypes` | 10 | 0 | String 6, Number 3, Boolean 1 |
-| `PropertyRooms` | 10 | 0 | String 6, Number 3, Boolean 1 |
-
-`Field`, `Lookup` and `Model` are the API describing itself. `Custom_Property` is the
-`Field` resource's spelling; the entity set is `CustomProperty`.
-
-#### Picklist string forms — get this wrong and Search silently returns nothing
-
-Each `Lookup` row carries the same value in up to four forms. **They are not
-interchangeable.** Across the 172,507 values Mallan's fields reference, **28,740 have a
-`StandardLookupValue` that differs from `LookupValue`** — roughly one in six.
-
-| Column | Purpose | Example |
-|---|---|---|
-| `LookupValue` | **the query string** — what goes in `$filter` | `WheelchairAccess` |
-| `LegacyODataValue` | equals `LookupValue` in practice | `WheelchairAccess` |
-| `StandardLookupValue` | **the display string** — what a person reads | `Wheelchair Access` |
-| `OdataOverride` | replaces the query string where present (rare — 3 values) | `St Antoine` |
-| `Definition` | the provider's own definition of the value | prose |
-
-Verified live:
-
-```text
-AccessibilityFeatures has 'WheelchairAccess'    -> 4,479 rows
-AccessibilityFeatures has 'Wheelchair Access'   -> HTTP 400, string is not valid
-Permission has 'SyndicateOptOut'                -> 9,436 rows
-Permission has 'Syndicate Opt Out'              -> HTTP 400, string is not valid
-```
-
-**Rule.** Display `StandardLookupValue`. Query `LookupValue` (or `OdataOverride` when it
-is present). Never send the display form to the API — it is a hard 400, not an empty
-result, so a UI built on the display string fails on every picklist that has spaces.
-
-#### How to reproduce all of this — the route for the next agent
-
-Nothing above should ever be re-derived from a repo file, a CSV or a prior audit. The
-provider publishes it, and the procedure is short:
-
-```text
-1  AUTHENTICATE
-     POST {BASE}/oidc/connect/token
-     grant_type=client_credentials, scope=api
-     BASE = https://api.cotality.com/trestle
-
-2  READ THE LICENCE — what is provisioned
-     GET /odata/DataSystem
-     -> ID, Name, DataDictionaryVersion, Resources[]
-     This is the entitlement. Compare it to GET /odata/ (service document);
-     the two disagree, and the difference is diagnostic.
-
-3  READ THE FIELD DICTIONARY — what fields exist
-     GET /odata/Field?$filter=contains(SystemReferences,'RLS')
-     -> ResourceName, FieldName, DisplayName, Type, Length, LookupName,
-        RESOStandardYN, Definition
-     RLS is a Cotality SYSTEM CODE identifying the listing service, not
-        Mallan vocabulary. It is how Mallan's subset is selected.
-     Page with $top/$skip to exhaustion. Do not cap.
-
-4  READ THE VOCABULARY — what values are permitted
-     GET /odata/Lookup?$filter=LookupName eq '<name>'
-     -> LookupValue, StandardLookupValue, LegacyODataValue,
-        OdataOverride, Definition
-     One request per LookupName. Page to exhaustion.
-
-5  PROBE CAPABILITY — declaration is not permission
-     For each field the UI intends to query:
-       GET /odata/{Resource}?$top=0&$count=true&$filter=<candidate>
-     Record SUPPORTED / PROVIDER_REJECTED / UNVERIFIED.
-     Never collapse the three. An HTTP error is not zero rows.
-
-6  RECORD THE RESULT HERE
-     Findings belong in this document so the next agent starts from
-     evidence rather than repeating the discovery.
-```
-
-Two traps that have already cost time:
-
-- **`$metadata` and the `Field` resource disagree.** `Nucleus_RecordDeleteFlag` appears in
-  `Field` and is absent from `$metadata`. Neither is wholly authoritative; a field is real
-  only when a query for it succeeds.
-- **Provisioned does not mean available.** The licence lists 16 resources; 5 of them fail,
-  for three different reasons. See the resource table above.
-#### Search skeleton
-
-```text
-MALLAN CANONICAL CRITERION
-  |
-  |  Field resource: resource + FieldName + Type + LookupName
-  v
-COTALITY FIELD IDENTITY    (resource-qualified; a bare name is not an identity)
-  |
-  |  Type -> operator, per the table above
-  v
-OPERATOR + VALUE           (picklist values from the Lookup resource)
-  |
-  |  permitted? -> live probe, not declaration
-  v
-SUPPORTED ---------------- emit into $filter / $orderby
-REFUSED   ---------------- fail visibly; never drop the criterion
-  |
-  v
-COTALITY RESULT
-  |
-  |  gates that cannot be queried are applied HERE
-  v
-MALLAN DISPLAY / COMPLIANCE GATE
-  |
-  v
-RESULT TO CONSUMER
-```
-
-Dropping a criterion the provider refuses is prohibited: it widens the search while still
-returning HTTP 200, so a narrow professional question is answered broadly with nothing to
-indicate it. That is worse than the visible failure it replaces.
 
 ## 5.6 Correct Search ordering
 
