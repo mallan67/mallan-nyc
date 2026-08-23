@@ -3,14 +3,15 @@
   "verificationState": "VERIFIED_LIVE",
   "derivedFrom": "data/cotality-contract.live.json",
   "liveSource": "https://api.cotality.com/trestle/odata/$metadata",
-  "livePulledAt": "2026-08-23T08:13:21.091Z",
+  "livePulledAt": "2026-08-23T08:28:49.102Z",
+  "liveRunId": "7c49bd12-f37a-4228-926d-d7b39d20a79b",
   "resources": [
     "Property",
     "Media"
   ],
   "fieldCount": 70,
   "fields": {
-    "ActivationDate": {
+    "Property.ActivationDate": {
       "kind": "primitive",
       "type": "Edm.Date",
       "collection": false,
@@ -18,9 +19,10 @@
       "maxLength": "10",
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "ActivationDate"
     },
-    "AssociationAmenities": {
+    "Property.AssociationAmenities": {
       "kind": "enum",
       "enumType": "AssociationAmenities",
       "multi": true,
@@ -29,9 +31,10 @@
       "precision": null,
       "scale": null,
       "resource": "Property",
+      "field": "AssociationAmenities",
       "memberCount": 137
     },
-    "AssociationFee": {
+    "Property.AssociationFee": {
       "kind": "primitive",
       "type": "Edm.Decimal",
       "collection": false,
@@ -39,9 +42,10 @@
       "maxLength": null,
       "precision": "14",
       "scale": "2",
-      "resource": "Property"
+      "resource": "Property",
+      "field": "AssociationFee"
     },
-    "BathroomsFull": {
+    "Property.BathroomsFull": {
       "kind": "primitive",
       "type": "Edm.Int32",
       "collection": false,
@@ -49,9 +53,10 @@
       "maxLength": null,
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "BathroomsFull"
     },
-    "BathroomsHalf": {
+    "Property.BathroomsHalf": {
       "kind": "primitive",
       "type": "Edm.Int32",
       "collection": false,
@@ -59,9 +64,10 @@
       "maxLength": null,
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "BathroomsHalf"
     },
-    "BathroomsTotalInteger": {
+    "Property.BathroomsTotalInteger": {
       "kind": "primitive",
       "type": "Edm.Int32",
       "collection": false,
@@ -69,9 +75,10 @@
       "maxLength": null,
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "BathroomsTotalInteger"
     },
-    "BedroomsTotal": {
+    "Property.BedroomsTotal": {
       "kind": "primitive",
       "type": "Edm.Int32",
       "collection": false,
@@ -79,9 +86,10 @@
       "maxLength": null,
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "BedroomsTotal"
     },
-    "BuildingAreaTotal": {
+    "Property.BuildingAreaTotal": {
       "kind": "primitive",
       "type": "Edm.Decimal",
       "collection": false,
@@ -89,9 +97,10 @@
       "maxLength": null,
       "precision": "14",
       "scale": "2",
-      "resource": "Property"
+      "resource": "Property",
+      "field": "BuildingAreaTotal"
     },
-    "BuildingName": {
+    "Property.BuildingName": {
       "kind": "primitive",
       "type": "Edm.String",
       "collection": false,
@@ -99,9 +108,10 @@
       "maxLength": "50",
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "BuildingName"
     },
-    "CloseDate": {
+    "Property.CloseDate": {
       "kind": "primitive",
       "type": "Edm.Date",
       "collection": false,
@@ -109,9 +119,10 @@
       "maxLength": "10",
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "CloseDate"
     },
-    "ClosePrice": {
+    "Property.ClosePrice": {
       "kind": "primitive",
       "type": "Edm.Decimal",
       "collection": false,
@@ -119,9 +130,10 @@
       "maxLength": null,
       "precision": "14",
       "scale": "2",
-      "resource": "Property"
+      "resource": "Property",
+      "field": "ClosePrice"
     },
-    "CommonInterest": {
+    "Property.CommonInterest": {
       "kind": "enum",
       "enumType": "CommonInterest",
       "multi": false,
@@ -130,9 +142,10 @@
       "precision": null,
       "scale": null,
       "resource": "Property",
+      "field": "CommonInterest",
       "memberCount": 13
     },
-    "Cooling": {
+    "Property.Cooling": {
       "kind": "enum",
       "enumType": "Cooling",
       "multi": true,
@@ -141,9 +154,10 @@
       "precision": null,
       "scale": null,
       "resource": "Property",
+      "field": "Cooling",
       "memberCount": 41
     },
-    "CrossStreet": {
+    "Property.CrossStreet": {
       "kind": "primitive",
       "type": "Edm.String",
       "collection": false,
@@ -151,9 +165,10 @@
       "maxLength": "50",
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "CrossStreet"
     },
-    "CumulativeDaysOnMarket": {
+    "Property.CumulativeDaysOnMarket": {
       "kind": "primitive",
       "type": "Edm.Int32",
       "collection": false,
@@ -161,9 +176,10 @@
       "maxLength": null,
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "CumulativeDaysOnMarket"
     },
-    "DaysOnMarket": {
+    "Property.DaysOnMarket": {
       "kind": "primitive",
       "type": "Edm.Int32",
       "collection": false,
@@ -171,9 +187,10 @@
       "maxLength": null,
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "DaysOnMarket"
     },
-    "EntryLevel": {
+    "Property.EntryLevel": {
       "kind": "primitive",
       "type": "Edm.Int32",
       "collection": false,
@@ -181,9 +198,10 @@
       "maxLength": null,
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "EntryLevel"
     },
-    "Exposures": {
+    "Property.Exposures": {
       "kind": "enum",
       "enumType": "Exposures",
       "multi": true,
@@ -192,9 +210,10 @@
       "precision": null,
       "scale": null,
       "resource": "Property",
+      "field": "Exposures",
       "memberCount": 9
     },
-    "FireplaceYN": {
+    "Property.FireplaceYN": {
       "kind": "primitive",
       "type": "Edm.Boolean",
       "collection": false,
@@ -202,9 +221,10 @@
       "maxLength": null,
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "FireplaceYN"
     },
-    "FireplacesTotal": {
+    "Property.FireplacesTotal": {
       "kind": "primitive",
       "type": "Edm.Int32",
       "collection": false,
@@ -212,9 +232,10 @@
       "maxLength": null,
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "FireplacesTotal"
     },
-    "Flooring": {
+    "Property.Flooring": {
       "kind": "enum",
       "enumType": "Flooring",
       "multi": true,
@@ -223,9 +244,10 @@
       "precision": null,
       "scale": null,
       "resource": "Property",
+      "field": "Flooring",
       "memberCount": 62
     },
-    "Heating": {
+    "Property.Heating": {
       "kind": "enum",
       "enumType": "Heating",
       "multi": true,
@@ -234,9 +256,10 @@
       "precision": null,
       "scale": null,
       "resource": "Property",
+      "field": "Heating",
       "memberCount": 96
     },
-    "InteriorFeatures": {
+    "Property.InteriorFeatures": {
       "kind": "enum",
       "enumType": "InteriorOrRoomFeatures",
       "multi": true,
@@ -245,9 +268,10 @@
       "precision": null,
       "scale": null,
       "resource": "Property",
+      "field": "InteriorFeatures",
       "memberCount": 295
     },
-    "InternetAddressDisplayYN": {
+    "Property.InternetAddressDisplayYN": {
       "kind": "primitive",
       "type": "Edm.Boolean",
       "collection": false,
@@ -255,9 +279,10 @@
       "maxLength": null,
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "InternetAddressDisplayYN"
     },
-    "InternetAutomatedValuationDisplayYN": {
+    "Property.InternetAutomatedValuationDisplayYN": {
       "kind": "primitive",
       "type": "Edm.Boolean",
       "collection": false,
@@ -265,9 +290,10 @@
       "maxLength": null,
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "InternetAutomatedValuationDisplayYN"
     },
-    "InternetConsumerCommentYN": {
+    "Property.InternetConsumerCommentYN": {
       "kind": "primitive",
       "type": "Edm.Boolean",
       "collection": false,
@@ -275,9 +301,10 @@
       "maxLength": null,
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "InternetConsumerCommentYN"
     },
-    "InternetEntireListingDisplayYN": {
+    "Property.InternetEntireListingDisplayYN": {
       "kind": "primitive",
       "type": "Edm.Boolean",
       "collection": false,
@@ -285,9 +312,10 @@
       "maxLength": null,
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "InternetEntireListingDisplayYN"
     },
-    "Latitude": {
+    "Property.Latitude": {
       "kind": "primitive",
       "type": "Edm.Decimal",
       "collection": false,
@@ -295,9 +323,10 @@
       "maxLength": null,
       "precision": "14",
       "scale": "8",
-      "resource": "Property"
+      "resource": "Property",
+      "field": "Latitude"
     },
-    "LaundryFeatures": {
+    "Property.LaundryFeatures": {
       "kind": "enum",
       "enumType": "LaundryFeatures",
       "multi": true,
@@ -306,9 +335,10 @@
       "precision": null,
       "scale": null,
       "resource": "Property",
+      "field": "LaundryFeatures",
       "memberCount": 50
     },
-    "ListAgentDirectPhone": {
+    "Property.ListAgentDirectPhone": {
       "kind": "primitive",
       "type": "Edm.String",
       "collection": false,
@@ -316,9 +346,10 @@
       "maxLength": "16",
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "ListAgentDirectPhone"
     },
-    "ListAgentEmail": {
+    "Property.ListAgentEmail": {
       "kind": "primitive",
       "type": "Edm.String",
       "collection": false,
@@ -326,9 +357,10 @@
       "maxLength": "80",
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "ListAgentEmail"
     },
-    "ListAgentFullName": {
+    "Property.ListAgentFullName": {
       "kind": "primitive",
       "type": "Edm.String",
       "collection": false,
@@ -336,9 +368,10 @@
       "maxLength": "150",
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "ListAgentFullName"
     },
-    "ListOfficeName": {
+    "Property.ListOfficeName": {
       "kind": "primitive",
       "type": "Edm.String",
       "collection": false,
@@ -346,9 +379,10 @@
       "maxLength": "255",
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "ListOfficeName"
     },
-    "ListPrice": {
+    "Property.ListPrice": {
       "kind": "primitive",
       "type": "Edm.Decimal",
       "collection": false,
@@ -356,9 +390,10 @@
       "maxLength": null,
       "precision": "14",
       "scale": "2",
-      "resource": "Property"
+      "resource": "Property",
+      "field": "ListPrice"
     },
-    "ListingAgreement": {
+    "Property.ListingAgreement": {
       "kind": "enum",
       "enumType": "ListingAgreement",
       "multi": false,
@@ -367,9 +402,10 @@
       "precision": null,
       "scale": null,
       "resource": "Property",
+      "field": "ListingAgreement",
       "memberCount": 11
     },
-    "ListingId": {
+    "Property.ListingId": {
       "kind": "primitive",
       "type": "Edm.String",
       "collection": false,
@@ -377,9 +413,10 @@
       "maxLength": "255",
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "ListingId"
     },
-    "LivingArea": {
+    "Property.LivingArea": {
       "kind": "primitive",
       "type": "Edm.Decimal",
       "collection": false,
@@ -387,9 +424,10 @@
       "maxLength": null,
       "precision": "14",
       "scale": "2",
-      "resource": "Property"
+      "resource": "Property",
+      "field": "LivingArea"
     },
-    "Longitude": {
+    "Property.Longitude": {
       "kind": "primitive",
       "type": "Edm.Decimal",
       "collection": false,
@@ -397,16 +435,18 @@
       "maxLength": null,
       "precision": "14",
       "scale": "8",
-      "resource": "Property"
+      "resource": "Property",
+      "field": "Longitude"
     },
-    "Media": {
+    "Property.Media": {
       "kind": "navigation",
       "target": "Media",
       "collection": true,
       "nullable": true,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "Media"
     },
-    "MediaURL": {
+    "Media.MediaURL": {
       "kind": "primitive",
       "type": "Edm.String",
       "collection": false,
@@ -414,9 +454,10 @@
       "maxLength": "8000",
       "precision": null,
       "scale": null,
-      "resource": "Media"
+      "resource": "Media",
+      "field": "MediaURL"
     },
-    "ModificationTimestamp": {
+    "Property.ModificationTimestamp": {
       "kind": "primitive",
       "type": "Edm.DateTimeOffset",
       "collection": false,
@@ -424,9 +465,10 @@
       "maxLength": null,
       "precision": "27",
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "ModificationTimestamp"
     },
-    "OnMarketDate": {
+    "Property.OnMarketDate": {
       "kind": "primitive",
       "type": "Edm.Date",
       "collection": false,
@@ -434,9 +476,10 @@
       "maxLength": "10",
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "OnMarketDate"
     },
-    "OriginalListPrice": {
+    "Property.OriginalListPrice": {
       "kind": "primitive",
       "type": "Edm.Decimal",
       "collection": false,
@@ -444,9 +487,10 @@
       "maxLength": null,
       "precision": "14",
       "scale": "2",
-      "resource": "Property"
+      "resource": "Property",
+      "field": "OriginalListPrice"
     },
-    "ParkingFeatures": {
+    "Property.ParkingFeatures": {
       "kind": "enum",
       "enumType": "ParkingFeatures",
       "multi": true,
@@ -455,9 +499,10 @@
       "precision": null,
       "scale": null,
       "resource": "Property",
+      "field": "ParkingFeatures",
       "memberCount": 204
     },
-    "ParkingTotal": {
+    "Property.ParkingTotal": {
       "kind": "primitive",
       "type": "Edm.Decimal",
       "collection": false,
@@ -465,9 +510,10 @@
       "maxLength": null,
       "precision": "14",
       "scale": "2",
-      "resource": "Property"
+      "resource": "Property",
+      "field": "ParkingTotal"
     },
-    "PetsAllowed": {
+    "Property.PetsAllowed": {
       "kind": "enum",
       "enumType": "PetsAllowed",
       "multi": true,
@@ -476,9 +522,10 @@
       "precision": null,
       "scale": null,
       "resource": "Property",
+      "field": "PetsAllowed",
       "memberCount": 31
     },
-    "PetsAllowedYN": {
+    "Property.PetsAllowedYN": {
       "kind": "primitive",
       "type": "Edm.Boolean",
       "collection": false,
@@ -486,9 +533,10 @@
       "maxLength": null,
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "PetsAllowedYN"
     },
-    "PhotosCount": {
+    "Property.PhotosCount": {
       "kind": "primitive",
       "type": "Edm.Int32",
       "collection": false,
@@ -496,9 +544,10 @@
       "maxLength": null,
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "PhotosCount"
     },
-    "PostalCode": {
+    "Property.PostalCode": {
       "kind": "primitive",
       "type": "Edm.String",
       "collection": false,
@@ -506,9 +555,10 @@
       "maxLength": "10",
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "PostalCode"
     },
-    "PreviousListPrice": {
+    "Property.PreviousListPrice": {
       "kind": "primitive",
       "type": "Edm.Decimal",
       "collection": false,
@@ -516,9 +566,10 @@
       "maxLength": null,
       "precision": "14",
       "scale": "2",
-      "resource": "Property"
+      "resource": "Property",
+      "field": "PreviousListPrice"
     },
-    "PriceChangeTimestamp": {
+    "Property.PriceChangeTimestamp": {
       "kind": "primitive",
       "type": "Edm.DateTimeOffset",
       "collection": false,
@@ -526,9 +577,10 @@
       "maxLength": null,
       "precision": "27",
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "PriceChangeTimestamp"
     },
-    "PrivateRemarks": {
+    "Property.PrivateRemarks": {
       "kind": "primitive",
       "type": "Edm.String",
       "collection": false,
@@ -536,9 +588,10 @@
       "maxLength": "4000",
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "PrivateRemarks"
     },
-    "PropertyCondition": {
+    "Property.PropertyCondition": {
       "kind": "enum",
       "enumType": "PropertyCondition",
       "multi": true,
@@ -547,9 +600,10 @@
       "precision": null,
       "scale": null,
       "resource": "Property",
+      "field": "PropertyCondition",
       "memberCount": 27
     },
-    "PropertySubType": {
+    "Property.PropertySubType": {
       "kind": "enum",
       "enumType": "PropertySubType",
       "multi": false,
@@ -558,9 +612,10 @@
       "precision": null,
       "scale": null,
       "resource": "Property",
+      "field": "PropertySubType",
       "memberCount": 75
     },
-    "PropertyType": {
+    "Property.PropertyType": {
       "kind": "enum",
       "enumType": "PropertyType",
       "multi": false,
@@ -569,9 +624,10 @@
       "precision": null,
       "scale": null,
       "resource": "Property",
+      "field": "PropertyType",
       "memberCount": 13
     },
-    "PublicRemarks": {
+    "Property.PublicRemarks": {
       "kind": "primitive",
       "type": "Edm.String",
       "collection": false,
@@ -579,9 +635,10 @@
       "maxLength": "12000",
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "PublicRemarks"
     },
-    "RoomsTotal": {
+    "Property.RoomsTotal": {
       "kind": "primitive",
       "type": "Edm.Int32",
       "collection": false,
@@ -589,9 +646,10 @@
       "maxLength": null,
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "RoomsTotal"
     },
-    "SecurityFeatures": {
+    "Property.SecurityFeatures": {
       "kind": "enum",
       "enumType": "SecurityFeatures",
       "multi": true,
@@ -600,9 +658,10 @@
       "precision": null,
       "scale": null,
       "resource": "Property",
+      "field": "SecurityFeatures",
       "memberCount": 84
     },
-    "SourceSystemKey": {
+    "Property.SourceSystemKey": {
       "kind": "primitive",
       "type": "Edm.String",
       "collection": false,
@@ -610,9 +669,10 @@
       "maxLength": "255",
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "SourceSystemKey"
     },
-    "StandardStatus": {
+    "Property.StandardStatus": {
       "kind": "enum",
       "enumType": "StandardStatus",
       "multi": false,
@@ -621,9 +681,10 @@
       "precision": null,
       "scale": null,
       "resource": "Property",
+      "field": "StandardStatus",
       "memberCount": 11
     },
-    "StoriesTotal": {
+    "Property.StoriesTotal": {
       "kind": "primitive",
       "type": "Edm.Int32",
       "collection": false,
@@ -631,9 +692,10 @@
       "maxLength": null,
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "StoriesTotal"
     },
-    "SubdivisionName": {
+    "Property.SubdivisionName": {
       "kind": "primitive",
       "type": "Edm.String",
       "collection": false,
@@ -641,9 +703,10 @@
       "maxLength": "150",
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "SubdivisionName"
     },
-    "SyndicateTo": {
+    "Property.SyndicateTo": {
       "kind": "enum",
       "enumType": "SyndicateTo",
       "multi": true,
@@ -652,9 +715,10 @@
       "precision": null,
       "scale": null,
       "resource": "Property",
+      "field": "SyndicateTo",
       "memberCount": 27
     },
-    "TaxAnnualAmount": {
+    "Property.TaxAnnualAmount": {
       "kind": "primitive",
       "type": "Edm.Decimal",
       "collection": false,
@@ -662,9 +726,10 @@
       "maxLength": null,
       "precision": "14",
       "scale": "2",
-      "resource": "Property"
+      "resource": "Property",
+      "field": "TaxAnnualAmount"
     },
-    "UnitNumber": {
+    "Property.UnitNumber": {
       "kind": "primitive",
       "type": "Edm.String",
       "collection": false,
@@ -672,9 +737,10 @@
       "maxLength": "25",
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "UnitNumber"
     },
-    "UnparsedAddress": {
+    "Property.UnparsedAddress": {
       "kind": "primitive",
       "type": "Edm.String",
       "collection": false,
@@ -682,9 +748,10 @@
       "maxLength": "255",
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "UnparsedAddress"
     },
-    "View": {
+    "Property.View": {
       "kind": "enum",
       "enumType": "View",
       "multi": true,
@@ -693,9 +760,10 @@
       "precision": null,
       "scale": null,
       "resource": "Property",
+      "field": "View",
       "memberCount": 85
     },
-    "VirtualTourURLBranded": {
+    "Property.VirtualTourURLBranded": {
       "kind": "primitive",
       "type": "Edm.String",
       "collection": false,
@@ -703,9 +771,10 @@
       "maxLength": "8000",
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "VirtualTourURLBranded"
     },
-    "WalkScore": {
+    "Property.WalkScore": {
       "kind": "primitive",
       "type": "Edm.Int32",
       "collection": false,
@@ -713,9 +782,10 @@
       "maxLength": null,
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "WalkScore"
     },
-    "YearBuilt": {
+    "Property.YearBuilt": {
       "kind": "primitive",
       "type": "Edm.Int32",
       "collection": false,
@@ -723,34 +793,131 @@
       "maxLength": null,
       "precision": null,
       "scale": null,
-      "resource": "Property"
+      "resource": "Property",
+      "field": "YearBuilt"
     }
   },
+  "resolution": {
+    "ActivationDate": "Property.ActivationDate",
+    "AssociationAmenities": "Property.AssociationAmenities",
+    "AssociationFee": "Property.AssociationFee",
+    "BathroomsFull": "Property.BathroomsFull",
+    "BathroomsHalf": "Property.BathroomsHalf",
+    "BathroomsTotalInteger": "Property.BathroomsTotalInteger",
+    "BedroomsTotal": "Property.BedroomsTotal",
+    "BuildingAreaTotal": "Property.BuildingAreaTotal",
+    "BuildingName": "Property.BuildingName",
+    "CloseDate": "Property.CloseDate",
+    "ClosePrice": "Property.ClosePrice",
+    "CommonInterest": "Property.CommonInterest",
+    "Cooling": "Property.Cooling",
+    "CrossStreet": "Property.CrossStreet",
+    "CumulativeDaysOnMarket": "Property.CumulativeDaysOnMarket",
+    "DaysOnMarket": "Property.DaysOnMarket",
+    "EntryLevel": "Property.EntryLevel",
+    "Exposures": "Property.Exposures",
+    "FireplaceYN": "Property.FireplaceYN",
+    "FireplacesTotal": "Property.FireplacesTotal",
+    "Flooring": "Property.Flooring",
+    "Heating": "Property.Heating",
+    "InteriorFeatures": "Property.InteriorFeatures",
+    "InternetAddressDisplayYN": "Property.InternetAddressDisplayYN",
+    "InternetAutomatedValuationDisplayYN": "Property.InternetAutomatedValuationDisplayYN",
+    "InternetConsumerCommentYN": "Property.InternetConsumerCommentYN",
+    "InternetEntireListingDisplayYN": "Property.InternetEntireListingDisplayYN",
+    "Latitude": "Property.Latitude",
+    "LaundryFeatures": "Property.LaundryFeatures",
+    "ListAgentDirectPhone": "Property.ListAgentDirectPhone",
+    "ListAgentEmail": "Property.ListAgentEmail",
+    "ListAgentFullName": "Property.ListAgentFullName",
+    "ListOfficeName": "Property.ListOfficeName",
+    "ListPrice": "Property.ListPrice",
+    "ListingAgreement": "Property.ListingAgreement",
+    "ListingId": "Property.ListingId",
+    "LivingArea": "Property.LivingArea",
+    "Longitude": "Property.Longitude",
+    "Media": "Property.Media",
+    "MediaURL": "Media.MediaURL",
+    "ModificationTimestamp": "Property.ModificationTimestamp",
+    "OnMarketDate": "Property.OnMarketDate",
+    "OriginalListPrice": "Property.OriginalListPrice",
+    "ParkingFeatures": "Property.ParkingFeatures",
+    "ParkingTotal": "Property.ParkingTotal",
+    "PetsAllowed": "Property.PetsAllowed",
+    "PetsAllowedYN": "Property.PetsAllowedYN",
+    "PhotosCount": "Property.PhotosCount",
+    "PostalCode": "Property.PostalCode",
+    "PreviousListPrice": "Property.PreviousListPrice",
+    "PriceChangeTimestamp": "Property.PriceChangeTimestamp",
+    "PrivateRemarks": "Property.PrivateRemarks",
+    "PropertyCondition": "Property.PropertyCondition",
+    "PropertySubType": "Property.PropertySubType",
+    "PropertyType": "Property.PropertyType",
+    "PublicRemarks": "Property.PublicRemarks",
+    "RoomsTotal": "Property.RoomsTotal",
+    "SecurityFeatures": "Property.SecurityFeatures",
+    "SourceSystemKey": "Property.SourceSystemKey",
+    "StandardStatus": "Property.StandardStatus",
+    "StoriesTotal": "Property.StoriesTotal",
+    "SubdivisionName": "Property.SubdivisionName",
+    "SyndicateTo": "Property.SyndicateTo",
+    "TaxAnnualAmount": "Property.TaxAnnualAmount",
+    "UnitNumber": "Property.UnitNumber",
+    "UnparsedAddress": "Property.UnparsedAddress",
+    "View": "Property.View",
+    "VirtualTourURLBranded": "Property.VirtualTourURLBranded",
+    "WalkScore": "Property.WalkScore",
+    "YearBuilt": "Property.YearBuilt"
+  },
   "ambiguousOwnership": {
-    "InternetEntireListingDisplayYN": [
-      "Property",
-      "Media"
-    ],
-    "ModificationTimestamp": [
-      "Property",
-      "Media"
-    ],
-    "PropertySubType": [
-      "Property",
-      "Media"
-    ],
-    "PropertyType": [
-      "Property",
-      "Media"
-    ],
-    "StandardStatus": [
-      "Property",
-      "Media"
-    ],
-    "SyndicateTo": [
-      "Property",
-      "Media"
-    ]
+    "InternetEntireListingDisplayYN": {
+      "declaredOn": [
+        "Property",
+        "Media"
+      ],
+      "resolvedTo": "Property.InternetEntireListingDisplayYN",
+      "reason": "Property owns listing-level facts; Media denormalises them"
+    },
+    "ModificationTimestamp": {
+      "declaredOn": [
+        "Property",
+        "Media"
+      ],
+      "resolvedTo": "Property.ModificationTimestamp",
+      "reason": "Property owns listing-level facts; Media denormalises them"
+    },
+    "PropertySubType": {
+      "declaredOn": [
+        "Property",
+        "Media"
+      ],
+      "resolvedTo": "Property.PropertySubType",
+      "reason": "Property owns listing-level facts; Media denormalises them"
+    },
+    "PropertyType": {
+      "declaredOn": [
+        "Property",
+        "Media"
+      ],
+      "resolvedTo": "Property.PropertyType",
+      "reason": "Property owns listing-level facts; Media denormalises them"
+    },
+    "StandardStatus": {
+      "declaredOn": [
+        "Property",
+        "Media"
+      ],
+      "resolvedTo": "Property.StandardStatus",
+      "reason": "Property owns listing-level facts; Media denormalises them"
+    },
+    "SyndicateTo": {
+      "declaredOn": [
+        "Property",
+        "Media"
+      ],
+      "resolvedTo": "Property.SyndicateTo",
+      "reason": "Property owns listing-level facts; Media denormalises them"
+    }
   },
   "rejected": {}
 }

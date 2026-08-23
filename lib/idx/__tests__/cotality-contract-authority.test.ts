@@ -83,9 +83,12 @@ describe('the committed contract really came from the live API', () => {
     const c = JSON.parse(fs.readFileSync(CANONICAL, 'utf8'));
     // 11 StandardStatus members, verified live 2026-08-23. If the contract were
     // ever rebuilt from the stale capture this number is where it would show.
-    expect(c.fields.StandardStatus.enumType).toBe('StandardStatus');
-    expect(c.fields.StandardStatus.memberCount).toBe(11);
-    expect(c.fields.PropertyType.memberCount).toBe(13);
+    expect(c.fields['Property.StandardStatus'].enumType).toBe('StandardStatus');
+    expect(c.fields['Property.StandardStatus'].memberCount).toBe(11);
+    expect(c.fields['Property.PropertyType'].memberCount).toBe(13);
+    // Identity is resource-qualified: a bare name is not a key.
+    expect(c.fields.StandardStatus).toBeUndefined();
+    expect(c.resolution.StandardStatus).toBe('Property.StandardStatus');
   });
 });
 
@@ -228,7 +231,9 @@ describe('the two contracts have distinct, non-competing roles', () => {
       for (const k of Object.keys(rt.properties || {})) declaredAnywhere.add(k);
       for (const k of Object.keys(rt.navigation || {})) declaredAnywhere.add(k);
     }
-    const excess = Object.keys(crm.fields).filter((f) => !declaredAnywhere.has(f));
+    const excess = Object.keys(crm.fields)
+      .map((q) => q.split('.').slice(1).join('.'))
+      .filter((f) => !declaredAnywhere.has(f));
     // The subset is derivable from the live contract alone. It may never add to,
     // override, or contradict it.
     expect(excess).toEqual([]);

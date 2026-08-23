@@ -32,6 +32,7 @@
 import fs from 'fs';
 import path from 'path';
 import { execFileSync } from 'child_process';
+import { randomUUID } from 'crypto';
 
 const args = process.argv.slice(2);
 const argOf = (n) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : undefined; };
@@ -43,6 +44,9 @@ const OFFLINE = args.includes('--offline-unverified');
  * prove those gates actually fire.
  */
 const NO_ACQUIRE = args.includes('--no-acquire');
+
+/** Set when this run mints an acquisition id; the contract must return it. */
+let expectedRunId = null;
 
 const LIVE_CONTRACT = argOf('--live-contract') || 'data/cotality-contract.live.json';
 const CANONICAL_OUT = 'data/cotality-contract/crm-field-contract.json';
@@ -77,9 +81,14 @@ if (OFFLINE) {
   console.error('[crm-field-contract] UNVERIFIED: offline mode, output is NOT authority');
 } else if (!NO_ACQUIRE) {
   // Re-acquire through the single owner so the contract is provably from this run.
+  // The run id is minted HERE and required to come back in the written contract,
+  // so a contract left over from any earlier run cannot satisfy this derivation -
+  // freshness alone would still admit one pulled minutes ago by something else.
+  expectedRunId = randomUUID();
   try {
     execFileSync(process.execPath, [path.join(SCRIPT_ROOT, 'pull-contract.mjs')], {
       stdio: ['ignore', 'ignore', 'inherit'],
+      env: { ...process.env, COTALITY_RUN_ID: expectedRunId },
     });
   } catch {
     die('UNVERIFIED', 'live acquisition failed - see pull-contract output above. No fallback exists.');
@@ -101,6 +110,18 @@ if (!OFFLINE) {
   }
   if (host !== REQUIRED_HOST) {
     die('UNVERIFIED', 'live contract source host is ' + host + ', not ' + REQUIRED_HOST);
+  }
+  // An acquisition id must exist at all. A contract without one predates the
+  // current-run guarantee and cannot prove where it came from.
+  if (typeof live.run_id !== 'string' || live.run_id.length === 0) {
+    die('UNVERIFIED', 'live contract carries no acquisition run id');
+  }
+  if (expectedRunId !== null && live.run_id !== expectedRunId) {
+    die(
+      'UNVERIFIED',
+      'live contract run_id does not match the acquisition just performed. ' +
+        'The contract on disk was not produced by this run.',
+    );
   }
   const age = Date.now() - Date.parse(live.pulled_at || '');
   if (!Number.isFinite(age)) die('UNVERIFIED', 'live contract has no usable pulled_at');
@@ -178,6 +199,8 @@ const consumed = [
 const fields = {};
 const rejected = {};
 const ambiguous = {};
+/** bare CRM field name -> the one qualified identity it resolves to */
+const resolution = {};
 
 for (const name of consumed) {
   const owners = [];
@@ -193,20 +216,39 @@ for (const name of consumed) {
   }
   const resource = owners[0][0];
   const decl = owners[0][1];
-  // Ambiguity is recorded, not silently resolved: the CRM tags one field
-  // identity, and two resources declaring it means the tag does not say which.
-  if (owners.length > 1) ambiguous[name] = owners.map((o) => o[0]);
-  fields[name] = Object.assign({}, decl, { resource });
+  const qualified = resource + '.' + name;
+
+  // RESOURCE-QUALIFIED IDENTITY. A bare field name is not an identity: Media
+  // denormalises several Property fields, so the same name exists on two
+  // resources with two owners. Keys are therefore Resource.Field, and the bare
+  // name resolves through `resolution` below.
+  //
+  // Precedence is Property first, and that is a DECISION with a reason rather
+  // than an accident of ordering: the CRM's listing map is Property-scoped, and
+  // where Media repeats a listing-level fact (StandardStatus, PropertyType,
+  // InternetEntireListingDisplayYN, ModificationTimestamp, PropertySubType,
+  // SyndicateTo) the listing is the owner and Media is the copy. A tag that
+  // genuinely means the Media copy must qualify itself.
+  if (owners.length > 1) {
+    ambiguous[name] = {
+      declaredOn: owners.map((o) => o[0]),
+      resolvedTo: qualified,
+      reason: 'Property owns listing-level facts; Media denormalises them',
+    };
+  }
+  resolution[name] = qualified;
+  fields[qualified] = Object.assign({}, decl, { resource, field: name });
 
   // An enum a consumer relies on must be verifiable, or its value space is unknown.
   if (decl.kind === 'enum') {
     const members = live.enums && live.enums[decl.enumType];
     if (!Array.isArray(members) || members.length === 0) {
       rejected[name] = 'enum ' + decl.enumType + ' has no verifiable members in the live contract';
-      delete fields[name];
+      delete fields[qualified];
+      delete resolution[name];
       continue;
     }
-    fields[name].memberCount = members.length;
+    fields[qualified].memberCount = members.length;
   }
 }
 
@@ -220,9 +262,11 @@ const contract = {
   derivedFrom: LIVE_CONTRACT,
   liveSource: live.source,
   livePulledAt: live.pulled_at,
+  liveRunId: live.run_id || null,
   resources: RESOURCES,
   fieldCount: Object.keys(fields).length,
   fields,
+  resolution,
   ambiguousOwnership: ambiguous,
   rejected,
 };
@@ -239,6 +283,6 @@ if (Object.keys(rejected).length) {
 }
 if (Object.keys(ambiguous).length) {
   console.error('[crm-field-contract] AMBIGUOUS resource ownership:');
-  for (const k of Object.keys(ambiguous)) console.error('    ' + k + ' - declared on ' + ambiguous[k].join(' and '));
+  for (const k of Object.keys(ambiguous)) console.error('    ' + k + ' - declared on ' + ambiguous[k].declaredOn.join(' and ') + ' -> ' + ambiguous[k].resolvedTo);
 }
 if (failed) process.exit(2);

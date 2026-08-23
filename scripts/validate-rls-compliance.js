@@ -599,7 +599,8 @@ function validateRenames() {
     return;
   }
   const contract = JSON.parse(fs.readFileSync(contractPath, 'utf-8'));
-  const known = new Set(Object.keys(contract.fields));
+  // Bare tag name -> qualified identity. Identity is resource-qualified.
+  const known = new Set(Object.keys(contract.resolution || {}));
 
   // Any data-cotality-field naming something the provider does not declare.
   const allFiles = [

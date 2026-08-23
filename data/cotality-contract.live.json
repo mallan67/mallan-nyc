@@ -1,7 +1,8 @@
 {
   "_README": "GENERATED EVIDENCE from LIVE Cotality $metadata. Never hand-edit and never use this file to override the live API.",
   "source": "https://api.cotality.com/trestle/odata/$metadata",
-  "pulled_at": "2026-08-23T08:13:21.091Z",
+  "pulled_at": "2026-08-23T08:28:49.102Z",
+  "run_id": "7c49bd12-f37a-4228-926d-d7b39d20a79b",
   "entity_type_count": 17,
   "entity_set_count": 17,
   "field_declaration_count": 1456,

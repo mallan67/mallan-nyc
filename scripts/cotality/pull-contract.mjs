@@ -16,12 +16,26 @@
  *   IDX_CLIENT_ID=... IDX_CLIENT_SECRET=... node scripts/cotality/pull-contract.mjs
  */
 import { writeFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
 const BASE = (process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle').replace(/\/$/, '');
 const CLIENT_ID = process.env.IDX_CLIENT_ID || '';
 const CLIENT_SECRET = process.env.IDX_CLIENT_SECRET || '';
-const STAMP = process.argv[2] || new Date().toISOString();
+/**
+ * CURRENT-RUN PROOF.
+ *
+ * The timestamp used to be overridable via process.argv[2], which meant a caller
+ * could hand this script any date it liked - so "pulled_at" proved nothing. It is
+ * now taken from the clock at fetch time and cannot be supplied.
+ *
+ * RUN_ID ties a contract to the acquisition that produced it. A derivation step
+ * sets COTALITY_RUN_ID before invoking this script and then requires the written
+ * contract to carry that exact id. A contract left over from an earlier run - even
+ * a recent one - therefore cannot satisfy a later derivation.
+ */
+const STAMP = new Date().toISOString();
+const RUN_ID = process.env.COTALITY_RUN_ID || randomUUID();
 
 function attrs(tag) {
   const out = {};
@@ -165,6 +179,7 @@ const doc = {
   _README: 'GENERATED EVIDENCE from LIVE Cotality $metadata. Never hand-edit and never use this file to override the live API.',
   source: `${BASE}/odata/$metadata`,
   pulled_at: STAMP,
+  run_id: RUN_ID,
   entity_type_count: Object.keys(entityTypes).length,
   entity_set_count: Object.keys(entitySets).length,
   field_declaration_count: fieldDeclarations,

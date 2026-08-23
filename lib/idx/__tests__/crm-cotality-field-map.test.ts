@@ -31,7 +31,10 @@ const MAP = process.env.CRM_FIELD_MAP_UNDER_TEST || 'public/crm/js/core/cotality
 const CONTRACT = 'data/cotality-contract/crm-field-contract.json';
 
 type Contract = {
+  /** keyed by RESOURCE-QUALIFIED identity, e.g. "Property.StandardStatus" */
   fields: Record<string, { kind: string; type?: string; enumType?: string; nullable: boolean }>;
+  /** bare CRM field name -> the one qualified identity it resolves to */
+  resolution: Record<string, string>;
   rejected: Record<string, string>;
 };
 
@@ -56,7 +59,10 @@ describe('the contract itself is real', () => {
     // Guards against an emptied or truncated contract silently passing everything.
     expect(Object.keys(contract.fields).length).toBeGreaterThan(50);
     for (const f of ['StandardStatus', 'ListingId', 'PropertyType', 'InternetEntireListingDisplayYN']) {
-      expect(contract.fields[f]).toBeDefined();
+      // Resolved, never bare: Media denormalises several of these, so the bare
+      // name is not an identity.
+      expect(contract.resolution[f]).toBe('Property.' + f);
+      expect(contract.fields[contract.resolution[f]]).toBeDefined();
     }
     // Nothing the generator rejected may remain in the shipped contract.
     expect(contract.rejected).toEqual({});
@@ -80,7 +86,8 @@ describe('every field the CRM names exists on the live Property resource', () =>
     const missing: string[] = [];
     for (const [key, targets] of entries) {
       for (const t of targets) {
-        if (!contract.fields[t]) missing.push(`${key} -> ${t}`);
+        const qualified = contract.resolution[t];
+        if (!qualified || !contract.fields[qualified]) missing.push(`${key} -> ${t}`);
       }
     }
     expect(missing).toEqual([]);
@@ -117,8 +124,17 @@ describe('the two conflated fields are kept apart', () => {
     // NULL, SourceSystemKey String(255) NULLABLE. Identity therefore comes from
     // lid, not wid.
     expect(byKey.get('wid')).toEqual(['SourceSystemKey']);
-    expect(contract.fields['SourceSystemKey'].nullable).toBe(true);
+    expect(contract.fields['Property.SourceSystemKey'].nullable).toBe(true);
     expect(byKey.get('lid')).toEqual(['ListingId']);
+
+    // RECORDED HONESTLY: both CRM identity fields are nullable on the live
+    // resource. ListingKey - String(20) NOT NULL, the only non-nullable identity
+    // Cotality exposes - is deliberately NOT in this contract because the CRM
+    // never names it; the backend carries it (lib/idx/mapping.ts maps it to
+    // mlsId). So the CRM must not treat either of its identifiers as guaranteed
+    // present, and neither is a substitute for the backend's key.
+    expect(contract.fields['Property.ListingId'].nullable).toBe(true);
+    expect(contract.fields['Property.ListingKey']).toBeUndefined();
   });
 
   it('the real internet display gate is mapped', () => {
