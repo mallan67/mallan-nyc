@@ -16,6 +16,326 @@
 
 ---
 
+# 0. WORKING WITH THE COTALITY API
+
+> Read from the live API. Re-derive from the API, never from this text, a CSV, a
+> captured file or a prior audit. Where this text and the API disagree, the API is
+> right and this text is stale.
+
+## 0.1 Connection and credential
+
+```text
+host        https://api.cotality.com
+service     https://api.cotality.com/trestle/odata          OData v4
+token       POST https://api.cotality.com/trestle/oidc/connect/token
+            grant_type=client_credentials   scope=api
+
+issuer      https://api.cotality.com
+audience    https://api.cotality.com/resources
+client_id   d5212c48_b473_4f79_81f9_a42e61b1d76a
+role        API
+scopes      api, rets, offline_access
+lifetime    28,800 s (8 hours)
+```
+
+Only `scope=api` issues a token. `rets` and `offline_access` are advertised by the
+discovery document and refused by the token endpoint.
+
+One licence exists on this credential. There is no second tier:
+
+```text
+GET /odata/DataSystem
+  ID     Trestle-11371-20
+  Name   IDX Plus feed for Mallan Real Estate Inc
+  DD     2.0            Transport  1.0.0
+```
+
+`DataSystem` is the entitlement record and the first call to make. Compare it with the
+service document: 18 entity sets advertised, 16 provisioned.
+
+## 0.2 The five things that must each be handled correctly
+
+Search, CMA and every consumer break when these are conflated. They are separate:
+
+```text
+FIELD        what the provider calls the column
+ATTRIBUTION  what a person reads, and who the fact belongs to
+STRING       which spelling of a value the API accepts
+IDENTIFIER   what identifies a listing, a unit, a building
+MAPPER       how a Mallan canonical concept reaches a Cotality field
+```
+
+### FIELD — the provider names the columns, Mallan does not
+
+| Source | What it is | Use it for |
+|---|---|---|
+| `$metadata` | what **this licence** serves | which fields Mallan has |
+| `Field` (2,246 rows) | the **platform-wide** catalogue | definition, display name, type, lookup |
+| `Lookup` (191,323 rows) | permitted values, with definitions | picklist vocabulary |
+| `Model` (17) / `DataSystem` (1) | models, entitlement | provisioning |
+
+`Field` and `Lookup` are shared across every MLS on the service — **336 different
+`SystemReferences` appear in them.** A tag such as `RLS` there is one tenant marker among
+336, **not** a selector for Mallan's fields. Filtering the dictionary by it returns 534 of
+2,246 rows and silently drops the 1,068 that carry no tag — which are the normalized
+fields. Never select fields that way.
+
+`$metadata` and `Field` disagree with each other (`Nucleus_RecordDeleteFlag` is in one and
+not the other). **A field is real only when a query for it succeeds.**
+
+What this licence actually serves:
+
+| Resource | Fields | Rows | Note |
+|---|---:|---:|---|
+| Property | 757 | 591,229 | the hub, 14 navigation targets |
+| CustomProperty | 142 | 591,271 | local extension, joins on `ListingKey` |
+| Media | 56 | 1,978,482 | joins on `ResourceRecordKey` |
+| Member | 91 | 11,152 | |
+| Office | 80 | 575 | |
+| OpenHouse | 47 | 2,721 | |
+| PropertyUnitTypes / PropertyRooms | 52 / 39 | 1 / 86 | effectively unpopulated |
+| Field / Lookup / Model | 15 / 15 / 8 | 2,246 / 191,323 / 17 | self-description |
+| **Building** | **1** | — | stub: `BuildingKey` only, 403 direct |
+
+Provisioned but not working — three distinct causes:
+
+| Resource | HTTP | Provider message | Cause |
+|---|---|---|---|
+| Building | 403 | `Resource ... Building not available` | entitlement |
+| HistoryTransactional, Teams, TeamMembers | 400 | `No OriginatingSystemNames available for querying` | configuration |
+| PropertyGreenVerification | 404 | `Page not found` | not served |
+| Enumeration | 404 | advertised, not provisioned | expected |
+
+### ATTRIBUTION — display name, and whose fact it is
+
+Two different things travel under this word and both matter.
+
+**Display attribution.** `Field.DisplayName` and `Field.Definition` are the provider's own
+label and definition for a column. Use them for UI labels and help text; do not invent
+Mallan labels for provider facts.
+
+**Ownership attribution.** Every value is either a provider observation or a Mallan
+business fact, and the two never merge:
+
+```text
+PROVIDER FACT     StandardStatus, ListPrice, TaxBlock, MediaURL
+                  read-only, sourced, never authored by Mallan
+MALLAN FACT       listing status in the CRM, internal notes, IDX display decision,
+                  syndication decision, deal pipeline state
+                  Mallan-owned, never presented as provider data
+PROVENANCE        OriginatingSystemName "RLS", OriginatingSystemSubName "RLS_REBNY",
+                  SourceSystemID "TRESTLE"
+                  a stamp saying where a record came from — NOT a schema,
+                  NOT a layer, NOT a selector
+```
+
+Public display carries the provider's required attribution — listing courtesy of the
+listing office, and the copyright/disclaimer text — as a compliance obligation.
+
+### STRING — which spelling the API accepts
+
+Each `Lookup` row carries the value in up to four forms. **They are not interchangeable.**
+Of 172,507 values Mallan's fields reference, **28,740 differ between forms.**
+
+| Column | Purpose | Example |
+|---|---|---|
+| `LookupValue` | **the query string** | `WheelchairAccess` |
+| `LegacyODataValue` | equals `LookupValue` in practice | `WheelchairAccess` |
+| `StandardLookupValue` | **the display string** | `Wheelchair Access` |
+| `OdataOverride` | replaces the query string where present (3 values) | `St Antoine` |
+| `Definition` | the provider's definition of the value | prose |
+
+```text
+Permission has 'SyndicateOptOut'    ->  9,436 rows
+Permission has 'Syndicate Opt Out'  ->  HTTP 400, the string is not valid
+```
+
+**Display `StandardLookupValue`. Query `LookupValue`.** Sending the display form is a hard
+400, not an empty result, so a UI built on it fails on every picklist whose values contain
+spaces.
+
+### IDENTIFIER — five levels, and `BuildingKey` is not one of them
+
+```text
+LISTING    ListingKey          String(20)  NOT NULL   the provider primary key
+           ListingId           RLS20110644            provider-assigned, prefixed
+           SourceSystemKey     String(255) NULLABLE    upstream id, never identity
+UNIT       CLIP                539,188                Cotality property id
+           ParcelNumber        380,474                block-lot form
+           UniversalPropertyId 380,468
+BUILDING   TaxBlock            591,229  (100%)  + TaxLot 266,520   = BBL
+           BuildingName        220,923                where named
+BLOCK      TaxBlock alone
+MEDIA      ResourceRecordKey   100%                   joins Media to a listing
+```
+
+**`BuildingKey` is a dead end.** It is the join key to a resource that is an empty stub in
+this licence — one property, 403 direct, and `$expand=Building` returns 200 with no data.
+It is null on every row and rejected for filtering.
+
+Building identity is `TaxBlock` + `TaxLot`, cross-checked with `BuildingName` and street
+address. Measured on one building: address components grouped **45** units, `BuildingName`
+grouped **50**. Use both — neither alone is complete.
+
+### MAPPER — Mallan canonical to Cotality, in one place
+
+```text
+MALLAN CANONICAL FIELD
+  |   the single mapping layer — nowhere else
+  v
+COTALITY RESOURCE . FIELD          resource-qualified; a bare name is not an identity
+  |   Field.Type -> operator;  Lookup.LookupValue -> the value
+  v
+$filter / $orderby / $select
+  |   permitted? -> probe, never assume
+  v
+SUPPORTED  -> emit          REFUSED -> fail visibly, never drop the criterion
+  |
+  v
+COTALITY RESULT
+  |   criteria the API refuses are applied HERE, in Mallan
+  v
+MALLAN BUSINESS + COMPLIANCE RULES
+  |
+  v
+CONSUMER  (Agent Search, Public Search, CMA, reports, portal)
+```
+
+No mapping lives in markup, in a compliance rule, in a CSV or in a second registry. A
+bare field name is never an identity — several names exist on more than one resource,
+and `StandardStatus` alone is declared on eight.
+
+## 0.3 THERE IS NO GEOGRAPHY IN THIS FEED
+
+`Latitude`, `Longitude`, `MapCoordinate`, `MapCoordinateSource`, `MapURL`, `MLSAreaMajor`
+and `MLSAreaMinor` are declared in `$metadata`, **null on every row**, and rejected for
+filtering.
+
+**Mallan creates and owns its geography, and Search depends on that Mallan layer.**
+Neighborhood polygons, centroids, geocoding, and any map, radius or polygon search are
+built and maintained by Mallan. The provider supplies `SubdivisionName` (591,229,
+filterable) and address components; everything spatial is derived by Mallan from those.
+
+This is a permanent property of the feed, not a gap to route around later.
+
+## 0.4 Filter capability is narrower than the data
+
+**`$select` returns data that `$filter` refuses.**
+
+| Resource | Fields | Filterable | With data | Not filterable |
+|---|---:|---:|---:|---:|
+| Property | 757 | 536 | 312 | 175 suppressed + 46 |
+| OpenHouse | 47 | 27 | 23 | 16 |
+| CustomProperty | 142 | 44 | 11 | 91 |
+| Media | 56 | 17 | 7 | 39 |
+| Member | 91 | 13 | 7 | 76 |
+| **Office** | 80 | **0** | 0 | 80 |
+
+Office, Member, Media and CustomProperty return complete rows on `$select` — office
+names and MLS ids, agent names and emails, media URLs. **The data is available; only
+querying by it is blocked.**
+
+```text
+BACKEND AGENT SEARCH   everything is available.
+                       Where the API refuses a filter, retrieve with $select and
+                       apply the criterion in Mallan's layer. Never drop it.
+
+PUBLIC SEARCH          the suppressed set is what the public may receive.
+                       Public restriction is applied by Mallan, on top.
+```
+
+Both IDX display gates — `InternetEntireListingDisplayYN` and `InternetAddressDisplayYN`
+— are refused for filtering on Property, so **the provider cannot gate for Mallan.** Every
+display decision happens in Mallan's layer after retrieval. A Search design that assumes
+provider-side gating silently returns listings that must not be shown.
+
+`InternetEntireListingDisplayYN` **is** filterable on Media (1,694,011 true / 284,409
+false) where Property refuses it.
+
+## 0.5 Suppression, classified
+
+175 suppressed Property fields are not one thing:
+
+| Class | Count | Assessment |
+|---|---:|---|
+| Buyer-side (`BuyerAgent*`, `CoBuyer*`, `BuyerBrokerage*`) | 72 | expected for a public IDX product |
+| Rural / agricultural (`DistanceTo*`, `Grazing*`, `Crops*`, `Farm*`) | 59 | irrelevant to NYC; unresolved configuration |
+| **Genuine problem set** | **44** | must be available to backend Agent Search |
+
+The 44 include `DaysOnMarket`, `CumulativeDaysOnMarket`, `DaysOnMarketReplication*`,
+`Disclosures`, `CopyrightNotice`, `MlsStatus`, `PreviousStandardStatus`,
+`PropertyCondition`, `OccupantType`, `SourceSystemKey`, the display gates and the
+geography fields.
+
+A further **197 non-rural fields are filterable but null on every row** —
+`AssociationAmenities`, `DocumentsAvailable`, `Contingency`, `DelayedMarketingYN`,
+`AttributionContact`, `Disclaimer`, `CommonWalls` among them.
+
+`DaysOnMarket` and `CumulativeDaysOnMarket` are suppressed **and** null on every row while
+`OnMarketDate` is populated. UCBA Art. I §11 requires 30-day DOM tracking, so **Mallan
+derives DOM from `OnMarketDate`** and does not rely on the provider fields.
+
+## 0.6 Status — two independent enums
+
+`StandardStatus` (11 values) and `MlsStatus` (25) are separate fields. Neither is derived
+from the other. **The same label carries a different integer code in each** — Canceled 2
+vs 4, Closed 3 vs 6, Pending 9 vs 16, Withdrawn 10 vs 24 — so substituting one for the
+other corrupts the value even when the string matches. `StandardStatus` filters and
+orders; `MlsStatus` does neither.
+
+## 0.7 Media
+
+1,978,482 rows joined by `ResourceRecordKey` (100% populated). Verified: a listing with
+`PhotosCount` 16 returns exactly 16 Media rows.
+
+| Category | Rows | With a URL |
+|---|---:|---:|
+| Photo | 1,396,097 | 527,271 |
+| FloorPlan | 582,384 | 38,601 |
+| Video, Document, Other, VirtualTour | 0 | 0 |
+
+All rows are `MediaStatus = Active`. **Only 28.6% carry a URL** — a media row is not a
+retrievable asset, and code must handle the majority that are not.
+
+## 0.8 Query mechanics, verified
+
+| Capability | State |
+|---|---|
+| `eq` `ne` `and` `or` | supported |
+| `ge` `le` on Number, Date, Timestamp | supported |
+| `contains()` `startswith()` on String | supported |
+| `has` on multi-select, **bare value** | supported |
+| `contains()` / `any()` on multi-select | rejected, HTTP 400 |
+| `$orderby` single and multi-key | supported |
+| `$expand` Media, OpenHouse, CustomProperty, ListAgent, ListOffice, Rooms, UnitTypes | supported |
+| `$expand` Building | accepted, returns nothing |
+| `$top` to 5000, `$skip`, `@odata.nextLink` | supported |
+| incremental `ModificationTimestamp gt <iso>` | supported (Property and Media) |
+| replication ordering `$orderby=ModificationTimestamp,ListingKey` | supported |
+
+## 0.9 The route — establishing any of this again
+
+```text
+1  POST /trestle/oidc/connect/token           scope=api
+2  GET  /odata/DataSystem                     the licence and its resources
+3  GET  /odata/                               what the service advertises
+4  GET  /odata/$metadata                      what THIS licence serves
+5  GET  /odata/Field                          definitions, display names, lookups
+6  GET  /odata/Lookup?$filter=LookupName eq 'X'    permitted values
+7  PROBE each field:  $top=0&$count=true&$filter=<field> ne null
+       -> SUPPORTED / PROVIDER_REJECTED / UNVERIFIED. Never collapse them.
+          An HTTP error is not zero rows.
+8  Record the result here.
+```
+
+Traps already paid for:
+
+- Provisioned is not available. Declared is not permitted. **Accepted is not populated** —
+  `$expand=Building` returns 200 and no data.
+- Page to exhaustion. A cap makes a partial answer look complete.
+- A tag in `SystemReferences` is not a field selector.
+
+---
 # 1. ONE MALLAN OPERATING SYSTEM
 
 Mallan is the operating system of a New York City real-estate brokerage.
