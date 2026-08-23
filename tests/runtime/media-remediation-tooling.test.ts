@@ -937,7 +937,7 @@ describe('ROUND 5 (rev) — permanent-unknown recheck is a real bounded mode', (
     expect(run.coverageComplete).toBe(false);
   });
 
-  it('audit: --recheck-permanent re-probes and COTALITYLVES a now-available listing', async () => {
+  it('audit: --recheck-permanent re-probes and RESOLVES a now-available listing', async () => {
     const rows = [auditRow({ listing_id: 'RLSX' })];
     const cp = await exhaustAudit(id2, b, rows);
     const good = mockCotality({ pagesPerListing: { RLSX: [{ rows: [cPhoto(1)] }] } });

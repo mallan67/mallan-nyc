@@ -31,7 +31,7 @@ When sources disagree about whether a field exists, what it is named, or whether
 1. **UCBA 2026 governs compliance.** REBNY co-brokerage rules set the outer bound for what may be collected, displayed, and syndicated.
 2. **IDX Plus / the live Cotality feed / the refreshed CSVs define displayable field truth.** The live `api.cotality.com/trestle` feed and the CSVs regenerated from it (`data/rebny-rls-property-fields.csv`, `data/rebny-rls-property-lookup.csv`) are the field-name / field-existence authority. Static markdown field snapshots are not.
 3. **REBNY / RLS compliance rules override generic vendor or default assumptions** where they apply (e.g., display-gate null-handling is REBNY-specific, not a generic vendor default).
-4. **Cotality/Trestle exposes the live OData model that the live Cotality contract exposes;** use the live `$metadata` (snapshot at `artifacts/metadata.xml`) to fill field / model gaps. Cotality is the shape of the model — not an external authority, version, or certification.
+4. **Cotality/Trestle exposes the live RESO-shaped OData model;** use the live `$metadata` (snapshot at `artifacts/metadata.xml`) to fill field / model gaps. RESO is the shape of the model — not an external authority, version, or certification.
 5. **Internal-only fields must not affect public display or compliance** — they are excluded from the display / syndication path.
 6. **Unknown or unverified display eligibility fails closed to non-display.** If you cannot prove a field is displayable, do not display it.
 
@@ -72,7 +72,7 @@ When sources disagree about whether a field exists, what it is named, or whether
 | | |
 |---|---|
 | **Canonical** | `lib/idx/auth.ts` (OAuth2 client_credentials, token cache, 8s timeout); `lib/idx/fetch.ts` (OData fetch + pagination + AbortController + retry); `lib/idx/trestle-mapper.ts` (the mapper); `.claude/skills/rebny-compliance/SKILL.md` Trestle Media API Rules §4 |
-| **Backup** | `artifacts/metadata.xml` (**captured snapshot, not live**); `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md` (three-layer model: REBNY policy / Cotality serving / Cotality certification). ⚠ `data/RLS-FIELD-REGISTRY.md` is **HISTORICAL, NOT field authority** |
+| **Backup** | `artifacts/metadata.xml` (**captured snapshot, not live**); `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md` (three-layer model: REBNY policy / Cotality serving / RESO certification). ⚠ `data/RLS-FIELD-REGISTRY.md` is **HISTORICAL, NOT field authority** |
 | **Validator** | `tests/runtime/idx-suggest-select-fields.test.ts`, `tests/runtime/idx-fetch-expand-media.test.ts`, `tests/runtime/idx-sync-max-records.test.ts`, `tests/runtime/idx-sync-cursor-modification-timestamp.test.ts`, `tests/runtime/idx-sync-diagnostic-audit-events.test.ts`, `lib/idx/__tests__/*` |
 | **When to read** | New OData query, new endpoint, new $expand, new $select field, new Media query, new $filter; auth/token changes; rate-limit/throttle work |
 | **Fail-closed** | API base = `https://api.cotality.com/trestle`. Old hosts `api-trestle.corelogic.com` + `api-prod.corelogic.com` deprecated hard 2026-03-31 (media proxy allowlists all 3 during transition). Media `Media/All` endpoint deprecated — query `/odata/Media` with `$filter=ResourceRecordKey eq '...'` (see §8 below). HTTP 400 on `InternetEntireListingDisplayYN` / `InternetAddressDisplayYN` `$filter` is the canonical signal of REBNY provider-level pre-filter. |

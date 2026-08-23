@@ -64,7 +64,7 @@ const RESIDENTIAL_SUBTYPES = new Set([
 /**
  * Classify a listing's RLS eligibility based on UCBA rules.
  *
- * @param payload - The listing payload (Cotality field names)
+ * @param payload - The listing payload (RESO field names)
  * @param overrides - Explicit opt-out or commercial classification from the form
  */
 export function classifyRlsEligibility(

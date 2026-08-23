@@ -7,7 +7,7 @@
 //
 // Before this module, the codebase mixed three different formats for the same
 // values across 37 files:
-//   "ComingSoon"        (Cotality internal, DB format)
+//   "ComingSoon"        (RESO internal, DB format)
 //   "Coming Soon"        (human display format)
 //   "COMING_SOON"        (URL / API-param format)
 //
@@ -25,10 +25,10 @@
 
 /**
  * Canonical internal status values. These are exactly the strings the DB
- * stores (matches REBNY Cotality StandardStatus enum, no spaces).
+ * stores (matches REBNY RESO StandardStatus enum, no spaces).
  *
  * Values ALPHABETIZED by enum key to keep the order deterministic across
- * schema diffs. The underlying string values are whatever Cotality uses.
+ * schema diffs. The underlying string values are whatever RESO uses.
  */
 export const Status = {
   ACTIVE: 'Active',
@@ -69,7 +69,7 @@ const INPUT_TO_CANONICAL: Record<string, StatusValue> = {
   'Sold': Status.SOLD,
   'Withdrawn': Status.WITHDRAWN,
 
-  // Human display format (Cotality-style with spaces — Trestle sometimes sends these)
+  // Human display format (RESO-style with spaces — Trestle sometimes sends these)
   'Active Under Contract': Status.ACTIVE_UNDER_CONTRACT,
   'Coming Soon': Status.COMING_SOON,
 
@@ -95,7 +95,7 @@ const INPUT_TO_CANONICAL: Record<string, StatusValue> = {
  * Canonical display label for a status (what a buyer sees on the listing
  * card).
  *
- * Kept separate from the canonical value so the DB stays in Cotality format
+ * Kept separate from the canonical value so the DB stays in RESO format
  * while the UI gets human-friendly text.
  */
 const CANONICAL_TO_LABEL: Record<StatusValue, string> = {
@@ -117,7 +117,7 @@ const CANONICAL_TO_LABEL: Record<StatusValue, string> = {
  * Statuses that count as "actively on market" for public search display.
  *
  * Coming Soon is included — it IS displayable (with the REBNY §16(C) badge)
- * even though it's not technically "Active" per Cotality. ActiveUnderContract
+ * even though it's not technically "Active" per RESO. ActiveUnderContract
  * is included because REBNY allows IDX display of listings that have
  * accepted an offer but haven't closed — typically shown with an "Under
  * Contract" badge.

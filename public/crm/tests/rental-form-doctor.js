@@ -2,7 +2,7 @@
  * rental-form-doctor.js — Rental Listing Form Validation & Compliance Tool
  * Validates RENTAL-FORM-STANDALONE.html against REBNY/RLS/IDX/Trestle requirements
  *
- * Covers: REBNY RLS Rules, UCBA 2026, Cotality Data Standards, Fair Housing Act,
+ * Covers: REBNY RLS Rules, UCBA 2026, RESO Data Standards, Fair Housing Act,
  *         NY State Human Rights Law, NYC Human Rights Law Title 8,
  *         NY DOS Advertising Laws (19 NYCRR 175.25), Source of Income Discrimination,
  *         Disability Accommodation (service/emotional support animals)
@@ -15,7 +15,7 @@
  * Categories:
  *   MF  (MF-01..MF-20):  Mandatory Fields — core required listing data
  *   RF  (RF-01..RF-10):  Rental-Specific Fields — rental-only data requirements
- *   RC  (RC-01..RC-08):  Cotality Compliance — property type mapping, status, picklists
+ *   RC  (RC-01..RC-08):  RESO Compliance — property type mapping, status, picklists
  *   DQ  (DQ-01..DQ-10):  Data Quality — format, range, duplicate, validation
  *   DG  (DG-01..DG-05):  Distribution Gates — opt-out, IDX, syndication controls
  *   CF  (CF-01..CF-10):  Compliance Fields — Fair Housing, agent info, compensation, SOI
@@ -92,7 +92,7 @@ var RentalFormDoctor = (function() {
     ];
 
     /**
-     * REBNY-mandated 16 rental property type radios and their Cotality 3-field mappings.
+     * REBNY-mandated 16 rental property type radios and their RESO 3-field mappings.
      * No Land, no Deeded Parking (sale-only). Adds RentalBuilding.
      */
     var RENTAL_PROPERTY_TYPES = {
@@ -273,12 +273,12 @@ var RentalFormDoctor = (function() {
             else { warn('MF-02', 'PropertyType radio', ptRadioCount + ' radios exist but none selected — required'); }
         } else { fail('MF-02', 'PropertyType radio group', 'No radios with name="rentalPropertyType" found'); }
 
-        // MF-03: PropertySubType derivation — validated via Cotality mapping in RC section
+        // MF-03: PropertySubType derivation — validated via RESO mapping in RC section
         var ptSelected = radioVal('rentalPropertyType');
         if (ptSelected && RENTAL_PROPERTY_TYPES[ptSelected]) {
             pass('MF-03', 'PropertySubType (derived)', 'Maps to: ' + RENTAL_PROPERTY_TYPES[ptSelected].PropertySubType);
         } else if (ptSelected) {
-            fail('MF-03', 'PropertySubType (derived)', 'Selected type "' + ptSelected + '" has no Cotality mapping');
+            fail('MF-03', 'PropertySubType (derived)', 'Selected type "' + ptSelected + '" has no RESO mapping');
         } else {
             warn('MF-03', 'PropertySubType (derived)', 'No property type selected — cannot derive');
         }
@@ -287,7 +287,7 @@ var RentalFormDoctor = (function() {
         if (ptSelected && RENTAL_PROPERTY_TYPES[ptSelected]) {
             pass('MF-04', 'CommonInterest (derived)', 'Maps to: ' + RENTAL_PROPERTY_TYPES[ptSelected].CommonInterest);
         } else if (ptSelected) {
-            fail('MF-04', 'CommonInterest (derived)', 'Selected type "' + ptSelected + '" has no Cotality mapping');
+            fail('MF-04', 'CommonInterest (derived)', 'Selected type "' + ptSelected + '" has no RESO mapping');
         } else {
             warn('MF-04', 'CommonInterest (derived)', 'No property type selected — cannot derive');
         }
@@ -342,7 +342,7 @@ var RentalFormDoctor = (function() {
             warn('MF-09', 'State (StateOrProvince)', 'No standalone rentalState element — verify state is derived from borough');
         }
 
-        // MF-10: County / Borough (REBNY I1 — redundant with MF-07 but different Cotality field)
+        // MF-10: County / Borough (REBNY I1 — redundant with MF-07 but different RESO field)
         // Validated via MF-07 — pass if borough exists
         if (exists('rentalBorough')) {
             pass('MF-10', 'CountyOrParish (borough)', 'Covered by rentalBorough field (MF-07)');
@@ -528,7 +528,7 @@ var RentalFormDoctor = (function() {
 
 
         // =================================================================
-        // Cotality COMPLIANCE (RC-01 to RC-08) — Property type mapping
+        // RESO COMPLIANCE (RC-01 to RC-08) — Property type mapping
         // =================================================================
 
         // RC-01: PropertyType radio group exists
@@ -548,7 +548,7 @@ var RentalFormDoctor = (function() {
             fail('RC-02', 'Rental property type radios', 'No property type radios found');
         }
 
-        // RC-03: Each radio maps to correct Cotality trio
+        // RC-03: Each radio maps to correct RESO trio
         if (ptRadioCount > 0) {
             var unmapped = [];
             document.querySelectorAll('input[name="rentalPropertyType"]').forEach(function(radio) {
@@ -557,9 +557,9 @@ var RentalFormDoctor = (function() {
                 }
             });
             if (unmapped.length === 0) {
-                pass('RC-03', 'Cotality 3-field mapping', 'All ' + ptRadioCount + ' radios have valid Cotality mappings');
+                pass('RC-03', 'RESO 3-field mapping', 'All ' + ptRadioCount + ' radios have valid RESO mappings');
             } else {
-                fail('RC-03', 'Cotality 3-field mapping', unmapped.length + ' unmapped: ' + unmapped.join(', '), unmapped);
+                fail('RC-03', 'RESO 3-field mapping', unmapped.length + ' unmapped: ' + unmapped.join(', '), unmapped);
             }
         }
 
@@ -618,21 +618,21 @@ var RentalFormDoctor = (function() {
             }
         }
 
-        // RC-08: Address fields map to Cotality components
-        var cotalityAddr = {
+        // RC-08: Address fields map to RESO components
+        var resoAddr = {
             'rentalStreetAddress': 'StreetNumber + StreetName',
             'rentalUnitNumber': 'UnitNumber',
             'rentalBorough': 'CityRegion',
             'rentalZipCode': 'PostalCode'
         };
         var addrMissing = [];
-        Object.keys(cotalityAddr).forEach(function(id) {
-            if (!exists(id)) addrMissing.push(id + ' (' + cotalityAddr[id] + ')');
+        Object.keys(resoAddr).forEach(function(id) {
+            if (!exists(id)) addrMissing.push(id + ' (' + resoAddr[id] + ')');
         });
         if (addrMissing.length === 0) {
-            pass('RC-08', 'Cotality address field mapping', 'All 4 address components present');
+            pass('RC-08', 'RESO address field mapping', 'All 4 address components present');
         } else {
-            fail('RC-08', 'Cotality address mapping', addrMissing.length + ' missing: ' + addrMissing.join(', '));
+            fail('RC-08', 'RESO address mapping', addrMissing.length + ' missing: ' + addrMissing.join(', '));
         }
 
 
@@ -716,9 +716,9 @@ var RentalFormDoctor = (function() {
             var descEl = el('rentalDescription');
             var maxLen = descEl ? (descEl.getAttribute('maxlength') || descEl.getAttribute('maxLength')) : null;
             if (maxLen) {
-                pass('DQ-05', 'Description char limit', 'maxlength=' + maxLen + ' (Cotality PublicRemarks max 5000)');
+                pass('DQ-05', 'Description char limit', 'maxlength=' + maxLen + ' (RESO PublicRemarks max 5000)');
             } else {
-                warn('DQ-05', 'Description char limit', 'No maxlength attribute — Cotality PublicRemarks allows max 5000 chars', ['rentalDescription']);
+                warn('DQ-05', 'Description char limit', 'No maxlength attribute — RESO PublicRemarks allows max 5000 chars', ['rentalDescription']);
             }
         }
 
@@ -1210,7 +1210,7 @@ var RentalFormDoctor = (function() {
     var CATEGORY_LABELS = {
         'MF':    'Mandatory Fields',
         'RF':    'Rental-Specific',
-        'RC':    'Cotality Compliance',
+        'RC':    'RESO Compliance',
         'DQ':    'Data Quality',
         'DG':    'Distribution Gates',
         'CF':    'Compliance (Fair Housing)',

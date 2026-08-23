@@ -444,9 +444,9 @@ model Listing {
   owner_client    Lead?   @relation("ListingOwner", fields: [owner_client_id], references: [id])
 
   // --- Filter columns (indexed for queries) ---
-  status            String   @default("Active") // Cotality StandardStatus
+  status            String   @default("Active") // RESO StandardStatus
   listing_type      String   @map("listing_type") // "sale" | "rent"
-  property_type     String?  @map("property_type") // Cotality PropertyType
+  property_type     String?  @map("property_type") // RESO PropertyType
   property_sub_type String?  @map("property_sub_type")
   list_price        Decimal  @map("list_price") @db.Decimal(14, 2)
   bedrooms_total    Int?     @map("bedrooms_total")
@@ -2603,7 +2603,7 @@ model ListingSearchProjection {
   listing_id String  @unique @map("listing_id")
   listing    Listing @relation(fields: [listing_id], references: [listing_id], onDelete: Cascade)
 
-  // Cotality/Trestle source tracking (filled by sync — null until PR 5B).
+  // RESO/Trestle source tracking (filled by sync — null until PR 5B).
   listing_key   String? @map("listing_key")
   source_system String? @map("source_system")
   mls_status    String? @map("mls_status")

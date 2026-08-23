@@ -522,7 +522,7 @@ async function fetchManifestPage(
   const mapped = batch.map((l): ManifestListing => {
     const addr = (l.address ?? {}) as Record<string, unknown>;
     const features = (l.features ?? {}) as Record<string, unknown>;
-    // HERO COTALITYLUTION — durable first, source fallback second.
+    // HERO RESOLUTION — durable first, source fallback second.
     //
     // 1. A usable `primary_photo_r2_key` is a DURABLE public object: serve it
     //    directly. No proxy hop, and no dependency on a signed locator that

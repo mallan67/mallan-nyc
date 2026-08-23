@@ -150,10 +150,10 @@
         };
 
         // ╔══════════════════════════════════════════════════════════════════╗
-        // ║  CRM → Cotality MlsStatus MAPPING (Item 41)                       ║
+        // ║  CRM → RESO MlsStatus MAPPING (Item 41)                       ║
         // ╚══════════════════════════════════════════════════════════════════╝
 
-        var CRM_TO_COTALITY_STATUS = {
+        var CRM_TO_RESO_STATUS = {
             // Sale statuses
             'Draft':                 'ComingSoon',
             'Future':                'ComingSoon',
@@ -184,17 +184,17 @@
             'LeasedThruUs':          'Closed',
         };
 
-        function getCotalityMlsStatus(crmStatus) {
-            return CRM_TO_COTALITY_STATUS[crmStatus] || 'Active';
+        function getResoMlsStatus(crmStatus) {
+            return CRM_TO_RESO_STATUS[crmStatus] || 'Active';
         }
 
         // ╔══════════════════════════════════════════════════════════════════╗
-        // ║  Cotality 3-FIELD PROPERTY TYPE MAPPING (Item 32/58)               ║
+        // ║  RESO 3-FIELD PROPERTY TYPE MAPPING (Item 32/58)               ║
         // ╚══════════════════════════════════════════════════════════════════╝
 
-        // Maps CRM property type radio values to Cotality 3-field standard
+        // Maps CRM property type radio values to RESO 3-field standard
         // Used by both sale and rental forms on data collection/submission
-        function getCotalityPropertyFields(crmValue, formType) {
+        function getResoPropertyFields(crmValue, formType) {
             // For Office/Retail, CommonInterest comes from the building type sub-selector
             var officeRetailOwnership = formType
                 ? document.querySelector('input[name="' + formType + 'OfficeRetailOwnership"]:checked')?.value
@@ -325,11 +325,11 @@
             var tsEl = document.getElementById(formType + 'StatusChangeTimestamp');
             if (tsEl) tsEl.textContent = timestamp;
 
-            // Update Cotality MlsStatus display
+            // Update RESO MlsStatus display
             var statusEl = document.getElementById(formType + 'Status');
-            var cotalityEl = document.getElementById(formType + 'CotalityMlsStatus');
-            if (statusEl && cotalityEl && typeof getCotalityMlsStatus === 'function') {
-                cotalityEl.textContent = getCotalityMlsStatus(statusEl.value);
+            var resoEl = document.getElementById(formType + 'ResoMlsStatus');
+            if (statusEl && resoEl && typeof getResoMlsStatus === 'function') {
+                resoEl.textContent = getResoMlsStatus(statusEl.value);
             }
 
             // Compute DOM (days since first Active)

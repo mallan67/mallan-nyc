@@ -15,9 +15,9 @@
 |----------|-----------|---------|
 | **1** | **UCBA** | Everything — contractual obligations, timing, statuses, agent conduct |
 | **2** | **REBNY RLS rules + fields** | Permissions, timing, statuses, mapping, IDs, dissemination |
-| **3** | **RLS overrides Cotality/IDX** | If an RLS rule/field exists, it overrides all Cotality/IDX schema or vendor defaults |
-| **4** | **Cotality/IDX fills gaps** | If no RLS rule/field exists, use Cotality definitions for naming/types/enums |
-| **5** | **INTERNAL-ONLY** | If neither RLS nor Cotality/IDX governs, must not affect public display eligibility |
+| **3** | **RLS overrides RESO/IDX** | If an RLS rule/field exists, it overrides all RESO/IDX schema or vendor defaults |
+| **4** | **RESO/IDX fills gaps** | If no RLS rule/field exists, use RESO definitions for naming/types/enums |
+| **5** | **INTERNAL-ONLY** | If neither RLS nor RESO/IDX governs, must not affect public display eligibility |
 | **6** | **Fail closed** | Any uncertainty or missing permission data defaults to **NON-DISPLAY** |
 
 ---
@@ -37,7 +37,7 @@
 | [`CRM-AND-MESSAGING-COMPLIANCE.md`](CRM-AND-MESSAGING-COMPLIANCE.md) | TCPA, CAN-SPAM, Fair Housing in comms, no agent info in descriptions | CRM, Marketing |
 | [`AUDIT-LOGGING-AND-EVIDENCE.md`](AUDIT-LOGGING-AND-EVIDENCE.md) | NY SHIELD Act, data access logging, evidence retention, breach response | Backend, Security |
 | [`THIRD-PARTY-AND-FEED-GOVERNANCE.md`](THIRD-PARTY-AND-FEED-GOVERNANCE.md) | Trestle/Cotality API, StreetEasy, syndication portals, data license rules | Backend, Ops |
-| [`UPDATES.md`](UPDATES.md) | Running changelog — REBNY, Cotality, Cotality, FARE Act updates with dates | All |
+| [`UPDATES.md`](UPDATES.md) | Running changelog — REBNY, RESO, Cotality, FARE Act updates with dates | All |
 | [`AUTH-AND-API-SECURITY.md`](AUTH-AND-API-SECURITY.md) | Sprint 9 auth architecture — dual auth (Bearer + cookie), CORS, rate limiting, session management, cross-origin security | Backend, Security |
 
 ## Machine-Readable Enforcement
@@ -57,7 +57,7 @@
 | [`rules/active.json`](rules/active.json) | Single pointer to all enforced rule files, field data, and validator scripts | All below |
 | [`rules/rls-required.json`](rules/rls-required.json) | 52 always-required fields + 14 conditional groups + 11 cross-field validations | UCBA 2026 Exhibit A + RLS CSV |
 | [`rules/export-policy.json`](rules/export-policy.json) | 8 distribution profiles, 6 gates, display cascade, never-export list, close-only fields, syndication portals | UCBA 2026 + REBNY RLS Rules |
-| [`rules/cotality-rls-renames.json`](rules/cotality-rls-renames.json) | 23 Cotality → RLS name mappings (foreign keys, case diffs, renames, splits) | RLS CSV |
+| [`rules/reso-rls-renames.json`](rules/reso-rls-renames.json) | 23 RESO → RLS name mappings (foreign keys, case diffs, renames, splits) | RLS CSV |
 | [`rules/status-rules.json`](rules/status-rules.json) | 9 status definitions, valid/invalid transitions, DOM rules, 5 timing SLAs | UCBA 2026 Art. I |
 | [`rules/content-restrictions.json`](rules/content-restrictions.json) | 11 content restriction rules + 4 scanner definitions (Fair Housing, Agent Info, Off-Market, Compensation) | UCBA 2026 Art. I, III, VIII + Exhibit C |
 | [`rules/ucba-audit-checklist.json`](rules/ucba-audit-checklist.json) | **Machine-readable UCBA 2026 audit checklist** — 145 verifiable rules with file paths, regex patterns, and verdicts. Used by `scripts/ucba-compliance-audit.js` for regression detection. | UCBA 2026 (all sections) |

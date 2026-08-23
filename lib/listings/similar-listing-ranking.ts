@@ -25,7 +25,7 @@ function normalize(value: string | null | undefined): string {
  *  condos, a co-op to co-ops — different products that are NOT interchangeable comps. */
 export type PropertyClass = '' | 'condo' | 'coop' | 'condop' | 'townhouse' | 'loft' | 'apartment';
 
-/** Collapse the many ownership/type spellings (Cotality enums + our display strings) to ONE class.
+/** Collapse the many ownership/type spellings (RESO enums + our display strings) to ONE class.
  *  Handles raw feed values (Condominium, StockCooperative, SingleFamilyResidence, MultiFamily,
  *  Duplex…) and our mapped labels (Condo, Co-op…). Round-trips its own output.
  *

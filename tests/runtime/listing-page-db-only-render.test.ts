@@ -54,7 +54,7 @@ describe('listing page cannot reach the live Cotality/Trestle feed', () => {
   });
 
   it('does not fetch a raw Trestle record or map it on the render path', () => {
-    // rawToDTO + its Cotality mapper/gate imports existed only for the live path.
+    // rawToDTO + its RESO mapper/gate imports existed only for the live path.
     expect(src).not.toMatch(/\brawToDTO\b/);
     expect(src).not.toMatch(/from ['"]@\/lib\/idx\/mapping['"]/);
   });

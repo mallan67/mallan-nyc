@@ -178,7 +178,7 @@ describe('the neighborhood scores are not computed out of thin air', () => {
     // unknown, so the whole ladder is unreachable and goes.
     //
     // CORRECTED: my first version also forbade 'Somewhat Walkable'. That was
-    // wrong. `WalkScore` is a real Cotality field (cotality-field-map.js:105), so a
+    // wrong. `WalkScore` is a real Cotality field (reso-field-map.js:105), so a
     // POPULATED walk score has earned its real label. Only the null case needs
     // guarding — asserted behaviourally in the render test below.
     expect(src).not.toMatch(/:\s*'Some Transit'/);

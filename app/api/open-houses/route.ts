@@ -522,7 +522,7 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
       // open house is shown-but-unlinkable (UCBA: ComingSoon has no showings).
       .filter(({ gate, l }) => gate.displayable && OPEN_HOUSE_ELIGIBLE_STATUSES.includes(l.status) && isMallanOwnedLocalListing(l))
       .map(({ s, l, gate }) => {
-      // Address is stored as JSON. CRM/local listings persist it in Cotality PascalCase
+      // Address is stored as JSON. CRM/local listings persist it in RESO PascalCase
       // (StreetNumber/StreetName/UnitNumber…); reading only camelCase produced an EMPTY street, which
       // the hasData filter in GET() then dropped — the SL-0007 P1 bug. pickAddressParts reads both
       // casings (canonical, shared with the banner path).

@@ -61,7 +61,7 @@
    filterability, relationship, or capability). Every such claim must come from an HTTP
    response received from `api.cotality.com` **during the current session**. A repo constant,
    `$select` list, mapper table, code comment, `artifacts/metadata.xml`,
-   `data/cotality-enums.live.json`, a prior audit, Cotality/vendor docs, another agent's report,
+   `data/cotality-enums.live.json`, a prior audit, RESO/vendor docs, another agent's report,
    or model memory are **NOT evidence** — a committed artifact may be refreshed and diffed,
    never read as truth. Probes must **fail loud**: `SUPPORTED`, `PROVIDER_REJECTED` and
    `UNVERIFIED` are three states that may **never** collapse, and an HTTP failure may never

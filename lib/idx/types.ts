@@ -4,7 +4,7 @@ import type { CanonicalMediaType } from '@/lib/media/media-sync-service';
  *
  * COMPLIANCE NOTE:
  * These types represent the internal canonical representation of listing data.
- * They are Cotality-aligned but not endpoint-specific.
+ * They are RESO-aligned but not endpoint-specific.
  *
  * MLS/IDX data accessed through these types MUST:
  * - Only be fetched server-side
@@ -32,7 +32,7 @@ export type TrestleRawListing = Record<string, unknown>;
 /**
  * Canonical listing type for internal use.
  * Field names, types and enum members are whatever the live Cotality contract
- * exposes. There is no Cotality layer between Cotality and Mallan.
+ * exposes. There is no RESO layer between Cotality and Mallan.
  * Expanded to cover all field categories.
  */
 export interface IDXListing {
@@ -41,7 +41,7 @@ export interface IDXListing {
   listingKeyNumeric?: number;
   mlsId: string;
 
-  // Status — canonical Cotality values (no spaces).
+  // Status — canonical RESO values (no spaces).
   // Previously this union used spaced forms like 'Coming Soon' and
   // 'Active Under Contract', which DISAGREED with the actual runtime values
   // (DB stores 'ComingSoon', 'ActiveUnderContract'). Comparisons like
@@ -62,7 +62,7 @@ export interface IDXListing {
     | 'Withdrawn';
   listingType: 'sale' | 'rent';
 
-  // Address (Cotality-aligned)
+  // Address (RESO-aligned)
   address: {
     streetNumber: string;
     streetName: string;

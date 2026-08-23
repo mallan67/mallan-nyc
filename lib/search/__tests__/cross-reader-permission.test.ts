@@ -6,7 +6,7 @@
  * suite asserts agreement BETWEEN layers rather than correctness within one.
  *
  * `Property.Permission` is live-typed
- * `Cotality.DataStandard.Cotality.DD.Enums.Multi.ListingPermission` — a MULTI-enum.
+ * `Cotality.DataStandard.RESO.DD.Enums.Multi.ListingPermission` — a MULTI-enum.
  * The feed delivers multi-token values (`IDX,SyndicateOptOut` occurs live).
  *
  * TWO INTERPRETATIONS EXISTED AT 438b9993:

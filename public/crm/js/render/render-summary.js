@@ -45,9 +45,9 @@
                                         </div>
                                     </div>
                                     <div class="flex flex-col items-end flex-shrink-0">
-                                        <span class="text-xl font-bold text-gray-900"${cotalityData('price', listing.price)}>$${listing.price.toLocaleString()}</span>
+                                        <span class="text-xl font-bold text-gray-900"${resoData('price', listing.price)}>$${listing.price.toLocaleString()}</span>
                                         <div class="flex items-center gap-2 mt-1">
-                                            <span class="px-2 py-0.5 rounded text-[11px] font-semibold" style="background:${stB};color:${stC}"${cotalityData('status', listing.status)}>${statusLabel}</span>
+                                            <span class="px-2 py-0.5 rounded text-[11px] font-semibold" style="background:${stB};color:${stC}"${resoData('status', listing.status)}>${statusLabel}</span>
                                             ${participantOnlyBadge(listing)}
                                             ${syndicationBadge(listing)}
                                         </div>

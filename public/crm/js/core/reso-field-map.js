@@ -1,6 +1,6 @@
         // ═══════════════════════════════════════════════════════════════════════════
-        // Cotality FIELD MAPPING — Maps mock field names to Cotality Data Dictionary fields
-        // Used for data-cotality-field attributes on rendered HTML elements
+        // RESO FIELD MAPPING — Maps mock field names to RESO Data Dictionary fields
+        // Used for data-reso-field attributes on rendered HTML elements
         // Reference: Trestle/CoreLogic Property entity (REBNY RLS)
         //
         // VERIFIED 2026-02-19 against:
@@ -13,14 +13,14 @@
         //   - Trestle "ListingKey" = OData primary key (Trestle-generated)
         //   - Trestle "ListingId" = RLS listing number (Matrix-generated)
         //   - RLS "StandardStatus" attr → Trestle "MlsStatus" (detailed)
-        //     Trestle also has "StandardStatus" (Cotality normalized) — we use MlsStatus (RLS name)
+        //     Trestle also has "StandardStatus" (RESO normalized) — we use MlsStatus (RLS name)
         //   - RLS uses "SubdivisionName" for neighborhood, Trestle also has "MLSAreaMinor"
         //   - "WalkScore" exists in Trestle schema but NOT in RLS (Trestle-only)
         //   - Coming Soon: RLS uses "ActivationDate" (not FirstShowingDate)
         //     and "ComingSoonTimestamp" (not ComingSoonOnMarketDate/ExpirationDate)
         //   - BuyerBrokerageCompensation: REMOVED from RLS feed Aug 2025 (NAR settlement)
         // ═══════════════════════════════════════════════════════════════════════════
-        var COTALITY_FIELD_MAP = {
+        var RESO_FIELD_MAP = {
             // ── Address & Location ──
             address:        'UnparsedAddress',           // RLS: UnparsedAddress → UnParsedAddress (Matrix). Trestle OData: UnparsedAddress
             unit:           'UnitNumber',                // RLS: UnitNumber. Conditional required by PropertySubType
@@ -40,7 +40,7 @@
             priceChangeTs:  'PriceChangeTimestamp',      // RLS: PriceChangeTimestamp (system)
             closePrice:     'ClosePrice',                // RLS: ClosePrice. Required when MLSStatus=Closed
             closeDate:      'CloseDate',                 // RLS: CloseDate. Must >= PurchaseContractDate
-            closedDate:     'CloseDate',                 // alias — cached data uses closedDate, Cotality uses CloseDate
+            closedDate:     'CloseDate',                 // alias — cached data uses closedDate, RESO uses CloseDate
 
             // ── Unit Details ──
             rooms:          'RoomsTotal',                // RLS: RoomsTotal
@@ -56,7 +56,7 @@
             view:           'View',                      // RLS: View. Conditional: ViewYN=true
 
             // ── Classification ──
-            status:         'MlsStatus',                 // RLS: MlsStatus (REBNY detailed status). Cotality "StandardStatus" renamed to "MlsStatus" by RLS
+            status:         'MlsStatus',                 // RLS: MlsStatus (REBNY detailed status). RESO "StandardStatus" renamed to "MlsStatus" by RLS
             ownership:      'CommonInterest',            // RLS: CommonInterest
             propertyType:   'PropertyType',              // RLS: PropertyType (Residential | ResidentialLease)
             propertySubType:'PropertySubType',           // RLS: PropertySubType
@@ -68,13 +68,13 @@
 
             // ── IDs ──
             lid:            'ListingId',                 // Trestle: ListingId (Matrix-generated RLS number). Read-only
-            wid:            'SourceSystemKey',            // RLS: SourceSystemKey (LMP's listing ID). Cotality "ListingKey" renamed to "SourceSystemKey" by RLS
+            wid:            'SourceSystemKey',            // RLS: SourceSystemKey (LMP's listing ID). RESO "ListingKey" renamed to "SourceSystemKey" by RLS
 
             // ── Dates & DOM ──
             dom:            'DaysOnMarket',              // RLS: DaysOnMarket (system). Reset after 30 days W/C (UCBA 2026)
             cdom:           'CumulativeDaysOnMarket',    // RLS: CumulativeDaysOnMarket (system)
             listedDate:     'OnMarketDate',              // RLS: OnMarketDate. Required if MLSStatus=Active
-            updatedDate:    'SourceSystemModificationTimestamp', // RLS: SourceSystemModificationTimestamp. Cotality "ModificationTimestamp" renamed by RLS
+            updatedDate:    'SourceSystemModificationTimestamp', // RLS: SourceSystemModificationTimestamp. RESO "ModificationTimestamp" renamed by RLS
 
             // ── Agent & Office ──
             company:        'ListOfficeName',            // RLS: ListOfficeName
@@ -127,7 +127,7 @@
         //   MediaKey (PK), MediaURL, MediaType (Jpeg/Png/etc),
         //   MediaCategory (Photo/Video/FloorPlan/Document),
         //   MediaClassification (Photo/Document/Video),
-        //   ImageOf (91 Cotality enum values — LivingRoom, Kitchen, Bedroom, etc),
+        //   ImageOf (91 RESO enum values — LivingRoom, Kitchen, Bedroom, etc),
         //   ImageHeight, ImageWidth, ImageSizeDescription,
         //   Order (sort order — MANDATORY per REBNY Exhibit A "Photos - Sort Order"),
         //   PreferredPhotoYN (primary/hero photo flag),
@@ -142,18 +142,18 @@
         //   First photo: exterior/primary view (PreferredPhotoYN=true)
         //   No watermarks, agent info, logos, or text overlays (UCBA Art. I, Sec. 5(C))
 
-        // Helper: generate data-cotality-field attribute string for a field
-        function cotalityAttr(fieldName) {
-            var cotality = COTALITY_FIELD_MAP[fieldName];
-            return cotality ? ' data-cotality-field="' + cotality + '"' : '';
+        // Helper: generate data-reso-field attribute string for a field
+        function resoAttr(fieldName) {
+            var reso = RESO_FIELD_MAP[fieldName];
+            return reso ? ' data-reso-field="' + reso + '"' : '';
         }
 
-        // Helper: generate data-cotality-field + data-cotality-value attribute string
-        function cotalityData(fieldName, value) {
-            var cotality = COTALITY_FIELD_MAP[fieldName];
-            if (!cotality) return '';
+        // Helper: generate data-reso-field + data-reso-value attribute string
+        function resoData(fieldName, value) {
+            var reso = RESO_FIELD_MAP[fieldName];
+            if (!reso) return '';
             var safeVal = value != null ? String(value).replace(/"/g, '&quot;') : '';
-            return ' data-cotality-field="' + cotality + '" data-cotality-value="' + safeVal + '"';
+            return ' data-reso-field="' + reso + '" data-reso-value="' + safeVal + '"';
         }
 
         // Helper: map REBNY CommonInterest enum values to user-friendly display labels

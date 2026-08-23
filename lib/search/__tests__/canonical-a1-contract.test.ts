@@ -33,7 +33,7 @@ import {
   EVIDENCE_CLASSIFICATIONS,
   mayDriveValuation,
   // identity
-  IDENTITY_COTALITYLUTION_STATUSES,
+  IDENTITY_RESOLUTION_STATUSES,
   isCanonicalEntityReference,
   // permissions
   evaluateSourcePermission,
@@ -71,7 +71,7 @@ describe('A1 · enum exhaustiveness + guards', () => {
     ['VerificationStatus', VERIFICATION_STATUSES, ['verified', 'verification_required', 'stale', 'conflicted'], undefined as unknown as (v: unknown) => boolean],
     ['SupplementalLifecycleStatus', SUPPLEMENTAL_LIFECYCLE_STATUSES, ['active', 'removed_at_source', 'superseded_by_rebny', 'license_blocked'], undefined as unknown as (v: unknown) => boolean],
     ['EvidenceClassification', EVIDENCE_CLASSIFICATIONS, ['VALUATION_EVIDENCE', 'ACTIVE_COMPETITION', 'SUPPLEMENTAL_MARKET_OBSERVATION', 'PROPERTY_FACT', 'UNVERIFIED_LEAD'], undefined as unknown as (v: unknown) => boolean],
-    ['IdentityResolutionStatus', IDENTITY_COTALITYLUTION_STATUSES, ['resolved', 'partial', 'ambiguous', 'unresolved'], undefined as unknown as (v: unknown) => boolean],
+    ['IdentityResolutionStatus', IDENTITY_RESOLUTION_STATUSES, ['resolved', 'partial', 'ambiguous', 'unresolved'], undefined as unknown as (v: unknown) => boolean],
   ];
 
   it.each(cases)('%s: members are exactly the approved set', (_name, members, expected) => {

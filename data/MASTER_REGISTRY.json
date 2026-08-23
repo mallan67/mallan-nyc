@@ -7,7 +7,7 @@
     "sources": [
       "data/rebny-rls-property-fields.csv (902 REBNY IDX Plus fields across 7 resources)",
       "data/rebny-rls-property-lookup.csv (105 REBNY enums / 1,942 picklist values)",
-      "data/trestle-dictionary/trestle-schema.json (744 Trestle fields — full Cotality)",
+      "data/trestle-dictionary/trestle-schema.json (744 Trestle fields — full RESO)",
       "data/FIELD_REGISTRY.json (65 CRM canonical mappings)",
       "data/SEARCH_CONTROL_MAP.json (search DOM mappings)",
       "trestle-metadata.xml (OData baseline)"
@@ -38,7 +38,7 @@
       "lastUpdated": "2026-03-13",
       "mechanisms": {
         "1_PropertyEntity": {
-          "description": "Standard Cotality fields on the Trestle Property entity. Accessed directly via OData $select.",
+          "description": "Standard RESO fields on the Trestle Property entity. Accessed directly via OData $select.",
           "fieldCount": "~580 fields",
           "examples": [
             "ListPrice",
@@ -88,7 +88,7 @@
             "CoBrokeAgreement",
             "Permissions"
           ],
-          "nycContext": "These fields exist because NYC real estate has unique concepts (doorman types, co-op board rules, flip tax, rent stabilization, UCBA co-broke terms) not found in national Cotality standard."
+          "nycContext": "These fields exist because NYC real estate has unique concepts (doorman types, co-op board rules, flip tax, rent stabilization, UCBA co-broke terms) not found in national RESO standard."
         }
       },
       "knownCsvErrors": [
@@ -3731,7 +3731,7 @@
         "listing_email"
       ],
       "searchDomIds": null,
-      "complianceNotes": "Used for borough-level filtering. Maps to CountyOrParish in Cotality."
+      "complianceNotes": "Used for borough-level filtering. Maps to CountyOrParish in RESO."
     },
     "CrossStreet": {
       "isRebny": true,
@@ -8276,7 +8276,7 @@
         "listing_email"
       ],
       "searchDomIds": null,
-      "complianceNotes": "Part of Cotality trio. 'Apartment' used for rental building units."
+      "complianceNotes": "Part of RESO trio. 'Apartment' used for rental building units."
     },
     "PropertyType": {
       "isRebny": true,
@@ -8302,7 +8302,7 @@
         "listing_detail"
       ],
       "searchDomIds": null,
-      "complianceNotes": "Part of Cotality trio: PropertyType + CommonInterest + PropertySubType"
+      "complianceNotes": "Part of RESO trio: PropertyType + CommonInterest + PropertySubType"
     },
     "PublicRemarks": {
       "isRebny": true,

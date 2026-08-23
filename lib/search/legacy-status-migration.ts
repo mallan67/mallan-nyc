@@ -21,7 +21,7 @@
  * JavaScript layer invented — `PENDING`, `UNDER_CONTRACT`, `COMING_SOON` — even
  * though the status checkboxes that produced them always carried
  * `data-value="Pending" / "ActiveUnderContract" / "ComingSoon"`, and the
- * database column has always held the Cotality member
+ * database column has always held the RESO member
  * (`prisma/schema.prisma:447`). Only the middle layer disagreed.
  *
  * ─────────────────────────────────────────────────────────────────────────────

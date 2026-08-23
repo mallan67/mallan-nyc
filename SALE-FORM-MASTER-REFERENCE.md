@@ -2,7 +2,7 @@
 
 > ⚠️ **DEPRECATED CRM FILE REFERENCE — 2026-04-28.** The "CRM File" pointer below names `public/crm/MALLAN-NYC-CRM-FINAL2.html` (the mockup), which is no longer the source of truth. Production sale-form work uses `public/crm/SALE-FORM-REDESIGN.html` per `CLAUDE.md` File Roles section. The 902 RLS field references in this doc are still valid; only the CRM file pointer is stale.
 
-> **Single document. Every field has everything: Exhibit A ref, Cotality name, distribution, rules, sharing, cross-references.**
+> **Single document. Every field has everything: Exhibit A ref, RESO name, distribution, rules, sharing, cross-references.**
 > **Source Data:** `data/rebny-rls-property-fields.csv` + `data/UCBA-2026-Requirements.md` + REBNY-MASTER.md Parts 1-3
 > **Date:** 2026-02-09 | **CRM File:** `public/crm/SALE-FORM-REDESIGN.html` (was `public/crm/MALLAN-NYC-CRM-FINAL2.html` mockup, removed 2026-04-28)
 
@@ -10,17 +10,17 @@
 
 ## HOW TO USE THIS DOCUMENT
 
-1. **Looking up a field?** Ctrl+F the Cotality field name (e.g., `CityRegion`) or the Exhibit A number (e.g., `[I1]`)
+1. **Looking up a field?** Ctrl+F the RESO field name (e.g., `CityRegion`) or the Exhibit A number (e.g., `[I1]`)
 2. **Fields marked `[I#]`** = REBNY Exhibit A mandatory fields. The I-number and all sharing rules are embedded in the REBNY Rules column.
 3. **Distribution codes** tell you who can see each field (see key below)
 4. **Every rule, cross-reference, and sharing restriction** is in the REBNY Rules column — you never need another document.
 
 ---
 
-## EXHIBIT A QUICK-REFERENCE INDEX (I1–I79 → Cotality Field → Section)
+## EXHIBIT A QUICK-REFERENCE INDEX (I1–I79 → RESO Field → Section)
 
 ### All Listings — Location & Building (I1-I16)
-| I# | Exhibit A Name | Cotality Field(s) | Section |
+| I# | Exhibit A Name | RESO Field(s) | Section |
 |---|---|---|---|
 | I1 | Borough | CityRegion | B1 |
 | I2 | Building & Listing Classification | PropertyType + PropertySubType + CommonInterest | B2 |
@@ -40,7 +40,7 @@
 | I16 | Year Built | YearBuilt | B13 |
 
 ### All Listings — Features (I17-I26)
-| I# | Exhibit A Name | Cotality Field(s) | Section |
+| I# | Exhibit A Name | RESO Field(s) | Section |
 |---|---|---|---|
 | I17 | Board Approval Required | SpecialListingConditions | B3 |
 | I18 | Number of Bathrooms | BathroomsFull | B12 |
@@ -54,7 +54,7 @@
 | I26 | Washer/Dryer Details | BuildingLaundryFeatures + LaundryFeatures | B14 |
 
 ### All Listings — Agents, Gates, Status, Dates (I27-I44)
-| I# | Exhibit A Name | Cotality Field(s) | Section |
+| I# | Exhibit A Name | RESO Field(s) | Section |
 |---|---|---|---|
 | I27 | Exclusive Agents & Firm | ListAgentMlsId + ListOfficeName | B8 |
 | I28 | Buyer Agent and Firm | BuyerAgentMlsId + BuyerOfficeName | B10 |
@@ -76,7 +76,7 @@
 | I44 | Listing Type | ListingAgreement | B3 |
 
 ### Sales Only — Condo/Co-op/Condop (I45-I52)
-| I# | Exhibit A Name | Cotality Field(s) | Section |
+| I# | Exhibit A Name | RESO Field(s) | Section |
 |---|---|---|---|
 | I45 | Flip Tax | FlipTax | B15 |
 | I46 | Living Area (Condo) | LivingArea | B12 |
@@ -88,7 +88,7 @@
 | I52 | Tax Monthly Amount (Condo) | TaxMonthlyAmount | B15 |
 
 ### Sales Only — Building/Townhouse (I53-I57)
-| I# | Exhibit A Name | Cotality Field(s) | Section |
+| I# | Exhibit A Name | RESO Field(s) | Section |
 |---|---|---|---|
 | I53 | Building Area Total | BuildingAreaTotal | B19 |
 | I54 | Garage Details | GarageYN + GarageSpaces | B21 |
@@ -97,7 +97,7 @@
 | I57 | Total Legal Rooms | LegalRoomsTotal | B12 |
 
 ### Rental Only (I58-I61)
-| I# | Exhibit A Name | Cotality Field(s) | Section |
+| I# | Exhibit A Name | RESO Field(s) | Section |
 |---|---|---|---|
 | I58 | Availability Date | AvailabilityDate | B27 |
 | I59 | Furnished Details | Furnished | B27 |
@@ -105,7 +105,7 @@
 | I61 | Lease Type | LeaseType | B27 |
 
 ### DOM Tracking (I62-I66) — Art. I, Sec. 11
-| I# | Field | Cotality Field(s) | Section |
+| I# | Field | RESO Field(s) | Section |
 |---|---|---|---|
 | I62 | Days on Market | DaysOnMarket | B4 |
 | I63 | DOM Start Date | OriginalEntryTimestamp | B4 |
@@ -114,7 +114,7 @@
 | I66 | DOM Reset History | (CRM audit field) | B4 |
 
 ### Coming Soon Workflow (I67-I72) — Art. I, Sec. 16
-| I# | Field | Cotality Field(s) | Section |
+| I# | Field | RESO Field(s) | Section |
 |---|---|---|---|
 | I67 | Coming Soon Flag | MlsStatus=ComingSoon | B4 |
 | I68 | Coming Soon Activation Date | ComingSoonTimestamp | B4 |
@@ -233,7 +233,7 @@
 | 11 | Commercial Condop | Condop | Office / Retail |
 
 #### NOT RLS-Eligible (WWW Only)
-Office, Retail, Industrial, Special Use, Whole Building, Hotel/Motel — no Cotality PropertyType mapping.
+Office, Retail, Industrial, Special Use, Whole Building, Hotel/Motel — no RESO PropertyType mapping.
 
 ---
 ---
@@ -246,7 +246,7 @@ Office, Retail, Industrial, Special Use, Whole Building, Hotel/Motel — no Cota
 
 ### B1. ADDRESS & LOCATION
 
-| Cotality Field | Description | Add/Edit | Required | Dist | REBNY Rules |
+| RESO Field | Description | Add/Edit | Required | Dist | REBNY Rules |
 |---|---|---|---|---|---|
 | StreetNumber | Street number | Yes | **REQ** | PUB-A | **[I8]** Exhibit A: "Listing Full Address." Public UNLESS InternetAddressDisplayYN=False (H10). |
 | StreetDirPrefix | Direction prefix (N, S, E, W) | Yes | OPT | PUB-A | — |
@@ -280,7 +280,7 @@ Office, Retail, Industrial, Special Use, Whole Building, Hotel/Motel — no Cota
 
 ### B2. CLASSIFICATION & PROPERTY TYPE
 
-| Cotality Field | Description | Add/Edit | Required | Dist | REBNY Rules |
+| RESO Field | Description | Add/Edit | Required | Dist | REBNY Rules |
 |---|---|---|---|---|---|
 | PropertyType | Residential or ResidentialLease | Yes | **REQ** | PUB | **[I2]** Exhibit A: "Building and Listing Classification." RLS+IDX+VOW+Syndication. **Only two values on RLS.** No "Commercial" type. Drives conditional fields. |
 | PropertySubType | Unit type (Apartment, Townhouse, etc.) | Yes | **REQ** | PUB | **[I2]** Part of Exhibit A classification. See A4 for full list. Only Office and Retail are commercial subtypes. |
@@ -297,7 +297,7 @@ Office, Retail, Industrial, Special Use, Whole Building, Hotel/Motel — no Cota
 
 ### B3. LISTING AGREEMENT & PERMISSIONS
 
-| Cotality Field | Description | Add/Edit | Required | Dist | REBNY Rules |
+| RESO Field | Description | Add/Edit | Required | Dist | REBNY Rules |
 |---|---|---|---|---|---|
 | ListingAgreement | Type of listing agreement | Yes | **REQ** | HID | **[I44]** Exhibit A: "Listing Type." RLS+IDX+VOW+Syndication. **Must be Exclusive** (C1). No Open/FSBO/Ours Alone on RLS. **If PropertyType=Residential, CANNOT submit ExclusiveRightToLease. If ResidentialLease, CANNOT submit ExclusiveRightToSell.** |
 | CoBrokeAgreement | Co-brokerage agreement type | Yes | **REQ** | AGT | **[I43]** Exhibit A: "Co-Broke Agreement Type." RLS+IDX+VOW+Syndication. RUNDBA required if NewDevelopmentYN=true (K1). Searchable by agents. |
@@ -316,7 +316,7 @@ Office, Retail, Industrial, Special Use, Whole Building, Hotel/Motel — no Cota
 
 ### B4. STATUS & DATES
 
-| Cotality Field | Description | Add/Edit | Required | Dist | REBNY Rules |
+| RESO Field | Description | Add/Edit | Required | Dist | REBNY Rules |
 |---|---|---|---|---|---|
 | MlsStatus | RLS listing status | Yes | **REQ** | PUB | **[I36]** Exhibit A: "Listing Status & Date Change." RLS+IDX+VOW+Syndication. Must update within 24hrs (C11). Maps to StandardStatus. |
 | StandardStatus | Normalized status | No | SYS | PUB | System-generated from MlsStatus. |
@@ -350,7 +350,7 @@ Office, Retail, Industrial, Special Use, Whole Building, Hotel/Motel — no Cota
 
 ### B5. PRICING
 
-| Cotality Field | Description | Add/Edit | Required | Dist | REBNY Rules |
+| RESO Field | Description | Add/Edit | Required | Dist | REBNY Rules |
 |---|---|---|---|---|---|
 | ListPrice | Current asking price | Yes | **REQ** | PUB | **[I37]** Exhibit A: "Price." RLS+IDX+VOW+Syndication. Changes within 24hrs (C11). **For rentals = gross monthly rent (NOT net-effective).** For auctions = minimum/reserve. |
 | ClosePrice | Final sale/lease price | Yes | **COND** | CLOSE | **[I32]** Exhibit A: "Closing Price or Rental Price." RLS; public after closed. **Required when MLSStatus=Closed.** Within 24hrs of closing (C12). |
@@ -367,7 +367,7 @@ Office, Retail, Industrial, Special Use, Whole Building, Hotel/Motel — no Cota
 
 **These fields control whether OTHER fields can be displayed. Violating these = UCBA violation.**
 
-| Cotality Field | Description | Add/Edit | Required | Dist | REBNY Rules |
+| RESO Field | Description | Add/Edit | Required | Dist | REBNY Rules |
 |---|---|---|---|---|---|
 | InternetEntireListingDisplayYN | Master internet display switch | Yes | **REQ** | CTL | **If False, AUTO-CASCADES:** IDXEntireListingDisplayYN=False, InternetAddressDisplayYN=False, InternetAutomatedValuationDisplayYN=False, InternetConsumerCommentYN=False. Listing alerts/auto-sharing disabled for non-exclusive agents. Sale listings with Permissions=Null cannot set this to False. |
 | IDXEntireListingDisplayYN | IDX broker website display | Yes | **REQ** | CTL | **[I29]** Exhibit A: "IDX Entire Listing Display." **GATE FIELD.** True=IDX display. False=no IDX. **LMPs must default to True.** Cross-ref: Gate 3. If True AND ListOfficeIDXParticipationYN=True, listing sent to IDX. |
@@ -381,7 +381,7 @@ Office, Retail, Industrial, Special Use, Whole Building, Hotel/Motel — no Cota
 
 ### B7. DESCRIPTION & REMARKS
 
-| Cotality Field | Description | Add/Edit | Required | Dist | REBNY Rules |
+| RESO Field | Description | Add/Edit | Required | Dist | REBNY Rules |
 |---|---|---|---|---|---|
 | PublicRemarks | Public listing description | Yes | **REQ** | PUB | **ALL FIVE CONTENT RULES:** 1) No agent info (Art. I, 5(C)). 2) No "Off-Market" (Art. I, 5(D)). 3) No compensation (Art. I, 5(E)). 4) No "free services" (Art. III, 5). 5) No Fair Housing violations (Exhibit C). |
 | PrivateRemarks | Agent-to-agent notes | Yes | OPT | AGT | **RLS Participants ONLY. NEVER on IDX/WWW/SYN.** Same 5 content rules apply. |
@@ -392,7 +392,7 @@ Office, Retail, Industrial, Special Use, Whole Building, Hotel/Motel — no Cota
 
 ### B8. AGENTS & OFFICES — LISTING SIDE
 
-| Cotality Field | Description | Add/Edit | Required | Dist | REBNY Rules |
+| RESO Field | Description | Add/Edit | Required | Dist | REBNY Rules |
 |---|---|---|---|---|---|
 | ListAgentMlsId | Listing agent MLS ID | Yes | **REQ** | PUB | **[I27]** Exhibit A: "Exclusive Agents & Firm." RLS+IDX+VOW+Syndication. **Only place agent info may appear** (C7). IDX/VOW must show "Listing Courtesy of [Broker]" (F6, H1). Agent info MUST NOT appear in description/photos/comments (Art. I, 5(C)). |
 | ListAgentFullName | Agent name | No | SYS | PUB | Auto-populated. |
@@ -416,7 +416,7 @@ Office, Retail, Industrial, Special Use, Whole Building, Hotel/Motel — no Cota
 
 ### B9. AGENTS & OFFICES — CO-LISTING SIDE
 
-| Cotality Field | Description | Add/Edit | Required | Dist | REBNY Rules |
+| RESO Field | Description | Add/Edit | Required | Dist | REBNY Rules |
 |---|---|---|---|---|---|
 | CoListAgentMlsId | Co-listing agent ID | Yes | OPT | PUB | For co-exclusive listings. Both brokers must be credited (Art. II, 14). |
 | CoListAgentFullName | Name | No | SYS | PUB | — |
@@ -432,7 +432,7 @@ Office, Retail, Industrial, Special Use, Whole Building, Hotel/Motel — no Cota
 
 ### B10. AGENTS & OFFICES — BUYER SIDE (Closing Only)
 
-| Cotality Field | Description | Add/Edit | Required | Dist | REBNY Rules |
+| RESO Field | Description | Add/Edit | Required | Dist | REBNY Rules |
 |---|---|---|---|---|---|
 | BuyerAgentMlsId | Buyer's agent MLS ID | Yes | OPT | CLOSE | **[I28]** Exhibit A: "Buyer Agent and Firm — for Closed." **CLOSED ONLY.** Identity hidden until after closing (F4, H12). If BuyerAgentRLSParticipantYN=true, used for lookup. |
 | BuyerAgentRLSParticipantYN | Is buyer agent RLS Participant? | Yes | **COND** | CLOSE | **Required when MLSStatus=Closed.** |
@@ -457,7 +457,7 @@ Office, Retail, Industrial, Special Use, Whole Building, Hotel/Motel — no Cota
 
 ### B11. AGENTS & OFFICES — CO-BUYER SIDE (Closing Only)
 
-| Cotality Field | Description | Add/Edit | Required | Dist | REBNY Rules |
+| RESO Field | Description | Add/Edit | Required | Dist | REBNY Rules |
 |---|---|---|---|---|---|
 | CoBuyerAgentRLSParticipantYN | Is co-buyer agent RLS Participant? | Yes | **COND** | CLOSE | Same pattern as Buyer fields. |
 | CoBuyerAgentMlsId | MLS ID | Yes | **COND** | CLOSE | Required if CoBuyerAgentRLSParticipantYN=true. |
@@ -468,7 +468,7 @@ Office, Retail, Industrial, Special Use, Whole Building, Hotel/Motel — no Cota
 
 ### B12. UNIT DETAILS — ROOMS & SIZE
 
-| Cotality Field | Description | Add/Edit | Required | Dist | REBNY Rules |
+| RESO Field | Description | Add/Edit | Required | Dist | REBNY Rules |
 |---|---|---|---|---|---|
 | BedroomsTotal | Total bedrooms | Yes | **REQ** | PUB | **[I20]** Exhibit A: "Number of Bedrooms." RLS+IDX+VOW+Syndication. |
 | BathroomsFull | Full bathrooms | Yes | **REQ** | PUB | **[I18]** Exhibit A: "Number of Bathrooms." RLS+IDX+VOW+Syndication. |
@@ -507,7 +507,7 @@ Office, Retail, Industrial, Special Use, Whole Building, Hotel/Motel — no Cota
 
 ### B13. BUILDING DETAILS
 
-| Cotality Field | Description | Add/Edit | Required | Dist | REBNY Rules |
+| RESO Field | Description | Add/Edit | Required | Dist | REBNY Rules |
 |---|---|---|---|---|---|
 | BuildingName | Building/complex name | Yes | OPT | PUB | — |
 | YearBuilt | Year occupancy permit granted | Yes | **REQ** | PUB | **[I16]** Exhibit A: "Year Built." RLS+IDX+VOW+Syndication. **Must be 4 chars, 1700+, max 10 years future.** |
@@ -547,7 +547,7 @@ Office, Retail, Industrial, Special Use, Whole Building, Hotel/Motel — no Cota
 
 ### B14. BUILDING FEATURES & AMENITIES
 
-| Cotality Field | Description | Add/Edit | Required | Dist | REBNY Rules |
+| RESO Field | Description | Add/Edit | Required | Dist | REBNY Rules |
 |---|---|---|---|---|---|
 | BuildingFeatures | Building amenities | Yes | OPT | PUB | Must include "Elevator(s)" if ElevatorsTotal > 0. |
 | BuildingAccessibilityFeatures | Accessibility | Yes | OPT | PUB | — |
@@ -572,7 +572,7 @@ Office, Retail, Industrial, Special Use, Whole Building, Hotel/Motel — no Cota
 
 ### B15. FINANCIAL — UNIT LEVEL
 
-| Cotality Field | Description | Add/Edit | Required | Dist | REBNY Rules |
+| RESO Field | Description | Add/Edit | Required | Dist | REBNY Rules |
 |---|---|---|---|---|---|
 | AssociationFee | Monthly maintenance/CC | Yes | **COND** | PUB | **[I47]** Exhibit A: "Maintenance Fee or Common Charges." RLS+IDX+VOW+Syndication. **Required if CommonInterest = Condominium, StockCooperative, or Condop.** Does NOT include taxes. |
 | AssociationFeeFrequency | Payment frequency | Yes | **COND** | PUB | **Required if CommonInterest = Condominium/StockCooperative/Condop AND AssociationFee > 0.** |
@@ -605,7 +605,7 @@ Office, Retail, Industrial, Special Use, Whole Building, Hotel/Motel — no Cota
 
 ### B16. FINANCIAL — BUILDING LEVEL (Townhouse/Multi-Family)
 
-| Cotality Field | Description | Add/Edit | Required | Dist | REBNY Rules |
+| RESO Field | Description | Add/Edit | Required | Dist | REBNY Rules |
 |---|---|---|---|---|---|
 | TaxAnnualAmount | Annual property tax | Yes | **COND** | PUB | **[I56]** Exhibit A: "Tax Annual Amount." RLS+IDX+VOW+Syndication. **Required if PropertySubType = Duplex, Mixed Use, Multi Family, Multi Family Townhouse, Quadruplex, Single Family, Single Family Townhouse, Triplex, Unimproved Land.** vs. monthly condo (I52). |
 | CapRate | Cap rate | Yes | OPT | AGT | NOI / Purchase Price. |
@@ -618,7 +618,7 @@ Office, Retail, Industrial, Special Use, Whole Building, Hotel/Motel — no Cota
 
 All: Add/Edit=Yes, Required=OPT, Distribution=**AGT**. "Annual expense not paid by tenant, in Operating Expense calculations."
 
-| Cotality Field | Description |
+| RESO Field | Description |
 |---|---|
 | CableTVExpense | Cable/TV |
 | ElectricExpense | Electric |
@@ -644,7 +644,7 @@ All: Add/Edit=Yes, Required=OPT, Distribution=**AGT**. "Annual expense not paid 
 
 ### B18. CONCESSIONS & TERMS
 
-| Cotality Field | Description | Add/Edit | Required | Dist | REBNY Rules |
+| RESO Field | Description | Add/Edit | Required | Dist | REBNY Rules |
 |---|---|---|---|---|---|
 | Concessions | Are there concessions? | Yes | **REQ** | PUB | **[I33]** Exhibit A: "Concessions." RLS+IDX+VOW+Syndication. **Values: Yes, No, or Call Listing Agent.** NO compensation info (C9). **Dollar amounts NEVER public** — only Y/N/CallAgent flag. |
 | ConcessionsAmount | Dollar amount | Yes | **COND** | AGT | **Required if Concessions=Yes.** Agent view only. |
@@ -660,7 +660,7 @@ All: Add/Edit=Yes, Required=OPT, Distribution=**AGT**. "Annual expense not paid 
 
 ### B19. LOT & LAND
 
-| Cotality Field | Description | Add/Edit | Required | Dist | REBNY Rules |
+| RESO Field | Description | Add/Edit | Required | Dist | REBNY Rules |
 |---|---|---|---|---|---|
 | LotSizeArea | Total lot area | Yes | **COND** | PUB | **Required if PropertySubType = SF Townhouse, Duplex, Mixed Use, Multi Family, MF Townhouse, Quadruplex, SF Residence, Triplex, Unimproved Land.** |
 | LotSizeDimensions | Lot dimensions | Yes | **COND** | PUB | Same conditional as LotSizeArea. |
@@ -683,7 +683,7 @@ All: Add/Edit=Yes, Required=OPT, Distribution=**AGT**. "Annual expense not paid 
 
 ### B20. UNIT FEATURES
 
-| Cotality Field | Description | Add/Edit | Required | Dist | REBNY Rules |
+| RESO Field | Description | Add/Edit | Required | Dist | REBNY Rules |
 |---|---|---|---|---|---|
 | Appliances | Appliances | Yes | OPT | PUB | — |
 | AccessibilityFeatures | Unit accessibility | Yes | OPT | PUB | — |
@@ -713,7 +713,7 @@ All: Add/Edit=Yes, Required=OPT, Distribution=**AGT**. "Annual expense not paid 
 
 ### B21. PARKING
 
-| Cotality Field | Description | Add/Edit | Required | Dist | REBNY Rules |
+| RESO Field | Description | Add/Edit | Required | Dist | REBNY Rules |
 |---|---|---|---|---|---|
 | GarageYN | Has garage | Yes | **REQ** | PUB | **[I6, I54]** Exhibit A: "Have Garage" + "Garage." RLS+IDX+VOW+Syndication. Required for building/townhouse. |
 | GarageSpaces | Assigned spaces | Yes | **COND** | PUB | Required if GarageSpacesAssignedYN=true. |
@@ -730,7 +730,7 @@ All: Add/Edit=Yes, Required=OPT, Distribution=**AGT**. "Annual expense not paid 
 
 ### B22. OUTDOOR SPACES & PETS
 
-| Cotality Field | Description | Add/Edit | Required | Dist | REBNY Rules |
+| RESO Field | Description | Add/Edit | Required | Dist | REBNY Rules |
 |---|---|---|---|---|---|
 | PatioAndPorchFeatures | Patio/terrace | Yes | OPT | PUB | **[I24]** Exhibit A: "Private Outdoor Space." RLS+IDX+VOW+Syndication. |
 | PrivateOutdoorSpaceSize | Size | Yes | **COND** | PUB | Required if PatioAndPorchFeatures or ExteriorFeatures != None. |
@@ -747,7 +747,7 @@ All: Add/Edit=Yes, Required=OPT, Distribution=**AGT**. "Annual expense not paid 
 
 ### B23. SHOWINGS & OPEN HOUSES
 
-| Cotality Field | Description | Add/Edit | Required | Dist | REBNY Rules |
+| RESO Field | Description | Add/Edit | Required | Dist | REBNY Rules |
 |---|---|---|---|---|---|
 | ShowingContactName | Contact name | Yes | OPT | AGT | — |
 | ShowingContactPhone | Phone | Yes | OPT | AGT | — |
@@ -767,7 +767,7 @@ All: Add/Edit=Yes, Required=OPT, Distribution=**AGT**. "Annual expense not paid 
 
 ### B24. NEW DEVELOPMENT & CONSTRUCTION
 
-| Cotality Field | Description | Add/Edit | Required | Dist | REBNY Rules |
+| RESO Field | Description | Add/Edit | Required | Dist | REBNY Rules |
 |---|---|---|---|---|---|
 | NewDevelopmentYN | Is new development | Yes | **REQ** | PUB | **[I10]** Exhibit A: "New Development & New Construction." RLS+IDX+VOW+Syndication. **Cannot be Coming Soon (D1).** If true, CoBrokeAgreement must = RUNDBA (K1). Triggers RUNDBA requirement. |
 | NewConstructionYN | Is new construction | Yes | **REQ** | PUB | **[I10]** Part of Exhibit A "New Development & New Construction." Not previously occupied. |
@@ -783,7 +783,7 @@ All: Add/Edit=Yes, Required=OPT, Distribution=**AGT**. "Annual expense not paid 
 
 All optional, distribution = PUB.
 
-| Cotality Field | Description |
+| RESO Field | Description |
 |---|---|
 | GreenBuildingYN | Certified green |
 | GreenBuildingVerificationType | LEED, Energy Star, ICC-700 |
@@ -798,7 +798,7 @@ All optional, distribution = PUB.
 
 ### B26. MEDIA
 
-| Cotality Field | Description | Add/Edit | Required | Dist | REBNY Rules |
+| RESO Field | Description | Add/Edit | Required | Dist | REBNY Rules |
 |---|---|---|---|---|---|
 | PhotosCount | Number of photos | No | SYS | PUB | **[I23]** Exhibit A: "Photos - Sort Order." Photos must NOT contain agent info (C7). RLS+IDX+VOW+Syndication. |
 | PhotosChangeTimestamp | Last photo update | No | SYS | SYS | — |
@@ -821,7 +821,7 @@ All optional, distribution = PUB.
 
 ### B27. RENTAL-SPECIFIC FIELDS
 
-| Cotality Field | Description | Add/Edit | Required | Dist | REBNY Rules |
+| RESO Field | Description | Add/Edit | Required | Dist | REBNY Rules |
 |---|---|---|---|---|---|
 | AvailabilityDate | Move-in date | Yes | **COND** | PUB | **[I58]** Exhibit A: "Availability Date." RLS+IDX+VOW+Syndication. **Required if PropertyType=ResidentialLease.** Required for all rentals. |
 | LeaseType | Stabilized/Non-Stabilized | Yes | **COND** | PUB | **[I61]** Exhibit A: "Lease Type." RLS+IDX+VOW+Syndication. **Required if PropertyType=ResidentialLease AND CommonInterest=RentalBuilding.** NYC-specific. |
@@ -848,7 +848,7 @@ All optional, distribution = PUB.
 
 ### B28. SYSTEM IDENTIFIERS
 
-| Cotality Field | Description | Add/Edit | Required | Dist | REBNY Rules |
+| RESO Field | Description | Add/Edit | Required | Dist | REBNY Rules |
 |---|---|---|---|---|---|
 | ListingID | Local listing ID | No | SYS | SYS | Generated by Matrix DB. |
 | SourceSystemKey | LMP's unique listing ID | Yes | **REQ** | SYS | LMP's ListingID. |
@@ -866,7 +866,7 @@ All optional, distribution = PUB.
 
 ### B29. OTHER FIELDS
 
-| Cotality Field | Description | Add/Edit | Required | Dist | REBNY Rules |
+| RESO Field | Description | Add/Edit | Required | Dist | REBNY Rules |
 |---|---|---|---|---|---|
 | BasementYN | Has basement | Yes | OPT | PUB | — |
 | Basement | Basement features | Yes | **COND** | PUB | Required if BasementYN=true. |
@@ -878,7 +878,7 @@ All optional, distribution = PUB.
 
 ### B30. COMPLIANCE & WORKFLOW TRACKING (CRM-Only, I70-I79)
 
-These fields are NOT in the Cotality dictionary. They are CRM workflow fields required by UCBA operational rules.
+These fields are NOT in the RESO dictionary. They are CRM workflow fields required by UCBA operational rules.
 
 | I# | Field | Distribution | Rules |
 |---|---|---|---|

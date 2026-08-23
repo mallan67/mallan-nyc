@@ -400,8 +400,8 @@
                 // Then check the saved ones
                 criteria.status.forEach(function(s) {
                     // An exact member passes straight through; only a legacy spelling is mapped.
-                    var cotalityVal = legacyStatusAliases[s] || s;
-                    var cb = activeForm ? activeForm.querySelector('[data-field="MlsStatus"][data-value="' + cotalityVal + '"]') : null;
+                    var resoVal = legacyStatusAliases[s] || s;
+                    var cb = activeForm ? activeForm.querySelector('[data-field="MlsStatus"][data-value="' + resoVal + '"]') : null;
                     if (cb) cb.checked = true;
                 });
             }

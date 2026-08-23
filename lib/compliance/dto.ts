@@ -16,7 +16,7 @@
  * Active — Trestle IDX Plus WebAPI provides all 1,363 fields. VOW display is
  * authorized for registered/logged-in portal consumers per REBNY RLS rules.
  *
- * FIELD AUTHORITY ORDER: UCBA → RLS TRUMPS ALL → Cotality/IDX fills gaps → INTERNAL-ONLY → Fail closed
+ * FIELD AUTHORITY ORDER: UCBA → RLS TRUMPS ALL → RESO/IDX fills gaps → INTERNAL-ONLY → Fail closed
  */
 
 import { affirmPermission, isOwnerOptOut, isParticipantOnly } from "./gates";
@@ -428,7 +428,7 @@ function formatOwnerAddressLine(address: unknown): string | null {
   const suffix = pick("streetSuffix", "StreetSuffix");
   const dirSuffix = pick("streetDirSuffix", "StreetDirSuffix");
   const unit = pick("unitNumber", "UnitNumber", "unit");
-  // Full Cotality street order: number, dir-prefix, name, suffix, dir-suffix (e.g. "333 E 46th Street").
+  // Full RESO street order: number, dir-prefix, name, suffix, dir-suffix (e.g. "333 E 46th Street").
   const street = [streetNumber, dirPrefix, streetName, suffix, dirSuffix].filter(Boolean).join(" ").trim();
   const full = unit ? `${street}${street ? " " : ""}#${unit}` : street;
   if (full.trim().length > 0) return full.trim();

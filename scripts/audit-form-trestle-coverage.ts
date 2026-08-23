@@ -49,7 +49,7 @@ if (!CLIENT_ID || !CLIENT_SECRET) {
   process.exit(1);
 }
 
-const COTALITYURCES = ['Property', 'CustomProperty', 'Member', 'Office', 'Media', 'PropertyUnitTypes', 'OpenHouse'];
+const RESOURCES = ['Property', 'CustomProperty', 'Member', 'Office', 'Media', 'PropertyUnitTypes', 'OpenHouse'];
 
 // Files we audit. Include both submission forms AND search forms — the
 // search forms typically don't have data-rls-field today (which is the
@@ -183,7 +183,7 @@ async function main() {
 
   const liveByResource = new Map<string, Set<string>>();
   const allLiveFields = new Set<string>();
-  for (const r of COTALITYURCES) {
+  for (const r of RESOURCES) {
     const fields = extractFieldsForResource(xml, r);
     liveByResource.set(r, fields);
     for (const f of fields) allLiveFields.add(f);
@@ -218,7 +218,7 @@ async function main() {
     liveByResource.get('CustomProperty')!.add(k);
     allLiveFields.add(k);
   }
-  log(`  ✓ live total: ${allLiveFields.size} fields across ${COTALITYURCES.length} resources`);
+  log(`  ✓ live total: ${allLiveFields.size} fields across ${RESOURCES.length} resources`);
   log(`     (CustomProperty includes ${allCustomKeys.size} CustomFields keys: ${customFieldKeys.size} from sample + ${REBNY_CUSTOM_FIELDS.length} from REBNY canonical list)`);
   log('');
 
@@ -239,7 +239,7 @@ async function main() {
   for (const s of surveys) {
     for (const [field] of s.bindings) {
       let foundInResource: string | null = null;
-      for (const r of COTALITYURCES) {
+      for (const r of RESOURCES) {
         if (liveByResource.get(r)!.has(field)) { foundInResource = r; break; }
       }
       if (!foundInResource) {
@@ -256,7 +256,7 @@ async function main() {
   // 2. UNBOUND_INPUT — input id matches a live Trestle field but no binding
   // Use case-insensitive match since HTML ids are sometimes lowercased
   const liveLowerToCanonical = new Map<string, { resource: string; field: string }>();
-  for (const r of COTALITYURCES) {
+  for (const r of RESOURCES) {
     for (const f of liveByResource.get(r)!) {
       liveLowerToCanonical.set(f.toLowerCase(), { resource: r, field: f });
     }
@@ -288,7 +288,7 @@ async function main() {
   }
 
   // 3. UNCOVERED_FIELD per resource — live field that NO form in repo binds
-  for (const r of COTALITYURCES) {
+  for (const r of RESOURCES) {
     if (resourceFilter && r !== resourceFilter) continue;
     for (const f of liveByResource.get(r)!) {
       if (!allBoundFields.has(f)) {
@@ -340,8 +340,8 @@ async function main() {
   }
   console.log('');
 
-  console.log('── PER-COTALITYURCE LIVE COVERAGE ─────────────────────────────────');
-  for (const r of COTALITYURCES) {
+  console.log('── PER-RESOURCE LIVE COVERAGE ─────────────────────────────────');
+  for (const r of RESOURCES) {
     if (resourceFilter && r !== resourceFilter) continue;
     const live = liveByResource.get(r)!;
     const covered = Array.from(live).filter((f) => allBoundFields.has(f)).length;

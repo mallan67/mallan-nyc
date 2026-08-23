@@ -206,7 +206,7 @@ const FILTER_CLAIMS: Array<{ label: string; filter: string; expect: 'SUPPORTED' 
   { label: "CommonInterest eq 'Condominium'", filter: `${ACTIVE} and CommonInterest eq 'Condominium'`, expect: 'SUPPORTED' },
   { label: "PropertyType eq 'Residential'", filter: `${ACTIVE} and PropertyType eq 'Residential'`, expect: 'SUPPORTED' },
   { label: 'BathroomsHalf ge 1', filter: `${ACTIVE} and BathroomsHalf ge 1`, expect: 'SUPPORTED' },
-  { label: "PetsAllowed has 'Yes' (exact token)", filter: `${ACTIVE} and PetsAllowed has Cotality.DataStandard.Cotality.DD.Enums.Multi.PetsAllowed'Yes'`, expect: 'SUPPORTED' },
+  { label: "PetsAllowed has 'Yes' (exact token)", filter: `${ACTIVE} and PetsAllowed has Cotality.DataStandard.RESO.DD.Enums.Multi.PetsAllowed'Yes'`, expect: 'SUPPORTED' },
   { label: "Furnished eq 'Furnished'", filter: `${ACTIVE} and Furnished eq 'Furnished'`, expect: 'SUPPORTED' },
   { label: "PropertySubType in ('Apartment','Loft')", filter: `${ACTIVE} and PropertySubType in ('Apartment','Loft')`, expect: 'SUPPORTED' },
   { label: 'PropertySubType OR of exact members', filter: `${ACTIVE} and (PropertySubType eq 'Office' or PropertySubType eq 'Retail')`, expect: 'SUPPORTED' },

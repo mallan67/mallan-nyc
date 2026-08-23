@@ -47,26 +47,27 @@ Install the hooks once: `npm run hooks:install`
 ## 📌 MLS / IDX DATA COMPLIANCE (REBNY RLS — IDX Plus)
 
 ### Overview
-This project integrates **REBNY Residential Listing Service (RLS) data via the IDX Plus feed** under a broker-direct license held by **Mallan Real Estate Inc**. The system migrated to **IDX Plus** (from standard IDX) via Trestle/Cotality, providing **902 IDX Plus fields across 7 REBNY-specified resources** (Property 527, CustomProperty 106, Member 72, Office 66, Media 46, PropertyUnitTypes 46, OpenHouse 39). Trestle exposes **12 total data resources** including 5 additional beyond the IDX Plus spec: PropertyRooms, Teams, TeamMembers, PropertyGreenVerification, and Building. All use of MLS/IDX data must comply with REBNY RLS rules, Cotality standards, the Fair Housing Act, and New York State real estate advertising law.
+This project integrates **REBNY Residential Listing Service (RLS) data via the IDX Plus feed** under a broker-direct license held by **Mallan Real Estate Inc**. The system migrated to **IDX Plus** (from standard IDX) via Trestle/Cotality, providing **902 IDX Plus fields across 7 REBNY-specified resources** (Property 527, CustomProperty 106, Member 72, Office 66, Media 46, PropertyUnitTypes 46, OpenHouse 39). Trestle exposes **12 total data resources** including 5 additional beyond the IDX Plus spec: PropertyRooms, Teams, TeamMembers, PropertyGreenVerification, and Building. All use of MLS/IDX data must comply with REBNY RLS rules, RESO standards, the Fair Housing Act, and New York State real estate advertising law.
 
 Non-compliance exposes the brokerage to immediate suspension and liquidated damages up to $40,000.
 
 ---
 
-### Three-layer feed model — REBNY vs Cotality vs Cotality (clarified 2026-05-01)
+### Three-layer feed model — REBNY vs Cotality vs RESO (clarified 2026-05-01)
 
 Three distinct layers must stay separate when reasoning about feed behavior, debugging field semantics, or planning future MLS subscriptions:
 
 | Layer | What it is | Who owns it |
 |---|---|---|
-| **REBNY** | The MLS / RLS organization, data owner, and policy layer | Owns the runtime policy that decides which rows reach the feed and which fields are populated/suppressed per row. UOI in Cotality Desktop Client: `T00000046`. |
+| **REBNY** | The MLS / RLS organization, data owner, and policy layer | Owns the runtime policy that decides which rows reach the feed and which fields are populated/suppressed per row. UOI in RESO Desktop Client: `T00000046`. |
 | **Cotality / Trestle** | The API / feed platform implementing and serving REBNY's data | mallan.nyc reads the live feed at `https://api.cotality.com/trestle` — **the only field/API truth**. The live `$metadata` defines which fields exist; REBNY's policy layer decides which rows/fields are populated per row. |
+| **RESO** | The OData / field-naming model the Cotality feed exposes | The Cotality/Trestle feed returns a RESO-shaped OData model (entity types, field names, enum tokens). It does NOT tell you what REBNY's policy layer populates at runtime — verify against the live feed, not an external standard. |
 
 **Practical consequences:**
 
-1. **Field behavior is feed-specific, not Cotality-spec-derived.** `InternetEntireListingDisplayYN` and `InternetAddressDisplayYN` are universally `null` AND non-OData-filterable in mallan.nyc's REBNY IDX Plus feed because REBNY pre-filters non-displayable rows out at the Cotality data-serving boundary (HTTP 400 "Results from 'RLS' has been suppressed (provider Level)"). This is REBNY policy, NOT a universal Cotality behavior. The mapper at `lib/idx/trestle-mapper.ts:680-681` treats null as displayable for these two fields specifically because of REBNY's pre-filter — see the in-file comment for the full reasoning.
-2. **Other Cotality fields behave differently because REBNY treats them differently.** `InternetAutomatedValuationDisplayYN` and `InternetConsumerCommentYN` ARE per-row populated (~97% true / ~3% false) because REBNY treats them as per-listing opt-out flags rather than pre-filter conditions. Those use fail-closed `affirmPermission()` coercion.
-3. **Future non-REBNY feeds need independent verification.** When mallan.nyc subscribes to OneKey, NY State MLS, or other non-REBNY MLSes (per the external-inventory spec Phase 2-A), each carries its own three-layer stack and may populate the SAME Cotality field names with different runtime semantics. New adapters must run their own `npm run cotality:coverage` probe against the new feed before any writer-side mapping decisions are committed. **Runtime payload behavior must be verified per feed, not assumed from Cotality certification alone.**
+1. **Field behavior is feed-specific, not RESO-spec-derived.** `InternetEntireListingDisplayYN` and `InternetAddressDisplayYN` are universally `null` AND non-OData-filterable in mallan.nyc's REBNY IDX Plus feed because REBNY pre-filters non-displayable rows out at the Cotality data-serving boundary (HTTP 400 "Results from 'RLS' has been suppressed (provider Level)"). This is REBNY policy, NOT a universal Cotality behavior. The mapper at `lib/idx/trestle-mapper.ts:680-681` treats null as displayable for these two fields specifically because of REBNY's pre-filter — see the in-file comment for the full reasoning.
+2. **Other RESO fields behave differently because REBNY treats them differently.** `InternetAutomatedValuationDisplayYN` and `InternetConsumerCommentYN` ARE per-row populated (~97% true / ~3% false) because REBNY treats them as per-listing opt-out flags rather than pre-filter conditions. Those use fail-closed `affirmPermission()` coercion.
+3. **Future non-REBNY feeds need independent verification.** When mallan.nyc subscribes to OneKey, NY State MLS, or other non-REBNY MLSes (per the external-inventory spec Phase 2-A), each carries its own three-layer stack and may populate the SAME RESO field names with different runtime semantics. New adapters must run their own `npm run reso:coverage` probe against the new feed before any writer-side mapping decisions are committed. **Runtime payload behavior must be verified per feed, not assumed from RESO certification alone.**
 
 This distinction was clarified after the 2026-04-30 IDX Plus display-gate incident. Full incident capture in [`memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md`](./memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md).
 
@@ -203,13 +204,13 @@ Generated by: `lib/idx/mapping.ts` (`generateAttributionText()`)
 
 ### Field model (live Cotality feed)
 
-The live `api.cotality.com/trestle` feed exposes a OData model that the live Cotality contract exposes. Field facts (verify against the live `$metadata`):
-- **provider-field renames (REMOVED 2026-08-23 - they conflated distinct Cotality fields)** handled in `lib/idx/trestle-mapper.ts`
+The live `api.cotality.com/trestle` feed exposes a RESO-shaped OData model. Field facts (verify against the live `$metadata`):
+- **23 RESO-to-RLS field renames** handled in `lib/idx/trestle-mapper.ts`
 - **902 IDX Plus fields** across 7 REBNY-specified resources (Property 527, CustomProperty 106, Member 72, Office 66, Media 46, PropertyUnitTypes 46, OpenHouse 39), 41 required, 86 conditional
 - **5 additional Trestle resources** beyond IDX Plus: PropertyRooms (39 fields), Teams (48), TeamMembers (29), PropertyGreenVerification (39), Building (key only)
 - **Critical fields beyond IDX Plus CSV** on Trestle Property: `InternetAddressDisplayYN`, `InternetEntireListingDisplayYN`, `InternetAutomatedValuationDisplayYN`, `InternetConsumerCommentYN`, `ShowingInstructions` — all distribution gate / showing fields
 - **2,066 picklist values** across 117 lookups
-- **StandardStatus uses Cotality enum tokens** (no spaces): `Active`, `ComingSoon`, `ActiveUnderContract`
+- **StandardStatus uses RESO enum tokens** (no spaces): `Active`, `ComingSoon`, `ActiveUnderContract`
 - **Recent live fields:** `OriginalMediaUrl` on Media, `MemberMls`/`OfficeMls`
 
 ---
@@ -534,7 +535,7 @@ All auth is cookie-only (Bearer token auth fully removed in Sprint 10).
 - `Virtual Tour` → rendered as `<iframe>` with `xr-spatial-tracking` (Matterport, etc.)
 
 **Virtual tour sources** (priority order):
-1. `VirtualTourURLUnbranded` field on Property resource (Cotality standard)
+1. `VirtualTourURLUnbranded` field on Property resource (RESO standard)
 2. Media resource items with `MediaCategory = 'Virtual Tour'` (fallback)
 
 #### ⚠️ TRESTLE MEDIA API RULES — VENDOR-CONFIRMED (2026-04-07)
@@ -665,7 +666,7 @@ Trestle API (server-side only)
   │
   ├─→ /api/cron/idx-sync (every 4hrs) ─→ Prisma DB (PostgreSQL on Neon)
   │     Pulls Property + $expand=CustomProperty,Media
-  │     Maps via lib/idx/trestle-mapper.ts (23 Cotality→RLS renames)
+  │     Maps via lib/idx/trestle-mapper.ts (23 RESO→RLS renames)
   │     Checks 6 distribution gates → stores in Listing model
   │
   ├─→ /api/idx/search (CRM, on-demand) ─→ Direct Trestle query
@@ -689,7 +690,7 @@ The REBNY UCBA and the Trestle API use different names for some fields:
 |--------------------|---------------|-------|
 | `IDXEntireListingDisplayYN` | `InternetEntireListingDisplayYN` | No separate IDX field on Trestle — master gate serves both |
 | `SyndicateYN` (boolean) | `SyndicateTo` (multi-select list) | Portal selection, not a simple boolean |
-| `StandardStatus` | `MlsStatus` | Plus 22 other Cotality→RLS renames in `trestle-mapper.ts` |
+| `StandardStatus` | `MlsStatus` | Plus 22 other RESO→RLS renames in `trestle-mapper.ts` |
 
 Internal TypeScript code uses UCBA names (mapped by normalizer before hitting Trestle). Compliance docs annotate the Trestle field name where they differ.
 

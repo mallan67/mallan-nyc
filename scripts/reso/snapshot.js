@@ -1,25 +1,25 @@
 #!/usr/bin/env node
 /**
- * scripts/cotality/snapshot.js — Capture an `analyze` JSON snapshot to a
+ * scripts/reso/snapshot.js — Capture an `analyze` JSON snapshot to a
  * dated file so you can diff state across runs (e.g. overnight, before/
  * after a deploy, or during a sync convergence window).
  *
- * Output: artifacts/cotality-snapshots/YYYY-MM-DDTHHmmssZ.json
- *         artifacts/cotality-snapshots/latest.json (always overwritten)
+ * Output: artifacts/reso-snapshots/YYYY-MM-DDTHHmmssZ.json
+ *         artifacts/reso-snapshots/latest.json (always overwritten)
  *
  * The `latest.json` symlink-equivalent makes diffing trivial:
- *   diff <(cat artifacts/cotality-snapshots/2026-04-29*.json | jq) \
- *        <(cat artifacts/cotality-snapshots/latest.json | jq)
+ *   diff <(cat artifacts/reso-snapshots/2026-04-29*.json | jq) \
+ *        <(cat artifacts/reso-snapshots/latest.json | jq)
  *
  * Read-only against the project. One Trestle session worth of probes
- * (same as `cotality:analyze`).
+ * (same as `reso:analyze`).
  */
 require('dotenv').config({ path: '.env.local' });
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
 
-const SNAPSHOT_DIR = path.join(process.cwd(), 'artifacts', 'cotality-snapshots');
+const SNAPSHOT_DIR = path.join(process.cwd(), 'artifacts', 'reso-snapshots');
 
 function ts() {
   return new Date().toISOString().replace(/[:.]/g, '-');

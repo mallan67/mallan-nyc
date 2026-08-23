@@ -22,7 +22,7 @@
 //
 // Why a single resource key "Media":
 //   The schema's `MediaSyncState.resource` column is `@unique`. We pin to a
-//   single row keyed by `COTALITYURCE_MEDIA = "Media"` so the entire media-sync
+//   single row keyed by `RESOURCE_MEDIA = "Media"` so the entire media-sync
 //   state lives in one row across the cron's lifetime. Other resource keys
 //   (e.g. "Member" if/when we sync agents) can be added later without
 //   touching this row.
@@ -91,7 +91,7 @@ import {
 } from "@/lib/search/listing-access-decision";
 
 /** Resource-key constant for the media-sync state row. */
-export const COTALITYURCE_MEDIA = "Media" as const;
+export const RESOURCE_MEDIA = "Media" as const;
 
 /**
  * Two-tier cursor for the incremental media-sync cron.
@@ -124,7 +124,7 @@ export interface MediaSyncCursor {
  * Default (empty) cursor — both timestamps null.
  *
  * Returned by `getMediaSyncCursor()` when no row exists yet for
- * `COTALITYURCE_MEDIA`. Returned as a fresh object on every call so callers
+ * `RESOURCE_MEDIA`. Returned as a fresh object on every call so callers
  * can mutate the result without aliasing a shared default.
  */
 export function emptyMediaSyncCursor(): MediaSyncCursor {
@@ -139,7 +139,7 @@ export function emptyMediaSyncCursor(): MediaSyncCursor {
  */
 export async function getMediaSyncCursor(): Promise<MediaSyncCursor> {
   const row = await prisma.mediaSyncState.findUnique({
-    where: { resource: COTALITYURCE_MEDIA },
+    where: { resource: RESOURCE_MEDIA },
     select: { last_photos_change: true, last_media_modified: true, last_listing_key: true },
   });
   if (!row) return emptyMediaSyncCursor();
@@ -371,9 +371,9 @@ export async function advanceMediaSyncCursor(
   }
 
   await prisma.mediaSyncState.upsert({
-    where: { resource: COTALITYURCE_MEDIA },
+    where: { resource: RESOURCE_MEDIA },
     create: {
-      resource: COTALITYURCE_MEDIA,
+      resource: RESOURCE_MEDIA,
       last_photos_change: nextPhotosChange,
       last_media_modified: nextMediaModified,
       last_listing_key: nextListingKey,
@@ -3345,7 +3345,7 @@ export interface MediaSyncFetchDeps {
   fetchProperties: (cursor: PropertyQueryCursor, top: number) => Promise<TrestleProperty[]>;
   /**
    * Fetch the COMPLETE media set for a listing (following `@odata.nextLink`).
-   * COTALITYLVES ⇒ complete set (safe to tombstone vanished rows). THROWS ⇒ the
+   * RESOLVES ⇒ complete set (safe to tombstone vanished rows). THROWS ⇒ the
    * media could not be completely fetched — caller preserves existing media,
    * does not tombstone, and does not advance the cursor past this listing.
    */
@@ -3849,7 +3849,7 @@ export const defaultFetchDeps: MediaSyncFetchDeps = {
  *
  * Tombstoning of vanished rows (RC1):
  *   - `tombstoneVanished: true` — `fetchMedia` now follows `@odata.nextLink` to
- *     exhaustion, so a COTALITYLVE is the COMPLETE current set and a `media_key`
+ *     exhaustion, so a RESOLVE is the COMPLETE current set and a `media_key`
  *     absent from it is proven deleted at source → tombstoned. An empty COMPLETE
  *     set tombstones every active row for the listing. INCOMPLETE pagination
  *     THROWS (caught below): existing media is preserved, nothing is tombstoned,
@@ -4141,7 +4141,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       // watermark froze at this position FOREVER (2026-06-09 production
       // freeze: 3 ghosts at batch head starved the entire catch-up). A ghost
       // is not a transient failure — halting on it is a livelock. Treat it as
-      // a COTALITYLVED skip (ok:true, like the compliance-blocked case above): the
+      // a RESOLVED skip (ok:true, like the compliance-blocked case above): the
       // cursor advances past it and it re-surfaces only when its
       // PhotosChangeTimestamp bumps. The probe sits INSIDE try so a probe
       // failure (DB hiccup) falls to catch → ok:false → fail-closed halt

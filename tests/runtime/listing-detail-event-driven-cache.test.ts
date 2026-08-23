@@ -140,7 +140,7 @@ describe('PERSISTENT DATA CACHE — the layer that removes the dominant Neon rea
     expect(PAGE_CODE).not.toMatch(/unstable_cache\([\s\S]{0,120}prisma\./);
   });
 
-  it('keys by COTALITYLVED LISTING ID, not the request URL', () => {
+  it('keys by RESOLVED LISTING ID, not the request URL', () => {
     expect(PAGE_CODE).toMatch(/\['listing-detail-data-v1', dataCacheId\]/);
     // Must NOT be keyed on the raw slug/pathname — that would give one listing many entries.
     expect(PAGE_CODE).not.toMatch(/\['listing-detail-data-v1', slug\]/);

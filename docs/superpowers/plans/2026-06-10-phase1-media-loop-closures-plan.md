@@ -166,7 +166,7 @@ work) and ideally before the RC1 drain progresses further. No dependency on 1/3/
 
 **Defect (Class A; picklist verified).** Canonical MediaCategory truth, verified for this plan
 against the live-captured Trestle `$metadata` (`artifacts/metadata.xml:11545-11605`,
-`EnumType Name="MediaCategory"`): the enum **member name is `FloorPlan`** (Value 6; Cotality
+`EnumType Name="MediaCategory"`): the enum **member name is `FloorPlan`** (Value 6; RESO
 StandardName "Floor Plan" is annotation-only — OData JSON serializes the member name, so the
 feed emits `"FloorPlan"`). Note: the `trestle-fields` MCP does not index Media-resource enums
 (lookup returned "not found" 2026-06-10) and `data/rebny-rls-property-lookup.csv` is
@@ -199,7 +199,7 @@ Two sites still carry the with-space bug the 2026-05-01 fix removed from sync.ts
 
 **RED tests (behavioral).**
 - `lib/idx/__tests__/c1-classification.test.ts` (or new `mapping-media-category.test.ts`):
-  `mapCOTALITYToInternal` on a record with `Media: [{MediaCategory:'FloorPlan',...}]` → item
+  `mapRESOToInternal` on a record with `Media: [{MediaCategory:'FloorPlan',...}]` → item
   `mediaType === 'FloorPlan'` and sorted last. RED on main (returns 'Photo', sorted first).
   Same for `'UnbrandedVirtualTour'` → `'VirtualTour'`.
 - New test for `mapAgentCardMedia`: FloorPlan record excluded; Photo kept with
@@ -210,7 +210,7 @@ expanded path or on agent cards; canonical resolver (`listing-media-resolver.ts:
 the two fixed sites now agree (divergence mechanism #4 of the code review closed).
 
 **Blast radius.** WILL touch: `lib/idx/mapping.ts` (media block only), the agents listings
-route (batchFetchPhotos only), tests. Transitive: every `mapCOTALITYToInternal` caller — detail API
+route (batchFetchPhotos only), tests. Transitive: every `mapRESOToInternal` caller — detail API
 Trestle-direct path (`app/api/listings/[id]/route.ts:90-153`), search Trestle-merge branch.
 Since `useExpandMedia=false` everywhere in cron paths, `normalized.Media` is usually absent ⇒
 mapped media `[]` ⇒ the change is inert on cron writes; it bites only where Media is actually

@@ -43,7 +43,7 @@ A6 has already been executed and verified. This is a historical record, not a pe
 - **Result:** **1 row updated**, `updated_at` preserved.
 - **Dry-run after repair:** `rows_any = 0`.
 - **Final read-only precheck:** **`typed_gap_rows = 0`, all 8 per-field gaps = 0.**
-- **A6 status: COTALITYLVED by production SQL.**
+- **A6 status: RESOLVED by production SQL.**
 
 ## Re-verification only — do NOT execute the repair again unless a NEW gap appears
 1. **Dry-run (read-only):** `npm run ops:backfill-agent-info` → **expected now: `rows_any = 0`**.

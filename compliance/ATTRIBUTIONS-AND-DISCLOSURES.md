@@ -8,7 +8,7 @@
 
 > ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
 > 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
-> 3. **REBNY overrides Cotality/IDX.** 4. **Cotality/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
 
 ---
 
@@ -183,8 +183,8 @@ Listing data last updated: [TIMESTAMP]
 
 | Rule | Source |
 |------|--------|
-| Must show data freshness | Cotality IDX Rules |
-| Format: date + time | Per Cotality convention |
+| Must show data freshness | RESO IDX Rules |
+| Format: date + time | Per RESO convention |
 
 ---
 

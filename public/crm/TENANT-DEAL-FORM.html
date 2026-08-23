@@ -292,13 +292,13 @@ body { font-family: Manrope, sans-serif; }
             <div class="form-card-header"><i class="fas fa-people-group"></i> Team Information</div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                    <!-- RLS/Cotality/IDX: BuyerTeamName (Optional — CLOSE distribution) -->
-                    <label class="field-label">Tenant's Agent Team Name <span class="text-xs text-gray-400">(RLS/Cotality/IDX: BuyerTeamName)</span></label>
+                    <!-- RLS/RESO/IDX: BuyerTeamName (Optional — CLOSE distribution) -->
+                    <label class="field-label">Tenant's Agent Team Name <span class="text-xs text-gray-400">(RLS/RESO/IDX: BuyerTeamName)</span></label>
                     <input type="text" id="tenantTeamName" placeholder="e.g., The Allan Team" class="field-input">
                 </div>
                 <div>
-                    <!-- RLS/Cotality/IDX: BuyerTeamMlsId (Optional — CLOSE distribution) -->
-                    <label class="field-label">Tenant's Agent Team MLS ID <span class="text-xs text-gray-400">(RLS/Cotality/IDX: BuyerTeamMlsId)</span></label>
+                    <!-- RLS/RESO/IDX: BuyerTeamMlsId (Optional — CLOSE distribution) -->
+                    <label class="field-label">Tenant's Agent Team MLS ID <span class="text-xs text-gray-400">(RLS/RESO/IDX: BuyerTeamMlsId)</span></label>
                     <input type="text" id="tenantTeamMlsId" placeholder="Team MLS ID" class="field-input">
                 </div>
             </div>
@@ -347,8 +347,8 @@ body { font-family: Manrope, sans-serif; }
                         <p class="text-xs font-medium text-gray-700" id="tenantStatusChangeTimestamp">--</p>
                     </div>
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
-                        <p class="text-[10px] text-gray-500 uppercase">Cotality MlsStatus</p>
-                        <p class="text-xs font-medium text-blue-700" id="tenantCotalityMlsStatus">--</p>
+                        <p class="text-[10px] text-gray-500 uppercase">RESO MlsStatus</p>
+                        <p class="text-xs font-medium text-blue-700" id="tenantResoMlsStatus">--</p>
                     </div>
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
                         <p class="text-[10px] text-gray-500 uppercase">Deal Source</p>
@@ -1021,7 +1021,7 @@ function updateTenantHeaderBar() {
 }
 
 // ═══════ STATUS ═══════
-var TENANT_CRM_TO_Cotality = {
+var TENANT_CRM_TO_RESO = {
     'Draft': 'Incomplete', 'Searching': 'Active', 'Showing': 'Active',
     'AppOut': 'Pending', 'AppAccepted': 'Pending', 'AppRejected': 'Active',
     'LeaseOut': 'Pending', 'LeaseSigned': 'Pending', 'BoardApproved': 'Pending',
@@ -1032,7 +1032,7 @@ var TENANT_CRM_TO_Cotality = {
 function updateTenantStatusFields() {
     var status = (document.getElementById('tenantDealStatus') || {}).value || 'Draft';
     document.getElementById('tenantStatusChangeTimestamp').textContent = new Date().toLocaleString();
-    document.getElementById('tenantCotalityMlsStatus').textContent = TENANT_CRM_TO_Cotality[status] || '--';
+    document.getElementById('tenantResoMlsStatus').textContent = TENANT_CRM_TO_RESO[status] || '--';
 
     var isClosed = (status === 'Rented' || status === 'RentedThruUs');
     document.getElementById('tenantFinalRentField').style.display = isClosed ? '' : 'none';

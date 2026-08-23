@@ -49,13 +49,13 @@ describe('CRM form save/load field parity', () => {
         // SALE_CHECKBOX_ARRAY_MAP entry (form-key sibling), same as Heating/Cooling.
         'View',
         // Note: 'Flooring' was previously in this skip-list because the
-        // form was writing data.Flooring as a canonical Cotality array.
+        // form was writing data.Flooring as a canonical RESO array.
         // Codex PR #270 review caught that "Herringbone" (a visible
         // Flooring option) is not in REBNY's Flooring enum — writing it
         // to canonical would emit a non-compliant value. Flooring is
         // now persisted as Mallan internal (data.saleFlooring), so it
         // no longer appears in collect as a capital-letter RLS key.
-        // Canonical Cotality writes from form radios / single-id booleans.
+        // Canonical RESO writes from form radios / single-id booleans.
         // saleInternetAVMDisplayYN radio → InternetAutomatedValuationDisplayYN
         // canonical (per-row opt-out, fail-CLOSED). Same for ConsumerComment.
         // Both restored via SALE_RADIO_MAP / SALE_FIELD_MAP fallbackRls keys.

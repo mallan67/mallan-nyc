@@ -211,7 +211,7 @@
 - [CRIT-1] "Bulk email endpoint missing" — WRONG: `app/api/crm/email/route.ts` handles eblast type with 200 recipient cap and `consent_captured_at` checking. No separate route needed.
 - [CRIT-4] "12-min sync + 10-min skip guard = >15min refresh possible" — WRONG: At T=12, last run was T=0 (12 min > 10 min guard), so it always runs. Effective interval is 12 min. "REBNY IDX 15-min rule" does not exist as a specific requirement.
 - [HIGH-5] "Unsplash/Picsum in remotePatterns = false listing imagery" — OVERSTATED: Images used on 10+ pages (sell, buy/townhouses, neighborhoods, contact) as decorative marketing backgrounds (skylines, generic exteriors). None appear on listing detail or search result pages.
-- [MED-4] "Sell page commission language" — ALREADY COTALITYLVED: Page correctly states "Commission rates are not set by law and are fully negotiable" with NAR settlement reference.
+- [MED-4] "Sell page commission language" — ALREADY RESOLVED: Page correctly states "Commission rates are not set by law and are fully negotiable" with NAR settlement reference.
 
 **ACCEPTED RISK / NO CODE FIX (8):**
 - [CRIT-2] No root `middleware.ts` — defense-in-depth gap, not a direct vulnerability. Each route validates auth individually.
@@ -247,7 +247,7 @@
 - [M-5] "Search-alerts cron sends suppressed addresses" — WRONG: Cron applies `idx_display_yn = true` and `owner_opt_out = false` filters before DB query.
 - [H-2] "IDX sync 24-min gap" — WRONG: Same incorrect math as CRIT-4. Effective sync interval is always 12 min. No "15-min rule" exists.
 
-**COTALITYLVED BY INVESTIGATION (1):**
+**RESOLVED BY INVESTIGATION (1):**
 - [N-1] "PrivateOutdoorSpace required field missing from trestle-mapper" — NOT A GAP: Private outdoor space is captured via `ExteriorFeatures` enum values (`PrivateOutdoorSpaceOver60Sqft` value 108, `PrivateOutdoorSpaceUnder60Sqft` value 109) on Trestle. `ExteriorFeatures` IS in mapper B20 (line 247) and mapped to `exteriorFeatures` in `mapping.ts` (line 360). The standalone fields `PrivateOutdoorSpaceSize`/`PrivateOutdoorSpaceRemarks` are LMP/RealPlus submission fields only — NOT on Trestle's IDX feed.
 
 **ACCURATE — NEEDS EXTERNAL ACTION (1):**

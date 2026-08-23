@@ -50,8 +50,8 @@ function mount() {
   win.listings = [];
   win.searchResultsState = { filteredListings: null, selectedListings: [] };
 
-  // cotality-field-map defines ownershipLabel(), which the print sheet calls.
-  for (const rel of ['public/crm/js/core/cotality-field-map.js', PAGINATION]) {
+  // reso-field-map defines ownershipLabel(), which the print sheet calls.
+  for (const rel of ['public/crm/js/core/reso-field-map.js', PAGINATION]) {
     const script = win.document.createElement('script');
     script.textContent = readFileSync(join(REPO, rel), 'utf8');
     win.document.body.appendChild(script);

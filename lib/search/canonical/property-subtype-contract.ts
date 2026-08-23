@@ -13,7 +13,7 @@
  * Raw captures:  `artifacts/.property-subtype-live-probe{,-2}.json`
  *
  *   <Property Name="PropertySubType"
- *             Type="Cotality.DataStandard.Cotality.DD.Enums.PropertySubType" />
+ *             Type="Cotality.DataStandard.RESO.DD.Enums.PropertySubType" />
  *
  * SCALAR. Nullable (no `Nullable` attribute → OData default true). NOT wrapped in
  * `Collection(...)`. 75 declared members.

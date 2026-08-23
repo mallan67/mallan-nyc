@@ -1,9 +1,9 @@
 /// <reference types="jest" />
 /**
- * CRM media P0 — Cotality-contract listing_media for CRM exclusives.
+ * CRM media P0 — Cotality-shaped listing_media for CRM exclusives.
  *
  * Covers the P0 contract (docs/crm/sales-form-media-p0-implementation-plan-2026-05-29.md):
- *  - upload writes Cotality-contract rows (media_key/media_type/media_category/order/preferred)
+ *  - upload writes Cotality-shaped rows (media_key/media_type/media_category/order/preferred)
  *  - content-dedup via stable media_key
  *  - hero = preferred_photo_yn photo (not first upload)
  *  - reorder uses listing_media.order
@@ -102,7 +102,7 @@ describe('importJsonMediaToRows — JSON → Cotality rows', () => {
     expect(res.planned.every((p) => isCrmMediaKey(p.media_key))).toBe(true);
   });
 
-  it('apply:true writes one Cotality-contract row per item', async () => {
+  it('apply:true writes one Cotality-shaped row per item', async () => {
     const prisma = makePrisma();
     const res = await importJsonMediaToRows(prisma as never, { listing_id: 'SL-0004', media }, { apply: true });
     expect(res.imported).toBe(2);

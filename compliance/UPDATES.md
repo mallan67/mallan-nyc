@@ -7,13 +7,13 @@
 
 > ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
 > 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
-> 3. **REBNY overrides Cotality/IDX.** 4. **Cotality/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
 
 ---
 
 ## How to Use This File
 
-This is a running changelog of compliance-affecting updates from REBNY, Cotality, Cotality, NYC/NYS law, and NAR. Check this file before any production deployment or form update.
+This is a running changelog of compliance-affecting updates from REBNY, RESO, Cotality, NYC/NYS law, and NAR. Check this file before any production deployment or form update.
 
 **Monitor these sources:**
 - https://www.rebny.com/rls-updates/ — REBNY RLS bulletins
@@ -39,7 +39,7 @@ This is a running changelog of compliance-affecting updates from REBNY, Cotality
 | Date | Source | Change | Impact | Status |
 |------|--------|--------|--------|--------|
 | 2026-03-01 | Internal | **Sprint 9: Wire CRM Files to Live Backend** — CORS + dual auth (Bearer token + httpOnly cookie), login page, auth gates on all files, mock data removed from production paths, `api-client.js` rewritten with Bearer auth + fail-fast, 42 API endpoints live. See `compliance/AUTH-AND-API-SECURITY.md` for full architecture. | Backend, Security, All CRM files | **Complete** |
-| 2026-03-01 | Internal | RLS Validator v2 post-Sprint 9 verification: **0 UNKNOWN**, 10/10 sections PASS, 2 pre-existing ERRORS (cosmetic Cotality→RLS renames), 2 pre-existing WARNINGS (ComingSoon rental — by design). No new issues from Sprint 9 changes. | Compliance | Verified |
+| 2026-03-01 | Internal | RLS Validator v2 post-Sprint 9 verification: **0 UNKNOWN**, 10/10 sections PASS, 2 pre-existing ERRORS (cosmetic RESO→RLS renames), 2 pre-existing WARNINGS (ComingSoon rental — by design). No new issues from Sprint 9 changes. | Compliance | Verified |
 
 ### February 2026
 
@@ -50,7 +50,7 @@ This is a running changelog of compliance-affecting updates from REBNY, Cotality
 | 2026-02-21 | Internal | Compliance library created (14 docs + 2 JSON) | All development | Complete |
 | 2026-02-21 | REBNY | No post-January 2026 UCBA amendments found | No action needed | Verified |
 | 2026-02-19 | Internal | Field Authority Order added to all memory files | Documentation | Complete |
-| 2026-02-19 | Internal | 23 Cotality→RLS name renames documented | Field mapping | Complete |
+| 2026-02-19 | Internal | 23 RESO→RLS name renames documented | Field mapping | Complete |
 | 2026-02-18 | Internal | Address suppression — 8 display leaks fixed in search | Frontend | Complete |
 | 2026-02-18 | Internal | Fair Chance Housing Act pattern added to search scanner | Frontend | Complete |
 
@@ -128,11 +128,11 @@ This is a running changelog of compliance-affecting updates from REBNY, Cotality
 |------|--------|----------|--------|
 | FARE Act fee fields | REBNY | TBD ("will take some time") | Rental forms — currently using PublicRemarks + MoveInCosts |
 | FARE Act Second Circuit ruling | Courts | TBD | Could modify or uphold FARE Act requirements |
-| Cotality Building Resource | Cotality | TBD | New building-level fields in feeds |
+| RESO Building Resource | RESO | TBD | New building-level fields in feeds |
 | Official neighborhood picklist | REBNY | TBD | SubdivisionName validation |
-| Cotality DD 2.1 | Cotality | TBD | Association Management + Offer Management |
-| Cotality DD 2.2 | Cotality | TBD | webp MediaType, High-Speed Internet fields |
-| Cotality DD 3.0 | Cotality | TBD | WaterBodyRestrictions fields |
+| RESO DD 2.1 | RESO | TBD | Association Management + Offer Management |
+| RESO DD 2.2 | RESO | TBD | webp MediaType, High-Speed Internet fields |
+| RESO DD 3.0 | RESO | TBD | WaterBodyRestrictions fields |
 
 ---
 

@@ -66,7 +66,7 @@
  *   36. DOM ID Cross-Reference (JS → HTML)
  *   37. Search Flow Integrity
  *   38. onclick/onchange Function Existence
- *   39. data-field vs Trestle/Cotality Validation
+ *   39. data-field vs Trestle/RESO Validation
  *   40. Duplicate HTML ID Detection
  */
 
@@ -498,11 +498,11 @@ function section6() {
     }
   }
 
-  // Check COTALITY_TO_RLS_RENAMES completeness
-  const renamesMatch = mapper.match(/COTALITY_TO_RLS_RENAMES[^{]*\{([^}]+)\}/);
+  // Check RESO_TO_RLS_RENAMES completeness
+  const renamesMatch = mapper.match(/RESO_TO_RLS_RENAMES[^{]*\{([^}]+)\}/);
   if (renamesMatch) {
     const renames = (renamesMatch[1].match(/\w+:/g) || []).length;
-    pass(s, `COTALITY_TO_RLS_RENAMES: ${renames} field renames defined`);
+    pass(s, `RESO_TO_RLS_RENAMES: ${renames} field renames defined`);
   }
 
   // Check SyndicateYN vs SyndicateTo mismatch
@@ -1193,8 +1193,8 @@ function section27() {
       sent: 'address', expected: 'property_address', severity: 'CRITICAL' },
     { crmFile: 'panels/sales-crm/index.js', endpoint: '/api/crm/market-reports', correctEndpoint: '/api/crm/market-report',
       sent: 'client_id, address', expected: 'report_type, property_types, borough, neighborhoods', severity: 'CRITICAL' },
-    // showings: CRM now sends listing_id + lead_id (fixed from property_address + client_id) — COTALITYLVED
-    // next_follow_up: CRM sends it, API now handles it (added to PATCH handler) — COTALITYLVED
+    // showings: CRM now sends listing_id + lead_id (fixed from property_address + client_id) — RESOLVED
+    // next_follow_up: CRM sends it, API now handles it (added to PATCH handler) — RESOLVED
     { crmFile: 'panels.js', endpoint: '/api/crm/leads POST',
       sent: 'FormData', expected: '(only GET handler exists)', severity: 'CRITICAL' },
     { crmFile: 'panels.js', endpoint: '/api/crm/clients/[id]',
@@ -1852,8 +1852,8 @@ function section37() {
   }
 
   // 3. Status checkbox data-values match statusMap in _serverSearch
-  // statusMap maps CRM uppercase → Cotality PascalCase. The code uses `statusMap[s] || s`
-  // so values already in Cotality format (Active, ComingSoon, etc.) pass through correctly.
+  // statusMap maps CRM uppercase → RESO PascalCase. The code uses `statusMap[s] || s`
+  // so values already in RESO format (Active, ComingSoon, etc.) pass through correctly.
   // Compound values like "Withdrawn,Canceled,Expired,Hold" are split by the server
   // (idx/search/route.ts: status.split(",")).
   const statusMapMatch = searchEngine.match(/statusMap\s*=\s*\{([^}]+)\}/);
@@ -1861,8 +1861,8 @@ function section37() {
     const mapKeys = (statusMapMatch[1].match(/'([^']+)'/g) || [])
       .filter((_, i) => i % 2 === 0) // odd indices are values
       .map(k => k.replace(/'/g, ''));
-    // Valid Cotality StandardStatus values that pass through the `|| s` fallback correctly
-    const cotalityStandardStatuses = new Set([
+    // Valid RESO StandardStatus values that pass through the `|| s` fallback correctly
+    const resoStandardStatuses = new Set([
       'Active', 'ActiveUnderContract', 'Canceled', 'Closed', 'ComingSoon',
       'Delete', 'Expired', 'Hold', 'Incomplete', 'Pending', 'Withdrawn',
     ]);
@@ -1875,17 +1875,17 @@ function section37() {
     const unmapped = statusCheckboxes.filter(v => {
       // In statusMap keys → mapped explicitly
       if (mapKeys.includes(v)) return false;
-      // Valid Cotality value → passes through via || s fallback
-      if (cotalityStandardStatuses.has(v)) return false;
-      // Compound value — check each part is valid Cotality
-      if (v.includes(',') && v.split(',').every(p => cotalityStandardStatuses.has(p.trim()))) return false;
+      // Valid RESO value → passes through via || s fallback
+      if (resoStandardStatuses.has(v)) return false;
+      // Compound value — check each part is valid RESO
+      if (v.includes(',') && v.split(',').every(p => resoStandardStatuses.has(p.trim()))) return false;
       return true;
     });
     if (unmapped.length > 0) {
-      warning(s, `${unmapped.length} status checkbox values not in statusMap or Cotality enum: ${unmapped.join(', ')}`,
-        'These statuses will be sent as-is to Trestle and may not match any Cotality StandardStatus');
+      warning(s, `${unmapped.length} status checkbox values not in statusMap or RESO enum: ${unmapped.join(', ')}`,
+        'These statuses will be sent as-is to Trestle and may not match any RESO StandardStatus');
     } else if (statusCheckboxes.length > 0) {
-      pass(s, `${statusCheckboxes.length} status checkbox values all mapped or valid Cotality`);
+      pass(s, `${statusCheckboxes.length} status checkbox values all mapped or valid RESO`);
     }
   }
 
@@ -2040,12 +2040,12 @@ function section38() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SECTION 39: data-field vs Trestle/Cotality Field Validation
+// SECTION 39: data-field vs Trestle/RESO Field Validation
 // Cross-references data-field="X" in HTML against the 902-field CSV.
 // Catches invented field names that produce silent OData failures.
 // ═══════════════════════════════════════════════════════════════════════════
 function section39() {
-  const s = startSection(39, 'data-field vs Trestle/Cotality Validation', 'Search');
+  const s = startSection(39, 'data-field vs Trestle/RESO Validation', 'Search');
 
   const html = readFile('public/crm/index-built.html');
   const fieldRows = getRebnyFieldRows();
@@ -2056,7 +2056,7 @@ function section39() {
   const trestleFields = new Set();
   for (const { name } of fieldRows) trestleFields.add(name);
 
-  // Also add known Cotality standard fields that are on Trestle but may not be in IDX Plus CSV
+  // Also add known RESO standard fields that are on Trestle but may not be in IDX Plus CSV
   // (distribution gates, status fields, etc.)
   const extraTrestleFields = [
     'MlsStatus', 'StandardStatus', 'InternetEntireListingDisplayYN', 'InternetAddressDisplayYN',
@@ -2117,7 +2117,7 @@ function section39() {
     }
   }
 
-  pass(s, `${validCount} data-field values match Trestle/Cotality fields`);
+  pass(s, `${validCount} data-field values match Trestle/RESO fields`);
   if (localCount > 0) {
     pass(s, `${localCount} data-field values are known local-only filters`);
   }

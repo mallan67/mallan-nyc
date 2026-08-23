@@ -398,7 +398,7 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
         longitude: listing.address.longitude,
       };
 
-  // Use canonical helper — `listing.standardStatus` may arrive as the Cotality
+  // Use canonical helper — `listing.standardStatus` may arrive as the RESO
   // no-space canonical ('ComingSoon') or as the legacy display form
   // ('Coming Soon'); the helper accepts both. The old comparison here was
   // `=== 'Coming Soon'` and silently never fired because DB values are

@@ -1005,13 +1005,13 @@ REBNY RLS by structure carries only REBNY-member listings. Non-REBNY-member brok
 
 **Confirmed:** non-REBNY-member listings exist in Manhattan, Brooklyn, and Queens. Mallan's current REBNY-IDX-Plus feed (served via Cotality/Trestle 5.0) does not include them. The external-inventory spec's Phase 2-A (subscribe to OneKey + NY State MLS) is the cleanest mechanism to ingest them with a paid IDX agreement (no scraping). The sponsor database (this spec) is orthogonal — it identifies sponsor *ownership* regardless of where the listing is published.
 
-**Layer distinction reminder (added 2026-05-01).** Each MLS subscription brings its own three-layer stack: the **MLS organization** (REBNY, OneKey, NY State MLS — owns the policy layer), the **API/feed platform** (Cotality/Trestle, OneKey's own platform, etc.), and the **Cotality certification framework** (the data dictionary + Web API standards both platforms certify against). Two different MLSes served by the same vendor (or the same MLS served by two different vendors) can have entirely different runtime payload behavior on identical Cotality field names because policy is owned by the MLS, not by the platform. The IDX Plus null-handling fix at `lib/idx/trestle-mapper.ts:680-681` is REBNY-policy-specific. New ingest adapters added per Phase 2-A must run their own runtime coverage probe (`npm run cotality:coverage` against the new feed) before any writer-side mapping decisions are committed.
+**Layer distinction reminder (added 2026-05-01).** Each MLS subscription brings its own three-layer stack: the **MLS organization** (REBNY, OneKey, NY State MLS — owns the policy layer), the **API/feed platform** (Cotality/Trestle, OneKey's own platform, etc.), and the **RESO certification framework** (the data dictionary + Web API standards both platforms certify against). Two different MLSes served by the same vendor (or the same MLS served by two different vendors) can have entirely different runtime payload behavior on identical RESO field names because policy is owned by the MLS, not by the platform. The IDX Plus null-handling fix at `lib/idx/trestle-mapper.ts:680-681` is REBNY-policy-specific. New ingest adapters added per Phase 2-A must run their own runtime coverage probe (`npm run reso:coverage` against the new feed) before any writer-side mapping decisions are committed.
 
 **Sources for these findings:**
 - `lib/search/nyc-dictionary.ts:320-322` (natural-language sponsor mapping)
 - `lib/search/public-listing-trestle.ts:227` (PublicRemarks text-match)
 - `artifacts/metadata.xml` line 1047 + 28343 (`SpecialListingConditions` enum definition)
-- Live Trestle probe via `npm run cotality:coverage` and `npm run cotality:lookups` (2026-05-01)
+- Live Trestle probe via `npm run reso:coverage` and `npm run reso:lookups` (2026-05-01)
 - [Citysnap Manhattan/Brooklyn/Queens listing counts (CommercialObserver)](https://commercialobserver.com/2022/06/rebny-costar-citysnap/)
 - [OneKey MLS overview (Hauseit)](https://www.hauseit.com/onekey-mls/)
 - [REBNY RLS FAQs](https://www.rebny.com/rls-faqs/)

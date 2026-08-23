@@ -453,7 +453,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                             </div>
                         </div>
                         <div class="border-t px-5 py-3 bg-gray-50 rounded-b-xl">
-                            <p class="text-[10px] text-gray-500"><i class="fas fa-info-circle mr-1"></i>Per UCBA: Only exclusive listings are eligible for RLS. The <strong>ListingAgreement</strong> field maps to Cotality standard. In-House listings are internal only and are never submitted to REBNY.</p>
+                            <p class="text-[10px] text-gray-500"><i class="fas fa-info-circle mr-1"></i>Per UCBA: Only exclusive listings are eligible for RLS. The <strong>ListingAgreement</strong> field maps to RESO standard. In-House listings are internal only and are never submitted to REBNY.</p>
                         </div>
                     </div>
                 </div>
@@ -573,8 +573,8 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                         <p class="text-xs font-medium text-gray-700" id="rentalStatusChangeTimestamp">--</p>
                     </div>
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
-                        <p class="text-[10px] text-gray-500 uppercase">Cotality MlsStatus</p>
-                        <p class="text-xs font-medium text-blue-700" id="rentalCotalityMlsStatus">Draft</p>
+                        <p class="text-[10px] text-gray-500 uppercase">RESO MlsStatus</p>
+                        <p class="text-xs font-medium text-blue-700" id="rentalResoMlsStatus">Draft</p>
                     </div>
                 </div>
                 <!-- Validation Panel -->
@@ -625,7 +625,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                         </label>
                     </div>
                 </div>
-                <p class="text-xs text-gray-500">RLS/Cotality/IDX: InternetAutomatedValuationDisplayYN — Controls whether sites like Zillow, Redfin can show their AVM estimates alongside this listing</p>
+                <p class="text-xs text-gray-500">RLS/RESO/IDX: InternetAutomatedValuationDisplayYN — Controls whether sites like Zillow, Redfin can show their AVM estimates alongside this listing</p>
             </div>
         </div>
 
@@ -1175,7 +1175,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
             <div class="form-card-header"><i class="fas fa-percentage"></i> Concessions</div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                 <div>
-                    <label class="field-label">Concessions <span class="text-xs text-gray-400">(RLS/Cotality/IDX)</span></label>
+                    <label class="field-label">Concessions <span class="text-xs text-gray-400">(RLS/RESO/IDX)</span></label>
                     <select id="rentalConcessions" class="field-input" data-rls-field="Concessions">
                         <option value="">Select</option>
                         <option value="Yes">Yes</option>
@@ -1346,21 +1346,21 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                         <input type="checkbox" name="rentalInternetEntireListingDisplayYN" id="rentalInternetEntireListingDisplayYN" class="w-4 h-4" checked data-rls-field="InternetEntireListingDisplayYN">
                         <span class="text-sm font-semibold text-gray-700">Display Entire Listing</span>
                     </label>
-                    <p class="text-[10px] text-gray-500">RLS/Cotality/IDX: InternetEntireListingDisplayYN</p>
+                    <p class="text-[10px] text-gray-500">RLS/RESO/IDX: InternetEntireListingDisplayYN</p>
                 </div>
                 <div class="border rounded-lg p-4">
                     <label class="flex items-center gap-2 cursor-pointer mb-2">
                         <input type="checkbox" name="rentalInternetAddressDisplayYN" id="rentalInternetAddressDisplayYN" class="w-4 h-4" checked data-rls-field="InternetAddressDisplayYN">
                         <span class="text-sm font-semibold text-gray-700">Display Address</span>
                     </label>
-                    <p class="text-[10px] text-gray-500">RLS/Cotality/IDX: InternetAddressDisplayYN</p>
+                    <p class="text-[10px] text-gray-500">RLS/RESO/IDX: InternetAddressDisplayYN</p>
                 </div>
                 <div class="border rounded-lg p-4">
                     <label class="flex items-center gap-2 cursor-pointer mb-2">
                         <input type="checkbox" id="rentalInternetConsumerCommentYN" class="w-4 h-4" data-rls-field="InternetConsumerCommentYN">
                         <span class="text-sm font-semibold text-gray-700">Allow Consumer Comments</span>
                     </label>
-                    <p class="text-[10px] text-gray-500">RLS/Cotality/IDX: InternetConsumerCommentYN (VOW only)</p>
+                    <p class="text-[10px] text-gray-500">RLS/RESO/IDX: InternetConsumerCommentYN (VOW only)</p>
                 </div>
             </div>
         </div>
@@ -1496,7 +1496,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
             </div>
             <div class="mt-3 flex items-center gap-3">
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalBuyerAgentRLSParticipantYN" class="w-4 h-4" data-rls-ignore="true" data-removed-field="BuyerAgentRLSParticipantYN"> Tenant's Agent is RLS Participant</label>
-                <span class="text-xs text-gray-500">(RLS/Cotality/IDX: BuyerAgentRLSParticipantYN)</span>
+                <span class="text-xs text-gray-500">(RLS/RESO/IDX: BuyerAgentRLSParticipantYN)</span>
             </div>
         </div>
 
@@ -1520,18 +1520,18 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
             </div>
         </div>
 
-        <!-- Team Information (RLS/Cotality/IDX: ListTeamName, ListTeamMlsId) -->
+        <!-- Team Information (RLS/RESO/IDX: ListTeamName, ListTeamMlsId) -->
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-people-group"></i> Team Information</div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                    <!-- RLS/Cotality/IDX: ListTeamName (Optional — PUB distribution) -->
-                    <label class="field-label">Listing Team Name <span class="text-xs text-gray-400">(RLS/Cotality/IDX: ListTeamName)</span></label>
+                    <!-- RLS/RESO/IDX: ListTeamName (Optional — PUB distribution) -->
+                    <label class="field-label">Listing Team Name <span class="text-xs text-gray-400">(RLS/RESO/IDX: ListTeamName)</span></label>
                     <input type="text" id="rentalListTeamName" placeholder="e.g., The Allan Team" class="field-input" data-rls-field="ListTeamName">
                 </div>
                 <div>
-                    <!-- RLS/Cotality/IDX: ListTeamMlsId (Optional — PUB distribution) -->
-                    <label class="field-label">Listing Team MLS ID <span class="text-xs text-gray-400">(RLS/Cotality/IDX: ListTeamMlsId)</span></label>
+                    <!-- RLS/RESO/IDX: ListTeamMlsId (Optional — PUB distribution) -->
+                    <label class="field-label">Listing Team MLS ID <span class="text-xs text-gray-400">(RLS/RESO/IDX: ListTeamMlsId)</span></label>
                     <input type="text" id="rentalListTeamMlsId" placeholder="Team MLS ID" class="field-input" data-rls-field="ListTeamKey">
                 </div>
             </div>
@@ -2008,14 +2008,14 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
     </div>
 </div>
 
-<!-- Heating — RLS/Cotality/IDX: HeatingYN + Heating multi-select -->
+<!-- Heating — RLS/RESO/IDX: HeatingYN + Heating multi-select -->
 <div class="form-card">
     <div class="form-card-header"><i class="fas fa-fire"></i> Heating</div>
     <div class="flex gap-4 mb-3">
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalHeatingYN" value="Yes" class="w-4 h-4" data-rls-field="HeatingYN"> Yes</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalHeatingYN" value="No" class="w-4 h-4"> No</label>
     </div>
-    <p class="text-xs text-gray-500 mb-2">Heating Type (Cotality multi-select)</p>
+    <p class="text-xs text-gray-500 mb-2">Heating Type (RESO multi-select)</p>
     <div id="rentalHeatingTypes" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1">
         <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="rentalHeating" value="Steam" class="w-3 h-3" data-rls-field="Heating"> Steam</label>
         <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="rentalHeating" value="HotWater" class="w-3 h-3"> Hot Water</label>
@@ -2063,14 +2063,14 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
     </div>
 </div>
 
-<!-- Cooling — RLS/Cotality/IDX: CoolingYN + Cooling multi-select -->
+<!-- Cooling — RLS/RESO/IDX: CoolingYN + Cooling multi-select -->
 <div class="form-card">
     <div class="form-card-header"><i class="fas fa-snowflake"></i> Cooling</div>
     <div class="flex gap-4 mb-3">
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalCoolingYN" value="Yes" class="w-4 h-4" data-rls-field="CoolingYN"> Yes</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalCoolingYN" value="No" class="w-4 h-4"> No</label>
     </div>
-    <p class="text-xs text-gray-500 mb-2">Cooling Type (Cotality multi-select)</p>
+    <p class="text-xs text-gray-500 mb-2">Cooling Type (RESO multi-select)</p>
     <div id="rentalCoolingTypes" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1">
         <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="rentalCooling" value="CentralAir" class="w-3 h-3" data-rls-field="Cooling"> Central Air</label>
         <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="rentalCooling" value="Ductless" class="w-3 h-3"> Ductless</label>
@@ -2373,7 +2373,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
     </div>
 </div>
 
-<!-- RLS/Cotality/IDX: DocumentsAvailable — building docs available upon request -->
+<!-- RLS/RESO/IDX: DocumentsAvailable — building docs available upon request -->
 <div class="form-card">
     <div class="form-card-header"><i class="fas fa-folder-open"></i> Documents Available (Upon Request)</div>
     <p class="text-xs text-gray-500 mb-3">Select which building/property documents are available for prospective tenants or their representatives.</p>
@@ -2385,7 +2385,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalTHDocsAvailable" value="ResaleBoardPackageTemplate" class="w-4 h-4"> Board Package Template</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalTHDocsAvailable" value="ScheduleA" class="w-4 h-4"> Schedule A</label>
     </div>
-    <p class="text-[10px] text-gray-400 mt-2">RLS/Cotality/IDX: DocumentsAvailable (multi-select)</p>
+    <p class="text-[10px] text-gray-400 mt-2">RLS/RESO/IDX: DocumentsAvailable (multi-select)</p>
 </div>
 
 <div class="flex justify-between pt-2">
@@ -2581,7 +2581,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                 </label>
                 <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">ON</span>
             </div>
-            <p class="text-xs text-gray-500">RLS/Cotality/IDX: IDXEntireListingDisplayYN — controls all licensed partner display</p>
+            <p class="text-xs text-gray-500">RLS/RESO/IDX: IDXEntireListingDisplayYN — controls all licensed partner display</p>
             <p class="text-[10px] text-red-500 mt-1"><i class="fas fa-exclamation-circle mr-1"></i>If unchecked, listing will NOT appear on any IDX-licensed partner sites.</p>
         </div>
         <!-- VOW Opt-Out (Not Activated) -->
@@ -3278,7 +3278,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                         <span><strong>Optimal:</strong> 22–27 photos</span>
                         <span><strong>Min rec:</strong> 10–15 photos</span>
                     </div>
-                    <div class="text-blue-600 mt-1">Each photo must be assigned a Room/Category (Cotality ImageOf) and sort order. Photos under 1024x768 will be flagged for rejection.</div>
+                    <div class="text-blue-600 mt-1">Each photo must be assigned a Room/Category (RESO ImageOf) and sort order. Photos under 1024x768 will be flagged for rejection.</div>
                 </div>
                 <div id="rentalPhotoPreview" class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4" style="cursor: grab;"></div>
             </div>
@@ -3290,12 +3290,12 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                     <div>
                         <label class="field-label">Video URL</label>
                         <input type="url" id="rentalVideoUrl" placeholder="https://youtube.com/watch?v=..." class="field-input" data-rls-field="VirtualTourURLBranded">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/Cotality/IDX: VideoURL</p>
+                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: VideoURL</p>
                     </div>
                     <div>
                         <label class="field-label">Video Tour URL</label>
                         <input type="url" id="rentalVideoTourUrl" placeholder="https://vimeo.com/..." class="field-input" data-rls-field="VirtualTourURLUnbranded">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/Cotality/IDX: Video2URL</p>
+                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: Video2URL</p>
                     </div>
                 </div>
                 <p class="text-[10px] text-amber-600 mt-2"><i class="fas fa-ban mr-1"></i> No agent name, contact, or on-screen appearance in videos (UCBA Art. I Sec. 5(C))</p>
@@ -3312,29 +3312,29 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                 </div>
             </div>
 
-            <!-- 3D Virtual Tours (RLS/Cotality/IDX: VirtualTourURL) -->
+            <!-- 3D Virtual Tours (RLS/RESO/IDX: VirtualTourURL) -->
             <div class="mb-8">
                 <h4 class="font-semibold text-gray-900 mb-3">3D Virtual Tours</h4>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="field-label">Branded Tour URL <span class="text-[10px] text-gray-400 font-normal">(with broker branding)</span></label>
                         <input type="url" id="rentalMatterportUrl" placeholder="https://my.matterport.com/show/?m=..." class="field-input" data-rls-field="VirtualTourURLUnbranded2">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/Cotality/IDX: VirtualTourURLBranded</p>
+                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: VirtualTourURLBranded</p>
                     </div>
                     <div>
                         <label class="field-label">Unbranded Tour URL <span class="text-[10px] text-gray-400 font-normal">(no watermark)</span></label>
                         <input type="url" id="rentalVirtualTourUnbranded" placeholder="https://my.matterport.com/show/?m=..." class="field-input" data-rls-field="VirtualTourURLUnbranded">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/Cotality/IDX: VirtualTourURLUnbranded</p>
+                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: VirtualTourURLUnbranded</p>
                     </div>
                     <div>
                         <label class="field-label">Unbranded Tour URL 2</label>
                         <input type="url" id="rentalVirtualTourUnbranded2" placeholder="https://..." class="field-input" data-rls-field="VirtualTourURLUnbranded2">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/Cotality/IDX: VirtualTourURLUnbranded2</p>
+                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: VirtualTourURLUnbranded2</p>
                     </div>
                     <div>
                         <label class="field-label">Unbranded Tour URL 3</label>
                         <input type="url" id="rentalVirtualTourUnbranded3" placeholder="https://..." class="field-input" data-rls-field="VirtualTourURLUnbranded3">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/Cotality/IDX: VirtualTourURLUnbranded3</p>
+                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: VirtualTourURLUnbranded3</p>
                     </div>
                 </div>
             </div>
@@ -3736,9 +3736,9 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                                 <input type="number" id="bldgNumElevators" placeholder="2" class="field-input" data-rls-field="ElevatorsTotal">
                             </div>
                         </div>
-                        <!-- RLS/Cotality/IDX: BuildingHeating (multi-select, building-level) -->
+                        <!-- RLS/RESO/IDX: BuildingHeating (multi-select, building-level) -->
                         <div class="mb-4">
-                            <label class="field-label mb-2">Building Heating <!-- RLS/Cotality/IDX: BuildingHeating --></label>
+                            <label class="field-label mb-2">Building Heating <!-- RLS/RESO/IDX: BuildingHeating --></label>
                             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1">
                                 <!-- Building-Prefixed Primary (7) -->
                                 <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="bldgHeating" value="BuildingSteam" class="w-3 h-3" data-rls-ignore="true"> Bldg Steam</label>
@@ -3783,9 +3783,9 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                                 <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="bldgHeating" value="Other" class="w-3 h-3"> Other</label>
                             </div>
                         </div>
-                        <!-- RLS/Cotality/IDX: BuildingCooling (multi-select, building-level) -->
+                        <!-- RLS/RESO/IDX: BuildingCooling (multi-select, building-level) -->
                         <div class="mb-4">
-                            <label class="field-label mb-2">Building Cooling <!-- RLS/Cotality/IDX: BuildingCooling --></label>
+                            <label class="field-label mb-2">Building Cooling <!-- RLS/RESO/IDX: BuildingCooling --></label>
                             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1">
                                 <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="bldgCooling" value="CentralAir" class="w-3 h-3" data-rls-ignore="true"> Central Air</label>
                                 <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="bldgCooling" value="Ductless" class="w-3 h-3"> Ductless</label>
@@ -3932,7 +3932,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                         </div>
                     </div>
 
-                    <!-- RLS/Cotality/IDX: DocumentsAvailable — building docs available upon request -->
+                    <!-- RLS/RESO/IDX: DocumentsAvailable — building docs available upon request -->
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-folder-open"></i> Documents Available (Upon Request)</div>
                         <p class="text-xs text-gray-500 mb-3">Select which building documents are available for prospective tenants or their representatives.</p>
@@ -3944,7 +3944,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="bldgDocsAvailable" value="ResaleBoardPackageTemplate" class="w-4 h-4"> Board Package Template</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="bldgDocsAvailable" value="ScheduleA" class="w-4 h-4"> Schedule A</label>
                         </div>
-                        <p class="text-[10px] text-gray-400 mt-2">RLS/Cotality/IDX: DocumentsAvailable (multi-select)</p>
+                        <p class="text-[10px] text-gray-400 mt-2">RLS/RESO/IDX: DocumentsAvailable (multi-select)</p>
                     </div>
 
                     <div class="flex justify-between mt-4">
@@ -4797,7 +4797,7 @@ function patchGetRentalFormValue() {
 // NAVIGATION — Main tabs + Sub-tabs
 // ══════════════════════════════════════════════════════
 function showRentalMainTab(num) {
-    // Block Tab 7 if not Rented (RLS/Cotality/IDX: Closed)
+    // Block Tab 7 if not Rented (RLS/RESO/IDX: Closed)
     if (num === 7) {
         var st = (document.getElementById('rentalStatus') || {}).value || '';
         if (st !== 'Rented' && st !== 'RentedThruUs') return;
@@ -5028,9 +5028,9 @@ function updateRentalStatusFields() {
         if (rentedPrice) rentedPrice.style.display = '';
     }
 
-    // Update Cotality MlsStatus display
-    var cotalityDisplay = document.getElementById('rentalCotalityMlsStatus');
-    if (cotalityDisplay) cotalityDisplay.textContent = getCotalityRentalMlsStatus(status);
+    // Update RESO MlsStatus display
+    var resoDisplay = document.getElementById('rentalResoMlsStatus');
+    if (resoDisplay) resoDisplay.textContent = getResoRentalMlsStatus(status);
 
     // Enable/disable Commission Request tab (Tab 7)
     var commTab = document.getElementById('sidebarTab7');
@@ -5048,7 +5048,7 @@ function updateRentalStatusFields() {
 }
 
 // ══════════════════════════════════════════════════════
-// PROPERTY TYPE — SUBTYPE COTALITYLUTION & FIELD RULES
+// PROPERTY TYPE — SUBTYPE RESOLUTION & FIELD RULES
 // ══════════════════════════════════════════════════════
 
 /**
@@ -5212,7 +5212,7 @@ function navigateBackFromDistribution(formType) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// Cotality 3-FIELD PROPERTY TYPE DECOMPOSITION (Rental)
+// RESO 3-FIELD PROPERTY TYPE DECOMPOSITION (Rental)
 // Maps CRM radio value → { PropertyType, CommonInterest, PropertySubType }
 // ALL rental types use PropertyType: 'ResidentialLease' (not 'Residential')
 // ═══════════════════════════════════════════════════════════
@@ -5226,7 +5226,7 @@ function getBuildingTypeMapping(buildingType) {
     }
 }
 
-function getCotalityPropertyFields(crmValue) {
+function getResoPropertyFields(crmValue) {
     const officeRetailOwnership = document.querySelector('input[name="rentalOfficeRetailOwnership"]:checked')?.value || null;
 
     const MAP = {
@@ -5383,12 +5383,12 @@ function updateListingHeaderBar(prefix) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// CRM → Cotality MlsStatus MAPPING (Rental)
+// CRM → RESO MlsStatus MAPPING (Rental)
 // REBNY RLS Section J: 9 statuses. Rentals use Closed (= Rented).
 // No ComingSoon for rentals per UCBA D1.
 // ═══════════════════════════════════════════════════════════
 
-const CRM_TO_COTALITY_RENTAL_STATUS = {
+const CRM_TO_RESO_RENTAL_STATUS = {
     'Draft': 'Incomplete', 'Future': 'Incomplete',
     'Active': 'Active', 'BackOnMarket': 'Active',
     'AppOut': 'Pending', 'AppThruUs': 'Pending',
@@ -5401,8 +5401,8 @@ const CRM_TO_COTALITY_RENTAL_STATUS = {
     'PermOffMarket': 'Withdrawn', 'TempOffMarket': 'Hold', 'Expired': 'Expired',
 };
 
-function getCotalityRentalMlsStatus(crmStatus) {
-    return CRM_TO_COTALITY_RENTAL_STATUS[crmStatus] || 'Active';
+function getResoRentalMlsStatus(crmStatus) {
+    return CRM_TO_RESO_RENTAL_STATUS[crmStatus] || 'Active';
 }
 
 function validateStatusChange(prefix) {
@@ -5689,7 +5689,7 @@ function collectRentalFormData() {
         // FARE Act
         fareActLandlordPays: radioVal('rentalFareActLandlordPays'),
 
-        // Display Permissions (RLS/Cotality/IDX Internet fields)
+        // Display Permissions (RLS/RESO/IDX Internet fields)
         internetEntireListingDisplayYN: checked('rentalInternetEntireListingDisplayYN'),
         internetAddressDisplayYN: checked('rentalInternetAddressDisplayYN'),
         internetConsumerCommentYN: checked('rentalInternetConsumerCommentYN'),
@@ -5698,7 +5698,7 @@ function collectRentalFormData() {
         distVOW: checked('rentalDist_VOW'),
         syndicateYN: checked('rentalSyndicateYN'),
 
-        // Team (RLS/Cotality/IDX: ListTeamName, ListTeamMlsId)
+        // Team (RLS/RESO/IDX: ListTeamName, ListTeamMlsId)
         listTeamName: val('rentalListTeamName'),
         listTeamMlsId: val('rentalListTeamMlsId'),
 

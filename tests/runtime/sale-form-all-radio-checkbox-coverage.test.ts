@@ -7,7 +7,7 @@
  *
  *   Every radio and every checkbox on the sales form must end up in one of
  *   three outcomes:
- *     1. real Cotality/RLS field with save+restore mapping, or
+ *     1. real RESO/RLS field with save+restore mapping, or
  *     2. real Mallan-internal field with save+restore under raw key, or
  *     3. dead/vestigial UI explicitly removed.
  *
@@ -269,7 +269,7 @@ describe('Single-id boolean checkboxes are addressable via SALE_FIELD_MAP', () =
 });
 
 describe('Class A specific — InternetAutomatedValuationDisplayYN canonical write', () => {
-  // saleInternetAVMDisplayYN form radio writes the canonical Cotality key into
+  // saleInternetAVMDisplayYN form radio writes the canonical RESO key into
   // the body so the read-side gate at lib/compliance/gates.ts:affirmPermission
   // can evaluate it. Without this, the radio is stored only as a form-CRM-raw
   // string ('Yes'/'No'), never translated to the boolean the gate reads.

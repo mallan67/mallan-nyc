@@ -12,8 +12,8 @@
  * FIELD AUTHORITY ORDER (from MEMORY.md):
  *   1. UCBA governs everything
  *   2. REBNY RLS rules + fields
- *   3. RLS overrides Cotality/IDX
- *   4. Cotality/IDX fills gaps
+ *   3. RLS overrides RESO/IDX
+ *   4. RESO/IDX fills gaps
  *   5. INTERNAL-ONLY otherwise
  *   6. Fail closed — any uncertainty defaults to NON-DISPLAY
  */

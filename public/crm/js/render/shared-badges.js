@@ -17,7 +17,7 @@
         function participantOnlyBadge(listing) {
             if (!listing.permissions || !listing.permissions.participantOnly) return '';
             return '<span class="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-[9px] font-bold"'
-                + ' data-cotality-field="InternetEntireListingDisplayYN" data-cotality-value="false"'
+                + ' data-reso-field="InternetEntireListingDisplayYN" data-reso-value="false"'
                 + ' data-compliance="participant-only"'
                 + ' title="UCBA H4: Participant Only — restricted to RLS participants. DOM exempt (Rule A4)."'
                 + '>RLS ONLY</span>';
@@ -27,9 +27,9 @@
         // UCBA Art. I Sec. 5(C): No showings, open houses, or negotiations. D7/D2/D1.
         function comingSoonBadge(listing) {
             if (listing.status !== 'ComingSoon') return '';
-            var dateTag = listing.comingSoonDate ? ' <span' + cotalityData('comingSoonDate', listing.comingSoonDate) + '>' + listing.comingSoonDate + '</span>' : '';
+            var dateTag = listing.comingSoonDate ? ' <span' + resoData('comingSoonDate', listing.comingSoonDate) + '>' + listing.comingSoonDate + '</span>' : '';
             return '<div class="bg-purple-50 border-b border-purple-200 px-3 py-1.5 text-xs text-purple-700 font-semibold"'
-                + ' data-cotality-field="MlsStatus" data-cotality-value="ComingSoon"'
+                + ' data-reso-field="MlsStatus" data-reso-value="ComingSoon"'
                 + ' data-compliance="coming-soon-badge"'
                 + ' title="UCBA D7: Coming Soon — max 14 days (D2). Sales only (D1). No showings, no open houses, no negotiations. Unsolicited offers may be conveyed."'
                 + '><i class="fas fa-clock mr-1"></i> Coming Soon'
@@ -42,7 +42,7 @@
         function comingSoonBadgeCompact(listing) {
             if (listing.status !== 'ComingSoon') return '';
             return '<span class="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[9px] font-bold"'
-                + ' data-cotality-field="MlsStatus" data-cotality-value="ComingSoon"'
+                + ' data-reso-field="MlsStatus" data-reso-value="ComingSoon"'
                 + ' data-compliance="coming-soon-badge"'
                 + ' title="UCBA D7: Coming Soon — max 14 days. No showings or open houses until ' + (listing.comingSoonDate || 'active date') + '."'
                 + '>CS' + (listing.comingSoonDate ? ' ' + listing.comingSoonDate : '')
@@ -56,7 +56,7 @@
             var perm = listing.permissions || {};
             if (perm.syndication !== false && listing.syndicateYN !== false) return '';
             return '<span class="px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded text-[9px] font-bold"'
-                + ' data-cotality-field="SyndicateTo" data-cotality-value="None"'
+                + ' data-reso-field="SyndicateTo" data-reso-value="None"'
                 + ' data-compliance="syndication-gate"'
                 + ' title="SyndicateYN=false — this listing is not distributed to third-party syndication portals (StreetEasy, Zillow, etc.)."'
                 + '>NOT SYNDICATED</span>';
@@ -67,7 +67,7 @@
             var perm = listing.permissions || {};
             if (perm.syndication !== false && listing.syndicateYN !== false) return '';
             return '<span class="px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded text-[9px] font-bold"'
-                + ' data-cotality-field="SyndicateTo" data-cotality-value="None"'
+                + ' data-reso-field="SyndicateTo" data-reso-value="None"'
                 + ' data-compliance="syndication-gate"'
                 + ' title="Not distributed to third-party portals"'
                 + '>NS</span>';
@@ -80,7 +80,7 @@
             if (listing.status !== 'ComingSoon') return '';
             var dateStr = listing.comingSoonDate || 'active date';
             return '<div class="bg-purple-50 border border-purple-200 rounded px-2.5 py-1.5 text-xs text-purple-700 font-medium"'
-                + ' data-cotality-field="MlsStatus" data-cotality-value="ComingSoon"'
+                + ' data-reso-field="MlsStatus" data-reso-value="ComingSoon"'
                 + ' data-compliance="coming-soon-showing-block"'
                 + ' title="UCBA Art. I Sec. 5(C): No showings, open houses, or negotiations until listing is active."'
                 + '><i class="fas fa-ban mr-1 text-purple-400"></i>'
@@ -112,7 +112,7 @@
             else if (days <= 30) { color = 'text-yellow-600'; label = days + 'd ago'; }
             else { color = 'text-red-600'; label = days + 'd ago'; }
             return '<span class="text-[9px] ' + color + '"'
-                + cotalityData('updatedDate', listing.updatedDate)
+                + resoData('updatedDate', listing.updatedDate)
                 + ' data-compliance="freshness-indicator"'
                 + ' title="Last updated: ' + listing.updatedDate + ' (' + days + ' days ago)"'
                 + '><i class="fas fa-clock mr-0.5"></i>' + label + '</span>';
@@ -121,7 +121,7 @@
         // ── Client Feedback Icons (Like/Dislike) ──
         // Visible only when a client is assigned via Assign Customer dropdown.
         // Icons must be INSIDE the listing card div that carries data-source="REBNY-RLS".
-        // Like/dislike is agent-entered metadata (not RLS data) — no Cotality tagging required.
+        // Like/dislike is agent-entered metadata (not RLS data) — no RESO tagging required.
         function clientFeedbackIcons(listing) {
             if (!currentWorkspaceClientId) return '';
             var status = (typeof getClientFeedbackStatus === 'function') ? getClientFeedbackStatus(listing.id) : null;
@@ -165,7 +165,7 @@
 
             var statusLabel = status === 'exempt' ? ' (exempt)' : status === 'paused' ? ' (paused)' : status === 'stopped' ? ' (final)' : '';
             return '<span class="text-xs font-semibold" style="color:' + color + '"'
-                + cotalityData('dom', dom)
+                + resoData('dom', dom)
                 + ' data-dom-status="' + status + '"'
                 + ' title="Days on Market: ' + dom + statusLabel + '"'
                 + '>' + dom + 'd' + statusLabel + '</span>';

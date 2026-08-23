@@ -11,8 +11,8 @@
     "fieldAuthorityOrder": [
       "1. UCBA governs everything",
       "2. REBNY RLS rules + RLS fields",
-      "3. RLS overrides Cotality/IDX",
-      "4. Cotality/IDX fills gaps",
+      "3. RLS overrides RESO/IDX",
+      "4. RESO/IDX fills gaps",
       "5. INTERNAL-ONLY otherwise",
       "6. Fail closed = NON-DISPLAY"
     ]
@@ -20,7 +20,7 @@
   "enforcedRules": {
     "rlsRequired": "compliance/rules/rls-required.json",
     "exportPolicy": "compliance/rules/export-policy.json",
-    "cotalityRlsRenames": "compliance/rules/cotality-rls-renames.json",
+    "resoRlsRenames": "compliance/rules/reso-rls-renames.json",
     "statusRules": "compliance/rules/status-rules.json",
     "contentRestrictions": "compliance/rules/content-restrictions.json"
   },

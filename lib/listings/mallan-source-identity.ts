@@ -39,7 +39,7 @@
  * TWO SEPARATE DECISIONS, never collapsed:
  *   1. CLASSIFICATION — is this a Mallan-office Cotality representation?
  *      Answered by verified list-side office identity alone.
- *   2. TWIN COTALITYLUTION — which local Mallan listing does it reconcile to?
+ *   2. TWIN RESOLUTION — which local Mallan listing does it reconcile to?
  *      A stricter problem: MATCHED / AMBIGUOUS / UNRESOLVED.
  *
  * Failure of (2) NEVER reverses (1). Until a direct Mallan -> Cotality feed is

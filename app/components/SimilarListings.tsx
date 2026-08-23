@@ -35,7 +35,7 @@ interface SimilarListingsProps {
   neighborhood?: string;
   currentListingId: string;
   /** Subject property class signals — comps are matched like-with-like (townhouse↔townhouse,
-   *  condo↔condo, house↔house…). propertyType is the mapped display; propertySubType is the raw Cotality
+   *  condo↔condo, house↔house…). propertyType is the mapped display; propertySubType is the raw RESO
    *  sub-type used to classify rentals/townhouses/houses the display can't. */
   propertyType?: string;
   propertySubType?: string | null;

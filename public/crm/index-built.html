@@ -9,6 +9,7 @@
     <meta http-equiv="Expires" content="0">
     <title>MALLAN NYC - Search Standalone</title>
     <script>
+    // Global error handler — catches any JS errors during page load
     window.onerror = function(msg, url, line, col, error) {
         var errDiv = document.getElementById('jsErrorBanner');
         if (!errDiv) {
@@ -22,19 +23,23 @@
         return false;
     };
     </script>
+    <!-- Render-blocking: hide everything until JS restores the correct search state -->
     <style id="searchRenderBlock">body{opacity:0!important}</style>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.1.18"></script>
     <style type="text/tailwindcss">
         @import "tailwindcss";
     </style>
+    <!-- Font Awesome 6.7.2 — preload critical font files for instant icon rendering -->
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/webfonts/fa-solid-900.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/webfonts/fa-regular-400.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&family=Urbanist:wght@200;300;400;500;600;700;800&family=Playfair+Display:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- EmailJS SDK — client-side email delivery (free: 200/month) -->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
+    <!-- ═══ CSS Modules ═══ -->
     <style>
     /* ═══ css/base.css ═══ */
 /* ═══════════════════════════════════════════════════════
@@ -3222,6 +3227,7 @@ input[type="range"] {
 </head>
 <body class="bg-gray-100 min-h-screen">
 
+<!-- Early utility functions needed by onclick handlers in HTML -->
 <script>
 function toggleSection(header) {
     var content = header.nextElementSibling;
@@ -3231,6 +3237,7 @@ function toggleSection(header) {
 }
 </script>
 
+<!-- ═══ HTML Sections ═══ -->
 <!-- ═══ html/nav.html ═══ -->
 <!-- HEADER / NAV -->
 <header class="bg-[#1a1a1a] text-white sticky top-0 z-50">
@@ -5585,7 +5592,7 @@ function toggleSection(header) {
                         </div>
                         <div class="section-content">
                             <!-- Manhattan Grid -->
-                            <!-- CRITICAL: ManhattanGrid - NOT IN Cotality METADATA
+                            <!-- CRITICAL: ManhattanGrid - NOT IN RESO METADATA
                                  NYC-specific street grid navigation (North/West/East/South)
                                  SOLUTION: Add custom field 'ManhattanGrid' OR implement geocoding logic
                                  IDX MAPPING: NONE - requires custom field or StreetNumber/StreetName parsing
@@ -6070,7 +6077,7 @@ function toggleSection(header) {
                             </div>
 
                             <!-- Transit Lines -->
-                            <!-- CRITICAL: NearbyTransit - NOT IN Cotality METADATA
+                            <!-- CRITICAL: NearbyTransit - NOT IN RESO METADATA
                                  NYC subway proximity search
                                  SOLUTION: Add custom multi-enum field 'NearbyTransit' OR implement geocoding with radius
                                  IDX MAPPING: NONE - requires custom field or separate transit database
@@ -7252,7 +7259,7 @@ function toggleSection(header) {
                             </div>
 
                             <!-- Listing Type (Rental) -->
-                            <!-- CRITICAL: REBNYListingType - NOT IN Cotality METADATA
+                            <!-- CRITICAL: REBNYListingType - NOT IN RESO METADATA
                                  REBNY RLS-specific listing designations (Exclusive, Co-Exclusive, Dare Alone, etc.)
                                  SOLUTION: Add custom enum field 'REBNYListingType' with values:
                                    Exclusive, CoExclusive, DareAlone, Limited, Open,
@@ -8294,7 +8301,7 @@ function toggleSection(header) {
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="View" data-value="Mountains,TreesWoods,Forest"> Nature</label>
                                     </div>
                                 </div>
-                                <!-- Exposure (RLS/Cotality/IDX: DirectionFaces) -->
+                                <!-- Exposure (RLS/RESO/IDX: DirectionFaces) -->
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Exposure</p>
                                     <div class="grid grid-cols-2 gap-1.5 text-sm">
@@ -11321,6 +11328,7 @@ function toggleSection(header) {
 </div>
 
 
+<!-- ═══ Modals ═══ -->
 <!-- ═══ html/modals/grid-layouts.html ═══ -->
 <!-- GRID LAYOUTS MODAL (extracted from section-main) -->
 <div id="gridLayoutsModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center" onclick="if(event.target===this)closeGridLayoutsModal()" role="dialog" aria-modal="true" aria-labelledby="gridLayoutsModalTitle">
@@ -13021,7 +13029,7 @@ function toggleSection(header) {
             </div>
         </div>
         <div class="border-t px-5 py-3 bg-gray-50 rounded-b-xl">
-            <p class="text-[10px] text-gray-500"><i class="fas fa-info-circle mr-1"></i>Per UCBA: Only exclusive listings are eligible for RLS. <strong>ListingAgreement</strong> maps to Cotality standard. In-House uses office ID filter. Owner Opt-Out/Participant Only use Permissions fields.</p>
+            <p class="text-[10px] text-gray-500"><i class="fas fa-info-circle mr-1"></i>Per UCBA: Only exclusive listings are eligible for RLS. <strong>ListingAgreement</strong> maps to RESO standard. In-House uses office ID filter. Owner Opt-Out/Participant Only use Permissions fields.</p>
         </div>
     </div>
 </div>
@@ -13152,8 +13160,11 @@ function toggleSection(header) {
 </div>
 
 
+<!-- ═══ JavaScript ═══ -->
 <script>
+// ═══════════════════════════════════════════════════════
 // MAIN SCRIPT BLOCK
+// ═══════════════════════════════════════════════════════
 </script>
 
 <!-- Core -->
@@ -14396,7 +14407,7 @@ function _mapApiListingToManage(api) {
     if (api.raw_data && api.raw_data.ListingAgreement === 'Co-Exclusive') dealType = 'Co-Exclusive';
     if (api.raw_data && api.raw_data.ListingAgreement === 'Open') dealType = 'Open';
 
-    // Map Cotality StandardStatus → CRM display status
+    // Map RESO StandardStatus → CRM display status
     var statusMap = {
         'Draft': 'Draft', 'Active': 'Active', 'ActiveUnderContract': 'Offer Out',
         'Pending': 'Contract Signed', 'ComingSoon': 'Coming Soon', 'Hold': 'Temp Off Market',
@@ -14630,7 +14641,7 @@ function comingSoonCountdown(listing) {
     else if (remaining >= 0) { color = '#dc2626'; bg = '#fef2f2'; textColor = '#991b1b'; pulse = ''; }
     else { color = '#dc2626'; bg = '#fef2f2'; textColor = '#991b1b'; pulse = ' animate-pulse'; }
 
-    var html = '<div class="mt-2 rounded-lg px-3 py-2 text-xs' + pulse + '" style="background:' + bg + ';border:1px solid ' + color + '30" data-compliance="coming-soon-countdown" data-cotality-field="ComingSoonTimestamp" data-cotality-value="' + listing.comingSoonStartDate + '">';
+    var html = '<div class="mt-2 rounded-lg px-3 py-2 text-xs' + pulse + '" style="background:' + bg + ';border:1px solid ' + color + '30" data-compliance="coming-soon-countdown" data-reso-field="ComingSoonTimestamp" data-reso-value="' + listing.comingSoonStartDate + '">';
 
     if (remaining > 0) {
         html += '<div class="flex items-center justify-between">';
@@ -14656,7 +14667,7 @@ function comingSoonCountdown(listing) {
 
     // Action buttons
     html += '<div class="flex items-center gap-2 mt-2">';
-    html += '<button onclick="manageStatusApply(\'Active\')" class="px-2.5 py-1 bg-green-600 text-white rounded text-[10px] font-semibold hover:bg-green-700" data-cotality-field="MlsStatus" data-cotality-value="Active"><i class="fas fa-check mr-1"></i>Activate Now</button>';
+    html += '<button onclick="manageStatusApply(\'Active\')" class="px-2.5 py-1 bg-green-600 text-white rounded text-[10px] font-semibold hover:bg-green-700" data-reso-field="MlsStatus" data-reso-value="Active"><i class="fas fa-check mr-1"></i>Activate Now</button>';
     html += '<button onclick="manageStatusApply(\'Temp Off Market\')" class="px-2.5 py-1 bg-gray-500 text-white rounded text-[10px] font-semibold hover:bg-gray-600" title="UCBA D11: Withdraw/TOM"><i class="fas fa-pause mr-1"></i>Withdraw/TOM</button>';
     html += '</div>';
 
@@ -14697,8 +14708,8 @@ function renderManageCards(listings) {
         // Photo banner with RLS/IDX media metadata
         if (l.photo) {
             var media = l.media || {};
-            html += '<div class="manage-photo-wrap" style="height:140px" data-cotality-field="Media" data-cotality-value="PhotosCount:' + (l.photoCount || 0) + '">';
-            html += '<img src="' + l.photo + '" alt="' + l.address + ' ' + l.unit + '" class="manage-photo" loading="lazy" data-cotality-field="MediaURL">';
+            html += '<div class="manage-photo-wrap" style="height:140px" data-reso-field="Media" data-reso-value="PhotosCount:' + (l.photoCount || 0) + '">';
+            html += '<img src="' + l.photo + '" alt="' + l.address + ' ' + l.unit + '" class="manage-photo" loading="lazy" data-reso-field="MediaURL">';
             // Top-left: status badge
             html += '<div class="absolute top-2.5 left-2.5"><span class="px-2 py-1 ' + sc.bg + ' ' + sc.text + ' rounded-md text-[10px] font-bold shadow-sm">' + l.status + '</span></div>';
             // Top-right: RLS / IDX / Web distribution badges
@@ -14707,7 +14718,7 @@ function renderManageCards(listings) {
                 html += '<span class="px-1.5 py-0.5 bg-blue-600/80 text-white text-[9px] font-bold rounded backdrop-blur-sm" title="Uploaded to REBNY RLS via Trestle">RLS</span>';
             }
             if (media.idxDisplayYN) {
-                html += '<span class="px-1.5 py-0.5 bg-green-600/80 text-white text-[9px] font-bold rounded backdrop-blur-sm" title="IDX display enabled" data-cotality-field="IDXEntireListingDisplayYN" data-cotality-value="true">IDX</span>';
+                html += '<span class="px-1.5 py-0.5 bg-green-600/80 text-white text-[9px] font-bold rounded backdrop-blur-sm" title="IDX display enabled" data-reso-field="IDXEntireListingDisplayYN" data-reso-value="true">IDX</span>';
             }
             if (media.webDisplayed) {
                 html += '<span class="px-1.5 py-0.5 bg-amber-600/80 text-white text-[9px] font-bold rounded backdrop-blur-sm" title="Displayed on mallan.nyc">Web</span>';
@@ -15065,14 +15076,14 @@ function cardStatusApply(listingId, newStatus) {
     var listing = manageFindListing(listingId);
     if (!listing) return;
 
-    // Map display status back to Cotality StandardStatus for API
-    var cotalityMap = {
+    // Map display status back to RESO StandardStatus for API
+    var resoMap = {
         'Active': 'Active', 'Back On Market': 'Active', 'Coming Soon': 'ComingSoon',
         'Offer Out': 'ActiveUnderContract', 'Contract Signed': 'Pending', 'Lease Signed': 'Pending',
         'Board Approval': 'Pending', 'Sold': 'Closed', 'Leased': 'Closed',
         'Temp Off Market': 'Hold', 'Perm Off Market': 'Withdrawn', 'Expired': 'Expired'
     };
-    var cotalityStatus = cotalityMap[newStatus] || newStatus;
+    var resoStatus = resoMap[newStatus] || newStatus;
 
     // Update local state immediately
     listing.status = newStatus;
@@ -15088,7 +15099,7 @@ function cardStatusApply(listingId, newStatus) {
     // Persist to API
     var dbId = listing._dbId || listing.id;
     if (typeof MallanAPI !== 'undefined' && MallanAPI.listings) {
-        MallanAPI.listings.updateStatus(dbId, cotalityStatus).catch(function(err) {
+        MallanAPI.listings.updateStatus(dbId, resoStatus).catch(function(err) {
             if (typeof console !== 'undefined') console.error('[ManageListings] Status update failed:', err);
             manageShowToast('Failed to save status change to server', 'error');
         });
@@ -15362,7 +15373,7 @@ function manageQuickStatus(id) {
         var isCurrent = listing.status === s;
         var validation = manageValidateTransition(listing, s);
         var isBlocked = !validation.valid && !isCurrent;
-        html += '<button onclick="' + (isBlocked ? '' : 'manageStatusApply(\\\'' + s + '\\\')') + '" class="w-full text-left px-3 py-2 rounded-lg text-sm flex items-center justify-between ' + (isCurrent ? 'bg-blue-50 border border-blue-200' : isBlocked ? 'opacity-40 cursor-not-allowed border border-transparent' : 'hover:bg-gray-50 border border-transparent') + '"' + ' data-cotality-field="MlsStatus" data-cotality-value="' + s + '"' + (isBlocked ? ' title="' + validation.blocks.join('; ').replace(/"/g, '&quot;') + '"' : '') + '>';
+        html += '<button onclick="' + (isBlocked ? '' : 'manageStatusApply(\\\'' + s + '\\\')') + '" class="w-full text-left px-3 py-2 rounded-lg text-sm flex items-center justify-between ' + (isCurrent ? 'bg-blue-50 border border-blue-200' : isBlocked ? 'opacity-40 cursor-not-allowed border border-transparent' : 'hover:bg-gray-50 border border-transparent') + '"' + ' data-reso-field="MlsStatus" data-reso-value="' + s + '"' + (isBlocked ? ' title="' + validation.blocks.join('; ').replace(/"/g, '&quot;') + '"' : '') + '>';
         html += '<span class="px-2 py-0.5 ' + sc.bg + ' ' + sc.text + ' rounded text-xs font-semibold">' + s + '</span>';
         if (isCurrent) html += '<i class="fas fa-check text-blue-600 text-xs"></i>';
         if (isBlocked) html += '<i class="fas fa-ban text-gray-400 text-xs ml-1"></i>';
@@ -15457,16 +15468,16 @@ function manageStatusApply(newStatus) {
     manageShowToast('Status changed to ' + newStatus);
 
     // Persist to API
-    var cotalityMap = {
+    var resoMap = {
         'Active': 'Active', 'Back On Market': 'Active', 'Coming Soon': 'ComingSoon',
         'Offer Out': 'ActiveUnderContract', 'Contract Signed': 'Pending', 'Lease Signed': 'Pending',
         'Board Approval': 'Pending', 'Sold': 'Closed', 'Leased': 'Closed',
         'Temp Off Market': 'Hold', 'Perm Off Market': 'Withdrawn', 'Expired': 'Expired'
     };
-    var cotalityStatus = cotalityMap[newStatus] || newStatus;
+    var resoStatus = resoMap[newStatus] || newStatus;
     var dbId = listing._dbId || listing.id;
     if (typeof MallanAPI !== 'undefined' && MallanAPI.listings) {
-        MallanAPI.listings.updateStatus(dbId, cotalityStatus).catch(function(err) {
+        MallanAPI.listings.updateStatus(dbId, resoStatus).catch(function(err) {
             if (typeof console !== 'undefined') console.error('[ManageListings] Status update failed:', err);
             manageShowToast('Failed to save status change to server', 'error');
         });
@@ -16740,7 +16751,7 @@ function manageShowToast(msg) {
                 // The browser sends EXACT COTALITY StandardStatus MEMBERS. It no
                 // longer keeps a status table at all.
                 //
-                // There used to be a JS map here translating tokens to Cotality
+                // There used to be a JS map here translating tokens to RESO
                 // PascalCase, maintained by hand in parallel with the server's
                 // contract. Two authorities for one mapping is how 'PENDING'
                 // came to mean ActiveUnderContract on one side and Pending on
@@ -16752,7 +16763,7 @@ function manageShowToast(msg) {
                 // mapping, and it FAILS CLOSED - a token with no provider member
                 // returns HTTP 400 UNSUPPORTED_CRITERION rather than being
                 // dropped, which would widen the search instead of narrowing it.
-                var cotalityStatuses = criteria.statuses.filter(function(s, i, arr) { return arr.indexOf(s) === i; });
+                var resoStatuses = criteria.statuses.filter(function(s, i, arr) { return arr.indexOf(s) === i; });
             }
             // Bug A11 — SponsorUnit lives inside CustomProperty.CustomFields
             // (REBNY-specific JSON-string field), NOT a top-level OData
@@ -19376,152 +19387,6 @@ function manageShowToast(msg) {
 
 
 </script>
-<!-- Exact live-Cotality executable-criteria boundary. Must load immediately
-     after the historical collector so only verified provider values can leave it. -->
-<script>
-// ═══ js/search/cotality-criteria-boundary.js ═══
-/*
- * Authenticated Search executable-criteria boundary.
- *
- * Provider authority is the live Cotality API. The browser may contain old UI
- * labels/markup for compatibility, but no non-Cotality status is allowed to
- * leave this boundary as a provider criterion.
- *
- * The server independently validates StandardStatus again. This file is a
- * browser safety boundary, not a competing provider mapping authority.
- */
-(function installCotalityCriteriaBoundary() {
-    'use strict';
-
-    var STANDARD_STATUS = Object.freeze([
-        'Active',
-        'ActiveUnderContract',
-        'Canceled',
-        'Closed',
-        'ComingSoon',
-        'Delete',
-        'Expired',
-        'Hold',
-        'Incomplete',
-        'Pending',
-        'Withdrawn'
-    ]);
-    var STANDARD_STATUS_SET = new Set(STANDARD_STATUS);
-
-    // One-way compatibility for values produced by older Mallan UI/saved state.
-    // These are NOT canonical Search values and are never persisted/sent after
-    // this boundary. Unsupported business sub-statuses deliberately have no map.
-    var LEGACY_STATUS = Object.freeze({
-        ACTIVE: 'Active',
-        UNDER_CONTRACT: 'ActiveUnderContract',
-        CONTRACT: 'ActiveUnderContract',
-        ACTIVEUNDERCONTRACT: 'ActiveUnderContract',
-        ACTIVE_UNDER_CONTRACT: 'ActiveUnderContract',
-        CANCELED: 'Canceled',
-        CANCELLED: 'Canceled',
-        CLOSED: 'Closed',
-        COMING_SOON: 'ComingSoon',
-        COMINGSOON: 'ComingSoon',
-        EXPIRED: 'Expired',
-        HOLD: 'Hold',
-        INCOMPLETE: 'Incomplete',
-        PENDING: 'Pending',
-        WITHDRAWN: 'Withdrawn',
-        DELETE: 'Delete'
-    });
-
-    function migrateOnce(value) {
-        var raw = String(value == null ? '' : value).trim();
-        if (!raw) return null;
-        if (STANDARD_STATUS_SET.has(raw)) return raw;
-        return LEGACY_STATUS[raw] || null;
-    }
-
-    function exactStatuses(values) {
-        var out = [];
-        var rejected = [];
-        (Array.isArray(values) ? values : []).forEach(function(value) {
-            var migrated = migrateOnce(value);
-            if (!migrated) {
-                rejected.push(String(value));
-                return;
-            }
-            if (out.indexOf(migrated) === -1) out.push(migrated);
-        });
-        if (rejected.length) {
-            var err = new Error(
-                'Unsupported Cotality status criterion: ' + rejected.join(', ') +
-                '. This filter cannot be sent because it is not a live StandardStatus member.'
-            );
-            err.code = 'UNSUPPORTED_CRITERION';
-            err.criterion = 'status';
-            err.unsupportedValues = rejected;
-            throw err;
-        }
-        return out;
-    }
-
-    function disableNonCotalityStatusControls() {
-        document.querySelectorAll('[data-field="MlsStatus"][data-sub-status]').forEach(function(el) {
-            el.checked = false;
-            el.disabled = true;
-            el.setAttribute('aria-disabled', 'true');
-            el.setAttribute(
-                'title',
-                'Unavailable: this historical Mallan sub-status is not a live Cotality StandardStatus criterion.'
-            );
-            var label = el.closest('label');
-            if (label) {
-                label.classList.add('opacity-50');
-                label.setAttribute('data-cotality-unsupported', 'status-substatus');
-            }
-        });
-    }
-
-    function installSerializerGuard() {
-        if (typeof window.buildIdxSearchParams !== 'function') return false;
-        if (window.buildIdxSearchParams.__cotalityExactStatusBoundary) return true;
-
-        var original = window.buildIdxSearchParams;
-        var wrapped = function(criteria) {
-            var input = criteria || {};
-            var normalized = Object.assign({}, input);
-            if (Array.isArray(input.statuses) && input.statuses.length) {
-                normalized.statuses = exactStatuses(input.statuses);
-            }
-
-            var params = original(normalized);
-            if (normalized.statuses && normalized.statuses.length) {
-                // Exact members only; no browser mapping table and no invented
-                // aliases cross the provider boundary.
-                params.status = normalized.statuses.join(',');
-            }
-            return params;
-        };
-        wrapped.__cotalityExactStatusBoundary = true;
-        window.buildIdxSearchParams = wrapped;
-        return true;
-    }
-
-    // Expose only for focused tests/diagnostics.
-    window.CotalityStatusCriteria = Object.freeze({
-        members: STANDARD_STATUS.slice(),
-        migrateOnce: migrateOnce,
-        exactStatuses: exactStatuses
-    });
-
-    disableNonCotalityStatusControls();
-    installSerializerGuard();
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() {
-            disableNonCotalityStatusControls();
-            installSerializerGuard();
-        }, { once: true });
-    }
-})();
-
-</script>
 <script>
 // ═══ js/search/form-ui-helpers.js ═══
         function addQuickSearchAddressRow(btn) {
@@ -19724,11 +19589,11 @@ function manageShowToast(msg) {
             var tsEl = document.getElementById(formType + 'StatusChangeTimestamp');
             if (tsEl) tsEl.textContent = timestamp;
 
-            // Update Cotality MlsStatus display
+            // Update RESO MlsStatus display
             var statusEl = document.getElementById(formType + 'Status');
-            var cotalityEl = document.getElementById(formType + 'CotalityMlsStatus');
-            if (statusEl && cotalityEl && typeof getCotalityMlsStatus === 'function') {
-                cotalityEl.textContent = getCotalityMlsStatus(statusEl.value);
+            var resoEl = document.getElementById(formType + 'ResoMlsStatus');
+            if (statusEl && resoEl && typeof getResoMlsStatus === 'function') {
+                resoEl.textContent = getResoMlsStatus(statusEl.value);
             }
 
             // Compute DOM (days since first Active)
@@ -20013,10 +19878,10 @@ function manageShowToast(msg) {
 
 <!-- Core Data -->
 <script>
-// ═══ js/core/cotality-field-map.js ═══
+// ═══ js/core/reso-field-map.js ═══
         // ═══════════════════════════════════════════════════════════════════════════
-        // Cotality FIELD MAPPING — Maps mock field names to Cotality Data Dictionary fields
-        // Used for data-cotality-field attributes on rendered HTML elements
+        // RESO FIELD MAPPING — Maps mock field names to RESO Data Dictionary fields
+        // Used for data-reso-field attributes on rendered HTML elements
         // Reference: Trestle/CoreLogic Property entity (REBNY RLS)
         //
         // VERIFIED 2026-02-19 against:
@@ -20029,14 +19894,14 @@ function manageShowToast(msg) {
         //   - Trestle "ListingKey" = OData primary key (Trestle-generated)
         //   - Trestle "ListingId" = RLS listing number (Matrix-generated)
         //   - RLS "StandardStatus" attr → Trestle "MlsStatus" (detailed)
-        //     Trestle also has "StandardStatus" (Cotality normalized) — we use MlsStatus (RLS name)
+        //     Trestle also has "StandardStatus" (RESO normalized) — we use MlsStatus (RLS name)
         //   - RLS uses "SubdivisionName" for neighborhood, Trestle also has "MLSAreaMinor"
         //   - "WalkScore" exists in Trestle schema but NOT in RLS (Trestle-only)
         //   - Coming Soon: RLS uses "ActivationDate" (not FirstShowingDate)
         //     and "ComingSoonTimestamp" (not ComingSoonOnMarketDate/ExpirationDate)
         //   - BuyerBrokerageCompensation: REMOVED from RLS feed Aug 2025 (NAR settlement)
         // ═══════════════════════════════════════════════════════════════════════════
-        var COTALITY_FIELD_MAP = {
+        var RESO_FIELD_MAP = {
             // ── Address & Location ──
             address:        'UnparsedAddress',           // RLS: UnparsedAddress → UnParsedAddress (Matrix). Trestle OData: UnparsedAddress
             unit:           'UnitNumber',                // RLS: UnitNumber. Conditional required by PropertySubType
@@ -20056,7 +19921,7 @@ function manageShowToast(msg) {
             priceChangeTs:  'PriceChangeTimestamp',      // RLS: PriceChangeTimestamp (system)
             closePrice:     'ClosePrice',                // RLS: ClosePrice. Required when MLSStatus=Closed
             closeDate:      'CloseDate',                 // RLS: CloseDate. Must >= PurchaseContractDate
-            closedDate:     'CloseDate',                 // alias — cached data uses closedDate, Cotality uses CloseDate
+            closedDate:     'CloseDate',                 // alias — cached data uses closedDate, RESO uses CloseDate
 
             // ── Unit Details ──
             rooms:          'RoomsTotal',                // RLS: RoomsTotal
@@ -20072,7 +19937,7 @@ function manageShowToast(msg) {
             view:           'View',                      // RLS: View. Conditional: ViewYN=true
 
             // ── Classification ──
-            status:         'MlsStatus',                 // RLS: MlsStatus (REBNY detailed status). Cotality "StandardStatus" renamed to "MlsStatus" by RLS
+            status:         'MlsStatus',                 // RLS: MlsStatus (REBNY detailed status). RESO "StandardStatus" renamed to "MlsStatus" by RLS
             ownership:      'CommonInterest',            // RLS: CommonInterest
             propertyType:   'PropertyType',              // RLS: PropertyType (Residential | ResidentialLease)
             propertySubType:'PropertySubType',           // RLS: PropertySubType
@@ -20084,13 +19949,13 @@ function manageShowToast(msg) {
 
             // ── IDs ──
             lid:            'ListingId',                 // Trestle: ListingId (Matrix-generated RLS number). Read-only
-            wid:            'SourceSystemKey',            // RLS: SourceSystemKey (LMP's listing ID). Cotality "ListingKey" renamed to "SourceSystemKey" by RLS
+            wid:            'SourceSystemKey',            // RLS: SourceSystemKey (LMP's listing ID). RESO "ListingKey" renamed to "SourceSystemKey" by RLS
 
             // ── Dates & DOM ──
             dom:            'DaysOnMarket',              // RLS: DaysOnMarket (system). Reset after 30 days W/C (UCBA 2026)
             cdom:           'CumulativeDaysOnMarket',    // RLS: CumulativeDaysOnMarket (system)
             listedDate:     'OnMarketDate',              // RLS: OnMarketDate. Required if MLSStatus=Active
-            updatedDate:    'SourceSystemModificationTimestamp', // RLS: SourceSystemModificationTimestamp. Cotality "ModificationTimestamp" renamed by RLS
+            updatedDate:    'SourceSystemModificationTimestamp', // RLS: SourceSystemModificationTimestamp. RESO "ModificationTimestamp" renamed by RLS
 
             // ── Agent & Office ──
             company:        'ListOfficeName',            // RLS: ListOfficeName
@@ -20143,7 +20008,7 @@ function manageShowToast(msg) {
         //   MediaKey (PK), MediaURL, MediaType (Jpeg/Png/etc),
         //   MediaCategory (Photo/Video/FloorPlan/Document),
         //   MediaClassification (Photo/Document/Video),
-        //   ImageOf (91 Cotality enum values — LivingRoom, Kitchen, Bedroom, etc),
+        //   ImageOf (91 RESO enum values — LivingRoom, Kitchen, Bedroom, etc),
         //   ImageHeight, ImageWidth, ImageSizeDescription,
         //   Order (sort order — MANDATORY per REBNY Exhibit A "Photos - Sort Order"),
         //   PreferredPhotoYN (primary/hero photo flag),
@@ -20158,18 +20023,18 @@ function manageShowToast(msg) {
         //   First photo: exterior/primary view (PreferredPhotoYN=true)
         //   No watermarks, agent info, logos, or text overlays (UCBA Art. I, Sec. 5(C))
 
-        // Helper: generate data-cotality-field attribute string for a field
-        function cotalityAttr(fieldName) {
-            var cotality = COTALITY_FIELD_MAP[fieldName];
-            return cotality ? ' data-cotality-field="' + cotality + '"' : '';
+        // Helper: generate data-reso-field attribute string for a field
+        function resoAttr(fieldName) {
+            var reso = RESO_FIELD_MAP[fieldName];
+            return reso ? ' data-reso-field="' + reso + '"' : '';
         }
 
-        // Helper: generate data-cotality-field + data-cotality-value attribute string
-        function cotalityData(fieldName, value) {
-            var cotality = COTALITY_FIELD_MAP[fieldName];
-            if (!cotality) return '';
+        // Helper: generate data-reso-field + data-reso-value attribute string
+        function resoData(fieldName, value) {
+            var reso = RESO_FIELD_MAP[fieldName];
+            if (!reso) return '';
             var safeVal = value != null ? String(value).replace(/"/g, '&quot;') : '';
-            return ' data-cotality-field="' + cotality + '" data-cotality-value="' + safeVal + '"';
+            return ' data-reso-field="' + reso + '" data-reso-value="' + safeVal + '"';
         }
 
         // Helper: map REBNY CommonInterest enum values to user-friendly display labels
@@ -20434,8 +20299,8 @@ function manageShowToast(msg) {
             { id: 'internalListingNum', label: 'Internal Listing #', locked: false, category: 'ids' },
             { id: 'acrisId', label: 'ACRIS ID', locked: false, category: 'ids' },
             { id: 'acrisDocuments', label: 'ACRIS Documents', locked: false, category: 'ids' },
-            { id: 'propertyType', label: 'Property Type (RLS/Cotality/IDX)', locked: false, category: 'ids' },
-            { id: 'propertySubType', label: 'Property Sub-Type (RLS/Cotality/IDX)', locked: false, category: 'ids' },
+            { id: 'propertyType', label: 'Property Type (RLS/RESO/IDX)', locked: false, category: 'ids' },
+            { id: 'propertySubType', label: 'Property Sub-Type (RLS/RESO/IDX)', locked: false, category: 'ids' },
             { id: 'verifiedEstimated', label: 'Verified/Estimated', locked: false, category: 'ids' },
             { id: 'verifiedBuyer', label: 'Verified Buyer', locked: false, category: 'ids' },
             { id: 'verifiedSeller', label: 'Verified Seller', locked: false, category: 'ids' },
@@ -20459,7 +20324,7 @@ function manageShowToast(msg) {
         // ═══════════════════════════════════════════════════════════════════════════════
 
         /**
-         * Transform API listing (Prisma/Cotality format) into the flat object shape
+         * Transform API listing (Prisma/RESO format) into the flat object shape
          * that 905+ search functions expect.
          */
         function transformAPIListing(apiListing, index) {
@@ -20490,7 +20355,7 @@ function manageShowToast(msg) {
                 // did two damaging things. It DEFAULTED an unknown status to
                 // ACTIVE - telling a broker an unknown listing is on the market.
                 // And it uppercased the exact member the database stores
-                // (prisma/schema.prisma:447, "Cotality StandardStatus"), so
+                // (prisma/schema.prisma:447, "RESO StandardStatus"), so
                 // 'ComingSoon' became 'COMINGSOON' while every renderer compared
                 // against 'COMING_SOON'. The UCBA Art. I s16 Coming Soon badge
                 // never matched for a DB-path listing as a result.
@@ -21870,88 +21735,88 @@ function parseBudgetValue(td) {
 <script>
 // ═══ js/render/grid-column-defs.js ═══
         var gridColumnDefs = {
-            // Core fields — each render includes data-cotality-field/data-cotality-value attributes
-            address:          { label: 'ADDRESS',        cotality: 'UnparsedAddress',         render: function(l) { var addr = l.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(l.address); return '<span class="font-medium text-blue-600 hover:underline cursor-pointer text-xs"' + cotalityData('address', addr) + ' onclick="event.stopPropagation(); openListingInNewTab(\'' + l.id + '\')">' + addr + '</span>'; } },
-            unit:             { label: 'UNIT',           cotality: 'UnitNumber',              render: function(l) { return '<span' + cotalityData('unit', l.unit) + '>' + (l.addressDisplayYN === false ? '--' : escapeHtml(l.unit)) + '</span>'; } },
-            price:            { label: 'PRICE',          cotality: 'ListPrice',               render: function(l) { return '<span class="font-bold text-gray-900"' + cotalityData('price', l.price) + '>$' + l.price.toLocaleString() + '</span>'; } },
-            totalMonthly:     { label: 'TOTAL MONTHLY',  cotality: 'AssociationFee+TaxAnnualAmount', render: function(l) { return '<span' + cotalityData('totalMonthly', l.totalMonthly) + '>$' + l.totalMonthly.toLocaleString() + '</span>'; } },
-            rooms:            { label: 'RMS',            cotality: 'RoomsTotal',              render: function(l) { return '<span' + cotalityData('rooms', l.rooms) + '>' + (l.rooms || '--') + '</span>'; } },
-            beds:             { label: 'BDS',            cotality: 'BedroomsTotal',           render: function(l) { return '<span' + cotalityData('beds', l.beds) + '>' + l.beds + '</span>'; } },
-            baths:            { label: 'TOTAL BTHS',     cotality: 'BathroomsTotalInteger',   render: function(l) { return '<span' + cotalityData('baths', l.baths) + '>' + l.baths + '</span>'; } },
-            reTaxes:          { label: 'RE TAXES',       cotality: 'TaxAnnualAmount',         render: function(l) { return '<span' + cotalityData('reTaxes', l.reTaxes) + '>$' + l.reTaxes.toLocaleString() + '</span>'; } },
-            maintCC:          { label: 'MAINT/CC',       cotality: 'AssociationFee',          render: function(l) { return '<span' + cotalityData('maintCC', l.maintCC) + '>$' + l.maintCC.toLocaleString() + '</span>'; } },
-            intSqft:          { label: 'INT SQFT',       cotality: 'LivingArea',              render: function(l) { return '<span' + cotalityData('intSqft', l.intSqft) + '>' + (l.intSqft || '--') + '</span>'; } },
-            status:           { label: 'STATUS',         cotality: 'MlsStatus',          render: function(l) { var c = l.status === 'Active' ? 'bg-green-100 text-green-700' : l.status === 'Pending' ? 'bg-orange-100 text-orange-700' : l.status === 'ComingSoon' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'; var label = l.status === 'ComingSoon' ? 'COMING SOON' : l.status; var badge = '<span class="px-1.5 py-0.5 ' + c + ' rounded text-[10px] font-semibold"' + cotalityData('status', l.status) + '>' + label + '</span>'; badge += comingSoonBadgeCompact(l) + participantOnlyBadge(l); return badge; } },
-            ownership:        { label: 'OWNERSHIP',      cotality: 'CommonInterest',          render: function(l) { return '<span' + cotalityData('ownership', l.ownership) + '>' + ownershipLabel(l.ownership) + '</span>'; } },
-            openHouse:        { label: 'OPEN HOUSE',     cotality: 'OpenHouseDate',           render: function(l) { return '--'; } },
+            // Core fields — each render includes data-reso-field/data-reso-value attributes
+            address:          { label: 'ADDRESS',        reso: 'UnparsedAddress',         render: function(l) { var addr = l.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(l.address); return '<span class="font-medium text-blue-600 hover:underline cursor-pointer text-xs"' + resoData('address', addr) + ' onclick="event.stopPropagation(); openListingInNewTab(\'' + l.id + '\')">' + addr + '</span>'; } },
+            unit:             { label: 'UNIT',           reso: 'UnitNumber',              render: function(l) { return '<span' + resoData('unit', l.unit) + '>' + (l.addressDisplayYN === false ? '--' : escapeHtml(l.unit)) + '</span>'; } },
+            price:            { label: 'PRICE',          reso: 'ListPrice',               render: function(l) { return '<span class="font-bold text-gray-900"' + resoData('price', l.price) + '>$' + l.price.toLocaleString() + '</span>'; } },
+            totalMonthly:     { label: 'TOTAL MONTHLY',  reso: 'AssociationFee+TaxAnnualAmount', render: function(l) { return '<span' + resoData('totalMonthly', l.totalMonthly) + '>$' + l.totalMonthly.toLocaleString() + '</span>'; } },
+            rooms:            { label: 'RMS',            reso: 'RoomsTotal',              render: function(l) { return '<span' + resoData('rooms', l.rooms) + '>' + (l.rooms || '--') + '</span>'; } },
+            beds:             { label: 'BDS',            reso: 'BedroomsTotal',           render: function(l) { return '<span' + resoData('beds', l.beds) + '>' + l.beds + '</span>'; } },
+            baths:            { label: 'TOTAL BTHS',     reso: 'BathroomsTotalInteger',   render: function(l) { return '<span' + resoData('baths', l.baths) + '>' + l.baths + '</span>'; } },
+            reTaxes:          { label: 'RE TAXES',       reso: 'TaxAnnualAmount',         render: function(l) { return '<span' + resoData('reTaxes', l.reTaxes) + '>$' + l.reTaxes.toLocaleString() + '</span>'; } },
+            maintCC:          { label: 'MAINT/CC',       reso: 'AssociationFee',          render: function(l) { return '<span' + resoData('maintCC', l.maintCC) + '>$' + l.maintCC.toLocaleString() + '</span>'; } },
+            intSqft:          { label: 'INT SQFT',       reso: 'LivingArea',              render: function(l) { return '<span' + resoData('intSqft', l.intSqft) + '>' + (l.intSqft || '--') + '</span>'; } },
+            status:           { label: 'STATUS',         reso: 'MlsStatus',          render: function(l) { var c = l.status === 'Active' ? 'bg-green-100 text-green-700' : l.status === 'Pending' ? 'bg-orange-100 text-orange-700' : l.status === 'ComingSoon' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'; var label = l.status === 'ComingSoon' ? 'COMING SOON' : l.status; var badge = '<span class="px-1.5 py-0.5 ' + c + ' rounded text-[10px] font-semibold"' + resoData('status', l.status) + '>' + label + '</span>'; badge += comingSoonBadgeCompact(l) + participantOnlyBadge(l); return badge; } },
+            ownership:        { label: 'OWNERSHIP',      reso: 'CommonInterest',          render: function(l) { return '<span' + resoData('ownership', l.ownership) + '>' + ownershipLabel(l.ownership) + '</span>'; } },
+            openHouse:        { label: 'OPEN HOUSE',     reso: 'OpenHouseDate',           render: function(l) { return '--'; } },
             // REBNY: "Market time will not accrue when permission is set to Participant Only."
             // Production: freeze DOM clock when participantOnly=true, resume when converted to Standard.
-            dom:              { label: 'DOM',            cotality: 'DaysOnMarket',            render: function(l) { return '<span' + cotalityData('dom', l.dom) + '>' + (l.dom || '--') + '</span>'; } },
-            freshness:        { label: 'FRESHNESS',      cotality: 'SourceSystemModificationTimestamp',   render: function(l) { return listingFreshness(l); } },
-            domEnhanced:      { label: 'DOM',            cotality: 'DaysOnMarket',            render: function(l) { return domDisplay(l); } },
-            neighborhood:     { label: 'NEIGHBORHOOD',   cotality: 'SubdivisionName',         render: function(l) { return '<span' + cotalityData('neighborhood', l.neighborhood) + '>' + escapeHtml(l.neighborhood || '--') + '</span>'; } },
-            listedDate:       { label: 'LISTED',         cotality: 'OnMarketDate',            render: function(l) { return '<span' + cotalityData('listedDate', l.listedDate) + '>' + escapeHtml(l.listedDate || '--') + '</span>'; } },
-            listingType:      { label: 'LISTING TYPE',   cotality: 'ListingAgreement',        render: function(l) { return '<span' + cotalityData('listingType', l.listingType) + '>' + escapeHtml(l.listingType || '--') + '</span>'; } },
-            company:          { label: 'COMPANY',        cotality: 'ListOfficeName',          render: function(l) { return '<span' + cotalityData('company', l.company) + '>' + escapeHtml(l.company || '--') + '</span>'; } },
-            primaryAgentName: { label: 'AGENT',          cotality: 'ListAgentFullName',       render: function(l) { return '<span' + cotalityData('agentName', l.agentName) + '>' + escapeHtml(l.agentName || '--') + '</span>'; } },
-            rlsId:            { label: 'RLS ID',         cotality: 'ListingId',               render: function(l) { return '<span' + cotalityData('lid', l.lid) + '>' + escapeHtml(l.lid || '--') + '</span>'; } },
-            pricePerSqft:     { label: '$/SQFT',         cotality: null,                      render: function(l) { return l.intSqft ? '$' + Math.round(l.price / l.intSqft).toLocaleString() : '--'; } },
+            dom:              { label: 'DOM',            reso: 'DaysOnMarket',            render: function(l) { return '<span' + resoData('dom', l.dom) + '>' + (l.dom || '--') + '</span>'; } },
+            freshness:        { label: 'FRESHNESS',      reso: 'SourceSystemModificationTimestamp',   render: function(l) { return listingFreshness(l); } },
+            domEnhanced:      { label: 'DOM',            reso: 'DaysOnMarket',            render: function(l) { return domDisplay(l); } },
+            neighborhood:     { label: 'NEIGHBORHOOD',   reso: 'SubdivisionName',         render: function(l) { return '<span' + resoData('neighborhood', l.neighborhood) + '>' + escapeHtml(l.neighborhood || '--') + '</span>'; } },
+            listedDate:       { label: 'LISTED',         reso: 'OnMarketDate',            render: function(l) { return '<span' + resoData('listedDate', l.listedDate) + '>' + escapeHtml(l.listedDate || '--') + '</span>'; } },
+            listingType:      { label: 'LISTING TYPE',   reso: 'ListingAgreement',        render: function(l) { return '<span' + resoData('listingType', l.listingType) + '>' + escapeHtml(l.listingType || '--') + '</span>'; } },
+            company:          { label: 'COMPANY',        reso: 'ListOfficeName',          render: function(l) { return '<span' + resoData('company', l.company) + '>' + escapeHtml(l.company || '--') + '</span>'; } },
+            primaryAgentName: { label: 'AGENT',          reso: 'ListAgentFullName',       render: function(l) { return '<span' + resoData('agentName', l.agentName) + '>' + escapeHtml(l.agentName || '--') + '</span>'; } },
+            rlsId:            { label: 'RLS ID',         reso: 'ListingId',               render: function(l) { return '<span' + resoData('lid', l.lid) + '>' + escapeHtml(l.lid || '--') + '</span>'; } },
+            pricePerSqft:     { label: '$/SQFT',         reso: null,                      render: function(l) { return l.intSqft ? '$' + Math.round(l.price / l.intSqft).toLocaleString() : '--'; } },
             // Extended fields (available in Grid Layouts modal)
-            activityHistory:    { label: 'ACTIVITY',       cotality: null,                      render: function(l) { return '--'; } },
-            pricePerRoom:       { label: '$/ROOM',         cotality: null,                      render: function(l) { return l.rooms ? '$' + Math.round(l.price / l.rooms).toLocaleString() : '--'; } },
-            pricePerShare:      { label: '$/SHARE',        cotality: null,                      render: function(l) { return '--'; } },
-            acrisDocuments:     { label: 'ACRIS DOCS',     cotality: null,                      render: function(l) { return '--'; } },
-            acrisId:            { label: 'ACRIS ID',       cotality: null,                      render: function(l) { return '--'; } },
-            apartmentType:      { label: 'APT TYPE',       cotality: 'PropertySubType',         render: function(l) { return '<span' + cotalityData('propertySubType', l.propertySubType) + '>' + escapeHtml(l.propertySubType || '--') + '</span>'; } },
-            attendedLobby:      { label: 'LOBBY',          cotality: 'SecurityFeatures',        render: function(l) { return '--'; } },
-            buildingName:       { label: 'BUILDING',       cotality: 'BuildingName',            render: function(l) { return '<span' + cotalityData('buildingName', l.buildingName) + '>' + escapeHtml(l.buildingName || '--') + '</span>'; } },
-            coopName:           { label: 'CO-OP NAME',     cotality: 'AssociationName',         render: function(l) { return '--'; } },
-            condition:          { label: 'CONDITION',      cotality: 'PropertyCondition',       render: function(l) { return '--'; } },
-            contractSignedDate: { label: 'CONTRACT DATE',  cotality: 'PurchaseContractDate',    render: function(l) { return '--'; } },
-            dealFinanced:       { label: 'DEAL FINANCED',  cotality: 'BuyerFinancing',          render: function(l) { return '--'; } },
-            disliked:           { label: 'DISLIKED',       cotality: null,                      render: function(l) { return '--'; } },
-            emailed:            { label: 'EMAILED',        cotality: null,                      render: function(l) { return '--'; } },
-            exteriorSqft:       { label: 'EXT SQFT',       cotality: 'BuildingAreaTotal',       render: function(l) { return '--'; } },
-            financingAllowed:   { label: 'FINANCING %',    cotality: null,                      render: function(l) { return '--'; } },
-            fullBathrooms:      { label: 'FULL BTHS',      cotality: 'BathroomsFull',           render: function(l) { return '<span' + cotalityData('fullBaths', l.fullBaths) + '>' + (l.fullBaths != null ? l.fullBaths : '--') + '</span>'; } },
-            halfBathrooms:      { label: 'HALF BTHS',      cotality: 'BathroomsHalf',           render: function(l) { return '<span' + cotalityData('halfBaths', l.halfBaths) + '>' + (l.halfBaths != null ? l.halfBaths : '--') + '</span>'; } },
-            internalListingNum: { label: 'INT LISTING #',  cotality: null,                      render: function(l) { return '--'; } },
-            lastAskPrice:       { label: 'LAST ASK',       cotality: 'PreviousListPrice',       render: function(l) { return '--'; } },
-            liked:              { label: 'LIKED',          cotality: null,                      render: function(l) { return '--'; } },
-            originalPrice:      { label: 'ORIG PRICE',     cotality: 'OriginalListPrice',       render: function(l) { return '<span' + cotalityData('originalPrice', l.originalPrice) + '>' + (l.originalPrice ? '$' + l.originalPrice.toLocaleString() : '--') + '</span>'; } },
-            petsAllowed:        { label: 'PETS',           cotality: 'PetsAllowed',             render: function(l) { return '--'; } },
-            picked:             { label: 'PICKED',         cotality: null,                      render: function(l) { return '--'; } },
-            preWarPostWar:      { label: 'ERA',            cotality: 'YearBuilt',               render: function(l) { return '<span' + cotalityData('yearBuilt', l.yearBuilt) + '>' + escapeHtml(l.era || '--') + (l.yearBuilt ? ' (' + l.yearBuilt + ')' : '') + '</span>'; } },
-            previousSoldDate:   { label: 'PREV SOLD DATE', cotality: 'CloseDate',               render: function(l) { return '--'; } },
-            previousSoldPrice:  { label: 'PREV SOLD $',    cotality: 'ClosePrice',              render: function(l) { return '--'; } },
-            priceChange:        { label: 'PRICE CHANGE',   cotality: 'PriceChangeTimestamp',    render: function(l) { return l.priceChange === 'down' ? '<span class="text-red-500"><i class="fas fa-arrow-down"></i> Drop</span>' : '--'; } },
-            primaryAgentEmail:  { label: 'AGENT EMAIL',    cotality: 'ListAgentEmail',          render: function(l) { return '<span' + cotalityData('agentEmail', l.agentEmail) + '>' + escapeHtml(l.agentEmail || '--') + '</span>'; } },
-            primaryAgentPhone:  { label: 'AGENT PHONE',    cotality: 'ListAgentDirectPhone',    render: function(l) { return '<span' + cotalityData('agentPhone', l.agentPhone) + '>' + escapeHtml(l.agentPhone || '--') + '</span>'; } },
-            privateOutdoorSpace:{ label: 'OUTDOOR',        cotality: 'PatioAndPorchFeatures',   render: function(l) { return '--'; } },
-            resaleNewDev:       { label: 'RESALE/NEW',     cotality: 'NewConstructionYN',       render: function(l) { return '--'; } },
-            shares:             { label: 'SHARES',         cotality: null,                      render: function(l) { return '--'; } },
-            shown:              { label: 'SHOWN',          cotality: null,                      render: function(l) { return '--'; } },
-            sponsorUnit:        { label: 'SPONSOR',        cotality: 'CustomProperty/CustomFields:SponsorUnitYN', render: function(l) { return l && l.sponsorUnit === true ? '<span class="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-semibold rounded">SPONSOR</span>' : (l && l.sponsorUnit === false ? 'No' : '--'); } },
-            updatedSold:        { label: 'UPDATED',        cotality: 'SourceSystemModificationTimestamp',   render: function(l) { return '<span' + cotalityData('updatedDate', l.updatedDate) + '>' + escapeHtml(l.updatedDate || '--') + '</span>'; } },
-            verifiedEstimated:  { label: 'VERIFIED/EST',   cotality: null,                      render: function(l) { return '--'; } },
-            verifiedBuyer:      { label: 'VER. BUYER',     cotality: null,                      render: function(l) { return '--'; } },
-            verifiedSeller:     { label: 'VER. SELLER',    cotality: null,                      render: function(l) { return '--'; } },
-            washerDryerBuilding:{ label: 'W/D BLDG',       cotality: 'LaundryFeatures',         render: function(l) { return '--'; } },
-            washerDryerUnit:    { label: 'W/D UNIT',       cotality: 'LaundryFeatures',         render: function(l) { return '--'; } },
-            webId:              { label: 'WEB ID',         cotality: 'SourceSystemKey',              render: function(l) { return '<span' + cotalityData('wid', l.wid) + '>' + escapeHtml(l.wid || '--') + '</span>'; } },
-            yearBuilt:          { label: 'YEAR BUILT',     cotality: 'YearBuilt',               render: function(l) { return '<span' + cotalityData('yearBuilt', l.yearBuilt) + '>' + (l.yearBuilt || '--') + '</span>'; } },
-            zipCode:            { label: 'ZIP',            cotality: 'PostalCode',              render: function(l) { return '<span' + cotalityData('zip', l.zip) + '>' + escapeHtml(l.zip || '--') + '</span>'; } },
-            // New Cotality fields from Trestle data dictionary
-            cdom:               { label: 'CDOM',           cotality: 'CumulativeDaysOnMarket',  render: function(l) { return '<span' + cotalityData('cdom', l.cdom) + '>' + (l.cdom || '--') + '</span>'; } },
-            propertyType:       { label: 'PROP TYPE',      cotality: 'PropertyType',            render: function(l) { return '<span' + cotalityData('propertyType', l.propertyType) + '>' + escapeHtml(l.propertyType || '--') + '</span>'; } },
-            propertySubType:    { label: 'PROP SUBTYPE',   cotality: 'PropertySubType',         render: function(l) { return '<span' + cotalityData('propertySubType', l.propertySubType) + '>' + escapeHtml(l.propertySubType || '--') + '</span>'; } },
-            exposures:          { label: 'EXPOSURES',      cotality: 'Exposures',               render: function(l) { return '<span' + cotalityData('exposures', l.exposures) + '>' + escapeHtml(l.exposures || '--') + '</span>'; } },
-            walkScore:          { label: 'WALK SCORE',     cotality: 'WalkScore',               render: function(l) { return '<span' + cotalityData('walkScore', l.walkScore) + '>' + (l.walkScore || '--') + '</span>'; } },
-            floor:              { label: 'FLOOR',          cotality: 'EntryLevel',              render: function(l) { return '<span' + cotalityData('floor', l.floor) + '>' + escapeHtml(l.floor || '--') + '</span>'; } },
-            crossStreet:        { label: 'CROSS ST',       cotality: 'CrossStreet',             render: function(l) { return '<span' + cotalityData('crossStreet', l.crossStreet) + '>' + escapeHtml(l.crossStreet || '--') + '</span>'; } },
-            latitude:           { label: 'LAT',            cotality: 'Latitude',                render: function(l) { return '<span' + cotalityData('latitude', l.latitude) + '>' + (l.latitude || '--') + '</span>'; } },
-            longitude:          { label: 'LNG',            cotality: 'Longitude',               render: function(l) { return '<span' + cotalityData('longitude', l.longitude) + '>' + (l.longitude || '--') + '</span>'; } },
-            description:        { label: 'DESCRIPTION',    cotality: 'PublicRemarks',           render: function(l) { var d = l.description || '--'; return '<span class="truncate max-w-[200px] inline-block"' + cotalityData('description', d) + ' title="' + escapeHtml(d) + '">' + escapeHtml(d) + '</span>'; } }
+            activityHistory:    { label: 'ACTIVITY',       reso: null,                      render: function(l) { return '--'; } },
+            pricePerRoom:       { label: '$/ROOM',         reso: null,                      render: function(l) { return l.rooms ? '$' + Math.round(l.price / l.rooms).toLocaleString() : '--'; } },
+            pricePerShare:      { label: '$/SHARE',        reso: null,                      render: function(l) { return '--'; } },
+            acrisDocuments:     { label: 'ACRIS DOCS',     reso: null,                      render: function(l) { return '--'; } },
+            acrisId:            { label: 'ACRIS ID',       reso: null,                      render: function(l) { return '--'; } },
+            apartmentType:      { label: 'APT TYPE',       reso: 'PropertySubType',         render: function(l) { return '<span' + resoData('propertySubType', l.propertySubType) + '>' + escapeHtml(l.propertySubType || '--') + '</span>'; } },
+            attendedLobby:      { label: 'LOBBY',          reso: 'SecurityFeatures',        render: function(l) { return '--'; } },
+            buildingName:       { label: 'BUILDING',       reso: 'BuildingName',            render: function(l) { return '<span' + resoData('buildingName', l.buildingName) + '>' + escapeHtml(l.buildingName || '--') + '</span>'; } },
+            coopName:           { label: 'CO-OP NAME',     reso: 'AssociationName',         render: function(l) { return '--'; } },
+            condition:          { label: 'CONDITION',      reso: 'PropertyCondition',       render: function(l) { return '--'; } },
+            contractSignedDate: { label: 'CONTRACT DATE',  reso: 'PurchaseContractDate',    render: function(l) { return '--'; } },
+            dealFinanced:       { label: 'DEAL FINANCED',  reso: 'BuyerFinancing',          render: function(l) { return '--'; } },
+            disliked:           { label: 'DISLIKED',       reso: null,                      render: function(l) { return '--'; } },
+            emailed:            { label: 'EMAILED',        reso: null,                      render: function(l) { return '--'; } },
+            exteriorSqft:       { label: 'EXT SQFT',       reso: 'BuildingAreaTotal',       render: function(l) { return '--'; } },
+            financingAllowed:   { label: 'FINANCING %',    reso: null,                      render: function(l) { return '--'; } },
+            fullBathrooms:      { label: 'FULL BTHS',      reso: 'BathroomsFull',           render: function(l) { return '<span' + resoData('fullBaths', l.fullBaths) + '>' + (l.fullBaths != null ? l.fullBaths : '--') + '</span>'; } },
+            halfBathrooms:      { label: 'HALF BTHS',      reso: 'BathroomsHalf',           render: function(l) { return '<span' + resoData('halfBaths', l.halfBaths) + '>' + (l.halfBaths != null ? l.halfBaths : '--') + '</span>'; } },
+            internalListingNum: { label: 'INT LISTING #',  reso: null,                      render: function(l) { return '--'; } },
+            lastAskPrice:       { label: 'LAST ASK',       reso: 'PreviousListPrice',       render: function(l) { return '--'; } },
+            liked:              { label: 'LIKED',          reso: null,                      render: function(l) { return '--'; } },
+            originalPrice:      { label: 'ORIG PRICE',     reso: 'OriginalListPrice',       render: function(l) { return '<span' + resoData('originalPrice', l.originalPrice) + '>' + (l.originalPrice ? '$' + l.originalPrice.toLocaleString() : '--') + '</span>'; } },
+            petsAllowed:        { label: 'PETS',           reso: 'PetsAllowed',             render: function(l) { return '--'; } },
+            picked:             { label: 'PICKED',         reso: null,                      render: function(l) { return '--'; } },
+            preWarPostWar:      { label: 'ERA',            reso: 'YearBuilt',               render: function(l) { return '<span' + resoData('yearBuilt', l.yearBuilt) + '>' + escapeHtml(l.era || '--') + (l.yearBuilt ? ' (' + l.yearBuilt + ')' : '') + '</span>'; } },
+            previousSoldDate:   { label: 'PREV SOLD DATE', reso: 'CloseDate',               render: function(l) { return '--'; } },
+            previousSoldPrice:  { label: 'PREV SOLD $',    reso: 'ClosePrice',              render: function(l) { return '--'; } },
+            priceChange:        { label: 'PRICE CHANGE',   reso: 'PriceChangeTimestamp',    render: function(l) { return l.priceChange === 'down' ? '<span class="text-red-500"><i class="fas fa-arrow-down"></i> Drop</span>' : '--'; } },
+            primaryAgentEmail:  { label: 'AGENT EMAIL',    reso: 'ListAgentEmail',          render: function(l) { return '<span' + resoData('agentEmail', l.agentEmail) + '>' + escapeHtml(l.agentEmail || '--') + '</span>'; } },
+            primaryAgentPhone:  { label: 'AGENT PHONE',    reso: 'ListAgentDirectPhone',    render: function(l) { return '<span' + resoData('agentPhone', l.agentPhone) + '>' + escapeHtml(l.agentPhone || '--') + '</span>'; } },
+            privateOutdoorSpace:{ label: 'OUTDOOR',        reso: 'PatioAndPorchFeatures',   render: function(l) { return '--'; } },
+            resaleNewDev:       { label: 'RESALE/NEW',     reso: 'NewConstructionYN',       render: function(l) { return '--'; } },
+            shares:             { label: 'SHARES',         reso: null,                      render: function(l) { return '--'; } },
+            shown:              { label: 'SHOWN',          reso: null,                      render: function(l) { return '--'; } },
+            sponsorUnit:        { label: 'SPONSOR',        reso: 'CustomProperty/CustomFields:SponsorUnitYN', render: function(l) { return l && l.sponsorUnit === true ? '<span class="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-semibold rounded">SPONSOR</span>' : (l && l.sponsorUnit === false ? 'No' : '--'); } },
+            updatedSold:        { label: 'UPDATED',        reso: 'SourceSystemModificationTimestamp',   render: function(l) { return '<span' + resoData('updatedDate', l.updatedDate) + '>' + escapeHtml(l.updatedDate || '--') + '</span>'; } },
+            verifiedEstimated:  { label: 'VERIFIED/EST',   reso: null,                      render: function(l) { return '--'; } },
+            verifiedBuyer:      { label: 'VER. BUYER',     reso: null,                      render: function(l) { return '--'; } },
+            verifiedSeller:     { label: 'VER. SELLER',    reso: null,                      render: function(l) { return '--'; } },
+            washerDryerBuilding:{ label: 'W/D BLDG',       reso: 'LaundryFeatures',         render: function(l) { return '--'; } },
+            washerDryerUnit:    { label: 'W/D UNIT',       reso: 'LaundryFeatures',         render: function(l) { return '--'; } },
+            webId:              { label: 'WEB ID',         reso: 'SourceSystemKey',              render: function(l) { return '<span' + resoData('wid', l.wid) + '>' + escapeHtml(l.wid || '--') + '</span>'; } },
+            yearBuilt:          { label: 'YEAR BUILT',     reso: 'YearBuilt',               render: function(l) { return '<span' + resoData('yearBuilt', l.yearBuilt) + '>' + (l.yearBuilt || '--') + '</span>'; } },
+            zipCode:            { label: 'ZIP',            reso: 'PostalCode',              render: function(l) { return '<span' + resoData('zip', l.zip) + '>' + escapeHtml(l.zip || '--') + '</span>'; } },
+            // New RESO fields from Trestle data dictionary
+            cdom:               { label: 'CDOM',           reso: 'CumulativeDaysOnMarket',  render: function(l) { return '<span' + resoData('cdom', l.cdom) + '>' + (l.cdom || '--') + '</span>'; } },
+            propertyType:       { label: 'PROP TYPE',      reso: 'PropertyType',            render: function(l) { return '<span' + resoData('propertyType', l.propertyType) + '>' + escapeHtml(l.propertyType || '--') + '</span>'; } },
+            propertySubType:    { label: 'PROP SUBTYPE',   reso: 'PropertySubType',         render: function(l) { return '<span' + resoData('propertySubType', l.propertySubType) + '>' + escapeHtml(l.propertySubType || '--') + '</span>'; } },
+            exposures:          { label: 'EXPOSURES',      reso: 'Exposures',               render: function(l) { return '<span' + resoData('exposures', l.exposures) + '>' + escapeHtml(l.exposures || '--') + '</span>'; } },
+            walkScore:          { label: 'WALK SCORE',     reso: 'WalkScore',               render: function(l) { return '<span' + resoData('walkScore', l.walkScore) + '>' + (l.walkScore || '--') + '</span>'; } },
+            floor:              { label: 'FLOOR',          reso: 'EntryLevel',              render: function(l) { return '<span' + resoData('floor', l.floor) + '>' + escapeHtml(l.floor || '--') + '</span>'; } },
+            crossStreet:        { label: 'CROSS ST',       reso: 'CrossStreet',             render: function(l) { return '<span' + resoData('crossStreet', l.crossStreet) + '>' + escapeHtml(l.crossStreet || '--') + '</span>'; } },
+            latitude:           { label: 'LAT',            reso: 'Latitude',                render: function(l) { return '<span' + resoData('latitude', l.latitude) + '>' + (l.latitude || '--') + '</span>'; } },
+            longitude:          { label: 'LNG',            reso: 'Longitude',               render: function(l) { return '<span' + resoData('longitude', l.longitude) + '>' + (l.longitude || '--') + '</span>'; } },
+            description:        { label: 'DESCRIPTION',    reso: 'PublicRemarks',           render: function(l) { var d = l.description || '--'; return '<span class="truncate max-w-[200px] inline-block"' + resoData('description', d) + ' title="' + escapeHtml(d) + '">' + escapeHtml(d) + '</span>'; } }
         };
 
 
@@ -21980,7 +21845,7 @@ function parseBudgetValue(td) {
                     } else {
                         sortIcon = ' <i class="fas fa-sort text-gray-300 text-[9px]"></i>';
                     }
-                    theadHTML += '<th class="px-2 py-1.5 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide cursor-pointer hover:bg-gray-100 whitespace-nowrap select-none"' + (def.cotality ? ' data-cotality-field="' + def.cotality + '"' : '') + ' onclick="toggleColumnSort(\'' + colId + '\')">' + def.label + sortIcon + '</th>';
+                    theadHTML += '<th class="px-2 py-1.5 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide cursor-pointer hover:bg-gray-100 whitespace-nowrap select-none"' + (def.reso ? ' data-reso-field="' + def.reso + '"' : '') + ' onclick="toggleColumnSort(\'' + colId + '\')">' + def.label + sortIcon + '</th>';
                 });
                 theadHTML += '<th class="px-1.5 py-1.5 w-16 text-right"><button onclick="openGridLayoutsModal()" class="p-1 hover:bg-gray-200 rounded text-gray-400" title="Customize columns"><i class="fas fa-sliders-h text-xs"></i></button></th>';
                 theadHTML += '</tr></thead>';
@@ -22018,7 +21883,7 @@ function parseBudgetValue(td) {
                             if (!listing.permissions) listing.permissions = {};
 
                             var selected = searchResultsState.selectedListings.includes(listing.id);
-                            tbodyHTML += '<tr class="hover:bg-gray-50 transition-colors ' + (selected ? 'bg-blue-50' : '') + '" data-cotality-field="SourceSystemKey" data-cotality-value="' + (listing.wid || listing.lid || listing.id) + '" data-listing-id="' + listing.id + '" data-source="REBNY-RLS" onclick="openListingInNewTab(\'' + listing.id + '\'); if (typeof isResultsMapOpen === \'function\' && isResultsMapOpen()) { if (typeof panToListing === \'function\') panToListing(\'' + listing.id + '\'); }" style="cursor:pointer;">';
+                            tbodyHTML += '<tr class="hover:bg-gray-50 transition-colors ' + (selected ? 'bg-blue-50' : '') + '" data-reso-field="SourceSystemKey" data-reso-value="' + (listing.wid || listing.lid || listing.id) + '" data-listing-id="' + listing.id + '" data-source="REBNY-RLS" onclick="openListingInNewTab(\'' + listing.id + '\'); if (typeof isResultsMapOpen === \'function\' && isResultsMapOpen()) { if (typeof panToListing === \'function\') panToListing(\'' + listing.id + '\'); }" style="cursor:pointer;">';
                             tbodyHTML += '<td class="px-2 py-1.5 w-8"><input type="checkbox" class="w-3.5 h-3.5" ' + (selected ? 'checked' : '') + ' onclick="event.stopPropagation(); toggleListingSelection(\'' + listing.id + '\')"></td>';
                             tbodyHTML += '<td class="px-1.5 py-1.5 w-10">';
                             if (listing.priceChange === 'down') tbodyHTML += '<span class="inline-flex items-center justify-center w-5 h-5 bg-orange-100 text-orange-600 rounded text-[10px]"><i class="fas fa-arrow-down"></i></span>';
@@ -22098,7 +21963,7 @@ function parseBudgetValue(td) {
         function participantOnlyBadge(listing) {
             if (!listing.permissions || !listing.permissions.participantOnly) return '';
             return '<span class="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-[9px] font-bold"'
-                + ' data-cotality-field="InternetEntireListingDisplayYN" data-cotality-value="false"'
+                + ' data-reso-field="InternetEntireListingDisplayYN" data-reso-value="false"'
                 + ' data-compliance="participant-only"'
                 + ' title="UCBA H4: Participant Only — restricted to RLS participants. DOM exempt (Rule A4)."'
                 + '>RLS ONLY</span>';
@@ -22108,9 +21973,9 @@ function parseBudgetValue(td) {
         // UCBA Art. I Sec. 5(C): No showings, open houses, or negotiations. D7/D2/D1.
         function comingSoonBadge(listing) {
             if (listing.status !== 'ComingSoon') return '';
-            var dateTag = listing.comingSoonDate ? ' <span' + cotalityData('comingSoonDate', listing.comingSoonDate) + '>' + listing.comingSoonDate + '</span>' : '';
+            var dateTag = listing.comingSoonDate ? ' <span' + resoData('comingSoonDate', listing.comingSoonDate) + '>' + listing.comingSoonDate + '</span>' : '';
             return '<div class="bg-purple-50 border-b border-purple-200 px-3 py-1.5 text-xs text-purple-700 font-semibold"'
-                + ' data-cotality-field="MlsStatus" data-cotality-value="ComingSoon"'
+                + ' data-reso-field="MlsStatus" data-reso-value="ComingSoon"'
                 + ' data-compliance="coming-soon-badge"'
                 + ' title="UCBA D7: Coming Soon — max 14 days (D2). Sales only (D1). No showings, no open houses, no negotiations. Unsolicited offers may be conveyed."'
                 + '><i class="fas fa-clock mr-1"></i> Coming Soon'
@@ -22123,7 +21988,7 @@ function parseBudgetValue(td) {
         function comingSoonBadgeCompact(listing) {
             if (listing.status !== 'ComingSoon') return '';
             return '<span class="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[9px] font-bold"'
-                + ' data-cotality-field="MlsStatus" data-cotality-value="ComingSoon"'
+                + ' data-reso-field="MlsStatus" data-reso-value="ComingSoon"'
                 + ' data-compliance="coming-soon-badge"'
                 + ' title="UCBA D7: Coming Soon — max 14 days. No showings or open houses until ' + (listing.comingSoonDate || 'active date') + '."'
                 + '>CS' + (listing.comingSoonDate ? ' ' + listing.comingSoonDate : '')
@@ -22137,7 +22002,7 @@ function parseBudgetValue(td) {
             var perm = listing.permissions || {};
             if (perm.syndication !== false && listing.syndicateYN !== false) return '';
             return '<span class="px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded text-[9px] font-bold"'
-                + ' data-cotality-field="SyndicateTo" data-cotality-value="None"'
+                + ' data-reso-field="SyndicateTo" data-reso-value="None"'
                 + ' data-compliance="syndication-gate"'
                 + ' title="SyndicateYN=false — this listing is not distributed to third-party syndication portals (StreetEasy, Zillow, etc.)."'
                 + '>NOT SYNDICATED</span>';
@@ -22148,7 +22013,7 @@ function parseBudgetValue(td) {
             var perm = listing.permissions || {};
             if (perm.syndication !== false && listing.syndicateYN !== false) return '';
             return '<span class="px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded text-[9px] font-bold"'
-                + ' data-cotality-field="SyndicateTo" data-cotality-value="None"'
+                + ' data-reso-field="SyndicateTo" data-reso-value="None"'
                 + ' data-compliance="syndication-gate"'
                 + ' title="Not distributed to third-party portals"'
                 + '>NS</span>';
@@ -22161,7 +22026,7 @@ function parseBudgetValue(td) {
             if (listing.status !== 'ComingSoon') return '';
             var dateStr = listing.comingSoonDate || 'active date';
             return '<div class="bg-purple-50 border border-purple-200 rounded px-2.5 py-1.5 text-xs text-purple-700 font-medium"'
-                + ' data-cotality-field="MlsStatus" data-cotality-value="ComingSoon"'
+                + ' data-reso-field="MlsStatus" data-reso-value="ComingSoon"'
                 + ' data-compliance="coming-soon-showing-block"'
                 + ' title="UCBA Art. I Sec. 5(C): No showings, open houses, or negotiations until listing is active."'
                 + '><i class="fas fa-ban mr-1 text-purple-400"></i>'
@@ -22193,7 +22058,7 @@ function parseBudgetValue(td) {
             else if (days <= 30) { color = 'text-yellow-600'; label = days + 'd ago'; }
             else { color = 'text-red-600'; label = days + 'd ago'; }
             return '<span class="text-[9px] ' + color + '"'
-                + cotalityData('updatedDate', listing.updatedDate)
+                + resoData('updatedDate', listing.updatedDate)
                 + ' data-compliance="freshness-indicator"'
                 + ' title="Last updated: ' + listing.updatedDate + ' (' + days + ' days ago)"'
                 + '><i class="fas fa-clock mr-0.5"></i>' + label + '</span>';
@@ -22202,7 +22067,7 @@ function parseBudgetValue(td) {
         // ── Client Feedback Icons (Like/Dislike) ──
         // Visible only when a client is assigned via Assign Customer dropdown.
         // Icons must be INSIDE the listing card div that carries data-source="REBNY-RLS".
-        // Like/dislike is agent-entered metadata (not RLS data) — no Cotality tagging required.
+        // Like/dislike is agent-entered metadata (not RLS data) — no RESO tagging required.
         function clientFeedbackIcons(listing) {
             if (!currentWorkspaceClientId) return '';
             var status = (typeof getClientFeedbackStatus === 'function') ? getClientFeedbackStatus(listing.id) : null;
@@ -22246,7 +22111,7 @@ function parseBudgetValue(td) {
 
             var statusLabel = status === 'exempt' ? ' (exempt)' : status === 'paused' ? ' (paused)' : status === 'stopped' ? ' (final)' : '';
             return '<span class="text-xs font-semibold" style="color:' + color + '"'
-                + cotalityData('dom', dom)
+                + resoData('dom', dom)
                 + ' data-dom-status="' + status + '"'
                 + ' title="Days on Market: ' + dom + statusLabel + '"'
                 + '>' + dom + 'd' + statusLabel + '</span>';
@@ -22265,9 +22130,9 @@ function parseBudgetValue(td) {
                 var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(listing.address);
                 var displayUnit = listing.addressDisplayYN !== false ? escapeHtml(listing.unit) : '';
                 var selected = searchResultsState.selectedListings.includes(listing.id);
-                var csGalleryBadge = listing.status === 'ComingSoon' ? '<div class="absolute bottom-3 left-3 px-2.5 py-1 bg-purple-600 text-white text-[11px] font-bold rounded-lg z-10" data-cotality-field="MlsStatus" data-cotality-value="ComingSoon" data-compliance="coming-soon-badge" title="UCBA D7: Coming Soon — max 14 days (D2). No showings or open houses.">Coming Soon' + (listing.comingSoonDate ? ' &mdash; No Showings Until <span' + cotalityData('comingSoonDate', listing.comingSoonDate) + '>' + escapeHtml(listing.comingSoonDate) + '</span>' : '') + '</div>' : '';
+                var csGalleryBadge = listing.status === 'ComingSoon' ? '<div class="absolute bottom-3 left-3 px-2.5 py-1 bg-purple-600 text-white text-[11px] font-bold rounded-lg z-10" data-reso-field="MlsStatus" data-reso-value="ComingSoon" data-compliance="coming-soon-badge" title="UCBA D7: Coming Soon — max 14 days (D2). No showings or open houses.">Coming Soon' + (listing.comingSoonDate ? ' &mdash; No Showings Until <span' + resoData('comingSoonDate', listing.comingSoonDate) + '>' + escapeHtml(listing.comingSoonDate) + '</span>' : '') + '</div>' : '';
                 return `
-                <div class="listing-card gallery-card bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-cotality-field="SourceSystemKey" data-cotality-value="${escapeHtml(listing.wid || listing.lid || listing.id)}" data-listing-id="${listing.id}" data-listing-lid="${escapeHtml(listing.lid || '')}" data-source="REBNY-RLS">
+                <div class="listing-card gallery-card bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-reso-field="SourceSystemKey" data-reso-value="${escapeHtml(listing.wid || listing.lid || listing.id)}" data-listing-id="${listing.id}" data-listing-lid="${escapeHtml(listing.lid || '')}" data-source="REBNY-RLS">
                     <!-- Photo -->
                     <div class="relative cursor-pointer group" onclick="openListingInNewTab('${listing.id}'); if (typeof isResultsMapOpen === 'function' && isResultsMapOpen()) { if (typeof panToListing === 'function') panToListing('${listing.id}'); }">
                         <div class="cm-photo-wrap cm-card-photo">
@@ -22291,7 +22156,7 @@ function parseBudgetValue(td) {
                                 <h4 class="font-bold text-[15px] text-gray-900 truncate">${displayAddress}${displayUnit ? ', ' + displayUnit : ''}</h4>
                                 <p class="text-[12px] text-gray-500 font-light mt-0.5">${escapeHtml(listing.era || '--')} &middot; ${ownershipLabel(listing.ownership)} &middot; ${escapeHtml(listing.neighborhood)}</p>
                             </div>
-                            <span class="text-base font-bold text-gray-900 whitespace-nowrap"${cotalityData('price', listing.price)}>$${listing.price.toLocaleString()}</span>
+                            <span class="text-base font-bold text-gray-900 whitespace-nowrap"${resoData('price', listing.price)}>$${listing.price.toLocaleString()}</span>
                         </div>
                         <p class="text-[13px] text-gray-600 font-light">
                             ${listing.beds} bd &middot; ${listing.baths} ba${listing.intSqft ? ' &middot; ' + listing.intSqft.toLocaleString() + ' sf' : ''}
@@ -22300,11 +22165,11 @@ function parseBudgetValue(td) {
                         <!-- Status + Agent -->
                         <div class="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
                             <div class="flex items-center gap-1.5">
-                                <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold" style="background:${stB};color:${stC}"${cotalityData('status', listing.status)}>${statusLabel}</span>
+                                <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold" style="background:${stB};color:${stC}"${resoData('status', listing.status)}>${statusLabel}</span>
                                 ${participantOnlyBadge(listing)}
                                 ${syndicationBadge(listing)}
                             </div>
-                            <span class="text-[10px] text-gray-400"${cotalityData('totalMonthly', listing.totalMonthly)}>MT: $${listing.totalMonthly.toLocaleString()}</span>
+                            <span class="text-[10px] text-gray-400"${resoData('totalMonthly', listing.totalMonthly)}>MT: $${listing.totalMonthly.toLocaleString()}</span>
                         </div>
                         ${listing.listingCategory === 'rental' ? fareActDisclosure(listing) : ''}
                         <!-- Attribution -->
@@ -22461,9 +22326,9 @@ function parseBudgetValue(td) {
                                         </div>
                                     </div>
                                     <div class="flex flex-col items-end flex-shrink-0">
-                                        <span class="text-xl font-bold text-gray-900"${cotalityData('price', listing.price)}>$${listing.price.toLocaleString()}</span>
+                                        <span class="text-xl font-bold text-gray-900"${resoData('price', listing.price)}>$${listing.price.toLocaleString()}</span>
                                         <div class="flex items-center gap-2 mt-1">
-                                            <span class="px-2 py-0.5 rounded text-[11px] font-semibold" style="background:${stB};color:${stC}"${cotalityData('status', listing.status)}>${statusLabel}</span>
+                                            <span class="px-2 py-0.5 rounded text-[11px] font-semibold" style="background:${stB};color:${stC}"${resoData('status', listing.status)}>${statusLabel}</span>
                                             ${participantOnlyBadge(listing)}
                                             ${syndicationBadge(listing)}
                                         </div>
@@ -22982,6 +22847,7 @@ function parseBudgetValue(td) {
 
 </script>
 
+<!-- Selection -->
 <script>
 // ═══ js/listing/listing-selection.js ═══
         // ═══════════════════════════════════════════════════════════════════════════════
@@ -23230,7 +23096,7 @@ function parseBudgetValue(td) {
                 if (!exists) {
                     client.portfolio.listings.push({
                         id: listingId,
-                        // Store ONLY safe Cotality fields — never store prohibited RLS fields
+                        // Store ONLY safe RESO fields — never store prohibited RLS fields
                         address: listing.addressDisplayYN !== false ? listing.address : 'Address Upon Request',
                         addedDate: new Date().toISOString(),
                         status: 'new', // new, liked, disliked, viewed
@@ -23266,7 +23132,7 @@ function parseBudgetValue(td) {
         // ═══════════════════════════════════════════════════════════════════════════════
         // CLIENT FEEDBACK: LIKE / DISLIKE ON LISTING CARDS
         // Agent marks on behalf of client. Stored per-agent-per-client in localStorage.
-        // Like/dislike is agent-entered metadata (not RLS data) — no Cotality tagging required.
+        // Like/dislike is agent-entered metadata (not RLS data) — no RESO tagging required.
         // ═══════════════════════════════════════════════════════════════════════════════
 
         function markClientFeedback(listingId, feedback) {
@@ -23313,6 +23179,8 @@ function parseBudgetValue(td) {
         }
 
 </script>
+
+<!-- Saved Searches -->
 <script>
 // ═══ js/search/saved-searches.js ═══
         // ═══════════════════════════════════════════════════════════════════════════════
@@ -23717,8 +23585,8 @@ function parseBudgetValue(td) {
                 // Then check the saved ones
                 criteria.status.forEach(function(s) {
                     // An exact member passes straight through; only a legacy spelling is mapped.
-                    var cotalityVal = legacyStatusAliases[s] || s;
-                    var cb = activeForm ? activeForm.querySelector('[data-field="MlsStatus"][data-value="' + cotalityVal + '"]') : null;
+                    var resoVal = legacyStatusAliases[s] || s;
+                    var cb = activeForm ? activeForm.querySelector('[data-field="MlsStatus"][data-value="' + resoVal + '"]') : null;
                     if (cb) cb.checked = true;
                 });
             }
@@ -24020,6 +23888,8 @@ function parseBudgetValue(td) {
 
 
 </script>
+
+<!-- Grid Layouts -->
 <script>
 // ═══ js/render/grid-layouts.js ═══
         // ═══════════════════════════════════════════════════════════════════════════════
@@ -24226,6 +24096,8 @@ function parseBudgetValue(td) {
 
 
 </script>
+
+<!-- Neighborhood Map -->
 <script>
 // ═══ js/render/neighborhood-geodata.js ═══
 // Embedded GeoJSON for neighborhood map (works on file:// protocol)
@@ -24858,6 +24730,8 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
 })();
 
 </script>
+
+<!-- Results Split-View Map -->
 <script>
 // ═══ js/render/results-map.js ═══
 /**
@@ -25481,6 +25355,8 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
 })();
 
 </script>
+
+<!-- Print Helper (CSP-safe Blob URL) -->
 <script>
 // ═══ js/output/print-helper.js ═══
 /**
@@ -25516,6 +25392,8 @@ function openPrintableWindow(html, options) {
 }
 
 </script>
+
+<!-- Reports (Comparables) -->
 <script>
 // ═══ js/output/reports.js ═══
         // ═══════════════════════════════════════════════════════════════════════════════
@@ -29511,6 +29389,8 @@ function emailCurrentCalc() {
 }
 
 </script>
+
+<!-- Search: Pagination, Rent vs Buy, Filter -->
 <script>
 // ═══ js/search/pagination.js ═══
         // Pagination functions — use getFilteredListings(true) to get total count without pagination
@@ -32547,6 +32427,8 @@ function emailCurrentCalc() {
 })();
 
 </script>
+
+<!-- Listing: Flags, Toolbar -->
 <script>
 // ═══ js/listing/listing-flags.js ═══
         // ── Listing flags (per-agent, persisted to localStorage) ──
@@ -33253,6 +33135,8 @@ function emailCurrentCalc() {
         // ═══════════════════════════════════════════════════════════════
 
 </script>
+
+<!-- RLS Listing Tracker -->
 <script>
 // ═══ js/init/init-tracker.js ═══
         // ═══════════════════════════════════════════════════════════════════
@@ -33439,6 +33323,8 @@ function emailCurrentCalc() {
         });
 
 </script>
+
+<!-- Hash routing -->
 <script>
 // ═══ js/init/init-hash-routing.js ═══
     document.addEventListener('DOMContentLoaded', function() {
@@ -33827,6 +33713,8 @@ function emailCurrentCalc() {
     }
 
 </script>
+
+<!-- Disable CRM search controls that don't reach the backend (Batch 3, 2026-05-04) -->
 <script>
 // ═══ js/init/init-disable-dead-controls.js ═══
         // ═══════════════════════════════════════════════════════════════════
@@ -34102,7 +33990,7 @@ function emailCurrentCalc() {
 
 </script>
 
-<!-- Compliance/output boundary -->
+<!-- Compliance: REBNY Gates + Fair Housing + Content Scanners -->
 <script>
 // ═══ js/compliance/fair-housing.js ═══
         // ============================================================
@@ -34901,7 +34789,7 @@ function logAuditEntry(action, details) {
 
 // ═══════════════════════════════════════════════════════════════
 // SAVED SEARCH MATCH ALERTING (#15 / Step 15)
-// Tag search criteria with Cotality names, match badges, Gates 1-2
+// Tag search criteria with RESO names, match badges, Gates 1-2
 // ═══════════════════════════════════════════════════════════════
 
 // Saved searches load from /api/crm/saved-searches when the panel renders.
@@ -34921,8 +34809,8 @@ function renderSavedSearchMatches() {
         html += '<div><span class="text-sm font-semibold text-gray-900">' + s.name + '</span> ' + savedSearchMatchBadge(s);
         html += '<div class="text-[10px] text-gray-400 mt-0.5">Criteria: ';
         Object.keys(s.criteria).forEach(function(k, i) {
-            var cotalityName = s.cotality[k] || k;
-            html += (i > 0 ? ', ' : '') + '<span' + (typeof cotalityData === 'function' ? cotalityData(k, s.criteria[k]) : '') + '>' + k + '=' + s.criteria[k] + '</span>';
+            var resoName = s.reso[k] || k;
+            html += (i > 0 ? ', ' : '') + '<span' + (typeof resoData === 'function' ? resoData(k, s.criteria[k]) : '') + '>' + k + '=' + s.criteria[k] + '</span>';
         });
         html += '</div></div>';
         html += '<div class="text-[9px] text-gray-400">Checked: ' + new Date(s.lastChecked).toLocaleTimeString() + '</div>';
@@ -34971,8 +34859,8 @@ function closingDeadlineBanner(listing) {
     }
     html += '</span>';
     html += '<div class="mt-1 flex items-center gap-2">';
-    html += '<span data-cotality-field="ClosePrice"' + ' class="text-gray-500">Close Price: ' + (listing.closePrice ? '$' + listing.closePrice.toLocaleString() : '<em>required</em>') + '</span>';
-    html += '<span data-cotality-field="CloseDate"' + ' class="text-gray-500">Close Date: ' + (listing.closeDate || '<em>required</em>') + '</span>';
+    html += '<span data-reso-field="ClosePrice"' + ' class="text-gray-500">Close Price: ' + (listing.closePrice ? '$' + listing.closePrice.toLocaleString() : '<em>required</em>') + '</span>';
+    html += '<span data-reso-field="CloseDate"' + ' class="text-gray-500">Close Date: ' + (listing.closeDate || '<em>required</em>') + '</span>';
     html += '</div>';
     html += '</div>';
     return html;
@@ -35124,13 +35012,13 @@ function renderEnhancedNotes(clientId) {
         if (n.listingId) {
             html += '<div class="mt-1 inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 rounded text-[10px] text-blue-700" data-listing-id="' + n.listingId + '" data-source="REBNY-RLS">';
             html += '<i class="fas fa-link"></i> ' + (n.listingAddress || 'Listing #' + n.listingId);
-            if (n.listingPrice) html += ' <span' + (typeof cotalityData === 'function' ? cotalityData('price', n.listingPrice) : '') + '>$' + n.listingPrice.toLocaleString() + '</span>';
+            if (n.listingPrice) html += ' <span' + (typeof resoData === 'function' ? resoData('price', n.listingPrice) : '') + '>$' + n.listingPrice.toLocaleString() + '</span>';
             html += '</div>';
         }
 
         // Status change fields
-        if (n.cotalityField) {
-            html += '<div class="mt-1 inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 rounded text-[10px] text-gray-600" data-cotality-field="' + n.cotalityField + '">';
+        if (n.resoField) {
+            html += '<div class="mt-1 inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 rounded text-[10px] text-gray-600" data-reso-field="' + n.resoField + '">';
             html += '<i class="fas fa-exchange-alt"></i> ' + (n.oldValue || '') + ' → ' + (n.newValue || '');
             html += '</div>';
         }
@@ -35159,12 +35047,12 @@ function renderClientListingCard(listing) {
     html += '<div class="flex items-start gap-3">';
     html += '<div class="w-20 h-16 rounded bg-gray-100 flex-shrink-0 flex items-center justify-center"><i class="fas fa-camera text-gray-300"></i></div>';
     html += '<div class="flex-1 min-w-0">';
-    html += '<p class="text-sm font-bold truncate"' + (typeof cotalityData === 'function' ? cotalityData('address', displayAddress) : '') + '>' + displayAddress + '</p>';
-    html += '<p class="text-sm font-semibold text-gray-900"' + (typeof cotalityData === 'function' ? cotalityData('price', safe.price) : '') + '>$' + (safe.price || 0).toLocaleString() + '</p>';
+    html += '<p class="text-sm font-bold truncate"' + (typeof resoData === 'function' ? resoData('address', displayAddress) : '') + '>' + displayAddress + '</p>';
+    html += '<p class="text-sm font-semibold text-gray-900"' + (typeof resoData === 'function' ? resoData('price', safe.price) : '') + '>$' + (safe.price || 0).toLocaleString() + '</p>';
     html += '<div class="flex items-center gap-2 text-xs text-gray-500 mt-0.5">';
-    html += '<span' + (typeof cotalityData === 'function' ? cotalityData('beds', safe.beds) : '') + '>' + (safe.beds || '--') + ' bd</span>';
-    html += '<span' + (typeof cotalityData === 'function' ? cotalityData('baths', safe.baths) : '') + '>' + (safe.baths || '--') + ' ba</span>';
-    html += '<span' + (typeof cotalityData === 'function' ? cotalityData('intSqft', safe.intSqft) : '') + '>' + (safe.intSqft ? safe.intSqft.toLocaleString() + ' sf' : '--') + '</span>';
+    html += '<span' + (typeof resoData === 'function' ? resoData('beds', safe.beds) : '') + '>' + (safe.beds || '--') + ' bd</span>';
+    html += '<span' + (typeof resoData === 'function' ? resoData('baths', safe.baths) : '') + '>' + (safe.baths || '--') + ' ba</span>';
+    html += '<span' + (typeof resoData === 'function' ? resoData('intSqft', safe.intSqft) : '') + '>' + (safe.intSqft ? safe.intSqft.toLocaleString() + ' sf' : '--') + '</span>';
     html += '</div>';
     html += '</div></div>';
 
@@ -35192,7 +35080,7 @@ function renderClientListingCard(listing) {
 
 // ═══════════════════════════════════════════════════════════════
 // CLIENT PORTAL SEARCH RESULTS (#21 / Step 21)
-// Sanitized listings with full Cotality chain, attribution, FARE Act, EHO
+// Sanitized listings with full RESO chain, attribution, FARE Act, EHO
 // ═══════════════════════════════════════════════════════════════
 
 function renderClientPortalResults(listings) {
@@ -35224,12 +35112,12 @@ function renderClientPortalResults(listings) {
 
 var mockAuditEntries = [
     { id: 'A-001', action: 'listing_created', timestamp: '2026-02-10T09:00:00', agent: 'Demo Agent', listingId: 'ML-S006', details: { address: '45 E 89th St #10A', status: 'Coming Soon' } },
-    { id: 'A-002', action: 'status_change', timestamp: '2026-02-10T09:01:00', agent: 'Demo Agent', listingId: 'ML-S006', details: { from: 'Draft', to: 'Coming Soon', cotalityField: 'MlsStatus' } },
+    { id: 'A-002', action: 'status_change', timestamp: '2026-02-10T09:01:00', agent: 'Demo Agent', listingId: 'ML-S006', details: { from: 'Draft', to: 'Coming Soon', resoField: 'MlsStatus' } },
     { id: 'A-003', action: 'listing_search', timestamp: '2026-02-11T10:15:00', agent: 'Demo Agent', clientId: 'CL-001', details: { criteria: 'UES 2BR <$2M', results: 12 } },
     { id: 'A-004', action: 'listing_email', timestamp: '2026-02-11T10:20:00', agent: 'Demo Agent', clientId: 'CL-001', listingId: 1, details: { recipient: 'sarah.chen@email.com', count: 3 } },
     { id: 'A-005', action: 'showing_scheduled', timestamp: '2026-02-12T14:00:00', agent: 'Demo Agent', listingId: 1, clientId: 'CL-001', details: { date: '2026-02-14', time: '2:00 PM' } },
     { id: 'A-006', action: 'compliance_check', timestamp: '2026-02-12T15:00:00', agent: 'System', details: { score: 87, passed: 52, failed: 8 } },
-    { id: 'A-007', action: 'price_change', timestamp: '2026-02-13T11:30:00', agent: 'Demo Agent', listingId: 'ML-S001', details: { from: 4500000, to: 4250000, cotalityField: 'ListPrice' } },
+    { id: 'A-007', action: 'price_change', timestamp: '2026-02-13T11:30:00', agent: 'Demo Agent', listingId: 'ML-S001', details: { from: 4500000, to: 4250000, resoField: 'ListPrice' } },
     { id: 'A-008', action: 'violation_detected', timestamp: '2026-02-13T12:00:00', agent: 'System', details: { type: 'data_quality', listing: 'ML-S005', rule: 'M13', message: 'Missing photos' } },
     { id: 'A-009', action: 'client_invite', timestamp: '2026-02-14T08:30:00', agent: 'Demo Agent', clientId: 'CL-002', details: { email: 'james.park@email.com', type: 'buyer' } },
     { id: 'A-010', action: 'report_generate', timestamp: '2026-02-14T09:00:00', agent: 'Demo Agent', details: { format: 'CMA', count: 5 } },
@@ -35237,7 +35125,7 @@ var mockAuditEntries = [
     { id: 'A-012', action: 'fare_act_disclosure', timestamp: '2026-02-15T10:00:00', agent: 'System', listingId: 'ML-R001', details: { brokerFeePaidBy: 'Owner', applicationFee: 20 } },
     { id: 'A-013', action: 'portal_access', timestamp: '2026-02-15T11:00:00', agent: 'System', clientId: 'CL-001', details: { page: 'search_results', listings_viewed: 8 } },
     { id: 'A-014', action: 'client_feedback', timestamp: '2026-02-15T11:05:00', agent: 'System', clientId: 'CL-001', listingId: 1, details: { feedback: 'love', address: '400 E 90th St #17C' } },
-    { id: 'A-015', action: 'status_change', timestamp: '2026-02-15T14:00:00', agent: 'Demo Agent', listingId: 'ML-S004', details: { from: 'Active', to: 'Contract Signed', cotalityField: 'MlsStatus' } },
+    { id: 'A-015', action: 'status_change', timestamp: '2026-02-15T14:00:00', agent: 'Demo Agent', listingId: 'ML-S004', details: { from: 'Active', to: 'Contract Signed', resoField: 'MlsStatus' } },
     { id: 'A-016', action: 'compliance_alert', timestamp: '2026-02-16T08:00:00', agent: 'System', listingId: 'ML-S006', details: { rule: 'D2', message: 'Coming Soon Day 6 \u2014 8 days remaining' } },
     { id: 'A-017', action: 'search_shared', timestamp: '2026-02-16T09:30:00', agent: 'Demo Agent', clientId: 'CL-002', details: { searchName: 'Tribeca Loft 1500+ SF', matchCount: 1 } },
     { id: 'A-018', action: 'document_uploaded', timestamp: '2026-02-16T10:00:00', agent: 'Demo Agent', details: { document: 'Exhibit G \u2014 Coming Soon Addendum', listing: 'ML-S006', ucbaRule: 'D10' } },
@@ -35286,7 +35174,7 @@ function renderAuditTrailViewer() {
         if (e.listingId) html += '<span class="text-[9px] text-blue-600" data-listing-id="' + e.listingId + '" data-source="REBNY-RLS">' + e.listingId + '</span>';
         if (e.clientId) html += '<span class="text-[9px] text-green-600" data-client-id="' + e.clientId + '">' + e.clientId + '</span>';
         if (isViolation) html += '<span class="px-1 py-0.5 bg-red-100 text-red-700 rounded text-[9px] font-bold" data-compliance="violation" data-ucba-rule="' + ((e.details || {}).rule || '') + '">Violation</span>';
-        if (e.details && e.details.cotalityField) html += '<span class="text-[9px] text-gray-400" data-cotality-field="' + e.details.cotalityField + '">' + e.details.cotalityField + '</span>';
+        if (e.details && e.details.resoField) html += '<span class="text-[9px] text-gray-400" data-reso-field="' + e.details.resoField + '">' + e.details.resoField + '</span>';
         html += '</div>';
         html += '<div class="text-[9px] text-gray-500 mt-0.5">';
         html += '<span>' + new Date(e.timestamp).toLocaleDateString() + ' ' + new Date(e.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) + '</span>';
@@ -35324,13 +35212,13 @@ function shareSearchToClient(clientId, searchCriteria) {
         sharedAt: new Date().toISOString(),
         agent: typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE.name : 'Agent',
         criteria: criteria,
-        cotalityCriteria: {}
+        resoCriteria: {}
     };
 
-    // Tag criteria with Cotality names
-    var fieldMap = typeof COTALITY_FIELD_MAP !== 'undefined' ? COTALITY_FIELD_MAP : {};
+    // Tag criteria with RESO names
+    var fieldMap = typeof RESO_FIELD_MAP !== 'undefined' ? RESO_FIELD_MAP : {};
     Object.keys(criteria).forEach(function(k) {
-        if (fieldMap[k]) sharedSearch.cotalityCriteria[fieldMap[k]] = criteria[k];
+        if (fieldMap[k]) sharedSearch.resoCriteria[fieldMap[k]] = criteria[k];
     });
 
     // Get matching listings (respecting Gates 1-2)
@@ -35349,17 +35237,17 @@ function shareSearchToClient(clientId, searchCriteria) {
 
 // ═══════════════════════════════════════════════════════════════
 // ACTIVITY SUMMARY ON CLIENT CARDS (#24 / Step 24)
-// Listing refs, budget via cotalityData
+// Listing refs, budget via resoData
 // ═══════════════════════════════════════════════════════════════
 
 function renderClientActivitySummary(client) {
     if (!client) return '';
     var html = '<div class="space-y-1.5 text-xs">';
 
-    // Budget with Cotality tag
+    // Budget with RESO tag
     if (client.budget || client.maxBudget) {
         var budget = client.budget || client.maxBudget;
-        html += '<div class="flex items-center gap-2"><i class="fas fa-dollar-sign text-green-500 w-4"></i><span>Budget: <strong' + (typeof cotalityData === 'function' ? cotalityData('price', budget) : '') + '>$' + budget.toLocaleString() + '</strong></span></div>';
+        html += '<div class="flex items-center gap-2"><i class="fas fa-dollar-sign text-green-500 w-4"></i><span>Budget: <strong' + (typeof resoData === 'function' ? resoData('price', budget) : '') + '>$' + budget.toLocaleString() + '</strong></span></div>';
     }
 
     // Recent activity items
@@ -35383,7 +35271,7 @@ function renderClientActivitySummary(client) {
         client.recentListings.slice(0, 3).forEach(function(l) {
             html += '<div class="flex items-center gap-2 py-0.5" data-listing-id="' + l.id + '" data-source="REBNY-RLS">';
             html += '<span class="text-blue-600 truncate">' + (l.address || 'Listing #' + l.id) + '</span>';
-            if (l.price) html += '<span class="text-gray-500"' + (typeof cotalityData === 'function' ? cotalityData('price', l.price) : '') + '>$' + l.price.toLocaleString() + '</span>';
+            if (l.price) html += '<span class="text-gray-500"' + (typeof resoData === 'function' ? resoData('price', l.price) : '') + '>$' + l.price.toLocaleString() + '</span>';
             html += '</div>';
         });
         html += '</div>';
@@ -35414,8 +35302,8 @@ function renderMessageWithListingShare(message) {
             var safe = typeof sanitizeListingSnapshot === 'function' ? sanitizeListingSnapshot(l) : l;
             html += '<div class="flex items-center gap-2 px-2 py-1.5 bg-white rounded border text-xs" data-listing-id="' + safe.id + '" data-source="REBNY-RLS">';
             html += '<i class="fas fa-home text-blue-400"></i>';
-            html += '<span class="font-medium"' + (typeof cotalityData === 'function' ? cotalityData('address', safe.address) : '') + '>' + (safe.address || 'Address Available Upon Request') + '</span>';
-            html += '<span' + (typeof cotalityData === 'function' ? cotalityData('price', safe.price) : '') + '>$' + (safe.price || 0).toLocaleString() + '</span>';
+            html += '<span class="font-medium"' + (typeof resoData === 'function' ? resoData('address', safe.address) : '') + '>' + (safe.address || 'Address Available Upon Request') + '</span>';
+            html += '<span' + (typeof resoData === 'function' ? resoData('price', safe.price) : '') + '>$' + (safe.price || 0).toLocaleString() + '</span>';
             html += '<span class="text-gray-400">' + (safe.beds || '--') + 'bd/' + (safe.baths || '--') + 'ba</span>';
             html += '</div>';
         });
@@ -35428,7 +35316,7 @@ function renderMessageWithListingShare(message) {
 
 // ═══════════════════════════════════════════════════════════════
 // SEARCH HISTORY LOG (#26 / Step 26)
-// Criteria with Cotality names, timestamped
+// Criteria with RESO names, timestamped
 // ═══════════════════════════════════════════════════════════════
 
 var mockSearchHistory = [
@@ -35439,7 +35327,7 @@ var mockSearchHistory = [
     { id: 'SHL-005', timestamp: '2026-02-14T09:00:00', criteria: { status: 'COMING_SOON' }, resultCount: 2, duration: '0.1s' }
 ];
 
-var searchHistoryCotalityMap = {
+var searchHistoryResoMap = {
     neighborhood: 'SubdivisionName',
     minBeds: 'BedroomsTotal',
     maxPrice: 'ListPrice',
@@ -35462,8 +35350,8 @@ function renderSearchHistoryLog() {
         html += '<div class="flex-1">';
         html += '<div class="flex items-center flex-wrap gap-1">';
         Object.keys(s.criteria).forEach(function(k) {
-            var cotalityName = searchHistoryCotalityMap[k] || k;
-            html += '<span class="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px]"' + (typeof cotalityData === 'function' ? cotalityData(k, s.criteria[k]) : '') + ' title="RLS/Cotality/IDX: ' + cotalityName + '">' + k + ': ' + s.criteria[k] + '</span>';
+            var resoName = searchHistoryResoMap[k] || k;
+            html += '<span class="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px]"' + (typeof resoData === 'function' ? resoData(k, s.criteria[k]) : '') + ' title="RLS/RESO/IDX: ' + resoName + '">' + k + ': ' + s.criteria[k] + '</span>';
         });
         html += '</div>';
         html += '<div class="text-[10px] text-gray-400 mt-0.5">' + s.resultCount + ' results &middot; ' + s.duration + '</div>';
@@ -35491,14 +35379,14 @@ function renderAgentPerformanceMetrics() {
     var html = '<div class="grid grid-cols-2 lg:grid-cols-4 gap-3">';
 
     var metrics = [
-        { label: 'Active Listings', value: active.length, icon: 'fa-home', color: '#3b82f6', cotality: 'MlsStatus' },
-        { label: 'Pipeline Value', value: '$' + (pipelineValue / 1000000).toFixed(1) + 'M', icon: 'fa-chart-line', color: '#10b981', cotality: 'ListPrice' },
-        { label: 'Avg DOM', value: avgDOM + 'd', icon: 'fa-clock', color: '#f59e0b', cotality: 'DaysOnMarket' },
-        { label: 'Closed YTD', value: closed.length + ' ($' + (closedValue / 1000000).toFixed(1) + 'M)', icon: 'fa-check-circle', color: '#8b5cf6', cotality: 'ClosePrice' }
+        { label: 'Active Listings', value: active.length, icon: 'fa-home', color: '#3b82f6', reso: 'MlsStatus' },
+        { label: 'Pipeline Value', value: '$' + (pipelineValue / 1000000).toFixed(1) + 'M', icon: 'fa-chart-line', color: '#10b981', reso: 'ListPrice' },
+        { label: 'Avg DOM', value: avgDOM + 'd', icon: 'fa-clock', color: '#f59e0b', reso: 'DaysOnMarket' },
+        { label: 'Closed YTD', value: closed.length + ' ($' + (closedValue / 1000000).toFixed(1) + 'M)', icon: 'fa-check-circle', color: '#8b5cf6', reso: 'ClosePrice' }
     ];
 
     metrics.forEach(function(m) {
-        html += '<div class="bg-white rounded-xl border p-4 text-center"' + (m.cotality ? ' data-cotality-field="' + m.cotality + '"' : '') + '>';
+        html += '<div class="bg-white rounded-xl border p-4 text-center"' + (m.reso ? ' data-reso-field="' + m.reso + '"' : '') + '>';
         html += '<i class="fas ' + m.icon + ' text-2xl mb-2" style="color:' + m.color + '"></i>';
         html += '<div class="text-lg font-bold text-gray-900">' + m.value + '</div>';
         html += '<div class="text-xs text-gray-500">' + m.label + '</div>';
@@ -35699,19 +35587,19 @@ function REBNYComplianceDoctor(options) {
 
     // ─── Test 3: Status Accuracy ───────────────────────────────────────────
     (function test3_Status() {
-        // Cotality StandardStatus values — both underscore and camelCase forms accepted
+        // RESO StandardStatus values — both underscore and camelCase forms accepted
         var validStatuses = [
             'ACTIVE', 'PENDING', 'CLOSED', 'COMING_SOON', 'COMINGSOON',
             'WITHDRAWN', 'EXPIRED', 'CANCELED', 'HOLD', 'INCOMPLETE'
         ];
-        var statusElements = document.querySelectorAll('[data-cotality-field="MlsStatus"]');
+        var statusElements = document.querySelectorAll('[data-reso-field="MlsStatus"]');
         var invalidCount = 0;
         var totalChecked = 0;
         var invalidValues = [];
 
         statusElements.forEach(function(el) {
-            var val = el.getAttribute('data-cotality-value');
-            if (!val) return; // Skip elements without data-cotality-value (column headers, labels)
+            var val = el.getAttribute('data-reso-value');
+            if (!val) return; // Skip elements without data-reso-value (column headers, labels)
             totalChecked++;
             val = val.trim().toUpperCase();
             if (validStatuses.indexOf(val) === -1) { invalidCount++; invalidValues.push(val); }
@@ -35729,7 +35617,7 @@ function REBNYComplianceDoctor(options) {
         });
 
         if (invalidCount === 0 && totalChecked > 0) {
-            addResult(3, 'Status Accuracy', 'PASS', totalChecked + ' status values checked, all valid Cotality StandardStatus');
+            addResult(3, 'Status Accuracy', 'PASS', totalChecked + ' status values checked, all valid RESO StandardStatus');
         } else if (invalidCount === 0) {
             addResult(3, 'Status Accuracy', 'FAIL', 'No status elements found in current view to validate — required infrastructure missing');
         } else {
@@ -35742,7 +35630,7 @@ function REBNYComplianceDoctor(options) {
         var violations = [];
         PROHIBITED_DISPLAY_FIELDS.forEach(function(field) {
             var found = document.querySelectorAll(
-                '[data-cotality-field="' + field + '"], [data-field="' + field + '"]'
+                '[data-reso-field="' + field + '"], [data-field="' + field + '"]'
             );
             found.forEach(function(el) {
                 var parent = el.closest('[data-access-level]');
@@ -35785,7 +35673,7 @@ function REBNYComplianceDoctor(options) {
         ];
         var fhViolations = [];
         var descriptionAreas = document.querySelectorAll(
-            '#publicDescription, [data-cotality-field="PublicRemarks"], .listing-description'
+            '#publicDescription, [data-reso-field="PublicRemarks"], .listing-description'
         );
         descriptionAreas.forEach(function(el) {
             var text = el.textContent || el.value || '';
@@ -35806,7 +35694,7 @@ function REBNYComplianceDoctor(options) {
 
     // ─── Test 6: Required Field Display ────────────────────────────────────
     (function test6_RequiredFields() {
-        var requiredCotalityFields = [
+        var requiredResoFields = [
             'UnparsedAddress', 'ListPrice', 'BedroomsTotal', 'BathroomsTotalInteger',
             'MlsStatus', 'PropertyType', 'ListAgentFullName', 'ListOfficeName',
             'ListingId', 'OnMarketDate'
@@ -35816,9 +35704,9 @@ function REBNYComplianceDoctor(options) {
         if (typeof gridColumnDefs !== 'undefined') {
             var definedReso = [];
             Object.keys(gridColumnDefs).forEach(function(key) {
-                if (gridColumnDefs[key].cotality) definedReso.push(gridColumnDefs[key].cotality);
+                if (gridColumnDefs[key].reso) definedReso.push(gridColumnDefs[key].reso);
             });
-            requiredCotalityFields.forEach(function(field) {
+            requiredResoFields.forEach(function(field) {
                 var found = definedReso.some(function(d) {
                     return d === field || d.indexOf(field) !== -1 || field.indexOf(d) !== -1;
                 });
@@ -35827,9 +35715,9 @@ function REBNYComplianceDoctor(options) {
         }
 
         if (missingFields.length === 0) {
-            addResult(6, 'Required Field Display', 'PASS', 'All ' + requiredCotalityFields.length + ' required Cotality fields defined in grid columns');
+            addResult(6, 'Required Field Display', 'PASS', 'All ' + requiredResoFields.length + ' required RESO fields defined in grid columns');
         } else {
-            addResult(6, 'Required Field Display', 'FAIL', missingFields.length + ' required Cotality field(s) missing from grid columns: ' + missingFields.join(', '));
+            addResult(6, 'Required Field Display', 'FAIL', missingFields.length + ' required RESO field(s) missing from grid columns: ' + missingFields.join(', '));
         }
     })();
 
@@ -36044,10 +35932,10 @@ function REBNYWiringTest(options) {
     // ── W1: Field Parity Test ──────────────────────────────────────────
     (function() {
         var ALLOWED = ['SourceSystemKey','ListPrice','MlsStatus','PropertyType','PropertySubType','BedroomsTotal','BathroomsTotalInteger','LivingArea','YearBuilt','UnparsedAddress','City','StateOrProvince','PostalCode','Latitude','Longitude','ListAgentFullName','ListOfficeName','ListingAgreement','InternetEntireListingDisplayYN','InternetAddressDisplayYN','OwnerOptOut','ParticipantOnly','IDXEntireListingDisplayYN','SyndicateTo','ComingSoonTimestamp','ActivationDate','PublicRemarks','PrivateRemarks','ShowingInstructions','ListAgentEmail','ListAgentDirectPhone','MaintenanceFee','TaxAnnualAmount','CommonCharges','neighborhood','borough','photoCount','daysOnMarket','pricePerSqft','updatedDate','listedDate','buildingName','lotSize','stories','units','parkingFeatures','garageSpaces','listingCategory','CommonInterest','Ownership','PetsAllowed','LaundryFeatures','Amenities','CoolingYN','HeatingYN','FireplacesTotal','WaterfrontYN','ViewYN','TaxBlock','TaxLot','Zoning','FloorNumber','UnitNumber','Concessions','FinancialDataSource','AssociationFee','RentIncludes','NumberOfUnitsTotal','StoriesTotal','LotSizeArea','GarageYN','AssociationFee+TaxAnnualAmount','RoomsTotal','BathroomsFull','SubdivisionName','OnMarketDate','DaysOnMarket','CumulativeDaysOnMarket','OpenHouseDate','AssociationName','SecurityFeatures','PropertyCondition','PurchaseContractDate','BuyerFinancing','BuildingAreaTotal','PreviousListPrice','OriginalListPrice','PriceChangeTimestamp','ListAgentDirectPhone','PatioAndPorchFeatures','NewConstructionYN','SourceSystemModificationTimestamp','ListingId','EntryLevel','CrossStreet','Exposures','WalkScore','BathroomsHalf','BuildingName','CloseDate','ClosePrice','PhotosCount','VirtualTourURLBranded','View','Flooring','Cooling','Heating','ParkingFeatures','ParkingTotal','PetsAllowedYN','AssociationAmenities','InteriorFeatures'];
-        var cotalityEls = document.querySelectorAll('[data-cotality-field]');
+        var resoEls = document.querySelectorAll('[data-reso-field]');
         var unknown = [], seen = {};
-        cotalityEls.forEach(function(el) {
-            var f = el.getAttribute('data-cotality-field');
+        resoEls.forEach(function(el) {
+            var f = el.getAttribute('data-reso-field');
             seen[f] = true;
             if (ALLOWED.indexOf(f) === -1 && unknown.indexOf(f) === -1) unknown.push(f);
         });
@@ -36055,7 +35943,7 @@ function REBNYWiringTest(options) {
         var bodyText = document.body.innerText || '';
         var leaked = LEAKS.filter(function(n) { return bodyText.indexOf(n) !== -1; });
         if (unknown.length === 0 && leaked.length === 0) {
-            addResult('W1', 'Field Parity', 'PASS', Object.keys(seen).length + ' Cotality fields, all in allowlist');
+            addResult('W1', 'Field Parity', 'PASS', Object.keys(seen).length + ' RESO fields, all in allowlist');
         } else {
             var d = [];
             if (unknown.length) d.push('Unknown: ' + unknown.join(', '));
@@ -36068,14 +35956,14 @@ function REBNYWiringTest(options) {
     (function() {
         var issues = [];
         var VS = ['Active','Pending','Closed','ComingSoon','Coming Soon','COMING_SOON','COMINGSOON','Withdrawn','Expired','Canceled','Hold','Incomplete','ActiveUnderContract','ACTIVE','PENDING','CLOSED','WITHDRAWN','EXPIRED','CANCELED','HOLD','INCOMPLETE','ACTIVE_UNDER_CONTRACT'];
-        document.querySelectorAll('[data-cotality-field="MlsStatus"][data-cotality-value]').forEach(function(el) {
-            var val = el.getAttribute('data-cotality-value');
+        document.querySelectorAll('[data-reso-field="MlsStatus"][data-reso-value]').forEach(function(el) {
+            var val = el.getAttribute('data-reso-value');
             if (!val) return;
             val.split(',').forEach(function(v) { v = v.trim(); if (v && VS.indexOf(v) === -1) issues.push('Status:"' + v + '"'); });
         });
         var VB = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island','The Bronx'];
-        document.querySelectorAll('[data-cotality-field="borough"][data-cotality-value]').forEach(function(el) {
-            var v = el.getAttribute('data-cotality-value'); if (v && VB.indexOf(v) === -1) issues.push('Borough:"' + v + '"');
+        document.querySelectorAll('[data-reso-field="borough"][data-reso-value]').forEach(function(el) {
+            var v = el.getAttribute('data-reso-value'); if (v && VB.indexOf(v) === -1) issues.push('Borough:"' + v + '"');
         });
         if (typeof listings !== 'undefined') {
             listings.forEach(function(l) {
@@ -36088,7 +35976,7 @@ function REBNYWiringTest(options) {
     // ── W3: Null Handling Test ─────────────────────────────────────────
     (function() {
         var problems = [];
-        document.querySelectorAll('td, [data-listing-id], [data-cotality-value]').forEach(function(el) {
+        document.querySelectorAll('td, [data-listing-id], [data-reso-value]').forEach(function(el) {
             if (el.offsetParent === null) return;
             var t = el.textContent.trim();
             if (t === 'undefined' || t === 'null' || t === 'NaN' || t === '$NaN' || t === '$undefined') problems.push('"' + t + '" in <' + el.tagName.toLowerCase() + '>');
@@ -36480,7 +36368,7 @@ function REBNYTestSuite(options) {
     var allowlist = safeSuiteCall(AllowlistLeakTests, { runActive: runActive, context: context }, 'allowlist');
     var searchCorr = safeSuiteCall(SearchCorrectnessTests, { runActive: runActive, context: context }, 'search_correctness');
     var secV2 = safeSuiteCall(SecurityHardeningV2Tests, { runActive: runActive, context: context }, 'security_v2');
-    var arp = safeSuiteCall(AccessibilityCOTALITYPerfTests, { runActive: runActive, context: context }, 'a11y_cotality_perf');
+    var arp = safeSuiteCall(AccessibilityRESOPerfTests, { runActive: runActive, context: context }, 'a11y_reso_perf');
     var regression = safeSuiteCall(MutationRegressionTests, { runActive: runActive, context: context }, 'regression');
 
     // ── STRICT INTEGRITY v2.0: Teardown guards, then run integrity checks ──
@@ -36502,7 +36390,7 @@ function REBNYTestSuite(options) {
         agent: typeof LOGGED_IN_AGENT !== 'undefined' ? LOGGED_IN_AGENT.name : 'unknown',
         suites: { wiring: wiring, behavior: behavior, compliance_core: doctor, compliance_extended: extended,
                   no_vow: noVow, allowlist: allowlist, search_correctness: searchCorr,
-                  security_v2: secV2, a11y_cotality_perf: arp, regression: regression,
+                  security_v2: secV2, a11y_reso_perf: arp, regression: regression,
                   strict_integrity: integrity, source_integrity: source },
         summary: { passed: tP, failed: tF, warnings: tW, skipped: skipped, total: tT }
     };
@@ -36600,8 +36488,8 @@ function showTestSuiteModal(report, initialTab) {
         { id: 'allowlist', label: 'Allowlist', icon: 'fa-filter', results: report.suites.allowlist.results, summary: report.suites.allowlist.summary },
         { id: 'search', label: 'Search+', icon: 'fa-search', results: report.suites.search_correctness.results, summary: report.suites.search_correctness.summary },
         { id: 'hardening', label: 'Hardening', icon: 'fa-lock',
-            results: report.suites.security_v2.results.concat(report.suites.a11y_cotality_perf.results).concat(report.suites.regression.results),
-            summary: { passed: report.suites.security_v2.summary.passed + report.suites.a11y_cotality_perf.summary.passed + report.suites.regression.summary.passed, failed: report.suites.security_v2.summary.failed + report.suites.a11y_cotality_perf.summary.failed + report.suites.regression.summary.failed, warnings: (report.suites.security_v2.summary.warnings||0) + (report.suites.a11y_cotality_perf.summary.warnings||0) + (report.suites.regression.summary.warnings||0), total: report.suites.security_v2.summary.total + report.suites.a11y_cotality_perf.summary.total + report.suites.regression.summary.total } },
+            results: report.suites.security_v2.results.concat(report.suites.a11y_reso_perf.results).concat(report.suites.regression.results),
+            summary: { passed: report.suites.security_v2.summary.passed + report.suites.a11y_reso_perf.summary.passed + report.suites.regression.summary.passed, failed: report.suites.security_v2.summary.failed + report.suites.a11y_reso_perf.summary.failed + report.suites.regression.summary.failed, warnings: (report.suites.security_v2.summary.warnings||0) + (report.suites.a11y_reso_perf.summary.warnings||0) + (report.suites.regression.summary.warnings||0), total: report.suites.security_v2.summary.total + report.suites.a11y_reso_perf.summary.total + report.suites.regression.summary.total } },
         { id: 'integrity', label: 'Integrity', icon: 'fa-fingerprint',
             results: report.suites.strict_integrity.results.concat(report.suites.source_integrity.results),
             summary: { passed: report.suites.strict_integrity.summary.passed + report.suites.source_integrity.summary.passed, failed: report.suites.strict_integrity.summary.failed + report.suites.source_integrity.summary.failed, warnings: 0, total: report.suites.strict_integrity.summary.total + report.suites.source_integrity.summary.total } }
@@ -36658,7 +36546,7 @@ function showTestSuiteModal(report, initialTab) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // EXTENDED REBNY TEST SUITE v1.1 — 27 New Tests
 // No-VOW Drift (NV1-5) | Allowlist Leak (AL1-5) | Search Correctness (S1-4)
-// Security Hardening (X1-3) | A11Y + Cotality + Perf (7) | Mutation/Regression (R1-3)
+// Security Hardening (X1-3) | A11Y + RESO + Perf (7) | Mutation/Regression (R1-3)
 //
 // STRICT NO-SUBSTITUTE / NO-BYPASS ENFORCEMENT (v1.1)
 // ALL tests are binary PASS/FAIL only. No WARN status. No thresholds.
@@ -36834,7 +36722,7 @@ function StrictIntegrityTests(options) {
     (function() {
         var FORBIDDEN = ['autoFix','repair\\(','fallback\\(','normalize\\(','coerce\\(','defaultValue','fixStatus','patchData','correctField','healData','maskError','hideError','gracefulDeg','tolerateErr','softPass','softFail'];
         var FORBIDDEN_RX = new RegExp('\\b(' + FORBIDDEN.join('|') + ')', 'i');
-        var TEST_FNS = ['NoVOWDriftTests','AllowlistLeakTests','SearchCorrectnessTests','SecurityHardeningV2Tests','AccessibilityCOTALITYPerfTests','MutationRegressionTests','REBNYComplianceDoctor','REBNYWiringTest','REBNYBehaviorTest','REBNYComplianceExtended'];
+        var TEST_FNS = ['NoVOWDriftTests','AllowlistLeakTests','SearchCorrectnessTests','SecurityHardeningV2Tests','AccessibilityRESOPerfTests','MutationRegressionTests','REBNYComplianceDoctor','REBNYWiringTest','REBNYBehaviorTest','REBNYComplianceExtended'];
         var violations = [];
         TEST_FNS.forEach(function(fn) {
             if (typeof window[fn] === 'function') {
@@ -36900,7 +36788,7 @@ function StrictIntegrityTests(options) {
 
     // INT-06: No conditional skip-to-pass logic in test source
     (function() {
-        var TEST_FNS = ['NoVOWDriftTests','AllowlistLeakTests','SearchCorrectnessTests','SecurityHardeningV2Tests','AccessibilityCOTALITYPerfTests','MutationRegressionTests','REBNYComplianceDoctor','REBNYWiringTest','REBNYBehaviorTest','REBNYComplianceExtended'];
+        var TEST_FNS = ['NoVOWDriftTests','AllowlistLeakTests','SearchCorrectnessTests','SecurityHardeningV2Tests','AccessibilityRESOPerfTests','MutationRegressionTests','REBNYComplianceDoctor','REBNYWiringTest','REBNYBehaviorTest','REBNYComplianceExtended'];
         var violations = [];
         // Forbidden: if (!x) { ... 'PASS' ... return; }  or  if (!x) return 'PASS'
         var skipPassRx = /if\s*\(\s*![\w.]+\s*\)\s*\{[^}]*'PASS'[^}]*return/;
@@ -37388,8 +37276,8 @@ function SecurityHardeningV2Tests(options) {
     return { mode: 'security_v2', results: results, summary: { passed: passed, failed: failed, warnings: warnings, total: results.length } };
 }
 
-// ─── COMBINED: A11Y + Cotality + PERF (7) ─────────────────────────────────────
-function AccessibilityCOTALITYPerfTests(options) {
+// ─── COMBINED: A11Y + RESO + PERF (7) ─────────────────────────────────────
+function AccessibilityRESOPerfTests(options) {
     options = options || {};
     var runActive = options.runActive || false;
     var results = [], passed = 0, failed = 0, warnings = 0;
@@ -37458,9 +37346,9 @@ function AccessibilityCOTALITYPerfTests(options) {
             unlabeled === 0 ? total + ' inputs, all labeled' : total + ' inputs, ' + unlabeled + ' UNLABELED: ' + unlabeledList.join(' | '));
     })();
 
-    // Cotality1: Field type coercion (numeric fields are numbers)
+    // RESO1: Field type coercion (numeric fields are numbers)
     (function() {
-        if (typeof listings === 'undefined' || listings.length === 0) { addResult('Cotality1', 'Field Type Coercion', 'FAIL', 'listings undefined or empty — required test data missing'); return; }
+        if (typeof listings === 'undefined' || listings.length === 0) { addResult('RESO1', 'Field Type Coercion', 'FAIL', 'listings undefined or empty — required test data missing'); return; }
         var issues = [];
         var numericFields = ['price','beds','baths','sqft','daysOnMarket','pricePerSqft','lotSize','stories','units','garageSpaces'];
         listings.forEach(function(l, idx) {
@@ -37471,13 +37359,13 @@ function AccessibilityCOTALITYPerfTests(options) {
                 }
             });
         });
-        addResult('Cotality1', 'Field Type Coercion', issues.length === 0 ? 'PASS' : 'FAIL',
+        addResult('RESO1', 'Field Type Coercion', issues.length === 0 ? 'PASS' : 'FAIL',
             issues.length === 0 ? 'All numeric fields valid across all ' + listings.length + ' listings' : issues.slice(0, 10).join('; '));
     })();
 
-    // Cotality2: Required fields completeness
+    // RESO2: Required fields completeness
     (function() {
-        if (typeof listings === 'undefined' || listings.length === 0) { addResult('Cotality2', 'Required Fields', 'FAIL', 'listings undefined or empty — required test data missing'); return; }
+        if (typeof listings === 'undefined' || listings.length === 0) { addResult('RESO2', 'Required Fields', 'FAIL', 'listings undefined or empty — required test data missing'); return; }
         var coreRequired = ['id','address','price','status','beds','baths','neighborhood'];
         var extended = ['borough','listingCategory'];
         var coreViolations = [];
@@ -37490,13 +37378,13 @@ function AccessibilityCOTALITYPerfTests(options) {
                 if (l[f] === undefined || l[f] === null || l[f] === '') extViolations.push('L-' + l.id + '.' + f);
             });
         });
-        addResult('Cotality2', 'Required Fields', coreViolations.length === 0 ? 'PASS' : 'FAIL',
+        addResult('RESO2', 'Required Fields', coreViolations.length === 0 ? 'PASS' : 'FAIL',
             coreViolations.length === 0 ? listings.length + ' listings, all ' + coreRequired.length + ' core fields present' + (extViolations.length > 0 ? ' (' + extViolations.length + ' extended missing)' : '') : coreViolations.length + ' core field violations: ' + coreViolations.slice(0, 10).join(', '));
     })();
 
-    // Cotality3: Enumeration enforcement
+    // RESO3: Enumeration enforcement
     (function() {
-        if (typeof listings === 'undefined') { addResult('Cotality3', 'Enum Enforcement', 'FAIL', 'listings undefined — required test data missing'); return; }
+        if (typeof listings === 'undefined') { addResult('RESO3', 'Enum Enforcement', 'FAIL', 'listings undefined — required test data missing'); return; }
         var validStatuses = ['Active','Pending','Closed','ComingSoon','Coming Soon','Withdrawn','Expired','Canceled','Hold','Incomplete','ActiveUnderContract',
             'ACTIVE','PENDING','CLOSED','COMING_SOON','COMINGSOON','WITHDRAWN','EXPIRED','CANCELED','HOLD','INCOMPLETE','ACTIVE_UNDER_CONTRACT'];
         var validBoroughs = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island','The Bronx'];
@@ -37507,7 +37395,7 @@ function AccessibilityCOTALITYPerfTests(options) {
             if (l.borough && validBoroughs.indexOf(l.borough) === -1) issues.push('Borough:"' + l.borough + '" L-' + l.id);
             if (l.listingCategory && validCategories.indexOf(l.listingCategory) === -1) issues.push('Category:"' + l.listingCategory + '" L-' + l.id);
         });
-        addResult('Cotality3', 'Enum Enforcement', issues.length === 0 ? 'PASS' : 'FAIL',
+        addResult('RESO3', 'Enum Enforcement', issues.length === 0 ? 'PASS' : 'FAIL',
             issues.length === 0 ? 'All status/borough/category enums valid across ' + listings.length + ' listings' : issues.slice(0, 5).join('; '));
     })();
 
@@ -37534,7 +37422,7 @@ function AccessibilityCOTALITYPerfTests(options) {
             '50 filter+sort cycles in ' + ms + 'ms (avg ' + avg + 'ms, hard limit: 50ms/cycle)');
     })();
 
-    return { mode: 'a11y_cotality_perf', results: results, summary: { passed: passed, failed: failed, warnings: warnings, total: results.length } };
+    return { mode: 'a11y_reso_perf', results: results, summary: { passed: passed, failed: failed, warnings: warnings, total: results.length } };
 }
 
 // ─── R: MUTATION / REGRESSION TESTS (3) ────────────────────────────────────
@@ -37659,7 +37547,7 @@ document.addEventListener('DOMContentLoaded', function() {
     ['performSearch','collectSearchCriteria','filterListings','initializeSearchResults',
      'renderSearchResults','showSearchSection','toggleSearchTab','backToSearch','renderManageSection','toggleManageMode','toggleManageView','renderManageCards','toggleOHOverview','renderOHOverview',
      'clearSearchForm','updateResultsCount','getFilteredListings','REBNYComplianceDoctor','REBNYWiringTest','REBNYBehaviorTest','REBNYComplianceExtended','REBNYTestSuite',
-     'NoVOWDriftTests','AllowlistLeakTests','SearchCorrectnessTests','SecurityHardeningV2Tests','AccessibilityCOTALITYPerfTests','MutationRegressionTests',
+     'NoVOWDriftTests','AllowlistLeakTests','SearchCorrectnessTests','SecurityHardeningV2Tests','AccessibilityRESOPerfTests','MutationRegressionTests',
      'StrictIntegrityTests','SourceIntegrityTests','setupStrictGuards','teardownStrictGuards','markFallbackUsed','computeDatasetHash','safeSuiteCall'].forEach(function(fn) {
         if (typeof window[fn] !== 'function') missing.push(fn);
     });
@@ -37670,6 +37558,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 </script>
 
+<!-- Listing email campaigns (investor / 1031) -->
 <script>
 // ═══ js/campaigns/listing-campaign.js ═══
 // ═══════════════════════════════════════════════════════════════════════════
@@ -38001,6 +37890,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 </script>
 
+<!-- ═══ Test Framework (conditional) ═══ -->
 <script>
 if (window.location.search.indexOf('test') !== -1) {
     var s = document.createElement('script');

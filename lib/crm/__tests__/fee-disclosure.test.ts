@@ -2,7 +2,7 @@ import { checkFeeDisclosure, isDisplayReadyStatus } from '@/lib/crm/fee-disclosu
 
 /**
  * isDisplayReadyStatus — the FARE gate must fire ONLY when a rental becomes
- * publicly displayed (Active/ComingSoon). The CRM form saves drafts as Cotality
+ * publicly displayed (Active/ComingSoon). The CRM form saves drafts as RESO
  * MlsStatus "Incomplete" (non-Draft but non-display-ready), so draft saves must
  * never be gated (Codex #348).
  */

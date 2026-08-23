@@ -1,7 +1,7 @@
 /**
  * Two-layer CRM status model.
  *
- * Layer 1 — Canonical server/public status (Cotality-safe):
+ * Layer 1 — Canonical server/public status (RESO-safe):
  *   Controls DB status, public display, idx_display_yn, Internet display
  *   gates, Featured/Exclusives eligibility, RealPlus URL eligibility,
  *   syndication/public surfaces.
@@ -13,7 +13,7 @@
  * @module lib/crm/status-mapping
  */
 
-/** Canonical Cotality-safe statuses the server accepts */
+/** Canonical RESO-safe statuses the server accepts */
 export const CANONICAL_STATUSES = [
   'Draft',
   'ComingSoon',
@@ -58,7 +58,7 @@ export const CRM_WORKFLOW_STATUSES = [
 export type CrmWorkflowStatus = typeof CRM_WORKFLOW_STATUSES[number];
 
 /**
- * CRM workflow status → canonical Cotality server status.
+ * CRM workflow status → canonical RESO server status.
  *
  * Every workflow status MUST have a mapping. If a status is not here,
  * it cannot be sent to the server.
@@ -146,7 +146,7 @@ export function normalizeCrmWorkflowStatus(input: string | null | undefined): Cr
 }
 
 /**
- * Map a CRM workflow status to its canonical Cotality server status.
+ * Map a CRM workflow status to its canonical RESO server status.
  * Returns null if the input is not a recognized workflow status.
  */
 export function mapCrmStatusToCanonicalStatus(input: string | null | undefined): CanonicalStatus | null {

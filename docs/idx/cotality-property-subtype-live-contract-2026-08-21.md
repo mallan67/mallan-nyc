@@ -15,10 +15,10 @@ audit, or another agent's report (CLAUDE.md §A.0). Zero probes returned `UNVERI
 
 ```
 <Property Name="PropertySubType"
-          Type="Cotality.DataStandard.Cotality.DD.Enums.PropertySubType" />
+          Type="Cotality.DataStandard.RESO.DD.Enums.PropertySubType" />
 
 <Property Name="PropertySubTypeAdditional"
-          Type="Cotality.DataStandard.Cotality.DD.Enums.Multi.PropertySubTypeAdditional">
+          Type="Cotality.DataStandard.RESO.DD.Enums.Multi.PropertySubTypeAdditional">
 ```
 
 | | `PropertySubType` | `PropertySubTypeAdditional` |

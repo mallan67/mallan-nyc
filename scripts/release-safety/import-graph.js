@@ -22,7 +22,7 @@ const fs = require('fs');
 const path = require('path');
 const ts = require('typescript');
 
-const COTALITYLVE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'];
+const RESOLVE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'];
 
 /** Read `compilerOptions.paths` aliases from tsconfig.json (JSONC-safe). */
 function readTsconfigAliases(rootDir) {
@@ -55,13 +55,13 @@ function resolveFileCandidate(basePath) {
   };
   const s = stat(basePath);
   if (s && s.isFile()) return basePath;
-  for (const ext of COTALITYLVE_EXTENSIONS) {
+  for (const ext of RESOLVE_EXTENSIONS) {
     const p = basePath + ext;
     const st = stat(p);
     if (st && st.isFile()) return p;
   }
   if (s && s.isDirectory()) {
-    for (const ext of COTALITYLVE_EXTENSIONS) {
+    for (const ext of RESOLVE_EXTENSIONS) {
       const p = path.join(basePath, 'index' + ext);
       const st = stat(p);
       if (st && st.isFile()) return p;

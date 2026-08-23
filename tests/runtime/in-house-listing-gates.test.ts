@@ -199,7 +199,7 @@ describe('Form — Banner text uses building reference, not IDX distribution', (
   });
 });
 
-// ─── 9. Cotality address parser — parseAddressQuery ─────────────────────────────
+// ─── 9. RESO address parser — parseAddressQuery ─────────────────────────────
 
 describe('Building search — Cotality OData pattern alignment', () => {
   const routeCode = fs.readFileSync(

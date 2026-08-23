@@ -117,7 +117,7 @@ function readFirst<T = unknown>(o: PermissionInput, keys: string[]): T | undefin
  * `Property.Permission` is a MULTI-ENUM, not a scalar string.
  *
  * Live-verified 2026-08-20: the field is typed
- * `Cotality.DataStandard.Cotality.DD.Enums.Multi.ListingPermission`, and the feed
+ * `Cotality.DataStandard.RESO.DD.Enums.Multi.ListingPermission`, and the feed
  * DOES deliver multi-token values — `IDX,SyndicateOptOut` occurs in a 12,000-row
  * live sample. Today every other sampled row is the single token `IDX`, so no
  * listing is currently mis-gated; the shape is proven real, not hypothetical.

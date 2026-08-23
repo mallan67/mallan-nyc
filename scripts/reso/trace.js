@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * scripts/cotality/trace.js — Trace a single listing through every layer
+ * scripts/reso/trace.js — Trace a single listing through every layer
  * of the pipeline and report where it lands (or drops).
  *
  * Layers traced:
@@ -15,8 +15,8 @@
  * fetch. Safe to run alongside the master-plan migration.
  *
  * Usage:
- *   node scripts/cotality/trace.js --listing-id=RLS20059088
- *   node scripts/cotality/trace.js --listing-id=RLS20059088 --json
+ *   node scripts/reso/trace.js --listing-id=RLS20059088
+ *   node scripts/reso/trace.js --listing-id=RLS20059088 --json
  *
  * Returns exit 0 even when the listing is not displayable (the trace
  * is still useful diagnostic data). Returns exit 1 only on hard
@@ -242,7 +242,7 @@ function fmt(v) {
   const listingId = arg('listing-id');
   const json = process.argv.includes('--json');
   if (!listingId) {
-    console.error('Usage: node scripts/cotality/trace.js --listing-id=<RLS_xxx> [--json]');
+    console.error('Usage: node scripts/reso/trace.js --listing-id=<RLS_xxx> [--json]');
     process.exit(1);
   }
 

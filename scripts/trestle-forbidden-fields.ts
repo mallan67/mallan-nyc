@@ -24,7 +24,7 @@ export const FORBIDDEN_FIELDS: Record<string, string> = {
   // $metadata exposes both as Property fields. Live feed wins over the snapshot.)
   MoveInCostsAmountTotal: 'does not exist; MoveInCosts is a picklist only',
   FirstShowingDate: 'use ActivationDate',
-  PossessionDate: 'Cotality field, Trestle ignores',
+  PossessionDate: 'RESO field, Trestle ignores',
   YearRenovated: 'does not exist',
   // Phantom media URL fields — they look plausible but no live resource exposes
   // them. The real model: Property carries VirtualTourURL* (tours/3D); the Media

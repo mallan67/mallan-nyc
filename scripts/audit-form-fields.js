@@ -2,7 +2,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // AUDIT FORM FIELDS — RLS Binding Classifier
 // Parses all CRM HTML files, classifies every form element as:
-//   RLS_BOUND — mapped to a canonical RLS/Cotality field
+//   RLS_BOUND — mapped to a canonical RLS/RESO field
 //   INTERNAL  — CRM-internal, no RLS equivalent
 //   UNKNOWN   — cannot classify (hard error)
 //
@@ -27,9 +27,9 @@ const FILE_CATEGORIES = {
   search:       { path: path.join(SEARCH_MODULAR, 'index-built.html'),            category: 'search' },
 };
 
-// ── Cotality→RLS Renames ─────────────────────────────────────────────────────
+// ── RESO→RLS Renames ─────────────────────────────────────────────────────
 
-const COTALITY_TO_RLS_RENAMES = {
+const RESO_TO_RLS_RENAMES = {
   'BuyerAgentKey':            'BuyerAgentMlsId',
   'BuyerOfficeKey':           'BuyerOfficeMlsId',
   'BuyerTeamKey':             'BuyerTeamMlsId',
@@ -331,7 +331,7 @@ const FIELD_ALIASES = {
   'CorpOwnAllowed':        'BuildingFeatures',
   'GiftsAllowed':          'BuildingFeatures',
 
-  // Direct RLS/Cotality fields (on Trestle Property entity, beyond IDX Plus CSV)
+  // Direct RLS/RESO fields (on Trestle Property entity, beyond IDX Plus CSV)
   'BathroomsTotal':           'BathroomsTotalInteger',
   'InternetAddressDisplayYN': 'InternetAddressDisplayYN',       // Trestle Property, not in IDX Plus CSV
   'InternetAutomatedValuationDisplayYN': 'InternetAutomatedValuationDisplayYN', // Trestle Property, not in IDX Plus CSV
@@ -765,7 +765,7 @@ function loadAllRLSFields() {
     const search = (rows[i][6] || '').trim();
     const rules = (rows[i][7] || '').trim();
     if (!rlsName || rlsName === 'MatrixFieldName') continue;
-    if (COTALITY_TO_RLS_RENAMES[rlsName]) rlsName = COTALITY_TO_RLS_RENAMES[rlsName];
+    if (RESO_TO_RLS_RENAMES[rlsName]) rlsName = RESO_TO_RLS_RENAMES[rlsName];
     const lower = rlsName.toLowerCase();
     if (!map[lower]) map[lower] = { rlsName, addEdit, search, rules };
   }

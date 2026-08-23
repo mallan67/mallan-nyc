@@ -2,13 +2,13 @@
  * Producer-side seam for the agent_info normalization (spec #410, plan #411, Phase A).
  *
  * `typedAgentColumnsFromJson` derives the 8 typed agent columns (added in A1) from a
- * Cotality-contract `agent_info` JSON object. Every WRITER (Trestle mapper, idx-sync, CRM
+ * RESO-shaped `agent_info` JSON object. Every WRITER (Trestle mapper, idx-sync, CRM
  * POST/PATCH, reset-sync, ensure-listing, exclusive-agent-assignment, ops scripts)
  * uses this single function so the typed columns and the JSON stay in lock-step
  * (same source, two destinations) — this is the "dual-write" invariant.
  *
  * Handles BOTH key shapes that exist in production data:
- *   - PascalCase Cotality keys (Trestle/CRM rows): ListAgentFullName, ListOfficeName, …
+ *   - PascalCase RESO keys (Trestle/CRM rows): ListAgentFullName, ListOfficeName, …
  *   - the lowercase manual shape written by app/api/idx/ensure-listing/route.ts:
  *     { name, email, phone, company }
  *
@@ -39,7 +39,7 @@ function cleanStr(v: unknown): string | null {
 }
 
 /**
- * Map a Cotality-contract `agent_info` JSON to the 8 typed columns.
+ * Map a RESO-shaped `agent_info` JSON to the 8 typed columns.
  * Empty strings and missing keys both become `null` (nullable columns, no empty strings).
  */
 export function typedAgentColumnsFromJson(

@@ -14,7 +14,7 @@
  */
 
 import {
-  COTALITYURCE_MEDIA,
+  RESOURCE_MEDIA,
   computeAdvancedCursor,
   emptyMediaSyncCursor,
   type MediaSyncBatchRecord,
@@ -152,7 +152,7 @@ describe("getMediaSyncCursor", () => {
     const cursor = await getMediaSyncCursor();
     expect(cursor).toEqual({ last_photos_change: null, last_media_modified: null, last_listing_key: null });
     expect(mockFindUnique).toHaveBeenCalledWith({
-      where: { resource: COTALITYURCE_MEDIA },
+      where: { resource: RESOURCE_MEDIA },
       select: { last_photos_change: true, last_media_modified: true, last_listing_key: true },
     });
   });
@@ -201,8 +201,8 @@ describe("advanceMediaSyncCursor", () => {
 
     expect(mockUpsert).toHaveBeenCalledTimes(1);
     const args = mockUpsert.mock.calls[0][0];
-    expect(args.where).toEqual({ resource: COTALITYURCE_MEDIA });
-    expect(args.create.resource).toBe(COTALITYURCE_MEDIA);
+    expect(args.where).toEqual({ resource: RESOURCE_MEDIA });
+    expect(args.create.resource).toBe(RESOURCE_MEDIA);
     expect((args.create.last_photos_change as Date).toISOString()).toBe("2026-05-08T15:00:00.000Z");
     expect((args.create.last_media_modified as Date).toISOString()).toBe("2026-05-08T12:30:00.000Z");
     expect(args.create.last_run_at).toEqual(NOW);

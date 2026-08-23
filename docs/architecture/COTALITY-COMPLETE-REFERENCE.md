@@ -171,7 +171,7 @@ There is no dedicated building database, address master, geocoding service, or p
 
 **Implementation:** Verified against `artifacts/metadata.xml` (live Trestle `$metadata`)
 
-Cotality uses Cotality-standard structured address fields. The address is decomposed, NOT stored as a single string.
+Cotality uses RESO-standard structured address fields. The address is decomposed, NOT stored as a single string.
 
 ### Address fields on Property
 
@@ -254,7 +254,7 @@ and contains(tolower(StreetName),'46')
 |---|---|
 | `contains(StreetName,'46TH')` without `tolower()` | Case-sensitive. Fails on mixed-case data. |
 | `contains(StreetName,'EAST')` | "East" is in `StreetDirPrefix`, not `StreetName` |
-| Guessing from unparsed full address | Must parse into Cotality components first |
+| Guessing from unparsed full address | Must parse into RESO components first |
 | `$filter=InternetEntireListingDisplayYN eq true` | **Trestle returns HTTP 400** — `"Results from 'RLS' has been suppressed (provider Level)"`. REBNY pre-filters this. |
 | `$filter=PropertySubType eq '...'` | **Crashes Trestle with HTTP 502** for most values |
 | `$filter=NewConstructionYN eq true` / `NewDevelopmentYN eq true` | **Not exposed on IDX Plus feed** — returns empty |
@@ -399,7 +399,7 @@ The full field list lives in `lib/idx/trestle-mapper.ts`. Summary:
 | Other / Misc | B29 | 12 | Disclaimer, CopyrightNotice, CountyOrParish, ListingKeyNumeric |
 | FARE Act Custom | B30 | 4 | AdditionalFee, AdditionalFeeDescription, AdditionalFeeYN, FeeFrequency — **legacy CustomProperty fallback** (`$expand=CustomProperty` currently 400s). Canonical FARE public display is `MoveInCostsAmount` / `MoveInCostsComments` (live Property fields). |
 
-### Provider-field renames (REMOVED 2026-08-23)
+### RESO-to-RLS renames (23 fields)
 
 Trestle sends the RLS name; the mapper normalizes to canonical. Defined in `lib/idx/trestle-mapper.ts`:
 
@@ -414,7 +414,7 @@ Trestle sends the RLS name; the mapper normalizes to canonical. Defined in `lib/
 | ListOfficeMlsId | ListOfficeKey |
 | BuyerOfficeMlsId | BuyerOfficeKey |
 | DuplicateListingIDs | CoExclusiveListingKey |
-| ... (13 more) | See `COTALITY_TO_RLS_RENAMES` in trestle-mapper.ts |
+| ... (13 more) | See `RESO_TO_RLS_RENAMES` in trestle-mapper.ts |
 
 ### Fields NOT on Trestle (code must NOT use these)
 
@@ -427,7 +427,7 @@ Trestle sends the RLS name; the mapper normalizes to canonical. Defined in `lib/
 | `VOWConsumerCommentYN` | Does NOT exist | — |
 | `MoveInCostsAmountTotal` | Does NOT exist (phantom; legacy fallback only) | `MoveInCosts` is a multi-select enum; use live `MoveInCostsAmount` for the dollar amount |
 | `YearRenovated` | Does NOT exist | — |
-| `PossessionDate` | Cotality field, Trestle ignores | `AvailabilityDate` |
+| `PossessionDate` | RESO field, Trestle ignores | `AvailabilityDate` |
 | `FirstShowingDate` | Does NOT exist | `ActivationDate` |
 
 ### Fields excluded from IDX Plus feed `$select`
@@ -476,7 +476,7 @@ These are different key spaces. No automated dedup between `SL-*` and `RLS*` —
 
 ## 7. Status Lifecycle
 
-### Cotality StandardStatus values
+### RESO StandardStatus values
 
 | Status | Public Display? | IDX? | DOM Accrues? | Terminal? |
 |---|---|---|---|---|
@@ -505,7 +505,7 @@ TERMINAL_STATUSES = new Set(['Closed', 'Sold', 'Leased', 'Rented', 'Withdrawn', 
 
 `normalizeStandardStatus()` in `trestle-mapper.ts` handles:
 - Case folding: `"active"` → `"Active"`, `"CLOSED"` → `"Closed"`
-- Alias resolution: `"canceled"` (single L) → `"Cancelled"` (double L, Cotality canonical)
+- Alias resolution: `"canceled"` (single L) → `"Cancelled"` (double L, RESO canonical)
 - Trim: `" Active "` → `"Active"`
 - Unknown values preserved (not silently coerced)
 
@@ -615,7 +615,7 @@ Every field has a distribution profile controlling who can see it. Implemented i
 
 ### Process
 
-1. **Normalize renames** — Apply `COTALITY_TO_RLS_RENAMES` (23 field renames)
+1. **Normalize renames** — Apply `RESO_TO_RLS_RENAMES` (23 field renames)
 2. **Infer listing type** — `PropertyType` contains "lease"/"rental" → `rent`, else → `sale`
 3. **Infer borough** — `CountyOrParish` or `City` → borough name
 4. **Extract neighborhood** — `SubdivisionName` (not `CityRegion` which is borough)
@@ -929,7 +929,7 @@ This route uses `/odata/Property` as a building/address lookup source. **Propert
 
 ### Flow
 
-1. Parse free-text query into Cotality components: `parseAddressQuery(q)`
+1. Parse free-text query into RESO components: `parseAddressQuery(q)`
 2. Search local DB first (fast, case-insensitive via raw SQL)
 3. If DB returns <5 results, supplement from Trestle `/odata/Property`
 4. Deduplicate by `StreetNumber-StreetName-PostalCode` key

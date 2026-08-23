@@ -40,9 +40,9 @@ function mount() {
   });
   const win = dom.window as any;
   win.escapeHtml = (s: string) => String(s == null ? '' : s);
-  // cotality-field-map.js is loaded at index.html:105, ahead of reports.js at :142.
+  // reso-field-map.js is loaded at index.html:105, ahead of reports.js at :142.
   const script = win.document.createElement('script');
-  script.textContent = readFileSync(join(REPO, 'public/crm/js/core/cotality-field-map.js'), 'utf8');
+  script.textContent = readFileSync(join(REPO, 'public/crm/js/core/reso-field-map.js'), 'utf8');
   win.document.body.appendChild(script);
   return win;
 }

@@ -279,9 +279,9 @@ function searchChecks(content) {
     'Routes to email/print/CSV/Excel/shareableLink outputs'
   ));
 
-  // 24. Extended test suite functions (NV, AL, S, X, A11Y/Cotality, R)
+  // 24. Extended test suite functions (NV, AL, S, X, A11Y/RESO, R)
   const extFunctions = ['NoVOWDriftTests','AllowlistLeakTests','SearchCorrectnessTests',
-    'SecurityHardeningV2Tests','AccessibilityCOTALITYPerfTests','MutationRegressionTests'];
+    'SecurityHardeningV2Tests','AccessibilityRESOPerfTests','MutationRegressionTests'];
   const missingExt = extFunctions.filter(f => !content.includes('function ' + f));
   results.push(check(
     'Extended test suite (6 functions)', 'WARN',

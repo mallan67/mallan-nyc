@@ -122,7 +122,7 @@ describe('wiring — both call sites share the helper (SUPPORTING source-grep)',
       path.resolve(__dirname, '../../lib/idx/db-to-public-dto.ts'),
       'utf8',
     );
-    // COTALITYLVED. The earlier revision of this test recorded that the canonical
+    // RESOLVED. The earlier revision of this test recorded that the canonical
     // builder did NOT use composeSlugStreetName and that output equivalence was
     // therefore unproven. That gap is now closed: the builder consumes the
     // helper, and OUTPUT parity between the two real compositions is proven

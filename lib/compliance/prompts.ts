@@ -18,12 +18,12 @@ import {
 /**
  * Base system prompt for REBNY RLS compliance validation
  */
-const BASE_SYSTEM_PROMPT = `You are a REBNY RLS compliance validator. Your job is to check real estate listings against the official REBNY RLS Data Rules and Cotality Data Dictionary 2.0 standards.
+const BASE_SYSTEM_PROMPT = `You are a REBNY RLS compliance validator. Your job is to check real estate listings against the official REBNY RLS Data Rules and RESO Data Dictionary 2.0 standards.
 
 VALIDATION RULES:
 1. Check all required fields are present and non-empty
 2. Evaluate conditional requirements based on listing context
-3. Validate data formats match Cotality specifications
+3. Validate data formats match RESO specifications
 4. Flag Fair Housing Act violations in descriptions
 5. Verify NYC-specific fields (BuildingTaxLot, borough, etc.)
 

@@ -1,4 +1,4 @@
-# PROPERTY TYPE FAMILY + THE UNDECLARED `CustomFields` COTALITYURCE
+# PROPERTY TYPE FAMILY + THE UNDECLARED `CustomFields` RESOURCE
 
 > ## ⚠️ PARTIALLY SUPERSEDED — read `cotality-classification-four-surface-census-2026-08-21.md` WITH this
 >
@@ -50,7 +50,7 @@ never evidence that a brokerage capability was dead — it was evidence of a mis
 ## 1. TOWNHOUSE — the UI searched the wrong field entirely
 
 ```
-StructureType  Type="Cotality.DataStandard.Cotality.DD.Enums.Multi.StructureType"   23 members
+StructureType  Type="Cotality.DataStandard.RESO.DD.Enums.Multi.StructureType"   23 members
 ```
 
 It is a **Multi-Enum**, so it is queried with `has`, not `eq`.
@@ -229,7 +229,7 @@ rows read is the complete Active universe.
 
 ---
 
-## 7. LIVE COTALITYURCE INVENTORY (extracted mechanically from `$metadata`)
+## 7. LIVE RESOURCE INVENTORY (extracted mechanically from `$metadata`)
 
 **17 entity types · 1,456 declared fields · 185 enums, of which 114 are Multi-Enums.**
 

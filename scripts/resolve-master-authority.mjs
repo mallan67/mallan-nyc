@@ -10,7 +10,7 @@
  * them, and can treat them as competing authorities. That is the context-loss
  * loop this bootstrap closes.
  *
- * THE COTALITYLUTION ORDER IS DETERMINISTIC AND NOT NEGOTIABLE:
+ * THE RESOLUTION ORDER IS DETERMINISTIC AND NOT NEGOTIABLE:
  *
  *   CURRENT #595 HEAD -> MASTER PLAN -> CONTINUOUS EXECUTION STATE
  *     -> CURRENT #618 HANDOFF -> SEARCH EVIDENCE
@@ -27,7 +27,7 @@
  *   - modify #595, #618 or #620.
  *   - resolve anything if #595 cannot be read. It fails loud instead.
  *
- * The head SHA is RE-COTALITYLVED on every run and never hardcoded, so the bootstrap
+ * The head SHA is RE-RESOLVED on every run and never hardcoded, so the bootstrap
  * cannot silently pin a stale master.
  *
  * REMOVE THIS SCRIPT once #595 is authorized and merged — from then on the
@@ -131,7 +131,7 @@ const result = {
 if (JSON_OUT) {
   console.log(JSON.stringify(result, null, 2));
 } else {
-  log('AUTHORITY COTALITYLVED');
+  log('AUTHORITY RESOLVED');
   log(`  PR #${AUTHORITY_PR} (${pr.headRefName}) @ ${sha}`);
   log('');
   for (const f of resolved) log(`  ${f.path}  ${f.bytes.toLocaleString()} bytes  ->  ${f.cachedAt}`);

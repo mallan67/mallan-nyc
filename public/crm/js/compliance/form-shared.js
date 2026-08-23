@@ -274,10 +274,10 @@
         }
 
         /**
-         * Map building ownership type to Cotality CommonInterest value
+         * Map building ownership type to RESO CommonInterest value
          * Used by Office/Retail building type sub-selector
          * @param {string} buildingType - Selected building ownership type
-         * @returns {string} - Cotality CommonInterest value
+         * @returns {string} - RESO CommonInterest value
          */
         function getBuildingTypeMapping(buildingType) {
             switch (buildingType) {

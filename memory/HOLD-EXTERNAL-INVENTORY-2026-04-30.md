@@ -83,13 +83,13 @@ Working tree at hold time — these stay parked, not committed:
  M CLAUDE.md                                                (memory rule + IDX-Plus follow-up updates)
  M memory/REFACTOR-2026-04-25.md                            (sub-incident note)
  M public/crm/data/validator-results.json                   (auto-regenerated; carryover)
-?? artifacts/cotality-snapshots/                                (read-only diagnostic JSONs)
+?? artifacts/reso-snapshots/                                (read-only diagnostic JSONs)
 ?? memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md             (THIS FILE)
 ?? memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md               (today's incident capture)
 ?? docs/superpowers/specs/2026-04-30-external-inventory-listings-design.md (spec parked here)
 ```
 
-When both release conditions are met and the user authorizes a deliberate check-in, a single `chore(memory): capture 2026-04-30 IDX Plus display-gate incident + recovery + external-inventory spec` commit can land all of these except `artifacts/cotality-snapshots/` (those stay local diagnostic artifacts).
+When both release conditions are met and the user authorizes a deliberate check-in, a single `chore(memory): capture 2026-04-30 IDX Plus display-gate incident + recovery + external-inventory spec` commit can land all of these except `artifacts/reso-snapshots/` (those stay local diagnostic artifacts).
 
 ## Active gate (independent of this hold)
 

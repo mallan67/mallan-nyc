@@ -243,10 +243,10 @@ export interface DbListing {
   _count?: { listing_media?: number } | null;
 }
 
-/** Cotality StandardStatus values that are publicly displayable */
+/** RESO StandardStatus values that are publicly displayable */
 export const DISPLAYABLE_STATUSES = ['Active', 'ComingSoon', 'ActiveUnderContract'];
 
-/** Map Cotality StandardStatus to user-friendly display */
+/** Map RESO StandardStatus to user-friendly display */
 const STATUS_DISPLAY: Record<string, string> = {
   Active: 'Active',
   ComingSoon: 'Coming Soon',
@@ -386,7 +386,7 @@ export function dbListingToPublicDTO(
   // its street address, unit, coordinates and address-derived slug published on
   // cards, search, /api/listings and Featured.
   //
-  // A prefix is not a permission. Only inventory genuinely outside RLS eligibility
+  // A prefix is not a permission. Only inventory that is genuinely outside RLS
   // (`rls_eligible === false` — Mallan's website-only listings) may bypass the
   // IDX address gate; an RLS-backed row must always honour it.
   //

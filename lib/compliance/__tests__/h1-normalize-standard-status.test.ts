@@ -113,7 +113,7 @@ describe('normalizeStandardStatus — case-fold + trim variants', () => {
 });
 
 describe('normalizeStandardStatus — known alias mapping', () => {
-  it('"Canceled" (US single-L) → "Cancelled" (Cotality canonical double-L)', () => {
+  it('"Canceled" (US single-L) → "Cancelled" (RESO canonical double-L)', () => {
     expect(normalizeStandardStatus('Canceled')).toBe('Cancelled');
     // And the canonical form IS in TERMINAL_STATUSES, so the guard binds.
     expect(TERMINAL_STATUSES.has(normalizeStandardStatus('Canceled'))).toBe(true);
@@ -128,7 +128,7 @@ describe('normalizeStandardStatus — known alias mapping', () => {
 
 describe('normalizeStandardStatus — unknown values preserved', () => {
   it('unknown status string is NOT silently coerced to a known value', () => {
-    // A new Cotality status that has not yet been added to the known sets
+    // A new RESO status that has not yet been added to the known sets
     // must round-trip verbatim (trimmed). The normalizer never silently
     // promotes an unknown string into a terminal value — that would be
     // worse than the original gap.

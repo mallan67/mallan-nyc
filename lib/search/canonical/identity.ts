@@ -11,15 +11,15 @@
  * Internal vocabulary — no Cotality live binding. NOT WIRED in A1.
  */
 
-export const IDENTITY_COTALITYLUTION_STATUSES = Object.freeze([
+export const IDENTITY_RESOLUTION_STATUSES = Object.freeze([
   'resolved',
   'partial',
   'ambiguous',
   'unresolved',
 ] as const);
-export type IdentityResolutionStatus = (typeof IDENTITY_COTALITYLUTION_STATUSES)[number];
+export type IdentityResolutionStatus = (typeof IDENTITY_RESOLUTION_STATUSES)[number];
 export function isIdentityResolutionStatus(v: unknown): v is IdentityResolutionStatus {
-  return typeof v === 'string' && (IDENTITY_COTALITYLUTION_STATUSES as readonly string[]).includes(v);
+  return typeof v === 'string' && (IDENTITY_RESOLUTION_STATUSES as readonly string[]).includes(v);
 }
 
 /**
@@ -30,7 +30,7 @@ export function isIdentityResolutionStatus(v: unknown): v is IdentityResolutionS
 export interface CanonicalEntityReference {
   /** canonical_listing_id — always present. */
   listingId: string;
-  /** source-specific record id (Cotality ListingKey, supplemental id, …). */
+  /** source-specific record id (RLS ListingKey, supplemental id, …). */
   sourceRecordId: string;
   propertyId?: string;
   buildingId?: string;

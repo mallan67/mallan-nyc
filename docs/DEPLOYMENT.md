@@ -5,7 +5,7 @@
 This document describes the deployment pipeline for `mallan-nyc`, a production Next.js + Prisma + Vercel system for a New York–licensed real estate brokerage.
 
 **Hard constraints:**
-- Cotality standards compliance
+- RESO standards compliance
 - REBNY RLS display rules
 - NY State real estate advertising law
 - Fair Housing Act compliance

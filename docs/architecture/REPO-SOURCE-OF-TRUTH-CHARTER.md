@@ -226,7 +226,7 @@ The CRM search is a **separate** pipeline from public search. Different shell, d
 | CRM grid render | `public/crm/js/render/render-grid.js` | Grid view rendering |
 | CRM map | `public/crm/js/render/results-map.js` | Map markers in CRM |
 | CRM API client | `public/crm/js/core/api-client.js` | All MallanAPI.* methods |
-| CRM placeholder SVG | `public/crm/js/core/cotality-field-map.js:173` | "No Photo Available" SVG data URI |
+| CRM placeholder SVG | `public/crm/js/core/reso-field-map.js:173` | "No Photo Available" SVG data URI |
 | CRM search backend | `app/api/idx/search/route.ts` | `GET /api/idx/search` — Trestle-live, broker auth |
 | CRM filter builder | `lib/search/crm-idx-filter.ts` | Trestle OData filter from URL params |
 | CRM mapper | `lib/search/crm-idx-mapper.ts` | Trestle record → CRM flat shape |
@@ -234,7 +234,7 @@ The CRM search is a **separate** pipeline from public search. Different shell, d
 | Trestle HTTP client | `lib/idx/fetch.ts` | Pulls from Cotality/Trestle API |
 | Trestle OAuth | `lib/idx/auth.ts` | Bearer token refresh, 8h TTL |
 | CRM media batch endpoint | `app/api/media/batch/route.ts` | Bulk photo backfill (auth-gated) |
-| Trestle field arrays + mapper | `lib/idx/trestle-mapper.ts` | `ALL_RLS_FIELDS`, `COTALITY_TO_RLS_RENAMES`, `mapTrestleToPrisma`, `checkDistributionGates` wrapper |
+| Trestle field arrays + mapper | `lib/idx/trestle-mapper.ts` | `ALL_RLS_FIELDS`, `RESO_TO_RLS_RENAMES`, `mapTrestleToPrisma`, `checkDistributionGates` wrapper |
 
 **Hard rule:** never hand-edit `public/crm/index-built.html`. Edit source files (`public/crm/{index.html, html/, css/, js/}`) and run `npm run crm:build`. CI will run `crm:check-build` and fail if the bundle drifts.
 
@@ -308,7 +308,7 @@ The CRM search is a **separate** pipeline from public search. Different shell, d
 | Public IDX image wrapper | `app/components/IDXImage.tsx` | Native `<img>` with aspect-ratio container |
 | Public listing gallery | `app/components/ListingMediaGallery.tsx` | Detail-page hero gallery |
 | CRM photo loader | `public/crm/js/render/photo-loader.js` | Lazy-load via batch API |
-| CRM placeholder | `public/crm/js/core/cotality-field-map.js:173` | SVG data URI |
+| CRM placeholder | `public/crm/js/core/reso-field-map.js:173` | SVG data URI |
 
 **Rules:**
 
@@ -328,13 +328,13 @@ The data flow has three distinct layers. Conflating them is how compliance bugs 
 |---|---|
 | **REBNY** | The MLS/RLS organization, data owner, and policy layer. Sets distribution rules (UCBA, IDX Plus pre-filter convention, attribution requirements). |
 | **Cotality / Trestle** | The API platform that implements + serves the data. Bearer auth, OData, Media expansion. |
-| **Cotality** | The certification / data-standard framework. Defines field names, DD versions, the Property entity type. |
+| **RESO** | The certification / data-standard framework. Defines field names, DD versions, the Property entity type. |
 
 **Source-of-truth files:**
 
 | Layer | Canonical file | Notes |
 |---|---|---|
-| Trestle field arrays | `lib/idx/trestle-mapper.ts` exports `ALL_RLS_FIELDS`, `COTALITY_TO_RLS_RENAMES`, `IDX_PLUS_SELECT_FIELDS`, `REQUIRED_RLS_FIELDS` | Single source of truth for field names |
+| Trestle field arrays | `lib/idx/trestle-mapper.ts` exports `ALL_RLS_FIELDS`, `RESO_TO_RLS_RENAMES`, `IDX_PLUS_SELECT_FIELDS`, `REQUIRED_RLS_FIELDS` | Single source of truth for field names |
 | Trestle → Prisma mapper | `lib/idx/trestle-mapper.ts` `mapTrestleToPrisma()` | Writer-side: Trestle → DB |
 | Distribution gate wrapper (Trestle records) | `lib/idx/trestle-mapper.ts` `checkDistributionGates()` | Passes `idxPlusPreFiltered: true` to evaluateDisplayGate |
 | IDX sync orchestrator | `lib/idx/sync.ts` | Cron-run sync. **Do not touch IDX sync without explicit authorization.** |
@@ -342,7 +342,7 @@ The data flow has three distinct layers. Conflating them is how compliance bugs 
 | Trestle auth | `lib/idx/auth.ts` | OAuth client-credentials, 8h token TTL, 5-min refresh buffer |
 | Card-fields select | `lib/idx/card-fields.ts` | Includes PhotosChangeTimestamp |
 | Distribution gates (reader) | `lib/compliance/gates.ts` | `evaluateDisplayGate`, `isInternetEntireListingDisplayable`, `isAddressDisplayable`. Has `idxPlusPreFiltered` option for Trestle-live records. |
-| Compliance status | `lib/compliance/status.ts` | Cotality status normalization |
+| Compliance status | `lib/compliance/status.ts` | RESO status normalization |
 | RLS validator | `lib/compliance/rebny-validator.ts` | 10-section validator (CI-gateable) |
 | Field tables | `lib/compliance/rebny-field-tables.ts` | Authority table for required fields |
 | Compliance DTO sanitizer | `lib/compliance/dto.ts` | Public/portal/CRM tier sanitizer |
@@ -354,8 +354,8 @@ The data flow has three distinct layers. Conflating them is how compliance bugs 
 
 **Rules:**
 
-1. **REBNY ≠ Trestle ≠ Cotality.** When writing comments or commit messages, name the layer being affected.
-2. **Runtime payload behavior must be verified per feed.** Do not assume generic Cotality behavior equals this REBNY IDX Plus feed. Example: REBNY pre-filters non-displayable rows out of IDX Plus, leaving `InternetEntireListingDisplayYN` null on survivors. Other Cotality/Trestle deployments serving non-REBNY MLSes do not necessarily share that convention.
+1. **REBNY ≠ Trestle ≠ RESO.** When writing comments or commit messages, name the layer being affected.
+2. **Runtime payload behavior must be verified per feed.** Do not assume generic RESO behavior equals this REBNY IDX Plus feed. Example: REBNY pre-filters non-displayable rows out of IDX Plus, leaving `InternetEntireListingDisplayYN` null on survivors. Other Cotality/Trestle deployments serving non-REBNY MLSes do not necessarily share that convention.
 3. **AVM and ConsumerComment are per-row opt-out flags** populated at the row level (~97% true / ~3% false). They are NOT pre-filtered. They remain fail-closed.
 4. **`InternetEntireListingDisplayYN` and `InternetAddressDisplayYN` are pre-filtered.** Null = displayable on this feed. Explicit false still blocks.
 5. Compliance changes must run `npm run ucba:audit`, `npm run rls:validate`, `npm run idx:validate`, and `npm run compliance-check`. All must pass.
@@ -374,8 +374,8 @@ The following files are **generated**. Do not hand-edit:
 | `.idx-validate/run-history.local.json` | `npm run idx:validate` | Validator run history (local-only, gitignored). |
 | `data/MASTER_REGISTRY.json` | `node scripts/generate-master-registry.js` | When schema/CSV changes. |
 | `data/FIELD_REGISTRY.json` | (generator script in scripts/) | When schema/CSV changes. |
-| `artifacts/cotality-drift/latest.json` | `npm run cotality:drift` | Regularly. |
-| `artifacts/schema-audit.json` | `npm run cotality:schema-audit` | On demand. |
+| `artifacts/reso-drift/latest.json` | `npm run reso:drift` | Regularly. |
+| `artifacts/schema-audit.json` | `npm run reso:schema-audit` | On demand. |
 
 **Rules:**
 

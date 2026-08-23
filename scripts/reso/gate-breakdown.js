@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * scripts/cotality/gate-breakdown.js — For a given starting filter, show
+ * scripts/reso/gate-breakdown.js — For a given starting filter, show
  * how many listings are eliminated by each successive gate.
  *
  * Useful when "Trestle says X but our public site shows Y" — narrows
@@ -13,13 +13,13 @@
  * Plus tier (OwnerOptOut, ParticipantOnly).
  *
  * Usage:
- *   npm run cotality:gate-breakdown
- *   npm run cotality:gate-breakdown -- --status=Active --type=sale
- *   npm run cotality:gate-breakdown -- --status=Active --type=sale --json
- *   npm run cotality:gate-breakdown -- --dry-run     # emit the OData queries without running them
+ *   npm run reso:gate-breakdown
+ *   npm run reso:gate-breakdown -- --status=Active --type=sale
+ *   npm run reso:gate-breakdown -- --status=Active --type=sale --json
+ *   npm run reso:gate-breakdown -- --dry-run     # emit the OData queries without running them
  *
  * Flags:
- *   --status=<Cotality StandardStatus>   default 'Active'
+ *   --status=<RESO StandardStatus>   default 'Active'
  *   --type=<sale|rent|all>           default 'all'
  *   --json                           emit a single JSON object
  *   --dry-run                        list the queries without executing — useful when quota is exhausted

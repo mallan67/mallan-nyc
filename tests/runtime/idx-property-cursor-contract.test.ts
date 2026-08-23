@@ -470,7 +470,7 @@ describe("ListingKey is requested from the provider", () => {
   it("IDX_PLUS_SELECT_FIELDS includes ListingKey", () => {
     // Without it `raw.ListingKey` is undefined on every record, every row is
     // unpositionable, keysetFrozen latches on, and the cursor can never advance.
-    // SourceSystemKey is NOT a substitute: COTALITY_TO_RLS_RENAMES maps it to
+    // SourceSystemKey is NOT a substitute: RESO_TO_RLS_RENAMES maps it to
     // ListingKey defensively, but this feed sends ListingKey directly and leaves
     // SourceSystemKey null (verified live 2026-08-13).
     const { IDX_PLUS_SELECT_FIELDS } = require("@/lib/idx/trestle-mapper");

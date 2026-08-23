@@ -36,9 +36,9 @@ Declared field and type names. Confirmed against the connector by a second party
 
 | term | where |
 |---|---|
-| `MlsStatus` | `Property` field, type `Cotality.DataStandard.Cotality.DD.Enums.MlsStatus` |
+| `MlsStatus` | `Property` field, type `Cotality.DataStandard.RESO.DD.Enums.MlsStatus` |
 | `ListAgentMlsId` · `ListOfficeMlsId` | `Property` fields, distinct from `ListAgentKey` / `ListOfficeKey` |
-| `Cotality.DataStandard.Cotality.DD.Enums.*` · `…Enums.Multi.*` | every enum type reference — `PropertySubType`, `StructureType`, `CommonInterest`, … |
+| `Cotality.DataStandard.RESO.DD.Enums.*` · `…Enums.Multi.*` | every enum type reference — `PropertySubType`, `StructureType`, `CommonInterest`, … |
 
 ### 1b · EXACT_COTALITY_RAW_VALUE — live row observation, `CLAUDE_LIVE_RUN`
 

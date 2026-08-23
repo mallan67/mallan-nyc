@@ -1,5 +1,5 @@
 /**
- * LIVE COTALITY COTALITYURCE / FIELD INVENTORY — the coverage-matrix foundation.
+ * LIVE COTALITY RESOURCE / FIELD INVENTORY — the coverage-matrix foundation.
  *
  * Extracts EVERY entity type, EVERY declared field with its type, EVERY enum
  * vocabulary and EVERY navigation property from live `$metadata`, mechanically.

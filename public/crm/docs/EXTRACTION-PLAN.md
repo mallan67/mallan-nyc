@@ -4,7 +4,7 @@
 
 The 42,778-line monolithic `SEARCH-STANDALONE.html` needs to be split into a clean modular file structure. A previous extraction attempt (in `search-app/`) produced 82 files but the built output had JS errors, broken div balancing, and an incomplete build script. The original file is confirmed untouched (identical to backup).
 
-This is a **multi-agent brokerage CRM** — each agent sees only their own clients/searches/listings. The broker sees everything. All modules must preserve `LOGGED_IN_AGENT` role scoping and REBNY/Cotality compliance.
+This is a **multi-agent brokerage CRM** — each agent sees only their own clients/searches/listings. The broker sees everything. All modules must preserve `LOGGED_IN_AGENT` role scoping and REBNY/RESO compliance.
 
 ## Approach: Manual Phase-by-Phase with Verification Gates
 
@@ -109,13 +109,13 @@ Extract into 9 groups following the load order.
 |------|-------------|------------|
 | `js/core/agent-context.js` | 12093–12120 | `LOGGED_IN_AGENT`, `AGENT_PROFILE` |
 | `js/core/nav.js` | 12121–12145 | `showSearchSection()` |
-| `js/core/cotality-field-map.js` | ~21252–21345 | `COTALITY_FIELD_MAP`, `cotalityData()`, `cotalityAttr()` |
+| `js/core/reso-field-map.js` | ~21252–21345 | `RESO_FIELD_MAP`, `resoData()`, `resoAttr()` |
 | `js/core/data-loader.js` | ~21346+ | `listings[]`, `searchResultsState`, `reportState`, `_replaceListings()` |
 
 ### Group 2: Compliance
 | File | Content |
 |------|---------|
-| `js/compliance/cotality-mappers.js` | `resolveListingSubtype()`, `CRM_TO_COTALITY_STATUS`, commercial/building functions |
+| `js/compliance/reso-mappers.js` | `resolveListingSubtype()`, `CRM_TO_RESO_STATUS`, commercial/building functions |
 | `js/compliance/fair-housing.js` | `FAIR_HOUSING_VIOLATIONS[]`, `checkFairHousing()` |
 | `js/compliance/content-scanners.js` | `scanAgentInfo()`, `scanOffMarket()`, `scanCompensation()` |
 | `js/compliance/display-permissions.js` | `setupDisplayCascade()` (I29/I30/I31) |
@@ -140,7 +140,7 @@ Extract into 9 groups following the load order.
 | File | Content |
 |------|---------|
 | `js/render/shared-badges.js` | `fareActDisclosure()`, `comingSoonBadge()`, `participantOnlyBadge()` |
-| `js/render/grid-column-defs.js` | `gridColumnDefs{}` with Cotality tags |
+| `js/render/grid-column-defs.js` | `gridColumnDefs{}` with RESO tags |
 | `js/render/render-grid.js` | `renderGridView()` |
 | `js/render/render-gallery.js` | `renderGalleryView()` |
 | `js/render/render-short-summary.js` | `renderShortSummaryView()` |
@@ -190,7 +190,7 @@ Extract into 9 groups following the load order.
 4. Modal inventory (15 modals)
 5. Div balance = 0
 6. Agent/Broker scoping check
-7. Cotality chain check
+7. RESO chain check
 8. Role scoping check
 
 ---

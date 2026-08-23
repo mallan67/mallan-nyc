@@ -99,7 +99,7 @@ describe('a changed locator FAILS CLOSED — R2 state does not suppress it', () 
       media_url_original: URL_A, r2_key: 'photos/x.jpg',
       media_url_cached: 'https://cdn/x.jpg', r2_attempts: 0, r2_policy_excluded_at: null,
     };
-    // COTALITYLVED: delivery now DOES prove the source locator is unused, because
+    // RESOLVED: delivery now DOES prove the source locator is unused, because
     // the two remaining readers were corrected — the building manifest serves
     // primary_photo_r2_key via the read-safe R2 helper, and CRM heroUrl uses
     // the canonical cached-first pickFullSizeUrl. With no reader left this is

@@ -114,7 +114,7 @@ import {
   buildPropertyQuery,
   isPropertyComplianceBlocked,
   runMediaSync,
-  COTALITYURCE_MEDIA,
+  RESOURCE_MEDIA,
   R2_BACKLOG_BATCH_LIMIT,
   R2_RETRY_EXHAUSTED_THRESHOLD,
 } from "../media-sync";
@@ -311,7 +311,7 @@ describe("runMediaSync — empty page", () => {
       where: { resource: string };
       update: { rows_checked: number; rows_updated: number; rows_failed: number; last_run_status: string };
     };
-    expect(upsertArgs.where).toEqual({ resource: COTALITYURCE_MEDIA });
+    expect(upsertArgs.where).toEqual({ resource: RESOURCE_MEDIA });
     expect(upsertArgs.update.rows_checked).toBe(0);
     expect(upsertArgs.update.rows_failed).toBe(0);
     expect(upsertArgs.update.last_run_status).toBe("ok");
@@ -714,7 +714,7 @@ describe("runMediaSync — boundary preservation", () => {
 describe("runMediaSync — tombstoneVanished is TRUE on a complete paginated fetch (RC1)", () => {
   it("DOES tombstone DB rows absent from the COMPLETE (paginated) Media response", async () => {
     // RC1 inverts the old capped-fetch behavior: fetchMedia now follows
-    // @odata.nextLink and a COTALITYLVE = the COMPLETE current set. A DB row absent
+    // @odata.nextLink and a RESOLVE = the COMPLETE current set. A DB row absent
     // from a complete set is proven deleted at source → it MUST be tombstoned
     // (vanished-rows `media_key: { notIn: [...] }` pattern).
     mockMediaSyncFindUnique.mockResolvedValue(null);
@@ -1033,7 +1033,7 @@ describe("runMediaSync — Phase 2 cursor advances independently of Phase 3 R2",
       where: { resource: string };
       update: { rows_checked: number; last_run_status: string };
     };
-    expect(upsertArg.where).toEqual({ resource: COTALITYURCE_MEDIA });
+    expect(upsertArg.where).toEqual({ resource: RESOURCE_MEDIA });
     expect(upsertArg.update.last_run_status).toBe("ok");
   });
 

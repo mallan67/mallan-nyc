@@ -1,7 +1,7 @@
 /**
  * sale-form-doctor.js — Sale Listing Form Validation & Compliance Tool
  * Validates SALE-FORM-REDESIGN.html / SALE-FORM-STANDALONE.html against
- * REBNY RLS / UCBA 2026 / Cotality / Trestle / Fair Housing requirements.
+ * REBNY RLS / UCBA 2026 / RESO / Trestle / Fair Housing requirements.
  *
  * Covers: 79 mandatory fields, 17 property type radios, 6 distribution gates,
  *         Fair Housing scanner, data quality checks, DOM integrity, UI/navigation.
@@ -18,7 +18,7 @@
  *
  * Categories (75 checks):
  *   MF-01..MF-25:  Mandatory Fields (REBNY Exhibit A)
- *   RC-01..RC-08:  Cotality Compliance (PropertyType/CommonInterest/PropertySubType)
+ *   RC-01..RC-08:  RESO Compliance (PropertyType/CommonInterest/PropertySubType)
  *   DQ-01..DQ-10:  Data Quality (field constraints, duplicates, validation)
  *   DG-01..DG-06:  Distribution Gates (UCBA)
  *   CF-01..CF-08:  Compliance Fields (Fair Housing, agent info, off-market, compensation)
@@ -38,10 +38,10 @@ var SaleFormDoctor = (function() {
     var VERSION = '1.0.0';
 
     /**
-     * Cotality 3-field decomposition for each of the 17 sale property type radios.
+     * RESO 3-field decomposition for each of the 17 sale property type radios.
      * Source: Module 16 (16-PROPERTY-TYPES.md), REBNY-MASTER.md Part 4 B2.
      */
-    var COTALITY_PROPERTY_TYPE_MAP = {
+    var RESO_PROPERTY_TYPE_MAP = {
         'Condo':                  { PropertyType: 'Residential', CommonInterest: 'Condominium',      PropertySubType: 'Apartment' },
         'Coop':                   { PropertyType: 'Residential', CommonInterest: 'StockCooperative',  PropertySubType: 'Apartment' },
         'Condop':                 { PropertyType: 'Residential', CommonInterest: 'Condop',            PropertySubType: 'Apartment' },
@@ -63,7 +63,7 @@ var SaleFormDoctor = (function() {
 
     /**
      * REBNY Mandatory Fields (Exhibit A) -- I1 to I79 mapped to expected form element selectors.
-     * Each entry: { id, label, cotalityField, rebnyRef, selectors (id/name/data-field), conditional }
+     * Each entry: { id, label, resoField, rebnyRef, selectors (id/name/data-field), conditional }
      */
     var MANDATORY_FIELDS = [
         // I1-I16: Location & Building
@@ -143,10 +143,10 @@ var SaleFormDoctor = (function() {
     ];
 
     /**
-     * Cotality StandardStatus values required in the status dropdown.
+     * RESO StandardStatus values required in the status dropdown.
      * Per REBNY-MASTER Part 4, Section J.
      */
-    var COTALITY_STANDARD_STATUSES = [
+    var RESO_STANDARD_STATUSES = [
         'Active', 'Coming Soon', 'Pending', 'Closed',
         'Withdrawn', 'Cancelled', 'Expired'
     ];
@@ -305,7 +305,7 @@ var SaleFormDoctor = (function() {
         else { fail('MF-02', 'PropertyType radios', 'No radio group name="salePropertyType"'); }
 
         // MF-03: PropertySubType (derived from radio)
-        if (COTALITY_PROPERTY_TYPE_MAP[getSelectedPropertyType()]) {
+        if (RESO_PROPERTY_TYPE_MAP[getSelectedPropertyType()]) {
             pass('MF-03', 'PropertySubType derivable', 'Maps from selected radio');
         } else if (ptRadios.length > 0) {
             warn('MF-03', 'PropertySubType derivable', 'No radio currently selected, but group exists');
@@ -314,7 +314,7 @@ var SaleFormDoctor = (function() {
         }
 
         // MF-04: CommonInterest (derived from radio)
-        if (COTALITY_PROPERTY_TYPE_MAP[getSelectedPropertyType()]) {
+        if (RESO_PROPERTY_TYPE_MAP[getSelectedPropertyType()]) {
             pass('MF-04', 'CommonInterest derivable', 'Maps from selected radio');
         } else if (ptRadios.length > 0) {
             warn('MF-04', 'CommonInterest derivable', 'No radio currently selected');
@@ -432,7 +432,7 @@ var SaleFormDoctor = (function() {
 
 
         // =================================================================
-        // Cotality COMPLIANCE (RC-01 to RC-08)
+        // RESO COMPLIANCE (RC-01 to RC-08)
         // =================================================================
 
         // RC-01: PropertyType radio group exists with correct name
@@ -452,19 +452,19 @@ var SaleFormDoctor = (function() {
                 Array.from(ptRadios).map(function(r) { return r.value; }));
         }
 
-        // RC-03: Each radio maps to correct Cotality trio
+        // RC-03: Each radio maps to correct RESO trio
         var unmappedRadios = [];
         var allRadioValues = [];
         ptRadios.forEach(function(radio) {
             allRadioValues.push(radio.value);
-            if (!COTALITY_PROPERTY_TYPE_MAP[radio.value]) {
+            if (!RESO_PROPERTY_TYPE_MAP[radio.value]) {
                 unmappedRadios.push(radio.value);
             }
         });
         if (unmappedRadios.length === 0) {
-            pass('RC-03', 'Cotality Trio Mapping', 'All ' + allRadioValues.length + ' radios map to Cotality PropertyType/CommonInterest/PropertySubType');
+            pass('RC-03', 'RESO Trio Mapping', 'All ' + allRadioValues.length + ' radios map to RESO PropertyType/CommonInterest/PropertySubType');
         } else {
-            fail('RC-03', 'Cotality Trio Mapping', unmappedRadios.length + ' radio(s) have no Cotality mapping: ' + unmappedRadios.join(', '), unmappedRadios);
+            fail('RC-03', 'RESO Trio Mapping', unmappedRadios.length + ' radio(s) have no RESO mapping: ' + unmappedRadios.join(', '), unmappedRadios);
         }
 
         // RC-04: Conditional field visibility
@@ -487,7 +487,7 @@ var SaleFormDoctor = (function() {
             warn('RC-04', 'Conditional Fields', condProblems.length + ' section(s) not found (may be dynamically created): ' + condProblems.join(', '));
         }
 
-        // RC-05: Status dropdown has Cotality StandardStatus values
+        // RC-05: Status dropdown has RESO StandardStatus values
         var statusEl = $('#saleStatus');
         if (statusEl) {
             var statusOptions = [];
@@ -495,20 +495,20 @@ var SaleFormDoctor = (function() {
                 if (opt.value) statusOptions.push(opt.textContent.trim());
             });
             var missingStatuses = [];
-            COTALITY_STANDARD_STATUSES.forEach(function(s) {
+            RESO_STANDARD_STATUSES.forEach(function(s) {
                 var found = statusOptions.some(function(opt) {
                     return opt.indexOf(s) !== -1 || opt.toLowerCase().indexOf(s.toLowerCase()) !== -1;
                 });
                 if (!found) missingStatuses.push(s);
             });
             if (missingStatuses.length === 0) {
-                pass('RC-05', 'Cotality StandardStatus Values', 'All ' + COTALITY_STANDARD_STATUSES.length + ' core statuses present (' + statusOptions.length + ' total options)');
+                pass('RC-05', 'RESO StandardStatus Values', 'All ' + RESO_STANDARD_STATUSES.length + ' core statuses present (' + statusOptions.length + ' total options)');
             } else {
-                warn('RC-05', 'Cotality StandardStatus Values', missingStatuses.length + ' missing: ' + missingStatuses.join(', ') +
+                warn('RC-05', 'RESO StandardStatus Values', missingStatuses.length + ' missing: ' + missingStatuses.join(', ') +
                     ' (may use different labels)', missingStatuses);
             }
         } else {
-            fail('RC-05', 'Cotality StandardStatus Values', 'No #saleStatus element found');
+            fail('RC-05', 'RESO StandardStatus Values', 'No #saleStatus element found');
         }
 
         // RC-06: Listing Agreement has Exclusive/Open/Exclusive Agency
@@ -540,22 +540,22 @@ var SaleFormDoctor = (function() {
             warn('RC-07', 'No Prohibited Listing Types', 'Cannot verify -- no listing type radios');
         }
 
-        // RC-08: Address fields map to Cotality components
-        var cotalityAddressFields = [
-            { cotality: 'StreetNumber+StreetName', sel: '#saleStreetAddress' },
-            { cotality: 'UnitNumber', sel: '#saleUnitNumber' },
-            { cotality: 'City/CityRegion', sel: '#saleBorough' },
-            { cotality: 'PostalCode', sel: '#saleZipCode' },
-            { cotality: 'SubdivisionName', sel: '#saleNeighborhoodFromAddress,#saleBldgNeighborhood' }
+        // RC-08: Address fields map to RESO components
+        var resoAddressFields = [
+            { reso: 'StreetNumber+StreetName', sel: '#saleStreetAddress' },
+            { reso: 'UnitNumber', sel: '#saleUnitNumber' },
+            { reso: 'City/CityRegion', sel: '#saleBorough' },
+            { reso: 'PostalCode', sel: '#saleZipCode' },
+            { reso: 'SubdivisionName', sel: '#saleNeighborhoodFromAddress,#saleBldgNeighborhood' }
         ];
         var missingAddr = [];
-        cotalityAddressFields.forEach(function(f) {
-            if (!selectorExists(f.sel)) missingAddr.push(f.cotality);
+        resoAddressFields.forEach(function(f) {
+            if (!selectorExists(f.sel)) missingAddr.push(f.reso);
         });
         if (missingAddr.length === 0) {
-            pass('RC-08', 'Cotality Address Components', 'All ' + cotalityAddressFields.length + ' address fields present');
+            pass('RC-08', 'RESO Address Components', 'All ' + resoAddressFields.length + ' address fields present');
         } else {
-            fail('RC-08', 'Cotality Address Components', missingAddr.length + ' missing: ' + missingAddr.join(', '), missingAddr);
+            fail('RC-08', 'RESO Address Components', missingAddr.length + ' missing: ' + missingAddr.join(', '), missingAddr);
         }
 
 
@@ -1165,7 +1165,7 @@ var SaleFormDoctor = (function() {
 
     var CATEGORY_LABELS = {
         'MF': 'Mandatory Fields',
-        'RC': 'Cotality Compliance',
+        'RC': 'RESO Compliance',
         'DQ': 'Data Quality',
         'DG': 'Distribution Gates',
         'CF': 'Compliance Fields',
@@ -1360,7 +1360,7 @@ var SaleFormDoctor = (function() {
         scanFairHousing:    scanFairHousing,
 
         // Reference data
-        COTALITY_PROPERTY_TYPE_MAP: COTALITY_PROPERTY_TYPE_MAP,
+        RESO_PROPERTY_TYPE_MAP: RESO_PROPERTY_TYPE_MAP,
         MANDATORY_FIELDS:       MANDATORY_FIELDS,
         FAIR_HOUSING_PATTERNS:  FAIR_HOUSING_PATTERNS,
         CONTENT_RESTRICTION_PATTERNS: CONTENT_RESTRICTION_PATTERNS,

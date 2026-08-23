@@ -50,7 +50,7 @@ const EXTRA_FILES = {
   tenantDeal:   path.join(SEARCH_MODULAR, 'TENANT-DEAL-FORM.html'),
 };
 
-const SOURCE_MODULE = path.join(SEARCH_MODULAR, 'js', 'core', 'cotality-field-map.js');
+const SOURCE_MODULE = path.join(SEARCH_MODULAR, 'js', 'core', 'reso-field-map.js');
 const LOOKUP_CSV = path.join(REPO_ROOT, 'data', 'rebny-rls-property-lookup.csv');
 const FIELDS_CSV = path.join(REPO_ROOT, 'data', 'rebny-rls-property-fields.csv');
 
@@ -67,7 +67,7 @@ for (const [k, v] of Object.entries(CRM_OVERLAY_VALUES_RAW)) {
 
 // ── Constants (small, stable — stay in validator) ────────────────────────
 
-const COTALITY_TO_RLS_RENAMES = {
+const RESO_TO_RLS_RENAMES = {
   'BuyerAgentKey':            'BuyerAgentMlsId',
   'BuyerOfficeKey':           'BuyerOfficeMlsId',
   'BuyerTeamKey':             'BuyerTeamMlsId',
@@ -123,7 +123,7 @@ const SALE_ONLY = new Set(['FlipTax', 'FlipTaxType', 'MaximumFinancingAmount', '
 const results = {
   1:  { name: 'PICKLIST VALUES',       errors: [], warnings: [] },
   2:  { name: 'REQUIRED FIELDS',       errors: [], warnings: [] },
-  3:  { name: 'Cotality→RLS RENAMES',      errors: [], warnings: [] },
+  3:  { name: 'RESO→RLS RENAMES',      errors: [], warnings: [] },
   4:  { name: 'DISTRIBUTION GATES',    errors: [], warnings: [] },
   5:  { name: 'FIELD MAP INTEGRITY',   errors: [], warnings: [] },
   6:  { name: '(REMOVED)',             errors: [], warnings: [] },
@@ -206,7 +206,7 @@ function loadRequiredFields() {
     let name = (rows[i][1] || '').trim();
     const rules = (rows[i][7] || '').trim();
     if (!name || !rules) continue;
-    if (COTALITY_TO_RLS_RENAMES[name]) name = COTALITY_TO_RLS_RENAMES[name];
+    if (RESO_TO_RLS_RENAMES[name]) name = RESO_TO_RLS_RENAMES[name];
     if (/^yes/i.test(rules) || rules === 'Required') {
       required.push(name);
     } else if (/^conditional/i.test(rules)) {
@@ -226,7 +226,7 @@ function loadAllRLSFields() {
     const search = (rows[i][6] || '').trim();
     const rules = (rows[i][7] || '').trim();
     if (!rlsName || rlsName === 'MatrixFieldName') continue;
-    if (COTALITY_TO_RLS_RENAMES[rlsName]) rlsName = COTALITY_TO_RLS_RENAMES[rlsName];
+    if (RESO_TO_RLS_RENAMES[rlsName]) rlsName = RESO_TO_RLS_RENAMES[rlsName];
     const lower = rlsName.toLowerCase();
     if (!map[lower]) map[lower] = { rlsName, addEdit, search, rules };
   }
@@ -249,7 +249,7 @@ function loadDOM(filePath) {
 function shortName(filePath) { return path.basename(filePath); }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 4-LAYER COTALITYLUTION PIPELINE
+// 4-LAYER RESOLUTION PIPELINE
 // ═══════════════════════════════════════════════════════════════════════════
 
 function resolveElement(el, rlsFieldMap, picklistFieldByLower) {
@@ -578,9 +578,9 @@ function validateRequiredFields(fileElements, requiredFields) {
   }
 }
 
-// SECTION 3: Cotality→RLS RENAMES
+// SECTION 3: RESO→RLS RENAMES
 function validateRenames() {
-  console.log('\n  Section 3: Cotality→RLS Renames (23 renames) ...');
+  console.log('\n  Section 3: RESO→RLS Renames (23 renames) ...');
 
   const allFiles = [
     ...Object.values(FILE_CONFIG).map(c => c.path),
@@ -593,16 +593,16 @@ function validateRenames() {
     if (!content) continue;
     const fname = shortName(filePath);
 
-    for (const [cotalityName, rlsName] of Object.entries(COTALITY_TO_RLS_RENAMES)) {
-      const attrPattern = new RegExp(`data-cotality-field=["']${cotalityName}["']`, 'g');
+    for (const [resoName, rlsName] of Object.entries(RESO_TO_RLS_RENAMES)) {
+      const attrPattern = new RegExp(`data-reso-field=["']${resoName}["']`, 'g');
       const matches = content.match(attrPattern);
       if (matches) {
-        error(3, `${fname}: data-cotality-field="${cotalityName}" should be "${rlsName}" (${matches.length}x)`);
+        error(3, `${fname}: data-reso-field="${resoName}" should be "${rlsName}" (${matches.length}x)`);
       }
     }
 
-    if (fname === 'cotality-field-map.js' || fname === 'index-built.html') {
-      const mapStart = content.indexOf('COTALITY_FIELD_MAP');
+    if (fname === 'reso-field-map.js' || fname === 'index-built.html') {
+      const mapStart = content.indexOf('RESO_FIELD_MAP');
       const mapBlockStart = mapStart >= 0 ? content.indexOf('{', mapStart) : -1;
       if (mapBlockStart >= 0) {
         let depth = 0, mapEnd = mapBlockStart;
@@ -616,9 +616,9 @@ function validateRenames() {
           const match = mapBlock.match(mapPattern);
           if (match) {
             if (match[1] !== expectedRLS) {
-              error(3, `${fname}: COTALITY_FIELD_MAP.${mockKey} = "${match[1]}" — should be "${expectedRLS}"`);
+              error(3, `${fname}: RESO_FIELD_MAP.${mockKey} = "${match[1]}" — should be "${expectedRLS}"`);
             } else {
-              log(`${fname}: COTALITY_FIELD_MAP.${mockKey} = "${match[1]}" OK`);
+              log(`${fname}: RESO_FIELD_MAP.${mockKey} = "${match[1]}" OK`);
             }
           }
         }
@@ -680,7 +680,7 @@ function validateDistributionGates(fileElements) {
 
 // SECTION 5: FIELD MAP INTEGRITY
 function validateFieldMapIntegrity() {
-  console.log('\n  Section 5: COTALITY_FIELD_MAP Integrity ...');
+  console.log('\n  Section 5: RESO_FIELD_MAP Integrity ...');
 
   const sourceContent = loadFile(SOURCE_MODULE);
   const searchContent = loadFile(FILE_CONFIG.search.path);
@@ -688,11 +688,11 @@ function validateFieldMapIntegrity() {
   if (!sourceContent) { error(5, 'Source module not found'); return; }
   if (!searchContent) { error(5, 'Built file not found'); return; }
 
-  if (!sourceContent.includes('COTALITY_FIELD_MAP')) error(5, 'cotality-field-map.js: COTALITY_FIELD_MAP not found');
-  if (!searchContent.includes('COTALITY_FIELD_MAP')) error(5, 'index-built.html: COTALITY_FIELD_MAP not found');
+  if (!sourceContent.includes('RESO_FIELD_MAP')) error(5, 'reso-field-map.js: RESO_FIELD_MAP not found');
+  if (!searchContent.includes('RESO_FIELD_MAP')) error(5, 'index-built.html: RESO_FIELD_MAP not found');
 
   function extractMapBlock(content) {
-    const mapStart = content.indexOf('COTALITY_FIELD_MAP');
+    const mapStart = content.indexOf('RESO_FIELD_MAP');
     const blockStart = mapStart >= 0 ? content.indexOf('{', mapStart) : -1;
     if (blockStart < 0) return null;
     let depth = 0, blockEnd = blockStart;
@@ -715,9 +715,9 @@ function validateFieldMapIntegrity() {
         error(5, `BUILD DRIFT: ${mockKey} — source="${sourceMatch[1]}" vs built="${builtMatch[1]}"`);
       }
     } else if (!sourceMatch) {
-      error(5, `cotality-field-map.js: ${mockKey} mapping not found in COTALITY_FIELD_MAP`);
+      error(5, `reso-field-map.js: ${mockKey} mapping not found in RESO_FIELD_MAP`);
     } else if (!builtMatch) {
-      warn(5, `index-built.html: ${mockKey} mapping not found in COTALITY_FIELD_MAP`);
+      warn(5, `index-built.html: ${mockKey} mapping not found in RESO_FIELD_MAP`);
     }
   }
 
@@ -726,11 +726,11 @@ function validateFieldMapIntegrity() {
   for (const field of removedFields) {
     const activePattern = new RegExp(`^(?!.*\\/\\/).*['"]${field}['"]`, 'm');
     if (activePattern.test(sourceContent)) {
-      error(5, `cotality-field-map.js: removed field "${field}" is active`);
+      error(5, `reso-field-map.js: removed field "${field}" is active`);
     }
   }
 
-  for (const helper of ['cotalityAttr', 'cotalityData']) {
+  for (const helper of ['resoAttr', 'resoData']) {
     if (!searchContent.includes(`function ${helper}`)) {
       error(5, `index-built.html: helper function ${helper}() not found`);
     }

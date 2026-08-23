@@ -61,7 +61,7 @@ const CONFIRMED_RENAMES: Array<{ from: string; to: string | null; reason: string
 
   // Video / virtual tour
   { from: 'VideoURL', to: 'VirtualTourURLBranded',
-    reason: 'Live Trestle has VirtualTourURLBranded/Unbranded (Cotality standard); no VideoURL property exists' },
+    reason: 'Live Trestle has VirtualTourURLBranded/Unbranded (RESO standard); no VideoURL property exists' },
 
   // Speculative fields not on Trestle and not in REBNY canonical CustomFields list — remove
   { from: 'LobbyAttendant', to: null,
@@ -79,11 +79,11 @@ const CONFIRMED_RENAMES: Array<{ from: string; to: string | null; reason: string
 
   // Final batch — confirmed via live $metadata probe
   { from: 'NewDevelopmentYN', to: 'NewConstructionYN',
-    reason: 'Live Trestle Property uses Cotality standard NewConstructionYN' },
+    reason: 'Live Trestle Property uses RESO standard NewConstructionYN' },
   { from: 'MinLeaseMonths', to: 'LeaseTerm',
-    reason: 'Cotality standard LeaseTerm on Property; CustomFields canonical list does not include MinLeaseMonths' },
+    reason: 'RESO standard LeaseTerm on Property; CustomFields canonical list does not include MinLeaseMonths' },
   { from: 'LeaseType', to: 'AvailableLeaseType',
-    reason: 'Cotality standard AvailableLeaseType on Property; rental form is offering, not existing' },
+    reason: 'RESO standard AvailableLeaseType on Property; rental form is offering, not existing' },
   { from: 'FeeFrequency', to: 'AdditionalFeeFrequency',
     reason: 'CustomProperty has AdditionalFeeFrequency; rental application/move-in fee context' },
   { from: 'BuyerAgentRLSParticipantYN', to: null,
@@ -97,14 +97,14 @@ const CONFIRMED_RENAMES: Array<{ from: string; to: string | null; reason: string
 
   // Address typo
   { from: 'UnParsedAddress', to: 'UnparsedAddress',
-    reason: 'Typo — capital P should be lowercase to match Cotality/Trestle field name' },
+    reason: 'Typo — capital P should be lowercase to match RESO/Trestle field name' },
   // Confirmed-dead fields with no Trestle replacement (remove, don't rename)
   { from: 'MoveInCostsAmountTotal', to: null,
     reason: 'CLAUDE.md: field does not exist on Trestle. MoveInCosts is a picklist only.' },
   // (MoveInCostsComments removed 2026-06-04: it is a live Property field now —
   //  Edm.String(1024); the rental forms bind it directly. Not a stale binding.)
   { from: 'PossessionDate', to: null,
-    reason: 'CLAUDE.md: Cotality field, Trestle ignores. No replacement.' },
+    reason: 'CLAUDE.md: RESO field, Trestle ignores. No replacement.' },
   { from: 'YearRenovated', to: null,
     reason: 'CLAUDE.md: field does not exist on Trestle.' },
 ];

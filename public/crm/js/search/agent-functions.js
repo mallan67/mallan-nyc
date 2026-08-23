@@ -76,11 +76,11 @@
             var tsEl = document.getElementById(formType + 'StatusChangeTimestamp');
             if (tsEl) tsEl.textContent = timestamp;
 
-            // Update Cotality MlsStatus display
+            // Update RESO MlsStatus display
             var statusEl = document.getElementById(formType + 'Status');
-            var cotalityEl = document.getElementById(formType + 'CotalityMlsStatus');
-            if (statusEl && cotalityEl && typeof getCotalityMlsStatus === 'function') {
-                cotalityEl.textContent = getCotalityMlsStatus(statusEl.value);
+            var resoEl = document.getElementById(formType + 'ResoMlsStatus');
+            if (statusEl && resoEl && typeof getResoMlsStatus === 'function') {
+                resoEl.textContent = getResoMlsStatus(statusEl.value);
             }
 
             // Compute DOM (days since first Active)

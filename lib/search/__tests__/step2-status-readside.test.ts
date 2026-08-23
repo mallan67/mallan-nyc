@@ -9,7 +9,7 @@
  *
  * THE SPLIT WAS ALREADY CAUSING A COMPLIANCE MISS. The database stores the
  * exact member (`prisma/schema.prisma:447` — `status String @default("Active")
- * // Cotality StandardStatus`), and then three transformations disagreed:
+ * // RESO StandardStatus`), and then three transformations disagreed:
  *
  *     DB 'ComingSoon'
  *       -> lib/idx/db-to-public-dto.ts STATUS_DISPLAY  -> 'Coming Soon'

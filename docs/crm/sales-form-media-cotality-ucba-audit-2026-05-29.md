@@ -12,7 +12,7 @@
 
 | Model | Who writes it | Shape | Used by |
 |---|---|---|---|
-| **`listing_media` table** (shaped by the Cotality contract) | Trestle sync (`lib/media/media-sync-service.ts`) | `media_key` (unique), `resource_record_key`, `media_type`, `media_category`, `media_classification`, `order`, `preferred_photo_yn`, R2 cache, timestamps | IDX/third-party listings |
+| **`listing_media` table** (Cotality-shaped) | Trestle sync (`lib/media/media-sync-service.ts`) | `media_key` (unique), `resource_record_key`, `media_type`, `media_category`, `media_classification`, `order`, `preferred_photo_yn`, R2 cache, timestamps | IDX/third-party listings |
 | **`listing.media` JSON** (legacy flat) | **CRM upload** (`app/api/crm/listings/[id]/media/upload/route.ts`) | `{ url, thumbUrl, heroUrl, caption, order, type:"photo"(hardcoded), uploadedAt, contentHash }` | **Mallan CRM exclusives (SL-/RL-)** |
 
 SL-0004 has **0 `listing_media` rows, 17 `listing.media` JSON items** (verified). So every CRM exclusive's media flows through the legacy JSON path, which **lacks `media_key`, `preferred_photo_yn`, `MediaCategory`, `ImageOf`, and a real `MediaType`** — the exact Cotality fields the media contract is built on. The public reader (`db-to-public-dto.ts`) does `listing_media rows ? resolveListingMediaFromRows : resolveListingMedia(JSON)`, so CRM exclusives render from the impoverished JSON shape.
@@ -79,7 +79,7 @@ Verified against `data/rebny-rls-property-fields.csv` (Media resource) + `data/R
 
 - **`/media/upload`** writes `listing.media` JSON: `type:"photo"` **hardcoded** (floor plans included), `order = orderParam ?? media.length` (upload sequence), **no `media_key`, no `preferred_photo_yn`, no `MediaCategory`/`ImageOf`**. Dedup by **SHA-256 `contentHash`** (exact only; near-dups pass). EXIF/GPS stripped, 3 WebP variants → R2. ✅ good hygiene, ❌ non-Cotality shape.
 - **`/media-order`** writes `raw_data.media_order = [ids]`. **The display resolver never reads `raw_data.media_order`** — it sorts by `media[].order` + class. So **reorder does not change public order/hero**. And CRM JSON items have **no id** for `ordered_media_ids` to reference reliably.
-- **`listing_media` table** (Cotality-contract, has all the right fields) is populated by the **Trestle sync only**, not by CRM uploads.
+- **`listing_media` table** (Cotality-shaped, has all the right fields) is populated by the **Trestle sync only**, not by CRM uploads.
 - **`lib/media/listing-media-resolver.ts`** — single classify→sort→primary pipeline. Classifies CRM floor plans via `caption='Floor Plan'` (works). Sorts photo-first, then by `order`, honoring `PreferredPhotoYN` (`providerOrder = -1`). **CRM JSON never sets `PreferredPhotoYN`/`preferred`/`isPrimary`**, so the hero = first photo by upload order.
 - **`lib/media/listing-card-media.ts`** — `getHeroPhoto` checks the `mediaType` field; CRM JSON uses `type` (not `mediaType`), so a raw-JSON consumer sees `mediaType=''` → treats everything as photo. Cards consume the **DTO** (resolved `mediaType`), so this is mitigated on the card path but is a latent trap for any raw-JSON consumer.
 - **`db-to-public-dto.ts` / `public-dto.ts`** — `listing_media rows ? resolveListingMediaFromRows : resolveListingMedia(listing.media)`. CRM exclusives (0 rows) take the JSON path.
@@ -128,7 +128,7 @@ All hero paths converge on **“first photo by `order`”**, and CRM `order` is 
 
 | # | Surface / field | Current behavior | Expected (Cotality/IDX Plus) | UCBA/compliance | File/function | FE / BE | Failure risk | Required fix | Test | Pri |
 |---|---|---|---|---|---|---|---|---|---|---|
-| M1 | CRM media storage | `listing.media` JSON, flat | Cotality-contract rows (`media_key`,`media_type`,`order`,`preferred_photo_yn`,`media_category`) | — | upload route + `listing_media` | BE | wrong-hero, no id, reorder-lost, classify | Write CRM uploads to `listing_media` (or add the missing fields to JSON + read them) | round-trip: upload→row has key/type/order/preferred | **P0** |
+| M1 | CRM media storage | `listing.media` JSON, flat | Cotality-shaped rows (`media_key`,`media_type`,`order`,`preferred_photo_yn`,`media_category`) | — | upload route + `listing_media` | BE | wrong-hero, no id, reorder-lost, classify | Write CRM uploads to `listing_media` (or add the missing fields to JSON + read them) | round-trip: upload→row has key/type/order/preferred | **P0** |
 | M2 | Hero / preferred photo | hero = first by upload order (cityscape) | `PreferredPhotoYN` marks hero | — | upload + resolver + form | FE+BE | wrong hero everywhere incl OG | Add a **“set as main photo”** selector → persist `preferred_photo_yn`; resolver already honors it | hero = selected, not upload[0] | **P0** |
 | M3 | Media order persistence | `/media-order`→`raw_data.media_order` (ignored by resolver) | per-item `Order` drives display | — | media-order route + resolver | BE | reorder no-op | Persist order onto the media rows/items the resolver reads (or make resolver read `media_order`) | reorder → public order changes | **P0** |
 | M4 | Stable media id | none (CRM JSON) | `MediaKey` per item | — | upload + delete + order | BE | delete/reorder fragile | Assign a stable id (`media_key`) per CRM media item | delete by id removes exactly one; survives reload | **P0** |
@@ -160,6 +160,6 @@ A media-integrity detector worth adding later: flag any CRM media write that set
 ## 10 · TL;DR
 
 - **Two media models; CRM exclusives use the non-Cotality JSON one** → the root of the media problems.
-- **P0:** no `preferred_photo_yn`/hero selector (wrong hero — verified cityscape), reorder writes a field the resolver ignores (reorder no-op), no stable `media_key` (delete/reorder fragile), CRM media not in the Cotality-contract table.
+- **P0:** no `preferred_photo_yn`/hero selector (wrong hero — verified cityscape), reorder writes a field the resolver ignores (reorder no-op), no stable `media_key` (delete/reorder fragile), CRM media not in the Cotality-shaped table.
 - **P1:** floor-plan `type` hardcoded to photo, tour/video field mis-mappings, exact-only dedup (1 dup on SL-0004), no caption UCBA/address scan.
 - **No code yet.** Awaiting your review of this table before any implementation.

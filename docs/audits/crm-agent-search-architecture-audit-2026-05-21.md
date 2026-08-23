@@ -185,7 +185,7 @@ The audit assumes the **three-tier inventory boundary** Maya specified:
 
 ### B.4 `lib/idx/**` (12 files)
 
-`auth.ts` (Bearer token), `fetch.ts` (OData runner + media batch), `trestle-mapper.ts` (Cotality→Prisma + 6 distribution gates + `TERMINAL_STATUSES` + `normalizeStandardStatus()`), `sync.ts` (incremental sync loop + `dualWriteProjectionForListingId()` call), `mapping.ts` (raw Cotality→`IDXListing` DTO), `public-dto.ts` (`toPublicDTO()` + co-listing badge), `db-to-public-dto.ts` (`dbListingToPublicDTO()` + `classifyDbListing()` + `filterDisplayableDbListings()`), `media-sync.ts` (R2 cache + media table), `card-fields.ts` (`CARD_SELECT_FIELDS`), `watermark.ts`, `logger.ts` (Trestle access audit per 12-month retention).
+`auth.ts` (Bearer token), `fetch.ts` (OData runner + media batch), `trestle-mapper.ts` (RESO→Prisma + 6 distribution gates + `TERMINAL_STATUSES` + `normalizeStandardStatus()`), `sync.ts` (incremental sync loop + `dualWriteProjectionForListingId()` call), `mapping.ts` (raw RESO→`IDXListing` DTO), `public-dto.ts` (`toPublicDTO()` + co-listing badge), `db-to-public-dto.ts` (`dbListingToPublicDTO()` + `classifyDbListing()` + `filterDisplayableDbListings()`), `media-sync.ts` (R2 cache + media table), `card-fields.ts` (`CARD_SELECT_FIELDS`), `watermark.ts`, `logger.ts` (Trestle access audit per 12-month retention).
 
 ### B.5 `lib/search/**` (8 files)
 

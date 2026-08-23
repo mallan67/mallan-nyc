@@ -197,7 +197,7 @@ function run() {
   }
 
   // ── 19: sale validators — basic surface checks ──────────────────────
-  const exposed19 = ['validateREBNYRequired', 'validateDates', 'getCotalityMlsStatus', 'getCotalityPropertyFields'];
+  const exposed19 = ['validateREBNYRequired', 'validateDates', 'getResoMlsStatus', 'getResoPropertyFields'];
   for (const fn of exposed19) {
     assert(
       results,

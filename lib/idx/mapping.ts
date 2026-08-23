@@ -1,9 +1,9 @@
 /**
- * Cotality-Aligned Field Mapping
+ * RESO-Aligned Field Mapping
  *
  * COMPLIANCE NOTE:
  * Maps live Cotality API field names to the Mallan internal canonical shape.
- * Cotality API -> Mallan canonical shape. No Cotality layer, no RLS layer: each
+ * Cotality API -> Mallan canonical shape. No RESO layer, no RLS layer: each
  * Cotality field keeps its own name, type and enum as the live contract exposes them.
  * Field truth = the live api.cotality.com/trestle $metadata. Whatever that
  * document declares IS the contract — names, EDM types and enum members alike.
@@ -256,7 +256,7 @@ export const FIELD_MAP: Record<string, string> = {
 };
 
 /**
- * Map raw Cotality/Trestle response to internal IDXListing type.
+ * Map raw RESO/Trestle response to internal IDXListing type.
  * Maps a raw Cotality Property record to the Mallan internal shape.
  */
 export function mapCotalityToInternal(raw: Record<string, unknown>): IDXListing | null {
@@ -269,7 +269,7 @@ export function mapCotalityToInternal(raw: Record<string, unknown>): IDXListing 
   if (!listingId) return null;
   const listingKeyNumeric = normalized.ListingKeyNumeric ? Number(normalized.ListingKeyNumeric) : undefined;
 
-  // Compose full street name from Cotality address components:
+  // Compose full street name from RESO address components:
   // StreetDirPrefix (e.g. "East") + StreetName (e.g. "83rd") + StreetSuffix (e.g. "Street") + StreetDirSuffix
   const streetNameParts = [
     normalized.StreetDirPrefix,
@@ -340,7 +340,7 @@ export function mapCotalityToInternal(raw: Record<string, unknown>): IDXListing 
     listOfficeName: String(normalized.ListOfficeName || ''),
     media: Array.isArray(normalized.Media) ? normalized.Media.map((m: unknown, i: number) => {
       const item = m as Record<string, unknown>;
-      // Cotality DD: MediaCategory = content type (Photo, Floor Plan, Video)
+      // RESO DD: MediaCategory = content type (Photo, Floor Plan, Video)
       //          MediaType = file format (jpeg, png, gif) — NOT content type
       const desc = String(item.ShortDescription || '').toLowerCase();
       const isPreferred = item.PreferredPhotoYN === true || item.PreferredPhotoYN === 'true';

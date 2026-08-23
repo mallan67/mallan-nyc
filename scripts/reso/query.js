@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * scripts/cotality/query.js — Generic read-only OData GET against Trestle.
+ * scripts/reso/query.js — Generic read-only OData GET against Trestle.
  * Prints the raw OData response as JSON.
  *
  * Usage:
- *   node scripts/cotality/query.js --entity=Property --top=5 --select="ListingId,StandardStatus,ListPrice"
- *   node scripts/cotality/query.js --entity=Property --filter="StandardStatus eq 'Active' and BedroomsTotal eq 2" --top=10
- *   node scripts/cotality/query.js --entity=Member --top=3
+ *   node scripts/reso/query.js --entity=Property --top=5 --select="ListingId,StandardStatus,ListPrice"
+ *   node scripts/reso/query.js --entity=Property --filter="StandardStatus eq 'Active' and BedroomsTotal eq 2" --top=10
+ *   node scripts/reso/query.js --entity=Member --top=3
  *
  * All flags map to OData params:
  *   --filter=<odata>      $filter
@@ -28,7 +28,7 @@ function arg(name, fallback) {
   const entity = arg('entity');
   if (!entity) {
     console.error([
-      'Usage: node scripts/cotality/query.js --entity=<Resource> [flags]',
+      'Usage: node scripts/reso/query.js --entity=<Resource> [flags]',
       'Flags: --filter --select --top --orderby --expand',
     ].join('\n'));
     process.exit(1);

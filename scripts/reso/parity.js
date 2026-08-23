@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * scripts/cotality/parity.js — Compare Trestle, our DB, and the public site
+ * scripts/reso/parity.js — Compare Trestle, our DB, and the public site
  * for a given listing-shape filter. Useful for diagnosing "why isn't
  * this listing showing up?" and verifying sync convergence.
  *
@@ -12,12 +12,12 @@
  * Writes: nothing.
  *
  * Usage:
- *   node scripts/cotality/parity.js
- *   node scripts/cotality/parity.js --status=Active --type=sale
- *   node scripts/cotality/parity.js --status=Active --type=rent --json
+ *   node scripts/reso/parity.js
+ *   node scripts/reso/parity.js --status=Active --type=sale
+ *   node scripts/reso/parity.js --status=Active --type=rent --json
  *
  * Flags:
- *   --status=<Cotality StandardStatus>   default 'Active'
+ *   --status=<RESO StandardStatus>   default 'Active'
  *   --type=<sale|rent|all>           default 'sale' (Residential vs ResidentialLease)
  *   --json                           emit a single JSON object instead of the table
  */

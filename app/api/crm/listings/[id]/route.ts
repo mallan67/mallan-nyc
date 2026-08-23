@@ -202,7 +202,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // FARE Act fee-disclosure gate (NYC LL 119/2024) — rentals becoming display-ready
   // (Active / ComingSoon). Covers the edit-save publish path. Applies to CRM rental
   // exclusives too. Gate on DISPLAY-READY status (not !isDraft): the CRM form saves
-  // drafts as Cotality MlsStatus "Incomplete", which is non-Draft but NOT display-ready,
+  // drafts as RESO MlsStatus "Incomplete", which is non-Draft but NOT display-ready,
   // so a draft save must never be gated (Codex #348).
   //
   // Unchanged from its #350 baseline: this gate reads `effectiveStatus`
@@ -258,7 +258,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   else if (body.SubdivisionName !== undefined) update.neighborhood = String(body.SubdivisionName);
   if (body.City !== undefined) update.city = String(body.City);
   if (body.PostalCode !== undefined) update.postal_code = String(body.PostalCode);
-  // Distribution gates — all use canonical Cotality/RLS field names (YN suffix).
+  // Distribution gates — all use canonical RESO/RLS field names (YN suffix).
   //
   // 2026-04-28 fail-closed correction: previous pattern was `body.X !== false`
   // which coerced null/string-"false"/garbage to true (fail-OPEN). Use
@@ -344,7 +344,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         : null;
   }
   // ParticipantOnly + OwnerOptOut: derive from Permissions enum (same as POST route),
-  // or accept the canonical Cotality field names ParticipantOnlyYN / OwnerOptOutYN as fallback.
+  // or accept the canonical RESO field names ParticipantOnlyYN / OwnerOptOutYN as fallback.
   const permValue = body.Permission ?? body.Permissions; // A2: accept canonical Permission + legacy Permissions
   if (permValue !== undefined) {
     const permBools = derivePermissionBooleans(permValue);
@@ -364,7 +364,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // ListAgentKey were never persisted post-Phase-C).
   const existingAgentInfo: Record<string, unknown> = {};
 
-  // Address bucket key allowlist. Includes both canonical Cotality names AND the
+  // Address bucket key allowlist. Includes both canonical RESO names AND the
   // CRM-form alias keys (CityRegion/SubdivisionName/CountyOrParish/PostalCity)
   // that collectSaleFormData emits. Before adding the aliases, those four
   // fields landed only in raw_data on PATCH — the structured address bucket
@@ -376,7 +376,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     "City", "StateOrProvince", "PostalCode", "Borough",
     "Neighborhood", "BuildingName", "UnparsedAddress",
     // Alias keys the CRM sale form emits via collectSaleFormData (these are
-    // the same fields under different Cotality/REBNY names — see
+    // the same fields under different RESO/REBNY names — see
     // lib/compliance/normalizer.ts aliasToCanonical).
     "CityRegion", "SubdivisionName", "CountyOrParish", "PostalCity",
   ];
@@ -420,7 +420,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   ];
   // Phase C: the LIVE agent attribution is in the 8 typed columns — agent_info JSON is
   // frozen/absent for rows created or edited after the stop-write change. Seed the merge
-  // base from the COTALITYLVED current attribution (typed-first, JSON fallback) so:
+  // base from the RESOLVED current attribution (typed-first, JSON fallback) so:
   //   (a) a PATCH that does NOT touch agent fields preserves the existing typed columns
   //       (deriving from the stale `{}` JSON would null them out — Codex blocker), and
   //   (b) a Mallan exclusive's manual typed override is not clobbered by the Agent row

@@ -7,7 +7,7 @@
 
 > ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
 > 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
-> 3. **REBNY overrides Cotality/IDX.** 4. **Cotality/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
 
 ---
 
@@ -23,7 +23,7 @@
 | Auth endpoint | `api.cotality.com/trestle/oidc/connect/token` |
 | Support | trestlesupport@cotality.com |
 | Documentation | trestle-documentation.corelogic.com (may migrate) |
-| Protocol | Cotality Web API (OData) |
+| Protocol | RESO Web API (OData) |
 | Authentication | OAuth 2.0 (client credentials) |
 
 ### API Migration (Deadline: March 31, 2026)
@@ -231,7 +231,7 @@ Per UCBA Art. III and Art. VIII:
 |----------|--------|
 | Server-side only access | Security |
 | Attribution on all displays | H1, F6 |
-| Update timestamps | Cotality IDX Rules |
+| Update timestamps | RESO IDX Rules |
 | Respect all 6 distribution gates | Gates 1-6 |
 | Respect address suppression | H10, InternetAddressDisplayYN |
 | Statistical data disclaimer | H8 |
@@ -258,6 +258,6 @@ Per UCBA Art. III and Art. VIII:
 |--------|---------|------------|
 | Vercel | Hosting | SOC 2, GDPR |
 | Cloudflare R2 | Image storage | SOC 2, ISO 27001 |
-| Cotality/Trestle | RLS data feed | Cotality certified, REBNY authorized |
+| Cotality/Trestle | RLS data feed | RESO certified, REBNY authorized |
 | mallan.nyc | IDX Plus: public display + internal CRM + reporting (NOT an LMP — does not submit to RLS). IDX-eligible inventory only, not full-market. | REBNY authorized (confirmed 2026-03-27) |
 | PostgreSQL (managed) | Database | Per provider (e.g., Supabase, Neon) |

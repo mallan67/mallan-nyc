@@ -6,13 +6,13 @@
 ---
 
 ## 1 · Current media model problem
-CRM-created listings store media as a **flat `listing.media` JSON** (`{url, thumbUrl, heroUrl, caption, order, type:"photo"(hardcoded), contentHash}`) written by `app/api/crm/listings/[id]/media/upload/route.ts`. Trestle/IDX listings use the **Cotality-contract `listing_media` table** (`media_key`, `media_type`, `media_category`, `order`, `preferred_photo_yn`, …). SL-0004 = 0 table rows / 17 JSON items. The JSON shape lacks `media_key`, `preferred_photo_yn`, `media_category`/`ImageOf`, and a real `media_type`. Consequences (all verified in the audit):
+CRM-created listings store media as a **flat `listing.media` JSON** (`{url, thumbUrl, heroUrl, caption, order, type:"photo"(hardcoded), contentHash}`) written by `app/api/crm/listings/[id]/media/upload/route.ts`. Trestle/IDX listings use the **Cotality-shaped `listing_media` table** (`media_key`, `media_type`, `media_category`, `order`, `preferred_photo_yn`, …). SL-0004 = 0 table rows / 17 JSON items. The JSON shape lacks `media_key`, `preferred_photo_yn`, `media_category`/`ImageOf`, and a real `media_type`. Consequences (all verified in the audit):
 - **Wrong hero** — no `preferred_photo_yn`; hero = first-uploaded (the cityscape on SL-0004).
 - **Reorder is a no-op** — `/media-order` writes `raw_data.media_order`, which the display resolver never reads (and CRM items have no id to reference).
 - **No stable id** — delete/reorder are fragile.
 - **Floor-plan-as-photo** — `type` hardcoded `"photo"`; only `caption='Floor Plan'` saves classification.
 
-## 2 · Required Cotality-contract CRM media contract
+## 2 · Required Cotality-shaped CRM media contract
 CRM media must carry the same fields the public resolver + syndication already understand:
 | Field | Meaning | Today (CRM JSON) |
 |---|---|---|
@@ -28,7 +28,7 @@ CRM media must carry the same fields the public resolver + syndication already u
 **Decision (locked by Maya 2026-05-29):** **Unify CRM uploads onto the existing `listing_media` table** — syndication-ready; the public resolver already reads it via `resolveListingMediaFromRows`. Implication: the CRM upload/order/delete write paths target `listing_media` (not `listing.media` JSON), and the public DTO path for CRM exclusives switches from the JSON branch to the rows branch. ⚠️ This touches DB write paths / schema — **held surface**: requires explicit Maya go + `NEON.md` discipline before any migration/`prisma` work.
 
 ## 3 · P0 functional requirements (the M1–M4 cluster)
-1. **Cotality-contract storage (M1):** CRM uploads persist `media_key`, `media_type`, `order`, `preferred_photo_yn`, `media_category` — via the `listing_media` table (or enriched JSON per the decision above).
+1. **Cotality-shaped storage (M1):** CRM uploads persist `media_key`, `media_type`, `order`, `preferred_photo_yn`, `media_category` — via the `listing_media` table (or enriched JSON per the decision above).
 2. **Real hero (M2):** a `preferred_photo_yn` is set per listing; the resolver already honors it (`providerOrder=-1`). Exactly one preferred photo. Fixes hero everywhere incl. OpenGraph.
 3. **Persistent reorder (M3):** drag-order writes the per-item `order` the **public resolver actually reads** (not `raw_data.media_order`); reload + public render reflect it.
 4. **Stable id (M4):** every CRM media item has a `media_key`; delete removes exactly one item and survives reload; reorder references real ids.
@@ -43,7 +43,7 @@ CRM media must carry the same fields the public resolver + syndication already u
 6. (Captions/room tag UI = P1, not P0.)
 
 ## 5 · Files likely touched
-- `app/api/crm/listings/[id]/media/upload/route.ts` — write Cotality-contract media (key/type/order/preferred/category).
+- `app/api/crm/listings/[id]/media/upload/route.ts` — write Cotality-shaped media (key/type/order/preferred/category).
 - `app/api/crm/listings/[id]/media-order/route.ts` — persist `order` to the resolver-read location.
 - `app/api/crm/listings/[id]/media/[mediaId]/route.ts` (delete) — key on `media_key`.
 - `lib/media/listing-media-resolver.ts` — ensure CRM rows/items flow through the same classify→sort→preferred pipeline.
@@ -111,7 +111,7 @@ Idempotent **dry-run-default** script (`--apply` gated, Maya-approved prod write
 5. **Trestle-synced rows untouched** (separate `crm:` key namespace; SL-0004 isn't in the feed anyway).
 
 ### G. P0 implementation steps (when approved)
-1. **Upload route** → insert a Cotality-contract `listing_media` row (not `listing.media` JSON); dedup via `media_key` unique (P2002 → 409).
+1. **Upload route** → insert a Cotality-shaped `listing_media` row (not `listing.media` JSON); dedup via `media_key` unique (P2002 → 409).
 2. **Order route** → `UPDATE listing_media.order` per `media_key` (replace `raw_data.media_order`, which the resolver ignores).
 3. **NEW delete route** `media/[mediaId]/route.ts` → soft-delete (`status='deleted'`) by `media_key`. *(None exists today — delete is a 404.)*
 4. **Set-as-main** → `preferred_photo_yn=true` on one `media_key`, `false` on siblings.
@@ -122,7 +122,7 @@ Idempotent **dry-run-default** script (`--apply` gated, Maya-approved prod write
 ### H. Tests
 Round-trip (row has key/type/order/preferred); hero = chosen (not upload[0]) incl. OG; reorder persists to public; delete by `media_key` → status='deleted', gone after reload; floor plan never primary; **media_key uniqueness/dedup**; **set-as-main flips siblings false**; migration **dry-run** output correct; Playwright on SL-0004 (set hero/reorder → detail page reflects); gates `crm:test` / `ucba:audit` / `idx:validate` / `compliance-check`.
 
-### I. Verification item — COTALITYLVED 2026-05-29: Trestle sync will NOT touch `crm:` rows
+### I. Verification item — RESOLVED 2026-05-29: Trestle sync will NOT touch `crm:` rows
 Traced `upsertListingMedia` (`lib/idx/media-sync.ts:367`) + orchestrator `runMediaSync`:
 1. **Feed-driven** — `runMediaSync` iterates Trestle `ListingKey`s and fetches media by `ResourceRecordKey eq '{listingKey}'`; CRM exclusives are not in the feed → `upsertListingMedia` is never called with a CRM `listing_id`.
 2. **`tombstoneVanished` forced `false` in prod** (`media-sync.ts:1385`; test "runMediaSync — tombstoneVanished is forced false"); the `notIn` bulk-tombstone (484-503) runs only in unit tests; `true` is set nowhere outside tests.

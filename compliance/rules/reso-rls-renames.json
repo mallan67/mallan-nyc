@@ -1,0 +1,35 @@
+{
+  "_meta": {
+    "description": "23 fields where RESO name differs from RLS (Matrix) name. Always use the RLS name. REBNY IDX Plus is the authority.",
+    "source": "data/rebny-rls-property-fields.csv",
+    "version": "1.0.0",
+    "updated": "2026-02-25",
+    "count": 23,
+    "rule": "If a script or form uses the RESO name, it MUST be mapped to the RLS name before RLS submission."
+  },
+  "renames": {
+    "BuildingSocialMedia": { "rlsName": "BuildingSocialMediaURL", "note": "" },
+    "BuyerAgentKey": { "rlsName": "BuyerAgentMlsId", "note": "Foreign key" },
+    "BuyerOfficeKey": { "rlsName": "BuyerOfficeMlsId", "note": "Foreign key" },
+    "BuyerTeamKey": { "rlsName": "BuyerTeamMlsId", "note": "Foreign key" },
+    "CableTvExpense": { "rlsName": "CableTVExpense", "note": "Case difference" },
+    "CeilingHeight_Feet": { "rlsName": "CeilingHeightFeet", "note": "RESO CeilingHeight split into 2 fields" },
+    "CeilingHeight_Inches": { "rlsName": "CeilingHeightInches", "note": "RESO CeilingHeight split into 2 fields" },
+    "CoBuyerAgentKey": { "rlsName": "CoBuyerAgentMlsId", "note": "Foreign key" },
+    "CoBuyerOfficeKey": { "rlsName": "CoBuyerOfficeMlsId", "note": "Foreign key" },
+    "CoExclusiveListingKey": { "rlsName": "DuplicateListingIDs", "note": "Renamed" },
+    "CoListAgent2Key": { "rlsName": "CoListAgent2MLSID", "note": "Foreign key" },
+    "CoListAgent3Key": { "rlsName": "CoListAgent3MLSID", "note": "Foreign key" },
+    "CoListAgentKey": { "rlsName": "CoListAgentMlsId", "note": "Foreign key" },
+    "ListAgentKey": { "rlsName": "ListAgentMlsId", "note": "Foreign key" },
+    "ListingSocialMedia": { "rlsName": "ListingSocialMediaURL", "note": "" },
+    "ListOfficeKey": { "rlsName": "ListOfficeMlsId", "note": "Foreign key" },
+    "ListTeamKey": { "rlsName": "ListTeamMlsId", "note": "Foreign key" },
+    "LotDimensionsSource": { "rlsName": "LotSizeSource", "note": "Renamed" },
+    "StandardStatus": { "rlsName": "MlsStatus", "note": "CRITICAL — submit MlsStatus, not StandardStatus" },
+    "ShowingContactPhoneExt": { "rlsName": "ShowingContactPhone", "note": "Merged" },
+    "ListingKey": { "rlsName": "SourceSystemKey", "note": "CRITICAL — RLS uses SourceSystemKey" },
+    "ModificationTimestamp": { "rlsName": "SourceSystemModificationTimestamp", "note": "Renamed" },
+    "UnparsedAddress": { "rlsName": "UnParsedAddress", "note": "Case difference — capital P" }
+  }
+}

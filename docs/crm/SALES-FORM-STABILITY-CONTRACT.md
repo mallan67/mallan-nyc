@@ -84,7 +84,7 @@ If one of these files is touched, the rules below apply.
 - Public URL is address-first and canonical.
 - ID-only URLs redirect to canonical when address is displayable.
 - Internal workflow status is stored separately from canonical public/server status.
-- CRM form keys are saved and reloaded before falling back to canonical Cotality keys.
+- CRM form keys are saved and reloaded before falling back to canonical RESO keys.
 - Media dedupe exists on the server, not only in the browser.
 ```
 
@@ -97,7 +97,7 @@ If one of these files is touched, the rules below apply.
 - Autosave running before saved DB data finishes loading.
 - Browser draft overriding DB listing data.
 - Visible agent filled while hidden validation agent field is empty.
-- Loading form controls from lossy Cotality fields when CRM raw keys exist.
+- Loading form controls from lossy RESO fields when CRM raw keys exist.
 - Returning success when status transition failed.
 - Returning /listing/{listing-id} as the public RealPlus URL for address-displayable listings.
 - Creating multiple public URLs for one listing.
@@ -229,15 +229,15 @@ The sales form has two naming systems:
 
 ```text
 CRM form keys: salePropertyType, saleStatus, saleHeatingYN, etc.
-Canonical Cotality/API keys: PropertyType, PropertySubType, CommonInterest, StandardStatus, etc.
+Canonical RESO/API keys: PropertyType, PropertySubType, CommonInterest, StandardStatus, etc.
 ```
 
 Rules:
 
 ```text
-- Save both CRM form keys and canonical Cotality/API keys when needed.
+- Save both CRM form keys and canonical RESO/API keys when needed.
 - On edit-load, restore CRM form key first.
-- Fall back to canonical Cotality key only if the CRM form key is missing.
+- Fall back to canonical RESO key only if the CRM form key is missing.
 - Use valueMap when canonical values do not match form control values.
 ```
 
@@ -245,19 +245,19 @@ Pattern example using placeholders:
 
 ```text
 crmFormPropertyType = [broker-facing value]
-PropertyType = [Cotality major type]
-PropertySubType = [Cotality subtype]
-CommonInterest = [Cotality ownership/common-interest value]
+PropertyType = [RESO major type]
+PropertySubType = [RESO subtype]
+CommonInterest = [RESO ownership/common-interest value]
 ```
 
-Do not restore broker-facing radios/selects from lossy canonical values when a CRM raw key exists. For example, multiple broker-facing ownership/property choices may map to the same Cotality subtype; restoring from the subtype alone can select the wrong radio.
+Do not restore broker-facing radios/selects from lossy canonical values when a CRM raw key exists. For example, multiple broker-facing ownership/property choices may map to the same RESO subtype; restoring from the subtype alone can select the wrong radio.
 
 Every visible control must eventually have a field-map entry that defines:
 
 ```text
 form id/name
 CRM raw key
-canonical Cotality key
+canonical RESO key
 save transform
 load transform
 fallback key

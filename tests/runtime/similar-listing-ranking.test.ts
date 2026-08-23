@@ -229,7 +229,7 @@ describe('regression — deterministic, stable ordering on score ties', () => {
 });
 
 describe('property-class matching — condo / co-op / condop / townhouse / apartment', () => {
-  it('normalizePropertyClass collapses Cotality enums AND display strings, and round-trips its own output', () => {
+  it('normalizePropertyClass collapses RESO enums AND display strings, and round-trips its own output', () => {
     expect(normalizePropertyClass('Condominium')).toBe('condo');
     expect(normalizePropertyClass('Condo')).toBe('condo');
     expect(normalizePropertyClass('StockCooperative')).toBe('coop');

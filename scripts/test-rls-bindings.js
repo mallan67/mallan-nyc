@@ -26,7 +26,7 @@ const BINDINGS = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data', 'rls-fo
 
 // ── CSV / RLS Field Loading ──────────────────────────────────────────────
 
-const COTALITY_TO_RLS_RENAMES = {
+const RESO_TO_RLS_RENAMES = {
   'StandardStatus':           'MlsStatus',
   'ListingKey':               'SourceSystemKey',
   'ModificationTimestamp':    'SourceSystemModificationTimestamp',
@@ -62,7 +62,7 @@ function loadAllRLSFields() {
   for (let i = 1; i < rows.length; i++) {
     let rlsName = (rows[i][3] || '').trim();
     if (!rlsName || rlsName === 'MatrixFieldName') continue;
-    if (COTALITY_TO_RLS_RENAMES[rlsName]) rlsName = COTALITY_TO_RLS_RENAMES[rlsName];
+    if (RESO_TO_RLS_RENAMES[rlsName]) rlsName = RESO_TO_RLS_RENAMES[rlsName];
     const lower = rlsName.toLowerCase();
     if (!map[lower]) map[lower] = { rlsName };
   }

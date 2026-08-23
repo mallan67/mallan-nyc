@@ -63,7 +63,7 @@ The 1 033 Active-in-projection rows are the cleanest demonstration of the dual-w
 | sale | Residential | 1 489 (76.4%) |
 | rent | ResidentialLease | 460 (23.6%) |
 
-(Note: there is no separate `mls_status` or `standard_status` column on `Listing` — the canonical Cotality StandardStatus value is stored in `Listing.status`. Drift breakdown by `Listing.status` is in B.1.)
+(Note: there is no separate `mls_status` or `standard_status` column on `Listing` — the canonical RESO StandardStatus value is stored in `Listing.status`. Drift breakdown by `Listing.status` is in B.1.)
 
 ### B.4 By age of `Listing.updated_at` (when the writer last touched the row)
 | Bucket | Drift rows |

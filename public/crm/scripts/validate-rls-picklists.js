@@ -59,7 +59,7 @@ const FIELDS_TO_CHECK = [
 // Fields where radio/input values are CRM-internal (mapped to RLS via JS functions, not direct RLS values)
 // These are excluded from name= value= checks AND JS mapping checks
 // PropertyType: CRM radios use internal names (Condo/Coop/Loft) → mapped to RLS by buildRLSPropertyTypeData()
-// PropertyType also includes 'Commercial'/'Land' which are Cotality/Trestle values not in REBNY RLS CSV
+// PropertyType also includes 'Commercial'/'Land' which are RESO/Trestle values not in REBNY RLS CSV
 // (REBNY RLS only lists Residential + ResidentialLease — commercial doesn't go through RLS)
 const CRM_MAPPED_FIELDS = ['PropertyType'];
 
@@ -72,7 +72,7 @@ FIELDS_TO_CHECK.forEach(field => {
         [...vals].sort().forEach(v => console.log(`  ✓ ${v}`));
         console.log('');
     } else {
-        console.log(`${field}: NOT IN RLS CSV (Trestle-only or Cotality-only)\n`);
+        console.log(`${field}: NOT IN RLS CSV (Trestle-only or RESO-only)\n`);
     }
 });
 

@@ -283,7 +283,7 @@ The suppression correction for CMA therefore happens during the CMA refactor, no
 
 ---
 
-## G. MEDIA NEEDS IDENTITY COTALITYLUTION, NOT DELETION
+## G. MEDIA NEEDS IDENTITY RESOLUTION, NOT DELETION
 
 The representation's Media rows are legitimate Cotality provider evidence and must be
 retained. What they must never become is a second gallery, hero, floorplan, video or report

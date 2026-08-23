@@ -51,10 +51,10 @@
         };
         
         // ═══════════════════════════════════════════════════════════
-        // CRM → Cotality MlsStatus MAPPING
+        // CRM → RESO MlsStatus MAPPING
         // ═══════════════════════════════════════════════════════════
         
-        var CRM_TO_COTALITY_STATUS = {
+        var CRM_TO_RESO_STATUS = {
             'Draft': 'ComingSoon', 'Future': 'ComingSoon', 'ComingSoon': 'ComingSoon',
             'Active': 'Active', 'BackOnMarket': 'Active',
             'OfferOut': 'ActiveUnderContract', 'OfferThruUs': 'ActiveUnderContract',
@@ -66,16 +66,16 @@
             'PermOffMarket': 'Withdrawn', 'TempOffMarket': 'Hold', 'Expired': 'Expired',
         };
         
-        function getCotalityMlsStatus(crmStatus) {
-            return CRM_TO_COTALITY_STATUS[crmStatus] || 'Active';
+        function getResoMlsStatus(crmStatus) {
+            return CRM_TO_RESO_STATUS[crmStatus] || 'Active';
         }
         
         // ═══════════════════════════════════════════════════════════
-        // Cotality 3-FIELD PROPERTY TYPE MAPPING
-        // Maps CRM property type radio values to Cotality standard
+        // RESO 3-FIELD PROPERTY TYPE MAPPING
+        // Maps CRM property type radio values to RESO standard
         // ═══════════════════════════════════════════════════════════
         
-        function getCotalityPropertyFields(crmValue, formType) {
+        function getResoPropertyFields(crmValue, formType) {
             var officeRetailOwnership = formType
                 ? document.querySelector('input[name="' + formType + 'OfficeRetailOwnership"]:checked')?.value
                 : null;

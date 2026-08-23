@@ -2,7 +2,7 @@
  * `Property.Permission` IS A MULTI-ENUM. Gates must read it as one.
  *
  * Live-verified 2026-08-20: the field is typed
- * `Cotality.DataStandard.Cotality.DD.Enums.Multi.ListingPermission`, and the feed
+ * `Cotality.DataStandard.RESO.DD.Enums.Multi.ListingPermission`, and the feed
  * really does deliver multi-token values — `IDX,SyndicateOptOut` appears in a
  * 12,000-row live sample across all statuses.
  *
