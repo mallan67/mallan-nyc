@@ -56,6 +56,20 @@ archive, email, contact.
    source. Search mappings must resolve from live Cotality API evidence into Mallan's single canonical
    mapping layer. If old RESO/RLS field-layer code is encountered, remove or replace it rather than
    extending it. Raw provider values must still be preserved exactly when provenance requires them.
+9. **Mallan listing ownership and feed topology are explicit.** A Mallan Real Estate listing entered
+   directly into Mallan is **Mallan-owned, canonical, editable by authorized Mallan broker/agents, and
+   publishable on the Mallan website** subject to the applicable display/compliance gates. During the
+   current transition period, the same Mallan listing may also reach the Cotality API through a
+   **third-party feed**. That Cotality record is a provider representation of the Mallan listing, not a
+   second canonical listing and not the editing master. It must be reconciled to the Mallan-owned record
+   and suppressed as a competing duplicate while its provider identifiers, status, permissions,
+   timestamps, and media relationships remain available as reconciliation evidence. **Do not overwrite
+   Mallan-authored listing facts from that duplicate Cotality representation merely because it arrived
+   through the provider.** In the future, Mallan will feed its listings **directly to Cotality**. That
+   future outbound path does not change authorship: Mallan remains the authoring/editing authority for
+   Mallan listings, Cotality becomes the distribution/provider representation, and Mallan must continue
+   to support local editing plus publication to the Mallan website. Third-party brokerage inventory that
+   is not a Mallan listing remains Cotality-owned/read-only in Mallan.
 
 ## 2. Non-negotiable holds (require explicit Maya approval)
 
