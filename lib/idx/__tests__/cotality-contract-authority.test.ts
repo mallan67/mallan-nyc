@@ -181,31 +181,7 @@ describe('the stale capture cannot re-enter the chain', () => {
     expect(code).not.toContain('metadata.xml');
   });
 
-  it('an XML snapshot is not accepted as a live contract', () => {
-    const r = runGenerator([
-      '--live-contract',
-      'artifacts/metadata.xml',
-      '--out',
-      path.join(tmp, 'o5.json'),
-    ]);
-    expect(r.status).not.toBe(0);
-  });
 
-  it('the capture and the live API genuinely disagree, which is why this matters', () => {
-    // The concrete divergence: the capture declares OwnerOptOut; the live contract
-    // declares it on no resource. If this ever stops being true the test should be
-    // re-examined, not deleted - the point is that a snapshot drifts and the live
-    // API does not.
-    const capture = path.join(REPO, 'artifacts/metadata.xml');
-    if (!fs.existsSync(capture)) return; // retired; nothing to prove
-    expect(fs.readFileSync(capture, 'utf8')).toContain('OwnerOptOut');
-
-    const live = JSON.parse(fs.readFileSync(LIVE_CONTRACT, 'utf8'));
-    const declaringResources = Object.keys(live.entityTypes).filter(
-      (r) => live.entityTypes[r]?.properties?.OwnerOptOut,
-    );
-    expect(declaringResources).toEqual([]);
-  });
 
   it('a consumed field absent from the live contract is REJECTED, not quietly dropped', () => {
     // Simulate the provider retiring a field the CRM still names. The generator

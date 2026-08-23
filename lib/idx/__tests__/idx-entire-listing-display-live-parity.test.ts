@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { mapCotalityToInternal } from '../mapping';
+import { allFieldNames } from '@/lib/cotality/live-contract';
 
 /**
  * PR-live-2 (2026-06-04) — the entire-listing display gate must be driven
@@ -75,13 +76,7 @@ describe('mapCotalityToInternal — entire-listing display is driven only by Int
   });
 
   it('live-parity: InternetEntireListingDisplayYN exists on live, IDXEntireListingDisplayYN does not', () => {
-    const xml = readFileSync(
-      resolve(__dirname, '../../../artifacts/metadata.xml'),
-      'utf-8'
-    );
-    const liveNames = new Set(
-      [...xml.matchAll(/Name="([A-Za-z0-9_]+)"/g)].map((m) => m[1])
-    );
+    const liveNames = allFieldNames();
     expect(liveNames.has('InternetEntireListingDisplayYN')).toBe(true);
     expect(liveNames.has('IDXEntireListingDisplayYN')).toBe(false);
   });

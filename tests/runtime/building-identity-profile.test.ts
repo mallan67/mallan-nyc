@@ -26,14 +26,14 @@
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { field as cotalityField } from '@/lib/cotality/live-contract';
 
 const ROUTE = readFileSync(resolve(__dirname, '../../app/api/buildings/search/route.ts'), 'utf8');
 const FORM = readFileSync(resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html'), 'utf8');
-const META = readFileSync(resolve(__dirname, '../../artifacts/metadata.xml'), 'utf8');
 // addressIdentityKey now canonicalizes dir/suffix/ordinal via the shared NYC
 // normalizer, so the eval block must include those helpers + their lookup maps.
 const NORM = readFileSync(resolve(__dirname, '../../lib/address/nyc-address-normalizer.ts'), 'utf8');
-const hasField = (f: string) => new RegExp(`Property Name="${f}"`).test(META);
+const hasField = (f: string) => cotalityField('Property', f) !== null;
 
 // ── Load the route's identity + profile helpers via Function-eval ─────────────
 // Strip TS-only syntax from the const map + the two helper functions so they

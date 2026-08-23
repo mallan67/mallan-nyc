@@ -1,5 +1,6 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { allFieldNames } from '@/lib/cotality/live-contract';
 import {
   FORBIDDEN_FIELDS,
   FORBIDDEN_LIVE_ALLOWLIST,
@@ -30,13 +31,7 @@ import {
 describe('FORBIDDEN_FIELDS snapshot parity (server phantom guard)', () => {
   const forbiddenKeys = Object.keys(FORBIDDEN_FIELDS);
 
-  const xml = readFileSync(
-    resolve(__dirname, '../../../artifacts/metadata.xml'),
-    'utf-8'
-  );
-  const snapshotNames = new Set(
-    [...xml.matchAll(/Name="([A-Za-z0-9_]+)"/g)].map((m) => m[1])
-  );
+  const snapshotNames = allFieldNames();
 
   it('parsed a non-trivial FORBIDDEN_FIELDS list and a populated snapshot', () => {
     expect(forbiddenKeys.length).toBeGreaterThanOrEqual(14);

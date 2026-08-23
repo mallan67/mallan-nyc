@@ -333,13 +333,17 @@ function section3() {
     pass(s, `  ${res}: ${count} fields`);
   }
 
-  // Check OData metadata (1,426 fields)
-  const meta = readFile('artifacts/metadata.xml');
-  if (meta) {
-    const propCount = (meta.match(/<Property\s+Name="/g) || []).length;
-    pass(s, `OData metadata: ${propCount} total field definitions`);
+  // Field definitions the live Cotality contract declares, across all resources.
+  const contractRaw = readFile('data/cotality-contract.live.json');
+  if (contractRaw) {
+    const contract = JSON.parse(contractRaw);
+    const propCount = Object.values(contract.entityTypes || {}).reduce(
+      (n, rt) => n + Object.keys(rt.properties || {}).length,
+      0,
+    );
+    pass(s, `Cotality contract: ${propCount} field definitions across ${Object.keys(contract.entityTypes || {}).length} resources (pulled ${contract.pulled_at})`);
   } else {
-    info(s, 'artifacts/metadata.xml not found', 'Cannot verify OData field count');
+    info(s, 'Cotality contract not found', 'Run npm run cotality:pull-contract');
   }
 
   // Check mapper coverage of CSV Property fields

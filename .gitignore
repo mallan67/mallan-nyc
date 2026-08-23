@@ -287,3 +287,7 @@ tests/e2e/_artifacts/
 # Never a runtime input and never field authority.
 artifacts/cotality-drift/
 artifacts/cotality-snapshots/
+
+# Raw provider wire captures are ephemeral diagnostic evidence, never tracked
+# and never authority. The verified contract is data/cotality-contract.live.json.
+artifacts/metadata.xml

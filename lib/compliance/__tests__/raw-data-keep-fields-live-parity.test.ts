@@ -1,5 +1,6 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { allFieldNames } from '@/lib/cotality/live-contract';
 import {
   RAW_DATA_KEEP_FIELDS,
   RAW_DATA_KEEP_SET,
@@ -27,13 +28,7 @@ import {
  * scripts/audit-server-trestle-coverage.ts — the live-audit source of truth.
  */
 describe('RAW_DATA_KEEP_FIELDS live-parity (no phantom Cotality fields kept)', () => {
-  const xml = readFileSync(
-    resolve(__dirname, '../../../artifacts/metadata.xml'),
-    'utf-8'
-  );
-  const liveNames = new Set(
-    [...xml.matchAll(/Name="([A-Za-z0-9_]+)"/g)].map((m) => m[1])
-  );
+  const liveNames = allFieldNames();
 
   // Known phantoms / forbidden field names per the live server-coverage audit.
   // NOTE: MoveInCostsComments is NO LONGER here — it went live (Property field)
@@ -51,7 +46,7 @@ describe('RAW_DATA_KEEP_FIELDS live-parity (no phantom Cotality fields kept)', (
     'ResourceRecordID',
   ];
 
-  it('artifacts/metadata.xml parsed and non-empty', () => {
+  it('the Cotality contract is loaded and non-empty', () => {
     expect(liveNames.size).toBeGreaterThan(500);
   });
 

@@ -21,6 +21,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { fieldsOn } from '@/lib/cotality/live-contract';
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const read = (p: string) => fs.readFileSync(path.join(REPO_ROOT, p), 'utf8');
@@ -220,16 +221,8 @@ describe('form init wires Cotality neighborhood loader', () => {
 // ──────────────────────────────────────────────────────────────────────────
 describe('buildings/search $select is metadata-valid (no phantom Cotality fields)', () => {
   const routeSrc = read('app/api/buildings/search/route.ts');
-  const metadata = read('artifacts/metadata.xml');
-
-  // EDM property names on the Cotality Property entity (the `"` anchors away
-  // from PropertyRooms / PropertyUnitTypes / PropertyGreenVerification).
-  const propertyFields = (() => {
-    const block = (metadata.match(/<EntityType Name="Property"[\s\S]*?<\/EntityType>/) || [''])[0];
-    const names = new Set<string>();
-    for (const m of block.matchAll(/<Property Name="([^"]+)"/g)) names.add(m[1]);
-    return names;
-  })();
+  // Field names the live Cotality contract declares on the Property resource.
+  const propertyFields = new Set(Object.keys(fieldsOn('Property')));
 
   // The route's OData $select array (const SELECT = [ '...', ... ].join(','))
   const selectFields = (() => {

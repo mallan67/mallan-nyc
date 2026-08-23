@@ -17,12 +17,10 @@
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { field as cotalityField } from '@/lib/cotality/live-contract';
 
 const FORM_PATH = resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html');
-const META_PATH = resolve(__dirname, '../../artifacts/metadata.xml');
 const formHtml = readFileSync(FORM_PATH, 'utf8');
-const metadata = readFileSync(META_PATH, 'utf8');
-
 function extractFn(src: string, name: string): string {
   const sig = `function ${name}(`;
   let start = src.indexOf(sig);
@@ -36,7 +34,7 @@ function extractFn(src: string, name: string): string {
   }
   throw new Error(`unbalanced braces for ${name}`);
 }
-const hasCotalityField = (f: string) => new RegExp(`Property Name="${f}"`).test(metadata);
+const hasCotalityField = (f: string) => cotalityField('Property', f) !== null;
 
 describe('Cotality authority — phantom vs real (no guessing)', () => {
   it('phantom commission/building fields are NOT in live $metadata', () => {

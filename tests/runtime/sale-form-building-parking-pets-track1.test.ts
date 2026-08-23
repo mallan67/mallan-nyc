@@ -19,11 +19,11 @@
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { field as cotalityField } from '@/lib/cotality/live-contract';
 
 const FORM = readFileSync(resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html'), 'utf8');
 const ROUTE = readFileSync(resolve(__dirname, '../../app/api/buildings/search/route.ts'), 'utf8');
-const META = readFileSync(resolve(__dirname, '../../artifacts/metadata.xml'), 'utf8');
-const hasField = (f: string) => new RegExp(`Property Name="${f}"`).test(META);
+const hasField = (f: string) => cotalityField('Property', f) !== null;
 
 function extractFn(src: string, name: string): string {
   const sig = `function ${name}(`;
