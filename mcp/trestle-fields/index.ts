@@ -33,7 +33,6 @@ const METADATA_URL = `${TRESTLE_BASE}/odata/$metadata`;
 // CDN default from the live response), which is not a metadata-refresh instruction. Env-overridable.
 const CACHE_TTL_MS = Number(process.env.TRESTLE_METADATA_TTL_MS) || 10 * 60 * 1000; // 10 minutes
 const CACHE_TTL_MIN = Math.round(CACHE_TTL_MS / 60000);
-const LOCAL_METADATA_FALLBACK = path.resolve(__dirname, '../../artifacts/metadata.xml');
 
 // Known resources on Trestle (for validation + listing)
 const KNOWN_RESOURCES = [
@@ -327,15 +326,21 @@ async function getMetadata(): Promise<ParsedMetadata> {
     auditLog('metadata_fetch_error', { error: err.message, source: 'live' });
   }
 
-  // Fallback to local metadata.xml if live fetch failed
-  if (!xml && fs.existsSync(LOCAL_METADATA_FALLBACK)) {
-    xml = fs.readFileSync(LOCAL_METADATA_FALLBACK, 'utf-8');
-    auditLog('metadata_fetch', { source: 'local_fallback', path: LOCAL_METADATA_FALLBACK });
-  }
-
+  // NO FALLBACK. Removed 2026-08-23.
+  //
+  // This used to fall back to the committed artifacts/metadata.xml capture, and
+  // recorded that only in a stderr audit line the CALLER NEVER SEES. A tool whose
+  // answer is indistinguishable between "live" and "a stale snapshot" is not a
+  // source of provider truth - and that capture is demonstrably stale: it declares
+  // OwnerOptOut, which exists on no live Cotality resource.
+  //
+  // Three states, never collapsed: VERIFIED LIVE / PROVIDER REJECTED / UNVERIFIED.
+  // An acquisition failure is UNVERIFIED and must surface as an error, because
+  // UNVERIFIED silently dressed as an answer is how stale provider truth returns.
   if (!xml) {
     throw new Error(
-      '[trestle-fields] Could not fetch $metadata from Trestle and no local fallback found. ' +
+      '[trestle-fields] UNVERIFIED: could not fetch $metadata from the live Cotality API. ' +
+      'There is deliberately no snapshot fallback - a stale answer is worse than no answer. ' +
       'Check IDX_CLIENT_ID, IDX_CLIENT_SECRET, and network connectivity.'
     );
   }

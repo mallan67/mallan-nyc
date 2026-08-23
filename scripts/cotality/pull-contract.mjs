@@ -71,6 +71,36 @@ for (const m of xml.matchAll(/<EnumType\s+Name="([^"]+)"[^>]*>([\s\S]*?)<\/EnumT
   });
 }
 
+
+/**
+ * COTALITY RAW CONTRACT -> VERIFIED MALLAN COTALITY CONTRACT.
+ *
+ * The wire declares a property's type as a fully qualified namespace path. That
+ * path is Cotality's internal implementation detail. Mallan needs the SEMANTIC
+ * FACTS - primitive type, enum type name, multi/collection, nullability, length,
+ * precision, scale - and nothing else.
+ *
+ * THIS DOES NOT ALTER COTALITY'S RESPONSE. The HTTP body is untouched; this is
+ * the projection Mallan chooses to store. Persisting the namespace would carry an
+ * obsolete provider abstraction into Mallan's architecture merely because the
+ * provider's schema happens to expose one.
+ */
+function describeType(rawType) {
+  const raw = String(rawType || '');
+  const collection = /^Collection\((.+)\)$/.exec(raw);
+  const inner = collection ? collection[1] : raw;
+  if (!inner) return { kind: 'unknown' };
+  if (inner.startsWith('Edm.')) {
+    return { kind: 'primitive', type: inner, collection: Boolean(collection) };
+  }
+  const segments = inner.split('.');
+  return {
+    kind: 'enum',
+    enumType: segments[segments.length - 1],
+    multi: segments.includes('Multi') || Boolean(collection),
+  };
+}
+
 const entityTypes = {};
 for (const m of xml.matchAll(/<EntityType\s+([^>]*?)>([\s\S]*?)<\/EntityType>/g)) {
   const entityAttrs = attrs(m[1]);
@@ -82,7 +112,7 @@ for (const m of xml.matchAll(/<EntityType\s+([^>]*?)>([\s\S]*?)<\/EntityType>/g)
     const a = attrs(p[1]);
     if (!a.Name) continue;
     properties[a.Name] = {
-      type: a.Type || null,
+      ...describeType(a.Type),
       nullable: a.Nullable !== 'false', // OData default is true when omitted
       maxLength: a.MaxLength ?? null,
       precision: a.Precision ?? null,
@@ -94,7 +124,7 @@ for (const m of xml.matchAll(/<EntityType\s+([^>]*?)>([\s\S]*?)<\/EntityType>/g)
     const a = attrs(n[1]);
     if (!a.Name) continue;
     navigation[a.Name] = {
-      type: a.Type || null,
+      kind: 'navigation',
       target: stripNamespace(a.Type),
       collection: String(a.Type || '').startsWith('Collection('),
       nullable: a.Nullable !== 'false',
@@ -117,7 +147,6 @@ for (const c of xml.matchAll(/<EntityContainer\s+[^>]*>([\s\S]*?)<\/EntityContai
     }
     entitySets[a.Name] = {
       entityType: stripNamespace(a.EntityType),
-      entityTypeQualified: a.EntityType || null,
       navigationBindings: bindings,
     };
   }
