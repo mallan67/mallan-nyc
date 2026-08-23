@@ -1,13 +1,13 @@
 {
   "_meta": {
-    "description": "Single pointer to all enforced compliance rule files. Every script reads this file first — no guessing, no snapshots.",
+    "description": "Single pointer to all enforced compliance rule files. Every script reads this file first \u2014 no guessing, no snapshots.",
     "version": "1.0.0",
-    "updated": "2026-02-25",
+    "updated": "2026-08-23",
     "brokerage": "Mallan Real Estate Inc.",
     "license": "#10991205323",
-    "feed": "REBNY RLS via Trestle (Cotality)",
+    "feed": "Cotality API (api.cotality.com/trestle) \u2014 the only external provider",
     "lmp": "RealPlus (listing input to RLS)",
-    "idx_display": "Trestle IDX Plus WebAPI (Trestle-11371-20) — read-only on mallan.nyc",
+    "idx_display": "Trestle IDX Plus WebAPI (Trestle-11371-20) \u2014 read-only on mallan.nyc",
     "fieldAuthorityOrder": [
       "1. UCBA governs everything",
       "2. REBNY RLS rules + RLS fields",
@@ -15,34 +15,34 @@
       "4. RESO/IDX fills gaps",
       "5. INTERNAL-ONLY otherwise",
       "6. Fail closed = NON-DISPLAY"
-    ]
+    ],
+    "authorityNote": "Provider truth comes from the live Cotality contract. REBNY/RLS is a set of compliance obligations enforced by the Mallan compliance system, not a data source, not a feed and not a field vocabulary."
   },
   "enforcedRules": {
     "rlsRequired": "compliance/rules/rls-required.json",
     "exportPolicy": "compliance/rules/export-policy.json",
-    "resoRlsRenames": "compliance/rules/reso-rls-renames.json",
     "statusRules": "compliance/rules/status-rules.json",
-    "contentRestrictions": "compliance/rules/content-restrictions.json"
+    "contentRestrictions": "compliance/rules/content-restrictions.json",
+    "mallanInternalOnlyFields": "compliance/rules/mallan-internal-only-fields.json"
   },
   "fieldData": {
+    "cotalityLiveContract": "data/cotality-contract.live.json",
+    "cotalityCrmFieldContract": "data/cotality-contract/crm-field-contract.json",
     "allFields": "compliance/fields.json",
     "lookups": "compliance/lookups.json",
-    "formBindings": "data/rls-form-bindings.json",
-    "fieldAliases": "data/rls-field-aliases.json",
-    "internalOnly": "data/rls-internal-only.json"
+    "_note": "Provider field existence, type, enum values and resource come ONLY from the Cotality contract above, which is regenerated live. The remaining files are Mallan-side and are not provider authority."
   },
   "validator": {
-    "script": "scripts/validate-rls-compliance.js",
-    "bindings": "scripts/audit-form-fields.js",
-    "injector": "scripts/inject-rls-attributes.js",
-    "tests": "scripts/test-rls-bindings.js",
-    "run": "npm run rls:validate",
-    "testRun": "npm run test:rls"
+    "cotalityContract": "scripts/cotality/validate-consumers.mjs",
+    "cotalityContractRun": "npm run cotality:validate",
+    "complianceSystem": "scripts/ci-compliance-check.js",
+    "complianceRun": "npm run compliance-check",
+    "_note": "The separate RLS validator was retired 2026-08-23. Its provider-field checks moved to the Cotality contract validation; its genuine compliance checks moved into the compliance system as check 29. There is no separate RLS validation architecture."
   },
   "ucbaAudit": {
     "checklist": "compliance/rules/ucba-audit-checklist.json",
     "validator": "scripts/ucba-compliance-audit.js",
     "run": "node scripts/ucba-compliance-audit.js",
-    "description": "UCBA 2026 full compliance audit — 145 rules, regression detection, pattern verification"
+    "description": "UCBA 2026 full compliance audit \u2014 145 rules, regression detection, pattern verification"
   }
 }

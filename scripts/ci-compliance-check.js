@@ -891,6 +891,166 @@ function git(cmd) {
   unverify(`PR claim verification — PR #${PR_NUM} makes closure claims; defer to release-truth-check.js for full evidence mapping`);
 })();
 
+
+// ── 29. CRM surface compliance — migrated from the retired RLS validator ──
+//
+// These checks were in scripts/validate-rls-compliance.js, which is deleted.
+// They are NOT provider-field checks: nothing here asks what Cotality contains.
+// They are Mallan compliance obligations that happen to be enforced on the CRM
+// HTML surface, so they belong in Mallan's one compliance system alongside
+// UCBA, Fair Housing and NY law.
+//
+// The provider-field half of that validator moved to `npm run cotality:validate`,
+// which answers only "does this field identity exist on the live Cotality
+// contract". Separating the two is the point: the old validator answered a
+// provider-field question with a "REBNY IDX Plus is the authority" rename table.
+//
+// STRENGTH, STATED HONESTLY. Like the originals, several of these are
+// presence checks over built markup. Per CLAUDE.md section F a presence check is
+// NOT sufficient for a behaviour claim; it proves a control is wired, not that it
+// fires. Behaviour is proven by crm:test and the runtime suites. They are
+// migrated at their original strength so no protection is lost in the move -
+// strengthening them is separate work, and pretending they are stronger than
+// they are would be worse than leaving them as they are.
+(function crmSurfaceCompliance() {
+  const CRM = path.join(ROOT, 'public/crm');
+  const built = path.join(CRM, 'index-built.html');
+  const viewers = [
+    { file: path.join(CRM, 'SALE-FORM-WITH-TOOLS.html'), mask: 'applySaleRoleMasking' },
+    { file: path.join(CRM, 'RENTAL-FORM-WITH-TOOLS.html'), mask: 'applyRentalRoleMasking' },
+  ];
+
+  // 29a. The CRM distribution-gate entry point must exist (REBNY UCBA Art. I).
+  if (fs.existsSync(built)) {
+    if (fileContains(built, /checkListingCompliance/)) {
+      pass('CRM distribution-gate entry point present (checkListingCompliance)');
+    } else {
+      fail('CRM distribution-gate entry point missing — listings would render ungated (REBNY UCBA Art. I)');
+    }
+
+    // 29b. Each gate concept must be referenced on a gated surface.
+    //
+    // Named in MALLAN terms. The old list also accepted IDXEntireListingDisplayYN,
+    // a field that exists on NO live Cotality resource - so a fabricated provider
+    // field was being treated as evidence that a gate was wired. Mallan's IDX
+    // opt-out is backed by Mallan's own idx_display_yn column.
+    const gates = [
+      ['Owner opt-out', /ownerOptOut|owner_opt_out/],
+      ['Participant only', /participantOnly|participant_only/],
+      ['IDX display opt-out (Mallan)', /idxDisplay|idx_display_yn/],
+      ['Syndication', /syndicateYN|SyndicateTo/],
+      ['Coming Soon', /ComingSoon|COMING_SOON/],
+      ['Closed', /Closed|CLOSED/],
+      ['Address suppression', /addressDisplayYN|InternetAddressDisplayYN/],
+      ['Internet display cascade', /InternetEntireListingDisplayYN/],
+    ];
+    for (const [name, rx] of gates) {
+      if (fileContains(built, rx)) pass(`CRM gate referenced: ${name}`);
+      else fail(`CRM gate not referenced anywhere on the gated surface: ${name} (REBNY UCBA Art. I)`);
+    }
+  } else {
+    unverify('CRM built bundle absent — gate references not checked');
+  }
+
+  // 29c. Role-based masking of agent PII in the viewer surfaces.
+  //      REBNY UCBA agent-PII masking + NY DOS §175.25 attribution.
+  const ROLES = ['broker', 'agent', 'buyer', 'tenant', 'seller', 'landlord'];
+  for (const { file, mask } of viewers) {
+    if (!fs.existsSync(file)) {
+      unverify(`Viewer absent, masking not checked: ${path.basename(file)}`);
+      continue;
+    }
+    const name = path.basename(file);
+    if (fileContains(file, new RegExp('function\\s+' + mask))) {
+      pass(`Role masking present: ${name} ${mask}()`);
+    } else {
+      fail(`Role masking function missing: ${name} ${mask}() — agent PII may render to unauthorised roles`);
+    }
+    const missingRoles = ROLES.filter((r) => !fileContains(file, new RegExp("'" + r + "'")));
+    if (missingRoles.length === 0) {
+      pass(`Role vocabulary complete: ${name}`);
+    } else {
+      fail(`Role vocabulary incomplete in ${name}: missing ${missingRoles.join(', ')}`);
+    }
+  }
+
+  // 29d. Viewer lockdown — a viewer displays, it never writes.
+  for (const { file } of viewers) {
+    if (!fs.existsSync(file)) continue;
+    const name = path.basename(file);
+    const raw = fs.readFileSync(file, 'utf8');
+
+    if (/data-mallan-viewer="true"/.test(raw)) {
+      pass(`Viewer marked read-only: ${name}`);
+    } else {
+      fail(`Viewer read-only marker missing: ${name} (data-mallan-viewer="true")`);
+    }
+
+    const actions = raw.match(/<form[^>]*action=["'][^"']*["'][^>]*>/gi) || [];
+    const writable = actions.filter(
+      (a) => !/action=""/.test(a) && !/action="#"/.test(a) && !/javascript:/.test(a),
+    );
+    if (writable.length === 0) {
+      pass(`Viewer submits nothing: ${name}`);
+    } else {
+      fail(`Viewer has a submitting form: ${name} — ${writable[0].slice(0, 80)}`);
+    }
+  }
+
+  // 29e. Internal-only fields must never reach a public surface.
+  //
+  // MALLAN-OWNED CLASSIFICATION. These are Mallan's own form fields - internal
+  // notes, agent contact details, workflow state - which never leave Mallan
+  // regardless of what any provider does or does not expose. Formerly
+  // data/rls-internal-only.json, which framed a Mallan concept in provider terms.
+  const internalRules = path.join(ROOT, 'compliance/rules/mallan-internal-only-fields.json');
+  if (!fs.existsSync(internalRules)) {
+    fail('Mallan internal-only field classification missing (compliance/rules/mallan-internal-only-fields.json)');
+  } else {
+    const doc = JSON.parse(fs.readFileSync(internalRules, 'utf8'));
+    const fields = doc.internalOnlyFields || [];
+    if (fields.length === 0) {
+      fail('Mallan internal-only field classification is empty — nothing would be protected');
+    } else {
+      pass(`Mallan internal-only classification loaded (${fields.length} fields)`);
+      // A public DTO must not surface an internal field name.
+      const dto = path.join(ROOT, 'lib/idx/db-to-public-dto.ts');
+      if (fs.existsSync(dto)) {
+        // Match PROPERTY-KEY SHAPE only, with comments stripped first.
+        //
+        // A first version matched the bare word anywhere and flagged Date,
+        // Listing, Owner and Website - every one of them inside a comment or a
+        // TypeScript type annotation ("Date | null", "// Owner opt-out"). The
+        // classification carries 79 short generic tokens, so a substring match
+        // over prose is meaningless. A real leak is an EMITTED PROPERTY.
+        const src = fs
+          .readFileSync(dto, 'utf8')
+          .replace(/\/\*[\s\S]*?\*\//g, '')
+          .replace(/(^|[^:])\/\/.*$/gm, '$1');
+        // NO STRING-BUILT REGEX. Building a pattern from a string has silently
+        // collapsed its escapes four separate times in this workstream - the
+        // previous attempt compiled to "AdminCommentss*:" and matched nothing,
+        // so the check passed while protecting nothing. Literal scanning cannot
+        // fail that way.
+        const emitsProperty = (field) => {
+          const needle = field + ':';
+          let i = src.indexOf(needle);
+          while (i !== -1) {
+            const prev = i === 0 ? '' : src[i - 1];
+            // A property key, not a suffix of a longer identifier or a path.
+            if (!/[A-Za-z0-9_$.]/.test(prev)) return true;
+            i = src.indexOf(needle, i + 1);
+          }
+          return false;
+        };
+        const leaked = fields.filter(emitsProperty);
+        if (leaked.length === 0) pass('No internal-only field is emitted by the public DTO');
+        else fail(`Internal-only field(s) emitted by the public DTO: ${leaked.slice(0, 5).join(', ')}`);
+      }
+    }
+  }
+})();
+
 // ─── Final result with severity-aware exit code ─────────────────────────
 const totalFailures = failures;
 console.log(`\n=== Result: ${passes} passed, ${failures} failed (${SEV.BLOCKER}+${STRICT ? SEV.HIGH : 'STRICT only'}), ${warnings} warn, ${unverified} unverified ===`);

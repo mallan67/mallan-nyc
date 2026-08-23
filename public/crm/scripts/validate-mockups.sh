@@ -116,10 +116,10 @@ for vfile in "${VIEWER_FILES[@]}"; do
     FAIL=1
   fi
 
-  # Check data-rls-viewer="true"
-  rls_viewer=$(grep -c 'data-rls-viewer="true"' "$vfile" 2>/dev/null || true)
+  # Check data-mallan-viewer="true"
+  rls_viewer=$(grep -c 'data-mallan-viewer="true"' "$vfile" 2>/dev/null || true)
   if [ "$rls_viewer" -eq 0 ]; then
-    echo -e "    ${RED}FAIL${NC}: $vfile missing data-rls-viewer=\"true\""
+    echo -e "    ${RED}FAIL${NC}: $vfile missing data-mallan-viewer=\"true\""
     FAIL=1
   fi
 done

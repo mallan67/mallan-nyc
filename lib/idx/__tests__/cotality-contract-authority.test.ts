@@ -52,8 +52,19 @@ function runGenerator(extra: string[]): { status: number; stderr: string; stdout
   return { status: r.status ?? -1, stderr: r.stderr || '', stdout: r.stdout || '' };
 }
 
+/**
+ * A fixture derived from the real live contract.
+ *
+ * `pulled_at` is refreshed BEFORE the mutation, deliberately. The committed
+ * contract ages, so a fixture that inherited its timestamp would die on the
+ * freshness gate rather than reaching the behaviour under test - which is
+ * exactly what happened once these tests ran more than fifteen minutes after the
+ * contract was pulled. Tests that mean to exercise freshness set the stamp
+ * themselves, and there are dedicated tests for it above.
+ */
 function liveFixture(mutate: (doc: any) => void, name: string): string {
   const doc = JSON.parse(fs.readFileSync(LIVE_CONTRACT, 'utf8'));
+  doc.pulled_at = new Date().toISOString();
   mutate(doc);
   const p = path.join(tmp, name);
   fs.writeFileSync(p, JSON.stringify(doc));

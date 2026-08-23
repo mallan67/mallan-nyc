@@ -134,8 +134,8 @@ jobs:
       - name: Jest tests
         run: npx jest --ci --forceExit
 
-      - name: RLS compliance validator
-        run: npm run rls:validate
+      - name: Cotality contract validation
+        run: npm run cotality:validate
 
       - name: UCBA compliance audit
         run: npm run ucba:audit

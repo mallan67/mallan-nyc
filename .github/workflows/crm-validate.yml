@@ -87,9 +87,9 @@ jobs:
                 FAIL=1
               fi
 
-              # Check data-rls-viewer="true"
-              if ! grep -q 'data-rls-viewer="true"' "$file" 2>/dev/null; then
-                echo "FAIL: $file missing data-rls-viewer=\"true\""
+              # Check data-mallan-viewer="true"
+              if ! grep -q 'data-mallan-viewer="true"' "$file" 2>/dev/null; then
+                echo "FAIL: $file missing data-mallan-viewer=\"true\""
                 FAIL=1
               fi
             fi
