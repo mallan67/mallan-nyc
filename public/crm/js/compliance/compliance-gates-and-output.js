@@ -26,7 +26,7 @@ function checkListingCompliance(listingIds, displayContext) {
         // Gate 2: Participant Only — CRM only (authorized RLS participants)
         if (perm.participantOnly === true) {
             if (displayContext !== 'crm') {
-                result.blocked.push({ id: id, address: listing.address, reason: 'Participant Only — visible to RLS participants only (RLS: Permissions=Private)' });
+                result.blocked.push({ id: id, address: listing.address, reason: 'Participant Only — visible to RLS participants only (Mallan participant-only permission)' });
                 return;
             }
         }
@@ -34,16 +34,16 @@ function checkListingCompliance(listingIds, displayContext) {
         // Gate 3: Display context — IDX vs VOW vs CRM
         if (displayContext === 'idx') {
             if (listing.idxDisplayYN === false || perm.idxDisplay === false) {
-                result.blocked.push({ id: id, address: listing.address, reason: 'IDX Display opted out — not shown on IDX websites (RLS: IDXEntireListingDisplayYN)' });
+                result.blocked.push({ id: id, address: listing.address, reason: 'IDX Display opted out — not shown on IDX websites (Mallan/REBNY IDX opt-out; Cotality exposes no IDX-specific gate)' });
                 return;
             }
             if (listing.internetDisplayYN === false) {
-                result.blocked.push({ id: id, address: listing.address, reason: 'Internet display opted out — not shown on any website (RLS: InternetEntireListingDisplayYN)' });
+                result.blocked.push({ id: id, address: listing.address, reason: 'Internet display opted out — not shown on any website (Cotality InternetEntireListingDisplayYN)' });
                 return;
             }
         } else if (displayContext === 'vow') {
             if (listing.internetDisplayYN === false) {
-                result.blocked.push({ id: id, address: listing.address, reason: 'Internet display opted out — not shown in VOW portal (RLS: InternetEntireListingDisplayYN)' });
+                result.blocked.push({ id: id, address: listing.address, reason: 'Internet display opted out — not shown in VOW portal (Cotality InternetEntireListingDisplayYN)' });
                 return;
             }
         }
@@ -413,7 +413,7 @@ function renderSavedSearchMatches() {
         html += '<div class="text-[10px] text-gray-400 mt-0.5">Criteria: ';
         Object.keys(s.criteria).forEach(function(k, i) {
             var resoName = s.reso[k] || k;
-            html += (i > 0 ? ', ' : '') + '<span' + (typeof resoData === 'function' ? resoData(k, s.criteria[k]) : '') + '>' + k + '=' + s.criteria[k] + '</span>';
+            html += (i > 0 ? ', ' : '') + '<span' + (typeof cotalityData === 'function' ? cotalityData(k, s.criteria[k]) : '') + '>' + k + '=' + s.criteria[k] + '</span>';
         });
         html += '</div></div>';
         html += '<div class="text-[9px] text-gray-400">Checked: ' + new Date(s.lastChecked).toLocaleTimeString() + '</div>';
@@ -462,8 +462,8 @@ function closingDeadlineBanner(listing) {
     }
     html += '</span>';
     html += '<div class="mt-1 flex items-center gap-2">';
-    html += '<span data-reso-field="ClosePrice"' + ' class="text-gray-500">Close Price: ' + (listing.closePrice ? '$' + listing.closePrice.toLocaleString() : '<em>required</em>') + '</span>';
-    html += '<span data-reso-field="CloseDate"' + ' class="text-gray-500">Close Date: ' + (listing.closeDate || '<em>required</em>') + '</span>';
+    html += '<span data-cotality-field="ClosePrice"' + ' class="text-gray-500">Close Price: ' + (listing.closePrice ? '$' + listing.closePrice.toLocaleString() : '<em>required</em>') + '</span>';
+    html += '<span data-cotality-field="CloseDate"' + ' class="text-gray-500">Close Date: ' + (listing.closeDate || '<em>required</em>') + '</span>';
     html += '</div>';
     html += '</div>';
     return html;
@@ -615,13 +615,13 @@ function renderEnhancedNotes(clientId) {
         if (n.listingId) {
             html += '<div class="mt-1 inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 rounded text-[10px] text-blue-700" data-listing-id="' + n.listingId + '" data-source="REBNY-RLS">';
             html += '<i class="fas fa-link"></i> ' + (n.listingAddress || 'Listing #' + n.listingId);
-            if (n.listingPrice) html += ' <span' + (typeof resoData === 'function' ? resoData('price', n.listingPrice) : '') + '>$' + n.listingPrice.toLocaleString() + '</span>';
+            if (n.listingPrice) html += ' <span' + (typeof cotalityData === 'function' ? cotalityData('price', n.listingPrice) : '') + '>$' + n.listingPrice.toLocaleString() + '</span>';
             html += '</div>';
         }
 
         // Status change fields
         if (n.resoField) {
-            html += '<div class="mt-1 inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 rounded text-[10px] text-gray-600" data-reso-field="' + n.resoField + '">';
+            html += '<div class="mt-1 inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 rounded text-[10px] text-gray-600" data-cotality-field="' + n.resoField + '">';
             html += '<i class="fas fa-exchange-alt"></i> ' + (n.oldValue || '') + ' → ' + (n.newValue || '');
             html += '</div>';
         }
@@ -650,12 +650,12 @@ function renderClientListingCard(listing) {
     html += '<div class="flex items-start gap-3">';
     html += '<div class="w-20 h-16 rounded bg-gray-100 flex-shrink-0 flex items-center justify-center"><i class="fas fa-camera text-gray-300"></i></div>';
     html += '<div class="flex-1 min-w-0">';
-    html += '<p class="text-sm font-bold truncate"' + (typeof resoData === 'function' ? resoData('address', displayAddress) : '') + '>' + displayAddress + '</p>';
-    html += '<p class="text-sm font-semibold text-gray-900"' + (typeof resoData === 'function' ? resoData('price', safe.price) : '') + '>$' + (safe.price || 0).toLocaleString() + '</p>';
+    html += '<p class="text-sm font-bold truncate"' + (typeof cotalityData === 'function' ? cotalityData('address', displayAddress) : '') + '>' + displayAddress + '</p>';
+    html += '<p class="text-sm font-semibold text-gray-900"' + (typeof cotalityData === 'function' ? cotalityData('price', safe.price) : '') + '>$' + (safe.price || 0).toLocaleString() + '</p>';
     html += '<div class="flex items-center gap-2 text-xs text-gray-500 mt-0.5">';
-    html += '<span' + (typeof resoData === 'function' ? resoData('beds', safe.beds) : '') + '>' + (safe.beds || '--') + ' bd</span>';
-    html += '<span' + (typeof resoData === 'function' ? resoData('baths', safe.baths) : '') + '>' + (safe.baths || '--') + ' ba</span>';
-    html += '<span' + (typeof resoData === 'function' ? resoData('intSqft', safe.intSqft) : '') + '>' + (safe.intSqft ? safe.intSqft.toLocaleString() + ' sf' : '--') + '</span>';
+    html += '<span' + (typeof cotalityData === 'function' ? cotalityData('beds', safe.beds) : '') + '>' + (safe.beds || '--') + ' bd</span>';
+    html += '<span' + (typeof cotalityData === 'function' ? cotalityData('baths', safe.baths) : '') + '>' + (safe.baths || '--') + ' ba</span>';
+    html += '<span' + (typeof cotalityData === 'function' ? cotalityData('intSqft', safe.intSqft) : '') + '>' + (safe.intSqft ? safe.intSqft.toLocaleString() + ' sf' : '--') + '</span>';
     html += '</div>';
     html += '</div></div>';
 
@@ -777,7 +777,7 @@ function renderAuditTrailViewer() {
         if (e.listingId) html += '<span class="text-[9px] text-blue-600" data-listing-id="' + e.listingId + '" data-source="REBNY-RLS">' + e.listingId + '</span>';
         if (e.clientId) html += '<span class="text-[9px] text-green-600" data-client-id="' + e.clientId + '">' + e.clientId + '</span>';
         if (isViolation) html += '<span class="px-1 py-0.5 bg-red-100 text-red-700 rounded text-[9px] font-bold" data-compliance="violation" data-ucba-rule="' + ((e.details || {}).rule || '') + '">Violation</span>';
-        if (e.details && e.details.resoField) html += '<span class="text-[9px] text-gray-400" data-reso-field="' + e.details.resoField + '">' + e.details.resoField + '</span>';
+        if (e.details && e.details.resoField) html += '<span class="text-[9px] text-gray-400" data-cotality-field="' + e.details.resoField + '">' + e.details.resoField + '</span>';
         html += '</div>';
         html += '<div class="text-[9px] text-gray-500 mt-0.5">';
         html += '<span>' + new Date(e.timestamp).toLocaleDateString() + ' ' + new Date(e.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) + '</span>';
@@ -819,7 +819,7 @@ function shareSearchToClient(clientId, searchCriteria) {
     };
 
     // Tag criteria with RESO names
-    var fieldMap = typeof RESO_FIELD_MAP !== 'undefined' ? RESO_FIELD_MAP : {};
+    var fieldMap = typeof COTALITY_FIELD_MAP !== 'undefined' ? COTALITY_FIELD_MAP : {};
     Object.keys(criteria).forEach(function(k) {
         if (fieldMap[k]) sharedSearch.resoCriteria[fieldMap[k]] = criteria[k];
     });
@@ -840,7 +840,7 @@ function shareSearchToClient(clientId, searchCriteria) {
 
 // ═══════════════════════════════════════════════════════════════
 // ACTIVITY SUMMARY ON CLIENT CARDS (#24 / Step 24)
-// Listing refs, budget via resoData
+// Listing refs, budget via cotalityData
 // ═══════════════════════════════════════════════════════════════
 
 function renderClientActivitySummary(client) {
@@ -850,7 +850,7 @@ function renderClientActivitySummary(client) {
     // Budget with RESO tag
     if (client.budget || client.maxBudget) {
         var budget = client.budget || client.maxBudget;
-        html += '<div class="flex items-center gap-2"><i class="fas fa-dollar-sign text-green-500 w-4"></i><span>Budget: <strong' + (typeof resoData === 'function' ? resoData('price', budget) : '') + '>$' + budget.toLocaleString() + '</strong></span></div>';
+        html += '<div class="flex items-center gap-2"><i class="fas fa-dollar-sign text-green-500 w-4"></i><span>Budget: <strong' + (typeof cotalityData === 'function' ? cotalityData('price', budget) : '') + '>$' + budget.toLocaleString() + '</strong></span></div>';
     }
 
     // Recent activity items
@@ -874,7 +874,7 @@ function renderClientActivitySummary(client) {
         client.recentListings.slice(0, 3).forEach(function(l) {
             html += '<div class="flex items-center gap-2 py-0.5" data-listing-id="' + l.id + '" data-source="REBNY-RLS">';
             html += '<span class="text-blue-600 truncate">' + (l.address || 'Listing #' + l.id) + '</span>';
-            if (l.price) html += '<span class="text-gray-500"' + (typeof resoData === 'function' ? resoData('price', l.price) : '') + '>$' + l.price.toLocaleString() + '</span>';
+            if (l.price) html += '<span class="text-gray-500"' + (typeof cotalityData === 'function' ? cotalityData('price', l.price) : '') + '>$' + l.price.toLocaleString() + '</span>';
             html += '</div>';
         });
         html += '</div>';
@@ -905,8 +905,8 @@ function renderMessageWithListingShare(message) {
             var safe = typeof sanitizeListingSnapshot === 'function' ? sanitizeListingSnapshot(l) : l;
             html += '<div class="flex items-center gap-2 px-2 py-1.5 bg-white rounded border text-xs" data-listing-id="' + safe.id + '" data-source="REBNY-RLS">';
             html += '<i class="fas fa-home text-blue-400"></i>';
-            html += '<span class="font-medium"' + (typeof resoData === 'function' ? resoData('address', safe.address) : '') + '>' + (safe.address || 'Address Available Upon Request') + '</span>';
-            html += '<span' + (typeof resoData === 'function' ? resoData('price', safe.price) : '') + '>$' + (safe.price || 0).toLocaleString() + '</span>';
+            html += '<span class="font-medium"' + (typeof cotalityData === 'function' ? cotalityData('address', safe.address) : '') + '>' + (safe.address || 'Address Available Upon Request') + '</span>';
+            html += '<span' + (typeof cotalityData === 'function' ? cotalityData('price', safe.price) : '') + '>$' + (safe.price || 0).toLocaleString() + '</span>';
             html += '<span class="text-gray-400">' + (safe.beds || '--') + 'bd/' + (safe.baths || '--') + 'ba</span>';
             html += '</div>';
         });
@@ -954,7 +954,7 @@ function renderSearchHistoryLog() {
         html += '<div class="flex items-center flex-wrap gap-1">';
         Object.keys(s.criteria).forEach(function(k) {
             var resoName = searchHistoryResoMap[k] || k;
-            html += '<span class="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px]"' + (typeof resoData === 'function' ? resoData(k, s.criteria[k]) : '') + ' title="RLS/RESO/IDX: ' + resoName + '">' + k + ': ' + s.criteria[k] + '</span>';
+            html += '<span class="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px]"' + (typeof cotalityData === 'function' ? cotalityData(k, s.criteria[k]) : '') + ' title="RLS/RESO/IDX: ' + resoName + '">' + k + ': ' + s.criteria[k] + '</span>';
         });
         html += '</div>';
         html += '<div class="text-[10px] text-gray-400 mt-0.5">' + s.resultCount + ' results &middot; ' + s.duration + '</div>';
@@ -989,7 +989,7 @@ function renderAgentPerformanceMetrics() {
     ];
 
     metrics.forEach(function(m) {
-        html += '<div class="bg-white rounded-xl border p-4 text-center"' + (m.reso ? ' data-reso-field="' + m.reso + '"' : '') + '>';
+        html += '<div class="bg-white rounded-xl border p-4 text-center"' + (m.reso ? ' data-cotality-field="' + m.reso + '"' : '') + '>';
         html += '<i class="fas ' + m.icon + ' text-2xl mb-2" style="color:' + m.color + '"></i>';
         html += '<div class="text-lg font-bold text-gray-900">' + m.value + '</div>';
         html += '<div class="text-xs text-gray-500">' + m.label + '</div>';
@@ -1195,14 +1195,14 @@ function REBNYComplianceDoctor(options) {
             'ACTIVE', 'PENDING', 'CLOSED', 'COMING_SOON', 'COMINGSOON',
             'WITHDRAWN', 'EXPIRED', 'CANCELED', 'HOLD', 'INCOMPLETE'
         ];
-        var statusElements = document.querySelectorAll('[data-reso-field="MlsStatus"]');
+        var statusElements = document.querySelectorAll('[data-cotality-field="StandardStatus"]');
         var invalidCount = 0;
         var totalChecked = 0;
         var invalidValues = [];
 
         statusElements.forEach(function(el) {
-            var val = el.getAttribute('data-reso-value');
-            if (!val) return; // Skip elements without data-reso-value (column headers, labels)
+            var val = el.getAttribute('data-cotality-value');
+            if (!val) return; // Skip elements without data-cotality-value (column headers, labels)
             totalChecked++;
             val = val.trim().toUpperCase();
             if (validStatuses.indexOf(val) === -1) { invalidCount++; invalidValues.push(val); }
@@ -1233,7 +1233,7 @@ function REBNYComplianceDoctor(options) {
         var violations = [];
         PROHIBITED_DISPLAY_FIELDS.forEach(function(field) {
             var found = document.querySelectorAll(
-                '[data-reso-field="' + field + '"], [data-field="' + field + '"]'
+                '[data-cotality-field="' + field + '"], [data-field="' + field + '"]'
             );
             found.forEach(function(el) {
                 var parent = el.closest('[data-access-level]');
@@ -1276,7 +1276,7 @@ function REBNYComplianceDoctor(options) {
         ];
         var fhViolations = [];
         var descriptionAreas = document.querySelectorAll(
-            '#publicDescription, [data-reso-field="PublicRemarks"], .listing-description'
+            '#publicDescription, [data-cotality-field="PublicRemarks"], .listing-description'
         );
         descriptionAreas.forEach(function(el) {
             var text = el.textContent || el.value || '';
@@ -1534,11 +1534,11 @@ function REBNYWiringTest(options) {
 
     // ── W1: Field Parity Test ──────────────────────────────────────────
     (function() {
-        var ALLOWED = ['SourceSystemKey','ListPrice','MlsStatus','PropertyType','PropertySubType','BedroomsTotal','BathroomsTotalInteger','LivingArea','YearBuilt','UnparsedAddress','City','StateOrProvince','PostalCode','Latitude','Longitude','ListAgentFullName','ListOfficeName','ListingAgreement','InternetEntireListingDisplayYN','InternetAddressDisplayYN','OwnerOptOut','ParticipantOnly','IDXEntireListingDisplayYN','SyndicateTo','ComingSoonTimestamp','ActivationDate','PublicRemarks','PrivateRemarks','ShowingInstructions','ListAgentEmail','ListAgentDirectPhone','MaintenanceFee','TaxAnnualAmount','CommonCharges','neighborhood','borough','photoCount','daysOnMarket','pricePerSqft','updatedDate','listedDate','buildingName','lotSize','stories','units','parkingFeatures','garageSpaces','listingCategory','CommonInterest','Ownership','PetsAllowed','LaundryFeatures','Amenities','CoolingYN','HeatingYN','FireplacesTotal','WaterfrontYN','ViewYN','TaxBlock','TaxLot','Zoning','FloorNumber','UnitNumber','Concessions','FinancialDataSource','AssociationFee','RentIncludes','NumberOfUnitsTotal','StoriesTotal','LotSizeArea','GarageYN','AssociationFee+TaxAnnualAmount','RoomsTotal','BathroomsFull','SubdivisionName','OnMarketDate','DaysOnMarket','CumulativeDaysOnMarket','OpenHouseDate','AssociationName','SecurityFeatures','PropertyCondition','PurchaseContractDate','BuyerFinancing','BuildingAreaTotal','PreviousListPrice','OriginalListPrice','PriceChangeTimestamp','ListAgentDirectPhone','PatioAndPorchFeatures','NewConstructionYN','SourceSystemModificationTimestamp','ListingId','EntryLevel','CrossStreet','Exposures','WalkScore','BathroomsHalf','BuildingName','CloseDate','ClosePrice','PhotosCount','VirtualTourURLBranded','View','Flooring','Cooling','Heating','ParkingFeatures','ParkingTotal','PetsAllowedYN','AssociationAmenities','InteriorFeatures'];
-        var resoEls = document.querySelectorAll('[data-reso-field]');
+        var ALLOWED = ['SourceSystemKey','ListPrice','StandardStatus','ModificationTimestamp','PropertyType','PropertySubType','BedroomsTotal','BathroomsTotalInteger','LivingArea','YearBuilt','UnparsedAddress','City','StateOrProvince','PostalCode','Latitude','Longitude','ListAgentFullName','ListOfficeName','ListingAgreement','InternetEntireListingDisplayYN','InternetAddressDisplayYN','OwnerOptOut','ParticipantOnly','SyndicateTo','ActivationDate','PublicRemarks','PrivateRemarks','ShowingInstructions','ListAgentEmail','ListAgentDirectPhone','MaintenanceFee','TaxAnnualAmount','CommonCharges','neighborhood','borough','photoCount','daysOnMarket','pricePerSqft','updatedDate','listedDate','buildingName','lotSize','stories','units','parkingFeatures','garageSpaces','listingCategory','CommonInterest','Ownership','PetsAllowed','LaundryFeatures','Amenities','CoolingYN','HeatingYN','FireplacesTotal','WaterfrontYN','ViewYN','TaxBlock','TaxLot','Zoning','FloorNumber','UnitNumber','Concessions','FinancialDataSource','AssociationFee','RentIncludes','NumberOfUnitsTotal','StoriesTotal','LotSizeArea','GarageYN','AssociationFee+TaxAnnualAmount','RoomsTotal','BathroomsFull','SubdivisionName','OnMarketDate','DaysOnMarket','CumulativeDaysOnMarket','OpenHouseDate','AssociationName','SecurityFeatures','PropertyCondition','PurchaseContractDate','BuyerFinancing','BuildingAreaTotal','PreviousListPrice','OriginalListPrice','PriceChangeTimestamp','ListAgentDirectPhone','PatioAndPorchFeatures','NewConstructionYN','ListingId','EntryLevel','CrossStreet','Exposures','WalkScore','BathroomsHalf','BuildingName','CloseDate','ClosePrice','PhotosCount','VirtualTourURLBranded','View','Flooring','Cooling','Heating','ParkingFeatures','ParkingTotal','PetsAllowedYN','AssociationAmenities','InteriorFeatures'];
+        var resoEls = document.querySelectorAll('[data-cotality-field]');
         var unknown = [], seen = {};
         resoEls.forEach(function(el) {
-            var f = el.getAttribute('data-reso-field');
+            var f = el.getAttribute('data-cotality-field');
             seen[f] = true;
             if (ALLOWED.indexOf(f) === -1 && unknown.indexOf(f) === -1) unknown.push(f);
         });
@@ -1559,14 +1559,14 @@ function REBNYWiringTest(options) {
     (function() {
         var issues = [];
         var VS = ['Active','Pending','Closed','ComingSoon','Coming Soon','COMING_SOON','COMINGSOON','Withdrawn','Expired','Canceled','Hold','Incomplete','ActiveUnderContract','ACTIVE','PENDING','CLOSED','WITHDRAWN','EXPIRED','CANCELED','HOLD','INCOMPLETE','ACTIVE_UNDER_CONTRACT'];
-        document.querySelectorAll('[data-reso-field="MlsStatus"][data-reso-value]').forEach(function(el) {
-            var val = el.getAttribute('data-reso-value');
+        document.querySelectorAll('[data-cotality-field="StandardStatus"][data-cotality-value]').forEach(function(el) {
+            var val = el.getAttribute('data-cotality-value');
             if (!val) return;
             val.split(',').forEach(function(v) { v = v.trim(); if (v && VS.indexOf(v) === -1) issues.push('Status:"' + v + '"'); });
         });
         var VB = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island','The Bronx'];
-        document.querySelectorAll('[data-reso-field="borough"][data-reso-value]').forEach(function(el) {
-            var v = el.getAttribute('data-reso-value'); if (v && VB.indexOf(v) === -1) issues.push('Borough:"' + v + '"');
+        document.querySelectorAll('[data-cotality-field="borough"][data-cotality-value]').forEach(function(el) {
+            var v = el.getAttribute('data-cotality-value'); if (v && VB.indexOf(v) === -1) issues.push('Borough:"' + v + '"');
         });
         if (typeof listings !== 'undefined') {
             listings.forEach(function(l) {
@@ -1579,7 +1579,7 @@ function REBNYWiringTest(options) {
     // ── W3: Null Handling Test ─────────────────────────────────────────
     (function() {
         var problems = [];
-        document.querySelectorAll('td, [data-listing-id], [data-reso-value]').forEach(function(el) {
+        document.querySelectorAll('td, [data-listing-id], [data-cotality-value]').forEach(function(el) {
             if (el.offsetParent === null) return;
             var t = el.textContent.trim();
             if (t === 'undefined' || t === 'null' || t === 'NaN' || t === '$NaN' || t === '$undefined') problems.push('"' + t + '" in <' + el.tagName.toLowerCase() + '>');

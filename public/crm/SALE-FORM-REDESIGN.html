@@ -8232,8 +8232,8 @@ function performAutoSave() {
     var updateId = _saleEditDbId || _saleEditListingId || displayId;
     var isRealId = updateId && updateId !== '--' && updateId !== 'New' && /^(SL-|RL-|\d)/.test(String(updateId));
     if (isRealId && typeof MallanAPI !== 'undefined' && MallanAPI.isReady) {
-        var resoData = collectSaleFormData();
-        MallanAPI.listings.update(updateId, resoData).catch(function(err) {
+        var cotalityData = collectSaleFormData();
+        MallanAPI.listings.update(updateId, cotalityData).catch(function(err) {
             console.warn('[AutoSave] Server save failed (id=' + updateId + '):', err.message);
         });
     }

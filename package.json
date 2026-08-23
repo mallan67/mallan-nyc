@@ -73,6 +73,7 @@
     "hooks:install": "git config core.hooksPath .githooks && echo '✓ Git hooks installed from .githooks/. NEON pre-commit guard is active.'",
     "health:probe": "tsx scripts/health/probe.ts",
     "neon:verify": "tsx scripts/neon-verify.ts",
+    "cotality:crm-contract": "node scripts/cotality/build-crm-field-contract.mjs",
     "cotality:pull": "node scripts/cotality/pull-enums.mjs",
     "cotality:verify": "node scripts/cotality-verify.mjs",
     "ops:health": "node --env-file-if-exists=.env.local --env-file-if-exists=.env scripts/ops-health.js",

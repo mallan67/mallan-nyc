@@ -50,7 +50,7 @@ const EXTRA_FILES = {
   tenantDeal:   path.join(SEARCH_MODULAR, 'TENANT-DEAL-FORM.html'),
 };
 
-const SOURCE_MODULE = path.join(SEARCH_MODULAR, 'js', 'core', 'reso-field-map.js');
+const SOURCE_MODULE = path.join(SEARCH_MODULAR, 'js', 'core', 'cotality-field-map.js');
 const LOOKUP_CSV = path.join(REPO_ROOT, 'data', 'rebny-rls-property-lookup.csv');
 const FIELDS_CSV = path.join(REPO_ROOT, 'data', 'rebny-rls-property-fields.csv');
 
@@ -67,33 +67,38 @@ for (const [k, v] of Object.entries(CRM_OVERLAY_VALUES_RAW)) {
 
 // ── Constants (small, stable — stay in validator) ────────────────────────
 
-const RESO_TO_RLS_RENAMES = {
-  'BuyerAgentKey':            'BuyerAgentMlsId',
-  'BuyerOfficeKey':           'BuyerOfficeMlsId',
-  'BuyerTeamKey':             'BuyerTeamMlsId',
-  'CableTvExpense':           'CableTVExpense',
-  'CeilingHeight':            'CeilingHeightFeet',
-  'CoBuyerAgentKey':          'CoBuyerAgentMlsId',
-  'CoBuyerOfficeKey':         'CoBuyerOfficeMlsId',
-  'CoExclusiveListingKey':    'DuplicateListingIDs',
-  'CoListAgent2Key':          'CoListAgent2MLSID',
-  'CoListAgent3Key':          'CoListAgent3MLSID',
-  'CoListAgentKey':           'CoListAgentMlsId',
-  'ListAgentKey':             'ListAgentMlsId',
-  'ListOfficeKey':            'ListOfficeMlsId',
-  'ListTeamKey':              'ListTeamMlsId',
-  'LotDimensionsSource':      'LotSizeSource',
-  'StandardStatus':           'MlsStatus',
-  'ShowingContactPhoneExt':   'ShowingContactPhone',
-  'ListingKey':               'SourceSystemKey',
-  'ModificationTimestamp':    'SourceSystemModificationTimestamp',
-  'UnparsedAddress':          'UnParsedAddress',
-};
+// THE RENAME TABLE THAT USED TO LIVE HERE WAS DELETED 2026-08-23.
+//
+// It asserted twenty "provider renamed field A to field B" pairs. Checked
+// against the live authenticated Cotality Property resource, every pair fails in
+// one of two ways:
+//
+//   BOTH FIELDS EXIST, INDEPENDENTLY, MEANING DIFFERENT THINGS
+//     ListAgentKey String(20) and ListAgentMlsId String(25); BuyerAgentKey and
+//     BuyerAgentMlsId; LotDimensionsSource and LotSizeSource;
+//     ShowingContactPhoneExt String(10) and ShowingContactPhone String(16).
+//     StandardStatus is an 11-value enum, MlsStatus a separate 25-value enum -
+//     the same label carries different integer codes in each, so treating one as
+//     the other corrupts the value even when the string matches.
+//     ListingKey is String(20) NOT NULL; SourceSystemKey is String(255) NULLABLE.
+//
+//   THE TARGET DOES NOT EXIST AT ALL
+//     SourceSystemModificationTimestamp, UnParsedAddress, CableTVExpense,
+//     CeilingHeightFeet, CoExclusiveListingKey, DuplicateListingIDs.
+//
+// This table was not merely stale documentation - section 3 ENFORCED it, so the
+// validator reported success precisely when the CRM named the wrong field. It is
+// the same table removed from lib/idx/trestle-mapper.ts in 45468c47, surviving in
+// a second place. Field identity now comes from the generated contract, which is
+// checkable, instead of a hand-written list of asserted renames.
 
-const CRITICAL_RENAMES = {
-  status:      'MlsStatus',
-  wid:         'SourceSystemKey',
-  updatedDate: 'SourceSystemModificationTimestamp',
+
+// The CRM keys whose provider field must not drift between source and build.
+// Values verified against the live Cotality Property resource 2026-08-23.
+const CRITICAL_MAPPINGS = {
+  status:      'StandardStatus',            // 11-value enum; NOT the separate 25-value MlsStatus
+  wid:         'SourceSystemKey',           // String(255) NULLABLE - the upstream system id, never identity
+  updatedDate: 'ModificationTimestamp',     // SourceSystemModificationTimestamp does not exist
 };
 
 const PICKLIST_SKIP_CONTEXTS = new Set(['PropertyType']);
@@ -206,7 +211,13 @@ function loadRequiredFields() {
     let name = (rows[i][1] || '').trim();
     const rules = (rows[i][7] || '').trim();
     if (!name || !rules) continue;
-    if (RESO_TO_RLS_RENAMES[name]) name = RESO_TO_RLS_RENAMES[name];
+    // The rename table that used to rewrite this name was deleted 2026-08-23 -
+    // every pair in it was false, so this line was corrupting the required-field
+    // names rather than normalising them. The CSV's own name is used as-is.
+    //
+    // RECORDED, NOT FIXED HERE: this list still comes from a dated CSV snapshot.
+    // A snapshot is not field authority; replacing it belongs to the registries
+    // family, not to this correction.
     if (/^yes/i.test(rules) || rules === 'Required') {
       required.push(name);
     } else if (/^conditional/i.test(rules)) {
@@ -226,7 +237,7 @@ function loadAllRLSFields() {
     const search = (rows[i][6] || '').trim();
     const rules = (rows[i][7] || '').trim();
     if (!rlsName || rlsName === 'MatrixFieldName') continue;
-    if (RESO_TO_RLS_RENAMES[rlsName]) rlsName = RESO_TO_RLS_RENAMES[rlsName];
+    // Rename table deleted 2026-08-23 - see the note above its former home.
     const lower = rlsName.toLowerCase();
     if (!map[lower]) map[lower] = { rlsName, addEdit, search, rules };
   }
@@ -578,53 +589,43 @@ function validateRequiredFields(fileElements, requiredFields) {
   }
 }
 
-// SECTION 3: RESO→RLS RENAMES
+// SECTION 3: CRM field names exist on the live Cotality Property resource
 function validateRenames() {
-  console.log('\n  Section 3: RESO→RLS Renames (23 renames) ...');
+  console.log(String.fromCharCode(10) + '  Section 3: Cotality field-name integrity ...');
 
+  const contractPath = path.join(__dirname, '..', 'data', 'cotality-contract', 'crm-field-contract.json');
+  if (!fs.existsSync(contractPath)) {
+    error(3, 'crm-field-contract.json missing - run npm run cotality:crm-contract');
+    return;
+  }
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf-8'));
+  const known = new Set(Object.keys(contract.fields));
+
+  // Any data-cotality-field naming something the provider does not declare.
   const allFiles = [
     ...Object.values(FILE_CONFIG).map(c => c.path),
     ...Object.values(EXTRA_FILES),
     SOURCE_MODULE,
   ];
-
+  const seen = new Map();
   for (const filePath of allFiles) {
     const content = loadFile(filePath);
     if (!content) continue;
     const fname = shortName(filePath);
-
-    for (const [resoName, rlsName] of Object.entries(RESO_TO_RLS_RENAMES)) {
-      const attrPattern = new RegExp(`data-reso-field=["']${resoName}["']`, 'g');
-      const matches = content.match(attrPattern);
-      if (matches) {
-        error(3, `${fname}: data-reso-field="${resoName}" should be "${rlsName}" (${matches.length}x)`);
-      }
-    }
-
-    if (fname === 'reso-field-map.js' || fname === 'index-built.html') {
-      const mapStart = content.indexOf('RESO_FIELD_MAP');
-      const mapBlockStart = mapStart >= 0 ? content.indexOf('{', mapStart) : -1;
-      if (mapBlockStart >= 0) {
-        let depth = 0, mapEnd = mapBlockStart;
-        for (let i = mapBlockStart; i < content.length && i < mapBlockStart + 10000; i++) {
-          if (content[i] === '{') depth++;
-          if (content[i] === '}') { depth--; if (depth === 0) { mapEnd = i + 1; break; } }
-        }
-        const mapBlock = content.substring(mapBlockStart, mapEnd);
-        for (const [mockKey, expectedRLS] of Object.entries(CRITICAL_RENAMES)) {
-          const mapPattern = new RegExp(`${mockKey}:\\s*['"]([^'"]+)['"]`);
-          const match = mapBlock.match(mapPattern);
-          if (match) {
-            if (match[1] !== expectedRLS) {
-              error(3, `${fname}: RESO_FIELD_MAP.${mockKey} = "${match[1]}" — should be "${expectedRLS}"`);
-            } else {
-              log(`${fname}: RESO_FIELD_MAP.${mockKey} = "${match[1]}" OK`);
-            }
-          }
-        }
+    const rx = /data-cotality-field=["']([^"']+)["']/g;
+    let m;
+    while ((m = rx.exec(content)) !== null) {
+      const field = m[1];
+      // Mallan-derived presentation keys are not provider fields and are not
+      // claimed to be; only PascalCase provider-shaped names are checked.
+      if (!/^[A-Z]/.test(field)) continue;
+      if (!known.has(field) && !seen.has(field + fname)) {
+        seen.set(field + fname, true);
+        error(3, `${fname}: data-cotality-field="${field}" is not on the live Cotality Property resource`);
       }
     }
   }
+  if (results[3].errors.length === 0) log('all data-cotality-field names exist on the live Property resource');
 }
 
 // SECTION 4: DISTRIBUTION GATES
@@ -680,7 +681,7 @@ function validateDistributionGates(fileElements) {
 
 // SECTION 5: FIELD MAP INTEGRITY
 function validateFieldMapIntegrity() {
-  console.log('\n  Section 5: RESO_FIELD_MAP Integrity ...');
+  console.log('\n  Section 5: COTALITY_FIELD_MAP Integrity ...');
 
   const sourceContent = loadFile(SOURCE_MODULE);
   const searchContent = loadFile(FILE_CONFIG.search.path);
@@ -688,11 +689,11 @@ function validateFieldMapIntegrity() {
   if (!sourceContent) { error(5, 'Source module not found'); return; }
   if (!searchContent) { error(5, 'Built file not found'); return; }
 
-  if (!sourceContent.includes('RESO_FIELD_MAP')) error(5, 'reso-field-map.js: RESO_FIELD_MAP not found');
-  if (!searchContent.includes('RESO_FIELD_MAP')) error(5, 'index-built.html: RESO_FIELD_MAP not found');
+  if (!sourceContent.includes('COTALITY_FIELD_MAP')) error(5, 'cotality-field-map.js: COTALITY_FIELD_MAP not found');
+  if (!searchContent.includes('COTALITY_FIELD_MAP')) error(5, 'index-built.html: COTALITY_FIELD_MAP not found');
 
   function extractMapBlock(content) {
-    const mapStart = content.indexOf('RESO_FIELD_MAP');
+    const mapStart = content.indexOf('COTALITY_FIELD_MAP');
     const blockStart = mapStart >= 0 ? content.indexOf('{', mapStart) : -1;
     if (blockStart < 0) return null;
     let depth = 0, blockEnd = blockStart;
@@ -706,7 +707,7 @@ function validateFieldMapIntegrity() {
   const sourceMap = extractMapBlock(sourceContent);
   const builtMap = extractMapBlock(searchContent);
 
-  for (const [mockKey, expectedRLS] of Object.entries(CRITICAL_RENAMES)) {
+  for (const [mockKey, expectedRLS] of Object.entries(CRITICAL_MAPPINGS)) {
     const pattern = new RegExp(`${mockKey}:\\s*['"]([^'"]+)['"]`);
     const sourceMatch = sourceMap ? sourceMap.match(pattern) : null;
     const builtMatch = builtMap ? builtMap.match(pattern) : null;
@@ -715,9 +716,9 @@ function validateFieldMapIntegrity() {
         error(5, `BUILD DRIFT: ${mockKey} — source="${sourceMatch[1]}" vs built="${builtMatch[1]}"`);
       }
     } else if (!sourceMatch) {
-      error(5, `reso-field-map.js: ${mockKey} mapping not found in RESO_FIELD_MAP`);
+      error(5, `cotality-field-map.js: ${mockKey} mapping not found in COTALITY_FIELD_MAP`);
     } else if (!builtMatch) {
-      warn(5, `index-built.html: ${mockKey} mapping not found in RESO_FIELD_MAP`);
+      warn(5, `index-built.html: ${mockKey} mapping not found in COTALITY_FIELD_MAP`);
     }
   }
 
@@ -726,11 +727,11 @@ function validateFieldMapIntegrity() {
   for (const field of removedFields) {
     const activePattern = new RegExp(`^(?!.*\\/\\/).*['"]${field}['"]`, 'm');
     if (activePattern.test(sourceContent)) {
-      error(5, `reso-field-map.js: removed field "${field}" is active`);
+      error(5, `cotality-field-map.js: removed field "${field}" is active`);
     }
   }
 
-  for (const helper of ['resoAttr', 'resoData']) {
+  for (const helper of ['cotalityAttr', 'cotalityData']) {
     if (!searchContent.includes(`function ${helper}`)) {
       error(5, `index-built.html: helper function ${helper}() not found`);
     }

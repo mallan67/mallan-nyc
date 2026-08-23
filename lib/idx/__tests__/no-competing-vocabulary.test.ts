@@ -130,7 +130,7 @@ const KNOWN_PARALLEL_VOCABULARIES: readonly string[] = [
   'lib/types/listing.ts', // SS5
   'public/crm/js/compliance/compliance-gates-and-output.js', // SS10
   'public/crm/js/compliance/form-shared.js', // SS3
-  'public/crm/js/core/reso-field-map.js', // SS5
+  'public/crm/js/core/cotality-field-map.js', // renamed + corrected 2026-08-23; still lists members in its media notes
   'public/crm/js/dashboard/panels.js', // SS10
   'public/crm/js/dashboard/panels/sales-crm/index.js', // SS4
   'public/crm/js/dashboard/workspace.js', // SS3

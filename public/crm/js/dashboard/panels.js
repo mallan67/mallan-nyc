@@ -5389,7 +5389,7 @@ var Panels = (function () {
     // 5. Feed/Display problems (RLS-eligible only)
     if (isRLS) {
       var ownerOptOut = listing.OwnerOptOut || listing.owner_opt_out;
-      var idxDisplay = listing.IDXEntireListingDisplayYN !== false && listing.idx_display_yn !== false;
+      var idxDisplay = listing.idx_display_yn !== false;
       if (ownerOptOut) {
         issues.push({ type: 'Feed/Display Problems', severity: 'critical', description: 'Owner Opt-Out is enabled — listing must not display publicly' });
       }

@@ -1,0 +1,490 @@
+{
+  "$comment": "GENERATED - do not hand-edit. Regenerate with npm run cotality:crm-contract. The live Cotality API is the only authority; this file is a checkable projection of it, never a substitute.",
+  "generatedFrom": "artifacts/metadata.xml",
+  "verification": "Every field name below was cross-checked against the live authenticated Cotality Property resource on 2026-08-23 via $metadata. Enum namespaces are deliberately NOT persisted - only the enum type name Mallan consumes.",
+  "resources": [
+    "Property",
+    "Media"
+  ],
+  "fieldCount": 68,
+  "fields": {
+    "ActivationDate": {
+      "kind": "primitive",
+      "type": "Edm.Date",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "AssociationAmenities": {
+      "kind": "enum",
+      "enumType": "AssociationAmenities",
+      "multi": true,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "AssociationFee": {
+      "kind": "primitive",
+      "type": "Edm.Decimal",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "BathroomsFull": {
+      "kind": "primitive",
+      "type": "Edm.Int32",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "BathroomsHalf": {
+      "kind": "primitive",
+      "type": "Edm.Int32",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "BathroomsTotalInteger": {
+      "kind": "primitive",
+      "type": "Edm.Int32",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "BedroomsTotal": {
+      "kind": "primitive",
+      "type": "Edm.Int32",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "BuildingAreaTotal": {
+      "kind": "primitive",
+      "type": "Edm.Decimal",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "BuildingName": {
+      "kind": "primitive",
+      "type": "Edm.String",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "CloseDate": {
+      "kind": "primitive",
+      "type": "Edm.Date",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "ClosePrice": {
+      "kind": "primitive",
+      "type": "Edm.Decimal",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "CommonInterest": {
+      "kind": "enum",
+      "enumType": "CommonInterest",
+      "multi": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "Cooling": {
+      "kind": "enum",
+      "enumType": "Cooling",
+      "multi": true,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "CrossStreet": {
+      "kind": "primitive",
+      "type": "Edm.String",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "CumulativeDaysOnMarket": {
+      "kind": "primitive",
+      "type": "Edm.Int32",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "DaysOnMarket": {
+      "kind": "primitive",
+      "type": "Edm.Int32",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "EntryLevel": {
+      "kind": "primitive",
+      "type": "Edm.Int32",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "Exposures": {
+      "kind": "enum",
+      "enumType": "Exposures",
+      "multi": true,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "FireplaceYN": {
+      "kind": "primitive",
+      "type": "Edm.Boolean",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "FireplacesTotal": {
+      "kind": "primitive",
+      "type": "Edm.Int32",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "Flooring": {
+      "kind": "enum",
+      "enumType": "Flooring",
+      "multi": true,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "Heating": {
+      "kind": "enum",
+      "enumType": "Heating",
+      "multi": true,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "InteriorFeatures": {
+      "kind": "enum",
+      "enumType": "InteriorOrRoomFeatures",
+      "multi": true,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "InternetAddressDisplayYN": {
+      "kind": "primitive",
+      "type": "Edm.Boolean",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "InternetEntireListingDisplayYN": {
+      "kind": "primitive",
+      "type": "Edm.Boolean",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "Latitude": {
+      "kind": "primitive",
+      "type": "Edm.Decimal",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "LaundryFeatures": {
+      "kind": "enum",
+      "enumType": "LaundryFeatures",
+      "multi": true,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "ListAgentDirectPhone": {
+      "kind": "primitive",
+      "type": "Edm.String",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "ListAgentEmail": {
+      "kind": "primitive",
+      "type": "Edm.String",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "ListAgentFullName": {
+      "kind": "primitive",
+      "type": "Edm.String",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "ListOfficeName": {
+      "kind": "primitive",
+      "type": "Edm.String",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "ListPrice": {
+      "kind": "primitive",
+      "type": "Edm.Decimal",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "ListingAgreement": {
+      "kind": "enum",
+      "enumType": "ListingAgreement",
+      "multi": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "ListingId": {
+      "kind": "primitive",
+      "type": "Edm.String",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "LivingArea": {
+      "kind": "primitive",
+      "type": "Edm.Decimal",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "Longitude": {
+      "kind": "primitive",
+      "type": "Edm.Decimal",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "Media": {
+      "kind": "enum",
+      "enumType": "Media",
+      "multi": true,
+      "nullable": true,
+      "resource": "Property",
+      "navigation": true
+    },
+    "MediaURL": {
+      "kind": "primitive",
+      "type": "Edm.String",
+      "collection": false,
+      "nullable": true,
+      "resource": "Media"
+    },
+    "ModificationTimestamp": {
+      "kind": "primitive",
+      "type": "Edm.DateTimeOffset",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "OnMarketDate": {
+      "kind": "primitive",
+      "type": "Edm.Date",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "OriginalListPrice": {
+      "kind": "primitive",
+      "type": "Edm.Decimal",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "ParkingFeatures": {
+      "kind": "enum",
+      "enumType": "ParkingFeatures",
+      "multi": true,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "ParkingTotal": {
+      "kind": "primitive",
+      "type": "Edm.Decimal",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "PetsAllowed": {
+      "kind": "enum",
+      "enumType": "PetsAllowed",
+      "multi": true,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "PetsAllowedYN": {
+      "kind": "primitive",
+      "type": "Edm.Boolean",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "PhotosCount": {
+      "kind": "primitive",
+      "type": "Edm.Int32",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "PostalCode": {
+      "kind": "primitive",
+      "type": "Edm.String",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "PreviousListPrice": {
+      "kind": "primitive",
+      "type": "Edm.Decimal",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "PriceChangeTimestamp": {
+      "kind": "primitive",
+      "type": "Edm.DateTimeOffset",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "PrivateRemarks": {
+      "kind": "primitive",
+      "type": "Edm.String",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "PropertyCondition": {
+      "kind": "enum",
+      "enumType": "PropertyCondition",
+      "multi": true,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "PropertySubType": {
+      "kind": "enum",
+      "enumType": "PropertySubType",
+      "multi": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "PropertyType": {
+      "kind": "enum",
+      "enumType": "PropertyType",
+      "multi": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "PublicRemarks": {
+      "kind": "primitive",
+      "type": "Edm.String",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "RoomsTotal": {
+      "kind": "primitive",
+      "type": "Edm.Int32",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "SecurityFeatures": {
+      "kind": "enum",
+      "enumType": "SecurityFeatures",
+      "multi": true,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "SourceSystemKey": {
+      "kind": "primitive",
+      "type": "Edm.String",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "StandardStatus": {
+      "kind": "enum",
+      "enumType": "StandardStatus",
+      "multi": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "StoriesTotal": {
+      "kind": "primitive",
+      "type": "Edm.Int32",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "SubdivisionName": {
+      "kind": "primitive",
+      "type": "Edm.String",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "SyndicateTo": {
+      "kind": "enum",
+      "enumType": "SyndicateTo",
+      "multi": true,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "TaxAnnualAmount": {
+      "kind": "primitive",
+      "type": "Edm.Decimal",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "UnitNumber": {
+      "kind": "primitive",
+      "type": "Edm.String",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "UnparsedAddress": {
+      "kind": "primitive",
+      "type": "Edm.String",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "View": {
+      "kind": "enum",
+      "enumType": "View",
+      "multi": true,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "VirtualTourURLBranded": {
+      "kind": "primitive",
+      "type": "Edm.String",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "WalkScore": {
+      "kind": "primitive",
+      "type": "Edm.Int32",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "YearBuilt": {
+      "kind": "primitive",
+      "type": "Edm.Int32",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    }
+  },
+  "rejected": {}
+}
