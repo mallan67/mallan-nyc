@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * scripts/reso/drift.js — Track field-set drift between three sources
+ * scripts/cotality/drift.js — Track field-set drift between three sources
  * of truth: Trestle's live $metadata, the REBNY IDX Plus field CSV,
  * and (optionally) a snapshot from a prior run.
  *
@@ -18,7 +18,7 @@
  *   - Parse Trestle's $metadata (cached at artifacts/metadata.xml)
  *   - Parse REBNY IDX Plus field list (data/rebny-rls-property-fields.csv)
  *   - Diff the two sets
- *   - Save a dated snapshot to artifacts/reso-drift/YYYY-MM-DDTHHmmssZ.json
+ *   - Save a dated snapshot to artifacts/cotality-drift/YYYY-MM-DDTHHmmssZ.json
  *   - Diff against the previous drift snapshot (if any) and surface the delta
  *
  * What this tool does NOT do:
@@ -28,10 +28,10 @@
  *     from burning IDX Plus quota on every run.
  *
  * Usage:
- *   npm run reso:drift                 # produce + persist a drift snapshot
- *   npm run reso:drift -- --json
- *   npm run reso:drift -- --resource=Property
- *   npm run reso:drift -- --resource=Member
+ *   npm run cotality:drift                 # produce + persist a drift snapshot
+ *   npm run cotality:drift -- --json
+ *   npm run cotality:drift -- --resource=Property
+ *   npm run cotality:drift -- --resource=Member
  *
  * Read-only. No DB writes. No Trestle calls.
  */
@@ -41,7 +41,7 @@ const path = require('path');
 const REPO_ROOT = process.cwd();
 const METADATA_XML = path.join(REPO_ROOT, 'artifacts', 'metadata.xml');
 const REBNY_FIELDS_CSV = path.join(REPO_ROOT, 'data', 'rebny-rls-property-fields.csv');
-const DRIFT_DIR = path.join(REPO_ROOT, 'artifacts', 'reso-drift');
+const DRIFT_DIR = path.join(REPO_ROOT, 'artifacts', 'cotality-drift');
 
 function arg(name, fallback) {
   const prefix = `--${name}=`;

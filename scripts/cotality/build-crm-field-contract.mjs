@@ -122,8 +122,33 @@ if (!mapped) {
   console.error(`[crm-field-contract] CRM map not found: ${MAP_SOURCE}`);
   process.exit(1);
 }
+/**
+ * Field names the diagnostic scripts put into OData $filter expressions.
+ *
+ * A census query naming a field the provider does not declare returns HTTP 400,
+ * and odataCount turns that into null - so the metric reads as "unverified"
+ * forever and looks like a tooling gap rather than a fabricated field. Three did
+ * exactly that until 2026-08-23. Including them here makes the generator fail
+ * loudly instead.
+ */
+function filteredFieldNames(dir, acc = new Set()) {
+  if (!fs.existsSync(dir)) return acc;
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, e.name);
+    if (e.isDirectory()) { filteredFieldNames(full, acc); continue; }
+    if (!/\.(js|mjs)$/.test(e.name)) continue;
+    const src = fs.readFileSync(full, 'utf8');
+    // An identifier immediately followed by an OData comparison operator.
+    const rx = /\b([A-Z][A-Za-z0-9_]{2,})\s+(eq|ne|gt|ge|lt|le)\s/g;
+    let m;
+    while ((m = rx.exec(src)) !== null) acc.add(m[1]);
+  }
+  return acc;
+}
+
 const tagged = [...taggedFieldNames(path.dirname(path.dirname(path.dirname(MAP_SOURCE))))];
-const targets = [...new Set([...mapped, ...tagged])].sort();
+const filtered = [...filteredFieldNames('scripts/cotality')];
+const targets = [...new Set([...mapped, ...tagged, ...filtered])].sort();
 
 /**
  * Normalise a declared type into what MALLAN needs.

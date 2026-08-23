@@ -6,7 +6,7 @@
     "Property",
     "Media"
   ],
-  "fieldCount": 68,
+  "fieldCount": 70,
   "fields": {
     "ActivationDate": {
       "kind": "primitive",
@@ -170,6 +170,20 @@
       "resource": "Property"
     },
     "InternetAddressDisplayYN": {
+      "kind": "primitive",
+      "type": "Edm.Boolean",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "InternetAutomatedValuationDisplayYN": {
+      "kind": "primitive",
+      "type": "Edm.Boolean",
+      "collection": false,
+      "nullable": true,
+      "resource": "Property"
+    },
+    "InternetConsumerCommentYN": {
       "kind": "primitive",
       "type": "Edm.Boolean",
       "collection": false,

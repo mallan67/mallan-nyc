@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 /**
- * scripts/reso/coverage.js — Field-population coverage report for a
+ * scripts/cotality/coverage.js — Field-population coverage report for a
  * Trestle entity. For each requested field, samples N records and
  * reports what % are populated (non-null, non-empty). Useful for
  * catching "advertised but not populated" gaps and prioritizing
  * which fields are safe to project from.
  *
  * Usage:
- *   node scripts/reso/coverage.js --entity=Property --fields=ListingId,StandardStatus,ListPrice,BedroomsTotal,BathroomsTotalInteger,LivingArea,Latitude,Longitude
- *   node scripts/reso/coverage.js --entity=Property --fields=YearBuilt,CommonInterest,Furnished --filter="StandardStatus eq 'Active'" --sample=2000
+ *   node scripts/cotality/coverage.js --entity=Property --fields=ListingId,StandardStatus,ListPrice,BedroomsTotal,BathroomsTotalInteger,LivingArea,Latitude,Longitude
+ *   node scripts/cotality/coverage.js --entity=Property --fields=YearBuilt,CommonInterest,Furnished --filter="StandardStatus eq 'Active'" --sample=2000
  *
  * Output: JSON with per-field { populated, null_or_empty, populated_pct }.
  */
@@ -28,7 +28,7 @@ function arg(name, fallback) {
   const sample = Math.min(Number(arg('sample') ?? 1000), 10_000);
 
   if (!entity || !fieldsRaw) {
-    console.error('Usage: node scripts/reso/coverage.js --entity=<Resource> --fields=<csv> [--filter="..."] [--sample=N]');
+    console.error('Usage: node scripts/cotality/coverage.js --entity=<Resource> --fields=<csv> [--filter="..."] [--sample=N]');
     process.exit(1);
   }
 

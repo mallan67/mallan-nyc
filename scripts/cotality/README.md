@@ -20,17 +20,17 @@ No new dependencies.
 
 ```bash
 # One-shot status report (Trestle + DB + public site)
-node scripts/reso/analyze.js
+node scripts/cotality/analyze.js
 
 # Same, JSON output (pipeable)
-node scripts/reso/analyze.js --json | jq
+node scripts/cotality/analyze.js --json | jq
 
 # Compare Trestle ↔ DB ↔ public for active sales
-node scripts/reso/parity.js --status=Active --type=sale
+node scripts/cotality/parity.js --status=Active --type=sale
 
 # Probe Trestle directly
-node scripts/reso/count.js --entity=Property --filter="StandardStatus eq 'Active'"
-node scripts/reso/query.js --entity=Property --top=3 --select="ListingId,StandardStatus,ListPrice"
+node scripts/cotality/count.js --entity=Property --filter="StandardStatus eq 'Active'"
+node scripts/cotality/query.js --entity=Property --top=3 --select="ListingId,StandardStatus,ListPrice"
 ```
 
 ## Tools
@@ -44,9 +44,9 @@ node scripts/reso/query.js --entity=Property --top=3 --select="ListingId,Standar
 | `lookups.js` | Distinct enum values populated for a field (catches lookup drift, multi-value fields auto-split) | Trestle |
 | `coverage.js` | Per-field populated % across a sample (catches "advertised but not populated") | Trestle |
 | `trace.js` | **Trace a single ListingId through every layer** — Trestle live, DB Listing, DB projection, distribution-gate evaluation, public site. Shows exactly where a listing lands or drops. | Trestle (1) + DB + public site |
-| `snapshot.js` | Capture an `analyze` JSON snapshot to `artifacts/reso-snapshots/YYYY-MM-DDTHHmmssZ.json` + `latest.json` for cross-time diffs. | Trestle + DB + public site |
+| `snapshot.js` | Capture an `analyze` JSON snapshot to `artifacts/cotality-snapshots/YYYY-MM-DDTHHmmssZ.json` + `latest.json` for cross-time diffs. | Trestle + DB + public site |
 | `gate-breakdown.js` | For a baseline filter, show how many listings each successive gate eliminates (drop-off per gate). Has `--dry-run` to emit queries without burning quota. | Trestle |
-| `drift.js` | **Trestle ↔ REBNY field-set drift tracker.** Diffs Trestle's live `$metadata` (cached at `artifacts/metadata.xml`) against the REBNY IDX Plus CSV (`data/rebny-rls-property-fields.csv`). Persists dated snapshots in `artifacts/reso-drift/` and surfaces deltas vs the prior run — so when Trestle (currently certified on RESO DD 2.0; not yet on DD 2.1) catches up, or REBNY adjusts the IDX Plus subset, you see it. | metadata.xml + REBNY CSV (no Trestle calls) |
+| `drift.js` | **Trestle ↔ REBNY field-set drift tracker.** Diffs Trestle's live `$metadata` (cached at `artifacts/metadata.xml`) against the REBNY IDX Plus CSV (`data/rebny-rls-property-fields.csv`). Persists dated snapshots in `artifacts/cotality-drift/` and surfaces deltas vs the prior run — so when Trestle (currently certified on RESO DD 2.0; not yet on DD 2.1) catches up, or REBNY adjusts the IDX Plus subset, you see it. | metadata.xml + REBNY CSV (no Trestle calls) |
 | `route-catalog.js` | Static analysis of every `app/api/*/route.ts` — HTTP methods, auth posture (broker/agent/portal/cron/admin/public), distribution-gate signals, compliance signals (audit-event, fair-housing scan, attribution, consent capture). Output: `artifacts/api-route-catalog.md` + `.json`. | local source only |
 | `schema-audit.js` | Column-by-column compare of `prisma/schema.prisma` Listing model vs REBNY CSV vs Trestle metadata. Names every column as `RESO+Trestle aligned`, `mallan-internal (no RESO mapping)`, or `drift`. Output: `artifacts/schema-audit.md` + `.json`. | local source only |
 | `lib/trestle-client.js` | Shared OAuth + OData helpers used by the rest of the kit | — |
@@ -56,7 +56,7 @@ node scripts/reso/query.js --entity=Property --top=3 --select="ListingId,Standar
 ### 1. Site status snapshot
 
 ```bash
-node scripts/reso/analyze.js
+node scripts/cotality/analyze.js
 ```
 
 Single-screen view with Trestle live counts, distribution-gate breakdown,
@@ -67,10 +67,10 @@ fastest way to see where the site stands at a moment in time.
 
 ```bash
 # Single-listing trace through Trestle → DB → projection → gates → public site:
-npm run reso:trace -- --listing-id=RLS20059088
+npm run cotality:trace -- --listing-id=RLS20059088
 
 # JSON form (good for piping into a ticket / chat message):
-npm run reso:trace -- --listing-id=RLS20059088 --json | jq
+npm run cotality:trace -- --listing-id=RLS20059088 --json | jq
 ```
 
 `trace.js` is the operational tool for "where did this listing go?"
@@ -82,8 +82,8 @@ suppressing the listing.
 For broader filter-level diagnostics:
 
 ```bash
-node scripts/reso/parity.js --status=Active --type=sale --json
-node scripts/reso/query.js --entity=Property --filter="ListingId eq '<id>'" --top=1
+node scripts/cotality/parity.js --status=Active --type=sale --json
+node scripts/cotality/query.js --entity=Property --filter="ListingId eq '<id>'" --top=1
 ```
 
 `parity.js` shows the gap between Trestle and the public site at a
@@ -93,8 +93,8 @@ Trestle to compare what the upstream sees.
 ### 3. Lookup drift catch
 
 ```bash
-node scripts/reso/lookups.js --entity=Property --field=PropertySubType --sample=2000
-node scripts/reso/lookups.js --entity=Property --field=CommonInterest --filter="StandardStatus eq 'Active'"
+node scripts/cotality/lookups.js --entity=Property --field=PropertySubType --sample=2000
+node scripts/cotality/lookups.js --entity=Property --field=CommonInterest --filter="StandardStatus eq 'Active'"
 ```
 
 Compare against `data/rebny-rls-property-lookup.csv` to flag enum values
@@ -103,7 +103,7 @@ that REBNY documents but our feed doesn't populate (or vice versa).
 ### 4. Field-population coverage
 
 ```bash
-node scripts/reso/coverage.js --entity=Property \
+node scripts/cotality/coverage.js --entity=Property \
   --fields="ListingId,StandardStatus,ListPrice,BedroomsTotal,BathroomsTotalInteger,LivingArea,Latitude,Longitude,YearBuilt,CommonInterest,Furnished" \
   --sample=2000 --filter="StandardStatus eq 'Active'"
 ```
@@ -115,24 +115,24 @@ a projection column or saved-search criterion.
 
 ```bash
 # Run when you want a "this is the state right now" record:
-npm run reso:snapshot
+npm run cotality:snapshot
 
 # Compare to the last one:
-diff <(jq . artifacts/reso-snapshots/latest.json) <(jq . artifacts/reso-snapshots/2026-04-29T*.json)
+diff <(jq . artifacts/cotality-snapshots/latest.json) <(jq . artifacts/cotality-snapshots/2026-04-29T*.json)
 ```
 
 `snapshot.js` runs `analyze.js --json` and persists the result to
-`artifacts/reso-snapshots/YYYY-MM-DDTHHmmssZ.json` plus a fixed
+`artifacts/cotality-snapshots/YYYY-MM-DDTHHmmssZ.json` plus a fixed
 `latest.json` so diffs are trivial.
 
 ### 6. Per-gate drop-off
 
 ```bash
 # Plan probes without spending quota:
-npm run reso:gate-breakdown -- --dry-run
+npm run cotality:gate-breakdown -- --dry-run
 
 # Real run:
-npm run reso:gate-breakdown -- --status=Active --type=sale --json
+npm run cotality:gate-breakdown -- --status=Active --type=sale --json
 ```
 
 Each row = one Trestle probe answering "how many of the baseline match
@@ -144,10 +144,10 @@ pre-filtered upstream and don't appear in the baseline at all.
 
 ```bash
 # Diff Trestle metadata vs REBNY IDX Plus CSV (uses cached metadata.xml — no Trestle call):
-npm run reso:drift
+npm run cotality:drift
 
 # Property-only:
-npm run reso:drift -- --resource=Property --json | jq '.resources.Property'
+npm run cotality:drift -- --resource=Property --json | jq '.resources.Property'
 ```
 
 Trestle is currently certified on RESO Web API Core 2.0.0 + DD 2.0 +
@@ -163,10 +163,10 @@ new $metadata): `npx tsx scripts/refresh-trestle-csv.ts`.
 
 ```bash
 # Static analysis of every API route — auth posture + gate enforcement + compliance signals:
-npm run reso:route-catalog
+npm run cotality:route-catalog
 
 # Schema column ↔ RESO PascalCase ↔ REBNY CSV ↔ Trestle metadata, three-way:
-npm run reso:schema-audit
+npm run cotality:schema-audit
 ```
 
 `route-catalog.js` outputs a single Markdown table to
@@ -191,9 +191,9 @@ queries) — fast enough to run as a pre-commit / pre-release check.
 When the master-plan migration finishes (~May 5–6), this kit is the
 seed for:
 
-- `scripts/reso/search/` — saved-search clone/replay tools (turn each
+- `scripts/cotality/search/` — saved-search clone/replay tools (turn each
   CRM saved search into a continuously-tested regression target).
-- `scripts/reso/snapshot/` — capture "expected count + sample IDs" for
+- `scripts/cotality/snapshot/` — capture "expected count + sample IDs" for
   arbitrary searches and replay daily; alert on drift.
 - A future `analyze.js --history` mode that diffs against the previous
   run stored in R2.

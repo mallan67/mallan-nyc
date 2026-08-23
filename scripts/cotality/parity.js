@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * scripts/reso/parity.js — Compare Trestle, our DB, and the public site
+ * scripts/cotality/parity.js — Compare Trestle, our DB, and the public site
  * for a given listing-shape filter. Useful for diagnosing "why isn't
  * this listing showing up?" and verifying sync convergence.
  *
@@ -12,9 +12,9 @@
  * Writes: nothing.
  *
  * Usage:
- *   node scripts/reso/parity.js
- *   node scripts/reso/parity.js --status=Active --type=sale
- *   node scripts/reso/parity.js --status=Active --type=rent --json
+ *   node scripts/cotality/parity.js
+ *   node scripts/cotality/parity.js --status=Active --type=sale
+ *   node scripts/cotality/parity.js --status=Active --type=rent --json
  *
  * Flags:
  *   --status=<RESO StandardStatus>   default 'Active'
@@ -94,8 +94,13 @@ async function fetchDbCounts(status, typeFlag) {
   const [trestleTotal, trestleIdxOff, trestleOptOut, trestlePartOnly, dbCounts, publicTotal] = await Promise.all([
     odataCount('Property', baseFilter),
     odataCount('Property', `${baseFilter} and InternetEntireListingDisplayYN eq false`),
-    odataCount('Property', `${baseFilter} and OwnerOptOut eq true`),
-    odataCount('Property', `${baseFilter} and ParticipantOnly eq true`),
+    // OwnerOptOut and ParticipantOnly exist on NO live Cotality resource
+    // (verified 2026-08-23). They are MALLAN PERMISSION CONCEPTS held in Mallan's
+    // own data; a provider census cannot count them. These slots stay because the
+    // results above are destructured by position. null here means NOT A PROVIDER
+    // FIELD - it never means zero.
+    Promise.resolve(null),
+    Promise.resolve(null),
     fetchDbCounts(status, typeFlag),
     fetchPublicTotal(typeFlag),
   ]);

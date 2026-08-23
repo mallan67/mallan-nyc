@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
- * scripts/reso/lookups.js — Discover the distinct enum values populated
+ * scripts/cotality/lookups.js — Discover the distinct enum values populated
  * for a given Trestle field. Useful for catching lookup drift between
  * REBNY's documented enum set and what's actually populated in the feed.
  *
  * Usage:
- *   node scripts/reso/lookups.js --entity=Property --field=PropertySubType
- *   node scripts/reso/lookups.js --entity=Property --field=CommonInterest --filter="StandardStatus eq 'Active'"
- *   node scripts/reso/lookups.js --entity=Property --field=MlsStatus --sample=2000
+ *   node scripts/cotality/lookups.js --entity=Property --field=PropertySubType
+ *   node scripts/cotality/lookups.js --entity=Property --field=CommonInterest --filter="StandardStatus eq 'Active'"
+ *   node scripts/cotality/lookups.js --entity=Property --field=MlsStatus --sample=2000
  *
  * Notes:
  *   - OData on Trestle does not support `$apply=groupby` reliably for
@@ -54,7 +54,7 @@ const MULTI_VALUE_FIELDS = new Set([
   const sample = Math.min(Number(arg('sample') ?? 1000), 10_000);
 
   if (!entity || !field) {
-    console.error('Usage: node scripts/reso/lookups.js --entity=<Resource> --field=<Field> [--filter="..."] [--sample=N]');
+    console.error('Usage: node scripts/cotality/lookups.js --entity=<Resource> --field=<Field> [--filter="..."] [--sample=N]');
     process.exit(1);
   }
 

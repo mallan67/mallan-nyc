@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * scripts/reso/gate-breakdown.js — For a given starting filter, show
+ * scripts/cotality/gate-breakdown.js — For a given starting filter, show
  * how many listings are eliminated by each successive gate.
  *
  * Useful when "Trestle says X but our public site shows Y" — narrows
@@ -13,10 +13,10 @@
  * Plus tier (OwnerOptOut, ParticipantOnly).
  *
  * Usage:
- *   npm run reso:gate-breakdown
- *   npm run reso:gate-breakdown -- --status=Active --type=sale
- *   npm run reso:gate-breakdown -- --status=Active --type=sale --json
- *   npm run reso:gate-breakdown -- --dry-run     # emit the OData queries without running them
+ *   npm run cotality:gate-breakdown
+ *   npm run cotality:gate-breakdown -- --status=Active --type=sale
+ *   npm run cotality:gate-breakdown -- --status=Active --type=sale --json
+ *   npm run cotality:gate-breakdown -- --dry-run     # emit the OData queries without running them
  *
  * Flags:
  *   --status=<RESO StandardStatus>   default 'Active'
@@ -57,7 +57,10 @@ function arg(name, fallback) {
     { name: 'address_display_yn=false', filter: `${baseFilter} and InternetAddressDisplayYN eq false`, kind: 'gate', note: 'Listings with the address sub-gate off (cascade applies).' },
     { name: 'avm_display=false', filter: `${baseFilter} and InternetAutomatedValuationDisplayYN eq false`, kind: 'gate', note: 'Listings opted out of AVM display (Zestimate-equivalent).' },
     { name: 'consumer_comment_yn=false', filter: `${baseFilter} and InternetConsumerCommentYN eq false`, kind: 'gate', note: 'Listings opted out of public comments / reviews.' },
-    { name: 'auction=true', filter: `${baseFilter} and AuctionYN eq true`, kind: 'flag', note: 'Auction listings — UCBA Art. I auction display rules apply.' },
+    // REMOVED 2026-08-23: AuctionYN exists on no live Cotality resource, so this
+    // probe returned HTTP 400 and reported null forever. If Mallan needs an
+    // auction flag it is a Mallan concept and belongs in Mallan's own data, not
+    // in a provider gate census. UCBA auction display rules are unaffected.
   ];
 
   if (dryRun) {

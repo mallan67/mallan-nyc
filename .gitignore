@@ -282,3 +282,8 @@ artifacts/gate6-archive-touched-*.jsonl
 test-results/
 playwright-report/
 tests/e2e/_artifacts/
+
+# Cotality diagnostic output — ephemeral evidence, regenerated on demand.
+# Never a runtime input and never field authority.
+artifacts/cotality-drift/
+artifacts/cotality-snapshots/

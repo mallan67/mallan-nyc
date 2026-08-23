@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * scripts/reso/analyze.js — One-shot read-only "what is the current
+ * scripts/cotality/analyze.js — One-shot read-only "what is the current
  * state of my site" report. Pulls live counts from Trestle, the
  * project DB, and the public site, and prints a single-screen summary.
  *
@@ -9,8 +9,8 @@
  * so it's still safe to run during the master-plan migration.
  *
  * Usage:
- *   node scripts/reso/analyze.js
- *   node scripts/reso/analyze.js --json
+ *   node scripts/cotality/analyze.js
+ *   node scripts/cotality/analyze.js --json
  *
  * Read-only. No DB writes. No Trestle writes. Safe to re-run any time.
  */
@@ -101,6 +101,25 @@ function ago(iso) {
   return `${Math.floor(hr / 24)}d ago`;
 }
 
+/**
+ * A census slot for something Cotality does not expose.
+ *
+ * Verified live 2026-08-23: AuctionYN, OwnerOptOut and ParticipantOnly exist on
+ * NO Cotality resource. Querying them returns HTTP 400, and odataCount turns that
+ * into null - so these rows have always read as "unverified" and looked like a
+ * tooling gap rather than what they are.
+ *
+ * OwnerOptOut and ParticipantOnly are MALLAN PERMISSION CONCEPTS carried in
+ * Mallan's own data, not provider fields; a provider census cannot count them and
+ * must not pretend to. They are kept as explicit slots because the report unwraps
+ * probes by position.
+ *
+ * null here means NOT A PROVIDER FIELD. It never means zero.
+ */
+function notAProviderField() {
+  return Promise.resolve(null);
+}
+
 (async () => {
   const json = process.argv.includes('--json');
   await getToken(); // warm token cache
@@ -114,12 +133,12 @@ function ago(iso) {
     odataCount('Property', `StandardStatus eq 'Closed' and CloseDate ge ${new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)}`),
     odataCount('Property', `StandardStatus eq 'Active' and InternetEntireListingDisplayYN eq false`),
     odataCount('Property', `StandardStatus eq 'Active' and InternetAddressDisplayYN eq false`),
-    odataCount('Property', `StandardStatus eq 'Active' and OwnerOptOut eq true`),
-    odataCount('Property', `StandardStatus eq 'Active' and ParticipantOnly eq true`),
+    notAProviderField(), // OwnerOptOut - not on any live Cotality resource
+    notAProviderField(), // ParticipantOnly - not on any live Cotality resource
     odataCount('Property', `StandardStatus eq 'Active' and InternetAutomatedValuationDisplayYN eq false`),
     odataCount('Property', `StandardStatus eq 'Active' and InternetConsumerCommentYN eq false`),
-    odataCount('Property', `StandardStatus eq 'Active' and AuctionYN eq true`),
-    odataCount('Property', `MlsStatus eq 'Coming Soon'`),
+    notAProviderField(), // AuctionYN - not on any live Cotality resource
+    odataCount('Property', `StandardStatus eq 'ComingSoon'`),
     odataLatestField('Property', 'ModificationTimestamp', `StandardStatus eq 'Active'`),
     odataCount('Media'),
     odataCount('Member'),

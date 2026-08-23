@@ -1,5 +1,5 @@
 /**
- * scripts/reso/lib/trestle-client.js
+ * scripts/cotality/lib/trestle-client.js
  * Shared OAuth + OData helpers for the read-only RESO toolkit.
  *
  * Wraps the IDX_CLIENT_ID / IDX_CLIENT_SECRET pair from .env.local against
