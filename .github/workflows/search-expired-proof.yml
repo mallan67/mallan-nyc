@@ -43,17 +43,15 @@ jobs:
           set -euo pipefail
           node scripts/cotality/query-live.mjs query \
             --resource=Property \
-            --select=ListingKey,ListingId,StandardStatus,MlsStatus,UnparsedAddress,ModificationTimestamp \
+            --select=StandardStatus,MlsStatus \
             --filter="StandardStatus eq 'Expired'" \
-            --orderby="ModificationTimestamp desc" \
             --top=5 \
             --count=true > /tmp/expired.json
 
           node scripts/cotality/query-live.mjs query \
             --resource=Property \
-            --select=ListingKey,ListingId,StandardStatus,MlsStatus,UnparsedAddress,ModificationTimestamp \
+            --select=StandardStatus,MlsStatus \
             --filter="StandardStatus eq 'Active'" \
-            --orderby="ModificationTimestamp desc" \
             --top=5 \
             --count=true > /tmp/active.json
 
@@ -67,7 +65,7 @@ jobs:
             '',
             `Commit: \`${process.env.GITHUB_SHA}\``,
             '',
-            'Read-only provider queries executed through `scripts/cotality/query-live.mjs` using the repository IDX Plus credentials.',
+            'Read-only provider queries executed through `scripts/cotality/query-live.mjs` using the repository IDX Plus credentials. No listing identifiers or addresses are published here.',
             '',
           ];
 
@@ -75,16 +73,9 @@ jobs:
             const payload = JSON.parse(fs.readFileSync(file, 'utf8'));
             const result = payload.result || {};
             const rows = Array.isArray(result.value) ? result.value : [];
-            lines.push(`**${label}** — @odata.count: **${result['@odata.count'] ?? 'null'}**; returned sample rows: **${rows.length}**`);
-            if (rows.length) {
-              lines.push('');
-              lines.push('| ListingId | StandardStatus | MlsStatus | Address | Modified |');
-              lines.push('|---|---|---|---|---|');
-              for (const row of rows) {
-                const cell = (value) => String(value ?? '').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
-                lines.push(`| ${cell(row.ListingId)} | ${cell(row.StandardStatus)} | ${cell(row.MlsStatus)} | ${cell(row.UnparsedAddress)} | ${cell(row.ModificationTimestamp)} |`);
-              }
-            }
+            const statuses = [...new Set(rows.map((row) => String(row.StandardStatus ?? 'null')))];
+            const mlsStatuses = [...new Set(rows.map((row) => String(row.MlsStatus ?? 'null')))];
+            lines.push(`**${label}** — @odata.count: **${result['@odata.count'] ?? 'null'}**; returned sample rows: **${rows.length}**; StandardStatus sample: \`${statuses.join(', ') || 'none'}\`; MlsStatus sample: \`${mlsStatuses.join(', ') || 'none'}\``);
             lines.push('');
           }
           fs.writeFileSync('/tmp/proof.md', lines.join('\n'));
