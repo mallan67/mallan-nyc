@@ -111,6 +111,11 @@ if (full) {
   }));
 }
 
+const requiredCatalogs = [fieldCatalog, lookupCatalog, modelCatalog];
+const allCatalogsComplete = requiredCatalogs.every(
+  (entry) => entry.state === PROBE_STATE.SUPPORTED && entry.value?.complete === true,
+);
+
 const finishedAt = now();
 const bundle = {
   format: 'mallan-cotality-live-contract-evidence/v1',
@@ -152,9 +157,7 @@ const bundle = {
     fieldOrderStates: full ? summarizeStates(fieldEvidence, (x) => x.sort?.state) : null,
     fieldOperatorStates: full ? summarizeStates(fieldEvidence, (x) => x.operator?.state) : null,
     relationshipStates: full ? summarizeStates(relationshipEvidence, (x) => x.evidence?.state) : null,
-    allCatalogsComplete: [fieldCatalog, lookupCatalog, modelCatalog]
-      .filter((x) => x.state === PROBE_STATE.SUPPORTED)
-      .every((x) => x.value?.complete === true),
+    allCatalogsComplete,
   },
 };
 
@@ -163,14 +166,15 @@ await writeFile(outPath, JSON.stringify(bundle, null, 2) + '\n', 'utf8');
 console.error(`[cotality:contract] wrote ${outPath}`);
 console.log(JSON.stringify(bundle.summary, null, 2));
 
-// A provider rejection is evidence. An acquisition failure is not. The compiler
-// fails only when a required self-description layer could not be verified or a
-// supposedly complete paged catalog was truncated.
-const required = [serviceDocument, fieldCatalog, lookupCatalog, modelCatalog];
-const unverifiedRequired = required.filter((x) => x.state === PROBE_STATE.UNVERIFIED);
+// Field/Lookup/Model are required contract layers. Rejection, acquisition
+// failure, or truncated pagination makes the compile incomplete. Service
+// document is also required. DataSystem/Enumeration are recorded independently
+// because current provisioning can expose them differently from EntityTypes.
+const required = [serviceDocument, ...requiredCatalogs];
+const nonSupportedRequired = required.filter((x) => x.state !== PROBE_STATE.SUPPORTED);
 const truncatedRequired = required.filter((x) => x.state === PROBE_STATE.SUPPORTED && x.value?.complete === false);
-if (unverifiedRequired.length || truncatedRequired.length) {
-  console.error('[cotality:contract] FAIL: required provider self-description is incomplete/unverified');
+if (nonSupportedRequired.length || truncatedRequired.length || !allCatalogsComplete) {
+  console.error('[cotality:contract] FAIL: required provider self-description is rejected, incomplete, or unverified');
   process.exit(2);
 }
 
