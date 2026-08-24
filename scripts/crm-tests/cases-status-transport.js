@@ -6,7 +6,7 @@ const vm = require('node:vm');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const BOUNDARY_PATH = path.join(ROOT, 'public', 'crm', 'js', 'search', 'cotality-criteria-boundary.js');
-const BUILT_PATH = path.join(ROOT, 'public', 'crm', 'index-built.html');
+const INDEX_PATH = path.join(ROOT, 'public', 'crm', 'index.html');
 
 function executeBoundary() {
   const source = fs.readFileSync(BOUNDARY_PATH, 'utf8');
@@ -91,13 +91,19 @@ function run() {
       assertEqual(thrown.criterion, 'status', 'error criterion');
     }),
 
-    result('generated CRM bundle includes status boundary after serializer', () => {
-      const built = fs.readFileSync(BUILT_PATH, 'utf8');
-      const serializer = built.indexOf('window.buildIdxSearchParams = function(criteria)');
-      const boundary = built.indexOf('function installCotalityCriteriaBoundary()');
-      if (serializer < 0) throw new Error('generated bundle is missing buildIdxSearchParams serializer');
-      if (boundary < 0) throw new Error('generated bundle is missing Cotality status boundary');
-      if (boundary <= serializer) throw new Error('Cotality status boundary loads before serializer and cannot wrap it');
+    result('CRM source loads status boundary immediately after search serializer', () => {
+      const index = fs.readFileSync(INDEX_PATH, 'utf8');
+      const serializerTag = '<script src="js/search/search-engine.js"></script>';
+      const boundaryTag = '<script src="js/search/cotality-criteria-boundary.js"></script>';
+      const serializer = index.indexOf(serializerTag);
+      const boundary = index.indexOf(boundaryTag);
+      if (serializer < 0) throw new Error('CRM source is missing search-engine.js');
+      if (boundary < 0) throw new Error('CRM source is missing cotality-criteria-boundary.js');
+      if (boundary <= serializer) throw new Error('Cotality status boundary loads before search serializer');
+      const between = index.slice(serializer + serializerTag.length, boundary);
+      if (/<script\s+src=/.test(between)) {
+        throw new Error('another external script loads between search serializer and status boundary');
+      }
     }),
   ];
 }
