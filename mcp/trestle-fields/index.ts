@@ -25,6 +25,7 @@ async function run(command: string, args: string[] = []): Promise<unknown> {
       {
         cwd: process.cwd(),
         env: process.env,
+        encoding: 'utf8',
         timeout: 120_000,
         maxBuffer: MAX_BUFFER,
       },
