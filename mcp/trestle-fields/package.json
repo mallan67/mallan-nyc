@@ -1,7 +1,7 @@
 {
   "name": "trestle-fields-mcp",
-  "version": "1.0.0",
-  "description": "MCP server — live Trestle field lookup for REBNY RLS (1,363 fields, auto-refreshed from $metadata)",
+  "version": "2.0.0",
+  "description": "MCP adapter for the live-only Mallan Cotality contract reader",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
