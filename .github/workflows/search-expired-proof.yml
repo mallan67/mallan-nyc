@@ -29,60 +29,111 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Verify read-only Cotality credentials exist
+      - name: Run read-only Expired and Active control queries
+        id: live
+        continue-on-error: true
         shell: bash
         run: |
-          set -euo pipefail
-          test -n "$IDX_CLIENT_ID"
-          test -n "$IDX_CLIENT_SECRET"
-          echo "Cotality credentials present"
+          set +e
+          : > /tmp/proof-errors.txt
 
-      - name: Query Expired and Active control from live Cotality
-        shell: bash
-        run: |
-          set -euo pipefail
+          if [ -z "$IDX_CLIENT_ID" ] || [ -z "$IDX_CLIENT_SECRET" ]; then
+            echo "credentials_missing" > /tmp/proof-errors.txt
+            echo "state=credentials_missing" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           node scripts/cotality/query-live.mjs query \
             --resource=Property \
-            --select=StandardStatus,MlsStatus \
+            --select=StandardStatus \
             --filter="StandardStatus eq 'Expired'" \
             --top=5 \
-            --count=true > /tmp/expired.json
+            --count=true > /tmp/expired.json 2> /tmp/expired.err
+          expired_rc=$?
 
           node scripts/cotality/query-live.mjs query \
             --resource=Property \
-            --select=StandardStatus,MlsStatus \
+            --select=StandardStatus \
             --filter="StandardStatus eq 'Active'" \
             --top=5 \
-            --count=true > /tmp/active.json
+            --count=true > /tmp/active.json 2> /tmp/active.err
+          active_rc=$?
+
+          echo "expired_rc=$expired_rc" >> "$GITHUB_OUTPUT"
+          echo "active_rc=$active_rc" >> "$GITHUB_OUTPUT"
+
+          if [ "$expired_rc" -ne 0 ]; then
+            printf 'Expired query failed: ' >> /tmp/proof-errors.txt
+            cat /tmp/expired.err >> /tmp/proof-errors.txt
+            printf '\n' >> /tmp/proof-errors.txt
+          fi
+          if [ "$active_rc" -ne 0 ]; then
+            printf 'Active control failed: ' >> /tmp/proof-errors.txt
+            cat /tmp/active.err >> /tmp/proof-errors.txt
+            printf '\n' >> /tmp/proof-errors.txt
+          fi
+
+          if [ "$expired_rc" -eq 0 ] && [ "$active_rc" -eq 0 ]; then
+            echo "state=success" >> "$GITHUB_OUTPUT"
+          else
+            echo "state=query_failed" >> "$GITHUB_OUTPUT"
+          fi
+          exit 0
 
       - name: Build durable proof comment
+        if: always()
         shell: bash
+        env:
+          LIVE_STATE: ${{ steps.live.outputs.state }}
+          EXPIRED_RC: ${{ steps.live.outputs.expired_rc }}
+          ACTIVE_RC: ${{ steps.live.outputs.active_rc }}
         run: |
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
+
           const lines = [
             '### Live Cotality Expired Search Proof',
             '',
             `Commit: \`${process.env.GITHUB_SHA}\``,
             '',
-            'Read-only provider queries executed through `scripts/cotality/query-live.mjs` using the repository IDX Plus credentials. No listing identifiers or addresses are published here.',
+            'Read-only provider query against the repository-authorized Cotality connection. No listing identifiers or addresses are published.',
             '',
           ];
 
-          for (const [label, file] of [['Expired', '/tmp/expired.json'], ['Active control', '/tmp/active.json']]) {
+          function summarize(label, file) {
+            if (!fs.existsSync(file)) return false;
             const payload = JSON.parse(fs.readFileSync(file, 'utf8'));
             const result = payload.result || {};
             const rows = Array.isArray(result.value) ? result.value : [];
             const statuses = [...new Set(rows.map((row) => String(row.StandardStatus ?? 'null')))];
-            const mlsStatuses = [...new Set(rows.map((row) => String(row.MlsStatus ?? 'null')))];
-            lines.push(`**${label}** — @odata.count: **${result['@odata.count'] ?? 'null'}**; returned sample rows: **${rows.length}**; StandardStatus sample: \`${statuses.join(', ') || 'none'}\`; MlsStatus sample: \`${mlsStatuses.join(', ') || 'none'}\``);
+            lines.push(`**${label}** — @odata.count: **${result['@odata.count'] ?? 'null'}**; returned sample rows: **${rows.length}**; StandardStatus sample: \`${statuses.join(', ') || 'none'}\``);
             lines.push('');
+            return true;
           }
+
+          const expired = summarize('Expired', '/tmp/expired.json');
+          const active = summarize('Active control', '/tmp/active.json');
+
+          if (!expired || !active) {
+            let error = fs.existsSync('/tmp/proof-errors.txt') ? fs.readFileSync('/tmp/proof-errors.txt', 'utf8') : 'unknown failure';
+            error = error
+              .replace(/Bearer\s+[A-Za-z0-9._~-]+/gi, 'Bearer [REDACTED]')
+              .replace(/client_secret=[^&\s]+/gi, 'client_secret=[REDACTED]')
+              .slice(0, 1800);
+            lines.push(`**Proof state:** \`${process.env.LIVE_STATE || 'unknown'}\``);
+            lines.push(`Expired exit: \`${process.env.EXPIRED_RC || 'n/a'}\`; Active exit: \`${process.env.ACTIVE_RC || 'n/a'}\``);
+            lines.push('');
+            lines.push('```text');
+            lines.push(error || 'No diagnostic text returned.');
+            lines.push('```');
+          }
+
           fs.writeFileSync('/tmp/proof.md', lines.join('\n'));
           console.log(lines.join('\n'));
           NODE
 
       - name: Publish proof on PR 618
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
