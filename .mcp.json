@@ -9,7 +9,7 @@
         "IDX_CLIENT_SECRET": "${IDX_CLIENT_SECRET}",
         "TRESTLE_API_URL": "${TRESTLE_API_URL}"
       },
-      "description": "Live Cotality field lookup — all fields/enums across the RLS resources, parsed from the multi-namespace $metadata. 10-min TTL (TRESTLE_METADATA_TTL_MS), aligned to the system's Cotality idx-sync cadence unless Cotality specifies otherwise."
+      "description": "Live-only Cotality contract reader. Delegates to scripts/cotality/query-live.mjs for current metadata, Field/Lookup values, resource rows, pagination, field capability probes, relationships, service document, and DataSystem. No snapshot fallback; acquisition failure is UNVERIFIED."
     }
   }
 }
