@@ -1,0 +1,84 @@
+name: Search Expired live proof
+
+on:
+  push:
+    branches:
+      - fix/neon-p0-event-driven-wake-2026-08-16
+    paths:
+      - '.github/workflows/search-expired-proof.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  expired-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      IDX_CLIENT_ID: ${{ secrets.IDX_CLIENT_ID }}
+      IDX_CLIENT_SECRET: ${{ secrets.IDX_CLIENT_SECRET }}
+      TRESTLE_API_URL: ${{ vars.TRESTLE_API_URL || 'https://api.cotality.com/trestle' }}
+
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@v5
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      - name: Verify read-only Cotality credentials exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$IDX_CLIENT_ID"
+          test -n "$IDX_CLIENT_SECRET"
+          echo "Cotality credentials present"
+
+      - name: Query Expired and Active control from live Cotality
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/cotality/query-live.mjs query \
+            --resource=Property \
+            --select=ListingKey,ListingId,StandardStatus,MlsStatus,UnparsedAddress,ModificationTimestamp \
+            --filter="StandardStatus eq 'Expired'" \
+            --orderby="ModificationTimestamp desc" \
+            --top=5 \
+            --count=true > /tmp/expired.json
+
+          node scripts/cotality/query-live.mjs query \
+            --resource=Property \
+            --select=ListingKey,ListingId,StandardStatus,MlsStatus,UnparsedAddress,ModificationTimestamp \
+            --filter="StandardStatus eq 'Active'" \
+            --orderby="ModificationTimestamp desc" \
+            --top=5 \
+            --count=true > /tmp/active.json
+
+      - name: Report count and samples only
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          for (const [label, file] of [['Expired', '/tmp/expired.json'], ['Active control', '/tmp/active.json']]) {
+            const payload = JSON.parse(fs.readFileSync(file, 'utf8'));
+            const result = payload.result || {};
+            const rows = Array.isArray(result.value) ? result.value : [];
+            const summary = {
+              source: payload.source,
+              label,
+              odataCount: result['@odata.count'] ?? null,
+              returnedRows: rows.length,
+              sample: rows.map((row) => ({
+                ListingKey: row.ListingKey ?? null,
+                ListingId: row.ListingId ?? null,
+                StandardStatus: row.StandardStatus ?? null,
+                MlsStatus: row.MlsStatus ?? null,
+                UnparsedAddress: row.UnparsedAddress ?? null,
+                ModificationTimestamp: row.ModificationTimestamp ?? null,
+              })),
+            };
+            console.log(JSON.stringify(summary));
+          }
+          NODE
