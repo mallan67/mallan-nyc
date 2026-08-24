@@ -1,3 +1,4 @@
+import { spawnSync } from 'child_process';
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 
@@ -30,7 +31,7 @@ describe('Cotality live authority guard', () => {
     expect(source).toContain("SUPPORTED: 'SUPPORTED'");
     expect(source).toContain("PROVIDER_REJECTED: 'PROVIDER_REJECTED'");
     expect(source).toContain("UNVERIFIED: 'UNVERIFIED'");
-    expect(source).toContain("/odata/$metadata");
+    expect(source).toContain('/odata/$metadata');
     expect(source).toContain("page('Lookup'");
     expect(source).not.toContain('metadata.xml');
     expect(source).not.toContain('local_fallback');
@@ -53,9 +54,9 @@ describe('Cotality live authority guard', () => {
     expect(existsSync(compiler)).toBe(true);
     expect(existsSync(verifier)).toBe(true);
     const full = text(compiler);
-    expect(full).toContain("client.fieldCatalog()");
-    expect(full).toContain("client.lookupCatalog()");
-    expect(full).toContain("client.dataSystem()");
+    expect(full).toContain('client.fieldCatalog()');
+    expect(full).toContain('client.lookupCatalog()');
+    expect(full).toContain('client.dataSystem()');
     expect(full).toContain('client.probeField');
     expect(full).toContain('client.probeRelationship');
 
@@ -64,5 +65,19 @@ describe('Cotality live authority guard', () => {
     expect(search).toContain('crm-idx-filter.ts');
     expect(search).toContain('field-registry.ts');
     expect(search).toContain('client.probeField');
+  });
+
+  it('parses every executable Cotality .mjs entrypoint with the repository Node runtime', () => {
+    for (const file of [liveClient, queryCli, compiler, verifier]) {
+      const result = spawnSync(process.execPath, ['--check', file], {
+        cwd: root,
+        encoding: 'utf8',
+      });
+      expect({ file, status: result.status, stderr: result.stderr }).toEqual({
+        file,
+        status: 0,
+        stderr: '',
+      });
+    }
   });
 });
