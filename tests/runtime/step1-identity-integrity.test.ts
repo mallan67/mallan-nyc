@@ -9,47 +9,68 @@
  * rather than silent, because a provider row we cannot identify is an integrity
  * failure, not a filtered result.
  *
- * Live `$metadata`: `ListingId` and `SourceSystemKey` are both nullable strings,
- * so this is a legitimate provider state, not a hypothetical.
+ * RETARGETED 2026-08-24. These cases previously admitted a row carrying only
+ * `ListingId` or `SourceSystemKey`. Commit 21b0adc0 closed that: live
+ * authenticated `$metadata` declares `Property.ListingKey` String(20)
+ * Nullable=false, while `ListingId` is separately nullable and
+ * `SourceSystemKey` is provider lineage. Neither may impersonate `ListingKey`,
+ * so neither can establish identity — asserting that they do would re-authorise
+ * the exact substitution `listingIdentity()` exists to prevent.
+ *
+ * `ListingKey` is Nullable=false, so an absent one is a provider integrity
+ * failure rather than a legitimate state — which is why it is excluded loudly
+ * and counted, not filtered silently.
  */
 import { partitionByListingIdentity } from '@/app/api/idx/search/route';
 
 describe('partitionByListingIdentity', () => {
-  it('admits rows carrying a provider identity', () => {
+  it('admits rows carrying a provider ListingKey', () => {
     const out = partitionByListingIdentity([
-      { ListingId: 'RLS20000001' },
-      { SourceSystemKey: '1183681390' },
+      { ListingKey: '1183681390' },
+      { ListingKey: '1183681391' },
     ]);
     expect(out.usable).toHaveLength(2);
     expect(out.identityless).toBe(0);
   });
 
-  it('excludes a row with neither identifier', () => {
+  it('excludes a row with no ListingKey', () => {
     const out = partitionByListingIdentity([{ ListPrice: 1250000 }]);
     expect(out.usable).toHaveLength(0);
     expect(out.identityless).toBe(1);
   });
 
-  it('treats an empty-string identifier as no identifier', () => {
-    const out = partitionByListingIdentity([{ ListingId: '', SourceSystemKey: '' }]);
+  it('treats an empty-string ListingKey as no identity', () => {
+    const out = partitionByListingIdentity([{ ListingKey: '' }]);
     expect(out.usable).toHaveLength(0);
     expect(out.identityless).toBe(1);
   });
 
-  it('counts the exclusions so the failure is visible, not silent', () => {
+  it('refuses to let ListingId or SourceSystemKey stand in for ListingKey', () => {
+    // The substitution 21b0adc0 removed. A row carrying only these is
+    // unidentifiable, and admitting it would put a row we cannot key into the
+    // authoritative universe under a borrowed identifier.
     const out = partitionByListingIdentity([
       { ListingId: 'RLS20000001' },
+      { SourceSystemKey: '1183681390' },
+    ]);
+    expect(out.usable).toHaveLength(0);
+    expect(out.identityless).toBe(2);
+  });
+
+  it('counts the exclusions so the failure is visible, not silent', () => {
+    const out = partitionByListingIdentity([
+      { ListingKey: '1183681390' },
       {},
       { ListPrice: 999 },
-      { SourceSystemKey: 'k' },
+      { ListingKey: '1183681391' },
     ]);
     expect(out.usable).toHaveLength(2);
     expect(out.identityless).toBe(2);
   });
 
   it('preserves order and identity of the admitted rows', () => {
-    const a = { ListingId: 'A' };
-    const b = { ListingId: 'B' };
+    const a = { ListingKey: 'A' };
+    const b = { ListingKey: 'B' };
     const out = partitionByListingIdentity([a, {}, b]);
     expect(out.usable).toEqual([a, b]);
   });

@@ -153,12 +153,30 @@ describe("E-0 — every live Cotality Media fetch path requests the field", () =
     ["lib/idx/fetch.ts", "fetchListingMedia + $expand=Media"],
     ["lib/idx/sync.ts", "batch-media x3"],
     ["app/api/media/batch/route.ts", "media batch route x2"],
-    ["app/api/idx/search/route.ts", "search card backfill"],
+    // REMOVED 2026-08-24: "search card backfill". The search route no longer
+    // fetches media at all — it sets `expandMedia: false` and leaves media to
+    // the dedicated media path, so it holds no media field list to authorise.
+    // Keeping it here made the literal sweep below fail on a file that has
+    // nothing to sweep. Its continued media-free state is asserted separately
+    // so the entry cannot be quietly dropped if media returns there.
     ["app/api/agents/[slug]/listings/route.ts", "agent page cards"],
   ];
 
   it.each(paths)("%s requests InternetEntireListingDisplayYN (%s)", (rel) => {
     expect(read(rel)).toContain("InternetEntireListingDisplayYN");
+  });
+
+  it("the search route still fetches no media, so it needs no media authorization", () => {
+    // Pins the reason app/api/idx/search/route.ts is absent from `paths`.
+    // If media fetching returns to this route it must be re-added above and
+    // carry InternetEntireListingDisplayYN — this assertion fails first.
+    const src = read("app/api/idx/search/route.ts");
+    expect(src).toContain("expandMedia: false");
+    const mediaLists = [
+      ...(src.match(/"[^"\n]*MediaURL[^"\n]*"/g) || []),
+      ...(src.match(/'[^'\n]*MediaURL[^'\n]*'/g) || []),
+    ].filter((s) => s.includes(","));
+    expect(mediaLists).toHaveLength(0);
   });
 
   it("every media field-list literal that names MediaURL also names the auth field", () => {
@@ -201,7 +219,10 @@ describe("E-0 — every live Cotality Media fetch path requests the field", () =
     // Pin the count so a path deleted (rather than fixed) is also caught.
     // 10 = 11 live field lists minus the pinned-dead backfillEmptyMedia one.
     // +1 (2026-08-19): the Phase 3.5 content-verification locator resolve in media-sync.ts.
-    expect(listsChecked).toBe(10);
+    // -1 (2026-08-24): the search route's card-backfill list. That route now
+    //   sets `expandMedia: false` and fetches no media, so the list is gone
+    //   rather than unauthorised — see the media-free assertion above.
+    expect(listsChecked).toBe(9);
   });
 
   it("fetchListingMedia refuses suppressed rows, not merely requests them", () => {

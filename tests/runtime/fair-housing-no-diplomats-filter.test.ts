@@ -46,14 +46,43 @@ describe('Fair Housing — server drops a submitted Diplomats filter', () => {
     return buildCrmIdxODataFilter(params);
   };
 
-  it('emits no OData clause for a {"CRM":["DiplomatsAllowed"]} submission', () => {
-    const odata = buildWith({ CRM: ['DiplomatsAllowed'] });
-    expect(odata).not.toMatch(/Diplomat/i);
-    expect(odata).not.toMatch(/\bCRM\b/);
+  /**
+   * RETARGETED 2026-08-24 (48978094). These previously asserted that the
+   * server SILENTLY DROPPED the submission and returned a clean filter string.
+   * `buildCrmIdxODataFilter` now rejects any non-boolean checkbox field, so the
+   * whole request fails closed instead.
+   *
+   * The Fair Housing obligation is unchanged and is in fact enforced more
+   * strongly: the protected-class proxy must never become a provider criterion.
+   * Rejecting the request guarantees that; dropping it merely happened to. The
+   * assertions below therefore pin the OBLIGATION (no clause ever reaches
+   * Cotality) rather than the mechanism.
+   */
+  const odataFor = (checkboxFilters: Record<string, string[]>): string | null => {
+    try {
+      return buildWith(checkboxFilters);
+    } catch {
+      // Rejected outright — no filter was produced, so nothing can reach the
+      // provider. That satisfies the obligation.
+      return null;
+    }
+  };
+
+  it('never produces an OData clause for a {"CRM":["DiplomatsAllowed"]} submission', () => {
+    const odata = odataFor({ CRM: ['DiplomatsAllowed'] });
+    expect(odata === null || !/Diplomat/i.test(odata)).toBe(true);
+    expect(odata === null || !/\bCRM\b/.test(odata)).toBe(true);
   });
 
   it('does not leak the raw value even alongside a legitimate filter', () => {
-    const odata = buildWith({ CRM: ['DiplomatsAllowed'], PetsAllowedYN: ['true'] });
-    expect(odata).not.toMatch(/Diplomat/i);
+    const odata = odataFor({ CRM: ['DiplomatsAllowed'], PetsAllowedYN: ['true'] });
+    expect(odata === null || !/Diplomat/i.test(odata)).toBe(true);
+  });
+
+  it('fails the whole request rather than half-executing the legitimate half', () => {
+    // A mixed submission is never partially run. Executing only PetsAllowedYN
+    // would answer a different question from the one submitted and would do so
+    // under HTTP 200, hiding that a protected-class criterion was sent at all.
+    expect(() => buildWith({ CRM: ['DiplomatsAllowed'], PetsAllowedYN: ['true'] })).toThrow();
   });
 });

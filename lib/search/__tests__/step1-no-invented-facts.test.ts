@@ -39,9 +39,18 @@ describe("geography is never invented", () => {
     expect(mapped().borough).toBeNull();
   });
 
-  it("still carries a borough the provider DID supply", () => {
+  it("preserves the raw provider geography without calling it a borough", () => {
+    // RETARGETED 2026-08-24 (21b0adc0). This previously asserted
+    // CityRegion -> borough. Cotality exposes SubdivisionName, CityRegion,
+    // CountyOrParish, MLSAreaMajor/Minor and PostalCity as SEPARATE facts, and
+    // their equivalence to the Mallan borough concept is not proven against the
+    // live contract. Promoting one of them to `borough` is the same unverified
+    // equivalence that sent Pending searches to ActiveUnderContract, so the raw
+    // fact is preserved under its own provider name and `borough` stays unknown.
     const row = { ...EMPTY_ROW, CityRegion: "Brooklyn" };
-    expect((mapTrestleToCrmListing(row, 0) as Record<string, unknown>).borough).toBe("Brooklyn");
+    const mappedRow = mapTrestleToCrmListing(row, 0) as Record<string, unknown>;
+    expect(mappedRow.providerCityRegion).toBe("Brooklyn");
+    expect(mappedRow.borough).toBeNull();
   });
 });
 
@@ -215,15 +224,22 @@ describe("identity is NEVER manufactured", () => {
 
   it("exposes a predicate so callers can exclude the row before it is trusted", () => {
     expect(hasUsableListingIdentity({})).toBe(false);
-    expect(hasUsableListingIdentity({ ListingId: "" })).toBe(false);
-    expect(hasUsableListingIdentity({ ListingId: "RLS20000001" })).toBe(true);
-    expect(hasUsableListingIdentity({ SourceSystemKey: "1183681390" })).toBe(true);
+    expect(hasUsableListingIdentity({ ListingKey: "" })).toBe(false);
+    expect(hasUsableListingIdentity({ ListingKey: "1183681390" })).toBe(true);
+  });
+
+  it("does not accept ListingId or SourceSystemKey as identity", () => {
+    // RETARGETED 2026-08-24 (21b0adc0). `ListingKey` is String(20)
+    // Nullable=false on live `$metadata`; `ListingId` is separately nullable
+    // and `SourceSystemKey` is provider lineage. Letting either stand in is the
+    // same class of invention as the `index + 1` id this file exists to forbid
+    // — a borrowed identifier is still not the row's identity.
+    expect(hasUsableListingIdentity({ ListingId: "RLS20000001" })).toBe(false);
+    expect(hasUsableListingIdentity({ SourceSystemKey: "1183681390" })).toBe(false);
   });
 
   it("still uses the provider identity when one exists", () => {
-    const byId = mapTrestleToCrmListing({ ListingId: "RLS20000001" }, 7) as Record<string, unknown>;
-    expect(byId.id).toBe("RLS20000001");
-    const byKey = mapTrestleToCrmListing({ SourceSystemKey: "1183681390" }, 7) as Record<string, unknown>;
+    const byKey = mapTrestleToCrmListing({ ListingKey: "1183681390" }, 7) as Record<string, unknown>;
     expect(byKey.id).toBe("1183681390");
   });
 });

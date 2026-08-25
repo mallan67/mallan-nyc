@@ -1,4 +1,4 @@
-import { buildCrmIdxODataFilter, escapeOData } from "@/lib/search/crm-idx-filter";
+import { buildCrmIdxODataFilter, escapeOData, UnsupportedSearchCriterionError } from "@/lib/search/crm-idx-filter";
 import { UnknownPropertySubTypeError } from "@/lib/search/canonical/property-subtype-contract";
 
 describe("buildCrmIdxODataFilter", () => {
@@ -11,7 +11,6 @@ describe("buildCrmIdxODataFilter", () => {
       maxBeds: "4",
       minBaths: "1.5",
       maxBaths: "3",
-      borough: "Manhattan",
     }));
 
     // CHANGED 2026-08-22. This line previously required
@@ -28,14 +27,12 @@ describe("buildCrmIdxODataFilter", () => {
     expect(filter).toContain("BedroomsTotal le 4");
     expect(filter).toContain("BathroomsTotalInteger ge 1.5");
     expect(filter).toContain("BathroomsTotalInteger le 3");
-    expect(filter).toContain("CityRegion eq 'Manhattan'");
     expect(filter).toContain("(StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')");
   });
 
-  it("builds rental status and neighborhood filters", () => {
+  it("builds rental status filters", () => {
     const filter = buildCrmIdxODataFilter(new URLSearchParams({
       type: "rental",
-      neighborhood: "NoSuchNeighborhoodForAlias",
       // RETARGETED 2026-08-22: criteria carry EXACT Cotality members. The spaced
       // spellings are not members; a saved search holding them is migrated at
       // lib/search/legacy-saved-search-status-migration.ts before it reaches the
@@ -44,8 +41,42 @@ describe("buildCrmIdxODataFilter", () => {
     }));
 
     expect(filter).toContain("PropertyType eq 'ResidentialLease'");
-    expect(filter).toContain("SubdivisionName eq 'NoSuchNeighborhoodForAlias'");
     expect(filter).toContain("(StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')");
+  });
+
+  // ── Geography is HELD, and the hold is fail-closed ────────────────────────
+  //
+  // RETARGETED 2026-08-24 (48978094). These previously asserted
+  // `borough -> CityRegion eq` and `neighborhood -> SubdivisionName eq`.
+  // Cotality exposes SubdivisionName, CityRegion, CountyOrParish,
+  // MLSAreaMajor/Minor and PostalCity as distinct facts whose equivalence to
+  // the Mallan neighborhood/borough concepts is not proven against the live
+  // contract, and the old alias files are not provider authority.
+  //
+  // The criterion THROWS rather than being dropped. Dropping it would remove
+  // the geographic narrowing and answer a broader question under HTTP 200 —
+  // strictly worse than a visible 400, and the same silent-widening failure
+  // mode the status pass exists to remove.
+  it("fails closed on a borough criterion instead of guessing a provider field", () => {
+    expect(() => buildCrmIdxODataFilter(new URLSearchParams({ borough: "Manhattan" })))
+      .toThrow(UnsupportedSearchCriterionError);
+  });
+
+  it("fails closed on a neighborhood criterion instead of guessing a provider field", () => {
+    expect(() => buildCrmIdxODataFilter(new URLSearchParams({ neighborhood: "NoSuchNeighborhoodForAlias" })))
+      .toThrow(UnsupportedSearchCriterionError);
+  });
+
+  it("never silently drops geography, which would widen the search", () => {
+    // The specific regression guarded: a dropped criterion returns a filter
+    // that looks successful while answering a different question.
+    let filter: string | null = null;
+    try {
+      filter = buildCrmIdxODataFilter(new URLSearchParams({ type: "sale", borough: "Manhattan" }));
+    } catch {
+      filter = null;
+    }
+    expect(filter).toBeNull();
   });
 
   it("supports status wildcard for tracker-style total counts", () => {
@@ -77,7 +108,6 @@ describe("buildCrmIdxODataFilter", () => {
       // live Cotality PropertySubType member — the enum carries `Condominium` and
       // `StockCooperative` — and the old expectation asserted a `contains()`
       // expression the provider answers with HTTP 400. Both halves were wrong.
-      managementCompany: "O'Brien Realty",
       propertySubType: "Apartment,Loft",
       ownership: "Condominium,StockCooperative",
       listingId: "RLS123",
@@ -86,7 +116,6 @@ describe("buildCrmIdxODataFilter", () => {
     expect(filter).toContain("ModificationTimestamp gt 2026-04-01T00:00:00Z");
     expect(filter).toContain("ModificationTimestamp le 2026-04-02T23:59:59Z");
     expect(filter).toContain("contains(BuildingName,'The Plaza')");
-    expect(filter).toContain("contains(ListOfficeName,'O''Brien Realty')");
     expect(filter).toContain("(PropertySubType eq 'Apartment' or PropertySubType eq 'Loft')");
     expect(filter).toContain("(CommonInterest eq 'Condominium' or CommonInterest eq 'StockCooperative')");
     expect(filter).toContain("ListingId eq 'RLS123'");
@@ -118,23 +147,40 @@ describe("buildCrmIdxODataFilter", () => {
     expect(quoted).toContain("(ListingId eq 'RLS123' or ListingId eq 'RLS''456')");
   });
 
-  it("applies only safe checkbox and grid filters", () => {
-    const checkboxFilters = JSON.stringify({
-      CoolingYN: ["true"],
-      BuildingLaundryFeatures: ["Common Area"],
-      AvailableLeaseType: ["ShortTerm"],
-      UnsafeField: ["x"],
-    });
-    const filter = buildCrmIdxODataFilter(new URLSearchParams({
-      checkboxFilters,
-      gridFilter: "(Latitude ge 40.7 and Latitude le 40.8 and Longitude ge -74.1 and Longitude le -73.9)",
-    }));
+  it("fails closed on a managementCompany criterion", () => {
+    // Cotality declares no ManagementCompany Property field. Listing office is
+    // a DIFFERENT fact; substituting `ListOfficeName` answered a question the
+    // broker did not ask while looking like a successful management-company
+    // search.
+    expect(() => buildCrmIdxODataFilter(new URLSearchParams({ managementCompany: "O'Brien Realty" })))
+      .toThrow(UnsupportedSearchCriterionError);
+  });
 
+  it("applies a boolean checkbox filter", () => {
+    const filter = buildCrmIdxODataFilter(new URLSearchParams({
+      checkboxFilters: JSON.stringify({ CoolingYN: ["true"] }),
+    }));
     expect(filter).toContain("CoolingYN eq true");
-    expect(filter).toContain("LaundryFeatures eq 'Common Area'");
-    expect(filter).toContain("Latitude ge 40.7");
-    expect(filter).not.toContain("AvailableLeaseType");
-    expect(filter).not.toContain("UnsafeField");
+  });
+
+  it("fails closed on a non-boolean checkbox field rather than dropping it", () => {
+    // RETARGETED 2026-08-24 (48978094). Previously these were silently dropped
+    // and the test asserted the DROP. A dropped narrowing criterion widens the
+    // result set under HTTP 200 — the broker sees more inventory than they
+    // asked for with nothing to indicate the filter never ran.
+    for (const field of ["BuildingLaundryFeatures", "AvailableLeaseType", "UnsafeField"]) {
+      expect(() => buildCrmIdxODataFilter(new URLSearchParams({
+        checkboxFilters: JSON.stringify({ [field]: ["x"] }),
+      }))).toThrow(UnsupportedSearchCriterionError);
+    }
+  });
+
+  it("fails closed on a caller-supplied coordinate gridFilter", () => {
+    // Coordinates are map support, not a canonical Search axis, and a raw
+    // caller-supplied predicate is never accepted as a provider criterion.
+    expect(() => buildCrmIdxODataFilter(new URLSearchParams({
+      gridFilter: "(Latitude ge 40.7 and Latitude le 40.8 and Longitude ge -74.1 and Longitude le -73.9)",
+    }))).toThrow(UnsupportedSearchCriterionError);
   });
 
   // ═══════════════════════════════════════════════════════════════════
@@ -305,17 +351,21 @@ describe("buildCrmIdxODataFilter", () => {
     expect(f).not.toContain("(CommonInterest eq 'Condop')");
   });
 
-  it("multi-neighborhood (csv) → SubdivisionName OR group", () => {
-    const f = buildCrmIdxODataFilter(new URLSearchParams({
-      neighborhood: "Tribeca,SoHo",
-    }));
-    // Both should appear in an OR group. May include alias variants per
-    // expandCrmIdxNeighborhood — assertion just verifies both tokens are
-    // OR-grouped, not a single literal "Tribeca,SoHo".
-    expect(f).toContain("SubdivisionName eq 'Tribeca'");
-    expect(f).toContain("SubdivisionName eq 'SoHo'");
-    expect(f).toContain(" or ");
-    expect(f).not.toContain("SubdivisionName eq 'Tribeca,SoHo'");
+  it("multi-neighborhood (csv) fails closed and names every rejected value", () => {
+    // RETARGETED 2026-08-24 (48978094). Previously asserted a SubdivisionName
+    // OR group. Geography is held: SubdivisionName is one of several distinct
+    // Cotality facts and its equivalence to the Mallan neighborhood concept is
+    // unproven, so it is not silently chosen as the neighborhood field.
+    try {
+      buildCrmIdxODataFilter(new URLSearchParams({ neighborhood: "Tribeca,SoHo" }));
+      throw new Error("expected buildCrmIdxODataFilter to throw");
+    } catch (err) {
+      expect(err).toBeInstanceOf(UnsupportedSearchCriterionError);
+      // Every rejected value is reported, not just the first — a broker
+      // restoring a saved search needs the whole list to repair it.
+      expect((err as UnsupportedSearchCriterionError).message).toContain("Tribeca");
+      expect((err as UnsupportedSearchCriterionError).message).toContain("SoHo");
+    }
   });
 
   it("address parser — all-numeric input → StreetNumber + BuildingName fallback", () => {
@@ -354,11 +404,16 @@ describe("buildCrmIdxODataFilter", () => {
     expect(f).not.toContain("2026-05-12");
   });
 
-  it("DEAD: non-whitelisted checkboxFilters fields are silently dropped", () => {
-    // Per the whitelist at crm-idx-filter.ts (~line 252 odataSafe Set),
-    // these data-field values are NOT translated to OData. The frontend
-    // collects them into criteria.checkboxFilters but the backend drops
-    // them. Visible UI controls that send these silently do nothing.
+  it("UNSUPPORTED: non-boolean checkboxFilters fields fail closed instead of being dropped", () => {
+    // RETARGETED 2026-08-24 (48978094). This group previously asserted that
+    // these controls were SILENTLY DROPPED, and called that "DEAD". Silence was
+    // the defect: a broker ticking "Doorman" got every listing back, HTTP 200,
+    // with nothing to say the filter never ran. The backend now throws, so an
+    // unsupported control is visible as a typed 400 instead of a wider result
+    // set wearing the costume of a narrower one.
+    //
+    // These UI controls remain unsupported by the provider contract. What
+    // changed is only that saying so is now loud.
     //
     // This covers, at minimum:
     //   AttendanceType  — Doorman, Concierge, Elevator-Attendant checkboxes
@@ -371,33 +426,35 @@ describe("buildCrmIdxODataFilter", () => {
     //   RLSParticipantOnly — distribution gate (handled elsewhere)
     //   ListOfficeMlsId — "In-House" filter
     //
-    const checkboxFilters = JSON.stringify({
+    const unsupported: Record<string, string[]> = {
       AttendanceType: ["DoormanFullTime"],
       Furnished: ["Furnished"],
       OwnerPays: ["AllUtilities"],
       Concessions: ["Yes"],
       BuildingRules: ["PiedATerreAllowed", "GuarantorsAccepted"],
-      RentingAllowedYN: ["true"],
       MaximumFinancingPercent: ["100"],
-      RLSParticipantOnly: ["true"],
       ListOfficeMlsId: ["OwnOffice"],
-    });
-    const f = buildCrmIdxODataFilter(new URLSearchParams({ checkboxFilters }));
+    };
 
-    // None of these field names should appear in the produced OData filter.
-    expect(f).not.toContain("AttendanceType");
-    expect(f).not.toContain("DoormanFullTime");
-    expect(f).not.toContain("Furnished");
-    expect(f).not.toContain("OwnerPays");
-    expect(f).not.toContain("AllUtilities");
-    expect(f).not.toContain("Concessions");
-    expect(f).not.toContain("BuildingRules");
-    expect(f).not.toContain("PiedATerreAllowed");
-    expect(f).not.toContain("GuarantorsAccepted");
-    expect(f).not.toContain("RentingAllowedYN");
-    expect(f).not.toContain("MaximumFinancingPercent");
-    expect(f).not.toContain("RLSParticipantOnly");
-    expect(f).not.toContain("ListOfficeMlsId");
+    for (const [field, values] of Object.entries(unsupported)) {
+      expect(() => buildCrmIdxODataFilter(new URLSearchParams({
+        checkboxFilters: JSON.stringify({ [field]: values }),
+      }))).toThrow(UnsupportedSearchCriterionError);
+    }
+  });
+
+  it("names the rejected criterion so the broker learns which control failed", () => {
+    // A 400 that does not say WHICH filter is unsupported just moves the
+    // confusion rather than removing it.
+    try {
+      buildCrmIdxODataFilter(new URLSearchParams({
+        checkboxFilters: JSON.stringify({ AttendanceType: ["DoormanFullTime"] }),
+      }));
+      throw new Error("expected buildCrmIdxODataFilter to throw");
+    } catch (err) {
+      expect(err).toBeInstanceOf(UnsupportedSearchCriterionError);
+      expect((err as UnsupportedSearchCriterionError).message).toContain("AttendanceType");
+    }
   });
 
   it("DEAD: operator-prefixed data-value (lte:N / gte:N / gt:N / eq:N) is sent literally", () => {
@@ -413,24 +470,13 @@ describe("buildCrmIdxODataFilter", () => {
     // Test the whitelisted-but-operator case to document the broken
     // contract. Use NewConstructionYN since it IS whitelisted but the
     // operator prefix would corrupt it.
-    const checkboxFilters = JSON.stringify({
-      // YearBuilt would be the canonical example, but it's NOT in the
-      // whitelist either; we only have access via min/maxYear params.
-      // Use ConstructionMaterials which IS whitelisted as a stand-in to
-      // prove operator prefixes break even when the field IS allowed.
-      ConstructionMaterials: ["lte:1946"],
-    });
-    const f = buildCrmIdxODataFilter(new URLSearchParams({ checkboxFilters }));
-
-    // The operator prefix is sent LITERALLY. This is the broken state.
-    // When real operator support is added, this assertion should be
-    // updated to `expect(f).toContain("ConstructionMaterials le 1946")`.
-    if (f.includes("ConstructionMaterials")) {
-      expect(f).toContain("ConstructionMaterials eq 'lte:1946'");
-    }
-    // Either way, we explicitly verify the operator-aware form is NOT
-    // present (which would be the correct future behavior).
-    expect(f).not.toContain("ConstructionMaterials le 1946");
+    // RETARGETED 2026-08-24. Previously this asserted the prefix was sent
+    // LITERALLY as `ConstructionMaterials eq 'lte:1946'` — a clause that
+    // matches zero rows while returning HTTP 200, i.e. "Pre-War" quietly
+    // meaning "nothing". The criterion is now rejected outright.
+    expect(() => buildCrmIdxODataFilter(new URLSearchParams({
+      checkboxFilters: JSON.stringify({ ConstructionMaterials: ["lte:1946"] }),
+    }))).toThrow(UnsupportedSearchCriterionError);
   });
 
   it("DEAD: data-value=\"Any\" placeholder is sent literally, not expanded", () => {
@@ -443,18 +489,12 @@ describe("buildCrmIdxODataFilter", () => {
     // alias) to prove the literal-Any path. AttendanceType (the most
     // common "Any" target) is non-whitelisted so it'd be dropped entirely
     // — already covered by the dead-checkbox test above.
-    const checkboxFilters = JSON.stringify({
-      BuildingLaundryFeatures: ["Any"],
-    });
-    const f = buildCrmIdxODataFilter(new URLSearchParams({ checkboxFilters }));
-
-    // Translates to LaundryFeatures eq 'Any' — a literal string equality
-    // that won't match any actual enum value (Trestle has values like
-    // "InUnit", "Common Area", "WasherDryerInstallAllowed"). Returns 0.
-    expect(f).toContain("LaundryFeatures eq 'Any'");
-    // Verify no expansion occurred:
-    expect(f).not.toContain("InUnit");
-    expect(f).not.toContain("Common Area");
+    // RETARGETED 2026-08-24. Previously asserted `LaundryFeatures eq 'Any'` —
+    // a literal equality against a value the provider enum does not contain,
+    // so "Any Laundry" reliably returned zero. Rejected outright now.
+    expect(() => buildCrmIdxODataFilter(new URLSearchParams({
+      checkboxFilters: JSON.stringify({ BuildingLaundryFeatures: ["Any"] }),
+    }))).toThrow(UnsupportedSearchCriterionError);
   });
 
   it("DEAD: data-not negation pattern is not collected by the frontend scanner", () => {
@@ -468,17 +508,15 @@ describe("buildCrmIdxODataFilter", () => {
     // builder has no negation operator, so a hypothetical
     //   { CorporateOwnerAllowed_NOT: ['true'] }
     // would be silently dropped (non-whitelisted field name).
-    const checkboxFilters = JSON.stringify({
-      "CorporateOwnerAllowed_NOT": ["true"],
-      "BuildingRules_NOT": ["CorporateOwnerAllowed"],
-    });
-    const f = buildCrmIdxODataFilter(new URLSearchParams({ checkboxFilters }));
-
-    expect(f).not.toContain("CorporateOwnerAllowed_NOT");
-    expect(f).not.toContain("BuildingRules_NOT");
-    expect(f).not.toContain("CorporateOwnerAllowed");
-    expect(f).not.toContain(" not ");
-    expect(f).not.toContain(" ne ");
+    // RETARGETED 2026-08-24. The builder still has no negation operator, and a
+    // `_NOT` field name is still not a provider field. It is now rejected
+    // rather than dropped, so a negation that cannot be expressed can no
+    // longer masquerade as one that ran.
+    for (const field of ["CorporateOwnerAllowed_NOT", "BuildingRules_NOT"]) {
+      expect(() => buildCrmIdxODataFilter(new URLSearchParams({
+        checkboxFilters: JSON.stringify({ [field]: ["true"] }),
+      }))).toThrow(UnsupportedSearchCriterionError);
+    }
   });
 
   it("DEAD: status sub-statuses (OfferOut / ContractSigned / etc) become uppercase strings that don't match any enum", () => {
@@ -625,28 +663,25 @@ describe("buildCrmIdxODataFilter", () => {
     expect(listedAndUpdated).not.toMatch(/ListingContractDate.+or.+ModificationTimestamp/);
   });
 
-  it("DEAD: transit/grid Lat/Lng filters reach the OData builder unmodified — runtime null-feed yields 0 rows", () => {
-    // The gridFilter param is passthrough-allowed by the regex at
-    // crm-idx-filter.ts:281. That part is correct: when Lat/Lng exist
-    // on the feed (other MLOs served by Cotality), the bbox filter
-    // works. The DEAD aspect is that the REBNY IDX feed does NOT
-    // populate Latitude/Longitude per CLAUDE.md.
+  it("UNSUPPORTED: a caller-supplied Lat/Lng gridFilter is rejected, not forwarded", () => {
+    // RETARGETED 2026-08-24 (48978094). This previously asserted that the
+    // builder FORWARDED a caller-supplied bbox literally, via a regex
+    // allowlist. Two problems collapsed into one: the REBNY IDX feed does not
+    // populate Latitude/Longitude, so the clause matched zero rows at runtime;
+    // and accepting a raw caller-authored OData fragment as a provider
+    // criterion is a passthrough this codebase should not have.
     //
-    // This test pins the BUILDER behavior — it does NOT validate runtime
-    // fitness against the feed. The runtime block is enforced by
-    // public/crm/js/init/init-disable-dead-controls.js disabling the
-    // transit panels and Manhattan grid containers.
-    const f = buildCrmIdxODataFilter(new URLSearchParams({
+    // Coordinates are map support, not a canonical Search axis. The criterion
+    // is now rejected at the boundary instead of producing a query that
+    // returns nothing while looking like it ran.
+    //
+    // FOR FUTURE CONTRIBUTORS: if geocoded coordinates land on the projection
+    // (master plan PR 5) and a real spatial axis is added, it must arrive as a
+    // structured criterion the builder composes — never as a caller-supplied
+    // fragment — and the transit + Manhattan-grid selectors in
+    // init-disable-dead-controls.js DEAD_CONTAINERS move at the same time.
+    expect(() => buildCrmIdxODataFilter(new URLSearchParams({
       gridFilter: "(Latitude ge 40.7 and Latitude le 40.8 and Longitude ge -74.1 and Longitude le -73.9)",
-    }));
-    // Builder forwards the bbox literally (regex-allowlisted)
-    expect(f).toContain("Latitude ge 40.7");
-    expect(f).toContain("Longitude le -73.9");
-    // ASSERTION FOR FUTURE CONTRIBUTORS:
-    // If this builder behavior changes (e.g., gridFilter is rewritten
-    // to a DB-side spatial query because PR 5+ landed geocoded
-    // coordinates), then the transit + Manhattan-grid selectors in
-    // init-disable-dead-controls.js DEAD_CONTAINERS can be removed.
-    // Both must move together.
+    }))).toThrow(UnsupportedSearchCriterionError);
   });
 });
