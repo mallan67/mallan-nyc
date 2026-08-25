@@ -1019,12 +1019,24 @@ If the Agent overrides a subject fact for analysis, preserve the sourced canonic
 
 ## 6.3 Market universe
 
-Sale CMA should distinguish relevant:
+Sale CMA must separate **valuation comps** from **market-context / market-resistance evidence**.
 
-- Closed evidence;
-- In Contract/Pending context;
-- Active competition;
+The sale CMA market universe should distinguish:
+
+- **Closed evidence — primary valuation evidence.** The final valuation comp set is made from verified Closed transactions selected by the Agent;
+- **In Contract/Pending context — current acceptance direction.** It helps show where current buyers and sellers are meeting, but it is not a final Closed comp while the actual closing price remains unknown;
+- **Active competition — current asking-price context.** It shows what a buyer can choose among now, but asking price is not closed value;
+- **Expired market-resistance evidence — secondary evidence.** A verified Expired listing can show that a property was exposed to the market at a sourced asking price/positioning and did not produce a completed sale during that observed listing episode. This is useful when explaining to a Seller, Buyer, lender or other authorized recipient where a price point failed to clear the market, but it is not a final valuation comp;
+- **Withdrawn / removed / Temporarily Off Market / Hold history — contextual evidence only when verified.** These statuses can help explain market history, but the reason may be price, seller decision, condition, access, representation strategy or another factor and Mallan must not invent the cause;
 - private/supplemental or Schedule A opportunities as a separate context when relevant and sufficiently verified.
+
+Expired or removed historical evidence may come from the current authorized Cotality data when available **or from another authorized secondary source**. A secondary-source observation must resolve to the same canonical Property/Unit/Listing Episode, remain read-only as source evidence, retain source URL/identifier where applicable, observed/listing dates, sourced asking price/status, provenance and last-verified date, and must never overwrite Cotality or Mallan canonical listing truth.
+
+An Expired observation supports the narrower factual statement that the sourced listing episode ended without a completed sale at the recorded market exposure/price history. It does **not** by itself prove that price was the sole reason the property failed to sell.
+
+Source-reported `Withdrawn`, `Temporarily Off Market`, `Hold` or similar states are **not representation truth**. They do not prove that an exclusive agreement ended, that the owner is unrepresented, or that solicitation is automatically appropriate. Representation/prospecting eligibility remains a separate governed decision from CMA status evidence.
+
+Mallan does **not** require purchase of an additional Cotality Backend entitlement solely to obtain Expired/Withdrawn/TOM/Hold observations for this secondary CMA/prospecting purpose if the required historical observations can be lawfully obtained from another authorized source. Any future additional provider/feed purchase must be justified by a separate material capability Mallan actually needs.
 
 Rental CMA should distinguish relevant:
 
@@ -1039,6 +1051,8 @@ Unconfirmed Schedule A opportunities are not equivalent to closed comps or verif
 ## 6.4 Comp selection
 
 Mallan may suggest comps but the Agent chooses the final comp set.
+
+For a **sale CMA, the final valuation comp set consists of verified Closed transactions**. Active, Pending/In Contract and Expired/Withdrawn/TOM market-history records may appear in clearly separated market-context sections, but they may not be silently counted as Closed valuation comps or blended into a closed-comp average/range as though their asking prices were transaction prices.
 
 A professional comp table should show, where verified/applicable:
 
@@ -1061,9 +1075,9 @@ No unexplained black-box similarity score may be the only rationale.
 
 Use verified facts.
 
-Do not substitute asking price or Schedule A offering price for close price simply because close price is missing.
+Do not substitute asking price, Expired-listing ask, Active ask or Schedule A offering price for close price simply because close price is missing.
 
-If another authorized evidence source such as correctly matched ACRIS evidence is used, label its provenance rather than pretending it came from the provider close field.
+If another authorized evidence source such as correctly matched ACRIS evidence or a permitted historical-listing source is used, label its provenance rather than pretending it came from the provider close/status field.
 
 Underlying listing/source professional information may be available internally where authorized, but it is not part of the client CMA/report identity unless required by the applicable client-display rule.
 
@@ -1086,12 +1100,16 @@ CMA should distinguish evidence from Agent strategy.
 Useful presentation can include:
 
 - closed evidence range;
-- adjusted comp range;
+- adjusted Closed-comp range;
 - active competition;
+- Pending/In Contract context;
+- **Expired / failed-market price points as a separate market-resistance section**;
 - private/new-development opportunity context;
 - current market movement;
 - Agent discussion range;
 - Seller/Landlord/Buyer/Investor strategy scenarios where appropriate.
+
+Where Expired evidence is shown, the report should state what the source proves — market exposure, recorded asking price/history, dates/status and lack of a completed sale for that observed episode — and must not automatically claim the price alone caused the failure.
 
 For Seller-side strategy, a useful discussion may distinguish competitive, market and aspirational positioning without pretending the system can guarantee an outcome.
 
@@ -1152,6 +1170,8 @@ The Agent should always be able to see where a number came from and whether it i
 ## 6.12 CMA acceptance
 
 CMA is not finished until Property → market universe → selected comps → adjustments → strategy → save → reopen → version → client-safe preview/share/email works with verified data, reproducible history and no unauthorized source-professional/PII leakage.
+
+For sale CMA specifically, closure also requires proof that the **final valuation comp set is Closed**, while Active/Pending and Expired/removed/TOM evidence remain separately labeled context; secondary-source historical observations preserve canonical identity/provenance/rights; and an Expired asking price can never silently become a transaction price.
 
 ---
 
@@ -3300,7 +3320,7 @@ CURRENT
 partial heuristic/address-driven implementation evidence
 
 TARGET
-Search-based professional subject → universe → Agent comp selection → explainable adjustments → strategy → versioned client-safe CMA, with private/Schedule A opportunities labeled separately from verified closed/active evidence
+Search-based professional subject → universe → Agent selection of verified Closed final valuation comps → explainable adjustments → strategy → versioned client-safe CMA, with Active/Pending context and Expired/removed market-resistance evidence kept in separately labeled sections; authorized secondary historical sources may supply missing Expired evidence as read-only canonical source observations without making an additional Cotality Backend feed a prerequisite solely for that secondary use
 ```
 
 ### Backend Listing
@@ -3451,7 +3471,9 @@ Rebuild CMA on corrected Backend Search/Property Intelligence:
 ```text
 SUBJECT
 → MARKET UNIVERSE
-→ COMP SELECTION
+→ CLOSED FINAL VALUATION COMP SET
+→ ACTIVE / PENDING MARKET CONTEXT
+→ EXPIRED / REMOVED MARKET-RESISTANCE EVIDENCE WHEN AUTHORIZED
 → ADJUSTMENTS
 → STRATEGY
 → VERSIONED CMA
@@ -3459,7 +3481,7 @@ SUBJECT
 → SHARE / EMAIL
 ```
 
-No independent reduced comp-search engine.
+No independent reduced comp-search engine. Historical Expired/removed observations may come from an authorized secondary source when the current Cotality entitlement does not supply them; they remain source-attributed context and never replace Closed transaction truth.
 
 ## Phase 3 — BACKEND LISTING / OPPORTUNITY WORKSPACE
 
@@ -3539,7 +3561,7 @@ Not complete until professional criteria execute; Basic/Advanced preserve one cr
 
 ## CMA
 
-Not complete until it uses the same Backend Search/Property Intelligence universe, uses verified facts, distinguishes private/Schedule A opportunities from true closed/active evidence, supports Agent-selected/explainable comps and adjustments, versions reproducibly, prevents unauthorized source-professional/PII leakage into client output, shows the Mallan report creator identity plus only attribution required by current rules, and supports save/reopen/share/email end-to-end.
+Not complete until it uses the same Backend Search/Property Intelligence universe, uses verified facts, makes verified Closed transactions the final sale valuation comp set, keeps Active/Pending context separate, keeps Expired/removed/TOM market-resistance evidence separate from transaction comps, preserves source/canonical identity/provenance for any authorized secondary historical observations, never converts an asking price into a close price, supports Agent-selected/explainable comps and adjustments, versions reproducibly, prevents unauthorized source-professional/PII leakage into client output, shows the Mallan report creator identity plus only attribution required by current rules, and supports save/reopen/share/email end-to-end.
 
 ## Backend Listings / Opportunities
 
@@ -3587,6 +3609,7 @@ No `Fixed`, `Production Ready`, `Compliant`, `Search Working`, `CMA Working`, `L
 
 - This file is the intended single canonical product/system authority on draft PR #595 and remains unmerged until explicitly approved.
 - Maya's recent Search/CMA/Backend Listing decisions have been preserved rather than overwritten.
+- **Sale CMA now explicitly uses verified Closed transactions as the final valuation comp set.** Active/Pending remain current-market context; Expired/removed/TOM evidence is a separately labeled market-resistance/history layer. Authorized secondary sources may supply missing Expired observations as read-only canonical Source Observations, and an additional Cotality Backend entitlement is not required solely for that secondary purpose. Source-reported TOM/Withdrawn/Hold is not treated as proof that representation ended or that solicitation is automatically appropriate.
 - **Private supplemental sale inventory is now explicitly reauthorized for Backend Agent Search.** The target is maximum authorized StreetEasy sale coverage for units absent from Cotality plus NYS Attorney General Offering Plan/Schedule A new-development/sponsor unit opportunities, all reconciled to the same canonical Property/Unit/Listing identity.
 - StreetEasy URL-assisted intake is a required UX direction, but automated extraction/scraping is `RIGHTS-GATED`: current StreetEasy terms prohibit automated scraping/data extraction except where expressly permitted in writing. Without authorized access, Mallan stores the source URL and Agent-confirmed/manual fields; with future written/licensed/API/feed access, the same adapter may prefill the existing template.
 - Private supplemental records are Agent/professional inventory by default and never silently enter public Consumer Search, sitemap, SEO or public feeds. Selected-client sharing requires current share/advertising/source/media rights and client-safe transformation; `private` is not treated as an automatic exemption.
