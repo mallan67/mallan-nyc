@@ -62,7 +62,13 @@ export const SEARCH_SELECT_FIELDS = [
   "ListOfficeMlsId", "ListOfficeName",
   "PhotosCount", "VirtualTourURLBranded", "VirtualTourURLUnbranded",
   "PublicRemarks", "InternetEntireListingDisplayYN", "InternetAddressDisplayYN",
-  "PetsAllowed", "Furnished", "MoveInCosts", "OngoingFees", "TenantPays", "TenantPaysDescription",
+  // All SIX canonical FARE fields. MoveInCostsAmount (Edm.Decimal 14,2) and
+  // MoveInCostsComments (Edm.String 1024) were verified live 2026-08-26; both
+  // were missing from this select, so the amount a tenant must pay and its
+  // explanation were never fetched at all. Not rendered on the Agent grid —
+  // carried for downstream tenant-facing outputs.
+  "PetsAllowed", "Furnished", "MoveInCosts", "MoveInCostsAmount", "MoveInCostsComments",
+  "OngoingFees", "TenantPays", "TenantPaysDescription",
 
   // Raw fields used by existing authenticated render/detail surfaces. Presence
   // in this list does NOT make them verified Search criteria.

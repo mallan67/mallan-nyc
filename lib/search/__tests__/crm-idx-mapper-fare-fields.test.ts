@@ -52,6 +52,42 @@ describe("crm-idx-mapper preserves verified FARE rental fee facts", () => {
     expect(out.providerTenantPays).toEqual(["Electricity", "CableTv", "Insurance"]);
   });
 
+  it("preserves MoveInCostsAmount as a NUMBER, not a string", () => {
+    // Live $metadata (probed 2026-08-26): Edm.Decimal precision 14 scale 2,
+    // nullable. A money amount that arrives as a string forces every downstream
+    // consumer to parse it, and a failed parse silently becomes NaN or 0 — the
+    // exact zero-invention this mapper stopped doing.
+    const out = map({ MoveInCostsAmount: 4250.5 });
+    expect(out.providerMoveInCostsAmount).toBe(4250.5);
+    expect(typeof out.providerMoveInCostsAmount).toBe("number");
+  });
+
+  it("coerces a numeric-string MoveInCostsAmount rather than passing the string through", () => {
+    const out = map({ MoveInCostsAmount: "4250.50" });
+    expect(out.providerMoveInCostsAmount).toBe(4250.5);
+  });
+
+  it("keeps a genuine zero MoveInCostsAmount as 0, not null", () => {
+    // "the provider says the move-in cost is zero" is a disclosable fact and
+    // must not be laundered into "unknown".
+    const out = map({ MoveInCostsAmount: 0 });
+    expect(out.providerMoveInCostsAmount).toBe(0);
+    expect(out.providerMoveInCostsAmount).not.toBeNull();
+  });
+
+  it("reports an unparsable MoveInCostsAmount as null, never NaN or 0", () => {
+    const out = map({ MoveInCostsAmount: "not-a-number" });
+    expect(out.providerMoveInCostsAmount).toBeNull();
+  });
+
+  it("preserves MoveInCostsComments verbatim", () => {
+    // Edm.String(1024), nullable.
+    const out = map({ MoveInCostsComments: "First month, last month and one month security." });
+    expect(out.providerMoveInCostsComments).toBe(
+      "First month, last month and one month security.",
+    );
+  });
+
   it("preserves TenantPaysDescription verbatim", () => {
     const out = map({ TenantPaysDescription: "Tenant pays electric and cable. Broker fee paid by owner." });
     expect(out.providerTenantPaysDescription).toBe(
@@ -70,9 +106,37 @@ describe("crm-idx-mapper preserves verified FARE rental fee facts", () => {
     // A FARE surface must not read the first as the second.
     const out = map({});
     expect(out.providerMoveInCosts).toBeNull();
+    expect(out.providerMoveInCostsAmount).toBeNull();
+    expect(out.providerMoveInCostsComments).toBeNull();
     expect(out.providerOngoingFees).toBeNull();
     expect(out.providerTenantPays).toBeNull();
     expect(out.providerTenantPaysDescription).toBeNull();
+  });
+
+  it("carries ALL SIX canonical FARE fields, not a subset", () => {
+    // The canonical compliance contract names six live Property fields. An
+    // earlier cut carried four and dropped MoveInCostsAmount /
+    // MoveInCostsComments — the amount and its explanation, i.e. the two a
+    // tenant-facing disclosure most needs.
+    const out = map({
+      MoveInCosts: ["SecurityDeposit"],
+      MoveInCostsAmount: 3000,
+      MoveInCostsComments: "One month security.",
+      OngoingFees: ["Electricity"],
+      TenantPays: ["Electricity"],
+      TenantPaysDescription: "Tenant pays electric.",
+    });
+    for (const key of [
+      "providerMoveInCosts",
+      "providerMoveInCostsAmount",
+      "providerMoveInCostsComments",
+      "providerOngoingFees",
+      "providerTenantPays",
+      "providerTenantPaysDescription",
+    ]) {
+      expect(out[key]).not.toBeNull();
+      expect(out[key]).toBeDefined();
+    }
   });
 
   it("keeps an EMPTY provider collection distinct from an absent one", () => {

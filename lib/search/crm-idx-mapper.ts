@@ -290,6 +290,13 @@ export function mapTrestleToCrmListing(
     // tenant-payable fees"; null says "we were not told". A disclosure surface
     // must be able to tell those apart, so the distinction is preserved here.
     providerMoveInCosts: multiEnumOrNull(raw.MoveInCosts),
+    // Edm.Decimal(14,2) nullable. `num()` keeps a genuine 0 as 0 and turns an
+    // unparsable value into null rather than NaN — an amount is the single most
+    // disclosure-critical fee fact, so it must never silently become zero.
+    providerMoveInCostsAmount: num(raw.MoveInCostsAmount),
+    // Edm.String(1024) nullable — the human explanation of the amount.
+    providerMoveInCostsComments:
+      raw.MoveInCostsComments != null ? String(raw.MoveInCostsComments) : null,
     providerOngoingFees: multiEnumOrNull(raw.OngoingFees),
     providerTenantPays: multiEnumOrNull(raw.TenantPays),
     providerTenantPaysDescription:
