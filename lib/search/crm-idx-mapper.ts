@@ -72,6 +72,20 @@ export function hasUsableListingIdentity(raw: Record<string, unknown>): boolean 
   return listingIdentity(raw) !== null;
 }
 
+/**
+ * A provider MULTI-ENUM collection, or null when the provider sent nothing.
+ *
+ * Absent stays null rather than becoming `[]`: an empty collection is the
+ * provider asserting "none", which is a different fact from "not supplied".
+ * A single scalar is wrapped rather than String()-coerced, so a one-member
+ * response cannot decay into a per-character array downstream.
+ */
+function multiEnumOrNull(value: unknown): string[] | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (Array.isArray(value)) return value.map((v) => String(v));
+  return [String(value)];
+}
+
 /** Provider boolean or null. Never invents true/false. */
 function boolOrNull(value: unknown): boolean | null {
   if (value === true || value === "true" || value === 1 || value === "1") return true;
@@ -253,6 +267,33 @@ export function mapTrestleToCrmListing(
     wid: listingKey,
     providerListingId: raw.ListingId != null ? String(raw.ListingId) : null,
     providerSourceSystemKey: raw.SourceSystemKey != null ? String(raw.SourceSystemKey) : null,
+
+    // ── Verified rental fee facts, preserved (not rendered here) ─────────────
+    //
+    // The Search route already selects these four from the live Property feed
+    // and they were being discarded at this boundary. They are NOT displayed on
+    // the authenticated Agent grid — Maya's 2026-08-26 determination is that an
+    // agent-only workbench is not the consumer-facing disclosure surface the
+    // FARE Act (NYC LL 119/2024) governs. They are preserved so that any
+    // downstream CLIENT-FACING rental output — share page, listing email,
+    // rental report, print, client collection, portal — can disclose
+    // tenant-payable fees from verified provider facts rather than re-fetching
+    // or inventing them.
+    //
+    // Live $metadata (probed 2026-08-26): MoveInCosts, OngoingFees and
+    // TenantPays are MULTI-ENUMS (Enums.Multi.*); TenantPaysDescription is a
+    // nullable String(1024). The collections stay collections — flattening them
+    // to a comma-joined string would force every consumer to re-parse something
+    // the provider never sent.
+    //
+    // ABSENT IS null, NEVER []. `[]` asserts "the provider says there are no
+    // tenant-payable fees"; null says "we were not told". A disclosure surface
+    // must be able to tell those apart, so the distinction is preserved here.
+    providerMoveInCosts: multiEnumOrNull(raw.MoveInCosts),
+    providerOngoingFees: multiEnumOrNull(raw.OngoingFees),
+    providerTenantPays: multiEnumOrNull(raw.TenantPays),
+    providerTenantPaysDescription:
+      raw.TenantPaysDescription != null ? String(raw.TenantPaysDescription) : null,
 
     dom: num(raw.DaysOnMarket),
     cdom: num(raw.CumulativeDaysOnMarket),
