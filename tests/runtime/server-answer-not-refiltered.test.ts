@@ -167,3 +167,58 @@ describe('filterListings can never produce an authoritative result set', () => {
     }
   });
 });
+
+/**
+ * THE RE-SORT MUST ASK THE SAME QUESTION IN A DIFFERENT ORDER.
+ *
+ * It used to hand-rebuild the request and forward FIVE criteria out of roughly
+ * thirty-five — price, beds, baths, and a neighborhood only when there happened
+ * to be exactly one. Everything else went missing, so changing the sort order
+ * silently widened the search to a nearly unfiltered set.
+ *
+ * That was survivable only because the client re-filtered the answer afterwards
+ * and hid it. Removing the re-filter (above) made it visible, which is why both
+ * halves belong in the same change: fixing one without the other would have
+ * shipped a genuinely wider result set.
+ */
+describe('re-sort re-asks with the whole criteria set', () => {
+  const resort = readFileSync(resolve(REPO, 'public/crm/js/listing/toolbar-functions.js'), 'utf8');
+
+  it('goes through the ONE serializer', () => {
+    expect(resort).toMatch(/buildIdxSearchParams\(/);
+  });
+
+  it('no longer hand-copies a handful of criteria', () => {
+    const code = resort
+      .split('\n')
+      .filter((l) => !l.trim().startsWith('//'))
+      .join('\n');
+    // The tell-tale of the old path: cherry-picked assignments off
+    // activeSearchCriteria instead of serializing it.
+    expect(code).not.toMatch(/params\.minPrice\s*=\s*activeSearchCriteria/);
+    expect(code).not.toMatch(/params\.minBeds\s*=\s*activeSearchCriteria/);
+    expect(code).not.toMatch(/activeSearchCriteria\.neighborhoods\.length === 1/);
+  });
+
+  it('sends a canonical Mallan sort key, not a provider fragment', () => {
+    const code = resort
+      .split('\n')
+      .filter((l) => !l.trim().startsWith('//'))
+      .join('\n');
+    expect(code).toMatch(/price_desc|price_asc/);
+    expect(code).not.toMatch(/'ListPrice'/);
+    expect(code).not.toMatch(/trestleField/);
+  });
+
+  it('no longer offers the two mismapped sorts', () => {
+    const code = resort
+      .split('\n')
+      .filter((l) => !l.trim().startsWith('//'))
+      .join('\n');
+    // DaysOnMarket is provider-suppressed for ordering — selecting it 400'd the
+    // entire search. And 'listedDate' pointed at ModificationTimestamp, which
+    // is when the record was last touched, not when it was listed.
+    expect(code).not.toMatch(/DaysOnMarket/);
+    expect(code).not.toMatch(/'listedDate':\s*'ModificationTimestamp'/);
+  });
+});

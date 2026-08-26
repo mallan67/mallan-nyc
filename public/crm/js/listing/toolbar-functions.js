@@ -62,27 +62,44 @@
             var field = searchResultsState.sortField;
             var order = searchResultsState.sortOrder;
             if ((field === 'price' || field === 'listedDate' || field === 'dom') && typeof MallanAPI !== 'undefined') {
-                var fieldMap = { 'price': 'ListPrice', 'listedDate': 'ModificationTimestamp', 'dom': 'DaysOnMarket' };
-                var trestleField = fieldMap[field] || 'ListPrice';
-                var trestleOrder = order === 'desc' ? trestleField + ' desc' : trestleField + ' asc';
+                // CANONICAL MALLAN SORT KEYS, not provider fragments.
+                //
+                // This built `<field> <dir>` from a local fieldMap and sent it as
+                // raw $orderby. Two of the three mappings were wrong:
+                // 'listedDate' pointed at ModificationTimestamp (when the record
+                // was last TOUCHED, not when it was LISTED), and 'dom' pointed at
+                // DaysOnMarket, which the provider suppresses for ordering — so
+                // sorting by DOM did not sort badly, it 400'd the whole search.
+                // The server now owns the vocabulary and refuses by name.
+                var sortKeyMap = {
+                    'price': order === 'desc' ? 'price_desc' : 'price_asc',
+                    'listedDate': order === 'desc' ? 'listed_desc' : 'listed_asc'
+                };
+                var sortKey = sortKeyMap[field];
+                if (!sortKey) return;
 
-                var savedTab;
-                try { savedTab = sessionStorage.getItem('searchTab'); } catch(e) {}
-                var searchType = savedTab === 'rent' ? 'rental' : 'sale';
-
-                // Build search params with current criteria
-                var params = { limit: 200, type: searchType };
-                if (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) {
-                    if (activeSearchCriteria.priceMin) params.minPrice = activeSearchCriteria.priceMin;
-                    if (activeSearchCriteria.priceMax) params.maxPrice = activeSearchCriteria.priceMax;
-                    if (activeSearchCriteria.bedsMin) params.minBeds = activeSearchCriteria.bedsMin;
-                    if (activeSearchCriteria.bathsMin) params.minBaths = activeSearchCriteria.bathsMin;
-                    if (activeSearchCriteria.neighborhoods && activeSearchCriteria.neighborhoods.length === 1) {
-                        params.neighborhood = activeSearchCriteria.neighborhoods[0];
-                    }
-                }
-                // Add sort param for the API
-                params.sort = trestleOrder;
+                // THE WHOLE CRITERIA SET, THROUGH THE ONE SERIALIZER.
+                //
+                // This used to hand-rebuild params and forward FIVE criteria out
+                // of roughly thirty-five — price, beds, baths, and a neighborhood
+                // only when there happened to be exactly one. Status, checkboxes,
+                // sqft, rooms, year, dates, zip, unit, address, listing id,
+                // ownership, subtype, borough and every additional neighborhood
+                // were dropped, so changing the sort order silently widened the
+                // search to a nearly unfiltered set. A client-side re-filter used
+                // to hide that; it is gone, because hiding it was the other half
+                // of the same defect.
+                //
+                // buildIdxSearchParams is the single serializer. A re-sort must
+                // ask the same question in a different order, not a different
+                // question.
+                var params = window.buildIdxSearchParams(
+                    (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria)
+                        ? activeSearchCriteria
+                        : {}
+                );
+                params.limit = 200;
+                params.sort = sortKey;
 
                 _serverSearchActive = true;
                 MallanAPI.idx.search(params).then(function(result) {

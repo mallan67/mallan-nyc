@@ -15,6 +15,11 @@ import {
   UnsupportedSearchCriterionError,
 } from "@/lib/search/crm-idx-filter";
 import { assembleFinalUniverse, CountMeaning } from "@/lib/search/final-universe";
+import {
+  resolveSort,
+  sortODataClause,
+  UnsupportedSortError,
+} from "@/lib/search/canonical/sort-contract";
 import { UnknownPropertySubTypeError } from "@/lib/search/canonical/property-subtype-contract";
 import { UnsupportedStatusCriterionError } from "@/lib/search/canonical/status-token-contract";
 import { hasUsableListingIdentity, mapTrestleToCrmListing } from "@/lib/search/crm-idx-mapper";
@@ -166,6 +171,22 @@ export function idxSearchErrorResponse(error: unknown): {
   body: Record<string, unknown>;
   headers?: Record<string, string>;
 } {
+  if (error instanceof UnsupportedSortError) {
+    // Same canonical unsupported-criterion protocol: a named 400 the caller can
+    // act on, never a silent substitution of a different order.
+    return {
+      status: 400,
+      body: {
+        error: "Unsupported sort.",
+        code: "UNSUPPORTED_SORT",
+        criterion: "sort",
+        requested: error.requested,
+        supported: [...error.supported],
+        detail: error.message,
+      },
+    };
+  }
+
   if (error instanceof UnsupportedSearchCriterionError) {
     return {
       status: 400,
@@ -264,9 +285,17 @@ export async function GET(req: NextRequest) {
 
     const filter = buildCrmIdxODataFilter(params);
 
-    // Sort is part of result identity. The previous cache key omitted it, so the
-    // same criteria/page could return rows cached under a different order.
-    const effectiveSort = sort || "ModificationTimestamp desc";
+    // Sort is part of result identity, so it is a CLOSED CONTRACT rather than a
+    // caller-authored $orderby with a silent default. `sort || "Modification-
+    // Timestamp desc"` accepted any provider fragment a caller invented, offered
+    // DaysOnMarket (which the licence suppresses for ordering, so it 400s the
+    // whole search), and mapped "listed" onto ModificationTimestamp, which is a
+    // different fact. resolveSort refuses an unrecognised value BY NAME, and
+    // sortODataClause appends the ListingKey tie-break — without it, rows
+    // sharing a price have no defined order and adjacent pages can repeat one
+    // listing while dropping another.
+    const resolvedSort = resolveSort(sort);
+    const effectiveSort = sortODataClause(resolvedSort.key);
     const cacheKey = `idx:${filter}:${effectiveSort}:${limit}:${skip}`;
     const cached = getCached(cacheKey);
     if (cached) {
