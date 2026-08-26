@@ -154,3 +154,69 @@ describe("save -> reload keeps the same effective criteria", () => {
     expect(resaved.checkbox_filters).toEqual({ view: ["City"], cooling: ["true"] });
   });
 });
+
+/**
+ * REGRESSION GUARDS FOR THE THREE DEFECTS FOUND IN THIS MODULE ITSELF.
+ *
+ * Independent review reproduced all three on head 3669d8a1. The module's
+ * documentation was stronger than its behaviour — the exact failure mode this
+ * workstream keeps catching elsewhere, committed inside the module whose job is
+ * to prevent it. These pin the corrections.
+ */
+describe("a malformed criterion is PRESERVED, never silently removed", () => {
+  it("a malformed VALUE stays in the criteria instead of vanishing", () => {
+    // Was: {View: "City"} -> {} — the criterion disappeared and the saved
+    // search became BROADER. That is the invariant this file claims to hold.
+    const out = normalizeSavedSearchCriteria({ checkbox_filters: { View: "City" } });
+    const cb = out.criteria.checkbox_filters as Record<string, unknown>;
+    expect(Object.keys(cb)).toContain("View");
+    expect(cb).not.toEqual({});
+  });
+
+  it("a malformed CONTAINER is left intact, not replaced with an empty object", () => {
+    const out = normalizeSavedSearchCriteria({ checkbox_filters: "{not valid json" });
+    expect(out.criteria.checkbox_filters).toBe("{not valid json");
+    expect(out.criteria.checkbox_filters).not.toEqual({});
+  });
+
+  it("hasUnresolved is set so the route can refuse the write", () => {
+    expect(normalizeSavedSearchCriteria({ checkbox_filters: { View: "City" } }).hasUnresolved).toBe(true);
+    expect(normalizeSavedSearchCriteria({ checkbox_filters: "{bad" }).hasUnresolved).toBe(true);
+  });
+});
+
+describe("elements must be real scalars, not coerced through String()", () => {
+  it.each([
+    ["an object element", [{ x: 1 }]],
+    ["a nested array", [["City"]]],
+    ["a null element", [null]],
+    ["an undefined element", [undefined]],
+  ])("%s is malformed, not fabricated into a string criterion", (_label, values) => {
+    const out = normalizeCheckboxFilters({ View: values });
+    expect(out.malformed).toContain("View");
+    // The specific corruptions: "[object Object]", a silently flattened
+    // ["City"], and the string "null" — each a criterion the broker never chose.
+    expect(JSON.stringify(out.canonical)).not.toContain("[object Object]");
+    expect(out.canonical.view).toBeUndefined();
+  });
+
+  it("accepts the scalar types a criterion legitimately uses", () => {
+    const out = normalizeCheckboxFilters({ View: ["City"], CoolingYN: [true], StoriesTotal: [6] });
+    expect(out.malformed).toEqual([]);
+  });
+});
+
+describe("this module owns no vocabulary of its own", () => {
+  it("resolves booleans through the ONE checkbox registry", () => {
+    // Was a private BOOLEAN_CANONICAL map here while crm-idx-filter kept its own
+    // booleanFields set — two mappings for one business criterion, recreated
+    // inside the module meant to end that split.
+    expect(canonicalSavedSearchKey("CoolingYN")).toBe("cooling");
+    expect(canonicalSavedSearchKey("GarageYN")).toBe("garage");
+    expect(canonicalSavedSearchKey("NewConstruction")).toBe("new_construction");
+  });
+
+  it("garage never becomes a generic parking criterion", () => {
+    expect(canonicalSavedSearchKey("GarageYN")).not.toBe("parking");
+  });
+});

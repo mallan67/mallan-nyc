@@ -258,35 +258,23 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
       throw new UnsupportedSearchCriterionError("checkboxFilters", ["invalid JSON"]);
     }
 
-    const booleanFields = new Set(["LandLeaseYN", "CoolingYN", "GarageYN", "NewConstructionYN"]);
-    const aliases: Record<string, string> = { NewConstruction: "NewConstructionYN" };
-
+    // ONE registry owns every checkbox criterion — multi-enum AND boolean.
+    //
+    // This previously kept its own `booleanFields` set plus a `NewConstruction`
+    // alias, while the persistence layer kept a SECOND boolean map of its own.
+    // Two mappings for one business criterion is precisely the translation-table
+    // drift this workstream exists to remove, so the tables are now one table,
+    // in lib/search/canonical/checkbox-criteria.ts, and each registry entry
+    // carries its own `kind` (multi_enum | boolean).
+    //
+    // Registered OR provider-suppressed both go through the registry: a
+    // suppressed field must report WHY the licence forbids filtering it, which
+    // is a different fact from "we have not mapped this".
     for (const [htmlField, values] of Object.entries(cbFilters)) {
       if (!Array.isArray(values) || values.length === 0) continue;
-      const field = aliases[htmlField] || htmlField;
 
-      // Booleans keep their own shape: the UI expresses them as true/false
-      // rather than as provider enum members.
-      if (booleanFields.has(field)) {
-        const normalized = values.map((v) => String(v));
-        const trueRequested = normalized.some((v) => v === "true" || v === "Yes");
-        const falseRequested = normalized.some((v) => v === "false" || v === "No");
-        if (trueRequested === falseRequested) {
-          throw new UnsupportedSearchCriterionError(`checkboxFilters.${htmlField}`, normalized);
-        }
-        parts.push(`${field} eq ${trueRequested ? "true" : "false"}`);
-        continue;
-      }
-
-      // Everything else must be a REGISTERED field with LIVE-VERIFIED members.
-      // The registry — not the browser — decides what may be filtered and with
-      // which values, so `checkboxFilters` can be transported without becoming
-      // an open field=value passthrough.
-      // Registered OR provider-suppressed both go through the registry: a
-      // suppressed field must report WHY (the licence forbids filtering it),
-      // which is a different fact from "we have not mapped this".
-      if (isRegisteredCheckboxField(field) || isProviderSuppressedField(field)) {
-        const clause = checkboxFieldOData(field, values);
+      if (isRegisteredCheckboxField(htmlField) || isProviderSuppressedField(htmlField)) {
+        const clause = checkboxFieldOData(htmlField, values);
         if (clause) parts.push(clause);
         continue;
       }

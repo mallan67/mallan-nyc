@@ -33,6 +33,9 @@ import { join } from 'node:path';
 
 const REPO = join(__dirname, '..', '..');
 const filterSource = readFileSync(join(REPO, 'lib/search/crm-idx-filter.ts'), 'utf8');
+// The checkbox registry now owns the boolean criteria too, so the provider
+// fields it can emit live there rather than in a booleanFields set.
+const registrySource = readFileSync(join(REPO, 'lib/search/canonical/checkbox-criteria.ts'), 'utf8');
 
 /**
  * Every provider field `buildCrmIdxODataFilter` can emit, with its live
@@ -90,11 +93,12 @@ describe('every provider field the filter can emit has an execution result', () 
     for (const m of filterSource.matchAll(/startswith\(([A-Z][A-Za-z]+),/g)) found.add(m[1]);
     for (const m of filterSource.matchAll(/`([A-Z][A-Za-z]+) eq /g)) found.add(m[1]);
     for (const m of filterSource.matchAll(/([A-Z][A-Za-z]{3,}) (?:eq|ge|le|gt|lt) /g)) found.add(m[1]);
-    // Booleans are emitted through a template variable (`${field} eq true`),
-    // so their names live in the booleanFields Set rather than in a clause.
-    const boolSet = filterSource.match(/booleanFields = new Set\(\[([^\]]*)\]/);
-    if (boolSet) {
-      for (const m of boolSet[1].matchAll(/"([A-Za-z]+)"/g)) found.add(m[1]);
+    // Boolean criteria are emitted from the REGISTRY now, as
+    // `${contract.cotalityField} eq true|false`. Reading their provider names
+    // from the registry keeps this guard pointed at wherever the mapping
+    // actually lives, instead of at where it used to live.
+    for (const m of registrySource.matchAll(/kind: 'boolean',\s+cotalityField: '([A-Za-z]+)'/g)) {
+      found.add(m[1]);
     }
 
     // Fields contracted by their own canonical modules carry their proof there.

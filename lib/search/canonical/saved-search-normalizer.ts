@@ -37,22 +37,31 @@
 import { canonicalCheckboxCriterion } from "@/lib/search/canonical/checkbox-criteria";
 
 /**
- * Canonical Mallan keys for the boolean checkbox criteria.
+ * NO BOOLEAN MAP LIVES HERE.
  *
- * These predate the Tranche 1 registry and were still persisted under provider
- * field names. Their canonical names preserve EXACT semantics — `GarageYN` is a
- * garage, so it becomes `garage` and NOT a generic `parking`, because garage is
- * not all parking and the broader word would be an invented equivalence.
+ * An earlier cut of this file kept its own `BOOLEAN_CANONICAL`
+ * (LandLeaseYN -> land_lease, GarageYN -> garage, ...) while
+ * crm-idx-filter kept a separate `booleanFields` set and a `NewConstruction`
+ * alias. Two mappings for one business criterion is the translation-table drift
+ * this whole workstream exists to remove — and it was reintroduced here, in the
+ * module whose job is to end exactly that split.
+ *
+ * The booleans now live in the ONE checkbox registry alongside the multi-enums,
+ * each entry carrying its own `kind`. This file resolves keys through that
+ * registry and owns no vocabulary of its own.
  */
-const BOOLEAN_CANONICAL: Readonly<Record<string, string>> = Object.freeze({
-  LandLeaseYN: "land_lease",
-  CoolingYN: "cooling",
-  GarageYN: "garage",
-  NewConstructionYN: "new_construction",
-  NewConstruction: "new_construction",
-});
-
-const BOOLEAN_CANONICAL_NAMES: ReadonlySet<string> = new Set(Object.values(BOOLEAN_CANONICAL));
+/**
+ * What may be persisted as a criterion VALUE.
+ *
+ * `Array.isArray()` alone was not enough: elements were pushed through
+ * `String(v)`, so `[{x:1}]` became `["[object Object]"]`, `[["City"]]` silently
+ * flattened to `["City"]`, and `[null]` became the string `"null"`. That is not
+ * canonicalisation, it is corruption — a fabricated criterion the broker never
+ * chose.
+ */
+function isPersistableScalar(value: unknown): boolean {
+  return typeof value === "string" || typeof value === "number" || typeof value === "boolean";
+}
 
 export interface NormalizedCheckboxFilters {
   /** Canonical Mallan criterion -> selected values. */
@@ -63,6 +72,8 @@ export interface NormalizedCheckboxFilters {
   readonly unknown: string[];
   /** Keys whose value shape is wrong. Carried, never dropped. */
   readonly malformed: string[];
+  /** The unreadable container, preserved verbatim when parsing failed. */
+  readonly rawContainer?: unknown;
 }
 
 export interface NormalizedSavedSearch {
@@ -75,8 +86,6 @@ export interface NormalizedSavedSearch {
 
 /** The canonical Mallan key for a persisted checkbox key, or null. */
 export function canonicalSavedSearchKey(key: string): string | null {
-  if (BOOLEAN_CANONICAL[key]) return BOOLEAN_CANONICAL[key];
-  if (BOOLEAN_CANONICAL_NAMES.has(key)) return key;
   return canonicalCheckboxCriterion(key);
 }
 
@@ -109,16 +118,25 @@ export function normalizeCheckboxFilters(raw: unknown): NormalizedCheckboxFilter
 
   const { value, malformed: containerMalformed } = parseCheckboxContainer(raw);
   if (containerMalformed) {
-    // The whole container is unreadable. Recorded by name so the caller can
-    // fail loudly — a malformed container must not read as "no filters".
+    // The whole container is unreadable. It is recorded by name AND the raw
+    // value is preserved, because an unreadable container silently becoming an
+    // empty filter set turns a narrow saved search into an unrestricted one.
     malformed.push("checkbox_filters");
-    return { canonical, unavailable, unknown, malformed };
+    return { canonical, unavailable, unknown, malformed, rawContainer: raw };
   }
   if (!value) return { canonical, unavailable, unknown, malformed };
 
   for (const [key, rawValues] of Object.entries(value)) {
-    if (!Array.isArray(rawValues)) {
+    // MALFORMED IS PRESERVED, NOT SKIPPED.
+    //
+    // An earlier cut recorded the key in `malformed` and then dropped it, so
+    // `{View: "City"}` normalised to `{}` — the criterion vanished and the
+    // saved search became BROADER. That is the precise failure this module
+    // claims to prevent, committed inside the module itself. The original value
+    // now travels so a caller can reject the write or mark the record invalid.
+    if (!Array.isArray(rawValues) || !rawValues.every(isPersistableScalar)) {
       malformed.push(key);
+      canonical[key] = rawValues as never;
       continue;
     }
     const values = rawValues.map((v) => String(v));
@@ -157,9 +175,15 @@ export function normalizeSavedSearchCriteria(input: unknown): NormalizedSavedSea
   const checkboxes = normalizeCheckboxFilters(source.checkbox_filters);
 
   if (source.checkbox_filters !== undefined) {
-    // Always an OBJECT going forward. A JSON string inside a JSON column forces
-    // every reader to re-parse a value the database could have held natively.
-    source.checkbox_filters = checkboxes.canonical;
+    if (checkboxes.malformed.includes("checkbox_filters")) {
+      // Leave the unreadable original in place. Replacing it with {} would
+      // present an unrestricted search as a normalised one.
+      source.checkbox_filters = checkboxes.rawContainer;
+    } else {
+      // Always an OBJECT going forward. A JSON string inside a JSON column
+      // forces every reader to re-parse a value the database could hold natively.
+      source.checkbox_filters = checkboxes.canonical;
+    }
   }
 
   return {

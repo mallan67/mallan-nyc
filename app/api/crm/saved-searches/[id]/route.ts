@@ -147,9 +147,33 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
     // whether the caller happened to send criteria — an incoming canonical
     // patch judged against a legacy stored row, or the reverse. Normalising
     // both makes the gate's decision independent of which branch was taken.
-    const effectiveCriteria = normalizeSavedSearchCriteria(
+    const effectiveNormalized = normalizeSavedSearchCriteria(
       body.criteria !== undefined ? body.criteria : existing.criteria,
-    ).criteria;
+    );
+    const effectiveCriteria = effectiveNormalized.criteria;
+
+    // FAIL CLOSED ON A CRITERION WE CANNOT REPRESENT.
+    //
+    // The normalizer reports malformed/unknown/unavailable criteria; earlier
+    // this route ignored that and persisted anyway, so a saved search whose
+    // meaning could not be represented was stored as a BROADER search. A new
+    // Saved Search must not be accepted if its meaning cannot be carried.
+    if (effectiveNormalized.hasUnresolved) {
+      const cb = effectiveNormalized.checkboxes;
+      return NextResponse.json(
+        {
+          error: "Saved Search contains criteria that cannot be represented.",
+          code: "UNSUPPORTED_CRITERION",
+          criterion: "checkbox_filters",
+          unsupportedValues: [...cb.malformed, ...cb.unknown, ...cb.unavailable],
+          malformed: cb.malformed,
+          unknown: cb.unknown,
+          unavailable: cb.unavailable,
+        },
+        { status: 400 },
+      );
+    }
+
     const effectiveAlertFrequency =
       body.alert_frequency !== undefined ? (body.alert_frequency as string | null) : existing.alert_frequency ?? null;
     const effectiveAlertEnabled =

@@ -33,22 +33,34 @@ import {
 import { buildCrmIdxODataFilter } from "@/lib/search/crm-idx-filter";
 
 describe("the registry is closed", () => {
-  it("registers exactly the ten EXECUTION-PROVEN multi-enum criteria", () => {
-    // Keyed by MALLAN CRITERION, not by Cotality field name. PropertyCondition
-    // is absent: it is provider-suppressed for filtering (proven live), which is
-    // PROVIDER_UNAVAILABLE, not "unmapped".
+  it("registers every EXECUTION-PROVEN checkbox criterion — multi-enum AND boolean", () => {
+    // Keyed by MALLAN CRITERION, not by Cotality field name. The booleans moved
+    // in here from crm-idx-filter's own booleanFields table: one business
+    // criterion must not have two mappings. PropertyCondition is absent because
+    // it is provider-suppressed for filtering (proven live) — PROVIDER_UNAVAILABLE,
+    // not "unmapped".
     expect(registeredCheckboxFields()).toEqual([
       "accessibility",
       "architectural_style",
       "building_amenities",
       "building_structure",
       "business_use",
+      "cooling",
+      "garage",
+      "land_lease",
       "laundry",
+      "new_construction",
       "outdoor_features",
       "pet_policy",
       "pool",
       "view",
     ]);
+  });
+
+  it("garage is garage, never a generic parking criterion", () => {
+    expect(registeredCheckboxFields()).toContain("garage");
+    expect(registeredCheckboxFields()).not.toContain("parking");
+    expect(checkboxFieldContract("garage")?.cotalityField).toBe("GarageYN");
   });
 
   it("refuses a field it does not register", () => {

@@ -53,6 +53,16 @@
 export type CheckboxFieldName = string;
 
 export interface CheckboxFieldContract {
+  /**
+   * How the criterion is expressed against the provider.
+   *
+   * `multi_enum` renders `Field eq 'Member'` (which matches collection
+   * membership — proven identical to `has`). `boolean` renders
+   * `Field eq true|false`. Keeping the kind ON the registry entry is what
+   * allowed crm-idx-filter to drop its own separate booleanFields/aliases
+   * table: one registry, one mapping, one place to be wrong.
+   */
+  readonly kind: 'multi_enum' | 'boolean';
   /** Exact live Cotality Property field. */
   readonly cotalityField: string;
   /** Live-verified exact members this UI may request. */
@@ -80,6 +90,7 @@ export class UnsupportedCheckboxCriterionError extends Error {
 
 const REGISTRY: ReadonlyMap<CheckboxFieldName, CheckboxFieldContract> = new Map([
   ['view', {
+    kind: 'multi_enum',
     cotalityField: 'View',
     allowed: new Set(['Bay', 'Beach', 'Bridges', 'Canal', 'City', 'CityLights', 'Downtown', 'Forest', 'Garden', 'Lake', 'Mountains', 'Ocean', 'Panoramic', 'ParkGreenbelt', 'River', 'Skyline', 'TreesWoods', 'Water']),
     unresolved: new Map([
@@ -87,6 +98,7 @@ const REGISTRY: ReadonlyMap<CheckboxFieldName, CheckboxFieldContract> = new Map(
     ]),
   }],
   ['pet_policy', {
+    kind: 'multi_enum',
     cotalityField: 'PetsAllowed',
     allowed: new Set<string>([]),
     unresolved: new Map([
@@ -96,6 +108,7 @@ const REGISTRY: ReadonlyMap<CheckboxFieldName, CheckboxFieldContract> = new Map(
     ]),
   }],
   ['laundry', {
+    kind: 'multi_enum',
     cotalityField: 'LaundryFeatures',
     allowed: new Set(['InUnit']),
     unresolved: new Map([
@@ -103,6 +116,7 @@ const REGISTRY: ReadonlyMap<CheckboxFieldName, CheckboxFieldContract> = new Map(
     ]),
   }],
   ['building_structure', {
+    kind: 'multi_enum',
     cotalityField: 'StructureType',
     allowed: new Set(['HighRise', 'Townhouse']),
     unresolved: new Map([
@@ -111,6 +125,7 @@ const REGISTRY: ReadonlyMap<CheckboxFieldName, CheckboxFieldContract> = new Map(
     ]),
   }],
   ['architectural_style', {
+    kind: 'multi_enum',
     cotalityField: 'ArchitecturalStyle',
     allowed: new Set(['Loft', 'Prewar', 'WalkUp']),
     unresolved: new Map([
@@ -118,6 +133,7 @@ const REGISTRY: ReadonlyMap<CheckboxFieldName, CheckboxFieldContract> = new Map(
     ]),
   }],
   ['accessibility', {
+    kind: 'multi_enum',
     cotalityField: 'AccessibilityFeatures',
     allowed: new Set<string>([]),
     unresolved: new Map([
@@ -125,6 +141,7 @@ const REGISTRY: ReadonlyMap<CheckboxFieldName, CheckboxFieldContract> = new Map(
     ]),
   }],
   ['outdoor_features', {
+    kind: 'multi_enum',
     cotalityField: 'ExteriorFeatures',
     allowed: new Set(['Balcony', 'BuildingRoofDeck', 'Courtyard', 'Garden', 'Patio']),
     unresolved: new Map([
@@ -133,11 +150,13 @@ const REGISTRY: ReadonlyMap<CheckboxFieldName, CheckboxFieldContract> = new Map(
     ]),
   }],
   ['pool', {
+    kind: 'multi_enum',
     cotalityField: 'PoolFeatures',
     allowed: new Set(['Indoor']),
     unresolved: new Map<string, string>(),
   }],
   ['building_amenities', {
+    kind: 'multi_enum',
     cotalityField: 'BuildingFeatures',
     allowed: new Set(['Elevators', 'FitnessCenter', 'HealthClub', 'Storage']),
     unresolved: new Map([
@@ -146,12 +165,41 @@ const REGISTRY: ReadonlyMap<CheckboxFieldName, CheckboxFieldContract> = new Map(
     ]),
   }],
   ['business_use', {
+    kind: 'multi_enum',
     cotalityField: 'BusinessType',
     allowed: new Set(['Accounting', 'Bakery', 'BarTavernLounge', 'BarberBeauty', 'BedAndBreakfast', 'Cafe', 'ChildCare', 'Dental', 'Distribution', 'DryCleaner', 'FastFood', 'Financial', 'Fitness', 'Grocery', 'HealthServices', 'Hospitality', 'HotelMotel', 'Industrial', 'Institutional', 'Laundromat', 'Manufacturing', 'Medical', 'MultiTenant', 'ProfessionalOffice', 'ProfessionalService', 'RealEstate', 'Restaurant', 'Showroom', 'SingleTenant', 'SpecialUse', 'Storage', 'StripMall', 'Technology', 'Warehouse']),
     unresolved: new Map([
       ['FlexibleSpace', "Not a BusinessType member. Unproven."],
       ['Investment', "Not a BusinessType member. Unproven."],
     ]),
+  }],
+  ['land_lease', {
+    kind: 'boolean',
+    cotalityField: 'LandLeaseYN',
+    // Live-verified 2026-08-26: 806 rows true.
+    allowed: new Set(['true', 'false', 'Yes', 'No']),
+    unresolved: new Map<string, string>(),
+  }],
+  ['cooling', {
+    kind: 'boolean',
+    cotalityField: 'CoolingYN',
+    // Live-verified 2026-08-26: 152,792 rows true.
+    allowed: new Set(['true', 'false', 'Yes', 'No']),
+    unresolved: new Map<string, string>(),
+  }],
+  ['garage', {
+    kind: 'boolean',
+    cotalityField: 'GarageYN',
+    // Live-verified 2026-08-26: 149,777 rows true. GARAGE, not all parking — the broader word would be an invented equivalence.
+    allowed: new Set(['true', 'false', 'Yes', 'No']),
+    unresolved: new Map<string, string>(),
+  }],
+  ['new_construction', {
+    kind: 'boolean',
+    cotalityField: 'NewConstructionYN',
+    // Live-verified 2026-08-26: 64,222 rows true.
+    allowed: new Set(['true', 'false', 'Yes', 'No']),
+    unresolved: new Map<string, string>(),
   }],
 ]);
 
@@ -180,6 +228,12 @@ const CANONICAL_BY_LEGACY: ReadonlyMap<string, string> = new Map([
   ['PoolFeatures', 'pool'],
   ['BuildingFeatures', 'building_amenities'],
   ['BusinessType', 'business_use'],
+  ['LandLeaseYN', 'land_lease'],
+  ['CoolingYN', 'cooling'],
+  ['GarageYN', 'garage'],
+  ['NewConstructionYN', 'new_construction'],
+  // Legacy UI spelling with no YN suffix.
+  ['NewConstruction', 'new_construction'],
 ]);
 
 /**
@@ -284,6 +338,21 @@ export function checkboxFieldOData(field: string, values: readonly unknown[]): s
     );
   }
   if (wanted.length === 0) return null;
+
+  if (contract.kind === 'boolean') {
+    // true/false is not an OR set: asking for both is a contradiction, not a
+    // widening, so it is rejected rather than silently collapsed to one side.
+    const wantsTrue = wanted.some((v) => v === 'true' || v === 'Yes');
+    const wantsFalse = wanted.some((v) => v === 'false' || v === 'No');
+    if (wantsTrue === wantsFalse) {
+      throw new UnsupportedCheckboxCriterionError(
+        `checkboxFilters.${canonical ?? field}`,
+        wanted,
+        'A boolean criterion must select exactly one of true/false.',
+      );
+    }
+    return `${contract.cotalityField} eq ${wantsTrue ? 'true' : 'false'}`;
+  }
 
   // OR within the field. Always parenthesised so it cannot bind loosely against
   // the surrounding ` and ` joins.

@@ -169,6 +169,28 @@ export async function POST(req: NextRequest) {
     const normalized = normalizeSavedSearchCriteria(criteria);
     const canonicalCriteria = normalized.criteria;
 
+    // FAIL CLOSED ON A CRITERION WE CANNOT REPRESENT.
+    //
+    // The normalizer reports malformed/unknown/unavailable criteria; earlier
+    // this route ignored that and persisted anyway, so a saved search whose
+    // meaning could not be represented was stored as a BROADER search. A new
+    // Saved Search must not be accepted if its meaning cannot be carried.
+    if (normalized.hasUnresolved) {
+      const cb = normalized.checkboxes;
+      return NextResponse.json(
+        {
+          error: "Saved Search contains criteria that cannot be represented.",
+          code: "UNSUPPORTED_CRITERION",
+          criterion: "checkbox_filters",
+          unsupportedValues: [...cb.malformed, ...cb.unknown, ...cb.unavailable],
+          malformed: cb.malformed,
+          unknown: cb.unknown,
+          unavailable: cb.unavailable,
+        },
+        { status: 400 },
+      );
+    }
+
     const validationError = validateCriteria(canonicalCriteria);
     if (validationError) {
       return NextResponse.json({ error: validationError }, { status: 400 });
