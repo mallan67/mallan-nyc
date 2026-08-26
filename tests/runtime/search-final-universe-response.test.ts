@@ -587,3 +587,37 @@ describe('resumed-segment telemetry balances on the SEGMENT', () => {
     expect(typeof m.cumulativeSurvivorsObserved).toBe('number');
   });
 });
+
+describe('the response states its consistency contract', () => {
+  it('declares that provider snapshot isolation is unavailable', async () => {
+    // Verified live: the service exposes EntitySets only — no $delta, no
+    // deltatoken, no snapshot endpoint, and nextLink is a plain $skip. Promising
+    // "no duplicates, no gaps" unconditionally would be a promise Mallan cannot
+    // keep, so the condition travels with the answer.
+    mockFetchFromTrestle.mockResolvedValue({
+      records: [row(1)],
+      odataCount: 1,
+      hasMore: false,
+      nextLink: undefined,
+      totalFetched: 1,
+    });
+    const body = await callSearch();
+    expect(body.consistency.providerSnapshotIsolation).toBe('UNAVAILABLE');
+    expect(body.consistency.stableUniverse).toMatch(/no duplicates, no gaps/);
+    expect(body.consistency.mutatingUniverse).toMatch(/missed|repeat/);
+  });
+
+  it('names ListingKey as what a selection is durable by', async () => {
+    // Compare and CMA must survive the feed moving under a broker, so a
+    // selection is an identity, never a position.
+    mockFetchFromTrestle.mockResolvedValue({
+      records: [row(1)],
+      odataCount: 1,
+      hasMore: false,
+      nextLink: undefined,
+      totalFetched: 1,
+    });
+    const body = await callSearch();
+    expect(body.consistency.selectionsAreDurableBy).toBe('ListingKey');
+  });
+});

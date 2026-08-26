@@ -966,3 +966,140 @@ describe('numeric offset resume is NOT stable under a live feed', () => {
     expect(predicate).toContain('ListPrice ne null');
   });
 });
+
+/**
+ * WHAT KEYSET ACTUALLY GUARANTEES — AND WHAT IT CANNOT.
+ *
+ * Keyset fixes DISTANCE-FROM-START instability. It does not, and cannot, create
+ * a frozen snapshot of a live provider.
+ *
+ * Verified live 2026-08-26: the Cotality service exposes EntitySets only. There
+ * is no $delta, no deltatoken, no snapshot endpoint; the only OData annotations
+ * returned are @odata.context and @odata.nextLink, and nextLink is a plain
+ * `$skip=N`. So snapshot isolation is UNAVAILABLE from this provider, and any
+ * "no duplicates, no gaps" promise that ignores that is a promise Mallan cannot
+ * keep.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * THE CONTRACT, stated so it can be relied on:
+ *
+ *   PROVIDER UNIVERSE STABLE BETWEEN REQUESTS
+ *     -> no duplicate, no gap. Guaranteed.
+ *
+ *   PROVIDER MUTATES BETWEEN REQUESTS
+ *     -> a live-moving universe. A row whose SORT VALUE moves behind the
+ *        boundary is missed; one whose sort value moves ahead of it is seen,
+ *        possibly a second time. Inherent to paging a live feed without
+ *        snapshot isolation — not a Mallan defect, and not something a better
+ *        cursor removes.
+ *
+ * ModificationTimestamp sorts are the sharpest case: a modification is itself
+ * the thing being sorted on, so any edit moves that row to the front of a
+ * `desc` traversal.
+ *
+ * CONSEQUENCE FOR COMPARE / CMA: a selection must be durable by ListingKey, not
+ * by position. A broker who ticks a listing on page 1 must still have it after
+ * the feed moves under them.
+ */
+describe('keyset under a mutating feed — the honest matrix', () => {
+  const priceRows = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      ListingKey: String(1146011469 + i),
+      ListPrice: 1_000_000 - i * 1_000,
+    })) as any[];
+
+  /** Emulate the provider applying the keyset predicate over a sorted array. */
+  function providerAfter(rows: any[], boundaryValue: number, boundaryKey: string) {
+    return rows
+      .slice()
+      .sort((a, b) => b.ListPrice - a.ListPrice || a.ListingKey.localeCompare(b.ListingKey))
+      .filter(
+        (r) =>
+          r.ListPrice < boundaryValue ||
+          (r.ListPrice === boundaryValue && r.ListingKey > boundaryKey),
+      );
+  }
+
+  it('STABLE FEED: no duplicate and no gap', async () => {
+    const all = priceRows(100);
+    const page1 = all
+      .slice()
+      .sort((a, b) => b.ListPrice - a.ListPrice)
+      .slice(0, 20);
+    const boundary = page1[page1.length - 1];
+    const page2 = providerAfter(all, boundary.ListPrice, boundary.ListingKey).slice(0, 20);
+    const seen = [...page1, ...page2].map((r) => r.ListingKey);
+    expect(new Set(seen).size).toBe(seen.length);
+    expect(seen).toEqual(
+      all
+        .slice()
+        .sort((a, b) => b.ListPrice - a.ListPrice)
+        .slice(0, 40)
+        .map((r) => r.ListingKey),
+    );
+  });
+
+  it('AN UNSEEN ROW RAISES ITS PRICE ABOVE THE BOUNDARY: it is missed', async () => {
+    // It moved into territory the traversal has already passed. No cursor design
+    // recovers this without a snapshot.
+    const all = priceRows(100);
+    const page1 = all.slice(0, 20);
+    const boundary = page1[19];
+    const mutated = priceRows(100);
+    mutated[60].ListPrice = 5_000_000; // was far below the boundary
+    const page2 = providerAfter(mutated, boundary.ListPrice, boundary.ListingKey).slice(0, 20);
+    expect(page2.map((r) => r.ListingKey)).not.toContain(mutated[60].ListingKey);
+  });
+
+  it('AN ALREADY-SEEN ROW DROPS ITS PRICE BELOW THE BOUNDARY: it repeats', async () => {
+    const all = priceRows(100);
+    const page1 = all.slice(0, 20);
+    const boundary = page1[19];
+    const mutated = priceRows(100);
+    mutated[3].ListPrice = 1; // was on page 1, now the cheapest row in the set
+    // The whole remaining sequence, not a slice: a row repriced to the bottom
+    // reappears at the END of the traversal, which is exactly the point — the
+    // broker sees it twice, pages apart, with nothing marking it as a repeat.
+    const rest = providerAfter(mutated, boundary.ListPrice, boundary.ListingKey);
+    expect(rest.map((r) => r.ListingKey)).toContain(mutated[3].ListingKey);
+  });
+
+  it('A NEW LISTING ENTERS AHEAD OF THE BOUNDARY: it is missed this pass', async () => {
+    const all = priceRows(100);
+    const boundary = all[19];
+    const mutated = [{ ListingKey: '9999999999', ListPrice: 9_000_000 }, ...priceRows(100)];
+    const page2 = providerAfter(mutated, boundary.ListPrice, boundary.ListingKey).slice(0, 20);
+    expect(page2.map((r) => r.ListingKey)).not.toContain('9999999999');
+  });
+
+  it('A NEW LISTING ENTERS BEHIND THE BOUNDARY: it is picked up', async () => {
+    const all = priceRows(100);
+    const boundary = all[19];
+    const mutated = [...priceRows(100), { ListingKey: '9999999998', ListPrice: 979_500 }];
+    const page2 = providerAfter(mutated, boundary.ListPrice, boundary.ListingKey).slice(0, 30);
+    expect(page2.map((r) => r.ListingKey)).toContain('9999999998');
+  });
+
+  it('A ROW LEAVES THE UNIVERSE: the sequence closes over it, no gap', async () => {
+    // A status change removing a row is the benign case — keyset simply does
+    // not emit it, and nothing after it shifts, because position is not a count.
+    const all = priceRows(100);
+    const boundary = all[19];
+    const mutated = priceRows(100).filter((r) => r.ListingKey !== String(1146011469 + 25));
+    const page2 = providerAfter(mutated, boundary.ListPrice, boundary.ListingKey).slice(0, 20);
+    expect(page2.map((r) => r.ListingKey)).not.toContain(String(1146011469 + 25));
+    expect(new Set(page2.map((r) => r.ListingKey)).size).toBe(page2.length);
+  });
+
+  it('AN EQUAL-VALUE TIE IS TRAVERSED BY KEY, not skipped', async () => {
+    // Ties are where an unstable sort loses rows. The ListingKey tie-break makes
+    // the order total, so both rows at the same price are reachable.
+    const tied = [
+      { ListingKey: '1146011470', ListPrice: 500_000 },
+      { ListingKey: '1146011471', ListPrice: 500_000 },
+      { ListingKey: '1146011472', ListPrice: 400_000 },
+    ] as any[];
+    const after = providerAfter(tied, 500_000, '1146011470');
+    expect(after.map((r) => r.ListingKey)).toEqual(['1146011471', '1146011472']);
+  });
+});

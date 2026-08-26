@@ -599,6 +599,24 @@ export async function GET(req: NextRequest) {
       // env requirement and is not set.
       continuationAvailable: isContinuationAvailable(),
       continuationMode: isContinuationAvailable() ? "keyset" : "bounded_rescan",
+      // WHAT PAGING THROUGH THIS UNIVERSE ACTUALLY GUARANTEES.
+      //
+      // Stated in the response rather than assumed, because the honest answer
+      // depends on something Mallan does not control. Verified live 2026-08-26:
+      // the Cotality service exposes EntitySets only — no $delta, no
+      // deltatoken, no snapshot endpoint — and @odata.nextLink is a plain
+      // `$skip=N`. Snapshot isolation is UNAVAILABLE from this provider.
+      //
+      // Keyset removes distance-from-start instability. It cannot freeze a live
+      // feed, and no cursor design can.
+      consistency: {
+        stableUniverse: "no duplicates, no gaps",
+        mutatingUniverse:
+          "live-moving universe; a row whose sort value moves behind the " +
+          "boundary is missed and one that moves ahead may repeat",
+        providerSnapshotIsolation: "UNAVAILABLE",
+        selectionsAreDurableBy: "ListingKey",
+      },
       totalPages: universe.totalPages,
       // Fail-SAFE: true whenever more results MAY exist, including the
       // unresolved case. `more` carries the precise state, and no client may
