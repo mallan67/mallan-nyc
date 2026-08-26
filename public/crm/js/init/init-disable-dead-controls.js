@@ -72,10 +72,23 @@
 
                 // ── Operator-prefixed data-value (lte:/gte:/gt:/eq:) ──
                 // Frontend uses values like data-value="lte:1946" for
-                // "Pre-War" or "eq:0" for "No Financing". Backend builds
-                // literal equality — `Field eq 'lte:1946'` — which won't
-                // match any Trestle row. Affects: Pre-War, Post-War,
-                // Low-Rise (≤6 stories), Financing variants.
+                // "Pre-War" or "eq:0" for "No Financing". Nothing decodes the
+                // prefix: the generic scanner reads data-value verbatim, so
+                // the literal string "lte:1946" would travel as a criterion
+                // value. Affects: Pre-War, Post-War, Low-Rise (<=6 stories),
+                // Financing variants.
+                //
+                // CORRECTED 2026-08-26. This used to say the backend builds
+                // `Field eq 'lte:1946'` and matches no row. It no longer does
+                // — an unregistered criterion is refused BY NAME, loudly. So
+                // these controls are belt AND braces: disabled here, refused
+                // there. Anyone re-enabling them on the strength of "the
+                // backend was fixed" would be acting on the old rationale;
+                // what is still missing is a DECODER for the prefix, and for
+                // Pre-War/Post-War a decision that 1946/1947 is a Mallan
+                // definition, since no provider fact sets that boundary.
+                // Coverage is pinned by
+                // tests/runtime/undecodable-control-disable-coverage.test.ts.
                 'input[data-field][data-value^="lte:"]',
                 'input[data-field][data-value^="gte:"]',
                 'input[data-field][data-value^="gt:"]',
