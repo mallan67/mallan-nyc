@@ -1187,7 +1187,11 @@
                 criteria.keyword = keywordEl.value.trim();
             }
 
-            // Management Company (search against ListOfficeName — Trestle's closest field)
+            // Management Company. NOT ListOfficeName: Cotality declares no
+            // ManagementCompany Property field, and listing office is a
+            // DIFFERENT fact. The server refuses that substitution
+            // (crm-idx-filter.ts throws UnsupportedSearchCriterionError), so no
+            // "closest field" is chosen here either.
             var mgmtId = _isAdvanced ? 'adv-management' : 'searchManagementCompany';
             var mgmtEl = document.getElementById(mgmtId);
             if (mgmtEl && mgmtEl.value.trim()) {
@@ -1799,11 +1803,22 @@
                 // Unit filter
                 if (criteria.unit && listing.unit && listing.unit.toLowerCase() !== criteria.unit.toLowerCase()) return false;
 
-                // Management Company filter — matches against ListOfficeName
-                if (criteria.managementCompany) {
-                    var mc = criteria.managementCompany.toLowerCase();
-                    if (!listing.company || listing.company.toLowerCase().indexOf(mc) === -1) return false;
-                }
+                // Management Company is NOT filtered here.
+                //
+                // This block previously matched criteria.managementCompany
+                // against listing.company — which is ListOfficeName. Listing
+                // office is a different fact from management company, and the
+                // server explicitly refuses that substitution. Because the
+                // criterion is also never forwarded to the server, this
+                // client-side match was the ONLY thing that ran: a broker
+                // searching a management company silently received a listing
+                // OFFICE match over the already-fetched page.
+                //
+                // Removing it makes the criterion inert rather than wrong.
+                // Inert is recorded in the register as TRANSPORT_BROKEN and is
+                // scheduled; silently answering a different question is not.
+                // Restoring it requires a verified provider fact, not a
+                // near-neighbour field.
 
                 // Keyword filter — search in description (PublicRemarks)
                 if (criteria.keyword) {
