@@ -130,6 +130,11 @@
                         // owns them. `listings` is exactly result.listings here
                         // — _replaceListings replaced the catalogue wholesale.
                         searchResultsState.filteredListings = listings.slice();
+                        // The re-sort answer carries its own declared count. Without
+                        // this the header would keep whatever the previous search
+                        // reported, over a different set of rows.
+                        searchResultsState.serverCount = (result && result.count) || null;
+                        searchResultsState.serverTotalPages = (result && result.totalPages) || null;
                         searchResultsState.currentPage = 1;
                         // The server answered for the current criteria, so this
                         // set is authoritative again. `_replaceListings` above

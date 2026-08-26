@@ -333,6 +333,16 @@
         function _setResultProvenance(provenance) {
             if (typeof searchResultsState === 'undefined' || !searchResultsState) return;
             searchResultsState.resultProvenance = provenance;
+            // A DECLARED COUNT BELONGS TO ONE RESULT SET.
+            //
+            // Leaving it behind when the set stops being authoritative is how a
+            // stale "4,622 Results" ends up over a local preview of the loaded
+            // catalogue. The count is cleared here and re-set by whichever path
+            // actually received it, so it can never outlive its own answer.
+            if (provenance !== 'authoritative') {
+                searchResultsState.serverCount = null;
+                searchResultsState.serverTotalPages = null;
+            }
         }
 
         window.hasAuthoritativeSearchResults = hasAuthoritativeSearchResults;
@@ -686,6 +696,22 @@
                 // stop polluting the rendered list.
                 searchResultsState.filteredListings = serverListings;
                 searchResultsState.currentPage = 1;
+
+                // THE SERVER'S DECLARED COUNT, CARRIED WITH ITS MEANING.
+                //
+                // updateResultsCount used to print filteredListings.length as
+                // "N Results". That is the size of what was FETCHED, not the
+                // size of the result universe: a live Manhattan Active search
+                // matches 4,622 listings and the browser asks for one window of
+                // them. Printing the window as the total reads to a broker as
+                // "this inventory does not exist".
+                //
+                // `count.meaning` says whether the number is EXACT or a declared
+                // LOWER BOUND, and the renderer must not flatten that back into a
+                // bare number.
+                searchResultsState.serverCount = (result && result.count) || null;
+                searchResultsState.serverTotalPages = (result && result.totalPages) || null;
+
                 _setResultProvenance('authoritative');
                 try {
                     if (typeof initializeSearchResults === 'function') initializeSearchResults();
@@ -2050,13 +2076,35 @@
 
         function updateResultsCount() {
             var filtered = searchResultsState.filteredListings || listings;
-            var count = filtered.length;
             var perPage = searchResultsState.perPage || 50;
-            var totalPages = Math.max(1, Math.ceil(count / perPage));
+
+            // PREFER THE SERVER'S DECLARED COUNT.
+            //
+            // filteredListings holds what is on screen. The server knows how big
+            // the final universe is and whether that number is exact. Only an
+            // AUTHORITATIVE set may use it: a provisional preview is a local
+            // re-filter of whatever catalogue happens to be loaded, and pairing
+            // it with a server total would describe two different sets in one
+            // sentence.
+            var sc = searchResultsState.serverCount;
+            var isAuthoritative = searchResultsState.resultProvenance === 'authoritative';
+            var useServer = !!(sc && typeof sc.value === 'number' && isAuthoritative);
+
+            var count = useServer ? sc.value : filtered.length;
+            var totalPages = useServer && searchResultsState.serverTotalPages
+                ? searchResultsState.serverTotalPages
+                : Math.max(1, Math.ceil(count / perPage));
+
+            // A LOWER BOUND MUST NOT BE PRINTED AS A TOTAL. "200 Results" and
+            // "200+ Results" are different claims, and the second one is the
+            // true one when the traversal stopped early.
+            var countText = useServer && sc.isExact === false
+                ? count + '+ Results'
+                : count + ' Results';
 
             // Update all results count elements (top + bottom)
             var countEls = document.querySelectorAll('#resultsCount, #resultsCount2');
-            countEls.forEach(function(el) { el.textContent = count + ' Results'; });
+            countEls.forEach(function(el) { el.textContent = countText; });
 
             // Update top pagination
             var totalPagesEl = document.getElementById('totalPages');
