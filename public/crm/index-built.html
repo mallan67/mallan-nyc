@@ -17430,19 +17430,29 @@ function manageShowToast(msg) {
 
                 // Borough resolution — explicit borough chip wins; otherwise
                 // derive from neighborhoods only when all are in one borough.
-                if (selectedBoroughs.length === 1) {
-                    criteria.borough = selectedBoroughs[0];
+                if (selectedBoroughs.length > 0) {
+                    // CORRECTED 2026-08-26. Multi-borough previously left
+                    // criteria.borough UNSET, on the belief that the backend
+                    // "cannot OR multiple CityRegion values via a single
+                    // param". The consequence was worse than the limitation:
+                    // with no borough param the server applied no geography at
+                    // all and answered ALL OF NYC under HTTP 200, marked
+                    // authoritative. Selecting two boroughs silently widened
+                    // the search instead of narrowing it.
+                    //
+                    // The backend now renders a comma-separated list as one
+                    // parenthesised CityRegion disjunction
+                    // (lib/search/canonical/geography.ts), so every selected
+                    // borough is carried and the question asked is the question
+                    // answered.
+                    criteria.borough = selectedBoroughs.join(',');
                 } else if (selectedNeighborhoods.length > 0) {
                     var boroughs = selectedNeighborhoods.map(function(n) { return _findBoroughForNeighborhood(n); }).filter(Boolean);
                     var uniqueBoroughs = boroughs.filter(function(b, i, arr) { return arr.indexOf(b) === i; });
-                    if (uniqueBoroughs.length === 1) {
-                        criteria.borough = uniqueBoroughs[0];
+                    if (uniqueBoroughs.length > 0) {
+                        criteria.borough = uniqueBoroughs.join(',');
                     }
                 }
-                // selectedBoroughs.length > 1 (multi-borough): leave
-                // criteria.borough unset — backend cannot OR multiple
-                // CityRegion values via a single param. User intent is
-                // clearer if they pick neighborhoods in each borough instead.
             }
 
             // Quick Search fields — RLS ID, Zip, Unit (advanced mode has its own IDs)

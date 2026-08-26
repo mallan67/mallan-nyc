@@ -57,26 +57,41 @@ describe("buildCrmIdxODataFilter", () => {
   // the geographic narrowing and answer a broader question under HTTP 200 —
   // strictly worse than a visible 400, and the same silent-widening failure
   // mode the status pass exists to remove.
-  it("fails closed on a borough criterion instead of guessing a provider field", () => {
-    expect(() => buildCrmIdxODataFilter(new URLSearchParams({ borough: "Manhattan" })))
-      .toThrow(UnsupportedSearchCriterionError);
+  it("renders a borough as the verified CityRegion predicate", () => {
+    expect(buildCrmIdxODataFilter(new URLSearchParams({ borough: "Manhattan" })))
+      .toContain("CityRegion eq 'Manhattan'");
   });
 
-  it("fails closed on a neighborhood criterion instead of guessing a provider field", () => {
-    expect(() => buildCrmIdxODataFilter(new URLSearchParams({ neighborhood: "NoSuchNeighborhoodForAlias" })))
-      .toThrow(UnsupportedSearchCriterionError);
+  it("sends the PROVIDER spelling for Staten Island, not the human one", () => {
+    // The provider spells it 'StatenIsland'. The human spelling is a valid
+    // filter that matches zero rows — a whole borough silently missing.
+    const filter = buildCrmIdxODataFilter(new URLSearchParams({ borough: "Staten Island" }));
+    expect(filter).toContain("CityRegion eq 'StatenIsland'");
+    expect(filter).not.toContain("CityRegion eq 'Staten Island'");
+  });
+
+  it("renders a multi-borough selection as one disjunction", () => {
+    expect(buildCrmIdxODataFilter(new URLSearchParams({ borough: "Manhattan,Brooklyn" })))
+      .toContain("(CityRegion eq 'Manhattan' or CityRegion eq 'Brooklyn')");
+  });
+
+  it("renders a neighborhood as a SubdivisionName predicate", () => {
+    expect(buildCrmIdxODataFilter(new URLSearchParams({ neighborhood: "Murray Hill" })))
+      .toContain("SubdivisionName eq 'Murray Hill'");
+  });
+
+  it("still fails closed on a value with no live provider counterpart", () => {
+    // Geography is released from hold, but the fail-closed rule is not: a
+    // dropped criterion widens the search while returning HTTP 200.
+    expect(() => buildCrmIdxODataFilter(new URLSearchParams({ borough: "Hoboken" }))).toThrow();
   });
 
   it("never silently drops geography, which would widen the search", () => {
-    // The specific regression guarded: a dropped criterion returns a filter
-    // that looks successful while answering a different question.
-    let filter: string | null = null;
-    try {
-      filter = buildCrmIdxODataFilter(new URLSearchParams({ type: "sale", borough: "Manhattan" }));
-    } catch {
-      filter = null;
-    }
-    expect(filter).toBeNull();
+    // The regression this has always guarded, now stated positively: a valid
+    // borough must APPEAR in the filter, not vanish from it.
+    const filter = buildCrmIdxODataFilter(new URLSearchParams({ type: "sale", borough: "Manhattan" }));
+    expect(filter).toContain("CityRegion eq 'Manhattan'");
+    expect(filter).toContain("PropertyType eq 'Residential'");
   });
 
   it("supports status wildcard for tracker-style total counts", () => {
@@ -351,21 +366,16 @@ describe("buildCrmIdxODataFilter", () => {
     expect(f).not.toContain("(CommonInterest eq 'Condop')");
   });
 
-  it("multi-neighborhood (csv) fails closed and names every rejected value", () => {
-    // RETARGETED 2026-08-24 (48978094). Previously asserted a SubdivisionName
-    // OR group. Geography is held: SubdivisionName is one of several distinct
-    // Cotality facts and its equivalence to the Mallan neighborhood concept is
-    // unproven, so it is not silently chosen as the neighborhood field.
-    try {
-      buildCrmIdxODataFilter(new URLSearchParams({ neighborhood: "Tribeca,SoHo" }));
-      throw new Error("expected buildCrmIdxODataFilter to throw");
-    } catch (err) {
-      expect(err).toBeInstanceOf(UnsupportedSearchCriterionError);
-      // Every rejected value is reported, not just the first — a broker
-      // restoring a saved search needs the whole list to repair it.
-      expect((err as UnsupportedSearchCriterionError).message).toContain("Tribeca");
-      expect((err as UnsupportedSearchCriterionError).message).toContain("SoHo");
-    }
+  it("multi-neighborhood (csv) becomes one SubdivisionName disjunction", () => {
+    // RE-RELEASED 2026-08-26. SubdivisionName is proven filterable and 100%
+    // populated on sampled active rows, so the OR group is restored — and now
+    // expands each canonical selection to every provider spelling Mallan knows
+    // for it, so the result universe is complete rather than silently short.
+    const filter = buildCrmIdxODataFilter(new URLSearchParams({ neighborhood: "Tribeca,SoHo" }));
+    expect(filter).toContain("SubdivisionName eq 'Tribeca'");
+    expect(filter).toContain("SubdivisionName eq 'SoHo'");
+    expect(filter).toContain(" or ");
+    expect(filter).not.toContain("SubdivisionName eq 'Tribeca,SoHo'");
   });
 
   it("address parser — all-numeric input → StreetNumber + BuildingName fallback", () => {

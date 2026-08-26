@@ -1,4 +1,5 @@
 import { standardStatusOData } from "@/lib/search/canonical/status-token-contract";
+import { boroughOData, neighborhoodOData } from "@/lib/search/canonical/geography";
 import { propertyTypeUniverseOData } from "@/lib/search/canonical/property-type-universe";
 import {
   parsePropertySubTypeCriterion,
@@ -110,16 +111,32 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
     if (value !== null && (allowZero ? value >= 0 : value > 0)) parts.push(`${field} ${op} ${value}`);
   }
 
-  // Geography is intentionally held. Live Cotality exposes several distinct
-  // facts (SubdivisionName, CityRegion, CountyOrParish, MLSAreaMajor/Minor,
-  // PostalCity, structured address). Their NYC business equivalence is not yet
-  // proven. Old alias files are not provider authority.
+  // GEOGRAPHY — released from hold 2026-08-26 against live evidence.
+  //
+  // The hold existed because the equivalence between Cotality's several
+  // geography facts and the Mallan concepts was unproven. It is now proven:
+  // CityRegion is filterable with a closed five-member vocabulary covering
+  // 591,293 of 591,303 rows, and SubdivisionName is filterable and 100%
+  // populated on sampled active rows. See lib/search/canonical/geography.ts for
+  // the probe record, including the `StatenIsland` spelling trap.
+  //
+  // Both still FAIL CLOSED on a value with no live counterpart: a dropped
+  // geographic criterion widens the search while returning HTTP 200.
   const neighborhood = params.get("neighborhood");
   if (neighborhood) {
-    throw new UnsupportedSearchCriterionError("neighborhood", neighborhood.split(",").map((v) => v.trim()).filter(Boolean));
+    const clause = neighborhoodOData(
+      neighborhood.split(",").map((v) => v.trim()).filter(Boolean),
+    );
+    if (clause) parts.push(clause);
   }
   const borough = params.get("borough");
-  if (borough) throw new UnsupportedSearchCriterionError("borough", [borough]);
+  if (borough) {
+    // Comma-separated so a multi-borough selection becomes one disjunction.
+    // It previously could not be expressed at all, so the browser dropped it
+    // and silently answered all of NYC.
+    const clause = boroughOData(borough.split(",").map((v) => v.trim()).filter(Boolean));
+    if (clause) parts.push(clause);
+  }
 
   const status = params.get("status");
   if (status === "*") {
