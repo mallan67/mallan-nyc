@@ -38,6 +38,7 @@
 import {
   MALLAN_SORT_KEYS,
   UnsupportedSortError,
+  keysetResumePredicate,
   resolveSort,
   sortODataClause,
 } from '@/lib/search/canonical/sort-contract';
@@ -151,5 +152,71 @@ describe('the legacy provider strings the client still sends are translated, not
   it('a legacy-LOOKING string for an unverified field is still refused', () => {
     // Compatibility is an allowlist of proven strings, not a syntax rule.
     expect(() => resolveSort('LivingArea desc')).toThrow(UnsupportedSortError);
+  });
+});
+
+/**
+ * KEYSET CONTINUATION — a POSITION IN THE ORDERING, not a distance from the
+ * start.
+ *
+ * Cotality's own @odata.nextLink is a plain `$skip=N` (verified live
+ * 2026-08-26 — there is no opaque skiptoken), and a numeric offset is only
+ * correct against a frozen feed. Between two page requests a listing ahead of
+ * the boundary can change price, be added, or be withdrawn, and the offset then
+ * points somewhere else — duplicating or skipping rows even though every sort
+ * carries a ListingKey tie-break.
+ */
+describe('keyset safety is decided by live null population, not by hope', () => {
+  it.each([
+    ['price_desc', true, 'ListPrice: 0 nulls unscoped'],
+    ['price_asc', true, 'ListPrice: 0 nulls unscoped'],
+    ['updated_desc', true, 'ModificationTimestamp: 0 nulls unscoped'],
+    ['updated_asc', true, 'ModificationTimestamp: 0 nulls unscoped'],
+    ['listed_desc', false, 'ListingContractDate: 9,771 nulls unscoped'],
+    ['listed_asc', false, 'ListingContractDate: 9,771 nulls unscoped'],
+  ])('%s keysetSafe=%p (%s)', (key, safe) => {
+    expect(MALLAN_SORT_KEYS[key].keysetSafe).toBe(safe);
+  });
+
+  it('a nullable sort field yields NO predicate rather than a lossy one', () => {
+    // A null cannot be compared, so `Field lt X` silently excludes every
+    // null-valued row from the resumed sequence. Where the provider orders
+    // those nulls could not be established, and guessing is how listings
+    // disappear.
+    expect(keysetResumePredicate('listed_desc', '2026-01-01', 'K1')).toBeNull();
+    expect(keysetResumePredicate('listed_asc', '2026-01-01', 'K1')).toBeNull();
+  });
+});
+
+describe('the resume predicate names a position in the order', () => {
+  it('descending asks for values BELOW, then breaks the tie upward on key', () => {
+    // Proven live: after (128000000, '1146011469') on ListPrice desc the next
+    // rows are 88,500,000 and then two rows both at 85,000,000 ordered by key.
+    expect(keysetResumePredicate('price_desc', 128000000, '1146011469')).toBe(
+      "(ListPrice lt 128000000 or (ListPrice eq 128000000 and ListingKey gt '1146011469'))",
+    );
+  });
+
+  it('ascending asks for values ABOVE, with the same upward tie-break', () => {
+    // The tie-break stays ASC in both directions because that is what
+    // sortODataClause actually emits; flipping it here would desynchronise the
+    // predicate from the ordering it is meant to resume.
+    expect(keysetResumePredicate('price_asc', 500000, 'K9')).toBe(
+      "(ListPrice gt 500000 or (ListPrice eq 500000 and ListingKey gt 'K9'))",
+    );
+  });
+
+  it('quotes a timestamp value and leaves a number bare', () => {
+    const ts = keysetResumePredicate('updated_desc', '2026-08-01T00:00:00Z', 'K1');
+    expect(ts).toContain("ModificationTimestamp lt '2026-08-01T00:00:00Z'");
+    expect(keysetResumePredicate('price_desc', 100, 'K1')).toContain('ListPrice lt 100');
+  });
+
+  it('escapes a quote in the key rather than breaking the clause', () => {
+    expect(keysetResumePredicate('price_desc', 1, "K'1")).toContain("ListingKey gt 'K''1'");
+  });
+
+  it('an unknown sort key still fails by name', () => {
+    expect(() => keysetResumePredicate('bogus', 1, 'K1')).toThrow(UnsupportedSortError);
   });
 });

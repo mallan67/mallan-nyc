@@ -49,6 +49,7 @@ import {
   assembleFinalUniverse,
   CountMeaning,
   MoreResults,
+  PageCompleteness,
   providerBudgetFor,
   type ProviderPage,
 } from '@/lib/search/final-universe';
@@ -766,5 +767,107 @@ describe('a resumed traversal reaches past the read ceiling', () => {
     }
     expect(new Set(seen).size).toBe(seen.length);
     expect(seen).toEqual(survivors.slice(0, seen.length));
+  });
+});
+
+/**
+ * A PAGE THAT RAN OUT OF BUDGET IS NOT A FINISHED PAGE.
+ *
+ * The three-state `more` contract says whether the UNIVERSE has more. It says
+ * nothing about whether THIS PAGE was finished, and those are different
+ * questions with different consequences.
+ *
+ * Ask for 50, have the budget end after 20 survivors with the provider not
+ * exhausted, and the old contract handed back 20 rows plus a continuation. The
+ * browser's next move is page 2, so the broker gets:
+ *
+ *     Page 1 = rows 1-20
+ *     Page 2 = rows 21-70
+ *
+ * Nothing is duplicated and nothing is lost, but the page boundaries are a
+ * fiction: page 1 was never finished, it was abandoned. A work budget ending is
+ * not a statement about the shape of the result set.
+ */
+describe('page completeness is separate from universe completeness', () => {
+  it('a full page is COMPLETE', async () => {
+    const res = await assemble(rows(500), 1, 50);
+    expect(res.rows).toHaveLength(50);
+    expect(res.pageCompleteness).toBe(PageCompleteness.COMPLETE);
+  });
+
+  it('a short LAST page with an exhausted provider is legitimately final', async () => {
+    // 30 rows, 50 to a page: page 1 is short because that is all there is.
+    const res = await assemble(rows(30), 1, 50);
+    expect(res.rows).toHaveLength(30);
+    expect(res.pageCompleteness).toBe(PageCompleteness.FINAL_PARTIAL);
+    expect(res.more).toBe(MoreResults.NO);
+  });
+
+  it('a short page because the BUDGET ended is INCOMPLETE, not final', async () => {
+    // The distinction that matters: same row count, completely different claim.
+    const all = rows(100_000, (r, i) => {
+      if (i % 50 !== 0) r.gated = 'Owner opted out';
+    });
+    const res = await assembleFinalUniverse<Row>({
+      fetchPage: fakeProvider(all, 5_000).fetchPage,
+      identity: key,
+      gate: gateOf,
+      providerRowKey: canonical,
+      page: 1,
+      pageSize: 50,
+      providerBudget: 1_000,
+      exactCount: false,
+    });
+    expect(res.rows.length).toBeLessThan(50);
+    expect(res.pageCompleteness).toBe(PageCompleteness.INCOMPLETE_BUDGET);
+    expect(res.more).toBe(MoreResults.UNKNOWN);
+  });
+
+  it('an empty page from an exhausted provider is final, not incomplete', async () => {
+    const res = await assemble(rows(0), 1, 50);
+    expect(res.pageCompleteness).toBe(PageCompleteness.FINAL_PARTIAL);
+  });
+
+  it('resuming finishes the SAME page rather than starting the next', async () => {
+    // pageSize 50; segment 1 is budget-limited, segment 2 supplies the rest.
+    // The completed page 1 must be the first 50 survivors, in order, once each.
+    const all = rows(100_000, (r, i) => {
+      if (i % 10 !== 0) r.gated = 'Participant-only listing';
+    });
+    const survivors = all.filter((r) => !r.gated).map(key);
+
+    const seg1 = await assembleFinalUniverse<Row>({
+      fetchPage: fakeProvider(all, 200).fetchPage,
+      identity: key,
+      gate: gateOf,
+      providerRowKey: canonical,
+      page: 1,
+      pageSize: 50,
+      providerBudget: 200,
+      exactCount: false,
+    });
+    expect(seg1.pageCompleteness).toBe(PageCompleteness.INCOMPLETE_BUDGET);
+
+    const seg2 = await assembleFinalUniverse<Row>({
+      fetchPage: fakeProvider(all, 5_000).fetchPage,
+      identity: key,
+      gate: gateOf,
+      providerRowKey: canonical,
+      page: 1,
+      // Only the REMAINDER of page 1 is still owed.
+      pageSize: 50 - seg1.rows.length,
+      providerBudget: 5_000,
+      exactCount: false,
+      resume: {
+        providerOffset: seg1.providerOffsetReached,
+        survivorsConsumed: seg1.rows.length,
+        tail: seg1.pageRowKeys,
+      },
+    });
+
+    const page1 = [...seg1.rows.map(key), ...seg2.rows.map(key)];
+    expect(page1).toHaveLength(50);
+    expect(new Set(page1).size).toBe(50);
+    expect(page1).toEqual(survivors.slice(0, 50));
   });
 });

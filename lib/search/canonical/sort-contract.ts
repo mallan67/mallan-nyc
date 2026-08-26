@@ -46,6 +46,23 @@ export interface SortSpec {
   readonly direction: SortDirection;
   /** What the broker sees. */
   readonly label: string;
+  /**
+   * Whether a KEYSET continuation is safe on this field.
+   *
+   * Keyset resumes with "rows ordered after (value, ListingKey)" instead of
+   * "skip N rows", which is what makes it stable while the feed changes
+   * underneath a broker. It requires the field to be NON-NULL on every row: a
+   * null cannot be compared, so null-valued rows would be silently dropped from
+   * the resumed sequence.
+   *
+   * Verified live 2026-08-26, UNSCOPED (all statuses, including the 577,526
+   * Closed rows), because "no nulls among Active" would not have been enough:
+   *
+   *   ListPrice              0 nulls  -> keyset safe
+   *   ModificationTimestamp  0 nulls  -> keyset safe
+   *   ListingContractDate    9,771 nulls -> NOT safe
+   */
+  readonly keysetSafe: boolean;
 }
 
 /**
@@ -58,29 +75,38 @@ const TIE_BREAK = 'ListingKey asc';
 
 /** Every sort Mallan offers, keyed by MALLAN name rather than provider field. */
 export const MALLAN_SORT_KEYS: Readonly<Record<string, SortSpec>> = Object.freeze({
-  price_desc: { cotalityField: 'ListPrice', direction: 'desc', label: 'Price (high to low)' },
-  price_asc: { cotalityField: 'ListPrice', direction: 'asc', label: 'Price (low to high)' },
+  price_desc: { cotalityField: 'ListPrice', direction: 'desc', label: 'Price (high to low)', keysetSafe: true },
+  price_asc: { cotalityField: 'ListPrice', direction: 'asc', label: 'Price (low to high)', keysetSafe: true },
   // LISTED, not modified. Kept as a separate key from updated_* precisely
   // because collapsing them is the defect this contract removes.
   listed_desc: {
     cotalityField: 'ListingContractDate',
     direction: 'desc',
     label: 'Newest listed',
+    // 9,771 rows carry a null ListingContractDate, and where the provider
+    // orders those nulls could not be established: ordering ASC starts at
+    // 1900-01-01 and DESC starts at 2028-03-02, so nulls appear at neither end
+    // of the first rows. Guessing would silently drop those listings from a
+    // resumed sequence, so this sort takes the bounded rescan instead.
+    keysetSafe: false,
   },
   listed_asc: {
     cotalityField: 'ListingContractDate',
     direction: 'asc',
     label: 'Oldest listed',
+    keysetSafe: false,
   },
   updated_desc: {
     cotalityField: 'ModificationTimestamp',
     direction: 'desc',
     label: 'Recently updated',
+    keysetSafe: true,
   },
   updated_asc: {
     cotalityField: 'ModificationTimestamp',
     direction: 'asc',
     label: 'Least recently updated',
+    keysetSafe: true,
   },
 });
 
@@ -166,4 +192,48 @@ export function sortODataClause(key: string): string {
   const spec = MALLAN_SORT_KEYS[key];
   if (!spec) throw new UnsupportedSortError(key);
   return `${spec.cotalityField} ${spec.direction}, ${TIE_BREAK}`;
+}
+
+/**
+ * The OData predicate that resumes AFTER a given position in this sort order.
+ *
+ * WHY THIS EXISTS. Cotality's own `@odata.nextLink` is a plain `$skip=N`
+ * (verified live 2026-08-26 — there is no opaque skiptoken), and a numeric
+ * offset is only correct against a frozen feed. Between two page requests a
+ * listing ahead of the boundary can change price, be added, or be withdrawn,
+ * and the offset then points somewhere else — duplicating or skipping rows even
+ * though every sort carries a ListingKey tie-break.
+ *
+ * A keyset predicate asks "rows ordered after (value, key)" instead, which is
+ * stable under exactly those changes: it names a POSITION IN THE ORDERING
+ * rather than a distance from the start.
+ *
+ * Proven live: after (128000000, '1146011469') on `ListPrice desc, ListingKey
+ * asc` the next rows are 88,500,000 then two rows both at 85,000,000 ordered by
+ * key — the tie is traversed correctly rather than skipped.
+ *
+ * Returns null when the sort is not keyset-safe, so the caller falls back
+ * rather than emitting a predicate that would drop null-valued rows.
+ */
+export function keysetResumePredicate(
+  key: string,
+  lastValue: string | number,
+  lastListingKey: string,
+): string | null {
+  const spec = MALLAN_SORT_KEYS[key];
+  if (!spec) throw new UnsupportedSortError(key);
+  if (!spec.keysetSafe) return null;
+
+  const field = spec.cotalityField;
+  // Values are emitted the way OData compares them: numbers bare, everything
+  // else quoted with quotes doubled.
+  const v =
+    typeof lastValue === 'number'
+      ? String(lastValue)
+      : `'${String(lastValue).replace(/'/g, "''")}'`;
+  const k = `'${lastListingKey.replace(/'/g, "''")}'`;
+  // The tie-break is ALWAYS ascending on ListingKey, in both sort directions,
+  // because that is what sortODataClause emits.
+  const beyond = spec.direction === 'desc' ? 'lt' : 'gt';
+  return `(${field} ${beyond} ${v} or (${field} eq ${v} and ListingKey gt ${k}))`;
 }

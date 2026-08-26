@@ -75,6 +75,26 @@ export enum MoreResults {
   UNKNOWN = 'BUDGET_EXHAUSTED_UNRESOLVED',
 }
 
+
+/**
+ * WHETHER THIS PAGE WAS FINISHED — a different question from whether the
+ * UNIVERSE has more.
+ *
+ * Ask for 50, have the read budget end after 20 survivors with the provider not
+ * exhausted, and handing back 20 rows plus a continuation makes the browser's
+ * next move page 2. Nothing is duplicated and nothing is lost, but the page
+ * boundaries become a fiction: page 1 was never finished, it was abandoned. A
+ * work budget ending is not a statement about the shape of the result set.
+ */
+export enum PageCompleteness {
+  /** The requested number of rows was delivered. */
+  COMPLETE = 'PAGE_COMPLETE',
+  /** Short because the universe ended here. Legitimately the last page. */
+  FINAL_PARTIAL = 'FINAL_PARTIAL_PAGE',
+  /** Short because WE stopped reading. Not a finished page. */
+  INCOMPLETE_BUDGET = 'PAGE_INCOMPLETE_BUDGET',
+}
+
 /** One page of provider records, shaped the way OData actually answers. */
 export interface ProviderPage<T> {
   readonly records: readonly T[];
@@ -165,6 +185,8 @@ export interface FinalUniverseResult<T> {
    */
   readonly hasMore: boolean;
   readonly more: MoreResults;
+  /** Whether THIS page was finished — see PageCompleteness. */
+  readonly pageCompleteness: PageCompleteness;
   readonly hasPrevious: boolean;
   /** `@odata.count`, kept and kept SEPARATE. Never a result count. */
   readonly providerMatched: number | null;
@@ -396,10 +418,20 @@ export async function assembleFinalUniverse<T>(
   const providerOffsetReached =
     rows.length > 0 ? survivorOffsets[lastEmitted] : startOffset + providerRowsRead;
 
+  // A short page is only FINAL if the universe ended. If the budget ended, the
+  // page is unfinished and the caller must finish it before moving on.
+  const pageCompleteness =
+    rows.length >= pageSize
+      ? PageCompleteness.COMPLETE
+      : exhausted
+        ? PageCompleteness.FINAL_PARTIAL
+        : PageCompleteness.INCOMPLETE_BUDGET;
+
   return {
     rows,
     page,
     pageSize,
+    pageCompleteness,
     count,
     countMeaning,
     // NULL, not a fabricated number, when the traversal stopped early.

@@ -17003,6 +17003,44 @@ function manageShowToast(msg) {
         }
 
         /**
+         * How many extra segments one page may take before Mallan stops and
+         * shows what it has.
+         *
+         * Bounded on purpose: a pathological search where almost everything is
+         * gated could otherwise spend an unbounded number of round trips
+         * assembling a single page. When the bound bites, the page is rendered
+         * with its INCOMPLETE state intact rather than silently presented as
+         * finished.
+         */
+        var _MAX_PAGE_FILL_SEGMENTS = 6;
+        var _fillAttempts = 0;
+        var _pendingPageRows = null;
+
+        /** Ask for the REMAINDER of the page currently being assembled. */
+        function _continuePage(targetPage, previous) {
+            var params = window.buildIdxSearchParams(
+                (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria)
+                    ? activeSearchCriteria
+                    : {}
+            );
+            params.page = 1;
+            // Only what the page is still owed — asking for a full page again
+            // would overshoot and the extra rows would belong to page 2.
+            var owed = (searchResultsState.perPage || 50) - (_pendingPageRows || []).length;
+            params.limit = Math.max(1, owed);
+            if (searchResultsState.sortKey) params.sort = searchResultsState.sortKey;
+            params.continuation = previous.continuation;
+
+            MallanAPI.idx.search(params).then(function(result) {
+                _handlePageResult(result, targetPage);
+            }).catch(function(err) {
+                _fillAttempts = 0;
+                _pendingPageRows = null;
+                _pageRequestFailed(err, targetPage);
+            });
+        }
+
+        /**
          * FETCH ONE PAGE OF THE FINAL UNIVERSE FROM THE SERVER.
          *
          * Authoritative pagination is a SERVER round trip, never a local slice.
@@ -17066,11 +17104,45 @@ function manageShowToast(msg) {
 
             if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = true;
             MallanAPI.idx.search(params).then(function(result) {
+                _handlePageResult(result, targetPage);
+            }).catch(function(err) {
+                _fillAttempts = 0;
+                _pendingPageRows = null;
+                _pageRequestFailed(err, targetPage);
+            });
+        }
+        window._requestResultPage = _requestResultPage;
+
+        /** Adopt one page result, finishing the page first if it is unfinished. */
+        function _handlePageResult(result, targetPage) {
                 if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = false;
                 if (!result || !result.listings) return;
 
-                searchResultsState.filteredListings = result.listings;
+                // AN UNFINISHED PAGE IS FINISHED, NOT ADVANCED PAST.
+                //
+                // If the read budget ended mid-page the server says
+                // PAGE_INCOMPLETE_BUDGET. Rendering those rows and letting the
+                // broker press Next would make the page boundaries a fiction:
+                // page 1 = rows 1-20, page 2 = rows 21-70. Nothing is lost, but
+                // "page 1" then means "however far we got", which is not a page.
+                //
+                // So the same page keeps assembling, bounded, before any
+                // normal Next-page semantics apply.
+                var _incomplete = result.pageCompleteness === 'PAGE_INCOMPLETE_BUDGET';
+                if (_incomplete && result.continuation && _fillAttempts < _MAX_PAGE_FILL_SEGMENTS) {
+                    _fillAttempts += 1;
+                    _pendingPageRows = (_pendingPageRows || []).concat(result.listings || []);
+                    _continuePage(targetPage, result);
+                    return;
+                }
+
+                var _assembled = (_pendingPageRows || []).concat(result.listings || []);
+                _pendingPageRows = null;
+                _fillAttempts = 0;
+
+                searchResultsState.filteredListings = _assembled;
                 searchResultsState.currentPage = result.page || targetPage;
+                searchResultsState.pageCompleteness = result.pageCompleteness || null;
                 searchResultsState.serverCount = result.count || null;
                 searchResultsState.serverTotalPages =
                     (typeof result.totalPages === 'number') ? result.totalPages : null;
@@ -17089,7 +17161,10 @@ function manageShowToast(msg) {
                     console.error('[Search] Render after page request failed:', renderErr);
                 }
                 _saveSearchState();
-            }).catch(function(err) {
+        }
+
+        /** A page request failed: fail closed rather than mislabel stale rows. */
+        function _pageRequestFailed(err, targetPage) {
                 if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = false;
                 console.error('[Search] Page request failed:', err);
                 // FAIL CLOSED, exactly like a failed search: the rows on screen
@@ -17109,9 +17184,7 @@ function manageShowToast(msg) {
                 } else {
                     showToast('Could not load page ' + targetPage + '.', 'error');
                 }
-            });
         }
-        window._requestResultPage = _requestResultPage;
 
         // Server-side search: query Trestle API with criteria — this is the PRIMARY data source
         function _serverSearch(criteria, localResults) {

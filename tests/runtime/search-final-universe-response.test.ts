@@ -76,6 +76,11 @@ async function callSearch(query = 'type=sale'): Promise<any> {
 beforeEach(() => {
   jest.resetModules();
   mockFetchFromTrestle.mockReset();
+  // Continuation is FAIL-CLOSED: without a sealing key no token is minted at
+  // all. Set here so the resume path is exercised; the env var itself is a
+  // protected boundary and this suite must not depend on one existing.
+  process.env.SEARCH_CONTINUATION_SECRET =
+    process.env.SEARCH_CONTINUATION_SECRET || 'test-only-continuation-secret-value';
   // The route refuses to run unless IDX is switched on. That guard is correct
   // and is not what is under test here.
   process.env.IDX_ENABLED = 'true';
@@ -464,5 +469,31 @@ describe('continuation over the route', () => {
     );
     expect(res.status).toBe(400);
     expect((await res.json()).code).toBe('INVALID_CONTINUATION');
+  });
+});
+
+describe('continuation is fail-closed when it cannot be sealed', () => {
+  it('no token is offered without a sealing key', async () => {
+    // An unsigned position a caller can edit and re-encode is not a validated
+    // continuation. Rather than ship one and call it validated, the feature is
+    // simply not offered and paging falls back to the bounded rescan.
+    const saved = process.env.SEARCH_CONTINUATION_SECRET;
+    delete process.env.SEARCH_CONTINUATION_SECRET;
+    try {
+      jest.resetModules();
+      mockFetchFromTrestle.mockResolvedValue({
+        records: Array.from({ length: 50 }, (_, i) => row(i + 1)),
+        odataCount: 100_000,
+        hasMore: true,
+        nextLink: 'https://next',
+        totalFetched: 50,
+      });
+      const body = await callSearch('type=sale&limit=20');
+      expect(body.continuation).toBeNull();
+      // The rows themselves are unaffected — only the resume shortcut is gone.
+      expect(body.listings).toHaveLength(20);
+    } finally {
+      if (saved) process.env.SEARCH_CONTINUATION_SECRET = saved;
+    }
   });
 });

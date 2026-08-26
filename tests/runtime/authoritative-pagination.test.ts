@@ -364,3 +364,65 @@ describe('the continuation travels with sequential Next only', () => {
     expect(apiClient).toMatch(/qs\.push\('continuation=' \+ encodeURIComponent\(params\.continuation\)\)/);
   });
 });
+
+/**
+ * AN UNFINISHED PAGE IS FINISHED, NOT ADVANCED PAST.
+ *
+ * If the read budget ends mid-page the server says PAGE_INCOMPLETE_BUDGET.
+ * Rendering those rows and letting the broker press Next would make the page
+ * boundaries a fiction — page 1 = rows 1-20, page 2 = rows 21-70. Nothing is
+ * lost, but "page 1" then means "however far we got", which is not a page.
+ */
+describe('the client finishes an unfinished page before advancing', () => {
+  const block = engine.slice(
+    engine.indexOf('function _handlePageResult('),
+    engine.indexOf('function _pageRequestFailed('),
+  );
+
+  it('recognises the incomplete state', () => {
+    expect(block).toMatch(/PAGE_INCOMPLETE_BUDGET/);
+  });
+
+  it('continues the SAME page rather than moving on', () => {
+    expect(block).toMatch(/_continuePage\(targetPage/);
+  });
+
+  it('asks only for what the page is still owed', () => {
+    // Requesting a fresh full page would overshoot, and the extra rows would
+    // belong to page 2.
+    const cont = engine.slice(
+      engine.indexOf('function _continuePage('),
+      engine.indexOf('function _requestResultPage('),
+    );
+    expect(cont).toMatch(/owed = \(searchResultsState\.perPage \|\| 50\) -/);
+    expect(cont).toMatch(/params\.limit = Math\.max\(1, owed\)/);
+  });
+
+  it('the fill is BOUNDED, and a bounded-out page keeps its incomplete state', () => {
+    // A search where nearly everything is gated must not spend unbounded round
+    // trips on one page; when the bound bites the page is rendered as-is,
+    // still labelled incomplete rather than silently called finished.
+    expect(engine).toMatch(/_MAX_PAGE_FILL_SEGMENTS = \d+/);
+    expect(block).toMatch(/_fillAttempts < _MAX_PAGE_FILL_SEGMENTS/);
+    expect(block).toMatch(/pageCompleteness = result\.pageCompleteness/);
+  });
+
+  it('rows assembled across segments are concatenated, not replaced', () => {
+    // Replacing would discard the first segment and silently shorten the page.
+    expect(block).toMatch(/_pendingPageRows \|\| \[\]\)\.concat\(/);
+  });
+
+  it('the accumulator is cleared once the page is delivered', () => {
+    // Otherwise the next page would start with the previous page's leftovers.
+    expect(block).toMatch(/_pendingPageRows = null/);
+    expect(block).toMatch(/_fillAttempts = 0/);
+  });
+
+  it('a failure clears the accumulator too', () => {
+    const req = engine.slice(
+      engine.indexOf('function _requestResultPage('),
+      engine.indexOf('function _handlePageResult('),
+    );
+    expect(req).toMatch(/_pendingPageRows = null/);
+  });
+});

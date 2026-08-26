@@ -19,6 +19,7 @@ import {
   InvalidContinuationError,
   continuationFingerprint,
   decodeContinuation,
+  isContinuationAvailable,
   nextContinuation,
 } from "@/lib/search/continuation";
 import {
@@ -404,7 +405,9 @@ export async function GET(req: NextRequest) {
     // suppression, the gates and the dedupe are all re-applied here from this
     // request's own parameters, so a continuation can never widen a search or
     // reach a row the caller could not otherwise reach.
-    const fingerprint = continuationFingerprint(filter, effectiveSort);
+    // Page size is part of the sequence identity, so it is bound into the
+    // fingerprint: a position captured at 20 rows a page is meaningless at 50.
+    const fingerprint = continuationFingerprint(filter, effectiveSort, limit);
     const continuationParam = params.get("continuation");
     const resume = continuationParam
       ? (() => {
@@ -549,11 +552,22 @@ export async function GET(req: NextRequest) {
       // turn UNKNOWN into "no listings found".
       hasMore: universe.hasMore,
       more: universe.more,
+      // Whether THIS page was finished. A short page because the budget ended
+      // is not the same claim as a short page because the universe ended, and a
+      // client must finish the first before advancing.
+      pageCompleteness: universe.pageCompleteness,
       hasPrevious: universe.hasPrevious,
       // The position the NEXT request should send. Absent once the provider is
       // exhausted — there is nothing left to resume.
+      // FAIL-CLOSED: no token at all unless it can be SEALED. An unsigned
+      // position that a caller can edit and re-encode is not a validated
+      // continuation, and offering one while calling it validated is the kind of
+      // claim this codebase keeps removing. Without the secret, deep traversal
+      // falls back to the bounded rescan.
       continuation:
-        universe.more === MoreResults.NO || universe.rows.length === 0
+        !isContinuationAvailable() ||
+        universe.more === MoreResults.NO ||
+        universe.rows.length === 0
           ? null
           : nextContinuation({
               fingerprint,
