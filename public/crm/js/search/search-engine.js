@@ -325,7 +325,13 @@
         function searchResultsAreStale() {
             if (typeof searchResultsState === 'undefined' || !searchResultsState) return false;
             var provenance = searchResultsState.resultProvenance;
-            return provenance === 'provisional' || provenance === 'none';
+            // 'incomplete' belongs here too: a traversal that stopped at the
+            // read budget without reaching a surviving row established nothing.
+            // Letting Reports or Compare treat that as "all results" would hand
+            // a broker an unproven empty set as though it were the answer.
+            return provenance === 'provisional'
+                || provenance === 'none'
+                || provenance === 'incomplete';
         }
 
         window.searchResultsAreStale = searchResultsAreStale;
@@ -343,6 +349,7 @@
                 searchResultsState.serverCount = null;
                 searchResultsState.serverTotalPages = null;
                 searchResultsState.serverHasMore = false;
+                searchResultsState.serverContinuation = null;
                 // The map universe belongs to one set of criteria too. Leaving
                 // it behind would draw the previous search's pins over a preview
                 // or a failed search.
@@ -672,6 +679,23 @@
             params.limit = searchResultsState.perPage || 50;
             if (searchResultsState.sortKey) params.sort = searchResultsState.sortKey;
 
+            // SEQUENTIAL NEXT RESUMES; A JUMP RESCANS.
+            //
+            // Moving to the immediately following page carries the server's
+            // continuation, so the traversal picks up where it stopped instead
+            // of re-walking the prefix and hitting the read ceiling again. Any
+            // other move — First, Last, a page-size change, a jump — has no
+            // position to resume from and takes a bounded rescan, which is
+            // correct but costs the prefix.
+            //
+            // The two behaviours are deliberately distinct rather than blurred:
+            // sending a continuation for a non-sequential move would return the
+            // wrong page while looking like it worked.
+            var _isSequentialNext = targetPage === (searchResultsState.currentPage || 1) + 1;
+            if (_isSequentialNext && searchResultsState.serverContinuation) {
+                params.continuation = searchResultsState.serverContinuation;
+            }
+
             if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = true;
             MallanAPI.idx.search(params).then(function(result) {
                 if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = false;
@@ -683,6 +707,7 @@
                 searchResultsState.serverTotalPages =
                     (typeof result.totalPages === 'number') ? result.totalPages : null;
                 searchResultsState.serverHasMore = !!result.hasMore;
+                searchResultsState.serverContinuation = result.continuation || null;
                 // The map universe belongs to the CRITERIA, not the page, so it
                 // is deliberately left alone here: paging must not re-fetch 500
                 // rows, and the pins are still answering the same question.
@@ -744,7 +769,44 @@
             MallanAPI.idx.search(params).then(function(result) {
                 if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = false;
                 console.log('[Search] Trestle returned:', result ? (result.listings ? result.listings.length + ' listings' : 'no listings array') : 'null');
-                if (!result || !result.listings || result.listings.length === 0) {
+                // A BOUNDED TRAVERSAL THAT FOUND NOTHING IS NOT AN EMPTY
+                // UNIVERSE.
+                //
+                // Zero rows used to mean "no listings found", authoritatively.
+                // That is only true when the provider was EXHAUSTED. If the read
+                // budget stopped the traversal first, the server says
+                // BUDGET_EXHAUSTED_UNRESOLVED, and hundreds of thousands of
+                // provider rows may still be unread. Telling a broker their
+                // inventory does not exist because Mallan chose not to read
+                // farther is the worst version of the false-universe defect this
+                // whole workstream removes.
+                var _more = result && result.more;
+                var _zeroRows = !result || !result.listings || result.listings.length === 0;
+                if (_zeroRows && _more === 'BUDGET_EXHAUSTED_UNRESOLVED') {
+                    searchResultsState.filteredListings = [];
+                    searchResultsState.currentPage = 1;
+                    searchResultsState.serverCount = (result && result.count) || null;
+                    searchResultsState.serverTotalPages = null;
+                    searchResultsState.serverHasMore = true;
+                    // NOT authoritative: nothing was established, so every
+                    // downstream broker action stays closed rather than acting
+                    // on an unproven empty set.
+                    _setResultProvenance('incomplete');
+                    try {
+                        if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                        if (typeof updateResultsCount === 'function') updateResultsCount();
+                    } catch (renderErr) {
+                        console.error('[Search] Render after incomplete search failed:', renderErr);
+                    }
+                    showToast(
+                        'Search incomplete — Mallan stopped reading before the provider ran out of listings. '
+                        + 'Narrow the criteria, or open the next page to keep looking.',
+                        'warning'
+                    );
+                    return;
+                }
+
+                if (_zeroRows) {
                     // Server returned 0. The server is the source of truth for
                     // this search — DO NOT keep the pre-render rows visible.
                     //
@@ -758,9 +820,11 @@
                     // Clear the display so the empty-state + toast surface honestly.
                     searchResultsState.filteredListings = [];
                     searchResultsState.currentPage = 1;
-                    // A genuinely empty universe IS an answer. `Townhouse` is a
-                    // valid live member with zero rows — nothing failed here, so
-                    // this stays authoritative and downstream actions stay open.
+                    // A genuinely empty universe IS an answer, and reaching this
+                    // line now means the provider was EXHAUSTED — the
+                    // unresolved case returned above. `Townhouse` is a valid
+                    // live member with zero rows; nothing failed, so this stays
+                    // authoritative and downstream actions stay open.
                     _setResultProvenance('authoritative');
                     try {
                         if (typeof initializeSearchResults === 'function') initializeSearchResults();
@@ -852,6 +916,7 @@
                 searchResultsState.serverTotalPages =
                     (result && typeof result.totalPages === 'number') ? result.totalPages : null;
                 searchResultsState.serverHasMore = !!(result && result.hasMore);
+                searchResultsState.serverContinuation = (result && result.continuation) || null;
 
                 // THE MAP IS A DIFFERENT QUESTION FROM THE GRID.
                 //

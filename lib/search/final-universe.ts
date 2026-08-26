@@ -55,6 +55,26 @@ export enum CountMeaning {
   LOWER_BOUND = 'LOWER_BOUND_TRUNCATED',
 }
 
+
+/**
+ * WHETHER MORE RESULTS EXIST BEYOND THIS PAGE — and whether we actually know.
+ *
+ * `count > page * pageSize` is a sound conclusion only when a survivor beyond
+ * the page was OBSERVED, or the provider was EXHAUSTED. If traversal stopped at
+ * the read budget before either was established, "no" is an unsupported claim,
+ * and it is the dangerous direction: a broker reads it as "that is all the
+ * inventory". Mallan choosing not to read farther is not evidence that the
+ * universe ended.
+ */
+export enum MoreResults {
+  /** A survivor past this page was actually seen. */
+  YES = 'MORE_SURVIVOR_PROVEN',
+  /** The provider universe ended. This is the only licence to say "no". */
+  NO = 'PROVIDER_EXHAUSTED',
+  /** The budget stopped the traversal first. Nothing was proven either way. */
+  UNKNOWN = 'BUDGET_EXHAUSTED_UNRESOLVED',
+}
+
 /** One page of provider records, shaped the way OData actually answers. */
 export interface ProviderPage<T> {
   readonly records: readonly T[];
@@ -101,6 +121,24 @@ export interface AssembleOptions<T> {
    */
   readonly exactCount?: boolean;
   readonly providerPageSize?: number;
+  /**
+   * RESUME A SEQUENTIAL TRAVERSAL instead of re-walking from row zero.
+   *
+   * Without this, every deep page pays the whole prefix again and the read
+   * budget becomes a hidden maximum searchable inventory. With it, the budget
+   * bounds the WORK of one request and nothing else.
+   *
+   * `tail` seeds the dedupe set with the provider-row keys immediately before
+   * the boundary. That is sufficient rather than approximate: every canonical
+   * sort ends with `ListingKey asc`, so rows sharing a ListingKey are adjacent
+   * in the sequence and a duplicate can only straddle the boundary within a
+   * short tail of it.
+   */
+  readonly resume?: {
+    readonly providerOffset: number;
+    readonly survivorsConsumed: number;
+    readonly tail: readonly string[];
+  };
 }
 
 export interface FinalUniverseResult<T> {
@@ -120,12 +158,24 @@ export interface FinalUniverseResult<T> {
    * final page.
    */
   readonly totalPages: number | null;
+  /**
+   * Fail-SAFE convenience: true whenever more results may exist, which includes
+   * the UNRESOLVED case. Offering another page costs one request; denying one
+   * tells a broker inventory does not exist. Read `more` for the precise state.
+   */
   readonly hasMore: boolean;
+  readonly more: MoreResults;
   readonly hasPrevious: boolean;
   /** `@odata.count`, kept and kept SEPARATE. Never a result count. */
   readonly providerMatched: number | null;
   readonly truncatedAtBudget: boolean;
   readonly providerRowsRead: number;
+  /** Absolute provider offset reached, for the next continuation. */
+  readonly providerOffsetReached: number;
+  /** Survivors emitted BEFORE this page, carried through from a resume. */
+  readonly survivorsConsumedBefore: number;
+  /** Provider-row keys of this page's rows, in order, for the next tail. */
+  readonly pageRowKeys: readonly string[];
   readonly exclusions: {
     readonly identityless: number;
     /** Gated rows BY REASON — "12 excluded" is not an answer to "why". */
@@ -133,16 +183,30 @@ export interface FinalUniverseResult<T> {
     /** Repeated PROVIDER rows. Not Mallan canonical reconciliation. */
     readonly providerDuplicates: number;
   };
+  /**
+   * Rows that PASSED the gates, counted BEFORE dedupe.
+   *
+   * Kept separate because deriving gate failures from the post-dedupe count
+   * charges provider duplicates to the distribution gates — telemetry that has
+   * a compliance investigation reading a gate rejecting rows it never saw.
+   */
+  readonly gatePassedBeforeDedupe: number;
 }
 
 
 /**
- * Absolute runaway guard on provider rows read in one request.
+ * Absolute runaway guard on provider rows read in ONE REQUEST.
  *
- * Deliberately far above any real REBNY result universe: the biggest live
- * filter observed is 591,292 rows for `Permission eq 'IDX'`, and an ordinary
- * broker search is in the thousands. This exists so a pathological request
- * cannot crawl forever, NOT to bound how much inventory is searchable.
+ * This is a work bound, and — since continuation exists — nothing more. A
+ * sequential traversal resumes past it via `resume`, so it can no longer act as
+ * a hidden maximum searchable inventory. That distinction matters: the biggest
+ * live filter observed is 591,292 rows for `Permission eq 'IDX'`, which is an
+ * order of magnitude past this number, and historical/CMA workflows genuinely
+ * need to traverse populations that size.
+ *
+ * What it still does is stop a single pathological request crawling forever.
+ * When it bites, the response says BUDGET_EXHAUSTED_UNRESOLVED rather than
+ * pretending the universe ended.
  */
 export const PROVIDER_READ_CEILING = 60_000;
 
@@ -209,13 +273,29 @@ export async function assembleFinalUniverse<T>(
     providerBudget,
     exactCount = true,
     providerPageSize = DEFAULT_PROVIDER_PAGE_SIZE,
+    resume,
   } = options;
 
+  const startOffset = resume?.providerOffset ?? 0;
+  const survivorsConsumedBefore = resume?.survivorsConsumed ?? 0;
+
   const survivors: T[] = [];
-  const seenProviderRows = new Set<string>();
+  /**
+   * Provider offset immediately AFTER each survivor was consumed.
+   *
+   * The continuation has to resume from the last row EMITTED, not the last row
+   * READ. A segment can read 60 provider rows, find 51 survivors and return 40
+   * of them — resuming from the read position would silently skip the 11 that
+   * were found and never shown, which is a gap the broker would never see.
+   */
+  const survivorOffsets: number[] = [];
+  // Seeded from the boundary tail so a twin straddling a continuation boundary
+  // is still deduped.
+  const seenProviderRows = new Set<string>(resume?.tail ?? []);
   const gated: Record<string, number> = {};
   let identityless = 0;
   let providerDuplicates = 0;
+  let gatePassedBeforeDedupe = 0;
 
   let providerMatched: number | null = null;
   let providerRowsRead = 0;
@@ -227,20 +307,25 @@ export async function assembleFinalUniverse<T>(
    * enough to know whether a next page exists, so a caller asking for page 1 of
    * a huge universe does not pay for an exact count it did not request.
    */
-  const neededForPage = page * pageSize + 1;
+  // Resuming, only THIS page's worth is needed — the prefix was already walked
+  // by the requests that produced the continuation. That is the whole reason a
+  // deep page stops costing the entire prefix again.
+  const neededForPage = resume ? pageSize + 1 : page * pageSize + 1;
 
   while (!exhausted && providerRowsRead < providerBudget) {
     if (!exactCount && survivors.length >= neededForPage) break;
 
     const remainingBudget = providerBudget - providerRowsRead;
     const top = Math.min(providerPageSize, remainingBudget);
-    const providerPage = await fetchPage(providerRowsRead, top);
+    const providerPage = await fetchPage(startOffset + providerRowsRead, top);
 
     if (providerPage.providerMatched != null) providerMatched = providerPage.providerMatched;
     providerRowsRead += providerPage.records.length;
     exhausted = providerPage.exhausted;
 
+    let rowsConsumedThisPage = providerRowsRead - providerPage.records.length;
     for (const record of providerPage.records) {
+      rowsConsumedThisPage += 1;
       // 1. IDENTITY. First, because a row with no key cannot be gated, deduped
       //    or addressed later — and must not be reported as a gate exclusion,
       //    which would misattribute why it is absent.
@@ -263,6 +348,8 @@ export async function assembleFinalUniverse<T>(
       //    Mallan canonical reconciliation is a separate concern handled by
       //    office suppression at the provider boundary, and calling this step
       //    "canonical" would hide that distinction.
+      gatePassedBeforeDedupe += 1;
+
       const rowKey = providerRowKey(record);
       if (seenProviderRows.has(rowKey)) {
         providerDuplicates += 1;
@@ -271,6 +358,7 @@ export async function assembleFinalUniverse<T>(
       seenProviderRows.add(rowKey);
 
       survivors.push(record);
+      survivorOffsets.push(startOffset + rowsConsumedThisPage);
     }
 
     // The records were empty but the provider did not say it was done: stop
@@ -280,11 +368,33 @@ export async function assembleFinalUniverse<T>(
 
   if (!exhausted && providerRowsRead >= providerBudget) truncatedAtBudget = true;
 
-  const count = survivors.length;
+  // On a resumed traversal the survivors seen so far are only THIS segment, so
+  // the running total has to include what earlier requests already emitted.
+  const count = survivorsConsumedBefore + survivors.length;
   const countMeaning = exhausted ? CountMeaning.EXACT : CountMeaning.LOWER_BOUND;
 
-  const start = (page - 1) * pageSize;
+  // THREE STATES, NEVER TWO.
+  //
+  // A survivor past the page was seen -> YES. The provider ended -> NO. The
+  // budget stopped us first -> UNKNOWN, and UNKNOWN must never be flattened
+  // into NO, which is what `count > page * pageSize` alone would have done.
+  const survivorBeyondPage = resume
+    ? survivors.length > pageSize
+    : count > page * pageSize;
+  const more = survivorBeyondPage
+    ? MoreResults.YES
+    : exhausted
+      ? MoreResults.NO
+      : MoreResults.UNKNOWN;
+
+  const start = resume ? 0 : (page - 1) * pageSize;
   const rows = survivors.slice(start, start + pageSize);
+
+  // Resume from where the LAST EMITTED row sat, so survivors found but not
+  // returned on this page are picked up by the next request instead of skipped.
+  const lastEmitted = start + rows.length - 1;
+  const providerOffsetReached =
+    rows.length > 0 ? survivorOffsets[lastEmitted] : startOffset + providerRowsRead;
 
   return {
     rows,
@@ -296,11 +406,16 @@ export async function assembleFinalUniverse<T>(
     totalPages: countMeaning === CountMeaning.EXACT
       ? Math.max(1, Math.ceil(count / pageSize))
       : null,
-    hasMore: count > page * pageSize,
-    hasPrevious: page > 1,
+    hasMore: more !== MoreResults.NO,
+    more,
+    hasPrevious: resume ? survivorsConsumedBefore > 0 : page > 1,
     providerMatched,
     truncatedAtBudget,
     providerRowsRead,
+    providerOffsetReached,
+    survivorsConsumedBefore,
+    pageRowKeys: rows.map((r) => providerRowKey(r)),
     exclusions: { identityless, gated, providerDuplicates },
+    gatePassedBeforeDedupe,
   };
 }

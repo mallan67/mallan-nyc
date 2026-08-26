@@ -388,3 +388,81 @@ describe('Mallan-office return copies are suppressed at the provider boundary', 
     expect(body.count.excluded).not.toHaveProperty('duplicates');
   });
 });
+
+/**
+ * THE ROUTE HANDS ON A CONTINUATION, AND REFUSES A FOREIGN ONE.
+ *
+ * The read budget bounds the work of one request. Without a way to resume it
+ * would also bound how much inventory is reachable at all, and the authorized
+ * provider population is already around 591,000 rows.
+ */
+describe('continuation over the route', () => {
+  function serveMany(total: number) {
+    mockFetchFromTrestle.mockImplementation(async (args: any) => {
+      const start = args.skip ?? 0;
+      const slice = Array.from(
+        { length: Math.max(0, Math.min(args.top ?? 50, total - start)) },
+        (_, i) => row(start + i + 1),
+      );
+      return {
+        records: slice,
+        odataCount: total,
+        hasMore: start + slice.length < total,
+        nextLink: start + slice.length < total ? 'https://next' : undefined,
+        totalFetched: slice.length,
+      };
+    });
+  }
+
+  it('a page that is not the end hands on a continuation', async () => {
+    serveMany(100_000);
+    const body = await callSearch('type=sale&limit=20');
+    expect(typeof body.continuation).toBe('string');
+    expect(body.continuation.length).toBeGreaterThan(10);
+  });
+
+  it('the continuation resumes and returns DIFFERENT rows', async () => {
+    serveMany(100_000);
+    const first = await callSearch('type=sale&limit=20');
+    const second = await callSearch(
+      'type=sale&limit=20&continuation=' + encodeURIComponent(first.continuation),
+    );
+    const idsOf = (b: any) => b.listings.map((l: any) => JSON.stringify(l)).join('|');
+    expect(second.listings).toHaveLength(20);
+    expect(idsOf(second)).not.toBe(idsOf(first));
+  });
+
+  it('an exhausted provider hands on nothing to resume', async () => {
+    serveMany(10);
+    const body = await callSearch('type=sale&limit=20');
+    expect(body.continuation).toBeNull();
+  });
+
+  it('a continuation from a DIFFERENT search is refused by name', async () => {
+    serveMany(100_000);
+    const first = await callSearch('type=sale&limit=20');
+    const { GET } = await import('@/app/api/idx/search/route');
+    // Same token, different criteria — the position now describes another
+    // universe, and silently restarting would hand back page 1.
+    const res = await GET(
+      new NextRequest(
+        'https://x.test/api/idx/search?type=sale&limit=20&minPrice=900000&continuation=' +
+          encodeURIComponent(first.continuation),
+      ),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.code).toBe('INVALID_CONTINUATION');
+    expect(body.reason).toMatch(/different search or sort order/);
+  });
+
+  it('a tampered continuation is refused rather than restarted', async () => {
+    serveMany(100_000);
+    const { GET } = await import('@/app/api/idx/search/route');
+    const res = await GET(
+      new NextRequest('https://x.test/api/idx/search?type=sale&limit=20&continuation=garbage'),
+    );
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe('INVALID_CONTINUATION');
+  });
+});

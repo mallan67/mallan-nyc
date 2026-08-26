@@ -48,6 +48,7 @@
 import {
   assembleFinalUniverse,
   CountMeaning,
+  MoreResults,
   providerBudgetFor,
   type ProviderPage,
 } from '@/lib/search/final-universe';
@@ -476,5 +477,294 @@ describe('totalPages is only knowable from an exact count', () => {
     expect(res.totalPages).toBe(3);
     expect(res.hasMore).toBe(false);
     expect(res.hasPrevious).toBe(true);
+  });
+});
+
+/**
+ * P0 — "WE STOPPED LOOKING" IS NOT "THERE IS NOTHING MORE".
+ *
+ * hasMore was computed as `count > page * pageSize`. That is a sound conclusion
+ * only when one of two facts has actually been established:
+ *
+ *   A. a survivor beyond this page was observed, or
+ *   B. the provider universe was exhausted.
+ *
+ * If traversal stopped at the read budget before either was proven, `false` is
+ * an unsupported claim — and it is the dangerous direction, because a broker
+ * reads it as "that is all the inventory".
+ *
+ * The worst shape is a budget-exhausted traversal that found NO survivors at
+ * all: zero rows, count zero, hasMore false, presented as an authoritative
+ * empty search, while hundreds of thousands of provider rows sit untraversed.
+ * Mallan choosing not to read farther is not evidence that the universe ended.
+ */
+describe('budget exhaustion is never reported as "no more results"', () => {
+  /** 100,000 rows where the first 60,000 are gated and survivors follow. */
+  const hostile = () =>
+    rows(100_000, (r, i) => {
+      if (i < 60_000) r.gated = 'Owner opted out';
+    });
+
+  it('a budget-exhausted traversal with zero survivors is UNRESOLVED, not empty', async () => {
+    const res = await assembleFinalUniverse<Row>({
+      fetchPage: fakeProvider(hostile(), 5_000).fetchPage,
+      identity: key,
+      gate: gateOf,
+      providerRowKey: canonical,
+      page: 1,
+      pageSize: 50,
+      providerBudget: 10_000,
+      exactCount: false,
+    });
+    expect(res.rows).toHaveLength(0);
+    expect(res.count).toBe(0);
+    // The claim that must never be made.
+    expect(res.more).toBe(MoreResults.UNKNOWN);
+    expect(res.truncatedAtBudget).toBe(true);
+  });
+
+  it('hasMore stays TRUE while the question is unresolved', async () => {
+    // Fail-safe direction: offering another page costs a request; denying one
+    // tells a broker inventory does not exist.
+    const res = await assembleFinalUniverse<Row>({
+      fetchPage: fakeProvider(hostile(), 5_000).fetchPage,
+      identity: key,
+      gate: gateOf,
+      providerRowKey: canonical,
+      page: 1,
+      pageSize: 50,
+      providerBudget: 10_000,
+      exactCount: false,
+    });
+    expect(res.hasMore).toBe(true);
+  });
+
+  it('only an exhausted provider may say NO', async () => {
+    const res = await assemble(rows(30), 3, 10);
+    expect(res.more).toBe(MoreResults.NO);
+    expect(res.hasMore).toBe(false);
+  });
+
+  it('an observed survivor beyond the page says YES', async () => {
+    const res = await assembleFinalUniverse<Row>({
+      fetchPage: fakeProvider(rows(5_000)).fetchPage,
+      identity: key,
+      gate: gateOf,
+      providerRowKey: canonical,
+      page: 1,
+      pageSize: 10,
+      providerBudget: 1_000,
+      exactCount: false,
+    });
+    expect(res.more).toBe(MoreResults.YES);
+    expect(res.hasMore).toBe(true);
+  });
+
+  it('a genuinely empty universe is still an answer', async () => {
+    // The distinction has to cut both ways or it just blocks real zero results.
+    const res = await assemble(rows(0), 1, 10);
+    expect(res.count).toBe(0);
+    expect(res.more).toBe(MoreResults.NO);
+    expect(res.countMeaning).toBe(CountMeaning.EXACT);
+  });
+
+  it('every row gated, provider EXHAUSTED, is a real empty universe', async () => {
+    const all = rows(40, (r) => {
+      r.gated = 'Owner opted out';
+    });
+    const res = await assemble(all, 1, 10);
+    expect(res.count).toBe(0);
+    expect(res.more).toBe(MoreResults.NO);
+    expect(res.countMeaning).toBe(CountMeaning.EXACT);
+  });
+
+  it('a deep page whose exclusions outrun the 4x overshoot is UNRESOLVED, not short', async () => {
+    // "Four times should be enough" is a performance heuristic, not a
+    // correctness proof. At 95% exclusion the headroom is nowhere near enough,
+    // and the answer must say so rather than quietly return a short page.
+    const all = rows(100_000, (r, i) => {
+      if (i % 20 !== 0) r.gated = 'Participant-only listing';
+    });
+    const res = await assembleFinalUniverse<Row>({
+      fetchPage: fakeProvider(all, 5_000).fetchPage,
+      identity: key,
+      gate: gateOf,
+      providerRowKey: canonical,
+      page: 21,
+      pageSize: 50,
+      providerBudget: providerBudgetFor(21, 50),
+      exactCount: false,
+    });
+    if (res.rows.length < 50) {
+      expect(res.more).toBe(MoreResults.UNKNOWN);
+    } else {
+      expect(res.rows).toHaveLength(50);
+    }
+  });
+});
+
+/**
+ * P0 — EXCLUSION ACCOUNTING MUST BALANCE.
+ *
+ * Telemetry is evidence. If provider duplicates are folded into the gate
+ * failures, a compliance or missing-result investigation reads a distribution
+ * gate rejecting rows it never saw.
+ */
+describe('the traversed prefix accounts for every row it read', () => {
+  it('rows read = identityless + gated + duplicates + survivors', async () => {
+    const all = rows(200, (r, i) => {
+      if (i % 17 === 0) r.ListingKey = null;
+      else if (i % 11 === 0) r.gated = 'Owner opted out';
+      else if (i % 23 === 0) r.twinOf = 'K0001';
+    });
+    const res = await assemble(all, 1, 50);
+    const gated = Object.values(res.exclusions.gated).reduce((a, b) => a + b, 0);
+    expect(
+      res.exclusions.identityless + gated + res.exclusions.providerDuplicates + res.count,
+    ).toBe(res.providerRowsRead);
+  });
+
+  it('gate passes are counted BEFORE dedupe', async () => {
+    // universe.count is post-dedupe, so deriving gate failures from it would
+    // charge provider duplicates to the distribution gates.
+    const all = rows(10);
+    all[3].twinOf = 'K0001';
+    const res = await assemble(all, 1, 50);
+    expect(res.exclusions.providerDuplicates).toBe(1);
+    expect(res.gatePassedBeforeDedupe).toBe(10);
+    expect(res.count).toBe(9);
+  });
+});
+
+/**
+ * RESUME — the budget bounds WORK, not INVENTORY.
+ *
+ * Without continuation, every deep page re-walks the whole prefix and stops at
+ * the same ceiling, so result 60,001 is permanently unreachable. With it, one
+ * request reads one segment and hands on its position.
+ */
+describe('a resumed traversal reaches past the read ceiling', () => {
+  const HUGE = 200_000;
+
+  it('resuming at provider offset 60,000 returns real rows', async () => {
+    const all = rows(HUGE);
+    const res = await assembleFinalUniverse<Row>({
+      fetchPage: fakeProvider(all, 5_000).fetchPage,
+      identity: key,
+      gate: gateOf,
+      providerRowKey: canonical,
+      page: 1,
+      pageSize: 50,
+      providerBudget: 10_000,
+      exactCount: false,
+      resume: { providerOffset: 60_000, survivorsConsumed: 60_000, tail: [] },
+    });
+    expect(res.rows).toHaveLength(50);
+    expect(res.rows[0].ListingKey).toBe(all[60_000].ListingKey);
+    // The running count includes what earlier requests already emitted.
+    expect(res.count).toBeGreaterThan(60_000);
+  });
+
+  it('a resumed segment only pays for its own rows', async () => {
+    // The point of the whole mechanism: a deep page must not cost the prefix.
+    const provider = fakeProvider(rows(HUGE), 5_000);
+    await assembleFinalUniverse<Row>({
+      fetchPage: provider.fetchPage,
+      identity: key,
+      gate: gateOf,
+      providerRowKey: canonical,
+      page: 1,
+      pageSize: 50,
+      providerBudget: 60_000,
+      exactCount: false,
+      resume: { providerOffset: 150_000, survivorsConsumed: 150_000, tail: [] },
+    });
+    expect(provider.calls()).toBe(1);
+  });
+
+  it('hands on the position the next request needs', async () => {
+    const res = await assembleFinalUniverse<Row>({
+      fetchPage: fakeProvider(rows(HUGE), 5_000).fetchPage,
+      identity: key,
+      gate: gateOf,
+      providerRowKey: canonical,
+      page: 1,
+      pageSize: 50,
+      providerBudget: 10_000,
+      exactCount: false,
+      resume: { providerOffset: 60_000, survivorsConsumed: 60_000, tail: [] },
+    });
+    expect(res.providerOffsetReached).toBeGreaterThan(60_000);
+    expect(res.survivorsConsumedBefore).toBe(60_000);
+    expect(res.pageRowKeys).toHaveLength(50);
+  });
+
+  it('a twin straddling the boundary is still deduped', async () => {
+    // Every canonical sort ends with ListingKey asc, so rows sharing a key are
+    // adjacent — a boundary tail closes this exactly rather than approximately.
+    const all = rows(100);
+    all[0].twinOf = 'BOUNDARY';
+    const res = await assembleFinalUniverse<Row>({
+      fetchPage: fakeProvider(all).fetchPage,
+      identity: key,
+      gate: gateOf,
+      providerRowKey: canonical,
+      page: 1,
+      pageSize: 10,
+      providerBudget: 1_000,
+      exactCount: false,
+      resume: { providerOffset: 0, survivorsConsumed: 5, tail: ['BOUNDARY'] },
+    });
+    expect(res.exclusions.providerDuplicates).toBe(1);
+    expect(res.rows.map(key)).not.toContain(all[0].ListingKey);
+  });
+
+  it('hasPrevious follows the survivors already consumed', async () => {
+    const opts = (consumed: number) => ({
+      fetchPage: fakeProvider(rows(1_000)).fetchPage,
+      identity: key,
+      gate: gateOf,
+      providerRowKey: canonical,
+      page: 1,
+      pageSize: 10,
+      providerBudget: 1_000,
+      exactCount: false,
+      resume: { providerOffset: 0, survivorsConsumed: consumed, tail: [] as string[] },
+    });
+    expect((await assembleFinalUniverse<Row>(opts(0))).hasPrevious).toBe(false);
+    expect((await assembleFinalUniverse<Row>(opts(50))).hasPrevious).toBe(true);
+  });
+
+  it('no duplicate or gap across a continuation boundary', async () => {
+    // Walk the universe in segments and prove the sequence is exactly the
+    // survivors, once each.
+    const all = rows(500, (r, i) => {
+      if (i % 7 === 0) r.gated = 'Owner opted out';
+    });
+    const survivors = all.filter((r) => !r.gated).map(key);
+    const seen: (string | null)[] = [];
+    let offset = 0;
+    let consumed = 0;
+    let tail: string[] = [];
+    for (let i = 0; i < 12; i += 1) {
+      const res = await assembleFinalUniverse<Row>({
+        fetchPage: fakeProvider(all, 60).fetchPage,
+        identity: key,
+        gate: gateOf,
+        providerRowKey: canonical,
+        page: 1,
+        pageSize: 40,
+        providerBudget: 60,
+        exactCount: false,
+        resume: { providerOffset: offset, survivorsConsumed: consumed, tail },
+      });
+      seen.push(...res.rows.map(key));
+      offset = res.providerOffsetReached;
+      consumed += res.rows.length;
+      tail = [...tail, ...res.pageRowKeys].slice(-8);
+      if (offset >= all.length) break;
+    }
+    expect(new Set(seen).size).toBe(seen.length);
+    expect(seen).toEqual(survivors.slice(0, seen.length));
   });
 });

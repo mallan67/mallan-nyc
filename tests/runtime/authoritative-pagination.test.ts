@@ -252,7 +252,7 @@ describe('the map keeps its own bounded universe', () => {
   });
 
   it('a stale map universe cannot outlive its criteria', () => {
-    const block = engine.slice(engine.indexOf('function _setResultProvenance('), engine.indexOf('function _setResultProvenance(') + 1100);
+    const block = engine.slice(engine.indexOf('function _setResultProvenance('), engine.indexOf('function _setResultProvenance(') + 1800);
     expect(block).toMatch(/mapListings = null/);
   });
 });
@@ -323,5 +323,44 @@ describe('the renderer does not re-paginate a server page', () => {
     });
     expect(rows).toHaveLength(20);
     expect((rows[0] as any).id).toBe(20);
+  });
+});
+
+/**
+ * SEQUENTIAL NEXT RESUMES; A JUMP RESCANS.
+ *
+ * A read budget that bounds one request is correct. Without continuation it
+ * also bounds how much inventory is reachable, which is a different and much
+ * worse thing — the authorized provider population is around 591,000 rows.
+ *
+ * The two behaviours are kept distinct on purpose: sending a resume position
+ * for a non-sequential move would return the wrong page while looking like it
+ * worked.
+ */
+describe('the continuation travels with sequential Next only', () => {
+  const block = engine.slice(
+    engine.indexOf('function _requestResultPage('),
+    engine.indexOf('// Server-side search: query Trestle API'),
+  );
+
+  it('only the immediately following page carries it', () => {
+    expect(block).toMatch(/targetPage === \(searchResultsState\.currentPage \|\| 1\) \+ 1/);
+    expect(block).toMatch(/params\.continuation = searchResultsState\.serverContinuation/);
+  });
+
+  it('the position is stored from whatever the server sent', () => {
+    expect(engine).toMatch(/serverContinuation = result\.continuation \|\| null/);
+  });
+
+  it('a stale position cannot outlive its criteria', () => {
+    const prov = engine.slice(
+      engine.indexOf('function _setResultProvenance('),
+      engine.indexOf('function _setResultProvenance(') + 1300,
+    );
+    expect(prov).toMatch(/serverContinuation = null/);
+  });
+
+  it('the API client forwards it as an opaque value', () => {
+    expect(apiClient).toMatch(/qs\.push\('continuation=' \+ encodeURIComponent\(params\.continuation\)\)/);
   });
 });

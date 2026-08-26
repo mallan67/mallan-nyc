@@ -16,8 +16,15 @@ import {
 } from "@/lib/search/crm-idx-filter";
 import { trestleExcludeMallanReturnCopiesClause } from "@/lib/listings/mallan-source-identity";
 import {
+  InvalidContinuationError,
+  continuationFingerprint,
+  decodeContinuation,
+  nextContinuation,
+} from "@/lib/search/continuation";
+import {
   assembleFinalUniverse,
   CountMeaning,
+  MoreResults,
   providerBudgetFor,
 } from "@/lib/search/final-universe";
 import {
@@ -145,22 +152,54 @@ export function partitionByListingIdentity(
   return { usable, identityless };
 }
 
+/**
+ * Exclusion accounting for one traversed prefix.
+ *
+ * TELEMETRY IS EVIDENCE, so each exclusion class stays separate and the totals
+ * balance. `distributionGateFailures` used to be derived as
+ * `identified - displayable`, where `displayable` is the count AFTER
+ * provider-row dedupe — so every repeated provider row was charged to the
+ * distribution gates. A compliance or missing-result investigation reading that
+ * would see a gate rejecting rows it never saw.
+ *
+ * The identity that must hold over the traversed prefix:
+ *
+ *   providerRowsRead
+ *     = identityless + gated + providerDuplicates + finalSurvivorsTraversed
+ */
 export function searchIntegrityCounts(args: {
   providerRowsFetched: number;
   identityless: number;
+  /** Rows that PASSED the gates, counted BEFORE dedupe. */
+  gatePassedBeforeDedupe?: number;
+  providerDuplicates?: number;
+  /** Survivors after the whole chain. */
   displayable: number;
 }): {
   providerRowsFetched: number;
   identityFailures: number;
   distributionGateFailures: number;
+  providerDuplicates: number;
+  finalSurvivorsTraversed: number;
   returnedRows: number;
+  balances: boolean;
 } {
   const identified = args.providerRowsFetched - args.identityless;
+  // Callers predating the split still get the old derivation, which is correct
+  // whenever nothing was deduped.
+  const gatePassed = args.gatePassedBeforeDedupe ?? args.displayable;
+  const duplicates = args.providerDuplicates ?? 0;
+  const gateFailures = Math.max(0, identified - gatePassed);
   return {
     providerRowsFetched: args.providerRowsFetched,
     identityFailures: args.identityless,
-    distributionGateFailures: Math.max(0, identified - args.displayable),
+    distributionGateFailures: gateFailures,
+    providerDuplicates: duplicates,
+    finalSurvivorsTraversed: args.displayable,
     returnedRows: args.displayable,
+    balances:
+      args.identityless + gateFailures + duplicates + args.displayable ===
+      args.providerRowsFetched,
   };
 }
 
@@ -169,6 +208,21 @@ export function idxSearchErrorResponse(error: unknown): {
   body: Record<string, unknown>;
   headers?: Record<string, string>;
 } {
+  if (error instanceof InvalidContinuationError) {
+    // Refused BY NAME rather than silently restarting at page one, which would
+    // hand a broker page 1 while the pager says page 40.
+    return {
+      status: 400,
+      body: {
+        error: "Invalid search continuation.",
+        code: "INVALID_CONTINUATION",
+        criterion: "continuation",
+        reason: error.reason,
+        detail: error.message,
+      },
+    };
+  }
+
   if (error instanceof UnsupportedSortError) {
     // Same canonical unsupported-criterion protocol: a named 400 the caller can
     // act on, never a silent substitution of a different order.
@@ -337,7 +391,33 @@ export async function GET(req: NextRequest) {
     // the answer, and `exactCount` changes what `count` MEANS, so it is in here
     // too rather than letting a cheap lower-bound response satisfy a request
     // that asked for an exact total.
-    const cacheKey = `idx:${filter}:${effectiveSort}:${limit}:${skip}:p${page}:x${params.get("exactCount") === "true" ? 1 : 0}`;
+    // SEQUENTIAL CONTINUATION.
+    //
+    // The read budget bounds the WORK of one request. Without a way to resume,
+    // it also bounds how much inventory is reachable at all — result 60,001
+    // would be permanently invisible, and the authorized provider population is
+    // already around 591,000 rows. A continuation lets "Next" pick up where the
+    // previous request stopped instead of re-walking the prefix and hitting the
+    // same ceiling forever.
+    //
+    // The token is a POSITION, not an authority: the criteria, the return-copy
+    // suppression, the gates and the dedupe are all re-applied here from this
+    // request's own parameters, so a continuation can never widen a search or
+    // reach a row the caller could not otherwise reach.
+    const fingerprint = continuationFingerprint(filter, effectiveSort);
+    const continuationParam = params.get("continuation");
+    const resume = continuationParam
+      ? (() => {
+          const c = decodeContinuation(continuationParam, fingerprint);
+          return {
+            providerOffset: c.providerOffset,
+            survivorsConsumed: c.survivorsConsumed,
+            tail: c.tail,
+          };
+        })()
+      : undefined;
+
+    const cacheKey = `idx:${filter}:${effectiveSort}:${limit}:${skip}:p${page}:x${params.get("exactCount") === "true" ? 1 : 0}:c${continuationParam ?? ""}`;
     const cached = getCached(cacheKey);
     if (cached) {
       logger.complete("success");
@@ -413,6 +493,7 @@ export async function GET(req: NextRequest) {
       // provider round trips, so it is opt-in per request rather than charged
       // to every search; `countMeaning` tells the caller which one they hold.
       exactCount: params.get("exactCount") === "true",
+      resume,
     });
 
     const identityless = universe.exclusions.identityless;
@@ -451,6 +532,7 @@ export async function GET(req: NextRequest) {
         /** `@odata.count`. Kept, and kept SEPARATE. Never a result count. */
         providerMatched: universe.providerMatched,
         truncatedAtBudget: universe.truncatedAtBudget,
+        more: universe.more,
         /** NULL when the traversal stopped early — see totalPages below. */
         totalPagesKnown: universe.totalPages !== null,
         providerRowsRead: universe.providerRowsRead,
@@ -462,8 +544,24 @@ export async function GET(req: NextRequest) {
       // a self-contradiction, so the last page number is withheld until an
       // exhausted traversal proves it and navigation stays open-ended.
       totalPages: universe.totalPages,
+      // Fail-SAFE: true whenever more results MAY exist, including the
+      // unresolved case. `more` carries the precise state, and no client may
+      // turn UNKNOWN into "no listings found".
       hasMore: universe.hasMore,
+      more: universe.more,
       hasPrevious: universe.hasPrevious,
+      // The position the NEXT request should send. Absent once the provider is
+      // exhausted — there is nothing left to resume.
+      continuation:
+        universe.more === MoreResults.NO || universe.rows.length === 0
+          ? null
+          : nextContinuation({
+              fingerprint,
+              providerOffset: universe.providerOffsetReached,
+              survivorsConsumed: universe.survivorsConsumedBefore + universe.rows.length,
+              pageRowKeys: universe.pageRowKeys,
+              previousTail: resume?.tail,
+            }),
       skip,
       limit,
       attribution: generateAttributionText(),
@@ -473,23 +571,37 @@ export async function GET(req: NextRequest) {
         fetchedAt: new Date().toISOString(),
         filter,
         sort: effectiveSort,
-        totalFromAPI: result.totalFetched,
+        // `totalFromAPI` used to sit here holding rows READ, not the
+        // provider's total. A telemetry name describing the wrong number is how
+        // a bounded read gets mistaken for a complete one, so the count is now
+        // reported once, under providerRowsRead, by the accounting block below.
         odataCount: result.odataCount,
         ...(() => {
           const c = searchIntegrityCounts({
-            providerRowsFetched: result.totalFetched,
+            providerRowsFetched: universe.providerRowsRead,
             identityless,
+            gatePassedBeforeDedupe: universe.gatePassedBeforeDedupe,
+            providerDuplicates: universe.exclusions.providerDuplicates,
             displayable: universe.count,
           });
           return {
             gatedOut: c.distributionGateFailures,
             identityless: c.identityFailures,
-            providerRowsFetched: c.providerRowsFetched,
+            // UNDER ITS OWN NAME. These used to be folded into gatedOut,
+            // because the derivation subtracted a POST-dedupe count from the
+            // identified rows — so the distribution gates took credit for
+            // rejecting rows they never saw.
+            providerDuplicates: c.providerDuplicates,
+            finalSurvivorsTraversed: c.finalSurvivorsTraversed,
+            providerRowsRead: c.providerRowsFetched,
+            exclusionsBalance: c.balances,
           };
         })(),
-        // Provider count is still pre-Mallan distribution gating. This remains a
-        // named Step-6 integrity item; it is not disguised as a final count.
-        totalIsPreFinalUniverse: true,
+        // CORRECTED. `total` on the response IS the final universe now; it is
+        // `count.providerMatched` that remains pre-Mallan. Leaving this flag
+        // saying otherwise would have a reader distrust the one number that
+        // became trustworthy.
+        providerMatchedIsPreFinalUniverse: true,
         mediaStrategy: "lazy" as const,
       },
     };

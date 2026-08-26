@@ -697,6 +697,9 @@ var MallanAPI = (function () {
       // rows mean provider offset 50 is not the 51st result.
       if (params.page) qs.push('page=' + params.page);
       if (params.exactCount) qs.push('exactCount=true');
+      // Opaque resume position. A caller must not construct one — it is only
+      // ever echoed back from a previous response.
+      if (params.continuation) qs.push('continuation=' + encodeURIComponent(params.continuation));
       var query = qs.length ? '?' + qs.join('&') : '';
       return _fetch('/api/idx/search' + query);
     },
