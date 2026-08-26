@@ -89,6 +89,22 @@ const EXECUTED_FIELD_CONTRACT: Readonly<Record<string, { outcome: string; note: 
         '`${field} ${op} ${val}` — the name never appears next to an operator in ' +
         'source, so a source-scanning census could not see it.',
     },
+    Furnished: {
+      outcome: 'FILTERABLE',
+      note:
+        'Unfurnished 77,944 / Furnished 16,285 / Negotiable 553 / Partially 69; ' +
+        'FurnishedOrUnfurnished is a valid member with zero population. The row ' +
+        'value comes back as a plain string, so this is a scalar enum. The repo ' +
+        'listed this field as UNSUPPORTED until it was actually executed.',
+    },
+    OwnerPays: {
+      outcome: 'FILTERABLE',
+      note:
+        'AllUtilities 4,816 / AssociationFees 18 / AirConditioning 0 (valid, ' +
+        'empty). FILTERABLE is about the FIELD. The form control is still ' +
+        'refused, because its only value is a yes/no `true` and OwnerPays names ' +
+        'WHICH charges the owner pays — a separate, unresolved question.',
+    },
     StandardStatus: { outcome: 'FILTERABLE', note: 'all 11 members probed; 4 are zero-population' },
 
     PublicRemarks: {

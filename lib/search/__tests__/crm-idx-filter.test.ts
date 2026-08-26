@@ -427,8 +427,7 @@ describe("buildCrmIdxODataFilter", () => {
     //
     // This covers, at minimum:
     //   AttendanceType  — Doorman, Concierge, Elevator-Attendant checkboxes
-    //   Furnished       — rental Furnished/Unfurnished/Partially
-    //   OwnerPays       — rental "owner pays X"
+    //   OwnerPays       — rental "owner pays X" (the control's yes/no `true`)
     //   Concessions     — "Concessions: Yes"
     //   BuildingRules   — Pied-a-terre / Guarantors / Co-purchasers / etc.
     //   RentingAllowedYN — "Subletting Allowed"
@@ -436,11 +435,46 @@ describe("buildCrmIdxODataFilter", () => {
     //   RLSParticipantOnly — distribution gate (handled elsewhere)
     //   ListOfficeMlsId — "In-House" filter
     //
+    // CORRECTED 2026-08-26 against the live feed. This list asserted PROVIDER
+    // TRUTH that had never come from the provider, and two entries were wrong:
+    //
+    //   Furnished  MOVED OUT. It is FILTERABLE. Live: Unfurnished 77,944,
+    //              Furnished 16,285, Negotiable 553, Partially 69. The control
+    //              was refused for years while the field worked.
+    //   OwnerPays  STAYS, but the value changed to the one the form actually
+    //              ships. `AllUtilities` is a real member and now filters
+    //              (4,816 rows); what cannot be answered is the control's
+    //              `true`, because OwnerPays names WHICH charges the owner
+    //              pays, not whether they pay.
+    //
+    // The others were re-probed and are refused for THREE DIFFERENT reasons
+    // that must not be collapsed into "unsupported":
+    //
+    //   AttendanceType  ABSENT — "Could not find a property named
+    //                   'AttendanceType' on type ...RESO.DD.Property"
+    //   Concessions     PROVIDER_SUPPRESSED — "Invalid field 'Concessions' -
+    //                   cannot be used for filtering, grouping or ordering
+    //                   queries". Yes IS a declared member.
+    //   the rest        no verified provider fact yet
+    // OwnerPays is REGISTERED-but-unresolved, so it refuses through the
+    // registry and carries a REASON. The others are unregistered and refuse
+    // generically. Both are 400s on the same protocol; only the registered one
+    // can tell the broker why, which is the point of registering a criterion
+    // you cannot yet answer.
+    expect(() => buildCrmIdxODataFilter(new URLSearchParams({
+      checkboxFilters: JSON.stringify({ OwnerPays: ["true"] }),
+    }))).toThrow(/OwnerPays names WHICH charges/);
+
+    // Concessions likewise refuses WITH ITS REASON, and the reason is a
+    // different one: the provider suppresses the whole field for filtering.
+    // "Yes is not a member" and "the field cannot be filtered" are two states
+    // and a broker who is told the wrong one goes looking for the wrong fix.
+    expect(() => buildCrmIdxODataFilter(new URLSearchParams({
+      checkboxFilters: JSON.stringify({ Concessions: ["Yes"] }),
+    }))).toThrow(/cannot be used for filtering, grouping or ordering/);
+
     const unsupported: Record<string, string[]> = {
       AttendanceType: ["DoormanFullTime"],
-      Furnished: ["Furnished"],
-      OwnerPays: ["AllUtilities"],
-      Concessions: ["Yes"],
       BuildingRules: ["PiedATerreAllowed", "GuarantorsAccepted"],
       MaximumFinancingPercent: ["100"],
       ListOfficeMlsId: ["OwnOffice"],
@@ -451,6 +485,23 @@ describe("buildCrmIdxODataFilter", () => {
         checkboxFilters: JSON.stringify({ [field]: values }),
       }))).toThrow(UnsupportedSearchCriterionError);
     }
+  });
+
+  it("Furnished DOES filter — the control was refused while the field worked", () => {
+    // The counterpart assertion. Proving a criterion is refused is only half a
+    // contract; without this, moving a field out of the refused list is
+    // invisible and it could silently drift back in.
+    const filter = buildCrmIdxODataFilter(new URLSearchParams({
+      checkboxFilters: JSON.stringify({ Furnished: ["Furnished"] }),
+    }));
+    expect(filter).toContain("Furnished eq 'Furnished'");
+  });
+
+  it("Furnished composes an OR group across its members", () => {
+    const filter = buildCrmIdxODataFilter(new URLSearchParams({
+      checkboxFilters: JSON.stringify({ Furnished: ["Furnished", "Unfurnished"] }),
+    }));
+    expect(filter).toContain("(Furnished eq 'Furnished' or Furnished eq 'Unfurnished')");
   });
 
   it("names the rejected criterion so the broker learns which control failed", () => {

@@ -230,6 +230,59 @@ const REGISTRY: ReadonlyMap<CheckboxFieldName, CheckboxFieldContract> = new Map<
     ]),
     unresolved: new Map<string, string>(),
   }],
+  ['furnished', {
+    kind: 'scalar_enum',
+    cotalityField: 'Furnished',
+    // Live-verified 2026-08-26. Unfurnished 77,944 / Furnished 16,285 /
+    // Negotiable 553 / Partially 69. FurnishedOrUnfurnished is a valid member
+    // with ZERO population — filterable and simply empty.
+    // The value comes back as a plain string on a real row, not an array, so
+    // this is a scalar enum and `eq` is equality rather than membership.
+    allowed: new Set([
+      'Furnished',
+      'FurnishedOrUnfurnished',
+      'Negotiable',
+      'Partially',
+      'Unfurnished',
+    ]),
+    unresolved: new Map<string, string>(),
+  }],
+  ['owner_pays', {
+    kind: 'scalar_enum',
+    cotalityField: 'OwnerPays',
+    // Live-verified 2026-08-26 and FILTERABLE: AllUtilities 4,816,
+    // AssociationFees 18, AirConditioning 0 (valid, empty).
+    //
+    // But the FORM asks a different question than the field answers. OwnerPays
+    // is a 39-member enum naming WHAT the owner pays — AllUtilities, Heat,
+    // HotWater, Electricity, Water, Taxes, Insurance, ... — and the control
+    // ships a single `data-value="true"`, a yes/no. There is no provider
+    // member `true`, and choosing one for it would be inventing an
+    // equivalence: "owner pays" could mean AllUtilities, or any of thirty-odd
+    // specific charges, or None. Those are not the same search.
+    //
+    // Registered rather than left unknown, so the broker gets a named refusal
+    // carrying this reason instead of an anonymous unrecognised key.
+    allowed: new Set([
+      'AirConditioning', 'AllUtilities', 'Assessments', 'AssociationFees', 'CableTv',
+      'CommonAreaMaintenance', 'EarthquakeInsurance', 'Electricity', 'ExteriorMaintenance',
+      'Garage', 'Gardener', 'Gas', 'GroundsCare', 'Heat', 'HotWater', 'HvacMaintenance',
+      'Insurance', 'Internet', 'JanitorialService', 'Laundry', 'Management', 'None',
+      'Other', 'OtherTax', 'ParkingFee', 'PestControl', 'PoolMaintenance', 'Recreational',
+      'Repairs', 'RoofMaintenance', 'Security', 'SeeRemarks', 'Sewer', 'SnowRemoval',
+      'Supplies', 'Taxes', 'Telephone', 'TrashCollection', 'Water',
+    ]),
+    unresolved: new Map([
+      [
+        'true',
+        'The control asks yes/no; OwnerPays names WHICH charges the owner pays ' +
+          '(39 members, live 2026-08-26: AllUtilities 4,816, AssociationFees 18). ' +
+          'No member means "true", and picking one would assert an equivalence ' +
+          'nobody has verified. Needs a semantic decision about what the broker ' +
+          'means by the question, not a value mapping.',
+      ],
+    ]),
+  }],
   ['listing_agreement', {
     kind: 'scalar_enum',
     cotalityField: 'ListingAgreement',
@@ -274,6 +327,8 @@ const CANONICAL_BY_LEGACY: ReadonlyMap<string, string> = new Map([
   ['BuildingFeatures', 'building_amenities'],
   ['BusinessType', 'business_use'],
   ['DirectionFaces', 'facing_direction'],
+  ['Furnished', 'furnished'],
+  ['OwnerPays', 'owner_pays'],
   ['ListingAgreement', 'listing_agreement'],
   ['LandLeaseYN', 'land_lease'],
   ['CoolingYN', 'cooling'],
@@ -303,6 +358,14 @@ export function canonicalCheckboxCriterion(key: string): string | null {
  * tested rather than generalised from one successful `View` experiment.
  */
 const PROVIDER_SUPPRESSED: ReadonlyMap<string, string> = new Map([
+  [
+    'Concessions',
+    'Provider-suppressed for filtering. Live 2026-08-26: Concessions eq ' +
+      "'Yes' -> HTTP 400 \"Invalid field 'Concessions' - cannot be used for " +
+      'filtering, grouping or ordering queries". Yes IS a declared member ' +
+      '(CallListingAgent / No / Yes), so this is NOT a value error — the field ' +
+      'is unfilterable under this licence, exactly like PropertyCondition.',
+  ],
   [
     'PropertyCondition',
     "Provider-suppressed for filtering. Live 2026-08-26: PropertyCondition eq " +
