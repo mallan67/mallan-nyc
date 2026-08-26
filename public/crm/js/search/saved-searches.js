@@ -294,6 +294,10 @@
 
         /** Restore API criteria → form fields and re-run search */
         function _criteriaToFormFields(criteria) {
+            // RESTORE_INCOMPLETE evidence. Anything the form could not
+            // faithfully reproduce lands here and blocks execution.
+            var _restoreIssues = [];
+            window._lastRestoreIssues = _restoreIssues;
             if (!criteria) return;
 
             // Set search tab
@@ -509,35 +513,71 @@
                 }
             }
 
-            // checkboxFilters — the whitelisted Cooling/Garage/View/
-            // BuildingFeatures/LaundryFeatures/SecurityFeatures/PoolFeatures/
-            // AccessibilityFeatures/ExteriorFeatures/PetsAllowedYN/etc.
-            // Stored as JSON string. For each (field, [values]) pair, find
-            // and check the matching data-field/data-value checkbox.
+            // checkbox_filters — restored by CANONICAL criterion.
+            //
+            // Persistence is canonical now, but the UI could still lose a
+            // criterion here: this block used to do
+            //   `if (cb && !cb.disabled) cb.checked = true;`
+            // so a missing control, a missing value option, or a DISABLED
+            // control was silently skipped — and loadSavedSearch then ran the
+            // search anyway. Persistence being canonical does not help if
+            // restore quietly drops a criterion on the way to the form; the
+            // result is the same broader-than-saved search.
+            //
+            // Every failure is now recorded as RESTORE_INCOMPLETE and blocks
+            // execution. Lookup prefers data-criterion (the canonical Mallan
+            // key) and falls back to legacy data-field for un-migrated controls.
+            // There is deliberately NO JavaScript view->View map: the server
+            // canonical registry remains the provider-name authority.
             if (criteria.checkbox_filters) {
-                try {
-                    var cbFilters = typeof criteria.checkbox_filters === 'string'
-                        ? JSON.parse(criteria.checkbox_filters)
-                        : criteria.checkbox_filters;
-                    var cbScope = _isAdv ? document.getElementById('searchAdvancedMode') : document.getElementById('searchBasicMode');
-                    if (cbScope && cbFilters && typeof cbFilters === 'object') {
-                        Object.keys(cbFilters).forEach(function(field) {
-                            var values = cbFilters[field];
-                            if (!Array.isArray(values)) return;
-                            // First clear existing checks for this field
-                            cbScope.querySelectorAll('input[data-field="' + field + '"]').forEach(function(cb) { cb.checked = false; });
-                            values.forEach(function(v) {
-                                var cb = cbScope.querySelector('input[data-field="' + field + '"][data-value="' + String(v).replace(/"/g, '\\"') + '"]');
-                                if (cb && !cb.disabled) cb.checked = true;
-                            });
-                        });
+                var cbFilters = criteria.checkbox_filters;
+                if (typeof cbFilters === 'string') {
+                    try {
+                        cbFilters = JSON.parse(cbFilters);
+                    } catch (e) {
+                        _restoreIssues.push('checkbox_filters: unreadable stored value');
+                        cbFilters = null;
                     }
-                } catch (e) {
-                    // Malformed JSON — silently skip restore. Saved
-                    // search payloads are agent-trusted but defensive
-                    // here against any future migration drift.
+                }
+                var cbScope = _isAdv ? document.getElementById('searchAdvancedMode') : document.getElementById('searchBasicMode');
+                if (!cbScope) {
+                    if (cbFilters) _restoreIssues.push('checkbox_filters: no active form to restore into');
+                } else if (cbFilters && typeof cbFilters === 'object') {
+                    Object.keys(cbFilters).forEach(function(criterion) {
+                        var values = cbFilters[criterion];
+                        if (!Array.isArray(values)) {
+                            _restoreIssues.push(criterion + ': stored value is not a list');
+                            return;
+                        }
+                        var sel = 'input[data-criterion="' + criterion + '"]';
+                        var targets = cbScope.querySelectorAll(sel);
+                        if (!targets.length) {
+                            sel = 'input[data-field="' + criterion + '"]';
+                            targets = cbScope.querySelectorAll(sel);
+                        }
+                        if (!targets.length) {
+                            _restoreIssues.push(criterion + ': no control for this criterion');
+                            return;
+                        }
+                        targets.forEach(function(cb) { cb.checked = false; });
+                        values.forEach(function(v) {
+                            var want = String(v).replace(/"/g, '\\"');
+                            var cb = cbScope.querySelector(sel + '[data-value="' + want + '"]');
+                            if (!cb) {
+                                _restoreIssues.push(criterion + ' = ' + v + ': no matching option');
+                                return;
+                            }
+                            if (cb.disabled) {
+                                _restoreIssues.push(criterion + ' = ' + v + ': control is disabled');
+                                return;
+                            }
+                            cb.checked = true;
+                        });
+                    });
                 }
             }
+
+            return _restoreIssues;
         }
 
         /** Helper: set a <select> value, trying exact match then closest */
@@ -694,7 +734,25 @@
                 if (typeof clearSearchForm === 'function') clearSearchForm();
 
                 // Restore form fields from saved criteria
-                _criteriaToFormFields(search.criteria);
+                var restoreIssues = _criteriaToFormFields(search.criteria) || [];
+
+                // RESTORE_INCOMPLETE blocks execution.
+                //
+                // Canonical persistence does not help if the form silently
+                // loses a criterion on the way back in. A search that runs with
+                // fewer criteria than were saved is broader than the one the
+                // broker saved, which is the same defect family arriving at the
+                // last boundary.
+                if (restoreIssues.length) {
+                    showToast(
+                        'Loaded "' + search.name + '" for review — NOT run. ' +
+                        'These saved criteria could not be restored: ' +
+                        restoreIssues.join('; ') +
+                        '. Running it would search more broadly than you saved.',
+                        'warning'
+                    );
+                    return;
+                }
 
                 // AUTO-EXECUTION IS GATED ON THE SERVER'S DISPOSITION.
                 //
