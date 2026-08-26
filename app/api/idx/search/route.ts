@@ -273,6 +273,19 @@ export async function GET(req: NextRequest) {
     const params = req.nextUrl.searchParams;
     const limit = Math.min(Number(params.get("limit")) || 50, 500);
     const skip = Number(params.get("skip")) || 0;
+    // PAGES OF THE FINAL UNIVERSE.
+    //
+    // `skip` is a PROVIDER offset and stays supported for existing callers, but
+    // it cannot express a broker page: gated and deduped rows mean provider
+    // offset 50 is not the 51st result. `page` is 1-based over the FINAL
+    // universe, so page 2 begins at the 51st row a broker may actually see.
+    // An explicit page always wins; otherwise it is derived from skip so the
+    // legacy shape keeps working.
+    const requestedPage = Number(params.get("page"));
+    const page =
+      Number.isFinite(requestedPage) && requestedPage >= 1
+        ? Math.floor(requestedPage)
+        : Math.floor(skip / Math.max(1, limit)) + 1;
     const sort = params.get("sort");
 
     // SponsorUnitYN is observed inside CustomProperty.CustomFields, not a live
@@ -296,7 +309,15 @@ export async function GET(req: NextRequest) {
     // listing while dropping another.
     const resolvedSort = resolveSort(sort);
     const effectiveSort = sortODataClause(resolvedSort.key);
-    const cacheKey = `idx:${filter}:${effectiveSort}:${limit}:${skip}`;
+    // PAGE IS PART OF THE CACHE KEY.
+    //
+    // It was `...:${limit}:${skip}`, and once paging moved to final-universe
+    // coordinates `skip` stopped varying between pages — so pages 2 and 3 were
+    // served page 1's cached rows. The key must name every input that changes
+    // the answer, and `exactCount` changes what `count` MEANS, so it is in here
+    // too rather than letting a cheap lower-bound response satisfy a request
+    // that asked for an exact total.
+    const cacheKey = `idx:${filter}:${effectiveSort}:${limit}:${skip}:p${page}:x${params.get("exactCount") === "true" ? 1 : 0}`;
     const cached = getCached(cacheKey);
     if (cached) {
       logger.complete("success");
@@ -322,7 +343,12 @@ export async function GET(req: NextRequest) {
           filter,
           select: SEARCH_SELECT_FIELDS,
           top,
-          skip: skip + providerSkip,
+          // The engine walks the provider from the top and cuts the broker's
+          // page out of what SURVIVES. Adding `skip` here as well would page
+          // twice — once in provider coordinates and once in final-universe
+          // coordinates — and silently step over rows. `skip` is honoured by
+          // being folded into `page` above, not by offsetting the walk.
+          skip: providerSkip,
           orderby: effectiveSort,
           maxTotal: top,
           count: true,
@@ -350,7 +376,7 @@ export async function GET(req: NextRequest) {
       // Provider twins share a ListingKey; first occurrence wins so the
       // provider's own ordering is never disturbed by dedupe.
       canonicalKey: (record: Record<string, unknown>) => String(record.ListingKey ?? ""),
-      page: 1,
+      page,
       pageSize: limit,
       providerBudget: PROVIDER_READ_BUDGET,
       // A page read, not a census. An exact count over 4,622 rows costs ~93
@@ -373,7 +399,7 @@ export async function GET(req: NextRequest) {
 
     // Search GET is read-only. It no longer mutates the Building workspace as a
     // side effect. Building projection/writes belong to their explicit writer.
-    const listings = universe.rows.map((record, i) => mapTrestleToCrmListing(record, skip + i));
+    const listings = universe.rows.map((record, i) => mapTrestleToCrmListing(record, (page - 1) * limit + i));
 
     const response = {
       listings,
@@ -398,6 +424,8 @@ export async function GET(req: NextRequest) {
         providerRowsRead: universe.providerRowsRead,
         excluded: universe.exclusions,
       },
+      page,
+      pageSize: limit,
       totalPages: universe.totalPages,
       hasMore: universe.hasMore,
       skip,

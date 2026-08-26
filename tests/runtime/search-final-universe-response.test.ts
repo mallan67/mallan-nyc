@@ -237,3 +237,78 @@ describe('the page is cut from the final universe', () => {
     expect(body.totalPages).toBe(3);
   });
 });
+
+describe('the route pages the FINAL universe', () => {
+  /** 60 provider rows with three gated inside the first page. */
+  const gappy = () =>
+    Array.from({ length: 60 }, (_, i) =>
+      i === 3 || i === 8 || i === 9 ? row(i + 1, { Permission: 'Private' }) : row(i + 1),
+    );
+
+  function serve(records: any[]) {
+    mockFetchFromTrestle.mockImplementation(async (args: any) => {
+      const start = args.skip ?? 0;
+      const slice = records.slice(start, start + (args.top ?? 50));
+      return {
+        records: slice,
+        odataCount: records.length,
+        hasMore: start + slice.length < records.length,
+        nextLink: start + slice.length < records.length ? 'https://next' : undefined,
+        totalFetched: slice.length,
+      };
+    });
+  }
+
+  it('page 2 starts at the 21st SURVIVOR, not provider row 21', async () => {
+    serve(gappy());
+    const survivors = gappy().filter((r) => r.Permission !== 'Private');
+    const p2 = await callSearch('type=sale&limit=20&page=2');
+    expect(p2.listings.map((l: any) => l.lid ?? l.id)).toHaveLength(20);
+    expect(p2.page).toBe(2);
+    // The 21st survivor's ListingId, whatever provider row it came from.
+    expect(JSON.stringify(p2.listings)).toContain(survivors[20].ListingId);
+  });
+
+  it('no listing appears on two pages and none is skipped', async () => {
+    serve(gappy());
+    const seen: string[] = [];
+    for (let p = 1; p <= 3; p += 1) {
+      const body = await callSearch(`type=sale&limit=20&page=${p}`);
+      seen.push(...body.listings.map((l: any) => l.rlsId ?? l.lid ?? l.id));
+    }
+    expect(new Set(seen).size).toBe(seen.length);
+    expect(seen).toHaveLength(57); // 60 provider rows, 3 gated
+  });
+
+  it('every page is full except the last', async () => {
+    serve(gappy());
+    const sizes: number[] = [];
+    for (let p = 1; p <= 3; p += 1) {
+      sizes.push((await callSearch(`type=sale&limit=20&page=${p}`)).listings.length);
+    }
+    expect(sizes).toEqual([20, 20, 17]);
+  });
+
+  it('a legacy skip still lands on the right page', async () => {
+    // skip is a PROVIDER offset and cannot express a broker page, so it is
+    // folded into `page` rather than also offsetting the walk — applying both
+    // would page twice and step over rows.
+    serve(gappy());
+    const viaSkip = await callSearch('type=sale&limit=20&skip=20');
+    const viaPage = await callSearch('type=sale&limit=20&page=2');
+    expect(viaSkip.page).toBe(2);
+    expect(JSON.stringify(viaSkip.listings)).toBe(JSON.stringify(viaPage.listings));
+  });
+
+  it('an unknown sort is refused by name rather than silently defaulted', async () => {
+    serve(gappy());
+    const { GET } = await import('@/app/api/idx/search/route');
+    const res = await GET(
+      new NextRequest('https://x.test/api/idx/search?type=sale&sort=DaysOnMarket%20desc'),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.code).toBe('UNSUPPORTED_SORT');
+    expect(body.requested).toBe('DaysOnMarket desc');
+  });
+});
