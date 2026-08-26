@@ -62,13 +62,25 @@ export interface CheckboxFieldContract {
    * allowed crm-idx-filter to drop its own separate booleanFields/aliases
    * table: one registry, one mapping, one place to be wrong.
    */
-  readonly kind: 'multi_enum' | 'boolean';
+  readonly kind: 'multi_enum' | 'scalar_enum' | 'boolean';
   /** Exact live Cotality Property field. */
   readonly cotalityField: string;
   /** Live-verified exact members this UI may request. */
   readonly allowed: ReadonlySet<string>;
   /** UI values with no proven provider equivalence, and why. */
   readonly unresolved: ReadonlyMap<string, string>;
+  /**
+   * UI NOTATION -> provider member, where the two are the SAME fact written
+   * differently. Kept here so the single registry remains the only translator;
+   * a browser-side or persistence-side copy would drift from it exactly as the
+   * boolean mapping did.
+   *
+   * Only for closed, unambiguous notation — the compass abbreviations, where
+   * exactly 8 UI values map one-to-one onto exactly 8 provider directions. This
+   * is NOT a place to assert two different CONCEPTS are equivalent; that is
+   * what `unresolved` is for (CatsOnly is not CatsOk).
+   */
+  readonly valueAliases?: ReadonlyMap<string, string>;
 }
 
 /** A checkbox criterion Mallan cannot currently express against the live contract. */
@@ -88,7 +100,7 @@ export class UnsupportedCheckboxCriterionError extends Error {
   }
 }
 
-const REGISTRY: ReadonlyMap<CheckboxFieldName, CheckboxFieldContract> = new Map([
+const REGISTRY: ReadonlyMap<CheckboxFieldName, CheckboxFieldContract> = new Map<CheckboxFieldName, CheckboxFieldContract>([
   ['view', {
     kind: 'multi_enum',
     cotalityField: 'View',
@@ -201,6 +213,39 @@ const REGISTRY: ReadonlyMap<CheckboxFieldName, CheckboxFieldContract> = new Map(
     allowed: new Set(['true', 'false', 'Yes', 'No']),
     unresolved: new Map<string, string>(),
   }],
+  ['facing_direction', {
+    kind: 'scalar_enum',
+    cotalityField: 'DirectionFaces',
+    // Live-verified 2026-08-26. East 205 / North 173 / West 530 / South 474 /
+    // Northeast 1. Northwest, Southeast and Southwest are VALID members with
+    // ZERO population — filterable, simply empty. That is a different state
+    // from unresolved and is not treated as a defect.
+    allowed: new Set(['East', 'North', 'Northeast', 'Northwest', 'South', 'Southeast', 'Southwest', 'West']),
+    // The UI writes compass abbreviations. Exactly 8 UI values map one-to-one
+    // onto exactly 8 provider directions, so this is NOTATION, not a semantic
+    // claim — unlike CatsOnly/CatsOk, which are different assertions.
+    valueAliases: new Map([
+      ['N', 'North'], ['S', 'South'], ['E', 'East'], ['W', 'West'],
+      ['NE', 'Northeast'], ['NW', 'Northwest'], ['SE', 'Southeast'], ['SW', 'Southwest'],
+    ]),
+    unresolved: new Map<string, string>(),
+  }],
+  ['listing_agreement', {
+    kind: 'scalar_enum',
+    cotalityField: 'ListingAgreement',
+    // Live-verified 2026-08-26. ExclusiveAgency 576,423 / ExclusiveRightToLease
+    // 2,870 / ExclusiveRightToSell 2,723 / ExclusiveRightWithException 1.
+    allowed: new Set(['ExclusiveAgency', 'ExclusiveRightToLease', 'ExclusiveRightToSell', 'ExclusiveRightWithException']),
+    unresolved: new Map([
+      [
+        'CoExclusive',
+        'The provider member is CoExclusiveAgency (9,275 rows). Whether the ' +
+          'Mallan "CoExclusive" label means that exact agreement type is not ' +
+          'established, and an agreement type is a CONTRACTUAL fact — the wrong ' +
+          'one misstates the brokerage relationship. Unresolved until proven.',
+      ],
+    ]),
+  }],
 ]);
 
 
@@ -228,6 +273,8 @@ const CANONICAL_BY_LEGACY: ReadonlyMap<string, string> = new Map([
   ['PoolFeatures', 'pool'],
   ['BuildingFeatures', 'building_amenities'],
   ['BusinessType', 'business_use'],
+  ['DirectionFaces', 'facing_direction'],
+  ['ListingAgreement', 'listing_agreement'],
   ['LandLeaseYN', 'land_lease'],
   ['CoolingYN', 'cooling'],
   ['GarageYN', 'garage'],
@@ -330,7 +377,10 @@ export function validateCheckboxValues(field: string, values: readonly unknown[]
     };
   }
 
-  const wanted = values.map((v) => String(v).trim()).filter(Boolean);
+  const wanted = values
+    .map((v) => String(v).trim())
+    .filter(Boolean)
+    .map((v) => contract.valueAliases?.get(v) ?? v);
   if (wanted.length === 0) return { disposition: 'executable', offending: [] };
 
   if (contract.kind === 'boolean') {
@@ -409,8 +459,10 @@ export function checkboxFieldOData(field: string, values: readonly unknown[]): s
   const reasons: string[] = [];
 
   for (const raw of values) {
-    const value = String(raw).trim();
-    if (!value) continue;
+    const rawValue = String(raw).trim();
+    if (!rawValue) continue;
+    // Resolve UI notation to the provider member before judging it.
+    const value = contract.valueAliases?.get(rawValue) ?? rawValue;
     if (contract.allowed.has(value)) {
       if (!wanted.includes(value)) wanted.push(value);
       continue;

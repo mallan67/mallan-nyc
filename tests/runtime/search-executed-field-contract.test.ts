@@ -65,6 +65,17 @@ const EXECUTED_FIELD_CONTRACT: Readonly<Record<string, { outcome: string; note: 
     GarageYN: { outcome: 'FILTERABLE', note: '149,777 true' },
     LandLeaseYN: { outcome: 'FILTERABLE', note: '806 true' },
     NewConstructionYN: { outcome: 'FILTERABLE', note: '64,222 true' },
+    DirectionFaces: {
+      outcome: 'FILTERABLE',
+      note:
+        'East 205 / North 173 / West 530 / South 474 / Northeast 1. Northwest, ' +
+        'Southeast and Southwest are VALID members with ZERO population — ' +
+        'filterable and simply empty, which is not the same state as unresolved.',
+    },
+    ListingAgreement: {
+      outcome: 'FILTERABLE',
+      note: 'ExclusiveAgency 576,423 / ExclusiveRightToLease 2,870 / ExclusiveRightToSell 2,723.',
+    },
     StandardStatus: { outcome: 'FILTERABLE', note: 'all 11 members probed; 4 are zero-population' },
 
     PublicRemarks: {
@@ -97,7 +108,7 @@ describe('every provider field the filter can emit has an execution result', () 
     // `${contract.cotalityField} eq true|false`. Reading their provider names
     // from the registry keeps this guard pointed at wherever the mapping
     // actually lives, instead of at where it used to live.
-    for (const m of registrySource.matchAll(/kind: 'boolean',\s+cotalityField: '([A-Za-z]+)'/g)) {
+    for (const m of registrySource.matchAll(/kind: '(?:boolean|scalar_enum)',\s+cotalityField: '([A-Za-z]+)'/g)) {
       found.add(m[1]);
     }
 
