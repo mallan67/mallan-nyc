@@ -16949,8 +16949,36 @@ function manageShowToast(msg) {
          * page's worth — a regression in the area-scanning workflow, paid for a
          * fix it had nothing to do with.
          *
-         * Bounded, not unbounded: 500 is the route's own ceiling for a single
-         * request, and pins beyond that add nothing a broker can read.
+         * ⚠ THIS IS A BOUNDED HEAD SAMPLE, NOT THE MAP UNIVERSE.
+         *
+         * Stated plainly because an earlier version of this comment claimed
+         * pins beyond 500 "add nothing a broker can read". That was an
+         * assertion, not a finding, and it is wrong for a 4,622-result search:
+         * the first 500 rows in PRICE order are not the geography of the
+         * result set. A broker scanning an area is asking a question this read
+         * cannot answer.
+         *
+         * WHY IT IS STILL A HEAD SAMPLE, verified live 2026-08-26 rather than
+         * assumed: Cotality returns Latitude and Longitude as NULL on live
+         * Active rows, and both are PROVIDER-SUPPRESSED for filtering
+         * ("cannot be used"). So Mallan cannot ask the provider "which listings
+         * are in this viewport" at all. A spatial provider query does not exist
+         * on this subscription.
+         *
+         * THE REAL MAP CONTRACT therefore has to express geography in the
+         * provider's OWN vocabulary and resolve coordinates on Mallan's side:
+         *
+         *     viewport / polygon
+         *   -> the neighbourhoods and boroughs it covers
+         *   -> CityRegion / SubdivisionName / PostalCode criteria (all proven
+         *      filterable)
+         *   -> the final universe for that geography
+         *   -> pins from the existing Census-backed GeocodeCache
+         *      (address_key -> lat/lng), never from provider coordinates
+         *
+         * That is a build, not a constant change, and it is NOT claimed here.
+         * Until it lands, this read stays deliberately bounded and the UI must
+         * not present it as a complete geographic answer.
          */
         function _loadMapUniverse(pageParams) {
             if (typeof MallanAPI === 'undefined') return;
@@ -16961,6 +16989,11 @@ function manageShowToast(msg) {
             MallanAPI.idx.search(mapParams).then(function(mapResult) {
                 if (!mapResult || !mapResult.listings) return;
                 searchResultsState.mapListings = mapResult.listings;
+                // Records that the pins are a sample of a larger universe, so a
+                // renderer can say so instead of implying completeness.
+                searchResultsState.mapIsPartial = !!(mapResult.count
+                    && typeof mapResult.count.value === 'number'
+                    && mapResult.count.value > mapResult.listings.length);
                 try { refreshResultsMap(); } catch (e) { console.error('[Search] Map refresh failed:', e); }
             }).catch(function(e) {
                 // Non-fatal. The grid is the answer; the map is support, and a
