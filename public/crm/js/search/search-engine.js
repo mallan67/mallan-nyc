@@ -1361,8 +1361,20 @@
                 var _checkboxFilters = {};
                 for (var _ci = 0; _ci < _allChecked.length; _ci++) {
                     var _cb = _allChecked[_ci];
-                    var _field = _cb.getAttribute('data-field');
-                    if (_handledFields[_field]) continue;
+                    // Prefer the CANONICAL Mallan criterion. `data-field` carries
+                    // the provider's vocabulary and is still read by the
+                    // compliance diagnostics, the dead-control guard and
+                    // grid-layouts (where it means a result-column id), so it
+                    // stays in the markup — but Search reads the canonical key
+                    // first where one exists.
+                    var _field = _cb.getAttribute('data-criterion') || _cb.getAttribute('data-field');
+                    // Check BOTH identities. MlsStatus / CommonInterest /
+                    // PropertySubType own dedicated contracts and must never
+                    // fall through to this generic engine — which they would if
+                    // someone later added a data-criterion to them and only the
+                    // resolved key were tested here. Two contracts
+                    // canonicalising one criterion is the drift this work removes.
+                    if (_handledFields[_field] || _handledFields[_cb.getAttribute('data-field')]) continue;
                     var _val = _cb.getAttribute('data-value') || _cb.value;
                     if (!_val) continue;
                     if (!_checkboxFilters[_field]) _checkboxFilters[_field] = [];
@@ -1373,7 +1385,7 @@
                 // Scan <select> elements with data-field
                 _scanContainer.querySelectorAll('select[data-field]').forEach(function(sel) {
                     if (sel.selectedIndex <= 0) return;
-                    var _field = sel.getAttribute('data-field');
+                    var _field = sel.getAttribute('data-criterion') || sel.getAttribute('data-field');
                     if (_handledFields[_field]) return;
                     var _val = sel.value;
                     if (_field && _val) {

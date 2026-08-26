@@ -8,7 +8,7 @@
         // users saw the box check, results changed in unexpected ways
         // (because the OTHER active filters narrowed) but the dead
         // checkbox itself contributed nothing — or worse, broke the
-        // search by sending OData the backend silently dropped.
+        // search by sending OData the backend rejectped.
         //
         // Per user direction "Do not allow visible controls that silently
         // do nothing," each dead control is disabled at page load with a
@@ -39,7 +39,7 @@
                 // The server-side whitelist in lib/search/crm-idx-filter.ts:252
                 // does NOT include these data-field values. The frontend
                 // collects them into criteria.checkboxFilters and the backend
-                // silently drops them.
+                // REJECTS them (fail-closed: an unsupported criterion returns a named 400, it is no longer dropped).
                 'input[data-field="AttendanceType"]',
                 'input[data-field="Furnished"]',
                 'input[data-field="OwnerPays"]',

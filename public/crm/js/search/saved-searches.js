@@ -280,7 +280,6 @@
                 // sponsorUnit param round-trip (Bug A11 frontend split)
                 sponsor_unit: c.sponsorUnit || undefined,
                 // checkboxFilters carries the whitelisted Cooling/Garage/View/
-                // BuildingFeatures/etc. set. Stored as a JSON string to
                 // preserve the inner shape unchanged across save/load.
                 // Send the OBJECT, not a JSON string inside a JSON column.
                 // The SERVER canonicalises legacy data-field keys to Mallan
@@ -708,7 +707,17 @@
                 // Readable is not runnable: an unresolved record still loads so
                 // the agent can inspect and repair it, but it does not execute
                 // until its criteria can be represented.
-                var status = search.criteria_status || 'executable';
+                // FAIL CLOSED ON ABSENCE.
+                //
+                // This was `search.criteria_status || 'executable'`, which made
+                // a MISSING field mean permission to run — so an older server,
+                // a contract regression, or any reader that omits the
+                // disposition would silently restore auto-execution of an
+                // unresolved search. Absence is not evidence of safety.
+                //
+                // Only an EXPLICIT 'executable' authorises performSearch().
+                // Missing, unknown, or any future token fails closed.
+                var status = search.criteria_status;
                 if (status !== 'executable') {
                     var issues = search.criteria_issues || {};
                     var named = []
@@ -716,11 +725,15 @@
                         .concat(issues.unavailable || [])
                         .concat(issues.unknown || [])
                         .concat(issues.unexecutable_values || []);
+                    var why = named.join(', ');
+                    if (!status) {
+                        why = 'the server did not report an execution status for this search';
+                    } else if (!why) {
+                        why = 'status: ' + status;
+                    }
                     showToast(
-                        'Loaded "' + search.name + '" for review — NOT run. ' +
-                        'These criteria cannot be executed as saved: ' +
-                        (named.join(', ') || 'unknown') +
-                        '. Running it would search more broadly than you saved.',
+                        'Loaded "' + search.name + '" for review — NOT run. ' + why +
+                        '. Running it could search more broadly than you saved.',
                         'warning'
                     );
                     return;

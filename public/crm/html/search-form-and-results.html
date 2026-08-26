@@ -621,10 +621,10 @@
                             <p class="text-xs font-semibold text-gray-700 mb-1 mt-3">Land-Lease Buildings</p>
                             <div class="flex gap-3 text-xs">
                                 <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="LandLeaseYN" data-value="true"> Include Only
+                                    <input type="checkbox" class="w-3 h-3" data-criterion="land_lease" data-field="LandLeaseYN" data-value="true"> Include Only
                                 </label>
                                 <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="LandLeaseYN" data-value="false"> Exclude
+                                    <input type="checkbox" class="w-3 h-3" data-criterion="land_lease" data-field="LandLeaseYN" data-value="false"> Exclude
                                 </label>
                             </div>
                         </div>
@@ -693,25 +693,25 @@
                             <p class="text-xs font-semibold text-gray-700 mb-2">Building Features</p>
                             <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
                                 <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="CoolingYN" data-value="true"> Cooling
+                                    <input type="checkbox" class="w-3 h-3" data-criterion="cooling" data-field="CoolingYN" data-value="true"> Cooling
                                 </label>
                                 <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="BuildingFeatures" data-value="Storage"> Storage
+                                    <input type="checkbox" class="w-3 h-3" data-criterion="building_amenities" data-field="BuildingFeatures" data-value="Storage"> Storage
                                 </label>
                                 <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="BuildingFeatures" data-value="FitnessCenter,HealthClub"> Health Club/Fitness
+                                    <input type="checkbox" class="w-3 h-3" data-criterion="building_amenities" data-field="BuildingFeatures" data-value="FitnessCenter,HealthClub"> Health Club/Fitness
                                 </label>
                                 <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="AccessibilityFeatures" data-value="WheelchairAccessible"> Wheelchair Accessible
+                                    <input type="checkbox" class="w-3 h-3" data-criterion="accessibility" data-field="AccessibilityFeatures" data-value="WheelchairAccessible"> Wheelchair Accessible
                                 </label>
                                 <label class="flex items-center gap-1 cursor-pointer">
                                     <input type="checkbox" class="w-3 h-3" data-field="BuildingLaundryFeatures" data-value="Any"> Laundry Facilities
                                 </label>
                                 <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="BuildingFeatures" data-value="Elevators"> Elevator
+                                    <input type="checkbox" class="w-3 h-3" data-criterion="building_amenities" data-field="BuildingFeatures" data-value="Elevators"> Elevator
                                 </label>
                                 <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="GarageYN" data-value="true"> Parking
+                                    <input type="checkbox" class="w-3 h-3" data-criterion="garage" data-field="GarageYN" data-value="true"> Parking
                                 </label>
                                 <label class="flex items-center gap-1 cursor-pointer">
                                     <input type="checkbox" class="w-3 h-3" data-field="BuildingPetsAllowed" data-value="BuildingYes,BuildingCatsOK,BuildingDogsOK"> Pets Allowed
@@ -865,17 +865,17 @@
                         <div class="border rounded-lg p-3">
                             <p class="text-xs font-semibold text-gray-700 mb-2">Building Style</p>
                             <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-xs mb-3">
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StructureType" data-value="HighRise"> High-Rise</label>
+                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="building_structure" data-field="StructureType" data-value="HighRise"> High-Rise</label>
                                 <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StoriesTotal" data-value="lte:6" title="Derived: StoriesTotal &le; 6"> Low-Rise</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StructureType" data-value="Loft"> Loft</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StructureType" data-value="Townhouse"> Townhouse</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ArchitecturalStyle" data-value="Brownstone"> Brownstone</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StructureType" data-value="WalkUp"> Walk-Up</label>
+                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="building_structure" data-field="StructureType" data-value="Loft"> Loft</label>
+                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="building_structure" data-field="StructureType" data-value="Townhouse"> Townhouse</label>
+                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="architectural_style" data-field="ArchitecturalStyle" data-value="Brownstone"> Brownstone</label>
+                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="building_structure" data-field="StructureType" data-value="WalkUp"> Walk-Up</label>
                             </div>
                             <p class="text-xs font-semibold text-gray-700 mb-2">Common Outdoor Space</p>
                             <div class="space-y-1 text-xs">
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ExteriorFeatures" data-value="Courtyard"> Courtyard</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ExteriorFeatures" data-value="RoofDeck"> Roof Deck</label>
+                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="outdoor_features" data-field="ExteriorFeatures" data-value="Courtyard"> Courtyard</label>
+                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="outdoor_features" data-field="ExteriorFeatures" data-value="RoofDeck"> Roof Deck</label>
                             </div>
                         </div>
 
@@ -927,10 +927,10 @@
                             </div>
                             <p class="text-xs font-semibold text-gray-700 mb-2 mt-3">Resale / New Development</p>
                             <div class="space-y-1 text-xs">
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="NewConstruction" data-value="false"> Resale Building</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="NewConstruction" data-value="true"> New Development</label>
+                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="new_construction" data-field="NewConstruction" data-value="false"> Resale Building</label>
+                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="new_construction" data-field="NewConstruction" data-value="true"> New Development</label>
                                 <label class="flex items-center gap-2 cursor-pointer pl-3"><input type="checkbox" class="w-3 h-3" data-local-field="Conversion" data-value="true"> Conversion</label>
-                                <label class="flex items-center gap-2 cursor-pointer pl-3"><input type="checkbox" class="w-3 h-3" data-field="NewConstruction" data-value="true"> New Construction</label>
+                                <label class="flex items-center gap-2 cursor-pointer pl-3"><input type="checkbox" class="w-3 h-3" data-criterion="new_construction" data-field="NewConstruction" data-value="true"> New Construction</label>
                             </div>
                         </div>
 
@@ -1449,10 +1449,10 @@
                             <p class="text-xs font-semibold text-gray-700 mb-1 mt-3">Land-Lease Buildings</p>
                             <div class="flex gap-3 text-xs">
                                 <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="LandLeaseYN" data-value="true"> Include Only
+                                    <input type="checkbox" class="w-3 h-3" data-criterion="land_lease" data-field="LandLeaseYN" data-value="true"> Include Only
                                 </label>
                                 <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="LandLeaseYN" data-value="false"> Exclude
+                                    <input type="checkbox" class="w-3 h-3" data-criterion="land_lease" data-field="LandLeaseYN" data-value="false"> Exclude
                                 </label>
                             </div>
                         </div>
@@ -1525,25 +1525,25 @@
                             <p class="text-xs font-semibold text-gray-700 mb-2">Building Features</p>
                             <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
                                 <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="CoolingYN" data-value="true"> Cooling
+                                    <input type="checkbox" class="w-3 h-3" data-criterion="cooling" data-field="CoolingYN" data-value="true"> Cooling
                                 </label>
                                 <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="BuildingFeatures" data-value="Storage"> Storage
+                                    <input type="checkbox" class="w-3 h-3" data-criterion="building_amenities" data-field="BuildingFeatures" data-value="Storage"> Storage
                                 </label>
                                 <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="BuildingFeatures" data-value="FitnessCenter,HealthClub"> Health Club/Fitness
+                                    <input type="checkbox" class="w-3 h-3" data-criterion="building_amenities" data-field="BuildingFeatures" data-value="FitnessCenter,HealthClub"> Health Club/Fitness
                                 </label>
                                 <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="AccessibilityFeatures" data-value="WheelchairAccessible"> Wheelchair Accessible
+                                    <input type="checkbox" class="w-3 h-3" data-criterion="accessibility" data-field="AccessibilityFeatures" data-value="WheelchairAccessible"> Wheelchair Accessible
                                 </label>
                                 <label class="flex items-center gap-1 cursor-pointer">
                                     <input type="checkbox" class="w-3 h-3" data-field="BuildingLaundryFeatures" data-value="Any"> Laundry Facilities
                                 </label>
                                 <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="BuildingFeatures" data-value="Elevators"> Elevator
+                                    <input type="checkbox" class="w-3 h-3" data-criterion="building_amenities" data-field="BuildingFeatures" data-value="Elevators"> Elevator
                                 </label>
                                 <label class="flex items-center gap-1 cursor-pointer">
-                                    <input type="checkbox" class="w-3 h-3" data-field="GarageYN" data-value="true"> Parking
+                                    <input type="checkbox" class="w-3 h-3" data-criterion="garage" data-field="GarageYN" data-value="true"> Parking
                                 </label>
                                 <label class="flex items-center gap-1 cursor-pointer">
                                     <input type="checkbox" class="w-3 h-3" data-field="BuildingPetsAllowed" data-value="BuildingYes,BuildingCatsOK,BuildingDogsOK"> Building Allows Pets
@@ -1703,17 +1703,17 @@
                         <div class="border rounded-lg p-3">
                             <p class="text-xs font-semibold text-gray-700 mb-2">Building Style</p>
                             <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-xs mb-3">
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StructureType" data-value="HighRise"> High-Rise</label>
+                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="building_structure" data-field="StructureType" data-value="HighRise"> High-Rise</label>
                                 <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StoriesTotal" data-value="lte:6" title="Derived: StoriesTotal &le; 6"> Low-Rise</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StructureType" data-value="Loft"> Loft</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StructureType" data-value="Townhouse"> Townhouse</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ArchitecturalStyle" data-value="Brownstone"> Brownstone</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StructureType" data-value="WalkUp"> Walk-Up</label>
+                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="building_structure" data-field="StructureType" data-value="Loft"> Loft</label>
+                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="building_structure" data-field="StructureType" data-value="Townhouse"> Townhouse</label>
+                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="architectural_style" data-field="ArchitecturalStyle" data-value="Brownstone"> Brownstone</label>
+                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="building_structure" data-field="StructureType" data-value="WalkUp"> Walk-Up</label>
                             </div>
                             <p class="text-xs font-semibold text-gray-700 mb-2">Common Outdoor Space</p>
                             <div class="space-y-1 text-xs">
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ExteriorFeatures" data-value="Courtyard"> Courtyard</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ExteriorFeatures" data-value="RoofDeck"> Roof Deck</label>
+                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="outdoor_features" data-field="ExteriorFeatures" data-value="Courtyard"> Courtyard</label>
+                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="outdoor_features" data-field="ExteriorFeatures" data-value="RoofDeck"> Roof Deck</label>
                             </div>
                         </div>
 
@@ -1765,10 +1765,10 @@
                             </div>
                             <p class="text-xs font-semibold text-gray-700 mb-2 mt-3">Resale / New Development</p>
                             <div class="space-y-1 text-xs">
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="NewConstruction" data-value="false"> Resale Building</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="NewConstruction" data-value="true"> New Development</label>
+                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="new_construction" data-field="NewConstruction" data-value="false"> Resale Building</label>
+                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="new_construction" data-field="NewConstruction" data-value="true"> New Development</label>
                                 <label class="flex items-center gap-2 cursor-pointer pl-3"><input type="checkbox" class="w-3 h-3" data-local-field="Conversion" data-value="true"> Conversion</label>
-                                <label class="flex items-center gap-2 cursor-pointer pl-3"><input type="checkbox" class="w-3 h-3" data-field="NewConstruction" data-value="true"> New Construction</label>
+                                <label class="flex items-center gap-2 cursor-pointer pl-3"><input type="checkbox" class="w-3 h-3" data-criterion="new_construction" data-field="NewConstruction" data-value="true"> New Construction</label>
                             </div>
                         </div>
 
@@ -1931,9 +1931,9 @@
                             </div>
                             <p class="text-xs font-semibold text-gray-700 mb-1 mt-3">Land-Lease Buildings</p>
                             <div class="flex gap-3 text-xs">
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="landLease" class="w-3 h-3" value="any" checked data-field="LandLeaseYN"> Any</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="landLease" class="w-3 h-3" value="include" data-field="LandLeaseYN" data-value="true"> Include Only</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="landLease" class="w-3 h-3" value="exclude" data-field="LandLeaseYN" data-value="false"> Exclude</label>
+                                <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="landLease" class="w-3 h-3" value="any" checked data-criterion="land_lease" data-field="LandLeaseYN"> Any</label>
+                                <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="landLease" class="w-3 h-3" value="include" data-criterion="land_lease" data-field="LandLeaseYN" data-value="true"> Include Only</label>
+                                <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="landLease" class="w-3 h-3" value="exclude" data-criterion="land_lease" data-field="LandLeaseYN" data-value="false"> Exclude</label>
                             </div>
                         </div>
 
@@ -1997,15 +1997,15 @@
                         <div class="border rounded-lg p-3">
                             <p class="text-xs font-semibold text-gray-700 mb-2">Features</p>
                             <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="CoolingYN" data-value="true"> Cooling</label>
+                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="cooling" data-field="CoolingYN" data-value="true"> Cooling</label>
                                 <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingPoolFeatures" data-value="Any"> Pool</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingFeatures" data-value="FitnessCenter,HealthClub"> Health Club</label>
+                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="building_amenities" data-field="BuildingFeatures" data-value="FitnessCenter,HealthClub"> Health Club</label>
                                 <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingSecurityFeatures" data-value="Any"> Security</label>
                                 <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingLaundryFeatures" data-value="Any"> Laundry</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingFeatures" data-value="Storage"> Storage</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="GarageYN" data-value="true"> Parking</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="AccessibilityFeatures" data-value="WheelchairAccessible"> Accessible</label>
-                                <label class="flex items-center gap-1 cursor-pointer col-span-2"><input type="checkbox" class="w-3 h-3" data-field="BuildingFeatures" data-value="Elevators"> Elevator</label>
+                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="building_amenities" data-field="BuildingFeatures" data-value="Storage"> Storage</label>
+                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="garage" data-field="GarageYN" data-value="true"> Parking</label>
+                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="accessibility" data-field="AccessibilityFeatures" data-value="WheelchairAccessible"> Accessible</label>
+                                <label class="flex items-center gap-1 cursor-pointer col-span-2"><input type="checkbox" class="w-3 h-3" data-criterion="building_amenities" data-field="BuildingFeatures" data-value="Elevators"> Elevator</label>
                             </div>
                         </div>
 
@@ -2018,8 +2018,8 @@
                             </div>
                             <p class="text-xs font-semibold text-gray-700 mb-2 mt-3">Resale / New Development</p>
                             <div class="space-y-1 text-xs">
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="NewConstructionYN" data-value="false"> Resale Building</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="NewConstructionYN" data-value="true"> New Development</label>
+                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="new_construction" data-field="NewConstructionYN" data-value="false"> Resale Building</label>
+                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="new_construction" data-field="NewConstructionYN" data-value="true"> New Development</label>
                                 <label class="flex items-center gap-2 cursor-pointer pl-3"><input type="checkbox" class="w-3 h-3" data-local-field="Conversion" data-value="true"> Conversion</label>
                                 <label class="flex items-center gap-2 cursor-pointer pl-3"><input type="checkbox" class="w-3 h-3" data-local-field="ConstructionType" data-value="NewConstruction"> New Construction</label>
                             </div>
@@ -2029,17 +2029,17 @@
                         <div class="border rounded-lg p-3">
                             <p class="text-xs font-semibold text-gray-700 mb-2">Common Outdoor Space</p>
                             <div class="space-y-1 text-xs mb-3">
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ExteriorFeatures" data-value="Courtyard"> Courtyard</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ExteriorFeatures" data-value="RoofDeck"> Roof Deck</label>
+                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="outdoor_features" data-field="ExteriorFeatures" data-value="Courtyard"> Courtyard</label>
+                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="outdoor_features" data-field="ExteriorFeatures" data-value="RoofDeck"> Roof Deck</label>
                             </div>
                             <p class="text-xs font-semibold text-gray-700 mb-2">Building Style</p>
                             <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StructureType" data-value="HighRise"> High-Rise</label>
+                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="building_structure" data-field="StructureType" data-value="HighRise"> High-Rise</label>
                                 <label class="flex items-center gap-1 cursor-pointer" title="StoriesTotal ≤ 6"><input type="checkbox" class="w-3 h-3" data-field="StoriesTotal" data-value="lte:6"> Low-Rise</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StructureType" data-value="Loft"> Loft</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StructureType" data-value="Townhouse"> Townhouse</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ArchitecturalStyle" data-value="Brownstone"> Brownstone</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StructureType" data-value="WalkUp"> Walk-Up</label>
+                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="building_structure" data-field="StructureType" data-value="Loft"> Loft</label>
+                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="building_structure" data-field="StructureType" data-value="Townhouse"> Townhouse</label>
+                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="architectural_style" data-field="ArchitecturalStyle" data-value="Brownstone"> Brownstone</label>
+                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="building_structure" data-field="StructureType" data-value="WalkUp"> Walk-Up</label>
                             </div>
                         </div>
                     </div>
@@ -4304,13 +4304,13 @@
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Building Features</p>
                                     <div class="space-y-1 text-xs">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="BuildingFeatures" data-value="Elevators" type="checkbox" class="w-3 h-3"> Elevator</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="LaundryFeatures" data-value="Common" type="checkbox" class="w-3 h-3"> Laundry in Building</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="BuildingFeatures" data-value="Fitness" type="checkbox" class="w-3 h-3"> Gym</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="PoolFeatures" data-value="Indoor" type="checkbox" class="w-3 h-3"> Pool</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="GarageYN" data-value="true" type="checkbox" class="w-3 h-3"> Garage</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="BuildingFeatures" data-value="Storage" type="checkbox" class="w-3 h-3"> Storage</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="BuildingFeatures" data-value="BikeRoom" type="checkbox" class="w-3 h-3"> Bike Room</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-criterion="building_amenities" data-field="BuildingFeatures" data-value="Elevators" type="checkbox" class="w-3 h-3"> Elevator</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-criterion="laundry" data-field="LaundryFeatures" data-value="Common" type="checkbox" class="w-3 h-3"> Laundry in Building</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-criterion="building_amenities" data-field="BuildingFeatures" data-value="Fitness" type="checkbox" class="w-3 h-3"> Gym</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-criterion="pool" data-field="PoolFeatures" data-value="Indoor" type="checkbox" class="w-3 h-3"> Pool</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-criterion="garage" data-field="GarageYN" data-value="true" type="checkbox" class="w-3 h-3"> Garage</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-criterion="building_amenities" data-field="BuildingFeatures" data-value="Storage" type="checkbox" class="w-3 h-3"> Storage</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-criterion="building_amenities" data-field="BuildingFeatures" data-value="BikeRoom" type="checkbox" class="w-3 h-3"> Bike Room</label>
                                     </div>
                                 </div>
                             </div>
@@ -4354,7 +4354,7 @@
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Building Status</p>
                                     <div class="space-y-1 text-xs">
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked class="w-3 h-3"> Resale</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="NewConstructionYN" data-value="true" type="checkbox" class="w-3 h-3"> New Development</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-criterion="new_construction" data-field="NewConstructionYN" data-value="true" type="checkbox" class="w-3 h-3"> New Development</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input data-field="SponsorUnit" data-value="true" type="checkbox" class="w-3 h-3"> Sponsor Unit</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> New Conversion</label>
                                     </div>
@@ -4400,10 +4400,10 @@
                                         <p class="font-semibold text-gray-700 mb-2">Office Space</p>
                                         <div class="space-y-1 text-xs">
                                             <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="PropertySubType" data-value="Office"> Office</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="ProfessionalOffice"> Professional Office</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="Medical"> Medical Office</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="Dental"> Dental Office</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="FlexibleSpace"> Flexible Space</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="ProfessionalOffice"> Professional Office</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="Medical"> Medical Office</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="Dental"> Dental Office</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="FlexibleSpace"> Flexible Space</label>
                                         </div>
                                     </div>
                                     <!-- Retail Types -->
@@ -4411,21 +4411,21 @@
                                         <p class="font-semibold text-gray-700 mb-2">Retail Space</p>
                                         <div class="space-y-1 text-xs">
                                             <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="PropertySubType" data-value="Retail"> Retail</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="Restaurant"> Restaurant</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="Grocery"> Grocery</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="Showroom"> Showroom</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="StripMall"> Strip Mall</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="Restaurant"> Restaurant</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="Grocery"> Grocery</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="Showroom"> Showroom</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="StripMall"> Strip Mall</label>
                                         </div>
                                     </div>
                                     <!-- Industrial/Warehouse -->
                                     <div class="bg-white p-3 rounded-lg border border-gray-100">
                                         <p class="font-semibold text-gray-700 mb-2">Industrial & Storage</p>
                                         <div class="space-y-1 text-xs">
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="Industrial"> Industrial</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="Warehouse"> Warehouse</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="Manufacturing"> Manufacturing</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="Distribution"> Distribution</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="Storage"> Storage</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="Industrial"> Industrial</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="Warehouse"> Warehouse</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="Manufacturing"> Manufacturing</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="Distribution"> Distribution</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="Storage"> Storage</label>
                                         </div>
                                     </div>
                                     <!-- Mixed/Special Use -->
@@ -4434,9 +4434,9 @@
                                         <div class="space-y-1 text-xs">
                                             <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="PropertySubType" data-value="MixedUse"> Mixed Use</label>
                                             <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-value="LiveWorkAllowed"> Live/Work</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="Investment"> Investment</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="Institutional"> Institutional</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="SpecialUse"> Special Use</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="Investment"> Investment</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="Institutional"> Institutional</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="SpecialUse"> Special Use</label>
                                         </div>
                                     </div>
                                 </div>
@@ -4460,8 +4460,8 @@
                                     <div class="bg-white p-3 rounded-lg border border-gray-100">
                                         <p class="font-semibold text-gray-700 mb-2">Tenant Configuration</p>
                                         <div class="space-y-1 text-xs">
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="SingleTenant"> Single Tenant</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="MultiTenant"> Multi-Tenant</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="SingleTenant"> Single Tenant</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="MultiTenant"> Multi-Tenant</label>
                                         </div>
                                     </div>
                                 </div>
@@ -4476,51 +4476,51 @@
                                     <div class="bg-white p-3 rounded-lg border border-gray-100">
                                         <p class="font-semibold text-gray-700 mb-2">Healthcare</p>
                                         <div class="space-y-1 text-xs">
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="Medical"> Medical</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="Dental"> Dental</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="HealthServices"> Health Services</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="Fitness"> Fitness</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="Medical"> Medical</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="Dental"> Dental</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="HealthServices"> Health Services</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="Fitness"> Fitness</label>
                                         </div>
                                     </div>
                                     <!-- Food & Beverage -->
                                     <div class="bg-white p-3 rounded-lg border border-gray-100">
                                         <p class="font-semibold text-gray-700 mb-2">Food & Beverage</p>
                                         <div class="space-y-1 text-xs">
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="Restaurant"> Restaurant</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="Cafe"> Cafe</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="BarTavernLounge"> Bar/Lounge</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="FastFood"> Fast Food</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="Bakery"> Bakery</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="Restaurant"> Restaurant</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="Cafe"> Cafe</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="BarTavernLounge"> Bar/Lounge</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="FastFood"> Fast Food</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="Bakery"> Bakery</label>
                                         </div>
                                     </div>
                                     <!-- Professional Services -->
                                     <div class="bg-white p-3 rounded-lg border border-gray-100">
                                         <p class="font-semibold text-gray-700 mb-2">Professional</p>
                                         <div class="space-y-1 text-xs">
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="ProfessionalService"> Professional Svc</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="Financial"> Financial</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="RealEstate"> Real Estate</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="Accounting"> Accounting</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="Technology"> Technology</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="ProfessionalService"> Professional Svc</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="Financial"> Financial</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="RealEstate"> Real Estate</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="Accounting"> Accounting</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="Technology"> Technology</label>
                                         </div>
                                     </div>
                                     <!-- Personal Services -->
                                     <div class="bg-white p-3 rounded-lg border border-gray-100">
                                         <p class="font-semibold text-gray-700 mb-2">Personal Services</p>
                                         <div class="space-y-1 text-xs">
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="BarberBeauty"> Barber/Beauty</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="DryCleaner"> Dry Cleaner</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="Laundromat"> Laundromat</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="ChildCare"> Child Care</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="BarberBeauty"> Barber/Beauty</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="DryCleaner"> Dry Cleaner</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="Laundromat"> Laundromat</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="ChildCare"> Child Care</label>
                                         </div>
                                     </div>
                                     <!-- Hospitality -->
                                     <div class="bg-white p-3 rounded-lg border border-gray-100">
                                         <p class="font-semibold text-gray-700 mb-2">Hospitality</p>
                                         <div class="space-y-1 text-xs">
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="HotelMotel"> Hotel/Motel</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="BedAndBreakfast"> B&B</label>
-                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BusinessType" data-value="Hospitality"> Hospitality</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="HotelMotel"> Hotel/Motel</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="BedAndBreakfast"> B&B</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="business_use" data-field="BusinessType" data-value="Hospitality"> Hospitality</label>
                                         </div>
                                     </div>
                                 </div>
@@ -4934,9 +4934,9 @@
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Unit Features</p>
                                     <div class="space-y-1 text-xs">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="LaundryFeatures" data-value="InUnit" type="checkbox" class="w-3 h-3"> Dining Room</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-criterion="laundry" data-field="LaundryFeatures" data-value="InUnit" type="checkbox" class="w-3 h-3"> Dining Room</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Eat-in Kitchen</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="CoolingYN" data-value="true" type="checkbox" class="w-3 h-3"> Maids' Room</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-criterion="cooling" data-field="CoolingYN" data-value="true" type="checkbox" class="w-3 h-3"> Maids' Room</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Loft Space</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Dishwasher</label>
                                     </div>
@@ -5035,11 +5035,11 @@
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Outdoor Space</p>
                                     <div class="grid grid-cols-2 gap-1.5 text-sm">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="ExteriorFeatures" data-value="Balcony" type="checkbox" class="w-3 h-3"> Balcony</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="ExteriorFeatures" data-value="Terrace" type="checkbox" class="w-3 h-3"> Terrace</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="ExteriorFeatures" data-value="Garden" type="checkbox" class="w-3 h-3"> Patio</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="ExteriorFeatures" data-value="Patio" type="checkbox" class="w-3 h-3"> Roof Deck</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="ExteriorFeatures" data-value="BuildingRoofDeck" type="checkbox" class="w-3 h-3"> Garden</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-criterion="outdoor_features" data-field="ExteriorFeatures" data-value="Balcony" type="checkbox" class="w-3 h-3"> Balcony</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-criterion="outdoor_features" data-field="ExteriorFeatures" data-value="Terrace" type="checkbox" class="w-3 h-3"> Terrace</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-criterion="outdoor_features" data-field="ExteriorFeatures" data-value="Garden" type="checkbox" class="w-3 h-3"> Patio</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-criterion="outdoor_features" data-field="ExteriorFeatures" data-value="Patio" type="checkbox" class="w-3 h-3"> Roof Deck</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-criterion="outdoor_features" data-field="ExteriorFeatures" data-value="BuildingRoofDeck" type="checkbox" class="w-3 h-3"> Garden</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Yard</label>
                                     </div>
                                 </div>
@@ -5047,14 +5047,14 @@
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Views</p>
                                     <div class="grid grid-cols-2 gap-1.5 text-sm">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="View" data-value="City,CityLights,Skyline,Downtown"> City/Skyline</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="View" data-value="Park,ParkGreenbelt"> Park</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="View" data-value="Water,River,Bay,Lake,Canal"> Water/River</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="View" data-value="Bridges"> Bridge</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="View" data-value="Garden"> Garden</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="View" data-value="Panoramic"> Panoramic</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="View" data-value="Ocean,Beach"> Ocean/Beach</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="View" data-value="Mountains,TreesWoods,Forest"> Nature</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="view" data-field="View" data-value="City,CityLights,Skyline,Downtown"> City/Skyline</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="view" data-field="View" data-value="Park,ParkGreenbelt"> Park</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="view" data-field="View" data-value="Water,River,Bay,Lake,Canal"> Water/River</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="view" data-field="View" data-value="Bridges"> Bridge</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="view" data-field="View" data-value="Garden"> Garden</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="view" data-field="View" data-value="Panoramic"> Panoramic</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="view" data-field="View" data-value="Ocean,Beach"> Ocean/Beach</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-criterion="view" data-field="View" data-value="Mountains,TreesWoods,Forest"> Nature</label>
                                     </div>
                                 </div>
                                 <!-- Exposure (RLS/RESO/IDX: DirectionFaces) -->
@@ -5206,10 +5206,10 @@
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Architectural Style</p>
                                     <div class="grid grid-cols-2 gap-1.5 text-sm">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="ArchitecturalStyle" data-value="Prewar" type="checkbox" class="w-3 h-3"> Prewar</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="ArchitecturalStyle" data-value="WalkUp" type="checkbox" class="w-3 h-3"> Postwar</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="ArchitecturalStyle" data-value="Brownstone" type="checkbox" class="w-3 h-3"> Art Deco</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="ArchitecturalStyle" data-value="Loft" type="checkbox" class="w-3 h-3"> Beaux Arts</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-criterion="architectural_style" data-field="ArchitecturalStyle" data-value="Prewar" type="checkbox" class="w-3 h-3"> Prewar</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-criterion="architectural_style" data-field="ArchitecturalStyle" data-value="WalkUp" type="checkbox" class="w-3 h-3"> Postwar</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-criterion="architectural_style" data-field="ArchitecturalStyle" data-value="Brownstone" type="checkbox" class="w-3 h-3"> Art Deco</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-criterion="architectural_style" data-field="ArchitecturalStyle" data-value="Loft" type="checkbox" class="w-3 h-3"> Beaux Arts</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Brownstone</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Contemporary</label>
                                     </div>
@@ -5362,9 +5362,9 @@
                                 <div class="bg-white p-3 rounded-lg border border-gray-100">
                                     <p class="font-semibold text-gray-700 mb-2 text-xs">Building Pet Policy</p>
                                     <div class="space-y-1 text-xs">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="PetsAllowed" data-value="NoRestrictions" type="checkbox" class="w-3 h-3"> Pets Allowed</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="PetsAllowed" data-value="CatsOnly" type="checkbox" class="w-3 h-3"> Dogs OK</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input data-field="PetsAllowed" data-value="DogsOnly" type="checkbox" class="w-3 h-3"> Cats OK</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-criterion="pet_policy" data-field="PetsAllowed" data-value="NoRestrictions" type="checkbox" class="w-3 h-3"> Pets Allowed</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-criterion="pet_policy" data-field="PetsAllowed" data-value="CatsOnly" type="checkbox" class="w-3 h-3"> Dogs OK</label>
+                                        <label class="flex items-center gap-2 cursor-pointer"><input data-criterion="pet_policy" data-field="PetsAllowed" data-value="DogsOnly" type="checkbox" class="w-3 h-3"> Cats OK</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Case by Case</label>
                                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> No Pets</label>
                                     </div>
