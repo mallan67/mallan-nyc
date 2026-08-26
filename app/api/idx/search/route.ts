@@ -14,9 +14,19 @@ import {
   buildCrmIdxODataFilter,
   UnsupportedSearchCriterionError,
 } from "@/lib/search/crm-idx-filter";
+import { assembleFinalUniverse, CountMeaning } from "@/lib/search/final-universe";
 import { UnknownPropertySubTypeError } from "@/lib/search/canonical/property-subtype-contract";
 import { UnsupportedStatusCriterionError } from "@/lib/search/canonical/status-token-contract";
 import { hasUsableListingIdentity, mapTrestleToCrmListing } from "@/lib/search/crm-idx-mapper";
+
+/**
+ * Hard ceiling on provider rows one search may read.
+ *
+ * Not a result cap: it is the point past which a single request stops being a
+ * read and becomes a crawl. When it bites, the response says so explicitly via
+ * `count.truncatedAtBudget` rather than presenting a short universe as complete.
+ */
+const PROVIDER_READ_BUDGET = 1000;
 
 /**
  * Fields consumed by authenticated Search.
@@ -61,6 +71,17 @@ export const SEARCH_SELECT_FIELDS = [
   "ListAgentMlsId", "ListAgentFullName", "ListAgentEmail", "ListAgentDirectPhone",
   "ListOfficeMlsId", "ListOfficeName",
   "PhotosCount", "VirtualTourURLBranded", "VirtualTourURLUnbranded",
+  // GATE INPUT, not a display field. isParticipantOnly reads Permission for
+  // "Private" and isOwnerOptOut reads it for an opt-out token. Without it in
+  // this list the gate read undefined and returned displayable — output
+  // indistinguishable from a gate that had checked and approved.
+  //
+  // Live 2026-08-26: multi-enum ListingPermission, 18 members, IDX alone on
+  // 591,292 rows. Private and AgentOnly are currently ZERO, so this was a
+  // LATENT fail-open rather than an active breach — but a count is a claim
+  // about which rows a broker may see, and a gate that cannot read its own
+  // input makes that claim unverifiable.
+  "Permission",
   "PublicRemarks", "InternetEntireListingDisplayYN", "InternetAddressDisplayYN",
   // All SIX canonical FARE fields. MoveInCostsAmount (Edm.Decimal 14,2) and
   // MoveInCostsComments (Edm.String 1024) were verified live 2026-08-26; both
@@ -253,44 +274,103 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(cached, { headers: { "Cache-Control": "private, no-store" } });
     }
 
-    // Property query only. Media is loaded by the dedicated media path so this
+    // THE FINAL SEARCH UNIVERSE, assembled by one owner.
+    //
+    // This used to fetch `limit` provider rows, drop the identityless and gated
+    // ones, and return the survivors alongside `@odata.count` as `total`. Those
+    // are two different universes. A live Manhattan Active-residential search
+    // matches 4,622 listings; the broker received at most 200 rows and a count
+    // that described neither what they were shown nor what actually matched.
+    //
+    // assembleFinalUniverse owns the chain — identity, then gates, then
+    // canonical dedupe — and cuts the page from what SURVIVES, so a gated row
+    // pulls the next survivor forward instead of leaving a hole in the page.
+    // Property query only: media is loaded by the dedicated media path so this
     // request does not depend on an unverified $expand behavior.
-    const result = await fetchFromTrestle({
-      filter,
-      select: SEARCH_SELECT_FIELDS,
-      top: limit,
-      skip,
-      orderby: effectiveSort,
-      maxTotal: limit,
-      count: true,
-      expandMedia: false,
+    const universe = await assembleFinalUniverse<Record<string, unknown>>({
+      fetchPage: async (providerSkip: number, top: number) => {
+        const page = await fetchFromTrestle({
+          filter,
+          select: SEARCH_SELECT_FIELDS,
+          top,
+          skip: skip + providerSkip,
+          orderby: effectiveSort,
+          maxTotal: top,
+          count: true,
+          expandMedia: false,
+        });
+        return {
+          records: page.records,
+          providerMatched: page.odataCount ?? null,
+          // ABSENCE OF A nextLink, not `hasMore`.
+          //
+          // fetchFromTrestle returns `hasMore || allRecords.length >= maxTotal`,
+          // and that second clause fires whenever a page happens to fill
+          // exactly — 50 rows out of a 50-row universe reports "more". Using it
+          // here would make an EXACT count almost unreachable. `nextLink` is
+          // the provider's own statement that something follows, so its absence
+          // is the only honest licence for EXACT.
+          exhausted: !page.nextLink,
+        };
+      },
+      // The identity predicate the rest of the codebase already uses, rather
+      // than a second opinion about what a usable ListingKey is.
+      identity: (record: Record<string, unknown>) =>
+        hasUsableListingIdentity(record) ? String(record.ListingKey ?? "") : null,
+      gate: (record: Record<string, unknown>) => checkDistributionGates(record),
+      // Provider twins share a ListingKey; first occurrence wins so the
+      // provider's own ordering is never disturbed by dedupe.
+      canonicalKey: (record: Record<string, unknown>) => String(record.ListingKey ?? ""),
+      page: 1,
+      pageSize: limit,
+      providerBudget: PROVIDER_READ_BUDGET,
+      // A page read, not a census. An exact count over 4,622 rows costs ~93
+      // provider round trips, so it is opt-in per request rather than charged
+      // to every search; `countMeaning` tells the caller which one they hold.
+      exactCount: params.get("exactCount") === "true",
     });
 
-    const { usable: identifiedRecords, identityless } = partitionByListingIdentity(result.records);
+    const identityless = universe.exclusions.identityless;
     if (identityless > 0) {
       console.error(`[Cotality Search] INTEGRITY: ${identityless} Property row(s) missing required ListingKey were excluded.`);
     }
-
-    const displayable: Record<string, unknown>[] = [];
-    const gateBlockedReasons: Record<string, number> = {};
-    for (const record of identifiedRecords) {
-      const gate = checkDistributionGates(record);
-      if (gate.displayable) displayable.push(record);
-      else {
-        const reason = gate.reason || "unknown";
-        gateBlockedReasons[reason] = (gateBlockedReasons[reason] || 0) + 1;
-      }
-    }
+    const gateBlockedReasons = universe.exclusions.gated;
+    const result = {
+      records: universe.rows,
+      odataCount: universe.providerMatched ?? undefined,
+      hasMore: universe.hasMore,
+      totalFetched: universe.providerRowsRead,
+    };
 
     // Search GET is read-only. It no longer mutates the Building workspace as a
     // side effect. Building projection/writes belong to their explicit writer.
-    const listings = displayable.map((record, i) => mapTrestleToCrmListing(record, skip + i));
+    const listings = universe.rows.map((record, i) => mapTrestleToCrmListing(record, skip + i));
 
     const response = {
       listings,
-      total: result.odataCount ?? listings.length,
-      totalCount: result.odataCount ?? listings.length,
-      hasMore: result.hasMore,
+      // THE COUNT CARRIES ITS OWN MEANING.
+      //
+      // `total` and `totalCount` used to be `@odata.count` — the PROVIDER
+      // matching universe, before identity, gates and dedupe removed rows. That
+      // is a different set from the one the broker may see, so it could never
+      // be a result count. They now describe the FINAL universe, and `count`
+      // below says whether that number is exact or a declared floor. A bare
+      // number cannot say which it is, and an approximation that looks exact is
+      // the one answer this route will not give.
+      total: universe.count,
+      totalCount: universe.count,
+      count: {
+        value: universe.count,
+        meaning: universe.countMeaning,
+        isExact: universe.countMeaning === CountMeaning.EXACT,
+        /** `@odata.count`. Kept, and kept SEPARATE. Never a result count. */
+        providerMatched: universe.providerMatched,
+        truncatedAtBudget: universe.truncatedAtBudget,
+        providerRowsRead: universe.providerRowsRead,
+        excluded: universe.exclusions,
+      },
+      totalPages: universe.totalPages,
+      hasMore: universe.hasMore,
       skip,
       limit,
       attribution: generateAttributionText(),
@@ -306,7 +386,7 @@ export async function GET(req: NextRequest) {
           const c = searchIntegrityCounts({
             providerRowsFetched: result.totalFetched,
             identityless,
-            displayable: displayable.length,
+            displayable: universe.count,
           });
           return {
             gatedOut: c.distributionGateFailures,
@@ -356,8 +436,8 @@ export async function GET(req: NextRequest) {
         filter_length: filter.length,
         provider_rows: result.records.length,
         provider_total_count: result.odataCount ?? null,
-        gate_passed: displayable.length,
-        gate_blocked_total: identifiedRecords.length - displayable.length,
+        gate_passed: universe.count,
+        gate_blocked_total: Object.values(gateBlockedReasons).reduce((a, b) => a + b, 0),
         gate_blocked_by_reason: gateBlockedReasons,
         mapper_returned: listings.length,
         listings_with_images: imagesWithMedia,
