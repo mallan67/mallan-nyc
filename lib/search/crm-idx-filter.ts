@@ -1,5 +1,6 @@
 import { standardStatusOData } from "@/lib/search/canonical/status-token-contract";
 import { boroughOData, neighborhoodOData } from "@/lib/search/canonical/geography";
+import { checkboxFieldOData, isRegisteredCheckboxField } from "@/lib/search/canonical/checkbox-criteria";
 import { propertyTypeUniverseOData } from "@/lib/search/canonical/property-type-universe";
 import {
   parsePropertySubTypeCriterion,
@@ -263,16 +264,31 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
     for (const [htmlField, values] of Object.entries(cbFilters)) {
       if (!Array.isArray(values) || values.length === 0) continue;
       const field = aliases[htmlField] || htmlField;
-      if (!booleanFields.has(field)) {
-        throw new UnsupportedSearchCriterionError(`checkboxFilters.${htmlField}`, values.map(String));
+
+      // Booleans keep their own shape: the UI expresses them as true/false
+      // rather than as provider enum members.
+      if (booleanFields.has(field)) {
+        const normalized = values.map((v) => String(v));
+        const trueRequested = normalized.some((v) => v === "true" || v === "Yes");
+        const falseRequested = normalized.some((v) => v === "false" || v === "No");
+        if (trueRequested === falseRequested) {
+          throw new UnsupportedSearchCriterionError(`checkboxFilters.${htmlField}`, normalized);
+        }
+        parts.push(`${field} eq ${trueRequested ? "true" : "false"}`);
+        continue;
       }
-      const normalized = values.map((v) => String(v));
-      const trueRequested = normalized.some((v) => v === "true" || v === "Yes");
-      const falseRequested = normalized.some((v) => v === "false" || v === "No");
-      if (trueRequested === falseRequested) {
-        throw new UnsupportedSearchCriterionError(`checkboxFilters.${htmlField}`, normalized);
+
+      // Everything else must be a REGISTERED field with LIVE-VERIFIED members.
+      // The registry — not the browser — decides what may be filtered and with
+      // which values, so `checkboxFilters` can be transported without becoming
+      // an open field=value passthrough.
+      if (isRegisteredCheckboxField(field)) {
+        const clause = checkboxFieldOData(field, values);
+        if (clause) parts.push(clause);
+        continue;
       }
-      parts.push(`${field} eq ${trueRequested ? "true" : "false"}`);
+
+      throw new UnsupportedSearchCriterionError(`checkboxFilters.${htmlField}`, values.map(String));
     }
   }
 

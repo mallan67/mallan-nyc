@@ -655,6 +655,12 @@ var MallanAPI = (function () {
       if (params.minUnits) qs.push('minUnits=' + params.minUnits);
       if (params.maxUnits) qs.push('maxUnits=' + params.maxUnits);
       if (params.buildingName) qs.push('buildingName=' + encodeURIComponent(params.buildingName));
+      // checkboxFilters carries the amenity/feature/condition criteria. It was
+      // ASSIGNED by buildIdxSearchParams and never forwarded, so every one of
+      // those controls was silently inert. The server validates each field and
+      // value against a closed live-verified registry, so transporting it does
+      // NOT hand the browser an open field=value passthrough.
+      if (params.checkboxFilters) qs.push('checkboxFilters=' + encodeURIComponent(params.checkboxFilters));
       if (params.sort) qs.push('sort=' + encodeURIComponent(params.sort));
       if (params.limit) qs.push('limit=' + params.limit);
       if (params.skip) qs.push('skip=' + params.skip);

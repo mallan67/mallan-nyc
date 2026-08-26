@@ -113,11 +113,12 @@ function serverReads(): Set<string> {
  * test, and so does fixing one without recording it.
  */
 const TRANSPORT_BROKEN: Readonly<Record<string, string>> = Object.freeze({
-  checkboxFilters:
-    'Carries ALL 45 data-field controls (425 instances). Assigned by the ' +
-    'serializer, never forwarded. Every amenity/feature/condition filter is ' +
-    'silently inert. The server WOULD reject unsupported fields, but that ' +
-    'throw is unreachable from the CRM because the value never arrives.',
+  // checkboxFilters was CLOSED in Tranche 1 (2026-08-26). It is forwarded now,
+  // and the server validates every field and value against the closed
+  // live-verified registry in lib/search/canonical/checkbox-criteria.ts, so
+  // transporting it does not hand the browser an open field=value passthrough.
+  // Un-declared deliberately, because the third guard in this file refuses to
+  // let a fixed param sit in the table hiding a future regression.
   keyword: 'Assigned, never forwarded. Keyword search does nothing.',
   unit: 'Assigned, never forwarded. Unit-number narrowing does nothing.',
   managementCompany:
