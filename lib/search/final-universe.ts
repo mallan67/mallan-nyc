@@ -12,8 +12,15 @@
  *     -> ListingKey integrity     a row nobody can address is not a result
  *     -> distribution gates       owner opt-out, participant-only, internet
  *                                 display, closed >24h
- *     -> canonical dedupe         one listing, not a provider twin, counted once
+ *     -> provider-row dedupe      a repeated PROVIDER row counted once
  *   = FINAL SEARCH UNIVERSE
+ *
+ * That last step is deliberately NOT called canonical reconciliation. Deduping
+ * two Cotality rows that share a ListingKey is provider-row hygiene. Mallan
+ * canonical listing identity is a different domain — a Mallan-authored listing
+ * and its Cotality return-copy are ONE canonical Mallan listing, and the
+ * provider copy is SUPPRESSED as a competing listing rather than deduped
+ * against a twin, by office, at the provider boundary.
  *
  * The order is load-bearing rather than stylistic: a row with no identity
  * cannot be gated, deduped, addressed on a later page, or explained to a broker
@@ -69,8 +76,19 @@ export interface AssembleOptions<T> {
   readonly identity: (record: T) => string | null | undefined;
   /** The distribution/compliance decision for one row. */
   readonly gate: (record: T) => GateVerdict;
-  /** The key a provider twin shares with the listing it duplicates. */
-  readonly canonicalKey: (record: T) => string;
+  /**
+   * The PROVIDER ROW identity used to drop a repeated provider row.
+   *
+   * Deliberately NOT called `canonicalKey`. This dedupes provider rows against
+   * each other — two Cotality rows carrying the same ListingKey — and that is
+   * the whole of what it proves. It is NOT Mallan canonical listing
+   * reconciliation, which is a different identity domain: a Mallan-authored
+   * listing and its Cotality return-copy are ONE canonical Mallan listing, and
+   * the provider copy is suppressed as a competing listing rather than deduped
+   * against a twin. That suppression happens upstream, by office, at the
+   * provider boundary — see trestleExcludeMallanReturnCopiesClause.
+   */
+  readonly providerRowKey: (record: T) => string;
   /** 1-based page of the FINAL universe. */
   readonly page: number;
   readonly pageSize: number;
@@ -92,8 +110,18 @@ export interface FinalUniverseResult<T> {
   /** Size of the final universe, with `countMeaning` saying what that means. */
   readonly count: number;
   readonly countMeaning: CountMeaning;
-  readonly totalPages: number;
+  /**
+   * The last page number, or NULL when it is not knowable yet.
+   *
+   * "1000+ Results / Page 1 of 5" is a self-contradiction: the `+` says more
+   * inventory may exist and `of 5` says page 5 is the end. Only an EXACT count
+   * has traversed far enough to know where the universe stops, so a LOWER_BOUND
+   * reports null and the UI navigates open-endedly until exhaustion proves the
+   * final page.
+   */
+  readonly totalPages: number | null;
   readonly hasMore: boolean;
+  readonly hasPrevious: boolean;
   /** `@odata.count`, kept and kept SEPARATE. Never a result count. */
   readonly providerMatched: number | null;
   readonly truncatedAtBudget: boolean;
@@ -102,11 +130,65 @@ export interface FinalUniverseResult<T> {
     readonly identityless: number;
     /** Gated rows BY REASON — "12 excluded" is not an answer to "why". */
     readonly gated: Readonly<Record<string, number>>;
-    readonly duplicates: number;
+    /** Repeated PROVIDER rows. Not Mallan canonical reconciliation. */
+    readonly providerDuplicates: number;
   };
 }
 
-const DEFAULT_PROVIDER_PAGE_SIZE = 50;
+
+/**
+ * Absolute runaway guard on provider rows read in one request.
+ *
+ * Deliberately far above any real REBNY result universe: the biggest live
+ * filter observed is 591,292 rows for `Permission eq 'IDX'`, and an ordinary
+ * broker search is in the thousands. This exists so a pathological request
+ * cannot crawl forever, NOT to bound how much inventory is searchable.
+ */
+export const PROVIDER_READ_CEILING = 60_000;
+
+/** Never read less than this, so a shallow page still absorbs exclusions. */
+const PROVIDER_MIN_READ = 1_000;
+
+/**
+ * Headroom over the rows a page strictly needs, to absorb identityless, gated
+ * and duplicate rows without a second round of reasoning.
+ *
+ * Four is generous on purpose: even if THREE QUARTERS of a provider universe
+ * were excluded, the requested page would still be reachable. A budget derived
+ * from page*pageSize alone would fail the moment exclusions became common,
+ * which is exactly when a broker most needs the count to be right.
+ */
+const PROVIDER_OVERSHOOT = 4;
+
+/**
+ * How many provider rows one request may read to serve a given page.
+ *
+ * THE BUDGET SCALES WITH THE PAGE. A flat ceiling made deep pages unreachable:
+ * under a 1,000-row cap, a universe of 4,622 matches could honestly report
+ * "1000+ Results" and never return result 1,001, because page 21 at 50 rows a
+ * page needs the 1,001st survivor. A read budget may bound work per request; it
+ * may not become a hidden maximum searchable inventory.
+ *
+ * Stateless rescan is affordable because provider latency is round-trip
+ * dominated rather than row-count dominated. Measured live 2026-08-26:
+ * $top=200 -> 1,801ms, $top=1000 -> 2,077ms, $top=5000 -> 2,134ms. Reading
+ * 5,000 rows costs about as much as reading 200, so re-walking from the top for
+ * a deep page needs no cursor, no cache and no schema — and a stateless rescan
+ * resumes identically on a cold serverless instance, which an in-memory cursor
+ * could not promise.
+ */
+export function providerBudgetFor(page: number, pageSize: number): number {
+  const rowsNeeded = page * pageSize + 1;
+  return Math.min(PROVIDER_READ_CEILING, Math.max(PROVIDER_MIN_READ, rowsNeeded * PROVIDER_OVERSHOOT));
+}
+
+/**
+ * Rows requested per provider round trip.
+ *
+ * 5,000 is measured-safe and returns in ~2.1s, so an ordinary result universe
+ * arrives in a single request instead of ninety-three.
+ */
+const DEFAULT_PROVIDER_PAGE_SIZE = 5_000;
 
 /**
  * Walk the provider, apply the chain, and cut one page out of what survives.
@@ -121,7 +203,7 @@ export async function assembleFinalUniverse<T>(
     fetchPage,
     identity,
     gate,
-    canonicalKey,
+    providerRowKey,
     page,
     pageSize,
     providerBudget,
@@ -130,10 +212,10 @@ export async function assembleFinalUniverse<T>(
   } = options;
 
   const survivors: T[] = [];
-  const seenCanonical = new Set<string>();
+  const seenProviderRows = new Set<string>();
   const gated: Record<string, number> = {};
   let identityless = 0;
-  let duplicates = 0;
+  let providerDuplicates = 0;
 
   let providerMatched: number | null = null;
   let providerRowsRead = 0;
@@ -176,14 +258,17 @@ export async function assembleFinalUniverse<T>(
         continue;
       }
 
-      // 3. CANONICAL DEDUPE. First occurrence wins, so order stays the
-      //    provider's and a twin cannot displace the listing it duplicates.
-      const canonical = canonicalKey(record);
-      if (seenCanonical.has(canonical)) {
-        duplicates += 1;
+      // 3. PROVIDER-ROW DEDUPE. First occurrence wins, so the order stays the
+      //    provider's. This removes a repeated PROVIDER row and nothing more —
+      //    Mallan canonical reconciliation is a separate concern handled by
+      //    office suppression at the provider boundary, and calling this step
+      //    "canonical" would hide that distinction.
+      const rowKey = providerRowKey(record);
+      if (seenProviderRows.has(rowKey)) {
+        providerDuplicates += 1;
         continue;
       }
-      seenCanonical.add(canonical);
+      seenProviderRows.add(rowKey);
 
       survivors.push(record);
     }
@@ -207,13 +292,15 @@ export async function assembleFinalUniverse<T>(
     pageSize,
     count,
     countMeaning,
-    // A page count over a LOWER_BOUND is itself a lower bound; `countMeaning`
-    // is what tells a caller which it is holding.
-    totalPages: Math.max(1, Math.ceil(count / pageSize)),
+    // NULL, not a fabricated number, when the traversal stopped early.
+    totalPages: countMeaning === CountMeaning.EXACT
+      ? Math.max(1, Math.ceil(count / pageSize))
+      : null,
     hasMore: count > page * pageSize,
+    hasPrevious: page > 1,
     providerMatched,
     truncatedAtBudget,
     providerRowsRead,
-    exclusions: { identityless, gated, duplicates },
+    exclusions: { identityless, gated, providerDuplicates },
   };
 }

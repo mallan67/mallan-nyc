@@ -152,7 +152,7 @@ describe('the count describes the FINAL universe, not the provider universe', ()
 
     const body = await callSearch();
     expect(body.count.value).toBe(2);
-    expect(body.count.excluded.duplicates).toBe(1);
+    expect(body.count.excluded.providerDuplicates).toBe(1);
   });
 });
 
@@ -310,5 +310,81 @@ describe('the route pages the FINAL universe', () => {
     const body = await res.json();
     expect(body.code).toBe('UNSUPPORTED_SORT');
     expect(body.requested).toBe('DaysOnMarket desc');
+  });
+});
+
+/**
+ * MALLAN CANONICAL LISTING IDENTITY IS NOT PROVIDER-ROW DEDUPE.
+ *
+ * The engine's dedupe step removes a repeated PROVIDER row — two Cotality rows
+ * carrying the same ListingKey. That is provider-row hygiene and it is all it
+ * proves.
+ *
+ * Mallan canonical identity is a different domain. A Mallan-authored listing and
+ * the Cotality return-copy of that same listing are ONE canonical Mallan
+ * listing: the Mallan-authored row is the canonical editable identity and the
+ * provider copy is a COMPETING listing, suppressed by office whether or not a
+ * matching twin is found. Deduping on ListingKey could never express that,
+ * because the two rows do not share a provider key.
+ *
+ * So the suppression happens at the PROVIDER BOUNDARY, using the clause that
+ * already existed for exactly this and had no live-Trestle caller.
+ */
+describe('Mallan-office return copies are suppressed at the provider boundary', () => {
+  it('the emitted filter carries the office exclusion', async () => {
+    mockFetchFromTrestle.mockResolvedValue({
+      records: [row(1)],
+      odataCount: 1,
+      hasMore: false,
+      nextLink: undefined,
+      totalFetched: 1,
+    });
+    await callSearch();
+    const sent = mockFetchFromTrestle.mock.calls[0][0];
+    expect(sent.filter).toContain("ListOfficeMlsId ne '7041'");
+  });
+
+  it('the exclusion preserves rows with NO office', async () => {
+    // `ne` against null is not reliably inclusive in OData, so the clause is
+    // written as an explicit (null OR not-Mallan). A bare `ne` would silently
+    // drop every null-office listing.
+    mockFetchFromTrestle.mockResolvedValue({
+      records: [row(1)],
+      odataCount: 1,
+      hasMore: false,
+      nextLink: undefined,
+      totalFetched: 1,
+    });
+    await callSearch();
+    const sent = mockFetchFromTrestle.mock.calls[0][0];
+    expect(sent.filter).toContain('ListOfficeMlsId eq null or');
+  });
+
+  it('the criteria filter is still applied alongside it', async () => {
+    mockFetchFromTrestle.mockResolvedValue({
+      records: [row(1)],
+      odataCount: 1,
+      hasMore: false,
+      nextLink: undefined,
+      totalFetched: 1,
+    });
+    await callSearch('type=sale&minPrice=500000');
+    const sent = mockFetchFromTrestle.mock.calls[0][0];
+    expect(sent.filter).toContain('ListPrice');
+    expect(sent.filter).toContain("ListOfficeMlsId ne '7041'");
+  });
+
+  it('provider-row dedupe is reported under its own name', async () => {
+    // Not "canonical", because it is not.
+    mockFetchFromTrestle.mockResolvedValue({
+      records: [row(1), row(2), row(1)],
+      odataCount: 3,
+      hasMore: false,
+      nextLink: undefined,
+      totalFetched: 3,
+    });
+    const body = await callSearch();
+    expect(body.count.excluded.providerDuplicates).toBe(1);
+    expect(body.count.excluded).not.toHaveProperty('duplicates');
   });
 });

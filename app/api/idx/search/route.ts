@@ -14,7 +14,12 @@ import {
   buildCrmIdxODataFilter,
   UnsupportedSearchCriterionError,
 } from "@/lib/search/crm-idx-filter";
-import { assembleFinalUniverse, CountMeaning } from "@/lib/search/final-universe";
+import { trestleExcludeMallanReturnCopiesClause } from "@/lib/listings/mallan-source-identity";
+import {
+  assembleFinalUniverse,
+  CountMeaning,
+  providerBudgetFor,
+} from "@/lib/search/final-universe";
 import {
   resolveSort,
   sortODataClause,
@@ -24,14 +29,7 @@ import { UnknownPropertySubTypeError } from "@/lib/search/canonical/property-sub
 import { UnsupportedStatusCriterionError } from "@/lib/search/canonical/status-token-contract";
 import { hasUsableListingIdentity, mapTrestleToCrmListing } from "@/lib/search/crm-idx-mapper";
 
-/**
- * Hard ceiling on provider rows one search may read.
- *
- * Not a result cap: it is the point past which a single request stops being a
- * read and becomes a crawl. When it bites, the response says so explicitly via
- * `count.truncatedAtBudget` rather than presenting a short universe as complete.
- */
-const PROVIDER_READ_BUDGET = 1000;
+
 
 /**
  * Fields consumed by authenticated Search.
@@ -296,7 +294,29 @@ export async function GET(req: NextRequest) {
       throw new UnsupportedSearchCriterionError("sponsorUnit", ["true"]);
     }
 
-    const filter = buildCrmIdxODataFilter(params);
+    const criteriaFilter = buildCrmIdxODataFilter(params);
+
+    // MALLAN CANONICAL LISTING IDENTITY, applied at the provider boundary.
+    //
+    // A Mallan-authored listing and the Cotality return-copy of that same
+    // listing are ONE canonical Mallan listing. The Mallan-authored row is the
+    // canonical, editable identity; the provider copy is a COMPETING listing and
+    // is suppressed — by office, and whether or not a matching twin is found.
+    // Deduping on ListingKey could never express that: the two rows live in
+    // different identity domains and do not share a provider key.
+    //
+    // Live 2026-08-26: ListOfficeMlsId eq '7041' -> 35 rows on the feed, 2 of
+    // them Active. Applying the clause takes Active from 7,863 to 7,861, which
+    // is exactly the two Mallan rows and confirms no null-office row is lost —
+    // the clause is written as `(office eq null or office ne ...)` precisely
+    // because a bare `ne` against null is not reliably inclusive in OData.
+    //
+    // The clause already existed and had no live-Trestle caller; every consumer
+    // was Prisma-side. No new identity system, no schema.
+    const returnCopyClause = trestleExcludeMallanReturnCopiesClause();
+    const filter = returnCopyClause
+      ? `(${criteriaFilter}) and ${returnCopyClause}`
+      : criteriaFilter;
 
     // Sort is part of result identity, so it is a CLOSED CONTRACT rather than a
     // caller-authored $orderby with a silent default. `sort || "Modification-
@@ -373,12 +393,22 @@ export async function GET(req: NextRequest) {
       identity: (record: Record<string, unknown>) =>
         hasUsableListingIdentity(record) ? String(record.ListingKey ?? "") : null,
       gate: (record: Record<string, unknown>) => checkDistributionGates(record),
-      // Provider twins share a ListingKey; first occurrence wins so the
-      // provider's own ordering is never disturbed by dedupe.
-      canonicalKey: (record: Record<string, unknown>) => String(record.ListingKey ?? ""),
+      // PROVIDER-ROW identity only. Two Cotality rows carrying the same
+      // ListingKey are one provider row and the repeat is dropped. This is not
+      // Mallan canonical reconciliation, which is handled above by suppressing
+      // Mallan-office return-copies at the provider boundary.
+      providerRowKey: (record: Record<string, unknown>) => String(record.ListingKey ?? ""),
       page,
       pageSize: limit,
-      providerBudget: PROVIDER_READ_BUDGET,
+      // SCALED TO THE REQUESTED PAGE, not a flat ceiling.
+      //
+      // A fixed 1,000-row budget made deep pages unreachable: a universe of
+      // 4,622 matches could honestly report "1000+ Results" and never return
+      // result 1,001, because page 21 at 50 rows a page needs the 1,001st
+      // survivor and the request was forbidden from reading that far. A read
+      // budget may bound work per request; it may not become a hidden maximum
+      // searchable inventory.
+      providerBudget: providerBudgetFor(page, limit),
       // A page read, not a census. An exact count over 4,622 rows costs ~93
       // provider round trips, so it is opt-in per request rather than charged
       // to every search; `countMeaning` tells the caller which one they hold.
@@ -421,13 +451,19 @@ export async function GET(req: NextRequest) {
         /** `@odata.count`. Kept, and kept SEPARATE. Never a result count. */
         providerMatched: universe.providerMatched,
         truncatedAtBudget: universe.truncatedAtBudget,
+        /** NULL when the traversal stopped early — see totalPages below. */
+        totalPagesKnown: universe.totalPages !== null,
         providerRowsRead: universe.providerRowsRead,
         excluded: universe.exclusions,
       },
       page,
       pageSize: limit,
+      // NULL when the count is a LOWER BOUND. "1000+ Results / Page 1 of 5" is
+      // a self-contradiction, so the last page number is withheld until an
+      // exhausted traversal proves it and navigation stays open-ended.
       totalPages: universe.totalPages,
       hasMore: universe.hasMore,
+      hasPrevious: universe.hasPrevious,
       skip,
       limit,
       attribution: generateAttributionText(),

@@ -48,6 +48,7 @@
 import {
   assembleFinalUniverse,
   CountMeaning,
+  providerBudgetFor,
   type ProviderPage,
 } from '@/lib/search/final-universe';
 
@@ -89,7 +90,7 @@ const assemble = (all: Row[], page: number, pageSize: number, budget = 10_000) =
     fetchPage: fakeProvider(all).fetchPage,
     identity: key,
     gate: gateOf,
-    canonicalKey: canonical,
+    providerRowKey: canonical,
     page,
     pageSize,
     providerBudget: budget,
@@ -126,7 +127,7 @@ describe('the chain removes rows in order and attributes every removal', () => {
     all[4].twinOf = 'K0001';
     const res = await assemble(all, 1, 50);
     expect(res.rows.map(key)).toEqual(['K0000', 'K0001', 'K0002', 'K0003', 'K0005']);
-    expect(res.exclusions.duplicates).toBe(1);
+    expect(res.exclusions.providerDuplicates).toBe(1);
   });
 
   it('an identityless row is never reached by the gate', async () => {
@@ -288,7 +289,7 @@ describe('the provider is not read more than the contract needs', () => {
       fetchPage: provider.fetchPage,
       identity: key,
       gate: gateOf,
-      canonicalKey: canonical,
+      providerRowKey: canonical,
       page: 1,
       pageSize: 10,
       providerBudget: 5_000,
@@ -305,7 +306,7 @@ describe('the provider is not read more than the contract needs', () => {
       fetchPage: provider.fetchPage,
       identity: key,
       gate: gateOf,
-      canonicalKey: canonical,
+      providerRowKey: canonical,
       page: 1,
       pageSize: 10,
       providerBudget: 5_000,
@@ -326,5 +327,154 @@ describe('order is preserved exactly as the provider sorted it', () => {
     });
     const res = await assemble(all, 1, 50);
     expect(res.rows.map(key)).toEqual(all.filter((r) => !r.gated).map(key));
+  });
+});
+
+/**
+ * P0 — A READ BUDGET MAY BOUND WORK PER REQUEST. IT MAY NOT BOUND INVENTORY.
+ *
+ * The route walked the provider from row zero for every broker page under a
+ * flat ceiling of 1,000 provider rows. A universe of 4,622 matches could
+ * therefore report "1000+ Results" and be physically incapable of returning
+ * result 1,001: at 50 rows a page, page 21 needs the 1,001st survivor, and the
+ * request was forbidden from reading that far.
+ *
+ * Truthfully admitting that more inventory exists while making it unreachable
+ * is not acceptable pagination.
+ *
+ * Measured live 2026-08-26, which is what makes a stateless rescan viable:
+ * $top=200 -> 1,801ms, $top=1000 -> 2,077ms, $top=5000 -> 2,134ms. Latency is
+ * round-trip dominated, not row-count dominated, so the whole 4,622-row
+ * universe is ONE request. No cursor, no cache, no schema.
+ */
+describe('deep pages are reachable', () => {
+  it('page 21 at pageSize 50 returns the 1,001st survivor', async () => {
+    const all = rows(4_622);
+    const res = await assembleFinalUniverse<Row>({
+      fetchPage: fakeProvider(all, 5_000).fetchPage,
+      identity: key,
+      gate: gateOf,
+      providerRowKey: canonical,
+      page: 21,
+      pageSize: 50,
+      providerBudget: providerBudgetFor(21, 50),
+      exactCount: false,
+    });
+    expect(res.rows).toHaveLength(50);
+    expect(res.rows[0].ListingKey).toBe(all[1_000].ListingKey);
+  });
+
+  it('page 6 at pageSize 200 is reachable too', async () => {
+    const all = rows(4_622);
+    const res = await assembleFinalUniverse<Row>({
+      fetchPage: fakeProvider(all, 5_000).fetchPage,
+      identity: key,
+      gate: gateOf,
+      providerRowKey: canonical,
+      page: 6,
+      pageSize: 200,
+      providerBudget: providerBudgetFor(6, 200),
+      exactCount: false,
+    });
+    expect(res.rows).toHaveLength(200);
+    expect(res.rows[0].ListingKey).toBe(all[1_000].ListingKey);
+  });
+
+  it('the budget still scales with the page rather than being unbounded', () => {
+    // A ceiling must still exist — it just must not masquerade as the maximum
+    // searchable inventory.
+    expect(providerBudgetFor(1, 50)).toBeLessThan(providerBudgetFor(21, 50));
+    expect(providerBudgetFor(1, 50)).toBeGreaterThanOrEqual(50);
+  });
+
+  it('the absolute ceiling is a runaway guard, not an inventory cap', () => {
+    // Big enough that no real REBNY result universe hits it by accident.
+    expect(providerBudgetFor(10_000, 200)).toBeGreaterThanOrEqual(50_000);
+  });
+
+  it('a deep page still survives heavy exclusions', async () => {
+    // Half the universe gated: reaching survivor 1,001 now needs ~2,002
+    // provider rows, so a budget derived only from page*pageSize would fail.
+    const all = rows(4_622, (r, i) => {
+      if (i % 2 === 1) r.gated = 'Owner opted out';
+    });
+    const res = await assembleFinalUniverse<Row>({
+      fetchPage: fakeProvider(all, 5_000).fetchPage,
+      identity: key,
+      gate: gateOf,
+      providerRowKey: canonical,
+      page: 21,
+      pageSize: 50,
+      providerBudget: providerBudgetFor(21, 50),
+      exactCount: false,
+    });
+    expect(res.rows).toHaveLength(50);
+    expect(res.rows[0].ListingKey).toBe(all[2_000].ListingKey);
+  });
+});
+
+/**
+ * P0 — A LOWER BOUND CANNOT NAME THE LAST PAGE.
+ *
+ * These two statements contradict each other:
+ *
+ *     1000+ Results
+ *     Page 1 of 5
+ *
+ * The `+` says more inventory may exist; `of 5` says page 5 is the end. Only an
+ * EXACT count knows where the universe stops, so totalPages is null until the
+ * traversal proves exhaustion, and navigation is open-ended until then.
+ */
+describe('totalPages is only knowable from an exact count', () => {
+  it('an exact count names the last page', async () => {
+    const res = await assemble(rows(30), 1, 10);
+    expect(res.countMeaning).toBe(CountMeaning.EXACT);
+    expect(res.totalPages).toBe(3);
+  });
+
+  it('a lower bound reports totalPages as UNKNOWN, not a fabricated number', async () => {
+    const res = await assembleFinalUniverse<Row>({
+      fetchPage: fakeProvider(rows(5_000)).fetchPage,
+      identity: key,
+      gate: gateOf,
+      providerRowKey: canonical,
+      page: 1,
+      pageSize: 10,
+      providerBudget: 200,
+      exactCount: false,
+    });
+    expect(res.countMeaning).toBe(CountMeaning.LOWER_BOUND);
+    expect(res.totalPages).toBeNull();
+  });
+
+  it('open-ended navigation is still fully described', async () => {
+    // Without a last page, Prev/Next still need to be correct.
+    const provider = fakeProvider(rows(5_000));
+    const opts = (page: number) => ({
+      fetchPage: provider.fetchPage,
+      identity: key,
+      gate: gateOf,
+      providerRowKey: canonical,
+      page,
+      pageSize: 10,
+      providerBudget: 200,
+      exactCount: false,
+    });
+    const p1 = await assembleFinalUniverse<Row>(opts(1));
+    const p3 = await assembleFinalUniverse<Row>(opts(3));
+    expect(p1.hasPrevious).toBe(false);
+    expect(p1.hasMore).toBe(true);
+    expect(p3.hasPrevious).toBe(true);
+    expect(p3.hasMore).toBe(true);
+  });
+
+  it('reaching the end turns a lower bound into an exact total', async () => {
+    // The traversal itself proves exhaustion, which is the only thing that may
+    // license a final page number.
+    const res = await assemble(rows(25), 3, 10);
+    expect(res.countMeaning).toBe(CountMeaning.EXACT);
+    expect(res.totalPages).toBe(3);
+    expect(res.hasMore).toBe(false);
+    expect(res.hasPrevious).toBe(true);
   });
 });

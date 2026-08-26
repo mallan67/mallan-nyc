@@ -2091,9 +2091,28 @@
             var useServer = !!(sc && typeof sc.value === 'number' && isAuthoritative);
 
             var count = useServer ? sc.value : filtered.length;
-            var totalPages = useServer && searchResultsState.serverTotalPages
-                ? searchResultsState.serverTotalPages
-                : Math.max(1, Math.ceil(count / perPage));
+
+            // A LOWER BOUND CANNOT NAME THE LAST PAGE.
+            //
+            // These two claims contradict each other:
+            //
+            //     1000+ Results
+            //     Page 1 of 5
+            //
+            // The `+` says more inventory may exist; `of 5` says page 5 is the
+            // end. The server sends totalPages: null whenever the traversal
+            // stopped early, and deriving one locally from the lower-bound count
+            // would re-fabricate exactly the number it withheld. Navigation
+            // stays open-ended until an exhausted traversal proves the final
+            // page.
+            var totalPages;
+            if (useServer) {
+                totalPages = (typeof searchResultsState.serverTotalPages === 'number')
+                    ? searchResultsState.serverTotalPages
+                    : null;
+            } else {
+                totalPages = Math.max(1, Math.ceil(count / perPage));
+            }
 
             // A LOWER BOUND MUST NOT BE PRINTED AS A TOTAL. "200 Results" and
             // "200+ Results" are different claims, and the second one is the
@@ -2107,15 +2126,17 @@
             countEls.forEach(function(el) { el.textContent = countText; });
 
             // Update top pagination
+            // '—' rather than a number the server declined to claim.
+            var totalPagesText = totalPages === null ? '—' : totalPages;
             var totalPagesEl = document.getElementById('totalPages');
-            if (totalPagesEl) totalPagesEl.textContent = totalPages;
+            if (totalPagesEl) totalPagesEl.textContent = totalPagesText;
 
             var currentPageEl = document.getElementById('currentPage');
             if (currentPageEl) currentPageEl.textContent = searchResultsState.currentPage;
 
             // Update bottom pagination
             var bottomTotalPagesEl = document.getElementById('bottomTotalPages');
-            if (bottomTotalPagesEl) bottomTotalPagesEl.textContent = totalPages;
+            if (bottomTotalPagesEl) bottomTotalPagesEl.textContent = totalPagesText;
 
             var bottomCurrentPageEl = document.getElementById('bottomCurrentPage');
             if (bottomCurrentPageEl) bottomCurrentPageEl.textContent = searchResultsState.currentPage;

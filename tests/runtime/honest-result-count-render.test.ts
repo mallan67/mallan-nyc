@@ -43,6 +43,7 @@ function renderCount(state: Record<string, unknown>): string {
   const body = engine.slice(start, end + '\n        }'.length);
 
   let rendered = '';
+  const byId: Record<string, string> = {};
   const el = () => ({
     set textContent(v: string) {
       rendered = v;
@@ -51,20 +52,32 @@ function renderCount(state: Record<string, unknown>): string {
       return rendered;
     },
   });
+  const idEl = (id: string) => ({
+    set textContent(v: string) {
+      byId[id] = String(v);
+    },
+    get textContent() {
+      return byId[id];
+    },
+  });
   const sandbox: Record<string, unknown> = {
     searchResultsState: state,
     listings: [],
     Math,
     document: {
       querySelectorAll: () => [el()],
-      getElementById: () => null,
+      getElementById: (id: string) => idEl(id),
     },
     console: { log() {}, warn() {}, error() {} },
   };
   sandbox.globalThis = sandbox;
   runInNewContext(body + ';updateResultsCount();', sandbox);
+  (renderCount as any).lastPageText = byId.totalPages;
   return rendered;
 }
+
+/** What the "of N" slot showed on the last renderCount() call. */
+const lastPageText = () => (renderCount as any).lastPageText;
 
 const authoritative = (count: number, isExact: boolean, rows = 20) => ({
   filteredListings: Array.from({ length: rows }, (_, i) => ({ id: i })),
@@ -72,7 +85,8 @@ const authoritative = (count: number, isExact: boolean, rows = 20) => ({
   currentPage: 1,
   resultProvenance: 'authoritative',
   serverCount: { value: count, isExact },
-  serverTotalPages: Math.ceil(count / 20),
+  // The server withholds this whenever the count is a lower bound.
+  serverTotalPages: isExact ? Math.ceil(count / 20) : null,
 });
 
 describe('an exact count is printed as a total', () => {
@@ -152,5 +166,45 @@ describe('the declared count cannot outlive its own answer', () => {
 describe('the served artifact carries the same renderer', () => {
   it('the built shell marks lower bounds', () => {
     expect(built).toMatch(/\+ Results/);
+  });
+});
+
+/**
+ * A LOWER BOUND MUST NOT NAME THE LAST PAGE.
+ *
+ * These two claims cannot both be shown:
+ *
+ *     1000+ Results
+ *     Page 1 of 5
+ *
+ * The `+` says more inventory may exist; `of 5` says page 5 is the end. The
+ * server sends totalPages: null whenever the traversal stopped early, and
+ * deriving one locally from the lower-bound count would re-fabricate exactly the
+ * number it declined to claim.
+ */
+describe('the last page is only named when it is known', () => {
+  it('an exact count names it', () => {
+    renderCount(authoritative(140, true));
+    expect(lastPageText()).toBe('7');
+  });
+
+  it('a lower bound shows no final page', () => {
+    renderCount(authoritative(1_000, false));
+    expect(lastPageText()).not.toBe('50');
+    expect(lastPageText()).toBe('—');
+  });
+
+  it('the contradiction can never render together', () => {
+    const text = renderCount(authoritative(1_000, false));
+    expect(text).toBe('1000+ Results');
+    // If this ever became a number, the header and the pager would be making
+    // opposite claims about the same search.
+    expect(lastPageText()).toBe('—');
+  });
+
+  it('a local preview still gets a real page count from its own rows', () => {
+    // Nothing was withheld here — the set on screen IS the whole set.
+    renderCount({ ...authoritative(4_622, true), resultProvenance: 'provisional' });
+    expect(lastPageText()).toBe('1');
   });
 });
