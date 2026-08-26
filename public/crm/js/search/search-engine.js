@@ -2509,7 +2509,13 @@
             if (document.getElementById('refineStatusActive') && document.getElementById('refineStatusActive').checked) statuses.push('Active');
             if (document.getElementById('refineStatusComingSoon') && document.getElementById('refineStatusComingSoon').checked) statuses.push('ComingSoon');
             if (document.getElementById('refineStatusPending') && document.getElementById('refineStatusPending').checked) statuses.push('Pending');
-            if (document.getElementById('refineStatusContract') && document.getElementById('refineStatusContract').checked) { statuses.push('ActiveUnderContract'); statuses.push('ActiveUnderContract'); }
+            // Pushed ActiveUnderContract TWICE. Harmless in effect — the
+            // serializer dedupes before the wire — but it is a copy-paste
+            // artefact, and the second push was plainly meant to be a different
+            // status. Which one is not recoverable from the code, and inventing
+            // one would add a status the broker never asked for, so the
+            // duplicate is simply removed and the question left visible.
+            if (document.getElementById('refineStatusContract') && document.getElementById('refineStatusContract').checked) { statuses.push('ActiveUnderContract'); }
             if (document.getElementById('refineStatusClosed') && document.getElementById('refineStatusClosed').checked) statuses.push('Closed');
             if (statuses.length > 0) c.statuses = statuses; else delete c.statuses;
 
