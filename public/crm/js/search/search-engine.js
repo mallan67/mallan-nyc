@@ -128,6 +128,42 @@
         /**
          * Look up borough name for a neighborhood from the autocomplete's known data.
          */
+        /**
+         * The building-fact control ids for a given tab/mode.
+         *
+         * ONE resolver, used by BOTH collectSearchCriteria() and Saved Search
+         * restore. They previously disagreed: the collector read per-tab ids
+         * while restore wrote every saved year/floor/unit value into the
+         * BUILDING tab's controls, so a Sale search saved with a year range
+         * reloaded with those controls empty and silently executed without it.
+         * Save -> reload -> execute returned a DIFFERENT search.
+         *
+         * Duplicating the table is what allowed them to drift, so the table now
+         * exists once.
+         */
+        window._resolveBuildingFieldIds = function(tab, isAdvanced) {
+            if (isAdvanced) {
+                return {
+                    yearMin: 'adv-year-built-from', yearMax: 'adv-year-built-to',
+                    unitsMin: 'adv-bldg-units-min', unitsMax: 'adv-bldg-units-max',
+                    floorsMin: 'adv-floors-min',    floorsMax: 'adv-floors-max'
+                };
+            }
+            if (tab === 'building') {
+                return {
+                    yearMin: 'buildingMinYear', yearMax: 'buildingMaxYear',
+                    unitsMin: 'buildingMinUnits', unitsMax: 'buildingMaxUnits',
+                    floorsMin: 'buildingMinFloors', floorsMax: 'buildingMaxFloors'
+                };
+            }
+            var p = (tab === 'rent') ? 'rentalBuilding' : 'saleBuilding';
+            return {
+                yearMin: p + 'MinYear', yearMax: p + 'MaxYear',
+                unitsMin: p + 'MinUnits', unitsMax: p + 'MaxUnits',
+                floorsMin: p + 'MinFloors', floorsMax: p + 'MaxFloors'
+            };
+        };
+
         function _findBoroughForNeighborhood(name) {
             var boroughs = {
                 'Bronx': ['Allerton','Baychester','Bedford Park','Belmont','City Island','Co-op City','Fordham','Kingsbridge','Morris Park','Pelham Bay','Central Riverdale','Fieldston','North Riverdale','Spuyten Duyvil','Throgs Neck','Woodlawn'],
@@ -1248,36 +1284,13 @@
             }
 
             // Building-specific filters (OData: YearBuilt, StoriesTotal, NumberOfUnitsTotal)
-            var yearMinEl, yearMaxEl, unitsMinEl, unitsMaxEl, floorsMinEl, floorsMaxEl;
-            if (_isAdvanced) {
-                yearMinEl = document.getElementById('adv-year-built-from');
-                yearMaxEl = document.getElementById('adv-year-built-to');
-                unitsMinEl = document.getElementById('adv-bldg-units-min');
-                unitsMaxEl = document.getElementById('adv-bldg-units-max');
-                floorsMinEl = document.getElementById('adv-floors-min');
-                floorsMaxEl = document.getElementById('adv-floors-max');
-            } else if (currentSearchTab === 'building') {
-                yearMinEl = document.getElementById('buildingMinYear');
-                yearMaxEl = document.getElementById('buildingMaxYear');
-                unitsMinEl = document.getElementById('buildingMinUnits');
-                unitsMaxEl = document.getElementById('buildingMaxUnits');
-                floorsMinEl = document.getElementById('buildingMinFloors');
-                floorsMaxEl = document.getElementById('buildingMaxFloors');
-            } else if (currentSearchTab === 'sale') {
-                yearMinEl = document.getElementById('saleBuildingMinYear');
-                yearMaxEl = document.getElementById('saleBuildingMaxYear');
-                unitsMinEl = document.getElementById('saleBuildingMinUnits');
-                unitsMaxEl = document.getElementById('saleBuildingMaxUnits');
-                floorsMinEl = document.getElementById('saleBuildingMinFloors');
-                floorsMaxEl = document.getElementById('saleBuildingMaxFloors');
-            } else {
-                yearMinEl = document.getElementById('rentalBuildingMinYear');
-                yearMaxEl = document.getElementById('rentalBuildingMaxYear');
-                unitsMinEl = document.getElementById('rentalBuildingMinUnits');
-                unitsMaxEl = document.getElementById('rentalBuildingMaxUnits');
-                floorsMinEl = document.getElementById('rentalBuildingMinFloors');
-                floorsMaxEl = document.getElementById('rentalBuildingMaxFloors');
-            }
+            var _bIds = window._resolveBuildingFieldIds(currentSearchTab, _isAdvanced);
+            var yearMinEl = document.getElementById(_bIds.yearMin);
+            var yearMaxEl = document.getElementById(_bIds.yearMax);
+            var unitsMinEl = document.getElementById(_bIds.unitsMin);
+            var unitsMaxEl = document.getElementById(_bIds.unitsMax);
+            var floorsMinEl = document.getElementById(_bIds.floorsMin);
+            var floorsMaxEl = document.getElementById(_bIds.floorsMax);
             if (yearMinEl && yearMinEl.value && yearMinEl.value !== '') {
                 var ym = parseInt(yearMinEl.value);
                 if (!isNaN(ym)) criteria.yearMin = ym;

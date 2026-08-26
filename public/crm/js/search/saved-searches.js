@@ -346,14 +346,29 @@
                 });
             }
 
-            // Building-specific fields
-            if (tab === 'building' || criteria.min_year || criteria.max_year) {
-                _setSelectValue('buildingMinYear', criteria.min_year);
-                _setSelectValue('buildingMaxYear', criteria.max_year);
-                _setSelectValue('buildingMinUnits', criteria.min_units);
-                _setSelectValue('buildingMaxUnits', criteria.max_units);
-                _setSelectValue('buildingMinFloors', criteria.min_floors);
-                _setSelectValue('buildingMaxFloors', criteria.max_floors);
+            // Building-fact controls (YearBuilt / StoriesTotal / NumberOfUnitsTotal).
+            //
+            // CORRECTED 2026-08-26. This previously wrote EVERY saved
+            // year/floor/unit value into the BUILDING tab's controls, gated on
+            // `tab === 'building' || criteria.min_year || criteria.max_year`.
+            // So a SALE search saved with a year range reloaded with the sale
+            // controls empty: collectSearchCriteria() then read
+            // saleBuildingMinYear (blank) and executed a search WITHOUT the
+            // range the broker had saved. Save -> reload -> execute returned a
+            // different search, silently.
+            //
+            // It now resolves ids through the SAME shared rule the collector
+            // uses, so the two cannot drift apart again.
+            var _bIds = (typeof window._resolveBuildingFieldIds === 'function')
+                ? window._resolveBuildingFieldIds(tab, false)
+                : null;
+            if (_bIds) {
+                _setSelectValue(_bIds.yearMin, criteria.min_year);
+                _setSelectValue(_bIds.yearMax, criteria.max_year);
+                _setSelectValue(_bIds.unitsMin, criteria.min_units);
+                _setSelectValue(_bIds.unitsMax, criteria.max_units);
+                _setSelectValue(_bIds.floorsMin, criteria.min_floors);
+                _setSelectValue(_bIds.floorsMax, criteria.max_floors);
             }
 
             // Restore date range pickers
@@ -436,7 +451,13 @@
                 if (kwEl) kwEl.value = criteria.keyword;
             }
 
-            // Management Company (ListOfficeName contains)
+            // Management Company — an UNRESOLVED Mallan criterion.
+            // NOT ListOfficeName: Cotality declares no ManagementCompany
+            // Property field and listing office is a different fact. The
+            // canonical server contract rejects that substitution, and the
+            // page-local match that implemented it has been removed. The value
+            // is persisted/restored for compatibility only; it must never imply
+            // ListOfficeName.
             if (criteria.management_company) {
                 var mgmtEl = document.getElementById(_isAdv ? 'adv-management' : 'searchManagementCompany');
                 if (mgmtEl) mgmtEl.value = criteria.management_company;
