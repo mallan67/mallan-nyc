@@ -16862,17 +16862,35 @@ function manageShowToast(msg) {
             // Pull it out into a dedicated `sponsorUnit` param so the
             // route handler can apply a post-fetch filter against the
             // mapper's parsed listing.sponsorUnit field.
-            if (criteria.checkboxFilters && criteria.checkboxFilters.SponsorUnit) {
-                var _sp = criteria.checkboxFilters.SponsorUnit;
+            //
+            // LIFTED ON A COPY, NEVER DELETED FROM THE CALLER.
+            //
+            // This used to `delete criteria.checkboxFilters.SponsorUnit`. The
+            // goal was right — SponsorUnit must not travel in the generic
+            // checkbox JSON — but the object being edited is the module-level
+            // `activeSearchCriteria` that _serverSearch is handed, so the delete
+            // was permanent and everything downstream saw a search the broker
+            // never described. Ticking Sponsor Unit, searching, then saving
+            // produced a saved search with NO sponsor constraint: the checkbox
+            // had been deleted, and `sponsor_unit: c.sponsorUnit` reads a key
+            // nothing ever sets (the serializer sets params.sponsorUnit, a
+            // different object). Both carriers empty, criterion silently gone,
+            // reloads BROADER than what was saved.
+            //
+            // The wire payload is built from a shallow copy instead, so the
+            // backend still never receives SponsorUnit and the broker's own
+            // criteria object still describes their search.
+            var _cbForWire = criteria.checkboxFilters;
+            if (_cbForWire && _cbForWire.SponsorUnit) {
+                var _sp = _cbForWire.SponsorUnit;
                 if (Array.isArray(_sp) && (_sp.indexOf('true') !== -1 || _sp.indexOf('Yes') !== -1)) {
                     params.sponsorUnit = 'true';
                 }
-                // Remove from the JSON payload so the backend doesn't try to
-                // OData-filter on it.
-                delete criteria.checkboxFilters.SponsorUnit;
+                _cbForWire = Object.assign({}, _cbForWire);
+                delete _cbForWire.SponsorUnit;
             }
-            if (criteria.checkboxFilters) {
-                var _cbJson = JSON.stringify(criteria.checkboxFilters);
+            if (_cbForWire) {
+                var _cbJson = JSON.stringify(_cbForWire);
                 if (_cbJson !== '{}') params.checkboxFilters = _cbJson;
             }
             // ── Codex Risk P0 fix: transit/grid panels are disabled at
