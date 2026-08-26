@@ -33039,10 +33039,30 @@ function emailCurrentCalc() {
                     _serverSearchActive = false;
                     if (result.listings && result.listings.length > 0) {
                         _replaceListings(result.listings, 'IDX/Trestle (re-sort)');
-                        // Re-filter and render
-                        var criteria = (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) ? activeSearchCriteria : { searchTab: searchType === 'rental' ? 'rent' : 'sale' };
-                        searchResultsState.filteredListings = typeof filterListings === 'function'
-                            ? filterListings(listings, criteria) : listings.slice();
+                        // RENDER THE SERVER ANSWER, DO NOT NARROW IT.
+                        //
+                        // This used to run filterListings(listings, criteria)
+                        // over the rows the server had just returned, and then
+                        // call markSearchResultsAuthoritative() on whatever
+                        // survived. Re-filtering can only REMOVE rows, so any
+                        // disagreement between the client's idea of a criterion
+                        // and the server's silently shrank an authoritative
+                        // result set — and a re-sort is not supposed to change
+                        // WHICH listings match, only their order.
+                        //
+                        // The disagreement is real, not theoretical: the mapper
+                        // deliberately leaves unknown values unknown (an unknown
+                        // borough must not become Manhattan), while the client
+                        // post-filter compares those same fields with plain
+                        // equality, so an honestly-blank row fails the
+                        // comparison and disappears. The server counted it; the
+                        // client dropped it; the header reported the smaller
+                        // number.
+                        //
+                        // The criteria were already applied, by the layer that
+                        // owns them. `listings` is exactly result.listings here
+                        // — _replaceListings replaced the catalogue wholesale.
+                        searchResultsState.filteredListings = listings.slice();
                         searchResultsState.currentPage = 1;
                         // The server answered for the current criteria, so this
                         // set is authoritative again. `_replaceListings` above
