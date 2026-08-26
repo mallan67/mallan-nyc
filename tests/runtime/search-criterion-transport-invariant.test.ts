@@ -55,6 +55,32 @@ const apiClient = read('public/crm/js/core/api-client.js');
 const crmFilter = read('lib/search/crm-idx-filter.ts');
 const searchRoute = read('app/api/idx/search/route.ts');
 
+/** Every criterion key `collectSearchCriteria()` produces. */
+function collectorProduces(): Set<string> {
+  const start = searchEngine.indexOf('function collectSearchCriteria');
+  const end = searchEngine.indexOf('\n        function ', start + 10);
+  const body = searchEngine.slice(start, end);
+  return new Set([
+    ...[...body.matchAll(/criteria\.([A-Za-z_]\w*)\s*=/g)].map((m) => m[1]),
+    ...[...body.matchAll(/criteria\.([A-Za-z_]\w*)\.push/g)].map((m) => m[1]),
+  ]);
+}
+
+/**
+ * Every criterion key the serializer READS.
+ *
+ * Read, not "emits" — the key is renamed across this boundary
+ * (`criteria.priceMin` becomes `params.minPrice`), so a name diff would be
+ * meaningless. What matters is whether the collected value is consulted at all.
+ */
+function serializerConsumes(): Set<string> {
+  const start = searchEngine.indexOf('window.buildIdxSearchParams = function');
+  const end = searchEngine.indexOf('\n        };', start);
+  return new Set(
+    [...searchEngine.slice(start, end).matchAll(/criteria\.([A-Za-z_]\w*)/g)].map((m) => m[1]),
+  );
+}
+
 /** Everything `buildIdxSearchParams()` assigns onto its params object. */
 function serializerEmits(): Set<string> {
   const start = searchEngine.indexOf('window.buildIdxSearchParams = function');
@@ -99,6 +125,35 @@ const TRANSPORT_BROKEN: Readonly<Record<string, string>> = Object.freeze({
     'for it, so that fail-closed path is unreachable from the UI.',
   contractDateFrom: 'Assigned, never forwarded. Contract-date range does nothing.',
   contractDateTo: 'Assigned, never forwarded. Contract-date range does nothing.',
+});
+
+/**
+ * COLLECTED BY THE FORM, NEVER READ BY THE SERIALIZER.
+ *
+ * The FIRST boundary, and a different defect class from the six lost at the
+ * wire: this value dies before a param is ever built for it.
+ */
+const COLLECTED_BUT_NOT_SERIALIZED: Readonly<Record<string, string>> = Object.freeze({
+  financingMin:
+    'Set at search-engine.js:1203 and referenced NOWHERE else in the entire CRM ' +
+    '— write-only. The related control family MaximumFinancingPercent is ' +
+    'separately disabled and carries the magic data-value strings "gt:0"/"eq:0", ' +
+    'which no canonical parser owns. Financing has two dead paths, not one.',
+});
+
+describe('criterion transport — the form to the serializer', () => {
+  it('every collected criterion is read by the serializer or declared dead', () => {
+    const undeclared = [...collectorProduces()].filter(
+      (k) => !serializerConsumes().has(k) && !(k in COLLECTED_BUT_NOT_SERIALIZED),
+    );
+    expect(undeclared).toEqual([]);
+  });
+
+  it('the collected-but-dead set has not grown', () => {
+    const consumed = serializerConsumes();
+    const dead = [...collectorProduces()].filter((k) => !consumed.has(k)).sort();
+    expect(dead).toEqual(Object.keys(COLLECTED_BUT_NOT_SERIALIZED).sort());
+  });
 });
 
 describe('criterion transport — serializer to the wire', () => {
