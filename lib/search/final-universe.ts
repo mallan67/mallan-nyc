@@ -111,7 +111,11 @@ export interface GateVerdict {
 
 export interface AssembleOptions<T> {
   /** Reads one provider page. `skip`/`top` are PROVIDER coordinates. */
-  readonly fetchPage: (skip: number, top: number) => Promise<ProviderPage<T>>;
+  readonly fetchPage: (
+    skip: number,
+    top: number,
+    keyset?: { predicate: string; orderBy: string },
+  ) => Promise<ProviderPage<T>>;
   /** The row's provider identity. Null/blank means the row cannot be a result. */
   readonly identity: (record: T) => string | null | undefined;
   /** The distribution/compliance decision for one row. */
@@ -159,6 +163,19 @@ export interface AssembleOptions<T> {
     readonly survivorsConsumed: number;
     readonly tail: readonly string[];
   };
+  /**
+   * KEYSET RESUME — the provider itself is asked to start after a position.
+   *
+   * With this, the walk begins at provider offset 0 of a NARROWED query rather
+   * than at a numeric offset into the old one, so an insertion or withdrawal
+   * ahead of the boundary cannot move it. `fetchPage` receives the extra
+   * predicate and the phase's ORDER BY and composes them into the request.
+   */
+  readonly keyset?: {
+    readonly predicate: string;
+    readonly orderBy: string;
+    readonly phase: string;
+  };
 }
 
 export interface FinalUniverseResult<T> {
@@ -198,6 +215,8 @@ export interface FinalUniverseResult<T> {
   readonly survivorsConsumedBefore: number;
   /** Provider-row keys of this page's rows, in order, for the next tail. */
   readonly pageRowKeys: readonly string[];
+  /** The LAST row emitted on this page — the boundary for the next keyset. */
+  readonly boundaryRow: T | null;
   readonly exclusions: {
     readonly identityless: number;
     /** Gated rows BY REASON — "12 excluded" is not an answer to "why". */
@@ -296,6 +315,7 @@ export async function assembleFinalUniverse<T>(
     exactCount = true,
     providerPageSize = DEFAULT_PROVIDER_PAGE_SIZE,
     resume,
+    keyset,
   } = options;
 
   const startOffset = resume?.providerOffset ?? 0;
@@ -339,7 +359,15 @@ export async function assembleFinalUniverse<T>(
 
     const remainingBudget = providerBudget - providerRowsRead;
     const top = Math.min(providerPageSize, remainingBudget);
-    const providerPage = await fetchPage(startOffset + providerRowsRead, top);
+    // With a keyset the provider query itself is narrowed, so the walk always
+    // starts at offset 0 of that narrowed universe. Adding the old numeric
+    // offset on top would skip rows the predicate already excluded.
+    const providerPage = keyset
+      ? await fetchPage(providerRowsRead, top, {
+          predicate: keyset.predicate,
+          orderBy: keyset.orderBy,
+        })
+      : await fetchPage(startOffset + providerRowsRead, top);
 
     if (providerPage.providerMatched != null) providerMatched = providerPage.providerMatched;
     providerRowsRead += providerPage.records.length;
@@ -447,6 +475,10 @@ export async function assembleFinalUniverse<T>(
     providerOffsetReached,
     survivorsConsumedBefore,
     pageRowKeys: rows.map((r) => providerRowKey(r)),
+    // Deliberately the RAW provider record, never a mapped DTO: the next
+    // boundary value is fed straight back to Cotality, and a value that has been
+    // through a renderer is a different value.
+    boundaryRow: rows.length > 0 ? rows[rows.length - 1] : null,
     exclusions: { identityless, gated, providerDuplicates },
     gatePassedBeforeDedupe,
   };

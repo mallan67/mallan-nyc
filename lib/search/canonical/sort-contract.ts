@@ -47,22 +47,21 @@ export interface SortSpec {
   /** What the broker sees. */
   readonly label: string;
   /**
-   * Whether a KEYSET continuation is safe on this field.
+   * The PROVIDER literal type, which decides how a boundary value is written
+   * into OData.
    *
-   * Keyset resumes with "rows ordered after (value, ListingKey)" instead of
-   * "skip N rows", which is what makes it stable while the feed changes
-   * underneath a broker. It requires the field to be NON-NULL on every row: a
-   * null cannot be compared, so null-valued rows would be silently dropped from
-   * the resumed sequence.
+   * Not `typeof value`. JavaScript's idea of a type is not an OData contract:
+   * quoting a DateTime because it arrives as a string produces a filter the
+   * provider rejects outright. Verified live 2026-08-26 —
    *
-   * Verified live 2026-08-26, UNSCOPED (all statuses, including the 577,526
-   * Closed rows), because "no nulls among Active" would not have been enough:
+   *   ModificationTimestamp gt 2026-08-01T00:00:00Z    -> 266,027 rows
+   *   ModificationTimestamp gt '2026-08-01T00:00:00Z'  -> rejected
+   *   ListingContractDate gt 2026-01-01                -> 17,375 rows
+   *   ListingContractDate gt '2026-01-01'              -> rejected
    *
-   *   ListPrice              0 nulls  -> keyset safe
-   *   ModificationTimestamp  0 nulls  -> keyset safe
-   *   ListingContractDate    9,771 nulls -> NOT safe
+   * so date and datetime literals are BARE and only strings are quoted.
    */
-  readonly keysetSafe: boolean;
+  readonly literalType: 'decimal' | 'datetime' | 'date' | 'string';
 }
 
 /**
@@ -75,38 +74,33 @@ const TIE_BREAK = 'ListingKey asc';
 
 /** Every sort Mallan offers, keyed by MALLAN name rather than provider field. */
 export const MALLAN_SORT_KEYS: Readonly<Record<string, SortSpec>> = Object.freeze({
-  price_desc: { cotalityField: 'ListPrice', direction: 'desc', label: 'Price (high to low)', keysetSafe: true },
-  price_asc: { cotalityField: 'ListPrice', direction: 'asc', label: 'Price (low to high)', keysetSafe: true },
+  price_desc: { cotalityField: 'ListPrice', direction: 'desc', label: 'Price (high to low)', literalType: 'decimal' },
+  price_asc: { cotalityField: 'ListPrice', direction: 'asc', label: 'Price (low to high)', literalType: 'decimal' },
   // LISTED, not modified. Kept as a separate key from updated_* precisely
   // because collapsing them is the defect this contract removes.
   listed_desc: {
     cotalityField: 'ListingContractDate',
     direction: 'desc',
     label: 'Newest listed',
-    // 9,771 rows carry a null ListingContractDate, and where the provider
-    // orders those nulls could not be established: ordering ASC starts at
-    // 1900-01-01 and DESC starts at 2028-03-02, so nulls appear at neither end
-    // of the first rows. Guessing would silently drop those listings from a
-    // resumed sequence, so this sort takes the bounded rescan instead.
-    keysetSafe: false,
+    literalType: 'date',
   },
   listed_asc: {
     cotalityField: 'ListingContractDate',
     direction: 'asc',
     label: 'Oldest listed',
-    keysetSafe: false,
+    literalType: 'date',
   },
   updated_desc: {
     cotalityField: 'ModificationTimestamp',
     direction: 'desc',
     label: 'Recently updated',
-    keysetSafe: true,
+    literalType: 'datetime',
   },
   updated_asc: {
     cotalityField: 'ModificationTimestamp',
     direction: 'asc',
     label: 'Least recently updated',
-    keysetSafe: true,
+    literalType: 'datetime',
   },
 });
 
@@ -195,45 +189,137 @@ export function sortODataClause(key: string): string {
 }
 
 /**
- * The OData predicate that resumes AFTER a given position in this sort order.
+ * WHICH BUCKET OF THE ORDERING A TRAVERSAL IS IN.
  *
- * WHY THIS EXISTS. Cotality's own `@odata.nextLink` is a plain `$skip=N`
- * (verified live 2026-08-26 — there is no opaque skiptoken), and a numeric
- * offset is only correct against a frozen feed. Between two page requests a
- * listing ahead of the boundary can change price, be added, or be withdrawn,
- * and the offset then points somewhere else — duplicating or skipping rows even
- * though every sort carries a ListingKey tie-break.
+ * Every one of the three sort fields is DECLARED NULLABLE by the provider, and
+ * ListingContractDate carries 9,771 nulls today. "We observed zero nulls" is not
+ * a provider contract — a future null would fall outside a naive comparison and
+ * vanish from the resumed sequence without anything reporting a gap.
  *
- * A keyset predicate asks "rows ordered after (value, key)" instead, which is
- * stable under exactly those changes: it names a POSITION IN THE ORDERING
- * rather than a distance from the start.
+ * So the ordering is defined in two explicit phases rather than left to the
+ * provider's implicit null placement, which could not be established live:
+ * ordering ListingContractDate ASC starts at 1900-01-01 and DESC starts at
+ * 2028-03-02, so nulls appear at neither end of the first rows.
  *
- * Proven live: after (128000000, '1146011469') on `ListPrice desc, ListingKey
- * asc` the next rows are 88,500,000 then two rows both at 85,000,000 ordered by
- * key — the tie is traversed correctly rather than skipped.
+ * MALLAN'S NULL POLICY: known values first, in the requested order; unknown
+ * values last, ordered by ListingKey. Declared, not inferred.
+ */
+export enum KeysetPhase {
+  /** `field ne null`, ordered by the sort field then ListingKey. */
+  KNOWN = 'KNOWN',
+  /** `field eq null`, ordered by ListingKey alone. */
+  NULLS = 'NULLS',
+}
+
+/**
+ * Write a boundary value as an OData literal for THIS field's provider type.
  *
- * Returns null when the sort is not keyset-safe, so the caller falls back
- * rather than emitting a predicate that would drop null-valued rows.
+ * Driven by the registry, never by `typeof`. Live 2026-08-26: a quoted DateTime
+ * or Date literal is rejected outright, so getting this wrong does not degrade
+ * the results — it 400s the search.
+ */
+export function keysetLiteral(key: string, value: string | number): string {
+  const spec = MALLAN_SORT_KEYS[key];
+  if (!spec) throw new UnsupportedSortError(key);
+  switch (spec.literalType) {
+    case 'decimal':
+      return String(Number(value));
+    case 'datetime':
+    case 'date':
+      // BARE. Proven live: `ModificationTimestamp gt 2026-08-01T00:00:00Z`
+      // returns rows; the quoted form is rejected.
+      return String(value);
+    case 'string':
+    default:
+      return `'${String(value).replace(/'/g, "''")}'`;
+  }
+}
+
+/**
+ * ListingKey literals must LOOK like provider keys.
+ *
+ * Live 2026-08-26: `ListingKey gt 'K1'` returns HTTP 500 "Internal Server
+ * Error" — not a 400, not empty. A non-numeric key literal breaks the provider
+ * rather than being rejected cleanly, so a synthetic or corrupted boundary key
+ * would take the whole search down with an error that says nothing about why.
+ *
+ * Real boundary keys always come from actual rows and satisfy this naturally.
+ * The guard exists for the paths where one might not: a hand-built token, a
+ * fixture, a future caller. Fail here, by name, rather than at the provider.
+ */
+export function assertProviderListingKey(value: string): void {
+  if (!/^[0-9]+$/.test(value)) {
+    throw new UnsupportedSortError(
+      "continuation",
+      `ListingKey boundary '${value}' is not a provider key. Live: a non-numeric ` +
+        "ListingKey literal returns HTTP 500 from Cotality rather than an empty result.",
+    );
+  }
+}
+
+/** The ORDER BY for a phase. Nulls have no sort value, so only the key orders them. */
+export function phaseODataOrderBy(key: string, phase: KeysetPhase): string {
+  const spec = MALLAN_SORT_KEYS[key];
+  if (!spec) throw new UnsupportedSortError(key);
+  return phase === KeysetPhase.NULLS
+    ? TIE_BREAK
+    : `${spec.cotalityField} ${spec.direction}, ${TIE_BREAK}`;
+}
+
+/** The clause that scopes a query to one phase. */
+export function phaseScopeClause(key: string, phase: KeysetPhase): string {
+  const spec = MALLAN_SORT_KEYS[key];
+  if (!spec) throw new UnsupportedSortError(key);
+  // Both `eq null` and `ne null` are filterable on all three sort fields —
+  // verified live, and the two buckets sum exactly to the universe
+  // (581,534 + 9,771 = 591,305 for ListingContractDate).
+  return phase === KeysetPhase.NULLS
+    ? `${spec.cotalityField} eq null`
+    : `${spec.cotalityField} ne null`;
+}
+
+/**
+ * The predicate that resumes AFTER a position, within one phase.
+ *
+ * WHY KEYSET AT ALL. Cotality's own @odata.nextLink is a plain `$skip=N`
+ * (verified live — there is no opaque skiptoken), and an offset is only correct
+ * against a frozen feed: a listing ahead of the boundary being withdrawn skips a
+ * row, one being inserted repeats a row. A keyset names a POSITION IN THE ORDER,
+ * so there is no distance-from-the-start left to be invalidated.
+ *
+ * Proven live: after (128000000, '1146011469') on ListPrice desc the next rows
+ * are 88,500,000 then TWO rows both at 85,000,000 ordered by key — the tie is
+ * traversed rather than skipped.
+ *
+ * `lastValue` is null in the NULLS phase, where only the key orders rows.
  */
 export function keysetResumePredicate(
   key: string,
-  lastValue: string | number,
+  phase: KeysetPhase,
+  lastValue: string | number | null,
   lastListingKey: string,
-): string | null {
+): string {
   const spec = MALLAN_SORT_KEYS[key];
   if (!spec) throw new UnsupportedSortError(key);
-  if (!spec.keysetSafe) return null;
-
-  const field = spec.cotalityField;
-  // Values are emitted the way OData compares them: numbers bare, everything
-  // else quoted with quotes doubled.
-  const v =
-    typeof lastValue === 'number'
-      ? String(lastValue)
-      : `'${String(lastValue).replace(/'/g, "''")}'`;
+  assertProviderListingKey(lastListingKey);
   const k = `'${lastListingKey.replace(/'/g, "''")}'`;
+
+  if (phase === KeysetPhase.NULLS) {
+    return `(${spec.cotalityField} eq null and ListingKey gt ${k})`;
+  }
+
+  if (lastValue === null || lastValue === undefined) {
+    throw new UnsupportedSortError(
+      key,
+      "A KNOWN-phase resume needs the boundary row's sort value; null belongs to the NULLS phase.",
+    );
+  }
+
+  const v = keysetLiteral(key, lastValue);
+  const field = spec.cotalityField;
   // The tie-break is ALWAYS ascending on ListingKey, in both sort directions,
-  // because that is what sortODataClause emits.
+  // because that is what the ORDER BY emits. Flipping it here would
+  // desynchronise the predicate from the ordering it resumes.
   const beyond = spec.direction === 'desc' ? 'lt' : 'gt';
-  return `(${field} ${beyond} ${v} or (${field} eq ${v} and ListingKey gt ${k}))`;
+  return `(${field} ne null and (${field} ${beyond} ${v} or (${field} eq ${v} and ListingKey gt ${k})))`;
 }

@@ -19,6 +19,7 @@ import {
   InvalidContinuationError,
   continuationFingerprint,
   decodeContinuation,
+  expectedPageFor,
   isContinuationAvailable,
   nextContinuation,
 } from "@/lib/search/continuation";
@@ -29,6 +30,9 @@ import {
   providerBudgetFor,
 } from "@/lib/search/final-universe";
 import {
+  KeysetPhase,
+  keysetResumePredicate,
+  phaseODataOrderBy,
   resolveSort,
   sortODataClause,
   UnsupportedSortError,
@@ -409,15 +413,52 @@ export async function GET(req: NextRequest) {
     // fingerprint: a position captured at 20 rows a page is meaningless at 50.
     const fingerprint = continuationFingerprint(filter, effectiveSort, limit);
     const continuationParam = params.get("continuation");
-    const resume = continuationParam
-      ? (() => {
-          const c = decodeContinuation(continuationParam, fingerprint);
-          return {
-            providerOffset: c.providerOffset,
-            survivorsConsumed: c.survivorsConsumed,
-            tail: c.tail,
-          };
-        })()
+    const decoded = continuationParam
+      ? decodeContinuation(continuationParam, fingerprint)
+      : null;
+
+    // THE PAGE IS DERIVED FROM THE SEALED TOKEN, NOT ASSERTED BY THE CALLER.
+    //
+    // Without this a valid page-1 continuation could be sent with `page=99` and
+    // the server would return the next rows and label them page 99. It also
+    // keeps an UNFINISHED page on itself: 20 survivors consumed at 50 to a page
+    // is still page 1, so assembly continues rather than the caller moving on.
+    if (decoded) {
+      const expected = expectedPageFor(decoded.survivorsConsumed, limit);
+      if (page !== expected) {
+        throw new InvalidContinuationError(
+          `page ${page} does not match this continuation, which describes page ${expected}`,
+        );
+      }
+    }
+
+    const resume = decoded
+      ? {
+          // Retained only to carry the boundary tail and the survivor position.
+          // It is NOT the resume authority any more — the keyset predicate is.
+          providerOffset: 0,
+          survivorsConsumed: decoded.survivorsConsumed,
+          tail: decoded.tail,
+        }
+      : undefined;
+
+    // The provider query itself is narrowed to "after this position in the
+    // order", so a withdrawal or an insertion ahead of the boundary cannot move
+    // it — there is no distance-from-the-start left to be invalidated.
+    const keyset = decoded
+      ? {
+          predicate: keysetResumePredicate(
+            decoded.sortKey,
+            decoded.phase === "NULLS" ? KeysetPhase.NULLS : KeysetPhase.KNOWN,
+            decoded.sortValue,
+            decoded.lastListingKey,
+          ),
+          orderBy: phaseODataOrderBy(
+            decoded.sortKey,
+            decoded.phase === "NULLS" ? KeysetPhase.NULLS : KeysetPhase.KNOWN,
+          ),
+          phase: decoded.phase,
+        }
       : undefined;
 
     const cacheKey = `idx:${filter}:${effectiveSort}:${limit}:${skip}:p${page}:x${params.get("exactCount") === "true" ? 1 : 0}:c${continuationParam ?? ""}`;
@@ -441,9 +482,15 @@ export async function GET(req: NextRequest) {
     // Property query only: media is loaded by the dedicated media path so this
     // request does not depend on an unverified $expand behavior.
     const universe = await assembleFinalUniverse<Record<string, unknown>>({
-      fetchPage: async (providerSkip: number, top: number) => {
+      fetchPage: async (
+        providerSkip: number,
+        top: number,
+        ks?: { predicate: string; orderBy: string },
+      ) => {
         const page = await fetchFromTrestle({
-          filter,
+          // The keyset narrows the QUERY, so the walk starts at offset 0 of the
+          // narrowed universe rather than at a distance into the old one.
+          filter: ks ? `(${filter}) and ${ks.predicate}` : filter,
           select: SEARCH_SELECT_FIELDS,
           top,
           // The engine walks the provider from the top and cuts the broker's
@@ -452,7 +499,7 @@ export async function GET(req: NextRequest) {
           // coordinates — and silently step over rows. `skip` is honoured by
           // being folded into `page` above, not by offsetting the walk.
           skip: providerSkip,
-          orderby: effectiveSort,
+          orderby: ks ? ks.orderBy : effectiveSort,
           maxTotal: top,
           count: true,
           expandMedia: false,
@@ -497,6 +544,7 @@ export async function GET(req: NextRequest) {
       // to every search; `countMeaning` tells the caller which one they hold.
       exactCount: params.get("exactCount") === "true",
       resume,
+      keyset,
     });
 
     const identityless = universe.exclusions.identityless;
@@ -546,6 +594,11 @@ export async function GET(req: NextRequest) {
       // NULL when the count is a LOWER BOUND. "1000+ Results / Page 1 of 5" is
       // a self-contradiction, so the last page number is withheld until an
       // exhausted traversal proves it and navigation stays open-ended.
+      // CAPABILITY, STATED. A client must never assume deep continuation exists
+      // merely because the code supports it: the sealing secret is a protected
+      // env requirement and is not set.
+      continuationAvailable: isContinuationAvailable(),
+      continuationMode: isContinuationAvailable() ? "keyset" : "bounded_rescan",
       totalPages: universe.totalPages,
       // Fail-SAFE: true whenever more results MAY exist, including the
       // unresolved case. `more` carries the precise state, and no client may
@@ -571,7 +624,24 @@ export async function GET(req: NextRequest) {
           ? null
           : nextContinuation({
               fingerprint,
-              providerOffset: universe.providerOffsetReached,
+              sortKey: resolvedSort.key,
+              // The boundary value comes from the RAW provider record, never a
+              // mapped or formatted one — it is written straight back into an
+              // OData filter, and a value that has been through a renderer is a
+              // different value.
+              phase:
+                universe.boundaryRow &&
+                universe.boundaryRow[resolvedSort.spec.cotalityField] == null
+                  ? "NULLS"
+                  : "KNOWN",
+              sortValue:
+                universe.boundaryRow == null
+                  ? null
+                  : ((universe.boundaryRow[resolvedSort.spec.cotalityField] ?? null) as
+                      | string
+                      | number
+                      | null),
+              lastListingKey: String(universe.boundaryRow?.ListingKey ?? ""),
               survivorsConsumed: universe.survivorsConsumedBefore + universe.rows.length,
               pageRowKeys: universe.pageRowKeys,
               previousTail: resume?.tail,
@@ -591,12 +661,18 @@ export async function GET(req: NextRequest) {
         // reported once, under providerRowsRead, by the accounting block below.
         odataCount: result.odataCount,
         ...(() => {
+          // SEGMENT vs CUMULATIVE. providerRowsRead describes THIS segment,
+          // while universe.count is cumulative — it includes the survivors
+          // earlier requests already emitted. Feeding both into one accounting
+          // identity makes it fail on every resumed request even when Search is
+          // perfectly correct, which would train a reader to ignore it.
+          const segmentSurvivors = universe.count - universe.survivorsConsumedBefore;
           const c = searchIntegrityCounts({
             providerRowsFetched: universe.providerRowsRead,
             identityless,
             gatePassedBeforeDedupe: universe.gatePassedBeforeDedupe,
             providerDuplicates: universe.exclusions.providerDuplicates,
-            displayable: universe.count,
+            displayable: segmentSurvivors,
           });
           return {
             gatedOut: c.distributionGateFailures,
@@ -606,8 +682,16 @@ export async function GET(req: NextRequest) {
             // identified rows — so the distribution gates took credit for
             // rejecting rows they never saw.
             providerDuplicates: c.providerDuplicates,
-            finalSurvivorsTraversed: c.finalSurvivorsTraversed,
-            providerRowsRead: c.providerRowsFetched,
+            // Named for what they are. The identity balances over the SEGMENT:
+            //   segmentProviderRowsRead
+            //     = identityless + gated + providerDuplicates + segmentSurvivors
+            segmentSurvivorsTraversed: c.finalSurvivorsTraversed,
+            segmentProviderRowsRead: c.providerRowsFetched,
+            // The running lower bound across every segment so far — a different
+            // number answering a different question.
+            cumulativeSurvivorsObserved: universe.count,
+            survivorsConsumedBefore: universe.survivorsConsumedBefore,
+            rowsReturnedThisResponse: universe.rows.length,
             exclusionsBalance: c.balances,
           };
         })(),

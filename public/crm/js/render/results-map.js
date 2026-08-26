@@ -149,10 +149,13 @@
     el.className = 'results-map-pin';
     var bg = '#1a1a1a';
     if (status === 'ComingSoon') bg = '#d97706';
-    // CANONICAL RESO SPELLING. This read 'ACTIVE_UNDER_CONTRACT', which is not a
-    // StandardStatus member and therefore never matched — a dead branch, so
-    // every status except ComingSoon rendered in the same default colour,
-    // Closed and Withdrawn and Expired included.
+    // THE EXACT COTALITY StandardStatus MEMBER. This read
+    // 'ACTIVE_UNDER_CONTRACT', which is not a member and therefore never
+    // matched — a dead branch, so every status except ComingSoon rendered in the
+    // same default colour, Closed and Withdrawn and Expired included.
+    //
+    // "RESO spelling" was the wrong way to put it: the authority here is what
+    // the live Cotality feed actually emits, not a standards document.
     else if (status === 'ActiveUnderContract') bg = '#7c3aed';
     el.style.cssText = 'background:' + bg + ';color:#fff;font-size:11px;font-weight:700;padding:4px 8px;border-radius:6px;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25);border:2px solid #fff;';
     el.textContent = fmtPrice(price);

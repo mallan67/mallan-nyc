@@ -79,17 +79,31 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 const BOUNDARY_TAIL = 8;
 
 /** Bumped if the shape changes, so an old token is refused rather than misread. */
-const CONTINUATION_VERSION = 1;
+const CONTINUATION_VERSION = 2;
 
 export interface SearchContinuation {
   readonly v: number;
-  /** Provider rows already read by previous requests in this sequence. */
-  readonly providerOffset: number;
+  /**
+   * KEYSET BOUNDARY — the position in the ORDER to resume after.
+   *
+   * v2 replaced `providerOffset` as the resume authority rather than adding
+   * keyset beside it: two production pagination truths is one too many, and the
+   * offset one was proven unstable under a live feed (a withdrawal ahead of the
+   * boundary skips a row, an insertion repeats one).
+   *
+   * `sortValue` is the RAW Cotality value from the boundary record — never a
+   * mapped or formatted one. It is written straight back into an OData filter,
+   * and a value that has been through a renderer is a different value.
+   */
+  readonly sortKey: string;
+  readonly phase: string;
+  readonly sortValue: string | number | null;
+  readonly lastListingKey: string;
   /** Final-universe rows already emitted before this page. */
   readonly survivorsConsumed: number;
   /** Trailing provider-row keys, for dedupe across the boundary. */
   readonly tail: readonly string[];
-  /** Hash of the canonical criteria + sort this token belongs to. */
+  /** Hash of the canonical criteria + sort + page size this token belongs to. */
   readonly fp: string;
 }
 
@@ -212,10 +226,24 @@ export function decodeContinuation(
 
   if (c.v !== CONTINUATION_VERSION) throw new InvalidContinuationError("version mismatch");
 
-  const offset = c.providerOffset;
   const consumed = c.survivorsConsumed;
-  if (typeof offset !== "number" || !Number.isInteger(offset) || offset < 0) {
-    throw new InvalidContinuationError("provider offset is not a whole number of rows");
+  if (typeof c.sortKey !== "string" || c.sortKey === "") {
+    throw new InvalidContinuationError("missing sort key");
+  }
+  if (c.phase !== "KNOWN" && c.phase !== "NULLS") {
+    throw new InvalidContinuationError("unknown traversal phase");
+  }
+  if (typeof c.lastListingKey !== "string" || !/^[0-9]+$/.test(c.lastListingKey)) {
+    // Live: a non-numeric ListingKey literal returns HTTP 500 from Cotality
+    // rather than an empty result, so a malformed boundary would break the
+    // provider rather than fail cleanly here.
+    throw new InvalidContinuationError("boundary ListingKey is not a provider key");
+  }
+  if (c.phase === "KNOWN" && c.sortValue === null) {
+    throw new InvalidContinuationError("a KNOWN-phase boundary needs a sort value");
+  }
+  if (c.phase === "NULLS" && c.sortValue !== null) {
+    throw new InvalidContinuationError("a NULLS-phase boundary must not carry a sort value");
   }
   if (typeof consumed !== "number" || !Number.isInteger(consumed) || consumed < 0) {
     throw new InvalidContinuationError("survivor position is not a whole number of rows");
@@ -234,7 +262,10 @@ export function decodeContinuation(
 
   return {
     v: CONTINUATION_VERSION,
-    providerOffset: offset,
+    sortKey: c.sortKey,
+    phase: c.phase,
+    sortValue: (c.sortValue ?? null) as string | number | null,
+    lastListingKey: c.lastListingKey,
     survivorsConsumed: consumed,
     tail: c.tail as string[],
     fp: c.fp,
@@ -244,7 +275,11 @@ export function decodeContinuation(
 /** Build the continuation a caller should send to get the NEXT page. */
 export function nextContinuation(args: {
   fingerprint: string;
-  providerOffset: number;
+  sortKey: string;
+  phase: string;
+  /** RAW provider value from the boundary record. */
+  sortValue: string | number | null;
+  lastListingKey: string;
   survivorsConsumed: number;
   /** Provider-row keys of the survivors on this page, in order. */
   pageRowKeys: readonly string[];
@@ -254,11 +289,30 @@ export function nextContinuation(args: {
   const combined = [...(args.previousTail ?? []), ...args.pageRowKeys];
   return encodeContinuation({
     v: CONTINUATION_VERSION,
-    providerOffset: args.providerOffset,
+    sortKey: args.sortKey,
+    phase: args.phase,
+    sortValue: args.sortValue,
+    lastListingKey: args.lastListingKey,
     survivorsConsumed: args.survivorsConsumed,
     tail: combined.slice(-BOUNDARY_TAIL),
     fp: args.fingerprint,
   });
+}
+
+/**
+ * The ONLY page a continuation describes.
+ *
+ * A sealed token says how many survivors were already emitted, so the page it
+ * belongs to is arithmetic, not a caller's assertion. Without this a valid page-1
+ * token could be sent with `page=99` and the server would return the next rows
+ * and label them page 99.
+ *
+ * It also keeps an UNFINISHED page on itself: 20 survivors consumed at 50 to a
+ * page is still page 1, so the server continues assembling page 1 rather than
+ * letting the caller move on.
+ */
+export function expectedPageFor(survivorsConsumed: number, pageSize: number): number {
+  return Math.floor(survivorsConsumed / Math.max(1, pageSize)) + 1;
 }
 
 export const CONTINUATION_BOUNDARY_TAIL = BOUNDARY_TAIL;

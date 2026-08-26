@@ -46,7 +46,11 @@ import { NextRequest } from 'next/server';
 /** A displayable provider row: real key, no opt-out, internet display allowed. */
 function row(n: number, extra: Record<string, unknown> = {}) {
   return {
-    ListingKey: `K${String(n).padStart(5, '0')}`,
+    // NUMERIC, like real provider keys. Live: a non-numeric ListingKey literal
+    // makes Cotality return HTTP 500, so the continuation refuses to mint a
+    // boundary from one — a fixture with fake keys would fail for that reason
+    // rather than for the reason under test.
+    ListingKey: String(1146011469 + n),
     ListingId: `RLS${n}`,
     StandardStatus: 'Active',
     PropertyType: 'Residential',
@@ -429,8 +433,10 @@ describe('continuation over the route', () => {
   it('the continuation resumes and returns DIFFERENT rows', async () => {
     serveMany(100_000);
     const first = await callSearch('type=sale&limit=20');
+    // page=2 because the token says so: the page is derived from the sealed
+    // survivor position, not asserted by the caller.
     const second = await callSearch(
-      'type=sale&limit=20&continuation=' + encodeURIComponent(first.continuation),
+      'type=sale&limit=20&page=2&continuation=' + encodeURIComponent(first.continuation),
     );
     const idsOf = (b: any) => b.listings.map((l: any) => JSON.stringify(l)).join('|');
     expect(second.listings).toHaveLength(20);
@@ -451,7 +457,7 @@ describe('continuation over the route', () => {
     // universe, and silently restarting would hand back page 1.
     const res = await GET(
       new NextRequest(
-        'https://x.test/api/idx/search?type=sale&limit=20&minPrice=900000&continuation=' +
+        'https://x.test/api/idx/search?type=sale&limit=20&page=2&minPrice=900000&continuation=' +
           encodeURIComponent(first.continuation),
       ),
     );
@@ -495,5 +501,89 @@ describe('continuation is fail-closed when it cannot be sealed', () => {
     } finally {
       if (saved) process.env.SEARCH_CONTINUATION_SECRET = saved;
     }
+  });
+});
+
+/**
+ * THE PAGE NUMBER IS NOT A CALLER'S ASSERTION.
+ *
+ * The token is sealed, but `page` travelled beside it unchecked — the seal
+ * protects the payload and the page number was never in the payload. A valid
+ * page-1 continuation sent with `page=99` returned the next rows and labelled
+ * them page 99.
+ */
+describe('a sealed continuation with the wrong page is refused', () => {
+  function serveMany(total: number) {
+    mockFetchFromTrestle.mockImplementation(async (args: any) => {
+      const start = args.skip ?? 0;
+      const slice = Array.from(
+        { length: Math.max(0, Math.min(args.top ?? 50, total - start)) },
+        (_, i) => row(start + i + 1),
+      );
+      return {
+        records: slice,
+        odataCount: total,
+        hasMore: start + slice.length < total,
+        nextLink: start + slice.length < total ? 'https://next' : undefined,
+        totalFetched: slice.length,
+      };
+    });
+  }
+
+  it.each([1, 3, 99])('page=%p against a page-2 token is rejected', async (wrongPage) => {
+    serveMany(100_000);
+    const first = await callSearch('type=sale&limit=20');
+    const { GET } = await import('@/app/api/idx/search/route');
+    const res = await GET(
+      new NextRequest(
+        `https://x.test/api/idx/search?type=sale&limit=20&page=${wrongPage}&continuation=` +
+          encodeURIComponent(first.continuation),
+      ),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.code).toBe('INVALID_CONTINUATION');
+    expect(body.reason).toMatch(/describes page 2/);
+  });
+});
+
+describe('the response discloses what continuation it can actually do', () => {
+  it('states availability and mode rather than leaving the client to guess', async () => {
+    // A client must never assume deep continuation exists merely because the
+    // code supports it — the sealing secret is a protected env requirement.
+    mockFetchFromTrestle.mockResolvedValue({
+      records: [row(1)],
+      odataCount: 1,
+      hasMore: false,
+      nextLink: undefined,
+      totalFetched: 1,
+    });
+    const body = await callSearch();
+    expect(typeof body.continuationAvailable).toBe('boolean');
+    expect(['keyset', 'bounded_rescan']).toContain(body.continuationMode);
+  });
+});
+
+describe('resumed-segment telemetry balances on the SEGMENT', () => {
+  it('segment rows read = identityless + gated + duplicates + segment survivors', async () => {
+    // universe.count is CUMULATIVE. Feeding it into an identity built from
+    // this segment's row count made the identity fail on every resumed request
+    // even when Search was correct — which trains a reader to ignore it.
+    mockFetchFromTrestle.mockResolvedValue({
+      records: [row(1), row(2, { Permission: 'Private' }), row(3, { ListingKey: null }), row(1)],
+      odataCount: 4,
+      hasMore: false,
+      nextLink: undefined,
+      totalFetched: 4,
+    });
+    const body = await callSearch();
+    const m = body._meta;
+    expect(m.exclusionsBalance).toBe(true);
+    expect(
+      m.identityless + m.gatedOut + m.providerDuplicates + m.segmentSurvivorsTraversed,
+    ).toBe(m.segmentProviderRowsRead);
+    // And the cumulative figure is reported SEPARATELY, answering a different
+    // question from the segment one.
+    expect(typeof m.cumulativeSurvivorsObserved).toBe('number');
   });
 });

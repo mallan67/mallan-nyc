@@ -156,67 +156,156 @@ describe('the legacy provider strings the client still sends are translated, not
 });
 
 /**
- * KEYSET CONTINUATION — a POSITION IN THE ORDERING, not a distance from the
- * start.
+ * KEYSET, TYPED AND NULL-AWARE.
  *
- * Cotality's own @odata.nextLink is a plain `$skip=N` (verified live
- * 2026-08-26 — there is no opaque skiptoken), and a numeric offset is only
- * correct against a frozen feed. Between two page requests a listing ahead of
- * the boundary can change price, be added, or be withdrawn, and the offset then
- * points somewhere else — duplicating or skipping rows even though every sort
- * carries a ListingKey tie-break.
+ * Cotality's own @odata.nextLink is a plain `$skip=N` (verified live — there is
+ * no opaque skiptoken), and an offset is only correct against a frozen feed. A
+ * keyset names a POSITION IN THE ORDER instead, so an insertion or a withdrawal
+ * ahead of the boundary cannot invalidate it.
+ *
+ * Two things this contract refuses to guess:
+ *
+ *   THE LITERAL TYPE. `typeof value` is not an OData contract. Live 2026-08-26,
+ *   a quoted DateTime or Date is REJECTED — so getting it wrong does not degrade
+ *   results, it 400s the search.
+ *
+ *   WHERE NULLS SORT. All three sort fields are declared nullable and
+ *   ListingContractDate carries 9,771 nulls. Ordering ASC starts at 1900-01-01
+ *   and DESC starts at 2028-03-02, so nulls appear at neither end and the
+ *   provider's implicit placement could not be established. Mallan declares the
+ *   policy instead: known values first, nulls last, ordered by ListingKey.
  */
-describe('keyset safety is decided by live null population, not by hope', () => {
-  it.each([
-    ['price_desc', true, 'ListPrice: 0 nulls unscoped'],
-    ['price_asc', true, 'ListPrice: 0 nulls unscoped'],
-    ['updated_desc', true, 'ModificationTimestamp: 0 nulls unscoped'],
-    ['updated_asc', true, 'ModificationTimestamp: 0 nulls unscoped'],
-    ['listed_desc', false, 'ListingContractDate: 9,771 nulls unscoped'],
-    ['listed_asc', false, 'ListingContractDate: 9,771 nulls unscoped'],
-  ])('%s keysetSafe=%p (%s)', (key, safe) => {
-    expect(MALLAN_SORT_KEYS[key].keysetSafe).toBe(safe);
+import {
+  KeysetPhase,
+  assertProviderListingKey,
+  keysetLiteral,
+  phaseODataOrderBy,
+  phaseScopeClause,
+} from '@/lib/search/canonical/sort-contract';
+
+describe('literals are written for the PROVIDER type, not the JS type', () => {
+  it('a Decimal is bare', () => {
+    expect(keysetLiteral('price_desc', 128000000)).toBe('128000000');
   });
 
-  it('a nullable sort field yields NO predicate rather than a lossy one', () => {
-    // A null cannot be compared, so `Field lt X` silently excludes every
-    // null-valued row from the resumed sequence. Where the provider orders
-    // those nulls could not be established, and guessing is how listings
-    // disappear.
-    expect(keysetResumePredicate('listed_desc', '2026-01-01', 'K1')).toBeNull();
-    expect(keysetResumePredicate('listed_asc', '2026-01-01', 'K1')).toBeNull();
+  it('a DateTime is BARE — quoting it is rejected by the provider', () => {
+    // Live: `ModificationTimestamp gt 2026-08-01T00:00:00Z` -> 266,027 rows;
+    // the quoted form is rejected outright.
+    expect(keysetLiteral('updated_desc', '2026-08-01T00:00:00Z')).toBe('2026-08-01T00:00:00Z');
+  });
+
+  it('a Date is BARE too', () => {
+    // Live: `ListingContractDate gt 2026-01-01` -> 17,375 rows; quoted rejected.
+    expect(keysetLiteral('listed_desc', '2026-01-01')).toBe('2026-01-01');
+  });
+
+  it('every registered sort declares its provider literal type', () => {
+    for (const [key, spec] of Object.entries(MALLAN_SORT_KEYS)) {
+      expect(['decimal', 'datetime', 'date', 'string']).toContain(spec.literalType);
+      expect(key).toBeTruthy();
+    }
+  });
+
+  it('no sort is left keyset-INcapable', () => {
+    // The old registry parked listed_* behind the bounded rescan forever
+    // because nobody knew where nulls sorted. The two-phase policy resolves
+    // that without guessing, so every sort is now pageable.
+    expect(Object.keys(MALLAN_SORT_KEYS)).toHaveLength(6);
+    for (const key of Object.keys(MALLAN_SORT_KEYS)) {
+      expect(() =>
+        keysetResumePredicate(key, KeysetPhase.KNOWN, key.startsWith('price') ? 1 : '2026-01-01', '1146011469'),
+      ).not.toThrow();
+    }
   });
 });
 
-describe('the resume predicate names a position in the order', () => {
-  it('descending asks for values BELOW, then breaks the tie upward on key', () => {
-    // Proven live: after (128000000, '1146011469') on ListPrice desc the next
-    // rows are 88,500,000 and then two rows both at 85,000,000 ordered by key.
-    expect(keysetResumePredicate('price_desc', 128000000, '1146011469')).toBe(
-      "(ListPrice lt 128000000 or (ListPrice eq 128000000 and ListingKey gt '1146011469'))",
+describe('the ordering is two explicit phases', () => {
+  it('the KNOWN phase scopes to non-null and orders by the field', () => {
+    expect(phaseScopeClause('listed_desc', KeysetPhase.KNOWN)).toBe('ListingContractDate ne null');
+    expect(phaseODataOrderBy('listed_desc', KeysetPhase.KNOWN)).toBe(
+      'ListingContractDate desc, ListingKey asc',
     );
   });
 
-  it('ascending asks for values ABOVE, with the same upward tie-break', () => {
-    // The tie-break stays ASC in both directions because that is what
-    // sortODataClause actually emits; flipping it here would desynchronise the
-    // predicate from the ordering it is meant to resume.
-    expect(keysetResumePredicate('price_asc', 500000, 'K9')).toBe(
-      "(ListPrice gt 500000 or (ListPrice eq 500000 and ListingKey gt 'K9'))",
+  it('the NULLS phase scopes to null and orders by the KEY alone', () => {
+    // A null has no sort value, so ordering by the field would be meaningless.
+    expect(phaseScopeClause('listed_desc', KeysetPhase.NULLS)).toBe('ListingContractDate eq null');
+    expect(phaseODataOrderBy('listed_desc', KeysetPhase.NULLS)).toBe('ListingKey asc');
+  });
+
+  it('the two phases partition the universe exactly', () => {
+    // Live: 581,534 ne null + 9,771 eq null = 591,305 total. No row is in both
+    // and none is in neither, which is what makes the policy total.
+    const known = phaseScopeClause('listed_asc', KeysetPhase.KNOWN);
+    const nulls = phaseScopeClause('listed_asc', KeysetPhase.NULLS);
+    expect(known).toContain('ne null');
+    expect(nulls).toContain('eq null');
+  });
+});
+
+describe('the resume predicate for each sort', () => {
+  it('price desc', () => {
+    expect(keysetResumePredicate('price_desc', KeysetPhase.KNOWN, 128000000, '1146011469')).toBe(
+      "(ListPrice ne null and (ListPrice lt 128000000 or (ListPrice eq 128000000 and ListingKey gt '1146011469')))",
     );
   });
 
-  it('quotes a timestamp value and leaves a number bare', () => {
-    const ts = keysetResumePredicate('updated_desc', '2026-08-01T00:00:00Z', 'K1');
-    expect(ts).toContain("ModificationTimestamp lt '2026-08-01T00:00:00Z'");
-    expect(keysetResumePredicate('price_desc', 100, 'K1')).toContain('ListPrice lt 100');
+  it('price asc', () => {
+    expect(keysetResumePredicate('price_asc', KeysetPhase.KNOWN, 500000, '1146011469')).toBe(
+      "(ListPrice ne null and (ListPrice gt 500000 or (ListPrice eq 500000 and ListingKey gt '1146011469')))",
+    );
   });
 
-  it('escapes a quote in the key rather than breaking the clause', () => {
-    expect(keysetResumePredicate('price_desc', 1, "K'1")).toContain("ListingKey gt 'K''1'");
+  it('updated desc — an unquoted DateTime', () => {
+    expect(
+      keysetResumePredicate('updated_desc', KeysetPhase.KNOWN, '2026-08-01T00:00:00Z', '1146011469'),
+    ).toBe(
+      "(ModificationTimestamp ne null and (ModificationTimestamp lt 2026-08-01T00:00:00Z or (ModificationTimestamp eq 2026-08-01T00:00:00Z and ListingKey gt '1146011469')))",
+    );
+  });
+
+  it('listed asc — an unquoted Date', () => {
+    expect(keysetResumePredicate('listed_asc', KeysetPhase.KNOWN, '2026-01-01', '1146011469')).toBe(
+      "(ListingContractDate ne null and (ListingContractDate gt 2026-01-01 or (ListingContractDate eq 2026-01-01 and ListingKey gt '1146011469')))",
+    );
+  });
+
+  it('the NULLS phase resumes on the key alone', () => {
+    // Live-proven: eq null ordered by ListingKey gives 1091340174, ...175,
+    // ...177; resuming after ...175 returns ...177 then ...183.
+    expect(keysetResumePredicate('listed_desc', KeysetPhase.NULLS, null, '1091340175')).toBe(
+      "(ListingContractDate eq null and ListingKey gt '1091340175')",
+    );
+  });
+
+  it('a KNOWN resume without a boundary value is refused, not guessed', () => {
+    // A null boundary belongs to the NULLS phase. Substituting one here would
+    // silently produce a predicate that matches nothing.
+    expect(() => keysetResumePredicate('price_desc', KeysetPhase.KNOWN, null, '1146011469')).toThrow(
+      UnsupportedSortError,
+    );
+  });
+
+  it('a non-provider-shaped ListingKey is refused BEFORE it reaches Cotality', () => {
+    // Live 2026-08-26: `ListingKey gt 'K1'` returns HTTP 500 "Internal Server
+    // Error" — not a 400, not an empty result. A bad key literal BREAKS the
+    // provider rather than being rejected cleanly, with an error that says
+    // nothing about why. So the shape is checked here, by name.
+    //
+    // This is also how the five "failing" predicate shapes above were
+    // diagnosed: they were failing on the fake key 'K1', not on their design.
+    // Every one was re-verified live with a real numeric key.
+    expect(() => keysetResumePredicate('price_desc', KeysetPhase.KNOWN, 1, 'K1')).toThrow(
+      UnsupportedSortError,
+    );
+    expect(() => assertProviderListingKey('1146011469')).not.toThrow();
+    expect(() => assertProviderListingKey("1146011469'; DROP")).toThrow(UnsupportedSortError);
+    expect(() => assertProviderListingKey('')).toThrow(UnsupportedSortError);
   });
 
   it('an unknown sort key still fails by name', () => {
-    expect(() => keysetResumePredicate('bogus', 1, 'K1')).toThrow(UnsupportedSortError);
+    expect(() => keysetResumePredicate('bogus', KeysetPhase.KNOWN, 1, '1146011469')).toThrow(
+      UnsupportedSortError,
+    );
   });
 });

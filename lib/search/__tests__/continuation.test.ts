@@ -25,6 +25,7 @@ import {
   continuationFingerprint,
   decodeContinuation,
   encodeContinuation,
+  expectedPageFor,
   nextContinuation,
 } from '@/lib/search/continuation';
 import { readFileSync } from 'fs';
@@ -43,24 +44,30 @@ const FP = continuationFingerprint(FILTER, SORT, PAGE_SIZE);
 const token = (over: Partial<Record<string, unknown>> = {}) =>
   nextContinuation({
     fingerprint: FP,
-    providerOffset: 60_000,
+    sortKey: 'price_desc',
+    phase: 'KNOWN',
+    sortValue: 5_000_000,
+    lastListingKey: '1146011469',
     survivorsConsumed: 1_000,
-    pageRowKeys: ['K1', 'K2', 'K3'],
+    pageRowKeys: ['1146011469', '1146011470', '1146011471'],
     ...over,
   } as any);
 
 describe('a continuation round-trips its position', () => {
   it('carries the provider offset and survivors consumed', () => {
     const c = decodeContinuation(token(), FP);
-    expect(c.providerOffset).toBe(60_000);
+    expect(c.sortKey).toBe('price_desc');
+    expect(c.phase).toBe('KNOWN');
+    expect(c.sortValue).toBe(5_000_000);
+    expect(c.lastListingKey).toBe('1146011469');
     expect(c.survivorsConsumed).toBe(1_000);
   });
 
   it('carries a bounded tail of boundary keys', () => {
-    const many = Array.from({ length: 50 }, (_, i) => `K${i}`);
+    const many = Array.from({ length: 50 }, (_, i) => String(1146011469 + i));
     const c = decodeContinuation(token({ pageRowKeys: many }), FP);
     expect(c.tail).toHaveLength(CONTINUATION_BOUNDARY_TAIL);
-    expect(c.tail[c.tail.length - 1]).toBe('K49');
+    expect(c.tail[c.tail.length - 1]).toBe(String(1146011469 + 49));
   });
 
   it('a short page still hands on a usable boundary', () => {
@@ -68,12 +75,17 @@ describe('a continuation round-trips its position', () => {
     // otherwise the boundary shrinks to nothing exactly when it is needed.
     const t = nextContinuation({
       fingerprint: FP,
-      providerOffset: 65_000,
+      sortKey: 'price_desc',
+      phase: 'KNOWN',
+      sortValue: 4_000_000,
+      lastListingKey: '1146011499',
       survivorsConsumed: 1_050,
-      pageRowKeys: ['K99'],
-      previousTail: ['K90', 'K91', 'K92'],
+      pageRowKeys: ['1146011499'],
+      previousTail: ['1146011490', '1146011491', '1146011492'],
     });
-    expect(decodeContinuation(t, FP).tail).toEqual(['K90', 'K91', 'K92', 'K99']);
+    expect(decodeContinuation(t, FP).tail).toEqual([
+      '1146011490', '1146011491', '1146011492', '1146011499',
+    ]);
   });
 });
 
@@ -107,18 +119,30 @@ describe('a malformed or tampered token is refused BY NAME', () => {
   });
 
   it.each([
-    ['a negative provider offset', { providerOffset: -1 }],
-    ['a fractional provider offset', { providerOffset: 1.5 }],
     ['a negative survivor position', { survivorsConsumed: -5 }],
-    ['a non-numeric offset', { providerOffset: '60000' }],
+    ['a fractional survivor position', { survivorsConsumed: 1.5 }],
     ['a wrong version', { v: 99 }],
     ['a missing fingerprint', { fp: '' }],
     ['malformed boundary keys', { tail: [1, 2, 3] }],
+    ['an unknown traversal phase', { phase: 'SIDEWAYS' }],
+    ['a non-provider boundary key', { lastListingKey: 'K1' }],
+    ['a KNOWN phase with no sort value', { phase: 'KNOWN', sortValue: null }],
+    ['a NULLS phase carrying a sort value', { phase: 'NULLS', sortValue: 5 }],
   ])('%s is refused', (_label, over) => {
     // SEALED deliberately, so each case fails on the SHAPE check it is named
     // for rather than on the seal. An unsealed payload would pass this test for
     // the wrong reason and hide a broken validator.
-    const raw = { v: 1, providerOffset: 10, survivorsConsumed: 5, tail: ['K1'], fp: FP, ...over };
+    const raw = {
+      v: 2,
+      sortKey: 'price_desc',
+      phase: 'KNOWN',
+      sortValue: 5_000_000,
+      lastListingKey: '1146011469',
+      survivorsConsumed: 5,
+      tail: ['1146011469'],
+      fp: FP,
+      ...over,
+    };
     const bad = encodeContinuation(raw as any);
     expect(() => decodeContinuation(bad, FP)).toThrow(InvalidContinuationError);
   });
@@ -159,7 +183,9 @@ describe('the token holds everything needed to resume', () => {
     const decoded = JSON.parse(
       Buffer.from(token().split('.')[0], 'base64url').toString('utf8'),
     );
-    expect(Object.keys(decoded).sort()).toEqual(['fp', 'providerOffset', 'survivorsConsumed', 'tail', 'v']);
+    expect(Object.keys(decoded).sort()).toEqual([
+      'fp', 'lastListingKey', 'phase', 'sortKey', 'sortValue', 'survivorsConsumed', 'tail', 'v',
+    ]);
     expect(JSON.stringify(decoded)).not.toContain('StandardStatus');
     expect(JSON.stringify(decoded)).not.toContain('Manhattan');
   });
@@ -193,11 +219,12 @@ describe('a structurally valid but EDITED token is refused', () => {
   };
 
   it.each([
-    ['the provider position moved forward', { providerOffset: 300_000 }],
-    ['the provider position moved back', { providerOffset: 10 }],
+    ['the keyset boundary VALUE was moved', { sortValue: 1 }],
+    ['the boundary ListingKey was moved', { lastListingKey: '9999999999' }],
     ['the survivor position moved', { survivorsConsumed: 5 }],
-    ['the boundary keys were swapped', { tail: ['SOMETHING', 'ELSE'] }],
-    ['the keyset position was moved', { lastSortValue: 1 }],
+    ['the boundary keys were swapped', { tail: ['1', '2'] }],
+    ['the traversal phase was flipped', { phase: 'NULLS' }],
+    ['the sort key was swapped', { sortKey: 'price_asc' }],
   ])('%s', (_label, over) => {
     // All of these keep `fp` intact and re-encode cleanly, so nothing about the
     // SHAPE is wrong. Only integrity over the payload catches them.
@@ -235,5 +262,33 @@ describe('the integrity limitation is DECLARED, not glossed over', () => {
     );
     expect(src).toMatch(/PROTECTED BOUNDARY/);
     expect(src).toMatch(/SEARCH_CONTINUATION_SECRET/);
+  });
+});
+
+/**
+ * THE PAGE A TOKEN DESCRIBES IS ARITHMETIC, NOT A CALLER'S ASSERTION.
+ *
+ * The token was sealed, but the `page` parameter travelled beside it unchecked.
+ * A valid page-1 continuation sent with `page=99` would have returned the next
+ * rows and labelled them page 99 — the seal protects the payload, and the page
+ * number was never in the payload.
+ */
+describe('the page is derived from the sealed survivor position', () => {
+  it.each([
+    [0, 50, 1],
+    [50, 50, 2],
+    [100, 50, 3],
+    [1_000, 20, 51],
+  ])('survivorsConsumed=%p at pageSize=%p is page %p', (consumed, size, page) => {
+    expect(expectedPageFor(consumed, size)).toBe(page);
+  });
+
+  it('an UNFINISHED page stays on itself', () => {
+    // 20 survivors consumed at 50 to a page is still page 1, so the server
+    // continues assembling page 1 rather than letting the caller move on to
+    // page 2 with a 20-row page 1 behind them.
+    expect(expectedPageFor(20, 50)).toBe(1);
+    expect(expectedPageFor(49, 50)).toBe(1);
+    expect(expectedPageFor(50, 50)).toBe(2);
   });
 });

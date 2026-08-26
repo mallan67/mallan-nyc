@@ -45,7 +45,7 @@
  * from the FINAL universe, so a gated row pulls the next survivor forward
  * instead of leaving a hole.
  */
-import { keysetResumePredicate } from '@/lib/search/canonical/sort-contract';
+import { KeysetPhase, keysetResumePredicate } from '@/lib/search/canonical/sort-contract';
 import {
   assembleFinalUniverse,
   CountMeaning,
@@ -952,9 +952,17 @@ describe('numeric offset resume is NOT stable under a live feed', () => {
     // where in the ORDER to resume, so inserting or withdrawing a listing ahead
     // of the boundary cannot move it — there is no "distance from the start"
     // left to be wrong.
-    const predicate = keysetResumePredicate('price_desc', 5_000_000, 'K0019');
+    const predicate = keysetResumePredicate(
+      'price_desc',
+      KeysetPhase.KNOWN,
+      5_000_000,
+      '1146011469',
+    );
     expect(predicate).toContain('ListPrice lt 5000000');
-    expect(predicate).toContain("ListingKey gt 'K0019'");
+    expect(predicate).toContain("ListingKey gt '1146011469'");
     expect(predicate).not.toMatch(/skip/i);
+    // And it scopes to the KNOWN phase, so a null-valued row cannot silently
+    // fall outside the comparison and vanish from the sequence.
+    expect(predicate).toContain('ListPrice ne null');
   });
 });
