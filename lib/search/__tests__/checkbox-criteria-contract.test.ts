@@ -33,19 +33,21 @@ import {
 import { buildCrmIdxODataFilter } from "@/lib/search/crm-idx-filter";
 
 describe("the registry is closed", () => {
-  it("registers exactly the eleven live-verified multi-enum fields", () => {
+  it("registers exactly the ten EXECUTION-PROVEN multi-enum criteria", () => {
+    // Keyed by MALLAN CRITERION, not by Cotality field name. PropertyCondition
+    // is absent: it is provider-suppressed for filtering (proven live), which is
+    // PROVIDER_UNAVAILABLE, not "unmapped".
     expect(registeredCheckboxFields()).toEqual([
-      "AccessibilityFeatures",
-      "ArchitecturalStyle",
-      "BuildingFeatures",
-      "BusinessType",
-      "ExteriorFeatures",
-      "LaundryFeatures",
-      "PetsAllowed",
-      "PoolFeatures",
-      "PropertyCondition",
-      "StructureType",
-      "View",
+      "accessibility",
+      "architectural_style",
+      "building_amenities",
+      "building_structure",
+      "business_use",
+      "laundry",
+      "outdoor_features",
+      "pet_policy",
+      "pool",
+      "view",
     ]);
   });
 
@@ -89,7 +91,9 @@ describe("unresolved values fail by name and say why", () => {
   it.each([
     ["PetsAllowed", "CatsOnly", /CatsOk/],
     ["PetsAllowed", "DogsOnly", /DogsOk/],
-    ["PropertyCondition", "Fair", /AverageCondition|BelowAverage/],
+    // PropertyCondition is provider-SUPPRESSED, so the suppression reason is the
+    // correct one to surface — a different fact from an unmapped value.
+    ["PropertyCondition", "Fair", /suppressed \(provider/i],
     ["LaundryFeatures", "Common", /CommonArea/],
     ["View", "Park", /not a member|rejects Park/i],
   ])("%s.%s is rejected with its reason", (field, value, reasonPattern) => {

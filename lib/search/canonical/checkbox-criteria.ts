@@ -79,14 +79,14 @@ export class UnsupportedCheckboxCriterionError extends Error {
 }
 
 const REGISTRY: ReadonlyMap<CheckboxFieldName, CheckboxFieldContract> = new Map([
-  ['View', {
+  ['view', {
     cotalityField: 'View',
     allowed: new Set(['Bay', 'Beach', 'Bridges', 'Canal', 'City', 'CityLights', 'Downtown', 'Forest', 'Garden', 'Lake', 'Mountains', 'Ocean', 'Panoramic', 'ParkGreenbelt', 'River', 'Skyline', 'TreesWoods', 'Water']),
     unresolved: new Map([
       ['Park', "Provider View enum rejects Park (HTTP 400). Not a member."],
     ]),
   }],
-  ['PetsAllowed', {
+  ['pet_policy', {
     cotalityField: 'PetsAllowed',
     allowed: new Set<string>([]),
     unresolved: new Map([
@@ -95,14 +95,14 @@ const REGISTRY: ReadonlyMap<CheckboxFieldName, CheckboxFieldContract> = new Map(
       ['NoRestrictions', "Provider has NoPetRestrictions, NoBreedRestrictions and NoSizeLimit as distinct members. Which one Mallan means is unproven."],
     ]),
   }],
-  ['LaundryFeatures', {
+  ['laundry', {
     cotalityField: 'LaundryFeatures',
     allowed: new Set(['InUnit']),
     unresolved: new Map([
       ['Common', "Provider has CommonArea AND CommonOnFloor. Which one \"Common\" means is unproven."],
     ]),
   }],
-  ['StructureType', {
+  ['building_structure', {
     cotalityField: 'StructureType',
     allowed: new Set(['HighRise', 'Townhouse']),
     unresolved: new Map([
@@ -110,30 +110,21 @@ const REGISTRY: ReadonlyMap<CheckboxFieldName, CheckboxFieldContract> = new Map(
       ['WalkUp', "Not a StructureType member. Needs proof of the provider fact that expresses walk-up."],
     ]),
   }],
-  ['ArchitecturalStyle', {
+  ['architectural_style', {
     cotalityField: 'ArchitecturalStyle',
     allowed: new Set(['Loft', 'Prewar', 'WalkUp']),
     unresolved: new Map([
       ['Brownstone', "Not an ArchitecturalStyle member. Needs proof."],
     ]),
   }],
-  ['PropertyCondition', {
-    cotalityField: 'PropertyCondition',
-    allowed: new Set(['Excellent']),
-    unresolved: new Map([
-      ['Fair', "Provider has AverageCondition and BelowAverage. There is no Fair. The intended member is genuinely ambiguous."],
-      ['Good', "Provider has GoodCondition. Plausible spelling variant but UNCONFIRMED against Mallan business meaning."],
-      ['Poor', "Provider has PoorCondition. Plausible spelling variant but UNCONFIRMED."],
-    ]),
-  }],
-  ['AccessibilityFeatures', {
+  ['accessibility', {
     cotalityField: 'AccessibilityFeatures',
     allowed: new Set<string>([]),
     unresolved: new Map([
       ['WheelchairAccessible', "Provider exposes many granular Accessible* members; no single wheelchair member. Mapping would be a Mallan composition."],
     ]),
   }],
-  ['ExteriorFeatures', {
+  ['outdoor_features', {
     cotalityField: 'ExteriorFeatures',
     allowed: new Set(['Balcony', 'BuildingRoofDeck', 'Courtyard', 'Garden', 'Patio']),
     unresolved: new Map([
@@ -141,12 +132,12 @@ const REGISTRY: ReadonlyMap<CheckboxFieldName, CheckboxFieldContract> = new Map(
       ['Terrace', "Not an ExteriorFeatures member. Unproven."],
     ]),
   }],
-  ['PoolFeatures', {
+  ['pool', {
     cotalityField: 'PoolFeatures',
     allowed: new Set(['Indoor']),
     unresolved: new Map<string, string>(),
   }],
-  ['BuildingFeatures', {
+  ['building_amenities', {
     cotalityField: 'BuildingFeatures',
     allowed: new Set(['Elevators', 'FitnessCenter', 'HealthClub', 'Storage']),
     unresolved: new Map([
@@ -154,7 +145,7 @@ const REGISTRY: ReadonlyMap<CheckboxFieldName, CheckboxFieldContract> = new Map(
       ['Fitness', "Not a BuildingFeatures member (provider may use a different token). Unproven."],
     ]),
   }],
-  ['BusinessType', {
+  ['business_use', {
     cotalityField: 'BusinessType',
     allowed: new Set(['Accounting', 'Bakery', 'BarTavernLounge', 'BarberBeauty', 'BedAndBreakfast', 'Cafe', 'ChildCare', 'Dental', 'Distribution', 'DryCleaner', 'FastFood', 'Financial', 'Fitness', 'Grocery', 'HealthServices', 'Hospitality', 'HotelMotel', 'Industrial', 'Institutional', 'Laundromat', 'Manufacturing', 'Medical', 'MultiTenant', 'ProfessionalOffice', 'ProfessionalService', 'RealEstate', 'Restaurant', 'Showroom', 'SingleTenant', 'SpecialUse', 'Storage', 'StripMall', 'Technology', 'Warehouse']),
     unresolved: new Map([
@@ -164,13 +155,76 @@ const REGISTRY: ReadonlyMap<CheckboxFieldName, CheckboxFieldContract> = new Map(
   }],
 ]);
 
+
+/**
+ * COMPATIBILITY ADAPTER — legacy `data-field` values to canonical Mallan keys.
+ *
+ * The CRM's generic scanner still reads raw HTML `data-field` attributes, which
+ * happen to carry Cotality field names. Accepting them here keeps the form
+ * working during migration WITHOUT making the provider's vocabulary Mallan's
+ * permanent API vocabulary — the registry is keyed by the Mallan criterion, and
+ * Cotality names live only inside `cotalityField`.
+ *
+ * This adapter is the ONLY place a legacy name is understood. It is a migration
+ * boundary, not a second contract, and it should shrink to nothing as the form
+ * is re-keyed to canonical criteria.
+ */
+const CANONICAL_BY_LEGACY: ReadonlyMap<string, string> = new Map([
+  ['View', 'view'],
+  ['PetsAllowed', 'pet_policy'],
+  ['LaundryFeatures', 'laundry'],
+  ['StructureType', 'building_structure'],
+  ['ArchitecturalStyle', 'architectural_style'],
+  ['AccessibilityFeatures', 'accessibility'],
+  ['ExteriorFeatures', 'outdoor_features'],
+  ['PoolFeatures', 'pool'],
+  ['BuildingFeatures', 'building_amenities'],
+  ['BusinessType', 'business_use'],
+]);
+
+/**
+ * The canonical Mallan criterion for an incoming key.
+ *
+ * Accepts a canonical key directly, or a legacy `data-field` name through the
+ * adapter. Returns null when neither — the caller then fails closed by name.
+ */
+export function canonicalCheckboxCriterion(key: string): string | null {
+  if (REGISTRY.has(key)) return key;
+  return CANONICAL_BY_LEGACY.get(key) ?? null;
+}
+
+/**
+ * FIELDS THE PROVIDER SUPPRESSES FOR FILTERING.
+ *
+ * Declared in `$metadata` with a full picklist, and STILL not filterable — the
+ * licence forbids it. `MlsStatus` behaves the same way. Metadata membership is
+ * NOT executable-filter proof, which is why every family here was execution
+ * tested rather than generalised from one successful `View` experiment.
+ */
+const PROVIDER_SUPPRESSED: ReadonlyMap<string, string> = new Map([
+  [
+    'PropertyCondition',
+    "Provider-suppressed for filtering. Live 2026-08-26: PropertyCondition eq " +
+      "'Excellent' -> HTTP 400 \"Results from 'RLS' has been suppressed (provider " +
+      'Level) as field PropertyCondition cannot be used for filtering or ordering ' +
+      'queries." Excellent IS a declared member of the 27-value picklist, so this ' +
+      'is NOT a value error — the whole field is unfilterable under this licence.',
+  ],
+]);
+
+/** Is this field suppressed for filtering by the provider licence? */
+export function isProviderSuppressedField(field: string): boolean {
+  return PROVIDER_SUPPRESSED.has(field);
+}
+
 /** Is this field filterable at all under the verified contract? */
 export function isRegisteredCheckboxField(field: string): boolean {
-  return REGISTRY.has(field);
+  return canonicalCheckboxCriterion(field) !== null;
 }
 
 export function checkboxFieldContract(field: string): CheckboxFieldContract | null {
-  return REGISTRY.get(field) ?? null;
+  const canonical = canonicalCheckboxCriterion(field);
+  return canonical ? REGISTRY.get(canonical) ?? null : null;
 }
 
 /** Every registered field, for tests and diagnostics. */
@@ -186,7 +240,18 @@ export function registeredCheckboxFields(): string[] {
  * unresolved so the broker learns the criterion is unproven rather than broken.
  */
 export function checkboxFieldOData(field: string, values: readonly unknown[]): string | null {
-  const contract = REGISTRY.get(field);
+  const suppressed = PROVIDER_SUPPRESSED.get(field);
+  if (suppressed) {
+    // PROVIDER_UNAVAILABLE is not the same state as "we have not mapped it".
+    throw new UnsupportedCheckboxCriterionError(
+      `checkboxFilters.${field}`,
+      values.map(String),
+      suppressed,
+    );
+  }
+
+  const canonical = canonicalCheckboxCriterion(field);
+  const contract = canonical ? REGISTRY.get(canonical) : undefined;
   if (!contract) {
     throw new UnsupportedCheckboxCriterionError(
       `checkboxFilters.${field}`,
@@ -213,7 +278,7 @@ export function checkboxFieldOData(field: string, values: readonly unknown[]): s
 
   if (rejected.length > 0) {
     throw new UnsupportedCheckboxCriterionError(
-      `checkboxFilters.${field}`,
+      `checkboxFilters.${canonical ?? field}`,
       rejected,
       reasons.join(' | ') || 'Not a live provider member.',
     );

@@ -1,6 +1,6 @@
 import { standardStatusOData } from "@/lib/search/canonical/status-token-contract";
 import { boroughOData, neighborhoodOData } from "@/lib/search/canonical/geography";
-import { checkboxFieldOData, isRegisteredCheckboxField } from "@/lib/search/canonical/checkbox-criteria";
+import { checkboxFieldOData, isRegisteredCheckboxField, isProviderSuppressedField } from "@/lib/search/canonical/checkbox-criteria";
 import { propertyTypeUniverseOData } from "@/lib/search/canonical/property-type-universe";
 import {
   parsePropertySubTypeCriterion,
@@ -282,7 +282,10 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
       // The registry — not the browser — decides what may be filtered and with
       // which values, so `checkboxFilters` can be transported without becoming
       // an open field=value passthrough.
-      if (isRegisteredCheckboxField(field)) {
+      // Registered OR provider-suppressed both go through the registry: a
+      // suppressed field must report WHY (the licence forbids filtering it),
+      // which is a different fact from "we have not mapped this".
+      if (isRegisteredCheckboxField(field) || isProviderSuppressedField(field)) {
         const clause = checkboxFieldOData(field, values);
         if (clause) parts.push(clause);
         continue;

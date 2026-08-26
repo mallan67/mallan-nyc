@@ -157,6 +157,26 @@ export function idxSearchErrorResponse(error: unknown): {
     };
   }
 
+  // Checkbox criteria use their own error type so the registry can carry a
+  // per-value REASON. It joins the SAME canonical unsupported-criterion protocol
+  // rather than inventing a second one — without this it fell through to a
+  // generic 502 "Search failed", so the contract's promise to "fail locally by
+  // criterion/value name" was not actually kept at the route boundary.
+  if (error instanceof UnsupportedCheckboxCriterionError) {
+    return {
+      status: 400,
+      body: {
+        error: "Unsupported search criterion.",
+        code: "UNSUPPORTED_CRITERION",
+        criterion: error.criterion,
+        unsupportedValues: [...error.unsupportedValues],
+        // The registry's reason travels with it: an unresolved value is a
+        // different fact from an invalid one, and the broker needs to know which.
+        detail: error.message,
+      },
+    };
+  }
+
   if (error instanceof UnsupportedStatusCriterionError) {
     return {
       status: 400,
@@ -358,3 +378,4 @@ export async function GET(req: NextRequest) {
     });
   }
 }
+import { UnsupportedCheckboxCriterionError } from "@/lib/search/canonical/checkbox-criteria";
