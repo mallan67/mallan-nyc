@@ -67,6 +67,26 @@ function row(n: number, extra: Record<string, unknown> = {}) {
   };
 }
 
+/**
+ * Wrap a fixture response so it behaves like the provider across PHASES.
+ *
+ * The traversal runs KNOWN (`field ne null`) then NULLS (`field eq null`). A
+ * mock that returns the same rows for both makes the engine count every row
+ * twice — a fixture artifact, not a defect. Real Cotality returns nothing for
+ * `eq null` when every row carries a value, so the fixture does too. Everything
+ * else about the response is passed through untouched.
+ */
+function phaseAware(response: any) {
+  return async (args: any) => {
+    // Keyed on the KNOWN scope, not on " eq null": the Mallan return-copy
+    // clause is `(ListOfficeMlsId eq null or ...)`, so matching that substring
+    // marked EVERY request as the null phase and emptied the whole fixture.
+    const isNullPhase = typeof args.filter === 'string' && !/ ne null/.test(args.filter);
+    if (!isNullPhase) return response;
+    return { ...response, records: [], hasMore: false, nextLink: undefined, totalFetched: 0 };
+  };
+}
+
 async function callSearch(query = 'type=sale'): Promise<any> {
   const { GET } = await import('@/app/api/idx/search/route');
   const res = await GET(new NextRequest(`https://x.test/api/idx/search?${query}`));
@@ -94,7 +114,7 @@ describe('the count describes the FINAL universe, not the provider universe', ()
   it('excluded rows are not counted as results', async () => {
     // 10 provider rows, 3 of them participant-only. The provider matched 10;
     // exactly 7 are results.
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromTrestle.mockImplementation(phaseAware({
       records: [
         row(1),
         row(2, { Permission: 'Private' }),
@@ -111,7 +131,7 @@ describe('the count describes the FINAL universe, not the provider universe', ()
       hasMore: false,
       nextLink: undefined,
       totalFetched: 10,
-    });
+    }));
 
     const body = await callSearch();
     expect(body.listings).toHaveLength(7);
@@ -120,29 +140,29 @@ describe('the count describes the FINAL universe, not the provider universe', ()
   });
 
   it('keeps the provider count, and keeps it SEPARATE', async () => {
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromTrestle.mockImplementation(phaseAware({
       records: [row(1), row(2, { Permission: 'Private' })],
       odataCount: 4_622,
       hasMore: false,
       nextLink: undefined,
       totalFetched: 2,
-    });
+    }));
 
     const body = await callSearch();
     // Both facts survive. They are simply no longer the same number.
-    expect(body.count.providerMatched).toBe(4_622);
+    expect(body.count.providerMatchedForThisQuery).toBe(4_622);
     expect(body.count.value).toBe(1);
-    expect(body.total).not.toBe(body.count.providerMatched);
+    expect(body.total).not.toBe(body.count.providerMatchedForThisQuery);
   });
 
   it('attributes every exclusion by reason', async () => {
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromTrestle.mockImplementation(phaseAware({
       records: [row(1), row(2, { Permission: 'Private' }), row(3, { ListingKey: null })],
       odataCount: 3,
       hasMore: false,
       nextLink: undefined,
       totalFetched: 3,
-    });
+    }));
 
     const body = await callSearch();
     // "2 excluded" would not answer a broker asking why a listing is missing.
@@ -151,13 +171,13 @@ describe('the count describes the FINAL universe, not the provider universe', ()
   });
 
   it('a provider twin is counted once', async () => {
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromTrestle.mockImplementation(phaseAware({
       records: [row(1), row(2), row(1)],
       odataCount: 3,
       hasMore: false,
       nextLink: undefined,
       totalFetched: 3,
-    });
+    }));
 
     const body = await callSearch();
     expect(body.count.value).toBe(2);
@@ -167,13 +187,13 @@ describe('the count describes the FINAL universe, not the provider universe', ()
 
 describe('the count says whether it is exact', () => {
   it('EXACT when the provider offered no nextLink', async () => {
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromTrestle.mockImplementation(phaseAware({
       records: [row(1), row(2)],
       odataCount: 2,
       hasMore: false,
       nextLink: undefined,
       totalFetched: 2,
-    });
+    }));
 
     const body = await callSearch();
     expect(body.count.isExact).toBe(true);
@@ -182,13 +202,13 @@ describe('the count says whether it is exact', () => {
 
   it('a declared LOWER BOUND when the provider had more to give', async () => {
     // The forbidden outcome is an approximation that looks exact.
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromTrestle.mockImplementation(phaseAware({
       records: Array.from({ length: 50 }, (_, i) => row(i + 1)),
       odataCount: 4_622,
       hasMore: true,
       nextLink: 'https://api.cotality.com/next',
       totalFetched: 50,
-    });
+    }));
 
     const body = await callSearch('type=sale&limit=25');
     expect(body.count.isExact).toBe(false);
@@ -199,13 +219,13 @@ describe('the count says whether it is exact', () => {
     // fetchFromTrestle reports hasMore as `hasMore || fetched >= maxTotal`, so a
     // page that fills exactly looks like "more" even at the end of the universe.
     // Only the absence of a provider nextLink may license EXACT.
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromTrestle.mockImplementation(phaseAware({
       records: Array.from({ length: 50 }, (_, i) => row(i + 1)),
       odataCount: 50,
       hasMore: true,
       nextLink: undefined,
       totalFetched: 50,
-    });
+    }));
 
     const body = await callSearch('type=sale&limit=50');
     expect(body.count.isExact).toBe(true);
@@ -219,31 +239,45 @@ describe('the page is cut from the final universe', () => {
     const records = Array.from({ length: 60 }, (_, i) =>
       i === 3 || i === 8 || i === 9 ? row(i + 1, { Permission: 'Private' }) : row(i + 1),
     );
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromTrestle.mockImplementation(phaseAware({
       records,
       odataCount: 60,
       hasMore: false,
       nextLink: undefined,
       totalFetched: 60,
-    });
+    }));
 
     const body = await callSearch('type=sale&limit=50');
     expect(body.listings).toHaveLength(50);
   });
 
   it('totalPages describes the same universe the count does', async () => {
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromTrestle.mockImplementation(phaseAware({
       records: Array.from({ length: 30 }, (_, i) => row(i + 1)),
       odataCount: 30,
       hasMore: false,
       nextLink: undefined,
       totalFetched: 30,
-    });
+    }));
 
-    const body = await callSearch('type=sale&limit=10');
-    // 30 results at 10 per page. If these disagree, the last page number lies.
-    expect(body.count.value).toBe(30);
-    expect(body.totalPages).toBe(3);
+    // A PAGE-1 REQUEST CANNOT CLAIM EXACTNESS ANY MORE, and that is correct.
+    //
+    // The traversal has two phases. Breaking early once the page is filled
+    // means the NULLS bucket was never walked, so the universe size is a
+    // LOWER BOUND and the last page number is genuinely unknown. Before the
+    // phase transition existed this reported EXACT — by only ever looking at
+    // one bucket and calling its end the end.
+    const page = await callSearch('type=sale&limit=10');
+    expect(page.count.value).toBe(30);
+    expect(page.count.isExact).toBe(false);
+    expect(page.totalPages).toBeNull();
+
+    // Asking for an exact count walks BOTH buckets, and then the last page
+    // number is knowable and agrees with the count.
+    const exact = await callSearch('type=sale&limit=10&exactCount=true');
+    expect(exact.count.value).toBe(30);
+    expect(exact.count.isExact).toBe(true);
+    expect(exact.totalPages).toBe(3);
   });
 });
 
@@ -256,6 +290,11 @@ describe('the route pages the FINAL universe', () => {
 
   function serve(records: any[]) {
     mockFetchFromTrestle.mockImplementation(async (args: any) => {
+      // The NULLS phase drops the `<field> ne null` scope. Matching " eq null"
+      // instead would catch the return-copy clause and empty every request.
+      if (typeof args.filter === 'string' && !/ ne null/.test(args.filter)) {
+        return { records: [], odataCount: 0, hasMore: false, nextLink: undefined, totalFetched: 0 };
+      }
       const start = args.skip ?? 0;
       const slice = records.slice(start, start + (args.top ?? 50));
       return {
@@ -341,13 +380,13 @@ describe('the route pages the FINAL universe', () => {
  */
 describe('Mallan-office return copies are suppressed at the provider boundary', () => {
   it('the emitted filter carries the office exclusion', async () => {
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromTrestle.mockImplementation(phaseAware({
       records: [row(1)],
       odataCount: 1,
       hasMore: false,
       nextLink: undefined,
       totalFetched: 1,
-    });
+    }));
     await callSearch();
     const sent = mockFetchFromTrestle.mock.calls[0][0];
     expect(sent.filter).toContain("ListOfficeMlsId ne '7041'");
@@ -357,26 +396,26 @@ describe('Mallan-office return copies are suppressed at the provider boundary', 
     // `ne` against null is not reliably inclusive in OData, so the clause is
     // written as an explicit (null OR not-Mallan). A bare `ne` would silently
     // drop every null-office listing.
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromTrestle.mockImplementation(phaseAware({
       records: [row(1)],
       odataCount: 1,
       hasMore: false,
       nextLink: undefined,
       totalFetched: 1,
-    });
+    }));
     await callSearch();
     const sent = mockFetchFromTrestle.mock.calls[0][0];
     expect(sent.filter).toContain('ListOfficeMlsId eq null or');
   });
 
   it('the criteria filter is still applied alongside it', async () => {
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromTrestle.mockImplementation(phaseAware({
       records: [row(1)],
       odataCount: 1,
       hasMore: false,
       nextLink: undefined,
       totalFetched: 1,
-    });
+    }));
     await callSearch('type=sale&minPrice=500000');
     const sent = mockFetchFromTrestle.mock.calls[0][0];
     expect(sent.filter).toContain('ListPrice');
@@ -385,13 +424,13 @@ describe('Mallan-office return copies are suppressed at the provider boundary', 
 
   it('provider-row dedupe is reported under its own name', async () => {
     // Not "canonical", because it is not.
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromTrestle.mockImplementation(phaseAware({
       records: [row(1), row(2), row(1)],
       odataCount: 3,
       hasMore: false,
       nextLink: undefined,
       totalFetched: 3,
-    });
+    }));
     const body = await callSearch();
     expect(body.count.excluded.providerDuplicates).toBe(1);
     expect(body.count.excluded).not.toHaveProperty('duplicates');
@@ -408,6 +447,12 @@ describe('Mallan-office return copies are suppressed at the provider boundary', 
 describe('continuation over the route', () => {
   function serveMany(total: number) {
     mockFetchFromTrestle.mockImplementation(async (args: any) => {
+      // Keyed on the KNOWN scope. Matching " eq null" instead would also catch
+      // the Mallan return-copy clause `(ListOfficeMlsId eq null or ...)` and
+      // empty EVERY request, not just the null bucket.
+      if (typeof args.filter === 'string' && !/ ne null/.test(args.filter)) {
+        return { records: [], odataCount: 0, hasMore: false, nextLink: undefined, totalFetched: 0 };
+      }
       const start = args.skip ?? 0;
       const slice = Array.from(
         { length: Math.max(0, Math.min(args.top ?? 50, total - start)) },
@@ -487,13 +532,13 @@ describe('continuation is fail-closed when it cannot be sealed', () => {
     delete process.env.SEARCH_CONTINUATION_SECRET;
     try {
       jest.resetModules();
-      mockFetchFromTrestle.mockResolvedValue({
+      mockFetchFromTrestle.mockImplementation(phaseAware({
         records: Array.from({ length: 50 }, (_, i) => row(i + 1)),
         odataCount: 100_000,
         hasMore: true,
         nextLink: 'https://next',
         totalFetched: 50,
-      });
+      }));
       const body = await callSearch('type=sale&limit=20');
       expect(body.continuation).toBeNull();
       // The rows themselves are unaffected — only the resume shortcut is gone.
@@ -515,6 +560,12 @@ describe('continuation is fail-closed when it cannot be sealed', () => {
 describe('a sealed continuation with the wrong page is refused', () => {
   function serveMany(total: number) {
     mockFetchFromTrestle.mockImplementation(async (args: any) => {
+      // Keyed on the KNOWN scope. Matching " eq null" instead would also catch
+      // the Mallan return-copy clause `(ListOfficeMlsId eq null or ...)` and
+      // empty EVERY request, not just the null bucket.
+      if (typeof args.filter === 'string' && !/ ne null/.test(args.filter)) {
+        return { records: [], odataCount: 0, hasMore: false, nextLink: undefined, totalFetched: 0 };
+      }
       const start = args.skip ?? 0;
       const slice = Array.from(
         { length: Math.max(0, Math.min(args.top ?? 50, total - start)) },
@@ -551,13 +602,13 @@ describe('the response discloses what continuation it can actually do', () => {
   it('states availability and mode rather than leaving the client to guess', async () => {
     // A client must never assume deep continuation exists merely because the
     // code supports it — the sealing secret is a protected env requirement.
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromTrestle.mockImplementation(phaseAware({
       records: [row(1)],
       odataCount: 1,
       hasMore: false,
       nextLink: undefined,
       totalFetched: 1,
-    });
+    }));
     const body = await callSearch();
     expect(typeof body.continuationAvailable).toBe('boolean');
     expect(['keyset', 'bounded_rescan']).toContain(body.continuationMode);
@@ -569,13 +620,13 @@ describe('resumed-segment telemetry balances on the SEGMENT', () => {
     // universe.count is CUMULATIVE. Feeding it into an identity built from
     // this segment's row count made the identity fail on every resumed request
     // even when Search was correct — which trains a reader to ignore it.
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromTrestle.mockImplementation(phaseAware({
       records: [row(1), row(2, { Permission: 'Private' }), row(3, { ListingKey: null }), row(1)],
       odataCount: 4,
       hasMore: false,
       nextLink: undefined,
       totalFetched: 4,
-    });
+    }));
     const body = await callSearch();
     const m = body._meta;
     expect(m.exclusionsBalance).toBe(true);
@@ -594,13 +645,13 @@ describe('the response states its consistency contract', () => {
     // deltatoken, no snapshot endpoint, and nextLink is a plain $skip. Promising
     // "no duplicates, no gaps" unconditionally would be a promise Mallan cannot
     // keep, so the condition travels with the answer.
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromTrestle.mockImplementation(phaseAware({
       records: [row(1)],
       odataCount: 1,
       hasMore: false,
       nextLink: undefined,
       totalFetched: 1,
-    });
+    }));
     const body = await callSearch();
     expect(body.consistency.providerSnapshotIsolation).toBe('UNAVAILABLE');
     expect(body.consistency.stableUniverse).toMatch(/no duplicates, no gaps/);
@@ -610,13 +661,13 @@ describe('the response states its consistency contract', () => {
   it('names ListingKey as what a selection is durable by', async () => {
     // Compare and CMA must survive the feed moving under a broker, so a
     // selection is an identity, never a position.
-    mockFetchFromTrestle.mockResolvedValue({
+    mockFetchFromTrestle.mockImplementation(phaseAware({
       records: [row(1)],
       odataCount: 1,
       hasMore: false,
       nextLink: undefined,
       totalFetched: 1,
-    });
+    }));
     const body = await callSearch();
     expect(body.consistency.selectionsAreDurableBy).toBe('ListingKey');
   });

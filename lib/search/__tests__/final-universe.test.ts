@@ -639,237 +639,102 @@ describe('the traversed prefix accounts for every row it read', () => {
 });
 
 /**
- * RESUME — the budget bounds WORK, not INVENTORY.
+ * ADVERSARIAL: THE FEED CHANGES BETWEEN TWO PAGE REQUESTS.
  *
- * Without continuation, every deep page re-walks the whole prefix and stops at
- * the same ceiling, so result 60,001 is permanently unreachable. With it, one
- * request reads one segment and hands on its position.
+ * Every continuation test above uses a static array, which proves correctness
+ * against a frozen feed and nothing else. A live REBNY feed is not frozen: a
+ * listing ahead of the boundary can change price, be added, or be withdrawn
+ * between a broker pressing Next.
+ *
+ * These tests demonstrate WHY numeric-offset resume is not deterministic under
+ * those conditions, which is the evidence behind moving to a keyset predicate.
+ * They are written to FAIL LOUDLY if someone ever concludes `$skip` is stable —
+ * a conclusion the static tests would happily support.
  */
-describe('a resumed traversal reaches past the read ceiling', () => {
-  const HUGE = 200_000;
+describe('numeric offset resume is NOT stable under a live feed', () => {
+  /**
+   * KEPT AS NEGATIVE EVIDENCE ONLY.
+   *
+   * The engine no longer HAS an offset resume — `providerOffset`, `startOffset`
+   * and `providerOffsetReached` are gone, so a future engineer cannot reactivate
+   * the broken model by accident. What remains here is the demonstration of WHY
+   * it was retired, expressed against a plain array rather than the engine.
+   */
+  const rowsAt = (n: number) =>
+    Array.from({ length: n }, (_, i) => String(1146011469 + i));
 
-  it('resuming at provider offset 60,000 returns real rows', async () => {
-    const all = rows(HUGE);
-    const res = await assembleFinalUniverse<Row>({
-      fetchPage: fakeProvider(all, 5_000).fetchPage,
-      identity: key,
-      gate: gateOf,
-      providerRowKey: canonical,
-      page: 1,
-      pageSize: 50,
-      providerBudget: 10_000,
-      exactCount: false,
-      resume: { providerOffset: 60_000, survivorsConsumed: 60_000, tail: [] },
-    });
-    expect(res.rows).toHaveLength(50);
-    expect(res.rows[0].ListingKey).toBe(all[60_000].ListingKey);
-    // The running count includes what earlier requests already emitted.
-    expect(res.count).toBeGreaterThan(60_000);
+  it('a removal ahead of the boundary makes an offset SKIP a row', () => {
+    const before = rowsAt(200);
+    const emittedThrough = 20;
+    const nextByOffset = before[emittedThrough];
+
+    const after = rowsAt(200);
+    after.splice(5, 1); // a listing ahead of the boundary is withdrawn
+
+    // The offset still says 20, but position 20 now holds a DIFFERENT row.
+    expect(after[emittedThrough]).not.toBe(nextByOffset);
+    // Concretely: the row that should have led the next page is stepped over.
+    expect(after.slice(emittedThrough, emittedThrough + 20)).not.toContain(nextByOffset);
   });
 
-  it('a resumed segment only pays for its own rows', async () => {
-    // The point of the whole mechanism: a deep page must not cost the prefix.
-    const provider = fakeProvider(rows(HUGE), 5_000);
-    await assembleFinalUniverse<Row>({
-      fetchPage: provider.fetchPage,
-      identity: key,
-      gate: gateOf,
-      providerRowKey: canonical,
-      page: 1,
-      pageSize: 50,
-      providerBudget: 60_000,
-      exactCount: false,
-      resume: { providerOffset: 150_000, survivorsConsumed: 150_000, tail: [] },
-    });
-    expect(provider.calls()).toBe(1);
+  it('an insertion ahead of the boundary makes an offset REPEAT a row', () => {
+    const before = rowsAt(200);
+    const emittedThrough = 20;
+    const alreadySeen = before.slice(0, emittedThrough);
+
+    const after = rowsAt(200);
+    after.splice(3, 0, 'NEWLY_LISTED'); // a new listing enters ahead
+
+    // Position 20 now holds a row the broker was already shown.
+    expect(alreadySeen).toContain(after[emittedThrough]);
   });
 
-  it('hands on the position the next request needs', async () => {
-    const res = await assembleFinalUniverse<Row>({
-      fetchPage: fakeProvider(rows(HUGE), 5_000).fetchPage,
-      identity: key,
-      gate: gateOf,
-      providerRowKey: canonical,
-      page: 1,
-      pageSize: 50,
-      providerBudget: 10_000,
-      exactCount: false,
-      resume: { providerOffset: 60_000, survivorsConsumed: 60_000, tail: [] },
-    });
-    expect(res.providerOffsetReached).toBeGreaterThan(60_000);
-    expect(res.survivorsConsumedBefore).toBe(60_000);
-    expect(res.pageRowKeys).toHaveLength(50);
-  });
-
-  it('a twin straddling the boundary is still deduped', async () => {
-    // Every canonical sort ends with ListingKey asc, so rows sharing a key are
-    // adjacent — a boundary tail closes this exactly rather than approximately.
-    const all = rows(100);
-    all[0].twinOf = 'BOUNDARY';
-    const res = await assembleFinalUniverse<Row>({
-      fetchPage: fakeProvider(all).fetchPage,
-      identity: key,
-      gate: gateOf,
-      providerRowKey: canonical,
-      page: 1,
-      pageSize: 10,
-      providerBudget: 1_000,
-      exactCount: false,
-      resume: { providerOffset: 0, survivorsConsumed: 5, tail: ['BOUNDARY'] },
-    });
-    expect(res.exclusions.providerDuplicates).toBe(1);
-    expect(res.rows.map(key)).not.toContain(all[0].ListingKey);
-  });
-
-  it('hasPrevious follows the survivors already consumed', async () => {
-    const opts = (consumed: number) => ({
-      fetchPage: fakeProvider(rows(1_000)).fetchPage,
-      identity: key,
-      gate: gateOf,
-      providerRowKey: canonical,
-      page: 1,
-      pageSize: 10,
-      providerBudget: 1_000,
-      exactCount: false,
-      resume: { providerOffset: 0, survivorsConsumed: consumed, tail: [] as string[] },
-    });
-    expect((await assembleFinalUniverse<Row>(opts(0))).hasPrevious).toBe(false);
-    expect((await assembleFinalUniverse<Row>(opts(50))).hasPrevious).toBe(true);
-  });
-
-  it('no duplicate or gap across a continuation boundary', async () => {
-    // Walk the universe in segments and prove the sequence is exactly the
-    // survivors, once each.
-    const all = rows(500, (r, i) => {
-      if (i % 7 === 0) r.gated = 'Owner opted out';
-    });
-    const survivors = all.filter((r) => !r.gated).map(key);
-    const seen: (string | null)[] = [];
-    let offset = 0;
-    let consumed = 0;
-    let tail: string[] = [];
-    for (let i = 0; i < 12; i += 1) {
-      const res = await assembleFinalUniverse<Row>({
-        fetchPage: fakeProvider(all, 60).fetchPage,
-        identity: key,
-        gate: gateOf,
-        providerRowKey: canonical,
-        page: 1,
-        pageSize: 40,
-        providerBudget: 60,
-        exactCount: false,
-        resume: { providerOffset: offset, survivorsConsumed: consumed, tail },
-      });
-      seen.push(...res.rows.map(key));
-      offset = res.providerOffsetReached;
-      consumed += res.rows.length;
-      tail = [...tail, ...res.pageRowKeys].slice(-8);
-      if (offset >= all.length) break;
-    }
-    expect(new Set(seen).size).toBe(seen.length);
-    expect(seen).toEqual(survivors.slice(0, seen.length));
+  it('the keyset predicate names a POSITION, so neither shift moves it', () => {
+    const predicate = keysetResumePredicate(
+      'price_desc',
+      KeysetPhase.KNOWN,
+      5_000_000,
+      '1146011469',
+    );
+    expect(predicate).toContain('ListPrice lt 5000000');
+    expect(predicate).toContain("ListingKey gt '1146011469'");
+    expect(predicate).not.toMatch(/skip/i);
+    // And it scopes to the KNOWN phase, so a null-valued row cannot silently
+    // fall outside the comparison and vanish from the sequence.
+    expect(predicate).toContain('ListPrice ne null');
   });
 });
 
 /**
- * A PAGE THAT RAN OUT OF BUDGET IS NOT A FINISHED PAGE.
+ * P0 — EXCLUSION ACCOUNTING MUST BALANCE.
  *
- * The three-state `more` contract says whether the UNIVERSE has more. It says
- * nothing about whether THIS PAGE was finished, and those are different
- * questions with different consequences.
- *
- * Ask for 50, have the budget end after 20 survivors with the provider not
- * exhausted, and the old contract handed back 20 rows plus a continuation. The
- * browser's next move is page 2, so the broker gets:
- *
- *     Page 1 = rows 1-20
- *     Page 2 = rows 21-70
- *
- * Nothing is duplicated and nothing is lost, but the page boundaries are a
- * fiction: page 1 was never finished, it was abandoned. A work budget ending is
- * not a statement about the shape of the result set.
+ * Telemetry is evidence. If provider duplicates are folded into the gate
+ * failures, a compliance or missing-result investigation reads a distribution
+ * gate rejecting rows it never saw.
  */
-describe('page completeness is separate from universe completeness', () => {
-  it('a full page is COMPLETE', async () => {
-    const res = await assemble(rows(500), 1, 50);
-    expect(res.rows).toHaveLength(50);
-    expect(res.pageCompleteness).toBe(PageCompleteness.COMPLETE);
+describe('the traversed prefix accounts for every row it read', () => {
+  it('rows read = identityless + gated + duplicates + survivors', async () => {
+    const all = rows(200, (r, i) => {
+      if (i % 17 === 0) r.ListingKey = null;
+      else if (i % 11 === 0) r.gated = 'Owner opted out';
+      else if (i % 23 === 0) r.twinOf = 'K0001';
+    });
+    const res = await assemble(all, 1, 50);
+    const gated = Object.values(res.exclusions.gated).reduce((a, b) => a + b, 0);
+    expect(
+      res.exclusions.identityless + gated + res.exclusions.providerDuplicates + res.count,
+    ).toBe(res.providerRowsRead);
   });
 
-  it('a short LAST page with an exhausted provider is legitimately final', async () => {
-    // 30 rows, 50 to a page: page 1 is short because that is all there is.
-    const res = await assemble(rows(30), 1, 50);
-    expect(res.rows).toHaveLength(30);
-    expect(res.pageCompleteness).toBe(PageCompleteness.FINAL_PARTIAL);
-    expect(res.more).toBe(MoreResults.NO);
-  });
-
-  it('a short page because the BUDGET ended is INCOMPLETE, not final', async () => {
-    // The distinction that matters: same row count, completely different claim.
-    const all = rows(100_000, (r, i) => {
-      if (i % 50 !== 0) r.gated = 'Owner opted out';
-    });
-    const res = await assembleFinalUniverse<Row>({
-      fetchPage: fakeProvider(all, 5_000).fetchPage,
-      identity: key,
-      gate: gateOf,
-      providerRowKey: canonical,
-      page: 1,
-      pageSize: 50,
-      providerBudget: 1_000,
-      exactCount: false,
-    });
-    expect(res.rows.length).toBeLessThan(50);
-    expect(res.pageCompleteness).toBe(PageCompleteness.INCOMPLETE_BUDGET);
-    expect(res.more).toBe(MoreResults.UNKNOWN);
-  });
-
-  it('an empty page from an exhausted provider is final, not incomplete', async () => {
-    const res = await assemble(rows(0), 1, 50);
-    expect(res.pageCompleteness).toBe(PageCompleteness.FINAL_PARTIAL);
-  });
-
-  it('resuming finishes the SAME page rather than starting the next', async () => {
-    // pageSize 50; segment 1 is budget-limited, segment 2 supplies the rest.
-    // The completed page 1 must be the first 50 survivors, in order, once each.
-    const all = rows(100_000, (r, i) => {
-      if (i % 10 !== 0) r.gated = 'Participant-only listing';
-    });
-    const survivors = all.filter((r) => !r.gated).map(key);
-
-    const seg1 = await assembleFinalUniverse<Row>({
-      fetchPage: fakeProvider(all, 200).fetchPage,
-      identity: key,
-      gate: gateOf,
-      providerRowKey: canonical,
-      page: 1,
-      pageSize: 50,
-      providerBudget: 200,
-      exactCount: false,
-    });
-    expect(seg1.pageCompleteness).toBe(PageCompleteness.INCOMPLETE_BUDGET);
-
-    const seg2 = await assembleFinalUniverse<Row>({
-      fetchPage: fakeProvider(all, 5_000).fetchPage,
-      identity: key,
-      gate: gateOf,
-      providerRowKey: canonical,
-      page: 1,
-      // Only the REMAINDER of page 1 is still owed.
-      pageSize: 50 - seg1.rows.length,
-      providerBudget: 5_000,
-      exactCount: false,
-      resume: {
-        providerOffset: seg1.providerOffsetReached,
-        survivorsConsumed: seg1.rows.length,
-        tail: seg1.pageRowKeys,
-      },
-    });
-
-    const page1 = [...seg1.rows.map(key), ...seg2.rows.map(key)];
-    expect(page1).toHaveLength(50);
-    expect(new Set(page1).size).toBe(50);
-    expect(page1).toEqual(survivors.slice(0, 50));
+  it('gate passes are counted BEFORE dedupe', async () => {
+    // universe.count is post-dedupe, so deriving gate failures from it would
+    // charge provider duplicates to the distribution gates.
+    const all = rows(10);
+    all[3].twinOf = 'K0001';
+    const res = await assemble(all, 1, 50);
+    expect(res.exclusions.providerDuplicates).toBe(1);
+    expect(res.gatePassedBeforeDedupe).toBe(10);
+    expect(res.count).toBe(9);
   });
 });
 
@@ -886,86 +751,6 @@ describe('page completeness is separate from universe completeness', () => {
  * They are written to FAIL LOUDLY if someone ever concludes `$skip` is stable —
  * a conclusion the static tests would happily support.
  */
-describe('numeric offset resume is NOT stable under a live feed', () => {
-  const base = () => rows(200);
-
-  it('a removal ahead of the boundary makes an offset SKIP a row', async () => {
-    const before = base();
-    // Page 1: rows 0..19 emitted, resume offset lands at 20.
-    const p1 = await assembleFinalUniverse<Row>({
-      fetchPage: fakeProvider(before, 50).fetchPage,
-      identity: key, gate: gateOf, providerRowKey: canonical,
-      page: 1, pageSize: 20, providerBudget: 1_000, exactCount: false,
-    });
-    expect(p1.rows).toHaveLength(20);
-    const resumeAt = p1.providerOffsetReached;
-
-    // A listing ahead of the boundary is withdrawn. Everything after it shifts
-    // one position toward the front.
-    const after = base();
-    after.splice(5, 1);
-
-    const p2 = await assembleFinalUniverse<Row>({
-      fetchPage: fakeProvider(after, 50).fetchPage,
-      identity: key, gate: gateOf, providerRowKey: canonical,
-      page: 1, pageSize: 20, providerBudget: 1_000, exactCount: false,
-      resume: { providerOffset: resumeAt, survivorsConsumed: 20, tail: p1.pageRowKeys },
-    });
-
-    // The row that SHOULD have led page 2 is the one after the last emitted.
-    const expectedNext = before[20].ListingKey;
-    // It does not, because the offset now points one row further along.
-    expect(p2.rows[0].ListingKey).not.toBe(expectedNext);
-    // Concretely: a listing is skipped and the broker never sees it.
-    expect(p2.rows.map(key)).not.toContain(expectedNext);
-  });
-
-  it('an insertion ahead of the boundary makes an offset REPEAT a row', async () => {
-    const before = base();
-    const p1 = await assembleFinalUniverse<Row>({
-      fetchPage: fakeProvider(before, 50).fetchPage,
-      identity: key, gate: gateOf, providerRowKey: canonical,
-      page: 1, pageSize: 20, providerBudget: 1_000, exactCount: false,
-    });
-    const resumeAt = p1.providerOffsetReached;
-
-    const after = base();
-    after.splice(3, 0, { ListingKey: 'NEWLY_LISTED' });
-
-    const p2 = await assembleFinalUniverse<Row>({
-      fetchPage: fakeProvider(after, 50).fetchPage,
-      identity: key, gate: gateOf, providerRowKey: canonical,
-      page: 1, pageSize: 20, providerBudget: 1_000, exactCount: false,
-      // Tail deliberately EMPTY: the boundary tail is 8 keys, so it masks a
-      // one-row shift. This isolates the offset itself, which is the mechanism
-      // under test.
-      resume: { providerOffset: resumeAt, survivorsConsumed: 20, tail: [] },
-    });
-
-    // A row already shown on page 1 comes back on page 2.
-    const page1Keys = new Set(p1.rows.map(key));
-    expect(p2.rows.some((r) => page1Keys.has(key(r)))).toBe(true);
-  });
-
-  it('the keyset predicate names a POSITION, so neither shift moves it', () => {
-    // The replacement. `ListPrice lt 5000000 or (eq and key gt ...)` describes
-    // where in the ORDER to resume, so inserting or withdrawing a listing ahead
-    // of the boundary cannot move it — there is no "distance from the start"
-    // left to be wrong.
-    const predicate = keysetResumePredicate(
-      'price_desc',
-      KeysetPhase.KNOWN,
-      5_000_000,
-      '1146011469',
-    );
-    expect(predicate).toContain('ListPrice lt 5000000');
-    expect(predicate).toContain("ListingKey gt '1146011469'");
-    expect(predicate).not.toMatch(/skip/i);
-    // And it scopes to the KNOWN phase, so a null-valued row cannot silently
-    // fall outside the comparison and vanish from the sequence.
-    expect(predicate).toContain('ListPrice ne null');
-  });
-});
 
 /**
  * WHAT KEYSET ACTUALLY GUARANTEES — AND WHAT IT CANNOT.
@@ -1101,5 +886,143 @@ describe('keyset under a mutating feed — the honest matrix', () => {
     ] as any[];
     const after = providerAfter(tied, 500_000, '1146011470');
     expect(after.map((r) => r.ListingKey)).toEqual(['1146011471', '1146011472']);
+  });
+});
+
+/**
+ * KNOWN -> NULLS MUST ACTUALLY EXECUTE AS TWO PHASES.
+ *
+ * phaseScopeClause() defined the buckets correctly and then nothing called it.
+ * The initial request used the ordinary unphased sort, and the engine had no
+ * transition, so exhausting the CURRENT query was treated as exhausting the
+ * PROVIDER. For ListingContractDate that is a live silent truncation: the
+ * non-null bucket ends, MoreResults.NO is reported, and 9,771 null-dated
+ * listings are never walked.
+ *
+ * The engine owns the transition because the engine owns the result universe.
+ * Putting it in the route would be a second pagination authority.
+ */
+describe('the traversal walks KNOWN then NULLS', () => {
+  type PhasedRow = { ListingKey: string; sortValue: string | null };
+
+  /** 100 rows with a value, then 25 with none — the bucket the old code lost. */
+  const population = (known: number, nulls: number): PhasedRow[] => [
+    ...Array.from({ length: known }, (_, i) => ({
+      ListingKey: String(1146011469 + i),
+      sortValue: `2026-01-${String((i % 28) + 1).padStart(2, '0')}`,
+    })),
+    ...Array.from({ length: nulls }, (_, i) => ({
+      ListingKey: String(1146012000 + i),
+      sortValue: null,
+    })),
+  ];
+
+  /** A provider that honours the phase scope, as Cotality does. */
+  function phasedProvider(all: PhasedRow[]) {
+    return async (skip: number, top: number, ks?: { scope?: string }) => {
+      const bucket =
+        ks?.scope === 'NULLS'
+          ? all.filter((r) => r.sortValue === null)
+          : all.filter((r) => r.sortValue !== null);
+      const slice = bucket.slice(skip, skip + top);
+      return {
+        records: slice,
+        providerMatched: bucket.length,
+        exhausted: skip + slice.length >= bucket.length,
+      };
+    };
+  }
+
+  const phases = [
+    { label: 'KNOWN', scope: 'KNOWN', orderBy: 'X desc, ListingKey asc' },
+    { label: 'NULLS', scope: 'NULLS', orderBy: 'ListingKey asc' },
+  ];
+
+  const assemblePhased = (all: PhasedRow[], page: number, pageSize: number) =>
+    assembleFinalUniverse<PhasedRow>({
+      fetchPage: phasedProvider(all),
+      identity: (r) => r.ListingKey,
+      gate: () => ({ displayable: true }),
+      providerRowKey: (r) => r.ListingKey,
+      page,
+      pageSize,
+      providerBudget: 10_000,
+      phases,
+    });
+
+  it('100 known + 25 null pages as one 125-row universe', async () => {
+    const all = population(100, 25);
+    const seen: string[] = [];
+    for (let p = 1; p <= 3; p += 1) {
+      const res = await assemblePhased(all, p, 50);
+      seen.push(...res.rows.map((r) => r.ListingKey));
+    }
+    expect(seen).toHaveLength(125);
+    expect(new Set(seen).size).toBe(125);
+    expect(seen).toEqual(all.map((r) => r.ListingKey));
+  });
+
+  it('page 3 is the NULL bucket, and only then is there no more', async () => {
+    const all = population(100, 25);
+    const p2 = await assemblePhased(all, 2, 50);
+    expect(p2.more).not.toBe(MoreResults.NO);
+    const p3 = await assemblePhased(all, 3, 50);
+    expect(p3.rows).toHaveLength(25);
+    expect(p3.rows.every((r) => r.sortValue === null)).toBe(true);
+    // NO only after the LAST phase is exhausted — this is the assertion the old
+    // engine would have failed at page 2.
+    expect(p3.more).toBe(MoreResults.NO);
+    expect(p3.count).toBe(125);
+    expect(p3.countMeaning).toBe(CountMeaning.EXACT);
+  });
+
+  it('A PAGE MAY CROSS THE BOUNDARY: 37 known + 13 null in one page', async () => {
+    const all = population(37, 30);
+    const p1 = await assemblePhased(all, 1, 50);
+    expect(p1.rows).toHaveLength(50);
+    expect(p1.rows.filter((r) => r.sortValue !== null)).toHaveLength(37);
+    expect(p1.rows.filter((r) => r.sortValue === null)).toHaveLength(13);
+
+    const p2 = await assemblePhased(all, 2, 50);
+    expect(p2.rows).toHaveLength(17);
+    expect(p2.more).toBe(MoreResults.NO);
+
+    const seen = [...p1.rows, ...p2.rows].map((r) => r.ListingKey);
+    expect(new Set(seen).size).toBe(67);
+    expect(seen).toEqual(all.map((r) => r.ListingKey));
+  });
+
+  it('an all-NULL universe still pages', async () => {
+    // The KNOWN bucket is empty, so the transition must happen immediately
+    // rather than concluding the universe is empty.
+    const all = population(0, 12);
+    const res = await assemblePhased(all, 1, 50);
+    expect(res.rows).toHaveLength(12);
+    expect(res.more).toBe(MoreResults.NO);
+  });
+
+  it('an all-KNOWN universe does not invent a null page', async () => {
+    const all = population(20, 0);
+    const res = await assemblePhased(all, 1, 50);
+    expect(res.rows).toHaveLength(20);
+    expect(res.more).toBe(MoreResults.NO);
+    expect(res.count).toBe(20);
+  });
+
+  it('an exact count traverses BOTH buckets', async () => {
+    const all = population(100, 25);
+    const res = await assembleFinalUniverse<PhasedRow>({
+      fetchPage: phasedProvider(all),
+      identity: (r) => r.ListingKey,
+      gate: () => ({ displayable: true }),
+      providerRowKey: (r) => r.ListingKey,
+      page: 1,
+      pageSize: 10,
+      providerBudget: 10_000,
+      phases,
+      exactCount: true,
+    });
+    expect(res.count).toBe(125);
+    expect(res.countMeaning).toBe(CountMeaning.EXACT);
   });
 });

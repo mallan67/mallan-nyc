@@ -33,6 +33,7 @@ import {
   KeysetPhase,
   keysetResumePredicate,
   phaseODataOrderBy,
+  phaseScopeClause,
   resolveSort,
   sortODataClause,
   UnsupportedSortError,
@@ -432,34 +433,46 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Carries only what the keyset cannot: how many survivors earlier requests
+    // already emitted, and the boundary keys needed to dedupe across the seam.
+    // Position itself is the keyset predicate's job.
     const resume = decoded
-      ? {
-          // Retained only to carry the boundary tail and the survivor position.
-          // It is NOT the resume authority any more — the keyset predicate is.
-          providerOffset: 0,
-          survivorsConsumed: decoded.survivorsConsumed,
-          tail: decoded.tail,
-        }
+      ? { survivorsConsumed: decoded.survivorsConsumed, tail: decoded.tail }
       : undefined;
 
     // The provider query itself is narrowed to "after this position in the
     // order", so a withdrawal or an insertion ahead of the boundary cannot move
     // it — there is no distance-from-the-start left to be invalidated.
-    const keyset = decoded
-      ? {
-          predicate: keysetResumePredicate(
-            decoded.sortKey,
-            decoded.phase === "NULLS" ? KeysetPhase.NULLS : KeysetPhase.KNOWN,
-            decoded.sortValue,
-            decoded.lastListingKey,
-          ),
-          orderBy: phaseODataOrderBy(
-            decoded.sortKey,
-            decoded.phase === "NULLS" ? KeysetPhase.NULLS : KeysetPhase.KNOWN,
-          ),
-          phase: decoded.phase,
-        }
-      : undefined;
+    // THE ORDERED BUCKETS OF THIS SORT.
+    //
+    // Known values in the requested order, then unknown values by ListingKey.
+    // That is a Mallan policy, declared — the provider's implicit null
+    // placement could not be established live, and guessing it silently drops
+    // whichever bucket guessed wrong.
+    const sortPhases = [
+      {
+        label: KeysetPhase.KNOWN as string,
+        scope: phaseScopeClause(resolvedSort.key, KeysetPhase.KNOWN),
+        orderBy: phaseODataOrderBy(resolvedSort.key, KeysetPhase.KNOWN),
+      },
+      {
+        label: KeysetPhase.NULLS as string,
+        scope: phaseScopeClause(resolvedSort.key, KeysetPhase.NULLS),
+        orderBy: phaseODataOrderBy(resolvedSort.key, KeysetPhase.NULLS),
+      },
+    ];
+
+    const startPhaseIndex = decoded
+      ? sortPhases.findIndex((p) => p.label === decoded.phase)
+      : 0;
+    const startPredicate = decoded
+      ? keysetResumePredicate(
+          decoded.sortKey,
+          decoded.phase === "NULLS" ? KeysetPhase.NULLS : KeysetPhase.KNOWN,
+          decoded.sortValue,
+          decoded.lastListingKey,
+        )
+      : null;
 
     const cacheKey = `idx:${filter}:${effectiveSort}:${limit}:${skip}:p${page}:x${params.get("exactCount") === "true" ? 1 : 0}:c${continuationParam ?? ""}`;
     const cached = getCached(cacheKey);
@@ -485,12 +498,18 @@ export async function GET(req: NextRequest) {
       fetchPage: async (
         providerSkip: number,
         top: number,
-        ks?: { predicate: string; orderBy: string },
+        ph?: { scope: string; orderBy: string; predicate: string | null },
       ) => {
+        // The phase SCOPE and the keyset PREDICATE both narrow the query, so
+        // the walk starts at offset 0 of what it actually asked for. The scope
+        // is what makes the null bucket reachable at all — without it the
+        // traversal ran one unphased query and called its end the end of the
+        // provider.
+        const clauses = [`(${filter})`];
+        if (ph?.scope) clauses.push(ph.scope);
+        if (ph?.predicate) clauses.push(ph.predicate);
         const page = await fetchFromTrestle({
-          // The keyset narrows the QUERY, so the walk starts at offset 0 of the
-          // narrowed universe rather than at a distance into the old one.
-          filter: ks ? `(${filter}) and ${ks.predicate}` : filter,
+          filter: clauses.join(" and "),
           select: SEARCH_SELECT_FIELDS,
           top,
           // The engine walks the provider from the top and cuts the broker's
@@ -499,7 +518,7 @@ export async function GET(req: NextRequest) {
           // coordinates — and silently step over rows. `skip` is honoured by
           // being folded into `page` above, not by offsetting the walk.
           skip: providerSkip,
-          orderby: ks ? ks.orderBy : effectiveSort,
+          orderby: ph?.orderBy || effectiveSort,
           maxTotal: top,
           count: true,
           expandMedia: false,
@@ -544,7 +563,9 @@ export async function GET(req: NextRequest) {
       // to every search; `countMeaning` tells the caller which one they hold.
       exactCount: params.get("exactCount") === "true",
       resume,
-      keyset,
+      phases: sortPhases,
+      startPhaseIndex: startPhaseIndex < 0 ? 0 : startPhaseIndex,
+      startPredicate,
     });
 
     const identityless = universe.exclusions.identityless;
@@ -580,8 +601,21 @@ export async function GET(req: NextRequest) {
         value: universe.count,
         meaning: universe.countMeaning,
         isExact: universe.countMeaning === CountMeaning.EXACT,
-        /** `@odata.count`. Kept, and kept SEPARATE. Never a result count. */
-        providerMatched: universe.providerMatched,
+        /**
+         * `@odata.count` FOR THE QUERY THAT WAS ACTUALLY RUN.
+         *
+         * On an initial request that is the provider matching universe. On a
+         * RESUMED request the query is narrowed by the phase scope and the
+         * keyset predicate, so the same number describes the remainder after
+         * the boundary — a different fact under the same name.
+         *
+         * Both are reported, and only where each is actually known. Carrying an
+         * initial count forward in a token would describe the observation at
+         * the moment it was taken, not a current total, on a feed that moves.
+         */
+        providerMatchedForThisQuery: universe.providerMatched,
+        originalProviderMatched: decoded ? null : universe.providerMatched,
+        remainingAfterBoundary: decoded ? universe.providerMatched : null,
         truncatedAtBudget: universe.truncatedAtBudget,
         more: universe.more,
         /** NULL when the traversal stopped early — see totalPages below. */
@@ -647,11 +681,10 @@ export async function GET(req: NextRequest) {
               // mapped or formatted one — it is written straight back into an
               // OData filter, and a value that has been through a renderer is a
               // different value.
-              phase:
-                universe.boundaryRow &&
-                universe.boundaryRow[resolvedSort.spec.cotalityField] == null
-                  ? "NULLS"
-                  : "KNOWN",
+              // The phase the BOUNDARY ROW is in, as the engine reports it —
+              // a page can cross the bucket boundary, so deriving it from the
+              // row's value alone would be right by luck rather than by design.
+              phase: sortPhases[universe.boundaryPhaseIndex]?.label ?? "KNOWN",
               sortValue:
                 universe.boundaryRow == null
                   ? null
@@ -755,10 +788,23 @@ export async function GET(req: NextRequest) {
         limit,
         skip,
         filter_length: filter.length,
-        provider_rows: result.records.length,
-        provider_total_count: result.odataCount ?? null,
-        gate_passed: universe.count,
-        gate_blocked_total: Object.values(gateBlockedReasons).reduce((a, b) => a + b, 0),
+        // EVERY NAME HERE HAS ONE MEANING.
+        //
+        // `provider_rows` used to hold `result.records.length`, which is
+        // FINAL-UNIVERSE rows after the whole chain, not provider rows.
+        // `gate_passed` used to hold `universe.count`, which is CUMULATIVE
+        // across resumed segments, not what this request's gates passed. Both
+        // names described the wrong number, which is worse than no telemetry:
+        // an investigation reads them as fact.
+        segment_provider_rows_read: universe.providerRowsRead,
+        segment_identityless: identityless,
+        segment_gated: Object.values(gateBlockedReasons).reduce((a, b) => a + b, 0),
+        segment_provider_duplicates: universe.exclusions.providerDuplicates,
+        segment_survivors_traversed: universe.count - universe.survivorsConsumedBefore,
+        cumulative_survivors_observed: universe.count,
+        rows_returned_this_response: universe.rows.length,
+        // @odata.count for the query ACTUALLY RUN — narrowed on a resume.
+        provider_matched_for_this_query: result.odataCount ?? null,
         gate_blocked_by_reason: gateBlockedReasons,
         mapper_returned: listings.length,
         listings_with_images: imagesWithMedia,

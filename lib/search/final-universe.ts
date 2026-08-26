@@ -114,7 +114,7 @@ export interface AssembleOptions<T> {
   readonly fetchPage: (
     skip: number,
     top: number,
-    keyset?: { predicate: string; orderBy: string },
+    phase?: { scope: string; orderBy: string; predicate: string | null },
   ) => Promise<ProviderPage<T>>;
   /** The row's provider identity. Null/blank means the row cannot be a result. */
   readonly identity: (record: T) => string | null | undefined;
@@ -158,24 +158,54 @@ export interface AssembleOptions<T> {
    * in the sequence and a duplicate can only straddle the boundary within a
    * short tail of it.
    */
+  /**
+   * What a resumed traversal carries forward.
+   *
+   * `providerOffset` is GONE. It was the resume authority until it was proven
+   * unstable under a live feed — a withdrawal ahead of the boundary skips a
+   * row, an insertion repeats one — and leaving it in the types would let a
+   * future engineer reactivate the broken model by accident. Position is the
+   * keyset's job now; this carries only what the keyset cannot.
+   */
   readonly resume?: {
-    readonly providerOffset: number;
+    /** Final-universe rows already emitted by earlier requests. */
     readonly survivorsConsumed: number;
+    /** Boundary provider-row keys, so a twin straddling the seam is deduped. */
     readonly tail: readonly string[];
   };
   /**
-   * KEYSET RESUME — the provider itself is asked to start after a position.
+   * THE ORDERED PHASES OF THIS SORT.
    *
-   * With this, the walk begins at provider offset 0 of a NARROWED query rather
-   * than at a numeric offset into the old one, so an insertion or withdrawal
-   * ahead of the boundary cannot move it. `fetchPage` receives the extra
-   * predicate and the phase's ORDER BY and composes them into the request.
+   * A sort field that can be null has TWO buckets, and which comes first is a
+   * Mallan policy rather than something the provider will tell you: known
+   * values in the requested order, then unknown values by ListingKey.
+   *
+   * The ENGINE owns the transition because the engine owns the result universe.
+   * Before this existed, phaseScopeClause() defined the buckets correctly and
+   * nothing called it — the walk used one unphased query and treated exhausting
+   * THAT query as exhausting the PROVIDER. For ListingContractDate that is a
+   * live silent truncation: the non-null bucket ends, "no more results" is
+   * reported, and 9,771 null-dated listings are never walked.
+   *
+   * A single-phase sort simply passes one entry.
    */
-  readonly keyset?: {
-    readonly predicate: string;
+  readonly phases?: ReadonlyArray<{
+    readonly label: string;
+    readonly scope: string;
     readonly orderBy: string;
-    readonly phase: string;
-  };
+  }>;
+  /** Which phase a resumed traversal is in. */
+  readonly startPhaseIndex?: number;
+  /**
+   * KEYSET RESUME within the starting phase — the provider is asked to begin
+   * after a position rather than at a distance from the start.
+   *
+   * Null means START OF PHASE. That is represented explicitly rather than with
+   * a sentinel key: inventing a ListingKey to mean "the beginning" would put a
+   * value the provider never issued into a filter, and a non-numeric one
+   * returns HTTP 500.
+   */
+  readonly startPredicate?: string | null;
 }
 
 export interface FinalUniverseResult<T> {
@@ -209,14 +239,14 @@ export interface FinalUniverseResult<T> {
   readonly providerMatched: number | null;
   readonly truncatedAtBudget: boolean;
   readonly providerRowsRead: number;
-  /** Absolute provider offset reached, for the next continuation. */
-  readonly providerOffsetReached: number;
   /** Survivors emitted BEFORE this page, carried through from a resume. */
   readonly survivorsConsumedBefore: number;
   /** Provider-row keys of this page's rows, in order, for the next tail. */
   readonly pageRowKeys: readonly string[];
   /** The LAST row emitted on this page — the boundary for the next keyset. */
   readonly boundaryRow: T | null;
+  /** Which phase the boundary row sits in, so a resume starts in the right bucket. */
+  readonly boundaryPhaseIndex: number;
   readonly exclusions: {
     readonly identityless: number;
     /** Gated rows BY REASON — "12 excluded" is not an answer to "why". */
@@ -315,22 +345,14 @@ export async function assembleFinalUniverse<T>(
     exactCount = true,
     providerPageSize = DEFAULT_PROVIDER_PAGE_SIZE,
     resume,
-    keyset,
+    phases = [{ label: 'SINGLE', scope: '', orderBy: '' }],
+    startPhaseIndex = 0,
+    startPredicate = null,
   } = options;
 
-  const startOffset = resume?.providerOffset ?? 0;
   const survivorsConsumedBefore = resume?.survivorsConsumed ?? 0;
 
   const survivors: T[] = [];
-  /**
-   * Provider offset immediately AFTER each survivor was consumed.
-   *
-   * The continuation has to resume from the last row EMITTED, not the last row
-   * READ. A segment can read 60 provider rows, find 51 survivors and return 40
-   * of them — resuming from the read position would silently skip the 11 that
-   * were found and never shown, which is a gap the broker would never see.
-   */
-  const survivorOffsets: number[] = [];
   // Seeded from the boundary tail so a twin straddling a continuation boundary
   // is still deduped.
   const seenProviderRows = new Set<string>(resume?.tail ?? []);
@@ -354,24 +376,51 @@ export async function assembleFinalUniverse<T>(
   // deep page stops costing the entire prefix again.
   const neededForPage = resume ? pageSize + 1 : page * pageSize + 1;
 
-  while (!exhausted && providerRowsRead < providerBudget) {
+  // WHICH PHASE EACH SURVIVOR CAME FROM, so a resume starts in the right bucket
+  // rather than restarting the KNOWN walk after crossing into NULLS.
+  const survivorPhases: number[] = [];
+
+  let phaseIndex = startPhaseIndex;
+  // Only the FIRST phase of a resumed traversal continues from a keyset
+  // position. Every phase after it starts at its own beginning.
+  let phasePredicate: string | null = startPredicate;
+  let phaseRowsRead = 0;
+  let phaseExhausted = false;
+
+  while (providerRowsRead < providerBudget) {
     if (!exactCount && survivors.length >= neededForPage) break;
+
+    // PHASE TRANSITION. Exhausting the current bucket is not exhausting the
+    // provider — it is the end of one bucket. Only running out of PHASES ends
+    // the universe.
+    if (phaseExhausted) {
+      if (phaseIndex >= phases.length - 1) {
+        exhausted = true;
+        break;
+      }
+      phaseIndex += 1;
+      phasePredicate = null;
+      phaseRowsRead = 0;
+      phaseExhausted = false;
+    }
 
     const remainingBudget = providerBudget - providerRowsRead;
     const top = Math.min(providerPageSize, remainingBudget);
-    // With a keyset the provider query itself is narrowed, so the walk always
-    // starts at offset 0 of that narrowed universe. Adding the old numeric
-    // offset on top would skip rows the predicate already excluded.
-    const providerPage = keyset
-      ? await fetchPage(providerRowsRead, top, {
-          predicate: keyset.predicate,
-          orderBy: keyset.orderBy,
-        })
-      : await fetchPage(startOffset + providerRowsRead, top);
+    const current = phases[phaseIndex];
+    // The query is narrowed to this phase, and further narrowed by the keyset
+    // when resuming, so the walk always starts at offset 0 of what it asked
+    // for. Adding a numeric offset on top would skip rows the predicate has
+    // already excluded.
+    const providerPage = await fetchPage(phaseRowsRead, top, {
+      scope: current.scope,
+      orderBy: current.orderBy,
+      predicate: phasePredicate,
+    });
 
     if (providerPage.providerMatched != null) providerMatched = providerPage.providerMatched;
     providerRowsRead += providerPage.records.length;
-    exhausted = providerPage.exhausted;
+    phaseRowsRead += providerPage.records.length;
+    phaseExhausted = providerPage.exhausted;
 
     let rowsConsumedThisPage = providerRowsRead - providerPage.records.length;
     for (const record of providerPage.records) {
@@ -408,14 +457,17 @@ export async function assembleFinalUniverse<T>(
       seenProviderRows.add(rowKey);
 
       survivors.push(record);
-      survivorOffsets.push(startOffset + rowsConsumedThisPage);
+      survivorPhases.push(phaseIndex);
     }
 
-    // The records were empty but the provider did not say it was done: stop
-    // rather than loop forever on a provider that keeps answering nothing.
-    if (providerPage.records.length === 0) break;
+    // The records were empty but the provider did not say it was done. Treat it
+    // as the end of THIS phase rather than of the universe, so a provider that
+    // answers nothing cannot silently swallow the phases after it.
+    if (providerPage.records.length === 0) phaseExhausted = true;
   }
 
+  // Exhaustion of the LAST phase is the only thing that ends the universe.
+  if (phaseExhausted && phaseIndex >= phases.length - 1) exhausted = true;
   if (!exhausted && providerRowsRead >= providerBudget) truncatedAtBudget = true;
 
   // On a resumed traversal the survivors seen so far are only THIS segment, so
@@ -440,11 +492,11 @@ export async function assembleFinalUniverse<T>(
   const start = resume ? 0 : (page - 1) * pageSize;
   const rows = survivors.slice(start, start + pageSize);
 
-  // Resume from where the LAST EMITTED row sat, so survivors found but not
-  // returned on this page are picked up by the next request instead of skipped.
+  // The keyset boundary is the LAST EMITTED row, not the last row READ. A
+  // segment can read 60 rows, find 51 survivors and return 40 — resuming from
+  // the read position would skip the 11 found but never shown, a gap the broker
+  // would never see.
   const lastEmitted = start + rows.length - 1;
-  const providerOffsetReached =
-    rows.length > 0 ? survivorOffsets[lastEmitted] : startOffset + providerRowsRead;
 
   // A short page is only FINAL if the universe ended. If the budget ended, the
   // page is unfinished and the caller must finish it before moving on.
@@ -472,13 +524,13 @@ export async function assembleFinalUniverse<T>(
     providerMatched,
     truncatedAtBudget,
     providerRowsRead,
-    providerOffsetReached,
     survivorsConsumedBefore,
     pageRowKeys: rows.map((r) => providerRowKey(r)),
     // Deliberately the RAW provider record, never a mapped DTO: the next
     // boundary value is fed straight back to Cotality, and a value that has been
     // through a renderer is a different value.
     boundaryRow: rows.length > 0 ? rows[rows.length - 1] : null,
+    boundaryPhaseIndex: rows.length > 0 ? survivorPhases[lastEmitted] : phaseIndex,
     exclusions: { identityless, gated, providerDuplicates },
     gatePassedBeforeDedupe,
   };

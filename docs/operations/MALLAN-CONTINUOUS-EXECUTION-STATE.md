@@ -1,7 +1,15 @@
 # MALLAN CONTINUOUS EXECUTION STATE
 
-**Updated:** 2026-08-17
+**Updated:** 2026-08-26
 **Purpose:** survive a context reset without restarting the investigation.
+
+| | |
+|---|---|
+| **Repo** | `mallan67/mallan-nyc` |
+| **Branch** | `fix/neon-p0-event-driven-wake-2026-08-16` |
+| **PR** | **#618 — Draft, open, unmerged, Preview-only** |
+| **Active workstream** | **Authenticated Backend Agent Search (§12)** |
+| **`SEARCH_CONTINUATION_SECRET`** | **NOT SET** — protected env change, needs Maya's authorization (§11) |
 
 > **IF YOU ARE A NEW SESSION, DO THIS AND NOTHING ELSE FIRST:**
 > 1. **🛑 STOP GATE — read `docs/architecture/COTALITY-API-AND-MALLAN-LOCAL-INPUT.md`**
@@ -13,7 +21,10 @@
 > 2. Read `MALLAN-PLATFORM-MASTER-PLAN.md` (frozen PR #595, read-only authority).
 > 3. Read this file.
 > 4. Verify `pwd`, repo, branch, HEAD, `git status`, `git diff --stat`.
-> 5. Resume from **§10 EXACT NEXT ACTION**.
+> 5. Resume from **§12 EXACT NEXT ACTION — AUTHENTICATED SEARCH**.
+>    ⚠ **NOT §10.** §10 is the August-17 buyer-participation/migration work and is
+>    **SUPERSEDED**. It is retained as historical evidence only. Following it would
+>    send a new session into an unrelated schema/migration workstream.
 >
 > **DO NOT start a new audit.** The audits are done and recorded below.
 
@@ -206,7 +217,12 @@ Base `https://api.cotality.com/trestle`, OAuth client_credentials. **Credentials
 
 ---
 
-## 10. EXACT NEXT ACTION
+## 10. ~~EXACT NEXT ACTION~~ — SUPERSEDED 2026-08-26 (historical)
+
+> **SUPERSEDED. Do not action this section.** It describes the August-17
+> buyer-participation / media-identity workstream, which is not what #618 is
+> doing. It is kept because the findings are still true, not because the actions
+> are still next. **The current next action is §12.**
 
 1. Strip `NON_AGENT_SENTINELS` semantics from `lib/idx/buyer-participation-mapper.ts`; keep raw preservation; relabel as observed-not-verified. Update its tests.
 2. Census `Agent.trestle_mls_id` writers; establish verified provenance; add tests.
@@ -283,3 +299,62 @@ plain `$skip=N`.
 Keyset removes distance-from-start instability. It cannot freeze a live feed and
 no cursor design can. Compare/CMA selections are therefore durable by
 `ListingKey`, never by position.
+
+---
+
+## 12. EXACT NEXT ACTION — AUTHENTICATED SEARCH (current, 2026-08-26)
+
+**This is the live workstream. §10 is superseded.**
+
+| | |
+|---|---|
+| Head at last update | `ed5ea769b40fa33137834c7ddd68dfa4a7fd9ce0` |
+| PR | #618 Draft / open / unmerged / Preview-only |
+| CI at `2288a380` | all five checks green (PR checks, Guardrails, Release Truth, Target Platform Build, Claude Code Review) |
+| Known-red, PRE-EXISTING, not caused by this work | `jest-config-reachability`, `guardrails-prohibited-terms-single-source` (both tracked), `ensure-listing-reserved-namespace`, `crm-my-listings-pagination` (both untracked) |
+
+### Closed in this workstream
+
+Provider criterion registry (live-executed, five distinct outcomes never
+collapsed) · transport closed browser→wire→server · fail-closed persistence and
+restore · the FINAL SEARCH UNIVERSE engine (identity → gates → dedupe) · a count
+that declares EXACT vs LOWER_BOUND · nullable `totalPages` · canonical sort with
+a ListingKey tie-break · server-round-trip pagination · page completeness
+(COMPLETE / FINAL_PARTIAL / INCOMPLETE_BUDGET) · Mallan return-copy suppression
+at the provider boundary · sealed, typed, null-aware two-phase keyset
+continuation · renderer null-safety across grid, dashboard, reports and map.
+
+### Immediate next action
+
+1. **Non-checkbox business criterion census.** Build from the UNION of every way
+   a criterion can enter Search — Basic UI, Advanced UI, dedicated readers,
+   generic controls, date widgets, geography controls, sort, collector,
+   serializer, request builder, route params, filter builder, Saved Search
+   write/restore, legacy saved searches, programmatic callers, Search Within
+   Results. **Not DOM inputs alone.**
+2. Then Basic ↔ Advanced **semantic** parity (state, not matching controls).
+3. Then Saved Search full create/edit/reload cycle.
+4. Then geography/Map spatial architecture (still OPEN — see below).
+5. Then workbench, detail-return, selection, Compare, client activity, Reports,
+   email/print/share, CMA foundation, compliance/attribution, and authenticated
+   desktop/tablet/mobile Preview proof.
+
+### Still open, and NOT to be claimed as done
+
+- **Map is a bounded, disclosed sample.** Provider `Latitude`/`Longitude` are
+  null on every live row AND suppressed for filtering, so no spatial provider
+  query exists. The real contract is viewport → covered neighbourhoods/boroughs
+  → `CityRegion`/`SubdivisionName`/`PostalCode` → final universe → pins from the
+  existing Census-backed `GeocodeCache`. Not built.
+- **Deep continuation is code-capable but runtime-unavailable** until
+  `SEARCH_CONTINUATION_SECRET` is authorized (§11). Live mode is
+  `bounded_rescan`, capped at 60,000 provider rows per request.
+- **Held criteria stay held**: `keyword` (NOT_VIABLE — `contains(PublicRemarks…)`
+  times out), `management_company` (no verified provider fact), financing
+  percentage (PROVIDER_UNAVAILABLE), price-change direction (MALLAN_DERIVED),
+  Pre-War/Post-War boundaries (no provider fact defines them).
+
+### Protected boundaries (unchanged)
+
+NO MERGE · NO PRODUCTION DEPLOY · NO Production Neon/R2 · NO schema/migration/
+backfill · NO env/auth mutation · NO Public Consumer Search.

@@ -8,15 +8,14 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
  * around 591,000 rows for `Permission eq 'IDX'`, and historical/CMA workflows
  * make deep traversal a real requirement rather than a theoretical one.
  *
- * So "Next" carries a continuation: resume the provider walk where the previous
- * request stopped, instead of re-walking from row zero and hitting the same
- * ceiling forever.
+ * So "Next" carries a continuation: a POSITION IN THE ORDER to resume after,
+ * instead of re-walking from the start and hitting the same ceiling forever.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * WHAT THIS TOKEN IS, AND WHAT IT DELIBERATELY IS NOT.
  *
- * It is a POSITION, not an authority. It says "resume the provider walk at
- * offset N, having already emitted S survivors". It carries no criteria, no
+ * It is a POSITION, not an authority. It says "resume after this point in the
+ * ordering, having already emitted S survivors". It carries no criteria, no
  * permissions and no rows. Every request re-applies the whole chain from the
  * request's own parameters: the canonical criteria, the Mallan return-copy
  * suppression, the distribution gates, provider-row dedupe. A token cannot
@@ -71,8 +70,14 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
  * ─────────────────────────────────────────────────────────────────────────────
  * DETERMINISM ACROSS COLD INSTANCES. Nothing is stored anywhere. The token holds
  * the entire resume state, so a cold serverless instance with no memory of the
- * previous request resumes the identical sequence — which an in-memory cursor
- * could not promise, and which is why one is not used.
+ * previous request resumes from the identical POSITION — which an in-memory
+ * cursor could not promise, and which is why one is not used.
+ *
+ * That is cold-start determinism and nothing more. It is NOT snapshot
+ * isolation: the provider offers none (EntitySets only, no $delta, no
+ * deltatoken, nextLink is a plain $skip), so a feed that moves between requests
+ * moves the sequence with it. An earlier version of this comment promised an
+ * "identical sequence", which overclaimed exactly that difference.
  */
 
 /** How many trailing provider-row keys travel with the token. */
