@@ -12,6 +12,7 @@ import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeJson } from "@/lib/api/safe-json";
 import { scanTextForFairHousing } from "@/lib/compliance/rls-enforcement";
 import { assertLeadIdStringAccess } from "@/lib/crm/access";
+import { normalizeSavedSearchCriteria } from "@/lib/search/canonical/saved-search-normalizer";
 import {
   canEnableAlertForCriteria,
   criteriaToProjectionWhere,
@@ -79,7 +80,13 @@ export async function GET(req: NextRequest) {
     const countCache = new Map<string, Promise<number>>();
 
     const serialized = await Promise.all(searches.map(async (s) => {
-      const criteria = isPlainSearchCriteria(s.criteria) ? s.criteria : null;
+      // Legacy rows are normalized IN MEMORY on read. Nothing is rewritten or
+      // backfilled — this is a read-boundary compatibility correction, not a
+      // migration.
+      const rawCriteria = isPlainSearchCriteria(s.criteria) ? s.criteria : null;
+      const criteria = rawCriteria
+        ? (normalizeSavedSearchCriteria(rawCriteria).criteria as typeof rawCriteria)
+        : null;
       const unsupportedCriteria = criteria ? getUnsupportedSearchCriteria(criteria) : [];
       const countStatus: SavedSearchCountStatus = !criteria
         ? "invalid_criteria"
@@ -152,7 +159,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const validationError = validateCriteria(criteria);
+    // CANONICALISE AT THE PERSISTENCE BOUNDARY.
+    //
+    // Execution became canonical in Tranche 1; storage did not, so a saved
+    // search was a SECOND TRUTH written in provider vocabulary. Everything
+    // below — validation, the alert gate, and the persisted row — now sees the
+    // same canonical criteria the executor will see, so a reload cannot mean
+    // something different from the save.
+    const normalized = normalizeSavedSearchCriteria(criteria);
+    const canonicalCriteria = normalized.criteria;
+
+    const validationError = validateCriteria(canonicalCriteria);
     if (validationError) {
       return NextResponse.json({ error: validationError }, { status: 400 });
     }
@@ -179,7 +196,7 @@ export async function POST(req: NextRequest) {
     // divergence). See lib/search/criteria-to-prisma.ts canEnableAlertForCriteria.
     const wantAlert = Boolean(alert_frequency) && alert_enabled !== false;
     if (wantAlert) {
-      const gate = canEnableAlertForCriteria(criteria);
+      const gate = canEnableAlertForCriteria(canonicalCriteria);
       if (!gate.ok) {
         return NextResponse.json(
           {
@@ -195,7 +212,7 @@ export async function POST(req: NextRequest) {
     const search = await prisma.savedSearch.create({
       data: {
         name: name.trim(),
-        criteria: criteria as Prisma.InputJsonValue,
+        criteria: canonicalCriteria as Prisma.InputJsonValue,
         agent_id: auth.userId,
         lead_id: leadAccess?.leadId ?? null,
         alert_frequency: alert_frequency ?? null,

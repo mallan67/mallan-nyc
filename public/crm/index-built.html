@@ -23674,7 +23674,13 @@ function parseBudgetValue(td) {
                 // checkboxFilters carries the whitelisted Cooling/Garage/View/
                 // BuildingFeatures/etc. set. Stored as a JSON string to
                 // preserve the inner shape unchanged across save/load.
-                checkbox_filters: c.checkboxFilters ? JSON.stringify(c.checkboxFilters) : undefined,
+                // Send the OBJECT, not a JSON string inside a JSON column.
+                // The SERVER canonicalises legacy data-field keys to Mallan
+                // criteria (lib/search/canonical/saved-search-normalizer.ts) —
+                // that adapter is deliberately NOT duplicated here, because two
+                // translation tables is how the vocabularies drifted apart in
+                // the first place.
+                checkbox_filters: c.checkboxFilters || undefined,
             };
             return out;
         }

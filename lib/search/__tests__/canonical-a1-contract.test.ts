@@ -364,6 +364,15 @@ describe('A1 · only authorised readers import the canonical package', () => {
     const AUTHORISED = new Set([
       // Single derivation point for amenity_keys / feature_flags.
       'lib/search/listing-search-projection.ts',
+      // Saved Search PERSISTENCE boundary. Execution became canonical in
+      // Tranche 1 while storage still wrote provider-style keys, so a saved
+      // search was a SECOND TRUTH: reload could mean something other than the
+      // save. These two routes run the canonical normalizer on write AND on
+      // read, which is what collapses storage and execution back to one
+      // vocabulary. They introduce no second translation table — the legacy
+      // adapter lives in the canonical package they read.
+      'app/api/crm/saved-searches/route.ts',
+      'app/api/crm/saved-searches/[id]/route.ts',
       // Canonical criteria -> projection where-builder; reads the ownership
       // flag names so the reader cannot invent a second spelling of them.
       'lib/search/criteria-to-prisma.ts',
