@@ -35,19 +35,19 @@
                                 <span class="text-gray-300">|</span>
                                 <span>${escapeHtml(listing.zip)}</span>
                             </div>
-                            <span class="text-xs font-bold">$${listing.price.toLocaleString()}</span>
+                            <span class="text-xs font-bold">${formatCurrency(listing.price)}</span>
                         </div>
                         <div class="text-[10px] text-gray-500 mt-0.5">CC: $${listing.maintCC} &nbsp; RET: $${listing.reTaxes}</div>
                         <div class="flex items-center gap-2 text-[11px] mt-1">
-                            <span><strong>${listing.rooms}</strong> Rooms</span>
+                            <span><strong>${listing.rooms != null ? listing.rooms : '—'}</strong> Rooms</span>
                             <span class="text-gray-300">|</span>
-                            <span><strong>${listing.beds}</strong> Beds</span>
+                            <span><strong>${listing.beds != null ? listing.beds : '—'}</strong> Beds</span>
                             <span class="text-gray-300">|</span>
-                            <span><strong>${listing.baths}</strong> Baths</span>
+                            <span><strong>${listing.baths != null ? listing.baths : '—'}</strong> Baths</span>
                             <span class="text-gray-300">|</span>
                             <span><strong>${listing.intSqft || '--'}</strong> SqFt</span>
                             <span class="text-gray-300">|</span>
-                            <span><strong>${listing.intSqft ? Math.round(listing.price / listing.intSqft).toLocaleString() : '--'}</strong> $/SF</span>
+                            <span><strong>${(listing.intSqft && listing.price != null) ? Math.round(listing.price / listing.intSqft).toLocaleString() : '—'}</strong> $/SF</span>
                         </div>
                         ${listing.priceChange === 'down' ? '<div class="mt-1"><span class="px-1.5 py-0.5 bg-red-100 text-red-600 text-[10px] rounded font-bold"><i class="fas fa-arrow-down"></i> PRICE DROP!</span></div>' : ''}
                     </div>
@@ -85,7 +85,7 @@
                         ${comingSoonBadgeCompact(listing)}
                         ${participantOnlyBadge(listing)}
                         ${syndicationBadge(listing)}
-                        <span class="text-lg font-bold">$${listing.price.toLocaleString()}</span>
+                        <span class="text-lg font-bold">${formatCurrency(listing.price)}</span>
                     </div>
                 </div>
 
@@ -95,7 +95,7 @@
                     <span>W-ID: ${escapeHtml(listing.wid || '--')}</span>
                     <span>CC: $${listing.maintCC}</span>
                     <span>RET: $${listing.reTaxes}</span>
-                    <span>EST. MONTHLY: $${listing.totalMonthly.toLocaleString()}</span>
+                    <span>EST. MONTHLY: ${formatCurrency(listing.totalMonthly)}</span>
                 </div>
 
                 <!-- Tags -->
@@ -136,15 +136,15 @@
 
                 <!-- Room specs -->
                 <div class="flex items-center gap-3 text-sm mb-3">
-                    <span><strong>${listing.rooms}</strong> Rooms</span>
+                    <span><strong>${listing.rooms != null ? listing.rooms : '—'}</strong> Rooms</span>
                     <span class="text-gray-300">|</span>
-                    <span><strong>${listing.beds}</strong> Beds</span>
+                    <span><strong>${listing.beds != null ? listing.beds : '—'}</strong> Beds</span>
                     <span class="text-gray-300">|</span>
-                    <span><strong>${listing.baths}</strong> Baths</span>
+                    <span><strong>${listing.baths != null ? listing.baths : '—'}</strong> Baths</span>
                     <span class="text-gray-300">|</span>
                     <span><strong>${listing.intSqft ? listing.intSqft.toLocaleString() : '--'}</strong> SqFt</span>
                     <span class="text-gray-300">|</span>
-                    <span><strong>${listing.intSqft ? Math.round(listing.price / listing.intSqft).toLocaleString() : '--'}</strong> $ per SqFt</span>
+                    <span><strong>${(listing.intSqft && listing.price != null) ? Math.round(listing.price / listing.intSqft).toLocaleString() : '—'}</strong> $ per SqFt</span>
                 </div>
 
                 <!-- Status / Dates grid -->
@@ -153,7 +153,7 @@
                         <div><span class="text-gray-500 block text-[10px]">STATUS</span><span class="px-1.5 py-0.5 ${getStatusBadgeClasses(listing.status)} rounded font-semibold text-[11px]">${listing.status}</span></div>
                         <div><span class="text-gray-500 block text-[10px]">UPDATED</span><span class="font-semibold">${escapeHtml(listing.updatedDate || '--')}</span> ${listingFreshness(listing)}</div>
                         <div><span class="text-gray-500 block text-[10px]">LISTED</span><span class="font-semibold">${escapeHtml(listing.listedDate)}</span></div>
-                        <div><span class="text-gray-500 block text-[10px]">DOM</span><span class="font-semibold">${listing.dom}</span></div>
+                        <div><span class="text-gray-500 block text-[10px]">DOM</span><span class="font-semibold">${listing.dom != null ? listing.dom : '—'}</span></div>
                     </div>
                 </div>
 
@@ -164,12 +164,12 @@
                 <div class="bg-gray-50 rounded-lg p-3 mb-3">
                     <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Financial</h4>
                     <div class="grid grid-cols-3 gap-3 text-xs">
-                        <div><span class="text-gray-500">List Price</span><div class="font-bold text-gray-900">$${listing.price.toLocaleString()}</div></div>
+                        <div><span class="text-gray-500">List Price</span><div class="font-bold text-gray-900">${formatCurrency(listing.price)}</div></div>
                         <div><span class="text-gray-500">Common Charges</span><div class="font-semibold">$${listing.maintCC}/mo</div></div>
                         <div><span class="text-gray-500">RE Taxes</span><div class="font-semibold">$${listing.reTaxes}/mo</div></div>
-                        <div><span class="text-gray-500">Est. Monthly</span><div class="font-semibold">$${listing.totalMonthly.toLocaleString()}/mo</div></div>
-                        <div><span class="text-gray-500">Price/SqFt</span><div class="font-semibold">${listing.intSqft ? '$' + Math.round(listing.price / listing.intSqft).toLocaleString() : '--'}</div></div>
-                        ${listing.originalPrice ? '<div><span class="text-gray-500">Original Price</span><div class="font-semibold text-red-600">$' + listing.originalPrice.toLocaleString() + '</div></div>' : '<div><span class="text-gray-500">Price/Room</span><div class="font-semibold">' + (listing.rooms ? '$' + Math.round(listing.price / listing.rooms).toLocaleString() : '--') + '</div></div>'}
+                        <div><span class="text-gray-500">Est. Monthly</span><div class="font-semibold">${formatCurrency(listing.totalMonthly)}/mo</div></div>
+                        <div><span class="text-gray-500">Price/SqFt</span><div class="font-semibold">${(listing.intSqft && listing.price != null) ? formatCurrency(Math.round(listing.price / listing.intSqft)) : '—'}</div></div>
+                        ${listing.originalPrice ? '<div><span class="text-gray-500">Original Price</span><div class="font-semibold text-red-600">$' + listing.originalPrice.toLocaleString() + '</div></div>' : '<div><span class="text-gray-500">Price/Room</span><div class="font-semibold">' + ((listing.rooms && listing.price != null) ? formatCurrency(Math.round(listing.price / listing.rooms)) : '—') + '</div></div>'}
                     </div>
                 </div>
 
@@ -178,8 +178,8 @@
                     <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Unit Details</h4>
                     <div class="grid grid-cols-3 gap-3 text-xs">
                         <div><span class="text-gray-500">Rooms</span><div class="font-semibold">${listing.rooms || '--'}</div></div>
-                        <div><span class="text-gray-500">Bedrooms</span><div class="font-semibold">${listing.beds}</div></div>
-                        <div><span class="text-gray-500">Bathrooms</span><div class="font-semibold">${listing.baths}</div></div>
+                        <div><span class="text-gray-500">Bedrooms</span><div class="font-semibold">${listing.beds != null ? listing.beds : '—'}</div></div>
+                        <div><span class="text-gray-500">Bathrooms</span><div class="font-semibold">${listing.baths != null ? listing.baths : '—'}</div></div>
                         <div><span class="text-gray-500">Int. SqFt</span><div class="font-semibold">${listing.intSqft ? listing.intSqft.toLocaleString() : '--'}</div></div>
                         <div><span class="text-gray-500">Floor</span><div class="font-semibold">${escapeHtml(listing.floor || '--')}</div></div>
                         <div><span class="text-gray-500">Exposures</span><div class="font-semibold">${escapeHtml(listing.exposures || '--')}</div></div>

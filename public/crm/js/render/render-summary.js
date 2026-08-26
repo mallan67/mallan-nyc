@@ -45,7 +45,7 @@
                                         </div>
                                     </div>
                                     <div class="flex flex-col items-end flex-shrink-0">
-                                        <span class="text-xl font-bold text-gray-900"${resoData('price', listing.price)}>$${listing.price.toLocaleString()}</span>
+                                        <span class="text-xl font-bold text-gray-900"${resoData('price', listing.price)}>${formatCurrency(listing.price)}</span>
                                         <div class="flex items-center gap-2 mt-1">
                                             <span class="px-2 py-0.5 rounded text-[11px] font-semibold" style="background:${stB};color:${stC}"${resoData('status', listing.status)}>${statusLabel}</span>
                                             ${participantOnlyBadge(listing)}
@@ -56,14 +56,14 @@
 
                                 <!-- Specs row -->
                                 <div class="flex items-center gap-4 text-sm text-gray-700 mb-3 mt-3">
-                                    <span><strong>${listing.beds}</strong> Beds</span>
+                                    <span><strong>${listing.beds != null ? listing.beds : '—'}</strong> Beds</span>
                                     <span class="text-gray-300">&middot;</span>
-                                    <span><strong>${listing.baths}</strong> Baths</span>
+                                    <span><strong>${listing.baths != null ? listing.baths : '—'}</strong> Baths</span>
                                     <span class="text-gray-300">&middot;</span>
                                     <span><strong>${listing.intSqft ? listing.intSqft.toLocaleString() : '--'}</strong> SF</span>
-                                    ${listing.intSqft ? '<span class="text-gray-300">&middot;</span><span class="text-gray-500">$' + Math.round(listing.price / listing.intSqft).toLocaleString() + '/SF</span>' : ''}
+                                    ${(listing.intSqft && listing.price != null) ? '<span class="text-gray-300">&middot;</span><span class="text-gray-500">' + formatCurrency(Math.round(listing.price / listing.intSqft)) + '/SF</span>' : ''}
                                     <span class="text-gray-300">&middot;</span>
-                                    <span class="text-gray-500">CC: $${listing.maintCC ? listing.maintCC.toLocaleString() : '--'}</span>
+                                    <span class="text-gray-500">CC: ${formatCurrency(listing.maintCC)}</span>
                                 </div>
 
                                 <!-- Dates bar -->

@@ -189,7 +189,7 @@
                 <div class="flex items-center gap-1.5 text-xs text-gray-500 mb-3">
                     <span>${escapeHtml(listing.neighborhood)}</span>
                     <span class="text-gray-300">&bull;</span>
-                    <span>${escapeHtml(listing.borough || 'Manhattan')}, NY ${escapeHtml(listing.zip)}</span>
+                    <span>${escapeHtml(listing.borough || '')}${listing.borough ? ',' : ''} NY ${escapeHtml(listing.zip)}</span>
                     ${listing.era ? '<span class="text-gray-300">&bull;</span><span>' + escapeHtml(listing.era) + '</span>' : ''}
                     <span class="text-gray-300">&bull;</span>
                     <span>${ownershipLabel(listing.ownership)}</span>
@@ -482,7 +482,7 @@
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Building Name</span><span class="font-semibold">${listing.buildingName || '---'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Address</span><span class="font-semibold">${displayAddress}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Neighborhood</span><span class="font-semibold">${listing.neighborhood}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Borough</span><span class="font-semibold">${listing.borough || 'Manhattan'}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Borough</span><span class="font-semibold">${listing.borough || '—'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Zip</span><span class="font-semibold">${listing.zip}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Cross Street</span><span class="font-semibold">${listing.crossStreet || '---'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Year Built</span><span class="font-semibold">${listing.yearBuilt || '---'}</span></div>
@@ -689,7 +689,7 @@
                                     <div class="lux-field"><span>Building Name</span><span>${listing.buildingName || '---'}</span></div>
                                     <div class="lux-field"><span>Address</span><span>${displayAddress}</span></div>
                                     <div class="lux-field"><span>Neighborhood</span><span>${listing.neighborhood}</span></div>
-                                    <div class="lux-field"><span>Borough</span><span>${listing.borough || 'Manhattan'}</span></div>
+                                    <div class="lux-field"><span>Borough</span><span>${listing.borough || '—'}</span></div>
                                     <div class="lux-field"><span>Zip Code</span><span>${listing.zip}</span></div>
                                     <div class="lux-field"><span>Cross Street</span><span>${listing.crossStreet || '---'}</span></div>
                                     <div class="lux-field"><span>Year Built</span><span>${listing.yearBuilt || '---'}</span></div>
@@ -772,9 +772,9 @@
 
                         <!-- Neighborhood Header -->
                         <div class="border rounded-xl p-4 mb-4">
-                            <div class="flex items-center gap-2 mb-2"><span class="text-[11px] font-bold uppercase tracking-[0.15em] text-gray-500">${listing.borough || 'Manhattan'}</span></div>
+                            <div class="flex items-center gap-2 mb-2"><span class="text-[11px] font-bold uppercase tracking-[0.15em] text-gray-500">${listing.borough || '—'}</span></div>
                             <h2 class="text-2xl font-bold text-gray-900 mb-1">${listing.neighborhood}</h2>
-                            <p class="text-sm text-gray-500">${listing.borough || 'Manhattan'}, New York ${listing.zip}</p>
+                            <p class="text-sm text-gray-500">${listing.borough ? listing.borough + ', ' : ''}New York ${listing.zip}</p>
                             <div class="flex items-center gap-6 mt-4 pt-4 border-t">
                                 ${listing.walkScore ? '<div class="text-center"><div class="text-gray-900 font-bold text-xl">' + listing.walkScore + '</div><div class="text-gray-400 text-[10px] font-semibold uppercase tracking-wider">Walk Score</div></div><div class="w-px h-10 bg-gray-200"></div>' : ''}
                                 <div class="text-center"><div class="text-gray-900 font-bold text-xl">${transitScore || '---'}</div><div class="text-gray-400 text-[10px] font-semibold uppercase tracking-wider">Transit Score</div></div>
@@ -1243,7 +1243,7 @@
         function buildAgentMailtoBody(listing) {
             var addr = (listing.address || '') + (listing.unit ? ', ' + listing.unit : '');
             var nbhd = listing.neighborhood || '';
-            var borough = listing.borough || 'Manhattan';
+            var borough = listing.borough || null;
             var price = '$' + Number(listing.price || 0).toLocaleString();
             var beds = listing.beds === 0 ? 'Studio' : (listing.beds || '—') + ' Bed';
             var baths = (listing.baths || '—') + ' Bath';
@@ -1354,7 +1354,7 @@
                     listing_status: listing.status || 'ACTIVE',
                     listing_url: listingUrl,
                     listing_neighborhood: listing.neighborhood || null,
-                    listing_borough: listing.borough || 'Manhattan',
+                    listing_borough: listing.borough || null,
                     listing_zip: listing.zip || null,
                     agent_email: listingAgentEmail,
                     agent_name: listingAgentName,
@@ -2219,7 +2219,7 @@
 
             MallanAPI.cma.create({
                 property_address: listing.address + (listing.unit ? ', ' + listing.unit : ''),
-                borough: listing.borough || 'Manhattan',
+                borough: listing.borough || null,
                 neighborhood: listing.neighborhood || null,
                 listing_type: listing.listingCategory === 'rental' ? 'rental' : 'sale',
                 property_type: listing.ownership || listing.propertyType || null,

@@ -765,7 +765,7 @@
                             address: listing.address,
                             name: listing.buildingName || '',
                             neighborhood: listing.neighborhood,
-                            borough: listing.borough || 'Manhattan',
+                            borough: listing.borough || null,
                             zip: listing.zip,
                             type: ownershipLabel(listing.ownership) || '',
                             yearBuilt: ''
@@ -831,7 +831,7 @@
                         address: l.address,
                         name: l.buildingName || '',
                         neighborhood: l.neighborhood || '',
-                        borough: l.borough || 'Manhattan',
+                        borough: l.borough || null,
                         zip: l.zip || '',
                         type: ownershipLabel(l.ownership) || '',
                         yearBuilt: ''

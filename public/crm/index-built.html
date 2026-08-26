@@ -17058,7 +17058,7 @@ function manageShowToast(msg) {
                             address: listing.address,
                             name: listing.buildingName || '',
                             neighborhood: listing.neighborhood,
-                            borough: listing.borough || 'Manhattan',
+                            borough: listing.borough || null,
                             zip: listing.zip,
                             type: ownershipLabel(listing.ownership) || '',
                             yearBuilt: ''
@@ -17124,7 +17124,7 @@ function manageShowToast(msg) {
                         address: l.address,
                         name: l.buildingName || '',
                         neighborhood: l.neighborhood || '',
-                        borough: l.borough || 'Manhattan',
+                        borough: l.borough || null,
                         zip: l.zip || '',
                         type: ownershipLabel(l.ownership) || '',
                         yearBuilt: ''
@@ -21903,13 +21903,13 @@ function parseBudgetValue(td) {
             // Core fields — each render includes data-reso-field/data-reso-value attributes
             address:          { label: 'ADDRESS',        reso: 'UnparsedAddress',         render: function(l) { var addr = l.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(l.address); return '<span class="font-medium text-blue-600 hover:underline cursor-pointer text-xs"' + resoData('address', addr) + ' onclick="event.stopPropagation(); openListingInNewTab(\'' + l.id + '\')">' + addr + '</span>'; } },
             unit:             { label: 'UNIT',           reso: 'UnitNumber',              render: function(l) { return '<span' + resoData('unit', l.unit) + '>' + (l.addressDisplayYN === false ? '--' : escapeHtml(l.unit)) + '</span>'; } },
-            price:            { label: 'PRICE',          reso: 'ListPrice',               render: function(l) { return '<span class="font-bold text-gray-900"' + resoData('price', l.price) + '>$' + l.price.toLocaleString() + '</span>'; } },
-            totalMonthly:     { label: 'TOTAL MONTHLY',  reso: 'AssociationFee+TaxAnnualAmount', render: function(l) { return '<span' + resoData('totalMonthly', l.totalMonthly) + '>$' + l.totalMonthly.toLocaleString() + '</span>'; } },
-            rooms:            { label: 'RMS',            reso: 'RoomsTotal',              render: function(l) { return '<span' + resoData('rooms', l.rooms) + '>' + (l.rooms || '--') + '</span>'; } },
-            beds:             { label: 'BDS',            reso: 'BedroomsTotal',           render: function(l) { return '<span' + resoData('beds', l.beds) + '>' + l.beds + '</span>'; } },
-            baths:            { label: 'TOTAL BTHS',     reso: 'BathroomsTotalInteger',   render: function(l) { return '<span' + resoData('baths', l.baths) + '>' + l.baths + '</span>'; } },
-            reTaxes:          { label: 'RE TAXES',       reso: 'TaxAnnualAmount',         render: function(l) { return '<span' + resoData('reTaxes', l.reTaxes) + '>$' + l.reTaxes.toLocaleString() + '</span>'; } },
-            maintCC:          { label: 'MAINT/CC',       reso: 'AssociationFee',          render: function(l) { return '<span' + resoData('maintCC', l.maintCC) + '>$' + l.maintCC.toLocaleString() + '</span>'; } },
+            price:            { label: 'PRICE',          reso: 'ListPrice',               render: function(l) { return '<span class="font-bold text-gray-900"' + resoData('price', l.price) + '>' + formatCurrency(l.price) + '</span>'; } },
+            totalMonthly:     { label: 'TOTAL MONTHLY',  reso: 'AssociationFee+TaxAnnualAmount', render: function(l) { return '<span' + resoData('totalMonthly', l.totalMonthly) + '>' + formatCurrency(l.totalMonthly) + '</span>'; } },
+            rooms:            { label: 'RMS',            reso: 'RoomsTotal',              render: function(l) { return '<span' + resoData('rooms', l.rooms) + '>' + (l.rooms != null ? l.rooms : '—') + '</span>'; } },
+            beds:             { label: 'BDS',            reso: 'BedroomsTotal',           render: function(l) { return '<span' + resoData('beds', l.beds) + '>' + (l.beds != null ? l.beds : '—') + '</span>'; } },
+            baths:            { label: 'TOTAL BTHS',     reso: 'BathroomsTotalInteger',   render: function(l) { return '<span' + resoData('baths', l.baths) + '>' + (l.baths != null ? l.baths : '—') + '</span>'; } },
+            reTaxes:          { label: 'RE TAXES',       reso: 'TaxAnnualAmount',         render: function(l) { return '<span' + resoData('reTaxes', l.reTaxes) + '>' + formatCurrency(l.reTaxes) + '</span>'; } },
+            maintCC:          { label: 'MAINT/CC',       reso: 'AssociationFee',          render: function(l) { return '<span' + resoData('maintCC', l.maintCC) + '>' + formatCurrency(l.maintCC) + '</span>'; } },
             intSqft:          { label: 'INT SQFT',       reso: 'LivingArea',              render: function(l) { return '<span' + resoData('intSqft', l.intSqft) + '>' + (l.intSqft || '--') + '</span>'; } },
             status:           { label: 'STATUS',         reso: 'MlsStatus',          render: function(l) { var c = l.status === 'Active' ? 'bg-green-100 text-green-700' : l.status === 'Pending' ? 'bg-orange-100 text-orange-700' : l.status === 'ComingSoon' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'; var label = l.status === 'ComingSoon' ? 'COMING SOON' : l.status; var badge = '<span class="px-1.5 py-0.5 ' + c + ' rounded text-[10px] font-semibold"' + resoData('status', l.status) + '>' + label + '</span>'; badge += comingSoonBadgeCompact(l) + participantOnlyBadge(l); return badge; } },
             ownership:        { label: 'OWNERSHIP',      reso: 'CommonInterest',          render: function(l) { return '<span' + resoData('ownership', l.ownership) + '>' + ownershipLabel(l.ownership) + '</span>'; } },
@@ -21925,10 +21925,10 @@ function parseBudgetValue(td) {
             company:          { label: 'COMPANY',        reso: 'ListOfficeName',          render: function(l) { return '<span' + resoData('company', l.company) + '>' + escapeHtml(l.company || '--') + '</span>'; } },
             primaryAgentName: { label: 'AGENT',          reso: 'ListAgentFullName',       render: function(l) { return '<span' + resoData('agentName', l.agentName) + '>' + escapeHtml(l.agentName || '--') + '</span>'; } },
             rlsId:            { label: 'RLS ID',         reso: 'ListingId',               render: function(l) { return '<span' + resoData('lid', l.lid) + '>' + escapeHtml(l.lid || '--') + '</span>'; } },
-            pricePerSqft:     { label: '$/SQFT',         reso: null,                      render: function(l) { return l.intSqft ? '$' + Math.round(l.price / l.intSqft).toLocaleString() : '--'; } },
+            pricePerSqft:     { label: '$/SQFT',         reso: null,                      render: function(l) { return (l.intSqft && l.price != null) ? formatCurrency(Math.round(l.price / l.intSqft)) : '—'; } },
             // Extended fields (available in Grid Layouts modal)
             activityHistory:    { label: 'ACTIVITY',       reso: null,                      render: function(l) { return '--'; } },
-            pricePerRoom:       { label: '$/ROOM',         reso: null,                      render: function(l) { return l.rooms ? '$' + Math.round(l.price / l.rooms).toLocaleString() : '--'; } },
+            pricePerRoom:       { label: '$/ROOM',         reso: null,                      render: function(l) { return (l.rooms && l.price != null) ? formatCurrency(Math.round(l.price / l.rooms)) : '—'; } },
             pricePerShare:      { label: '$/SHARE',        reso: null,                      render: function(l) { return '--'; } },
             acrisDocuments:     { label: 'ACRIS DOCS',     reso: null,                      render: function(l) { return '--'; } },
             acrisId:            { label: 'ACRIS ID',       reso: null,                      render: function(l) { return '--'; } },
@@ -21948,7 +21948,7 @@ function parseBudgetValue(td) {
             internalListingNum: { label: 'INT LISTING #',  reso: null,                      render: function(l) { return '--'; } },
             lastAskPrice:       { label: 'LAST ASK',       reso: 'PreviousListPrice',       render: function(l) { return '--'; } },
             liked:              { label: 'LIKED',          reso: null,                      render: function(l) { return '--'; } },
-            originalPrice:      { label: 'ORIG PRICE',     reso: 'OriginalListPrice',       render: function(l) { return '<span' + resoData('originalPrice', l.originalPrice) + '>' + (l.originalPrice ? '$' + l.originalPrice.toLocaleString() : '--') + '</span>'; } },
+            originalPrice:      { label: 'ORIG PRICE',     reso: 'OriginalListPrice',       render: function(l) { return '<span' + resoData('originalPrice', l.originalPrice) + '>' + (l.originalPrice != null ? formatCurrency(l.originalPrice) : '—') + '</span>'; } },
             petsAllowed:        { label: 'PETS',           reso: 'PetsAllowed',             render: function(l) { return '--'; } },
             picked:             { label: 'PICKED',         reso: null,                      render: function(l) { return '--'; } },
             preWarPostWar:      { label: 'ERA',            reso: 'YearBuilt',               render: function(l) { return '<span' + resoData('yearBuilt', l.yearBuilt) + '>' + escapeHtml(l.era || '--') + (l.yearBuilt ? ' (' + l.yearBuilt + ')' : '') + '</span>'; } },
@@ -22040,10 +22040,11 @@ function parseBudgetValue(td) {
                             // renderer cannot throw mid-row. Status is NOT among
                             // them: an unknown status shown as ACTIVE tells the
                             // broker the listing is on the market.
-                            if (listing.price == null) listing.price = 0;
-                            if (listing.totalMonthly == null) listing.totalMonthly = 0;
-                            if (listing.beds == null) listing.beds = 0;
-                            if (listing.baths == null) listing.baths = 0;
+                            // NO numeric fallbacks. These previously coerced
+                            // null -> 0, which renders "$0" — a price of zero is
+                            // a factual claim a broker can quote, and unknown is
+                            // not that claim. The column renderers are now
+                            // null-safe via formatCurrency and render an em dash.
                             if (!listing.address) listing.address = 'Address Unavailable';
                             if (!listing.permissions) listing.permissions = {};
 
@@ -22321,12 +22322,12 @@ function parseBudgetValue(td) {
                                 <h4 class="font-bold text-[15px] text-gray-900 truncate">${displayAddress}${displayUnit ? ', ' + displayUnit : ''}</h4>
                                 <p class="text-[12px] text-gray-500 font-light mt-0.5">${escapeHtml(listing.era || '--')} &middot; ${ownershipLabel(listing.ownership)} &middot; ${escapeHtml(listing.neighborhood)}</p>
                             </div>
-                            <span class="text-base font-bold text-gray-900 whitespace-nowrap"${resoData('price', listing.price)}>$${listing.price.toLocaleString()}</span>
+                            <span class="text-base font-bold text-gray-900 whitespace-nowrap"${resoData('price', listing.price)}>${formatCurrency(listing.price)}</span>
                         </div>
                         <p class="text-[13px] text-gray-600 font-light">
-                            ${listing.beds} bd &middot; ${listing.baths} ba${listing.intSqft ? ' &middot; ' + listing.intSqft.toLocaleString() + ' sf' : ''}
+                            ${listing.beds != null ? listing.beds : '—'} bd &middot; ${listing.baths != null ? listing.baths : '—'} ba${listing.intSqft ? ' &middot; ' + listing.intSqft.toLocaleString() + ' sf' : ''}
                         </p>
-                        ${listing.maintCC ? '<p class="text-[11px] text-gray-400 font-light mt-0.5">CC: $' + listing.maintCC.toLocaleString() + '/mo</p>' : ''}
+                        ${listing.maintCC != null ? '<p class="text-[11px] text-gray-400 font-light mt-0.5">CC: ' + formatCurrency(listing.maintCC) + '/mo</p>' : ''}
                         <!-- Status + Agent -->
                         <div class="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
                             <div class="flex items-center gap-1.5">
@@ -22334,7 +22335,7 @@ function parseBudgetValue(td) {
                                 ${participantOnlyBadge(listing)}
                                 ${syndicationBadge(listing)}
                             </div>
-                            <span class="text-[10px] text-gray-400"${resoData('totalMonthly', listing.totalMonthly)}>MT: $${listing.totalMonthly.toLocaleString()}</span>
+                            <span class="text-[10px] text-gray-400"${resoData('totalMonthly', listing.totalMonthly)}>MT: ${formatCurrency(listing.totalMonthly)}</span>
                         </div>
                         ${listing.listingCategory === 'rental' ? fareActDisclosure(listing) : ''}
                         <!-- Attribution -->
@@ -22394,16 +22395,16 @@ function parseBudgetValue(td) {
                         <div class="grid grid-cols-4 gap-x-4 gap-y-0.5 text-xs">
                             <!-- Col 1: Price -->
                             <div>
-                                <div class="flex justify-between"><span class="text-gray-500">Price:</span><span class="font-bold">$${listing.price.toLocaleString()}</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">Price:</span><span class="font-bold">${formatCurrency(listing.price)}</span></div>
                                 ${listing.originalPrice ? '<div class="text-[10px] text-gray-400">(Originally $' + listing.originalPrice.toLocaleString() + ')</div>' : ''}
-                                <div class="flex justify-between"><span class="text-gray-500">Rm/Bd/Bth:</span><span>${listing.rooms}/${listing.beds}/${listing.baths}</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">Rm/Bd/Bth:</span><span>${listing.rooms != null ? listing.rooms : '—'}/${listing.beds != null ? listing.beds : '—'}/${listing.baths != null ? listing.baths : '—'}</span></div>
                                 <div class="flex justify-between"><span class="text-gray-500">SqFt:</span><span>${listing.intSqft ? listing.intSqft.toLocaleString() : '--'}</span></div>
                                 <div class="flex justify-between"><span class="text-gray-500">$ per SqFt:</span><span>${listing.intSqft ? '$' + Math.round(listing.price / listing.intSqft) : '--'}</span></div>
                             </div>
                             <!-- Col 2: Financials -->
                             <div>
-                                <div class="flex justify-between"><span class="text-gray-500">${listing.listingCategory === 'rental' ? 'Rent:' : 'Common Charges:'}</span><span>$${listing.maintCC.toLocaleString()}</span></div>
-                                <div class="flex justify-between"><span class="text-gray-500">RE Taxes:</span><span>$${listing.reTaxes.toLocaleString()}</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">${listing.listingCategory === 'rental' ? 'Rent:' : 'Common Charges:'}</span><span>${formatCurrency(listing.maintCC)}</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">RE Taxes:</span><span>${formatCurrency(listing.reTaxes)}</span></div>
                                 <div class="flex justify-between"><span class="text-gray-500">Cooling:</span><span>--</span></div>
                                 <div class="flex justify-between"><span class="text-gray-500">Washer/Dryer:</span><span>--</span></div>
                             </div>
@@ -22416,7 +22417,7 @@ function parseBudgetValue(td) {
                             </div>
                             <!-- Col 4: Dates -->
                             <div>
-                                <div class="flex justify-between"><span class="text-gray-500">DOM:</span><span class="font-semibold">${listing.dom}</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">DOM:</span><span class="font-semibold">${listing.dom != null ? listing.dom : '—'}</span></div>
                                 <div class="flex justify-between"><span class="text-gray-500">Listed:</span><span>${escapeHtml(listing.listedDate)}</span></div>
                                 <div class="flex justify-between"><span class="text-gray-500">Updated:</span><span>${escapeHtml(listing.updatedDate || '--')}</span> ${listingFreshness(listing)}</div>
                             </div>
@@ -22491,7 +22492,7 @@ function parseBudgetValue(td) {
                                         </div>
                                     </div>
                                     <div class="flex flex-col items-end flex-shrink-0">
-                                        <span class="text-xl font-bold text-gray-900"${resoData('price', listing.price)}>$${listing.price.toLocaleString()}</span>
+                                        <span class="text-xl font-bold text-gray-900"${resoData('price', listing.price)}>${formatCurrency(listing.price)}</span>
                                         <div class="flex items-center gap-2 mt-1">
                                             <span class="px-2 py-0.5 rounded text-[11px] font-semibold" style="background:${stB};color:${stC}"${resoData('status', listing.status)}>${statusLabel}</span>
                                             ${participantOnlyBadge(listing)}
@@ -22502,14 +22503,14 @@ function parseBudgetValue(td) {
 
                                 <!-- Specs row -->
                                 <div class="flex items-center gap-4 text-sm text-gray-700 mb-3 mt-3">
-                                    <span><strong>${listing.beds}</strong> Beds</span>
+                                    <span><strong>${listing.beds != null ? listing.beds : '—'}</strong> Beds</span>
                                     <span class="text-gray-300">&middot;</span>
-                                    <span><strong>${listing.baths}</strong> Baths</span>
+                                    <span><strong>${listing.baths != null ? listing.baths : '—'}</strong> Baths</span>
                                     <span class="text-gray-300">&middot;</span>
                                     <span><strong>${listing.intSqft ? listing.intSqft.toLocaleString() : '--'}</strong> SF</span>
-                                    ${listing.intSqft ? '<span class="text-gray-300">&middot;</span><span class="text-gray-500">$' + Math.round(listing.price / listing.intSqft).toLocaleString() + '/SF</span>' : ''}
+                                    ${(listing.intSqft && listing.price != null) ? '<span class="text-gray-300">&middot;</span><span class="text-gray-500">' + formatCurrency(Math.round(listing.price / listing.intSqft)) + '/SF</span>' : ''}
                                     <span class="text-gray-300">&middot;</span>
-                                    <span class="text-gray-500">CC: $${listing.maintCC ? listing.maintCC.toLocaleString() : '--'}</span>
+                                    <span class="text-gray-500">CC: ${formatCurrency(listing.maintCC)}</span>
                                 </div>
 
                                 <!-- Dates bar -->
@@ -22594,19 +22595,19 @@ function parseBudgetValue(td) {
                                 <span class="text-gray-300">|</span>
                                 <span>${escapeHtml(listing.zip)}</span>
                             </div>
-                            <span class="text-xs font-bold">$${listing.price.toLocaleString()}</span>
+                            <span class="text-xs font-bold">${formatCurrency(listing.price)}</span>
                         </div>
                         <div class="text-[10px] text-gray-500 mt-0.5">CC: $${listing.maintCC} &nbsp; RET: $${listing.reTaxes}</div>
                         <div class="flex items-center gap-2 text-[11px] mt-1">
-                            <span><strong>${listing.rooms}</strong> Rooms</span>
+                            <span><strong>${listing.rooms != null ? listing.rooms : '—'}</strong> Rooms</span>
                             <span class="text-gray-300">|</span>
-                            <span><strong>${listing.beds}</strong> Beds</span>
+                            <span><strong>${listing.beds != null ? listing.beds : '—'}</strong> Beds</span>
                             <span class="text-gray-300">|</span>
-                            <span><strong>${listing.baths}</strong> Baths</span>
+                            <span><strong>${listing.baths != null ? listing.baths : '—'}</strong> Baths</span>
                             <span class="text-gray-300">|</span>
                             <span><strong>${listing.intSqft || '--'}</strong> SqFt</span>
                             <span class="text-gray-300">|</span>
-                            <span><strong>${listing.intSqft ? Math.round(listing.price / listing.intSqft).toLocaleString() : '--'}</strong> $/SF</span>
+                            <span><strong>${(listing.intSqft && listing.price != null) ? Math.round(listing.price / listing.intSqft).toLocaleString() : '—'}</strong> $/SF</span>
                         </div>
                         ${listing.priceChange === 'down' ? '<div class="mt-1"><span class="px-1.5 py-0.5 bg-red-100 text-red-600 text-[10px] rounded font-bold"><i class="fas fa-arrow-down"></i> PRICE DROP!</span></div>' : ''}
                     </div>
@@ -22644,7 +22645,7 @@ function parseBudgetValue(td) {
                         ${comingSoonBadgeCompact(listing)}
                         ${participantOnlyBadge(listing)}
                         ${syndicationBadge(listing)}
-                        <span class="text-lg font-bold">$${listing.price.toLocaleString()}</span>
+                        <span class="text-lg font-bold">${formatCurrency(listing.price)}</span>
                     </div>
                 </div>
 
@@ -22654,7 +22655,7 @@ function parseBudgetValue(td) {
                     <span>W-ID: ${escapeHtml(listing.wid || '--')}</span>
                     <span>CC: $${listing.maintCC}</span>
                     <span>RET: $${listing.reTaxes}</span>
-                    <span>EST. MONTHLY: $${listing.totalMonthly.toLocaleString()}</span>
+                    <span>EST. MONTHLY: ${formatCurrency(listing.totalMonthly)}</span>
                 </div>
 
                 <!-- Tags -->
@@ -22695,15 +22696,15 @@ function parseBudgetValue(td) {
 
                 <!-- Room specs -->
                 <div class="flex items-center gap-3 text-sm mb-3">
-                    <span><strong>${listing.rooms}</strong> Rooms</span>
+                    <span><strong>${listing.rooms != null ? listing.rooms : '—'}</strong> Rooms</span>
                     <span class="text-gray-300">|</span>
-                    <span><strong>${listing.beds}</strong> Beds</span>
+                    <span><strong>${listing.beds != null ? listing.beds : '—'}</strong> Beds</span>
                     <span class="text-gray-300">|</span>
-                    <span><strong>${listing.baths}</strong> Baths</span>
+                    <span><strong>${listing.baths != null ? listing.baths : '—'}</strong> Baths</span>
                     <span class="text-gray-300">|</span>
                     <span><strong>${listing.intSqft ? listing.intSqft.toLocaleString() : '--'}</strong> SqFt</span>
                     <span class="text-gray-300">|</span>
-                    <span><strong>${listing.intSqft ? Math.round(listing.price / listing.intSqft).toLocaleString() : '--'}</strong> $ per SqFt</span>
+                    <span><strong>${(listing.intSqft && listing.price != null) ? Math.round(listing.price / listing.intSqft).toLocaleString() : '—'}</strong> $ per SqFt</span>
                 </div>
 
                 <!-- Status / Dates grid -->
@@ -22712,7 +22713,7 @@ function parseBudgetValue(td) {
                         <div><span class="text-gray-500 block text-[10px]">STATUS</span><span class="px-1.5 py-0.5 ${getStatusBadgeClasses(listing.status)} rounded font-semibold text-[11px]">${listing.status}</span></div>
                         <div><span class="text-gray-500 block text-[10px]">UPDATED</span><span class="font-semibold">${escapeHtml(listing.updatedDate || '--')}</span> ${listingFreshness(listing)}</div>
                         <div><span class="text-gray-500 block text-[10px]">LISTED</span><span class="font-semibold">${escapeHtml(listing.listedDate)}</span></div>
-                        <div><span class="text-gray-500 block text-[10px]">DOM</span><span class="font-semibold">${listing.dom}</span></div>
+                        <div><span class="text-gray-500 block text-[10px]">DOM</span><span class="font-semibold">${listing.dom != null ? listing.dom : '—'}</span></div>
                     </div>
                 </div>
 
@@ -22723,12 +22724,12 @@ function parseBudgetValue(td) {
                 <div class="bg-gray-50 rounded-lg p-3 mb-3">
                     <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Financial</h4>
                     <div class="grid grid-cols-3 gap-3 text-xs">
-                        <div><span class="text-gray-500">List Price</span><div class="font-bold text-gray-900">$${listing.price.toLocaleString()}</div></div>
+                        <div><span class="text-gray-500">List Price</span><div class="font-bold text-gray-900">${formatCurrency(listing.price)}</div></div>
                         <div><span class="text-gray-500">Common Charges</span><div class="font-semibold">$${listing.maintCC}/mo</div></div>
                         <div><span class="text-gray-500">RE Taxes</span><div class="font-semibold">$${listing.reTaxes}/mo</div></div>
-                        <div><span class="text-gray-500">Est. Monthly</span><div class="font-semibold">$${listing.totalMonthly.toLocaleString()}/mo</div></div>
-                        <div><span class="text-gray-500">Price/SqFt</span><div class="font-semibold">${listing.intSqft ? '$' + Math.round(listing.price / listing.intSqft).toLocaleString() : '--'}</div></div>
-                        ${listing.originalPrice ? '<div><span class="text-gray-500">Original Price</span><div class="font-semibold text-red-600">$' + listing.originalPrice.toLocaleString() + '</div></div>' : '<div><span class="text-gray-500">Price/Room</span><div class="font-semibold">' + (listing.rooms ? '$' + Math.round(listing.price / listing.rooms).toLocaleString() : '--') + '</div></div>'}
+                        <div><span class="text-gray-500">Est. Monthly</span><div class="font-semibold">${formatCurrency(listing.totalMonthly)}/mo</div></div>
+                        <div><span class="text-gray-500">Price/SqFt</span><div class="font-semibold">${(listing.intSqft && listing.price != null) ? formatCurrency(Math.round(listing.price / listing.intSqft)) : '—'}</div></div>
+                        ${listing.originalPrice ? '<div><span class="text-gray-500">Original Price</span><div class="font-semibold text-red-600">$' + listing.originalPrice.toLocaleString() + '</div></div>' : '<div><span class="text-gray-500">Price/Room</span><div class="font-semibold">' + ((listing.rooms && listing.price != null) ? formatCurrency(Math.round(listing.price / listing.rooms)) : '—') + '</div></div>'}
                     </div>
                 </div>
 
@@ -22737,8 +22738,8 @@ function parseBudgetValue(td) {
                     <h4 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Unit Details</h4>
                     <div class="grid grid-cols-3 gap-3 text-xs">
                         <div><span class="text-gray-500">Rooms</span><div class="font-semibold">${listing.rooms || '--'}</div></div>
-                        <div><span class="text-gray-500">Bedrooms</span><div class="font-semibold">${listing.beds}</div></div>
-                        <div><span class="text-gray-500">Bathrooms</span><div class="font-semibold">${listing.baths}</div></div>
+                        <div><span class="text-gray-500">Bedrooms</span><div class="font-semibold">${listing.beds != null ? listing.beds : '—'}</div></div>
+                        <div><span class="text-gray-500">Bathrooms</span><div class="font-semibold">${listing.baths != null ? listing.baths : '—'}</div></div>
                         <div><span class="text-gray-500">Int. SqFt</span><div class="font-semibold">${listing.intSqft ? listing.intSqft.toLocaleString() : '--'}</div></div>
                         <div><span class="text-gray-500">Floor</span><div class="font-semibold">${escapeHtml(listing.floor || '--')}</div></div>
                         <div><span class="text-gray-500">Exposures</span><div class="font-semibold">${escapeHtml(listing.exposures || '--')}</div></div>
@@ -29734,7 +29735,7 @@ function emailCurrentCalc() {
                 <div class="flex items-center gap-1.5 text-xs text-gray-500 mb-3">
                     <span>${escapeHtml(listing.neighborhood)}</span>
                     <span class="text-gray-300">&bull;</span>
-                    <span>${escapeHtml(listing.borough || 'Manhattan')}, NY ${escapeHtml(listing.zip)}</span>
+                    <span>${escapeHtml(listing.borough || '')}${listing.borough ? ',' : ''} NY ${escapeHtml(listing.zip)}</span>
                     ${listing.era ? '<span class="text-gray-300">&bull;</span><span>' + escapeHtml(listing.era) + '</span>' : ''}
                     <span class="text-gray-300">&bull;</span>
                     <span>${ownershipLabel(listing.ownership)}</span>
@@ -30027,7 +30028,7 @@ function emailCurrentCalc() {
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Building Name</span><span class="font-semibold">${listing.buildingName || '---'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Address</span><span class="font-semibold">${displayAddress}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Neighborhood</span><span class="font-semibold">${listing.neighborhood}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Borough</span><span class="font-semibold">${listing.borough || 'Manhattan'}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Borough</span><span class="font-semibold">${listing.borough || '—'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Zip</span><span class="font-semibold">${listing.zip}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Cross Street</span><span class="font-semibold">${listing.crossStreet || '---'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Year Built</span><span class="font-semibold">${listing.yearBuilt || '---'}</span></div>
@@ -30234,7 +30235,7 @@ function emailCurrentCalc() {
                                     <div class="lux-field"><span>Building Name</span><span>${listing.buildingName || '---'}</span></div>
                                     <div class="lux-field"><span>Address</span><span>${displayAddress}</span></div>
                                     <div class="lux-field"><span>Neighborhood</span><span>${listing.neighborhood}</span></div>
-                                    <div class="lux-field"><span>Borough</span><span>${listing.borough || 'Manhattan'}</span></div>
+                                    <div class="lux-field"><span>Borough</span><span>${listing.borough || '—'}</span></div>
                                     <div class="lux-field"><span>Zip Code</span><span>${listing.zip}</span></div>
                                     <div class="lux-field"><span>Cross Street</span><span>${listing.crossStreet || '---'}</span></div>
                                     <div class="lux-field"><span>Year Built</span><span>${listing.yearBuilt || '---'}</span></div>
@@ -30317,9 +30318,9 @@ function emailCurrentCalc() {
 
                         <!-- Neighborhood Header -->
                         <div class="border rounded-xl p-4 mb-4">
-                            <div class="flex items-center gap-2 mb-2"><span class="text-[11px] font-bold uppercase tracking-[0.15em] text-gray-500">${listing.borough || 'Manhattan'}</span></div>
+                            <div class="flex items-center gap-2 mb-2"><span class="text-[11px] font-bold uppercase tracking-[0.15em] text-gray-500">${listing.borough || '—'}</span></div>
                             <h2 class="text-2xl font-bold text-gray-900 mb-1">${listing.neighborhood}</h2>
-                            <p class="text-sm text-gray-500">${listing.borough || 'Manhattan'}, New York ${listing.zip}</p>
+                            <p class="text-sm text-gray-500">${listing.borough ? listing.borough + ', ' : ''}New York ${listing.zip}</p>
                             <div class="flex items-center gap-6 mt-4 pt-4 border-t">
                                 ${listing.walkScore ? '<div class="text-center"><div class="text-gray-900 font-bold text-xl">' + listing.walkScore + '</div><div class="text-gray-400 text-[10px] font-semibold uppercase tracking-wider">Walk Score</div></div><div class="w-px h-10 bg-gray-200"></div>' : ''}
                                 <div class="text-center"><div class="text-gray-900 font-bold text-xl">${transitScore || '---'}</div><div class="text-gray-400 text-[10px] font-semibold uppercase tracking-wider">Transit Score</div></div>
@@ -30788,7 +30789,7 @@ function emailCurrentCalc() {
         function buildAgentMailtoBody(listing) {
             var addr = (listing.address || '') + (listing.unit ? ', ' + listing.unit : '');
             var nbhd = listing.neighborhood || '';
-            var borough = listing.borough || 'Manhattan';
+            var borough = listing.borough || null;
             var price = '$' + Number(listing.price || 0).toLocaleString();
             var beds = listing.beds === 0 ? 'Studio' : (listing.beds || '—') + ' Bed';
             var baths = (listing.baths || '—') + ' Bath';
@@ -30899,7 +30900,7 @@ function emailCurrentCalc() {
                     listing_status: listing.status || 'ACTIVE',
                     listing_url: listingUrl,
                     listing_neighborhood: listing.neighborhood || null,
-                    listing_borough: listing.borough || 'Manhattan',
+                    listing_borough: listing.borough || null,
                     listing_zip: listing.zip || null,
                     agent_email: listingAgentEmail,
                     agent_name: listingAgentName,
@@ -31764,7 +31765,7 @@ function emailCurrentCalc() {
 
             MallanAPI.cma.create({
                 property_address: listing.address + (listing.unit ? ', ' + listing.unit : ''),
-                borough: listing.borough || 'Manhattan',
+                borough: listing.borough || null,
                 neighborhood: listing.neighborhood || null,
                 listing_type: listing.listingCategory === 'rental' ? 'rental' : 'sale',
                 property_type: listing.ownership || listing.propertyType || null,

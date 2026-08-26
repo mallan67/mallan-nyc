@@ -33,12 +33,12 @@
                                 <h4 class="font-bold text-[15px] text-gray-900 truncate">${displayAddress}${displayUnit ? ', ' + displayUnit : ''}</h4>
                                 <p class="text-[12px] text-gray-500 font-light mt-0.5">${escapeHtml(listing.era || '--')} &middot; ${ownershipLabel(listing.ownership)} &middot; ${escapeHtml(listing.neighborhood)}</p>
                             </div>
-                            <span class="text-base font-bold text-gray-900 whitespace-nowrap"${resoData('price', listing.price)}>$${listing.price.toLocaleString()}</span>
+                            <span class="text-base font-bold text-gray-900 whitespace-nowrap"${resoData('price', listing.price)}>${formatCurrency(listing.price)}</span>
                         </div>
                         <p class="text-[13px] text-gray-600 font-light">
-                            ${listing.beds} bd &middot; ${listing.baths} ba${listing.intSqft ? ' &middot; ' + listing.intSqft.toLocaleString() + ' sf' : ''}
+                            ${listing.beds != null ? listing.beds : '—'} bd &middot; ${listing.baths != null ? listing.baths : '—'} ba${listing.intSqft ? ' &middot; ' + listing.intSqft.toLocaleString() + ' sf' : ''}
                         </p>
-                        ${listing.maintCC ? '<p class="text-[11px] text-gray-400 font-light mt-0.5">CC: $' + listing.maintCC.toLocaleString() + '/mo</p>' : ''}
+                        ${listing.maintCC != null ? '<p class="text-[11px] text-gray-400 font-light mt-0.5">CC: ' + formatCurrency(listing.maintCC) + '/mo</p>' : ''}
                         <!-- Status + Agent -->
                         <div class="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
                             <div class="flex items-center gap-1.5">
@@ -46,7 +46,7 @@
                                 ${participantOnlyBadge(listing)}
                                 ${syndicationBadge(listing)}
                             </div>
-                            <span class="text-[10px] text-gray-400"${resoData('totalMonthly', listing.totalMonthly)}>MT: $${listing.totalMonthly.toLocaleString()}</span>
+                            <span class="text-[10px] text-gray-400"${resoData('totalMonthly', listing.totalMonthly)}>MT: ${formatCurrency(listing.totalMonthly)}</span>
                         </div>
                         ${listing.listingCategory === 'rental' ? fareActDisclosure(listing) : ''}
                         <!-- Attribution -->

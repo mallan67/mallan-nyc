@@ -50,10 +50,11 @@
                             // renderer cannot throw mid-row. Status is NOT among
                             // them: an unknown status shown as ACTIVE tells the
                             // broker the listing is on the market.
-                            if (listing.price == null) listing.price = 0;
-                            if (listing.totalMonthly == null) listing.totalMonthly = 0;
-                            if (listing.beds == null) listing.beds = 0;
-                            if (listing.baths == null) listing.baths = 0;
+                            // NO numeric fallbacks. These previously coerced
+                            // null -> 0, which renders "$0" — a price of zero is
+                            // a factual claim a broker can quote, and unknown is
+                            // not that claim. The column renderers are now
+                            // null-safe via formatCurrency and render an em dash.
                             if (!listing.address) listing.address = 'Address Unavailable';
                             if (!listing.permissions) listing.permissions = {};
 
