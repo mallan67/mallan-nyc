@@ -45,6 +45,7 @@
  * from the FINAL universe, so a gated row pulls the next survivor forward
  * instead of leaving a hole.
  */
+import { keysetResumePredicate } from '@/lib/search/canonical/sort-contract';
 import {
   assembleFinalUniverse,
   CountMeaning,
@@ -869,5 +870,91 @@ describe('page completeness is separate from universe completeness', () => {
     expect(page1).toHaveLength(50);
     expect(new Set(page1).size).toBe(50);
     expect(page1).toEqual(survivors.slice(0, 50));
+  });
+});
+
+/**
+ * ADVERSARIAL: THE FEED CHANGES BETWEEN TWO PAGE REQUESTS.
+ *
+ * Every continuation test above uses a static array, which proves correctness
+ * against a frozen feed and nothing else. A live REBNY feed is not frozen: a
+ * listing ahead of the boundary can change price, be added, or be withdrawn
+ * between a broker pressing Next.
+ *
+ * These tests demonstrate WHY numeric-offset resume is not deterministic under
+ * those conditions, which is the evidence behind moving to a keyset predicate.
+ * They are written to FAIL LOUDLY if someone ever concludes `$skip` is stable —
+ * a conclusion the static tests would happily support.
+ */
+describe('numeric offset resume is NOT stable under a live feed', () => {
+  const base = () => rows(200);
+
+  it('a removal ahead of the boundary makes an offset SKIP a row', async () => {
+    const before = base();
+    // Page 1: rows 0..19 emitted, resume offset lands at 20.
+    const p1 = await assembleFinalUniverse<Row>({
+      fetchPage: fakeProvider(before, 50).fetchPage,
+      identity: key, gate: gateOf, providerRowKey: canonical,
+      page: 1, pageSize: 20, providerBudget: 1_000, exactCount: false,
+    });
+    expect(p1.rows).toHaveLength(20);
+    const resumeAt = p1.providerOffsetReached;
+
+    // A listing ahead of the boundary is withdrawn. Everything after it shifts
+    // one position toward the front.
+    const after = base();
+    after.splice(5, 1);
+
+    const p2 = await assembleFinalUniverse<Row>({
+      fetchPage: fakeProvider(after, 50).fetchPage,
+      identity: key, gate: gateOf, providerRowKey: canonical,
+      page: 1, pageSize: 20, providerBudget: 1_000, exactCount: false,
+      resume: { providerOffset: resumeAt, survivorsConsumed: 20, tail: p1.pageRowKeys },
+    });
+
+    // The row that SHOULD have led page 2 is the one after the last emitted.
+    const expectedNext = before[20].ListingKey;
+    // It does not, because the offset now points one row further along.
+    expect(p2.rows[0].ListingKey).not.toBe(expectedNext);
+    // Concretely: a listing is skipped and the broker never sees it.
+    expect(p2.rows.map(key)).not.toContain(expectedNext);
+  });
+
+  it('an insertion ahead of the boundary makes an offset REPEAT a row', async () => {
+    const before = base();
+    const p1 = await assembleFinalUniverse<Row>({
+      fetchPage: fakeProvider(before, 50).fetchPage,
+      identity: key, gate: gateOf, providerRowKey: canonical,
+      page: 1, pageSize: 20, providerBudget: 1_000, exactCount: false,
+    });
+    const resumeAt = p1.providerOffsetReached;
+
+    const after = base();
+    after.splice(3, 0, { ListingKey: 'NEWLY_LISTED' });
+
+    const p2 = await assembleFinalUniverse<Row>({
+      fetchPage: fakeProvider(after, 50).fetchPage,
+      identity: key, gate: gateOf, providerRowKey: canonical,
+      page: 1, pageSize: 20, providerBudget: 1_000, exactCount: false,
+      // Tail deliberately EMPTY: the boundary tail is 8 keys, so it masks a
+      // one-row shift. This isolates the offset itself, which is the mechanism
+      // under test.
+      resume: { providerOffset: resumeAt, survivorsConsumed: 20, tail: [] },
+    });
+
+    // A row already shown on page 1 comes back on page 2.
+    const page1Keys = new Set(p1.rows.map(key));
+    expect(p2.rows.some((r) => page1Keys.has(key(r)))).toBe(true);
+  });
+
+  it('the keyset predicate names a POSITION, so neither shift moves it', () => {
+    // The replacement. `ListPrice lt 5000000 or (eq and key gt ...)` describes
+    // where in the ORDER to resume, so inserting or withdrawing a listing ahead
+    // of the boundary cannot move it — there is no "distance from the start"
+    // left to be wrong.
+    const predicate = keysetResumePredicate('price_desc', 5_000_000, 'K0019');
+    expect(predicate).toContain('ListPrice lt 5000000');
+    expect(predicate).toContain("ListingKey gt 'K0019'");
+    expect(predicate).not.toMatch(/skip/i);
   });
 });
