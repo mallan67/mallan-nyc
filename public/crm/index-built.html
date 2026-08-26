@@ -16522,11 +16522,11 @@ function manageShowToast(msg) {
                         ? getSelectedBoroughs(_activeTagsId)
                         : [];
                     if (_selectedBoroughs.length > 1) {
-                        showToast(
-                            'Multi-borough filter is not supported — borough constraint dropped. ' +
-                            'For precise results, pick neighborhoods in each borough instead.',
-                            'warning'
-                        );
+                    // The multi-borough advisory was REMOVED 2026-08-26. It told the agent
+                    // the borough constraint had been dropped, which is now false:
+                    // collectSearchCriteria sends every selected borough comma-separated
+                    // and the server renders one CityRegion disjunction. A warning that
+                    // states a disproven fact is worse than no warning.
                     }
                 } catch (_advErr) {
                     // Non-fatal — advisory failure must not block the search.
@@ -17422,15 +17422,24 @@ function manageShowToast(msg) {
                                 // would silently widen the restored search
                                 // instead, which is the failure mode this whole
                                 // status pass exists to remove.
-                                else if (s === 'Future') criteria.statuses.push('FUTURE');
-                                else if (s === 'Pending') criteria.statuses.push('Pending');
-                                else if (s === 'Closed') criteria.statuses.push('Closed');
-                                else if (s === 'Withdrawn') criteria.statuses.push('WITHDRAWN');
-                                else if (s === 'Canceled') criteria.statuses.push('CANCELED');
-                                else if (s === 'Expired') criteria.statuses.push('EXPIRED');
-                                else if (s === 'Hold') criteria.statuses.push('HOLD');
-                                else if (s === 'Incomplete') criteria.statuses.push('INCOMPLETE');
-                                else criteria.statuses.push(s.toUpperCase());
+                                // CANONICAL EXACT TOKENS ONLY (2026-08-26).
+                                //
+                                // These lines used to rewrite the control's own
+                                // exact StandardStatus value into a Mallan
+                                // uppercase spelling — Withdrawn -> WITHDRAWN,
+                                // Expired -> EXPIRED — which the boundary then
+                                // had to translate back. A second status
+                                // vocabulary maintained in parallel with the
+                                // provider's is exactly how PENDING came to mean
+                                // ActiveUnderContract. The data-value on these
+                                // controls IS the live member, so it is carried
+                                // through unchanged.
+                                //
+                                // 'Future' is deliberately NOT special-cased: it
+                                // has no proven Cotality member, so it travels
+                                // as itself and the server rejects it by name
+                                // rather than being silently dropped.
+                                else criteria.statuses.push(s);
                             });
                         }
                     });
@@ -17533,7 +17542,14 @@ function manageShowToast(msg) {
                 criteria.managementCompany = mgmtEl.value.trim();
             }
 
-            // Building Financing % (MaximumFinancingPercent on CRM, BuyerFinancing on Trestle)
+            // Building Financing %.
+            //
+            // CORRECTED 2026-08-26. This claimed "BuyerFinancing on Trestle".
+            // Live probe: MaximumFinancingPercent is ABSENT from Property, and
+            // BuyerFinancing/CurrentFinancing/ListingTerms are multi-enums of
+            // financing TYPE (Cash, Conventional, FHA) — none expresses a
+            // PERCENTAGE. There is no provider fact for this criterion, so it
+            // is PROVIDER_UNAVAILABLE rather than merely unmapped.
             var finMinId = currentSearchTab === 'rent' ? 'rentalBuildingFinancingMin' :
                            currentSearchTab === 'building' ? 'buildingFinancingMin' : 'saleBuildingFinancingMin';
             var finMinEl = document.getElementById(finMinId);
@@ -24089,9 +24105,37 @@ function parseBudgetValue(td) {
                 // Restore form fields from saved criteria
                 _criteriaToFormFields(search.criteria);
 
+                // AUTO-EXECUTION IS GATED ON THE SERVER'S DISPOSITION.
+                //
+                // This previously restored whatever it could and then fired
+                // performSearch() unconditionally 100ms later. A legacy record
+                // whose meaning could not be fully represented therefore ran as
+                // a BROADER search than the one the broker saved — the exact
+                // silent widening the persistence work exists to remove.
+                //
+                // Readable is not runnable: an unresolved record still loads so
+                // the agent can inspect and repair it, but it does not execute
+                // until its criteria can be represented.
+                var status = search.criteria_status || 'executable';
+                if (status !== 'executable') {
+                    var issues = search.criteria_issues || {};
+                    var named = []
+                        .concat(issues.malformed || [])
+                        .concat(issues.unavailable || [])
+                        .concat(issues.unknown || [])
+                        .concat(issues.unexecutable_values || []);
+                    showToast(
+                        'Loaded "' + search.name + '" for review — NOT run. ' +
+                        'These criteria cannot be executed as saved: ' +
+                        (named.join(', ') || 'unknown') +
+                        '. Running it would search more broadly than you saved.',
+                        'warning'
+                    );
+                    return;
+                }
+
                 showToast('Loaded: ' + search.name, 'success');
 
-                // Re-run the search with restored criteria
                 setTimeout(function() {
                     if (typeof performSearch === 'function') performSearch();
                 }, 100);

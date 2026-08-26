@@ -697,9 +697,37 @@
                 // Restore form fields from saved criteria
                 _criteriaToFormFields(search.criteria);
 
+                // AUTO-EXECUTION IS GATED ON THE SERVER'S DISPOSITION.
+                //
+                // This previously restored whatever it could and then fired
+                // performSearch() unconditionally 100ms later. A legacy record
+                // whose meaning could not be fully represented therefore ran as
+                // a BROADER search than the one the broker saved — the exact
+                // silent widening the persistence work exists to remove.
+                //
+                // Readable is not runnable: an unresolved record still loads so
+                // the agent can inspect and repair it, but it does not execute
+                // until its criteria can be represented.
+                var status = search.criteria_status || 'executable';
+                if (status !== 'executable') {
+                    var issues = search.criteria_issues || {};
+                    var named = []
+                        .concat(issues.malformed || [])
+                        .concat(issues.unavailable || [])
+                        .concat(issues.unknown || [])
+                        .concat(issues.unexecutable_values || []);
+                    showToast(
+                        'Loaded "' + search.name + '" for review — NOT run. ' +
+                        'These criteria cannot be executed as saved: ' +
+                        (named.join(', ') || 'unknown') +
+                        '. Running it would search more broadly than you saved.',
+                        'warning'
+                    );
+                    return;
+                }
+
                 showToast('Loaded: ' + search.name, 'success');
 
-                // Re-run the search with restored criteria
                 setTimeout(function() {
                     if (typeof performSearch === 'function') performSearch();
                 }, 100);

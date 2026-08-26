@@ -286,6 +286,96 @@ export function registeredCheckboxFields(): string[] {
   return Array.from(REGISTRY.keys()).sort();
 }
 
+
+/** What a requested VALUE is, against the verified contract. */
+export type CheckboxValueDisposition =
+  | 'executable'
+  | 'unresolved'
+  | 'invalid'
+  | 'boolean_contradiction'
+  | 'provider_suppressed'
+  | 'unregistered';
+
+export interface CheckboxValueVerdict {
+  readonly disposition: CheckboxValueDisposition;
+  readonly offending: string[];
+  readonly reason?: string;
+}
+
+/**
+ * THE SINGLE VALUE AUTHORITY.
+ *
+ * A canonical KEY is not a verified criterion. `view` is canonical and
+ * `view: Park` is still unexecutable — the provider rejects Park outright. Any
+ * consumer that checks only the key will happily store or run a criterion that
+ * cannot execute.
+ *
+ * Persistence delegates here rather than keeping its own allowed-value table,
+ * because a second value authority drifts from this one exactly as the boolean
+ * mapping did.
+ */
+export function validateCheckboxValues(field: string, values: readonly unknown[]): CheckboxValueVerdict {
+  const suppressed = PROVIDER_SUPPRESSED.get(field);
+  if (suppressed) {
+    return { disposition: 'provider_suppressed', offending: values.map(String), reason: suppressed };
+  }
+
+  const canonical = canonicalCheckboxCriterion(field);
+  const contract = canonical ? REGISTRY.get(canonical) : undefined;
+  if (!contract) {
+    return {
+      disposition: 'unregistered',
+      offending: values.map(String),
+      reason: 'This field has no verified live Cotality contract.',
+    };
+  }
+
+  const wanted = values.map((v) => String(v).trim()).filter(Boolean);
+  if (wanted.length === 0) return { disposition: 'executable', offending: [] };
+
+  if (contract.kind === 'boolean') {
+    const wantsTrue = wanted.some((v) => v === 'true' || v === 'Yes');
+    const wantsFalse = wanted.some((v) => v === 'false' || v === 'No');
+    const recognised = wanted.every((v) => contract.allowed.has(v));
+    if (!recognised) {
+      return {
+        disposition: 'invalid',
+        offending: wanted.filter((v) => !contract.allowed.has(v)),
+        reason: 'A boolean criterion accepts only true/false/Yes/No.',
+      };
+    }
+    if (wantsTrue === wantsFalse) {
+      // Asking for both is a contradiction, not a widening.
+      return {
+        disposition: 'boolean_contradiction',
+        offending: wanted,
+        reason: 'A boolean criterion must select exactly one of true/false.',
+      };
+    }
+    return { disposition: 'executable', offending: [] };
+  }
+
+  const unresolved = wanted.filter((v) => contract.unresolved.has(v));
+  if (unresolved.length > 0) {
+    return {
+      disposition: 'unresolved',
+      offending: unresolved,
+      reason: unresolved.map((v) => `${v}: ${contract.unresolved.get(v)}`).join(' | '),
+    };
+  }
+
+  const invalid = wanted.filter((v) => !contract.allowed.has(v));
+  if (invalid.length > 0) {
+    return {
+      disposition: 'invalid',
+      offending: invalid,
+      reason: 'Not a live provider member for this criterion.',
+    };
+  }
+
+  return { disposition: 'executable', offending: [] };
+}
+
 /**
  * The OData predicate for one checkbox field, or null when nothing is selected.
  *

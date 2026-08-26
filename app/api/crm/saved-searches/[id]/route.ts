@@ -12,7 +12,7 @@ import type { Prisma } from "@prisma/client";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { assertLeadIdStringAccess } from "@/lib/crm/access";
 import { canEnableAlertForCriteria } from "@/lib/search/criteria-to-prisma";
-import { normalizeSavedSearchCriteria } from "@/lib/search/canonical/saved-search-normalizer";
+import { normalizeSavedSearchCriteria, savedSearchDisposition } from "@/lib/search/canonical/saved-search-normalizer";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -41,6 +41,10 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
       name: search.name,
       // Legacy rows normalized IN MEMORY. No rewrite, no backfill.
       criteria: normalizeSavedSearchCriteria(search.criteria).criteria,
+      // The disposition travels WITH the record. Returning only normalized
+      // criteria threw away the unresolved state, and the client then
+      // auto-executed a record whose meaning could not be fully represented.
+      ...savedSearchDisposition(search.criteria),
       last_run: search.last_run,
       result_count: search.result_count,
       agent_id: search.agent_id?.toString() ?? null,

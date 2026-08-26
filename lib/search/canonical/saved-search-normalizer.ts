@@ -34,7 +34,10 @@
  * NO DB MIGRATION. Legacy rows are normalized IN MEMORY on read. Nothing is
  * rewritten or backfilled.
  */
-import { canonicalCheckboxCriterion } from "@/lib/search/canonical/checkbox-criteria";
+import {
+  canonicalCheckboxCriterion,
+  validateCheckboxValues,
+} from "@/lib/search/canonical/checkbox-criteria";
 
 /**
  * NO BOOLEAN MAP LIVES HERE.
@@ -72,6 +75,12 @@ export interface NormalizedCheckboxFilters {
   readonly unknown: string[];
   /** Keys whose value shape is wrong. Carried, never dropped. */
   readonly malformed: string[];
+  /**
+   * Canonical keys carrying a value that cannot execute — unresolved semantics,
+   * a non-member, or a boolean contradiction. A canonical KEY is not a verified
+   * criterion: `view` is canonical and `view: Park` is still unexecutable.
+   */
+  readonly unexecutableValues: string[];
   /** The unreadable container, preserved verbatim when parsing failed. */
   readonly rawContainer?: unknown;
 }
@@ -115,6 +124,7 @@ export function normalizeCheckboxFilters(raw: unknown): NormalizedCheckboxFilter
   const unavailable: string[] = [];
   const unknown: string[] = [];
   const malformed: string[] = [];
+  const unexecutableValues: string[] = [];
 
   const { value, malformed: containerMalformed } = parseCheckboxContainer(raw);
   if (containerMalformed) {
@@ -122,9 +132,9 @@ export function normalizeCheckboxFilters(raw: unknown): NormalizedCheckboxFilter
     // value is preserved, because an unreadable container silently becoming an
     // empty filter set turns a narrow saved search into an unrestricted one.
     malformed.push("checkbox_filters");
-    return { canonical, unavailable, unknown, malformed, rawContainer: raw };
+    return { canonical, unavailable, unknown, malformed, unexecutableValues, rawContainer: raw };
   }
-  if (!value) return { canonical, unavailable, unknown, malformed };
+  if (!value) return { canonical, unavailable, unknown, malformed, unexecutableValues };
 
   for (const [key, rawValues] of Object.entries(value)) {
     // MALFORMED IS PRESERVED, NOT SKIPPED.
@@ -143,6 +153,13 @@ export function normalizeCheckboxFilters(raw: unknown): NormalizedCheckboxFilter
     const canonicalKey = canonicalSavedSearchKey(key);
 
     if (canonicalKey) {
+      // A canonical key is not enough. Ask the ONE value authority whether the
+      // selected values can actually execute — otherwise a perfectly canonical
+      // `view: Park` stores as executable and fails at the provider later.
+      const verdict = validateCheckboxValues(canonicalKey, values);
+      if (verdict.disposition !== "executable") {
+        unexecutableValues.push(`${canonicalKey}: ${verdict.offending.join(", ")}`);
+      }
       const existing = canonical[canonicalKey] ?? [];
       for (const v of values) if (!existing.includes(v)) existing.push(v);
       canonical[canonicalKey] = existing;
@@ -156,7 +173,7 @@ export function normalizeCheckboxFilters(raw: unknown): NormalizedCheckboxFilter
     canonical[key] = values;
   }
 
-  return { canonical, unavailable, unknown, malformed };
+  return { canonical, unavailable, unknown, malformed, unexecutableValues };
 }
 
 /**
@@ -192,6 +209,49 @@ export function normalizeSavedSearchCriteria(input: unknown): NormalizedSavedSea
     hasUnresolved:
       checkboxes.unavailable.length > 0 ||
       checkboxes.unknown.length > 0 ||
-      checkboxes.malformed.length > 0,
+      checkboxes.malformed.length > 0 ||
+      checkboxes.unexecutableValues.length > 0,
+  };
+}
+
+/** Whether a stored Saved Search may execute as written. */
+export type SavedSearchCriteriaStatus = "executable" | "unsupported_criteria" | "malformed_criteria";
+
+export interface SavedSearchDisposition {
+  readonly criteria_status: SavedSearchCriteriaStatus;
+  readonly criteria_issues: {
+    readonly malformed: string[];
+    readonly unknown: string[];
+    readonly unavailable: string[];
+    readonly unexecutable_values: string[];
+  };
+}
+
+/**
+ * The execution disposition of a stored record.
+ *
+ * A legacy row must stay READABLE without any database rewrite — an agent may
+ * need to open it to repair it. But readable is not the same as runnable: if its
+ * meaning cannot be fully represented, executing it runs a BROADER search than
+ * the one that was saved. So the disposition travels with the record and the
+ * client gates auto-execution on it, instead of loading and firing regardless.
+ */
+export function savedSearchDisposition(input: unknown): SavedSearchDisposition {
+  const { checkboxes } = normalizeSavedSearchCriteria(input);
+  const status: SavedSearchCriteriaStatus = checkboxes.malformed.length > 0
+    ? "malformed_criteria"
+    : checkboxes.unknown.length > 0 ||
+      checkboxes.unavailable.length > 0 ||
+      checkboxes.unexecutableValues.length > 0
+      ? "unsupported_criteria"
+      : "executable";
+  return {
+    criteria_status: status,
+    criteria_issues: {
+      malformed: checkboxes.malformed,
+      unknown: checkboxes.unknown,
+      unavailable: checkboxes.unavailable,
+      unexecutable_values: checkboxes.unexecutableValues,
+    },
   };
 }

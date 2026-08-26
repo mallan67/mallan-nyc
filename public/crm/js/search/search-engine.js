@@ -223,11 +223,11 @@
                         ? getSelectedBoroughs(_activeTagsId)
                         : [];
                     if (_selectedBoroughs.length > 1) {
-                        showToast(
-                            'Multi-borough filter is not supported — borough constraint dropped. ' +
-                            'For precise results, pick neighborhoods in each borough instead.',
-                            'warning'
-                        );
+                    // The multi-borough advisory was REMOVED 2026-08-26. It told the agent
+                    // the borough constraint had been dropped, which is now false:
+                    // collectSearchCriteria sends every selected borough comma-separated
+                    // and the server renders one CityRegion disjunction. A warning that
+                    // states a disproven fact is worse than no warning.
                     }
                 } catch (_advErr) {
                     // Non-fatal — advisory failure must not block the search.
@@ -1123,15 +1123,24 @@
                                 // would silently widen the restored search
                                 // instead, which is the failure mode this whole
                                 // status pass exists to remove.
-                                else if (s === 'Future') criteria.statuses.push('FUTURE');
-                                else if (s === 'Pending') criteria.statuses.push('Pending');
-                                else if (s === 'Closed') criteria.statuses.push('Closed');
-                                else if (s === 'Withdrawn') criteria.statuses.push('WITHDRAWN');
-                                else if (s === 'Canceled') criteria.statuses.push('CANCELED');
-                                else if (s === 'Expired') criteria.statuses.push('EXPIRED');
-                                else if (s === 'Hold') criteria.statuses.push('HOLD');
-                                else if (s === 'Incomplete') criteria.statuses.push('INCOMPLETE');
-                                else criteria.statuses.push(s.toUpperCase());
+                                // CANONICAL EXACT TOKENS ONLY (2026-08-26).
+                                //
+                                // These lines used to rewrite the control's own
+                                // exact StandardStatus value into a Mallan
+                                // uppercase spelling — Withdrawn -> WITHDRAWN,
+                                // Expired -> EXPIRED — which the boundary then
+                                // had to translate back. A second status
+                                // vocabulary maintained in parallel with the
+                                // provider's is exactly how PENDING came to mean
+                                // ActiveUnderContract. The data-value on these
+                                // controls IS the live member, so it is carried
+                                // through unchanged.
+                                //
+                                // 'Future' is deliberately NOT special-cased: it
+                                // has no proven Cotality member, so it travels
+                                // as itself and the server rejects it by name
+                                // rather than being silently dropped.
+                                else criteria.statuses.push(s);
                             });
                         }
                     });
@@ -1234,7 +1243,14 @@
                 criteria.managementCompany = mgmtEl.value.trim();
             }
 
-            // Building Financing % (MaximumFinancingPercent on CRM, BuyerFinancing on Trestle)
+            // Building Financing %.
+            //
+            // CORRECTED 2026-08-26. This claimed "BuyerFinancing on Trestle".
+            // Live probe: MaximumFinancingPercent is ABSENT from Property, and
+            // BuyerFinancing/CurrentFinancing/ListingTerms are multi-enums of
+            // financing TYPE (Cash, Conventional, FHA) — none expresses a
+            // PERCENTAGE. There is no provider fact for this criterion, so it
+            // is PROVIDER_UNAVAILABLE rather than merely unmapped.
             var finMinId = currentSearchTab === 'rent' ? 'rentalBuildingFinancingMin' :
                            currentSearchTab === 'building' ? 'buildingFinancingMin' : 'saleBuildingFinancingMin';
             var finMinEl = document.getElementById(finMinId);

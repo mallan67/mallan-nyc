@@ -12,7 +12,7 @@ import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeJson } from "@/lib/api/safe-json";
 import { scanTextForFairHousing } from "@/lib/compliance/rls-enforcement";
 import { assertLeadIdStringAccess } from "@/lib/crm/access";
-import { normalizeSavedSearchCriteria } from "@/lib/search/canonical/saved-search-normalizer";
+import { normalizeSavedSearchCriteria, savedSearchDisposition } from "@/lib/search/canonical/saved-search-normalizer";
 import {
   canEnableAlertForCriteria,
   criteriaToProjectionWhere,
@@ -118,6 +118,9 @@ export async function GET(req: NextRequest) {
         projection_count: projectionCount,
         live_result_count: projectionCount,
         count_status: countStatus,
+        // Execution disposition travels with each row so the client can refuse
+        // to auto-run a record whose meaning cannot be fully represented.
+        ...savedSearchDisposition(s.criteria),
         unsupported_criteria: unsupportedCriteria.length > 0 ? unsupportedCriteria : null,
         invalid_criteria: criteria ? null : true,
       };

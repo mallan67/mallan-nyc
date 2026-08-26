@@ -16,6 +16,7 @@ import {
   normalizeSavedSearchCriteria,
   normalizeCheckboxFilters,
   canonicalSavedSearchKey,
+  savedSearchDisposition,
 } from "@/lib/search/canonical/saved-search-normalizer";
 
 describe("legacy provider keys become canonical Mallan criteria", () => {
@@ -218,5 +219,72 @@ describe("this module owns no vocabulary of its own", () => {
 
   it("garage never becomes a generic parking criterion", () => {
     expect(canonicalSavedSearchKey("GarageYN")).not.toBe("parking");
+  });
+});
+
+/**
+ * A CANONICAL KEY IS NOT A VERIFIED CRITERION.
+ *
+ * `view` is canonical and `view: Park` is still unexecutable — the provider
+ * rejects Park outright. Key canonicalization alone let a new Saved Search be
+ * stored as executable with a value that cannot run, so value validation is
+ * delegated to the ONE registry authority rather than a second table here.
+ */
+describe("values are validated against the registry, not just keys", () => {
+  it.each([
+    ["view", { View: ["Park"] }],
+    ["pet_policy", { PetsAllowed: ["CatsOnly"] }],
+    ["laundry", { LaundryFeatures: ["Common"] }],
+    ["building_structure", { StructureType: ["WalkUp"] }],
+  ])("%s with an unresolved value is not executable", (_criterion, cb) => {
+    const out = normalizeSavedSearchCriteria({ checkbox_filters: cb });
+    expect(out.hasUnresolved).toBe(true);
+    expect(out.checkboxes.unexecutableValues.length).toBeGreaterThan(0);
+  });
+
+  it("a boolean asking true AND false is a contradiction, not a widening", () => {
+    const out = normalizeSavedSearchCriteria({ checkbox_filters: { CoolingYN: ["true", "false"] } });
+    expect(out.hasUnresolved).toBe(true);
+  });
+
+  it("a verified value stays executable", () => {
+    const out = normalizeSavedSearchCriteria({ checkbox_filters: { View: ["City"] } });
+    expect(out.hasUnresolved).toBe(false);
+    expect(out.checkboxes.unexecutableValues).toEqual([]);
+  });
+});
+
+describe("the execution disposition travels with a stored record", () => {
+  it("a fully canonical record is executable", () => {
+    const d = savedSearchDisposition({ checkbox_filters: { View: ["City"] } });
+    expect(d.criteria_status).toBe("executable");
+  });
+
+  it("a malformed record is malformed_criteria, never executable", () => {
+    const d = savedSearchDisposition({ checkbox_filters: "{bad" });
+    expect(d.criteria_status).toBe("malformed_criteria");
+    expect(d.criteria_issues.malformed).toContain("checkbox_filters");
+  });
+
+  it("an unavailable legacy control makes the record unsupported_criteria", () => {
+    const d = savedSearchDisposition({ checkbox_filters: { AttendanceType: ["DoormanFullTime"] } });
+    expect(d.criteria_status).toBe("unsupported_criteria");
+    expect(d.criteria_issues.unavailable).toContain("AttendanceType");
+  });
+
+  it("an unexecutable VALUE also blocks execution", () => {
+    // The case key-only canonicalisation missed entirely.
+    const d = savedSearchDisposition({ checkbox_filters: { View: ["Park"] } });
+    expect(d.criteria_status).toBe("unsupported_criteria");
+    expect(d.criteria_issues.unexecutable_values.join()).toContain("Park");
+  });
+
+  it("readable is not runnable — the criteria still come back for repair", () => {
+    // A legacy row must stay openable so an agent can fix it. What it must not
+    // do is run.
+    const out = normalizeSavedSearchCriteria({ checkbox_filters: { AttendanceType: ["x"] } });
+    expect(out.criteria.checkbox_filters).toBeDefined();
+    expect(savedSearchDisposition({ checkbox_filters: { AttendanceType: ["x"] } }).criteria_status)
+      .not.toBe("executable");
   });
 });
