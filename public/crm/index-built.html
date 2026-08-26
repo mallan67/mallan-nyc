@@ -16991,9 +16991,19 @@ function manageShowToast(msg) {
                 searchResultsState.mapListings = mapResult.listings;
                 // Records that the pins are a sample of a larger universe, so a
                 // renderer can say so instead of implying completeness.
-                searchResultsState.mapIsPartial = !!(mapResult.count
-                    && typeof mapResult.count.value === 'number'
-                    && mapResult.count.value > mapResult.listings.length);
+                // PARTIAL IS DECIDED BY THE SERVER'S TRUTH, NOT BY COMPARING
+                // TWO NUMBERS.
+                //
+                // This was `count.value > listings.length`, which reports NOT
+                // partial whenever the two happen to be equal — including when
+                // the traversal never proved the provider was exhausted. A map
+                // is partial whenever the count is a lower bound OR the universe
+                // was not exhausted, regardless of how the arithmetic lands.
+                var _mc = mapResult.count;
+                searchResultsState.mapIsPartial = !!(
+                    (_mc && _mc.isExact === false)
+                    || (mapResult.more && mapResult.more !== 'PROVIDER_EXHAUSTED')
+                );
                 try { refreshResultsMap(); } catch (e) { console.error('[Search] Map refresh failed:', e); }
             }).catch(function(e) {
                 // Non-fatal. The grid is the answer; the map is support, and a
@@ -25713,10 +25723,25 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
         properties: {
           id: l.id,
           address: l.address + (l.unit ? ', ' + l.unit : ''),
-          price: l.price || l.listPrice || 0,
-          beds: l.beds || l.bedroomsTotal || 0,
-          baths: l.baths || l.bathroomsFull || 0,
-          status: l.status || '',
+          // UNKNOWN IS PRESERVED, NOT ZEROED.
+          //
+          // These read `l.price || l.listPrice || 0` and friends. The mapper
+          // deliberately returns null for an absent price, bed or bath count —
+          // "Absent/unparsable is never silently zero" — and this turned every
+          // one of those nulls straight back into 0, so an unknown listing
+          // rendered as "$0" and "0 bd · 0 ba" on the map. That is the exact
+          // defect removed from the grid and the dashboard, still live here.
+          //
+          // `||` is also the wrong operator even for values that ARE present: a
+          // real 0-bedroom studio is falsy and fell through to the next branch.
+          // The middle keys were dead regardless — no mapper in this repo emits
+          // listPrice, bedroomsTotal or bathroomsFull.
+          price: l.price != null ? l.price : null,
+          beds: l.beds != null ? l.beds : null,
+          baths: l.baths != null ? l.baths : null,
+          // 'UNKNOWN' is the mapper's deliberate, readable signal. Collapsing it
+          // to '' discarded the one token that says "we do not know".
+          status: l.status || 'UNKNOWN',
           photo: (l.images && l.images[0] && l.images[0].url) || '',
           neighborhood: l.neighborhood || '',
           listingCategory: l.listingCategory || '',
@@ -25729,21 +25754,53 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
 
   // ── Format price ──
   function fmtPrice(p) {
-    if (!p) return '$0';
+    // `!p` was true for null, undefined, NaN, '' AND a real 0 — all five became
+    // "$0". Unknown and free are opposite facts; a real $0 is still a real fact.
+    if (p === null || p === undefined || p === '') return '—';
+    var _n = Number(p);
+    if (isNaN(_n)) return '—';
+    if (_n === 0) return '$0';
     if (p >= 1000000) return '$' + (p / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
     if (p >= 1000) return '$' + Math.round(p / 1000) + 'K';
     return '$' + p.toLocaleString();
   }
 
   // ── Create price marker element ──
-  function createMarkerEl(price, status) {
+  /**
+   * A count, or an em dash when it is unknown.
+   *
+   * A real 0 survives — a studio genuinely has 0 bedrooms — while an absent
+   * count reads as unavailable rather than as zero.
+   */
+  function fmtCount(v) {
+    if (v === null || v === undefined || v === '') return '—';
+    var n = Number(v);
+    return isNaN(n) ? '—' : String(n);
+  }
+
+  function createMarkerEl(price, status, approx) {
     var el = document.createElement('div');
     el.className = 'results-map-pin';
     var bg = '#1a1a1a';
     if (status === 'ComingSoon') bg = '#d97706';
-    else if (status === 'ACTIVE_UNDER_CONTRACT') bg = '#7c3aed';
+    // CANONICAL RESO SPELLING. This read 'ACTIVE_UNDER_CONTRACT', which is not a
+    // StandardStatus member and therefore never matched — a dead branch, so
+    // every status except ComingSoon rendered in the same default colour,
+    // Closed and Withdrawn and Expired included.
+    else if (status === 'ActiveUnderContract') bg = '#7c3aed';
     el.style.cssText = 'background:' + bg + ';color:#fff;font-size:11px;font-weight:700;padding:4px 8px;border-radius:6px;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25);border:2px solid #fff;';
     el.textContent = fmtPrice(price);
+    // AN APPROXIMATE POSITION SAYS SO ON THE PIN.
+    //
+    // `approx` was computed in buildGeoJSON and then never passed here, so a
+    // listing placed at a neighbourhood centroid looked exactly like one placed
+    // at its real address. Provider Latitude/Longitude are null on every live
+    // row, so in practice this is most of them — a dashed border and a title are
+    // the difference between "here" and "somewhere in this neighbourhood".
+    if (approx) {
+        el.style.borderStyle = 'dashed';
+        el.title = 'Approximate location - shown at the neighbourhood centre';
+    }
     // Hover: change border color only — no transform, no z-index (both cause MapLibre marker reflow/shuffle)
     el.addEventListener('mouseenter', function () { el.style.borderColor = '#3b82f6'; el.style.background = '#2563EB'; });
     el.addEventListener('mouseleave', function () { el.style.borderColor = '#fff'; el.style.background = bg; });
@@ -25824,7 +25881,7 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
         if (group.length === 1) {
           // Single pin — show price marker
           var f = group[0];
-          var el = createMarkerEl(f.properties.price, f.properties.status);
+          var el = createMarkerEl(f.properties.price, f.properties.status, f.properties.approx);
           var marker = new maplibregl.Marker({ element: el }).setLngLat(f.geometry.coordinates).addTo(_map);
           (function (feat) {
             el.addEventListener('click', function () { showPopup(feat); highlightCard(feat.properties.id); });
@@ -25854,7 +25911,7 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
         var f = features[i];
         var coords = f.geometry.coordinates;
         var p = f.properties;
-        var el = createMarkerEl(p.price, p.status);
+        var el = createMarkerEl(p.price, p.status, p.approx);
 
         var marker = new maplibregl.Marker({ element: el })
           .setLngLat(coords)
@@ -25902,7 +25959,7 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
       + '<div style="padding:8px 10px;">'
       + '<div style="font-weight:700;font-size:14px;margin-bottom:2px;">' + fmtPrice(p.price) + (p.listingCategory === 'rental' ? '/mo' : '') + '</div>'
       + '<div style="font-size:11px;color:#6b7280;margin-bottom:4px;">' + (p.address || 'Address Undisclosed') + '</div>'
-      + '<div style="font-size:11px;color:#374151;">' + p.beds + ' bd &middot; ' + p.baths + ' ba' + (p.neighborhood ? ' &middot; ' + p.neighborhood : '') + '</div>'
+      + '<div style="font-size:11px;color:#374151;">' + fmtCount(p.beds) + ' bd &middot; ' + fmtCount(p.baths) + ' ba' + (p.neighborhood ? ' &middot; ' + p.neighborhood : '') + '</div>'
       + (p.approx ? '<div style="font-size:9px;color:#d97706;margin-top:3px;"><i class="fas fa-info-circle"></i> Approximate location</div>' : '')
       + '<button onclick="showListingDetail(\'' + String(p.id).replace(/'/g, "\\'") + '\')" style="margin-top:6px;width:100%;padding:5px;background:#111827;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">View Details</button>'
       + '</div></div>';
@@ -26092,6 +26149,14 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
                          && searchResultsState.mapListings.length)
         ? searchResultsState.mapListings
         : ((typeof getFilteredListings === 'function') ? getFilteredListings(true) : []);
+      // A COUNT FROM A BOUNDED SAMPLE IS QUALIFIED, NOT STATED FLATLY.
+      //
+      // mapListings is at most one bounded read of the universe, so this is
+      // "how many of the listings we loaded are in this neighbourhood", which is
+      // a different claim from "how many listings are in this neighbourhood".
+      // Printing the second when only the first is known is the same defect as
+      // printing a fetched window as the result total.
+      var _partial = !!(searchResultsState && searchResultsState.mapIsPartial);
       var count = mapListings.filter(function (l) { return l.neighborhood === name; }).length;
       var isSelected = !!_selectedSlugs[slug];
 
@@ -26101,7 +26166,7 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
           '<div style="font-family:system-ui,sans-serif;padding:4px;">' +
           '<div style="font-weight:700;font-size:13px;">' + name + '</div>' +
           '<div style="font-size:11px;color:#6b7280;">' + borough + '</div>' +
-          '<div style="font-size:12px;margin-top:4px;font-weight:600;">' + count + ' listing' + (count !== 1 ? 's' : '') + '</div>' +
+          '<div style="font-size:12px;margin-top:4px;font-weight:600;">' + count + (_partial ? '+' : '') + ' listing' + (count !== 1 ? 's' : '') + (_partial ? ' loaded' : '') + '</div>' +
           '<div style="font-size:11px;margin-top:4px;color:' + (isSelected ? '#2563EB' : '#9CA3AF') + ';font-weight:600;">' +
           (isSelected ? '<i class="fas fa-check-circle"></i> Selected' : 'Deselected') + '</div>' +
           '</div>'
@@ -26147,9 +26212,20 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
     // Debounce rapid calls (e.g., zoom events)
     if (_refreshDebounce) clearTimeout(_refreshDebounce);
     _refreshDebounce = setTimeout(function () {
-      var mapListings = (typeof getFilteredListings === 'function')
-        ? getFilteredListings(true)
-        : (searchResultsState && searchResultsState.filteredListings) || [];
+      // THE PINS READ THE MAP UNIVERSE, NOT THE CURRENT PAGE.
+    //
+    // This read getFilteredListings(true), which returns
+    // searchResultsState.filteredListings — and since pagination became a real
+    // server round trip that is ONE PAGE. So the 500-row map universe was being
+    // fetched, stored and then ignored by the only surface it exists for, and
+    // the pins silently collapsed to whatever twenty rows were on screen.
+    //
+    // That was my own defect, introduced with the map-universe read. The
+    // fallback to the visible rows stays for surfaces that never ran a search.
+    var mapListings = (searchResultsState && searchResultsState.mapListings
+                       && searchResultsState.mapListings.length)
+      ? searchResultsState.mapListings
+      : ((typeof getFilteredListings === 'function') ? getFilteredListings(true) : []);
 
       if (!_centroids) {
         var base = window.location.pathname.replace(/\/[^/]*$/, '');

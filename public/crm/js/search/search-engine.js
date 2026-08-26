@@ -656,9 +656,19 @@
                 searchResultsState.mapListings = mapResult.listings;
                 // Records that the pins are a sample of a larger universe, so a
                 // renderer can say so instead of implying completeness.
-                searchResultsState.mapIsPartial = !!(mapResult.count
-                    && typeof mapResult.count.value === 'number'
-                    && mapResult.count.value > mapResult.listings.length);
+                // PARTIAL IS DECIDED BY THE SERVER'S TRUTH, NOT BY COMPARING
+                // TWO NUMBERS.
+                //
+                // This was `count.value > listings.length`, which reports NOT
+                // partial whenever the two happen to be equal — including when
+                // the traversal never proved the provider was exhausted. A map
+                // is partial whenever the count is a lower bound OR the universe
+                // was not exhausted, regardless of how the arithmetic lands.
+                var _mc = mapResult.count;
+                searchResultsState.mapIsPartial = !!(
+                    (_mc && _mc.isExact === false)
+                    || (mapResult.more && mapResult.more !== 'PROVIDER_EXHAUSTED')
+                );
                 try { refreshResultsMap(); } catch (e) { console.error('[Search] Map refresh failed:', e); }
             }).catch(function(e) {
                 // Non-fatal. The grid is the answer; the map is support, and a
