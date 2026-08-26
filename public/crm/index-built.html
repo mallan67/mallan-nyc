@@ -3378,6 +3378,13 @@ function toggleSection(header) {
                                     <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="ComingSoon">
                                     <span>Coming Soon</span>
                                 </label>
+                                <!-- Pending — the live StandardStatus member. Basic mode reads its
+                                     own container, so the criterion must exist here too, not only
+                                     on the advanced panel. -->
+                                <label class="flex items-center gap-1.5 cursor-pointer text-gray-700">
+                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending">
+                                    <span>Pending</span>
+                                </label>
                                 <!-- Future -->
                                 <label class="flex items-center gap-1.5 cursor-pointer text-gray-700">
                                     <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Incomplete" data-sub-status="Future">
@@ -4244,6 +4251,11 @@ function toggleSection(header) {
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer text-gray-700">
                                     <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Active" data-sub-status="BackOnMarket"> Back On Market
+                                </label>
+                                <!-- Pending — the live StandardStatus member. Basic mode reads its
+                                     own container, so the criterion must exist here too. -->
+                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
+                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending"> Pending
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer text-orange-600">
                                     <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="ApplicationIn"> Application In
@@ -7334,6 +7346,17 @@ function toggleSection(header) {
                                     <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="ComingSoon">
                                     <span>Coming Soon</span>
                                 </label>
+                                <!-- Pending — the live StandardStatus member.
+                                     Every other Pending-labelled control below carries a
+                                     data-sub-status (Offer / Contract / ...), which are Mallan
+                                     business sub-states with no verified Cotality mapping, so the
+                                     criteria boundary disables them. Without this top-level
+                                     control the broker could not search Pending at all, while the
+                                     live feed carried thousands of Pending rows. -->
+                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
+                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending">
+                                    <span>Pending</span>
+                                </label>
                                 <!-- Future -->
                                 <label class="flex items-center gap-2 cursor-pointer text-gray-700">
                                     <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Incomplete" data-sub-status="Future">
@@ -7424,6 +7447,13 @@ function toggleSection(header) {
                                 <label class="flex items-center gap-2 cursor-pointer text-gray-700">
                                     <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Active" data-sub-status="BackOnMarket">
                                     <span>Back On Market</span>
+                                </label>
+                                <!-- Pending — the live StandardStatus member. See the sale panel
+                                     comment: the Application / Lease sub-status controls below are
+                                     unverified Mallan sub-states and stay disabled. -->
+                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
+                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending">
+                                    <span>Pending</span>
                                 </label>
                                 <!-- Application -->
                                 <div>
