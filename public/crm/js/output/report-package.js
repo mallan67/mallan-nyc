@@ -85,7 +85,10 @@
             }
 
             function _statusColor(s) {
-                s = (s || 'Active').toUpperCase();
+                // An unknown status must not print as ACTIVE in a report a
+                // broker sends to a client. A closed or expired listing
+                // presented as Active is a misstatement in an advertisement.
+                s = (s || 'UNKNOWN').toUpperCase();
                 var m = {
                     'ACTIVE': { bg: '#dcfce7', color: '#15803d' },
                     'OFFER IN': { bg: '#ffedd5', color: '#c2410c' },
@@ -101,7 +104,7 @@
             }
 
             function _statusBadge(s, listing) {
-                s = (s || 'Active').toUpperCase();
+                s = (s || 'UNKNOWN').toUpperCase();
                 var sc = _statusColor(s);
                 var label = s.replace(/_/g, ' ');
                 // UCBA Art. I Sec. 16: Coming Soon badge must include showing restriction text

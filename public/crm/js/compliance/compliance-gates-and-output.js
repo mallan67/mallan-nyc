@@ -99,7 +99,11 @@ function generateSingleListingSheet(listing, suppressAddress) {
     var address = suppressAddress ? 'Address Available Upon Request' : listing.address;
     var unitStr = listing.unit ? ', ' + listing.unit : '';
     var neighborhood = listing.neighborhood || '';
-    var borough = listing.borough || 'Manhattan';
+    // Unknown borough stays unknown. Defaulting to Manhattan here made the
+    // compliance diagnostic itself assert a location fact about a listing whose
+    // borough was never published — a check that invents its own input cannot
+    // report on it.
+    var borough = listing.borough || '';
     var bedsLabel = listing.beds === 0 ? 'Studio' : listing.beds + ' BD';
     var bathsLabel = listing.baths + ' BA';
     var sqftLabel = listing.intSqft ? listing.intSqft.toLocaleString() + ' SF' : '';

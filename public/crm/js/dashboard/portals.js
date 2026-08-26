@@ -648,7 +648,7 @@ var Portals = (function () {
       listings.forEach(function (l, idx) {
         var address = l.address || l.UnparsedAddress || 'Your Listing';
         var price = l.ListPrice || l.price || l.list_price;
-        var status = l.status || l.MlsStatus || 'Active';
+        var status = l.status || l.MlsStatus || 'UNKNOWN';
         var photo = _getPhoto(l);
         var dom = l.cumulative_dom || l.days_on_market || 0;
 

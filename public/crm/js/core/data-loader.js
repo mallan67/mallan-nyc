@@ -249,13 +249,39 @@
                 // never matched for a DB-path listing as a result.
                 status: apiListing.status || 'UNKNOWN',
                 ownership: feat.CommonInterest || apiListing.property_type || '',
-                propertyType: apiListing.property_type || 'Residential',
+                // NO INVENTED LISTING FACTS ON THIS PATH EITHER.
+                //
+                // The Trestle mapper was stripped of these defaults and this
+                // DB-path mapping still carried them. A default here is not a
+                // cosmetic nicety — it is a fact Mallan asserts about someone
+                // else's listing.
+                //
+                // borough: was `|| 'Manhattan'`. A Brooklyn listing read as
+                // Manhattan is wrong on the card, the map, the report and every
+                // saved search, which is precisely why the comment three
+                // hundred lines below already says borough must not be
+                // defaulted. It was still defaulted here.
+                //
+                // propertyType: was `|| 'Residential'`. Commercial and land
+                // inventory exists on this feed.
+                propertyType: apiListing.property_type || '',
                 propertySubType: apiListing.property_sub_type || '',
                 neighborhood: apiListing.neighborhood || '',
-                borough: apiListing.borough || 'Manhattan',
+                borough: apiListing.borough || '',
                 zip: apiListing.postal_code || addr.PostalCode || '',
                 yearBuilt: parseInt(feat.YearBuilt) || null,
-                era: parseInt(feat.YearBuilt) >= 2015 ? 'New Construction' : parseInt(feat.YearBuilt) >= 1960 ? 'Post-War' : 'Pre-War',
+                // era: an UNKNOWN year used to fall all the way through to
+                // 'Pre-War'. parseInt(undefined) is NaN, every comparison
+                // against NaN is false, and the final ternary branch caught it —
+                // so a listing with no YearBuilt was labelled Pre-War on the
+                // strength of no information at all.
+                //
+                // The boundaries themselves are a Mallan definition, not a
+                // provider fact (nothing in the feed says a pre-war building is
+                // one built in 1946 or earlier), which is a separate open
+                // question. Guessing the era of a listing whose year is unknown
+                // is not.
+                era: _eraFromYearBuilt(feat.YearBuilt),
                 listingType: 'Exclusive',
                 lid: apiListing.listing_id || '',
                 dom: 0,
@@ -386,6 +412,20 @@
          */
         // Flag to prevent _replaceListings from overwriting active server search results
         var _serverSearchActive = false;
+
+        /**
+         * Era from YearBuilt, or nothing when the year is unknown.
+         *
+         * Unknown is its own answer. Returning '' lets a renderer show it as
+         * unavailable instead of asserting an era nobody established.
+         */
+        function _eraFromYearBuilt(rawYear) {
+            var year = parseInt(rawYear, 10);
+            if (isNaN(year)) return '';
+            if (year >= 2015) return 'New Construction';
+            if (year >= 1960) return 'Post-War';
+            return 'Pre-War';
+        }
 
         function _replaceListings(newData, source) {
             listings.length = 0;

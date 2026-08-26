@@ -13,8 +13,20 @@ var Utils = (function () {
   }
 
   function formatMoney(amount) {
-    if (amount == null || isNaN(amount)) return '$0';
-    return '$' + Number(amount).toLocaleString('en-US', { maximumFractionDigits: 0 });
+    // UNKNOWN IS NOT ZERO.
+    //
+    // This returned '$0' for null, undefined and NaN, which re-invented in the
+    // renderer exactly what the mapper was stripped of: an unknown fee becoming
+    // $0. "Not published" and "free" are opposite facts, and a broker reading
+    // "$0 maintenance" on a listing whose maintenance is simply unpublished will
+    // quote that to a client.
+    //
+    // A REAL zero survives as $0. Turning 0 into an em dash would be the same
+    // defect pointed the other way — a $0 common charge is a genuine value.
+    if (amount === null || amount === undefined || amount === '') return '—';
+    var n = Number(amount);
+    if (isNaN(n)) return '—';
+    return '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 });
   }
 
   function formatDate(dateStr) {
