@@ -641,36 +641,43 @@ describe("buildCrmIdxODataFilter", () => {
     }
   });
 
-  it("DEAD: dateType=ListedAndUpdated is NOT a third branch — degrades silently to default Listed", () => {
-    // The HTML option <option value="ListedAndUpdated"> was removed in
-    // the P1 patch because the OData builder at
-    // lib/search/crm-idx-filter.ts:182-188 only branches on
-    // dateType === "Updated". Any other value (including
-    // "ListedAndUpdated") falls through to the default Listed branch.
+  it("dateType=ListedAndUpdated is REFUSED, not silently degraded to Listed", () => {
+    // RETARGETED 2026-08-26. This test previously PINNED the silent
+    // degradation: it asserted that `ListedAndUpdated` produced a filter
+    // byte-identical to `Listed`, so that nobody could re-add the HTML option
+    // without first wiring an OR-clause backend.
     //
-    // This test pins that behavior so a future contributor can't add
-    // the option back without first wiring the OR-clause backend
-    // (ListingContractDate ge X or ModificationTimestamp gt X).
+    // The intent was right and the mechanism was the defect. Pinning a silent
+    // default protects the FILTER from a bad option; it does not protect the
+    // BROKER from a wrong answer. `dateType` was read as
+    // `params.get("dateType") || "Listed"` feeding a lone `=== "Updated"`
+    // ternary, so EVERY unrecognised value — a typo, a stale saved search, a
+    // value from an older form revision — produced a perfectly valid-looking
+    // ListingContractDate query for a question nobody asked. A broker asking
+    // "listed OR updated in April" silently received "listed in April", and
+    // listings updated in range but listed outside it were never fetched.
+    // Narrower than the question is as wrong as wider.
     //
-    // Compare the produced filter against the default Listed-only
-    // filter — they must be identical.
-    const listedAndUpdated = buildCrmIdxODataFilter(new URLSearchParams({
-      dateType: "ListedAndUpdated",
-      dateFrom: "2026-04-01",
-      dateTo: "2026-04-30",
-    }));
+    // The guarantee is now stronger and it still meets the original goal: the
+    // option cannot be re-added without wiring the clause, because an
+    // unexecutable dateType fails BY NAME.
+    expect(() =>
+      buildCrmIdxODataFilter(new URLSearchParams({
+        dateType: "ListedAndUpdated",
+        dateFrom: "2026-04-01",
+        dateTo: "2026-04-30",
+      })),
+    ).toThrow(UnsupportedSearchCriterionError);
+
+    // And it still produces no date-column OR group, because it produces
+    // nothing at all.
     const justListed = buildCrmIdxODataFilter(new URLSearchParams({
       dateType: "Listed",
       dateFrom: "2026-04-01",
       dateTo: "2026-04-30",
     }));
-    expect(listedAndUpdated).toBe(justListed);
-    // Specifically does NOT produce a date-column OR group. The default
-    // status filter contributes a benign ` or ` for status enums; the
-    // equality assertion above is the strong contract — both calls
-    // produce byte-identical filters.
-    expect(listedAndUpdated).not.toContain("ModificationTimestamp");
-    expect(listedAndUpdated).not.toMatch(/ListingContractDate.+or.+ModificationTimestamp/);
+    expect(justListed).not.toContain("ModificationTimestamp");
+    expect(justListed).not.toMatch(/ListingContractDate.+or.+ModificationTimestamp/);
   });
 
   it("UNSUPPORTED: a caller-supplied Lat/Lng gridFilter is rejected, not forwarded", () => {

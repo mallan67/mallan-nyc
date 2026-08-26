@@ -711,6 +711,29 @@
                     console.error('[Search] Render after failed search failed:', renderErr);
                 }
 
+                // A REFUSED CRITERION IS NOT A TRANSIENT FAILURE.
+                //
+                // The server refuses a criterion BY NAME rather than substitute
+                // a near-neighbour provider field or silently drop it. That
+                // refusal is correct and it is the whole point of the criterion
+                // register. But it used to arrive here as the same generic
+                // "please try again" as a timeout — and retrying a refused
+                // criterion fails identically, every time, forever. The one
+                // instruction the broker got was the one that could not work.
+                //
+                // Name it instead, so the fix is obvious: remove that field.
+                if (err && err.code === 'UNSUPPORTED_CRITERION' && err.criterion) {
+                    var _vals = (err.unsupportedValues && err.unsupportedValues.length)
+                        ? ' (' + err.unsupportedValues.join(', ') + ')'
+                        : '';
+                    showToast(
+                        'Search refused: “' + err.criterion + '”' + _vals +
+                        ' is not a supported search criterion. Clear it and search again.',
+                        'error'
+                    );
+                    return;
+                }
+
                 showToast('Search failed — no results to show. Please try again.', 'error');
             });
         }
@@ -1855,11 +1878,18 @@
                 // searching a management company silently received a listing
                 // OFFICE match over the already-fetched page.
                 //
-                // Removing it makes the criterion inert rather than wrong.
-                // Inert is recorded in the register as TRANSPORT_BROKEN and is
-                // scheduled; silently answering a different question is not.
-                // Restoring it requires a verified provider fact, not a
-                // near-neighbour field.
+                // Removing it stops this side answering a different question.
+                //
+                // CORRECTION (2026-08-26): the line above used to read "the
+                // criterion is also never forwarded to the server". That was
+                // wrong. buildIdxSearchParams DOES forward it, and the server
+                // refuses it by name, so the criterion is not inert — typing a
+                // management company refuses the whole search. That refusal is
+                // the correct outcome (Mallan will not substitute ListOfficeName
+                // for a management company) and it is now surfaced by name in
+                // the failure handler below, instead of arriving as a generic
+                // "please try again". Restoring the criterion for real still
+                // requires a verified provider fact, not a near-neighbour field.
 
                 // Keyword filter — search in description (PublicRemarks)
                 if (criteria.keyword) {

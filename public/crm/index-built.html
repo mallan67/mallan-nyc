@@ -13241,11 +13241,39 @@ var MallanAPI = (function () {
         return Promise.reject(new Error('Access denied'));
       }
       if (!res.ok) {
-        return res.json().then(function (data) {
-          return Promise.reject(new Error(data.error || 'Request failed: ' + res.status));
-        }).catch(function () {
-          return Promise.reject(new Error('Request failed: ' + res.status));
-        });
+        // TWO FAILURES USED TO COLLAPSE INTO ONE.
+        //
+        // This was `res.json().then(reject(...)).catch(reject(generic))`. The
+        // trailing .catch was meant for "the body is not JSON" — but a .catch
+        // after a .then also catches whatever that .then REJECTS WITH, and the
+        // .then rejected on purpose. So the deliberate rejection was captured
+        // and overwritten by the generic one, and NO endpoint in the CRM has
+        // ever shown a server error message. Everything read
+        // "Request failed: 400".
+        //
+        // Parsing the body and building the rejection are now separate steps,
+        // so a parse failure and an error response cannot be mistaken for each
+        // other.
+        return res
+          .json()
+          .then(function (data) { return data; }, function () { return null; })
+          .then(function (data) {
+            var err = new Error((data && data.error) || 'Request failed: ' + res.status);
+            // Attached, not substituted: every caller reading err.message is
+            // unaffected, and callers that can ACT on the detail can now reach
+            // it. UNSUPPORTED_CRITERION carries the criterion name and the
+            // offending values — the only two facts that tell a broker what to
+            // change. Dropping them turned a precise refusal into "try again",
+            // which for a refused criterion is advice that cannot ever work.
+            err.status = res.status;
+            if (data) {
+              if (data.code) err.code = data.code;
+              if (data.criterion) err.criterion = data.criterion;
+              if (data.unsupportedValues) err.unsupportedValues = data.unsupportedValues;
+              err.body = data;
+            }
+            return Promise.reject(err);
+          });
       }
       return res.json();
     });
@@ -17010,6 +17038,29 @@ function manageShowToast(msg) {
                     console.error('[Search] Render after failed search failed:', renderErr);
                 }
 
+                // A REFUSED CRITERION IS NOT A TRANSIENT FAILURE.
+                //
+                // The server refuses a criterion BY NAME rather than substitute
+                // a near-neighbour provider field or silently drop it. That
+                // refusal is correct and it is the whole point of the criterion
+                // register. But it used to arrive here as the same generic
+                // "please try again" as a timeout — and retrying a refused
+                // criterion fails identically, every time, forever. The one
+                // instruction the broker got was the one that could not work.
+                //
+                // Name it instead, so the fix is obvious: remove that field.
+                if (err && err.code === 'UNSUPPORTED_CRITERION' && err.criterion) {
+                    var _vals = (err.unsupportedValues && err.unsupportedValues.length)
+                        ? ' (' + err.unsupportedValues.join(', ') + ')'
+                        : '';
+                    showToast(
+                        'Search refused: “' + err.criterion + '”' + _vals +
+                        ' is not a supported search criterion. Clear it and search again.',
+                        'error'
+                    );
+                    return;
+                }
+
                 showToast('Search failed — no results to show. Please try again.', 'error');
             });
         }
@@ -18154,11 +18205,18 @@ function manageShowToast(msg) {
                 // searching a management company silently received a listing
                 // OFFICE match over the already-fetched page.
                 //
-                // Removing it makes the criterion inert rather than wrong.
-                // Inert is recorded in the register as TRANSPORT_BROKEN and is
-                // scheduled; silently answering a different question is not.
-                // Restoring it requires a verified provider fact, not a
-                // near-neighbour field.
+                // Removing it stops this side answering a different question.
+                //
+                // CORRECTION (2026-08-26): the line above used to read "the
+                // criterion is also never forwarded to the server". That was
+                // wrong. buildIdxSearchParams DOES forward it, and the server
+                // refuses it by name, so the criterion is not inert — typing a
+                // management company refuses the whole search. That refusal is
+                // the correct outcome (Mallan will not substitute ListOfficeName
+                // for a management company) and it is now surfaced by name in
+                // the failure handler below, instead of arriving as a generic
+                // "please try again". Restoring the criterion for real still
+                // requires a verified provider fact, not a near-neighbour field.
 
                 // Keyword filter — search in description (PublicRemarks)
                 if (criteria.keyword) {

@@ -12,6 +12,17 @@ import {
  * live Cotality contract. It is a request error, never a reason to drop the
  * criterion or substitute a different provider field.
  */
+/**
+ * The date activity types this route can actually ask the provider about.
+ *
+ *   Listed   ListingContractDate ge / le
+ *   Updated  ModificationTimestamp gt / le
+ *
+ * Adding a member here without adding the clause that answers it recreates the
+ * exact collapse this set exists to prevent.
+ */
+const EXECUTABLE_DATE_TYPES: ReadonlySet<string> = new Set(["Listed", "Updated"]);
+
 export class UnsupportedSearchCriterionError extends Error {
   readonly criterion: string;
   readonly unsupportedValues: readonly string[];
@@ -196,7 +207,20 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
 
   const dateFrom = params.get("dateFrom");
   const dateTo = params.get("dateTo");
-  const dateType = params.get("dateType") || "Listed";
+  // Two values are executable because two are all this route can emit. The read
+  // used to be `params.get("dateType") || "Listed"` feeding a lone `=== "Updated"`
+  // ternary, so every OTHER string — a typo, a stale saved record, a value from
+  // an older form revision — silently became "Listed" and produced a perfectly
+  // valid-looking ListingContractDate clause for a question nobody asked.
+  //
+  // ABSENT is a different state from UNRECOGNISED and keeps its documented
+  // default: the browser only emits dateFrom once an activity type is chosen, so
+  // absence means a non-browser caller. An unrecognised value fails by name.
+  const rawDateType = params.get("dateType");
+  if (rawDateType && !EXECUTABLE_DATE_TYPES.has(rawDateType) && (dateFrom || dateTo)) {
+    throw new UnsupportedSearchCriterionError("dateType", [rawDateType]);
+  }
+  const dateType = rawDateType || "Listed";
   if (dateFrom) {
     const field = dateType === "Updated" ? "ModificationTimestamp" : "ListingContractDate";
     const op = dateType === "Updated" ? "gt" : "ge";

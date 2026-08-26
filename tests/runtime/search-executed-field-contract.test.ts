@@ -60,7 +60,10 @@ const EXECUTED_FIELD_CONTRACT: Readonly<Record<string, { outcome: string; note: 
     StreetName: { outcome: 'FILTERABLE', note: 'contains() 11,107' },
     StreetDirPrefix: { outcome: 'FILTERABLE', note: "130,526 for 'E'" },
     CloseDate: { outcome: 'FILTERABLE', note: '13,779 after 2026-01-01' },
-    ListingContractDate: { outcome: 'FILTERABLE', note: '17,361 after 2026-01-01' },
+    ListingContractDate: {
+      outcome: 'FILTERABLE',
+      note: '17,361 after 2026-01-01; 1,260 within 2026-08-01..2026-08-26 (reprobed 2026-08-26)',
+    },
     CoolingYN: { outcome: 'FILTERABLE', note: '152,792 true' },
     GarageYN: { outcome: 'FILTERABLE', note: '149,777 true' },
     LandLeaseYN: { outcome: 'FILTERABLE', note: '806 true' },
@@ -75,6 +78,16 @@ const EXECUTED_FIELD_CONTRACT: Readonly<Record<string, { outcome: string; note: 
     ListingAgreement: {
       outcome: 'FILTERABLE',
       note: 'ExclusiveAgency 576,423 / ExclusiveRightToLease 2,870 / ExclusiveRightToSell 2,723.',
+    },
+    ModificationTimestamp: {
+      outcome: 'FILTERABLE',
+      note:
+        '265,990 modified since 2026-08-01; 255,689 when the le bound is narrowed ' +
+        'to 2026-08-05, which proves the upper bound bites rather than being ' +
+        'ignored. This is the `dateType=Updated` branch. It went UNRECORDED for ' +
+        'as long as this guard has existed because the filter emits it as ' +
+        '`${field} ${op} ${val}` — the name never appears next to an operator in ' +
+        'source, so a source-scanning census could not see it.',
     },
     StandardStatus: { outcome: 'FILTERABLE', note: 'all 11 members probed; 4 are zero-population' },
 
@@ -97,18 +110,57 @@ describe('every provider field the filter can emit has an execution result', () 
    * source-derived: a new clause added tomorrow is picked up without anyone
    * remembering to update a list.
    */
+  /**
+   * Source with comments removed.
+   *
+   * A census that scans raw source also scans its own prose. Writing
+   * "ModificationTimestamp gt / le" in an explanatory comment would register a
+   * provider field that no code emits — and worse, a real emitted field could be
+   * "recorded" purely because someone described it. Only code counts.
+   */
+  function stripComments(src: string): string {
+    return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  }
+  const code = stripComments(filterSource);
+  const registryCode = stripComments(registrySource);
+
   function emittedProviderFields(): string[] {
     const found = new Set<string>();
-    for (const m of filterSource.matchAll(/\["(?:min|max)[A-Za-z]+", "([A-Za-z]+)"/g)) found.add(m[1]);
-    for (const m of filterSource.matchAll(/contains\(([A-Z][A-Za-z]+),/g)) found.add(m[1]);
-    for (const m of filterSource.matchAll(/startswith\(([A-Z][A-Za-z]+),/g)) found.add(m[1]);
-    for (const m of filterSource.matchAll(/`([A-Z][A-Za-z]+) eq /g)) found.add(m[1]);
-    for (const m of filterSource.matchAll(/([A-Z][A-Za-z]{3,}) (?:eq|ge|le|gt|lt) /g)) found.add(m[1]);
+
+    /**
+     * FIELDS THAT REACH THE WIRE THROUGH A VARIABLE.
+     *
+     * The date clauses are built as `${field} ${op} ${val}`, where `field` is
+     * chosen by a ternary. The provider name therefore never appears adjacent to
+     * an operator anywhere in the source, and every pattern below was blind to
+     * it: `ModificationTimestamp` sat unrecorded for the entire life of this
+     * guard while being emitted on every "Updated" date search.
+     *
+     * Indirection is the normal way a clause gets built, so scanning only for
+     * literal `Field op` text is not a small gap — it is a hole the size of
+     * every well-factored clause in the file.
+     */
+    for (const decl of code.matchAll(/(?:const|let|var)\s+field\s*=\s*([^;]+);/g)) {
+      // Only the RESULT branches name a provider field. The condition operand
+      // does not: `dateType === "Updated" ? "ModificationTimestamp" : ...`
+      // contains "Updated", which is a criterion VALUE. Scanning the whole
+      // right-hand side would demand live execution proof for a string that
+      // never reaches the provider as a field name at all.
+      const rhs = decl[1];
+      const q = rhs.indexOf('?');
+      const branches = q === -1 ? rhs : rhs.slice(q + 1);
+      for (const lit of branches.matchAll(/"([A-Z][A-Za-z]{3,})"/g)) found.add(lit[1]);
+    }
+    for (const m of code.matchAll(/\["(?:min|max)[A-Za-z]+", "([A-Za-z]+)"/g)) found.add(m[1]);
+    for (const m of code.matchAll(/contains\(([A-Z][A-Za-z]+),/g)) found.add(m[1]);
+    for (const m of code.matchAll(/startswith\(([A-Z][A-Za-z]+),/g)) found.add(m[1]);
+    for (const m of code.matchAll(/`([A-Z][A-Za-z]+) eq /g)) found.add(m[1]);
+    for (const m of code.matchAll(/([A-Z][A-Za-z]{3,}) (?:eq|ge|le|gt|lt) /g)) found.add(m[1]);
     // Boolean criteria are emitted from the REGISTRY now, as
     // `${contract.cotalityField} eq true|false`. Reading their provider names
     // from the registry keeps this guard pointed at wherever the mapping
     // actually lives, instead of at where it used to live.
-    for (const m of registrySource.matchAll(/kind: '(?:boolean|scalar_enum)',\s+cotalityField: '([A-Za-z]+)'/g)) {
+    for (const m of registryCode.matchAll(/kind: '(?:boolean|scalar_enum)',\s+cotalityField: '([A-Za-z]+)'/g)) {
       found.add(m[1]);
     }
 

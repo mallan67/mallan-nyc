@@ -50,11 +50,39 @@ var MallanAPI = (function () {
         return Promise.reject(new Error('Access denied'));
       }
       if (!res.ok) {
-        return res.json().then(function (data) {
-          return Promise.reject(new Error(data.error || 'Request failed: ' + res.status));
-        }).catch(function () {
-          return Promise.reject(new Error('Request failed: ' + res.status));
-        });
+        // TWO FAILURES USED TO COLLAPSE INTO ONE.
+        //
+        // This was `res.json().then(reject(...)).catch(reject(generic))`. The
+        // trailing .catch was meant for "the body is not JSON" — but a .catch
+        // after a .then also catches whatever that .then REJECTS WITH, and the
+        // .then rejected on purpose. So the deliberate rejection was captured
+        // and overwritten by the generic one, and NO endpoint in the CRM has
+        // ever shown a server error message. Everything read
+        // "Request failed: 400".
+        //
+        // Parsing the body and building the rejection are now separate steps,
+        // so a parse failure and an error response cannot be mistaken for each
+        // other.
+        return res
+          .json()
+          .then(function (data) { return data; }, function () { return null; })
+          .then(function (data) {
+            var err = new Error((data && data.error) || 'Request failed: ' + res.status);
+            // Attached, not substituted: every caller reading err.message is
+            // unaffected, and callers that can ACT on the detail can now reach
+            // it. UNSUPPORTED_CRITERION carries the criterion name and the
+            // offending values — the only two facts that tell a broker what to
+            // change. Dropping them turned a precise refusal into "try again",
+            // which for a refused criterion is advice that cannot ever work.
+            err.status = res.status;
+            if (data) {
+              if (data.code) err.code = data.code;
+              if (data.criterion) err.criterion = data.criterion;
+              if (data.unsupportedValues) err.unsupportedValues = data.unsupportedValues;
+              err.body = data;
+            }
+            return Promise.reject(err);
+          });
       }
       return res.json();
     });
