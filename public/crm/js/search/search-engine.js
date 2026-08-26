@@ -342,6 +342,11 @@
             if (provenance !== 'authoritative') {
                 searchResultsState.serverCount = null;
                 searchResultsState.serverTotalPages = null;
+                searchResultsState.serverHasMore = false;
+                // The map universe belongs to one set of criteria too. Leaving
+                // it behind would draw the previous search's pins over a preview
+                // or a failed search.
+                searchResultsState.mapListings = null;
             }
         }
 
@@ -591,14 +596,148 @@
             return params;
         };
 
+        /**
+         * A BOUNDED READ FOR THE MAP, separate from the grid's page.
+         *
+         * The map answers "where is this inventory" and the grid answers "which
+         * rows am I reading now". They are different questions over the same
+         * criteria, so the map keeps its own bounded window instead of
+         * inheriting whatever page happens to be open. Without this, making
+         * pagination real would have silently cut the map from ~200 pins to one
+         * page's worth — a regression in the area-scanning workflow, paid for a
+         * fix it had nothing to do with.
+         *
+         * Bounded, not unbounded: 500 is the route's own ceiling for a single
+         * request, and pins beyond that add nothing a broker can read.
+         */
+        function _loadMapUniverse(pageParams) {
+            if (typeof MallanAPI === 'undefined') return;
+            if (typeof refreshResultsMap !== 'function') return;
+            var mapParams = Object.assign({}, pageParams);
+            mapParams.page = 1;
+            mapParams.limit = 500;
+            MallanAPI.idx.search(mapParams).then(function(mapResult) {
+                if (!mapResult || !mapResult.listings) return;
+                searchResultsState.mapListings = mapResult.listings;
+                try { refreshResultsMap(); } catch (e) { console.error('[Search] Map refresh failed:', e); }
+            }).catch(function(e) {
+                // Non-fatal. The grid is the answer; the map is support, and a
+                // failed map read must never take the result set down with it.
+                console.warn('[Search] Map universe unavailable:', e && e.message);
+            });
+        }
+
+        /**
+         * FETCH ONE PAGE OF THE FINAL UNIVERSE FROM THE SERVER.
+         *
+         * Authoritative pagination is a SERVER round trip, never a local slice.
+         * Slicing filteredListings would page correctly through whatever window
+         * happened to be loaded and call it the answer — the same page-local
+         * defect this workstream removed everywhere else, arriving at the last
+         * hop.
+         *
+         * One page transition carries the whole request identity:
+         *
+         *     current canonical criteria   (via the ONE serializer)
+         *   + canonical sort key
+         *   + requested final-universe page
+         *   -> server
+         *   -> authoritative rows + count disposition
+         *
+         * SELECTION IS NOT TOUCHED. `selectedListings` lives on
+         * searchResultsState and is persisted independently of
+         * filteredListings, so swapping the rows on screen cannot silently
+         * discard listings the broker picked on an earlier page.
+         */
+        function _requestResultPage(targetPage) {
+            if (typeof searchResultsState === 'undefined' || !searchResultsState) return;
+
+            // A PROVISIONAL set is a local re-filter of whatever catalogue is
+            // loaded. There is no server universe behind it to page, so it
+            // keeps paging locally rather than pretending otherwise.
+            if (searchResultsState.resultProvenance !== 'authoritative'
+                || typeof MallanAPI === 'undefined'
+                || typeof window.buildIdxSearchParams !== 'function') {
+                searchResultsState.currentPage = targetPage;
+                if (typeof renderSearchResults === 'function') renderSearchResults();
+                return;
+            }
+
+            var params = window.buildIdxSearchParams(
+                (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria)
+                    ? activeSearchCriteria
+                    : {}
+            );
+            params.page = targetPage;
+            params.limit = searchResultsState.perPage || 50;
+            if (searchResultsState.sortKey) params.sort = searchResultsState.sortKey;
+
+            if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = true;
+            MallanAPI.idx.search(params).then(function(result) {
+                if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = false;
+                if (!result || !result.listings) return;
+
+                searchResultsState.filteredListings = result.listings;
+                searchResultsState.currentPage = result.page || targetPage;
+                searchResultsState.serverCount = result.count || null;
+                searchResultsState.serverTotalPages =
+                    (typeof result.totalPages === 'number') ? result.totalPages : null;
+                searchResultsState.serverHasMore = !!result.hasMore;
+                // The map universe belongs to the CRITERIA, not the page, so it
+                // is deliberately left alone here: paging must not re-fetch 500
+                // rows, and the pins are still answering the same question.
+                _setResultProvenance('authoritative');
+
+                try {
+                    if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                    if (typeof updateResultsCount === 'function') updateResultsCount();
+                    if (typeof refreshResultsMap === 'function') refreshResultsMap();
+                } catch (renderErr) {
+                    console.error('[Search] Render after page request failed:', renderErr);
+                }
+                _saveSearchState();
+            }).catch(function(err) {
+                if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = false;
+                console.error('[Search] Page request failed:', err);
+                // FAIL CLOSED, exactly like a failed search: the rows on screen
+                // belong to the PREVIOUS page, so leaving them up while the page
+                // number moves would show one page's rows under another page's
+                // heading.
+                searchResultsState.filteredListings = [];
+                _setResultProvenance('none');
+                try {
+                    if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                    if (typeof updateResultsCount === 'function') updateResultsCount();
+                } catch (renderErr) {
+                    console.error('[Search] Render after failed page request:', renderErr);
+                }
+                if (err && err.code === 'UNSUPPORTED_CRITERION' && err.criterion) {
+                    showToast('Search refused: “' + err.criterion + '” is not a supported search criterion.', 'error');
+                } else {
+                    showToast('Could not load page ' + targetPage + '.', 'error');
+                }
+            });
+        }
+        window._requestResultPage = _requestResultPage;
+
         // Server-side search: query Trestle API with criteria — this is the PRIMARY data source
         function _serverSearch(criteria, localResults) {
             var params = window.buildIdxSearchParams(criteria);
 
-            // ≤200: server sends inline photos via $expand=Media (fast, one request)
-            // >200: server sends listings without photos, photo-loader.js lazy-loads
-            //       via /api/media/batch + IntersectionObserver
-            params.limit = 200;
+            // PAGE 1 OF THE FINAL UNIVERSE, at the broker's page size.
+            //
+            // This used to ask for a flat 200 rows and let the browser page
+            // inside them. That made "page" mean a slice of a window, so no
+            // amount of navigation reached result 201 of a 4,622-match search.
+            // The grid now asks the server for a real page and the controls ask
+            // for the next one.
+            //
+            // The old comment here claimed <=200 got inline photos via
+            // $expand=Media. That is stale: the route passes expandMedia:false
+            // unconditionally and media is lazy-loaded through /api/media/batch,
+            // so page size has not driven media for some time.
+            params.page = 1;
+            params.limit = searchResultsState.perPage || 50;
 
             console.log('[Search] Querying Trestle API:', JSON.stringify(params));
             if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = true;
@@ -710,7 +849,18 @@
                 // LOWER BOUND, and the renderer must not flatten that back into a
                 // bare number.
                 searchResultsState.serverCount = (result && result.count) || null;
-                searchResultsState.serverTotalPages = (result && result.totalPages) || null;
+                searchResultsState.serverTotalPages =
+                    (result && typeof result.totalPages === 'number') ? result.totalPages : null;
+                searchResultsState.serverHasMore = !!(result && result.hasMore);
+
+                // THE MAP IS A DIFFERENT QUESTION FROM THE GRID.
+                //
+                // Pins answer "where is this inventory", which is not the same
+                // as "which twenty rows am I reading". Feeding the map the
+                // current page would have cut it from ~200 pins to one page's
+                // worth the moment paging became real, so it gets its own
+                // bounded read of the SAME criteria and sort.
+                _loadMapUniverse(params);
 
                 _setResultProvenance('authoritative');
                 try {

@@ -692,6 +692,11 @@ var MallanAPI = (function () {
       if (params.sort) qs.push('sort=' + encodeURIComponent(params.sort));
       if (params.limit) qs.push('limit=' + params.limit);
       if (params.skip) qs.push('skip=' + params.skip);
+      // 1-based page over the FINAL universe. Distinct from `skip`, which is a
+      // PROVIDER offset and cannot express a broker page once gated and deduped
+      // rows mean provider offset 50 is not the 51st result.
+      if (params.page) qs.push('page=' + params.page);
+      if (params.exactCount) qs.push('exactCount=true');
       var query = qs.length ? '?' + qs.join('&') : '';
       return _fetch('/api/idx/search' + query);
     },

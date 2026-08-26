@@ -1,12 +1,61 @@
-        // Pagination functions — use getFilteredListings(true) to get total count without pagination
-        function goToFirstPage() { searchResultsState.currentPage = 1; renderSearchResults(); }
-        function goToPrevPage() { if (searchResultsState.currentPage > 1) { searchResultsState.currentPage--; renderSearchResults(); } }
-        function goToNextPage() {
-            var total = Math.ceil(getFilteredListings(true).length / searchResultsState.perPage);
-            if (searchResultsState.currentPage < total) { searchResultsState.currentPage++; renderSearchResults(); }
+        // PAGINATION IS A SERVER ROUND TRIP, NOT A LOCAL SLICE.
+        //
+        // These used to move currentPage and re-render over whatever rows were
+        // already loaded. That pages correctly through the WINDOW and calls it
+        // the answer — the same page-local defect removed everywhere else in
+        // this workstream, arriving at the last hop. A live Manhattan Active
+        // search matches 4,622 listings; no amount of local paging reaches
+        // result 201.
+        //
+        // _requestResultPage carries the whole request identity (canonical
+        // criteria + canonical sort + requested final-universe page) and falls
+        // back to local paging only for a PROVISIONAL set, which has no server
+        // universe behind it to page.
+        function _goToPage(n) {
+            if (typeof window._requestResultPage === 'function') { window._requestResultPage(n); return; }
+            searchResultsState.currentPage = n;
+            renderSearchResults();
         }
-        function goToLastPage() { searchResultsState.currentPage = Math.ceil(getFilteredListings(true).length / searchResultsState.perPage); renderSearchResults(); }
-        function changePerPage() { searchResultsState.perPage = parseInt(document.getElementById('perPageSelect').value); searchResultsState.currentPage = 1; renderSearchResults(); }
+        function goToFirstPage() { _goToPage(1); }
+        function goToPrevPage() { if (searchResultsState.currentPage > 1) { _goToPage(searchResultsState.currentPage - 1); } }
+        function goToNextPage() {
+            // hasMore comes from the server for an authoritative set. Deriving a
+            // last page from a LOWER_BOUND count would invent the very number
+            // the server withheld, so Next stays open-ended until an exhausted
+            // traversal proves the end.
+            if (searchResultsState.serverTotalPages !== null
+                && searchResultsState.serverTotalPages !== undefined
+                && searchResultsState.resultProvenance === 'authoritative') {
+                if (searchResultsState.currentPage < searchResultsState.serverTotalPages) {
+                    _goToPage(searchResultsState.currentPage + 1);
+                }
+                return;
+            }
+            if (searchResultsState.resultProvenance === 'authoritative') {
+                if (searchResultsState.serverHasMore) _goToPage(searchResultsState.currentPage + 1);
+                return;
+            }
+            var total = Math.ceil(getFilteredListings(true).length / searchResultsState.perPage);
+            if (searchResultsState.currentPage < total) { _goToPage(searchResultsState.currentPage + 1); }
+        }
+        function goToLastPage() {
+            // Only meaningful when the last page is KNOWN. With a lower bound
+            // there is no proven final page to jump to.
+            if (searchResultsState.resultProvenance === 'authoritative') {
+                if (typeof searchResultsState.serverTotalPages === 'number') {
+                    _goToPage(searchResultsState.serverTotalPages);
+                }
+                return;
+            }
+            _goToPage(Math.ceil(getFilteredListings(true).length / searchResultsState.perPage));
+        }
+        function changePerPage() {
+            searchResultsState.perPage = parseInt(document.getElementById('perPageSelect').value);
+            // Page size changes what a page IS, so the universe must be re-cut
+            // from page 1 rather than keeping a page number that meant something
+            // different a moment ago.
+            _goToPage(1);
+        }
 
         // Column sort toggle
         function toggleColumnSort(field) {

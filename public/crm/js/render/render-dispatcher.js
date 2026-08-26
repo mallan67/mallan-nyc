@@ -164,8 +164,21 @@
                     return 0;
                 });
             }
-            // Apply pagination unless explicitly skipped (e.g., for total count)
-            if (!skipPagination) {
+            // PAGINATE LOCALLY ONLY WHEN THE ROWS ARE NOT ALREADY A PAGE.
+            //
+            // An AUTHORITATIVE set is now ONE SERVER PAGE: the server cut it
+            // from the final universe and filteredListings holds exactly those
+            // rows. Slicing it again by currentPage would paginate a page —
+            // page 3 would take rows 41-60 of a 20-row array and render nothing
+            // at all, so every page after the first would look like an empty
+            // search.
+            //
+            // A PROVISIONAL set is different and still needs this: it is a local
+            // re-filter of the whole loaded catalogue, so it holds every
+            // matching row and the slice is what turns it into a page.
+            var serverPaged = searchResultsState.resultProvenance === 'authoritative'
+                && !!searchResultsState.serverCount;
+            if (!skipPagination && !serverPaged) {
                 var perPage = searchResultsState.perPage || 50;
                 var page = searchResultsState.currentPage || 1;
                 var start = (page - 1) * perPage;

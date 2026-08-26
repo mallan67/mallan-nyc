@@ -457,7 +457,17 @@
         _map.setFeatureState({ source: 'neighborhoods', id: slug }, { selected: true });
       }
 
-      var mapListings = (typeof getFilteredListings === 'function') ? getFilteredListings(true) : [];
+      // THE MAP'S OWN BOUNDED UNIVERSE, when one has been loaded.
+      //
+      // getFilteredListings(true) returns the rows currently on screen. Once
+      // pagination became a real server round trip that is ONE PAGE, so pins
+      // would have collapsed from ~200 to a page's worth. The map keeps its own
+      // bounded read of the same criteria and falls back to the visible rows
+      // when it has none — a preview, or a surface that never ran a search.
+      var mapListings = (searchResultsState && searchResultsState.mapListings
+                         && searchResultsState.mapListings.length)
+        ? searchResultsState.mapListings
+        : ((typeof getFilteredListings === 'function') ? getFilteredListings(true) : []);
       var count = mapListings.filter(function (l) { return l.neighborhood === name; }).length;
       var isSelected = !!_selectedSlugs[slug];
 
