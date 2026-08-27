@@ -2,23 +2,23 @@
 
 **Active branch:** `fix/auth-identity-domain-and-listing-continuity`
 
-**Verified branch checkpoint before this instruction update:** `1ea64c4468174062d717d8039ed64b8640bc4001`.
+**Verified code checkpoint before this instruction update:** `8eeeb2f0f80b36aa27eb0c77da79e05643efc945`.
 
-Before any mutation, fetch/rebase/pull and verify local == remote. Never force-push over Maya's instruction commits.
+Before mutation, fetch/rebase/pull and verify local == remote. Never force-push over Maya's instruction commits.
 
-## Purpose and required sequence
+# PURPOSE AND REQUIRED SEQUENCE
 
-Finish this work in the following order without drifting into parallel audits or unrelated cleanup:
+Finish the platform work in this exact order:
 
-1. **Close the current listing/security/publication branch completely.**
-2. **Return to PR #618 and consolidate authenticated Search into one coherent Cotality-driven architecture.** Do not continue checkbox-by-checkbox patching.
-3. **Immediately move to My Listings** and finish the authenticated agent listing workspace end-to-end.
-4. **Run a New Agent Readiness Gate** so an incoming agent can actually use Mallan safely on desktop, tablet, and mobile without broker-only knowledge or manual workarounds.
-5. Only after those gates close should work move to the next brokerage area.
+1. **Close the current Listing / Security / Publication branch completely, including the schema correction below.**
+2. **Return to PR #618 and consolidate authenticated Search into one coherent Cotality-driven system.** Do not continue criterion-by-criterion patching as the primary method.
+3. **Move immediately to My Listings** and finish the authenticated agent listing workspace end-to-end.
+4. **Run a New Agent Readiness Gate** with a real non-Broker Agent workflow on desktop, tablet, and mobile.
+5. Only after these gates close move to another brokerage area.
 
-Do not stop after diagnosis when a safe code-only correction is available. Do not claim completion from green unit tests alone.
+No phase is complete because unit tests are green. Every phase requires behavioral proof through the actual user workflow.
 
-# PHASE 0 — ABSOLUTE PROVIDER AUTHORITY: COTALITY ONLY
+# ABSOLUTE PROVIDER AUTHORITY — COTALITY ONLY
 
 Mallan has **one external provider/data contract only: Cotality**.
 
@@ -26,13 +26,11 @@ Canonical chain:
 
 `COTALITY RAW CONTRACT → VERIFIED COTALITY MAPPING → MALLAN STORAGE → MALLAN BUSINESS RULE → CRM / PORTALS / SEARCH / CMA / PUBLIC CONSUMERS`
 
-There is no separate provider/data-authority layer for legacy intermediary names, standards labels, or prior integration vocabulary.
+No legacy provider, standards, intermediary, or historical integration vocabulary may become a second data authority, mapping authority, source taxonomy, validation authority, workflow authority, or current tooling authority.
 
-Legacy persisted DB/env identifiers that cannot safely be renamed without explicit authorization are compatibility artifacts only. They may not define new architecture or be propagated into new code.
+For every retained provider-facing rule prove:
 
-For every active provider-facing rule retained, prove it against Cotality:
-
-- exact resource;
+- exact Cotality resource;
 - exact field;
 - type;
 - enum/string values;
@@ -41,84 +39,163 @@ For every active provider-facing rule retained, prove it against Cotality:
 - permission/availability;
 - live behavior/population where the authorized tooling can prove it.
 
-Do not fake a cleanup by renaming an old assumption "Cotality" without re-verifying its semantics.
+Do not rename an old assumption “Cotality” without re-verifying its semantics.
 
 # HARD BOUNDARIES
 
 - No merge without Maya authorization.
 - No Production deploy without Maya authorization.
-- No Production Neon/R2 work in this lane.
+- No unrelated Production Neon/R2 work.
 - No destructive DB/media action.
 - No Cotality write.
 - No external distribution activation.
 - No environment change.
-- No Production backfill.
-- No schema migration without explicit Maya authorization of the exact migration.
-- Do not contaminate PR #618 until this current branch is genuinely closed.
+- No unrelated Production backfill.
+- No unrelated schema growth.
 
-# A. CURRENT LISTING / SECURITY / PUBLICATION CLOSURE
+## EXPLICIT SCHEMA AUTHORIZATION — 2026-08-27
 
-## Completed corrections that must not regress
+Maya has now explicitly authorized the **exact schema correction needed to remove the false Mallan `Draft` value from the Listing market-status domain**.
 
-The current branch has already corrected or materially hardened these areas; preserve them:
+This authorization covers:
 
-- staff authorization requires staff identity domain, not just AGENT/BROKER text;
-- client portal-role inputs are constrained;
-- impersonation/invite ownership boundaries are hardened;
-- CRM listing creation cannot fabricate provider identity;
-- canonical `Listing.owner_client_id` server-side set/change/repair exists;
-- populated `owner_client_id` no longer causes BigInt serialization failure on listing detail;
-- Seller/Landlord listing resolution uses `Listing.owner_client_id`;
-- destructive `reset-sync` endpoint has been retired; it must stay gone;
-- Mallan history hanging off Cotality listings must never be deleted by provider reconciliation;
-- another broker's Cotality listing may not become a Mallan exclusive because a Mallan agent appeared on the buyer side;
-- return-copy/public visibility corrections must not regress;
-- dead duplicate fail-open visibility gates remain removed;
-- publication/review state is separate from Cotality market status;
+- editing `prisma/schema.prisma` for this exact defect;
+- creating the minimal Prisma migration;
+- updating all affected readers/writers/types/tests;
+- applying the exact migration through the controlled `NEON.md` migration process when its safety preconditions are satisfied;
+- proving the migrated behavior end-to-end.
+
+It does **not** authorize unrelated columns/tables, environment changes, destructive operations, broad backfills, or Production deployment.
+
+`NEON.md` remains mandatory. Read it before schema/migration work. Do not put migrations in the Vercel build. Run the required drift/preflight/migration-status checks. Prepare and test the migration immediately; respect the established production migration safety window unless Maya explicitly overrides it.
+
+# A. LISTING / SECURITY / PUBLICATION CLOSURE
+
+## A0. Completed corrections — preserve them
+
+Do not regress:
+
+- staff authority requires staff identity, not merely a role string;
+- client portal roles cannot become staff authority;
+- invite/impersonation ownership boundaries are hardened;
+- CRM listing creation cannot fabricate Cotality/provider identity;
+- `Listing.owner_client_id` is the canonical Seller/Landlord relation;
+- populated owner ids serialize safely;
+- Seller/Landlord portal listing resolution uses the canonical owner relation;
+- destructive `reset-sync` is retired and must stay gone;
+- provider reconciliation may never delete Mallan CRM/client history;
+- buyer-side agent association cannot turn another broker's Cotality listing into a Mallan-authored listing;
+- return-copy suppression and canonical listing identity do not regress;
+- duplicate fail-open public visibility authorities remain removed;
+- Mallan publication/review state is separate from Cotality market status;
 - dedicated publication transition endpoint exists;
 - Broker approval/publication authority is enforced;
 - forged public publication blobs fail closed;
-- `EXPORTED` cannot be created without real delivery evidence;
-- `Last Published` uses actual Mallan publication history, latest public transition first;
-- owner removal guard covers every publicly displayable market status, including `ActiveUnderContract`;
-- publication compliance evaluates the target audience and does not skip Fair Housing merely because a listing is Mallan-authored.
+- `EXPORTED` requires actual delivery evidence and cannot be fabricated;
+- `Last Published` uses actual Mallan publication history;
+- public owner-removal guard includes every public market status;
+- publication compliance evaluates the target audience and Fair Housing/public-ad rules apply to Mallan-authored public listings.
 
-## Remaining listing closure work
+## A1. Owner selectors — now implemented, prove behavior
 
-### A1. Finish owner continuity in BOTH Sale and Rental forms
+The shared Seller/Landlord picker is not closed merely because the JavaScript exists.
 
-`Listing.owner_client_id` is the only canonical Seller/Landlord owner relation.
+For BOTH Sale and Rental prove through the actual form/API/persistence workflow:
 
-Use the existing authenticated CRM clients source:
-
-- Sale owner selector → `/api/crm/clients?role=seller`
-- Rental owner selector → `/api/crm/clients?role=landlord`
-
-Do not create a second client/owner database or free-text owner authority.
-
-Prove for both forms:
-
-`select owner → create → save → GET/reload → edit → save → GET/reload → owner change/repair → GET/reload`
+`open form → search/select canonical owner → create → response → GET/reload form → owner visible → edit unrelated field → save → reload → owner unchanged → change owner when authorized → save → reload → new owner visible`
 
 Mandatory negatives:
 
-- unauthorized Agent cannot assign another Agent's client;
-- Cotality-owned external row cannot acquire Mallan local ownership through CRM edit;
-- ownerless local draft cannot proceed through publication;
-- assigning an owner removes only the owner blocker, not compliance/review blockers;
-- Seller/Landlord portal resolves the same canonical listing.
+- unauthorized Agent cannot assign another Agent's protected client;
+- Cotality-owned external listing cannot acquire Mallan local ownership through CRM edit;
+- owner id, owner name, email, or label cannot diverge into separate identity truths;
+- owner selector failure must fail visibly, not silently save ownerless data when an owner was chosen.
 
-### A2. Resolve the local `Listing.status = Draft` storage conflict truthfully
+## A2. SCHEMA CORRECTION — `Listing.status` MUST BECOME A TRUTHFUL MARKET-STATUS FIELD
 
-Cotality `Property.StandardStatus` is a Cotality market fact. Mallan publication/review state is a different business fact.
+The current schema is defective:
 
-Do not guess that Cotality `Incomplete` means Mallan Draft.
+`status String @default("Active")`
 
-Trace every writer/reader of `Listing.status`. If a truthful no-schema correction exists, implement it. If the current non-null schema makes a truthful separation impossible, finish all safe code-only work and isolate that exact schema conflict for Maya's authorization; do not silently invent a provider value.
+is used for Cotality market status, yet Mallan-authored unpublished rows have been forced to store `Draft` because the field is non-null.
 
-### A3. Finish Seller/Landlord capabilities and behavioral closure
+`Draft` is Mallan publication/review state. It is **not** a Cotality `Property.StandardStatus` value and must not remain the permanent storage workaround.
 
-Use the same canonical listing and owner identity for:
+### Required minimal schema direction
+
+Prefer correcting the EXISTING physical `listings.status` column rather than adding a competing status column.
+
+Target semantics:
+
+- `Listing.status` = canonical **market status** only;
+- authority is resolved by listing authority:
+  - Cotality-owned external listing → Cotality authors the market-status fact;
+  - Mallan-authored local listing → Mallan authors the market-status fact using the verified Cotality-compatible market vocabulary where applicable;
+- Mallan publication/review workflow lives only in `Listing.compliance.mallan_publication`;
+- an unpublished Mallan-local listing with no market status has **NULL**, not `Draft`, not `Active`, and not guessed `Incomplete`.
+
+The minimal DB correction should be evaluated first as:
+
+- make the existing `listings.status` nullable;
+- remove the DB/Prisma default `Active`;
+- keep the physical column rather than creating parallel truth.
+
+Do not add a second market-status column unless the complete impact graph proves the existing physical column cannot safely serve this canonical role.
+
+### Required code consequences
+
+Trace **all readers/writers** before calling the migration complete.
+
+At minimum:
+
+- both local create paths write/omit market status truthfully; they no longer write `Draft`;
+- Cotality mapper/sync writes exact verified `StandardStatus` or null — never defaults an unknown provider status to `Active`;
+- market-status transition logic supports an unset/null local market status as an explicit initial condition;
+- broker-facing `Sold` / `Rented` / `Leased` remain presentation labels derived from stored `Closed` + listing type;
+- publication state `DRAFT` is read from the Mallan publication namespace, not the market-status column;
+- public eligibility requires BOTH valid Mallan publication visibility AND a displayable market status where the business rule requires it;
+- null market status fails closed publicly;
+- My Listings shows **Publication State** and **Market Status** separately;
+- APIs/DTOs do not collapse those two facts back into one generic label;
+- Search/CMA must never send null/local publication state to Cotality as `StandardStatus`.
+
+### Migration safety and proof
+
+Follow `NEON.md` exactly:
+
+1. inspect schema drift before creating migration;
+2. generate the smallest migration necessary;
+3. validate migration SQL;
+4. run Prisma validation/generation/type-check;
+5. run grouped reader/writer tests;
+6. apply only through the controlled migration process;
+7. confirm migration status after apply;
+8. run behavioral E2E proof against a database with the migrated schema;
+9. only then allow code that depends on null market status to be considered deployable.
+
+Do not use `prisma db push` as a shortcut around migration history.
+
+### Legacy `Draft` rows
+
+Do not silently mass-update Production rows.
+
+First prove whether every existing `Listing.status = 'Draft'` row is a Mallan-authored local listing and whether any reader depends on the legacy value.
+
+Prepare a targeted, idempotent cleanup/backfill plan with:
+
+- exact eligibility predicate;
+- dry-run count;
+- before/after invariant;
+- rollback path;
+- proof that no Cotality-owned row can match.
+
+Execution of a broad historical data cleanup is separate from the schema migration unless the migration can prove the affected set is exact and safe under the standing production-data rules.
+
+Do not claim “all Draft contamination removed” until the real stored population is proven.
+
+## A3. Seller/Landlord capabilities
+
+Use the same canonical Listing and `owner_client_id` for:
 
 - view;
 - comments;
@@ -129,53 +206,84 @@ Use the same canonical listing and owner identity for:
 - showing coordination;
 - publication request/approval only where the source specification allows it.
 
-Owner portal users do not directly mutate regulated canonical listing facts merely for convenience. Durable requests/actions belong in Mallan CRM/audit history.
+Owner portal users do not directly mutate regulated canonical listing facts merely for convenience. Durable owner requests/actions belong in Mallan CRM/audit history and authorized staff applies the canonical change.
 
-For Sale and Rental prove the actual sequence:
+## A4. REQUIRED LISTING END-TO-END BEHAVIORAL PROOF
 
-Agent selects Seller/Landlord
-→ creates canonical Mallan listing
-→ owner persists
-→ draft saves/reloads
-→ edit saves/reloads
-→ publication state persists
-→ submit/review
-→ unauthorized actor cannot approve
-→ Broker approves only after required compliance
-→ Broker chooses publication scope
-→ visibility changes through the canonical decision
-→ actual Mallan publication timestamp is recorded
-→ public consumers agree
-→ Seller/Landlord portal resolves the same listing
-→ later market changes preserve Mallan history
-→ no silent data loss.
+Do not substitute source-string assertions for this test.
 
-### A4. Current branch closure gate
+Run BOTH a Sale and Rental workflow using actual route/form behavior against the migrated schema:
 
-Before returning to #618:
+`Agent login`
+→ create/select Seller or Landlord
+→ open listing form
+→ select canonical owner
+→ create Mallan-authored listing
+→ verify DB/API market status is null/unset and Mallan publication is DRAFT
+→ reload form
+→ verify every entered field and owner hydrate correctly
+→ edit facts
+→ save
+→ reload
+→ verify no silent data loss
+→ add permitted documents/activity and media through the existing architecture where the test environment supports it
+→ submit publication review
+→ prove Agent cannot perform Broker-only approval
+→ Broker reviews
+→ compliance failures block publication with explicit reasons
+→ set/confirm truthful market status
+→ Broker approves
+→ Broker chooses visibility
+→ public visibility changes only through canonical publication decision
+→ My Listings/owner portal/public consumer all resolve the SAME Listing identity
+→ Last Published records the actual Mallan publication transition
+→ later market-status transition preserves owner/publication/history
+→ reload again and verify persisted state.
 
-- grouped targeted tests green;
-- relevant broad suite green;
+Mandatory negative E2E cases:
+
+- no owner → cannot progress to publication;
+- null market status → cannot appear publicly when a displayable market status is required;
+- discriminatory/public-ad prohibited content → cannot publish;
+- Agent cannot approve/publish when Broker authority is required;
+- another Agent cannot hijack protected owner/client relation;
+- Cotality external row remains read-only;
+- Mallan return-copy does not compete with the canonical local Listing;
+- failed save/API call cannot leave UI pretending data persisted;
+- provider sync cannot erase Mallan owner/publication/history.
+
+## A5. Listing branch closure gate
+
+Before returning to #618, require:
+
+- schema defect corrected in Prisma + migration;
+- all Listing market-status readers/writers updated;
+- owner selector E2E proven in Sale and Rental;
+- Seller/Landlord workflow proven;
+- grouped tests green;
+- relevant full suite green;
 - type-check green;
 - compliance/publication/UCBA/public-visibility gates green;
 - CRM build green;
-- Preview proof for Sale and Rental workflows;
+- authenticated Preview/browser proof for Sale and Rental on desktop + tablet + mobile responsive breakpoints;
 - independent CI evidence where available;
-- amend the existing closure document only; do not create another master audit.
+- existing closure document amended with actual evidence; no new master audit.
+
+If Production migration or Production proof is still waiting on the controlled migration/deploy window, state that exact operational hold; do not relabel branch-local/Preview proof as Production proof. Continue all other safe work meanwhile.
 
 # B. PR #618 — AUTHENTICATED SEARCH CONSOLIDATION
 
-## B0. Stop patching individual criteria in isolation
+## B0. Stop patching isolated controls
 
-PR #618 is not complete. The current implementation still has too many independent representations of one search.
+#618 is not closed by fixing the next checkbox.
 
-The target architecture is exactly:
+Required architecture:
 
 `UI CONTROL → WORKFLOW CRITERIA → FIELD_REGISTRY / VERIFIED COTALITY CONTRACT → ONE SERVER EXECUTOR → ONE FINAL RESULT UNIVERSE → ONE NORMALIZED RESULT → SAVED SEARCH / MAP / WORKBENCH / COMPARE / REPORTS / CMA / CLIENT ACTIONS`
 
-No downstream consumer may reconstruct Search from its own field table.
+No downstream consumer may reconstruct Search from its own provider-field table.
 
-## B1. One workflow state per business workflow
+## B1. One canonical criteria contract per workflow
 
 Implement explicit canonical workflow contracts:
 
@@ -186,346 +294,345 @@ One `SaleCriteria` state/contract.
 One `RentalCriteria` state/contract.
 
 ### Building Search
-One `BuildingCriteria` contract whose result identity is a BUILDING, not a listing row with building filters.
+One `BuildingCriteria` contract whose result identity is a BUILDING, not a listing row with extra filters.
 
 ### CMA
-One `ComparableCriteria` contract consuming the same verified Search facts. Sale CMA and Rental CMA remain distinct analyses.
+One `ComparableCriteria` contract consuming the same verified Search facts; Sale CMA and Rental CMA remain distinct analyses.
 
-Basic and Advanced are two UI-depth views over the SAME Sale or Rental criteria object. Switching views must not recollect into a different vocabulary or silently lose active filters.
+Basic and Advanced are two UI-depth views over the SAME Sale or Rental criteria object.
 
-The current giant browser `collectSearchCriteria()` + `buildIdxSearchParams()` chain must not remain the de facto mapping authority. Refactor toward workflow contracts without creating a parallel third system.
+Switching views must not:
 
-## B2. `FIELD_REGISTRY` becomes genuinely authoritative
+- recollect into another vocabulary;
+- lose criteria;
+- reinterpret enums;
+- silently disable active filters.
 
-`lib/search/canonical/field-registry.ts` is the one Search mapping registry.
+The current giant browser collector/serializer chain must cease being a parallel mapping authority.
 
-Eliminate independent provider mapping truth from:
+## B2. One authoritative Search mapping layer
 
-- browser serializer tables;
-- server filter hard-codes where registry-driven execution can own them;
-- independent provider select lists;
+`lib/search/canonical/field-registry.ts` is the single Search mapping registry.
+
+Remove independent provider mapping truth from:
+
+- browser translation tables;
+- server hard-coded mapping tables where registry-driven execution can own the mapping;
+- independent select-field authorities;
 - Saved Search aliases;
-- Map-specific criteria maps;
-- Report/CMA field maps.
+- Map criteria maps;
+- Reports/CMA field maps.
 
-The registry must carry enough structured information to determine, per criterion:
+Registry entries must provide enough structured truth to determine:
 
-- canonical workflow key;
-- Cotality resource and exact input field(s);
-- expected type/enum shape;
+- canonical workflow criterion;
+- exact Cotality resource + input field(s);
+- provider type/enum shape;
 - operator/strategy;
-- population/capability status;
-- DB/projection mapping where applicable;
+- live population/capability state;
+- Mallan DB/projection mapping where relevant;
 - audience visibility;
 - attribution/display obligations;
 - alertability;
 - failure behavior.
 
-A criterion derived from multiple Cotality fields must list all inputs explicitly.
+A similarly named provider field is not semantic proof.
 
-No criterion is executable because a similarly named field exists. Semantic equivalence must be proven.
+## B3. Fix result-universe truth as one impact graph
 
-## B3. Fix the result-universe engine before UI polish
+Close these together before UI polish:
 
-Close these engine-truth defects as a group:
+### Count semantics
+Preserve distinct facts:
 
-### Provider-count semantics
-`providerMatched` must not be overwritten across pages/phases and then mislabeled as the original provider universe. Define and preserve distinct facts:
-
-- initial provider matching count for the original provider query, if known;
+- original provider matching count for the original query, if known;
 - phase/remainder counts for narrowed continuation queries;
-- final Mallan result count with exact/lower-bound meaning.
+- final Mallan result count + exact/lower-bound meaning.
 
-No one number may change meaning across a traversal.
+One numeric slot cannot change meaning during a traversal.
 
 ### Empty provider page anomaly
-An empty provider page with provider exhaustion NOT proven must not silently mean "phase exhausted". Return an explicit provider/search anomaly or incomplete result state and fail closed.
+Empty records + provider exhaustion not proven = explicit provider/search anomaly or incomplete state. It must not silently mean phase exhausted.
 
 ### Incomplete page authority
-A `PAGE_INCOMPLETE_BUDGET` page must NEVER become authoritative merely because continuation is unavailable or a fill-attempt cap was reached.
+`PAGE_INCOMPLETE_BUDGET` must never become authoritative because continuation is unavailable or a fill cap was hit.
 
-Required outcomes:
+Either finish the same page or return/retain an explicit incomplete state and block downstream actions that require a complete universe.
 
-- finish the same page;
-- or mark it `SEARCH_INCOMPLETE` / equivalent and block Compare, Reports, Save-result-count, email/share/export/CMA from treating it as complete.
+### One universe
+Every corpus-level filter, eligibility gate, return-copy suppression, dedupe, count, page, and sort decision must describe the SAME final universe.
 
-No "Mallan stopped reading" condition may be presented as a finished broker universe.
+No page-local post-filter after totals are declared.
 
-### Counts, paging, sort, dedupe and filtering use ONE universe
+## B4. Browser preview is never a second Search engine
 
-Every corpus-level criterion/gate/dedupe must occur before final page/count semantics are declared. No downstream post-filter may shrink a page after totals were announced.
+A local loaded-catalogue filter may exist only as a clearly non-authoritative latency preview if it is worth the complexity.
 
-## B4. Remove the second pseudo-search engine from the browser
+It may never own:
 
-The current loaded catalogue/local filter may remain only as clearly labeled latency preview if it materially improves UX, but it must never decide:
-
-- authoritative rows;
-- result count;
-- page count;
+- final rows;
+- count/pages;
 - Map universe;
-- Saved Search results;
+- Saved Search result truth;
 - Compare;
-- reports;
+- Reports;
 - CMA;
 - client send/share.
 
-Prefer simplifying/removing local execution if maintaining equivalence costs more complexity than it provides.
+Prefer removing/simplifying it if equivalence maintenance is creating drift.
 
-There must be one authoritative server Search answer.
+## B5. Map is Search infrastructure
 
-## B5. Map becomes part of Search infrastructure
+The current bounded head sample is not closure.
 
-The existing map head-sample is not closure.
+Grid and Map use the SAME canonical criteria and final listing identities.
 
-The Map must express the SAME canonical criteria/universe as the grid.
+Use verified Cotality geography + existing Mallan geocode support; do not invent a second provider truth.
 
-Given current Cotality coordinate limitations, use the verified Cotality geographic vocabulary plus Mallan's existing geocode support without inventing another provider truth:
+Required behavior:
 
-`viewport/polygon → canonical neighborhoods/boroughs/postal criteria → server Search universe → Mallan geocode coordinates → pins`
+`viewport/polygon → canonical geographic criteria → authoritative server Search → Mallan coordinate resolution → pins`
 
-Requirements:
+No arbitrary sample may be presented as complete geography.
 
-- no arbitrary first-500 result sample presented as geographic completeness;
-- Search Within Map updates the canonical criteria;
-- grid and map describe the same search;
-- map selection/refinement survives Basic↔Advanced and Saved Search where supported;
-- transportation/grid/location criteria must either execute truthfully or fail explicitly — never silently strip a visible broker choice.
+Search Within Map updates canonical criteria. Map filters survive Basic↔Advanced and Saved Search where supported.
 
-## B6. Saved Search is a true roundtrip of workflow criteria
+Transportation/grid/location controls must execute truthfully or fail explicitly; never silently strip a visible broker selection.
 
-Prove for Sale and Rental:
+## B6. Saved Search is a structural roundtrip
 
-`criteria → execute → save → GET/reload → restore UI → execute again`
+For Sale and Rental prove:
 
-The restored canonical criteria must be structurally equivalent and return the same universe subject only to legitimate live-market change.
+`criteria → execute → save → GET/reload → restore UI → execute`
 
-Do not persist browser-control ids as business authority.
+Restored canonical criteria must be structurally equivalent to saved criteria and produce the same universe except legitimate live-market change.
 
-Rejected/pass/client interaction state is separate from Search criteria and must not silently alter the saved query.
+Do not persist DOM ids as business authority.
 
-## B7. Workbench, Compare, Reports and CMA consume the SAME result identity
+## B7. Workbench / Compare / Reports / CMA share identity
 
-Selection must persist across paging by canonical Listing identity.
+Selection persists across pages by canonical Listing identity.
 
-Compare, reports and CMA may only operate on authoritative Search results or explicitly selected canonical listings.
+Compare, Reports and CMA use authoritative Search results or explicitly selected canonical listings.
 
-CMA must not create a separate comparable search engine.
+CMA may not create a separate Search engine.
 
-Sale CMA uses verified transaction facts such as `ClosePrice`/`CloseDate`; never use `ListPrice` as sold truth.
+Sale CMA uses verified transaction truth such as `ClosePrice` / `CloseDate`; never `ListPrice` pretending to be sold data.
 
 Rental CMA must not invent achieved rent when Cotality does not prove it.
 
-## B8. Search closure proof
+## B8. REQUIRED SEARCH END-TO-END PROOF
 
-Do not call #618 complete until the following is proven end-to-end for BOTH Sale and Rental on desktop/tablet/mobile:
+For BOTH Sale and Rental, on desktop/tablet/mobile, prove:
 
-control
-→ canonical workflow criteria
+`control interaction`
+→ canonical workflow state
+→ Basic↔Advanced switch without loss
 → verified Cotality mapping
 → server execution
-→ complete/declared result universe
+→ result-universe declaration
 → count/sort/page
-→ detail
-→ return to results
-→ map
-→ Search Within Results
-→ Saved Search save/reload
-→ selection
+→ open detail
+→ return to same results
+→ Map
+→ Search Within Results / Search Within Map where supported
+→ save search
+→ reload browser/session
+→ restore search
+→ re-execute
+→ selection across pages
 → client action
 → Compare
 → report
 → CMA input where applicable
 → attribution/compliance
-→ Preview proof.
+→ authenticated Preview proof.
 
-Also prove negative cases:
+Negative E2E:
 
 - unsupported criterion fails by name;
-- unknown enum never silently broadens;
-- incomplete universe cannot be called authoritative;
-- map cannot imply full coverage from a sample;
-- another broker's listing cannot become Mallan-authored by agent association;
-- suppressed Mallan Cotality return-copy cannot compete with the canonical Mallan listing;
-- Basic↔Advanced does not lose criteria;
-- Saved Search restore does not lose criteria;
-- zero-population valid Cotality values are distinguished from unsupported values.
+- unknown enum cannot widen silently;
+- incomplete universe cannot become authoritative;
+- Map cannot imply completeness from a sample;
+- Basic↔Advanced cannot lose criteria;
+- Saved Search restore cannot lose criteria;
+- valid zero-population value is distinct from unsupported value;
+- another broker's listing cannot become Mallan-authored through agent association;
+- Mallan Cotality return-copy cannot compete with canonical Mallan listing.
 
-# C. AFTER SEARCH — MOVE IMMEDIATELY TO MY LISTINGS
+# C. MY LISTINGS — IMMEDIATELY AFTER SEARCH
 
-Do not start another unrelated audit after Search. Move directly into **My Listings**, because an incoming agent must be able to operate the brokerage without depending on Maya to repair or explain the workflow.
+Do not start another unrelated audit after Search.
 
-## C1. My Listings must use canonical listing identity and authority
+My Listings must become the operational center for an agent's listings.
 
-One workspace must correctly distinguish:
+## C1. Canonical authority
 
-- Mallan-authored editable listings;
-- Mallan-authored listing with suppressed Cotality return-copy;
+One workspace correctly distinguishes:
+
+- Mallan-authored editable listing;
+- same Mallan listing with suppressed Cotality representation;
 - third-party Cotality inventory, read-only;
-- historical/closed listings;
-- owner/client relationship through `Listing.owner_client_id`;
-- assigned Agent/Broker relationship without confusing assignment with authorship.
+- historical/closed listing;
+- canonical Seller/Landlord owner via `Listing.owner_client_id`;
+- assigned Agent/Broker without confusing assignment with authorship.
 
-No duplicate listing identity and no second ownership model.
+No duplicate identity or second ownership system.
 
-## C2. My Listings agent workspace requirements
+## C2. Required workspace content
 
-For each Mallan-authored listing, an authorized agent should be able to see from one workspace:
+For each Mallan-authored listing show from one place:
 
-- canonical listing facts;
+- listing facts;
 - owner Seller/Landlord;
-- publication/review state;
-- actual market status;
+- **Publication State** separately;
+- **Market Status** separately;
 - compliance blockers;
 - media;
 - documents;
 - activity/timeline;
 - comments;
-- showing activity;
-- client interactions where permitted;
-- CMA/report access;
+- showings;
+- permitted client activity;
+- CMA/reports;
 - marketing actions;
-- visibility/publication status;
-- real Last Published timestamp;
-- actions the current user is allowed to take;
-- actions reserved to Broker, visibly disabled/explained rather than silently missing.
+- visibility/publication scope;
+- actual Last Published;
+- current user's allowed actions;
+- Broker-only actions visibly restricted/explained.
 
-Third-party Cotality rows remain read-only and cannot acquire Mallan ownership/edit capability merely because an agent worked with the buyer/tenant.
+Third-party Cotality inventory remains read-only.
 
-## C3. My Listings must connect directly to the corrected Sale/Rental forms
+## C3. My Listings ↔ forms ↔ portals ↔ public
 
-New Listing
-→ choose Sale or Rental
-→ select canonical Seller/Landlord
-→ create Draft
-→ save/reload
-→ edit
-→ media/documents
-→ review/compliance
-→ Broker publication decision
-→ My Listings reflects new state
-→ owner portal reflects same listing
-→ public visibility reflects same publication decision.
+Prove:
 
-No form may save data that My Listings cannot reload and edit.
+`My Listings → New Listing → Sale/Rental → owner → create → save → reload → edit → documents/media/activity → submit → Broker review → publish → My Listings state updates → owner portal same listing → public same listing when allowed`
 
-## C4. Mobile/tablet/desktop agent usability
+No form may store a field that My Listings cannot reload/edit/display correctly.
 
-Prove the agent can, without horizontal-interface breakage or hidden essential actions:
+## C4. REQUIRED MY LISTINGS E2E PROOF
 
-- find a listing;
-- create one;
-- resume an unfinished Draft;
-- see blockers;
-- update editable facts;
-- upload/manage permitted media/documents through the existing media architecture;
-- request/perform review as allowed;
-- see publication state;
-- run Search from a client/opportunity and return to My Listings;
-- act on client/showing/activity tasks.
+Desktop, tablet, mobile:
 
-Do not optimize only desktop and call the agent workflow complete.
+- locate listing quickly;
+- distinguish editable vs read-only inventory;
+- resume unfinished local listing;
+- see missing owner/market/compliance blockers;
+- edit permitted facts and reload them;
+- manage documents/media through existing architecture;
+- see activity/comments/showings;
+- request review;
+- Broker performs restricted action;
+- publication/market status update independently;
+- return from Search/client workflow without losing listing context.
 
 # D. NEW AGENT READINESS GATE
 
-Maya has a new agent coming on board. The platform must be safe and operational for that agent before this lane is called ready.
+Maya has a new agent coming on board. The platform is not operationally ready until a real non-Broker Agent can use it without Maya repairing the workflow manually.
 
-This is a PRODUCT/TECH readiness gate. It does not replace legal onboarding documents.
+This gate covers product/technology workflow, not legal onboarding documents.
 
-## D1. Identity and permissions
+## D1. Identity/permissions
 
-Prove a newly created Agent account:
+Prove a newly created Agent:
 
-- logs in successfully;
-- is `userType=agent`;
-- receives AGENT permissions, never Broker permissions;
-- cannot escalate through client/portal roles;
-- sees only clients/listings/actions within authorized brokerage scope;
-- cannot alter Broker-only publication/compliance decisions;
+- can log in;
+- is `userType=agent` with AGENT authority;
+- cannot receive Broker authority through any client/portal string;
+- sees only authorized clients/listings/actions;
+- cannot perform Broker-only publication/compliance actions;
 - cannot edit third-party Cotality inventory;
-- cannot access another agent's restricted client relationship where policy forbids it.
+- cannot seize another Agent's protected client relation.
 
-## D2. Day-one brokerage workflow
+## D2. Day-one workflow
 
-Using a non-Broker agent account, prove:
+Using the actual non-Broker Agent account, prove:
 
-1. open CRM on desktop, tablet, mobile;
-2. find/create the correct client;
-3. create a Buyer/Tenant opportunity and Saved Search;
-4. run authenticated Sale/Rental Search;
-5. save/restore Search;
-6. select/send/record listing activity for the client;
-7. create or access a Seller/Landlord client as permitted;
-8. create a Mallan Sale/Rental Draft linked to that owner;
-9. save/reload/edit without data loss;
-10. see required Broker-review/publication blockers;
-11. use My Listings to resume the workflow;
-12. add/show activity/comments/documents/media through authorized paths;
-13. request review/publication rather than bypassing Broker authority;
-14. see the resulting timeline/history.
+1. login on desktop;
+2. open CRM dashboard;
+3. find/create a client;
+4. create Buyer/Tenant opportunity where relevant;
+5. run authenticated Sale Search;
+6. switch Basic↔Advanced without losing criteria;
+7. save/reload Search;
+8. use Map/result workbench;
+9. select/send/record client action;
+10. create Seller client;
+11. create Sale listing with owner;
+12. save/reload/edit it;
+13. create Landlord client;
+14. create Rental listing with owner;
+15. save/reload/edit it;
+16. find both in My Listings;
+17. see publication + market status separately;
+18. submit review but fail correctly on Broker-only approval;
+19. add permitted activity/documents/media;
+20. use tablet layout;
+21. use mobile layout;
+22. log out/login and recover durable state.
 
-## D3. No hidden Maya-only workaround
+## D3. No Maya-as-workaround
 
-The new agent must not need Maya to:
+The new Agent must not require Maya to:
 
-- manually repair owner identity;
-- manually reconstruct lost form data;
-- explain why Basic and Advanced Search disagree;
-- find results that pagination/map omitted;
-- restore a Saved Search that changed meaning;
-- fix a listing misclassified as Mallan's;
-- identify whether a listing is editable;
-- discover why publication is blocked;
-- recover data lost by a sync/reset operation.
+- repair owner links;
+- recover lost form fields;
+- explain why Search ignored a visible criterion;
+- recover a broken Saved Search;
+- tell them whether a listing is editable;
+- identify why publication is blocked when the UI could show it;
+- reconcile duplicate Mallan/Cotality copies;
+- recover activity that vanished after reload.
 
-If any one of those is still necessary, New Agent Readiness is NOT closed.
+# E. TESTING STANDARD — END TO END MEANS END TO END
 
-## D4. Auditability
+For every completed workflow, evidence must include all applicable layers:
 
-Critical agent actions must leave durable Mallan history:
+`UI interaction → browser state → request payload → auth/validation → API/business rule → DB persistence → GET/readback → UI hydration → downstream consumer → reload/session recovery`
 
-- client creation/update;
-- Saved Search creation/change;
-- listing sent/shared;
-- showing/task/comment/activity;
-- listing create/edit;
-- owner assignment/change;
-- publication submissions/transitions;
-- Broker approval/rejection;
-- marketing/document actions where applicable.
+A test that only asserts source strings, function calls, DOM presence, or mocked JSON does not close the workflow.
 
-Email delivery alone is never the only record of client activity.
+Required testing mix:
 
-# E. CI / PREVIEW / HANDOFF STANDARD
+- direct unit tests for pure invariants;
+- negative authority/compliance tests;
+- route/API integration tests;
+- persistence roundtrip tests against the migrated schema;
+- browser-level behavioral tests (Playwright or existing equivalent) for forms/Search/My Listings;
+- responsive proof at desktop/tablet/mobile viewports;
+- authenticated Preview proof;
+- independent CI evidence;
+- Production proof only after authorized deploy/migration.
 
-At each closure boundary use grouped targeted tests during development, then broad verification.
+Every E2E case must verify **observable user behavior and durable persistence**, not just HTTP 200.
 
-Required before declaring the whole sequence ready:
+# CLOSURE MODEL
 
-- relevant full suite green;
-- type-check green;
-- Cotality contract/mapping verification green;
-- compliance/UCBA/publication/public-visibility checks green;
-- CRM build green;
-- authenticated Preview proof on desktop/tablet/mobile;
-- non-Broker agent behavioral proof;
-- Git evidence at the exact head;
-- independent CI evidence where available.
+For each defect/family follow:
 
-Green source-string tests alone are insufficient.
+`PROVEN DEFECT → ROOT CAUSE → ALL AFFECTED READERS/WRITERS → CORRECTION → DIRECT TESTS → NEGATIVE TESTS → INTEGRATION → E2E WORKFLOW → DOWNSTREAM CONSUMERS → COMPLIANCE → PREVIEW → PRODUCTION`
 
-# FINAL DEFINITION OF DONE FOR THIS EXECUTION SEQUENCE
+Do not start the next family merely because the first local test passed.
 
-Do not stop at an audit or after one subsystem turns green.
+Do not run the whole repository after every tiny edit; run grouped targeted tests during development and the broad gates at closure boundaries.
 
-The sequence is complete only when:
+# DEFINITION OF DONE FOR THIS EXECUTION SEQUENCE
 
-1. current listing/security/publication branch is genuinely closed;
-2. authenticated Search is one coherent Cotality-driven execution architecture, not a chain of competing translators;
-3. Sale/Rental Search, Saved Search, Map, workbench, Compare, Reports and CMA share the same canonical criteria/result foundation;
-4. My Listings is a complete agent workspace over canonical listings and history;
-5. Sale/Rental authoring roundtrips through My Listings without data loss;
-6. Broker-only publication/compliance authority remains enforced;
-7. a new non-Broker agent can perform the day-one brokerage workflow on desktop/tablet/mobile without hidden manual repair by Maya;
-8. Preview + tests + CI prove the behavior.
+Do not claim completion until:
 
-If any required step needs schema/environment/Production/destructive authorization, finish every safe code-only correction first, isolate only the exact blocked fact, and continue every unrelated safe item instead of stopping the whole execution lane.
+- the `Listing.status` schema defect is corrected, migrated, and all readers/writers are coherent;
+- no new Mallan local listing stores `Draft` as market status;
+- owner selection/persistence works in both forms;
+- Sale and Rental listing workflows pass full E2E persistence/publication proof;
+- Search uses one canonical criteria/mapping/execution/result architecture;
+- Search engine count/incomplete/anomaly defects are closed;
+- Saved Search, Map, workbench, Compare, Reports and CMA use the same Search truth;
+- My Listings is the canonical agent listing workspace and roundtrips every editable field/action;
+- a real non-Broker Agent passes the New Agent Readiness Gate on desktop/tablet/mobile;
+- Cotality remains the only provider/data authority;
+- no silent data loss remains in these workflows;
+- Preview + independent CI evidence exist;
+- Production closure is claimed only after the separately controlled deploy/migration proof exists.
+
+If an operational deployment window temporarily blocks Production application, continue all safe implementation/testing and document the exact remaining operational step. Do not stop the engineering work or substitute a partial state for completion.
