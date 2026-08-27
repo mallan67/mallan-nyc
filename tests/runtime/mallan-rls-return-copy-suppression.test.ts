@@ -172,21 +172,54 @@ describe('every PUBLIC emitter applies the canonical exclusion', () => {
 
   /**
    * Emitters that build their own where-clause instead of calling
-   * `buildSearchDisplayWhere` must import the ONE owner explicitly. Listed by
-   * path so a NEW public emitter that forgets it is a visible omission here
-   * rather than a silent leak in production.
+   * `buildSearchDisplayWhere`. Listed by path so a NEW public emitter that
+   * forgets suppression is a visible omission here rather than a silent leak.
+   *
+   * TWO ways to satisfy it, both fine:
+   *   - call `excludeMallanRlsReturnCopies()` directly, or
+   *   - spread `publicListingVisibilityWhere()`, the canonical layer that
+   *     bundles the display gates WITH the suppression.
+   *
+   * The list grew because four client-facing surfaces were missing entirely:
+   * the CMA handed to a seller, neighborhood market medians, buyer
+   * recommendations and portal comparables each spread the BARE
+   * `SEARCH_DISPLAY_GATE`, which carries the gate columns and neither the status
+   * allow-list nor the suppression. Every Mallan listing that had round-tripped
+   * through RLS was counted twice in all four. They now go through the shared
+   * layer, which is also why `similar/route.ts` no longer needs its own
+   * hand-rolled copy.
    */
   const DIRECT_APPLIERS = [
     'app/sitemap.ts',                              // canonical URLs / SEO
     'app/api/agents/[slug]/listings/route.ts',     // agent page (pre-take)
     'app/api/listings/similar/route.ts',           // similar comps
     'lib/buildings/public-building-data.ts',       // building manifest
+    'lib/search/public-listing-db.ts',             // /api/listings — pre-count, pre-take
+    'lib/cma/engine.ts',                           // CMA comps handed to a seller
+    'lib/market-pulse/snapshot.ts',                // neighborhood inventory + medians
+    'lib/buyer-intent/recommender.ts',             // buyer portal recommendations
+    'app/api/portal/comparables/route.ts',         // portal comparables
   ];
 
-  it.each(DIRECT_APPLIERS)('%s applies excludeMallanRlsReturnCopies', (rel) => {
+  it.each(DIRECT_APPLIERS)('%s suppresses Mallan return-copies', (rel) => {
     const src = read(rel);
-    expect(src).toMatch(/excludeMallanRlsReturnCopies\(\)/);
-    expect(src).toMatch(/mallan-source-identity/);
+    const direct = /excludeMallanRlsReturnCopies\(\)/.test(src);
+    const viaCanonicalLayer = /publicListingVisibilityWhere\(\)/.test(src);
+    expect(direct || viaCanonicalLayer).toBe(true);
+    // And it must come from the one owner, not a local re-implementation.
+    expect(src).toMatch(/mallan-source-identity|listing-access-decision/);
+  });
+
+  it.each(DIRECT_APPLIERS)('%s does not spread the BARE gate', (rel) => {
+    // `...SEARCH_DISPLAY_GATE` is half a visibility decision. Spreading it is
+    // what let four surfaces double-count Mallan inventory.
+    //
+    // lib/search/public-listing-db.ts is the one legitimate exception: it puts
+    // the bare gate inside ONE branch of an OR because RLS-backed and
+    // website-only rows are gated differently, and applies the suppression at
+    // the top level via appendAnd.
+    if (rel === 'lib/search/public-listing-db.ts') return;
+    expect(read(rel)).not.toMatch(/\.\.\.SEARCH_DISPLAY_GATE/);
   });
 
   it('the canonical gate carries it so its consumers inherit it', () => {
