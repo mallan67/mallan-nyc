@@ -40,7 +40,8 @@ describe("CRM status route — projection dual-write is best-effort (S-BE-005 co
   it("still returns the publish success payload (publicUrl/publicActiveUrl) after the catch", () => {
     const afterCatch = src.slice(src.indexOf('projection_dual_write_failed'));
     expect(afterCatch).toMatch(/publicUrl/);
-    // Was `realPlusUrl` - renamed by the Cotality-only correction. The value is
+    // Was a third-party-named field - renamed by the Cotality-only correction.
+    // The value is
     // unchanged (Mallan's own public URL, exposed only while the listing is live);
     // only the misleading provider name is gone.
     expect(afterCatch).toMatch(/publicActiveUrl/);

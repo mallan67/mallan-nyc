@@ -33,13 +33,15 @@ interface ListingForUrl {
 /**
  * Mallan's own canonical URLs for a listing.
  *
- * `realPlusUrl` USED TO BE RETURNED HERE AND IS GONE. It was not a provider URL
+ * A THIRD-PARTY-NAMED URL FIELD USED TO BE RETURNED HERE AND IS GONE. It carried
+ * the name of a legacy upstream intermediary, and it was not a provider URL
  * at all — the implementation was literally
  *
- *     const realPlusUrl = isActive ? publicUrl : null;
+ *     const <legacyProviderNamedUrl> = isActive ? publicUrl : null;
  *
  * i.e. Mallan's own public URL under a foreign provider's name, wired through
- * the CRM write DTOs and rendered in the sale form as a "RealPlus URL" panel.
+ * the CRM write DTOs and rendered in the sale form as a labelled provider-URL
+ * panel with its own copy button.
  * Cotality is this architecture's only provider authority, so a parallel
  * provider concept in an executable contract is drift twice over: the name was
  * forbidden AND it described the wrong thing.

@@ -2,7 +2,7 @@
 
 > **Researched:** 2026-02-08
 > **Brokerage:** Mallan Real Estate Inc.
-> **LMP:** RealPlus (listing input to RLS — REBNY does not grant LMP licenses to individual brokers)
+> **LMP:** the legacy upstream intermediary (listing input to RLS — REBNY does not grant LMP licenses to individual brokers)
 > **IDX Display:** Trestle IDX Plus WebAPI (Trestle-11371-20) — public display + internal CRM + reporting on mallan.nyc (REBNY confirmed 2026-03-27). IDX-eligible inventory only, not full-market search.
 > **RLS Backend:** CoreLogic / Trestle (migrated Feb 2025 from Perchwell)
 
@@ -130,7 +130,7 @@ Major consumer portals have their **own direct data license agreements** with RE
 
 ### Listing Flow
 ```
-You → RealPlus (LMP) → Trestle Add/Edit API → REBNY RLS (Cotality)
+You → the legacy upstream intermediary (LMP) → Trestle Add/Edit API → REBNY RLS (Cotality)
                                     ↓
               ┌─────────────────────┼──────────────────────┐
               ↓                     ↓                      ↓
@@ -192,7 +192,7 @@ Your `IDXEntireListingDisplayYN = True` opt-in is what allows all licensed partn
 3. Lofty
 4. OLR (Online Residential)
 5. Perchwell
-6. RealPlus
+6. the legacy upstream intermediary
 7. RealtyMX
 8. RESoft
 
@@ -216,7 +216,7 @@ Your `IDXEntireListingDisplayYN = True` opt-in is what allows all licensed partn
 17. PropMiX
 18. Real Estate Webmasters
 19. RealGeeks
-20. RealPlus
+20. the legacy upstream intermediary
 21. RealtyMX
 22. Realtyna
 23. RealtyWatch Solutions

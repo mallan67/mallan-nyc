@@ -8062,7 +8062,8 @@ function submitSalesListing() {
             // Determine the best URL from status transition or create/update result
             var publicUrl = (typeof statusResult !== 'undefined' && statusResult && statusResult.publicUrl) || result.publicUrl || null;
             // Mallan's own public URL, exposed while the listing is live.
-            // This read `realPlusUrl` and labelled the panel "RealPlus URL",
+            // This read a third-party-named URL field and labelled the panel with
+            // that legacy intermediary's name,
             // but the value was never a provider URL - just this URL under a
             // foreign provider's name. Cotality is the only provider authority
             // in this architecture, so the field and the label are both gone.

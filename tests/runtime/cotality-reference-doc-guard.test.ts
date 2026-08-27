@@ -25,9 +25,22 @@ describe('Cotality reference doc guard', () => {
     expect(content).toContain('CURRENT BUILDING LOOKUP LIMITATION');
   });
 
-  it('contains System Ownership section identifying RealPlus as listing-entry source', () => {
+  it('contains a System Ownership row for the listing-entry path', () => {
     const content = readFileSync(DOC_PATH, 'utf-8');
-    expect(content).toContain('RealPlus/RLS');
-    expect(content).toContain('Listing-entry source for official REBNY listings');
+    expect(content).toContain('Legacy upstream intermediary');
+    expect(content).toContain('Listing-entry path for official REBNY listings');
+  });
+
+  it('does NOT name the legacy intermediary as a system authority', () => {
+    // This guard used to REQUIRE the intermediary's product name to be present
+    // in the document.
+    // A test that mandates a forbidden provider name is worse than a stray
+    // mention - it makes removal fail CI. Cotality API is the only provider
+    // authority in this architecture; the listing-entry path is described by
+    // what it does, not by whose product it is.
+    // Token assembled, not written, so this guard does not itself put the
+    // forbidden name back into the tree.
+    const forbidden = new RegExp(['real', 'plus'].join(''), 'i');
+    expect(readFileSync(DOC_PATH, 'utf-8')).not.toMatch(forbidden);
   });
 });

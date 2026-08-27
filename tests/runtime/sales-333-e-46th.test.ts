@@ -207,7 +207,7 @@ describe('canonical URL — buildListingUrls returns separated /address/id form'
     // Must NOT contain hybrid suffix `-sl-0004` in the address slug
     expect(urls.publicUrl).not.toMatch(/-sl-0004\//);
     expect(urls.publicUrl).not.toMatch(/-sl-0004$/);  // would mean trailing hybrid
-    // Was `realPlusUrl`. Same value, honest name — it is Mallan's own public
+    // Was a third-party-named field. Same value, honest name — Mallan's own public
     // URL exposed while the listing is live, never a provider URL.
     expect(urls.publicActiveUrl).toBe(urls.publicUrl);
   });
@@ -253,7 +253,11 @@ describe('canonical URL — buildListingUrls returns separated /address/id form'
     }
   });
 
-  test('realPlusUrl never equals generic /listing/sl-XXXX', () => {
+  // This asserted on the REMOVED third-party-named URL field, so it read
+  // `undefined !== 'https://...'` twice and could never fail. Re-pointed at the
+  // field that actually exists, which restores the SEO guarantee it was meant to
+  // hold: the live-only public URL must never be the generic /listing/sl-XXXX form.
+  test('publicActiveUrl never equals generic /listing/sl-XXXX', () => {
     const urls = buildListingUrls({
       listing_id: 'SL-0004',
       status: 'Active',
@@ -271,8 +275,10 @@ describe('canonical URL — buildListingUrls returns separated /address/id form'
       rls_eligible: false,
       internet_address_display_yn: true,
     });
-    expect(urls.realPlusUrl).not.toBe('https://www.mallan.nyc/listing/sl-0004');
-    expect(urls.realPlusUrl).not.toBe('https://www.mallan.nyc/listing/listing-sl-0004');
+    // Guard the guard: a vacuous re-run would pass on undefined.
+    expect(urls.publicActiveUrl).not.toBeUndefined();
+    expect(urls.publicActiveUrl).not.toBe('https://www.mallan.nyc/listing/sl-0004');
+    expect(urls.publicActiveUrl).not.toBe('https://www.mallan.nyc/listing/listing-sl-0004');
   });
 });
 
@@ -413,7 +419,7 @@ describe('sale form hardening (source-pin) — Maya audit follow-ups', () => {
   test('Fix 1: address composite fallback includes StreetDirPrefix', () => {
     // The composite fallback in _populateSaleFormFromApi must include
     // StreetDirPrefix or "333 E 46th St" reloads as "333 46th St" (the
-    // exact bug that broke RealPlus lookup).
+    // exact bug that broke public-URL lookup).
     expect(FORM).toMatch(
       /addr\.StreetNumber[\s\S]{0,200}?addr\.StreetDirPrefix[\s\S]{0,200}?addr\.StreetName[\s\S]{0,200}?addr\.StreetSuffix/,
     );

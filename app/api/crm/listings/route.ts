@@ -273,6 +273,39 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // MALLAN CANNOT MINT A PROVIDER IDENTIFIER.
+  //
+  // `mls_id` is a COTALITY fact — issued by the provider, arriving through the
+  // feed. This route used to write `mls_id: (normalized.mls_id as string) ?? null`,
+  // i.e. whatever the caller sent, straight into the provider-identity column.
+  //
+  // Beyond the authority violation, `mls_id === null` is this repo's shorthand
+  // for "Mallan authored this row", and it is load-bearing:
+  //   - the owner-required publication guard in [id]/status/route.ts is scoped
+  //     to `listing.mls_id === null`, so a fabricated value walks past it;
+  //   - `const isCrmCreated = !listing.mls_id` decides whether RLS enforcement
+  //     and content scanning run;
+  //   - the CRM list query splits crmCreated from trestleClosed on it;
+  //   - source classification reports provenance from it.
+  // One unvalidated body field chose which side of four boundaries a listing
+  // landed on.
+  //
+  // Refused, not silently nulled: dropping it quietly would hide a client bug
+  // and leave the caller believing the value took effect. Checked HERE, before
+  // any transaction or validator, so an unrelated earlier failure cannot mask
+  // it. A key sent with no value asserts nothing and is not an attempt.
+  if (typeof body.mls_id === "string" && body.mls_id.trim() !== "") {
+    return NextResponse.json(
+      {
+        error:
+          "mls_id is assigned by the provider and cannot be set on a Mallan-authored listing.",
+        code: "PROVIDER_IDENTITY_NOT_ASSIGNABLE",
+        field: "mls_id",
+      },
+      { status: 422 },
+    );
+  }
+
   // Classify RLS eligibility using UCBA mixed-use model (Art. I, Sec. 5(F))
   // Mixed-use in ≤5 unit buildings → RLS-eligible; >5 units or pure commercial → website-only
   // InHouse listings are website-only by definition — not on RLS.
@@ -483,7 +516,11 @@ export async function POST(req: NextRequest) {
     const listing = await tx.listing.create({
       data: {
         listing_id: listingId,
-        mls_id: (normalized.mls_id as string) ?? null,
+        // Always null on a Mallan-authored row. A provider identifier is
+        // never assigned here — see the PROVIDER_IDENTITY_NOT_ASSIGNABLE
+        // guard above, which refuses the request outright rather than
+        // letting a caller-supplied value reach this column.
+        mls_id: null,
         agent_id: auth.userId,
         // CANONICAL OWNER CONTINUITY.
         //

@@ -32,7 +32,7 @@ decided* at the end rather than done quietly.
 | 1 | `6525b283` | AUTH P0 | Staff authorization requires the staff identity domain, not a role string |
 | 2 | `bb8e70a6` | AUTH P0 (follow-on) | Portal invites scoped to the agent's own client |
 | 3 | `a2620927` | Owner continuity | Canonical owner captured at listing create; ownerless publication refused |
-| 4 | `545d6917` | RealPlus removal | The forbidden provider name removed from the executable system |
+| 4 | `545d6917` | Provider-name removal | The forbidden provider name removed from the executable system |
 | 5 | `448ca24e` | Market status | Status vocabulary bound to the live Cotality value |
 | 6 | `5adec686` | Market status (2/2) | Every backend state reachable in the CRM; §2.05 given one owner |
 | 7 | `72344f82` | Visibility / distribution | One visibility layer that always suppresses return-copies |
@@ -50,7 +50,7 @@ decided* at the end rather than done quietly.
 | `invite-ownership-boundary` | 10 | 1 |
 | `owner-continuity` | 14 | 2 |
 | `owner-publication-guard` | 8 | 2 |
-| `no-realplus-in-executable-system` | 9 | 3 |
+| `no-legacy-intermediary-name` | 9 | 3 |
 | `status-vocabulary-cotality-binding` | 37 | 4 |
 | `crm-roster-status-conformance` | 6 | 4 |
 | `retention-2-05-terminal-set-single-owner` | 4 | 4 |
@@ -77,7 +77,7 @@ tests go red. Not "the tests pass" — "the tests fail when the bug returns."
 |---|---|
 | `requireRole` without the `userType !== "agent"` check | 8 / 36 identity tests fail |
 | Guard removed but the route-level check kept | 9 / 9 still pass — layers proved independent |
-| `listing-urls.ts` reverted to `realPlusUrl` | 3 / 9 census tests fail |
+| `listing-urls.ts` reverted to the third-party-named URL field | 3 / 9 census tests fail |
 | Alias re-pointed `canceled → Cancelled` | 3 / 37 vocabulary tests fail |
 | `Canceled` removed from the retention list | 1 / 37 fails |
 | Suppression stripped from the canonical visibility layer | 3 / 17 fail |
@@ -200,12 +200,12 @@ accepting the legacy one permanently.
 
 ---
 
-## RealPlus census
+## the legacy upstream intermediary census
 
-`buildListingUrls` returned `realPlusUrl`, implemented as
+`buildListingUrls` returned a third-party-named URL field, implemented as
 `isActive ? publicUrl : null` — Mallan's own canonical URL under a foreign
 provider's name, carried through three CRM write DTOs and rendered in the sale
-form as a labelled "RealPlus URL" panel with its own copy button. Wrong twice:
+form as a labelled "legacy-intermediary listing URL" panel with its own copy button. Wrong twice:
 forbidden name, and it described the wrong thing.
 
 | Surface | Before | After |
@@ -224,9 +224,9 @@ survives as `publicActiveUrl`.
 
 **Deliberately retained:** comments in `mallan-source-identity.ts`,
 `dedupe-crm-vs-idx.ts` and `syndication/mallan-identity.ts` describing the
-EXTERNAL workflow (Mallan → RealPlus → REBNY RLS → return-copy). That prose is
+EXTERNAL workflow (Mallan → the legacy upstream intermediary → REBNY RLS → return-copy). That prose is
 why `trestleExcludeMallanReturnCopiesClause` exists; deleting it would remove the
-reasoning behind real suppression logic. The rule enforced is that RealPlus may
+reasoning behind real suppression logic. The rule enforced is that the legacy upstream intermediary may
 not appear in an **executable** contract.
 
 ---
@@ -314,7 +314,7 @@ changed.
 
 ## A process note
 
-The RealPlus impact group was selected by **filename pattern**, and
+The the legacy upstream intermediary impact group was selected by **filename pattern**, and
 `tests/runtime/sales-333-e-46th.test.ts` — which referenced the removed field —
 never ran. It was caught one commit later and fixed in `448ca24e`. Every
 subsequent family was verified against the **whole suite** rather than a pattern.

@@ -2,7 +2,7 @@
 
 > **Status:** Architecture plan only. **No code from this doc.** Docs-only PR.
 > **Date:** 2026-05-18 · **Version 2 — corrected, with MVP decisions** · **Author:** Claude Code under Maya direction
-> **What v2 corrects vs v1:** v1 used `source='manual'` as the primary discriminator and treated `source='trestle'` as automatically disqualifying. **That was wrong.** Mallan's own exclusive listings flow through RealPlus → REBNY RLS → Trestle IDX and arrive in this codebase with `source='trestle'`. The correct gate is **listing-side control + explicit syndication authorization + compliance-safe public advertising rights** — not source-based.
+> **What v2 corrects vs v1:** v1 used `source='manual'` as the primary discriminator and treated `source='trestle'` as automatically disqualifying. **That was wrong.** Mallan's own exclusive listings flow through the legacy upstream intermediary → REBNY RLS → Trestle IDX and arrive in this codebase with `source='trestle'`. The correct gate is **listing-side control + explicit syndication authorization + compliance-safe public advertising rights** — not source-based.
 > **Holds preserved (Maya's spec):** no IDX/RLS/Trestle co-brokerage export · no other brokerage's listings · no ListingSearchProjection changes · no IDX sync changes · no PR #148 / PR 5B · no reconciliation · no env vars · no Neon · no migrations · no cron · no agents / skills / workflows.
 > **Truth source:** current `main` HEAD `b95e5f44`.
 
@@ -14,7 +14,7 @@ These seven decisions are binding for the MVP. Every section below is interprete
 
 | # | Decision | Implication for MVP |
 |---:|---|---|
-| **1** | **Mallan office MLS ID(s) — UNKNOWN.** Must be confirmed from RealPlus / REBNY / Trestle / live-data audit BEFORE any implementation. | PR 1 ships a config file with empty `MALLAN_OFFICE_MLS_IDS` and ships the read-only audit script. Until Maya confirms the values and they're populated, the eligibility gate blocks every row (correct fail-closed default). |
+| **1** | **Mallan office MLS ID(s) — UNKNOWN.** Must be confirmed from the legacy upstream intermediary / REBNY / Trestle / live-data audit BEFORE any implementation. | PR 1 ships a config file with empty `MALLAN_OFFICE_MLS_IDS` and ships the read-only audit script. Until Maya confirms the values and they're populated, the eligibility gate blocks every row (correct fail-closed default). |
 | **2** | **`Agent.trestle_mls_id` backfill — DEFER.** Do not run SQL or data updates yet. PR 1 may include a read-only audit script to identify observed `ListAgentMlsId` / `ListOfficeMlsId` values. Backfill happens only AFTER Maya verifies IDs. | PR 1 = audit-only. No `UPDATE agents` statement, no Prisma write, no migration. The audit script is read-only against `listings.agent_info` JSON. |
 | **3** | **Co-list authorization — DEFAULT BLOCK.** Unless explicit written authorization exists. | Eligibility gate Layer 1c (co-list match) is DISABLED for MVP. Even if `CoListAgentMlsId` / `CoListOfficeMlsId` matches Mallan, the row is INELIGIBLE unless `Listing.compliance.syndication.co_list_authorization_url` is populated. Default state for every existing row: no URL → blocked. |
 | **4** | **Seller advertising authorization — MANUAL ATTESTATION.** No standardized form yet. MVP requires manual broker/Maya attestation stored in `Listing.compliance.seller_advertising_authorization` JSON. | The admin UI captures attestation as a single broker action: "I attest the seller authorized syndication for these channels." Stored as `{ attested_by, attested_at, channels, attestation_note }`. NO seller-side signature workflow yet. NO form upload required. Replace with a real signed form later (Class B). |
@@ -38,7 +38,7 @@ The repo already carries every field needed to identify **Mallan-as-listing-side
 | Source | Where they enter | How they're stored |
 |---|---|---|
 | **Trestle IDX (where Mallan is listing side)** | `lib/idx/fetch.ts` → `lib/idx/trestle-mapper.ts` → `Listing` upsert with `source='trestle'` | Same `listings` table. `agent_info` JSON carries `ListAgentMlsId`, `ListOfficeMlsId`, `ListAgentFullName`, `ListOfficeName`, etc. Typed columns `list_agent_full_name` + `list_office_name` (`schema.prisma:506-507`) carry the two display fields. |
-| **RealPlus / LMP** | Not a direct integration. RealPlus is where Maya's agents enter listings; RealPlus pushes them to REBNY RLS; mallan.nyc reads them back via the Trestle IDX pipeline. **From this codebase's perspective, RealPlus-originated listings are Trestle-sourced rows where Mallan is the listing side.** | Same as Trestle row above. |
+| **the legacy upstream intermediary / LMP** | Not a direct integration. the legacy upstream intermediary is where Maya's agents enter listings; the legacy upstream intermediary pushes them to REBNY RLS; mallan.nyc reads them back via the Trestle IDX pipeline. **From this codebase's perspective, legacy-intermediary-originated listings are Trestle-sourced rows where Mallan is the listing side.** | Same as Trestle row above. |
 | **Manual / admin-created** | `app/api/crm/listings/route.ts` POST → CRM form (`public/crm/SALE-FORM-REDESIGN.html`, `RENTAL-FORM-REDESIGN.html`) → `Listing` insert with `source='manual'` default | Same `listings` table. `agent_id` column FK to `Agent`. `agent_info` JSON populated from form input. `listing_id` prefixed `SL-` / `RL-`. |
 | **Other internal/admin** | None at present | n/a |
 
@@ -320,7 +320,7 @@ export async function evaluateMallanSyndicationEligibility(
 
 | Scenario | v1 verdict (WRONG) | v2 + Codex correction (CORRECT) |
 |---|---|---|
-| Mallan listing entered in RealPlus → routed to REBNY RLS → re-ingested via Trestle with `ListOfficeMlsId = <Mallan>` and `source='trestle'` | ❌ blocked (source wrong) | ✓ Layer 1a passes; eligible if other layers pass |
+| Mallan listing entered in the legacy upstream intermediary → routed to REBNY RLS → re-ingested via Trestle with `ListOfficeMlsId = <Mallan>` and `source='trestle'` | ❌ blocked (source wrong) | ✓ Layer 1a passes; eligible if other layers pass |
 | Mallan listing manually entered in CRM (`source='manual'`, `agent_id=<Mallan agent>`), NO canonical IDs, NO verification flag | ✓ passes | ❌ **BLOCKED** — early-v2 Layer 1d allowed this via free-text "mallan" substring; **that path is removed** (invariants I.1, I.3, I.4). Broker must EITHER (a) populate the canonical IDs (Decision #1 / #2) or (b) set `compliance.mallan_control_verification` via deliberate admin UI action. |
 | Mallan-controlled manual listing WITH `compliance.mallan_control_verification` populated by broker action | n/a | ✓ Layer 1d passes via the explicit verification flag |
 | Co-brokerage listing (some other brokerage is listing side, Mallan is buyer side) — `source='trestle'`, `ListOfficeMlsId = <another brokerage>` | ❌ blocked | ✓ blocked — Layer 1 fails (no Mallan office/agent match, no verification flag) |
@@ -536,7 +536,7 @@ Same compliance gates as the rest of the codebase, applied PER export:
 
 | # | Question | Answer (Maya, 2026-05-18) |
 |---:|---|---|
-| 1 | What is Mallan's office MLS ID on REBNY/Trestle? | **UNKNOWN** — must be confirmed via RealPlus / REBNY / Trestle / live-data audit before implementation. PR 1's read-only audit script surfaces observed values. |
+| 1 | What is Mallan's office MLS ID on REBNY/Trestle? | **UNKNOWN** — must be confirmed via the legacy upstream intermediary / REBNY / Trestle / live-data audit before implementation. PR 1's read-only audit script surfaces observed values. |
 | 2 | `Agent.trestle_mls_id` backfill — separate SQL or part of PR 1? | **DEFER.** No SQL, no Prisma write, no migration in PR 1. Audit script is read-only. Backfill only after Maya verifies IDs. |
 | 3 | Co-list authorization — does Mallan have co-list arrangements? | **DEFAULT BLOCK.** Layer 1c disabled for MVP. Requires explicit written authorization in `compliance.syndication.co_list_authorization_url` before any co-list row can pass. |
 | 4 | Seller advertising authorization — signed form template exists? | **NO STANDARDIZED FORM YET.** MVP uses broker/Maya manual attestation stored in `Listing.compliance.seller_advertising_authorization` JSON. Replace with a real form later (Class B). |

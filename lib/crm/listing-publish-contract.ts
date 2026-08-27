@@ -5,7 +5,8 @@
 // and surface Mallan's canonical public URLs. Returned alongside listing_id,
 // status, publicUrl and publicActiveUrl from the CRM listing write paths.
 //
-// There was a `realPlusUrl` here. It was Mallan's own publicUrl wearing a
+// There was a third-party-named URL field here, carrying the name of a legacy
+// upstream intermediary. It was Mallan's own publicUrl wearing a
 // foreign provider's name — Cotality is this architecture's only provider
 // authority — so the field is gone rather than renamed, because no verified
 // provider URL was ever represented by it.

@@ -1,7 +1,9 @@
 /**
  * MALLAN RLS RETURN-COPY SUPPRESSION — CHARTER Section 1A.
  *
- * Mallan enters a listing into RealPlus, RealPlus submits to REBNY RLS, and the
+ * Mallan's listing reaches REBNY RLS through a legacy upstream intermediary
+ * (a listing-input system outside this repo; not named here because Cotality API
+ * is the only provider authority in this architecture), and the
  * listing returns through Cotality as an `RLS*` row. The LOCAL `SL-`/`RL-` row
  * stays canonical; the returned copy is retained internally for
  * audit/reconciliation but must never be a PUBLIC listing.

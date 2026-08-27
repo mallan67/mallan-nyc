@@ -5,8 +5,10 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * WHY A RETURN-COPY EXISTS
  *
- * Mallan enters its listing into RealPlus, RealPlus submits it to REBNY RLS, and
- * the listing comes back to Mallan through Cotality as an `RLS*` row carrying
+ * Mallan's listing reaches REBNY RLS through a legacy upstream intermediary - a
+ * listing-input system outside this repo, not named here because Cotality API is
+ * the only provider authority in this architecture. RLS distribution then returns
+ * the listing to Mallan through Cotality as an `RLS*` row carrying
  * `ListOfficeMlsId '7041'` — "MAllan Real Estate Inc", verified live 2026-06-23.
  * That round trip happens outside this system. So one property exists as TWO
  * rows in `listings`: the local `SL-`/`RL-` row, which is canonical, and the

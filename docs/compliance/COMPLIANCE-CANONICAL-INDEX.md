@@ -201,7 +201,7 @@ When sources disagree about whether a field exists, what it is named, or whether
 
 | | |
 |---|---|
-| **Canonical** | `public/crm/SALE-FORM-REDESIGN.html` + `public/crm/RENTAL-FORM-REDESIGN.html` (CRM internal — actual RLS submission is via RealPlus/LMP, not mallan.nyc); `lib/compliance/rls-enforcement.ts:assertRlsCompliantPayload` (write-time fail-closed gate) |
+| **Canonical** | `public/crm/SALE-FORM-REDESIGN.html` + `public/crm/RENTAL-FORM-REDESIGN.html` (CRM internal — actual RLS submission is via the legacy upstream intermediary (LMP), not mallan.nyc); `lib/compliance/rls-enforcement.ts:assertRlsCompliantPayload` (write-time fail-closed gate) |
 | **Backup** | `lib/compliance/rebny-validator.ts` (10-section validator); `data/rebny-rls-property-fields.csv` (902 IDX Plus fields); `data/rebny-rls-property-lookup.csv` (2,066 picklist values) |
 | **Validator** | `npm run rls:validate`; `npm run crm:test` (172/172 smoke); CRM POST returns HTTP 422 on `!passed` (see `app/api/crm/listings/route.ts:191-207`) |
 | **When to read** | Any field added/removed/renamed on the sale or rental form; any picklist value change; any new mandatory-field rule; any new content-restriction scanner pattern |

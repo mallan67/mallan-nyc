@@ -25,6 +25,7 @@ import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-colum
 import { resolveListingAgentInfo } from "@/lib/listings/agent-info-resolver";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import { listingCapabilities, CAPABILITY_DENIED } from "@/lib/auth/listing-capabilities";
+import { serializeBigInts } from "@/lib/api/serialize";
 import type { Prisma } from "@prisma/client";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -67,14 +68,34 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json(CAPABILITY_DENIED.ACCESS, { status: 403 });
   }
 
-  // CRM sanitization: strips removed compensation fields, serializes BigInt
-  const sanitized = sanitizeForCRM({
-    ...listing,
-    id: listing.id.toString(),
-    agent_id: listing.agent_id?.toString() ?? null,
-    list_price: listing.list_price.toString(),
-    living_area: listing.living_area?.toString() ?? null,
-  });
+  // EVERY BigInt, not a hand-kept list of them.
+  //
+  // `findListing()` is a no-select `findUnique`, so every column on the row is
+  // present here. `Listing` has THREE BigInt columns - id, agent_id and
+  // owner_client_id - and this spread stringified only the first two. The third
+  // reached `NextResponse.json` raw, and `JSON.stringify` throws
+  // `TypeError: Do not know how to serialize a BigInt`, so the route 500'd for
+  // any listing that had an owner.
+  //
+  // It never fired while owner_client_id was null on every row. The create path
+  // began populating it (a2620927), which armed it.
+  //
+  // The comment that used to sit here claimed sanitizeForCRM "serializes
+  // BigInt". It does not - lib/compliance/dto.ts:498 only deletes keys - and
+  // that false claim is why the omission looked safe. `serializeBigInts` is the
+  // canonical recursive serializer (lib/api/serialize.ts) and it runs AFTER the
+  // explicit spread, so the four fields below keep their exact existing string
+  // contract while anything else BigInt-shaped is caught. A new BigInt column
+  // cannot re-arm this.
+  const sanitized = sanitizeForCRM(
+    serializeBigInts({
+      ...listing,
+      id: listing.id.toString(),
+      agent_id: listing.agent_id?.toString() ?? null,
+      list_price: listing.list_price.toString(),
+      living_area: listing.living_area?.toString() ?? null,
+    }),
+  );
 
   // Phase D step 3 safety net (Codex #429 P2): the reachable WITH-TOOLS viewers
   // (/crm/sale-view → SALE-FORM-WITH-TOOLS.html, /crm/rental-view → RENTAL-FORM-WITH-TOOLS.html)

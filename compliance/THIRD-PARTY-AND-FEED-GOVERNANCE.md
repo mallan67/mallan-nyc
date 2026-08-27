@@ -1,6 +1,6 @@
 # Third-Party & Feed Governance
 
-> **Feed:** REBNY RLS via Trestle (Cotality) | **LMP:** RealPlus (listing input to RLS) | **IDX Display:** Trestle IDX Plus WebAPI (read-only on mallan.nyc)
+> **Feed:** REBNY RLS via Trestle (Cotality) | **LMP:** legacy upstream intermediary (listing input to REBNY RLS) | **IDX Display:** Trestle IDX Plus WebAPI (read-only on mallan.nyc)
 > **Brokerage:** Mallan Real Estate Inc. | **License:** #10991205323
 
 ---
@@ -81,10 +81,10 @@ These field/value names are what the live `api.cotality.com/trestle` feed return
 
 - mallan.nyc uses IDX Plus feed for: **(1) public website listing display, (2) internal backend dashboard with client management, and (3) reporting**
 - mallan.nyc does NOT submit listings to the RLS and is NOT an LMP
-- RealPlus is the LMP (listing input to RLS). REBNY does not grant LMP licenses to individual brokers.
+- The legacy upstream intermediary is the LMP (listing input to RLS). REBNY does not grant LMP licenses to individual brokers.
 - mallan.nyc reads listings via Trestle IDX Plus WebAPI (Trestle-11371-20) — **IDX-released fields and IDX-eligible inventory only (not full-market search)**
-- All client communication (emails, portals, CRM) runs through mallan.nyc directly — client data never passes through RealPlus or third parties
-- Agents use RealPlus for full RLS inventory search and listing submission
+- All client communication (emails, portals, CRM) runs through mallan.nyc directly — client data never passes through the legacy upstream intermediary or third parties
+- Agents use the legacy upstream intermediary for full RLS inventory search and listing submission
 
 ### Capabilities
 
@@ -185,7 +185,7 @@ REBNY confirmed (Michaela Parker, mparker@rebny.com, 2026-03-27) that the IDX Pl
 
 ### Direct Data License (Future Option)
 
-A direct data license (like Compass) would upgrade from IDX Plus to full RLS read access through the same Trestle API. This would add PrivateRemarks, ShowingInstructions, and non-IDX-eligible listings to the CRM. Not currently needed for authorized CRM use, but would eliminate the need for RealPlus for agent search.
+A direct data license (like Compass) would upgrade from IDX Plus to full RLS read access through the same Trestle API. This would add PrivateRemarks, ShowingInstructions, and non-IDX-eligible listings to the CRM. Not currently needed for authorized CRM use, but would eliminate the need for the legacy upstream intermediary for agent search.
 
 ### Connect NYC (Separate Product)
 
@@ -197,7 +197,7 @@ Connect NYC is a separate REBNY building database product (1M+ buildings). It do
 
 30 IDX providers are pre-licensed for REBNY data display:
 
-blankslate, blueroof360, BoomTown, CINC, Constellation RE, Home ASAP, HomeJunction, IDX (Elm Street), iHomefinder, kvCORE, Leadkit, Lofty, Luxury Presence, MoxiWorks, OLR, propertybase, PropMiX, RE Webmasters, RealGeeks, RealPlus, RealtyMX, Realtyna, RealtyWatch, RESoft, Sierra Interactive, Smarter Agent, The House Club, TREM Group, Xome, Ylopo
+blankslate, blueroof360, BoomTown, CINC, Constellation RE, Home ASAP, HomeJunction, IDX (Elm Street), iHomefinder, kvCORE, Leadkit, Lofty, Luxury Presence, MoxiWorks, OLR, propertybase, PropMiX, RE Webmasters, RealGeeks, the legacy upstream intermediary, RealtyMX, Realtyna, RealtyWatch, RESoft, Sierra Interactive, Smarter Agent, The House Club, TREM Group, Xome, Ylopo
 
 ---
 
