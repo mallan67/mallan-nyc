@@ -13470,6 +13470,14 @@ var MallanAPI = (function () {
       params = params || {};
       var qs = [];
       if (params.status) qs.push('status=' + encodeURIComponent(params.status));
+      // `search` and `role` were dropped here even though the server has
+      // supported both for as long as the route has existed
+      // (lib/db/clients.ts findClients: `search` matches name/email/phone/entity,
+      // `clientRole` filters `roles has`). Callers that needed either had to
+      // hand-roll their own fetch, which is how four separate copy-pasted client
+      // pickers ended up in the CRM.
+      if (params.search) qs.push('search=' + encodeURIComponent(params.search));
+      if (params.role) qs.push('role=' + encodeURIComponent(params.role));
       if (params.limit) qs.push('limit=' + params.limit);
       if (params.offset) qs.push('offset=' + params.offset);
       var query = qs.length ? '?' + qs.join('&') : '';

@@ -103,6 +103,7 @@ body { font-family: Manrope, sans-serif; }
 </style>
 <!-- API Client — identity from session cookie, no PII in URLs -->
 <script src="js/core/api-client.js"></script>
+<script src="js/core/owner-picker.js"></script>
 <script>
 // ── Auth gate (defense-in-depth — middleware is primary) ──
 // NOTE: session_token is httpOnly — JS cannot read it via document.cookie.
@@ -353,6 +354,36 @@ body { font-family: Manrope, sans-serif; }
             <input type="hidden" id="saleStreetName" value="" data-rls-field="StreetName">
             <input type="hidden" id="saleStreetSuffix" value="" data-rls-field="StreetSuffix">
             <input type="hidden" id="saleUnparsedAddress" value="" data-rls-field="UnparsedAddress">
+        </div>
+
+
+        <!-- Canonical Seller (Listing.owner_client_id) -->
+        <div class="form-card">
+            <div class="form-card-header"><i class="fas fa-user-check"></i> Seller (Client)</div>
+            <p class="text-xs text-gray-500 mb-3">
+                The seller must be an existing client. This link is what lets the seller
+                see their own listing in the client portal, and a listing cannot be
+                published without it.
+            </p>
+            <div class="relative">
+                <label class="field-label" for="saleOwnerSearch">Search your seller clients</label>
+                <div class="flex gap-2">
+                    <input type="text" id="saleOwnerSearch" class="field-input w-full"
+                           placeholder="Type a name, email or phone" autocomplete="off"
+                           data-rls-ignore="true">
+                    <button type="button" id="saleOwnerClear"
+                            class="px-3 py-2 text-sm border rounded-lg text-gray-600 hover:bg-gray-50">Clear</button>
+                </div>
+                <!-- THE AUTHORITY. `id` is exactly the API field name so the form's
+                     generic field collector sweeps it into the POST/PATCH body. -->
+                <input type="hidden" id="owner_client_id" name="owner_client_id" value="" data-rls-ignore="true">
+                <div id="saleOwnerResults"
+                     class="hidden absolute z-30 left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg max-h-64 overflow-y-auto"></div>
+            </div>
+            <p class="text-xs text-gray-400 mt-2">
+                Not in the list? Create the client in the CRM first — a seller typed here
+                but not selected is not linked.
+            </p>
         </div>
 
         <!-- Agent & Dates -->
@@ -9725,8 +9756,37 @@ function _restoreSaleNeighborhoodSelect(value, boroughHint) {
     nEl.value = newOpt.value;
 }
 
+
+// ═══ CANONICAL OWNER PICKER ═══════════════════════════════════════════════════
+// `Listing.owner_client_id` is the only Seller/Landlord owner relation. The
+// hidden input carries the Lead id; the visible box is a search field and is
+// never the authority. Mounted from the shared module so Sale and Rental share
+// one implementation instead of a fifth copy-pasted client picker.
+var _saleOwnerPicker = null;
+
+function _mountSaleOwnerPicker() {
+    if (_saleOwnerPicker || typeof OwnerPicker === 'undefined') return _saleOwnerPicker;
+    _saleOwnerPicker = OwnerPicker.mount({
+        searchId: 'saleOwnerSearch',
+        hiddenId: 'owner_client_id',
+        listId: 'saleOwnerResults',
+        clearId: 'saleOwnerClear',
+        role: 'seller',
+    });
+    return _saleOwnerPicker;
+}
+
+document.addEventListener('DOMContentLoaded', _mountSaleOwnerPicker);
+
 function _populateSaleFormFromApi(listing) {
     _pendingMediaFiles = [];
+
+    // Restore the canonical owner. The listing GET returns `owner_client_id`
+    // but no client name, so the picker resolves the display name through the
+    // authenticated clients API — and keeps the ID even if that lookup fails,
+    // because losing it would silently unassign the seller on the next save.
+    var _ownerPicker = _mountSaleOwnerPicker();
+    if (_ownerPicker) _ownerPicker.hydrate(listing.owner_client_id);
     var raw = listing.raw_data || {};
     var addr = listing.address || {};
     var features = listing.features || {};
