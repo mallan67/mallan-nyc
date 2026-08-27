@@ -220,7 +220,22 @@ describe("FIELD_REGISTRY agrees with the live provider contract", () => {
   });
 
   it("points at PropertySubType and never at the separate PropertySubTypeAdditional", () => {
-    expect(entry.cotalityField).toBe("PropertySubType");
+    // MOVED 2026-08-27. The registry used to restate `cotalityField:
+    // 'PropertySubType'` alongside this module, which renders the clause and
+    // holds the live evidence. Two files describing one mapping is how drift
+    // returns — it is how the registry came to say `borough → CountyOrParish`
+    // while geography.ts emits `CityRegion`. The registry now declares the OWNER
+    // and this assertion checks the owner, which is where the field actually is.
+    expect(entry.mappingOwner).toBe("property-subtype-contract");
+    expect(entry.cotalityField).toBeNull();
+
+    // Asserted against the owner's exported contract, not its source text: the
+    // module deliberately DOCUMENTS `PropertySubTypeAdditional` as a different
+    // provider fact that must never be substituted, so a source scan would
+    // match its own warning.
+    expect(PROPERTY_SUB_TYPE_LIVE.cotalityField).toBe("PropertySubType");
+    expect(propertySubTypeOData(["Apartment"])).toContain("PropertySubType eq");
+    expect(propertySubTypeOData(["Apartment"])).not.toContain("PropertySubTypeAdditional");
   });
 
   it("is mapped and filterable now that eq/in are proven SUPPORTED", () => {
