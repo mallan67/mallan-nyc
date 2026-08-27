@@ -7,7 +7,7 @@
  * to ~14 KB and 70 days later we hit the 500 MB Neon free-tier cap.
  *
  * The mapper is the single chokepoint for all Trestle writes
- * (lib/idx/sync.ts, app/api/cron/feed-reconcile, app/api/crm/listings/reset-sync) —
+ * (lib/idx/sync.ts, app/api/cron/feed-reconcile) —
  * one test here covers every programmatic write path.
  */
 import { mapTrestleToPrisma } from '@/lib/idx/trestle-mapper';

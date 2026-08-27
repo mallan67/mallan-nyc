@@ -1,9 +1,9 @@
 {
-  "timestamp": "2026-08-27T10:16:29.010Z",
-  "pass": 1281,
+  "timestamp": "2026-08-27T11:10:30.386Z",
+  "pass": 1279,
   "critical": 0,
   "warning": 4,
-  "info": 38,
+  "info": 37,
   "sections": [
     {
       "section": 1,
@@ -72,7 +72,7 @@
       "section": 8,
       "title": "Response Field Consistency",
       "category": "CRM & API",
-      "pass": 157,
+      "pass": 156,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -108,7 +108,7 @@
       "section": 12,
       "title": "RBAC / Authorization on Mutations",
       "category": "Auth & Security",
-      "pass": 143,
+      "pass": 142,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -201,7 +201,7 @@
       "pass": 7,
       "critical": 0,
       "warning": 0,
-      "info": 13
+      "info": 12
     },
     {
       "section": 23,

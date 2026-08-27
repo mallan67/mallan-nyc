@@ -810,7 +810,7 @@ export function normalizeStandardStatus(input: unknown): string {
 //   - internet_consumer_comment_yn
 //
 // Before this helper, every writer (Trestle mapper, CRM POST, CRM PATCH, CRM
-// status PATCH, listing-expiration cron, ensure-listing, convert, reset-sync)
+// status PATCH, listing-expiration cron, ensure-listing, convert)
 // re-implemented the same combination of:
 //   1. normalizeStandardStatus → canonical status string
 //   2. TERMINAL_STATUSES.has  → terminal-status guard

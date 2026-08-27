@@ -1,74 +1,83 @@
 /// <reference types="jest" />
 /**
- * A COTALITY RE-SYNC MUST NOT DELETE MALLAN-AUTHORED INVENTORY.
+ * THE ONE-TIME RE-SYNC ENDPOINT IS RETIRED. IT CANNOT COME BACK BY ACCIDENT.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * THE DEFECT
+ * WHY IT WAS REMOVED RATHER THAN NARROWED
  *
- * `POST /api/crm/listings/reset-sync` step 1 was an unfiltered wipe:
+ * `POST /api/crm/listings/reset-sync` deleted rows and then rebuilt them from
+ * Cotality. Its own header called it "ONE-TIME USE ... After use, this endpoint
+ * can be removed", and a 2026 correction record already carried
+ * "OQ-1 (remove/disable the reset-sync route entirely)" as an open decision.
  *
- *     prisma.clientListingAction.deleteMany({})
- *     prisma.showing.deleteMany({})
- *     prisma.comment.deleteMany({})
- *     prisma.priceHistory.deleteMany({})
- *     prisma.marketingActivity.deleteMany({})
- *     prisma.protectedPeriod.deleteMany({})
- *     prisma.listing.deleteMany({})          // ← every row
+ * A first attempt narrowed the wipe to provider-sourced rows so Mallan-authored
+ * listings survived. An adversarial review of that narrowing found it was still
+ * unsafe in two ways I had not seen:
  *
- * followed by a repopulate that pulls from Cotality ONLY.
+ *   1. DELETE SCOPE ≠ REBUILD SCOPE. The delete predicate had NO agent filter —
+ *      it selected every non-Mallan row in `listings`. The rebuild fetched only
+ *      rows where THIS broker appeared on either side of a deal, capped at
+ *      2000. So the route deleted the entire provider inventory and restored a
+ *      small subset of it. Narrowing the delete did nothing about that
+ *      asymmetry, because the asymmetry was between the two halves.
  *
- * So every Mallan-authored `SL-`/`RL-` listing was destroyed and never came
- * back: the listing, its `owner_client_id` link, its media, its comments, its
- * showings, its price history, its protected period. Cotality cannot restore
- * them, because Cotality never had them — Mallan authored them.
+ *   2. IT STILL DESTROYED MALLAN HISTORY. Scoping the dependent deletes to
+ *      provider listing ids still removed `ClientListingAction`, `Showing`,
+ *      `Comment`, `PriceHistory`, `MarketingActivity` and `ProtectedPeriod`
+ *      rows — every one of which is MALLAN CRM/client history that merely
+ *      HANGS OFF a provider listing. Cotality can rebuild listing facts. It has
+ *      never held a showing Mallan booked or a comment a Mallan client wrote.
  *
- * The route is broker-only, behind READONLY_MODE and IDX_ENABLED, and its own
- * header calls it "ONE-TIME USE". None of that makes the blast radius correct.
- * One broker action removed the brokerage's entire exclusive inventory.
+ * Both defects live in the delete-then-rebuild SHAPE, not in the predicate. A
+ * third narrowing would have been a third guess. The endpoint has no executable
+ * consumer anywhere in the repo — verified again below — so retiring it removes
+ * the hazard outright rather than managing it.
  *
- * ─────────────────────────────────────────────────────────────────────────────
- * WHY THIS BLOCKS THE PUBLICATION WORK
- *
- * The next piece of work puts durable Mallan publication/review state inside
- * `Listing.compliance`. Section 3 of the directive requires proving that
- * namespace survives every lane. Seven lanes preserve it — the Cotality sync
- * omits the column, CRM PATCH now merges it, the status route never writes it,
- * reconciliation writes it only on CREATE, no portal route writes Listing at
- * all, and the public DTO never reads it.
- *
- * This lane deleted the whole row. A namespace cannot be "preserved" on a record
- * that no longer exists, so this had to be closed before that state could be
- * trusted anywhere.
- *
- * ─────────────────────────────────────────────────────────────────────────────
- * WHAT CHANGED
- *
- * The wipe is scoped to PROVIDER-SOURCED rows — the only rows a Cotality
- * re-sync can actually rebuild. Mallan-authored rows are identified the same way
- * the rest of the repo identifies them (`SL-`/`RL-` prefix, or
- * `rls_eligible = false`), and their dependents are scoped to the same set
- * rather than truncated globally.
- *
- * This is a NARROWING of a destructive operation. It deletes strictly less than
- * before and nothing that was previously kept is now removed.
+ * Provider reconciliation that Mallan actually runs is non-destructive and
+ * already exists: `lib/idx/sync.ts` upserts in place and
+ * `app/api/cron/feed-reconcile` marks divergent rows. Neither deletes.
  */
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 
-const ROUTE = resolve(__dirname, '../../app/api/crm/listings/reset-sync/route.ts');
-const src = readFileSync(ROUTE, 'utf8');
+const REPO = resolve(__dirname, '../..');
 
-/** Source with comment lines stripped — prose about a wipe is not a wipe. */
-const code = src
-  .split('\n')
-  .filter((l) => {
-    const t = l.trim();
-    return !t.startsWith('//') && !t.startsWith('*') && !t.startsWith('/*');
+function trackedFiles(): string[] {
+  return execFileSync('git', ['ls-files', '-z'], {
+    cwd: REPO,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
   })
-  .join('\n');
+    .split('\0')
+    .filter(Boolean);
+}
 
-describe('no unscoped truncation survives in the re-sync route', () => {
-  it.each([
+describe('the endpoint is gone', () => {
+  it('the route file does not exist', () => {
+    expect(existsSync(join(REPO, 'app/api/crm/listings/reset-sync/route.ts'))).toBe(false);
+  });
+
+  it('and nothing calls it', () => {
+    // Docs and dated audit records may still describe it; executable code and
+    // client bundles may not reference the path.
+    const offenders = trackedFiles()
+      .filter((f) => /^(app|lib|scripts|public)\//.test(f))
+      .filter((f) => /\.(ts|tsx|js|jsx|mjs|cjs|html)$/.test(f))
+      .filter((f) => readFileSync(join(REPO, f), 'utf8').includes('reset-sync'));
+    expect(offenders).toEqual([]);
+  });
+});
+
+describe('no route may truncate listings or Mallan CRM history', () => {
+  /**
+   * The models below are MALLAN-OWNED history. Every one of them hangs off a
+   * `listing_id`, and every one records something a person at Mallan did:
+   * a client saved a listing, an agent booked a showing, someone wrote a
+   * comment, a price was changed, marketing was run, a protection period was
+   * agreed. Cotality can rebuild listing FACTS. It has never held any of this.
+   */
+  const MALLAN_HISTORY = [
     'listing',
     'clientListingAction',
     'showing',
@@ -76,33 +85,64 @@ describe('no unscoped truncation survives in the re-sync route', () => {
     'priceHistory',
     'marketingActivity',
     'protectedPeriod',
-  ])('prisma.%s.deleteMany is not called with an empty filter', (model) => {
-    // `deleteMany({})` is a table truncation. Every one of these has a
-    // `listing_id` relation and must be scoped to the rows actually being
-    // rebuilt.
-    const empty = new RegExp(`prisma\\.${model}\\.deleteMany\\(\\s*\\{\\s*\\}\\s*\\)`);
-    expect(code).not.toMatch(empty);
+  ];
+
+  const sources = trackedFiles().filter(
+    (f) => /^(app|lib|scripts)\//.test(f) && /\.ts$/.test(f) && !f.includes('__tests__'),
+  );
+
+  it('the scan actually covers the tree', () => {
+    // Guard the guard: an empty file list would make every assertion below
+    // vacuous — the exact failure mode this branch has been unwinding.
+    expect(sources.length).toBeGreaterThan(200);
+    expect(sources).toContain('lib/idx/sync.ts');
+  });
+
+  it.each(MALLAN_HISTORY)('nothing truncates prisma.%s', (model) => {
+    // `deleteMany({})` with an empty filter is a table truncation. Matched in
+    // several spellings, because the first version of this test only caught one
+    // and a reviewer pointed out that `deleteMany()` and a hoisted `{}` slip
+    // straight past it.
+    const patterns = [
+      new RegExp(`\\.${model}\\.deleteMany\\(\\s*\\)`),
+      new RegExp(`\\.${model}\\.deleteMany\\(\\s*\\{\\s*\\}\\s*\\)`),
+      new RegExp(`\\.${model}\\.deleteMany\\(\\s*\\{\\s*where\\s*:\\s*\\{\\s*\\}\\s*\\}\\s*\\)`),
+    ];
+    const offenders = sources.filter((f) => {
+      const src = readFileSync(join(REPO, f), 'utf8');
+      return patterns.some((re) => re.test(src));
+    });
+    expect(offenders).toEqual([]);
+  });
+
+  it('the truncation patterns really do match a truncation', () => {
+    // Guard the guard again: prove the regexes fire, so "no offenders" means
+    // something. Reconstructed here rather than left to trust.
+    const shapes = [
+      'await prisma.listing.deleteMany()',
+      'await prisma.listing.deleteMany({})',
+      'await prisma.listing.deleteMany({ where: {} })',
+    ];
+    const patterns = [
+      /\.listing\.deleteMany\(\s*\)/,
+      /\.listing\.deleteMany\(\s*\{\s*\}\s*\)/,
+      /\.listing\.deleteMany\(\s*\{\s*where\s*:\s*\{\s*\}\s*\}\s*\)/,
+    ];
+    for (const shape of shapes) {
+      expect(patterns.some((re) => re.test(shape))).toBe(true);
+    }
   });
 });
 
-describe('the wipe is scoped to provider-sourced rows', () => {
-  it('excludes Mallan-authored listings by the canonical signals', () => {
-    // The same signals the rest of the repo uses for "Mallan authored this":
-    // the SL-/RL- listing_id prefix, or rls_eligible === false.
-    expect(code).toMatch(/SL-/);
-    expect(code).toMatch(/RL-/);
-    expect(code).toMatch(/rls_eligible/);
+describe('provider reconciliation survives, and it does not delete', () => {
+  it('the incremental sync upserts rather than deleting', () => {
+    const src = readFileSync(join(REPO, 'lib/idx/sync.ts'), 'utf8');
+    expect(src).toMatch(/\.upsert\(|\.update\(/);
+    expect(src).not.toMatch(/listing\.deleteMany/);
   });
 
-  it('dependents are deleted by listing_id, not globally', () => {
-    // Preserving the listing while truncating its comments and showings would
-    // still be the same data loss wearing a smaller number.
-    expect(code).toMatch(/listing_id:\s*\{\s*in:/);
-  });
-
-  it('the route still explains that Cotality cannot rebuild local rows', () => {
-    // The reasoning has to survive in the source, or the next person removes
-    // the scope as an optimisation.
-    expect(src).toMatch(/Cotality never had them|cannot restore|Mallan authored/i);
+  it('feed-reconcile marks divergent rows rather than removing them', () => {
+    const src = readFileSync(join(REPO, 'app/api/cron/feed-reconcile/route.ts'), 'utf8');
+    expect(src).not.toMatch(/listing\.deleteMany/);
   });
 });

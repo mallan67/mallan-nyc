@@ -67,12 +67,9 @@ describe('lane 1 — the Cotality sync cannot touch it', () => {
   });
 
   it('every Trestle UPDATE lane uses it', () => {
-    for (const rel of [
-      'lib/idx/sync.ts',
-      'app/api/crm/listings/reset-sync/route.ts',
-    ]) {
-      expect(code(read(rel))).toMatch(/complianceUpdatePatch\(\)/);
-    }
+    // reset-sync was RETIRED (its delete-then-rebuild shape could not be made
+    // safe); lib/idx/sync.ts is now the only Cotality UPDATE lane.
+    expect(code(read('lib/idx/sync.ts'))).toMatch(/complianceUpdatePatch\(\)/);
   });
 });
 

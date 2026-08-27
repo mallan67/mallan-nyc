@@ -194,6 +194,28 @@ describe('clearing the owner', () => {
     expect(captured?.owner_client_id).toBeNull();
   });
 
+  it.each(['Active', 'ComingSoon', 'ActiveUnderContract'])(
+    'is refused on a %s listing',
+    async (status) => {
+      // ActiveUnderContract was the gap: the guard used the FARE predicate
+      // (Active|ComingSoon only) while DISPLAYABLE_STATUSES — what the public
+      // actually sees — also includes ActiveUnderContract. A listing under
+      // contract is still on the public site, and clearing its owner cuts the
+      // seller off from it.
+      setRow(localRow({ owner_client_id: MY_CLIENT, status }));
+      const res = await callPatch({ owner_client_id: null });
+      expect(res.status).toBe(409);
+      expect((await res.json()).code).toBe('OWNER_REQUIRED_WHILE_PUBLISHED');
+      expect(captured).toBeNull();
+    },
+  );
+
+  it('is still allowed on a non-public status', async () => {
+    setRow(localRow({ owner_client_id: MY_CLIENT, status: 'Pending' }));
+    const res = await callPatch({ owner_client_id: null });
+    expect(res.status).toBe(200);
+  });
+
   it('is refused on a live listing', async () => {
     // Publication REQUIRES an owner. Allowing a clear afterwards would produce
     // exactly the state the publication guard exists to prevent, only reached

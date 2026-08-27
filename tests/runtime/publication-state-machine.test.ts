@@ -369,6 +369,113 @@ describe('reading an unreadable record fails closed', () => {
   });
 });
 
+describe('a public state must be CORROBORATED, not merely asserted', () => {
+  it.each(['PUBLISHED_PUBLIC', 'EXPORTED'] as PublicationState[])(
+    'a bare {state:"%s"} blob reads back as DRAFT',
+    (state) => {
+      // Validating the state STRING alone was not enough: anything able to write
+      // this JSON column could publish a listing by naming a word. A public state
+      // is always REACHED — the transition stamps a timestamp and appends
+      // history — so a claim carrying neither is not a record of anything.
+      const pub = readPublication({ [PUBLICATION_NAMESPACE]: { state } });
+      expect(pub.state).toBe('DRAFT');
+      expect(isPubliclyPublished(pub)).toBe(false);
+    },
+  );
+
+  it('a timestamp alone is enough corroboration', () => {
+    const pub = readPublication({
+      [PUBLICATION_NAMESPACE]: {
+        state: 'PUBLISHED_PUBLIC',
+        visibility: 'PUBLIC_WEB',
+        published_public_at: NOW,
+      },
+    });
+    expect(pub.state).toBe('PUBLISHED_PUBLIC');
+    expect(isPubliclyPublished(pub)).toBe(true);
+  });
+
+  it('history alone is enough corroboration', () => {
+    const pub = readPublication({
+      [PUBLICATION_NAMESPACE]: {
+        state: 'PUBLISHED_PUBLIC',
+        visibility: 'PUBLIC_WEB',
+        history: [{ from: 'APPROVED', to: 'PUBLISHED_PUBLIC', at: NOW, by: 'b', role: 'BROKER' }],
+      },
+    });
+    expect(pub.state).toBe('PUBLISHED_PUBLIC');
+  });
+
+  it('a NON-public state is left alone even without corroboration', () => {
+    // Demoting an under-corroborated DRAFT would invent a different lie.
+    expect(readPublication({ [PUBLICATION_NAMESPACE]: { state: 'APPROVED' } }).state).toBe(
+      'APPROVED',
+    );
+  });
+
+  it('a raw key cannot overwrite the validated state', () => {
+    // The spread runs BEFORE the validated fields are assigned.
+    const pub = readPublication({
+      [PUBLICATION_NAMESPACE]: { state: 'DRAFT', visibility: 'PUBLIC_WEB', history: 'not-an-array' },
+    });
+    expect(pub.state).toBe('DRAFT');
+    expect(pub.visibility).toBe('INTERNAL_ONLY');
+    expect(Array.isArray(pub.history)).toBe(true);
+  });
+});
+
+describe('delivery evidence is RECORDED, not just checked', () => {
+  const EVIDENCE = {
+    channel: 'some-authorized-channel',
+    deliveredAt: '2026-08-20T09:00:00.000Z',
+    acknowledgementRef: 'ACK-1',
+  };
+
+  it('the evidence is persisted on the record', () => {
+    const r = move('PUBLISHED_PUBLIC', 'EXPORTED', 'BROKER', { deliveryEvidence: EVIDENCE });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.publication.delivery_evidence).toEqual(EVIDENCE);
+  });
+
+  it('exported_at is the DELIVERY time, not the click time', () => {
+    // A state justified by external evidence must record that evidence's clock.
+    const r = move('PUBLISHED_PUBLIC', 'EXPORTED', 'BROKER', { deliveryEvidence: EVIDENCE });
+    expect(r.ok && r.publication.exported_at).toBe(EVIDENCE.deliveredAt);
+    expect(r.ok && r.publication.exported_at).not.toBe(NOW);
+  });
+
+  it('and it reaches the audit payload', () => {
+    const r = move('PUBLISHED_PUBLIC', 'EXPORTED', 'BROKER', { deliveryEvidence: EVIDENCE });
+    expect(r.ok && r.audit.delivery_evidence).toEqual(EVIDENCE);
+  });
+});
+
+describe('lastPublishedAt reads HISTORY first', () => {
+  it('history wins over a stale cached field', () => {
+    // The cached field is a convenience that can be stale or written by an older
+    // version of this code. History is the append-only record of what happened.
+    const pub: MallanPublication = {
+      ...initialPublication(),
+      state: 'PUBLISHED_PUBLIC',
+      visibility: 'PUBLIC_WEB',
+      published_public_at: '2020-01-01T00:00:00.000Z',
+      history: [
+        { from: 'APPROVED', to: 'PUBLISHED_PUBLIC', at: '2026-07-01T00:00:00.000Z', by: 'b', role: 'BROKER' },
+      ],
+    };
+    expect(lastPublishedAt(pub)).toBe('2026-07-01T00:00:00.000Z');
+  });
+
+  it('the cached field is still a fallback for a record with no history', () => {
+    const pub: MallanPublication = {
+      ...initialPublication(),
+      published_public_at: '2026-03-01T00:00:00.000Z',
+    };
+    expect(lastPublishedAt(pub)).toBe('2026-03-01T00:00:00.000Z');
+  });
+});
+
 describe('the public predicate needs BOTH halves', () => {
   it.each(PUBLICATION_STATES)('%s + INTERNAL_ONLY is not public', (state) => {
     expect(isPubliclyPublished({ ...initialPublication(), state, visibility: 'INTERNAL_ONLY' })).toBe(
@@ -435,8 +542,22 @@ describe('EXPORTED cannot be fabricated', () => {
       ['grep', '-l', '-E', 'deliveryEvidence|acknowledgementRef', '--', 'app', 'lib', 'scripts'],
       { cwd: require('path').resolve(__dirname, '../..'), encoding: 'utf8' },
     ).split(/\r?\n/).filter(Boolean);
-    // Only the state module itself may mention it.
-    expect(hits).toEqual(['lib/crm/publication-state.ts']);
+    // The state module DEFINES it; the publication route explicitly passes
+    // null. Nothing else may mention it at all, and crucially nothing SUPPLIES
+    // a value — asserted below.
+    expect(hits.sort()).toEqual([
+      'app/api/crm/listings/[id]/publication/route.ts',
+      'lib/crm/publication-state.ts',
+    ]);
+
+    // The route hard-codes null rather than accepting evidence from the client.
+    // A caller must never be able to assert delivery on the exporter's behalf.
+    const routeSrc = require('fs').readFileSync(
+      require('path').resolve(__dirname, '../../app/api/crm/listings/[id]/publication/route.ts'),
+      'utf8',
+    ) as string;
+    expect(routeSrc).toMatch(/deliveryEvidence:\s*null/);
+    expect(routeSrc).not.toMatch(/deliveryEvidence:\s*body\./);
   });
 });
 

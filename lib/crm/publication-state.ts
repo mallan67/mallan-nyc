@@ -399,17 +399,48 @@ export function readPublication(compliance: unknown): MallanPublication {
   const raw = ns as Record<string, unknown>;
   if (!isState(raw.state)) return initialPublication();
 
-  const state = raw.state;
+  let state = raw.state;
+  const history: PublicationHistoryEntry[] = Array.isArray(raw.history)
+    ? (raw.history as PublicationHistoryEntry[])
+    : [];
+
+  // A PUBLIC STATE MUST BE CORROBORATED, NOT MERELY ASSERTED.
+  //
+  // Validating the state STRING alone was not enough. A hand-written or
+  // corrupted compliance blob of `{"mallan_publication":{"state":"EXPORTED"}}`
+  // read back as EXPORTED / DISTRIBUTION_ELIGIBLE with `isPubliclyPublished()`
+  // true — no history, no timestamp, no actor, no transition that ever
+  // happened. Anything that can write this JSON column could publish a listing
+  // by naming a string.
+  //
+  // Every public state is REACHED, never born: `applyPublicationTransition`
+  // always stamps the entry timestamp and appends a history entry. So a public
+  // claim carrying neither is not a record of a transition, and is downgraded
+  // to the nearest honest reading rather than trusted.
+  //
+  // Non-public states are left alone: an under-corroborated DRAFT is still a
+  // DRAFT, and demoting it would invent a different lie.
+  if (PUBLIC_STATES.has(state)) {
+    const stampKey = ENTERED_AT[state];
+    const hasStamp = typeof stampKey === "string" && typeof raw[stampKey] === "string" && raw[stampKey] !== "";
+    const hasHistory = history.some((h) => h && h.to === state);
+    if (!hasStamp && !hasHistory) {
+      state = "DRAFT";
+    }
+  }
+
   const visibility =
     isVisibility(raw.visibility) && ALLOWED_VISIBILITY[state].includes(raw.visibility)
       ? raw.visibility
       : DEFAULT_VISIBILITY[state];
 
+  // The spread comes FIRST so `state`, `visibility` and `history` below always
+  // win. A raw key of `state` cannot overwrite the validated one.
   return {
     ...raw,
     state,
     visibility,
-    history: Array.isArray(raw.history) ? (raw.history as PublicationHistoryEntry[]) : [],
+    history,
   };
 }
 
@@ -600,6 +631,20 @@ export function applyPublicationTransition(
   const actorKey = ACTOR_KEY[req.to];
   if (actorKey) publication[actorKey] = req.actorId;
 
+  // RECORD THE EVIDENCE, NOT JUST THE FACT THAT IT WAS CHECKED.
+  //
+  // An earlier version validated `deliveryEvidence` and then dropped it: the
+  // persisted record and the audit payload carried no channel, no delivery time
+  // and no acknowledgement reference, and `exported_at` was stamped with the
+  // moment of the CLICK rather than the moment of DELIVERY. A state whose whole
+  // justification is external evidence has to keep that evidence, or the claim
+  // becomes unverifiable the instant it is made.
+  if (rule.requiresDeliveryEvidence && req.deliveryEvidence) {
+    publication.delivery_evidence = { ...req.deliveryEvidence };
+    // The provider acknowledged delivery at THEIR time, not ours.
+    publication.exported_at = req.deliveryEvidence.deliveredAt;
+  }
+
   return {
     ok: true,
     publication,
@@ -613,6 +658,11 @@ export function applyPublicationTransition(
       actor_role: req.role,
       actor_id: req.actorId,
       ...(req.note ? { note: req.note } : {}),
+      // The evidence belongs in the audit trail too: "who said this was
+      // delivered, to where, and when did the channel confirm it".
+      ...(rule.requiresDeliveryEvidence && req.deliveryEvidence
+        ? { delivery_evidence: { ...req.deliveryEvidence } }
+        : {}),
     },
   };
 }
@@ -654,17 +704,28 @@ export function isPubliclyPublished(pub: MallanPublication): boolean {
  * card previously fell through to exactly those and displayed a sync as a
  * publication.
  *
- * The history scan walks BACKWARDS on purpose. An earlier version of this
- * function used `history.find(...)`, which returns the FIRST match — so a
- * republished listing would have reported its original publication date forever.
+ * HISTORY IS THE AUTHORITY, NOT THE CACHED FIELD.
+ *
+ * An earlier version read `published_public_at` first and only fell back to a
+ * history scan. That ordering made the scan unreachable for every record this
+ * module writes, because each entry into PUBLISHED_PUBLIC refreshes that field —
+ * so the "walk backwards" fix corrected a branch nothing could reach. (The
+ * comment that shipped with it also claimed the previous `history.find(...)`
+ * version "would have reported its original publication date forever". That was
+ * false: the same cached-field short-circuit sat in front of it. Recorded here
+ * because a wrong explanation is worse than none.)
+ *
+ * History is now consulted FIRST and scanned backwards. It is the append-only
+ * record of what actually happened; the cached field is a convenience that can
+ * be stale, absent, or written by an older version of this code. The field
+ * remains a fallback for a record whose history predates it.
  */
 export function lastPublishedAt(pub: MallanPublication): string | null {
-  const direct = pub.published_public_at;
-  if (typeof direct === "string" && direct) return direct;
   for (let i = pub.history.length - 1; i >= 0; i--) {
-    if (pub.history[i].to === "PUBLISHED_PUBLIC") return pub.history[i].at;
+    if (pub.history[i]?.to === "PUBLISHED_PUBLIC") return pub.history[i].at;
   }
-  return null;
+  const direct = pub.published_public_at;
+  return typeof direct === "string" && direct ? direct : null;
 }
 
 /**

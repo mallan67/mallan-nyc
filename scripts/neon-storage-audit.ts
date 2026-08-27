@@ -115,9 +115,8 @@ async function main() {
   // row's raw_data was last written by the Trestle mapper" — covering
   // - lib/idx/sync.ts main loop AND syncAgentHistory (both set it)
   // - app/api/cron/feed-reconcile/route.ts (sets it via mapped.* spread)
-  // - app/api/crm/listings/reset-sync/route.ts (sets it explicitly)
   // Filtering on agent_id IS NULL would miss Trestle imports that have an
-  // agent linked (per Codex review on PR #75 — the syncAgentHistory + reset-sync
+  // agent linked (per Codex review on PR #75 — the syncAgentHistory
   // paths both produce agent-linked Trestle rows).
   console.log(`\n── Sampling ${SAMPLE} Trestle-imported listings (last_synced_from_trestle IS NOT NULL) ──`);
   const trestleSample = await withRetry(
@@ -189,7 +188,7 @@ async function main() {
 
   // ── CRM-created listings (full payload, NOT slimmed) ───────────────
   // CRM-only listings = never been Trestle-synced. agent_id alone is
-  // ambiguous (syncAgentHistory + reset-sync produce agent-linked Trestle
+  // ambiguous (syncAgentHistory produces agent-linked provider
   // rows), so we filter on the absence of last_synced_from_trestle.
   const crmCount = await withRetry('crm-count', () =>
     prisma.listing.count({ where: { last_synced_from_trestle: null } })

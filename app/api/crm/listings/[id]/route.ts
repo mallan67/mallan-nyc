@@ -20,6 +20,7 @@ import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-pro
 import { buildingAndManifestInvalidationTags, listingCacheTag, safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
 import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { checkFeeDisclosure, isDisplayReadyStatus } from "@/lib/crm/fee-disclosure";
+import { isActiveDisplayStatus } from "@/lib/compliance/status";
 import { buildExclusiveAgentAssignment } from "@/lib/listings/exclusive-agent-assignment";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { resolveListingAgentInfo } from "@/lib/listings/agent-info-resolver";
@@ -273,7 +274,19 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       // allowing it here would reach the exact state the publication guard
       // exists to prevent, only sideways, and would silently cut the seller off
       // from their own listing (the portal resolves through this column).
-      if (isDisplayReadyStatus(listing.status)) {
+      // `isActiveDisplayStatus`, NOT `isDisplayReadyStatus`.
+      //
+      // The two look interchangeable and are not. `isDisplayReadyStatus`
+      // (lib/crm/fee-disclosure.ts) means "is BECOMING display-ready" for the
+      // FARE gate and covers Active | ComingSoon only. The question here is
+      // "is this listing PUBLICLY DISPLAYED RIGHT NOW", and the canonical
+      // answer is DISPLAYABLE_STATUSES = Active | ComingSoon |
+      // ActiveUnderContract.
+      //
+      // With the FARE predicate, an ActiveUnderContract listing — publicly
+      // visible, under contract — could have its owner cleared, which is the
+      // exact state this guard exists to prevent.
+      if (isActiveDisplayStatus(listing.status)) {
         return NextResponse.json(
           {
             error:

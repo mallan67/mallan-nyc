@@ -90,10 +90,23 @@ function row(over: Record<string, unknown> = {}) {
 }
 
 function withState(state: PublicationState, over: Record<string, unknown> = {}) {
+  // A PUBLIC state must be CORROBORATED to read back as public — readPublication
+  // downgrades a bare {state:'PUBLISHED_PUBLIC'} claim to DRAFT, because a public
+  // state is always REACHED and therefore always carries a timestamp and a
+  // history entry. So the fixture has to look like a record of a real
+  // transition, not a hand-written label.
+  const isPublic = state === 'PUBLISHED_PUBLIC' || state === 'EXPORTED';
   const pub: MallanPublication = {
     state,
-    visibility: state === 'PUBLISHED_PUBLIC' ? 'PUBLIC_WEB' : 'INTERNAL_ONLY',
-    history: [],
+    visibility:
+      state === 'PUBLISHED_PUBLIC'
+        ? 'PUBLIC_WEB'
+        : state === 'EXPORTED'
+          ? 'DISTRIBUTION_ELIGIBLE'
+          : 'INTERNAL_ONLY',
+    history: isPublic
+      ? [{ from: 'APPROVED', to: state, at: '2026-08-01T00:00:00.000Z', by: 'b', role: 'BROKER' }]
+      : [],
   };
   return row({ compliance: { [PUBLICATION_NAMESPACE]: pub }, ...over });
 }
