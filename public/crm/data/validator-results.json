@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-08-27T11:10:30.386Z",
-  "pass": 1279,
+  "timestamp": "2026-08-27T14:21:16.692Z",
+  "pass": 1281,
   "critical": 0,
   "warning": 4,
   "info": 37,
@@ -81,7 +81,7 @@
       "section": 9,
       "title": "req.json() Safety",
       "category": "CRM & API",
-      "pass": 114,
+      "pass": 115,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -108,7 +108,7 @@
       "section": 12,
       "title": "RBAC / Authorization on Mutations",
       "category": "Auth & Security",
-      "pass": 142,
+      "pass": 143,
       "critical": 0,
       "warning": 0,
       "info": 0
