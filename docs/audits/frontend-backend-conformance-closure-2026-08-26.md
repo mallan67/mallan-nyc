@@ -320,3 +320,283 @@ never ran. It was caught one commit later and fixed in `448ca24e`. Every
 subsequent family was verified against the **whole suite** rather than a pattern.
 Recorded because the failure mode is easy to repeat: a filename is not an import
 graph.
+
+---
+
+# AMENDMENT — 2026-08-27 · A2 schema correction, A3 owner capabilities, A4 end-to-end proof
+
+**Amends this document rather than opening a new master audit, per
+`docs/claude-instructions/CURRENT.md` A5.**
+
+**Head at amendment:** `a415b1da` · local == remote, pushed after each commit.
+**Since the `2b0bfe6b` closure:** 139 files, +10,482 / −1,127 (includes the three
+directive commits and the A0/A1/A2 work that followed the original package).
+
+**Three commits in this amendment:**
+
+| SHA | What |
+|---|---|
+| `ce60e048` | `listings.status` nullable — market status stops meaning Active |
+| `79b771ca` | Seller/Landlord capabilities resolve through `owner_client_id` |
+| `a415b1da` | Sale + Rental workflows proven end to end through the real routes |
+
+---
+
+## A2 — the schema defect, corrected under authorization
+
+Maya authorized the minimal `Listing.status` correction on 2026-08-27
+(`c1ccd32e`). Scope taken, exactly: schema edit, one migration, all affected
+readers/writers/types/tests, and behavioural proof. Nothing else.
+
+`listings.status` holds the Cotality market fact (`Property.StandardStatus`). It
+was `TEXT NOT NULL DEFAULT 'Active'`, so a Mallan-authored listing that had never
+been on the market still had to store SOME market status — and Mallan wrote
+`Draft`, a Mallan publication word that is not a StandardStatus member. The
+default was the other half of the defect: every INSERT that omitted the column
+silently claimed the listing was `Active`.
+
+**NULL now means exactly one thing: this listing has no market status yet.**
+Mallan publication state lives only in `Listing.compliance.mallan_publication`.
+
+### What the nullable column exposed
+
+Three fail-OPEN defaults were unreachable while the column was NOT NULL and
+became reachable from every unpublished listing the moment it was not. All three
+are corrected in `ce60e048`:
+
+| Where | Was | Now |
+|---|---|---|
+| `normalizeStandardStatus` | absent input → `'Active'` | absent input → `''` — a member of no status set, so every allow-list gate downstream fails closed with no caller change |
+| `computeGateColumns` | DENY-list on terminal statuses, so "no market status" was not terminal and would have published | requires a real market status before `idx_display_yn` |
+| `UI.statusBadge` (+5 more CRM surfaces) | `status \|\| 'active'` — every listing an agent had just created was shown to them as a green **Active** badge | `status \|\| 'Draft'`, with a repo sweep pinning that no CRM surface reads an absent listing status as Active |
+
+`app/api/idx/ensure-listing` used the normalizer's value for BOTH the stored
+status and `idx_display_yn`, so a request omitting the status created a
+**publicly displayable row asserting a market status the provider never sent**.
+That is the same defect class as the mapper's `raw.StandardStatus ||
+raw.MlsStatus || "Active"`, which is also gone.
+
+### The no-backfill invariant, enforced rather than asserted
+
+Rows created before this change still carry `Draft`, `Sold`, `Rented`, `Leased`
+and `Cancelled`. A stored `Draft` and a NULL now reach the same decision at every
+gate: public DTO, display gates, open houses, agent pages, the transition
+machine, retention, the CRM roster bucket, and the status badge. The CRM roster
+uses ONE predicate (`_hasNoMarketStatus`) for both the button count and the rows
+behind it, so the count and the list cannot disagree.
+
+A targeted cleanup plan is **prepared and NOT executed**:
+`docs/operations/legacy-draft-status-cleanup-plan-2026-08-27.md` — eligibility
+predicate, dry-run counts, the proof obligation that no Cotality-owned row
+matches, before/after invariants, and an exact row-for-row rollback. It also says
+plainly that the cleanup is **optional**: the code already makes both spellings
+equivalent, so it buys vocabulary hygiene, not correctness.
+
+### Three existing contract tests were amended, each with its reason in place
+
+`h1-normalize-standard-status`, `compute-gate-columns` and
+`c2-terminal-idx-display` all pinned the fail-open defaults above. Amending a
+test that pins a defect is not silencing a regression: the replacement assertions
+are strictly stricter, and the rationale is recorded at the assertion rather than
+in a commit message nobody will read again.
+
+---
+
+## A3 — Seller/Landlord capabilities on the canonical relation
+
+`Listing.owner_client_id` is the only Seller/Landlord relation.
+`Lead.active_sale_listing_id` / `active_rental_listing_id` are plain nullable
+String columns with no FK, no unique constraint and no index — a HINT about which
+owned listing is current, never an authorization boundary.
+
+Most owner-facing routes already gated on `canAccessOwnerListing`. **Three did
+not**, and all three are fixed in `79b771ca`:
+
+1. **`POST /api/portal/seller/signals`** and
+2. **`POST /api/portal/landlord/signals`** — `payload.listing_id || lead.active_*_listing_id`.
+   The first term is caller-supplied and was never checked. An owner could attach
+   their pricing feedback, valuation request and readiness signals to **any**
+   listing id — another owner's, or a Cotality-sourced row — and the value lands
+   in `PortalEvent.listing_id`, which is Mallan's own activity/audit history and
+   what the agent's CRM signal panels read. A false attribution there is a wrong
+   record in the trail, not a display bug.
+3. **`GET /api/portal/landlord/relist`** — read a listing's market status straight
+   off the hint with no ownership clause, so a stale or foreign value returned
+   **another listing's status** to this landlord.
+
+All three now resolve through `owner_client_id` as the query's `WHERE`. An
+explicitly named listing the caller does not own is refused
+`403 LISTING_NOT_OWNED` and nothing is written; it is never silently downgraded
+to the fallback, which would record a DIFFERENT listing than the caller asked for
+and hide the refusal.
+
+### Capability status against the A3 list
+
+| Capability | State |
+|---|---|
+| view | ✅ dashboards resolve via `resolveOwnerListing` |
+| comments | ✅ gated on `canAccessOwnerListing` |
+| **documents** | ⛔ **501 `PORTAL_DOCUMENTS_PENDING_CLIENT_SCOPE`** — see below |
+| correction requests | ✅ new `POST /api/portal/owner-requests` |
+| pricing feedback | ✅ seller signals, now ownership-scoped |
+| marketing approval | ✅ new owner-request kind; records the decision, changes nothing |
+| showing coordination | ✅ owners record availability; staff schedules |
+| publication request/approval | ✅ owner may SUBMIT and RESUBMIT; only BROKER approves and chooses scope |
+
+**Documents is the one genuine gap, and it is not fixable in this scope.** The
+route fails loud rather than guessing: `Deal`/`Document` have no client-scoped
+FK, and scoping by `agent_id` + address string leaks across clients who share an
+agent. It needs `Deal.client_id`, which the schema authorization explicitly
+excludes. Recorded, not worked around.
+
+### The invariant the new route implements
+
+> "Owner portal users do not directly mutate regulated canonical listing facts
+> merely for convenience. Durable owner requests/actions belong in Mallan
+> CRM/audit history and authorized staff applies the canonical change."
+
+`POST /api/portal/owner-requests` writes to `PortalEvent` and the audit log and
+nothing else. A repo sweep pins that **no route under `app/api/portal/` writes to
+the `listing` model at all.**
+
+---
+
+## A4 — the end-to-end behavioural proof
+
+The directive forbids substituting source-string assertions here. Every step
+calls the **actual exported route handler**, and the next step reads back through
+another actual handler.
+
+### What made that possible
+
+`buildPrismaMock` answers each call from a fixed seed, so `findUnique` returns
+the same constant no matter what a preceding `update` wrote. "Create, reload,
+verify no silent data loss" would pass against it **with the persistence layer
+deleted**. `tests/runtime/support/in-memory-prisma.ts` is a small in-memory
+database instead: writes mutate rows, reads query them, and the only thing
+between two steps is the store. It throws LOUDLY on any Prisma surface it does
+not model, because a silent `[]` is exactly how a workflow test goes green while
+proving nothing.
+
+### The chain — 16 steps, run for Sale AND Rental (32 assertions)
+
+create with canonical owner → **status NULL + publication DRAFT** → reload →
+edit → reload with no loss elsewhere → submit → **agent refused broker approval**
+→ broker approves → **discriminatory copy blocks PUBLIC publication with explicit
+reasons** → copy fixed → broker chooses `PUBLIC_WEB` → market status NULL →
+Active → Pending → reload → public consumer resolves the same identity under its
+own gate.
+
+### The nine mandatory negatives (20 assertions)
+
+no owner · null market status · discriminatory content · agent vs broker
+authority · another agent hijacking the owner relation · Cotality row read-only ·
+return-copy not competing with the canonical local listing · a failed save that
+cannot look like it persisted · provider sync unable to erase Mallan owner,
+publication or history.
+
+### What the E2E itself surfaced
+
+- **`APPROVED` is an INTERNAL state.** The machine refuses a public audience
+  there, because approving a listing is not publishing it — visibility is chosen
+  at `PUBLISHED_PUBLIC`. The first draft of the test assumed otherwise and the
+  route corrected it.
+- **The CRM create route already refuses discriminatory copy with 422**, so the
+  publish-time gate is the second line, not the only one.
+- **The routes read canonical RESO field names** (`ListPrice`, `BedroomsTotal`,
+  flat address fields). Column names and a nested `address` object store nothing
+  — and a workflow asserting on values it never managed to save proves nothing.
+
+### Injection-tested, so the suite is observing rather than describing
+
+| Guard reverted | Result |
+|---|---|
+| `STATUS_INITIAL` back to `"Draft"` | 7 of 52 E2E assertions red |
+| ownership `WHERE` dropped from `resolveOwnedListingId` | 5 of 25 owner assertions red |
+| one CRM `status \|\| 'Active'` restored | CRM sweep red, naming the exact file |
+
+---
+
+## Gate results at `a415b1da`
+
+| Gate | Result | What it proves — and what it does not |
+|---|---|---|
+| `npx jest` | **443 suites / 7,762 tests pass**, 6 suites / 32 tests skipped | The branch's own behaviour. NOT that anything is live on Cotality. |
+| `npm run type-check` | **0 errors** | Every reader/writer compiles against the nullable column. Not a runtime claim. |
+| `npm run rls:validate` | **0 errors, 1 warning, 0 unknown** | Static RLS binding rules pass. NOT that any field is live on Cotality. |
+| `npm run compliance-check` | **95 passed / 0 failed** (BLOCKER+STRICT) | Includes `schema/migration coupling — schema change paired with migration`, which only became true once the pair was committed. |
+| `npm run ucba:audit` | **0 REGRESSIONS, 0 CLAIM_OVERSTATED** | No UCBA rule regressed. |
+| `npm run idx:validate` | **1,281 pass · 0 critical · 4 warning** | IDX Plus static sections. Not a live-feed claim. |
+| `npm run crm:build` | rebuilt; `index-built.html` regenerated | The generated bundle matches its sources. |
+| `npm run crm:test` | **39/39** | CRM smoke. Not a browser-rendering claim. |
+
+---
+
+## Operational holds — stated exactly, not relabelled
+
+1. **The migration is NOT applied to Production.**
+   `prisma/migrations/20260827090000_listings_status_nullable_market_status` is
+   hand-authored (no shadow DB available) and contains exactly two catalog-only
+   statements — `DROP NOT NULL` and `DROP DEFAULT`. No table scan, no heap
+   rewrite, no row read or written. NEON.md restricts `listings` migrations to
+   the **3–5 AM ET window**; this work ran ~09:00–14:00 ET.
+   **The code in `ce60e048` assumes the migration is applied. Apply it manually
+   in the window, confirm with `migrate status`, then merge.**
+
+2. **`npm run ops:health` was NOT run, and `[neon-preflight: OK]` is deliberately
+   NOT asserted.** This worktree has no `DATABASE_URL`, so drift check,
+   `migrate deploy`, `migrate status` and live E2E cannot run from here. Writing
+   the token without running the check would be a false claim.
+
+3. **No authenticated Preview / browser proof.** A5 requires Sale and Rental on
+   desktop + tablet + mobile breakpoints against an authenticated Preview. That
+   needs a deploy, which is not authorized. **The A4 proof is BRANCH-LOCAL and is
+   not labelled Preview or Production proof.**
+
+4. **No independent CI evidence is available for this branch.**
+   `.github/workflows/pr-check.yml` triggers on `pull_request` only, and this
+   branch has no PR. Opening one (`gh pr create --draft`) would produce CI
+   evidence without merging — every other PR in this repo is DRAFT — but opening
+   a PR is outward-facing and is **left for Maya to authorize**.
+
+5. **The legacy `Draft` cleanup is prepared and not executed.** No production row
+   has been read or written by it.
+
+---
+
+## Amendments to the earlier "Open — NOT decided here" list
+
+Three items on that list are now **closed**:
+
+- **Item 1 — "An AGENT, not only a BROKER, can publish."** Closed. The
+  publication state machine makes APPROVED, PUBLISHED_INTERNAL and
+  PUBLISHED_PUBLIC **BROKER-only**, and the E2E proves an agent is refused with
+  `403 ACTOR_NOT_PERMITTED` at both points. Maya's correction stands: this was a
+  skipped step the spec marks a BLOCKER, not a product decision.
+- **Item 4 — "Last Published shows a provider-sync timestamp."** Closed.
+  `lastPublishedAt()` reads the publication history and returns the latest
+  transition INTO a public state; the E2E asserts it is a real, parseable
+  timestamp produced by the transition itself.
+- **Item 5 — dead `PUBLIC_LISTING_GATE` / `PORTAL_LISTING_GATE`.** Closed
+  earlier in `48848a52` (deleted).
+
+Items 2, 3, 6, 7 and 8 stand unchanged.
+
+---
+
+## What A5 still requires
+
+| A5 requirement | State |
+|---|---|
+| schema defect corrected in Prisma + migration | ✅ `ce60e048` |
+| all Listing market-status readers/writers updated | ✅ type-check drove the full trace; 0 errors |
+| owner selector E2E proven in Sale and Rental | ✅ `3460bcc0` + A4 chain |
+| Seller/Landlord workflow proven | ✅ `79b771ca` + A4 |
+| grouped tests green | ✅ |
+| relevant full suite green | ✅ 443 suites / 7,762 tests |
+| type-check green | ✅ 0 errors |
+| compliance / publication / UCBA / public-visibility gates green | ✅ |
+| CRM build green | ✅ |
+| **authenticated Preview proof, desktop + tablet + mobile** | ⛔ **HELD — needs a deploy** |
+| **independent CI evidence** | ⛔ **HELD — needs a PR** |
+| closure document amended with actual evidence | ✅ this section |
