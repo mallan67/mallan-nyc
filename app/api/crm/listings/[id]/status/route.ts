@@ -118,6 +118,37 @@ export async function PATCH(
     );
   }
 
+  // AN OWNERLESS DRAFT IS NOT WORKFLOW-COMPLETE.
+  //
+  // Creating a Mallan-local listing without naming its seller or landlord is
+  // permitted — an agent may not have the client record to hand yet — but that
+  // state is a DRAFT, not a listing ready to go live. The owner link is the
+  // only path by which a seller or landlord reaches their own listing (the
+  // portal queries Listing.owner_client_id and fails closed on null), so
+  // activating an ownerless listing publishes a property whose owner can never
+  // see it, comment on it, or be shown its activity.
+  //
+  // Refused with 409 rather than 403: the caller has the authority, the RECORD
+  // is not ready. That distinction is what tells the CRM to prompt for the
+  // owner instead of reporting a permissions problem.
+  const isGoingLive = newStatus === "Active" || newStatus === "ComingSoon";
+  // Scoped to MALLAN-LOCAL listings only: `mls_id === null` is what identifies
+  // a listing Mallan authored. A provider-sourced row has no Mallan owner
+  // client by design, and gating it here would block routine status work on
+  // inventory Mallan does not own.
+  if (isGoingLive && listing.mls_id === null && listing.owner_client_id === null) {
+    return NextResponse.json(
+      {
+        error:
+          "This listing has no owner. Assign the seller or landlord client before activating it.",
+        code: "OWNER_REQUIRED_BEFORE_PUBLICATION",
+        current: currentStatus,
+        requested: newStatus,
+      },
+      { status: 409 },
+    );
+  }
+
   // Terminal statuses (Sold/Rented) require broker approval
   if (
     (newStatus === "Sold" || newStatus === "Rented") &&

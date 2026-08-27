@@ -13,6 +13,7 @@ import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-ma
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { AGENT_TYPED_SELECT } from "@/lib/listings/agent-info-resolver";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
+import { assertLeadAccess } from "@/lib/crm/access";
 import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { buildPublishContract } from "@/lib/crm/listing-publish-contract";
 import { buildExclusiveAgentAssignment } from "@/lib/listings/exclusive-agent-assignment";
@@ -272,6 +273,34 @@ export async function POST(req: NextRequest) {
   const rlsEligible = eligibility.rlsEligible;
 
   // Run REBNY RLS compliance validation (only for RLS-eligible listings)
+  // ── CANONICAL OWNER (Seller / Landlord) ──────────────────────────────
+  //
+  // Resolved and AUTHORISED before anything is written. The owner link is the
+  // only path by which a seller or landlord ever reaches their own listing —
+  // the portal queries Listing.owner_client_id and fails closed on null — so
+  // getting it wrong here silently hides a listing from its owner forever.
+  //
+  // No second ownership field is introduced: this is the same column
+  // crm/convert already writes, authorised with the same helper.
+  let ownerClientId: bigint | null = null;
+  const rawOwner = body.owner_client_id;
+  if (rawOwner !== undefined && rawOwner !== null && String(rawOwner).trim() !== "") {
+    let parsed: bigint;
+    try {
+      parsed = BigInt(String(rawOwner));
+    } catch {
+      return NextResponse.json(
+        { error: "owner_client_id must be a client id" },
+        { status: 422 },
+      );
+    }
+    // An agent may name only a lead they manage; a broker has brokerage
+    // scope. Returns a 403/404 response, or null when access is allowed.
+    const ownerAccess = await assertLeadAccess(auth, parsed);
+    if (ownerAccess) return ownerAccess;
+    ownerClientId = parsed;
+  }
+
   let validation: { valid: boolean; errors: string[]; warnings: string[]; suggestions: string[]; compliance: unknown } = {
     valid: true, errors: [], warnings: [], suggestions: [], compliance: {},
   };
@@ -441,6 +470,20 @@ export async function POST(req: NextRequest) {
         listing_id: listingId,
         mls_id: (normalized.mls_id as string) ?? null,
         agent_id: auth.userId,
+        // CANONICAL OWNER CONTINUITY.
+        //
+        // This route created listings with owner_client_id left null while
+        // crm/convert (promote_to_listing) set it — two truths for one
+        // invariant. The consequence is not cosmetic: the portal resolves an
+        // owner's listing THROUGH this column and fails closed when it is null,
+        // so a directly-created listing was permanently invisible to the very
+        // seller or landlord it belongs to.
+        //
+        // Authorised above with assertLeadAccess, the same helper convert uses:
+        // an agent may name only a lead they manage, a broker has brokerage
+        // scope. Null stays permitted, but only as an explicitly ownerless
+        // draft — see the publication guard, which refuses to activate one.
+        owner_client_id: ownerClientId,
         // H1 amend (2026-05-13): normalize the initial status through the
         // canonical helper even though STATUS_INITIAL is a hardcoded literal
         // today. Pattern-uniform with the body-driven writers; if a future
