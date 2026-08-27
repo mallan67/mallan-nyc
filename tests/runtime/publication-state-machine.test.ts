@@ -34,7 +34,8 @@ import {
   readPublication,
   withPublication,
   isPubliclyPublished,
-  publishedAt,
+  lastPublishedAt,
+  firstPublishedAt,
   PUBLICATION_NAMESPACE,
   type MallanPublication,
   type PublicationState,
@@ -118,14 +119,17 @@ describe('the vocabulary is exactly the specification\'s', () => {
 });
 
 describe('the canonical workflow runs end to end', () => {
-  it('DRAFT → SUBMITTED → REVIEW_IN_PROGRESS → COMPLIANCE_CHECK → APPROVED → PUBLISHED_PUBLIC → EXPORTED', () => {
+  it('DRAFT → SUBMITTED → REVIEW_IN_PROGRESS → COMPLIANCE_CHECK → APPROVED → PUBLISHED_PUBLIC', () => {
+    // Steps 1-6 of the canonical workflow. Step 7 (EXPORTED) is deliberately
+    // NOT in this walk: it asserts a real external delivery, and no authorized
+    // exporter exists, so it is covered by its own describe block below rather
+    // than being waved through here.
     const steps: Array<[PublicationState, PublicationState, PublicationActorRole]> = [
       ['DRAFT', 'SUBMITTED', 'AGENT'],
       ['SUBMITTED', 'REVIEW_IN_PROGRESS', 'BROKER'],
       ['REVIEW_IN_PROGRESS', 'COMPLIANCE_CHECK', 'AGENT'],
       ['COMPLIANCE_CHECK', 'APPROVED', 'BROKER'],
       ['APPROVED', 'PUBLISHED_PUBLIC', 'BROKER'],
-      ['PUBLISHED_PUBLIC', 'EXPORTED', 'BROKER'],
     ];
     for (const [from, to, role] of steps) {
       const r = move(from, to, role);
@@ -214,10 +218,24 @@ describe('the role matrix is enforced server-side', () => {
       ['APPROVED', 'PUBLISHED_INTERNAL'],
       ['APPROVED', 'PUBLISHED_PUBLIC'],
       ['PUBLISHED_INTERNAL', 'PUBLISHED_PUBLIC'],
-      ['PUBLISHED_PUBLIC', 'EXPORTED'],
     ] as Array<[PublicationState, PublicationState]>) {
       expect(move(from, to, 'BROKER').ok).toBe(true);
     }
+  });
+
+  it('EXPORTED is refused for the AGENT on ROLE grounds, before evidence is even considered', () => {
+    // Ordering matters: an agent must be told they lack authority, not that the
+    // exporter is unavailable — otherwise fixing the exporter would silently
+    // grant them the step.
+    const r = move('PUBLISHED_PUBLIC', 'EXPORTED', 'AGENT', {
+      deliveryEvidence: {
+        channel: 'c',
+        deliveredAt: '2026-08-27T12:00:00.000Z',
+        acknowledgementRef: 'ACK',
+      },
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe('ACTOR_NOT_PERMITTED');
   });
 
   it('an AGENT can still do the work the spec gives them', () => {
@@ -370,15 +388,100 @@ describe('the public predicate needs BOTH halves', () => {
   });
 });
 
+describe('EXPORTED cannot be fabricated', () => {
+  it('a BROKER with approval and public visibility still cannot claim it', () => {
+    // EXPORTED asserts that a listing left this system and an external party
+    // accepted it. Mallan has no authorized outbound exporter and no delivery
+    // acknowledgement channel, and external distribution is held. Approval is
+    // not delivery; public visibility is not delivery.
+    const r = move('PUBLISHED_PUBLIC', 'EXPORTED', 'BROKER');
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe('EXPORT_DELIVERY_UNAVAILABLE');
+  });
+
+  it.each([
+    ['no channel', { channel: '', deliveredAt: '2026-08-27', acknowledgementRef: 'ack' }],
+    ['no timestamp', { channel: 'x', deliveredAt: '', acknowledgementRef: 'ack' }],
+    ['no acknowledgement', { channel: 'x', deliveredAt: '2026-08-27', acknowledgementRef: '' }],
+    ['whitespace only', { channel: ' ', deliveredAt: ' ', acknowledgementRef: ' ' }],
+    ['null evidence', null],
+  ])('partial evidence (%s) is not evidence', (_label, deliveryEvidence) => {
+    // A half-filled record would let a caller manufacture the state with a
+    // placeholder, which is the same fabrication in a different shape.
+    const r = move('PUBLISHED_PUBLIC', 'EXPORTED', 'BROKER', { deliveryEvidence });
+    expect(r.ok).toBe(false);
+  });
+
+  it('complete delivery evidence WOULD be accepted — the gate is evidence, not a ban', () => {
+    // The model keeps EXPORTED reachable so that a future authorized exporter
+    // can record a real delivery. What is refused is claiming it without one.
+    const r = move('PUBLISHED_PUBLIC', 'EXPORTED', 'BROKER', {
+      deliveryEvidence: {
+        channel: 'some-authorized-channel',
+        deliveredAt: '2026-08-27T12:00:00.000Z',
+        acknowledgementRef: 'ACK-1',
+      },
+    });
+    expect(r.ok).toBe(true);
+  });
+
+  it('nothing in the current runtime can supply that evidence', () => {
+    // Stated as a fact about the repo, not an assumption: there is no exporter
+    // and no acknowledgement reader, so the accepting branch above is
+    // unreachable in production today.
+    const { execFileSync } = require('node:child_process') as typeof import('node:child_process');
+    const hits = execFileSync(
+      'git',
+      ['grep', '-l', '-E', 'deliveryEvidence|acknowledgementRef', '--', 'app', 'lib', 'scripts'],
+      { cwd: require('path').resolve(__dirname, '../..'), encoding: 'utf8' },
+    ).split(/\r?\n/).filter(Boolean);
+    // Only the state module itself may mention it.
+    expect(hits).toEqual(['lib/crm/publication-state.ts']);
+  });
+});
+
+describe('"Last Published" means the LATEST publication, not the first', () => {
+  it('a republished listing reports the LATER date', () => {
+    // The defect this replaces: the fallback used history.find(...), which
+    // returns the FIRST match, so a listing published in March, withdrawn, and
+    // republished in July would have reported March forever.
+    const pub: MallanPublication = {
+      ...initialPublication(),
+      state: 'PUBLISHED_PUBLIC',
+      visibility: 'PUBLIC_WEB',
+      history: [
+        { from: 'APPROVED', to: 'PUBLISHED_PUBLIC', at: '2026-03-01T00:00:00.000Z', by: 'b', role: 'BROKER' },
+        { from: 'PUBLISHED_PUBLIC', to: 'REVISION_REQUESTED', at: '2026-04-01T00:00:00.000Z', by: 'b', role: 'BROKER' },
+        { from: 'APPROVED', to: 'PUBLISHED_PUBLIC', at: '2026-07-01T00:00:00.000Z', by: 'b', role: 'BROKER' },
+      ],
+    };
+    expect(lastPublishedAt(pub)).toBe('2026-07-01T00:00:00.000Z');
+    expect(firstPublishedAt(pub)).toBe('2026-03-01T00:00:00.000Z');
+  });
+
+  it('the two are genuinely different functions', () => {
+    // Guard the guard: if they ever returned the same thing, the case above
+    // would pass by accident.
+    const pub: MallanPublication = {
+      ...initialPublication(),
+      history: [
+        { from: 'APPROVED', to: 'PUBLISHED_PUBLIC', at: '2026-01-01T00:00:00.000Z', by: 'b', role: 'BROKER' },
+        { from: 'APPROVED', to: 'PUBLISHED_PUBLIC', at: '2026-02-01T00:00:00.000Z', by: 'b', role: 'BROKER' },
+      ],
+    };
+    expect(lastPublishedAt(pub)).not.toBe(firstPublishedAt(pub));
+  });
+});
+
 describe('the publication timestamp is a Mallan fact', () => {
   it('is null until the listing is actually published', () => {
-    expect(publishedAt(initialPublication())).toBeNull();
-    expect(publishedAt(at('APPROVED'))).toBeNull();
+    expect(lastPublishedAt(initialPublication())).toBeNull();
+    expect(lastPublishedAt(at('APPROVED'))).toBeNull();
   });
 
   it('is the moment PUBLISHED_PUBLIC was entered', () => {
     const r = move('APPROVED', 'PUBLISHED_PUBLIC', 'BROKER');
-    expect(r.ok && publishedAt(r.publication)).toBe(NOW);
+    expect(r.ok && lastPublishedAt(r.publication)).toBe(NOW);
   });
 
   it('survives a later withdrawal', () => {
@@ -399,7 +502,7 @@ describe('the publication timestamp is a Mallan fact', () => {
     if (!withdrawn.ok) return;
     expect(withdrawn.publication.state).toBe('REVISION_REQUESTED');
     expect(isPubliclyPublished(withdrawn.publication)).toBe(false);
-    expect(publishedAt(withdrawn.publication)).toBe(NOW);
+    expect(lastPublishedAt(withdrawn.publication)).toBe(NOW);
   });
 
   it('records the approving and publishing actors', () => {

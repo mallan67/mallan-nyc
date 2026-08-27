@@ -161,6 +161,12 @@ export interface TransitionRule {
   readonly requiresCompliancePass?: boolean;
   /** True when the transition requires the listing to have a canonical owner. */
   readonly requiresOwner?: boolean;
+  /**
+   * True when the transition asserts that something left this system and was
+   * accepted by an external party. Such a transition may NEVER complete on
+   * bookkeeping alone — see EXPORTED below.
+   */
+  readonly requiresDeliveryEvidence?: boolean;
 }
 
 /**
@@ -273,13 +279,24 @@ export const PUBLICATION_TRANSITIONS: Record<PublicationState, readonly Transiti
   PUBLISHED_PUBLIC: [
     {
       to: "EXPORTED",
-      // "not export to IDX/RLS/VOW or external channels without Broker
-      // approval" — and the spec marks export-before-approval a BLOCKER, which
-      // is why EXPORTED is reachable only from a published state.
+      // Step 7. An agent may not export "without Broker approval", and the spec
+      // marks export-before-approval a BLOCKER — which is why EXPORTED is
+      // reachable only from a published state.
+      //
+      // EXPORTED CANNOT BE FABRICATED. It is a claim that a listing left this
+      // system and an external party accepted it. Mallan has no authorized
+      // outbound exporter and no delivery-acknowledgement channel today, and
+      // external distribution activation is held. Approval is not delivery;
+      // public visibility is not delivery; DISTRIBUTION_ELIGIBLE is not
+      // delivery. So this transition demands EVIDENCE of an actual completed
+      // delivery, which nothing in the current runtime can produce — and that
+      // is the correct, truthful outcome rather than a state a broker can click
+      // into. See EXPORT_DELIVERY_UNAVAILABLE.
       actors: ["BROKER"],
-      why: "step 7 — distribution export",
+      why: "step 7 — distribution export (requires real delivery evidence)",
       requiresCompliancePass: true,
       requiresOwner: true,
+      requiresDeliveryEvidence: true,
     },
     { to: "PUBLISHED_INTERNAL", actors: ["BROKER"], why: "narrow scope back to internal" },
     { to: "REVISION_REQUESTED", actors: ["AGENT", "BROKER"], why: "pull back for changes" },
@@ -409,6 +426,16 @@ export interface TransitionRequest {
   compliancePassed?: boolean;
   /** Whether the listing has a canonical owner. */
   hasOwner?: boolean;
+  /**
+   * Evidence that an authorized exporter actually delivered this listing to an
+   * external channel and the channel acknowledged it. There is no such exporter
+   * today, so no caller can honestly supply this.
+   */
+  deliveryEvidence?: {
+    channel: string;
+    deliveredAt: string;
+    acknowledgementRef: string;
+  } | null;
   note?: string;
   /** ISO timestamp; injected so the caller owns the clock. */
   now: string;
@@ -422,7 +449,8 @@ export type TransitionRefusal = {
     | "ACTOR_NOT_PERMITTED"
     | "COMPLIANCE_NOT_PASSED"
     | "OWNER_REQUIRED"
-    | "VISIBILITY_NOT_ALLOWED";
+    | "VISIBILITY_NOT_ALLOWED"
+    | "EXPORT_DELIVERY_UNAVAILABLE";
   message: string;
   from: PublicationState;
   to: string;
@@ -501,6 +529,28 @@ export function applyPublicationTransition(
       to: req.to,
       allowed,
     };
+  }
+
+  if (rule.requiresDeliveryEvidence) {
+    const ev = req.deliveryEvidence;
+    const complete =
+      !!ev &&
+      typeof ev.channel === "string" && ev.channel.trim() !== "" &&
+      typeof ev.deliveredAt === "string" && ev.deliveredAt.trim() !== "" &&
+      typeof ev.acknowledgementRef === "string" && ev.acknowledgementRef.trim() !== "";
+    if (!complete) {
+      return {
+        ok: false,
+        code: "EXPORT_DELIVERY_UNAVAILABLE",
+        message:
+          "This listing cannot be marked exported. Mallan has no authorized outbound " +
+          "exporter and no delivery acknowledgement, so there is nothing to record. " +
+          "Approval and public visibility are not delivery.",
+        from,
+        to: req.to,
+        allowed,
+      };
+    }
   }
 
   if (rule.requiresCompliancePass && req.compliancePassed !== true) {
@@ -591,23 +641,42 @@ export function isPubliclyPublished(pub: MallanPublication): boolean {
 }
 
 /**
- * The real Mallan publication timestamp, or null.
+ * THE LATEST real Mallan public-publication transition, or null.
  *
- * NEVER a Cotality sync time. `last_synced_from_trestle`, provider
+ * "Last Published" means the MOST RECENT time this listing was published to the
+ * public — not the first. A listing published in March, withdrawn in April and
+ * republished in July was last published in July, and saying "March" would be as
+ * wrong as showing a sync timestamp.
+ *
+ * NEVER a provider or database timestamp. `last_synced_from_trestle`, provider
  * `ModificationTimestamp` and row `updated_at` all describe when the PROVIDER or
- * the DATABASE last moved, not when MALLAN published — the CRM's "Last Published"
+ * the DATABASE last moved, not when MALLAN published. The CRM's "Last Published"
  * card previously fell through to exactly those and displayed a sync as a
  * publication.
  *
- * Returns the moment the listing first reached a public state. A later
- * withdrawal leaves it intact: the history is preserved and the CURRENT state is
- * reported separately, so the UI can be truthful about both.
+ * The history scan walks BACKWARDS on purpose. An earlier version of this
+ * function used `history.find(...)`, which returns the FIRST match — so a
+ * republished listing would have reported its original publication date forever.
  */
-export function publishedAt(pub: MallanPublication): string | null {
+export function lastPublishedAt(pub: MallanPublication): string | null {
   const direct = pub.published_public_at;
   if (typeof direct === "string" && direct) return direct;
-  const fromHistory = pub.history.find((h) => h.to === "PUBLISHED_PUBLIC");
-  return fromHistory ? fromHistory.at : null;
+  for (let i = pub.history.length - 1; i >= 0; i--) {
+    if (pub.history[i].to === "PUBLISHED_PUBLIC") return pub.history[i].at;
+  }
+  return null;
+}
+
+/**
+ * The FIRST time this listing was ever published publicly, or null.
+ *
+ * Separate from `lastPublishedAt` because they answer different questions and
+ * conflating them is the defect above. Exported for a caller that genuinely
+ * needs "has this ever been public, and since when" — not for "Last Published".
+ */
+export function firstPublishedAt(pub: MallanPublication): string | null {
+  const first = pub.history.find((h) => h.to === "PUBLISHED_PUBLIC");
+  return first ? first.at : null;
 }
 
 /** Write the record back into a `Listing.compliance` value, preserving siblings. */
