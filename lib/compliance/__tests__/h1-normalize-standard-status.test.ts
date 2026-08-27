@@ -20,7 +20,7 @@
  *   - Empty / null / non-string → "Active"
  *   - Exact-case canonical hit → returned as-is
  *   - Case-fold + trim match → canonical form
- *   - Known alias (canceled → Cancelled) → canonical form
+ *   - Known alias (Cancelled → Canceled) → provider spelling
  *   - Unknown values preserved (not silently rewritten to a known status)
  */
 
@@ -58,7 +58,11 @@ describe('normalizeStandardStatus — exact-case canonical pass-through', () => 
     'Rented',
     'Withdrawn',
     'Expired',
-    'Cancelled',
+    // `Canceled` — one L — is the live Cotality value, so it is the one that
+    // passes through untouched. `Cancelled` is in TERMINAL_STATUSES too (real
+    // rows carry it, no backfill in scope) but it is REWRITTEN, not passed
+    // through; its case is in the alias block below.
+    'Canceled',
   ])('terminal canonical %s passes through unchanged', (status) => {
     expect(normalizeStandardStatus(status)).toBe(status);
   });
@@ -97,7 +101,7 @@ describe('normalizeStandardStatus — case-fold + trim variants', () => {
     ['rented', 'Rented'],
     ['withdrawn', 'Withdrawn'],
     ['expired', 'Expired'],
-    ['cancelled', 'Cancelled'],
+    ['canceled', 'Canceled'],
   ])('"%s" → "%s" (case-fold to canonical)', (input, expected) => {
     expect(normalizeStandardStatus(input)).toBe(expected);
   });
@@ -113,16 +117,31 @@ describe('normalizeStandardStatus — case-fold + trim variants', () => {
 });
 
 describe('normalizeStandardStatus — known alias mapping', () => {
-  it('"Canceled" (US single-L) → "Cancelled" (RESO canonical double-L)', () => {
-    expect(normalizeStandardStatus('Canceled')).toBe('Cancelled');
-    // And the canonical form IS in TERMINAL_STATUSES, so the guard binds.
-    expect(TERMINAL_STATUSES.has(normalizeStandardStatus('Canceled'))).toBe(true);
+  // THIS BLOCK USED TO ASSERT THE OPPOSITE, AND IT WAS WRONG ABOUT THE PROVIDER.
+  //
+  // It read '"Canceled" (US single-L) → "Cancelled" (RESO canonical double-L)'
+  // and pinned the normalizer to rewrite the provider's real value into one
+  // Cotality does not have. `Canceled` — one L — IS the live Cotality
+  // Property.StandardStatus value (standardValue "Canceled", legacyODataValue
+  // "Canceled", resoStandard true). `Cancelled` is Mallan's invention.
+  //
+  // The alias now points at the provider. See
+  // tests/runtime/status-vocabulary-cotality-binding.test.ts for the evidence
+  // and for the no-backfill invariant that keeps legacy rows gating correctly.
+  it('"Cancelled" (Mallan invention) → "Canceled" (live Cotality value)', () => {
+    expect(normalizeStandardStatus('Cancelled')).toBe('Canceled');
+    // And the result IS in TERMINAL_STATUSES, so the guard binds.
+    expect(TERMINAL_STATUSES.has(normalizeStandardStatus('Cancelled'))).toBe(true);
   });
-  it('"canceled" (US single-L, lowercase) → "Cancelled"', () => {
-    expect(normalizeStandardStatus('canceled')).toBe('Cancelled');
+  it('"cancelled" (lowercase) → "Canceled"', () => {
+    expect(normalizeStandardStatus('cancelled')).toBe('Canceled');
   });
-  it('"CANCELED" (US single-L, uppercase) → "Cancelled"', () => {
-    expect(normalizeStandardStatus('CANCELED')).toBe('Cancelled');
+  it('"CANCELLED" (uppercase) → "Canceled"', () => {
+    expect(normalizeStandardStatus('CANCELLED')).toBe('Canceled');
+  });
+  it('the legacy spelling still gates as terminal — rows are NOT backfilled', () => {
+    expect(TERMINAL_STATUSES.has('Cancelled')).toBe(true);
+    expect(TERMINAL_STATUSES.has('Canceled')).toBe(true);
   });
 });
 
@@ -183,7 +202,7 @@ describe('normalizeStandardStatus — Active variants remain eligible', () => {
 
 describe('normalizeStandardStatus — cron/ops parity (canonical storage)', () => {
   // The data-retention cron at app/api/cron/data-retention/route.ts:79 uses
-  // an exact-case status set: `['Closed','Sold','Leased','Rented','Withdrawn','Expired','Cancelled']`.
+  // an exact-case status set: `['Closed','Sold','Leased','Rented','Withdrawn','Expired','Canceled','Cancelled']`.
   // ops:health's §2.05 query at scripts/ops-health.js:152 uses the same.
   // Both miss any row stored with a non-canonical status. The normalizer
   // guarantees that rows born through any of the 4 patched writer paths
@@ -242,9 +261,9 @@ describe('integration — normalize + guard combination (the actual writer path)
     });
   });
 
-  it('body.status = "Canceled" (US) → row stored as Cancelled, idx_display_yn=false', () => {
-    expect(writerPipeline('Canceled')).toEqual({
-      status: 'Cancelled',
+  it('body.status = "Cancelled" (legacy) → row stored as Canceled, idx_display_yn=false', () => {
+    expect(writerPipeline('Cancelled')).toEqual({
+      status: 'Canceled',
       idx_display_yn: false,
     });
   });

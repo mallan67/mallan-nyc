@@ -20,6 +20,14 @@ export const ARCHIVE_TERMINAL_STATUSES = [
   "Rented",
   "Withdrawn",
   "Expired",
+  // BOTH SPELLINGS. `Canceled` (one L) is the live Cotality value and is what
+  // the Trestle sync writes raw into `listings.status`; `Cancelled` (two Ls)
+  // is the value Mallan invented and what the CRM write path stored. This list
+  // goes straight into a Prisma `status: { in: [...] }`, so a spelling it lacks
+  // is a row it never sees - no error, no log, just silence. Before this, every
+  // row the PROVIDER marked canceled was invisible to both the T+30 media strip
+  // and the T+180 archive.
+  "Canceled",
   "Cancelled",
 ] as const;
 

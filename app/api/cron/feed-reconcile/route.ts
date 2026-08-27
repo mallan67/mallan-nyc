@@ -84,9 +84,11 @@ const ORPHAN_TIME_BUDGET_MS = 240_000;
 // Batch size for the orphan OData OR-filter. Keeps URLs under 8KB.
 const ORPHAN_FETCH_BATCH = 20;
 
+// Both spellings of canceled — `Canceled` is the live Cotality value written
+// raw by the Trestle sync, `Cancelled` the invented one the CRM path stored.
 const TERMINAL_STATUSES = new Set([
   "Closed", "Sold", "Leased", "Rented",
-  "Withdrawn", "Expired", "Cancelled",
+  "Withdrawn", "Expired", "Canceled", "Cancelled",
 ]);
 
 const ACTIVE_SEED_STATUSES = new Set([

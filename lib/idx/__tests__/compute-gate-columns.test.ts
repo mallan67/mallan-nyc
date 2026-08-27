@@ -43,7 +43,12 @@ describe("computeGateColumns — terminal-status guard", () => {
         ownerOptOut: false,
       });
       expect(result.is_terminal).toBe(true);
-      expect(result.normalized_status).toBe(terminal);
+      // NOT `toBe(terminal)`. One member of the set is deliberately rewritten:
+      // the legacy `Cancelled` normalizes to the live Cotality value `Canceled`.
+      // It stays IN the set so untouched rows keep gating (no backfill is in
+      // scope), but it is not what the normalizer emits. What has to hold for
+      // every member is that normalization lands on something still terminal.
+      expect(TERMINAL_STATUSES.has(result.normalized_status)).toBe(true);
       expect(result.idx_display_yn).toBe(false);
       // Other gate columns are independent of terminal status.
       expect(result.internet_entire_listing_display_yn).toBe(true);
@@ -111,12 +116,26 @@ describe("computeGateColumns — status normalization reaches the guard", () => 
     expect(result.idx_display_yn).toBe(false);
   });
 
-  it("accepts known alias (canceled → Cancelled) and blocks", () => {
+  it("accepts the legacy alias (Cancelled → Canceled) and blocks", () => {
+    // The arrow used to point the other way. `Canceled` — one L — is the live
+    // Cotality Property.StandardStatus value; `Cancelled` is the one Mallan
+    // invented. The normalizer now converges on the provider.
     const result = computeGateColumns({
-      status: "canceled",
+      status: "cancelled",
       internetEntireListingDisplayYN: true,
     });
-    expect(result.normalized_status).toBe("Cancelled");
+    expect(result.normalized_status).toBe("Canceled");
+    expect(result.idx_display_yn).toBe(false);
+  });
+
+  it("blocks a row that still carries the legacy spelling", () => {
+    // The no-backfill half of the invariant: an untouched row reads exactly the
+    // same as a freshly-written one.
+    const result = computeGateColumns({
+      status: "Cancelled",
+      internetEntireListingDisplayYN: true,
+    });
+    expect(result.is_terminal).toBe(true);
     expect(result.idx_display_yn).toBe(false);
   });
 

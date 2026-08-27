@@ -207,7 +207,9 @@ describe('canonical URL — buildListingUrls returns separated /address/id form'
     // Must NOT contain hybrid suffix `-sl-0004` in the address slug
     expect(urls.publicUrl).not.toMatch(/-sl-0004\//);
     expect(urls.publicUrl).not.toMatch(/-sl-0004$/);  // would mean trailing hybrid
-    expect(urls.realPlusUrl).toBe(urls.publicUrl);
+    // Was `realPlusUrl`. Same value, honest name — it is Mallan's own public
+    // URL exposed while the listing is live, never a provider URL.
+    expect(urls.publicActiveUrl).toBe(urls.publicUrl);
   });
 
   test('buildCanonicalListingPath strips hybrid suffix → /address/id', () => {

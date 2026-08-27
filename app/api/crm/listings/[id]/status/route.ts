@@ -34,7 +34,8 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
   Rented: [], // Terminal
   Withdrawn: ["Active", "Draft"],
   Expired: ["Active", "Draft"],
-  Cancelled: [], // Terminal
+  Canceled: [], // Terminal — live Cotality spelling
+  Cancelled: [], // Terminal — legacy Mallan spelling, still on real rows
 };
 
 export async function PATCH(

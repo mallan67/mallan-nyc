@@ -538,7 +538,9 @@ export function assertRlsCompliantPayload(
   // DOM reset info (30 days per UCBA 2026)
   if (
     ctx.previousStatus === "Withdrawn" ||
-    ctx.previousStatus === "Cancelled" ||
+    ctx.previousStatus === "Canceled" || // live Cotality spelling
+    ctx.previousStatus === "Cancelled" || // legacy Mallan spelling
+
     ctx.previousStatus === "TemporarilyOffMarket"
   ) {
     if (ctx.statusChangedAt) {

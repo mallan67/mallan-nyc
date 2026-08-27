@@ -41,7 +41,11 @@ export async function GET(req: NextRequest) {
   // and (2) closed/terminal Trestle-synced deals. Active/Pending Trestle listings
   // are managed via REBNY RLS directly, not through the CRM.
   const TRESTLE_CLOSED = ["Closed", "Sold", "Leased", "Rented"];
-  const CRM_HIDDEN = ["Withdrawn", "Cancelled"];
+  // Both spellings of canceled. `Canceled` is the live Cotality value the
+  // Trestle sync writes raw; `Cancelled` is the value the CRM write path
+  // invented. This is a `notIn`, so a missing spelling means a hidden
+  // listing quietly reappears in My Listings.
+  const CRM_HIDDEN = ["Withdrawn", "Canceled", "Cancelled"];
   const crmCreated = { mls_id: null, listing_id: { startsWith: "SL-" }, status: { notIn: CRM_HIDDEN } };
   const crmCreatedRental = { mls_id: null, listing_id: { startsWith: "RL-" }, status: { notIn: CRM_HIDDEN } };
   const trestleClosed = { mls_id: { not: null }, status: { in: TRESTLE_CLOSED } };
@@ -56,7 +60,18 @@ export async function GET(req: NextRequest) {
   }
 
   if (type) where.listing_type = type;
-  if (status) where.status = status;
+  if (status) {
+    // A caller filtering for canceled listings means the STATUS, not one of its
+    // two spellings. `Canceled` (one L) is the live Cotality value the Trestle
+    // sync writes raw; `Cancelled` (two Ls) is the value the CRM write path
+    // invented. Real rows carry both and no backfill is in scope, so an exact
+    // match on either one returns half the listings and says nothing about the
+    // other half.
+    const CANCELED_SPELLINGS = ["Canceled", "Cancelled"];
+    where.status = CANCELED_SPELLINGS.includes(status)
+      ? { in: CANCELED_SPELLINGS }
+      : status;
+  }
 
   const [listings, total] = await Promise.all([
     prisma.listing.findMany({
@@ -345,7 +360,7 @@ export async function POST(req: NextRequest) {
       const priorComingSoon = await prisma.listing.findFirst({
         where: {
           postal_code: (body.PostalCode as string) || undefined,
-          status: { in: ["Active", "Withdrawn", "Expired", "Sold", "Rented", "Cancelled"] },
+          status: { in: ["Active", "Withdrawn", "Expired", "Sold", "Rented", "Canceled", "Cancelled"] },
           raw_data: {
             path: ["_wasComingSoon"],
             equals: true,
