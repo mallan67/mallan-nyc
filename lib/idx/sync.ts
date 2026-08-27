@@ -786,13 +786,17 @@ export async function syncListings(
         // Status actually changed → compute DOM-aware transition.
         statusTransition = computeDomTransition(
           {
-            status: existing.status,
+            // A row with no market status has accrued no days-on-market. The
+            // empty string is the DOM tracker's "not a DOM-accruing status",
+            // which is exactly right for a listing that was never on market.
+            status: existing.status ?? "",
             status_changed_at: existing.status_changed_at,
             first_active_date: existing.first_active_date,
             days_on_market: existing.days_on_market,
             permissions: null, // historical permissions not persisted; conservative
           },
-          mapped.status,
+          // No provider status = nothing to accrue DOM against.
+          mapped.status ?? "",
           newPermissions,
         );
       } else if (existing && existing.status_changed_at === null) {
@@ -842,7 +846,10 @@ export async function syncListings(
       // feed-wide modification, so this was storing ~88,967 never-active Closed listings
       // (first_active_date=NULL) as fat, hidden, ever-growing bloat. Existing rows still
       // UPDATE below, so a genuine Active->Closed transition still hides via §2.05.
-      if (shouldSkipNewTerminalListing(existing, mapped.status)) {
+      // A provider row with NO status is not terminal — we simply do not know
+      // what it is. Skipping it as terminal would silently drop it from the
+      // sync; the empty string is not in any terminal set, so it is kept.
+      if (shouldSkipNewTerminalListing(existing, mapped.status ?? "")) {
         skippedNewTerminal++;
         if (skippedNewTerminalSample.length < 25) skippedNewTerminalSample.push(mapped.listing_id);
         // RESOLVED skip — record the position so the cursor can move past it.
@@ -1000,9 +1007,12 @@ export async function syncListings(
             // eligible for retention-cron age checks. first_active_date seeds
             // only when the initial status is one that would accrue DOM.
             status_changed_at: new Date(),
-            first_active_date: ACTIVE_SEED_STATUSES.has(mapped.status)
-              ? new Date()
-              : null,
+            // No market status → not an active seed → no first_active_date.
+            // DOM cannot start before the listing is on the market.
+            first_active_date:
+              mapped.status != null && ACTIVE_SEED_STATUSES.has(mapped.status)
+                ? new Date()
+                : null,
             ...terminalSinceCreate,
           },
           update: listingUpdateData,
@@ -2891,7 +2901,11 @@ export async function getSyncStats(): Promise<{
 
   const byStatus: Record<string, number> = {};
   for (const row of statusCounts) {
-    byStatus[row.status] = row._count.status;
+    // Rows with no market status are counted under an explicit bucket rather
+    // than being dropped from the census or coerced into a real status. An
+    // operational count that silently omits a population is worse than one that
+    // names it.
+    byStatus[row.status ?? "(no market status)"] = row._count.status;
   }
 
   return {

@@ -27,6 +27,16 @@ import {
 
 // REBNY RLS status state machine
 // Valid transitions map: current → allowed next statuses
+/**
+ * Transitions available from "no market status yet" (a NULL column).
+ *
+ * The same set `Draft` had, because it is the same situation: a Mallan-authored
+ * listing that has not been on the market. The difference is that this state is
+ * now represented by the ABSENCE of a provider fact rather than by a Mallan word
+ * sitting in the provider's column.
+ */
+const NO_MARKET_STATUS_TRANSITIONS: string[] = ["Active", "ComingSoon"];
+
 const STATUS_TRANSITIONS: Record<string, string[]> = {
   Draft: ["Active", "ComingSoon"],
   ComingSoon: ["Active", "Withdrawn"],
@@ -98,9 +108,20 @@ export async function PATCH(
     );
   }
 
-  // Validate transition
+  // Validate transition.
+  //
+  // NULL IS A LEGITIMATE STARTING POINT, not an error. A Mallan-authored
+  // listing has no market status until someone sets one; that is what the
+  // nullable column means. The transitions available from "no market status
+  // yet" are the ones that put a listing ON the market for the first time.
+  //
+  // `Draft` is retained as a key only so listings still carrying the legacy
+  // sentinel keep working; no writer produces it any more.
   const currentStatus = listing.status;
-  const allowed = STATUS_TRANSITIONS[currentStatus];
+  const allowed =
+    currentStatus == null
+      ? NO_MARKET_STATUS_TRANSITIONS
+      : STATUS_TRANSITIONS[currentStatus];
 
   if (!allowed) {
     return NextResponse.json(
@@ -206,7 +227,8 @@ export async function PATCH(
         listingType: (listing.listing_type as "sale" | "rent") ?? "sale",
         isNewDevelopment: (existingRaw.NewDevelopmentYN as boolean) === true,
         currentStatus: newStatus,
-        previousStatus: currentStatus,
+        // null previous status = the listing was never on market.
+        previousStatus: currentStatus ?? undefined,
         statusChangedAt: listing.status_changed_at ?? undefined,
         existingActivationDate: existingRaw.ActivationDate as string | undefined,
         rlsEligible: listing.rls_eligible,
@@ -227,7 +249,8 @@ export async function PATCH(
   // Compute DOM tracking fields for this transition
   const domUpdate = computeDomTransition(
     {
-      status: currentStatus,
+      // A listing with no market status has accrued no days-on-market.
+      status: currentStatus ?? "",
       status_changed_at: listing.status_changed_at,
       first_active_date: listing.first_active_date,
       days_on_market: listing.days_on_market,

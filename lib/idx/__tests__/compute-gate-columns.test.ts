@@ -139,15 +139,26 @@ describe("computeGateColumns — status normalization reaches the guard", () => 
     expect(result.idx_display_yn).toBe(false);
   });
 
-  it("defaults null/undefined/non-string status to Active (displayable)", () => {
+  it("an ABSENT status is not displayable (was: defaulted to Active)", () => {
+    // CONTRACT CHANGED 2026-08-27 with the authorized nullable-status schema
+    // correction. This used to assert normalized_status === "Active" and
+    // idx_display_yn === true. That was fail-OPEN and, once `listings.status`
+    // became nullable, reachable from every listing that has no market status
+    // yet: the gate would publish a market claim nobody made.
+    //
+    // The normalizer now returns its empty token for absent input, and the
+    // aggregate refuses a row with no market status. `is_terminal` stays false
+    // because "no status" is genuinely not terminal — displayability is what
+    // changed, not terminality. Rationale + behavioural proof:
+    // tests/runtime/absent-status-never-becomes-active.test.ts.
     for (const input of [null, undefined, 0, 1, {}, []] as unknown[]) {
       const result = computeGateColumns({
         status: input,
         internetEntireListingDisplayYN: true,
       });
-      expect(result.normalized_status).toBe("Active");
+      expect(result.normalized_status).toBe("");
       expect(result.is_terminal).toBe(false);
-      expect(result.idx_display_yn).toBe(true);
+      expect(result.idx_display_yn).toBe(false);
     }
   });
 });

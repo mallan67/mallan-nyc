@@ -593,7 +593,9 @@ export async function GET(request: NextRequest) {
         unit: String(addr.UnitNumber || ''),
         propertyType: mapPropertyTypeToDisplay((l.features as Record<string, unknown>)?.CommonInterest as string | undefined, l.property_sub_type, l.property_type || ''),
         office: '',
-        status: l.status,
+        // Schema-forced narrowing only (listings.status became nullable).
+        // Behaviour is identical for every row this loop can see.
+        status: l.status ?? '',
         listingType: l.listing_type || 'sale',
         photoUrl: (() => {
           const media = l.media as unknown[];

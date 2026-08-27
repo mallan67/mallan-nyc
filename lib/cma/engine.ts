@@ -27,7 +27,13 @@ export interface CompResult {
   bedrooms: number | null;
   bathrooms: number | null;
   living_area: number | null;
-  status: string;
+  /**
+   * Cotality market status, or NULL when the listing has none yet.
+   * A Mallan-authored listing that has not been published has no market
+   * status at all; null is that fact, and it fails closed in every
+   * displayable allow-list.
+   */
+  status: string | null;
   days_on_market: number;
   similarity_score: number;
   adjustments: Adjustment[];

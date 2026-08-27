@@ -166,7 +166,13 @@ export interface DbListing {
   id: string | bigint;
   listing_id: string;
   mls_id?: string | null;
-  status: string;
+  /**
+   * Cotality market status, or NULL when the listing has none yet.
+   * A Mallan-authored listing that has not been published has no market
+   * status at all; null is that fact, and it fails closed in every
+   * displayable allow-list.
+   */
+  status: string | null;
   listing_type: string;
   property_type: string | null;
   property_sub_type: string | null;
@@ -338,7 +344,13 @@ export function classifyDbListing(listing: Pick<DbListing,
  */
 export function filterDisplayableDbListings(listings: DbListing[]): DbListing[] {
   return listings.filter((l) => {
-    // Gate 1: Must be an active/displayable status
+    // Gate 1: Must be an active/displayable status.
+    //
+    // NULL means the listing has no market status yet — a Mallan-authored
+    // listing that has not reached the market. It is not displayable, and it is
+    // rejected EXPLICITLY here rather than relying on `includes(null)` being
+    // falsy: the reason a row is excluded should be legible.
+    if (l.status == null) return false;
     if (!DISPLAYABLE_STATUSES.includes(l.status)) return false;
     // Website-only listings (commercial, rls_eligible=false) bypass RLS gates.
     // `rls_eligible` is a real internal boolean, not a Trestle permission flag,
@@ -506,7 +518,11 @@ export function dbListingToPublicDTO(
     mlsId: listing.listing_id,
     slug,
     url: buildCanonicalListingPath({ slug, id: listing.listing_id }),
-    status: STATUS_DISPLAY[listing.status] || listing.status,
+    // A listing with no market status reports an empty string rather than the
+    // word "null" or a fabricated one. This DTO is only reachable for
+    // displayable rows anyway (see filterDisplayableDbListings), so this is a
+    // defensive shape, not an expected state.
+    status: listing.status ? STATUS_DISPLAY[listing.status] || listing.status : '',
     listingType: listing.listing_type as 'sale' | 'rent',
     address: suppressAddress
       ? {

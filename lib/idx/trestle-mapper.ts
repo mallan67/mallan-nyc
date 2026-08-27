@@ -739,7 +739,7 @@ const STATUS_ALIASES: Record<string, string> = {
  * and the guard so they cannot disagree.
  *
  * Behavior:
- *   - Empty / null / non-string input              → "Active"
+ *   - Empty / null / non-string input              → "" (see below)
  *   - Known alias (checked FIRST, see below)         → provider spelling
  *   - Exact-case canonical hit                      → returned as-is
  *   - Trim + case-fold match against a known set    → canonical form
@@ -758,9 +758,23 @@ const STATUS_ALIASES: Record<string, string> = {
  * the path.)
  */
 export function normalizeStandardStatus(input: unknown): string {
-  if (typeof input !== 'string') return 'Active';
+  // ABSENT IS NOT ACTIVE.
+  //
+  // This returned 'Active'. That was never a decision — it was an inherited
+  // default, and it was unreachable from real rows while `listings.status` was
+  // `NOT NULL DEFAULT 'Active'`. Making the column nullable makes it reachable
+  // from every listing that has no market status yet, and it fails OPEN:
+  // `ensure-listing` would write a fabricated `Active` AND derive
+  // `idx_display_yn` from it, publishing a market claim the provider never
+  // sent — the same defect as the mapper's old `|| "Active"`.
+  //
+  // The empty string is the "I was given nothing" token: a member of no status
+  // set, so every allow-list gate downstream fails closed with no caller
+  // change. The DB column says the same thing with NULL; writers convert at
+  // the boundary.
+  if (typeof input !== 'string') return '';
   const trimmed = input.trim();
-  if (!trimmed) return 'Active';
+  if (!trimmed) return '';
 
   // REWRITE FIRST, IDENTITY SECOND.
   //
@@ -1015,8 +1029,17 @@ export function computeGateColumns(
   // the existing inline CRM POST gate (`rlsEligible && ...` in
   // app/api/crm/listings/route.ts) so commercial / website-only listings
   // can never become publicly-displayable IDX rows.
+  //
+  // `has_market_status` is the condition the nullable column made reachable.
+  // This aggregate is a DENY-list on terminal statuses, not an allow-list on
+  // on-market ones, so "no market status yet" is not terminal and would have
+  // been published. A listing the provider has said nothing about, or that
+  // Mallan has authored but never put on the market, is not IDX-displayable.
+  const has_market_status = normalized_status !== '';
+
   const idx_display_yn =
     rls_eligible &&
+    has_market_status &&
     !is_terminal &&
     internet_entire_listing_display_yn &&
     !participant_only &&
@@ -1041,7 +1064,8 @@ export function computeGateColumns(
 export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
   listing_id: string;
   mls_id: string | null;
-  status: string;
+  /** The provider's StandardStatus, or null when Cotality sent none. */
+  status: string | null;
   listing_type: string;
   property_type: string | null;
   property_sub_type: string | null;
@@ -1085,7 +1109,23 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
 
   const listingId = String(raw.ListingId || raw.ListingKey || "");
   const mlsId = raw.ListingKey ? String(raw.ListingKey) : null;
-  const status = String(raw.StandardStatus || raw.MlsStatus || "Active");
+  // THE PROVIDER'S FACT, OR NOTHING. Never a fabricated one.
+  //
+  // This read `String(raw.StandardStatus || raw.MlsStatus || "Active")`. When
+  // Cotality sent no status at all, Mallan invented `Active` — asserting to
+  // every downstream reader that the provider had said a listing was on the
+  // market when the provider had said nothing. Because `Active` is in every
+  // displayable allow-list, an unknown-status row became publicly displayable
+  // on the strength of a default.
+  //
+  // Now the column is nullable, "the provider did not tell us" has a truthful
+  // representation, and null fails closed everywhere: no display allow-list
+  // contains it.
+  const rawStatus = raw.StandardStatus ?? raw.MlsStatus;
+  const status =
+    typeof rawStatus === "string" && rawStatus.trim() !== ""
+      ? String(rawStatus)
+      : null;
   const listingType = inferListingType(raw);
 
   // Explicit columns

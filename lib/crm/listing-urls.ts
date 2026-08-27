@@ -22,7 +22,12 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.mallan.nyc';
  */
 interface ListingForUrl {
   listing_id: string;
-  status: string;
+  /**
+   * NULL = the listing has no market status yet. The active-URL check below is
+   * an ALLOW-list, so null fails closed with no extra branch: a listing that was
+   * never on the market has no public active URL.
+   */
+  status: string | null;
   address: Record<string, unknown> | null;
   /** `false` = website-only (non-RLS). Anything else is treated as RLS-backed. */
   rls_eligible?: boolean | null;

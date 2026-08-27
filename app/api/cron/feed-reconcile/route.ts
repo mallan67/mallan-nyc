@@ -215,7 +215,12 @@ export async function GET(req: NextRequest) {
     // (6 Active, 97 Pending) suppressed this exact way. Spare every id that is live
     // on-market in ANY status; only genuinely-departed ids remain ghosts.
     const ghosts = ourActive.filter(
-      (r) => !TERMINAL_STATUSES.has(r.status) && !liveOnMarketIds.has(r.listing_id),
+      // A row with NO market status was never claimed to be on the market, so
+      // its absence from the live on-market feed is expected, not a ghost.
+      (r) =>
+        r.status != null &&
+        !TERMINAL_STATUSES.has(r.status) &&
+        !liveOnMarketIds.has(r.listing_id),
     );
     // 3b. Orphans — in the Trestle ELIGIBLE set (Active/Pending/AUC, P1C6),
     // missing from our DB entirely. P1C6b: archive-excluded (an archived id
@@ -430,7 +435,10 @@ export async function GET(req: NextRequest) {
                   compliance: mapped.compliance as Prisma.InputJsonValue,
                   raw_data: mapped.raw_data as Prisma.InputJsonValue,
                   status_changed_at: now,
-                  first_active_date: ACTIVE_SEED_STATUSES.has(mapped.status) ? now : null,
+                  first_active_date:
+                    mapped.status != null && ACTIVE_SEED_STATUSES.has(mapped.status)
+                      ? now
+                      : null,
                   ...terminalSinceCreate,
                 },
               }),

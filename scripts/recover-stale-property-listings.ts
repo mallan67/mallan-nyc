@@ -704,7 +704,7 @@ export async function recoverOneListing(
 
   // Policy preserved verbatim (lib/idx/sync.ts:841): a never-tracked listing
   // arriving terminal must not be created.
-  if (shouldSkipNewTerminalListing(existing, mapped.status)) {
+  if (shouldSkipNewTerminalListing(existing, mapped.status ?? "")) {
     return { outcome: "skipped_new_terminal", fetched: true, tags: [] };
   }
   if (!existing) {
@@ -720,7 +720,7 @@ export async function recoverOneListing(
   const statusTransition = statusChanged
     ? computeDomTransition(
         {
-          status: existing.status,
+          status: existing.status ?? "",
           status_changed_at: existing.status_changed_at,
           first_active_date: existing.first_active_date,
           days_on_market: existing.days_on_market,
@@ -728,7 +728,7 @@ export async function recoverOneListing(
           // lib/idx/sync.ts:803.
           permissions: null,
         },
-        mapped.status,
+        mapped.status ?? "",
         readTrestlePermissions(raw),
       )
     : {};

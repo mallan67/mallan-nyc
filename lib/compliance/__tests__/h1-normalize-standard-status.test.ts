@@ -16,8 +16,20 @@
  * the guard, and every downstream exact-case predicate sees the same
  * canonical value.
  *
+ * CONTRACT AMENDED 2026-08-27 (nullable `listings.status`): absent input no
+ * longer normalizes to "Active". That fallback was an inherited default, not a
+ * decision, and it was unreachable from real rows while the column was
+ * `NOT NULL DEFAULT 'Active'`. Making the column nullable made it reachable and
+ * fail-OPEN — `ensure-listing` writes the normalized value AND derives
+ * `idx_display_yn` from it, so a request omitting the status would have created
+ * a publicly displayable row asserting a market status the provider never sent.
+ * Absent input now normalizes to the empty string: a member of no status set, so
+ * every allow-list gate downstream fails closed. Full rationale and the
+ * behavioural proof live in
+ * `tests/runtime/absent-status-never-becomes-active.test.ts`.
+ *
  * The tests below enforce the documented behavior:
- *   - Empty / null / non-string → "Active"
+ *   - Empty / null / non-string → "" (fails closed, never "Active")
  *   - Exact-case canonical hit → returned as-is
  *   - Case-fold + trim match → canonical form
  *   - Known alias (Cancelled → Canceled) → provider spelling
@@ -29,24 +41,30 @@ import {
   TERMINAL_STATUSES,
 } from '../../idx/trestle-mapper';
 
-describe('normalizeStandardStatus — empty / non-string fallback', () => {
-  it('null → "Active"', () => {
-    expect(normalizeStandardStatus(null)).toBe('Active');
+describe('normalizeStandardStatus — empty / non-string fallback fails CLOSED', () => {
+  it('null → "" (not "Active")', () => {
+    expect(normalizeStandardStatus(null)).toBe('');
   });
-  it('undefined → "Active"', () => {
-    expect(normalizeStandardStatus(undefined)).toBe('Active');
+  it('undefined → ""', () => {
+    expect(normalizeStandardStatus(undefined)).toBe('');
   });
-  it('empty string → "Active"', () => {
-    expect(normalizeStandardStatus('')).toBe('Active');
+  it('empty string → ""', () => {
+    expect(normalizeStandardStatus('')).toBe('');
   });
-  it('whitespace-only string → "Active"', () => {
-    expect(normalizeStandardStatus('   ')).toBe('Active');
+  it('whitespace-only string → ""', () => {
+    expect(normalizeStandardStatus('   ')).toBe('');
   });
-  it('non-string (number) → "Active"', () => {
-    expect(normalizeStandardStatus(42 as unknown as string)).toBe('Active');
+  it('non-string (number) → ""', () => {
+    expect(normalizeStandardStatus(42 as unknown as string)).toBe('');
   });
-  it('non-string (object) → "Active"', () => {
-    expect(normalizeStandardStatus({} as unknown as string)).toBe('Active');
+  it('non-string (object) → ""', () => {
+    expect(normalizeStandardStatus({} as unknown as string)).toBe('');
+  });
+  it('and the result is in no status set, so every allow-list gate closes', () => {
+    // The reason the empty string is the right token rather than a thrown
+    // error: no caller has to change, and none of them can accidentally
+    // treat it as on-market.
+    expect(TERMINAL_STATUSES.has(normalizeStandardStatus(null))).toBe(false);
   });
 });
 
@@ -235,8 +253,10 @@ describe('integration — normalize + guard combination (the actual writer path)
   const writerPipeline = (rawStatus: unknown) => {
     const canonical = normalizeStandardStatus(rawStatus);
     return {
-      status: canonical,
-      idx_display_yn: !TERMINAL_STATUSES.has(canonical),
+      // Mirrors app/api/idx/ensure-listing/route.ts exactly, including the
+      // empty-token checks the nullable column made reachable.
+      status: canonical || null,
+      idx_display_yn: canonical !== '' && !TERMINAL_STATUSES.has(canonical),
     };
   };
 
@@ -282,10 +302,12 @@ describe('integration — normalize + guard combination (the actual writer path)
     });
   });
 
-  it('body.status = null → row stored as Active, idx_display_yn=true (default eligible)', () => {
+  it('body.status = null → row stored as NULL, idx_display_yn=false (fails closed)', () => {
+    // Was: stored as Active, idx_display_yn=true. That published a market
+    // claim the provider never made. See the contract note at the top.
     expect(writerPipeline(null)).toEqual({
-      status: 'Active',
-      idx_display_yn: true,
+      status: null,
+      idx_display_yn: false,
     });
   });
 });

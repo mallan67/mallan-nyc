@@ -29,26 +29,32 @@
  * it — so nothing a broker does changes.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * WHAT IS NOT FIXABLE WITHOUT SCHEMA, STATED EXACTLY
+ * WHAT NEEDED SCHEMA — RESOLVED 2026-08-27
  *
  * `Draft` has no Cotality equivalent. `Incomplete` is a statement about a
  * COTALITY record that has not been finished in the MLS; a Mallan-local listing
  * is not a Cotality record at all, and substituting it is precisely the guess
  * the directive forbids.
  *
- * `Listing.status` is `String NOT NULL` defaulting to `Active`, so an
- * unpublished local listing must hold SOME string. Every option is a false
- * provider claim or a schema change.
+ * `Listing.status` was `String NOT NULL` defaulting to `Active`, so an
+ * unpublished local listing had to hold SOME string, and every available option
+ * was a false provider claim. Maya authorized the minimal schema correction: the
+ * column is now nullable with no default, NULL means "this listing has no market
+ * status yet", and both create paths write it. Mallan publication state lives in
+ * `Listing.compliance.mallan_publication`.
  *
- * The truthful code-only answer is to keep `Draft` as a MALLAN SENTINEL and
- * ENFORCE the boundary that makes that honest — which is what the last describe
- * block below pins. Making the column nullable would need Maya's authorization
- * and is the exact residual conflict.
+ * Nothing writes `Draft` into the column any more. The last describe block below
+ * still pins the sentinel boundary, because REAL ROWS created before that change
+ * still carry it and no production backfill is authorized — a stored `Draft` and
+ * a NULL must reach the same decision at every gate, forever. The behavioural
+ * proof of the new state lives in
+ * `tests/runtime/market-status-is-nullable.test.ts`.
  */
 import {
   marketStatusLabel,
   marketStatusForBusinessOutcome,
   isMallanLocalSentinelStatus,
+  hasNoMarketStatus,
 } from '@/lib/crm/market-status-label';
 import { STANDARD_STATUS_MEMBERS } from '@/lib/search/canonical/live-truth';
 import { readFileSync } from 'node:fs';
@@ -145,7 +151,7 @@ describe('new writes persist the provider fact', () => {
   });
 });
 
-describe('Draft is a Mallan SENTINEL, and the boundary is enforced', () => {
+describe('the legacy Draft sentinel still on real rows stays fenced', () => {
   it('it is recognised as one', () => {
     expect(isMallanLocalSentinelStatus('Draft')).toBe(true);
     expect(isMallanLocalSentinelStatus('Active')).toBe(false);
@@ -176,14 +182,35 @@ describe('Draft is a Mallan SENTINEL, and the boundary is enforced', () => {
     }
   });
 
-  it('it is only ever written as the INITIAL status of a Mallan-authored row', () => {
-    // Both create paths, and nowhere else. A provider-sourced row can never
-    // acquire it, because neither create path accepts a caller-supplied mls_id
-    // (PROVIDER_IDENTITY_NOT_ASSIGNABLE) and the sync writes raw provider values.
+  it('NOTHING writes it any more — both create paths store no market status', () => {
+    // It used to be written by both create paths as the initial status. Since
+    // the authorized schema correction they write NULL, which is what "this
+    // listing has no market status yet" actually means. A provider-sourced row
+    // could never acquire the sentinel either, because neither create path
+    // accepts a caller-supplied mls_id (PROVIDER_IDENTITY_NOT_ASSIGNABLE) and
+    // the sync writes raw provider values.
     const listings = read('app/api/crm/listings/route.ts');
-    expect(listings).toMatch(/const STATUS_INITIAL = "Draft"/);
+    expect(listings).toMatch(/const STATUS_INITIAL: string \| null = null;/);
     const convert = read('app/api/crm/convert/route.ts');
-    expect(convert).toMatch(/normalizeStandardStatus\("Draft"\)/);
+    expect(convert).toMatch(/const convertInitialStatus: string \| null = null;/);
+  });
+
+  it('but a stored Draft is still readable and still labelled', () => {
+    // No production backfill is authorized, so the rows exist. The whole point
+    // of keeping the sentinel fenced rather than rewriting it.
+    expect(marketStatusLabel('Draft', 'sale')).toBe('Draft');
+    expect(isMallanLocalSentinelStatus('Draft')).toBe(true);
+  });
+
+  it('and NULL and the legacy Draft answer the same question the same way', () => {
+    // The no-backfill invariant in one assertion: a row created today and a row
+    // created before the migration are in the SAME state, so no gate may treat
+    // them differently.
+    expect(hasNoMarketStatus(null)).toBe(true);
+    expect(hasNoMarketStatus('Draft')).toBe(true);
+    expect(hasNoMarketStatus('')).toBe(true);
+    expect(hasNoMarketStatus('Active')).toBe(false);
+    expect(hasNoMarketStatus('Closed')).toBe(false);
   });
 
   it('it is never sent to Cotality in any request', () => {

@@ -1,0 +1,66 @@
+-- LISTINGS.STATUS BECOMES A TRUTHFUL MARKET-STATUS FIELD.
+--
+-- ─────────────────────────────────────────────────────────────────────────────
+-- WHY
+--
+-- `listings.status` holds the COTALITY market fact (`Property.StandardStatus`)
+-- for provider-sourced rows. It was declared `TEXT NOT NULL DEFAULT 'Active'`.
+--
+-- Non-null with a provider default forced every Mallan-authored unpublished
+-- listing to store SOME market status before one existed. The value chosen was
+-- `Draft` — a Mallan publication/review word, not a Cotality StandardStatus
+-- member. So the column meant two different things depending on who wrote the
+-- row, and Mallan workflow state lived inside the provider-status domain.
+--
+-- After this migration NULL means exactly one thing:
+--   THIS LISTING HAS NO MARKET STATUS YET.
+--
+-- That is the truthful state of a Mallan-authored listing that has not been
+-- published. Mallan publication/review state lives only in
+-- `compliance.mallan_publication`.
+--
+-- ─────────────────────────────────────────────────────────────────────────────
+-- WHY THIS IS SAFE ON A LARGE, POPULATED TABLE
+--
+-- Both statements are CATALOG-ONLY in PostgreSQL:
+--
+--   DROP NOT NULL   — flips `pg_attribute.attnotnull`. No table scan, because
+--                     removing a constraint cannot invalidate existing rows.
+--   DROP DEFAULT    — removes the `pg_attrdef` entry. Existing rows are
+--                     untouched; a default is only consulted on INSERT.
+--
+-- Neither rewrites the heap and neither scans. Contrast with the ADD NOT NULL
+-- direction, which must verify every row, and with `ALTER COLUMN … TYPE`, which
+-- rewrites the table — NEON.md forbids that shape on large tables for exactly
+-- that reason. This one takes only a brief ACCESS EXCLUSIVE lock to update the
+-- catalog.
+--
+-- NO DATA IS READ, WRITTEN, OR DELETED. Every existing row keeps the value it
+-- has, including the legacy `Draft`, `Sold`, `Rented` and `Leased` values. This
+-- migration deliberately does NOT clean those up: that is a separate, targeted,
+-- idempotent operation with its own eligibility predicate, dry-run count and
+-- rollback path, and it is not authorized here.
+--
+-- ─────────────────────────────────────────────────────────────────────────────
+-- ROLLBACK
+--
+-- Reversible only while no row holds NULL. Restoring the constraint would fail
+-- the moment a Mallan-authored listing has been created without a market
+-- status, which is the whole point of the change:
+--
+--   UPDATE "listings" SET "status" = 'Active' WHERE "status" IS NULL;  -- see note
+--   ALTER TABLE "listings" ALTER COLUMN "status" SET DEFAULT 'Active';
+--   ALTER TABLE "listings" ALTER COLUMN "status" SET NOT NULL;
+--
+-- The UPDATE above is listed for completeness, NOT as a recommendation: it
+-- would re-assert a false provider fact ('Active') about listings that are not
+-- on the market. A real rollback should move those rows to a decided market
+-- status, or revert the application code instead.
+
+-- Allow "no market status yet".
+ALTER TABLE "listings" ALTER COLUMN "status" DROP NOT NULL;
+
+-- Remove the default. A default is how the false value got written without
+-- anyone deciding it: every INSERT that omitted the column silently claimed the
+-- listing was Active.
+ALTER TABLE "listings" ALTER COLUMN "status" DROP DEFAULT;

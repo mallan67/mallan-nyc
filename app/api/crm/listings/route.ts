@@ -16,6 +16,7 @@ import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-pro
 import { assertLeadAccess } from "@/lib/crm/access";
 import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { buildPublishContract } from "@/lib/crm/listing-publish-contract";
+import { initialPublication, withPublication } from "@/lib/crm/publication-state";
 import { buildExclusiveAgentAssignment } from "@/lib/listings/exclusive-agent-assignment";
 import { composeDbPublicMedia } from "@/lib/media/db-media-composition";
 import type { Prisma } from "@prisma/client";
@@ -211,8 +212,19 @@ export async function GET(req: NextRequest) {
   });
 }
 
-// Valid listing statuses and their allowed transitions
-const STATUS_INITIAL = "Draft";
+/**
+ * THE MARKET STATUS A NEW MALLAN LISTING IS BORN WITH: NONE.
+ *
+ * This was `"Draft"` — a Mallan publication word written into the column that
+ * holds the COTALITY market fact (`Property.StandardStatus`). `Draft` is not a
+ * StandardStatus member, so the column meant one thing on provider-sourced rows
+ * and a different thing on Mallan-authored ones.
+ *
+ * A listing an agent has just created is not on the market. NULL says exactly
+ * that, and nothing else. The Mallan review/publication state the column used to
+ * carry lives in `Listing.compliance.mallan_publication`, written below.
+ */
+const STATUS_INITIAL: string | null = null;
 
 /**
  * Generate a unique listing_id: SL-XXXX for sales, RL-XXXX for rentals.
@@ -545,11 +557,17 @@ export async function POST(req: NextRequest) {
         // draft — see the publication guard, which refuses to activate one.
         owner_client_id: ownerClientId,
         // H1 amend (2026-05-13): normalize the initial status through the
-        // canonical helper even though STATUS_INITIAL is a hardcoded literal
-        // today. Pattern-uniform with the body-driven writers; if a future
-        // refactor lets STATUS_INITIAL come from request input, the same
-        // case/whitespace/alias guard applies for free.
-        status: normalizeStandardStatus(STATUS_INITIAL),
+        // canonical helper if there ever is one. Pattern-uniform with the
+        // body-driven writers; if a future refactor lets STATUS_INITIAL come
+        // from request input, the same case/whitespace/alias guard applies for
+        // free.
+        //
+        // The null branch is deliberately NOT normalized. The normalizer answers
+        // "what is this status called"; there is no status to name, and routing
+        // null through it would produce its empty token — a third spelling of
+        // "no market status" that the column does not use.
+        status:
+          STATUS_INITIAL === null ? null : normalizeStandardStatus(STATUS_INITIAL),
         listing_type: listingType,
         // Top-level columns derived from persistenceMap
         property_type: (persistence.topLevel.property_type as string) ?? null,
@@ -607,6 +625,10 @@ export async function POST(req: NextRequest) {
         // normalizeStandardStatus.
         idx_display_yn:
           rlsEligible &&
+          // A listing with no market status is not on the market, so it is not
+          // IDX-displayable. The terminal check is a DENY-list, so without this
+          // null branch "no status yet" would read as displayable.
+          STATUS_INITIAL !== null &&
           !TERMINAL_STATUSES.has(normalizeStandardStatus(STATUS_INITIAL)) &&
           persistence.topLevel.idx_display_yn !== false,
         internet_entire_listing_display_yn: persistence.topLevel.internet_entire_listing_display_yn !== false,
@@ -618,7 +640,16 @@ export async function POST(req: NextRequest) {
         address: persistence.address as Prisma.InputJsonValue,
         features: persistence.features as Prisma.InputJsonValue,
         media: (body.media as Prisma.InputJsonValue) ?? [],
-        compliance: compliance as Prisma.InputJsonValue,
+        // WHERE MALLAN DRAFT ACTUALLY LIVES.
+        //
+        // `readPublication` already reads a row with no publication record as
+        // DRAFT / INTERNAL_ONLY, so this is not required for correctness — it is
+        // written so the initial state is a RECORDED FACT with a history array
+        // to append to, rather than an inference every reader has to repeat.
+        compliance: withPublication(
+          compliance,
+          initialPublication(),
+        ) as Prisma.InputJsonValue,
         // Phase C: agent_info JSON is no longer persisted. The assigned Mallan
         // listing-agent attribution is written ONLY to the 8 typed columns
         // (list_agent_full_name / list_office_name etc.), derived in-memory from

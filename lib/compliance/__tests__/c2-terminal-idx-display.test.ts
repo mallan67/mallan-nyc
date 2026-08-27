@@ -258,15 +258,23 @@ describe('C2 — DOM/typo robustness', () => {
     expect(mapped.idx_display_yn).toBe(true);
   });
 
-  it('missing StandardStatus → falls through to permission gates', () => {
+  it('missing StandardStatus → NOT displayable, even when the permission gates allow it', () => {
+    // CONTRACT CHANGED 2026-08-27. This asserted idx_display_yn === true: the
+    // mapper fabricated `Active` when the provider sent no status, and the gate
+    // is a DENY-list on terminal statuses, so a record Cotality said nothing
+    // about was published. The mapper now maps an absent status to NULL and the
+    // gate requires a real market status.
+    //
+    // The permission gates are still the reason this record is not blocked for
+    // any OTHER reason — what stops it now is the absence of a market status.
     const raw = buildRaw({
       InternetEntireListingDisplayYN: true,
       Permission: 'Public',
     });
     delete (raw as Record<string, unknown>).StandardStatus;
     const mapped = mapTrestleToPrisma(raw);
-    // Permission gates allow it; status is empty (not in terminal set).
-    expect(mapped.idx_display_yn).toBe(true);
+    expect(mapped.status).toBeNull();
+    expect(mapped.idx_display_yn).toBe(false);
   });
 
   it('case-insensitive — "closed" (lowercase) IS canonicalized + blocked under Phase A', () => {

@@ -102,39 +102,60 @@ export function marketStatusLabel(status: unknown, listingType: ListingKind): st
  * remember it — and so the API can keep accepting the broker's vocabulary while
  * the column keeps the provider's.
  *
+ * `Draft` translates to NULL for the same reason in the opposite direction: it
+ * is the broker's word for "take this back off the market", and the truthful
+ * column value for that is the ABSENCE of a market status, not a Mallan word
+ * sitting in the provider's field. The Mallan-side meaning of "draft" is
+ * recorded in `Listing.compliance.mallan_publication`.
+ *
  * Anything already Cotality-valid passes through untouched.
  */
-export function marketStatusForBusinessOutcome(requested: string): string {
+export function marketStatusForBusinessOutcome(requested: string): string | null {
   if (requested === "Sold" || requested === "Rented" || requested === "Leased") {
     return "Closed";
   }
+  if (requested === "Draft") return null;
   return requested;
 }
 
 /**
- * TRUE for the one non-Cotality value Mallan still writes deliberately.
+ * TRUE for the legacy Mallan sentinel that still sits on real rows.
  *
- * `Draft` means "Mallan has not published this listing yet". Cotality has no
+ * `Draft` meant "Mallan has not published this listing yet". Cotality has no
  * such value: `Incomplete` is a statement about a COTALITY record that has not
  * been finished in the MLS, and a Mallan-local listing is not a Cotality record
  * at all. Substituting it would be exactly the guess this architecture forbids.
  *
- * So `Draft` stays — but as a MALLAN SENTINEL, not a provider claim:
- *   - it may only ever appear on a Mallan-authored row (`mls_id` null);
- *   - it is never sent to Cotality in any request;
- *   - it is not publicly displayable;
- *   - the real pre-publication state lives in
- *     `Listing.compliance.mallan_publication`, which is where the workflow
- *     actually reads and writes it.
+ * RESOLVED 2026-08-27 (authorized schema correction). `Listing.status` is now
+ * nullable with no default, and NULL means exactly one thing: THIS LISTING HAS
+ * NO MARKET STATUS YET. Both create paths write NULL, and the Mallan
+ * publication/review state lives only in `Listing.compliance.mallan_publication`.
  *
- * The residual conflict is that `Listing.status` is `String NOT NULL` with a
- * default of `Active`, so an unpublished local listing MUST hold some string.
- * Every available option is either a false provider claim or a schema change.
- * Naming it a sentinel and enforcing the boundary is the truthful code-only
- * answer; making the column nullable would need Maya's authorization.
+ * Nothing writes `Draft` into the column any more. This predicate remains
+ * because real rows created before that change still carry it and NO PRODUCTION
+ * BACKFILL IS AUTHORIZED — a stored `Draft` and a NULL must reach the same
+ * decision at every gate, forever. The boundary that made the sentinel honest
+ * still holds for those rows:
+ *   - it only ever appears on a Mallan-authored row (`mls_id` null);
+ *   - it is never sent to Cotality in any request;
+ *   - it is not publicly displayable.
  */
 export function isMallanLocalSentinelStatus(status: unknown): boolean {
   return status === "Draft";
+}
+
+/**
+ * TRUE when a row has no market status at all — the NULL the column now stores,
+ * or the legacy `Draft` sentinel that means the same thing on older rows.
+ *
+ * The no-backfill invariant in one predicate: callers that need "is this listing
+ * off-market-because-it-was-never-on-market" ask here rather than testing for
+ * null and forgetting the legacy spelling.
+ */
+export function hasNoMarketStatus(status: unknown): boolean {
+  if (status == null) return true;
+  if (typeof status === "string" && status.trim() === "") return true;
+  return isMallanLocalSentinelStatus(status);
 }
 
 /** Every value this helper knows how to label, for exhaustiveness tests. */

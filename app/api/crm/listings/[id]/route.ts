@@ -676,7 +676,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
   const urls = buildListingUrls({
     listing_id: updated.listing_id,
-    status: updated.status,
+    // No market status = not live = no public URL. The empty string is in no
+    // displayable set, so this fails closed.
+    status: updated.status ?? "",
     address: updated.address as Record<string, unknown> | null,
     // Required by the canonical public-address decision: a prefix is not
     // permission, and a null IDX flag must fail closed on a DB row.

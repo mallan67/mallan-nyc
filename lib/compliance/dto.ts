@@ -306,7 +306,7 @@ export function sanitizeForPortal(
 export type PortalListingInput = {
   id: bigint;
   listing_id: string;
-  status: string;
+  status: string | null;
   listing_type: string;
   property_type: string | null;
   property_sub_type: string | null;

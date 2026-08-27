@@ -96,7 +96,7 @@ export interface ArchiveCandidateRow {
   id: bigint | number;
   listing_id: string;
   mls_id?: string | null;
-  status: string;
+  status: string | null;
   sync_status?: string | null;
   listing_type: string;
   property_type?: string | null;
@@ -137,7 +137,11 @@ export const ARCHIVE_STRIP_DATA: Prisma.ListingUpdateInput = {
 };
 
 /** Build the `create` summary for listings_archive — typed-first agent attribution, close terms from raw_data. */
-export function buildArchiveSummaryCreate(l: ArchiveCandidateRow): Prisma.ListingsArchiveCreateInput {
+export function buildArchiveSummaryCreate(
+  // `listings_archive.status` is NOT NULL and the archive holds terminal rows
+  // only, so this deliberately will not accept a row with no market status.
+  l: ArchiveCandidateRow & { status: string },
+): Prisma.ListingsArchiveCreateInput {
   const addr = asObject(l.address);
   const raw = asObject(l.raw_data);
   const resolvedAgent = resolveListingAgentInfo(l as unknown as ResolvableListingAgent);
@@ -205,7 +209,13 @@ export async function archiveOneListing(
   row: ArchiveCandidateRow,
   eligibilityGuard: Prisma.ListingWhereInput,
 ): Promise<ArchiveOneResult> {
-  const summary = buildArchiveSummaryCreate(row);
+  // A row with NO market status is not terminal, so it is not an archive
+  // candidate — and `listings_archive.status` is NOT NULL, so there is nothing
+  // truthful to write. The SELECT predicate already excludes these (`status IN
+  // (...)` never matches NULL); this is the second line of defence, and it
+  // skips rather than inventing a terminal status.
+  if (row.status == null) return { ok: false, skipped: true };
+  const summary = buildArchiveSummaryCreate({ ...row, status: row.status });
   try {
     const stripped = await prisma.$transaction(async (tx) => {
       const upd = await tx.listing.updateMany({
