@@ -19913,7 +19913,13 @@ function manageShowToast(msg) {
         // Add default permissions to all listings that don't have explicit permissions set
         listings.forEach(function(l) {
             if (!l.permissions) {
-                l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false, syndication: true };
+                // NOTE: no `syndication` member. Every other permission here is DERIVED from
+            // the row; `syndication: true` was a constant, and there is no syndicate
+            // field in the CRM listings DTO to derive it from. Since the compliance
+            // output phrases the negative as "listing will not be distributed to
+            // third-party portals", asserting true made the absence of that warning
+            // read as a promise of distribution the system does not perform.
+            l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false };
             }
         });
 
@@ -20167,7 +20173,8 @@ function manageShowToast(msg) {
                     participantOnly: apiListing.participant_only === true,
                     idxDisplay: apiListing.idx_display_yn !== false,
                     internetDisplay: apiListing.internet_entire_listing_display_yn !== false,
-                    syndication: true,
+                    // No `syndication` member — see the note above. It was a constant
+                    // with no source field, and syndication is held closed.
                 },
                 _apiId: apiListing.id,
                 _listingId: apiListing.listing_id,
@@ -20299,7 +20306,13 @@ function manageShowToast(msg) {
                 if (!l.listedDate) l.listedDate = '--';
                 if (!l.company) l.company = '';
                 if (!l.permissions) {
-                    l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false, syndication: true };
+                    // NOTE: no `syndication` member. Every other permission here is DERIVED from
+            // the row; `syndication: true` was a constant, and there is no syndicate
+            // field in the CRM listings DTO to derive it from. Since the compliance
+            // output phrases the negative as "listing will not be distributed to
+            // third-party portals", asserting true made the absence of that warning
+            // read as a promise of distribution the system does not perform.
+            l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false };
                 }
             });
             listings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
@@ -29634,12 +29647,20 @@ function emailCurrentCalc() {
                                     </div>
                                     <!-- Col 3: Distribution -->
                                     <div class="space-y-2 text-sm">
+                                        <!-- Syndication is THREE states, not two. It used to render
+                                             \`permissions.syndication ? 'Yes' : 'No'\` over a value that
+                                             core/data-loader.js hardcoded to true, so every listing showed
+                                             "Syndication: Yes" — a literal claim of portal distribution the
+                                             system does not perform (no export route, no cron, and
+                                             MALLAN_OFFICE_MLS_IDS empty blocks every row at Layer 1). The
+                                             hardcode is gone, and absent now reads "Not configured" rather
+                                             than a bare "No" that would look like a per-listing setting. -->
                                         <div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold">Distribution</div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Owner Opt-Out</span><span class="font-semibold">${listing.permissions && listing.permissions.ownerOptOut ? 'Yes' : 'No'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Participant Only</span><span class="font-semibold">${listing.permissions && listing.permissions.participantOnly ? 'Yes' : 'No'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Internet Entire Listing</span><span class="font-semibold">${listing.internetDisplayYN !== false ? 'Yes' : 'No'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">IDX Display</span><span class="font-semibold">${listing.idxDisplayYN !== false ? 'Yes' : 'No'}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Syndication</span><span class="font-semibold">${listing.permissions && listing.permissions.syndication ? 'Yes' : 'No'}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Syndication</span><span class="font-semibold">${listing.permissions && listing.permissions.syndication === true ? 'Yes' : listing.permissions && listing.permissions.syndication === false ? 'No' : 'Not configured'}</span></div>
                                         <div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold mt-2">CoBroke</div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">CoBroke Agreement</span><span class="font-semibold">---</span></div>
                                     </div>
