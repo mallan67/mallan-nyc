@@ -45,22 +45,64 @@ export async function POST(req: NextRequest) {
   }
 
   // ══════════════════════════════════════════════════════════════
-  // STEP 1: Delete all existing listings (clean slate)
+  // STEP 1: Clear the PROVIDER-SOURCED listings (clean slate for the re-pull)
   // ══════════════════════════════════════════════════════════════
-  log.push("Step 1: Deleting existing listings...");
+  //
+  // THIS USED TO BE A TABLE TRUNCATION. Every delete below was
+  // `deleteMany({})` — all listings, all actions, all showings, all comments,
+  // all price history, all marketing activity, all protected periods — followed
+  // by a repopulate that pulls from COTALITY ONLY.
+  //
+  // So a single broker action destroyed every Mallan-authored `SL-`/`RL-`
+  // listing along with its owner link, media, comments, showings and price
+  // history, and none of it came back: Cotality never had them, because Mallan
+  // authored them. Cotality cannot restore a row it never held.
+  //
+  // The wipe is now scoped to the rows a Cotality re-sync can actually rebuild.
+  // Mallan-authored rows are identified by the same canonical signals the rest
+  // of the repo uses — `SL-`/`RL-` listing_id prefix, or `rls_eligible = false`
+  // for website-only inventory — and dependents are scoped to the same id set
+  // instead of being truncated globally (preserving the listing while
+  // truncating its comments would be the same loss wearing a smaller number).
+  //
+  // This is a NARROWING of a destructive operation: it deletes strictly less
+  // than before, and nothing previously kept is now removed.
+  log.push("Step 1: Clearing provider-sourced listings...");
 
-  const [delActions, delShowings, delComments, _delPriceHistory, _delMarketing] = await Promise.all([
-    prisma.clientListingAction.deleteMany({}),
-    prisma.showing.deleteMany({}),
-    prisma.comment.deleteMany({}),
-    prisma.priceHistory.deleteMany({}),
-    prisma.marketingActivity.deleteMany({}),
-  ]);
-  log.push(`  Deleted dependents: ${delActions.count} actions, ${delShowings.count} showings, ${delComments.count} comments`);
+  const providerSourcedWhere = {
+    AND: [
+      { NOT: { listing_id: { startsWith: "SL-" } } },
+      { NOT: { listing_id: { startsWith: "RL-" } } },
+      { NOT: { rls_eligible: false } },
+    ],
+  };
 
-  await prisma.protectedPeriod.deleteMany({}).catch(() => {});
-  const delListings = await prisma.listing.deleteMany({});
-  log.push(`  Deleted ${delListings.count} listings`);
+  let deletedListingCount = 0;
+  const providerRows = await prisma.listing.findMany({
+    where: providerSourcedWhere,
+    select: { id: true },
+  });
+  const providerIds = providerRows.map((r) => r.id);
+  log.push(`  ${providerIds.length} provider-sourced listings in scope (Mallan-authored rows preserved)`);
+
+  if (providerIds.length > 0) {
+    const scoped = { listing_id: { in: providerIds } };
+    const [delActions, delShowings, delComments] = await Promise.all([
+      prisma.clientListingAction.deleteMany({ where: scoped }),
+      prisma.showing.deleteMany({ where: scoped }),
+      prisma.comment.deleteMany({ where: scoped }),
+      prisma.priceHistory.deleteMany({ where: scoped }),
+      prisma.marketingActivity.deleteMany({ where: scoped }),
+    ]);
+    log.push(`  Deleted dependents: ${delActions.count} actions, ${delShowings.count} showings, ${delComments.count} comments`);
+
+    await prisma.protectedPeriod.deleteMany({ where: scoped }).catch(() => {});
+    const delListings = await prisma.listing.deleteMany({ where: { id: { in: providerIds } } });
+    deletedListingCount = delListings.count;
+    log.push(`  Deleted ${delListings.count} provider-sourced listings`);
+  } else {
+    log.push("  Nothing to delete");
+  }
 
   // ══════════════════════════════════════════════════════════════
   // STEP 2: Pull ALL listings from Trestle where agent appears
@@ -263,7 +305,11 @@ export async function POST(req: NextRequest) {
   if (errorDetails.length > 0) log.push(`  Errors: ${errorDetails.slice(0, 10).join("; ")}`);
 
   await logAuditEvent("listings_reset_sync", "listing", "bulk", auth, {
-    deleted: delListings.count,
+    deleted: deletedListingCount,
+    // Recorded explicitly: this operation is SCOPED, and the audit trail must
+    // show that Mallan-authored inventory was deliberately left in place rather
+    // than leaving a reader to infer it from a count.
+    scope: "provider-sourced only; Mallan-authored SL-/RL- and website-only rows preserved",
     fetched: totalFetched,
     upserted,
     errors,
@@ -277,7 +323,7 @@ export async function POST(req: NextRequest) {
     agent: agent.full_name,
     mlsId,
     licenseNo,
-    deleted: delListings.count,
+    deleted: deletedListingCount,
     fetched: totalFetched,
     upserted,
     errors,

@@ -36,6 +36,10 @@ jest.mock('@/lib/prisma', () => ({
     protectedPeriod: { deleteMany: jest.fn(async () => ({ count: 0 })) },
     listing: {
       deleteMany: jest.fn(async () => ({ count: 0 })),
+      // The wipe is now SCOPED: the route first resolves which rows are
+      // provider-sourced, so Mallan-authored SL-/RL- listings survive a re-sync.
+      // Empty here — this suite is about the upsert payload, not the wipe.
+      findMany: jest.fn(async () => []),
       // #446: reset-sync now fetches existing status for the terminal_since clock.
       findUnique: jest.fn(async () => null),
       upsert: jest.fn(async (args: { create: Record<string, unknown>; update: Record<string, unknown> }) => {
