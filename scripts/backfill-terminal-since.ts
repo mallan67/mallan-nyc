@@ -43,12 +43,20 @@ if (!url.includes(HOST)) {
 }
 
 // Terminal-status predicate matched to RUNTIME normalization (Codex #446): case-insensitive
-// + the single-L alias 'canceled'. Sourced 1:1 from TERMINAL_STATUSES ∪ STATUS_ALIASES in
-// lib/idx/trestle-mapper.ts. The mapper persists raw.StandardStatus VERBATIM (trestle-mapper.ts
-// `status: raw.StandardStatus`), so a stored 'Canceled' (US single-L) or 'closed' (lower-case)
-// is a legitimate terminal row — a case-sensitive canonical `status IN (...)` would silently skip
-// it, leaving terminal_since NULL so it never ages for the future archive predicate. One builder
-// feeds BOTH the SELECT and the --execute UPDATE guard, so the two predicates can never drift.
+// and carrying BOTH spellings of canceled. `Canceled` (one L) is the live Cotality value;
+// `Cancelled` (two Ls) is the value Mallan invented and stored for a long time. The mapper
+// persists raw.StandardStatus VERBATIM (trestle-mapper.ts `status: raw.StandardStatus`), so a
+// stored 'Canceled' or 'closed' (lower-case) is a legitimate terminal row — a case-sensitive
+// canonical `status IN (...)` would silently skip it, leaving terminal_since NULL so it never
+// ages for the future archive predicate. One builder feeds BOTH the SELECT and the --execute
+// UPDATE guard, so the two predicates can never drift.
+//
+// THIS SCRIPT GOT IT RIGHT BEFORE ANYTHING ELSE DID. Every other terminal-status list in the
+// repo — the data-retention cron, lib/retention, lib/syndication, scripts/archive-backlog-
+// predicate — carried only the invented spelling and therefore silently skipped every row the
+// PROVIDER marked canceled. That is fixed now (see
+// tests/runtime/status-vocabulary-cotality-binding.test.ts); this comment records that the
+// hazard was identified here first.
 const TERMINAL_LOWER = ["closed", "sold", "leased", "rented", "withdrawn", "expired", "cancelled", "canceled"];
 const terminalPredicate = (col: string) => `lower(${col}) IN (${TERMINAL_LOWER.map((s) => `'${s}'`).join(",")})`;
 const NOW = new Date();

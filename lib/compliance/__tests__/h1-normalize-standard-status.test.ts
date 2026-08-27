@@ -219,8 +219,8 @@ describe('normalizeStandardStatus — cron/ops parity (canonical storage)', () =
     'rented',
     'withdrawn',
     'expired',
-    'cancelled',
-    'canceled', // US single-L alias
+    'canceled',  // the live Cotality value
+    'cancelled', // the legacy Mallan spelling, still on real rows
   ])('"%s" stores as exact-case canonical that cron will see', (input) => {
     const stored = normalizeStandardStatus(input);
     expect(TERMINAL_STATUSES.has(stored)).toBe(true);
