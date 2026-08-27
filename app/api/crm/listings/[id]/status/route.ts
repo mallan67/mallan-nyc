@@ -20,6 +20,10 @@ import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { checkFeeDisclosure, isDisplayReadyStatus } from "@/lib/crm/fee-disclosure";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import { listingCapabilities, CAPABILITY_DENIED } from "@/lib/auth/listing-capabilities";
+import {
+  marketStatusForBusinessOutcome,
+  marketStatusLabel,
+} from "@/lib/crm/market-status-label";
 
 // REBNY RLS status state machine
 // Valid transitions map: current → allowed next statuses
@@ -284,10 +288,29 @@ export async function PATCH(
     expirationDateFallback: listing.expiration_date,
   });
 
+  // THE BROKER'S WORD IS NOT THE PROVIDER'S FACT.
+  //
+  // A broker marks a listing "Sold" (sale) or "Rented" (rental). Cotality has
+  // ONE value for both — `Closed`: "the purchase agreement has been fulfilled or
+  // the lease agreement has been executed". Writing the business word into the
+  // market-status column answered a PRESENTATION need by falsifying a PROVIDER
+  // fact, and it is why `listings.status` came to hold `Sold`, `Rented` and
+  // `Leased`, none of which are StandardStatus members.
+  //
+  // The API vocabulary is unchanged: the request still says Sold/Rented, every
+  // gate above still keys on that (broker approval, ClosePrice, DOM), and the
+  // transition table is untouched. Only the PERSISTED value becomes the provider
+  // fact, and the business word is derived for display via marketStatusLabel().
+  //
+  // Legacy rows keep their historical values and stay readable — every terminal
+  // set already carries Closed, Sold, Leased and Rented, and no backfill is
+  // authorized.
+  const persistedStatus = marketStatusForBusinessOutcome(newStatus);
+
   await prisma.listing.update({
     where: { id: listing.id },
     data: {
-      status: newStatus,
+      status: persistedStatus,
       modification_timestamp: new Date(),
       status_changed_at: domUpdate.status_changed_at,
       first_active_date: domUpdate.first_active_date,
@@ -386,7 +409,9 @@ export async function PATCH(
 
   const urls = buildListingUrls({
     listing_id: listing.listing_id,
-    status: newStatus,
+    // The PERSISTED value: public-URL eligibility is judged on the stored market
+    // status, not on the broker's business word for it.
+    status: persistedStatus,
     address: listing.address as Record<string, unknown> | null,
     // Required by the canonical public-address decision: a prefix is not
     // permission, and a null IDX flag must fail closed on a DB row.
@@ -399,7 +424,15 @@ export async function PATCH(
     id: listing.id.toString(),
     listing_id: listing.listing_id,
     previous_status: currentStatus,
-    status: newStatus,
+    // What is STORED — the Cotality market fact.
+    status: persistedStatus,
+    // What a human should READ. Derived from the market status plus the listing
+    // type, so a closed sale says "Sold" and a closed rental says "Rented"
+    // without either word being written into the provider column.
+    statusLabel: marketStatusLabel(persistedStatus, listing.listing_type),
+    // The business outcome the caller asked for, echoed so a client that sent
+    // "Sold" can reconcile its own request.
+    requestedStatus: newStatus,
     publicUrl: urls.publicUrl,
     publicActiveUrl: urls.publicActiveUrl,
     days_on_market: domUpdate.days_on_market,
