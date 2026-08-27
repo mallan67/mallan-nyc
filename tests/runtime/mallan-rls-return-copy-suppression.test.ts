@@ -201,6 +201,7 @@ describe('every PUBLIC emitter applies the canonical exclusion', () => {
     'lib/market-pulse/snapshot.ts',                // neighborhood inventory + medians
     'lib/buyer-intent/recommender.ts',             // buyer portal recommendations
     'app/api/portal/comparables/route.ts',         // portal comparables
+    'app/api/market/route.ts',                     // published market statistics
   ];
 
   it.each(DIRECT_APPLIERS)('%s suppresses Mallan return-copies', (rel) => {
