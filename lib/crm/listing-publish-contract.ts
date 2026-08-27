@@ -2,8 +2,13 @@
 //
 // S-BE-006 — the success contract the CRM form/dashboard needs after a
 // create/update/publish so it can explain Featured / Exclusive availability
-// and surface the public + RealPlus URLs. Returned alongside listing_id,
-// status, publicUrl, realPlusUrl from the CRM listing write paths.
+// and surface Mallan's canonical public URLs. Returned alongside listing_id,
+// status, publicUrl and publicActiveUrl from the CRM listing write paths.
+//
+// There was a `realPlusUrl` here. It was Mallan's own publicUrl wearing a
+// foreign provider's name — Cotality is this architecture's only provider
+// authority — so the field is gone rather than renamed, because no verified
+// provider URL was ever represented by it.
 //
 // Semantics are grounded in the existing model:
 //   - Exclusive: a CRM-created listing is a Mallan Exclusive (the

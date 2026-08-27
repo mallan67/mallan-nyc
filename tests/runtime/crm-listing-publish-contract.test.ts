@@ -2,8 +2,14 @@
 /**
  * S-BE-006 — CRM listing create/update/publish success responses must return
  * the full URL + eligibility contract the form/dashboard needs:
- *   listing_id, status, publicUrl, realPlusUrl,
+ *   listing_id, status, publicUrl, publicActiveUrl,
  *   featuredEligible, exclusiveEligible, eligibilityReason
+ *
+ * The fourth field was `realPlusUrl` until the Cotality-only correction. It was
+ * never a provider URL - it was `isActive ? publicUrl : null`, i.e. Mallan's own
+ * public URL under a foreign provider's name. It is now `publicActiveUrl`, which
+ * describes what the value has always actually been. See
+ * tests/runtime/no-realplus-in-executable-system.test.ts.
  *
  * Proves (1) the pure buildPublishContract helper computes sensible values
  * grounded in the existing model (Draft create = Mallan exclusive, not yet
@@ -83,7 +89,7 @@ describe('POST /api/crm/listings success response wires the full contract (S-BE-
     for (const field of [
       'listing_id',
       'publicUrl',
-      'realPlusUrl',
+      'publicActiveUrl',
       'featuredEligible',
       'exclusiveEligible',
       'eligibilityReason',

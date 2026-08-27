@@ -670,11 +670,11 @@ export async function POST(req: NextRequest) {
         internet_entire_listing_display_yn?: boolean | null;
         internet_address_display_yn?: boolean | null;
       })
-    : { publicUrl: null, realPlusUrl: null };
+    : { publicUrl: null, publicActiveUrl: null };
 
   // S-BE-006 — return the full URL + eligibility contract so the form and
   // dashboard can explain Featured / Exclusive availability after publish
-  // (not just publicUrl/realPlusUrl). A freshly created listing is a Mallan
+  // (not just publicUrl/publicActiveUrl). A freshly created listing is a Mallan
   // exclusive (CRM-created) but is created as Draft, so it is not yet
   // Featured-eligible until it is published Active.
   const publishContract = buildPublishContract({
@@ -689,7 +689,7 @@ export async function POST(req: NextRequest) {
       listing_id: result.listingId,
       status: STATUS_INITIAL,
       publicUrl: urls.publicUrl,
-      realPlusUrl: urls.realPlusUrl,
+      publicActiveUrl: urls.publicActiveUrl,
       featuredEligible: publishContract.featuredEligible,
       exclusiveEligible: publishContract.exclusiveEligible,
       eligibilityReason: publishContract.eligibilityReason,

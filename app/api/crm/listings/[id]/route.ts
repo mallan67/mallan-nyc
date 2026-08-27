@@ -570,7 +570,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     listing_id: updated.listing_id,
     status: updated.status,
     publicUrl: urls.publicUrl,
-    realPlusUrl: urls.realPlusUrl,
+    publicActiveUrl: urls.publicActiveUrl,
     validation: {
       valid: validation.valid,
       errors: validation.errors,

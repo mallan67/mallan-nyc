@@ -400,7 +400,7 @@ export async function PATCH(
     previous_status: currentStatus,
     status: newStatus,
     publicUrl: urls.publicUrl,
-    realPlusUrl: urls.realPlusUrl,
+    publicActiveUrl: urls.publicActiveUrl,
     days_on_market: domUpdate.days_on_market,
     ...(domReset ? { dom_reset: true } : {}),
   });
