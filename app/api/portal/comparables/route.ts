@@ -62,7 +62,12 @@ export async function GET(req: NextRequest) {
       id: { not: listing.id },
       neighborhood,
       borough,
-      status: { in: ["Active", "Closed", "Sold", "Leased"] },
+      // `Rented` was missing. Nothing in this codebase ever WRITES `Leased`
+      // — it survives only in read-side sets — while `Rented` is what the CRM
+      // status route writes when a Mallan rental closes (Pending -> Rented).
+      // So rental comps included a status no row holds and excluded the one
+      // every Mallan rental ends up in.
+      status: { in: ["Active", "Closed", "Sold", "Leased", "Rented"] },
       ...SEARCH_DISPLAY_GATE,
     },
     orderBy: { modification_timestamp: "desc" },

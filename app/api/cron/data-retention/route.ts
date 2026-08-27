@@ -148,7 +148,13 @@ export async function GET(req: NextRequest) {
   const closedCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const staleClosedListings = await prisma.listing.findMany({
     where: {
-      status: { in: ["Closed", "Sold", "Leased", "Rented", "Withdrawn", "Expired", "Cancelled"] },
+      // THE MODULE CONST, not a private copy. This was an inline literal — a
+      // seventh copy of the terminal list, in the same file as the const it
+      // duplicated — and it carried only the invented `Cancelled` spelling.
+      // A listing the PROVIDER marked `Canceled` therefore kept
+      // idx_display_yn=true forever: the §2.05 24-hour removal never
+      // happened as far as the stored distribution gate was concerned.
+      status: { in: [...TERMINAL_STATUSES] },
       status_changed_at: { lt: closedCutoff },
       idx_display_yn: true, // still marked for IDX display
     },

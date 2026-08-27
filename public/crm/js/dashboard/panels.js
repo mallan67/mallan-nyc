@@ -787,9 +787,20 @@ var Panels = (function () {
     // RLS-aligned status counts
     var statusDefs = [
       { key: '',                    label: 'All',                         count: listings.length },
+      // Draft, Sold and Rented are states the CRM's OWN status route writes for a
+      // Mallan-local listing (app/api/crm/listings/[id]/status/route.ts:
+      // STATUS_INITIAL = "Draft"; Pending -> Sold | Rented). They had no badge and
+      // no filter button here, so a broker could see those listings only inside
+      // "All" and could not filter to them. The list had been written against the
+      // PROVIDER vocabulary, which is why 'Closed' is present and 'Sold' was not -
+      // but no Mallan-local listing is ever 'Closed'. Locked by
+      // tests/runtime/crm-roster-status-conformance.test.ts.
+      { key: 'Draft',               label: 'Draft',                       count: listings.filter(function (l) { return l.status === 'Draft'; }).length },
       { key: 'Active',              label: 'Active',                      count: listings.filter(function (l) { return l.status === 'Active'; }).length },
       { key: 'Pending',             label: 'Pending',                     count: listings.filter(function (l) { return l.status === 'Pending'; }).length },
       { key: 'ActiveUnderContract', label: 'In Contract',                 count: listings.filter(function (l) { return l.status === 'ActiveUnderContract'; }).length },
+      { key: 'Sold',                label: 'Sold',                        count: listings.filter(function (l) { return l.status === 'Sold'; }).length },
+      { key: 'Rented',              label: 'Rented',                      count: listings.filter(function (l) { return l.status === 'Rented'; }).length },
       { key: 'Closed',              label: 'Closed',                      count: listings.filter(function (l) { return l.status === 'Closed'; }).length },
       { key: 'ComingSoon',          label: 'Coming Soon',                 count: listings.filter(function (l) { return l.status === 'ComingSoon'; }).length },
       { key: 'Hold',                label: 'Hold (Temp Off Market)',      count: listings.filter(function (l) { return l.status === 'Hold'; }).length },
@@ -9384,7 +9395,9 @@ var Panels = (function () {
 
     // Status counts for this type
     var statusCounts = {};
-    var statuses = ['Draft', 'Active', 'Pending', 'ActiveUnderContract', 'Closed', 'ComingSoon', 'Hold', 'Withdrawn', 'Expired', 'Canceled'];
+    // Same vocabulary as the roster badges above — Sold and Rented are what a
+    // Mallan-local listing actually becomes; Closed is the provider's word.
+    var statuses = ['Draft', 'Active', 'Pending', 'ActiveUnderContract', 'Sold', 'Rented', 'Closed', 'ComingSoon', 'Hold', 'Withdrawn', 'Expired', 'Canceled'];
     statuses.forEach(function (s) { statusCounts[s] = typeListings.filter(function (l) { return l.status === s; }).length; });
     // Include localStorage browser drafts in Draft count — suppress if DB has the listing
     try {
