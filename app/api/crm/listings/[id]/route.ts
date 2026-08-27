@@ -26,6 +26,7 @@ import { resolveListingAgentInfo } from "@/lib/listings/agent-info-resolver";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import { listingCapabilities, CAPABILITY_DENIED } from "@/lib/auth/listing-capabilities";
 import { serializeBigInts } from "@/lib/api/serialize";
+import { assertLeadAccess } from "@/lib/crm/access";
 import type { Prisma } from "@prisma/client";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -246,10 +247,74 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // Re-validate merged data
   const validation = validateListing(merged);
 
-  // Build Prisma update data from known columns
-  const update: Prisma.ListingUpdateInput = {
+  // ── CANONICAL OWNER (Seller / Landlord) — REPAIR AND CHANGE ─────────────
+  //
+  // Create accepted `owner_client_id` and the status route refuses to publish a
+  // Mallan-local listing without one. This route contained the field ZERO
+  // times, so once a listing existed there was no supported way to set, change
+  // or repair its owner. Combined with the intake forms not sending it, every
+  // form-created listing was ownerless AND permanently unpublishable: the
+  // publication guard became a trap rather than a prompt.
+  //
+  // Same column, same authorisation helper as create and convert. No second
+  // ownership field, no free-text identity.
+  //
+  // Absent key = no change. That distinction matters: an unrelated field edit
+  // must never blank the owner.
+  let ownerUpdate: bigint | null | undefined;
+  if ("owner_client_id" in body) {
+    const raw = body.owner_client_id;
+    const blank = raw === null || raw === undefined || String(raw).trim() === "";
+
+    if (blank) {
+      // CLEARING. Legal on a draft — an ownerless draft is a real state, so
+      // un-assigning before publication is a legitimate correction. Refused
+      // while the listing is live, because publication REQUIRES an owner:
+      // allowing it here would reach the exact state the publication guard
+      // exists to prevent, only sideways, and would silently cut the seller off
+      // from their own listing (the portal resolves through this column).
+      if (isDisplayReadyStatus(listing.status)) {
+        return NextResponse.json(
+          {
+            error:
+              "This listing is published. Assign a different owner instead of removing the current one.",
+            code: "OWNER_REQUIRED_WHILE_PUBLISHED",
+            status: listing.status,
+          },
+          { status: 409 },
+        );
+      }
+      ownerUpdate = null;
+    } else {
+      let parsed: bigint;
+      try {
+        parsed = BigInt(String(raw));
+      } catch {
+        return NextResponse.json(
+          { error: "owner_client_id must be a client id", field: "owner_client_id" },
+          { status: 422 },
+        );
+      }
+      const ownerAccess = await assertLeadAccess(auth, parsed);
+      if (ownerAccess) return ownerAccess;
+      ownerUpdate = parsed;
+    }
+  }
+
+  // Build Prisma update data from known columns.
+  //
+  // UNCHECKED variant: every field written here is a SCALAR column, including
+  // the `owner_client_id` foreign key below. The checked `ListingUpdateInput`
+  // would demand relation syntax (`owner_client: { connect: … }`) for that one
+  // field while every other assignment stays scalar, which is a worse shape to
+  // read and to assert on. Nothing in this handler uses relation syntax.
+  const update: Prisma.ListingUncheckedUpdateInput = {
     modification_timestamp: new Date(),
   };
+
+  if (ownerUpdate !== undefined) {
+    update.owner_client_id = ownerUpdate;
+  }
 
   // Update rls_eligible if classification changed (e.g., unit count or property type updated)
   if (effectiveRlsEligible !== listing.rls_eligible) {
@@ -503,8 +568,29 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   }
   // else: non-exclusive listing, no agent field changed → leave the typed columns untouched.
 
-  // Update compliance with latest validation + eligibility classification
+  // Update compliance with latest validation + eligibility classification.
+  //
+  // MERGE, NOT REPLACE. This used to assign a fresh five-key object with no
+  // spread of the loaded value, so every agent edit destroyed every other key
+  // under `compliance`. Not hypothetical: lib/syndication/eligibility.ts reads
+  // four authored sub-objects (syndication, mallan_control_verification,
+  // seller_advertising_authorization, media_rights) and
+  // app/api/crm/sales/listings/route.ts reads a `Permissions` key — all of
+  // which a single PATCH would erase.
+  //
+  // Every Cotality-driven update lane already preserves this column by omitting
+  // the key (`complianceUpdatePatch()` in lib/idx/sync.ts). The CRM write path
+  // was the one lane that clobbered it, and that made `compliance` unusable as
+  // durable storage for anything else.
+  //
+  // The column is Json, so a legacy row may hold a non-object; spread only what
+  // is actually a plain object.
+  const existingCompliance =
+    listing.compliance && typeof listing.compliance === "object" && !Array.isArray(listing.compliance)
+      ? (listing.compliance as Record<string, unknown>)
+      : {};
   update.compliance = {
+    ...existingCompliance,
     validation_result: validation.compliance,
     validated_at: new Date().toISOString(),
     warnings: validation.warnings,

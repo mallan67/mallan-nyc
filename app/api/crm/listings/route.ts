@@ -83,6 +83,10 @@ export async function GET(req: NextRequest) {
         id: true,
         listing_id: true,
         mls_id: true,
+        // Ownership is a first-class CRM fact: the roster needs to show which
+        // listings have a seller/landlord attached, and which are still
+        // ownerless drafts that cannot be published.
+        owner_client_id: true,
         agent_id: true,
         status: true,
         listing_type: true,
@@ -189,6 +193,10 @@ export async function GET(req: NextRequest) {
       id: l.id.toString(),
       agent_id: l.agent_id?.toString() ?? null,
       assigned_agent_id: l.agent_id?.toString() ?? null,
+      // BigInt: unserializable raw. The detail route hit exactly this and 500'd
+      // once owners started being written; every BigInt selected here must be
+      // stringified at the same time it is added to the select.
+      owner_client_id: l.owner_client_id?.toString() ?? null,
       list_price: l.list_price.toString(),
       living_area: l.living_area?.toString() ?? null,
       media,

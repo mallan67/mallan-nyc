@@ -17,8 +17,8 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * WHAT THIS REPLACES, AND WHY THE EARLIER VERSION WAS WRONG
  *
- * The predecessor of this file — `no-realplus-in-executable-system.test.ts` —
- * enforced a WEAKER and partly OPPOSITE contract:
+ * The predecessor of this file (deleted in the same commit; its name embedded
+ * the forbidden token) enforced a WEAKER and partly OPPOSITE contract:
  *
  *   1. It scanned only `lib/` and `app/`, with comment lines stripped. It never
  *      looked at `compliance/`, `data/`, `docs/`, `memory/`, `scripts/`, the
@@ -50,6 +50,22 @@ const REPO = resolve(__dirname, '../..');
 const FORBIDDEN = ['real', 'plus'].join('');
 const FORBIDDEN_RE = new RegExp(FORBIDDEN, 'i');
 
+/**
+ * Paths whose JOB is to carry instructions or history that reference the
+ * forbidden name. Excluded by design, for the same reason the architecture
+ * guardrail excludes `docs/audits/` and `memory/`.
+ *
+ * `docs/claude-instructions/` holds Maya's own authored directives. Those
+ * instructions have to be able to say WHICH name to remove; rewriting them to
+ * satisfy the rule they issue would corrupt the instruction record and is not
+ * mine to do. The rule governs the ARCHITECTURE, not the brief that commissioned
+ * the change.
+ *
+ * Deliberately narrow: one path prefix, not a pattern that could quietly grow to
+ * cover source.
+ */
+const INSTRUCTION_PREFIXES = ['docs/claude-instructions/'];
+
 /** Files that are not text we can meaningfully scan. */
 const BINARY_EXT =
   /\.(png|jpe?g|gif|webp|avif|ico|svgz|pdf|zip|gz|woff2?|ttf|eot|mp4|mov|xlsx?|docx?)$/i;
@@ -67,6 +83,9 @@ function scan(): Array<{ file: string; line: number; text: string }> {
   const hits: Array<{ file: string; line: number; text: string }> = [];
   for (const rel of trackedFiles()) {
     if (BINARY_EXT.test(rel)) continue;
+    // `git ls-files` emits forward slashes, but normalise defensively.
+    const norm = rel.replace(/[\\]/g, '/');
+    if (INSTRUCTION_PREFIXES.some((p) => norm.startsWith(p))) continue;
     const abs = join(REPO, rel);
     let body: string;
     try {
@@ -96,6 +115,12 @@ describe('the scan is real before it is trusted', () => {
     expect(files.length).toBeGreaterThan(500);
     expect(files).toContain('package.json');
     expect(files).toContain('lib/listings/mallan-source-identity.ts');
+  });
+
+  it('the instruction exclusion is one narrow prefix', () => {
+    // If this list ever grows to cover lib/, app/, compliance/ or data/, the
+    // census stops meaning anything.
+    expect(INSTRUCTION_PREFIXES).toEqual(['docs/claude-instructions/']);
   });
 
   it('would actually catch the token if it were present', () => {

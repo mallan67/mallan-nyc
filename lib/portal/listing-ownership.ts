@@ -62,3 +62,83 @@ export function isOwnerLead(lead: {
   const roles = leadAccessRoles(lead);
   return roles.includes("seller") || roles.includes("landlord");
 }
+
+/**
+ * Resolve THE listing an owner-role lead is looking at, from the canonical
+ * owner relation.
+ *
+ * WHY THIS EXISTS
+ * ---------------
+ * "My listing" had two answers. The canonical one is `Listing.owner_client_id`
+ * — a real FK, enforced everywhere through `canAccessOwnerListing`. The other
+ * was `Lead.active_sale_listing_id` / `active_rental_listing_id`: plain nullable
+ * String columns holding a `listing_id` TEXT value, with no FK, no unique
+ * constraint and no index. The seller and landlord dashboards resolved purely
+ * from that string:
+ *
+ *     findFirst({ where: { listing_id: lead.active_sale_listing_id } })
+ *
+ * with no ownership check at all. Two consequences:
+ *
+ *   1. `POST /api/crm/listings` writes `owner_client_id` and never touches the
+ *      Lead row, so a listing created through the normal CRM path left the
+ *      seller's own dashboard reporting `{ listing: null }` — the client was
+ *      told they had no listing.
+ *   2. An unverified string was the only thing between a lead and that
+ *      listing's data. It is consistent today because exactly one writer sets
+ *      it (crm/convert) and nothing ever clears it, but a string is not an
+ *      authorization boundary.
+ *
+ * The backref is now a HINT — which listing is the active one when an owner has
+ * several — and never the authority for whether the listing is theirs. The
+ * column keeps its meaning for the nine CRM surfaces that read it; it simply
+ * cannot grant access any more.
+ *
+ * Fail-closed: an owner who owns nothing resolves to null, whatever the hint says.
+ */
+export interface OwnerListingRow {
+  listing_id: string;
+  [key: string]: unknown;
+}
+
+export async function resolveOwnerListing<T extends OwnerListingRow>(
+  prismaClient: {
+    listing: {
+      findMany: (args: {
+        where: Record<string, unknown>;
+        orderBy?: Record<string, unknown>;
+        select?: Record<string, unknown>;
+      }) => Promise<T[]>;
+    };
+  },
+  opts: {
+    leadId: bigint;
+    /** "sale" | "rent" — a seller dashboard must never surface a rental. */
+    listingType: string;
+    /** `Lead.active_*_listing_id`. Advisory only. */
+    hintedListingId?: string | null;
+    /** Optional projection; omit for the full row. */
+    select?: Record<string, unknown>;
+  },
+): Promise<T | null> {
+  const owned = await prismaClient.listing.findMany({
+    // Ownership is the WHERE, not a post-filter — a listing the lead does not
+    // own can never enter the candidate set in the first place.
+    where: { owner_client_id: opts.leadId, listing_type: opts.listingType },
+    orderBy: { modification_timestamp: "desc" },
+    ...(opts.select ? { select: opts.select } : {}),
+  });
+
+  if (owned.length === 0) return null;
+
+  const hinted = opts.hintedListingId?.trim();
+  if (hinted) {
+    const match = owned.find((row) => row.listing_id === hinted);
+    // Only honoured when the lead ACTUALLY owns it. A stale or foreign hint
+    // falls through to their own most recent listing rather than reaching
+    // outside the owned set.
+    if (match) return match;
+  }
+
+  return owned[0];
+}
