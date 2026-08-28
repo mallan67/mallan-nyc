@@ -159,7 +159,11 @@ describe('6. all sort keys have a deterministic tie-break', () => {
 
 describe('7. saved-search criteria carries criteria_version', () => {
   it('serializeCriteria stamps the current version', () => {
-    const c = serializeCriteria({ filters: { price_min: 1000 }, sort: 'price_desc' });
+    // VOCABULARY CHANGED 2026-08-28: one persistence key per BUSINESS CONCEPT,
+    // not one per bound. The concept is `list_price` and the bounds live in the
+    // VALUE. `price_min` / `price_max` were two keys for one criterion, which is
+    // why a range had no single business identity to persist.
+    const c = serializeCriteria({ filters: { list_price: { min: 1000 } }, sort: 'price_desc' });
     expect(c.criteria_version).toBe(CRITERIA_VERSION);
     expect(isValidSavedSearch(c)).toBe(true);
   });
@@ -179,10 +183,16 @@ describe('7. saved-search criteria carries criteria_version', () => {
   });
   it('alert-incompatible criteria are flagged (not silently saved)', () => {
     const alertable = new Set(alertableFilterKeys());
-    const c = serializeCriteria({ filters: { amenities: ['doorman'], price_min: 1000 }, sort: 'newest' });
+    const c = serializeCriteria({
+      filters: { feature_criteria: ['doorman'], list_price: { min: 1000 } },
+      sort: 'newest',
+    });
     const bad = unalertableCriteria(c, alertable);
-    expect(bad).toContain('amenities');     // amenities are NOT alert-capable
-    expect(bad).not.toContain('price_min'); // price_min IS alert-capable (list_price alertable → price_min/price_max)
+    // `amenities` was renamed `feature_criteria`: the checkbox family spans 18
+    // Cotality fields including ListingAgreement, LandLeaseYN, BusinessType and
+    // OwnerPays — none of which is an amenity.
+    expect(bad).toContain('feature_criteria'); // still NOT alert-capable
+    expect(bad).not.toContain('list_price');   // list_price IS alert-capable
   });
 });
 
@@ -273,13 +283,33 @@ describe('module: comp-eligibility uses CloseDate window + ownership segmentatio
 
 describe('module: filter-keys map divergent params, fail loud on unmapped', () => {
   it('resolves the analysis param divergences to one canonical key', () => {
-    expect(toCanonicalFilterKey('baths')).toBe('baths_min');
-    expect(toCanonicalFilterKey('minBaths')).toBe('baths_min');
-    expect(toCanonicalFilterKey('q')).toBe('address');
-    expect(toCanonicalFilterKey('zipCodes')).toBe('zip');
-    expect(toCanonicalFilterKey('keyword')).toBe('keywords');
-    expect(toCanonicalFilterKey('propertySubType')).toBe('property_sub_types'); // singular — crm-idx-filter.ts:217
-    expect(toCanonicalFilterKey('propertySubTypes')).toBe('property_sub_types');
+    // Every boundary spelling of ONE concept now resolves to that ONE concept.
+    // Both bounds of a range collapse onto the same key: the bound is carried in
+    // the value, not encoded in the key name.
+    expect(toCanonicalFilterKey('baths')).toBe('bathrooms');
+    expect(toCanonicalFilterKey('minBaths')).toBe('bathrooms');
+    expect(toCanonicalFilterKey('maxBaths')).toBe('bathrooms');
+    expect(toCanonicalFilterKey('q')).toBe('street_address');
+    expect(toCanonicalFilterKey('zipCodes')).toBe('postal_code');
+    expect(toCanonicalFilterKey('keyword')).toBe('public_remarks_keyword');
+    expect(toCanonicalFilterKey('propertySubType')).toBe('property_sub_type');
+    expect(toCanonicalFilterKey('propertySubTypes')).toBe('property_sub_type');
+
+    // THE ALIAS THAT WAS MISSING. The wire param has always been `status`
+    // (singular) while the old table knew only `statuses`, so a saved status
+    // criterion could not be resolved at all.
+    expect(toCanonicalFilterKey('status')).toBe('market_status');
+    expect(toCanonicalFilterKey('statuses')).toBe('market_status');
+
+    // Legacy snake_case from rows written before this vocabulary existed.
+    expect(toCanonicalFilterKey('min_price')).toBe('list_price');
+    expect(toCanonicalFilterKey('close_date_from')).toBe('close_date');
+
+    // Broker-facing listing-id search resolves the MALLAN canonical reference,
+    // never the provider-evidence entry.
+    expect(toCanonicalFilterKey('listingId')).toBe('listing_id_canonical');
+    expect(toCanonicalFilterKey('rlsId')).toBe('listing_id_canonical');
+
     expect(toCanonicalFilterKey('nope')).toBeNull();
   });
 });
@@ -344,7 +374,7 @@ describe("authority resolution, not a static per-field author", () => {
 
   it("authorable listing facts are resolved BY LISTING AUTHORITY, never fixed", () => {
     // The exact category error: these are Mallan-authored on a local listing.
-    for (const key of ["list_price", "address", "bedrooms", "bathrooms", "ownership", "media"]) {
+    for (const key of ["list_price", "street_address", "bedrooms", "bathrooms", "ownership", "media"]) {
       const spec = get(key);
       expect(spec.authorityResolution).toBe("by_listing_authority");
       // A fixed author would be a lie for half the corpus.

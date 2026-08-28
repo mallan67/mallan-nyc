@@ -53,11 +53,13 @@
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { FIELD_REGISTRY, type FieldSpec } from '../canonical/field-registry';
+import { FIELD_REGISTRY, CANONICAL_FILTER_KEYS, type FieldSpec } from '../canonical/field-registry';
 
 const REPO = resolve(__dirname, '../../..');
 const EXECUTOR_PATH = 'lib/search/crm-idx-filter.ts';
 const executorSrc = readFileSync(resolve(REPO, EXECUTOR_PATH), 'utf8');
+
+const read = (rel: string) => readFileSync(resolve(REPO, rel), 'utf8');
 
 /** `["minPrice", "ListPrice", "ge", false]` — the executor's private table. */
 function numericMappings(): Array<{ param: string; field: string }> {
@@ -152,6 +154,121 @@ describe('where both name a provider field, they name the same one', () => {
     // subordinate module for it — so the registry must carry the field.
     expect(entry.mappingOwner ?? null).toBeNull();
     expect(entry.cotalityField).toBe(field);
+  });
+});
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * MUTATION GUARDS — nobody introduces a criterion outside the authority graph.
+ *
+ * The point of B1 is not that the graph is correct once. It is that a future
+ * change CANNOT leave it incorrect quietly. Each assertion below fails on a
+ * specific way the graph could be broken, and names the offender.
+ */
+describe('mutation guards — the authority graph cannot be bypassed', () => {
+  it('the persistence vocabulary is DERIVED, not a second hand-maintained list', () => {
+    // filter-keys.ts must import the literal source from the registry and must
+    // not declare its own union. A restated union is the ninth vocabulary.
+    const fk = read('lib/search/canonical/filter-keys.ts');
+    expect(fk).toMatch(/import\s*\{[\s\S]*?CANONICAL_FILTER_KEYS[\s\S]*?\}\s*from\s*'\.\/field-registry'/);
+    expect(fk).not.toMatch(/export type CanonicalFilterKey\s*=\s*\n?\s*\|/);
+  });
+
+  it('the registry does NOT import its own derivative', () => {
+    // The circularity that blocked everything: generating the vocabulary FROM
+    // the registry while the registry imports its type FROM the vocabulary.
+    const src = read('lib/search/canonical/field-registry.ts');
+    expect(src).not.toMatch(/import[^;]*from\s*'\.\/filter-keys'/);
+  });
+
+  it('every persistence key names a real registry concept', () => {
+    // A key with no owner is a criterion that can be saved and never resolved.
+    const owned = new Set(FIELD_REGISTRY.map((s) => s.canonicalKey));
+    const orphans = CANONICAL_FILTER_KEYS.filter(
+      (k) => k !== 'sort' && !owned.has(k),
+    );
+    expect(orphans).toEqual([]);
+  });
+
+  it('every Search criterion has a persistence key, and it is its own identity', () => {
+    // One concept, one name. A filterKeys value that is anything other than the
+    // entry's own canonicalKey reintroduces the split this replaced.
+    const mismatched = FIELD_REGISTRY.filter((s) => s.searchParams !== undefined)
+      .filter((s) => {
+        const keys = s.filterKeys ?? [];
+        return keys.length !== 1 || keys[0] !== s.canonicalKey;
+      })
+      .map((s) => `${s.canonicalKey} → ${JSON.stringify(s.filterKeys)}`);
+    expect(mismatched).toEqual([]);
+  });
+
+  it('a criterion the registry marks unsupported is never reported as capable', () => {
+    // `unsupported` means the backend CANNOT support it and it must fail loud.
+    // Anything claiming both unsupported and an alertable/sortable capability is
+    // making two incompatible claims about the same criterion.
+    const contradictory = FIELD_REGISTRY.filter(
+      (s) => s.filterable === 'unsupported' && (s.alertable === 'yes' || s.sortable === 'yes'),
+    ).map((s) => s.canonicalKey);
+    expect(contradictory).toEqual([]);
+  });
+
+  it('promoting a criterion to filterable:yes requires a deliberate edit here', () => {
+    // "yes" means VERIFIED WORKING against live Cotality. "needs_probe" means it
+    // is not yet. The failure mode this guards is a silent promotion — someone
+    // flips a capability while wiring something and the registry starts claiming
+    // provider verification nobody performed.
+    //
+    // Pinned as an explicit SET rather than inferred from prose. An earlier cut
+    // of this guard regex-matched note text for "VERIFIED LIVE", which is exactly
+    // the kind of check that gets tuned until the number matches instead of
+    // failing honestly. A declared set cannot be tuned: adding a member is a
+    // visible edit that a reviewer must justify with evidence.
+    const verified = FIELD_REGISTRY.filter((f) => f.filterable === 'yes')
+      .map((f) => f.canonicalKey)
+      .sort();
+
+    expect(verified).toEqual([
+      'bathrooms',
+      'bedrooms',
+      'borough',
+      'furnished',
+      'list_price',
+      'listing_universe',
+      'living_area',
+      'mallan_exclusive',
+      'market_status',
+      'media_category',
+      'media_classification',
+      'media_display_permission',
+      'media_status',
+      'neighborhood',
+      'new_development',
+      'ownership',
+      'pets',
+      'postal_code',
+      'property_sub_type',
+      'street_address',
+      'structure_type',
+      'transaction_type',
+    ]);
+  });
+
+  it('and only ONE Search criterion is fully verified executable today', () => {
+    // capability:yes is necessary and NOT sufficient. A criterion is verified
+    // executable only with a proven clause, a capability of yes, recorded live
+    // evidence AND no conflict with a canonical contract.
+    //
+    // `bathrooms` is capability:yes with a proven clause and is NOT verified: it
+    // queries BathroomsTotalInteger, which bath-contract.ts lists under
+    // `rejected` on live-verified evidence. A built clause is not a correct one.
+    //
+    // The full per-concept accounting lives in
+    // scripts/search/criterion-matrix.mjs and reports 1/20. This pins the one
+    // that qualifies, so a future change cannot quietly widen the claim.
+    const marketStatus = FIELD_REGISTRY.find((f) => f.canonicalKey === 'market_status');
+    expect(marketStatus?.filterable).toBe('yes');
+    expect(marketStatus?.mappingOwner).toBe('status-token-contract');
+    expect(marketStatus?.filterKeys).toEqual(['market_status']);
   });
 });
 

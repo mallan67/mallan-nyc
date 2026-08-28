@@ -52,30 +52,30 @@ Counting keys is how one architectural defect looks like twenty-one bugs.
 | `list_price` | yes | proven | `list_price` | yes | — | **yes** | sale, rent, cma |
 | `bedrooms` | yes | proven | `bedrooms` | yes | — | **yes** | sale, rent, cma |
 | `bathrooms` | yes | **CONFLICT** | `bathrooms` | yes | — | **yes** | sale, rent, cma |
-| `rooms_total` | yes | proven | `rooms_total` | needs_probe | — | no | sale, rent |
+| `rooms_total` | yes | proven | `rooms_total` | needs_probe | — | **yes** | sale, rent |
 | `living_area` | yes | proven | `living_area` | yes | — | **yes** | sale, rent, cma |
-| `market_status` | yes | proven | `standard_status` | yes | **yes** | **yes** | sale, rent, cma |
-| `property_sub_type` | yes | proven | `property_sub_type` | yes | — | no | sale, rent, cma |
-| `ownership` | yes | proven | `ownership` | yes | — | no | sale |
+| `market_status` | yes | proven | `market_status` | yes | **yes** | **yes** | sale, rent, cma |
+| `property_sub_type` | yes | proven | `property_sub_type` | yes | — | **yes** | sale, rent, cma |
+| `ownership` | yes | proven | `ownership` | yes | — | **yes** | sale |
 | `borough` | yes | proven | `borough` | yes | — | **yes** | sale, rent, building, cma |
 | `neighborhood` | yes | proven | `neighborhood` | yes | — | **yes** | sale, rent, building, cma |
-| `postal_code` | yes | proven | `postal_code` | yes | — | no | sale, rent, building |
-| `street_address` | yes | proven | `address` | yes | — | no | sale, rent, building |
-| `unit` | **NO** | **transport_broken** | `unit` | needs_probe | — | no | sale, rent |
-| `building_name` | yes | proven | `building_name` | needs_probe | — | no | sale, rent, building |
-| `listing_id` | yes | proven | `provider_listing_id` | needs_probe | — | no | sale, rent |
-| `listing_activity_date` | yes | proven | `activity_date` | needs_probe | — | no | sale, rent |
-| `listing_contract_date` | **NO** | **transport_broken** | `listing_contract_date` | needs_probe | — | no | sale |
-| `close_date` | yes | proven | `close_date` | needs_probe | — | no | sale, cma |
-| `year_built` | yes | proven | `year_built` | needs_probe | **yes** | no | sale, rent, building |
-| `stories_total` | yes | proven | `stories_total` | needs_probe | — | no | building |
-| `units_total` | yes | proven | `units_total` | needs_probe | — | no | building |
-| `public_remarks_keyword` | **NO** | **transport_broken** | `public_remarks_keyword` | needs_probe | — | no | sale, rent |
-| `management_company` | **NO** | **explicit_refusal** | `management_company` | unsupported | — | no | building |
-| `feature_criteria` | yes | proven | `amenities` | needs_probe | — | no | sale, rent |
-| `sponsor_unit` | **NO** | **explicit_refusal** | `sponsor_unit` | unsupported | — | no | sale |
-| `map_grid_filter` | **NO** | **explicit_refusal** | `map_grid_filter` | unsupported | — | no | sale, rent |
-| `max_financing` | **NO** | **no_runtime_path** | `max_financing_percent` | unsupported | — | no | sale |
+| `postal_code` | yes | proven | `postal_code` | yes | — | **yes** | sale, rent, building |
+| `street_address` | yes | proven | `street_address` | yes | — | **yes** | sale, rent, building |
+| `unit` | **NO** | **transport_broken** | `unit` | needs_probe | — | **yes** | sale, rent |
+| `building_name` | yes | proven | `building_name` | needs_probe | — | **yes** | sale, rent, building |
+| `listing_id` | yes | proven | `listing_id_canonical` | needs_probe | — | **yes** | sale, rent |
+| `listing_activity_date` | yes | proven | `activity_date` | needs_probe | — | **yes** | sale, rent |
+| `listing_contract_date` | **NO** | **transport_broken** | `listing_contract_date` | needs_probe | — | **yes** | sale |
+| `close_date` | yes | proven | `close_date` | needs_probe | — | **yes** | sale, cma |
+| `year_built` | yes | proven | `year_built` | needs_probe | **yes** | **yes** | sale, rent, building |
+| `stories_total` | yes | proven | `stories_total` | needs_probe | — | **yes** | building |
+| `units_total` | yes | proven | `units_total` | needs_probe | — | **yes** | building |
+| `public_remarks_keyword` | **NO** | **transport_broken** | `public_remarks_keyword` | needs_probe | — | **yes** | sale, rent |
+| `management_company` | **NO** | **explicit_refusal** | `management_company` | unsupported | — | **yes** | building |
+| `feature_criteria` | yes | proven | `feature_criteria` | needs_probe | — | **yes** | sale, rent |
+| `sponsor_unit` | **NO** | **explicit_refusal** | `sponsor_unit` | unsupported | — | **yes** | sale |
+| `map_grid_filter` | **NO** | **explicit_refusal** | `map_grid_filter` | unsupported | — | **yes** | sale, rent |
+| `max_financing` | **NO** | **no_runtime_path** | `max_financing_percent` | unsupported | — | **yes** | sale |
 
 Three concepts are **deliberately refused** and verified against the throw shape
 in source. `sponsor_unit` is refused in `app/api/idx/search/route.ts`, **not** in

@@ -15,7 +15,7 @@ const resolve = (key: string, kind: ListingAuthorityKind) => resolveFactualAutho
 
 describe("factual authority resolves per listing, not per field", () => {
   it("a third-party listing resolves authorable facts to Cotality", () => {
-    for (const key of ["list_price", "address", "bedrooms", "ownership"]) {
+    for (const key of ["list_price", "street_address", "bedrooms", "ownership"]) {
       const out = resolve(key, "provider_third_party");
       expect(out).toMatchObject({ resolved: true, authority: "cotality" });
     }
@@ -23,7 +23,7 @@ describe("factual authority resolves per listing, not per field", () => {
 
   it("a local Mallan listing resolves those SAME facts to Mallan", () => {
     // The exact case a static per-field authority got wrong.
-    for (const key of ["list_price", "address", "bedrooms", "ownership"]) {
+    for (const key of ["list_price", "street_address", "bedrooms", "ownership"]) {
       const out = resolve(key, "mallan_local");
       expect(out).toMatchObject({ resolved: true, authority: "mallan_crm" });
     }
@@ -39,7 +39,7 @@ describe("factual authority resolves per listing, not per field", () => {
     //
     // Authorship and permission to act as a canonical value source are
     // different things.
-    for (const key of ["list_price", "address", "bedrooms", "ownership"]) {
+    for (const key of ["list_price", "street_address", "bedrooms", "ownership"]) {
       const out = resolve(key, "mallan_office_representation");
       expect(out.resolved).toBe(false);
       if (!out.resolved) expect(out.reason).toBe("NON_CANONICAL_SOURCE");
@@ -60,7 +60,7 @@ describe("factual authority resolves per listing, not per field", () => {
     // The required path: representation -> twin resolution -> read the LOCAL
     // row -> resolve THAT as mallan_local. Twin resolution stays in the existing
     // machinery; this resolver does not grow a second reconciliation system.
-    for (const key of ["list_price", "address", "bedrooms", "ownership"]) {
+    for (const key of ["list_price", "street_address", "bedrooms", "ownership"]) {
       expect(resolve(key, "mallan_local")).toMatchObject({ resolved: true, authority: "mallan_crm" });
     }
   });
@@ -139,7 +139,7 @@ describe("factual authority resolves per listing, not per field", () => {
 describe("a suppressed representation supplies provider evidence and nothing else", () => {
   const REFUSED = [
     ["list_price", "authorable listing fact"],
-    ["address", "authorable listing fact"],
+    ["street_address", "authorable listing fact"],
     ["building_identity", "Mallan-derived — would re-enter Building Search"],
     ["total_monthly_cost", "Mallan-derived analytic"],
     ["comp_set", "Mallan-derived — would re-enter CMA"],
