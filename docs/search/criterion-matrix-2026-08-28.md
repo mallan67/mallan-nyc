@@ -82,7 +82,27 @@ in source. `sponsor_unit` is refused in `app/api/idx/search/route.ts`, **not** i
 `crm-idx-filter.ts` — a refusal scan of one file reports it unverified, the same
 one-file blind spot that let the `status` defect survive.
 
-`sponsor_unit` is the one concept with **no registry owner**. B1 must give it one.
+**TWO concepts have no registry owner: `sponsor_unit` and `max_financing`.** I
+wrote that `sponsor_unit` was the only one; my own table on this page showed
+`max_financing` with owner `none` in the same column. The difference is that
+`max_financing` has no runtime path at all — and that is not a reason to leave it
+outside the authority graph.
+
+Section 4 requires **every visible criterion to be explicitly accounted for**. A
+criterion does not escape the graph by being broken. `max_financing` needs one
+explicit disposition:
+
+- canonical registry owner + `needs_probe`, or
+- canonical registry owner + `unsupported`, or
+- an explicit product decision removing it from the Search contract.
+
+The standing rule is not to discard difficult Search criteria because they are
+difficult, so the likely route is to **preserve the business concept and verify
+it against Cotality later** — not silently drop it. Its collector key
+`financingMin` is already declared write-only in the transport-invariant test,
+and the related control family carries the magic `data-value` strings `"gt:0"` /
+`"eq:0"` that no canonical parser owns. Both facts belong on the registry entry,
+not in a test's exemption table.
 
 ---
 
@@ -165,10 +185,36 @@ unchanged.** The rest resolve from established architecture:
 `listing_id` at the canonical layer; both are retired from the collector and
 serializer when those are replaced. Neither is promoted to a canonical name.
 
-Nothing here needs Maya's adjudication. Genuinely ambiguous **business
-behaviour** — for example whether Building Search results should be building
-identities rather than listing rows (§4.3) — is a separate question and is not
-decided by this document.
+Nothing here needs Maya's adjudication.
+
+### §4.3 Building Search — I referred back a decision that was already made
+
+I wrote that whether Building Search returns building identities rather than
+listing rows was an open question for Maya. **It is not.** `CURRENT.md` §4.3
+says it plainly:
+
+> Create one `BuildingCriteria` contract with BUILDING result identity, not
+> listing rows plus building filters.
+
+The product contract is settled. What is genuinely open is a *technical identity*
+problem, and the registry already records the evidence for it under
+`building_identity`:
+
+- `BuildingKey` / `BuildingKeyNumeric` are populated on **0 of 8,056** rows;
+- the live Building entity declares exactly **one** field;
+- `GET /Building` returns **403** — `$metadata` over-declaring what the licence
+  grants;
+- the entry is therefore `mallan_derived`, `filterable: needs_probe`,
+  `semanticEquivalenceProven: false`, and must derive from the **canonical
+  structured address**, never from a coordinate.
+
+Recorded as two separate states, because collapsing them is what turned a solved
+product question into an apparently open one:
+
+| | state |
+|---|---|
+| **§4.3 product contract** | **CLOSED / ESTABLISHED** — Building Search returns canonical Building identities |
+| **§4.3 identity implementation** | **OPEN** — the canonical building resolver must be proven before runtime implementation |
 
 ---
 
