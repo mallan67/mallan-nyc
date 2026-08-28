@@ -157,6 +157,136 @@ describe('criterion transport — the form to the serializer', () => {
   });
 });
 
+/**
+ * THE BLIND SPOT BETWEEN THE TWO BOUNDARIES ABOVE.
+ *
+ * Boundary 1 asks: is every collected criterion READ by the serializer?
+ * Boundary 2 asks: is every param the serializer EMITS forwarded?
+ *
+ * A criterion that is READ and emits NOTHING satisfies both and is checked by
+ * neither. That is not hypothetical — it is defect (1) in this file's own
+ * header: `params.status` was computed from `criteria.statuses` and never
+ * assigned. `criteria.statuses` IS read, so boundary 1 passed; no `status` param
+ * was ever emitted, so boundary 2 never saw it.
+ *
+ * The consequence is the worst shape of failure. The server treats an absent
+ * `status` as a DEFAULT — `(StandardStatus eq 'Active' or 'ComingSoon' or
+ * 'ActiveUnderContract')` — so a broker who ticks Closed or Pending does not get
+ * an error or an empty grid. They get active inventory, presented as the answer
+ * to a question they did not ask.
+ */
+function serializerBody(): string {
+  const start = searchEngine.indexOf('window.buildIdxSearchParams = function');
+  const end = searchEngine.indexOf('\n        };', start);
+  return searchEngine.slice(start, end);
+}
+
+/**
+ * Criteria that are read, guard a block, and assign no param inside it.
+ *
+ * Modelled structurally rather than by proximity: the serializer's shape is a
+ * run of `if (criteria.X ...) { … params.Y = … }` guards, so each guarded chunk
+ * must produce at least one param assignment.
+ */
+function readButEmitsNothing(): string[] {
+  const body = serializerBody();
+  const guards = [...body.matchAll(/if \(criteria\.([A-Za-z_]\w*)/g)];
+  const offenders = new Set<string>();
+
+  for (const guard of guards) {
+    const from = guard.index ?? 0;
+    // Brace-match the guarded block. Slicing to the NEXT guard instead would
+    // sweep in the following statement's assignment and report the block as
+    // healthy — which is exactly how `statuses` hid: the code after its block
+    // assigns a param, so a coarse chunk looked fine.
+    const braceAt = body.indexOf('{', from);
+    const singleStatementEnd = body.indexOf('\n', from);
+    let chunk: string;
+    if (braceAt !== -1 && braceAt < singleStatementEnd) {
+      let depth = 0;
+      let i = braceAt;
+      for (; i < body.length; i++) {
+        if (body[i] === '{') depth++;
+        else if (body[i] === '}') {
+          depth--;
+          if (depth === 0) break;
+        }
+      }
+      chunk = body.slice(from, i + 1);
+    } else {
+      // `if (criteria.x) params.y = …;` on one line.
+      chunk = body.slice(from, singleStatementEnd === -1 ? body.length : singleStatementEnd);
+    }
+    if (!/params\.[A-Za-z_]\w*\s*=/.test(chunk)) offenders.add(guard[1]);
+  }
+  return [...offenders].sort();
+}
+
+/**
+ * Criteria the serializer reads DELIBERATELY without emitting a param.
+ *
+ * The serializer warns on these and drops them on purpose — the backend has no
+ * handler, so sending them would submit a request whose narrowing intent is
+ * silently discarded. Declared, so a criterion that stops emitting by accident
+ * cannot hide among them.
+ */
+const READ_BUT_INTENTIONALLY_EMITS_NOTHING: Readonly<Record<string, string>> = Object.freeze({
+  // Named as the FIRST operand of its guard, which also covers openHouseDateTo.
+  openHouseDateFrom:
+    'Warned and stripped, with openHouseDateTo in the same guard — the backend ' +
+    'has no OpenHouse handler, so sending it would submit a request whose ' +
+    'narrowing intent is discarded server-side.',
+  _transitBounds: 'Warned and stripped — the feed carries no Latitude/Longitude.',
+  _gridBounds: 'Warned and stripped — the feed carries no Latitude/Longitude.',
+});
+
+describe('criterion transport — read by the serializer, but emitted?', () => {
+  it('every criterion the serializer reads emits a param or is declared silent', () => {
+    const undeclared = readButEmitsNothing().filter(
+      (k) => !(k in READ_BUT_INTENTIONALLY_EMITS_NOTHING),
+    );
+    // Fails BY NAME. This is the check that would have caught params.status.
+    expect(undeclared).toEqual([]);
+  });
+
+  it('the declared-silent set has not grown', () => {
+    expect(readButEmitsNothing()).toEqual(
+      Object.keys(READ_BUT_INTENTIONALLY_EMITS_NOTHING).sort(),
+    );
+  });
+
+  it('the extraction found the guards it is supposed to be checking', () => {
+    // Guard the guard: a regex that stops matching would make both assertions
+    // above vacuously true, which is precisely how the first status defect
+    // survived a test suite written to prevent it.
+    const body = serializerBody();
+    expect(body.length).toBeGreaterThan(1000);
+    expect([...body.matchAll(/if \(criteria\.([A-Za-z_]\w*)/g)].length).toBeGreaterThan(20);
+  });
+});
+
+describe('the market-status criterion reaches the server', () => {
+  it('the serializer assigns a status param', () => {
+    // Named on its own, not only through the structural check, because this
+    // exact criterion has been silently dropped once before and its failure is
+    // indistinguishable from a correct search.
+    expect(serializerBody()).toMatch(/params\.status\s*=/);
+  });
+
+  it('and the wire forwards it', () => {
+    expect(requestForwards().has('status')).toBe(true);
+  });
+
+  it('and the server reads it rather than falling back to its default', () => {
+    expect(serverReads().has('status')).toBe(true);
+    // The default exists and is correct for "no status asked". It must never be
+    // what a broker gets after asking for one.
+    expect(crmFilter).toMatch(
+      /StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract'/,
+    );
+  });
+});
+
 describe('criterion transport — serializer to the wire', () => {
   it('every param the serializer emits is either forwarded or declared TRANSPORT_BROKEN', () => {
     const emitted = serializerEmits();

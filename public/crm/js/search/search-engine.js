@@ -548,6 +548,30 @@
                 // returns HTTP 400 UNSUPPORTED_CRITERION rather than being
                 // dropped, which would widen the search instead of narrowing it.
                 var resoStatuses = criteria.statuses.filter(function(s, i, arr) { return arr.indexOf(s) === i; });
+
+                // ASSIGNED. This line was missing, and its absence is the worst
+                // shape a Search defect can take.
+                //
+                // The value was computed, deduped — and dropped. The server
+                // treats an ABSENT `status` as a default, not as an error:
+                //   (StandardStatus eq 'Active' or 'ComingSoon' or
+                //    'ActiveUnderContract')
+                // so a broker ticking Closed or Pending saw no error and no
+                // empty grid. They saw ACTIVE inventory, presented as the answer
+                // to a question they never asked. A visible failure would have
+                // been better; this one is indistinguishable from a correct
+                // search.
+                //
+                // The wire forwarder and the server have always been ready for
+                // it — api-client.js pushes `status=` and crm-idx-filter.ts
+                // reads it. Only this assignment was absent.
+                //
+                // Locked by tests/runtime/search-criterion-transport-invariant.ts,
+                // which now also fails on the general shape: a criterion that is
+                // READ by the serializer and emits NO param satisfied both of
+                // that file's original boundary checks and was caught by
+                // neither.
+                if (resoStatuses.length > 0) params.status = resoStatuses.join(',');
             }
             // Bug A11 — SponsorUnit lives inside CustomProperty.CustomFields
             // (REBNY-specific JSON-string field), NOT a top-level OData
