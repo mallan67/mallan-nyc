@@ -47,66 +47,94 @@ Counting keys is how one architectural defect looks like twenty-one bugs.
 
 ## 1. The matrix
 
-| concept | reaches server | provider clause | registry owner | capability | live | persist | workflows |
+| concept | transport | server disposition | registry owner | capability | live | persist | workflows |
 |---|---|---|---|---|---|---|---|
-| `list_price` | yes | yes | `list_price` | yes | — | **yes** | sale, rent, cma |
-| `bedrooms` | yes | yes | `bedrooms` | yes | — | **yes** | sale, rent, cma |
-| `bathrooms` | yes | yes | `bathrooms` | yes | — | **yes** | sale, rent, cma |
-| `rooms_total` | yes | yes | `rooms_total` | needs_probe | — | no | sale, rent |
-| `living_area` | yes | yes | `living_area` | yes | — | **yes** | sale, rent, cma |
-| `market_status` | yes | yes | `standard_status` | yes | **yes** | **yes** | sale, rent, cma |
-| `property_sub_type` | yes | yes | `property_sub_type` | yes | — | no | sale, rent, cma |
-| `ownership` | yes | yes | `ownership` | yes | — | no | sale |
-| `borough` | yes | yes | `borough` | yes | — | **yes** | sale, rent, building, cma |
-| `neighborhood` | yes | yes | `neighborhood` | yes | — | **yes** | sale, rent, building, cma |
-| `postal_code` | yes | yes | `postal_code` | yes | — | no | sale, rent, building |
-| `street_address` | yes | yes | `address` | yes | — | no | sale, rent, building |
-| `unit` | **NO** | — | `unit` | needs_probe | — | no | sale, rent |
-| `building_name` | yes | yes | `building_name` | needs_probe | — | no | sale, rent, building |
-| `listing_id` | yes | yes | `provider_listing_id` | needs_probe | — | no | sale, rent |
-| `listing_activity_date` | yes | yes | `activity_date` | needs_probe | — | no | sale, rent |
-| `listing_contract_date` | **NO** | — | `listing_contract_date` | needs_probe | — | no | sale |
-| `close_date` | yes | yes | `close_date` | needs_probe | — | no | sale, cma |
-| `year_built` | yes | yes | `year_built` | needs_probe | **yes** | no | sale, rent, building |
-| `stories_total` | yes | yes | `stories_total` | needs_probe | — | no | building |
-| `units_total` | yes | yes | `units_total` | needs_probe | — | no | building |
-| `public_remarks_keyword` | **NO** | — | `public_remarks_keyword` | needs_probe | — | no | sale, rent |
-| `management_company` | NO | **REFUSED** | `management_company` | unsupported | — | no | building |
-| `feature_criteria` | yes | yes | `amenities` | needs_probe | — | no | sale, rent |
-| `sponsor_unit` | NO | **REFUSED** | **none** | — | — | no | sale |
-| `map_grid_filter` | NO | **REFUSED** | `map_grid_filter` | unsupported | — | no | sale, rent |
-| `max_financing` | NO | no | none | — | — | no | sale |
+| `list_price` | yes | proven | `list_price` | yes | — | **yes** | sale, rent, cma |
+| `bedrooms` | yes | proven | `bedrooms` | yes | — | **yes** | sale, rent, cma |
+| `bathrooms` | yes | **CONFLICT** | `bathrooms` | yes | — | **yes** | sale, rent, cma |
+| `rooms_total` | yes | proven | `rooms_total` | needs_probe | — | no | sale, rent |
+| `living_area` | yes | proven | `living_area` | yes | — | **yes** | sale, rent, cma |
+| `market_status` | yes | proven | `standard_status` | yes | **yes** | **yes** | sale, rent, cma |
+| `property_sub_type` | yes | proven | `property_sub_type` | yes | — | no | sale, rent, cma |
+| `ownership` | yes | proven | `ownership` | yes | — | no | sale |
+| `borough` | yes | proven | `borough` | yes | — | **yes** | sale, rent, building, cma |
+| `neighborhood` | yes | proven | `neighborhood` | yes | — | **yes** | sale, rent, building, cma |
+| `postal_code` | yes | proven | `postal_code` | yes | — | no | sale, rent, building |
+| `street_address` | yes | proven | `address` | yes | — | no | sale, rent, building |
+| `unit` | **NO** | **transport_broken** | `unit` | needs_probe | — | no | sale, rent |
+| `building_name` | yes | proven | `building_name` | needs_probe | — | no | sale, rent, building |
+| `listing_id` | yes | proven | `provider_listing_id` | needs_probe | — | no | sale, rent |
+| `listing_activity_date` | yes | proven | `activity_date` | needs_probe | — | no | sale, rent |
+| `listing_contract_date` | **NO** | **transport_broken** | `listing_contract_date` | needs_probe | — | no | sale |
+| `close_date` | yes | proven | `close_date` | needs_probe | — | no | sale, cma |
+| `year_built` | yes | proven | `year_built` | needs_probe | **yes** | no | sale, rent, building |
+| `stories_total` | yes | proven | `stories_total` | needs_probe | — | no | building |
+| `units_total` | yes | proven | `units_total` | needs_probe | — | no | building |
+| `public_remarks_keyword` | **NO** | **transport_broken** | `public_remarks_keyword` | needs_probe | — | no | sale, rent |
+| `management_company` | **NO** | **explicit_refusal** | `management_company` | unsupported | — | no | building |
+| `feature_criteria` | yes | proven | `amenities` | needs_probe | — | no | sale, rent |
+| `sponsor_unit` | **NO** | **explicit_refusal** | `sponsor_unit` | unsupported | — | no | sale |
+| `map_grid_filter` | **NO** | **explicit_refusal** | `map_grid_filter` | unsupported | — | no | sale, rent |
+| `max_financing` | **NO** | **no_runtime_path** | `max_financing_percent` | unsupported | — | no | sale |
 
 Three concepts are **deliberately refused** and verified against the throw shape
 in source. `sponsor_unit` is refused in `app/api/idx/search/route.ts`, **not** in
 `crm-idx-filter.ts` — a refusal scan of one file reports it unverified, the same
 one-file blind spot that let the `status` defect survive.
 
-**TWO concepts have no registry owner: `sponsor_unit` and `max_financing`.** I
-wrote that `sponsor_unit` was the only one; my own table on this page showed
-`max_financing` with owner `none` in the same column. The difference is that
-`max_financing` has no runtime path at all — and that is not a reason to leave it
-outside the authority graph.
+### Both ownerless concepts now have an owner
 
-Section 4 requires **every visible criterion to be explicitly accounted for**. A
-criterion does not escape the graph by being broken. `max_financing` needs one
-explicit disposition:
+`sponsor_unit` and `max_financing` had none. Being broken is not a reason to fall
+outside the authority graph — Section 4 requires every visible criterion to be
+explicitly accounted for — and the standing rule is not to discard difficult
+Search criteria. Both are **preserved, classified `unsupported`, and awaiting
+authorized live Cotality verification**:
 
-- canonical registry owner + `needs_probe`, or
-- canonical registry owner + `unsupported`, or
-- an explicit product decision removing it from the Search contract.
-
-The standing rule is not to discard difficult Search criteria because they are
-difficult, so the likely route is to **preserve the business concept and verify
-it against Cotality later** — not silently drop it. Its collector key
-`financingMin` is already declared write-only in the transport-invariant test,
-and the related control family carries the magic `data-value` strings `"gt:0"` /
-`"eq:0"` that no canonical parser owns. Both facts belong on the registry entry,
-not in a test's exemption table.
+- `sponsor_unit` → registry `sponsor_unit`. `cotalityField` is deliberately
+  `null`: the value lives inside `CustomProperty.CustomFields` and the exact
+  extraction contract is unproven, so no top-level field name is recorded.
+- `max_financing` → registry `max_financing_percent`. **Its control is live and
+  enabled** on three ids and absent from the disable list; the collector writes
+  `criteria.financingMin`; and nothing reads it anywhere —
+  `buildCrmIdxODataFilter` contains no occurrence of `financ` at all. So the
+  broker types a narrowing value, receives HTTP 200, and gets a **wider result
+  set wearing the costume of a narrower one**. That is the same silent-widening
+  class as the dropped `status` param, which is why it is `unsupported` (must
+  fail loud) rather than `needs_probe`. Financing has **two** dead paths — the
+  `MaximumFinancingPercent` checkbox family with magic `gt:0`/`eq:0` values is
+  neutralised before collection — so B1 must not fix one and call the concept
+  done.
 
 ---
 
 ## 2. The Section 4 scoreboard
+
+### The bathrooms conflict — a proven clause that is still wrong
+
+`bathrooms` is the reason `provider_clause_proven` and *correct* had to be kept
+apart. The executor builds `BathroomsTotalInteger ge/le {n}`. The project's own
+live-verified `lib/search/canonical/bath-contract.ts` lists that exact field
+under **`rejected`**, on an exhaustive 8,103-row read:
+
+- it is an **Int32**, so it cannot represent 1.5 at all;
+- it disagrees with its own components on ~1% of rows — the best of four
+  hypotheses matched 98.8%, with named counterexamples (`RLS20105072`: full=2,
+  half=1, TotalInteger=0).
+
+Three consequences, all in source:
+
+1. **Half-baths are unexpressible** on the CRM Search path, though the contract
+   records `BathroomsHalf` non-zero on 2,023 Active rows.
+2. The canonical renderers `minBathsOData` / `maxBathsOData` have **no production
+   caller**, while the Prisma engine *does* use the contract — so **the two
+   engines answer the same bath question differently**.
+3. `crm-idx-filter.test.ts:230-236` **locks in** `BathroomsTotalInteger ge 1.5`,
+   its own comment conceding *"Not strictly OData-numeric on Edm.Int32"*. The
+   mismatch is asserted, not caught.
+
+Recorded, **not fixed here.** It is a registry→executor authority conflict, which
+is Section 5's subject. Patching it now is precisely the loop this specification
+exists to end.
 
 ```
 PASS  concepts accounted for                          27 / 27
@@ -119,7 +147,15 @@ PASS  concepts claimed by two rows                     0 / 0
 OPEN  executable concepts with a persistence bridge    7 / 20
 PASS  declared refusals verified in source             3 / 3
 OPEN  independent translation tables (CFK not derived) 1 / 0
+PASS  provider_clause claims with a proven owner+clause 20 / 20
+OPEN  proven clauses with NO mapping conflict          19 / 20
+OPEN  VERIFIED EXECUTABLE (clause+capability+live)      1 / 20
 ```
+
+**`VERIFIED EXECUTABLE` is 1 of 20.** Only `market_status` has a proven clause,
+`capability: yes`, live Cotality evidence and no mapping conflict. That single
+number is what stops "20 executable criteria" being read as "20 working
+criteria" — and it is why no concept may move from `needs_probe` to `yes` in B1.
 
 **Coverage is bidirectional**, which is what made the two missing concepts
 visible. A census that only asks *"is every collector key claimed"* passes while

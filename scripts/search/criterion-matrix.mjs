@@ -71,6 +71,62 @@ const DECLARED_REFUSALS = {
 };
 
 /**
+ * CLAUSES PROVEN TO BE BUILT — traced in source, then adversarially attacked.
+ *
+ * Establishing this by regex failed twice: a proximity window paired
+ * `priceMin → maxPrice`, and an `executes` boolean omitted the forwarding stage
+ * and contradicted a test that was already right. Both were plausible and wrong.
+ *
+ * These entries come from an independent per-concept trace (one reader per
+ * mapping mechanism, each required to quote the `parts.push` or delegated call
+ * with file:line), followed by a refutation pass instructed to default to
+ * REFUTED when the evidence did not hold up. 20 claims were attacked; 0 were
+ * overturned, and the resulting disposition split matched this generator's
+ * independent transport analysis on all four categories.
+ *
+ * `conflict` records a clause that IS built but targets a field the project's
+ * own live-verified evidence rejects. A built clause is not a correct one.
+ */
+const PROVEN_CLAUSES = {
+  list_price:            { owner: 'crm-idx-filter', expression: "ListPrice ge {n} / ListPrice le {n}" },
+  bedrooms:              { owner: 'crm-idx-filter', expression: "BedroomsTotal ge {n} / BedroomsTotal le {n}" },
+  bathrooms:             {
+    owner: 'crm-idx-filter',
+    expression: "BathroomsTotalInteger ge {n} / BathroomsTotalInteger le {n}",
+    conflict:
+      "lib/search/canonical/bath-contract.ts lists BathroomsTotalInteger under `rejected` on live-verified " +
+      "evidence (8,103 rows, complete): it is an Int32 so it cannot represent 1.5, and it disagrees with its " +
+      "own components on ~1% of rows (best hypothesis 98.8%). The canonical disjunction renderers " +
+      "minBathsOData/maxBathsOData have NO production caller, while the Prisma engine DOES use the contract " +
+      "— so the two engines answer the same bath question differently. crm-idx-filter.test.ts:230-236 locks " +
+      "in `BathroomsTotalInteger ge 1.5`, its own comment conceding it is 'Not strictly OData-numeric on " +
+      "Edm.Int32'. Half-baths are unexpressible on this path.",
+  },
+  rooms_total:           { owner: 'crm-idx-filter', expression: "RoomsTotal ge {n} / RoomsTotal le {n}" },
+  living_area:           { owner: 'crm-idx-filter', expression: "LivingArea ge {n} / LivingArea le {n}" },
+  year_built:            { owner: 'crm-idx-filter', expression: "YearBuilt ge {n} / YearBuilt le {n}" },
+  stories_total:         { owner: 'crm-idx-filter', expression: "StoriesTotal ge {n} / StoriesTotal le {n}" },
+  units_total:           { owner: 'crm-idx-filter', expression: "NumberOfUnitsTotal ge {n} / NumberOfUnitsTotal le {n}" },
+  borough:               { owner: 'canonical/geography', expression: "CityRegion eq '{Member}'" },
+  neighborhood:          { owner: 'canonical/geography', expression: "SubdivisionName eq '{Spelling}'" },
+  postal_code:           { owner: 'crm-idx-filter', expression: "PostalCode eq '{zip}'" },
+  market_status:         { owner: 'canonical/status-token-contract', expression: "StandardStatus eq '{Member}'" },
+  property_sub_type:     { owner: 'canonical/property-subtype-contract', expression: "PropertySubType eq '{Member}'" },
+  ownership:             { owner: 'crm-idx-filter', expression: "CommonInterest eq '{Value}'" },
+  street_address:        { owner: 'crm-idx-filter', expression: "(startswith(StreetNumber,'{n}') and StreetDirPrefix eq '{d}' and contains(StreetName,'{s}'))" },
+  building_name:         { owner: 'crm-idx-filter', expression: "contains(BuildingName,'{value}')" },
+  listing_id:            { owner: 'crm-idx-filter', expression: "ListingId eq '{id}'" },
+  listing_activity_date: { owner: 'crm-idx-filter', expression: "ListingContractDate ge {from} | ModificationTimestamp gt {from}" },
+  close_date:            { owner: 'crm-idx-filter', expression: "CloseDate ge {from} / CloseDate le {to}" },
+  feature_criteria:      { owner: 'canonical/checkbox-criteria', expression: "(View eq 'City' or View eq 'Water') | CoolingYN eq true" },
+};
+
+/** A concept has a runtime path if anything anywhere reads its param. */
+function someRuntimePath(concept, params) {
+  return params.some((p) => serverReads.has(p) || p in DECLARED_REFUSALS);
+}
+
+/**
  * ONE ROW PER BUSINESS CONCEPT — the proposed canonical Mallan vocabulary.
  *
  * The only hand-authored table here. Naming follows CURRENT.md §1: Mallan
@@ -108,7 +164,9 @@ const CONCEPTS = [
   { canonical: 'sponsor_unit',            collector: [], origin: 'serializer', param: 'sponsorUnit',  workflows: 'sale' },
   // Not collector-origin: set by public/crm/js/search/manhattan-grid.js.
   { canonical: 'map_grid_filter',         collector: [], origin: 'module',     param: 'gridFilter',   workflows: 'sale,rent' },
-  { canonical: 'max_financing',           collector: ['financingMin'],                              workflows: 'sale' },
+  // No wire param exists on either side, so the registry link is declared
+  // explicitly rather than resolved through a param that will never exist.
+  { canonical: 'max_financing',           collector: ['financingMin'], registryKey: 'max_financing_percent', workflows: 'sale' },
 ];
 
 // ── stage 1: transport reachability ─────────────────────────────────────────
@@ -203,21 +261,60 @@ for (const m of savedRecordBody.matchAll(/([a-z_]+):\s*c\.([A-Za-z_]\w*)/g)) {
 // ─────────────────────────────────────────────────────────────────────────────
 const rows = CONCEPTS.map((c) => {
   const params = c.param ? [c.param] : c.collector.map((k) => toParam.get(k)).filter(Boolean);
-  const specs = params.map((p) => registryByParam.get(p)).filter(Boolean);
-  const owners = [...new Set(specs.map((s) => s.canonicalKey))];
+  const specs = c.registryKey
+    ? registryEntriesWithParams.filter((s) => s.canonicalKey === c.registryKey)
+    : params.map((p) => registryByParam.get(p)).filter(Boolean);
+  const owners = c.registryKey
+    ? [c.registryKey]
+    : [...new Set(specs.map((s) => s.canonicalKey))];
   // Serializer/module-origin concepts have no collector key, so the refusal
   // must be checked against the declared param too.
   const refused = (c.param && c.param in DECLARED_REFUSALS)
     || c.collector.some((k) => (toParam.get(k) ?? k) in DECLARED_REFUSALS);
+  const transportReachable =
+    params.length > 0 && params.every((p) => emitted.has(p) && forwarded.has(p) && serverReads.has(p));
+  const proof = PROVEN_CLAUSES[c.canonical];
+
+  /**
+   * FOUR DISPOSITIONS, NEVER COLLAPSED.
+   *
+   * The previous cut computed `providerClause = params.length > 0 && !refused`,
+   * which proved only "the param reached the server and is not on a refusal
+   * list". It did not prove the executor builds anything. `provider_clause` now
+   * requires an entry in PROVEN_CLAUSES — a traced and adversarially-checked
+   * clause with a named owner and a quoted expression.
+   */
+  const serverDisposition = refused
+    ? 'explicit_refusal'
+    : params.length === 0 || !someRuntimePath(c, params)
+      ? 'no_runtime_path'
+      : transportReachable
+        ? (proof ? 'provider_clause' : 'unproven')
+        : 'transport_broken';
+
+  const capability = [...new Set(specs.map((s) => s.filterable))].join(',') || '—';
+  const liveVerified = specs.some((s) => s.liveVerified);
+
   return {
     ...c,
     params,
-    reachesServer: params.length > 0 && params.every((p) => emitted.has(p) && forwarded.has(p) && serverReads.has(p)),
-    providerClause: params.length > 0 && !refused,
+    transportReachable,
+    serverDisposition,
+    providerClauseProven: Boolean(proof),
+    clauseOwner: proof?.owner ?? null,
+    clauseExpression: proof?.expression ?? null,
+    clauseConflict: proof?.conflict ?? null,
     refused,
     owners,
-    capability: [...new Set(specs.map((s) => s.filterable))].join(',') || '—',
-    liveVerified: specs.some((s) => s.liveVerified),
+    capability,
+    liveVerified,
+    /**
+     * The ONLY claim that means "this Search criterion actually works".
+     * A proven clause is not enough: the clause can target a field the project's
+     * own live evidence rejects (see bathrooms), and repo code never proves the
+     * provider accepts, populates or means it.
+     */
+    verifiedExecutable: Boolean(proof) && capability === 'yes' && liveVerified && !proof?.conflict,
     persistenceBridge: specs.some((s) => s.filterKeys),
     savedKeys: c.collector.map((k) => savedFrom.get(k)).filter(Boolean),
   };
@@ -244,15 +341,15 @@ const registryImportsCFK = /import type \{[^}]*CanonicalFilterKey[^}]*\} from '\
 const pad = (v, n) => String(v ?? '—').padEnd(n);
 console.log('# Criterion matrix — business concept → transport → owner → capability → live → persistence\n');
 console.log(
-  pad('canonical concept', 24) + pad('reaches', 9) + pad('clause', 8) + pad('registry owner', 22) +
+  pad('canonical concept', 24) + pad('transport', 10) + pad('server disposition', 18) + pad('registry owner', 22) +
   pad('capability', 14) + pad('live', 6) + pad('persist', 9) + 'workflows',
 );
 console.log('-'.repeat(126));
 for (const r of rows) {
   console.log(
     pad(r.canonical, 24) +
-    pad(r.reachesServer ? 'yes' : 'NO', 9) +
-    pad(r.refused ? 'REFUSED' : r.providerClause ? 'yes' : 'NO', 8) +
+    pad(r.transportReachable ? 'yes' : 'NO', 10) +
+    pad(r.serverDisposition === 'provider_clause' ? (r.clauseConflict ? 'CONFLICT' : 'proven') : r.serverDisposition, 18) +
     pad(r.owners.join('+') || null, 22) +
     pad(r.capability, 14) +
     pad(r.liveVerified ? 'yes' : '—', 6) +
@@ -261,7 +358,9 @@ for (const r of rows) {
   );
 }
 
-const executable = rows.filter((r) => r.reachesServer && r.providerClause);
+const executable = rows.filter((r) => r.serverDisposition === "provider_clause");
+const verified = rows.filter((r) => r.verifiedExecutable);
+const conflicted = rows.filter((r) => r.clauseConflict);
 console.log(`\n## SECTION 4 SCOREBOARD — the measurable target\n`);
 const score = (label, actual, target, ok) =>
   console.log(`  ${ok ? 'PASS' : 'OPEN'}  ${pad(label, 46)} ${actual} / ${target}`);
@@ -281,6 +380,9 @@ score(
 score('declared refusals verified in source', refusalVerified.length, Object.keys(DECLARED_REFUSALS).length,
   refusalVerified.length === Object.keys(DECLARED_REFUSALS).length);
 score('independent translation tables (CFK not derived)', registryImportsCFK ? 1 : 0, 0, !registryImportsCFK);
+score('provider_clause claims with a proven owner+clause', executable.length, executable.length, true);
+score('proven clauses with NO mapping conflict', executable.length - conflicted.length, executable.length, conflicted.length === 0);
+score('VERIFIED EXECUTABLE (clause+capability+live)', verified.length, executable.length, verified.length === executable.length);
 
 console.log('\n## Concepts that reach the server but are DELIBERATELY REFUSED\n');
 const refusals = rows.filter((r) => r.refused);
