@@ -53,7 +53,8 @@
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { FIELD_REGISTRY, CANONICAL_FILTER_KEYS, type FieldSpec } from '../canonical/field-registry';
+import { FIELD_REGISTRY, type FieldSpec } from '../canonical/field-registry';
+import { CANONICAL_FILTER_KEYS } from '../canonical/filter-keys.generated';
 
 const REPO = resolve(__dirname, '../../..');
 const EXECUTOR_PATH = 'lib/search/crm-idx-filter.ts';
@@ -166,46 +167,61 @@ describe('where both name a provider field, they name the same one', () => {
  * specific way the graph could be broken, and names the offender.
  */
 describe('mutation guards — the authority graph cannot be bypassed', () => {
-  it('the persistence vocabulary is DERIVED, not a second hand-maintained list', () => {
-    // filter-keys.ts must import the literal source from the registry and must
-    // not declare its own union. A restated union is the ninth vocabulary.
+  it('the persistence vocabulary is GENERATED from the entries, not restated', () => {
+    // One declaration — the registry entries. Everything else is derived.
     const fk = read('lib/search/canonical/filter-keys.ts');
-    expect(fk).toMatch(/import\s*\{[\s\S]*?CANONICAL_FILTER_KEYS[\s\S]*?\}\s*from\s*'\.\/field-registry'/);
+    expect(fk).toMatch(/from '\.\/filter-keys\.generated'/);
+    // No hand-written union anywhere.
     expect(fk).not.toMatch(/export type CanonicalFilterKey\s*=\s*\n?\s*\|/);
+    const registry = read('lib/search/canonical/field-registry.ts');
+    expect(registry).not.toMatch(/export const CANONICAL_FILTER_KEYS\s*=\s*\[/);
   });
 
-  it('the registry does NOT import its own derivative', () => {
-    // The circularity that blocked everything: generating the vocabulary FROM
-    // the registry while the registry imports its type FROM the vocabulary.
-    const src = read('lib/search/canonical/field-registry.ts');
-    expect(src).not.toMatch(/import[^;]*from\s*'\.\/filter-keys'/);
+  it('the generated vocabulary is CURRENT — regenerate, do not hand-edit', () => {
+    // THE check that makes drift impossible. A stale generated file fails here,
+    // and the fix is to run the generator, never to edit the output. This is
+    // what a hand-written list plus a "they must agree" assertion could never
+    // give: there is nothing to keep in agreement.
+    const committed = read('lib/search/canonical/filter-keys.generated.ts');
+    const derived = FIELD_REGISTRY.filter((f) => f.searchParams !== undefined)
+      .map((f) => f.canonicalKey)
+      .sort();
+
+    for (const key of derived) {
+      expect(committed).toContain(`  '${key}',`);
+    }
+    const committedKeys = [...committed.matchAll(/^  '([a-z_]+)',$/gm)].map((m) => m[1]);
+    expect(committedKeys.sort()).toEqual(derived);
   });
 
-  it('every persistence key names a real registry concept', () => {
-    // A key with no owner is a criterion that can be saved and never resolved.
-    const owned = new Set(FIELD_REGISTRY.map((s) => s.canonicalKey));
-    const orphans = CANONICAL_FILTER_KEYS.filter(
-      (k) => k !== 'sort' && !owned.has(k),
-    );
-    expect(orphans).toEqual([]);
+  it('SORT is not a filter criterion', () => {
+    // `SavedSearchCriteria` carries `sort` as its own field. Admitting it to the
+    // filter vocabulary would allow `filters.sort = 'price_desc'` alongside
+    // `sort = 'newest'` — two sort truths in one object.
+    expect(CANONICAL_FILTER_KEYS as readonly string[]).not.toContain('sort');
+    const fk = read('lib/search/canonical/filter-keys.ts');
+    expect(fk).not.toMatch(/^\s*sort: 'sort',/m);
   });
 
-  it('every Search criterion has a persistence key, and it is its own identity', () => {
-    // One concept, one name. A filterKeys value that is anything other than the
-    // entry's own canonicalKey reintroduces the split this replaced.
-    const mismatched = FIELD_REGISTRY.filter((s) => s.searchParams !== undefined)
-      .filter((s) => {
-        const keys = s.filterKeys ?? [];
-        return keys.length !== 1 || keys[0] !== s.canonicalKey;
-      })
-      .map((s) => `${s.canonicalKey} → ${JSON.stringify(s.filterKeys)}`);
-    expect(mismatched).toEqual([]);
+  it('the registry does NOT import a derivative that is generated from it', () => {
+    // The generated file is a LEAF: it imports nothing, so the registry may
+    // import its type without a cycle. What must never return is the registry
+    // importing a hand-maintained vocabulary that claims to define it.
+    const gen = read('lib/search/canonical/filter-keys.generated.ts');
+    expect(gen).not.toMatch(/^import /m);
+    const registry = read('lib/search/canonical/field-registry.ts');
+    expect(registry).not.toMatch(/import[^;]*from '\.\/filter-keys';/);
   });
 
-  it('a criterion the registry marks unsupported is never reported as capable', () => {
-    // `unsupported` means the backend CANNOT support it and it must fail loud.
-    // Anything claiming both unsupported and an alertable/sortable capability is
-    // making two incompatible claims about the same criterion.
+  it('there is no separate filterKeys field to disagree with the entry', () => {
+    // The persistence key IS the canonicalKey. A `filterKeys` property was a
+    // restatement of the entry, and a restatement is something that can be wrong.
+    const registry = read('lib/search/canonical/field-registry.ts');
+    expect(registry).not.toMatch(/filterKeys\?:/);
+    expect(registry).not.toMatch(/ filterKeys: \[/);
+  });
+
+  it('an unsupported criterion never also claims alertable/sortable capability', () => {
     const contradictory = FIELD_REGISTRY.filter(
       (s) => s.filterable === 'unsupported' && (s.alertable === 'yes' || s.sortable === 'yes'),
     ).map((s) => s.canonicalKey);
@@ -213,16 +229,11 @@ describe('mutation guards — the authority graph cannot be bypassed', () => {
   });
 
   it('promoting a criterion to filterable:yes requires a deliberate edit here', () => {
-    // "yes" means VERIFIED WORKING against live Cotality. "needs_probe" means it
-    // is not yet. The failure mode this guards is a silent promotion — someone
-    // flips a capability while wiring something and the registry starts claiming
-    // provider verification nobody performed.
-    //
-    // Pinned as an explicit SET rather than inferred from prose. An earlier cut
-    // of this guard regex-matched note text for "VERIFIED LIVE", which is exactly
-    // the kind of check that gets tuned until the number matches instead of
-    // failing honestly. A declared set cannot be tuned: adding a member is a
-    // visible edit that a reviewer must justify with evidence.
+    // "yes" means VERIFIED WORKING against live Cotality; "needs_probe" means not
+    // yet. Pinned as an explicit SET rather than inferred from note prose — an
+    // earlier cut regex-matched for "VERIFIED LIVE" and reported 7 offenders where
+    // there were 12, which is a check that gets tuned until the number matches
+    // instead of failing honestly. A declared set cannot be tuned.
     const verified = FIELD_REGISTRY.filter((f) => f.filterable === 'yes')
       .map((f) => f.canonicalKey)
       .sort();
@@ -254,21 +265,24 @@ describe('mutation guards — the authority graph cannot be bypassed', () => {
   });
 
   it('and only ONE Search criterion is fully verified executable today', () => {
-    // capability:yes is necessary and NOT sufficient. A criterion is verified
-    // executable only with a proven clause, a capability of yes, recorded live
-    // evidence AND no conflict with a canonical contract.
-    //
-    // `bathrooms` is capability:yes with a proven clause and is NOT verified: it
-    // queries BathroomsTotalInteger, which bath-contract.ts lists under
-    // `rejected` on live-verified evidence. A built clause is not a correct one.
-    //
-    // The full per-concept accounting lives in
-    // scripts/search/criterion-matrix.mjs and reports 1/20. This pins the one
-    // that qualifies, so a future change cannot quietly widen the claim.
+    // capability:yes is necessary and NOT sufficient. Verified executable needs a
+    // proven clause, capability yes, live evidence AND no conflict with a
+    // canonical contract. `bathrooms` is capability:yes with a proven clause and
+    // is NOT verified: it queries BathroomsTotalInteger, which bath-contract.ts
+    // lists under `rejected` on live evidence. A built clause is not a correct one.
     const marketStatus = FIELD_REGISTRY.find((f) => f.canonicalKey === 'market_status');
     expect(marketStatus?.filterable).toBe('yes');
     expect(marketStatus?.mappingOwner).toBe('status-token-contract');
-    expect(marketStatus?.filterKeys).toEqual(['market_status']);
+    expect(marketStatus?.searchParams).toEqual(['status', 'statuses']);
+  });
+
+  it('the canonical persistence shape is versioned past the incompatible change', () => {
+    // The vocabulary changed incompatibly — one key per concept instead of one
+    // per bound, plus renames. Leaving the version at 1 would let a v2 blob be
+    // read as v1 and silently reinterpreted, which is exactly what
+    // savedSearchVersionState exists to prevent.
+    const ss = read('lib/search/canonical/saved-search.ts');
+    expect(ss).toMatch(/export const CRITERIA_VERSION = 2 as const;/);
   });
 });
 

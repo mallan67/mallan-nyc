@@ -32,12 +32,18 @@
  * The alias table is also where a silent-widening defect hid: it mapped
  * `statuses` while the wire param has always been `status`, so a saved status
  * criterion could not be resolved at all.
+ *
+ * SORT IS NOT HERE. Result ordering is not a filter, and `SavedSearchCriteria`
+ * already carries `sort` as its own field. Aliasing `sort` into the filter
+ * vocabulary would allow `filters.sort = 'price_desc'` alongside
+ * `sort = 'newest'` — two sort truths in one object, which is precisely the
+ * duplicate-authority shape this work removes.
  */
 
 import {
   CANONICAL_FILTER_KEYS,
   type CanonicalFilterKeyName,
-} from './field-registry';
+} from './filter-keys.generated';
 
 /** DERIVED from the registry. Do not restate it. */
 export type CanonicalFilterKey = CanonicalFilterKeyName;
@@ -107,7 +113,6 @@ const PARAM_ALIASES: Readonly<Record<string, CanonicalFilterKey>> = Object.freez
   sponsorUnit: 'sponsor_unit', sponsor_unit: 'sponsor_unit',
   gridFilter: 'map_grid_filter',
   financingMin: 'max_financing_percent',
-  sort: 'sort',
 });
 
 export function isCanonicalFilterKey(v: unknown): v is CanonicalFilterKey {

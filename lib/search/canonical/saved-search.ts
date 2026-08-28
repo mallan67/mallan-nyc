@@ -12,8 +12,33 @@
 import { isCanonicalFilterKey, type CanonicalFilterKey } from './filter-keys';
 import { isSortKey, type SortKey } from './sort';
 
-/** Bump when the canonical filter/sort vocabulary changes in a non-back-compatible way. */
-export const CRITERIA_VERSION = 1 as const;
+/**
+ * Bump when the canonical filter/sort vocabulary changes in a non-back-compatible
+ * way.
+ *
+ * VERSION 2 (2026-08-28) — the canonical vocabulary changed incompatibly:
+ *
+ *   - one key per BUSINESS CONCEPT, not one per bound. `price_min`/`price_max`
+ *     became `list_price` with the bounds in the VALUE, so a range criterion has
+ *     a single business identity;
+ *   - concepts renamed to their canonical business names — `standard_status` to
+ *     `market_status`, `amenities` to `feature_criteria`, `address` to
+ *     `street_address`;
+ *   - broker-facing listing-id search resolves `listing_id_canonical` (the
+ *     Mallan reference) rather than the Cotality provider-evidence entry;
+ *   - `sort` is no longer a member of the filter vocabulary at all.
+ *
+ * Bumped BEFORE any writer produces the new shape. There is no canonical-v1
+ * population to migrate — the browser has always written its own snake_case
+ * record and this versioned contract was never wired — so this is the cheapest
+ * moment it will ever be. Leaving it at 1 would let a v2 blob be read as v1 and
+ * silently reinterpreted, which is the exact failure `savedSearchVersionState`
+ * exists to prevent.
+ *
+ * No DB migration is implied: this file describes the SHAPE, and persisting the
+ * version as a column remains separate and approval-gated.
+ */
+export const CRITERIA_VERSION = 2 as const;
 
 export interface SavedSearchCriteria {
   criteria_version: number;
