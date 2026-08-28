@@ -150,8 +150,9 @@ already two, so the constraint is stronger than it looks:
    same 36 criteria and make the reconciliation strictly harder.
 
 2. **`CanonicalFilterKey` is the only vocabulary designed to be persisted**
-   (versioned, fail-loud on unknown keys, migration-aware). It is the right
-   target — but it currently covers 15 of 36 executable criteria and carries
+   (versioned, fail-loud on unknown keys, migration-aware) — but see 2b: that
+   does NOT make it the authority to expand. It currently covers 15 of 36
+   executable criteria and carries
    members no executable criterion maps to (`transit`, `near`, `commercial`,
    `open_house`). It has to be completed and reconciled BEFORE the criteria
    objects are keyed by it, or the objects inherit its gaps.
