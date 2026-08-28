@@ -2,17 +2,29 @@
 
 **Repository:** `mallan67/mallan-nyc`
 
-**Active Search branch / PR #618 head:** `fix/neon-p0-event-driven-wake-2026-08-16`
+**Active Search branch / PR #618:** `fix/neon-p0-event-driven-wake-2026-08-16`
 
-**Verified Search checkpoint:** `37d32cf2cad562168628d159e8900ed2785c9985`
+**Verified B2 code checkpoint:** `37d32cf2cad562168628d159e8900ed2785c9985`
 
-**PR #618:** draft, open, unmerged. Do not deploy to Production.
+**Prior continuation-doc head:** `e7e7012becce7eacb6c7829344d010396a72c2e0`
 
-Before any mutation, fetch/pull/rebase as appropriate and verify local == remote. Read this file completely after switching to the #618 worktree/branch. This file now exists on the Search branch specifically so a fresh Claude session does not lose the durable execution rules when leaving the Listing branch.
+**PR #618:** draft, open, unmerged. Do not Production-deploy.
 
-# CROSS-LANE STATUS — READ FIRST
+**Durable instruction file:** `docs/claude-instructions/CURRENT.md`
 
-## A. Listing / Security / Publication
+Before ANY mutation:
+
+1. fetch/pull/rebase as appropriate;
+2. verify local branch == remote branch;
+3. read THIS FILE completely from the active branch after switching worktrees;
+4. identify the exact numbered section below you are executing;
+5. do not skip ahead merely because another area looks easier.
+
+This file is the execution sequence. Old chats/audits are evidence only. `docs/architecture/MALLAN-PLATFORM-MASTER-PLAN.md` remains the product/system authority and `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` is the execution-state authority where present/current.
+
+# 0. CURRENT CROSS-LANE STATUS — DO NOT LOSE THIS
+
+## A. Listing / Security / Publication — code ready, operationally held
 
 Branch: `fix/auth-identity-domain-and-listing-continuity`
 
@@ -20,52 +32,56 @@ Draft PR: #625
 
 Verified code checkpoint before Search continuation: `726f4f058175030daf22c2fd68b9678d2b123722`
 
-A is **code + CI + build ready, but NOT fully operationally closed**.
+A is **CODE + CI + BUILD READY, NOT PRODUCTION-CLOSED**.
 
-Completed materially on A:
+Materially completed on A:
 
-- canonical `Listing.owner_client_id` Seller/Landlord ownership path;
-- Sale + Rental owner selector implementation;
+- canonical Seller/Landlord ownership through `Listing.owner_client_id`;
+- Sale + Rental owner selectors;
 - staff identity/role boundary hardening;
-- destructive reset-sync retired;
-- another broker's Cotality listing cannot become Mallan-authored merely because a Mallan agent appeared on the buyer side;
+- destructive `reset-sync` retired;
+- another broker's Cotality listing cannot become Mallan-authored merely because a Mallan agent represented the buyer/tenant side;
 - Mallan publication state separated from market status;
+- `Listing.status` corrected in code/schema to nullable/no default for truthful market status;
 - Broker-only publication approval boundary;
 - forged public publication state fails closed;
 - `EXPORTED` requires actual delivery evidence;
-- `Last Published` uses actual Mallan publication history;
-- Seller/Landlord signals/requests resolve through canonical ownership;
+- `Last Published` uses real Mallan publication history;
+- owner portal listing authorization uses canonical ownership;
 - route-level Sale/Rental persistence/integration workflows + negative cases;
-- `Listing.status` schema correction prepared so market status is nullable/no default and Mallan publication DRAFT no longer occupies the market-status domain;
-- PR #625 independent GitHub CI passed at `726f4f05…`;
-- Vercel Preview for PR #625 at `726f4f05…` is READY.
+- PR #625 independent GitHub CI green at the code checkpoint;
+- Vercel Preview build for #625 READY.
 
-Still open on A:
+Still operationally OPEN on A:
 
-1. Production/real DB migration application has NOT occurred;
-2. `ops:health`, drift/preflight and post-apply migrate-status proof have NOT occurred with the correct DB credentials;
-3. authenticated browser Sale + Rental workflow proof has NOT occurred;
-4. desktop/tablet/mobile browser proof has NOT occurred;
-5. Production deploy/proof is NOT authorized and has NOT occurred;
+1. real DB migration application has NOT occurred;
+2. `ops:health`, drift/preflight, exact migration apply and post-apply `migrate status` proof have NOT occurred with correct credentials;
+3. authenticated browser Sale + Rental proof has NOT occurred;
+4. desktop/tablet/mobile behavioral proof has NOT occurred;
+5. Production deployment/proof is NOT authorized and has NOT occurred;
 6. legacy stored `Draft` cleanup is plan-only and unexecuted.
 
-Do not stop Search work while A waits for the controlled migration/browser opportunity. Do not call A Production-closed.
+Do not stop #618 while A waits for its controlled migration/browser opportunity.
 
-When returning to A, regenerate Prisma from A's schema before type-checking because the local worktrees share one `node_modules` junction and `prisma generate` in one worktree changes the generated types seen by the other.
+Do not call A Production-closed.
 
-# ABSOLUTE PROVIDER AUTHORITY — COTALITY ONLY
+When returning to A, regenerate Prisma from A's schema first because the Search/security worktrees share generated Prisma types through one `node_modules` junction.
 
-Mallan has one external provider/data authority: **Cotality**.
+# 1. ABSOLUTE PROVIDER AUTHORITY — COTALITY ONLY
+
+Mallan has ONE external provider/data authority: **Cotality**.
 
 Canonical chain:
 
-`COTALITY RAW CONTRACT → VERIFIED COTALITY MAPPING → MALLAN STORAGE → MALLAN BUSINESS RULE → CRM / SEARCH / CMA / PORTALS / PUBLIC CONSUMERS`
+`COTALITY RAW CONTRACT → VERIFIED COTALITY MAPPING → MALLAN STORAGE → MALLAN BUSINESS RULE → CRM / SEARCH / CMA / MY LISTINGS / EBLAST / PORTALS / PUBLIC CONSUMERS`
 
-Do not create, preserve, or reintroduce a separate RLS, RESO, RealPlus, Trestle, intermediary, standards, or legacy-provider architecture layer.
+Do not create or preserve a second provider/standards/intermediary architecture.
 
-Legacy persisted identifiers may remain only as compatibility artifacts when changing them requires a separately controlled schema/env migration. Do not expand those names into new code or architecture.
+Legacy persisted identifiers may survive only as compatibility artifacts where changing them requires separately controlled schema/env work. Do not propagate those names into new architecture.
 
-Every provider-facing Search fact must be proven against authorized live Cotality evidence when the fact is about provider semantics/capability. Repo code may prove what Mallan currently asks for, but that is not proof Cotality accepts or means it.
+Every provider-facing Search capability must be proven against authorized live Cotality evidence where the question is about provider semantics/capability.
+
+Repo code can prove what Mallan asks for. It cannot prove Cotality accepts or means it.
 
 For every executable provider criterion prove where applicable:
 
@@ -79,11 +95,11 @@ For every executable provider criterion prove where applicable:
 - live behavior/population;
 - semantic equivalence to the broker-facing criterion.
 
-# HARD SEARCH SCOPE
+# 2. HARD SCOPE AND CHANGE CONTROL
 
-PR #618 is authenticated CRM/backend Search only.
+PR #618 is authenticated CRM/backend Search only until the Search closure gate is met.
 
-IN SCOPE:
+IN SCOPE NOW:
 
 - `public/crm/**` authenticated agent Search UI;
 - Sale Search;
@@ -98,225 +114,298 @@ IN SCOPE:
 - Building Search foundation;
 - authenticated Search API/execution/mapping.
 
-PROTECTED / OUT OF SCOPE:
+PROTECTED / OUT OF SCOPE FOR #618:
 
 - public consumer Search UI/behavior;
-- public Search contracts;
 - `app/search`;
 - public `SearchFilterPanel`;
 - `/api/listings` public consumer behavior;
-- `lib/search/public-listing-*` public consumer contracts;
-- `lib/search/types.ts` public consumer contract.
+- public Search contracts;
+- unrelated Neon/R2 work;
+- schema/migration/backfill/env changes without separate explicit authorization;
+- Cotality writes;
+- Production deploy.
 
-No Production deploy from #618.
-No schema/migration/backfill/env changes from #618 without separate explicit authorization.
-No unrelated Neon/R2 work in this lane.
-No Cotality write.
+# 3. B2 FOUNDATION — COMPLETED, MUST NOT REGRESS
 
-# B — AUTHENTICATED SEARCH CONSOLIDATION
+Commit: `37d32cf2cad562168628d159e8900ed2785c9985`
 
-## B0. Architecture target
+Proven defect:
 
-Search must stop being several representations of the same query.
+`lib/search/canonical/field-registry.ts` called itself the mapping authority but could not reliably join to the executor and the executor did not consume it. The old `searchParam` field was descriptive prose, duplicate entries existed, and mappings drifted.
 
-Required chain:
+Correction completed:
 
-`UI CONTROL → CANONICAL WORKFLOW CRITERIA → FIELD_REGISTRY / VERIFIED COTALITY CONTRACT → ONE SERVER EXECUTOR → ONE FINAL RESULT UNIVERSE → ONE NORMALIZED RESULT → SAVED SEARCH / MAP / WORKBENCH / COMPARE / REPORTS / CMA / CLIENT ACTIONS`
+- stable `searchParams` machine join key;
+- `mappingOwner` for modules that legitimately own specialized mapping behavior;
+- `cotalityFields` for composites;
+- duplicate status entries merged conservatively;
+- missing entries added including explicit refusals;
+- new/unproven capabilities remain `needs_probe`, not falsely verified;
+- source census added;
+- anti-drift test added.
 
-Do not continue checkbox-by-checkbox patching as the primary method.
+Reported Search suite at B2 checkpoint: **48 suites / 1,457 tests pass**.
 
-## B2 — COMPLETED CHECKPOINT `37d32cf2…`
+B2 means the mapping registry can now be reconciled mechanically with execution. It does NOT mean Search is finished and does NOT by itself prove provider semantics.
 
-The first architecture consolidation step is complete and must not regress.
+# 4. SEARCH STEP 1 — B1 CANONICAL CRITERIA CONTRACTS
 
-### Proven defect
+**THIS IS THE NEXT REQUIRED ENGINEERING SECTION.**
 
-`lib/search/canonical/field-registry.ts` called itself the canonical Search mapping authority, but the authenticated executor never imported/consumed it and could not reliably join to it because `searchParam` was prose rather than a stable machine key.
+The executor/public browser interface is still effectively `URLSearchParams`. That transport shape cannot remain the business model.
 
-The source census proved drift:
+Create/finish one canonical business contract per workflow:
 
-- 16 numeric criterion→field mappings existed only in the executor;
-- 16 further params read by the executor had no registry entry;
-- `searchParam` values were prose such as `minPrice/maxPrice`, `beds/maxBeds`, `amenities:pet-friendly`;
-- borough registry/executor disagreed;
-- bathrooms registry/executor disagreed;
-- address registry/executor disagreed;
-- `standard_status` and `mls_status` each had duplicate entries and `.find()` made the older entry authoritative by accident.
+## 4.1 Sale
 
-### Correction landed
+One `SaleCriteria` object.
 
-Commit `37d32cf2cad562168628d159e8900ed2785c9985`:
+## 4.2 Rental
 
-- adds `searchParams: readonly string[]` as a real machine join key;
-- keeps prose `searchParam` only as deprecated descriptive compatibility;
-- adds `mappingOwner` for canonical modules that properly own mapping behavior already;
-- prevents delegating registry entries from restating a provider field independently;
-- adds `cotalityFields` for multi-field/composite criteria;
-- merges duplicate status entries while preserving live-verified evidence conservatively;
-- adds missing registry entries including explicit refusal states;
-- marks new/unproven provider capabilities `needs_probe`, not `yes`;
-- adds `scripts/search/registry-vs-executor-census.mjs` read-only source census;
-- adds `lib/search/__tests__/one-search-mapping-authority.test.ts` anti-drift guard.
+One `RentalCriteria` object.
 
-The new tests fail if:
+Rental must not be Sale criteria plus ad-hoc rental flags.
 
-- an executor-read param is absent from the registry;
-- registry and executor name conflicting fields;
-- a param resolves to duplicate entries;
-- a delegated mapping also restates an independent provider field;
-- a `mappingOwner` points to no canonical owner;
-- a canonical key is duplicated.
+## 4.3 Building
 
-Census sections A and C were reported `(none)` after correction.
+One `BuildingCriteria` object with BUILDING result identity, not listing rows plus building filters.
 
-Search suite reported: **48 suites / 1,457 tests pass**.
+## 4.4 CMA
 
-### Important limitation
+One `ComparableCriteria` contract consuming the same verified Search fact vocabulary. Sale CMA and Rental CMA remain distinct analyses.
 
-B2 does NOT prove new Cotality semantics. It proves Mallan's internal registry/executor relationship. Provider capability remains live-Cotality evidence only.
+## 4.5 Basic and Advanced
 
-## NEXT — B1 CANONICAL CRITERIA CONTRACT
-
-This is the next structural task.
-
-The authenticated executor's public interface is still effectively `URLSearchParams`. The browser still recollects controls into transport vocabulary, which means Basic/Advanced cannot be guaranteed to represent one durable business object.
-
-Do not solve this by creating another parallel DTO on top of the old collector without retiring/reducing the old authority.
-
-Required target:
-
-### Sale
-One explicit `SaleCriteria` business contract.
-
-### Rental
-One explicit `RentalCriteria` business contract.
-
-### Building
-One explicit `BuildingCriteria` contract with BUILDING identity/results.
-
-### CMA
-One `ComparableCriteria` contract reusing verified Search facts; Sale and Rental CMA remain distinct analyses.
-
-Basic and Advanced must edit/view the SAME Sale or Rental criteria object.
+Basic and Advanced are two views/editors of the SAME Sale/Rental criteria object.
 
 Switching Basic ↔ Advanced must not:
 
 - recollect from DOM into a different vocabulary;
-- lose active criteria;
+- lose criteria;
 - change null/empty semantics;
 - reinterpret enums;
-- silently strip a criterion because one UI depth does not display it.
+- silently disable filters not displayed at one depth.
 
-The canonical criteria object should be the thing Saved Search persists/restores, not DOM ids and not raw transport query params.
+## 4.6 Transport
 
-Transport serialization to the server must be a derived operation from canonical criteria, not the business model itself.
+Serialization to request/query parameters is derived FROM canonical criteria.
 
-## B3 — RESULT UNIVERSE TRUTH MUST FOLLOW AS ONE IMPACT GRAPH
+`URLSearchParams` is transport, not Search truth.
 
-After/alongside criteria-contract consolidation, close these together before UI polish:
+Saved Search must ultimately persist canonical criteria, not DOM ids/raw query strings as business authority.
 
-### Count semantics
+### STEP 1 CLOSURE GATE
 
-Do not overwrite one `providerMatched` variable across phases and later label it as the original provider universe.
+Do not move to Section 5 until:
 
-Preserve distinct facts:
+- SaleCriteria exists and is used through the active Sale Search path;
+- RentalCriteria exists and is used through the active Rental Search path;
+- Basic↔Advanced preserves the same canonical object;
+- server serialization derives from canonical criteria;
+- existing visible criteria are accounted for explicitly;
+- unsupported/unverified criteria fail explicitly rather than disappear;
+- targeted direct + negative + roundtrip tests exist.
 
-- original provider match count, if known;
-- narrowed/continuation phase counts;
-- final Mallan result count;
-- whether each count is exact/lower-bound/incomplete.
+# 5. SEARCH STEP 2 — MAKE REGISTRY → EXECUTOR ACTUALLY AUTHORITATIVE
 
-### Empty provider page anomaly
-
-`records.length === 0` while exhaustion is unproven cannot silently become `phaseExhausted=true`.
-
-Return an explicit anomaly/incomplete condition and fail closed.
-
-### Incomplete budget page
-
-`PAGE_INCOMPLETE_BUDGET` can never become authoritative because continuation is unavailable or a retry/fill cap was reached.
-
-Either complete the same page or keep an explicit incomplete result state. Downstream Compare/Report/CMA/share/count-truth actions that require a complete universe must refuse or clearly operate on an explicitly selected subset.
-
-### One universe
-
-Eligibility, return-copy suppression, corpus filters, dedupe, sort, counts, paging, Map, and result selection must describe the same canonical result universe.
-
-No post-page filter can silently shrink the page after a different total was announced as authoritative.
-
-## B4 — BROWSER LOCAL SEARCH MAY NOT BE A SECOND AUTHORITY
-
-The local loaded-catalogue filtering path may remain only as explicitly non-authoritative latency preview if it genuinely improves UX and can be maintained safely.
-
-It may never own:
-
-- final rows;
-- result count/pages;
-- Map universe;
-- Saved Search result truth;
-- Compare;
-- Reports;
-- CMA;
-- client send/share/export.
-
-Prefer simplifying/removing it if maintaining exact equivalence costs more complexity than it saves.
-
-## B5 — MAP IS SEARCH INFRASTRUCTURE
-
-Current first-N/head-sample Map behavior is not closure.
-
-Grid and Map must use the same canonical criteria and canonical Listing identities.
+B2 made the registry joinable. Now runtime authority must be consolidated.
 
 Target:
 
-`viewport/polygon → canonical geographic criteria → authoritative Search execution → Mallan coordinate support → pins`
+`CANONICAL CRITERIA → FIELD_REGISTRY / VERIFIED COTALITY MAPPING → EXECUTOR`
 
-Do not present an arbitrary sample as geographic completeness.
+Remove/reduce parallel mapping truth from:
+
+- browser translation tables;
+- `crm-idx-filter` mapping tables;
+- hard-coded Search API mapping/select lists where the registry can own them;
+- Saved Search aliases;
+- Map criteria maps;
+- report maps;
+- CMA maps.
+
+Specialized mapping modules may remain where semantics genuinely require them, but the registry must point to the owner instead of restating another independent mapping.
+
+Every executable criterion must have one answer to:
+
+> Which exact Mallan criterion maps to which exact Cotality field(s)/operator and who owns that mapping?
+
+### STEP 2 CLOSURE GATE
+
+- one mapping authority path for all executable criteria;
+- no duplicate criterion→provider truth;
+- registry/executor census clean;
+- unverified provider capabilities remain blocked/needs_probe;
+- negative test catches mapping drift.
+
+# 6. SEARCH STEP 3 — RESULT UNIVERSE / COUNT / PAGINATION TRUTH
+
+Close these as ONE impact graph before UI polish.
+
+## 6.1 Count semantics
+
+Preserve separately:
+
+- original provider match count, if known;
+- continuation/narrowed-phase counts;
+- final Mallan-authoritative result count;
+- whether each is exact, lower-bound or incomplete.
+
+One variable cannot change semantic meaning across phases.
+
+## 6.2 Empty provider page
+
+Empty records while exhaustion is unproven = explicit anomaly/incomplete state.
+
+Do not silently set phase exhausted.
+
+## 6.3 Incomplete page budget
+
+`PAGE_INCOMPLETE_BUDGET` cannot become authoritative merely because continuation is unavailable or retry/fill caps were hit.
+
+Either complete the page or expose truthful incomplete state.
+
+## 6.4 One final universe
+
+Apply in a coherent order so all consumers describe the SAME universe:
+
+`Cotality results → Mallan listing authority → return-copy suppression → eligibility → dedupe → corpus filters → sort → count → pagination`
+
+Do not announce totals and then filter rows out after pagination.
+
+### STEP 3 CLOSURE GATE
+
+Prove:
+
+- no duplicate/gap paging;
+- exact vs incomplete count state truthful;
+- empty-page anomaly handled;
+- page-local filters cannot silently shrink authoritative totals;
+- downstream consumers can distinguish complete universe from explicit subset/incomplete result.
+
+# 7. SEARCH STEP 4 — COMPLETE SALE + RENTAL BROKER SEARCH
+
+Once the engine is truthful, finish actual agent capability.
+
+## 7.1 Sale Search
+
+Prove every supported visible Sale criterion maps/executed correctly, including appropriate verified combinations of:
+
+- price;
+- bedrooms;
+- bathrooms;
+- property type/subtype;
+- market status;
+- borough/neighborhood/geography;
+- address;
+- amenities;
+- open house;
+- relevant advanced criteria;
+- building criteria where the workflow calls for building facts.
+
+## 7.2 Rental Search
+
+Separate Rental contract, including verified rental concepts such as:
+
+- rent;
+- bedrooms/bathrooms;
+- furnished where verified;
+- pets where verified;
+- availability where verified;
+- rental property type;
+- rental market status;
+- fees only where the Cotality contract actually supports the broker-facing concept.
+
+## 7.3 Sorting + pagination
+
+Prove first/middle/last pages, next/previous, changed sort, changed criteria, zero results and large result universes.
+
+### STEP 4 CLOSURE GATE
+
+No visible supported Sale/Rental criterion may be ignored, silently stripped or interpreted differently between Basic/Advanced/server.
+
+# 8. SEARCH STEP 5 — MAP + SAVED SEARCH + WORKBENCH
+
+These are Search infrastructure, not optional extras.
+
+## 8.1 Map
+
+Grid and Map use the SAME canonical Search criteria and SAME canonical Listing identities.
+
+Target:
+
+`viewport/polygon → canonical geographic criteria → authoritative server Search → Mallan coordinate resolution → pins`
+
+Do not present an arbitrary first-N sample as geographic completeness.
 
 Search Within Map updates canonical criteria.
 
-Visible transit/grid/location criteria must execute truthfully or fail explicitly; never silently strip a broker choice.
+Map criteria survive Basic↔Advanced and Saved Search where supported.
 
-## B6 — SAVED SEARCH ROUNDTRIP
+Transportation/grid/location criteria execute truthfully or fail explicitly.
 
-For Sale and Rental prove:
+## 8.2 Saved Search
+
+Required Sale + Rental roundtrip:
 
 `canonical criteria → execute → save → reload session/browser → restore criteria → restore UI → execute again`
 
-The restored business criteria must be structurally equivalent except legitimate live-market change.
+Restored criteria must be structurally equivalent except legitimate live-market changes.
 
-Client interaction states such as pass/reject are separate from Search criteria.
+Client pass/reject/interaction state is not Search criteria.
 
-## B7 — WORKBENCH / COMPARE / REPORTS / CMA
+## 8.3 Workbench selection
 
-Selection persists across pages by canonical Listing identity.
+Selections persist across pages by canonical Listing identity.
 
-Compare/Reports/CMA consume authoritative Search results or explicit canonical selections.
+### STEP 5 CLOSURE GATE
 
-CMA may not build a separate Search engine.
+Grid, Map, Saved Search and selection all demonstrably use the same criteria/universe/identity.
 
-Sale CMA uses verified transaction truth such as `ClosePrice`/`CloseDate`; never `ListPrice` posing as sold truth.
+# 9. SEARCH STEP 6 — COMPARE + REPORTS + CMA
 
-Rental CMA cannot invent achieved rent where Cotality does not prove it.
+Do NOT create separate search engines.
 
-## B8 — FINAL SEARCH BROWSER E2E
+## 9.1 Compare
 
-For BOTH Sale and Rental on desktop/tablet/mobile prove:
+Consume selected canonical listings from Search.
 
-`control interaction`
-→ canonical criteria state
+## 9.2 Reports/calculators
+
+Consume authoritative Search/listing facts and preserve attribution/compliance.
+
+## 9.3 Sale CMA
+
+Use verified transaction truth such as `ClosePrice` and `CloseDate`. Never use ListPrice as sold truth.
+
+## 9.4 Rental CMA
+
+Do not invent achieved rent where Cotality cannot prove it.
+
+### STEP 6 CLOSURE GATE
+
+Compare/Reports/CMA operate on authoritative Search results/selections and do not reconstruct provider criteria independently.
+
+# 10. SEARCH STEP 7 — AUTHENTICATED BROWSER E2E CLOSURE
+
+For BOTH Sale and Rental, prove on desktop/tablet/mobile:
+
+`login`
+→ Search
+→ set criteria
 → Basic↔Advanced with zero loss
-→ verified Cotality mapping
-→ server execution
-→ truthful result-universe declaration
-→ count/sort/page
-→ detail
-→ return to same result state
+→ execute
+→ truthful result count/universe
+→ sort
+→ paginate
+→ open detail
+→ return to exact result state
 → Map
-→ Search Within Results / Map
-→ Saved Search save
-→ browser/session reload
-→ restore
+→ Search Within Results / Search Within Map
+→ Saved Search
+→ reload browser/session
+→ restore Search
 → re-execute
 → selection across pages
 → client action
@@ -326,61 +415,46 @@ For BOTH Sale and Rental on desktop/tablet/mobile prove:
 → attribution/compliance
 → authenticated Preview proof.
 
-Mandatory negative proof:
+Mandatory negative browser/integration proof:
 
 - unsupported criterion fails explicitly;
-- unknown enum cannot silently broaden;
-- incomplete result universe cannot be labeled authoritative;
+- unknown Cotality enum cannot silently broaden;
+- incomplete universe cannot be labeled authoritative;
 - Map cannot imply completeness from a sample;
 - Basic↔Advanced cannot lose criteria;
-- Saved Search restore cannot lose criteria;
-- valid zero-population Cotality value remains distinct from unsupported;
-- another broker's Cotality listing cannot become Mallan-authored through agent association;
-- Mallan Cotality return-copy cannot compete with the canonical Mallan listing.
+- Saved Search cannot lose criteria;
+- valid zero-population value is distinct from unsupported;
+- another broker's Cotality listing cannot become Mallan-authored via agent association;
+- Mallan Cotality return-copy cannot compete with canonical Mallan listing.
 
-# CURRENT #618 BASELINE / WORKTREE HAZARDS
+### SEARCH COMPLETE ONLY WHEN SECTION 10 CLOSES
 
-Do not misattribute these to B2 without proving causation.
+Do not call Search finished from unit tests, route tests, CI green or a READY Preview alone.
 
-Claude measured the baseline with B2 stashed out and reported the same failures with and without B2:
+# 11. NEXT PRODUCT PHASE — MY LISTINGS
 
-- `jest-config-reachability` is affected by stray `.cache/closure2/**/jest.config.js` scratch artifacts;
-- three failing suites are untracked files from other workstreams in the worktree:
-  - `crm-my-listings-pagination`;
-  - `ensure-listing-reserved-namespace`;
-  - `buyer-participation-mapper`;
-- `buyer-participation-mapper` also accounts for two type-check errors by importing symbols that do not exist on any branch.
+After Search closes, move immediately to My Listings. Do not start an unrelated audit.
 
-Do not delete, absorb, or casually "fix" someone else's untracked work merely to make #618 look green.
+My Listings becomes the authenticated operational center for agents.
 
-Establish baseline vs branch-caused failure before modifying unrelated files.
+## 11.1 Listing authority states
 
-### Shared generated Prisma hazard
+Clearly distinguish:
 
-The Search and security worktrees share a single `node_modules` by junction.
-
-`prisma generate` in either worktree changes generated Prisma types seen by BOTH worktrees.
-
-Before trusting type-check results:
-
-- on #618, generate from #618's own schema;
-- on A, regenerate from A's nullable-status schema.
-
-Do not diagnose phantom type errors until this is normalized.
-
-# AFTER SEARCH — MY LISTINGS
-
-Once Search is genuinely closed, move immediately to My Listings. Do not open another unrelated audit.
-
-My Listings must become the authenticated agent operational center for:
-
-- Mallan-authored editable listings;
-- suppressed Cotality return-copy of the same canonical Mallan listing;
-- third-party Cotality read-only inventory;
-- historical/closed listings;
+- Mallan-authored editable listing;
+- same Mallan listing with suppressed Cotality return-copy;
+- third-party Cotality inventory, read-only;
+- historical/closed listing;
 - Seller/Landlord via `Listing.owner_client_id`;
-- assigned agent vs authorship distinction;
-- Publication State separately from Market Status;
+- assigned Agent/Broker vs authorship.
+
+## 11.2 Workspace must contain
+
+- canonical listing facts;
+- Seller/Landlord;
+- assigned agent;
+- **Market Status** separately;
+- **Publication State** separately;
 - compliance blockers;
 - media;
 - documents;
@@ -394,54 +468,257 @@ My Listings must become the authenticated agent operational center for:
 - actual Last Published;
 - role-specific allowed/restricted actions.
 
-Prove actual browser create/save/reload/edit/reload and no silent data loss.
+## 11.3 Form roundtrip
 
-# NEW AGENT READINESS GATE
+For BOTH Sale and Rental:
 
-After My Listings, prove a real non-Broker Agent can use the brokerage without Maya as a workaround.
+`My Listings → New Listing → owner → form → create → save → My Listings → reopen → edit → save → reload`
 
-Required day-one flow includes:
+Every entered structured field must survive create→read→edit→read.
 
-- login;
-- CRM/client/opportunity;
-- authenticated Sale/Rental Search;
-- Basic↔Advanced;
-- Saved Search;
-- Map/workbench/client action;
-- Seller + Sale listing create/save/reload/edit;
-- Landlord + Rental listing create/save/reload/edit;
-- My Listings;
-- publication + market status displayed separately;
-- Agent correctly blocked from Broker-only approval;
-- permitted activity/documents/media;
-- desktop/tablet/mobile;
-- logout/login durable recovery.
+No silent data loss.
 
-The agent must not need Maya to repair owners, recover lost fields, explain ignored Search criteria, recover Saved Searches, identify editable inventory, diagnose hidden publication blockers, reconcile duplicate Mallan/Cotality identities, or recover vanished activity.
+## 11.4 Full listing chain
 
-# TESTING / CLOSURE STANDARD
+`My Listings → Sale/Rental form → owner → create → media/docs/activity → review → Broker decision → publication → My Listings updates → owner portal same canonical listing → public consumer same canonical listing when permitted`
 
-For every workflow:
+### MY LISTINGS CLOSURE GATE
 
-`PROVEN DEFECT → ROOT CAUSE → ALL AFFECTED READERS/WRITERS → CORRECTION → DIRECT TEST → NEGATIVE TEST → INTEGRATION → PERSISTENCE → BROWSER E2E → DOWNSTREAM → COMPLIANCE → PREVIEW → PRODUCTION`
+Desktop/tablet/mobile actual browser proof for create/reload/edit, authority/read-only distinction, blockers, media/docs/activity, review/publication, and identity continuity.
 
-A source-string assertion, unit test, route handler test, in-memory persistence chain, CI pass, or READY Preview each proves something useful. None alone proves the actual user workflow.
+# 12. NEXT PRODUCT PHASE — LISTING EBLAST FROM MY LISTINGS
 
-Do not fall back into endless fail→tiny-patch→next-fail cycles. Build the full impact graph, run grouped targeted tests during development, then broad closure gates.
+Maya must be able to market Mallan listings by eblast without creating another contact/listing truth.
 
-# DEFINITION OF DONE FOR THE CURRENT EXECUTION SEQUENCE
+The foundation is:
 
-Do not claim completion until:
+`CANONICAL LISTING → MY LISTINGS → CRM PARTY/CLIENT/AGENT + SAVED SEARCH → AUDIENCE MATCH → COMPLIANT CAMPAIGN → DELIVERY → DURABLE CRM ACTIVITY`
 
-- A's schema migration is actually applied/verified and browser/Production proof is completed when authorized;
-- no new Mallan local listing stores Draft as market status;
-- Sale/Rental owner workflow works in the actual browser;
-- #618 has one canonical criteria/mapping/execution/result architecture;
-- result count/incomplete/anomaly truth is fixed;
-- Saved Search, Map, workbench, Compare, Reports and CMA share the same Search truth;
-- My Listings is the canonical agent listing workspace;
-- a real non-Broker Agent passes the readiness gate on desktop/tablet/mobile;
+Do NOT create a second contact database.
+
+Do NOT create an independent listing-matching engine for eblast.
+
+## 12.1 Eblast entry point
+
+For an eligible Mallan-authored listing, My Listings exposes a Marketing/Eblast action.
+
+The agent selects:
+
+- canonical listing;
+- audience/segment;
+- content/template;
+- preview/test send;
+- send/schedule where authorized.
+
+Third-party Cotality inventory remains subject to its read-only/display rights and cannot be silently converted into Mallan-authored marketing inventory.
+
+## 12.2 Audience authority
+
+Reuse canonical CRM and Saved Search data.
+
+Potential audiences include only those permitted by the actual CRM/compliance model, such as:
+
+- brokerage agents;
+- clients whose canonical Buyer/Tenant criteria/Saved Searches match;
+- approved CRM segments;
+- explicitly selected permitted recipients.
+
+No duplicate shadow contact database.
+
+## 12.3 Matching authority
+
+Eblast matching reuses Search truth.
+
+Target:
+
+`Listing canonical facts → canonical Search/matching vocabulary → Saved Searches/CRM preferences → matched audience`
+
+Do not invent an `eblast-matcher` with a second field/enum map.
+
+## 12.4 Listing content authority
+
+Campaign listing content comes from the canonical Listing and existing media/publication/compliance decisions.
+
+Use only fields permitted for the target audience, such as applicable:
+
+- hero media;
+- displayable address;
+- price/rent;
+- beds/baths;
+- property type;
+- verified key features;
+- open house/showing info;
+- agent/brokerage information;
+- canonical Mallan URL;
+- call to action.
+
+No manual duplicate listing record to power email.
+
+## 12.5 Compliance before send
+
+Required chain:
+
+`Listing → publication/market state → audience → content → compliance → recipient suppression/unsubscribe → send`
+
+Fail closed when, as applicable:
+
+- listing is not permitted for that audience;
+- publication approval is absent;
+- required attribution is absent;
+- Fair Housing/public-ad content is prohibited;
+- unsubscribe/suppression fails;
+- recipient is opted out;
+- listing became withdrawn/canceled/expired/ineligible before send;
+- Agent attempts to bypass Broker-only approval/compliance authority.
+
+## 12.6 Durable CRM activity
+
+Sending email is not the record of truth.
+
+Persist campaign/activity history including applicable:
+
+- creator;
+- canonical listing id;
+- audience criteria/segment;
+- recipients;
+- send time;
+- delivery/failure state;
+- opens/clicks where available;
+- unsubscribe;
+- reply/inquiry;
+- resulting client/agent activity.
+
+Web/email inquiry activity must become durable CRM history.
+
+## 12.7 Eblast E2E closure
+
+Prove:
+
+`My Listings → eligible listing → Eblast → audience → preview → compliance → test send → authorized send → delivery record → recipient click/inquiry → CRM activity`
+
+Mandatory negatives:
+
+- unpublished/ineligible Mallan listing cannot be publicly eblasted;
+- third-party Cotality inventory cannot be misrepresented as Mallan-authored;
+- opted-out recipient cannot receive;
+- duplicate recipient resolves once per campaign as intended;
+- failed send remains a failure record;
+- listing becoming ineligible blocks pending send where the architecture supports scheduled delivery;
+- Agent cannot bypass Broker/compliance gates;
+- Mallan return-copy does not create duplicate listing campaigns.
+
+### EBLAST COMPLETE ONLY WHEN SECTION 12.7 CLOSES
+
+# 13. NEW AGENT READINESS GATE — AFTER SEARCH + MY LISTINGS + EBLAST
+
+Run a real non-Broker Agent through the brokerage chain on desktop/tablet/mobile.
+
+Required day-one flow:
+
+1. login;
+2. CRM dashboard;
+3. find/create client;
+4. Buyer/Tenant opportunity;
+5. Sale Search;
+6. Rental Search where applicable;
+7. Basic↔Advanced;
+8. Saved Search;
+9. Map/workbench;
+10. selection/client action;
+11. Seller client;
+12. Sale listing with owner;
+13. save/reload/edit;
+14. Landlord client;
+15. Rental listing with owner;
+16. save/reload/edit;
+17. find both in My Listings;
+18. see Publication State + Market Status separately;
+19. submit review and fail correctly on Broker-only approval;
+20. permitted media/docs/activity;
+21. create permitted Listing Eblast from My Listings;
+22. prove compliance/recipient suppression;
+23. prove send/click/inquiry creates durable CRM activity;
+24. tablet workflow;
+25. mobile workflow;
+26. logout/login and recover durable state.
+
+The Agent must not require Maya to:
+
+- repair owner links;
+- recover lost fields;
+- explain ignored Search criteria;
+- recover broken Saved Searches;
+- tell them whether a listing is editable;
+- identify hidden publication blockers;
+- manually reconcile Mallan/Cotality duplicates;
+- recover vanished activity;
+- manually copy listing/contact data into a separate eblast system.
+
+# 14. WORKTREE / BASELINE HAZARDS — DO NOT MISDIAGNOSE
+
+Known measured local hazards from the B2 session:
+
+- stray `.cache/closure2/**/jest.config.js` scratch files can trip `jest-config-reachability`;
+- untracked work from other lanes included `crm-my-listings-pagination`, `ensure-listing-reserved-namespace`, and `buyer-participation-mapper`;
+- the buyer-participation untracked file imported symbols not present on branch and produced type errors;
+- Search and security worktrees share generated Prisma types via one `node_modules` junction.
+
+Before changing unrelated code due to a failing test:
+
+1. establish clean tracked baseline;
+2. compare failure with your changes stashed/removed;
+3. prove causation;
+4. do not absorb/delete another workstream's untracked files merely to make local tests green.
+
+# 15. TESTING / ANTI-LOOP STANDARD
+
+For every defect family:
+
+`PROVEN DEFECT → ROOT CAUSE → COMPLETE READERS/WRITERS IMPACT GRAPH → CORRECTION → DIRECT TEST → NEGATIVE TEST → INTEGRATION → PERSISTENCE → BROWSER E2E → DOWNSTREAM → COMPLIANCE → PREVIEW → PRODUCTION`
+
+A source assertion, unit test, route test, in-memory persistence test, CI pass or READY Preview each proves something useful. None alone closes the user workflow.
+
+Run grouped targeted tests during development.
+
+Run broad gates at closure boundaries.
+
+Do not fall into endless `test fails → tiny patch → next test fails` loops without first establishing the impact graph.
+
+# 16. MANDATORY PROGRESS REPORT FORMAT FOR CLAUDE
+
+Every substantial progress update or handoff MUST begin with:
+
+- **CURRENT SECTION:** e.g. `4 — Search B1 Canonical Criteria`;
+- **STATUS:** `OPEN / IN PROGRESS / CLOSED BY EVIDENCE`;
+- **HEAD SHA:** exact pushed tracked head;
+- **WHAT CLOSED:** specific subsection(s) with evidence;
+- **WHAT REMAINS IN THIS SECTION:** explicit items;
+- **NEXT SECTION ALLOWED:** only if the current closure gate is actually satisfied;
+- **HOLDS:** A migration/browser/Production holds or other controlled holds;
+- **OUT-OF-SCOPE/BASELINE FINDINGS:** reported separately, not silently absorbed.
+
+If Claude intentionally departs from this sequence, the update MUST say:
+
+`SEQUENCE DEVIATION — <reason>`
+
+and explain why continuing the required current section is impossible or unsafe.
+
+Do not quietly jump from Search to My Listings, from My Listings to Eblast, or from Eblast to another product area.
+
+# 17. DEFINITION OF DONE FOR THIS EXECUTION PROGRAM
+
+Do not claim the program complete until:
+
+- A's authorized Listing.status migration is applied/verified through the controlled process;
+- final Sale/Rental browser persistence/publication proof exists;
+- Search Sections 4–10 are closed with authenticated browser evidence;
+- one canonical Search criteria/mapping/execution/result universe powers Saved Search/Map/workbench/Compare/Reports/CMA;
+- My Listings Section 11 is closed end-to-end;
+- Listing Eblast Section 12 is closed end-to-end using canonical Listing + CRM + Saved Search data;
+- eblast compliance/suppression/durable activity are proven;
+- a real non-Broker Agent passes Section 13 on desktop/tablet/mobile;
 - Cotality remains the sole provider/data authority;
-- no silent data loss remains;
-- independent CI + authenticated Preview proof exists at each closure boundary;
-- Production completion is claimed only after separately controlled migration/deploy proof.
+- no silent data loss remains in these workflows;
+- Production completion is claimed only after separately authorized migration/deploy proof.
+
+If an operational migration/deploy window is unavailable, continue the next safe authorized engineering section while preserving the exact hold. Do not stop the project and do not relabel partial proof as completion.
