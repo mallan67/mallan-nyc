@@ -44,7 +44,7 @@ const searchEngine = read('public/crm/js/search/search-engine.js');
 const savedSearches = read('public/crm/js/search/saved-searches.js');
 const apiClient = read('public/crm/js/core/api-client.js');
 const registry = read('lib/search/canonical/field-registry.ts');
-const filterKeys = read('lib/search/canonical/filter-keys.ts');
+const generatedKeys = read('lib/search/canonical/filter-keys.generated.ts');
 const crmFilter = read('lib/search/crm-idx-filter.ts');
 const normalizer = read('lib/search/canonical/saved-search-normalizer.ts');
 
@@ -115,8 +115,8 @@ const PROVEN_CLAUSES = {
   ownership:             { owner: 'crm-idx-filter', expression: "CommonInterest eq '{Value}'" },
   street_address:        { owner: 'crm-idx-filter', expression: "(startswith(StreetNumber,'{n}') and StreetDirPrefix eq '{d}' and contains(StreetName,'{s}'))" },
   building_name:         { owner: 'crm-idx-filter', expression: "contains(BuildingName,'{value}')" },
-  listing_id:            { owner: 'crm-idx-filter', expression: "ListingId eq '{id}'" },
-  listing_activity_date: { owner: 'crm-idx-filter', expression: "ListingContractDate ge {from} | ModificationTimestamp gt {from}" },
+  listing_id_canonical:  { owner: 'crm-idx-filter', expression: "ListingId eq '{id}'" },
+  activity_date:         { owner: 'crm-idx-filter', expression: "ListingContractDate ge {from} | ModificationTimestamp gt {from}" },
   close_date:            { owner: 'crm-idx-filter', expression: "CloseDate ge {from} / CloseDate le {to}" },
   feature_criteria:      { owner: 'canonical/checkbox-criteria', expression: "(View eq 'City' or View eq 'Water') | CoolingYN eq true" },
 };
@@ -148,8 +148,8 @@ const CONCEPTS = [
   { canonical: 'street_address',          collector: ['address'],                                   workflows: 'sale,rent,building' },
   { canonical: 'unit',                    collector: ['unit'],                                      workflows: 'sale,rent' },
   { canonical: 'building_name',           collector: ['buildingName'],                              workflows: 'sale,rent,building' },
-  { canonical: 'listing_id',              collector: ['rlsId'],                                     workflows: 'sale,rent' },
-  { canonical: 'listing_activity_date',   collector: ['dateFrom', 'dateTo', 'dateActivityType'],    workflows: 'sale,rent' },
+  { canonical: 'listing_id_canonical',              collector: ['rlsId'],                                     workflows: 'sale,rent' },
+  { canonical: 'activity_date',   collector: ['dateFrom', 'dateTo', 'dateActivityType'],    workflows: 'sale,rent' },
   { canonical: 'listing_contract_date',   collector: ['contractDateFrom', 'contractDateTo'],        workflows: 'sale' },
   { canonical: 'close_date',              collector: ['soldDateFrom', 'soldDateTo'],                workflows: 'sale,cma' },
   { canonical: 'year_built',              collector: ['yearMin', 'yearMax'],                        workflows: 'sale,rent,building' },
@@ -166,7 +166,7 @@ const CONCEPTS = [
   { canonical: 'map_grid_filter',         collector: [], origin: 'module',     param: 'gridFilter',   workflows: 'sale,rent' },
   // No wire param exists on either side, so the registry link is declared
   // explicitly rather than resolved through a param that will never exist.
-  { canonical: 'max_financing',           collector: ['financingMin'], registryKey: 'max_financing_percent', workflows: 'sale' },
+  { canonical: 'max_financing_percent',           collector: ['financingMin'], workflows: 'sale' },
 ];
 
 // ── stage 1: transport reachability ─────────────────────────────────────────
@@ -238,8 +238,13 @@ for (const line of registry.split('\n')) {
     canonicalKey: key[1],
     mappingOwner: (/mappingOwner:\s*'([^']+)'/.exec(line) || [])[1] ?? null,
     filterable: (/filterable:\s*'([^']+)'/.exec(line) || [])[1] ?? 'no',
-    filterKeys: (/filterKeys:\s*\[([^\]]*)\]/.exec(line) || [])[1] ?? '',
-    liveVerified: /VERIFIED LIVE|PROBED DIRECTLY|probe record/i.test(line),
+    // STRUCTURED, not prose. The old regex reported `year_built` as
+    // live-verified because its note contains the words "probe record" — inside
+    // the sentence "this file has no probe record for" it. It found the ABSENCE
+    // of evidence and counted it as evidence.
+    liveEvidence: (/liveEvidence:\s*\{ probedAt: '([^']+)', source: '([^']+)' \}/.exec(line) || [])
+      .slice(1, 3),
+    mappingConflict: /mappingConflict:/.test(line),
   };
   registryEntriesWithParams.push(spec);
   for (const raw of params[1].split(',')) {
@@ -249,8 +254,16 @@ for (const line of registry.split('\n')) {
 }
 
 // ── stage 6: persistence ────────────────────────────────────────────────────
+/**
+ * The persistence vocabulary, read from the GENERATED file.
+ *
+ * It used to be scraped out of a literal `const CANONICAL_KEYS` block in
+ * filter-keys.ts. That block no longer exists — the keys are generated from the
+ * registry entries — so the scrape silently produced an empty set and the
+ * persistence score stopped measuring anything.
+ */
 const canonicalFilterKeys = new Set(
-  [...slice(filterKeys, 'const CANONICAL_KEYS', '])').matchAll(/'([a-z_]+)'/g)].map((m) => m[1]),
+  [...generatedKeys.matchAll(/^  '([a-z_]+)',$/gm)].map((m) => m[1]),
 );
 const savedRecordBody = slice(savedSearches, 'function _criteriaToApiFormat', '\n            return out;');
 const savedFrom = new Map();
@@ -261,9 +274,13 @@ for (const m of savedRecordBody.matchAll(/([a-z_]+):\s*c\.([A-Za-z_]\w*)/g)) {
 // ─────────────────────────────────────────────────────────────────────────────
 const rows = CONCEPTS.map((c) => {
   const params = c.param ? [c.param] : c.collector.map((k) => toParam.get(k)).filter(Boolean);
-  const specs = c.registryKey
-    ? registryEntriesWithParams.filter((s) => s.canonicalKey === c.registryKey)
-    : params.map((p) => registryByParam.get(p)).filter(Boolean);
+  // Concepts with no wire param resolve by IDENTITY, now that the matrix name
+  // and the registry canonicalKey are the same string. No registryKey link is
+  // needed — a link would be a third naming of the same concept.
+  const byIdentity = registryEntriesWithParams.filter((s) => s.canonicalKey === c.canonical);
+  const specs = params.length
+    ? params.map((p) => registryByParam.get(p)).filter(Boolean)
+    : byIdentity;
   const owners = c.registryKey
     ? [c.registryKey]
     : [...new Set(specs.map((s) => s.canonicalKey))];
@@ -293,7 +310,7 @@ const rows = CONCEPTS.map((c) => {
         : 'transport_broken';
 
   const capability = [...new Set(specs.map((s) => s.filterable))].join(',') || '—';
-  const liveVerified = specs.some((s) => s.liveVerified);
+  const liveVerified = specs.some((s) => (s.liveEvidence ?? []).length === 2);
 
   return {
     ...c,
@@ -303,7 +320,10 @@ const rows = CONCEPTS.map((c) => {
     providerClauseProven: Boolean(proof),
     clauseOwner: proof?.owner ?? null,
     clauseExpression: proof?.expression ?? null,
-    clauseConflict: proof?.conflict ?? null,
+    // The conflict is a FACT ABOUT THE CRITERION, so it lives on the registry
+    // entry. The local PROVEN_CLAUSES note is retained only as the human-readable
+    // explanation of the clause itself.
+    clauseConflict: specs.some((s) => s.mappingConflict) ? (proof?.conflict ?? 'declared on the registry entry') : null,
     refused,
     owners,
     capability,
@@ -315,7 +335,11 @@ const rows = CONCEPTS.map((c) => {
      * provider accepts, populates or means it.
      */
     verifiedExecutable: Boolean(proof) && capability === 'yes' && liveVerified && !proof?.conflict,
-    persistenceBridge: specs.some((s) => s.filterKeys),
+    // BY CONSTRUCTION now: a registry entry that declares `searchParams` IS a
+    // Search criterion and its persistence key IS its canonicalKey. There is no
+    // separate `filterKeys` field left to be wrong, so this checks that the
+    // identity actually appears in the generated vocabulary.
+    persistenceBridge: canonicalFilterKeys.has(c.canonical),
     savedKeys: c.collector.map((k) => savedFrom.get(k)).filter(Boolean),
   };
 });
@@ -393,7 +417,11 @@ console.log(
 );
 
 console.log('\n## Concepts that do not reach the server at all\n');
-const unreached = rows.filter((r) => !r.reachesServer);
+// FIELD-NAME BUG FIXED. The row carries `transportReachable`; this read
+// `reachesServer`, which does not exist — so the filter was evaluating
+// `!undefined` for every row. A measuring tool reading a nonexistent property
+// is the same defect class that produced the earlier false execution claims.
+const unreached = rows.filter((r) => !r.transportReachable);
 console.log(unreached.length ? unreached.map((r) => `  ${pad(r.canonical, 24)} collector=${r.collector.join(',')}`).join('\n') : '  (none)');
 
 console.log('\n## CIRCULAR AUTHORITY CHECK\n');

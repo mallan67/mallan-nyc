@@ -53,7 +53,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { FIELD_REGISTRY, type FieldSpec } from '../canonical/field-registry';
+import { FIELD_REGISTRY, executionReadiness, type FieldSpec } from '../canonical/field-registry';
 import { CANONICAL_FILTER_KEYS } from '../canonical/filter-keys.generated';
 
 const REPO = resolve(__dirname, '../../..');
@@ -350,5 +350,70 @@ describe('one fact, one owner', () => {
     const spec = registryByParam().get('managementCompany')?.[0];
     expect(spec).toBeDefined();
     expect((spec as FieldSpec).filterable).toBe('unsupported');
+  });
+});
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * EXECUTION READINESS IS NOT `filterable`.
+ *
+ * `filterable` answers a PROVIDER question — can this be expressed as a Cotality
+ * filter. Runtime readiness asks whether Mallan may execute it NOW, and depends
+ * on facts `filterable` does not carry. Conflating them is how a registry
+ * becomes documentation instead of enforcement.
+ *
+ * `executionReadiness()` in the registry is the AUTHORITY; the matrix script is a
+ * source-parsed report of the same facts. These cases pin the function itself so
+ * the canonical validator has ONE definition to call.
+ */
+describe('execution readiness — the gate the validator will use', () => {
+  const spec = (key: string) => FIELD_REGISTRY.find((f) => f.canonicalKey === key)!;
+  const wired = { reachesServer: true, providerClauseProven: true };
+
+  it('a known mapping conflict outranks everything — it executes, and executes WRONGLY', () => {
+    // bathrooms is filterable:'yes' with a proven clause. It is NOT ready: the
+    // executor queries a field bath-contract.ts rejects on live evidence.
+    expect(spec('bathrooms').filterable).toBe('yes');
+    expect(executionReadiness(spec('bathrooms'), wired)).toBe('mapping_conflict');
+  });
+
+  it('capability + clause + transport + live evidence is verified executable', () => {
+    expect(executionReadiness(spec('market_status'), wired)).toBe('verified_executable');
+  });
+
+  it('capability yes WITHOUT a live probe is still needs_probe', () => {
+    // The whole point: `filterable: 'yes'` alone must not admit a criterion.
+    expect(spec('list_price').filterable).toBe('yes');
+    expect(spec('list_price').liveEvidence).toBeUndefined();
+    expect(executionReadiness(spec('list_price'), wired)).toBe('needs_probe');
+  });
+
+  it('an unsupported criterion is refused whatever its transport says', () => {
+    expect(executionReadiness(spec('max_financing_percent'), wired)).toBe('unsupported');
+    expect(executionReadiness(spec('management_company'), wired)).toBe('unsupported');
+  });
+
+  it('a criterion that never reaches the server is not_yet_wired, not verified', () => {
+    expect(
+      executionReadiness(spec('unit'), { reachesServer: false, providerClauseProven: true }),
+    ).toBe('not_yet_wired');
+  });
+
+  it('a criterion with no provider clause has no runtime path', () => {
+    expect(
+      executionReadiness(spec('year_built'), { reachesServer: true, providerClauseProven: false }),
+    ).toBe('no_runtime_path');
+  });
+
+  it('live evidence is STRUCTURED, never inferred from note prose', () => {
+    // year_built's note contains the words "probe record" inside the sentence
+    // "this file has no probe record for" it. The old prose scan read the ABSENCE
+    // of evidence as evidence and reported it live-verified.
+    expect(spec('year_built').notes).toMatch(/no probe record/);
+    expect(spec('year_built').liveEvidence).toBeUndefined();
+
+    const evidence = spec('market_status').liveEvidence;
+    expect(evidence?.probedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(evidence?.source).toMatch(/\.(md|ts)$/);
   });
 });

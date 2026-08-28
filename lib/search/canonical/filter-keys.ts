@@ -10,10 +10,18 @@
  * vocabulary FROM the registry while the registry imported its type FROM here
  * would have been circular.
  *
- * The direction is now inverted. `field-registry.ts` owns
- * `CANONICAL_FILTER_KEYS` as the literal source; everything below derives from
- * it. That ELIMINATES a vocabulary instead of relocating one: there is no second
- * list that can drift, because there is no second list.
+ * The direction is now inverted, and the vocabulary is GENERATED. The chain is:
+ *
+ *   FIELD_REGISTRY entries
+ *     -> scripts/search/generate-filter-keys.mjs
+ *     -> filter-keys.generated.ts
+ *     -> CanonicalFilterKey (re-exported below)
+ *
+ * The registry entries are the ONE declaration. An intermediate cut kept a
+ * literal `CANONICAL_FILTER_KEYS` array in `field-registry.ts` beside the
+ * entries, with a test forcing agreement — two declarations plus a drift
+ * detector, which is the shape this work removes rather than an instance of
+ * removing it.
  *
  * Its old header said "NOT WIRED: no reader consumes this in Backend-Search-1."
  * That was true, and it is why the list had grown members no executable criterion
