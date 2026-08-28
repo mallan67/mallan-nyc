@@ -30,7 +30,47 @@ Reproduce: `node scripts/search/criterion-vocabulary-census.mjs`
 
 **Vocabularies 7 and 8 are two persistence contracts for one saved search.** The
 browser writes 7. The validators in `saved-search.ts` expect 8, which is keyed by
-6. Nothing reconciles them.
+6.
+
+### CORRECTION 2026-08-28 — a live boundary already reconciles part of this
+
+The first version of this document said *"nothing reconciles them."* **That was
+false**, and a false claim in a trace document is precisely what sends the next
+reader in a circle. Corrected here rather than quietly edited away.
+
+`lib/search/canonical/saved-search-normalizer.ts` is a **live persistence
+boundary**, not a dormant type file. It is invoked at six call sites across both
+Saved Search routes — `POST`, `PATCH`, `GET` list and `GET` one — so it runs on
+every read and every write:
+
+| Route | Call sites |
+|---|---|
+| `app/api/crm/saved-searches/route.ts` | `normalizeSavedSearchCriteria` ×2, `savedSearchDisposition` ×1 |
+| `app/api/crm/saved-searches/[id]/route.ts` | `normalizeSavedSearchCriteria` ×4, `savedSearchDisposition` ×1 |
+
+What it already owns, and owns correctly:
+
+- it canonicalises the `checkbox_filters` portion through the **checkbox
+  registry**, and deliberately **owns no vocabulary of its own** — an earlier cut
+  kept a private `BOOLEAN_CANONICAL` map beside `crm-idx-filter`'s `booleanFields`
+  and that duplication was removed on purpose;
+- it **fails closed on unrecognised criteria** rather than dropping them, because
+  dropping one silently converts a RESTRICTIVE saved search into a BROADER one —
+  the broker saves "doorman only" and reloads "everything". That is the same
+  silent-widening failure as the dropped `status` param, arriving through
+  storage;
+- it normalises legacy rows **in memory on read**, with no migration or backfill.
+
+So the accurate statement is: **the Saved Search contract is fragmented, and the
+`checkbox_filters` portion of it already has a correct canonical boundary that
+runs everywhere it needs to.** The other criteria have no equivalent.
+
+**This is a constraint on B1, and a favourable one.** The normalizer is not an
+obstacle to route around — it is the pattern the rest should extend: one boundary
+module, invoked at every persistence point, owning no vocabulary of its own,
+resolving through a registry, failing closed on the unrecognised. B1 must
+**compose with it and widen its remit**, never add a second normalizer beside it
+and never replace it.
 
 ---
 
@@ -70,6 +110,36 @@ problem B2 corrected for the registry and that `filter-keys.ts` still has.
 
 ---
 
+## 2b. CORRECTION 2026-08-28 — the conclusion I drew from this was also wrong
+
+The first version of this document concluded that `CanonicalFilterKey` "is the
+right target" and should be completed to cover all 36 executable criteria.
+
+**Rejected, on Maya's correction.** Filling an unwired list with 36 names
+produces a cleaner **ninth** vocabulary rather than removing any of the eight.
+Its own header says it is not wired; `FIELD_REGISTRY` already calls itself the
+Search mapping authority and, since B2, is actually joinable. Expanding the
+unwired one and declaring it primary would be motion, not progress.
+
+The principle that replaces that conclusion:
+
+> **One concept may have many boundary aliases, but only one canonical business
+> identity.**
+
+Two designs are admissible, and one must be *proven* before any vocabulary is
+expanded:
+
+- **Preferred.** The workflow criteria contracts (`SaleCriteria`,
+  `RentalCriteria`, `BuildingCriteria`, `ComparableCriteria`) define the canonical
+  business keys. `CanonicalFilterKey` becomes derived/type-level support around
+  those keys, and `PARAM_ALIASES` becomes a legacy boundary adapter rather than
+  business authority.
+- **Alternative.** `CanonicalFilterKey` stays primary — and then the criteria
+  contracts, Saved Search and the registry all derive their names **from** it
+  rather than independently restating them.
+
+What is not admissible is both existing as independently maintained lists.
+
 ## 3. What this constrains about B1
 
 The Step 1 gate says B1 must not create a second persistence contract. There are
@@ -91,13 +161,35 @@ already two, so the constraint is stronger than it looks:
    entries. That field — not a new table — is where criterion → persistence key
    belongs, exactly as `searchParams` became the criterion → wire join in B2.
 
-**Therefore the order is:** complete `CanonicalFilterKey` against the 36
-executable criteria and fill the registry's `filterKeys` bridge → define
-`SaleCriteria` / `RentalCriteria` keyed by it → bind the DOM to the object →
-derive transport → reconcile the two saved-record shapes into one.
+**Therefore the order is** (superseding the version first written here, which
+began by expanding `CanonicalFilterKey` — see 2b):
 
-Defining the criteria objects first would have keyed them to a vocabulary that
-cannot express 21 of the criteria they must carry.
+1. **Freeze symptom patching.** The `status` correction at `0d9a78c2` was
+   justified because it PROVED the defect class. Fixing rooms, then year, then
+   managementCompany, then unit one at a time would be twenty more commits
+   against one architectural defect.
+2. **Complete the impact graph as ONE MATRIX** — one row per business concept,
+   not per code key. That matrix is the replacement SPECIFICATION, not another
+   audit.
+3. **Choose one canonical business name per concept.** Not `status` here,
+   `statuses` there, `standard_status` elsewhere. No legacy name is promoted.
+4. **Build `SaleCriteria` / `RentalCriteria` from that vocabulary**, with the
+   criteria contract and the persistence vocabulary in the SAME conceptual
+   namespace.
+5. **Make `FIELD_REGISTRY` the bridge** — it already owns `searchParams` and
+   `filterKeys`. Converge there or delegate from there to existing specialised
+   owners. No new translation table beside it.
+6. **Preserve `saved-search-normalizer.ts`** and compose around it.
+7. **Bind the UI to one state object.** Both views read and write the same
+   object; switching changes presentation only.
+8. **Generate transport from the object.** `URLSearchParams` becomes output only.
+9. **Persist the same object**, versioned, inside existing JSON storage.
+10. **Only then replace readers** — Saved Search restore, Map, workbench,
+    Compare, Reports, CMA.
+
+This changes the work from `find bug → patch → find next bug` into
+`inventory all authorities → choose one → replace all writers → replace all
+readers → test the graph once`.
 
 ---
 
