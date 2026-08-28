@@ -1,35 +1,37 @@
 /**
  * THE REPLACEMENT SPECIFICATION — one row per BUSINESS CONCEPT.
  *
- * Not another audit. This is the specification the B1 canonical contracts are
+ * Not another audit. This is the specification B1's canonical contracts are
  * built from, and it is GENERATED from every authority that currently claims a
  * criterion, so it cannot drift from the code it specifies.
  *
- * The previous census listed one row per CODE KEY, which is why it read as 36
- * separate problems. `priceMin` and `priceMax` are not two criteria; they are
- * one business concept with two bounds. `dateFrom`, `dateTo` and
- * `dateActivityType` are one concept with three parts. Counting code keys is how
- * one architectural defect looks like twenty-one bugs.
+ * ─────────────────────────────────────────────────────────────────────────────
+ * THE MODEL, CORRECTED 2026-08-28
+ *
+ *   business concept
+ *     → TRANSPORT REACHABILITY   collected → serialized → forwarded → read
+ *     → PROVIDER CLAUSE          does the server actually ask Cotality?
+ *     → REGISTRY OWNER           exactly one, never zero, never two
+ *     → CAPABILITY               what the registry declares
+ *     → LIVE VERIFICATION        is there a probe record?
+ *     → PERSISTENCE BRIDGE       can it be saved and restored canonically?
+ *
+ * The first cut of this file collapsed the first two stages into one `executes`
+ * boolean. That produced a FALSE EXECUTABLE CLAIM: `management_company` reached
+ * the server and was reported as executing, when the server throws
+ * `UnsupportedSearchCriterionError` for it and never asks the provider anything.
+ * Reaching the server, producing a clause, and the provider accepting it are
+ * three different facts and are never collapsed again.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * THE CANONICAL NAME COLUMN IS A PROPOSAL, NOT A FACT
+ * COVERAGE IS BIDIRECTIONAL
  *
- * `CONCEPTS` below is the only hand-authored table in this file, and it is the
- * proposed Mallan business vocabulary — the single canonical identity each
- * concept gets, with every existing name demoted to a boundary alias. It is
- * offered for review BEFORE it becomes code, because once it is code every other
- * vocabulary has to adapt to it.
- *
- * Naming rules applied (CURRENT.md §1):
- *   - Mallan business terminology, or a verified Cotality fact name;
- *   - no RLS / RESO / RealPlus / Trestle terms;
- *   - no legacy carrier names promoted — `rlsId` is compatibility debt and
- *     becomes `listing_id`, not a canonical name;
- *   - one name per concept, so `status` / `statuses` / `standard_status` /
- *     `market_status` collapse to exactly one.
+ * A census that only asks "is every collector key claimed by a concept" passes
+ * while the concept table names keys that no longer exist, or while a wire param
+ * or registry entry belongs to no concept. All four directions are checked.
  *
  * READ-ONLY. Parses source. No network, no database, no Cotality.
- * Run: node scripts/search/criterion-matrix.mjs [--md]
+ * Run: node scripts/search/criterion-matrix.mjs
  */
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -40,6 +42,7 @@ const read = (rel) => readFileSync(resolve(REPO, rel), 'utf8');
 
 const searchEngine = read('public/crm/js/search/search-engine.js');
 const savedSearches = read('public/crm/js/search/saved-searches.js');
+const apiClient = read('public/crm/js/core/api-client.js');
 const registry = read('lib/search/canonical/field-registry.ts');
 const filterKeys = read('lib/search/canonical/filter-keys.ts');
 const crmFilter = read('lib/search/crm-idx-filter.ts');
@@ -53,48 +56,78 @@ function slice(src, startNeedle, endNeedle) {
 }
 
 /**
- * ONE ROW PER BUSINESS CONCEPT.
+ * CRITERIA THE SERVER REACHES AND DELIBERATELY REFUSES.
  *
- * `canonical` — the proposed single business identity.
- * `collector`  — every `criteria.*` key that carries a part of this concept.
- * `workflows`  — which workflows the concept belongs to. `building` and `cma`
- *                are marked from the UI tab and comp usage; where that is not
- *                yet established the value is `?` rather than a guess.
+ * Declared, then VERIFIED below against the unconditional-throw shape in source.
+ * A regex window cannot classify this: `dateFrom`'s `parts.push` falls past the
+ * next `params.get`, so a proximity scan reports it clause-less and publishes a
+ * false finding. Only an unconditional `if (x) throw` with no clause for that
+ * criterion counts as a refusal.
+ */
+const DECLARED_REFUSALS = {
+  managementCompany: 'Cotality declares no ManagementCompany Property field. Listing office is a different fact and must never be substituted.',
+  gridFilter: 'Coordinates are map support, not a Search axis. A caller-supplied coordinate predicate is never passed to the provider.',
+  sponsorUnit: 'SponsorUnit lives inside CustomProperty.CustomFields, not as a top-level OData property. Refused in the search ROUTE rather than the filter builder — which is why a refusal scan of crm-idx-filter alone would miss it.',
+};
+
+/**
+ * ONE ROW PER BUSINESS CONCEPT — the proposed canonical Mallan vocabulary.
+ *
+ * The only hand-authored table here. Naming follows CURRENT.md §1: Mallan
+ * business terminology or a verified Cotality fact name; no RLS / RESO /
+ * RealPlus / Trestle terms; no legacy carrier promoted.
  */
 const CONCEPTS = [
-  { canonical: 'price',              collector: ['priceMin', 'priceMax'],                       workflows: 'sale,rent,cma' },
-  { canonical: 'bedrooms',           collector: ['bedsMin', 'bedsMax'],                         workflows: 'sale,rent,cma' },
-  { canonical: 'bathrooms',          collector: ['bathsMin', 'bathsMax'],                       workflows: 'sale,rent,cma' },
-  { canonical: 'rooms',              collector: ['roomsMin', 'roomsMax'],                       workflows: 'sale,rent' },
-  { canonical: 'living_area',        collector: ['sqftMin', 'sqftMax'],                         workflows: 'sale,rent,cma' },
-  { canonical: 'market_status',      collector: ['statuses'],                                   workflows: 'sale,rent,cma' },
-  { canonical: 'property_sub_type',  collector: ['propertySubType'],                            workflows: 'sale,rent,cma' },
-  { canonical: 'ownership',          collector: ['ownership'],                                  workflows: 'sale' },
-  { canonical: 'borough',            collector: ['borough'],                                    workflows: 'sale,rent,building,cma' },
-  { canonical: 'neighborhood',       collector: ['neighborhoods'],                              workflows: 'sale,rent,building,cma' },
-  { canonical: 'postal_code',        collector: ['zip'],                                        workflows: 'sale,rent,building' },
-  { canonical: 'street_address',     collector: ['address'],                                    workflows: 'sale,rent,building' },
-  { canonical: 'unit',               collector: ['unit'],                                       workflows: 'sale,rent' },
-  { canonical: 'building_name',      collector: ['buildingName'],                               workflows: 'sale,rent,building' },
-  { canonical: 'listing_id',         collector: ['rlsId'],                                      workflows: 'sale,rent' },
-  { canonical: 'listing_activity_date', collector: ['dateFrom', 'dateTo', 'dateActivityType'],  workflows: 'sale,rent' },
-  { canonical: 'contract_date',      collector: ['contractDateFrom', 'contractDateTo'],         workflows: 'sale' },
-  { canonical: 'close_date',         collector: ['soldDateFrom', 'soldDateTo'],                 workflows: 'sale,cma' },
-  { canonical: 'year_built',         collector: ['yearMin', 'yearMax'],                         workflows: 'sale,rent,building' },
-  { canonical: 'stories',            collector: ['floorsMin', 'floorsMax'],                     workflows: 'building' },
-  { canonical: 'units_in_building',  collector: ['unitsMin', 'unitsMax'],                       workflows: 'building' },
-  { canonical: 'listing_remarks_keyword', collector: ['keyword'],                               workflows: 'sale,rent' },
-  { canonical: 'management_company', collector: ['managementCompany'],                          workflows: 'building' },
-  { canonical: 'feature_criteria',   collector: ['checkboxFilters'],                            workflows: 'sale,rent' },
-  { canonical: 'max_financing',      collector: ['financingMin'],                               workflows: 'sale' },
+  { canonical: 'list_price',              collector: ['priceMin', 'priceMax'],                      workflows: 'sale,rent,cma' },
+  { canonical: 'bedrooms',                collector: ['bedsMin', 'bedsMax'],                        workflows: 'sale,rent,cma' },
+  { canonical: 'bathrooms',               collector: ['bathsMin', 'bathsMax'],                      workflows: 'sale,rent,cma' },
+  { canonical: 'rooms_total',             collector: ['roomsMin', 'roomsMax'],                      workflows: 'sale,rent' },
+  { canonical: 'living_area',             collector: ['sqftMin', 'sqftMax'],                        workflows: 'sale,rent,cma' },
+  { canonical: 'market_status',           collector: ['statuses'],                                  workflows: 'sale,rent,cma' },
+  { canonical: 'property_sub_type',       collector: ['propertySubType'],                           workflows: 'sale,rent,cma' },
+  { canonical: 'ownership',               collector: ['ownership'],                                 workflows: 'sale' },
+  { canonical: 'borough',                 collector: ['borough'],                                   workflows: 'sale,rent,building,cma' },
+  { canonical: 'neighborhood',            collector: ['neighborhoods'],                             workflows: 'sale,rent,building,cma' },
+  { canonical: 'postal_code',             collector: ['zip'],                                       workflows: 'sale,rent,building' },
+  { canonical: 'street_address',          collector: ['address'],                                   workflows: 'sale,rent,building' },
+  { canonical: 'unit',                    collector: ['unit'],                                      workflows: 'sale,rent' },
+  { canonical: 'building_name',           collector: ['buildingName'],                              workflows: 'sale,rent,building' },
+  { canonical: 'listing_id',              collector: ['rlsId'],                                     workflows: 'sale,rent' },
+  { canonical: 'listing_activity_date',   collector: ['dateFrom', 'dateTo', 'dateActivityType'],    workflows: 'sale,rent' },
+  { canonical: 'listing_contract_date',   collector: ['contractDateFrom', 'contractDateTo'],        workflows: 'sale' },
+  { canonical: 'close_date',              collector: ['soldDateFrom', 'soldDateTo'],                workflows: 'sale,cma' },
+  { canonical: 'year_built',              collector: ['yearMin', 'yearMax'],                        workflows: 'sale,rent,building' },
+  { canonical: 'stories_total',           collector: ['floorsMin', 'floorsMax'],                    workflows: 'building' },
+  { canonical: 'units_total',             collector: ['unitsMin', 'unitsMax'],                      workflows: 'building' },
+  { canonical: 'public_remarks_keyword',  collector: ['keyword'],                                   workflows: 'sale,rent' },
+  { canonical: 'management_company',      collector: ['managementCompany'],                         workflows: 'building' },
+  { canonical: 'feature_criteria',        collector: ['checkboxFilters'],                           workflows: 'sale,rent' },
+  // Not collector-origin: DERIVED in the serializer from feature_criteria's
+  // SponsorUnit box, because it lives in CustomProperty.CustomFields and must
+  // not travel in the generic checkbox payload.
+  { canonical: 'sponsor_unit',            collector: [], origin: 'serializer', param: 'sponsorUnit',  workflows: 'sale' },
+  // Not collector-origin: set by public/crm/js/search/manhattan-grid.js.
+  { canonical: 'map_grid_filter',         collector: [], origin: 'module',     param: 'gridFilter',   workflows: 'sale,rent' },
+  { canonical: 'max_financing',           collector: ['financingMin'],                              workflows: 'sale' },
 ];
 
-// ── what each layer currently knows ─────────────────────────────────────────
+// ── stage 1: transport reachability ─────────────────────────────────────────
 const collectorBody = slice(searchEngine, 'function collectSearchCriteria', '\n        }\n');
 const collected = new Set([...collectorBody.matchAll(/criteria\.([A-Za-z_]\w*)\s*=/g)].map((m) => m[1]));
 
 const serializerBody = slice(searchEngine, 'window.buildIdxSearchParams = function', '\n        };');
 const emitted = new Set([...serializerBody.matchAll(/params\.([A-Za-z_]\w*)\s*=/g)].map((m) => m[1]));
+
+const forwarded = (() => {
+  const end = apiClient.indexOf("return _fetch('/api/idx/search'");
+  const start = apiClient.lastIndexOf('search:', end);
+  return new Set([...apiClient.slice(start, end).matchAll(/qs\.push\('([A-Za-z_]\w*)=/g)].map((m) => m[1]));
+})();
+
+const serverReads = new Set([
+  ...[...crmFilter.matchAll(/params\.get\("([A-Za-z_]\w*)"\)/g)].map((m) => m[1]),
+  ...[...crmFilter.matchAll(/\["(min[A-Za-z]+|max[A-Za-z]+)"/g)].map((m) => m[1]),
+]);
 
 /** criteria key → wire param, brace-matched per guarded block. */
 const toParam = new Map();
@@ -104,8 +137,7 @@ for (const guard of serializerBody.matchAll(/if \(criteria\.([A-Za-z_]\w*)/g)) {
   const lineEnd = serializerBody.indexOf('\n', from);
   let block;
   if (braceAt !== -1 && braceAt < lineEnd) {
-    let depth = 0;
-    let i = braceAt;
+    let depth = 0, i = braceAt;
     for (; i < serializerBody.length; i++) {
       if (serializerBody[i] === '{') depth++;
       else if (serializerBody[i] === '}') { depth--; if (depth === 0) break; }
@@ -126,13 +158,19 @@ for (const key of collected) {
   }
 }
 
-const serverReads = new Set([
-  ...[...crmFilter.matchAll(/params\.get\("([A-Za-z_]\w*)"\)/g)].map((m) => m[1]),
-  ...[...crmFilter.matchAll(/\["(min[A-Za-z]+|max[A-Za-z]+)"/g)].map((m) => m[1]),
-]);
+// ── stage 2: does the server ask the provider, or refuse? ───────────────────
+//
+// Refusals live in TWO files. `sponsorUnit` is refused in the search ROUTE, not
+// in the filter builder, so a scan of crm-idx-filter alone reports it
+// unverified — the same one-file blind spot that let the status defect survive.
+const searchRoute = read('app/api/idx/search/route.ts');
+const refusalVerified = Object.keys(DECLARED_REFUSALS).filter((p) =>
+  new RegExp(`UnsupportedSearchCriterionError\\("${p}"`).test(crmFilter + searchRoute),
+);
 
-/** wire param → registry canonicalKey / mappingOwner / filterable. */
+// ── stages 3–5: registry owner, capability, live verification ──────────────
 const registryByParam = new Map();
+const registryEntriesWithParams = [];
 for (const line of registry.split('\n')) {
   const key = /canonicalKey:\s*'([^']+)'/.exec(line);
   if (!key) continue;
@@ -143,103 +181,133 @@ for (const line of registry.split('\n')) {
     mappingOwner: (/mappingOwner:\s*'([^']+)'/.exec(line) || [])[1] ?? null,
     filterable: (/filterable:\s*'([^']+)'/.exec(line) || [])[1] ?? 'no',
     filterKeys: (/filterKeys:\s*\[([^\]]*)\]/.exec(line) || [])[1] ?? '',
-    semanticProven: /semanticEquivalenceProven:\s*true/.test(line),
     liveVerified: /VERIFIED LIVE|PROBED DIRECTLY|probe record/i.test(line),
   };
+  registryEntriesWithParams.push(spec);
   for (const raw of params[1].split(',')) {
     const p = raw.trim().replace(/^'|'$/g, '');
     if (p) registryByParam.set(p, spec);
   }
 }
 
+// ── stage 6: persistence ────────────────────────────────────────────────────
 const canonicalFilterKeys = new Set(
   [...slice(filterKeys, 'const CANONICAL_KEYS', '])').matchAll(/'([a-z_]+)'/g)].map((m) => m[1]),
 );
-
 const savedRecordBody = slice(savedSearches, 'function _criteriaToApiFormat', '\n            return out;');
 const savedFrom = new Map();
 for (const m of savedRecordBody.matchAll(/([a-z_]+):\s*c\.([A-Za-z_]\w*)/g)) {
   if (!savedFrom.has(m[2])) savedFrom.set(m[2], m[1]);
 }
 
-const normalizerOwns = (concept) =>
-  concept.canonical === 'feature_criteria' && /canonicalCheckboxCriterion/.test(normalizer);
-
 // ─────────────────────────────────────────────────────────────────────────────
 const rows = CONCEPTS.map((c) => {
-  const params = c.collector.map((k) => toParam.get(k)).filter(Boolean);
+  const params = c.param ? [c.param] : c.collector.map((k) => toParam.get(k)).filter(Boolean);
   const specs = params.map((p) => registryByParam.get(p)).filter(Boolean);
-  const savedKeys = c.collector.map((k) => savedFrom.get(k)).filter(Boolean);
+  const owners = [...new Set(specs.map((s) => s.canonicalKey))];
+  // Serializer/module-origin concepts have no collector key, so the refusal
+  // must be checked against the declared param too.
+  const refused = (c.param && c.param in DECLARED_REFUSALS)
+    || c.collector.some((k) => (toParam.get(k) ?? k) in DECLARED_REFUSALS);
   return {
     ...c,
     params,
-    executes: params.length > 0 && params.every((p) => emitted.has(p) && serverReads.has(p)),
-    registryOwner: specs.length ? [...new Set(specs.map((s) => s.canonicalKey))].join('+') : null,
-    mappingOwner: [...new Set(specs.map((s) => s.mappingOwner).filter(Boolean))].join(',') || null,
+    reachesServer: params.length > 0 && params.every((p) => emitted.has(p) && forwarded.has(p) && serverReads.has(p)),
+    providerClause: params.length > 0 && !refused,
+    refused,
+    owners,
     capability: [...new Set(specs.map((s) => s.filterable))].join(',') || '—',
     liveVerified: specs.some((s) => s.liveVerified),
-    filterKeyBridge: [...new Set(specs.map((s) => s.filterKeys).filter(Boolean))].join(' ') || null,
-    savedKeys,
-    canonicalFilterKeyExists: canonicalFilterKeys.has(c.canonical),
-    normalizerOwned: normalizerOwns(c),
+    persistenceBridge: specs.some((s) => s.filterKeys),
+    savedKeys: c.collector.map((k) => savedFrom.get(k)).filter(Boolean),
   };
 });
 
-const unaccounted = [...collected].filter(
-  (k) => k !== 'searchTab' && !CONCEPTS.some((c) => c.collector.includes(k)),
-);
+// ── bidirectional coverage ──────────────────────────────────────────────────
+const conceptCollectorKeys = CONCEPTS.flatMap((c) => c.collector);
+const dupOwners = rows.filter((r) => r.owners.length > 1);
+const unclaimedCollector = [...collected].filter((k) => k !== 'searchTab' && !conceptCollectorKeys.includes(k));
+// Only COLLECTOR-origin concepts must name real collector keys; a concept that
+// originates in the serializer or another module legitimately names none.
+const phantomCollector = CONCEPTS.filter((c) => (c.origin ?? "collector") === "collector")
+  .flatMap((c) => c.collector).filter((k) => !collected.has(k));
+const conceptParams = new Set(rows.flatMap((r) => r.params));
+const unclaimedWireParams = [...emitted].filter((p) => !conceptParams.has(p) && p !== 'type');
+const unclaimedRegistry = registryEntriesWithParams
+  .filter((s) => !rows.some((r) => r.owners.includes(s.canonicalKey)))
+  .map((s) => s.canonicalKey);
+const dupCollectorClaims = conceptCollectorKeys.filter((k, i) => conceptCollectorKeys.indexOf(k) !== i);
 
-const md = process.argv.includes('--md');
+// ── circular authority ──────────────────────────────────────────────────────
+const registryImportsCFK = /import type \{[^}]*CanonicalFilterKey[^}]*\} from '\.\/filter-keys'/.test(registry);
+
 const pad = (v, n) => String(v ?? '—').padEnd(n);
-
-if (!md) {
-  console.log('# Criterion matrix — one row per BUSINESS CONCEPT\n');
+console.log('# Criterion matrix — business concept → transport → owner → capability → live → persistence\n');
+console.log(
+  pad('canonical concept', 24) + pad('reaches', 9) + pad('clause', 8) + pad('registry owner', 22) +
+  pad('capability', 14) + pad('live', 6) + pad('persist', 9) + 'workflows',
+);
+console.log('-'.repeat(126));
+for (const r of rows) {
   console.log(
-    pad('canonical', 24) + pad('exec', 6) + pad('registry owner', 22) +
-    pad('cap', 14) + pad('live', 6) + pad('bridge', 10) + pad('CFK?', 6) + 'workflows',
+    pad(r.canonical, 24) +
+    pad(r.reachesServer ? 'yes' : 'NO', 9) +
+    pad(r.refused ? 'REFUSED' : r.providerClause ? 'yes' : 'NO', 8) +
+    pad(r.owners.join('+') || null, 22) +
+    pad(r.capability, 14) +
+    pad(r.liveVerified ? 'yes' : '—', 6) +
+    pad(r.persistenceBridge ? 'yes' : 'NO', 9) +
+    r.workflows,
   );
-  console.log('-'.repeat(120));
-  for (const r of rows) {
-    console.log(
-      pad(r.canonical, 24) +
-      pad(r.executes ? 'yes' : 'NO', 6) +
-      pad(r.registryOwner, 22) +
-      pad(r.capability, 14) +
-      pad(r.liveVerified ? 'yes' : '—', 6) +
-      pad(r.filterKeyBridge ? 'yes' : 'NO', 10) +
-      pad(r.canonicalFilterKeyExists ? 'yes' : 'NO', 6) +
-      r.workflows,
-    );
-  }
 }
 
-const executing = rows.filter((r) => r.executes);
-console.log(`\nbusiness concepts:                        ${rows.length}`);
-console.log(`  executing end to end today:             ${executing.length}`);
-console.log(`  with a FIELD_REGISTRY owner:            ${rows.filter((r) => r.registryOwner).length}`);
-console.log(`  with a registry filterKeys bridge:      ${rows.filter((r) => r.filterKeyBridge).length}`);
-console.log(`  whose canonical name exists in CFK:     ${rows.filter((r) => r.canonicalFilterKeyExists).length}`);
-console.log(`  with live Cotality evidence recorded:   ${rows.filter((r) => r.liveVerified).length}`);
-console.log(`  owned by the checkbox normalizer:       ${rows.filter((r) => r.normalizerOwned).length}`);
-
-console.log('\n## Concepts that do NOT execute end to end today\n');
-const dead = rows.filter((r) => !r.executes);
-console.log(dead.length ? dead.map((r) => `  ${pad(r.canonical, 24)} collector=${r.collector.join(',')}`).join('\n') : '  (none)');
-
-console.log('\n## Collector keys no concept claims — the matrix must be complete\n');
-console.log(unaccounted.length ? `  ${unaccounted.join(', ')}` : '  (none)');
-
-console.log('\n## Concepts with NO registry owner — B1 must give them one\n');
-const orphan = rows.filter((r) => r.executes && !r.registryOwner);
-console.log(orphan.length ? orphan.map((r) => `  ${r.canonical}`).join('\n') : '  (none)');
-
-console.log('\n## Executing concepts with NO recorded live Cotality evidence\n');
-const unproven = executing.filter((r) => !r.liveVerified);
-console.log(
-  unproven.length ? `  ${unproven.map((r) => r.canonical).join(', ')}` : '  (none)',
+const executable = rows.filter((r) => r.reachesServer && r.providerClause);
+console.log(`\n## SECTION 4 SCOREBOARD — the measurable target\n`);
+const score = (label, actual, target, ok) =>
+  console.log(`  ${ok ? 'PASS' : 'OPEN'}  ${pad(label, 46)} ${actual} / ${target}`);
+score('concepts accounted for', rows.length, CONCEPTS.length, true);
+score('duplicate registry owners', dupOwners.length, 0, dupOwners.length === 0);
+score('unaccounted collector keys', unclaimedCollector.length, 0, unclaimedCollector.length === 0);
+score('phantom collector keys in concept table', phantomCollector.length, 0, phantomCollector.length === 0);
+score('unaccounted wire params', unclaimedWireParams.length, 0, unclaimedWireParams.length === 0);
+score('unaccounted registry entries', unclaimedRegistry.length, 0, unclaimedRegistry.length === 0);
+score('concepts claimed by two rows', dupCollectorClaims.length, 0, dupCollectorClaims.length === 0);
+score(
+  'executable concepts with a persistence bridge',
+  executable.filter((r) => r.persistenceBridge).length,
+  executable.length,
+  executable.every((r) => r.persistenceBridge),
 );
+score('declared refusals verified in source', refusalVerified.length, Object.keys(DECLARED_REFUSALS).length,
+  refusalVerified.length === Object.keys(DECLARED_REFUSALS).length);
+score('independent translation tables (CFK not derived)', registryImportsCFK ? 1 : 0, 0, !registryImportsCFK);
+
+console.log('\n## Concepts that reach the server but are DELIBERATELY REFUSED\n');
+const refusals = rows.filter((r) => r.refused);
+console.log(
+  refusals.length
+    ? refusals.map((r) => `  ${pad(r.canonical, 24)} ${DECLARED_REFUSALS[r.params[0] ?? r.collector[0]] ?? ''}`).join('\n')
+    : '  (none)',
+);
+
+console.log('\n## Concepts that do not reach the server at all\n');
+const unreached = rows.filter((r) => !r.reachesServer);
+console.log(unreached.length ? unreached.map((r) => `  ${pad(r.canonical, 24)} collector=${r.collector.join(',')}`).join('\n') : '  (none)');
+
+console.log('\n## CIRCULAR AUTHORITY CHECK\n');
+console.log(
+  registryImportsCFK
+    ? '  OPEN — field-registry.ts imports CanonicalFilterKey FROM filter-keys.ts.\n' +
+      '  Generating filter-keys.ts FROM the registry while the registry imports its\n' +
+      '  type would be circular. The type direction must be inverted first: the\n' +
+      '  registry declares the keys, filter-keys derives its union from them.'
+    : '  PASS — no circular import between the registry and the filter-key vocabulary.',
+);
+
+console.log('\n## Executable concepts with NO recorded live Cotality evidence\n');
+const unproven = executable.filter((r) => !r.liveVerified);
+console.log(`  ${unproven.length} of ${executable.length}: ${unproven.map((r) => r.canonical).join(', ')}`);
 console.log(
   '\n  Repo code proves what Mallan ASKS FOR. It does not prove Cotality accepts,' +
-  '\n  populates or semantically means it (CURRENT.md §1). These are the concepts' +
-  '\n  whose provider semantics still need authorized live evidence.',
+  '\n  populates or semantically means it (CURRENT.md §1).',
 );
