@@ -39,9 +39,18 @@ describe('checkbox errors join the canonical unsupported-criterion protocol', ()
     expect(res!.body.code).toBe('UNSUPPORTED_CRITERION');
   });
 
-  it('names the criterion and the offending value', () => {
+  it('names the CANONICAL criterion and the offending value', () => {
+    // The request arrives under the provider-shaped legacy key `PetsAllowed`,
+    // and the refusal names `pets` — the canonical business identity — rather
+    // than the legacy family name `pet_policy` it used to report.
+    //
+    // That is the rename working. A client may still SEND a legacy alias; what
+    // it gets back is the one identity that owns the question, so two names
+    // never circulate for one broker control. The offending value is unchanged
+    // and remains the actionable half.
     const res = routeResponseFor({ PetsAllowed: ['CatsOnly'] })!;
-    expect(String(res.body.criterion)).toContain('pet_policy');
+    expect(String(res.body.criterion)).toContain('pets');
+    expect(String(res.body.criterion)).not.toContain('pet_policy');
     expect(res.body.unsupportedValues).toEqual(['CatsOnly']);
   });
 

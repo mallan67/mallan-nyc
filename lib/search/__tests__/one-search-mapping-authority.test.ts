@@ -183,7 +183,13 @@ describe('mutation guards — the authority graph cannot be bypassed', () => {
     // what a hand-written list plus a "they must agree" assertion could never
     // give: there is nothing to keep in agreement.
     const committed = read('lib/search/canonical/filter-keys.generated.ts');
-    const derived = FIELD_REGISTRY.filter((f) => f.searchParams !== undefined)
+    // Membership is the BUSINESS ROLE, not whether transport exists. This
+    // derived `searchParams !== undefined`, which is the backwards rule the
+    // registry no longer uses: it excluded `pets` and `furnished` (verified
+    // facts CURRENT.md names for Rental Search) because no URL parameter had
+    // been wired, and admitted `map_grid_filter`, a raw viewport predicate that
+    // Search explicitly refuses, because one had.
+    const derived = FIELD_REGISTRY.filter((f) => f.criterionRole === 'broker_input')
       .map((f) => f.canonicalKey)
       .sort();
 

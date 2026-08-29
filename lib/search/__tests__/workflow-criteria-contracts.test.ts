@@ -91,6 +91,63 @@ describe('the four workflow contracts', () => {
   });
 });
 
+describe('membership is a business role, not a URL parameter', () => {
+  const registry = readFileSync(resolve(__dirname, '../canonical/field-registry.ts'), 'utf8');
+  const entry = (key: string) =>
+    registry.split('\n').find((l) => l.includes(`canonicalKey: '${key}'`)) ?? '';
+
+  it('admits verified brokerage criteria that were never wired to a URL param', () => {
+    // `pets` and `furnished` are verified facts CURRENT.md names for Rental
+    // Search, and the CRM has dedicated rental sections for them. Under the old
+    // rule — canonical because `searchParams` exists — RentalCriteria had 19
+    // fields and neither of these, because no serializer had been written.
+    // A URL parameter is evidence of what was once built, never of what the
+    // business means.
+    expect(WORKFLOW_CRITERIA.rental).toContain('pets');
+    expect(WORKFLOW_CRITERIA.rental).toContain('furnished');
+    expect(entry('pets')).toMatch(/criterionRole: 'broker_input'/);
+    expect(entry('furnished')).toMatch(/criterionRole: 'broker_input'/);
+    // Still unwired — which is a TRANSPORT fact, and no longer a reason to
+    // vanish from the contract.
+    expect(entry('pets')).toMatch(/searchParams: \[\]/);
+  });
+
+  it('excludes a raw transport artifact even though it HAS a wire param', () => {
+    // `map_grid_filter` is a viewport predicate and an explicit legacy refusal:
+    // a map must translate geographic intent into canonical geographic criteria,
+    // not smuggle a grid string into Search. It had a wire param, so the old
+    // rule admitted it to both SaleCriteria and RentalCriteria.
+    expect(entry('map_grid_filter')).toMatch(/criterionRole: 'boundary_refusal'/);
+    expect(CANONICAL_FILTER_KEYS as readonly string[]).not.toContain('map_grid_filter');
+    for (const keys of Object.values(WORKFLOW_CRITERIA)) {
+      expect(keys as readonly string[]).not.toContain('map_grid_filter');
+    }
+  });
+
+  it('keeps the refusal live at the boundary — excluded is not forgotten', () => {
+    // Dropping it from the vocabulary must not quietly stop refusing it. The
+    // executor still fails loudly rather than ignoring a supplied grid.
+    const executor = readFileSync(resolve(__dirname, '../crm-idx-filter.ts'), 'utf8');
+    expect(executor).toMatch(/gridFilter[\s\S]{0,120}UnsupportedSearchCriterionError/);
+  });
+
+  it('excludes what the workflow fixes rather than what a broker chooses', () => {
+    // Sale always searches Residential and Rental always ResidentialLease, so
+    // offering `listing_universe` would let a broker contradict the workflow
+    // they are already inside.
+    expect(entry('listing_universe')).toMatch(/criterionRole: 'workflow_invariant'/);
+    expect(CANONICAL_FILTER_KEYS as readonly string[]).not.toContain('listing_universe');
+  });
+
+  it('classifies EVERY registry entry — silence is not a classification', () => {
+    const unclassified = registry
+      .split('\n')
+      .filter((l) => /canonicalKey: '[a-z_]+'/.test(l) && !/criterionRole:/.test(l))
+      .map((l) => /canonicalKey: '([a-z_]+)'/.exec(l)?.[1]);
+    expect(unclassified).toEqual([]);
+  });
+});
+
 describe('the ledger no longer owns applicability', () => {
   it('has no hand-written workflow column left', () => {
     // 27 of them were removed. If one returns, two places would answer "which

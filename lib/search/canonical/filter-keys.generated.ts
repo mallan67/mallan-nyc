@@ -16,6 +16,7 @@
 import type {
   BasisRangeValue,
   CriterionValueShape,
+  FeatureSelection,
   GeoValue,
   RangeValue,
   SetValue,
@@ -31,24 +32,35 @@ export const CANONICAL_FILTER_KEYS = [
   'borough',
   'building_name',
   'close_date',
+  'commercial',
+  'days_on_market',
   'feature_criteria',
+  'furnished',
   'list_price',
   'listing_contract_date',
   'listing_id_canonical',
   'living_area',
+  'maintenance_common_charge',
+  'mallan_exclusive',
   'management_company',
-  'map_grid_filter',
   'market_status',
   'max_financing_percent',
   'neighborhood',
+  'new_development',
+  'open_house',
   'ownership',
+  'parking',
+  'pets',
   'postal_code',
+  'price_per_sqft',
   'property_sub_type',
   'public_remarks_keyword',
   'rooms_total',
   'sponsor_unit',
   'stories_total',
   'street_address',
+  'structure_type',
+  'total_monthly_cost',
   'unit',
   'units_total',
   'year_built',
@@ -57,10 +69,18 @@ export const CANONICAL_FILTER_KEYS = [
 export type CanonicalFilterKeyName = (typeof CANONICAL_FILTER_KEYS)[number];
 
 /**
- * Derived from each entry's declared `type`, so a criterion cannot exist without
- * a known value shape. `satisfies` makes the map exhaustive at compile time: a
- * key present in the vocabulary but missing here is a type error, not a runtime
- * `undefined` that would skip validation and let the value through unchecked.
+ * Each criterion's DECLARED `criterionValueShape`, copied verbatim — never
+ * derived from `type`.
+ *
+ * It was derived from `type` until 2026-08-28, and that conflated two different
+ * questions: what kind of FACT a criterion is on a listing, versus what a broker
+ * may TYPE INTO the control. Deriving forced `type` to be rewritten to describe
+ * the UI — `listing_id_canonical` became `array` because the Search box accepts
+ * several IDs, when one listing has exactly ONE canonical identifier.
+ *
+ * `satisfies` makes the map exhaustive at compile time: a key present in the
+ * vocabulary but missing here is a type error, not a runtime `undefined` that
+ * would skip validation and let the value through unchecked.
  */
 export const CRITERION_VALUE_SHAPE = {
   activity_date: 'basis_range_date',
@@ -69,24 +89,35 @@ export const CRITERION_VALUE_SHAPE = {
   borough: 'enum_set',
   building_name: 'text',
   close_date: 'range_date',
-  feature_criteria: 'enum_set',
+  commercial: 'boolean',
+  days_on_market: 'range_number',
+  feature_criteria: 'feature_map',
+  furnished: 'enum_set',
   list_price: 'range_number',
   listing_contract_date: 'range_date',
   listing_id_canonical: 'text_set',
   living_area: 'range_number',
+  maintenance_common_charge: 'range_number',
+  mallan_exclusive: 'boolean',
   management_company: 'text',
-  map_grid_filter: 'geo',
   market_status: 'enum_set',
   max_financing_percent: 'range_number',
   neighborhood: 'text_set',
+  new_development: 'boolean',
+  open_house: 'boolean',
   ownership: 'enum_set',
+  parking: 'enum_set',
+  pets: 'enum_set',
   postal_code: 'text',
+  price_per_sqft: 'range_number',
   property_sub_type: 'enum_set',
   public_remarks_keyword: 'text',
   rooms_total: 'range_number',
   sponsor_unit: 'boolean',
   stories_total: 'range_number',
   street_address: 'text',
+  structure_type: 'enum_set',
+  total_monthly_cost: 'range_number',
   unit: 'text',
   units_total: 'range_number',
   year_built: 'range_number',
@@ -115,9 +146,13 @@ export const CRITERION_VALUE_BASES: Partial<Record<CanonicalFilterKeyName, reado
 export const CRITERION_VOCABULARY_OWNER: Partial<Record<CanonicalFilterKeyName, string>> = {
   borough: 'geography',
   feature_criteria: 'checkbox-criteria',
+  furnished: 'checkbox-criteria',
   market_status: 'status-token-contract',
   ownership: 'ownership',
+  parking: 'checkbox-criteria',
+  pets: 'checkbox-criteria',
   property_sub_type: 'property-subtype-contract',
+  structure_type: 'checkbox-criteria',
 };
 
 /**
@@ -142,8 +177,14 @@ export interface CanonicalCriteriaValues {
   building_name?: string;
   /** Sold Date — date */
   close_date?: RangeValue<string>;
+  /** Commercial — boolean */
+  commercial?: boolean;
+  /** Days on Market — number */
+  days_on_market?: RangeValue<number>;
   /** Amenities — multi_enum */
-  feature_criteria?: SetValue;
+  feature_criteria?: FeatureSelection;
+  /** Furnished — enum */
+  furnished?: SetValue;
   /** Price — money */
   list_price?: RangeValue<number>;
   /** Listed Date — date */
@@ -152,20 +193,32 @@ export interface CanonicalCriteriaValues {
   listing_id_canonical?: SetValue;
   /** Square Feet — number */
   living_area?: RangeValue<number>;
+  /** Maintenance / CC — money */
+  maintenance_common_charge?: RangeValue<number>;
+  /** Mallan Exclusive — boolean */
+  mallan_exclusive?: boolean;
   /** Management Company — string */
   management_company?: string;
-  /** Map Grid — geo */
-  map_grid_filter?: GeoValue;
   /** Status — enum */
   market_status?: SetValue;
   /** Max Financing Allowed % — number */
   max_financing_percent?: RangeValue<number>;
   /** Neighborhood — string */
   neighborhood?: SetValue;
+  /** New Development — boolean */
+  new_development?: boolean;
+  /** Open House — object */
+  open_house?: boolean;
   /** Ownership — enum */
   ownership?: SetValue;
+  /** Parking / Garage — multi_enum */
+  parking?: SetValue;
+  /** Pets — multi_enum */
+  pets?: SetValue;
   /** ZIP — string */
   postal_code?: string;
+  /** $/Sqft — computed */
+  price_per_sqft?: RangeValue<number>;
   /** Property Type — enum */
   property_sub_type?: SetValue;
   /** Keyword — string */
@@ -178,6 +231,10 @@ export interface CanonicalCriteriaValues {
   stories_total?: RangeValue<number>;
   /** Address — string */
   street_address?: string;
+  /** Structure Type — multi_enum */
+  structure_type?: SetValue;
+  /** Total Monthly — computed */
+  total_monthly_cost?: RangeValue<number>;
   /** Unit — string */
   unit?: string;
   /** Units in Building — number */
@@ -203,22 +260,32 @@ export const WORKFLOW_CRITERIA = {
     'borough',
     'building_name',
     'close_date',
+    'commercial',
+    'days_on_market',
     'feature_criteria',
     'list_price',
     'listing_contract_date',
     'listing_id_canonical',
     'living_area',
-    'map_grid_filter',
+    'maintenance_common_charge',
+    'mallan_exclusive',
     'market_status',
     'max_financing_percent',
     'neighborhood',
+    'new_development',
+    'open_house',
     'ownership',
+    'parking',
+    'pets',
     'postal_code',
+    'price_per_sqft',
     'property_sub_type',
     'public_remarks_keyword',
     'rooms_total',
     'sponsor_unit',
     'street_address',
+    'structure_type',
+    'total_monthly_cost',
     'unit',
     'year_built',
   ],
@@ -228,18 +295,26 @@ export const WORKFLOW_CRITERIA = {
     'bedrooms',
     'borough',
     'building_name',
+    'commercial',
+    'days_on_market',
     'feature_criteria',
+    'furnished',
     'list_price',
     'listing_id_canonical',
     'living_area',
-    'map_grid_filter',
+    'mallan_exclusive',
     'market_status',
     'neighborhood',
+    'new_development',
+    'open_house',
+    'parking',
+    'pets',
     'postal_code',
     'property_sub_type',
     'public_remarks_keyword',
     'rooms_total',
     'street_address',
+    'structure_type',
     'unit',
     'year_built',
   ],
@@ -248,9 +323,11 @@ export const WORKFLOW_CRITERIA = {
     'building_name',
     'management_company',
     'neighborhood',
+    'parking',
     'postal_code',
     'stories_total',
     'street_address',
+    'structure_type',
     'units_total',
     'year_built',
   ],
@@ -259,10 +336,12 @@ export const WORKFLOW_CRITERIA = {
     'bedrooms',
     'borough',
     'close_date',
+    'days_on_market',
     'list_price',
     'living_area',
     'market_status',
     'neighborhood',
+    'price_per_sqft',
     'property_sub_type',
   ],
 } as const satisfies Record<SearchWorkflow, readonly CanonicalFilterKeyName[]>;
@@ -282,22 +361,32 @@ export type SaleCriteria = Pick<
   | 'borough'
   | 'building_name'
   | 'close_date'
+  | 'commercial'
+  | 'days_on_market'
   | 'feature_criteria'
   | 'list_price'
   | 'listing_contract_date'
   | 'listing_id_canonical'
   | 'living_area'
-  | 'map_grid_filter'
+  | 'maintenance_common_charge'
+  | 'mallan_exclusive'
   | 'market_status'
   | 'max_financing_percent'
   | 'neighborhood'
+  | 'new_development'
+  | 'open_house'
   | 'ownership'
+  | 'parking'
+  | 'pets'
   | 'postal_code'
+  | 'price_per_sqft'
   | 'property_sub_type'
   | 'public_remarks_keyword'
   | 'rooms_total'
   | 'sponsor_unit'
   | 'street_address'
+  | 'structure_type'
+  | 'total_monthly_cost'
   | 'unit'
   | 'year_built'
 >;
@@ -316,18 +405,26 @@ export type RentalCriteria = Pick<
   | 'bedrooms'
   | 'borough'
   | 'building_name'
+  | 'commercial'
+  | 'days_on_market'
   | 'feature_criteria'
+  | 'furnished'
   | 'list_price'
   | 'listing_id_canonical'
   | 'living_area'
-  | 'map_grid_filter'
+  | 'mallan_exclusive'
   | 'market_status'
   | 'neighborhood'
+  | 'new_development'
+  | 'open_house'
+  | 'parking'
+  | 'pets'
   | 'postal_code'
   | 'property_sub_type'
   | 'public_remarks_keyword'
   | 'rooms_total'
   | 'street_address'
+  | 'structure_type'
   | 'unit'
   | 'year_built'
 >;
@@ -345,9 +442,11 @@ export type BuildingCriteria = Pick<
   | 'building_name'
   | 'management_company'
   | 'neighborhood'
+  | 'parking'
   | 'postal_code'
   | 'stories_total'
   | 'street_address'
+  | 'structure_type'
   | 'units_total'
   | 'year_built'
 >;
@@ -365,9 +464,11 @@ export type ComparableCriteria = Pick<
   | 'bedrooms'
   | 'borough'
   | 'close_date'
+  | 'days_on_market'
   | 'list_price'
   | 'living_area'
   | 'market_status'
   | 'neighborhood'
+  | 'price_per_sqft'
   | 'property_sub_type'
 >;

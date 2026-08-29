@@ -119,7 +119,14 @@ const PARAM_ALIASES: Readonly<Record<string, CanonicalFilterKey>> = Object.freez
   keyword: 'public_remarks_keyword', keywords: 'public_remarks_keyword',
   checkboxFilters: 'feature_criteria', checkbox_filters: 'feature_criteria', amenities: 'feature_criteria',
   sponsorUnit: 'sponsor_unit', sponsor_unit: 'sponsor_unit',
-  gridFilter: 'map_grid_filter',
+  // `gridFilter` deliberately has NO canonical key. It is a raw viewport
+  // predicate and an explicit refusal: a map must translate geographic intent
+  // into canonical geographic criteria, not smuggle a grid string into Search.
+  // Mapping it to a canonical key made it criteria state, which is how it ended
+  // up inside SaleCriteria and RentalCriteria. The refusal itself still lives in
+  // `crm-idx-filter.ts`, which throws rather than ignoring a supplied grid — so
+  // removing the alias drops it from the canonical vocabulary WITHOUT making it
+  // silently acceptable.
   financingMin: 'max_financing_percent',
 });
 

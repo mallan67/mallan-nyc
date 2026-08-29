@@ -211,7 +211,11 @@ function emittedCheckboxKeys(): string[] {
 
 /** Everything the registry knows, by either name. */
 function registryKnows(): Set<string> {
-  const pairs = [...registry.matchAll(/\['([A-Za-z]+)',\s*'([a-z_]+)'\]/g)];
+  // `[A-Za-z_]+` on the legacy side, not `[A-Za-z]+`. Legacy keys are not all
+  // provider-shaped CamelCase: a legacy MALLAN spelling can carry an underscore,
+  // and `['pet_policy', 'pets']` was invisible to the narrower pattern — so a key
+  // the registry demonstrably knows was reported as undecided.
+  const pairs = [...registry.matchAll(/\['([A-Za-z_]+)',\s*'([a-z_]+)'\]/g)];
   return new Set([...pairs.map((m) => m[1]), ...pairs.map((m) => m[2])]);
 }
 

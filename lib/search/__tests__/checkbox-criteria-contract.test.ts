@@ -55,7 +55,11 @@ describe("the registry is closed", () => {
       "new_construction",
       "outdoor_features",
       "owner_pays",
-      "pet_policy",
+      // RENAMED 2026-08-29: the family is now named for the canonical business
+      // identity it serves. `pets` is a first-class Rental criterion, and this
+      // family is its subordinate mapping/value authority — one name for one
+      // broker question. `pet_policy` still READS in via CANONICAL_BY_LEGACY.
+      "pets",
       "pool",
       "view",
     ]);

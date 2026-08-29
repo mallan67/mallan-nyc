@@ -22,7 +22,9 @@ import {
 describe("legacy provider keys become canonical Mallan criteria", () => {
   it.each([
     ["View", "view"],
-    ["PetsAllowed", "pet_policy"],
+    // PetsAllowed now resolves to the canonical business identity `pets`, not to
+    // the old family name. One concept, one path.
+    ["PetsAllowed", "pets"],
     ["LaundryFeatures", "laundry"],
     ["StructureType", "building_structure"],
     ["BuildingFeatures", "building_amenities"],
@@ -45,7 +47,11 @@ describe("legacy provider keys become canonical Mallan criteria", () => {
   });
 
   it("a canonical key passed back in stays itself (idempotent)", () => {
-    for (const k of ["view", "pet_policy", "cooling", "garage"]) {
+    // `pet_policy` deliberately dropped from this list: it is no longer a
+    // canonical key, it is a LEGACY spelling that read-adapts to `pets`. Its
+    // non-idempotence is the rename working, and is asserted in
+    // one-concept-one-path.test.ts instead.
+    for (const k of ["view", "pets", "cooling", "garage"]) {
       expect(canonicalSavedSearchKey(k)).toBe(k);
     }
   });
@@ -233,7 +239,7 @@ describe("this module owns no vocabulary of its own", () => {
 describe("values are validated against the registry, not just keys", () => {
   it.each([
     ["view", { View: ["Park"] }],
-    ["pet_policy", { PetsAllowed: ["CatsOnly"] }],
+    ["pets", { PetsAllowed: ["CatsOnly"] }],
     ["laundry", { LaundryFeatures: ["Common"] }],
     ["building_structure", { StructureType: ["WalkUp"] }],
   ])("%s with an unresolved value is not executable", (_criterion, cb) => {

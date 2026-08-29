@@ -63,6 +63,8 @@ export type CriterionValueShape =
   | 'basis_range_date'
   /** A closed vocabulary owned by a named module; unknown members are refused. */
   | 'enum_set'
+  /** A structured field -> values selection across several feature families. */
+  | 'feature_map'
   /** An open list — no vocabulary to check membership against. */
   | 'text_set'
   | 'text'
@@ -102,6 +104,42 @@ export type SetValue = readonly string[];
 /** A map-drawn boundary. Opaque here; `geography.ts` owns its interpretation. */
 export interface GeoValue {
   readonly encoded: string;
+}
+
+/**
+ * A selection across feature FAMILIES: which family, and which of its values.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * NESTED, NOT FLAT.
+ *
+ * This was generated as a flat `SetValue` — `['City', 'InUnit', 'Furnished']` —
+ * which throws away the family each value belongs to. That is not a cosmetic
+ * loss: `checkbox-criteria.ts` does not own one vocabulary, it owns eighteen
+ * separate families, each with its own Cotality field, its own scalar/multi
+ * kind, its own allowed members and its own UNRESOLVED members. A flat array
+ * cannot say whether `Common` meant `laundry` (where it is unresolved between
+ * CommonArea and CommonOnFloor) or something else entirely.
+ *
+ * The saved-search normalizer already models this correctly as field -> values,
+ * so flattening here would also have put the canonical object out of step with
+ * the persistence boundary it is supposed to feed.
+ */
+export type FeatureSelection = Readonly<Record<string, readonly string[]>>;
+
+/**
+ * The family owner, injected rather than imported.
+ *
+ * `criteria-values.ts` is a LEAF — importing `checkbox-criteria.ts` would make
+ * it a consumer of one specific owner and invite a
+ * `switch (vocabularyOwner) { case 'checkbox-criteria': ... }` in the validator,
+ * which is just translation table number ten. The validator ASKS the owner; it
+ * never interprets the owner's name.
+ */
+export interface FeatureFamilyAuthority {
+  /** Is this family selectable here, or does it have a first-class identity? */
+  isOfferable(family: string): boolean;
+  /** Does the owner accept these values for this family? */
+  validate(family: string, values: readonly string[]): { ok: boolean; reason?: string };
 }
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -263,6 +301,51 @@ export function assertValidText(criterion: string, value: string): void {
       criterion,
       'received a blank value — omit the criterion entirely to leave it unfiltered',
     );
+  }
+}
+
+/**
+ * A structured feature selection, validated family by family THROUGH ITS OWNER.
+ *
+ * Refuses a family that carries a first-class identity elsewhere. `pets` and
+ * `furnished` are top-level Rental criteria, so a request holding BOTH
+ * `pets` and `feature_criteria.pet_policy` would ask one business question twice
+ * with no rule saying which half wins.
+ */
+export function assertValidFeatureSelection(
+  criterion: string,
+  value: FeatureSelection,
+  authority: FeatureFamilyAuthority,
+): void {
+  const families = Object.keys(value);
+  if (families.length === 0) {
+    throw new InvalidCriterionValueError(
+      criterion,
+      'received an empty feature selection — omit the criterion entirely to leave it unfiltered',
+    );
+  }
+  for (const family of families) {
+    if (!authority.isOfferable(family)) {
+      throw new InvalidCriterionValueError(
+        criterion,
+        `"${family}" is not selectable here — it is a first-class criterion, and offering it in ` +
+          `both places would let one request ask the same question twice`,
+      );
+    }
+    const values = value[family];
+    if (!Array.isArray(values) || values.length === 0) {
+      throw new InvalidCriterionValueError(
+        criterion,
+        `family "${family}" has no values — omit the family to leave it unfiltered`,
+      );
+    }
+    const verdict = authority.validate(family, values);
+    if (!verdict.ok) {
+      throw new InvalidCriterionValueError(
+        criterion,
+        `family "${family}": ${verdict.reason ?? 'rejected by its vocabulary owner'}`,
+      );
+    }
   }
 }
 

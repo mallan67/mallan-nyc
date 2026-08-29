@@ -29,12 +29,21 @@
  * itself exists to remove. One parse, one output file, one `--check`.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * WHAT COUNTS AS A PERSISTENCE KEY
+ * WHAT COUNTS AS A CANONICAL SEARCH CRITERION
  *
- * A registry entry is a Search criterion when it declares `searchParams` — even
- * an EMPTY array, which means "a real criterion with no wire param today"
- * (`max_financing_percent`). Its persistence key IS its `canonicalKey`: one
- * concept, one name, bounds carried in the value.
+ * Its declared `criterionRole` is `broker_input`. Nothing else.
+ *
+ * This used to be "the entry declares `searchParams`" — a criterion was
+ * canonical because transport for it happened to exist, which runs the whole
+ * dependency backwards and was wrong in both directions at once. It EXCLUDED
+ * `pets` and `furnished`, verified facts CURRENT.md names for Rental Search with
+ * dedicated CRM sections, because no URL parameter had been wired. And it
+ * ADMITTED `map_grid_filter`, a raw viewport predicate that Search explicitly
+ * refuses, because one had.
+ *
+ * `searchParams` is now transport METADATA on an entry whose membership was
+ * already decided by its business role. Its persistence key IS its
+ * `canonicalKey`: one concept, one name, bounds carried in the value.
  *
  * `sort` is deliberately NOT here. Result ordering is not a filter, and
  * `SavedSearchCriteria` already carries `sort` as its own field — admitting it
@@ -52,19 +61,6 @@ const REGISTRY = resolve(REPO, 'lib/search/canonical/field-registry.ts');
 const OUT = resolve(REPO, 'lib/search/canonical/filter-keys.generated.ts');
 
 /**
- * The input shape is DECLARED on each entry, never derived from `type`.
- *
- * It used to be derived, and that conflated two different questions: "what kind
- * of fact is this on a listing" and "what may a broker type into this control".
- * Deriving forced `type` to be rewritten to describe the UI —
- * `listing_id_canonical` became `array` because the Search box accepts several
- * IDs, when one listing has exactly ONE canonical identifier. The registry ended
- * up lying about the domain in order to describe a control.
- *
- * A Search criterion with no declared shape is a hard error below, so a new
- * entry cannot inherit a silent default.
- */
-/**
  * READ from the leaf module rather than restated here.
  *
  * The first draft of this line was a literal with a comment saying it "mirrors"
@@ -79,11 +75,32 @@ const WORKFLOWS = (() => {
   return [...list[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
 })();
 
+/** READ from the leaf module, never restated — see WORKFLOWS above. */
+const ROLES = (() => {
+  const src = readFileSync(resolve(REPO, 'lib/search/canonical/criterion-role.ts'), 'utf8');
+  const list = /CRITERION_ROLES = \[([\s\S]*?)\] as const/.exec(src);
+  if (!list) throw new Error('cannot read CRITERION_ROLES from criterion-role.ts');
+  return [...list[1].matchAll(/^\s*'([a-z_]+)',/gm)].map((m) => m[1]);
+})();
+
+/**
+ * The input shape is DECLARED on each entry, never derived from `type`.
+ *
+ * It used to be derived, and that conflated two different questions: "what kind
+ * of fact is this on a listing" and "what may a broker type into this control".
+ * Deriving forced `type` to be rewritten to describe the UI —
+ * `listing_id_canonical` became `array` because the Search box accepts several
+ * IDs, when one listing has exactly ONE canonical identifier.
+ *
+ * A Search criterion with no declared shape is a hard error below, so a new
+ * entry cannot inherit a silent default.
+ */
 const VALID_SHAPES = new Set([
   'range_number',
   'range_date',
   'basis_range_date',
   'enum_set',
+  'feature_map',
   'text_set',
   'text',
   'boolean',
@@ -95,6 +112,7 @@ const TS_TYPE_BY_SHAPE = {
   range_date: 'RangeValue<string>',
   basis_range_date: 'BasisRangeValue<string>',
   enum_set: 'SetValue',
+  feature_map: 'FeatureSelection',
   text_set: 'SetValue',
   text: 'string',
   boolean: 'boolean',
@@ -107,9 +125,28 @@ export function deriveCriteria() {
   for (const line of src.split('\n')) {
     const key = /canonicalKey:\s*'([^']+)'/.exec(line);
     if (!key) continue;
-    // `searchParams:` present (possibly empty) marks a Search criterion.
-    if (!/searchParams:\s*\[/.test(line)) continue;
     if (found.has(key[1])) continue;
+
+    // MEMBERSHIP IS A BUSINESS ROLE, NOT A URL PARAMETER.
+    //
+    // This used to be `searchParams:` present — a criterion was canonical
+    // because transport for it happened to exist. That ran the dependency
+    // backwards and was wrong in both directions: it excluded `pets` and
+    // `furnished` (verified facts CURRENT.md names for Rental Search, with
+    // dedicated CRM sections, but no wire param) while admitting
+    // `map_grid_filter`, a raw viewport predicate that is an explicit refusal.
+    const role = /criterionRole:\s*'([^']+)'/.exec(line)?.[1];
+    if (!role) {
+      throw new Error(
+        `registry entry "${key[1]}" declares no criterionRole. Every entry must say whether it ` +
+          `is a broker_input, a workflow_invariant, a boundary_refusal or a non_search_fact — ` +
+          `membership is never inferred from whether transport exists.`,
+      );
+    }
+    if (!ROLES.includes(role)) {
+      throw new Error(`registry entry "${key[1]}" declares unknown criterionRole "${role}"`);
+    }
+    if (role !== 'broker_input') continue;
 
     const type = /[^A-Za-z]type:\s*'([^']+)'/.exec(line)?.[1];
     if (!type) throw new Error(`registry entry "${key[1]}" declares no type`);
@@ -141,13 +178,13 @@ export function deriveCriteria() {
     // owns the members. Without an owner, every consumer supplies its own
     // allowed list and the translation tables multiply again.
     const owner = /vocabularyOwner:\s*'([^']+)'/.exec(line)?.[1] ?? null;
-    if (shape === 'enum_set' && !owner) {
+    if ((shape === 'enum_set' || shape === 'feature_map') && !owner) {
       throw new Error(
         `"${key[1]}" is an enum_set but names no vocabularyOwner — a closed vocabulary with no ` +
           `owner cannot be checked, and each consumer would restate its own allowed list.`,
       );
     }
-    if (shape !== 'enum_set' && owner) {
+    if (shape !== 'enum_set' && shape !== 'feature_map' && owner) {
       throw new Error(`"${key[1]}" names a vocabularyOwner but its shape is "${shape}"`);
     }
 
@@ -198,10 +235,18 @@ export function render(criteria) {
 
   const shapeDoc = [
     '/**',
-    ' * Derived from each entry\'s declared `type`, so a criterion cannot exist without',
-    ' * a known value shape. `satisfies` makes the map exhaustive at compile time: a',
-    ' * key present in the vocabulary but missing here is a type error, not a runtime',
-    ' * `undefined` that would skip validation and let the value through unchecked.',
+    ' * Each criterion\'s DECLARED `criterionValueShape`, copied verbatim — never',
+    ' * derived from `type`.',
+    ' *',
+    ' * It was derived from `type` until 2026-08-28, and that conflated two different',
+    ' * questions: what kind of FACT a criterion is on a listing, versus what a broker',
+    ' * may TYPE INTO the control. Deriving forced `type` to be rewritten to describe',
+    ' * the UI — `listing_id_canonical` became `array` because the Search box accepts',
+    ' * several IDs, when one listing has exactly ONE canonical identifier.',
+    ' *',
+    ' * `satisfies` makes the map exhaustive at compile time: a key present in the',
+    ' * vocabulary but missing here is a type error, not a runtime `undefined` that',
+    ' * would skip validation and let the value through unchecked.',
     ' */',
   ].join('\n');
 
@@ -221,6 +266,7 @@ export function render(criteria) {
 import type {
   BasisRangeValue,
   CriterionValueShape,
+  FeatureSelection,
   GeoValue,
   RangeValue,
   SetValue,

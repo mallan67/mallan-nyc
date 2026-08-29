@@ -121,19 +121,25 @@ describe('the fact type and the input shape are independent', () => {
 });
 
 describe('closed vocabularies have exactly one owner', () => {
-  it('every enum_set names an owner, and nothing else does', () => {
+  it('every vocabulary-bearing shape names an owner, and nothing else does', () => {
     // `enum_set` claims membership is CHECKED, which is only true if a module
     // owns the members. Without an owner each workflow contract would supply its
     // own `allowed` array — four private lists, four new translation tables.
-    const enumSets = CANONICAL_FILTER_KEYS.filter(
-      (k) => CRITERION_VALUE_SHAPE[k] === 'enum_set',
+    //
+    // `feature_map` needs one for the same reason and more strongly: its owner
+    // holds EIGHTEEN separate families, each with its own Cotality field, kind,
+    // allowed members and unresolved members.
+    const OWNED_SHAPES = ['enum_set', 'feature_map'];
+    const owned = CANONICAL_FILTER_KEYS.filter((k) =>
+      OWNED_SHAPES.includes(CRITERION_VALUE_SHAPE[k]),
     );
-    expect(enumSets.length).toBeGreaterThan(0);
-    for (const key of enumSets) {
+    expect(owned.length).toBeGreaterThan(0);
+    for (const key of owned) {
       expect(CRITERION_VOCABULARY_OWNER[key]).toBeTruthy();
     }
     const strays = Object.keys(CRITERION_VOCABULARY_OWNER).filter(
-      (k) => CRITERION_VALUE_SHAPE[k as keyof typeof CRITERION_VALUE_SHAPE] !== 'enum_set',
+      (k) =>
+        !OWNED_SHAPES.includes(CRITERION_VALUE_SHAPE[k as keyof typeof CRITERION_VALUE_SHAPE]),
     );
     expect(strays).toEqual([]);
   });

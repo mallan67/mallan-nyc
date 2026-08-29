@@ -109,10 +109,26 @@ const REGISTRY: ReadonlyMap<CheckboxFieldName, CheckboxFieldContract> = new Map<
       ['Park', "Provider View enum rejects Park (HTTP 400). Not a member."],
     ]),
   }],
-  ['pet_policy', {
+  // RENAMED from 'pet_policy' to 'pets' on 2026-08-29. `pets` is the canonical
+  // BUSINESS identity — a first-class Rental Search question, not a generic
+  // amenity token — and this family is its subordinate MAPPING and VALUE
+  // authority. Two names for one broker question is what the rename removes;
+  // `pet_policy` now read-adapts here through CANONICAL_BY_LEGACY.
+  //
+  // The `allowed` set was EMPTY, which meant this family permitted nothing while
+  // the top-level `pets` fact carried the proven mapping. The verified UNIT-LEVEL
+  // tokens are promoted here so one owner holds both mapping and validation.
+  //
+  // WHY UNIT-LEVEL ONLY. PetsAllowed is a multi-enum mixing building- and
+  // unit-level tokens: "BuildingYes,No" means the BUILDING permits pets and THE
+  // UNIT DOES NOT. Exact-token match on Yes/CatsOk/DogsOk gives 4,304 live rows;
+  // substring matching gives 6,861 — i.e. 2,557 listings a renter with a dog
+  // cannot actually rent. `PetsAllowedYN` exists and is filterable but is
+  // populated ZERO, so the multi-value parse must stay.
+  ['pets', {
     kind: 'multi_enum',
     cotalityField: 'PetsAllowed',
-    allowed: new Set<string>([]),
+    allowed: new Set<string>(['Yes', 'CatsOk', 'DogsOk']),
     unresolved: new Map([
       ['CatsOnly', "Provider has CatsOk (cats PERMITTED). \"Only cats\" is a different assertion and would require composing CatsOk with NoDogs. Not a spelling variant."],
       ['DogsOnly', "Provider has DogsOk (dogs PERMITTED). \"Only dogs\" is a different assertion. Not a spelling variant."],
@@ -317,7 +333,11 @@ const REGISTRY: ReadonlyMap<CheckboxFieldName, CheckboxFieldContract> = new Map<
  */
 const CANONICAL_BY_LEGACY: ReadonlyMap<string, string> = new Map([
   ['View', 'view'],
-  ['PetsAllowed', 'pet_policy'],
+  ['PetsAllowed', 'pets'],
+  // Legacy Mallan spelling. Saved searches and older UI writes used
+  // `pet_policy`; they still READ into the canonical `pets` identity, but new
+  // canonical writes must never produce it.
+  ['pet_policy', 'pets'],
   ['LaundryFeatures', 'laundry'],
   ['StructureType', 'building_structure'],
   ['ArchitecturalStyle', 'architectural_style'],
@@ -392,6 +412,41 @@ export function checkboxFieldContract(field: string): CheckboxFieldContract | nu
 }
 
 /** Every registered field, for tests and diagnostics. */
+/**
+ * Families that are NOT offerable inside `feature_criteria`, because each is
+ * already a first-class canonical broker criterion in its own right.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ONE CONCEPT, ONE PATH.
+ *
+ * `pets` and `furnished` are first-class Rental Search questions, not generic
+ * amenity tokens — CURRENT.md names both explicitly, and the CRM has dedicated
+ * rental sections for them. They therefore live as top-level criteria whose
+ * VALUES and MAPPING this module still owns.
+ *
+ * What must be impossible is both routes existing at once:
+ *
+ *     RentalCriteria.pets            AND  feature_criteria.pet_policy
+ *     RentalCriteria.furnished       AND  feature_criteria.furnished
+ *
+ * Two ways to ask one business question is precisely the duplicate-identity
+ * defect this workstream removes; it would also let a request contradict
+ * itself, with no rule saying which half wins.
+ *
+ * These stay in the REGISTRY because they remain the mapping and value
+ * authority. They are excluded only from what `feature_criteria` may OFFER.
+ * Legacy input is read-adapted into the top-level criterion.
+ */
+export const FAMILIES_WITH_FIRST_CLASS_IDENTITY: ReadonlySet<string> = new Set([
+  'pets',
+  'furnished',
+]);
+
+/** Families a broker may select inside `feature_criteria`. */
+export function offerableCheckboxFields(): string[] {
+  return registeredCheckboxFields().filter((f) => !FAMILIES_WITH_FIRST_CLASS_IDENTITY.has(f));
+}
+
 export function registeredCheckboxFields(): string[] {
   return Array.from(REGISTRY.keys()).sort();
 }
