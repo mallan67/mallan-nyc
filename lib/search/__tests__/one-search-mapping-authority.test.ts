@@ -204,11 +204,24 @@ describe('mutation guards — the authority graph cannot be bypassed', () => {
   });
 
   it('the registry does NOT import a derivative that is generated from it', () => {
-    // The generated file is a LEAF: it imports nothing, so the registry may
-    // import its type without a cycle. What must never return is the registry
-    // importing a hand-maintained vocabulary that claims to define it.
-    const gen = read('lib/search/canonical/filter-keys.generated.ts');
-    expect(gen).not.toMatch(/^import /m);
+    // The registry imports the generated vocabulary's TYPE, so nothing reachable
+    // from the generated file may import the registry back.
+    //
+    // This used to assert the generated file imported NOTHING. That was a proxy
+    // for acyclicity, and it stopped being true the moment the file legitimately
+    // needed the value primitives — a guard that fails on a safe change while
+    // still not checking the real property. Walk the graph instead.
+    const reached = new Set<string>();
+    const walk = (path: string) => {
+      if (reached.has(path)) return;
+      reached.add(path);
+      for (const m of read(path).matchAll(/from '\.\/([A-Za-z0-9._-]+)'/g)) {
+        walk(`lib/search/canonical/${m[1]}.ts`);
+      }
+    };
+    walk('lib/search/canonical/filter-keys.generated.ts');
+    expect([...reached]).not.toContain('lib/search/canonical/field-registry.ts');
+
     const registry = read('lib/search/canonical/field-registry.ts');
     expect(registry).not.toMatch(/import[^;]*from '\.\/filter-keys';/);
   });

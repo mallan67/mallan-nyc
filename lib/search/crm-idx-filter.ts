@@ -1,3 +1,4 @@
+import { FIELD_REGISTRY } from "@/lib/search/canonical/field-registry";
 import { standardStatusOData } from "@/lib/search/canonical/status-token-contract";
 import { boroughOData, neighborhoodOData } from "@/lib/search/canonical/geography";
 import { checkboxFieldOData, isRegisteredCheckboxField, isProviderSuppressedField } from "@/lib/search/canonical/checkbox-criteria";
@@ -21,7 +22,9 @@ import {
  * Adding a member here without adding the clause that answers it recreates the
  * exact collapse this set exists to prevent.
  */
-const EXECUTABLE_DATE_TYPES: ReadonlySet<string> = new Set(["Listed", "Updated"]);
+const EXECUTABLE_DATE_TYPES: ReadonlySet<string> = new Set(
+  FIELD_REGISTRY.find((f) => f.canonicalKey === 'activity_date')?.valueBasis ?? [],
+);
 
 export class UnsupportedSearchCriterionError extends Error {
   readonly criterion: string;
