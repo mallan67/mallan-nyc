@@ -52,26 +52,28 @@ const REGISTRY = resolve(REPO, 'lib/search/canonical/field-registry.ts');
 const OUT = resolve(REPO, 'lib/search/canonical/filter-keys.generated.ts');
 
 /**
- * The declared `type` decides the value shape. This table is the ONLY place the
- * mapping lives, so a new registry type fails loudly here rather than silently
- * producing a criterion nothing knows how to validate.
+ * The input shape is DECLARED on each entry, never derived from `type`.
+ *
+ * It used to be derived, and that conflated two different questions: "what kind
+ * of fact is this on a listing" and "what may a broker type into this control".
+ * Deriving forced `type` to be rewritten to describe the UI —
+ * `listing_id_canonical` became `array` because the Search box accepts several
+ * IDs, when one listing has exactly ONE canonical identifier. The registry ended
+ * up lying about the domain in order to describe a control.
+ *
+ * A Search criterion with no declared shape is a hard error below, so a new
+ * entry cannot inherit a silent default.
  */
-const SHAPE_BY_TYPE = {
-  money: 'range_number',
-  number: 'range_number',
-  date: 'range_date',
-  // A CLOSED vocabulary: every member is checked against a known set, and an
-  // unrecognised one is refused rather than dropped.
-  enum: 'enum_set',
-  multi_enum: 'enum_set',
-  // An OPEN list — a set of free values with no vocabulary to check against.
-  // `listing_id_canonical` is the case: a multi-ID lookup where the members are
-  // provider keys, not a picklist.
-  array: 'text_set',
-  string: 'text',
-  boolean: 'boolean',
-  geo: 'geo',
-};
+const VALID_SHAPES = new Set([
+  'range_number',
+  'range_date',
+  'basis_range_date',
+  'enum_set',
+  'text_set',
+  'text',
+  'boolean',
+  'geo',
+]);
 
 const TS_TYPE_BY_SHAPE = {
   range_number: 'RangeValue<number>',
@@ -96,22 +98,46 @@ export function deriveCriteria() {
 
     const type = /[^A-Za-z]type:\s*'([^']+)'/.exec(line)?.[1];
     if (!type) throw new Error(`registry entry "${key[1]}" declares no type`);
-    let shape = SHAPE_BY_TYPE[type];
-    if (!shape) throw new Error(`no value shape declared for registry type "${type}" (${key[1]})`);
 
-    // A declared basis vocabulary promotes a plain range to a composite: the
-    // same bounds mean different provider facts depending on the basis.
+    const shape = /criterionValueShape:\s*'([^']+)'/.exec(line)?.[1];
+    if (!shape) {
+      throw new Error(
+        `Search criterion "${key[1]}" declares no criterionValueShape. It is NOT inferred from ` +
+          `type — declare what a broker may type into the control.`,
+      );
+    }
+    if (!VALID_SHAPES.has(shape)) {
+      throw new Error(`criterion "${key[1]}" declares unknown shape "${shape}"`);
+    }
+
     const basis = /valueBasis:\s*\[([^\]]*)\]/.exec(line)?.[1];
     const bases = basis ? [...basis.matchAll(/'([^']+)'/g)].map((m) => m[1]) : [];
-    if (bases.length > 0) {
-      if (shape !== 'range_date') {
-        throw new Error(`valueBasis on "${key[1]}" but its type (${type}) is not a date range`);
-      }
-      shape = 'basis_range_date';
+    // The two declarations must agree in BOTH directions: a composite with no
+    // vocabulary would accept any basis, and a basis vocabulary on a
+    // non-composite is a value nothing would ever read.
+    if (shape === 'basis_range_date' && bases.length === 0) {
+      throw new Error(`"${key[1]}" is a basis range but declares no valueBasis vocabulary`);
+    }
+    if (shape !== 'basis_range_date' && bases.length > 0) {
+      throw new Error(`"${key[1]}" declares valueBasis but its shape is "${shape}"`);
+    }
+
+    // `enum_set` claims membership is CHECKED, which is only true if something
+    // owns the members. Without an owner, every consumer supplies its own
+    // allowed list and the translation tables multiply again.
+    const owner = /vocabularyOwner:\s*'([^']+)'/.exec(line)?.[1] ?? null;
+    if (shape === 'enum_set' && !owner) {
+      throw new Error(
+        `"${key[1]}" is an enum_set but names no vocabularyOwner — a closed vocabulary with no ` +
+          `owner cannot be checked, and each consumer would restate its own allowed list.`,
+      );
+    }
+    if (shape !== 'enum_set' && owner) {
+      throw new Error(`"${key[1]}" names a vocabularyOwner but its shape is "${shape}"`);
     }
 
     const label = /uiLabel:\s*'([^']+)'/.exec(line)?.[1] ?? key[1];
-    found.set(key[1], { key: key[1], shape, bases, label, type });
+    found.set(key[1], { key: key[1], shape, bases, label, type, owner });
   }
   return [...found.values()].sort((a, b) => a.key.localeCompare(b.key));
 }
@@ -162,27 +188,19 @@ export function render(criteria) {
   return `${header}
 import type {
   BasisRangeValue,
+  CriterionValueShape,
   GeoValue,
   RangeValue,
   SetValue,
 } from './criteria-values';
+
+export type { CriterionValueShape };
 
 export const CANONICAL_FILTER_KEYS = [
 ${keys.map((k) => `  '${k}',`).join('\n')}
 ] as const;
 
 export type CanonicalFilterKeyName = (typeof CANONICAL_FILTER_KEYS)[number];
-
-/** How a criterion's value is structured — what a validator dispatches on. */
-export type CriterionValueShape =
-  | 'range_number'
-  | 'range_date'
-  | 'basis_range_date'
-  | 'enum_set'
-  | 'text_set'
-  | 'text'
-  | 'boolean'
-  | 'geo';
 
 ${shapeDoc}
 export const CRITERION_VALUE_SHAPE = {
@@ -195,6 +213,25 @@ ${criteria.map((c) => `  ${c.key}: '${c.shape}',`).join('\n')}
  */
 export const CRITERION_VALUE_BASES: Partial<Record<CanonicalFilterKeyName, readonly string[]>> = {
 ${withBases.map((c) => `  ${c.key}: [${c.bases.map((b) => `'${b}'`).join(', ')}],`).join('\n')}
+};
+
+/**
+ * The ONE canonical module owning each closed vocabulary.
+ *
+ * A workflow contract asks this map who owns a criterion's members and consumes
+ * that module. It must never carry its own \`allowed\` array — four workflow
+ * validators with four private lists is four new translation tables, which is
+ * precisely the split this registry exists to remove.
+ *
+ * Only \`enum_set\` criteria appear. \`text_set\` criteria are OPEN by design:
+ * \`neighborhood\` passes an unrecognised name through as a literal
+ * SubdivisionName, so there is no closed vocabulary to own yet.
+ */
+export const CRITERION_VOCABULARY_OWNER: Partial<Record<CanonicalFilterKeyName, string>> = {
+${criteria
+  .filter((c) => c.owner)
+  .map((c) => `  ${c.key}: '${c.owner}',`)
+  .join('\n')}
 };
 
 ${valuesDoc}

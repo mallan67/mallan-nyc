@@ -40,9 +40,40 @@ export class InvalidCriterionValueError extends Error {
 }
 
 /**
- * A bounded criterion. BOTH bounds are optional — an open-ended range is a
- * legitimate search ("anything over $400k") and must not be confused with an
- * absent criterion.
+ * How a criterion's INPUT is structured.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * THIS IS NOT THE FACT'S DATA TYPE, AND THE TWO MUST NOT BE MERGED.
+ *
+ * The first version of this contract derived the input shape from the registry's
+ * `type`, which forced `type` to be rewritten to describe SEARCH cardinality:
+ * `listing_id_canonical` became `array` purely because the Search box accepts
+ * several IDs at once. That is false about the fact. One listing has exactly ONE
+ * canonical identifier — a scalar reference, dual-domain, never a list.
+ *
+ * `FieldSpec.type` answers "what kind of fact is this on a listing".
+ * `FieldSpec.criterionValueShape` answers "what may a broker type into this
+ * control". A multi-select over a scalar fact is completely ordinary, and
+ * collapsing the two makes the registry lie about the domain in order to
+ * describe a UI.
+ */
+export type CriterionValueShape =
+  | 'range_number'
+  | 'range_date'
+  | 'basis_range_date'
+  /** A closed vocabulary owned by a named module; unknown members are refused. */
+  | 'enum_set'
+  /** An open list — no vocabulary to check membership against. */
+  | 'text_set'
+  | 'text'
+  | 'boolean'
+  | 'geo';
+
+/**
+ * A bounded criterion. Either bound may be omitted — an open-ended range is a
+ * legitimate search ("anything over $400k") — but a range with NEITHER bound is
+ * refused, because a present-and-empty value means a bound was lost in transit
+ * and an unbounded range silently widens the result set.
  */
 export interface RangeValue<T extends number | string> {
   min?: T;
@@ -53,11 +84,16 @@ export interface RangeValue<T extends number | string> {
  * A range plus the selector naming WHICH underlying fact it applies to.
  *
  * `activity_date` is the live example: the same from/to pair means
- * ListingContractDate or ModificationTimestamp depending on the basis, so the
- * basis is part of the value rather than a separate criterion.
+ * ListingContractDate or ModificationTimestamp depending on the basis.
+ *
+ * `basis` is REQUIRED. A canonical criteria object that stores a date range
+ * without saying which date it means is ambiguous, and a Saved Search that
+ * persists that ambiguity re-answers a different question every time the default
+ * changes. A legacy boundary adapter may resolve a missing wire value into an
+ * explicit basis on the way in; what it must never do is store the absence.
  */
 export interface BasisRangeValue<T extends number | string> extends RangeValue<T> {
-  basis?: string;
+  basis: string;
 }
 
 /** A closed-vocabulary selection. Absence means unfiltered; `[]` means broken. */
@@ -101,6 +137,17 @@ export function assertValidRange<T extends number | string>(
   criterion: string,
   value: RangeValue<T>,
 ): void {
+  // A present-but-empty range is refused for exactly the reason a present-but-
+  // empty SET is: absence of the key means unfiltered, so a key that IS present
+  // holding nothing means a bound was lost on the way in. Letting `{}` through
+  // turns a price filter into no price filter and widens the result set on a
+  // page that still shows the control as active.
+  if (value.min == null && value.max == null) {
+    throw new InvalidCriterionValueError(
+      criterion,
+      'received a range with neither bound — omit the criterion entirely to leave it unfiltered',
+    );
+  }
   // `!= null` deliberately, not truthiness: `beds=0` (studio) and a `$0` bound
   // are real values, and `||`-style checks are what erase them.
   if (value.min != null) assertUsableBound(criterion, 'min', value.min);
@@ -182,11 +229,49 @@ export function assertValidBasis(
   basis: string | undefined,
   allowed: readonly string[],
 ): void {
-  if (basis == null || basis === '') return;
+  // REQUIRED, not defaulted. A canonical criteria object that stores a date
+  // range without saying which date it means is ambiguous, and a Saved Search
+  // persisting that ambiguity silently re-answers a different question whenever
+  // the default changes. A legacy boundary adapter may resolve a missing wire
+  // value into an explicit basis on the way in — it must not store the absence.
+  if (basis == null || basis === '') {
+    throw new InvalidCriterionValueError(
+      criterion,
+      `requires an explicit basis (${allowed.join(' | ')}) — a range with no basis is ambiguous`,
+    );
+  }
   if (!allowed.includes(basis)) {
     throw new InvalidCriterionValueError(
       criterion,
       `unknown basis "${basis}" — permitted: ${allowed.join(', ')}`,
+    );
+  }
+}
+
+/**
+ * A scalar text criterion. Blank is refused rather than left for a later layer
+ * to trim, omit or query.
+ *
+ * `street_address: ""` reaching the executor either renders a predicate that
+ * matches nothing or is dropped and widens the search, depending on which layer
+ * notices first — and which layer notices is not something the contract should
+ * leave open.
+ */
+export function assertValidText(criterion: string, value: string): void {
+  if (typeof value !== 'string' || value.trim() === '') {
+    throw new InvalidCriterionValueError(
+      criterion,
+      'received a blank value — omit the criterion entirely to leave it unfiltered',
+    );
+  }
+}
+
+/** A map-drawn boundary. An empty encoding is a lost shape, not "no boundary". */
+export function assertValidGeo(criterion: string, value: GeoValue): void {
+  if (typeof value?.encoded !== 'string' || value.encoded.trim() === '') {
+    throw new InvalidCriterionValueError(
+      criterion,
+      'received an empty boundary — omit the criterion entirely to leave it unfiltered',
     );
   }
 }

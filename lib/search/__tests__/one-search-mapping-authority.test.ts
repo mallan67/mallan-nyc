@@ -392,6 +392,16 @@ describe('execution readiness — the gate the validator will use', () => {
     expect(executionReadiness(spec('bathrooms'), wired)).toBe('mapping_conflict');
   });
 
+  it('a DUAL-DOMAIN identifier is blocked, not emitted to the wrong provider', () => {
+    // `listing_id_canonical` holds either a Cotality ListingId or a Mallan
+    // SL-/RL- reference, but the executor emits `ListingId eq` for EVERY value
+    // with no domain check. A Mallan-domain identifier sent to Cotality matches
+    // nothing, so searching a Mallan listing by its own reference silently
+    // returns empty. It stays blocked until a domain-aware lookup exists.
+    expect(spec('listing_id_canonical').mappingConflict).toMatch(/DUAL-DOMAIN/);
+    expect(executionReadiness(spec('listing_id_canonical'), wired)).toBe('mapping_conflict');
+  });
+
   it('a criterion with strategy, transport, live evidence and proven semantics is verified', () => {
     expect(spec('market_status').executionStrategy).toBe('provider_filter');
     expect(executionReadiness(spec('market_status'), wired)).toBe('verified_executable');

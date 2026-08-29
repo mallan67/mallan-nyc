@@ -1,10 +1,11 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import {
   CANONICAL_FILTER_KEYS,
   CRITERION_VALUE_SHAPE,
   CRITERION_VALUE_BASES,
+  CRITERION_VOCABULARY_OWNER,
 } from '../canonical/filter-keys.generated';
 import { toCanonicalFilterKey } from '../canonical/filter-keys';
 
@@ -74,6 +75,85 @@ describe('declared value shape vs. executor behaviour', () => {
       }
     }
     expect(wrong).toEqual([]);
+  });
+});
+
+describe('the fact type and the input shape are independent', () => {
+  const registry = readFileSync(
+    resolve(__dirname, '../canonical/field-registry.ts'),
+    'utf8',
+  );
+
+  const entry = (key: string) =>
+    registry.split('\n').find((l) => l.includes(`canonicalKey: '${key}'`)) ?? '';
+
+  it('does not rewrite a scalar fact as a list to describe a multi-select', () => {
+    // `listing_id_canonical` was briefly `type: 'array'` because the Search box
+    // accepts several IDs. One listing has exactly ONE canonical identifier — a
+    // scalar, dual-domain reference — so that made the registry lie about the
+    // domain in order to describe a control. Same for borough and neighborhood,
+    // which are one value per listing however many a broker may select.
+    expect(entry('listing_id_canonical')).toMatch(/[^A-Za-z]type: 'string'/);
+    expect(entry('borough')).toMatch(/[^A-Za-z]type: 'string'/);
+    expect(entry('neighborhood')).toMatch(/[^A-Za-z]type: 'string'/);
+  });
+
+  it('still lets those scalars accept a multi-value SEARCH input', () => {
+    // The point of separating the two: a multi-select over a scalar fact is
+    // ordinary, and the shape says so without the type having to lie.
+    expect(CRITERION_VALUE_SHAPE.listing_id_canonical).toBe('text_set');
+    expect(CRITERION_VALUE_SHAPE.borough).toBe('enum_set');
+    expect(CRITERION_VALUE_SHAPE.neighborhood).toBe('text_set');
+  });
+
+  it('is not derivable from type — proven by a shape that no type implies', () => {
+    // If a later change reintroduced derivation, these three scalar `string`
+    // facts would collapse back to a single `text` shape and this fails.
+    const scalarsWithSetShapes = ['listing_id_canonical', 'borough', 'neighborhood'].filter(
+      (k) => /[^A-Za-z]type: 'string'/.test(entry(k)),
+    );
+    expect(scalarsWithSetShapes.length).toBe(3);
+    for (const key of scalarsWithSetShapes) {
+      const shape = CRITERION_VALUE_SHAPE[key as keyof typeof CRITERION_VALUE_SHAPE];
+      expect(['enum_set', 'text_set']).toContain(shape);
+    }
+  });
+});
+
+describe('closed vocabularies have exactly one owner', () => {
+  it('every enum_set names an owner, and nothing else does', () => {
+    // `enum_set` claims membership is CHECKED, which is only true if a module
+    // owns the members. Without an owner each workflow contract would supply its
+    // own `allowed` array — four private lists, four new translation tables.
+    const enumSets = CANONICAL_FILTER_KEYS.filter(
+      (k) => CRITERION_VALUE_SHAPE[k] === 'enum_set',
+    );
+    expect(enumSets.length).toBeGreaterThan(0);
+    for (const key of enumSets) {
+      expect(CRITERION_VOCABULARY_OWNER[key]).toBeTruthy();
+    }
+    const strays = Object.keys(CRITERION_VOCABULARY_OWNER).filter(
+      (k) => CRITERION_VALUE_SHAPE[k as keyof typeof CRITERION_VALUE_SHAPE] !== 'enum_set',
+    );
+    expect(strays).toEqual([]);
+  });
+
+  it('every named owner is a real canonical module', () => {
+    // A vocabulary owner that does not exist is worse than none: it reads as
+    // resolved while nothing can consume it.
+    for (const owner of Object.values(CRITERION_VOCABULARY_OWNER)) {
+      expect(existsSync(resolve(__dirname, `../canonical/${owner}.ts`))).toBe(true);
+    }
+  });
+
+  it('neighborhood is OPEN, because no closed vocabulary is proven for it', () => {
+    // `neighborhoodOData` deliberately passes an unrecognised name through as a
+    // literal SubdivisionName. Declaring it enum_set would claim a proven
+    // canonical geography vocabulary that does not exist — the 593 alias
+    // equivalences date from 2026-03-19 and are still unverified against live
+    // SubdivisionName.
+    expect(CRITERION_VALUE_SHAPE.neighborhood).toBe('text_set');
+    expect(CRITERION_VOCABULARY_OWNER.neighborhood).toBeUndefined();
   });
 });
 

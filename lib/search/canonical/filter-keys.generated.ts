@@ -15,10 +15,13 @@
  */
 import type {
   BasisRangeValue,
+  CriterionValueShape,
   GeoValue,
   RangeValue,
   SetValue,
 } from './criteria-values';
+
+export type { CriterionValueShape };
 
 export const CANONICAL_FILTER_KEYS = [
   'activity_date',
@@ -52,17 +55,6 @@ export const CANONICAL_FILTER_KEYS = [
 
 export type CanonicalFilterKeyName = (typeof CANONICAL_FILTER_KEYS)[number];
 
-/** How a criterion's value is structured — what a validator dispatches on. */
-export type CriterionValueShape =
-  | 'range_number'
-  | 'range_date'
-  | 'basis_range_date'
-  | 'enum_set'
-  | 'text_set'
-  | 'text'
-  | 'boolean'
-  | 'geo';
-
 /**
  * Derived from each entry's declared `type`, so a criterion cannot exist without
  * a known value shape. `satisfies` makes the map exhaustive at compile time: a
@@ -85,7 +77,7 @@ export const CRITERION_VALUE_SHAPE = {
   map_grid_filter: 'geo',
   market_status: 'enum_set',
   max_financing_percent: 'range_number',
-  neighborhood: 'enum_set',
+  neighborhood: 'text_set',
   ownership: 'enum_set',
   postal_code: 'text',
   property_sub_type: 'enum_set',
@@ -108,6 +100,26 @@ export const CRITERION_VALUE_BASES: Partial<Record<CanonicalFilterKeyName, reado
 };
 
 /**
+ * The ONE canonical module owning each closed vocabulary.
+ *
+ * A workflow contract asks this map who owns a criterion's members and consumes
+ * that module. It must never carry its own `allowed` array — four workflow
+ * validators with four private lists is four new translation tables, which is
+ * precisely the split this registry exists to remove.
+ *
+ * Only `enum_set` criteria appear. `text_set` criteria are OPEN by design:
+ * `neighborhood` passes an unrecognised name through as a literal
+ * SubdivisionName, so there is no closed vocabulary to own yet.
+ */
+export const CRITERION_VOCABULARY_OWNER: Partial<Record<CanonicalFilterKeyName, string>> = {
+  borough: 'geography',
+  feature_criteria: 'checkbox-criteria',
+  market_status: 'status-token-contract',
+  ownership: 'ownership',
+  property_sub_type: 'property-subtype-contract',
+};
+
+/**
  * The canonical criteria object: one optional property per business concept,
  * typed by its value shape.
  *
@@ -123,7 +135,7 @@ export interface CanonicalCriteriaValues {
   bathrooms?: RangeValue<number>;
   /** Beds — number */
   bedrooms?: RangeValue<number>;
-  /** Borough — multi_enum */
+  /** Borough — string */
   borough?: SetValue;
   /** Building Name — string */
   building_name?: string;
@@ -135,7 +147,7 @@ export interface CanonicalCriteriaValues {
   list_price?: RangeValue<number>;
   /** Listed Date — date */
   listing_contract_date?: RangeValue<string>;
-  /** Listing ID — array */
+  /** Listing ID — string */
   listing_id_canonical?: SetValue;
   /** Square Feet — number */
   living_area?: RangeValue<number>;
@@ -147,7 +159,7 @@ export interface CanonicalCriteriaValues {
   market_status?: SetValue;
   /** Max Financing Allowed % — number */
   max_financing_percent?: RangeValue<number>;
-  /** Neighborhood — multi_enum */
+  /** Neighborhood — string */
   neighborhood?: SetValue;
   /** Ownership — enum */
   ownership?: SetValue;

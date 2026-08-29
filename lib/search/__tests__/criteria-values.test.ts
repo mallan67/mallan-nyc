@@ -1,8 +1,10 @@
 import {
   InvalidCriterionValueError,
   assertValidBasis,
+  assertValidGeo,
   assertValidRange,
   assertValidSet,
+  assertValidText,
 } from '../canonical/criteria-values';
 
 /**
@@ -42,7 +44,16 @@ describe('range values', () => {
   it('accepts an open-ended range — one bound is a legitimate search', () => {
     expect(() => assertValidRange('list_price', { min: 400_000 })).not.toThrow();
     expect(() => assertValidRange('list_price', { max: 900_000 })).not.toThrow();
-    expect(() => assertValidRange('list_price', {})).not.toThrow();
+  });
+
+  it('REFUSES a range with NEITHER bound — the same rule sets already follow', () => {
+    // This test previously asserted the opposite, and that was an inconsistency
+    // at the heart of the contract: a present-but-empty SET was refused because
+    // absence means unfiltered, while a present-but-empty RANGE was waved
+    // through. Both are a value that was lost in transit, and an unbounded range
+    // widens the search on a page still showing the control as active.
+    expect(() => assertValidRange('list_price', {})).toThrow(InvalidCriterionValueError);
+    expect(() => assertValidRange('bedrooms', {})).toThrow(/omit the criterion/);
   });
 
   it('accepts an exact value expressed as an equal-bounded range', () => {
@@ -111,7 +122,39 @@ describe('basis selectors', () => {
     );
   });
 
-  it('accepts an absent basis — the criterion may declare a default', () => {
-    expect(() => assertValidBasis('activity_date', undefined, ['Listed', 'Updated'])).not.toThrow();
+  it('REFUSES an absent basis — a canonical date range may not be ambiguous', () => {
+    // This test previously accepted absence "because the criterion may declare a
+    // default". A default is fine at the WIRE boundary, where a legacy request
+    // arrives without `dateType`. It is not fine in the canonical object: a
+    // Saved Search storing a date range that does not say which date it means
+    // silently re-answers a different question whenever that default changes.
+    expect(() => assertValidBasis('activity_date', undefined, ['Listed', 'Updated'])).toThrow(
+      InvalidCriterionValueError,
+    );
+    expect(() => assertValidBasis('activity_date', '', ['Listed', 'Updated'])).toThrow(
+      InvalidCriterionValueError,
+    );
+  });
+
+  it('accepts a basis inside the declared vocabulary', () => {
+    expect(() => assertValidBasis('activity_date', 'Updated', ['Listed', 'Updated'])).not.toThrow();
+  });
+});
+
+describe('scalar text and geo values', () => {
+  it('REFUSES blank text rather than leaving a later layer to decide', () => {
+    // `street_address: ""` either renders a predicate matching nothing or is
+    // dropped and widens the search, depending on which layer notices first —
+    // and which layer notices is not something a contract should leave open.
+    expect(() => assertValidText('street_address', '')).toThrow(InvalidCriterionValueError);
+    expect(() => assertValidText('unit', '   ')).toThrow(InvalidCriterionValueError);
+    expect(() => assertValidText('unit', '17C')).not.toThrow();
+  });
+
+  it('REFUSES an empty map boundary — a lost shape is not "no boundary"', () => {
+    expect(() => assertValidGeo('map_grid_filter', { encoded: '' })).toThrow(
+      InvalidCriterionValueError,
+    );
+    expect(() => assertValidGeo('map_grid_filter', { encoded: 'abc123' })).not.toThrow();
   });
 });
