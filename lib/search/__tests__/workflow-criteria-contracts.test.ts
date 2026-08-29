@@ -75,9 +75,35 @@ describe('the four workflow contracts', () => {
     // Cheap, concrete anchors so a silent scramble of the migration is visible.
     expect(WORKFLOW_CRITERIA.sale).toContain('ownership');
     expect(WORKFLOW_CRITERIA.building).toContain('units_total');
-    expect(WORKFLOW_CRITERIA.building).not.toContain('ownership');
     expect(WORKFLOW_CRITERIA.comparable).toContain('close_date');
     expect(WORKFLOW_CRITERIA.rental).not.toContain('max_financing_percent');
+  });
+
+  it('matches the CONTROLS the UI actually renders, not the ledger it was copied from', () => {
+    // Applicability was moved off the matrix ledger onto the registry, but its
+    // VALUES were never verified — the source of truth changed while the data
+    // stayed unchecked. A control census on 2026-08-29 counted the criteria
+    // inside each container of search-form-and-results.html:
+    //
+    //   container   CommonInterest  mgmtCo  units  floors
+    //   sale             3            1       1      3
+    //   rental           4            1       1      3
+    //   building         4            1       1      3
+    //
+    // Four criteria were scoped to the wrong workflows. `ownership` was
+    // sale-only although rental offers Rental Building / Co-op / Condo / Condop,
+    // and management company, unit count and floor count were building-only
+    // although all three surfaces render them.
+    //
+    // Evidence: docs/search/visible-control-census-2026-08-29.md
+    for (const key of ['ownership', 'management_company', 'units_total', 'stories_total']) {
+      expect(WORKFLOW_CRITERIA.sale).toContain(key);
+      expect(WORKFLOW_CRITERIA.rental).toContain(key);
+      expect(WORKFLOW_CRITERIA.building).toContain(key);
+    }
+    // `comparable` is deliberately NOT asserted here: #comparablesSection was
+    // outside that census's scope, and inferring its membership from a census
+    // that never read it is the same unverified copy this test exists to catch.
   });
 
   it('keeps every projected key typed by the ONE canonical shape', () => {

@@ -269,6 +269,7 @@ export const WORKFLOW_CRITERIA = {
     'living_area',
     'maintenance_common_charge',
     'mallan_exclusive',
+    'management_company',
     'market_status',
     'max_financing_percent',
     'neighborhood',
@@ -283,10 +284,12 @@ export const WORKFLOW_CRITERIA = {
     'public_remarks_keyword',
     'rooms_total',
     'sponsor_unit',
+    'stories_total',
     'street_address',
     'structure_type',
     'total_monthly_cost',
     'unit',
+    'units_total',
     'year_built',
   ],
   rental: [
@@ -303,19 +306,23 @@ export const WORKFLOW_CRITERIA = {
     'listing_id_canonical',
     'living_area',
     'mallan_exclusive',
+    'management_company',
     'market_status',
     'neighborhood',
     'new_development',
     'open_house',
+    'ownership',
     'parking',
     'pets',
     'postal_code',
     'property_sub_type',
     'public_remarks_keyword',
     'rooms_total',
+    'stories_total',
     'street_address',
     'structure_type',
     'unit',
+    'units_total',
     'year_built',
   ],
   building: [
@@ -323,6 +330,7 @@ export const WORKFLOW_CRITERIA = {
     'building_name',
     'management_company',
     'neighborhood',
+    'ownership',
     'parking',
     'postal_code',
     'stories_total',
@@ -370,6 +378,7 @@ export type SaleCriteria = Pick<
   | 'living_area'
   | 'maintenance_common_charge'
   | 'mallan_exclusive'
+  | 'management_company'
   | 'market_status'
   | 'max_financing_percent'
   | 'neighborhood'
@@ -384,10 +393,12 @@ export type SaleCriteria = Pick<
   | 'public_remarks_keyword'
   | 'rooms_total'
   | 'sponsor_unit'
+  | 'stories_total'
   | 'street_address'
   | 'structure_type'
   | 'total_monthly_cost'
   | 'unit'
+  | 'units_total'
   | 'year_built'
 >;
 
@@ -413,19 +424,23 @@ export type RentalCriteria = Pick<
   | 'listing_id_canonical'
   | 'living_area'
   | 'mallan_exclusive'
+  | 'management_company'
   | 'market_status'
   | 'neighborhood'
   | 'new_development'
   | 'open_house'
+  | 'ownership'
   | 'parking'
   | 'pets'
   | 'postal_code'
   | 'property_sub_type'
   | 'public_remarks_keyword'
   | 'rooms_total'
+  | 'stories_total'
   | 'street_address'
   | 'structure_type'
   | 'unit'
+  | 'units_total'
   | 'year_built'
 >;
 
@@ -442,6 +457,7 @@ export type BuildingCriteria = Pick<
   | 'building_name'
   | 'management_company'
   | 'neighborhood'
+  | 'ownership'
   | 'parking'
   | 'postal_code'
   | 'stories_total'
