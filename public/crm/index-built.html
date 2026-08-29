@@ -17793,6 +17793,31 @@ function manageShowToast(msg) {
             bathrooms: {
                 sale:     { basic: ['saleMinBaths', 'saleMaxBaths'], advanced: ['adv-min-baths', 'adv-max-baths'] },
                 rent:     { basic: ['rentalMinBaths', 'rentalMaxBaths'], advanced: ['adv-min-baths', 'adv-max-baths'] }
+            },
+            rooms_total: {
+                sale:     { basic: ['saleMinRooms', 'saleMaxRooms'], advanced: ['adv-min-rooms', 'adv-max-rooms'] },
+                rent:     { basic: ['rentalMinRooms', 'rentalMaxRooms'], advanced: ['adv-min-rooms', 'adv-max-rooms'] }
+            },
+            living_area: {
+                sale:     { basic: ['saleMinSqft', 'saleMaxSqft'], advanced: ['adv-min-sqft', 'adv-max-sqft'] },
+                rent:     { basic: ['rentalMinSqft', 'rentalMaxSqft'], advanced: ['adv-min-sqft', 'adv-max-sqft'] }
+            },
+            // Building facts diverge through a THIRD idiom — _resolveBuildingFieldIds(tab, isAdvanced)
+            // — which is why the first pass missed them entirely.
+            year_built: {
+                sale:     { basic: ['saleBuildingMinYear', 'saleBuildingMaxYear'], advanced: ['adv-year-built-from', 'adv-year-built-to'] },
+                rent:     { basic: ['rentalBuildingMinYear', 'rentalBuildingMaxYear'], advanced: ['adv-year-built-from', 'adv-year-built-to'] },
+                building: { basic: ['buildingMinYear', 'buildingMaxYear'], advanced: ['adv-year-built-from', 'adv-year-built-to'] }
+            },
+            units_total: {
+                sale:     { basic: ['saleBuildingMinUnits', 'saleBuildingMaxUnits'], advanced: ['adv-bldg-units-min', 'adv-bldg-units-max'] },
+                rent:     { basic: ['rentalBuildingMinUnits', 'rentalBuildingMaxUnits'], advanced: ['adv-bldg-units-min', 'adv-bldg-units-max'] },
+                building: { basic: ['buildingMinUnits', 'buildingMaxUnits'], advanced: ['adv-bldg-units-min', 'adv-bldg-units-max'] }
+            },
+            stories_total: {
+                sale:     { basic: ['saleBuildingMinFloors', 'saleBuildingMaxFloors'], advanced: ['adv-floors-min', 'adv-floors-max'] },
+                rent:     { basic: ['rentalBuildingMinFloors', 'rentalBuildingMaxFloors'], advanced: ['adv-floors-min', 'adv-floors-max'] },
+                building: { basic: ['buildingMinFloors', 'buildingMaxFloors'], advanced: ['adv-floors-min', 'adv-floors-max'] }
             }
         };
 
@@ -17822,14 +17847,29 @@ function manageShowToast(msg) {
             Object.keys(CRITERION_VIEW_BINDINGS).forEach(function (key) {
                 var ids = _bindingIds(key, tab, view);
                 if (!ids.length) return;
-                var values = ids.map(function (id) {
-                    var el = document.getElementById(id);
+                var elements = ids.map(function (id) { return document.getElementById(id); });
+                // A view with NO control for this criterion cannot speak for it.
+                // That is the only case where a read is ignored — and it is what
+                // the "all values empty" guard was really trying to express.
+                if (!elements.some(function (el) { return !!el; })) return;
+
+                var values = elements.map(function (el) {
                     return el && el.value != null ? String(el.value) : '';
                 });
-                // An all-empty read is "not filtered", not "cleared elsewhere" —
-                // it must not erase a value the OTHER view is holding, or opening
-                // Advanced before it renders would wipe the Basic entry.
+
+                // A DELIBERATELY EMPTIED control removes the criterion.
+                //
+                // This previously refused to write when every value was empty,
+                // which silently RESURRECTED filters: an agent searching
+                // $3,000-$7,000, then setting both price controls back to Any,
+                // had the empty read ignored and the stored $3,000-$7,000
+                // rendered straight back. Mallan restored a criterion the agent
+                // had just removed, and the results looked correct.
+                //
+                // Absence of a CONTROL and emptiness of a control are different
+                // facts; only the first is silence.
                 if (values.some(function (v) { return v !== ''; })) store[key] = values;
+                else delete store[key];
             });
         }
 

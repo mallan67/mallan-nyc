@@ -1,4 +1,5 @@
 import {
+  BUILDING_IDENTITY_AUTHORITY,
   BuildingIdentityNotImplementedError,
   InvalidBuildingResultError,
   assertValidBuildingResult,
@@ -72,6 +73,29 @@ describe('a MATCHED building must be a real identity', () => {
         }),
       ),
     ).toThrow(/Cotality supplies no building identity/);
+  });
+
+  it.each(['acris', 'nyc_dob', 'mallan_crm', 'supplemental'])(
+    'REFUSES %s as the FINAL identity authority — evidence is not authority',
+    (authority) => {
+      // Refusing only `cotality` left these four able to own a final building
+      // identity. A parcel record, a DOB filing or an ACRIS deed is INPUT a
+      // resolver weighs; none owns the opaque Mallan key that results.
+      // FIELD_REGISTRY says `building_identity` is `mallan_derived`, and this
+      // contract must say the same thing rather than a looser version of it.
+      expect(() =>
+        assertValidBuildingResult(
+          withResolution({
+            status: 'MATCHED',
+            identity: { buildingId: 'bldg_01HQ8Z', authority },
+          }),
+        ),
+      ).toThrow(/EVIDENCE a resolver weighs/);
+    },
+  );
+
+  it('the required authority comes from the shared vocabulary, not a local enum', () => {
+    expect(BUILDING_IDENTITY_AUTHORITY).toBe('mallan_derived');
   });
 
   it('REFUSES an empty identity', () => {

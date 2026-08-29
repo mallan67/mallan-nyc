@@ -41,6 +41,9 @@ const SURFACES = `
     <select id="saleMaxPrice"><option value="">Any</option><option value="900000">900000</option></select>
     <select id="saleMinBeds"><option value="">Any</option><option value="2">2</option></select>
     <select id="saleMaxBeds"><option value="">Any</option><option value="4">4</option></select>
+    <select id="saleMinSqft"><option value="">Any</option><option value="800">800</option></select>
+    <select id="saleMaxSqft"><option value="">Any</option><option value="2000">2000</option></select>
+    <select id="saleMinRooms"><option value="">Any</option><option value="3">3</option></select>
   </div>
 
   <div id="searchBasicModeRental" style="display: none;">
@@ -48,6 +51,8 @@ const SURFACES = `
     <select id="rentalMaxRent"><option value="">Any</option><option value="7000">7000</option></select>
     <select id="rentalMinBeds"><option value="">Any</option><option value="1">1</option></select>
     <select id="rentalMaxBeds"><option value="">Any</option><option value="3">3</option></select>
+    <select id="rentalMinSqft"><option value="">Any</option><option value="800">800</option></select>
+    <select id="rentalMaxSqft"><option value="">Any</option><option value="2000">2000</option></select>
   </div>
 
   <div id="searchBasicModeBuilding" style="display: none;">
@@ -64,6 +69,9 @@ const SURFACES = `
     <select id="advRentalMaxRent"><option value="">Any</option><option value="7000">7000</option></select>
     <select id="adv-min-beds"><option value="">Any</option><option value="1">1</option><option value="2">2</option></select>
     <select id="adv-max-beds"><option value="">Any</option><option value="3">3</option><option value="4">4</option></select>
+    <select id="adv-min-sqft"><option value="">Any</option><option value="800">800</option></select>
+    <select id="adv-max-sqft"><option value="">Any</option><option value="2000">2000</option></select>
+    <select id="adv-min-rooms"><option value="">Any</option><option value="3">3</option></select>
   </div>
 `;
 
@@ -321,6 +329,170 @@ describe('criteria survive a view change because the state is shared', () => {
 
     expect(sale.searchTab).toBe('sale');
     expect(JSON.stringify(sale)).not.toContain('3000');
+  });
+});
+
+describe('removing a criterion REMOVES it', () => {
+  it('clearing both bounds drops the criterion instead of resurrecting it', () => {
+    // The bug this closes was mine and it was dangerous. Sync refused to write
+    // when every value was empty, so: search $3,000-$7,000, set both controls
+    // back to Any, and the empty read was ignored while the STORED range was
+    // rendered straight back. Mallan restored a criterion the agent had just
+    // removed, and the results looked correct.
+    const win = mount();
+    win.toggleSearchTab('rent');
+    pick(win, 'rentalMinRent', '3000');
+    pick(win, 'rentalMaxRent', '7000');
+    expect(JSON.stringify(win.collectSearchCriteria())).toContain('3000');
+
+    pick(win, 'rentalMinRent', '');
+    pick(win, 'rentalMaxRent', '');
+    const criteria = win.collectSearchCriteria();
+
+    expect(JSON.stringify(criteria)).not.toContain('3000');
+    expect(JSON.stringify(criteria)).not.toContain('7000');
+  });
+
+  it('does not bring the removed criterion back on the next view change', () => {
+    const win = mount();
+    win.toggleSearchTab('rent');
+    pick(win, 'rentalMinRent', '3000');
+    win.collectSearchCriteria();
+
+    pick(win, 'rentalMinRent', '');
+    win.collectSearchCriteria();
+
+    win.toggleSearchMode('advanced');
+    win.toggleSearchMode('basic');
+
+    expect(win.document.getElementById('rentalMinRent').value).toBe('');
+    expect(JSON.stringify(win.collectSearchCriteria())).not.toContain('3000');
+  });
+
+  it('clearing only the MAX keeps the min — a partial edit is not a removal', () => {
+    const win = mount();
+    win.toggleSearchTab('rent');
+    pick(win, 'rentalMinRent', '3000');
+    pick(win, 'rentalMaxRent', '7000');
+    win.collectSearchCriteria();
+
+    pick(win, 'rentalMaxRent', '');
+    const criteria = win.collectSearchCriteria();
+
+    expect(JSON.stringify(criteria)).toContain('3000');
+    expect(JSON.stringify(criteria)).not.toContain('7000');
+  });
+
+  it('clearing only the MIN keeps the max', () => {
+    const win = mount();
+    win.toggleSearchTab('rent');
+    pick(win, 'rentalMinRent', '3000');
+    pick(win, 'rentalMaxRent', '7000');
+    win.collectSearchCriteria();
+
+    pick(win, 'rentalMinRent', '');
+    const criteria = win.collectSearchCriteria();
+
+    expect(JSON.stringify(criteria)).not.toContain('3000');
+    expect(JSON.stringify(criteria)).toContain('7000');
+  });
+});
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * THE BINDING TABLE MUST BE COMPLETE, AND COMPLETENESS IS DERIVED.
+ *
+ * A hand-kept list of "criteria that appear in two views" is another manually
+ * maintained inventory, and the first version of it missed rooms, square footage
+ * and every building fact — the last group because they diverge through a THIRD
+ * idiom, `_resolveBuildingFieldIds(tab, isAdvanced)`, that the first census
+ * never looked at.
+ *
+ * So this guard reads the COLLECTOR and fails if any control it reads in an
+ * advanced-vs-basic branch is absent from the bindings. A criterion that gains a
+ * second view and is not bound silently reverts to view-local truth, which is
+ * exactly the defect being closed.
+ */
+describe('every view-divergent control is bound', () => {
+  const engine = readFileSync(SEARCH_ENGINE, 'utf8');
+
+  /** Ids the collector reads inside an advanced-vs-basic branch. */
+  const divergentIds = (): string[] => {
+    const lines = engine.split('\n');
+    const start = lines.findIndex((l) => /function collectSearchCriteria/.test(l));
+    const found = new Set<string>();
+    for (let i = start; i < lines.length && i < start + 700; i++) {
+      if (!/_isAdvanced|_isAdv\b/.test(lines[i])) continue;
+      const window = lines.slice(i, i + 14).join('\n');
+      for (const m of window.matchAll(/getElementById\('([A-Za-z0-9_-]+)'\)/g)) found.add(m[1]);
+    }
+    // The building-fact resolver is a separate idiom and must be covered too.
+    //
+    // It builds some ids by CONCATENATION — `var p = tab === 'rent' ?
+    // 'rentalBuilding' : 'saleBuilding'` then `p + 'MinYear'`. Treating the
+    // quoted fragments as ids reported 'saleBuilding' and 'MinYear' as unbound
+    // controls that do not exist. Reconstruct the concatenation instead; a
+    // fragment is not an id.
+    const resolver = /_resolveBuildingFieldIds = function[\s\S]*?\n        \};/.exec(engine)?.[0] ?? '';
+    const prefixes = [...resolver.matchAll(/\?\s*'([A-Za-z]+)'\s*:\s*'([A-Za-z]+)'/g)].flatMap((m) => [
+      m[1],
+      m[2],
+    ]);
+    for (const m of resolver.matchAll(/'([A-Za-z0-9_-]+)'/g)) {
+      const token = m[1];
+      if (prefixes.includes(token)) continue;
+      // A tab NAME is not a control id. `tab === 'rent'` and `tab === 'building'`
+      // are branch conditions inside the resolver.
+      if (new RegExp(`tab\\s*===\\s*'${token}'`).test(resolver)) continue;
+      // A suffix only ever appears as `p + 'Suffix'`.
+      if (new RegExp(`p\\s*\\+\\s*'${token}'`).test(resolver)) {
+        prefixes.forEach((prefix) => found.add(prefix + token));
+        continue;
+      }
+      found.add(token);
+    }
+    return [...found];
+  };
+
+  it('finds the divergent controls at all — guard the guard', () => {
+    // A parse that silently found nothing would make every assertion below pass
+    // vacuously, which is how the first census reported a clean result while
+    // missing three whole criteria.
+    const ids = divergentIds();
+    expect(ids.length).toBeGreaterThanOrEqual(12);
+    expect(ids).toEqual(expect.arrayContaining(['adv-min-sqft', 'adv-min-rooms']));
+  });
+
+  it('binds every control the collector reads in a view-dependent branch', () => {
+    const win = mount();
+    const bound = new Set<string>();
+    const bindings = win.CRITERION_VIEW_BINDINGS ?? {};
+    for (const perTab of Object.values(bindings) as any[]) {
+      for (const perView of Object.values(perTab) as any[]) {
+        for (const ids of Object.values(perView) as any[]) {
+          (ids as string[]).forEach((id) => bound.add(id));
+        }
+      }
+    }
+
+    // Prefixed ids the resolver builds by concatenation are covered by their
+    // expanded forms in the table; only genuinely unbound controls are reported.
+    const unbound = divergentIds().filter(
+      (id) => !bound.has(id) && !/^(advancedSearchAddress)$/.test(id),
+    );
+    expect(unbound).toEqual([]);
+  });
+
+  it('names every bound criterion with a CANONICAL key, not a DOM name', () => {
+    // The bindings are view adapters onto canonical criteria. Keying them by
+    // control name would make the UI its own vocabulary again.
+    const win = mount();
+    const keys = Object.keys(win.CRITERION_VIEW_BINDINGS ?? {});
+    expect(keys.length).toBeGreaterThan(0);
+    for (const key of keys) {
+      expect(key).toMatch(/^[a-z][a-z0-9_]*$/);
+      expect(key).not.toMatch(/^(adv|sale|rental|building)[A-Z-]/);
+    }
   });
 });
 

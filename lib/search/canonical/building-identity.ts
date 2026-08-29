@@ -128,6 +128,15 @@ export class InvalidBuildingResultError extends Error {
   }
 }
 
+/**
+ * The ONE authority that may own a final canonical building identity.
+ *
+ * Matches `FIELD_REGISTRY`'s `sourceAuthority: 'mallan_derived'` for
+ * `building_identity`, using the shared `SourceAuthority` vocabulary rather than
+ * a Building-local enum.
+ */
+export const BUILDING_IDENTITY_AUTHORITY: SourceAuthority = 'mallan_derived';
+
 const LOOKS_LIKE_COORDINATE = /^-?\d{1,3}\.\d+\s*,\s*-?\d{1,3}\.\d+$/;
 const LOOKS_LIKE_STREET_ADDRESS = /\d+\s+\S+\s+(st|street|ave|avenue|rd|road|blvd|pl|place|dr)\b/i;
 
@@ -167,6 +176,25 @@ export function assertValidBuildingIdentity(
     throw new InvalidBuildingResultError(
       `${where}: identity claims Cotality authority, but Cotality supplies no building identity ` +
         `(BuildingKey/BuildingKeyNumeric populated 0/8,056, GET /Building returns 403)`,
+    );
+  }
+  if (identity!.authority !== BUILDING_IDENTITY_AUTHORITY) {
+    // EVIDENCE IS NOT AUTHORITY.
+    //
+    // Refusing only `cotality` left acris, nyc_dob, mallan_crm and supplemental
+    // able to own a final building identity. A parcel record, a DOB filing or an
+    // ACRIS deed is INPUT a resolver weighs; none of them owns the opaque Mallan
+    // key that results. FIELD_REGISTRY says `building_identity` is
+    // `mallan_derived`, and this contract must say the same thing rather than a
+    // looser version of it.
+    //
+    // If that architecture is ever changed deliberately, this constant moves —
+    // which is a visible edit, unlike a permissive check quietly admitting a new
+    // authority.
+    throw new InvalidBuildingResultError(
+      `${where}: identity claims "${identity!.authority}" authority. The final canonical building ` +
+        `identity is "${BUILDING_IDENTITY_AUTHORITY}" — address, parcel, ACRIS and DOB facts are ` +
+        `EVIDENCE a resolver weighs, not the authority that owns the resulting key`,
     );
   }
 }
