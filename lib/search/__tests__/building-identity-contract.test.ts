@@ -25,7 +25,7 @@ describe('a MATCHED building must be a real identity', () => {
       assertValidBuildingResult(
         withResolution({
           status: 'MATCHED',
-          identity: { buildingId: 'bldg_01HQ8Z', source: 'mallan_building_record' },
+          identity: { buildingId: 'bldg_01HQ8Z', authority: 'mallan_derived' },
         }),
       ),
     ).not.toThrow();
@@ -40,7 +40,7 @@ describe('a MATCHED building must be a real identity', () => {
       assertValidBuildingResult(
         withResolution({
           status: 'MATCHED',
-          identity: { buildingId: '845 Fifth Avenue', source: 'mallan_building_record' },
+          identity: { buildingId: '845 Fifth Avenue', authority: 'mallan_derived' },
         }),
       ),
     ).toThrow(/street address/);
@@ -54,7 +54,7 @@ describe('a MATCHED building must be a real identity', () => {
       assertValidBuildingResult(
         withResolution({
           status: 'MATCHED',
-          identity: { buildingId: '40.7644,-73.9729', source: 'mallan_building_record' },
+          identity: { buildingId: '40.7644,-73.9729', authority: 'mallan_derived' },
         }),
       ),
     ).toThrow(/coordinate/);
@@ -68,7 +68,7 @@ describe('a MATCHED building must be a real identity', () => {
       assertValidBuildingResult(
         withResolution({
           status: 'MATCHED',
-          identity: { buildingId: 'bldg_01HQ8Z', source: 'cotality' },
+          identity: { buildingId: 'bldg_01HQ8Z', authority: 'cotality' },
         }),
       ),
     ).toThrow(/Cotality supplies no building identity/);
@@ -79,7 +79,7 @@ describe('a MATCHED building must be a real identity', () => {
       assertValidBuildingResult(
         withResolution({
           status: 'MATCHED',
-          identity: { buildingId: '   ', source: 'mallan_building_record' },
+          identity: { buildingId: '   ', authority: 'mallan_derived' },
         }),
       ),
     ).toThrow(InvalidBuildingResultError);
@@ -93,8 +93,8 @@ describe('AMBIGUOUS may not be collapsed', () => {
         withResolution({
           status: 'AMBIGUOUS',
           candidates: [
-            { buildingId: 'bldg_a', reason: 'same street number, different structure' },
-            { buildingId: 'bldg_b', reason: 'shares the corner address' },
+            { identity: { buildingId: 'bldg_a', authority: 'mallan_derived' }, reason: 'same street number, different structure' },
+            { identity: { buildingId: 'bldg_b', authority: 'mallan_derived' }, reason: 'shares the corner address' },
           ],
         }),
       ),
@@ -108,7 +108,7 @@ describe('AMBIGUOUS may not be collapsed', () => {
       assertValidBuildingResult(
         withResolution({
           status: 'AMBIGUOUS',
-          candidates: [{ buildingId: 'bldg_a', reason: 'only match' }],
+          candidates: [{ identity: { buildingId: 'bldg_a', authority: 'mallan_derived' }, reason: 'only match' }],
         }),
       ),
     ).toThrow(/at least two candidates/);
@@ -120,6 +120,60 @@ describe('AMBIGUOUS may not be collapsed', () => {
     ).toThrow(/at least two candidates/);
   });
 
+  it('applies the SAME identity rule to candidates as to a MATCHED result', () => {
+    // The hole this closes: candidate validation checked only that two strings
+    // were non-empty, so an address or a coordinate could sit in a candidate
+    // list under a contract that forbids exactly those as an identity. An agent
+    // may promote any candidate to their answer, so a candidate must already be
+    // something they are allowed to hold.
+    const withCandidate = (buildingId: string) =>
+      withResolution({
+        status: 'AMBIGUOUS',
+        candidates: [
+          { identity: { buildingId, authority: 'mallan_derived' }, reason: 'first' },
+          { identity: { buildingId: 'bldg_b', authority: 'mallan_derived' }, reason: 'second' },
+        ],
+      });
+
+    expect(() => assertValidBuildingResult(withCandidate('845 Fifth Avenue'))).toThrow(
+      /street address/,
+    );
+    expect(() => assertValidBuildingResult(withCandidate('40.7644,-73.9729'))).toThrow(
+      /coordinate/,
+    );
+    expect(() => assertValidBuildingResult(withCandidate(''))).toThrow(
+      /has no building identity/,
+    );
+  });
+
+  it('REFUSES a candidate claiming Cotality authority', () => {
+    expect(() =>
+      assertValidBuildingResult(
+        withResolution({
+          status: 'AMBIGUOUS',
+          candidates: [
+            { identity: { buildingId: 'bldg_a', authority: 'cotality' }, reason: 'first' },
+            { identity: { buildingId: 'bldg_b', authority: 'mallan_derived' }, reason: 'second' },
+          ],
+        }),
+      ),
+    ).toThrow(/Cotality supplies no building identity/);
+  });
+
+  it('names WHICH candidate failed, so a long list is diagnosable', () => {
+    expect(() =>
+      assertValidBuildingResult(
+        withResolution({
+          status: 'AMBIGUOUS',
+          candidates: [
+            { identity: { buildingId: 'bldg_a', authority: 'mallan_derived' }, reason: 'first' },
+            { identity: { buildingId: '845 Fifth Avenue', authority: 'mallan_derived' }, reason: 'second' },
+          ],
+        }),
+      ),
+    ).toThrow(/candidate 1/);
+  });
+
   it('REFUSES a candidate with no stated reason', () => {
     // The agent disambiguates, so the agent must be told what distinguishes
     // them. Mallan never picks.
@@ -128,8 +182,8 @@ describe('AMBIGUOUS may not be collapsed', () => {
         withResolution({
           status: 'AMBIGUOUS',
           candidates: [
-            { buildingId: 'bldg_a', reason: '' },
-            { buildingId: 'bldg_b', reason: 'shares the corner address' },
+            { identity: { buildingId: 'bldg_a', authority: 'mallan_derived' }, reason: '' },
+            { identity: { buildingId: 'bldg_b', authority: 'mallan_derived' }, reason: 'shares the corner address' },
           ],
         }),
       ),
@@ -194,7 +248,7 @@ describe('listings support a building result, they do not constitute it', () => 
       assertValidBuildingResult({
         resolution: {
           status: 'MATCHED',
-          identity: { buildingId: 'bldg_01HQ8Z', source: 'mallan_building_record' },
+          identity: { buildingId: 'bldg_01HQ8Z', authority: 'mallan_derived' },
         },
         supportingListings: [],
       }),
@@ -204,7 +258,7 @@ describe('listings support a building result, they do not constitute it', () => 
   it('supporting listings cannot stand in for a missing identity', () => {
     expect(() =>
       assertValidBuildingResult({
-        resolution: { status: 'MATCHED', identity: { buildingId: '', source: 'mallan_building_record' } },
+        resolution: { status: 'MATCHED', identity: { buildingId: '', authority: 'mallan_derived' } },
         supportingListings: [{ listingId: 'L1', relationship: 'unit_in_building' }],
       }),
     ).toThrow(InvalidBuildingResultError);

@@ -37,7 +37,7 @@ const SURFACES = `
   <button id="btnSearchBasic"></button><button id="btnSearchAdvanced"></button>
 
   <div id="searchBasicMode">
-    <select id="saleMinPrice"><option value="">Any</option><option value="500000">500000</option></select>
+    <select id="saleMinPrice"><option value="">Any</option><option value="500000">500000</option><option value="750000">750000</option></select>
     <select id="saleMaxPrice"><option value="">Any</option><option value="900000">900000</option></select>
     <select id="saleMinBeds"><option value="">Any</option><option value="2">2</option></select>
     <select id="saleMaxBeds"><option value="">Any</option><option value="4">4</option></select>
@@ -58,7 +58,12 @@ const SURFACES = `
   </div>
 
   <div id="searchAdvancedMode" style="display: none;">
-    <select id="advSaleMinPrice"><option value="">Any</option><option value="750000">750000</option></select>
+    <select id="advSaleMinPrice"><option value="">Any</option><option value="500000">500000</option><option value="750000">750000</option></select>
+    <select id="advSaleMaxPrice"><option value="">Any</option><option value="900000">900000</option></select>
+    <select id="advRentalMinRent"><option value="">Any</option><option value="3000">3000</option></select>
+    <select id="advRentalMaxRent"><option value="">Any</option><option value="7000">7000</option></select>
+    <select id="adv-min-beds"><option value="">Any</option><option value="1">1</option><option value="2">2</option></select>
+    <select id="adv-max-beds"><option value="">Any</option><option value="3">3</option><option value="4">4</option></select>
   </div>
 `;
 
@@ -241,6 +246,122 @@ describe('Basic and Advanced are two views of the same active tab', () => {
     win.toggleSearchTab('building');
     win.toggleSearchMode('advanced');
     expect(visibleBasicSurfaces(win)).toEqual([]);
+  });
+});
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * BASIC AND ADVANCED ARE TWO VIEWS OF ONE OBJECT.
+ *
+ * Showing exactly one Basic surface stopped the collector reading a hidden
+ * container, but it left Basic and Advanced as two separate DOM stores: the
+ * collector chose ids by (tab, isAdvanced) and the two sets never met.
+ *
+ * The earlier round-trip test did NOT prove this. It typed into Basic, opened
+ * Advanced, returned to Basic and found the value still sitting in the Basic
+ * DOM — which is true of two unrelated stores as well. The question it never
+ * asked is the one that matters: does the value EXECUTE while Advanced is open?
+ */
+describe('criteria survive a view change because the state is shared', () => {
+  it('EXECUTES a rent range typed in Basic while Advanced is the open view', () => {
+    // The bug the previous test missed. Type in Basic, open Advanced, press
+    // Search without touching anything: the empty Advanced controls used to be
+    // what executed.
+    const win = mount();
+    win.toggleSearchTab('rent');
+    pick(win, 'rentalMinRent', '3000');
+    pick(win, 'rentalMaxRent', '7000');
+
+    win.toggleSearchMode('advanced');
+    expect(shown(win, 'searchAdvancedMode')).toBe(true);
+
+    const criteria = win.collectSearchCriteria();
+
+    expect(criteria.searchTab).toBe('rent');
+    expect(JSON.stringify(criteria)).toContain('3000');
+    expect(JSON.stringify(criteria)).toContain('7000');
+  });
+
+  it('EXECUTES a sale price typed in Basic while Advanced is open', () => {
+    const win = mount();
+    win.toggleSearchTab('sale');
+    pick(win, 'saleMinPrice', '500000');
+
+    win.toggleSearchMode('advanced');
+    const criteria = win.collectSearchCriteria();
+
+    expect(JSON.stringify(criteria)).toContain('500000');
+  });
+
+  it('carries an edit made in ADVANCED back into Basic', () => {
+    // The reverse direction. Both views read the same object, so neither is the
+    // authority and the traffic must work both ways.
+    const win = mount();
+    win.toggleSearchTab('sale');
+    win.toggleSearchMode('advanced');
+    pick(win, 'advSaleMinPrice', '750000');
+
+    win.toggleSearchMode('basic');
+
+    expect(win.document.getElementById('saleMinPrice').value).toBe('750000');
+    expect(JSON.stringify(win.collectSearchCriteria())).toContain('750000');
+  });
+
+  it('keeps each workflow SEPARATE across a view change', () => {
+    // Per-workflow objects: a rent range must not appear in a sale search just
+    // because both views were visited.
+    const win = mount();
+    win.toggleSearchTab('rent');
+    pick(win, 'rentalMinRent', '3000');
+    win.toggleSearchMode('advanced');
+    win.toggleSearchMode('basic');
+
+    win.toggleSearchTab('sale');
+    const sale = win.collectSearchCriteria();
+
+    expect(sale.searchTab).toBe('sale');
+    expect(JSON.stringify(sale)).not.toContain('3000');
+  });
+});
+
+describe('reset clears the workflow the agent is actually on', () => {
+  it('clears the RENTAL form, not the Sale one', () => {
+    // `clearSearchForm` listed only 'searchBasicMode', so Clear on Rentals reset
+    // a form the agent was not looking at and left theirs populated. It survived
+    // the surface-resolver pass because it is a STRING IN AN ARRAY — invisible to
+    // a guard scanning for getElementById('searchBasicMode').
+    const win = mount();
+    win.toggleSearchTab('rent');
+    pick(win, 'rentalMinRent', '3000');
+
+    win.clearSearchForm();
+
+    expect(win.document.getElementById('rentalMinRent').value).toBe('');
+    expect(JSON.stringify(win.collectSearchCriteria())).not.toContain('3000');
+  });
+
+  it('clears the BUILDING form when that is the active workflow', () => {
+    const win = mount();
+    win.toggleSearchTab('building');
+    pick(win, 'buildingMinUnits', '10');
+
+    win.clearSearchForm();
+
+    expect(win.document.getElementById('buildingMinUnits').value).toBe('');
+  });
+
+  it('does not resurrect cleared criteria on the next view change', () => {
+    // Clearing the DOM alone would leave the canonical object holding the old
+    // values, and the next render would put them straight back.
+    const win = mount();
+    win.toggleSearchTab('rent');
+    pick(win, 'rentalMinRent', '3000');
+    win.clearSearchForm();
+
+    win.toggleSearchMode('advanced');
+    win.toggleSearchMode('basic');
+
+    expect(win.document.getElementById('rentalMinRent').value).toBe('');
   });
 });
 

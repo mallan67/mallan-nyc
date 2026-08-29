@@ -1,3 +1,5 @@
+import { isSourceAuthority, type SourceAuthority } from './source-provenance';
+
 /**
  * ─────────────────────────────────────────────────────────────────────────────
  * BUILDING SEARCH RETURNS BUILDINGS.
@@ -61,16 +63,35 @@ export interface CanonicalBuildingIdentity {
   /** Mallan-owned and opaque. Never an address string, never a coordinate. */
   readonly buildingId: string;
   /**
-   * Which authority produced it. Only a Mallan building record can, because
-   * Cotality supplies none — recorded so a later provider identity, if one is
-   * ever licensed and proven, is a NEW member rather than a silent redefinition.
+   * WHO vouches for the identity, using the repository's ONE provenance
+   * vocabulary.
+   *
+   * This was briefly a Building-only literal, `source: 'mallan_building_record'`.
+   * That invented a second provenance vocabulary for one subsystem — exactly what
+   * `source-provenance.ts` warns against in its own comment: `mallan_derived` was
+   * "added here rather than in a second enum so provenance keeps exactly one
+   * vocabulary." FIELD_REGISTRY already classifies `building_identity` as
+   * `sourceAuthority: 'mallan_derived'`, so reusing it also keeps the registry
+   * and this contract saying the same thing.
+   *
+   * It also claimed more than is known: `Building.building_key` has no proven
+   * derivation, so naming "the Mallan building record" as an authority in its own
+   * right was premature.
    */
-  readonly source: 'mallan_building_record';
+  readonly authority: SourceAuthority;
 }
 
-/** One building the inputs could legitimately mean. */
+/**
+ * One building the inputs could legitimately mean.
+ *
+ * Carries the SAME identity type as a MATCHED result, so it passes the SAME
+ * validation. A candidate used to be a bare `{ buildingId, reason }` checked only
+ * for non-emptiness, which meant `'845 Fifth Avenue'` or `'40.7644,-73.9729'`
+ * could sit in a candidate list while the very same contract forbade them as a
+ * MATCHED identity. Two identity rules is one rule too many.
+ */
 export interface BuildingCandidate {
-  readonly buildingId: string;
+  readonly identity: CanonicalBuildingIdentity;
   /** Why this candidate survived — shown to the agent, who decides. */
   readonly reason: string;
 }
@@ -111,6 +132,46 @@ const LOOKS_LIKE_COORDINATE = /^-?\d{1,3}\.\d+\s*,\s*-?\d{1,3}\.\d+$/;
 const LOOKS_LIKE_STREET_ADDRESS = /\d+\s+\S+\s+(st|street|ave|avenue|rd|road|blvd|pl|place|dr)\b/i;
 
 /**
+ * THE identity rule. One function, applied everywhere an identity appears.
+ *
+ * It guarded MATCHED only, while an AMBIGUOUS candidate was a bare
+ * `{ buildingId, reason }` checked for non-emptiness — so an address or a
+ * coordinate could ride in as a candidate under a contract that forbids exactly
+ * those. A caller picking a candidate would then hold something this file says
+ * is not an identity.
+ */
+export function assertValidBuildingIdentity(
+  identity: CanonicalBuildingIdentity | undefined,
+  where: string,
+): void {
+  const id = identity?.buildingId;
+  if (typeof id !== 'string' || id.trim() === '') {
+    throw new InvalidBuildingResultError(`${where} has no building identity`);
+  }
+  if (LOOKS_LIKE_COORDINATE.test(id.trim())) {
+    throw new InvalidBuildingResultError(
+      `${where}: identity "${id}" is a coordinate — a measurement with error bars is not a key`,
+    );
+  }
+  if (LOOKS_LIKE_STREET_ADDRESS.test(id)) {
+    throw new InvalidBuildingResultError(
+      `${where}: identity "${id}" is a street address — an address is an INPUT to resolution, not its answer`,
+    );
+  }
+  if (!isSourceAuthority(identity!.authority)) {
+    throw new InvalidBuildingResultError(
+      `${where}: "${identity!.authority}" is not a member of the canonical provenance vocabulary`,
+    );
+  }
+  if (identity!.authority === 'cotality') {
+    throw new InvalidBuildingResultError(
+      `${where}: identity claims Cotality authority, but Cotality supplies no building identity ` +
+        `(BuildingKey/BuildingKeyNumeric populated 0/8,056, GET /Building returns 403)`,
+    );
+  }
+}
+
+/**
  * A resolution is well-formed. Enforced rather than documented, because each
  * failure below is a way of PRESENTING A NON-IDENTITY AS AN IDENTITY.
  */
@@ -118,26 +179,7 @@ export function assertValidBuildingResult(result: BuildingSearchResult): void {
   const { resolution } = result;
 
   if (resolution.status === 'MATCHED') {
-    const id = resolution.identity?.buildingId;
-    if (typeof id !== 'string' || id.trim() === '') {
-      throw new InvalidBuildingResultError('MATCHED with no building identity');
-    }
-    if (LOOKS_LIKE_COORDINATE.test(id.trim())) {
-      throw new InvalidBuildingResultError(
-        `identity "${id}" is a coordinate — a measurement with error bars is not a key`,
-      );
-    }
-    if (LOOKS_LIKE_STREET_ADDRESS.test(id)) {
-      throw new InvalidBuildingResultError(
-        `identity "${id}" is a street address — an address is an INPUT to resolution, not its answer`,
-      );
-    }
-    if (resolution.identity.source !== 'mallan_building_record') {
-      throw new InvalidBuildingResultError(
-        `identity claims source "${resolution.identity.source}" — Cotality supplies no building ` +
-          `identity (BuildingKey 0/8,056 populated, GET /Building 403)`,
-      );
-    }
+    assertValidBuildingIdentity(resolution.identity, 'MATCHED');
     return;
   }
 
@@ -149,11 +191,17 @@ export function assertValidBuildingResult(result: BuildingSearchResult): void {
         'AMBIGUOUS must carry at least two candidates — fewer is a MATCHED or an UNRESOLVED in disguise',
       );
     }
-    for (const candidate of resolution.candidates) {
-      if (!candidate.buildingId || !candidate.reason) {
-        throw new InvalidBuildingResultError('every candidate needs an id and a stated reason');
+    resolution.candidates.forEach((candidate, i) => {
+      // The SAME rule as MATCHED. An agent may promote any candidate to their
+      // answer, so a candidate must already be a thing they are allowed to hold.
+      assertValidBuildingIdentity(candidate.identity, `AMBIGUOUS candidate ${i}`);
+      if (!candidate.reason || candidate.reason.trim() === '') {
+        throw new InvalidBuildingResultError(
+          `AMBIGUOUS candidate ${i} has no stated reason — the agent disambiguates, so the agent ` +
+            `must be told what distinguishes them`,
+        );
       }
-    }
+    });
     return;
   }
 

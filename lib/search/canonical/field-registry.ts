@@ -133,8 +133,8 @@ export type FieldType =
 /**
  * THE PERSISTENCE VOCABULARY IS DERIVED FROM THESE ENTRIES, NOT DECLARED HERE.
  *
- * A registry entry is a Search criterion when it declares `searchParams`, and
- * its persistence key IS its `canonicalKey`. There is no separate `filterKeys`
+ * A registry entry is a Search criterion when its `criterionRole` is
+ * `broker_input`. Its persistence key IS its `canonicalKey`. There is no separate `filterKeys`
  * field and no hand-written key list: both were redundant restatements of the
  * entry, and a restatement is something that can disagree.
  *

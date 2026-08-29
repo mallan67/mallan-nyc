@@ -17740,6 +17740,8 @@ function manageShowToast(msg) {
          * can hold a value the collector might read.
          */
         function applySearchSurfaceVisibility(tab, isBasicMode) {
+            // Capture the outgoing view before it is hidden.
+            syncActiveViewToCanonical(currentSearchTab, activeViewName());
             var activeId = basicSurfaceIdForTab(tab);
             Object.keys(BASIC_SURFACE_BY_TAB).forEach(function (t) {
                 var el = document.getElementById(BASIC_SURFACE_BY_TAB[t]);
@@ -17748,9 +17750,121 @@ function manageShowToast(msg) {
             });
             var advanced = document.getElementById('searchAdvancedMode');
             if (advanced) advanced.style.display = isBasicMode ? 'none' : 'block';
+            // Render the view now on screen. Basic and Advanced show the same
+            // criteria because they read the same object, not because anything
+            // was copied between them.
+            renderCanonicalToActiveView(tab, isBasicMode ? 'basic' : 'advanced');
+        }
+
+        // ─── CANONICAL CRITERIA STATE ───────────────────────────────────────
+        //
+        // ONE criteria object per workflow. Basic and Advanced are two VIEWS of
+        // it; neither is the authority.
+        //
+        // WHAT THIS FIXES. Showing exactly one Basic surface stopped the collector
+        // reading a hidden container, but Basic and Advanced remained two separate
+        // DOM stores: the collector chose ids by (tab, isAdvanced), and the two
+        // sets never met. Type a rent range in Basic, open Advanced, press Search
+        // while Advanced is still open, and the EMPTY Advanced controls executed —
+        // the same substitution as before, one layer up.
+        //
+        // NOT A COPY BETWEEN FORMS. Values never move control-to-control. They
+        // move DOM -> canonical state -> DOM: the active view is read INTO the
+        // canonical object when it is left, and the canonical object is RENDERED
+        // into a view when it is entered. That is what makes them views rather
+        // than stores, and it is why switching tabs cannot leak — each workflow
+        // holds its own object.
+        //
+        // COVERAGE IS DECLARED, NOT ASSUMED. Only the criteria listed below have
+        // divergent per-view controls and therefore need carrying. Every other
+        // control lives in exactly one surface, and since exactly one surface is
+        // visible, reading it is already unambiguous. A criterion that later gains
+        // a second view MUST be added here, or it silently reverts to being
+        // view-local — which is the defect this table exists to close.
+        var CRITERION_VIEW_BINDINGS = {
+            list_price: {
+                sale:     { basic: ['saleMinPrice', 'saleMaxPrice'], advanced: ['advSaleMinPrice', 'advSaleMaxPrice'] },
+                rent:     { basic: ['rentalMinRent', 'rentalMaxRent'], advanced: ['advRentalMinRent', 'advRentalMaxRent'] }
+            },
+            bedrooms: {
+                sale:     { basic: ['saleMinBeds', 'saleMaxBeds'], advanced: ['adv-min-beds', 'adv-max-beds'] },
+                rent:     { basic: ['rentalMinBeds', 'rentalMaxBeds'], advanced: ['adv-min-beds', 'adv-max-beds'] }
+            },
+            bathrooms: {
+                sale:     { basic: ['saleMinBaths', 'saleMaxBaths'], advanced: ['adv-min-baths', 'adv-max-baths'] },
+                rent:     { basic: ['rentalMinBaths', 'rentalMaxBaths'], advanced: ['adv-min-baths', 'adv-max-baths'] }
+            }
+        };
+
+        /** Per-workflow canonical criteria. Separate objects, so tabs cannot leak. */
+        var _canonicalCriteria = { sale: {}, rent: {}, building: {} };
+
+        /** Which view is on screen for the purposes of binding lookup. */
+        function activeViewName() {
+            return isAdvancedViewVisible() ? 'advanced' : 'basic';
+        }
+
+        function _bindingIds(key, tab, view) {
+            var perTab = CRITERION_VIEW_BINDINGS[key] || {};
+            var perView = perTab[tab] || {};
+            return perView[view] || [];
+        }
+
+        /**
+         * Read the view the agent has been editing INTO the canonical object.
+         * Called before any view or tab change, and before collecting.
+         */
+        function syncActiveViewToCanonical(tab, view) {
+            tab = tab || currentSearchTab;
+            view = view || activeViewName();
+            var store = _canonicalCriteria[tab];
+            if (!store) return;
+            Object.keys(CRITERION_VIEW_BINDINGS).forEach(function (key) {
+                var ids = _bindingIds(key, tab, view);
+                if (!ids.length) return;
+                var values = ids.map(function (id) {
+                    var el = document.getElementById(id);
+                    return el && el.value != null ? String(el.value) : '';
+                });
+                // An all-empty read is "not filtered", not "cleared elsewhere" —
+                // it must not erase a value the OTHER view is holding, or opening
+                // Advanced before it renders would wipe the Basic entry.
+                if (values.some(function (v) { return v !== ''; })) store[key] = values;
+            });
+        }
+
+        /** Render the canonical object INTO the view being entered. */
+        function renderCanonicalToActiveView(tab, view) {
+            tab = tab || currentSearchTab;
+            view = view || activeViewName();
+            var store = _canonicalCriteria[tab];
+            if (!store) return;
+            Object.keys(CRITERION_VIEW_BINDINGS).forEach(function (key) {
+                var ids = _bindingIds(key, tab, view);
+                if (!ids.length) return;
+                var values = store[key] || [];
+                ids.forEach(function (id, i) {
+                    var el = document.getElementById(id);
+                    if (!el) return;
+                    var next = values[i] != null ? values[i] : '';
+                    if (el.value !== next) el.value = next;
+                });
+            });
+        }
+
+        /** Forget the active workflow's criteria — a reset, not a view change. */
+        function clearCanonicalCriteria(tab) {
+            _canonicalCriteria[tab || currentSearchTab] = {};
         }
 
         function collectSearchCriteria() {
+            // The view on screen may hold edits the canonical object has not
+            // seen yet. Sync, then render, so the controls the reads below use
+            // carry the workflow's full criteria — including anything entered in
+            // the OTHER view before switching.
+            syncActiveViewToCanonical();
+            renderCanonicalToActiveView();
+
             var criteria = {};
             criteria.searchTab = currentSearchTab; // 'sale', 'rent', or 'building'
 
@@ -18255,8 +18369,17 @@ function manageShowToast(msg) {
         }
 
         function clearSearchForm() {
-            // Reset all select elements in basic form (unified — one form for all tabs)
-            var forms = ['searchBasicMode'];
+            // Reset the canonical criteria for this workflow FIRST — clearing the
+            // DOM alone would leave the canonical object holding the old values,
+            // and the next view change would render them straight back.
+            clearCanonicalCriteria(currentSearchTab);
+
+            // Every Basic surface, not just Sale. This listed 'searchBasicMode'
+            // alone, so Clear on the Rentals or Buildings tab reset a form the
+            // agent was not looking at and left theirs populated. It survived the
+            // surface-resolver pass because it is a STRING IN AN ARRAY, which the
+            // guard scanning for getElementById('searchBasicMode') never saw.
+            var forms = ['searchBasicMode', 'searchBasicModeRental', 'searchBasicModeBuilding'];
             forms.forEach(function(formId) {
                 var form = document.getElementById(formId);
                 if (!form) return;
@@ -19381,6 +19504,9 @@ function manageShowToast(msg) {
 
         // New unified function for switching between Sales, Rentals, and Buildings tabs
         function toggleSearchTab(tab) {
+            // BEFORE the reassignment: whatever the agent typed belongs to the
+            // tab they are leaving, not the one they are opening.
+            syncActiveViewToCanonical(currentSearchTab, activeViewName());
             currentSearchTab = tab;
             try { sessionStorage.setItem('searchTab', tab); } catch(e) {}
             var btnSale = document.getElementById('btnSale');
