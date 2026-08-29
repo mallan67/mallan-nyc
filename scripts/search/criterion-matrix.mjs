@@ -1,5 +1,14 @@
 /**
- * THE REPLACEMENT SPECIFICATION — one row per BUSINESS CONCEPT.
+ * CURRENT-SYSTEM MEASUREMENT AND MIGRATION LEDGER — one row per BUSINESS CONCEPT.
+ *
+ * NOT an authority, and no longer called "the replacement specification". Its
+ * PROVEN_CLAUSES table is hand-written, so this file MEASURES the system and
+ * records evidence; it does not define anything. The authorities are
+ * FIELD_REGISTRY (identity, capability, evidence, strategy),
+ * filter-keys.generated.ts (persistence vocabulary) and executionReadiness()
+ * (the runtime gate). When the canonical value contract lands it becomes the
+ * source for identity -> value shape -> workflow applicability, and this ledger
+ * will check against it rather than restate it.
  *
  * Not another audit. This is the specification B1's canonical contracts are
  * built from, and it is GENERATED from every authority that currently claims a
@@ -245,6 +254,7 @@ for (const line of registry.split('\n')) {
     liveEvidence: (/liveEvidence:\s*\{ probedAt: '([^']+)', source: '([^']+)' \}/.exec(line) || [])
       .slice(1, 3),
     mappingConflict: /mappingConflict:/.test(line),
+    equivalenceDisproven: /semanticEquivalenceProven: false/.test(line),
   };
   registryEntriesWithParams.push(spec);
   for (const raw of params[1].split(',')) {
@@ -334,7 +344,17 @@ const rows = CONCEPTS.map((c) => {
      * own live evidence rejects (see bathrooms), and repo code never proves the
      * provider accepts, populates or means it.
      */
-    verifiedExecutable: Boolean(proof) && capability === 'yes' && liveVerified && !proof?.conflict,
+    // MIRRORS executionReadiness() in the registry, which is the AUTHORITY.
+    // This script must never compute a second verdict: when it did, it called
+    // neighborhood verified while the function correctly called it needs_probe,
+    // because the 593 alias EQUIVALENCES were never verified against the field
+    // probe that proved SubdivisionName exists.
+    verifiedExecutable:
+      Boolean(proof) &&
+      capability === 'yes' &&
+      liveVerified &&
+      !proof?.conflict &&
+      !specs.some((s) => s.equivalenceDisproven),
     // BY CONSTRUCTION now: a registry entry that declares `searchParams` IS a
     // Search criterion and its persistence key IS its canonicalKey. There is no
     // separate `filterKeys` field left to be wrong, so this checks that the

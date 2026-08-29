@@ -75,24 +75,24 @@ describe("Land is zero-population, NOT unsupported", () => {
 
 describe("CustomFields keys are OBSERVED EXTENSION keys, not metadata fields", () => {
   it("models the declared field and the observed key as different layers", () => {
-    const notes = entry("max_financing")!.notes ?? "";
+    const notes = entry("max_financing_percent")!.notes ?? "";
     expect(notes).toMatch(/OBSERVED EXTENSION KEY/i);
     expect(notes).toMatch(/declared type=Edm\.String/);
   });
 
   it("records 0.00 as a sentinel rather than a real limit", () => {
-    expect(entry("max_financing")!.notes ?? "").toMatch(/SENTINEL/i);
+    expect(entry("max_financing_percent")!.notes ?? "").toMatch(/SENTINEL/i);
   });
 
   it("records that it is LISTING-level, because buildings disagree", () => {
-    const notes = entry("max_financing")!.notes ?? "";
+    const notes = entry("max_financing_percent")!.notes ?? "";
     expect(notes).toMatch(/LISTING-LEVEL/i);
     expect(notes).toMatch(/380/);
   });
 
   it("refuses the AttendanceType -> doorman substitution", () => {
     // Population is not meaning. The system already learned Concierge != Doorman.
-    expect(entry("max_financing")!.notes ?? "").toMatch(/VideoDoormanYes is not a doorman/);
+    expect(entry("max_financing_percent")!.notes ?? "").toMatch(/VideoDoormanYes is not a doorman/);
   });
 });
 
@@ -101,8 +101,12 @@ describe("ownership — CommonInterest is the ONE canonical condo/co-op criterio
     expect(entry("ownership")!.cotalityField).toBe("CommonInterest");
   });
 
-  it("is filterable, with the live census recorded", () => {
+  it("is filterable, with the live census recorded STRUCTURALLY", () => {
     expect(entry("ownership")!.filterable).toBe("yes");
+    // 'yes' means verified against live Cotality, so the probe record must be a
+    // field rather than a phrase in prose. Seven other Search criteria were
+    // demoted to needs_probe on 2026-08-28 for lacking exactly this.
+    expect(entry("ownership")!.liveEvidence?.probedAt).toBe("2026-08-21");
     const notes = entry("ownership")!.notes ?? "";
     expect(notes).toMatch(/3,722/); // Condominium, Active
     expect(notes).toMatch(/2,509/); // StockCooperative, Active
@@ -125,28 +129,55 @@ describe("property_sub_type records the mis-mapping rather than hiding it", () =
   });
 });
 
-describe("max_financing — live, populated, and INVISIBLE to $metadata", () => {
+describe("max_financing_percent — live, populated, and INVISIBLE to $metadata", () => {
   it("exists in the registry", () => {
-    expect(entry("max_financing")).toBeDefined();
+    expect(entry("max_financing_percent")).toBeDefined();
   });
 
-  it("names the undeclared JSON path, not a declared field", () => {
-    expect(entry("max_financing")!.cotalityField).toMatch(/CustomFields/);
-    expect(entry("max_financing")!.cotalityField).toMatch(/MaximumFinancingPercent/);
+  it("names the DECLARED field, and records the observed key as a separate layer", () => {
+    // `cotalityField` used to read
+    // 'CustomProperty.CustomFields -> MaximumFinancingPercent' — a prose
+    // composite occupying a slot that means "a provider field name". The declared
+    // provider field is CustomProperty.CustomFields, an Edm.String; the observed
+    // key lives INSIDE that string and is not a field at all. Collapsing the two
+    // layers into one slot is what made it look queryable.
+    expect(entry("max_financing_percent")!.cotalityField).toBe("CustomProperty.CustomFields");
+    expect(entry("max_financing_percent")!.notes ?? "").toMatch(
+      /observed key=MaximumFinancingPercent/,
+    );
+    expect(entry("max_financing_percent")!.notes ?? "").toMatch(/declared type=Edm\.String/);
+  });
+
+  it("is ONE entry — the duplicate identity was merged", () => {
+    // Two entries described this one fact until 2026-08-28: an older
+    // `max_financing` carrying the live census, and a `max_financing_percent`
+    // added the same week claiming needs_probe with no Cotality field, which
+    // contradicted evidence already in the registry.
+    const all = FIELD_REGISTRY.filter((f) => /financing/i.test(f.canonicalKey));
+    expect(all.map((f) => f.canonicalKey)).toEqual(["max_financing_percent"]);
+  });
+
+  it("records a Mallan-side execution strategy, so it is repairable rather than dead", () => {
+    // `$filter` cannot reach inside an Edm.String, so a PROVIDER filter is
+    // impossible — but the raw fact is retrievable and derivable onto the
+    // projection like amenity_keys. Modelling readiness purely on "is there a
+    // provider clause" would make this permanently unexecutable even after
+    // Mallan implements it correctly.
+    expect(entry("max_financing_percent")!.executionStrategy).toBe("mallan_projection_filter");
   });
 
   it("is NOT provider-filterable — CustomFields is a JSON string, not a queryable field", () => {
     // The capability constraint must be recorded here, not discovered later by a
     // failing query. `$filter` cannot reach inside an Edm.String blob.
-    expect(entry("max_financing")!.filterable).toBe("unsupported");
+    expect(entry("max_financing_percent")!.filterable).toBe("unsupported");
   });
 
   it("records the live coverage of the exhaustive census", () => {
-    expect(entry("max_financing")!.notes ?? "").toMatch(/84\.9%|6,803/);
+    expect(entry("max_financing_percent")!.notes ?? "").toMatch(/84\.9%|6,803/);
   });
 
   it("records that the DECLARED financing fields are empty", () => {
-    const notes = entry("max_financing")!.notes ?? "";
+    const notes = entry("max_financing_percent")!.notes ?? "";
     expect(notes).toMatch(/CurrentFinancing|BuyerFinancing|ListingTerms/);
   });
 });
@@ -162,8 +193,8 @@ describe("max_financing — live, populated, and INVISIBLE to $metadata", () => 
  * Same category error the registry already documents for `list_price`: a single
  * static authority per FIELD is wrong for authorable listing facts.
  */
-describe("max_financing authority follows the listing, not the field", () => {
-  const e = () => FIELD_REGISTRY.find((f) => f.canonicalKey === "max_financing")!;
+describe("max_financing_percent authority follows the listing, not the field", () => {
+  const e = () => FIELD_REGISTRY.find((f) => f.canonicalKey === "max_financing_percent")!;
 
   it("is resolved BY LISTING AUTHORITY, not fixed to the provider", () => {
     expect(e().authorityResolution).toBe("by_listing_authority");

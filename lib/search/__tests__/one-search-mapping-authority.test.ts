@@ -238,14 +238,16 @@ describe('mutation guards — the authority graph cannot be bypassed', () => {
       .map((f) => f.canonicalKey)
       .sort();
 
+    // SEVEN Search criteria were demoted to 'needs_probe' on 2026-08-28:
+    // street_address, postal_code, list_price, bedrooms, bathrooms, living_area
+    // and ownership. The shared CapabilityStatus contract defines 'yes' as
+    // verified against live Cotality and `isVerified('yes')` returns true; none
+    // of the seven had a probe record. Redefining 'yes' downward to keep their
+    // labels would have corrupted every other consumer of that contract.
     expect(verified).toEqual([
-      'bathrooms',
-      'bedrooms',
       'borough',
       'furnished',
-      'list_price',
       'listing_universe',
-      'living_area',
       'mallan_exclusive',
       'market_status',
       'media_category',
@@ -254,11 +256,14 @@ describe('mutation guards — the authority graph cannot be bypassed', () => {
       'media_status',
       'neighborhood',
       'new_development',
+      // RESTORED: ownership carries a genuine 2026-08-21 exhaustive Active census
+      // (Condominium 3,722 / StockCooperative 2,509 / ... = 8,015 = ne null
+      // exactly), now recorded as structured liveEvidence. I demoted it in the
+      // first pass without checking whether its evidence should be STRUCTURED
+      // rather than the capability lowered.
       'ownership',
       'pets',
-      'postal_code',
       'property_sub_type',
-      'street_address',
       'structure_type',
       'transaction_type',
     ]);
@@ -368,41 +373,66 @@ describe('one fact, one owner', () => {
  */
 describe('execution readiness — the gate the validator will use', () => {
   const spec = (key: string) => FIELD_REGISTRY.find((f) => f.canonicalKey === key)!;
-  const wired = { reachesServer: true, providerClauseProven: true };
+  const wired = { reachesServer: true, strategyImplemented: true };
 
   it('a known mapping conflict outranks everything — it executes, and executes WRONGLY', () => {
-    // bathrooms is filterable:'yes' with a proven clause. It is NOT ready: the
-    // executor queries a field bath-contract.ts rejects on live evidence.
-    expect(spec('bathrooms').filterable).toBe('yes');
     expect(executionReadiness(spec('bathrooms'), wired)).toBe('mapping_conflict');
   });
 
-  it('capability + clause + transport + live evidence is verified executable', () => {
+  it('a criterion with strategy, transport, live evidence and proven semantics is verified', () => {
+    expect(spec('market_status').executionStrategy).toBe('provider_filter');
     expect(executionReadiness(spec('market_status'), wired)).toBe('verified_executable');
   });
 
-  it('capability yes WITHOUT a live probe is still needs_probe', () => {
-    // The whole point: `filterable: 'yes'` alone must not admit a criterion.
-    expect(spec('list_price').filterable).toBe('yes');
-    expect(spec('list_price').liveEvidence).toBeUndefined();
+  it('capability short of yes on the provider path is needs_probe', () => {
+    // list_price was demoted from 'yes' to 'needs_probe': the shared
+    // CapabilityStatus contract defines 'yes' as VERIFIED against live Cotality,
+    // and no probe record exists for it. Redefining 'yes' downward to keep the
+    // old label would have corrupted every other consumer of that contract.
+    expect(spec('list_price').filterable).toBe('needs_probe');
     expect(executionReadiness(spec('list_price'), wired)).toBe('needs_probe');
   });
 
-  it('an unsupported criterion is refused whatever its transport says', () => {
-    expect(executionReadiness(spec('max_financing_percent'), wired)).toBe('unsupported');
+  it('the provider refusing a criterion is NOT the same as it being unexecutable', () => {
+    // Both are filterable:'unsupported'. management_company has no Mallan-side
+    // path and never will — a real permanent refusal. max_financing_percent
+    // cannot be provider-filtered either (the value lives inside an Edm.String
+    // that $filter cannot reach) but HAS a specified Mallan strategy, so it is
+    // merely not wired yet. Collapsing these would make a legitimate criterion
+    // permanently unexecutable even after Mallan implements it correctly.
     expect(executionReadiness(spec('management_company'), wired)).toBe('unsupported');
+    expect(spec('max_financing_percent').executionStrategy).toBe('mallan_projection_filter');
+    // Realistic facts: nothing implements the Mallan-side path and the value
+    // never reaches the server. not_yet_wired — a repairable state — where
+    // management_company is a permanent refusal. Fully wired it would still be
+    // needs_probe, because the 0.00 sentinel and the listing-vs-building
+    // disagreements are unresolved semantics.
+    expect(
+      executionReadiness(spec('max_financing_percent'), { reachesServer: false, strategyImplemented: false }),
+    ).toBe('not_yet_wired');
   });
 
   it('a criterion that never reaches the server is not_yet_wired, not verified', () => {
     expect(
-      executionReadiness(spec('unit'), { reachesServer: false, providerClauseProven: true }),
+      executionReadiness(spec('unit'), { reachesServer: false, strategyImplemented: true }),
     ).toBe('not_yet_wired');
   });
 
-  it('a criterion with no provider clause has no runtime path', () => {
+  it('a criterion whose strategy is not implemented is not_yet_wired', () => {
     expect(
-      executionReadiness(spec('year_built'), { reachesServer: true, providerClauseProven: false }),
-    ).toBe('no_runtime_path');
+      executionReadiness(spec('year_built'), { reachesServer: true, strategyImplemented: false }),
+    ).toBe('not_yet_wired');
+  });
+
+  it('a PROVEN provider field with UNPROVEN equivalences is not verified', () => {
+    // geography.ts proves CityRegion and SubdivisionName exist and are
+    // filterable. It does NOT prove the 593 neighbourhood alias equivalences,
+    // which were generated 2026-03-19 against an RLS-era understanding, five
+    // months before that probe. Field existence and equivalence correctness are
+    // DIFFERENT PROOFS and the model must not collapse them.
+    expect(spec('neighborhood').liveEvidence).toBeDefined();
+    expect(spec('neighborhood').semanticEquivalenceProven).toBe(false);
+    expect(executionReadiness(spec('neighborhood'), wired)).toBe('needs_probe');
   });
 
   it('live evidence is STRUCTURED, never inferred from note prose', () => {
@@ -411,9 +441,22 @@ describe('execution readiness — the gate the validator will use', () => {
     // of evidence as evidence and reported it live-verified.
     expect(spec('year_built').notes).toMatch(/no probe record/);
     expect(spec('year_built').liveEvidence).toBeUndefined();
+    expect(spec('market_status').liveEvidence?.probedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
 
-    const evidence = spec('market_status').liveEvidence;
-    expect(evidence?.probedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(evidence?.source).toMatch(/\.(md|ts)$/);
+  it('ONE canonical entry per business fact — no same-concept duplicate', () => {
+    // I created one: max_financing and max_financing_percent both described the
+    // building financing limit, and the duplicate-KEY guard missed it because the
+    // two canonicalKey strings differ. Normalising the human label catches what a
+    // string comparison cannot.
+    const seen = new Map<string, string[]>();
+    for (const f of FIELD_REGISTRY) {
+      const label = f.uiLabel.toLowerCase().replace(/[^a-z0-9]/g, '');
+      seen.set(label, [...(seen.get(label) ?? []), f.canonicalKey]);
+    }
+    const duplicates = [...seen.entries()]
+      .filter(([, keys]) => keys.length > 1)
+      .map(([label, keys]) => `${label}: ${keys.join(', ')}`);
+    expect(duplicates).toEqual([]);
   });
 });
