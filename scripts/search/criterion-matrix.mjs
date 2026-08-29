@@ -143,39 +143,39 @@ function someRuntimePath(concept, params) {
  * RealPlus / Trestle terms; no legacy carrier promoted.
  */
 const CONCEPTS = [
-  { canonical: 'list_price',              collector: ['priceMin', 'priceMax'],                      workflows: 'sale,rent,cma' },
-  { canonical: 'bedrooms',                collector: ['bedsMin', 'bedsMax'],                        workflows: 'sale,rent,cma' },
-  { canonical: 'bathrooms',               collector: ['bathsMin', 'bathsMax'],                      workflows: 'sale,rent,cma' },
-  { canonical: 'rooms_total',             collector: ['roomsMin', 'roomsMax'],                      workflows: 'sale,rent' },
-  { canonical: 'living_area',             collector: ['sqftMin', 'sqftMax'],                        workflows: 'sale,rent,cma' },
-  { canonical: 'market_status',           collector: ['statuses'],                                  workflows: 'sale,rent,cma' },
-  { canonical: 'property_sub_type',       collector: ['propertySubType'],                           workflows: 'sale,rent,cma' },
-  { canonical: 'ownership',               collector: ['ownership'],                                 workflows: 'sale' },
-  { canonical: 'borough',                 collector: ['borough'],                                   workflows: 'sale,rent,building,cma' },
-  { canonical: 'neighborhood',            collector: ['neighborhoods'],                             workflows: 'sale,rent,building,cma' },
-  { canonical: 'postal_code',             collector: ['zip'],                                       workflows: 'sale,rent,building' },
-  { canonical: 'street_address',          collector: ['address'],                                   workflows: 'sale,rent,building' },
-  { canonical: 'unit',                    collector: ['unit'],                                      workflows: 'sale,rent' },
-  { canonical: 'building_name',           collector: ['buildingName'],                              workflows: 'sale,rent,building' },
-  { canonical: 'listing_id_canonical',              collector: ['rlsId'],                                     workflows: 'sale,rent' },
-  { canonical: 'activity_date',   collector: ['dateFrom', 'dateTo', 'dateActivityType'],    workflows: 'sale,rent' },
-  { canonical: 'listing_contract_date',   collector: ['contractDateFrom', 'contractDateTo'],        workflows: 'sale' },
-  { canonical: 'close_date',              collector: ['soldDateFrom', 'soldDateTo'],                workflows: 'sale,cma' },
-  { canonical: 'year_built',              collector: ['yearMin', 'yearMax'],                        workflows: 'sale,rent,building' },
-  { canonical: 'stories_total',           collector: ['floorsMin', 'floorsMax'],                    workflows: 'building' },
-  { canonical: 'units_total',             collector: ['unitsMin', 'unitsMax'],                      workflows: 'building' },
-  { canonical: 'public_remarks_keyword',  collector: ['keyword'],                                   workflows: 'sale,rent' },
-  { canonical: 'management_company',      collector: ['managementCompany'],                         workflows: 'building' },
-  { canonical: 'feature_criteria',        collector: ['checkboxFilters'],                           workflows: 'sale,rent' },
+  { canonical: 'list_price',              collector: ['priceMin', 'priceMax'] },
+  { canonical: 'bedrooms',                collector: ['bedsMin', 'bedsMax'] },
+  { canonical: 'bathrooms',               collector: ['bathsMin', 'bathsMax'] },
+  { canonical: 'rooms_total',             collector: ['roomsMin', 'roomsMax'] },
+  { canonical: 'living_area',             collector: ['sqftMin', 'sqftMax'] },
+  { canonical: 'market_status',           collector: ['statuses'] },
+  { canonical: 'property_sub_type',       collector: ['propertySubType'] },
+  { canonical: 'ownership',               collector: ['ownership'] },
+  { canonical: 'borough',                 collector: ['borough'] },
+  { canonical: 'neighborhood',            collector: ['neighborhoods'] },
+  { canonical: 'postal_code',             collector: ['zip'] },
+  { canonical: 'street_address',          collector: ['address'] },
+  { canonical: 'unit',                    collector: ['unit'] },
+  { canonical: 'building_name',           collector: ['buildingName'] },
+  { canonical: 'listing_id_canonical',              collector: ['rlsId'] },
+  { canonical: 'activity_date',   collector: ['dateFrom', 'dateTo', 'dateActivityType'] },
+  { canonical: 'listing_contract_date',   collector: ['contractDateFrom', 'contractDateTo'] },
+  { canonical: 'close_date',              collector: ['soldDateFrom', 'soldDateTo'] },
+  { canonical: 'year_built',              collector: ['yearMin', 'yearMax'] },
+  { canonical: 'stories_total',           collector: ['floorsMin', 'floorsMax'] },
+  { canonical: 'units_total',             collector: ['unitsMin', 'unitsMax'] },
+  { canonical: 'public_remarks_keyword',  collector: ['keyword'] },
+  { canonical: 'management_company',      collector: ['managementCompany'] },
+  { canonical: 'feature_criteria',        collector: ['checkboxFilters'] },
   // Not collector-origin: DERIVED in the serializer from feature_criteria's
   // SponsorUnit box, because it lives in CustomProperty.CustomFields and must
   // not travel in the generic checkbox payload.
-  { canonical: 'sponsor_unit',            collector: [], origin: 'serializer', param: 'sponsorUnit',  workflows: 'sale' },
+  { canonical: 'sponsor_unit',            collector: [], origin: 'serializer', param: 'sponsorUnit' },
   // Not collector-origin: set by public/crm/js/search/manhattan-grid.js.
-  { canonical: 'map_grid_filter',         collector: [], origin: 'module',     param: 'gridFilter',   workflows: 'sale,rent' },
+  { canonical: 'map_grid_filter',         collector: [], origin: 'module',     param: 'gridFilter' },
   // No wire param exists on either side, so the registry link is declared
   // explicitly rather than resolved through a param that will never exist.
-  { canonical: 'max_financing_percent',           collector: ['financingMin'], workflows: 'sale' },
+  { canonical: 'max_financing_percent',           collector: ['financingMin'] },
 ];
 
 // ── stage 1: transport reachability ─────────────────────────────────────────
@@ -254,6 +254,9 @@ for (const line of registry.split('\n')) {
     liveEvidence: (/liveEvidence:\s*\{ probedAt: '([^']+)', source: '([^']+)' \}/.exec(line) || [])
       .slice(1, 3),
     mappingConflict: /mappingConflict:/.test(line),
+    workflows: [...((/workflows: \[([^\]]*)\]/.exec(line) || [, ''])[1].matchAll(/'([^']+)'/g))].map(
+      (m) => m[1],
+    ),
     equivalenceDisproven: /semanticEquivalenceProven: false/.test(line),
   };
   registryEntriesWithParams.push(spec);
@@ -321,6 +324,10 @@ const rows = CONCEPTS.map((c) => {
 
   const capability = [...new Set(specs.map((s) => s.filterable))].join(',') || '—';
   const liveVerified = specs.some((s) => (s.liveEvidence ?? []).length === 2);
+  // Applicability comes from the REGISTRY entry, not from a column in this file.
+  // It used to be hand-written here, and generating four workflow contracts from
+  // a ledger column would take a product fact from something that only measures.
+  const workflows = [...new Set(specs.flatMap((s) => s.workflows ?? []))].join(',');
 
   return {
     ...c,
@@ -359,6 +366,7 @@ const rows = CONCEPTS.map((c) => {
     // Search criterion and its persistence key IS its canonicalKey. There is no
     // separate `filterKeys` field left to be wrong, so this checks that the
     // identity actually appears in the generated vocabulary.
+    workflows,
     persistenceBridge: canonicalFilterKeys.has(c.canonical),
     savedKeys: c.collector.map((k) => savedFrom.get(k)).filter(Boolean),
   };

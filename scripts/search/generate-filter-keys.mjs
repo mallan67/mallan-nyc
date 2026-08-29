@@ -64,6 +64,21 @@ const OUT = resolve(REPO, 'lib/search/canonical/filter-keys.generated.ts');
  * A Search criterion with no declared shape is a hard error below, so a new
  * entry cannot inherit a silent default.
  */
+/**
+ * READ from the leaf module rather than restated here.
+ *
+ * The first draft of this line was a literal with a comment saying it "mirrors"
+ * `search-workflow.ts` — which is a second declaration and a promise to keep it
+ * in step by hand. That is the precise failure this whole generator exists to
+ * end, reintroduced in the generator itself.
+ */
+const WORKFLOWS = (() => {
+  const src = readFileSync(resolve(REPO, 'lib/search/canonical/search-workflow.ts'), 'utf8');
+  const list = /SEARCH_WORKFLOWS = \[([^\]]*)\]/.exec(src);
+  if (!list) throw new Error('cannot read SEARCH_WORKFLOWS from search-workflow.ts');
+  return [...list[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+})();
+
 const VALID_SHAPES = new Set([
   'range_number',
   'range_date',
@@ -136,8 +151,25 @@ export function deriveCriteria() {
       throw new Error(`"${key[1]}" names a vocabularyOwner but its shape is "${shape}"`);
     }
 
+    // Applicability is REQUIRED. A criterion that belongs to no workflow would
+    // silently vanish from all four contracts while still existing everywhere
+    // else — present in the vocabulary, absent from every surface that could use
+    // it, and invisible in the diff that caused it.
+    const wf = /workflows:\s*\[([^\]]*)\]/.exec(line)?.[1];
+    const workflows = wf ? [...wf.matchAll(/'([^']+)'/g)].map((m) => m[1]) : [];
+    if (workflows.length === 0) {
+      throw new Error(
+        `Search criterion "${key[1]}" declares no workflows — it would be absent from all four ` +
+          `workflow contracts while still existing in the vocabulary.`,
+      );
+    }
+    const unknownWorkflow = workflows.filter((w) => !WORKFLOWS.includes(w));
+    if (unknownWorkflow.length > 0) {
+      throw new Error(`"${key[1]}" names unknown workflow(s): ${unknownWorkflow.join(', ')}`);
+    }
+
     const label = /uiLabel:\s*'([^']+)'/.exec(line)?.[1] ?? key[1];
-    found.set(key[1], { key: key[1], shape, bases, label, type, owner });
+    found.set(key[1], { key: key[1], shape, bases, label, type, owner, workflows });
   }
   return [...found.values()].sort((a, b) => a.key.localeCompare(b.key));
 }
@@ -193,6 +225,7 @@ import type {
   RangeValue,
   SetValue,
 } from './criteria-values';
+import type { SearchWorkflow } from './search-workflow';
 
 export type { CriterionValueShape };
 
@@ -243,6 +276,41 @@ ${criteria
   )
   .join('\n')}
 }
+
+/**
+ * WHICH canonical criteria each workflow may offer.
+ *
+ * This is the ONLY question the four workflow contracts answer. They do not
+ * redefine a criterion's type, its value shape, its allowed vocabulary, its
+ * Cotality mapping, or its execution semantics — each of those already has
+ * exactly one owner, and a workflow restating any of them would recreate the
+ * per-surface divergence this registry exists to remove.
+ */
+export const WORKFLOW_CRITERIA = {
+${WORKFLOWS.map(
+  (w) =>
+    `  ${w}: [\n${criteria
+      .filter((c) => c.workflows.includes(w))
+      .map((c) => `    '${c.key}',`)
+      .join('\n')}\n  ],`,
+).join('\n')}
+} as const satisfies Record<SearchWorkflow, readonly CanonicalFilterKeyName[]>;
+
+${WORKFLOWS.map((w) => {
+  const name = `${w[0].toUpperCase()}${w.slice(1)}Criteria`;
+  const keys = criteria.filter((c) => c.workflows.includes(w)).map((c) => c.key);
+  return `/**
+ * ${name} — a PROJECTION of \`CanonicalCriteriaValues\`, not a new contract.
+ *
+ * Every property keeps the canonical identity, value shape and refusal
+ * behaviour it has everywhere else. \`Pick\` is deliberate: a hand-written
+ * interface here could drift in a way this cannot.
+ */
+export type ${name} = Pick<
+  CanonicalCriteriaValues,
+${keys.map((k) => `  | '${k}'`).join('\n')}
+>;`;
+}).join('\n\n')}
 `;
 }
 

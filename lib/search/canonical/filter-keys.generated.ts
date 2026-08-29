@@ -20,6 +20,7 @@ import type {
   RangeValue,
   SetValue,
 } from './criteria-values';
+import type { SearchWorkflow } from './search-workflow';
 
 export type { CriterionValueShape };
 
@@ -184,3 +185,189 @@ export interface CanonicalCriteriaValues {
   /** Year Built — number */
   year_built?: RangeValue<number>;
 }
+
+/**
+ * WHICH canonical criteria each workflow may offer.
+ *
+ * This is the ONLY question the four workflow contracts answer. They do not
+ * redefine a criterion's type, its value shape, its allowed vocabulary, its
+ * Cotality mapping, or its execution semantics — each of those already has
+ * exactly one owner, and a workflow restating any of them would recreate the
+ * per-surface divergence this registry exists to remove.
+ */
+export const WORKFLOW_CRITERIA = {
+  sale: [
+    'activity_date',
+    'bathrooms',
+    'bedrooms',
+    'borough',
+    'building_name',
+    'close_date',
+    'feature_criteria',
+    'list_price',
+    'listing_contract_date',
+    'listing_id_canonical',
+    'living_area',
+    'map_grid_filter',
+    'market_status',
+    'max_financing_percent',
+    'neighborhood',
+    'ownership',
+    'postal_code',
+    'property_sub_type',
+    'public_remarks_keyword',
+    'rooms_total',
+    'sponsor_unit',
+    'street_address',
+    'unit',
+    'year_built',
+  ],
+  rental: [
+    'activity_date',
+    'bathrooms',
+    'bedrooms',
+    'borough',
+    'building_name',
+    'feature_criteria',
+    'list_price',
+    'listing_id_canonical',
+    'living_area',
+    'map_grid_filter',
+    'market_status',
+    'neighborhood',
+    'postal_code',
+    'property_sub_type',
+    'public_remarks_keyword',
+    'rooms_total',
+    'street_address',
+    'unit',
+    'year_built',
+  ],
+  building: [
+    'borough',
+    'building_name',
+    'management_company',
+    'neighborhood',
+    'postal_code',
+    'stories_total',
+    'street_address',
+    'units_total',
+    'year_built',
+  ],
+  comparable: [
+    'bathrooms',
+    'bedrooms',
+    'borough',
+    'close_date',
+    'list_price',
+    'living_area',
+    'market_status',
+    'neighborhood',
+    'property_sub_type',
+  ],
+} as const satisfies Record<SearchWorkflow, readonly CanonicalFilterKeyName[]>;
+
+/**
+ * SaleCriteria — a PROJECTION of `CanonicalCriteriaValues`, not a new contract.
+ *
+ * Every property keeps the canonical identity, value shape and refusal
+ * behaviour it has everywhere else. `Pick` is deliberate: a hand-written
+ * interface here could drift in a way this cannot.
+ */
+export type SaleCriteria = Pick<
+  CanonicalCriteriaValues,
+  | 'activity_date'
+  | 'bathrooms'
+  | 'bedrooms'
+  | 'borough'
+  | 'building_name'
+  | 'close_date'
+  | 'feature_criteria'
+  | 'list_price'
+  | 'listing_contract_date'
+  | 'listing_id_canonical'
+  | 'living_area'
+  | 'map_grid_filter'
+  | 'market_status'
+  | 'max_financing_percent'
+  | 'neighborhood'
+  | 'ownership'
+  | 'postal_code'
+  | 'property_sub_type'
+  | 'public_remarks_keyword'
+  | 'rooms_total'
+  | 'sponsor_unit'
+  | 'street_address'
+  | 'unit'
+  | 'year_built'
+>;
+
+/**
+ * RentalCriteria — a PROJECTION of `CanonicalCriteriaValues`, not a new contract.
+ *
+ * Every property keeps the canonical identity, value shape and refusal
+ * behaviour it has everywhere else. `Pick` is deliberate: a hand-written
+ * interface here could drift in a way this cannot.
+ */
+export type RentalCriteria = Pick<
+  CanonicalCriteriaValues,
+  | 'activity_date'
+  | 'bathrooms'
+  | 'bedrooms'
+  | 'borough'
+  | 'building_name'
+  | 'feature_criteria'
+  | 'list_price'
+  | 'listing_id_canonical'
+  | 'living_area'
+  | 'map_grid_filter'
+  | 'market_status'
+  | 'neighborhood'
+  | 'postal_code'
+  | 'property_sub_type'
+  | 'public_remarks_keyword'
+  | 'rooms_total'
+  | 'street_address'
+  | 'unit'
+  | 'year_built'
+>;
+
+/**
+ * BuildingCriteria — a PROJECTION of `CanonicalCriteriaValues`, not a new contract.
+ *
+ * Every property keeps the canonical identity, value shape and refusal
+ * behaviour it has everywhere else. `Pick` is deliberate: a hand-written
+ * interface here could drift in a way this cannot.
+ */
+export type BuildingCriteria = Pick<
+  CanonicalCriteriaValues,
+  | 'borough'
+  | 'building_name'
+  | 'management_company'
+  | 'neighborhood'
+  | 'postal_code'
+  | 'stories_total'
+  | 'street_address'
+  | 'units_total'
+  | 'year_built'
+>;
+
+/**
+ * ComparableCriteria — a PROJECTION of `CanonicalCriteriaValues`, not a new contract.
+ *
+ * Every property keeps the canonical identity, value shape and refusal
+ * behaviour it has everywhere else. `Pick` is deliberate: a hand-written
+ * interface here could drift in a way this cannot.
+ */
+export type ComparableCriteria = Pick<
+  CanonicalCriteriaValues,
+  | 'bathrooms'
+  | 'bedrooms'
+  | 'borough'
+  | 'close_date'
+  | 'list_price'
+  | 'living_area'
+  | 'market_status'
+  | 'neighborhood'
+  | 'property_sub_type'
+>;
