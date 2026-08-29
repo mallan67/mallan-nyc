@@ -492,7 +492,7 @@
             // depending on which is visible.
             if (criteria.property_sub_type) {
                 var pstValues = String(criteria.property_sub_type).split(',').map(function(s) { return s.trim(); }).filter(Boolean);
-                var pstScope = _isAdv ? document.getElementById('searchAdvancedMode') : document.getElementById('searchBasicMode');
+                var pstScope = _isAdv ? document.getElementById('searchAdvancedMode') : activeBasicSurface();
                 if (pstScope && pstValues.length > 0) {
                     pstScope.querySelectorAll('input[data-field="PropertySubType"]').forEach(function(cb) { cb.checked = false; });
                     pstValues.forEach(function(v) {
@@ -505,7 +505,7 @@
             // SponsorUnit — independent param (Bug A11 split). Restored
             // by toggling the SponsorUnit/Yes checkbox if it exists.
             if (criteria.sponsor_unit === 'true' || criteria.sponsor_unit === true) {
-                var spScope = _isAdv ? document.getElementById('searchAdvancedMode') : document.getElementById('searchBasicMode');
+                var spScope = _isAdv ? document.getElementById('searchAdvancedMode') : activeBasicSurface();
                 if (spScope) {
                     var spCb = spScope.querySelector('input[data-field="SponsorUnit"][data-value="true"]') ||
                                spScope.querySelector('input[data-field="SponsorUnit"][data-value="Yes"]');
@@ -539,7 +539,7 @@
                         cbFilters = null;
                     }
                 }
-                var cbScope = _isAdv ? document.getElementById('searchAdvancedMode') : document.getElementById('searchBasicMode');
+                var cbScope = _isAdv ? document.getElementById('searchAdvancedMode') : activeBasicSurface();
                 if (!cbScope) {
                     if (cbFilters) _restoreIssues.push('checkbox_filters: no active form to restore into');
                 } else if (cbFilters && typeof cbFilters === 'object') {

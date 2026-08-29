@@ -17669,12 +17669,95 @@ function manageShowToast(msg) {
             return parts[2] + '-' + parts[0].padStart(2, '0') + '-' + parts[1].padStart(2, '0');
         }
 
+        // ─── ACTIVE SEARCH SURFACE ──────────────────────────────────────────
+        //
+        // ONE resolver for "which Basic form is the agent actually using".
+        //
+        // THE DEFECT THIS REPLACES. Three Basic surfaces exist in the markup —
+        // #searchBasicMode (Sale), #searchBasicModeRental and
+        // #searchBasicModeBuilding — but toggleSearchTab() only ever set
+        // .style.display on the Sale one, and the rental and building containers
+        // carry an inline display:none that nothing cleared. Comments here and in
+        // toggleSearchTab claimed "data-show-on handles visibility"; that string
+        // appeared nowhere in this repository except those comments. It was never
+        // an attribute.
+        //
+        // So every tab rendered the SALE layout, while the collector read the
+        // per-tab element ids — #rentalMinRent, #rentalMinBeds — that live inside
+        // a permanently hidden container. An agent on the Rentals tab typed a
+        // price into the visible Sale control, that value was never read, and the
+        // search executed the DEFAULTS of fields they could not see. Not a
+        // dropped criterion: a substituted one, returning a confident result set
+        // for a question nobody asked.
+        //
+        // Six places independently hard-coded getElementById('searchBasicMode')
+        // to mean "the basic form" — the collector's scope, the filter counter,
+        // three visibility paths, and three Saved Search restore scopes. That is
+        // the same one-concept-many-owners split being removed elsewhere, so all
+        // of them now resolve through here.
+        //
+        // NOT SOLVED BY COPYING. Values are never moved between the Sale, Rental
+        // and Building controls, nor between Basic and Advanced. Basic and
+        // Advanced are two VIEWS; the active surface is resolved, read and
+        // written in place, so a hidden container cannot contribute a default and
+        // no view can overwrite what the agent typed in another.
+        var BASIC_SURFACE_BY_TAB = {
+            sale: 'searchBasicMode',
+            rent: 'searchBasicModeRental',
+            building: 'searchBasicModeBuilding'
+        };
+
+        /** The id of the Basic surface belonging to a tab. Sale is the fallback. */
+        function basicSurfaceIdForTab(tab) {
+            return BASIC_SURFACE_BY_TAB[tab] || BASIC_SURFACE_BY_TAB.sale;
+        }
+
+        /** The Basic surface element for the CURRENT tab. */
+        function activeBasicSurface() {
+            return document.getElementById(basicSurfaceIdForTab(currentSearchTab));
+        }
+
+        /** True when Advanced is the visible view. */
+        function isAdvancedViewVisible() {
+            var adv = document.getElementById('searchAdvancedMode');
+            return !!adv && adv.style.display !== 'none' && !adv.classList.contains('hidden');
+        }
+
+        /**
+         * The form the agent is actually looking at — Advanced when it is open,
+         * otherwise the Basic surface for the active tab.
+         */
+        function activeSearchSurface() {
+            return isAdvancedViewVisible()
+                ? document.getElementById('searchAdvancedMode')
+                : activeBasicSurface();
+        }
+
+        /**
+         * Show EXACTLY ONE search surface.
+         *
+         * Every other surface is hidden, so no container that is not on screen
+         * can hold a value the collector might read.
+         */
+        function applySearchSurfaceVisibility(tab, isBasicMode) {
+            var activeId = basicSurfaceIdForTab(tab);
+            Object.keys(BASIC_SURFACE_BY_TAB).forEach(function (t) {
+                var el = document.getElementById(BASIC_SURFACE_BY_TAB[t]);
+                if (!el) return;
+                el.style.display = (isBasicMode && BASIC_SURFACE_BY_TAB[t] === activeId) ? 'block' : 'none';
+            });
+            var advanced = document.getElementById('searchAdvancedMode');
+            if (advanced) advanced.style.display = isBasicMode ? 'none' : 'block';
+        }
+
         function collectSearchCriteria() {
             var criteria = {};
             criteria.searchTab = currentSearchTab; // 'sale', 'rent', or 'building'
 
-            // Unified basic form (all tabs share one form, data-show-on handles visibility)
-            var activeBasicForm = document.getElementById('searchBasicMode');
+            // The Basic surface for the ACTIVE tab. This read
+            // getElementById('searchBasicMode') — the Sale container — on every
+            // tab, so a Rental or Building search was scoped to the Sale form.
+            var activeBasicForm = activeBasicSurface();
 
             // Price range — use the correct IDs based on search tab and mode (basic vs advanced)
             var _advMode = document.getElementById('searchAdvancedMode');
@@ -18260,9 +18343,10 @@ function manageShowToast(msg) {
         // ── Filter count for sticky search bar ──
         function updateFilterCount() {
             var count = 0;
-            var advForm = document.getElementById('searchAdvancedMode');
-            var form = (advForm && advForm.style.display !== 'none' && !advForm.classList.contains('hidden'))
-                ? advForm : document.getElementById('searchBasicMode');
+            // Counts the surface the agent is looking at. It counted the Sale
+            // form on every tab, so the badge described criteria that were not
+            // the ones about to execute.
+            var form = activeSearchSurface();
             if (!form) return;
             form.querySelectorAll('select').forEach(function(s) { if (s.selectedIndex > 0) count++; });
             form.querySelectorAll('input[type="text"], input[type="number"]').forEach(function(i) { if (i.value.trim()) count++; });
@@ -18847,17 +18931,7 @@ function manageShowToast(msg) {
             try { _sm = sessionStorage.getItem('searchMode'); } catch(e) {}
             var isBasicMode = _sm !== 'advanced';
 
-            var basicMode = document.getElementById('searchBasicMode');
-            var advancedMode = document.getElementById('searchAdvancedMode');
-
-            // Toggle between basic (unified) and advanced mode
-            if (isBasicMode) {
-                if (basicMode) basicMode.style.display = 'block';
-                if (advancedMode) advancedMode.style.display = 'none';
-            } else {
-                if (basicMode) basicMode.style.display = 'none';
-                if (advancedMode) advancedMode.style.display = 'block';
-            }
+            applySearchSurfaceVisibility(currentSearchTab, isBasicMode);
 
             // Hide search results section
             var searchResultsSection = document.getElementById('searchResultsSection');
@@ -19313,9 +19387,7 @@ function manageShowToast(msg) {
             var btnRent = document.getElementById('btnRent');
             var btnBuilding = document.getElementById('btnBuilding');
 
-            // Unified basic form (data-show-on handles section visibility per tab)
-            var basicMode = document.getElementById('searchBasicMode');
-            var advancedMode = document.getElementById('searchAdvancedMode');
+            // Exactly one Basic surface renders — resolved from the tab.
 
             var _storedMode;
             try { _storedMode = sessionStorage.getItem('searchMode'); } catch(e) {}
@@ -19329,14 +19401,7 @@ function manageShowToast(msg) {
                 }
             });
 
-            // Show unified basic form or advanced mode
-            if (isBasicMode) {
-                if (basicMode) basicMode.style.display = 'block';
-                if (advancedMode) advancedMode.style.display = 'none';
-            } else {
-                if (basicMode) basicMode.style.display = 'none';
-                if (advancedMode) advancedMode.style.display = 'block';
-            }
+            applySearchSurfaceVisibility(tab, isBasicMode);
 
             // Activate selected tab button
             var activeBtn = tab === 'rent' ? btnRent : tab === 'building' ? btnBuilding : btnSale;
@@ -19485,8 +19550,6 @@ function manageShowToast(msg) {
         function toggleSearchMode(mode) {
             var btnBasic = document.getElementById('btnSearchBasic');
             var btnAdvanced = document.getElementById('btnSearchAdvanced');
-            var basicMode = document.getElementById('searchBasicMode');
-            var advancedMode = document.getElementById('searchAdvancedMode');
             var expandControls = document.getElementById('expandCollapseControls');
 
             try { sessionStorage.setItem('searchMode', mode); } catch(e) {}
@@ -19497,16 +19560,15 @@ function manageShowToast(msg) {
                 btnAdvanced.classList.remove('bg-gray-900', 'text-white');
                 btnAdvanced.classList.add('text-gray-500');
                 if (expandControls) expandControls.classList.add('hidden');
-                if (basicMode) basicMode.style.display = 'block';
-                if (advancedMode) advancedMode.style.display = 'none';
+                // Returns to the ACTIVE tab's Basic surface, not always Sale.
+                applySearchSurfaceVisibility(currentSearchTab, true);
             } else {
                 btnAdvanced.classList.remove('text-gray-500');
                 btnAdvanced.classList.add('bg-gray-900', 'text-white');
                 btnBasic.classList.remove('bg-gray-900', 'text-white');
                 btnBasic.classList.add('text-gray-500');
                 if (expandControls) { expandControls.classList.remove('hidden'); expandControls.classList.add('flex'); }
-                if (advancedMode) advancedMode.style.display = 'block';
-                if (basicMode) basicMode.style.display = 'none';
+                applySearchSurfaceVisibility(currentSearchTab, false);
             }
             if (typeof updateFilterCount === 'function') updateFilterCount();
         }
@@ -24479,7 +24541,7 @@ function parseBudgetValue(td) {
             // depending on which is visible.
             if (criteria.property_sub_type) {
                 var pstValues = String(criteria.property_sub_type).split(',').map(function(s) { return s.trim(); }).filter(Boolean);
-                var pstScope = _isAdv ? document.getElementById('searchAdvancedMode') : document.getElementById('searchBasicMode');
+                var pstScope = _isAdv ? document.getElementById('searchAdvancedMode') : activeBasicSurface();
                 if (pstScope && pstValues.length > 0) {
                     pstScope.querySelectorAll('input[data-field="PropertySubType"]').forEach(function(cb) { cb.checked = false; });
                     pstValues.forEach(function(v) {
@@ -24492,7 +24554,7 @@ function parseBudgetValue(td) {
             // SponsorUnit — independent param (Bug A11 split). Restored
             // by toggling the SponsorUnit/Yes checkbox if it exists.
             if (criteria.sponsor_unit === 'true' || criteria.sponsor_unit === true) {
-                var spScope = _isAdv ? document.getElementById('searchAdvancedMode') : document.getElementById('searchBasicMode');
+                var spScope = _isAdv ? document.getElementById('searchAdvancedMode') : activeBasicSurface();
                 if (spScope) {
                     var spCb = spScope.querySelector('input[data-field="SponsorUnit"][data-value="true"]') ||
                                spScope.querySelector('input[data-field="SponsorUnit"][data-value="Yes"]');
@@ -24526,7 +24588,7 @@ function parseBudgetValue(td) {
                         cbFilters = null;
                     }
                 }
-                var cbScope = _isAdv ? document.getElementById('searchAdvancedMode') : document.getElementById('searchBasicMode');
+                var cbScope = _isAdv ? document.getElementById('searchAdvancedMode') : activeBasicSurface();
                 if (!cbScope) {
                     if (cbFilters) _restoreIssues.push('checkbox_filters: no active form to restore into');
                 } else if (cbFilters && typeof cbFilters === 'object') {

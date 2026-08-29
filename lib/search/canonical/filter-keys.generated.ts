@@ -32,7 +32,6 @@ export const CANONICAL_FILTER_KEYS = [
   'borough',
   'building_name',
   'close_date',
-  'commercial',
   'days_on_market',
   'feature_criteria',
   'furnished',
@@ -60,7 +59,6 @@ export const CANONICAL_FILTER_KEYS = [
   'stories_total',
   'street_address',
   'structure_type',
-  'total_monthly_cost',
   'unit',
   'units_total',
   'year_built',
@@ -89,7 +87,6 @@ export const CRITERION_VALUE_SHAPE = {
   borough: 'enum_set',
   building_name: 'text',
   close_date: 'range_date',
-  commercial: 'boolean',
   days_on_market: 'range_number',
   feature_criteria: 'feature_map',
   furnished: 'enum_set',
@@ -117,7 +114,6 @@ export const CRITERION_VALUE_SHAPE = {
   stories_total: 'range_number',
   street_address: 'text',
   structure_type: 'enum_set',
-  total_monthly_cost: 'range_number',
   unit: 'text',
   units_total: 'range_number',
   year_built: 'range_number',
@@ -177,8 +173,6 @@ export interface CanonicalCriteriaValues {
   building_name?: string;
   /** Sold Date — date */
   close_date?: RangeValue<string>;
-  /** Commercial — boolean */
-  commercial?: boolean;
   /** Days on Market — number */
   days_on_market?: RangeValue<number>;
   /** Amenities — multi_enum */
@@ -233,8 +227,6 @@ export interface CanonicalCriteriaValues {
   street_address?: string;
   /** Structure Type — multi_enum */
   structure_type?: SetValue;
-  /** Total Monthly — computed */
-  total_monthly_cost?: RangeValue<number>;
   /** Unit — string */
   unit?: string;
   /** Units in Building — number */
@@ -260,7 +252,6 @@ export const WORKFLOW_CRITERIA = {
     'borough',
     'building_name',
     'close_date',
-    'commercial',
     'days_on_market',
     'feature_criteria',
     'list_price',
@@ -287,7 +278,6 @@ export const WORKFLOW_CRITERIA = {
     'stories_total',
     'street_address',
     'structure_type',
-    'total_monthly_cost',
     'unit',
     'units_total',
     'year_built',
@@ -298,7 +288,6 @@ export const WORKFLOW_CRITERIA = {
     'bedrooms',
     'borough',
     'building_name',
-    'commercial',
     'days_on_market',
     'feature_criteria',
     'furnished',
@@ -369,7 +358,6 @@ export type SaleCriteria = Pick<
   | 'borough'
   | 'building_name'
   | 'close_date'
-  | 'commercial'
   | 'days_on_market'
   | 'feature_criteria'
   | 'list_price'
@@ -396,7 +384,6 @@ export type SaleCriteria = Pick<
   | 'stories_total'
   | 'street_address'
   | 'structure_type'
-  | 'total_monthly_cost'
   | 'unit'
   | 'units_total'
   | 'year_built'
@@ -416,7 +403,6 @@ export type RentalCriteria = Pick<
   | 'bedrooms'
   | 'borough'
   | 'building_name'
-  | 'commercial'
   | 'days_on_market'
   | 'feature_criteria'
   | 'furnished'
