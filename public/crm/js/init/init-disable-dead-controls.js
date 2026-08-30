@@ -128,6 +128,34 @@
                 // the BATCH 2 dead-pattern test at
                 // lib/search/__tests__/crm-idx-filter.test.ts.
                 'input[data-sub-status]',
+
+                // ── NO HANDLE, THEREFORE UNREADABLE ──
+                // A checkbox with no id, no data-field and no data-local-field
+                // cannot be selected by any collector — there is nothing to
+                // select it BY. The agent can still click it, so it renders as a
+                // working filter and contributes nothing: Top Floor, Duplex,
+                // Penthouse, Concierge, Resale and New Conversion all behave this
+                // way today.
+                //
+                // 'Unreadable' was briefly treated as its own category by the
+                // reverse coverage guard, which is a third state by another name.
+                // There are two: owned, or refused. Giving one of these a real
+                // criterion means giving it a handle, a registry entry and a
+                // verified mapping FIRST — at which point it stops matching this
+                // selector on its own.
+                'input[type="checkbox"]:not([id]):not([data-field]):not([data-local-field]):not([data-not])',
+                // Same reasoning for every other handle-less control type. The
+                // form carries orphaned text, number, radio and select inputs
+                // with real placeholders — 'Unit #', 'School Name', 'Min SF',
+                // 'Select Availability Date Range' — that no collector can reach.
+                '#searchBasicMode input:not([id]):not([data-field]):not([data-local-field])',
+                '#searchBasicModeRental input:not([id]):not([data-field]):not([data-local-field])',
+                '#searchBasicModeBuilding input:not([id]):not([data-field]):not([data-local-field])',
+                '#searchAdvancedMode input:not([id]):not([data-field]):not([data-local-field])',
+                '#searchBasicMode select:not([id]):not([data-field])',
+                '#searchBasicModeRental select:not([id]):not([data-field])',
+                '#searchBasicModeBuilding select:not([id]):not([data-field])',
+                '#searchAdvancedMode select:not([id]):not([data-field])',
             ];
 
             // ── P1: Container-level dead controls ──────────────────────

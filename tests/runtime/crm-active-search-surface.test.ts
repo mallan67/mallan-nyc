@@ -874,6 +874,130 @@ describe('geography round-trips through the widget that owns it', () => {
   });
 });
 
+describe('booleans are tri-state, driven by each control OWN value', () => {
+  const boolBox = (win: any, field: string, value: string) => {
+    const surface = win.document.getElementById(
+      win.isAdvancedViewVisible?.() ? 'searchAdvancedMode' : activeBasicId(win),
+    );
+    return surface.querySelector(`[data-field="${field}"][data-value="${value}"]`);
+  };
+
+  it('NEW DEVELOPMENT means true, and reaches the wire as true', () => {
+    const win = mount();
+    win.toggleSearchTab('sale');
+    win.toggleSearchMode('advanced');
+    boolBox(win, 'NewConstructionYN', 'true')!.checked = true;
+    const criteria = win.collectSearchCriteria();
+
+    expect(win.canonicalCriteriaFor('sale').new_development).toBe(true);
+    expect(criteria.checkboxFilters?.NewConstructionYN).toEqual(['true']);
+  });
+
+  it('reads each control OWN data-value rather than "any box checked"', () => {
+    // The form renders NewConstructionYN with data-value="true" (New
+    // Development) and, in the Building surface, data-value="false" (Resale
+    // Building). Treating any checked box as `true` made selecting RESALE ask
+    // for new construction — the opposite of the agent's question.
+    //
+    // PRODUCT FINDING, recorded rather than assumed: the FALSE control renders
+    // ONLY in the Building surface, where new_development is contract-blocked.
+    // So "Resale Building" is currently unreachable as a Sale/Rental criterion.
+    // The read logic is corrected either way; offering Resale on Sale or Rental
+    // would need a control there.
+    const engineSrc = readFileSync(SEARCH_ENGINE, 'utf8');
+    expect(engineSrc).toContain("v === 'true' || v === 'false'");
+    expect(engineSrc).toContain('picked.length !== 1');
+  });
+
+  it('gives canonical FALSE a transport path', () => {
+    // The serializer wrote only `true`, so a stored canonical false would have
+    // executed as no filter at all — Resale silently returning new construction
+    // too. Pinned at the serializer because the UI cannot currently produce it.
+    const engineSrc = readFileSync(SEARCH_ENGINE, 'utf8');
+    expect(engineSrc).toContain("value === false) criteria.checkboxFilters[field] = ['false']");
+  });
+
+  it('renders true onto ONLY the matching control', () => {
+    const win = mount();
+    win.toggleSearchTab('sale');
+    win.toggleSearchMode('advanced');
+    boolBox(win, 'NewConstructionYN', 'true')!.checked = true;
+    win.collectSearchCriteria();
+    win.toggleSearchMode('basic');
+    win.toggleSearchMode('advanced');
+
+    expect(boolBox(win, 'NewConstructionYN', 'true')!.checked).toBe(true);
+  });
+});
+
+
+describe('workflow applicability binds field-scanned adapters too', () => {
+  it('Building cannot acquire New Development, though the form renders it', () => {
+    // The workflow guard walked `adapter.ids`, so field-scanned adapters — which
+    // have no ids — bypassed it entirely while sync ran them against whatever tab
+    // was active. The Building form DOES render NewConstructionYN, so Building
+    // was acquiring a criterion its contract does not offer: the same back-door
+    // widening closed for the Quick Search controls.
+    const win = mount();
+    win.toggleSearchTab('building');
+    const surface = win.document.getElementById('searchBasicModeBuilding');
+    const el = surface.querySelector('[data-field="NewConstructionYN"][data-value="true"]');
+    if (el) el.checked = true;
+    win.collectSearchCriteria();
+
+    expect(win.canonicalCriteriaFor('building').new_development).toBeUndefined();
+  });
+});
+
+describe('a Custom range value reaches canonical state', () => {
+  it('reads the Custom companion when the select is on "custom"', () => {
+    // The selects offer a `custom` option whose real number lives in a sibling
+    // input. Parsing the select alone yielded undefined, so a custom price never
+    // entered canonical state while the legacy collector still read the companion
+    // and executed it — Search ran a price the canonical object did not contain.
+    const win = mount();
+    win.toggleSearchTab('sale');
+    pick(win, 'saleMinPrice', 'custom');
+    win.document.getElementById('saleMinPriceCustom').value = '1234567';
+    win.collectSearchCriteria();
+
+    expect(win.canonicalCriteriaFor('sale').list_price).toEqual({ min: 1234567 });
+  });
+
+  it('EXECUTES the custom value, and canonical state agrees with it', () => {
+    const win = mount();
+    win.toggleSearchTab('sale');
+    pick(win, 'saleMinPrice', 'custom');
+    win.document.getElementById('saleMinPriceCustom').value = '1234567';
+    const criteria = win.collectSearchCriteria();
+
+    expect(criteria.priceMin).toBe(1234567);
+    expect(win.canonicalCriteriaFor('sale').list_price.min).toBe(1234567);
+  });
+});
+
+describe('an unanswerable criterion BLOCKS the search visibly', () => {
+  it('refuses to search when an activity range has no basis', () => {
+    // Deleting the criterion on read is not a refusal — the agent still sees the
+    // date range, presses Search, and gets results that ignore it. Refusal has to
+    // be visible to be a refusal.
+    const toasts: Array<{ msg: string; kind: string }> = [];
+    const win = mount();
+    win.showToast = (msg: string, kind: string) => toasts.push({ msg, kind });
+    win.toggleSearchTab('sale');
+    win.document.getElementById('saleListingActivityType').value = '';
+    const wrapper = win.document.querySelector('[data-drp="saleListedUpdated"]');
+    wrapper.setAttribute('data-from', '01/01/2026');
+    wrapper.setAttribute('data-to', '06/30/2026');
+
+    win.performSearch();
+
+    expect(toasts.length).toBeGreaterThan(0);
+    expect(toasts[0].kind).toBe('error');
+    expect(toasts[0].msg).toMatch(/Listed or Updated/i);
+  });
+});
+
 describe('reset clears the workflow the agent is actually on', () => {
   it('clears the RENTAL form, not the Sale one', () => {
     // `clearSearchForm` listed only 'searchBasicMode', so Clear on Rentals reset

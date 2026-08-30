@@ -194,8 +194,53 @@
                 .replace(/\s+/g, ' ').trim();
         }
 
+        /**
+         * Criteria the agent has entered that Mallan cannot honour as written.
+         *
+         * Returns a list of human-readable problems. Search STOPS on any of them.
+         *
+         * WHY THIS EXISTS. Dropping an unanswerable criterion from canonical state
+         * is not a refusal — it is silent widening with extra steps. An activity
+         * date range with no Listed/Updated basis was being deleted on read, so
+         * the agent still saw their date range on screen, pressed Search, and got
+         * results that ignored it. Refusal has to be VISIBLE to be a refusal.
+         */
+        function canonicalCriteriaProblems(tab) {
+            var problems = [];
+            var view = activeViewName();
+
+            // An activity range with no basis: the dates are on screen, but
+            // "Listed date or Updated date?" is unanswered, and the two are
+            // different questions.
+            var adapter = CRITERION_ADAPTERS.activity_date;
+            if (adapter && _adapterAppliesTo(adapter, tab)) {
+                var drpId = (adapter.drp || {})[tab];
+                var range = (drpId && typeof window.getDateRangeISO === 'function')
+                    ? window.getDateRangeISO(drpId) : null;
+                var advIds = ((adapter.ids || {})[tab] || {})[view] || [];
+                var advFrom = advIds[0] ? document.getElementById(advIds[0]) : null;
+                var advTo = advIds[1] ? document.getElementById(advIds[1]) : null;
+                var hasDates = !!((range && (range.from || range.to)) ||
+                    (advFrom && advFrom.value) || (advTo && advTo.value));
+                var basisEl = (adapter.basisIds || {})[tab]
+                    ? document.getElementById(adapter.basisIds[tab]) : null;
+                if (hasDates && basisEl && !basisEl.value) {
+                    problems.push('Choose Listed or Updated for the listing activity date range — the same dates mean different things for each.');
+                }
+            }
+            return problems;
+        }
+
         function performSearch() {
             try {
+                // REFUSE LOUDLY, BEFORE EXECUTING. A criterion Mallan cannot
+                // honour must stop the search, not vanish from it.
+                var problems = canonicalCriteriaProblems(currentSearchTab);
+                if (problems.length) {
+                    showToast(problems[0], 'error');
+                    return;
+                }
+
                 // Collect search criteria from the active form
                 activeSearchCriteria = collectSearchCriteria();
 
@@ -1488,24 +1533,31 @@
             // ── CLOSED-VOCABULARY SETS (checkbox groups, read by data-field) ──
             // Scope-based rather than id-based: the same data-field markup appears
             // in each surface, so the adapter asks the ACTIVE scope.
-            market_status:     { kind: 'checkboxSet', shape: 'enum_set', field: 'MlsStatus', scope: 'status' },
-            ownership:         { kind: 'checkboxSet', shape: 'enum_set', field: 'CommonInterest' },
-            property_sub_type: { kind: 'checkboxSet', shape: 'enum_set', field: 'PropertySubType' },
-            pets:              { kind: 'checkboxSet', shape: 'enum_set', field: 'PetsAllowed' },
-            furnished:         { kind: 'checkboxSet', shape: 'enum_set', field: 'Furnished' },
-            structure_type:    { kind: 'checkboxSet', shape: 'enum_set', field: 'StructureType' },
+            market_status:     { kind: 'checkboxSet', shape: 'enum_set', field: 'MlsStatus', scope: 'status', workflows: ['sale', 'rent'] },
+            ownership:         { kind: 'checkboxSet', shape: 'enum_set', field: 'CommonInterest', workflows: ['sale', 'rent', 'building'] },
+            property_sub_type: { kind: 'checkboxSet', shape: 'enum_set', field: 'PropertySubType', workflows: ['sale', 'rent'] },
+            pets:              { kind: 'checkboxSet', shape: 'enum_set', field: 'PetsAllowed', workflows: ['sale', 'rent'] },
+            furnished:         { kind: 'checkboxSet', shape: 'enum_set', field: 'Furnished', workflows: ['rent'] },
+            structure_type:    { kind: 'checkboxSet', shape: 'enum_set', field: 'StructureType', workflows: ['sale', 'rent', 'building'] },
             // Booleans with their own canonical identity. The UI writes them as
             // ordinary data-field checkboxes, so without an adapter the generic
             // feature scan absorbed them into feature_criteria.new_construction —
             // two identities for one business question, and the wrong nested
             // shape for anything that later persisted it.
-            new_development:   { kind: 'checkboxBool', shape: 'boolean', field: 'NewConstructionYN' },
-            sponsor_unit:      { kind: 'checkboxBool', shape: 'boolean', field: 'SponsorUnit' },
+            // `workflows` is REQUIRED on field-scanned adapters. They have no
+            // `ids` map, so the workflow guard — which walked `adapter.ids` —
+            // skipped them entirely while `syncActiveViewToCanonical` happily ran
+            // them against whatever tab was active. The Building form renders
+            // NewConstructionYN, so Building was acquiring a criterion its
+            // contract does not offer: the same back-door widening closed for the
+            // Quick Search controls.
+            new_development:   { kind: 'checkboxBool', shape: 'boolean', field: 'NewConstructionYN', workflows: ['sale', 'rent'] },
+            sponsor_unit:      { kind: 'checkboxBool', shape: 'boolean', field: 'SponsorUnit', workflows: ['sale'] },
 
             // ── STRUCTURED FEATURE SELECTION ────────────────────────────────
             // field -> values across every remaining data-field family. Already
             // the canonical feature_map shape, so it is stored as-is.
-            feature_criteria: { kind: 'featureMap', shape: 'feature_map' },
+            feature_criteria: { kind: 'featureMap', shape: 'feature_map', workflows: ['sale', 'rent'] },
 
             // ── SCALAR TEXT ─────────────────────────────────────────────────
             street_address: { kind: 'text', shape: 'text', ids: {
@@ -1567,8 +1619,8 @@
                 drp: { sale: 'saleSoldDate' },
                 ids: { sale: { basic: [], advanced: ['adv-sold-from', 'adv-sold-to'] } } },
             // ── GEOGRAPHY (tag widgets owned by neighborhood-autocomplete.js) ──
-            neighborhood: { kind: 'tags', shape: 'text_set', selector: 'neighborhoods' },
-            borough:      { kind: 'tags', shape: 'enum_set', selector: 'boroughs' }
+            neighborhood: { kind: 'tags', shape: 'text_set', selector: 'neighborhoods', workflows: ['sale', 'rent', 'building'] },
+            borough:      { kind: 'tags', shape: 'enum_set', selector: 'boroughs', workflows: ['sale', 'rent', 'building'] }
         };
 
         /**
@@ -1576,6 +1628,18 @@
          * Separate objects, so one workflow's criteria cannot leak into another.
          */
         var _canonicalCriteria = { sale: {}, rent: {}, building: {} };
+
+        /**
+         * Does this adapter apply to this workflow?
+         *
+         * Id-mapped adapters answer through their `ids` table; field-scanned ones
+         * declare `workflows` explicitly. Without this, a scope-scanned adapter
+         * ran against every tab regardless of the contract.
+         */
+        function _adapterAppliesTo(adapter, tab) {
+            if (adapter.workflows) return adapter.workflows.indexOf(tab) !== -1;
+            return !!(adapter.ids && adapter.ids[tab]);
+        }
 
         /** Which view is on screen, for adapter lookup. */
         function activeViewName() {
@@ -1594,6 +1658,24 @@
                 return saleOpts || activeSearchSurface();
             }
             return activeSearchSurface();
+        }
+
+        /**
+         * One bound of a range, resolving the "Custom" companion input.
+         *
+         * The selects offer a `custom` option whose real number lives in a
+         * sibling input — `saleMinPrice` = 'custom', value in
+         * `saleMinPriceCustom`. Parsing the select alone yielded undefined, so a
+         * custom price never reached canonical state while the legacy collector
+         * still read the companion and executed it. Search executed a price the
+         * canonical object did not contain, and a Saved Search built on that state
+         * would have persisted a DIFFERENT question from the one that ran.
+         */
+        function _rangeBound(el, id) {
+            if (!el) return undefined;
+            if (String(el.value) !== 'custom') return _numOrUndefined(el.value);
+            var companion = id ? document.getElementById(id + 'Custom') : null;
+            return companion ? _numOrUndefined(companion.value) : undefined;
         }
 
         function _numOrUndefined(raw) {
@@ -1621,8 +1703,8 @@
                         .filter(function (m) { return m !== ''; });
                     return members.length ? members : null;
                 }
-                var min = _numOrUndefined(els[0] && els[0].value);
-                var max = _numOrUndefined(els[1] && els[1].value);
+                var min = _rangeBound(els[0], ids[0]);
+                var max = _rangeBound(els[1], ids[1]);
                 if (min === undefined && max === undefined) return null;
                 var range = {};
                 if (min !== undefined) range.min = min;
@@ -1648,8 +1730,25 @@
                 if (!bScope) return undefined;
                 var bBoxes = bScope.querySelectorAll('[data-field="' + adapter.field + '"]');
                 if (!bBoxes.length) return undefined;
-                var anyChecked = bScope.querySelectorAll('[data-field="' + adapter.field + '"]:checked').length > 0;
-                return anyChecked ? true : null;
+
+                // EACH CONTROL'S OWN data-value DECIDES. The form renders
+                // NewConstructionYN twice — "Resale Building" carries
+                // data-value="false" and "New Development" carries "true". Reading
+                // "any box checked" as `true` made selecting RESALE ask for new
+                // construction: the exact opposite of the agent's question.
+                var picked = [];
+                bScope.querySelectorAll('[data-field="' + adapter.field + '"]:checked').forEach(function (cb) {
+                    var v = String(cb.getAttribute('data-value') || cb.value || '').toLowerCase();
+                    if (v === 'true' || v === 'false') {
+                        var asBool = v === 'true';
+                        if (picked.indexOf(asBool) === -1) picked.push(asBool);
+                    }
+                });
+                // BOTH checked is not a filter — it is "either", which is the same
+                // question as asking nothing. Refusing to store it keeps the
+                // canonical object from carrying a criterion that excludes nothing.
+                if (picked.length !== 1) return null;
+                return picked[0];
             }
 
             if (adapter.kind === 'featureMap') {
@@ -1736,7 +1835,23 @@
                     var el = document.getElementById(id);
                     if (!el) return;
                     var next = vals[i] != null ? vals[i] : '';
+                    // A <select> cannot hold an arbitrary number. When the value is
+                    // not one of its options, drive the Custom companion instead —
+                    // otherwise rendering a custom price silently blanks the
+                    // control and the criterion disappears on the next read.
+                    if (el.tagName === 'SELECT' && next !== '' && !el.querySelector('option[value="' + next + '"]')) {
+                        var companion = document.getElementById(id + 'Custom');
+                        if (companion) {
+                            el.value = 'custom';
+                            companion.value = next;
+                            return;
+                        }
+                    }
                     if (el.value !== next) el.value = next;
+                    if (next === '') {
+                        var blankCompanion = document.getElementById(id + 'Custom');
+                        if (blankCompanion) blankCompanion.value = '';
+                    }
                 });
                 return;
             }
@@ -1755,8 +1870,11 @@
             if (adapter.kind === 'checkboxBool') {
                 var bScope2 = activeSearchSurface();
                 if (!bScope2) return;
+                // Check only the box whose OWN value matches. Setting every box in
+                // the family checked both "Resale" and "New Development".
                 bScope2.querySelectorAll('[data-field="' + adapter.field + '"]').forEach(function (cb) {
-                    cb.checked = value === true;
+                    var v = String(cb.getAttribute('data-value') || cb.value || '').toLowerCase();
+                    cb.checked = (value === true && v === 'true') || (value === false && v === 'false');
                 });
                 return;
             }
@@ -1836,6 +1954,7 @@
             var store = _canonicalCriteria[tab];
             if (!store) return;
             Object.keys(CRITERION_ADAPTERS).forEach(function (key) {
+                if (!_adapterAppliesTo(CRITERION_ADAPTERS[key], tab)) return;
                 var value = _readAdapter(key, CRITERION_ADAPTERS[key], tab, view);
                 // undefined  -> this view has no control for it; stay silent.
                 // null       -> present and deliberately empty; REMOVE.
@@ -1852,6 +1971,7 @@
             var store = _canonicalCriteria[tab];
             if (!store) return;
             Object.keys(CRITERION_ADAPTERS).forEach(function (key) {
+                if (!_adapterAppliesTo(CRITERION_ADAPTERS[key], tab)) return;
                 _writeAdapter(key, CRITERION_ADAPTERS[key], tab, view, store[key]);
             });
         }
@@ -1956,7 +2076,11 @@
                 if (value == null) return;
                 var field = CANONICAL_TO_CHECKBOX_FIELD[key];
                 criteria.checkboxFilters = criteria.checkboxFilters || {};
+                // FALSE is a real answer. Writing only `true` meant "Resale
+                // Building" — NewConstructionYN=false — had no transport at all, so
+                // a stored canonical false silently executed as no filter.
                 if (value === true) criteria.checkboxFilters[field] = ['true'];
+                else if (value === false) criteria.checkboxFilters[field] = ['false'];
                 else if (Array.isArray(value) && value.length) criteria.checkboxFilters[field] = value.slice();
             });
 

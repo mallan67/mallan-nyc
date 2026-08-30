@@ -18,10 +18,28 @@
 
         function parseDateMDY(str) {
             if (!str) return null;
-            var parts = str.split('/');
+            var parts = String(str).split('/');
             if (parts.length !== 3) return null;
-            var d = new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
-            return isNaN(d.getTime()) ? null : d;
+            var mm = parseInt(parts[0], 10);
+            var dd = parseInt(parts[1], 10);
+            var yyyy = parseInt(parts[2], 10);
+            if (isNaN(mm) || isNaN(dd) || isNaN(yyyy)) return null;
+
+            var d = new Date(yyyy, mm - 1, dd);
+            if (isNaN(d.getTime())) return null;
+
+            // STRICT: an impossible date is REFUSED, never repaired.
+            //
+            // `new Date(2026, 1, 31)` does not fail — JavaScript rolls 02/31/2026
+            // forward into March. The old check only tested isNaN, so a broker's
+            // impossible date became a DIFFERENT valid date, and `isoFromMDY` then
+            // handed that silently-corrected value to canonical state. Silent
+            // repair is exactly what the value contract forbids: the search would
+            // answer a question the broker did not ask, and look right doing it.
+            if (d.getFullYear() !== yyyy || d.getMonth() !== mm - 1 || d.getDate() !== dd) {
+                return null;
+            }
+            return d;
         }
 
         // ─── CANONICAL ISO BOUNDARY ─────────────────────────────────────────
@@ -84,16 +102,26 @@
             if (to) wrapper.setAttribute('data-to', to);
             else wrapper.removeAttribute('data-to');
 
+            // EITHER BOUND MAY BE OMITTED — the canonical `range_date` contract
+            // permits an open-ended range, and "sold since January" is as real a
+            // search as "sold between January and June".
+            //
+            // Label, has-value and the Clear button were all decided from `from`
+            // alone, so a canonical value carrying only `max` was stored correctly
+            // and then displayed as EMPTY. The agent would see no filter, and
+            // clearing what looks like nothing is how a real criterion gets lost.
+            var hasValue = !!(from || to);
             var trigger = wrapper.querySelector('.drp-trigger');
             var textEl = trigger ? trigger.querySelector('.drp-text') : null;
             var clearBtn = trigger ? trigger.querySelector('.drp-clear') : null;
             if (textEl) {
                 if (from && to) textEl.textContent = from + ' - ' + to;
-                else if (from) textEl.textContent = from;
+                else if (from) textEl.textContent = 'From ' + from;
+                else if (to) textEl.textContent = 'Until ' + to;
                 else textEl.textContent = textEl.getAttribute('data-placeholder') || 'Select Date Range';
-                textEl.classList.toggle('has-value', !!from);
+                textEl.classList.toggle('has-value', hasValue);
             }
-            if (clearBtn) clearBtn.style.display = from ? '' : 'none';
+            if (clearBtn) clearBtn.style.display = hasValue ? '' : 'none';
         };
 
         function sameDay(a, b) {

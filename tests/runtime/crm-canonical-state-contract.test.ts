@@ -215,6 +215,27 @@ describe('reverse coverage: no enabled control is silently ignored', () => {
     /NeighborhoodInput$/, // typeahead box; the TAGS carry the criterion
   ];
 
+  /**
+   * Is the structural refusal for handle-less controls actually declared?
+   * Checked, not assumed — the previous version exempted them on reasoning
+   * alone, which is how 356 clickable-but-unreadable controls stayed invisible.
+   */
+  // Plain substring checks: the selectors are full of regex metacharacters, and
+  // an escaping slip here would silently make this FALSE and the exemption
+  // unavailable — or worse, silently TRUE against nothing.
+  const HANDLE_LESS_REFUSED = [
+    'input[type="checkbox"]:not([id]):not([data-field])',
+    '#searchBasicMode input:not([id]):not([data-field])',
+    '#searchBasicModeRental input:not([id]):not([data-field])',
+    '#searchBasicModeBuilding input:not([id]):not([data-field])',
+    '#searchAdvancedMode input:not([id]):not([data-field])',
+    '#searchAdvancedMode select:not([id]):not([data-field])',
+  ].every((selector) => deadControls.includes(selector));
+
+  it('declares a structural refusal for handle-less controls', () => {
+    expect(HANDLE_LESS_REFUSED).toBe(true);
+  });
+
   it('classifies every enabled searchable control', () => {
     const { ids: deadIds, idAnchors, fields: deadFields, attrs } = refusals();
     const { ids: ownedIds, fields: ownedFields, firstClass } = ownership();
@@ -252,11 +273,30 @@ describe('reverse coverage: no enabled control is silently ignored', () => {
       // module disables them by attribute selector.
       if (/data-local-field="/.test(tag)) continue;
 
-      // NO HANDLE AT ALL. A control with neither an `id` nor a `data-field`
-      // cannot be read by any collector — there is nothing to select it by. It is
-      // structurally incapable of carrying a criterion, which is a verifiable
-      // fact about the markup rather than a third state.
-      if (!id && !field) continue;
+      // A handle-less CHECKBOX is refused structurally by the dead-control
+      // module — see the `:not([id]):not([data-field])` selector there.
+      //
+      // This used to `continue` on "no id and no data-field" with the reasoning
+      // that such a control cannot carry a criterion. That was a third state
+      // wearing a justification: unreadable is not the same as not-a-criterion.
+      // Top Floor, Duplex, Penthouse, Concierge, Resale and New Conversion are
+      // all real filters an agent can click, and being unreadable is precisely
+      // what makes them silent — the defect, not the exemption.
+      // A handle-less control is REFUSED, and this checks the refusal is really
+      // declared rather than assuming it.
+      //
+      // The guard used to `continue` here on the reasoning that a control with no
+      // id and no data-field "cannot carry a criterion". That was a third state
+      // wearing a justification: unreadable is not the same as not-a-criterion.
+      // Top Floor, Duplex, Penthouse, Concierge, Resale, New Conversion, "Unit
+      // #", "School Name" and "Min SF" are all real filters an agent can click,
+      // and being unreadable is exactly what makes them silent — the defect, not
+      // the exemption.
+      if (!id && !field) {
+        if (HANDLE_LESS_REFUSED) continue;
+        unowned.push(`handle-less: ${tag.slice(0, 60)}`);
+        continue;
+      }
 
       unowned.push(id ? `#${id}` : `[data-field="${field}"]`);
     }
