@@ -16652,7 +16652,7 @@ function manageShowToast(msg) {
                 var drpId = (adapter.drp || {})[tab];
                 var range = (drpId && typeof window.getDateRangeISO === 'function')
                     ? window.getDateRangeISO(drpId) : null;
-                var advIds = ((adapter.ids || {})[tab] || {})[view] || [];
+                var advIds = _adapterIds(adapter, tab, view);
                 var advFrom = advIds[0] ? document.getElementById(advIds[0]) : null;
                 var advTo = advIds[1] ? document.getElementById(advIds[1]) : null;
                 var hasDates = !!((range && (range.from || range.to)) ||
@@ -17946,18 +17946,9 @@ function manageShowToast(msg) {
             living_area: { kind: 'range', shape: 'range_number', ids: {
                 sale:     { basic: ['saleMinSqft', 'saleMaxSqft'], advanced: ['adv-min-sqft', 'adv-max-sqft'] },
                 rent:     { basic: ['rentalMinSqft', 'rentalMaxSqft'], advanced: ['adv-min-sqft', 'adv-max-sqft'] } } },
-            year_built: { kind: 'range', shape: 'range_number', ids: {
-                sale:     { basic: ['saleBuildingMinYear', 'saleBuildingMaxYear'], advanced: ['adv-year-built-from', 'adv-year-built-to'] },
-                rent:     { basic: ['rentalBuildingMinYear', 'rentalBuildingMaxYear'], advanced: ['adv-year-built-from', 'adv-year-built-to'] },
-                building: { basic: ['buildingMinYear', 'buildingMaxYear'], advanced: ['adv-year-built-from', 'adv-year-built-to'] } } },
-            units_total: { kind: 'range', shape: 'range_number', ids: {
-                sale:     { basic: ['saleBuildingMinUnits', 'saleBuildingMaxUnits'], advanced: ['adv-bldg-units-min', 'adv-bldg-units-max'] },
-                rent:     { basic: ['rentalBuildingMinUnits', 'rentalBuildingMaxUnits'], advanced: ['adv-bldg-units-min', 'adv-bldg-units-max'] },
-                building: { basic: ['buildingMinUnits', 'buildingMaxUnits'], advanced: ['adv-bldg-units-min', 'adv-bldg-units-max'] } } },
-            stories_total: { kind: 'range', shape: 'range_number', ids: {
-                sale:     { basic: ['saleBuildingMinFloors', 'saleBuildingMaxFloors'], advanced: ['adv-floors-min', 'adv-floors-max'] },
-                rent:     { basic: ['rentalBuildingMinFloors', 'rentalBuildingMaxFloors'], advanced: ['adv-floors-min', 'adv-floors-max'] },
-                building: { basic: ['buildingMinFloors', 'buildingMaxFloors'], advanced: ['adv-floors-min', 'adv-floors-max'] } } },
+            year_built: { kind: 'range', shape: 'range_number', buildingFact: ['yearMin', 'yearMax'], workflows: ['sale', 'rent', 'building'] },
+            units_total: { kind: 'range', shape: 'range_number', buildingFact: ['unitsMin', 'unitsMax'], workflows: ['sale', 'rent', 'building'] },
+            stories_total: { kind: 'range', shape: 'range_number', buildingFact: ['floorsMin', 'floorsMax'], workflows: ['sale', 'rent', 'building'] },
             max_financing_percent: { kind: 'range', shape: 'range_number', ids: {
                 sale:     { basic: ['saleBuildingFinancingMin', 'saleBuildingFinancingMax'], advanced: ['adv-financing', null] },
                 // NOT bound to rent/building: the contract offers max_financing_percent
@@ -17986,7 +17977,18 @@ function manageShowToast(msg) {
             // NewConstructionYN, so Building was acquiring a criterion its
             // contract does not offer: the same back-door widening closed for the
             // Quick Search controls.
-            new_development:   { kind: 'checkboxBool', shape: 'boolean', field: 'NewConstructionYN', workflows: ['sale', 'rent'] },
+            // TWO SPELLINGS, ONE CRITERION. Sale and Rental Basic render
+            // data-field="NewConstruction"; Building Basic and Advanced render
+            // "NewConstructionYN". Reading only the YN spelling meant the Sale and
+            // Rental Basic controls were invisible to canonical state — and
+            // because the feature adapter deliberately excludes new_construction
+            // from generic features, they did not fall back there either. The
+            // control did nothing at all.
+            //
+            // The legacy spelling is READ here and never written: canonical state
+            // holds one identity, and `CANONICAL_BY_LEGACY` already maps the same
+            // alias server-side.
+            new_development:   { kind: 'checkboxBool', shape: 'boolean', field: 'NewConstructionYN', legacyFields: ['NewConstruction'], workflows: ['sale', 'rent'] },
             sponsor_unit:      { kind: 'checkboxBool', shape: 'boolean', field: 'SponsorUnit', workflows: ['sale'] },
 
             // ── STRUCTURED FEATURE SELECTION ────────────────────────────────
@@ -18081,7 +18083,36 @@ function manageShowToast(msg) {
             return isAdvancedViewVisible() ? 'advanced' : 'basic';
         }
 
+        /** Every data-field spelling an adapter answers to. Canonical first. */
+        function _adapterFields(adapter) {
+            return [adapter.field].concat(adapter.legacyFields || []);
+        }
+
+        /** A selector matching any of an adapter's field spellings. */
+        function _fieldSelector(adapter, suffix) {
+            return _adapterFields(adapter)
+                .map(function (f) { return '[data-field="' + f + '"]' + (suffix || ''); })
+                .join(', ');
+        }
+
         /** The element scope an adapter reads within. */
+        /**
+         * The control ids an adapter reads for a (tab, view).
+         *
+         * Building facts DELEGATE to `_resolveBuildingFieldIds`, which is their
+         * single owner — that resolver exists precisely because the collector and
+         * Saved Search restore had already drifted apart over these ids once.
+         * Copying them into the adapter table recreated the split, so the adapters
+         * ask the owner instead of restating it.
+         */
+        function _adapterIds(adapter, tab, view) {
+            if (adapter.buildingFact && typeof window._resolveBuildingFieldIds === 'function') {
+                var resolved = window._resolveBuildingFieldIds(tab, view === 'advanced');
+                return adapter.buildingFact.map(function (slot) { return resolved[slot]; });
+            }
+            return ((adapter.ids || {})[tab] || {})[view] || [];
+        }
+
         function _adapterScope(adapter) {
             if (adapter.scope === 'status' && isAdvancedViewVisible()) {
                 // Advanced keeps sale/rental status options in separate divs and
@@ -18122,7 +18153,7 @@ function manageShowToast(msg) {
         /** DOM -> canonical value, or undefined when this view cannot answer. */
         function _readAdapter(key, adapter, tab, view) {
             if (adapter.kind === 'range' || adapter.kind === 'text' || adapter.kind === 'textSet') {
-                var ids = ((adapter.ids || {})[tab] || {})[view] || [];
+                var ids = _adapterIds(adapter, tab, view);
                 var els = ids.map(function (id) { return id ? document.getElementById(id) : null; });
                 // A view with NO control for this criterion cannot speak for it.
                 // That is the ONLY silence; a control that is present and empty is
@@ -18150,10 +18181,10 @@ function manageShowToast(msg) {
             if (adapter.kind === 'checkboxSet') {
                 var scope = _adapterScope(adapter);
                 if (!scope) return undefined;
-                var boxes = scope.querySelectorAll('[data-field="' + adapter.field + '"]');
+                var boxes = scope.querySelectorAll(_fieldSelector(adapter));
                 if (!boxes.length) return undefined;
                 var picked = [];
-                scope.querySelectorAll('[data-field="' + adapter.field + '"]:checked').forEach(function (cb) {
+                scope.querySelectorAll(_fieldSelector(adapter, ':checked')).forEach(function (cb) {
                     var v = cb.getAttribute('data-sub-status') || cb.getAttribute('data-value') || cb.value;
                     if (v && picked.indexOf(v) === -1) picked.push(v);
                 });
@@ -18163,7 +18194,7 @@ function manageShowToast(msg) {
             if (adapter.kind === 'checkboxBool') {
                 var bScope = activeSearchSurface();
                 if (!bScope) return undefined;
-                var bBoxes = bScope.querySelectorAll('[data-field="' + adapter.field + '"]');
+                var bBoxes = bScope.querySelectorAll(_fieldSelector(adapter));
                 if (!bBoxes.length) return undefined;
 
                 // EACH CONTROL'S OWN data-value DECIDES. The form renders
@@ -18172,7 +18203,7 @@ function manageShowToast(msg) {
                 // "any box checked" as `true` made selecting RESALE ask for new
                 // construction: the exact opposite of the agent's question.
                 var picked = [];
-                bScope.querySelectorAll('[data-field="' + adapter.field + '"]:checked').forEach(function (cb) {
+                bScope.querySelectorAll(_fieldSelector(adapter, ':checked')).forEach(function (cb) {
                     var v = String(cb.getAttribute('data-value') || cb.value || '').toLowerCase();
                     if (v === 'true' || v === 'false') {
                         var asBool = v === 'true';
@@ -18204,7 +18235,7 @@ function manageShowToast(msg) {
             if (adapter.kind === 'dateRange') {
                 var drpId = (adapter.drp || {})[tab];
                 var wrapper = drpId ? document.querySelector('[data-drp="' + drpId + '"]') : null;
-                var advIds = ((adapter.ids || {})[tab] || {})[view] || [];
+                var advIds = _adapterIds(adapter, tab, view);
                 var advFrom = advIds[0] ? document.getElementById(advIds[0]) : null;
                 var advTo = advIds[1] ? document.getElementById(advIds[1]) : null;
                 if (!wrapper && !advFrom && !advTo) return undefined;
@@ -18259,7 +18290,7 @@ function manageShowToast(msg) {
         /** Canonical value -> DOM. */
         function _writeAdapter(key, adapter, tab, view, value) {
             if (adapter.kind === 'range' || adapter.kind === 'text' || adapter.kind === 'textSet') {
-                var ids = ((adapter.ids || {})[tab] || {})[view] || [];
+                var ids = _adapterIds(adapter, tab, view);
                 var vals;
                 if (adapter.kind === 'text') vals = [value == null ? '' : String(value)];
                 else if (adapter.kind === 'textSet') vals = [Array.isArray(value) ? value.join(',') : ''];
@@ -18295,7 +18326,7 @@ function manageShowToast(msg) {
                 var scope = _adapterScope(adapter);
                 if (!scope) return;
                 var wanted = value || [];
-                scope.querySelectorAll('[data-field="' + adapter.field + '"]').forEach(function (cb) {
+                scope.querySelectorAll(_fieldSelector(adapter)).forEach(function (cb) {
                     var v = cb.getAttribute('data-sub-status') || cb.getAttribute('data-value') || cb.value;
                     cb.checked = wanted.indexOf(v) !== -1;
                 });
@@ -18307,7 +18338,7 @@ function manageShowToast(msg) {
                 if (!bScope2) return;
                 // Check only the box whose OWN value matches. Setting every box in
                 // the family checked both "Resale" and "New Development".
-                bScope2.querySelectorAll('[data-field="' + adapter.field + '"]').forEach(function (cb) {
+                bScope2.querySelectorAll(_fieldSelector(adapter)).forEach(function (cb) {
                     var v = String(cb.getAttribute('data-value') || cb.value || '').toLowerCase();
                     cb.checked = (value === true && v === 'true') || (value === false && v === 'false');
                 });
@@ -18329,7 +18360,7 @@ function manageShowToast(msg) {
             if (adapter.kind === 'dateRange') {
                 var drpId2 = (adapter.drp || {})[tab];
                 var wrapper2 = drpId2 ? document.querySelector('[data-drp="' + drpId2 + '"]') : null;
-                var advIds2 = ((adapter.ids || {})[tab] || {})[view] || [];
+                var advIds2 = _adapterIds(adapter, tab, view);
                 var min = value && value.min != null ? String(value.min) : '';
                 var max = value && value.max != null ? String(value.max) : '';
                 if (view === 'advanced') {
@@ -18379,7 +18410,8 @@ function manageShowToast(msg) {
             // markup ALSO carries a data-criterion of new_construction, so both
             // spellings must be excluded or the feature scan recreates the
             // duplicate under the canonical family name.
-            'NewConstructionYN', 'new_construction', 'SponsorUnit', 'sponsor_unit'
+            'NewConstructionYN', 'NewConstruction', 'new_construction',
+            'SponsorUnit', 'sponsor_unit'
         ];
 
         /** Read the view the agent has been editing INTO the canonical object. */
@@ -18522,6 +18554,9 @@ function manageShowToast(msg) {
             return criteria;
         }
 
+        /** Fields the legacy scanner saw that canonical state does not own. */
+        var _unownedCheckboxFields = [];
+
         function collectSearchCriteria() {
             // The view on screen may hold edits the canonical object has not
             // seen yet. Sync, then render, so the controls the reads below use
@@ -18538,492 +18573,25 @@ function manageShowToast(msg) {
             // did not set, so the rendered DOM cannot contradict canonical state.
             serializeCanonicalToWire(currentSearchTab, criteria);
 
-            // The Basic surface for the ACTIVE tab. This read
-            // getElementById('searchBasicMode') — the Sale container — on every
-            // tab, so a Rental or Building search was scoped to the Sale form.
-            var activeBasicForm = activeBasicSurface();
-
-            // Price range — use the correct IDs based on search tab and mode (basic vs advanced)
-            var _advMode = document.getElementById('searchAdvancedMode');
-            var _isAdvanced = _advMode && _advMode.style.display !== 'none' && !_advMode.classList.contains('hidden');
-            var priceMin, priceMax, customMinId, customMaxId;
-            if (_isAdvanced) {
-                if (currentSearchTab === 'rent') {
-                    priceMin = document.getElementById('advRentalMinRent');
-                    priceMax = document.getElementById('advRentalMaxRent');
-                    customMinId = 'advRentalMinRentCustom';
-                    customMaxId = 'advRentalMaxRentCustom';
-                } else {
-                    priceMin = document.getElementById('advSaleMinPrice');
-                    priceMax = document.getElementById('advSaleMaxPrice');
-                    customMinId = 'advSaleMinPriceCustom';
-                    customMaxId = 'advSaleMaxPriceCustom';
-                }
-            } else {
-                if (currentSearchTab === 'rent') {
-                    priceMin = document.getElementById('rentalMinRent');
-                    priceMax = document.getElementById('rentalMaxRent');
-                    customMinId = 'rentalMinRentCustom';
-                    customMaxId = 'rentalMaxRentCustom';
-                } else {
-                    priceMin = document.getElementById('saleMinPrice');
-                    priceMax = document.getElementById('saleMaxPrice');
-                    customMinId = 'saleMinPriceCustom';
-                    customMaxId = 'saleMaxPriceCustom';
-                }
-            }
-            if (priceMin && priceMin.value && priceMin.value !== '') {
-                if (priceMin.value === 'custom') {
-                    // Read from companion custom input
-                    var customMinEl = document.getElementById(customMinId);
-                    if (customMinEl && customMinEl.value) {
-                        var pMin = parseInt(customMinEl.value);
-                        if (!isNaN(pMin) && pMin > 0) criteria.priceMin = pMin;
-                    }
-                } else {
-                    var pMin = parseInt(priceMin.value);
-                    if (!isNaN(pMin)) criteria.priceMin = pMin;
-                }
-            }
-            if (priceMax && priceMax.value && priceMax.value !== '') {
-                if (priceMax.value === 'custom') {
-                    // Read from companion custom input
-                    var customMaxEl = document.getElementById(customMaxId);
-                    if (customMaxEl && customMaxEl.value) {
-                        var pMax = parseInt(customMaxEl.value);
-                        if (!isNaN(pMax) && pMax > 0) criteria.priceMax = pMax;
-                    }
-                } else {
-                    var pMax = parseInt(priceMax.value);
-                    if (!isNaN(pMax)) criteria.priceMax = pMax;
-                }
-            }
-
-            // Bedrooms — use the correct IDs based on search tab and mode
-            var bedsMin, bedsMax;
-            if (_isAdvanced) {
-                bedsMin = document.getElementById('adv-min-beds');
-                bedsMax = document.getElementById('adv-max-beds');
-            } else if (currentSearchTab === 'rent') {
-                bedsMin = document.getElementById('rentalMinBeds');
-                bedsMax = document.getElementById('rentalMaxBeds');
-            } else {
-                bedsMin = document.getElementById('saleMinBeds');
-                bedsMax = document.getElementById('saleMaxBeds');
-            }
-            if (bedsMin && bedsMin.value !== '' && bedsMin.value !== 'custom') {
-                if (criteria.bedsMin === undefined) criteria.bedsMin = parseInt(bedsMin.value);
-                if (isNaN(criteria.bedsMin)) delete criteria.bedsMin;
-            }
-            if (bedsMax && bedsMax.value !== '' && bedsMax.value !== 'custom') {
-                if (criteria.bedsMax === undefined) criteria.bedsMax = parseInt(bedsMax.value);
-                if (isNaN(criteria.bedsMax)) delete criteria.bedsMax;
-            }
-
-            // Bathrooms — use correct IDs per tab and mode, parseFloat for half-baths (1.5, 2.5)
-            var bathsMin, bathsMax;
-            if (_isAdvanced) {
-                bathsMin = document.getElementById('adv-min-baths');
-                bathsMax = document.getElementById('adv-max-baths');
-            } else if (currentSearchTab === 'rent') {
-                bathsMin = document.getElementById('rentalMinBaths');
-                bathsMax = document.getElementById('rentalMaxBaths');
-            } else {
-                bathsMin = document.getElementById('saleMinBaths');
-                bathsMax = document.getElementById('saleMaxBaths');
-            }
-            if (bathsMin && bathsMin.value !== '' && bathsMin.value !== 'custom') {
-                if (criteria.bathsMin === undefined) criteria.bathsMin = parseFloat(bathsMin.value);
-                if (isNaN(criteria.bathsMin)) delete criteria.bathsMin;
-            }
-            if (bathsMax && bathsMax.value !== '' && bathsMax.value !== 'custom') {
-                if (criteria.bathsMax === undefined) criteria.bathsMax = parseFloat(bathsMax.value);
-                if (isNaN(criteria.bathsMax)) delete criteria.bathsMax;
-            }
-
-            // Rooms — use correct IDs per tab and mode
-            var roomsMin, roomsMax;
-            if (_isAdvanced) {
-                roomsMin = document.getElementById('adv-min-rooms');
-                roomsMax = document.getElementById('adv-max-rooms');
-            } else if (currentSearchTab === 'rent') {
-                roomsMin = document.getElementById('rentalMinRooms');
-                roomsMax = document.getElementById('rentalMaxRooms');
-            } else {
-                roomsMin = document.getElementById('saleMinRooms');
-                roomsMax = document.getElementById('saleMaxRooms');
-            }
-            if (roomsMin && roomsMin.value && roomsMin.value !== '' && roomsMin.value !== 'custom') {
-                if (criteria.roomsMin === undefined) criteria.roomsMin = parseInt(roomsMin.value);
-                if (isNaN(criteria.roomsMin)) delete criteria.roomsMin;
-            }
-            if (roomsMax && roomsMax.value && roomsMax.value !== '' && roomsMax.value !== 'custom') {
-                if (criteria.roomsMax === undefined) criteria.roomsMax = parseInt(roomsMax.value);
-                if (isNaN(criteria.roomsMax)) delete criteria.roomsMax;
-            }
-
-            // Square footage — use correct IDs per tab and mode
-            var sqftMin, sqftMax;
-            if (_isAdvanced) {
-                sqftMin = document.getElementById('adv-min-sqft');
-                sqftMax = document.getElementById('adv-max-sqft');
-            } else if (currentSearchTab === 'rent') {
-                sqftMin = document.getElementById('rentalMinSqft');
-                sqftMax = document.getElementById('rentalMaxSqft');
-            } else {
-                sqftMin = document.getElementById('saleMinSqft');
-                sqftMax = document.getElementById('saleMaxSqft');
-            }
-            if (sqftMin && sqftMin.value && sqftMin.value !== '' && sqftMin.value !== 'custom') {
-                if (criteria.sqftMin === undefined) criteria.sqftMin = parseInt(sqftMin.value);
-                if (isNaN(criteria.sqftMin)) delete criteria.sqftMin;
-            }
-            if (sqftMax && sqftMax.value && sqftMax.value !== '' && sqftMax.value !== 'custom') {
-                if (criteria.sqftMax === undefined) criteria.sqftMax = parseInt(sqftMax.value);
-                if (isNaN(criteria.sqftMax)) delete criteria.sqftMax;
-            }
-
-            // Ownership type (CommonInterest checkboxes)
-            if (activeBasicForm) {
-                var ownershipChecks = activeBasicForm.querySelectorAll('[data-field="CommonInterest"]:checked');
-                if (ownershipChecks.length > 0) {
-                    if (criteria.ownership === undefined) criteria.ownership = Array.from(ownershipChecks).map(function(cb) { return cb.getAttribute('data-value') || cb.value; });
-                }
-            }
-
-            // PropertySubType checkboxes (Townhouse, Conversion, Single Family, etc.)
-            var propertySubTypeChecked = [];
-            var advModeEl = document.getElementById('searchAdvancedMode');
-            var pstIsAdvanced = advModeEl && advModeEl.style.display !== 'none' && !advModeEl.classList.contains('hidden');
-            var pstSelector = pstIsAdvanced
-                ? '#searchAdvancedMode input[data-field="PropertySubType"]:checked'
-                : (activeBasicForm ? '#' + activeBasicForm.id + ' input[data-field="PropertySubType"]:checked' : 'input[data-field="PropertySubType"]:checked');
-            document.querySelectorAll(pstSelector).forEach(function(cb) {
-                propertySubTypeChecked.push(cb.getAttribute('data-value') || cb.value);
-            });
-            if (propertySubTypeChecked.length > 0) {
-                if (criteria.propertySubType === undefined) criteria.propertySubType = propertySubTypeChecked.join(',');
-            }
-
-            // Status checkboxes (MlsStatus) — collect all checked statuses
-            // Determine which container has the status checkboxes
-            var statusContainer = activeBasicForm;
-            var advancedMode = document.getElementById('searchAdvancedMode');
-            if (advancedMode && advancedMode.style.display !== 'none') {
-                // In advanced mode, use the visible status options div
-                var saleOpts = document.getElementById('saleStatusOptions');
-                var rentalOpts = document.getElementById('rentalStatusOptions');
-                if (rentalOpts && rentalOpts.style.display !== 'none') {
-                    statusContainer = rentalOpts;
-                } else if (saleOpts && saleOpts.style.display !== 'none') {
-                    statusContainer = saleOpts;
-                } else {
-                    statusContainer = saleOpts; // default to sale
-                }
-            }
-            if (statusContainer) {
-                var statusChecks = statusContainer.querySelectorAll('[data-field="MlsStatus"]:checked');
-                if (statusChecks.length > 0) {
-                    if (criteria.statuses === undefined) criteria.statuses = [];
-                    statusChecks.forEach(function(cb) {
-                        var val = cb.getAttribute('data-value');
-                        var sub = cb.getAttribute('data-sub-status');
-                        if (sub) {
-                            // Sub-status checkbox (e.g., "Offer Accepted", "Contract Out")
-                            criteria.statuses.push(sub);
-                        } else if (val) {
-                            // Handle comma-separated values (e.g., "Withdrawn,Canceled,Expired,Hold")
-                            var parts = val.split(',');
-                            parts.forEach(function(part) {
-                                var s = part.trim();
-                                // Map to uppercase
-                                if (s === 'Active' || s === 'BackOnMarket') criteria.statuses.push('Active');
-                                else if (s === 'ComingSoon') criteria.statuses.push('ComingSoon');
-                                // 'Future' is DELIBERATELY carried through as-is.
-                                // It has no proven Cotality member, so the server
-                                // rejects it with a typed 400 naming the value -
-                                // which tells the broker exactly what in their
-                                // saved search cannot be run. Dropping it here
-                                // would silently widen the restored search
-                                // instead, which is the failure mode this whole
-                                // status pass exists to remove.
-                                // CANONICAL EXACT TOKENS ONLY (2026-08-26).
-                                //
-                                // These lines used to rewrite the control's own
-                                // exact StandardStatus value into a Mallan
-                                // uppercase spelling — Withdrawn -> WITHDRAWN,
-                                // Expired -> EXPIRED — which the boundary then
-                                // had to translate back. A second status
-                                // vocabulary maintained in parallel with the
-                                // provider's is exactly how PENDING came to mean
-                                // ActiveUnderContract. The data-value on these
-                                // controls IS the live member, so it is carried
-                                // through unchanged.
-                                //
-                                // 'Future' is deliberately NOT special-cased: it
-                                // has no proven Cotality member, so it travels
-                                // as itself and the server rejects it by name
-                                // rather than being silently dropped.
-                                else criteria.statuses.push(s);
-                            });
-                        }
-                    });
-                }
-            }
-
-            // Address / building name — collect from whichever form is active
-            var addressInputId = currentSearchTab === 'rent' ? 'rentalSearchAddress' :
-                                 currentSearchTab === 'building' ? 'buildingSearchAddress' : 'saleSearchAddress';
-            var addressInput = document.getElementById(addressInputId);
-            // Also check advanced mode address
-            var advAddr = document.getElementById('advancedSearchAddress');
-            var advancedMode2 = document.getElementById('searchAdvancedMode');
-            if (advancedMode2 && advancedMode2.style.display !== 'none' && advAddr && advAddr.value.trim()) {
-                addressInput = advAddr;
-            }
-            if (addressInput && addressInput.value.trim()) {
-                if (criteria.address === undefined) criteria.address = addressInput.value.trim();
-            }
-
-            // Neighborhood autocomplete tags — read from active tags container.
-            // The autocomplete dropdown lists every NYC neighborhood AND each
-            // borough as a top-level "Borough" chip. We must split the two so
-            // borough chips drive `criteria.borough` (-> OData CityRegion) and
-            // neighborhood chips drive `criteria.neighborhoods` (-> OData
-            // SubdivisionName). The split happens in
-            // neighborhood-autocomplete.js getSelectedNeighborhoods /
-            // getSelectedBoroughs so the consumer here is unambiguous.
-            if (typeof getSelectedNeighborhoods === 'function') {
-                var tagsId = _resolveActiveNeighborhoodTagsId();
-                var selectedNeighborhoods = getSelectedNeighborhoods(tagsId);
-                if (selectedNeighborhoods.length > 0) {
-                    if (criteria.neighborhoods === undefined) criteria.neighborhoods = selectedNeighborhoods;
-                }
-
-                var selectedBoroughs = (typeof getSelectedBoroughs === 'function')
-                    ? getSelectedBoroughs(tagsId)
-                    : [];
-
-                // Borough resolution — explicit borough chip wins; otherwise
-                // derive from neighborhoods only when all are in one borough.
-                if (selectedBoroughs.length > 0) {
-                    // CORRECTED 2026-08-26. Multi-borough previously left
-                    // criteria.borough UNSET, on the belief that the backend
-                    // "cannot OR multiple CityRegion values via a single
-                    // param". The consequence was worse than the limitation:
-                    // with no borough param the server applied no geography at
-                    // all and answered ALL OF NYC under HTTP 200, marked
-                    // authoritative. Selecting two boroughs silently widened
-                    // the search instead of narrowing it.
-                    //
-                    // The backend now renders a comma-separated list as one
-                    // parenthesised CityRegion disjunction
-                    // (lib/search/canonical/geography.ts), so every selected
-                    // borough is carried and the question asked is the question
-                    // answered.
-                    if (criteria.borough === undefined) criteria.borough = selectedBoroughs.join(',');
-                } else if (selectedNeighborhoods.length > 0) {
-                    var boroughs = selectedNeighborhoods.map(function(n) { return _findBoroughForNeighborhood(n); }).filter(Boolean);
-                    var uniqueBoroughs = boroughs.filter(function(b, i, arr) { return arr.indexOf(b) === i; });
-                    if (uniqueBoroughs.length > 0) {
-                        if (criteria.borough === undefined) criteria.borough = uniqueBoroughs.join(',');
-                    }
-                }
-            }
-
-            // Quick Search (listing ID / ZIP / unit) and keyword, FROM CANONICAL STATE.
+            // THE LEGACY DOM RECONSTRUCTION IS GONE.
             //
-            // This read a second, private id table — and every Basic id in it was
-            // WRONG. `searchQuickRls`, `searchQuickZip`, `searchQuickUnit` and
-            // `searchKeyword` do not exist in the markup: the real controls are
-            // per-workflow (`saleQuickRls` / `rentalQuickRls` / `buildingQuickRls`,
-            // and `saleKeywordSearch` / `rentalKeywordSearch` /
-            // `buildingKeywordSearch`). `getElementById` returned null every time,
-            // so an agent could type a listing ID, ZIP, unit or keyword into a
-            // Basic form and it silently never reached the wire.
+            // 488 lines used to re-read the DOM here and rebuild the business
+            // question a second time, after canonical serialization had already
+            // produced it. Every key it wrote — price, beds, baths, rooms, sqft,
+            // year, units, floors, financing, dates, status, ownership, subtype,
+            // geography, address, keyword, management, building name, zip, unit,
+            // listing id and checkboxFilters — is canonical-owned, so the second
+            // pass could only ever agree or DISAGREE, and nothing forced agreement.
             //
-            // A second id table is what allowed that: it could be wrong without
-            // anything disagreeing with it. These now come from the canonical
-            // state, whose adapters carry the real ids and are checked against the
-            // markup by test.
-            var _qs = canonicalCriteriaFor(currentSearchTab) || {};
-            // `listing_id_canonical` is a text_set — the control accepts a
-            // comma-separated list and the executor builds a disjunction from it.
-            if (Array.isArray(_qs.listing_id_canonical) && _qs.listing_id_canonical.length) {
-                if (criteria.rlsId === undefined) criteria.rlsId = _qs.listing_id_canonical.join(',');
-            }
-            if (_qs.postal_code) criteria.zip = _qs.postal_code;
-            if (_qs.unit) criteria.unit = _qs.unit;
-            if (_qs.public_remarks_keyword) criteria.keyword = _qs.public_remarks_keyword;
-
-            // Management Company. NOT ListOfficeName: Cotality declares no
-            // ManagementCompany Property field, and listing office is a
-            // DIFFERENT fact. The server refuses that substitution
-            // (crm-idx-filter.ts throws UnsupportedSearchCriterionError), so no
-            // "closest field" is chosen here either.
-            var mgmtId = _isAdvanced ? 'adv-management' : 'searchManagementCompany';
-            var mgmtEl = document.getElementById(mgmtId);
-            if (mgmtEl && mgmtEl.value.trim()) {
-                if (criteria.managementCompany === undefined) criteria.managementCompany = mgmtEl.value.trim();
-            }
-
-            // Building Financing %.
+            // Its generic checkbox scanner was the worst of it: it went around
+            // _adapterAppliesTo entirely, so Building could select New Development,
+            // the canonical contract would refuse it, and the scanner would put it
+            // into the executed criteria anyway — but only when some unrelated
+            // canonical checkbox had not already created the key. A split truth
+            // that changed with the rest of the form.
             //
-            // CORRECTED 2026-08-26. This claimed "BuyerFinancing on Trestle".
-            // Live probe: MaximumFinancingPercent is ABSENT from Property, and
-            // BuyerFinancing/CurrentFinancing/ListingTerms are multi-enums of
-            // financing TYPE (Cash, Conventional, FHA) — none expresses a
-            // PERCENTAGE. There is no provider fact for this criterion, so it
-            // is PROVIDER_UNAVAILABLE rather than merely unmapped.
-            var finMinId = currentSearchTab === 'rent' ? 'rentalBuildingFinancingMin' :
-                           currentSearchTab === 'building' ? 'buildingFinancingMin' : 'saleBuildingFinancingMin';
-            var finMinEl = document.getElementById(finMinId);
-            if (finMinEl && finMinEl.value) {
-                var fv = parseInt(finMinEl.value);
-                if (!isNaN(fv) && fv > 0) criteria.financingMin = fv;
-            }
-
-            // Date range filters — read from .drp-wrapper[data-from]/[data-to] attributes
-            // Dates stored as MM/DD/YYYY, convert to YYYY-MM-DD (ISO) for OData API
-            var drpPrefix = currentSearchTab === 'rent' ? 'rental' : 'sale';
-
-            // Listed/Updated date range
-            var activityTypeEl = document.getElementById(drpPrefix === 'rental' ? 'rentalListingActivityType' : 'saleListingActivityType');
-            var activityType = activityTypeEl ? activityTypeEl.value : '';
-            var listedDrp = document.querySelector('[data-drp="' + drpPrefix + 'ListedUpdated"]');
-            if (listedDrp && activityType) {
-                var fromStr = listedDrp.getAttribute('data-from');
-                var toStr = listedDrp.getAttribute('data-to');
-                if (fromStr) {
-                    if (criteria.dateActivityType === undefined) criteria.dateActivityType = activityType; // 'Listed', 'Updated', or 'ListedAndUpdated'
-                    if (criteria.dateFrom === undefined) criteria.dateFrom = _mdyToISO(fromStr);
-                    if (criteria.dateTo === undefined) criteria.dateTo = _mdyToISO(toStr) || _mdyToISO(fromStr);
-                }
-            }
-
-            // Contract/Lease Signed date range
-            var signedDrp = document.querySelector('[data-drp="' + drpPrefix + (drpPrefix === 'rental' ? 'LeaseSigned' : 'ContractSigned') + '"]');
-            if (signedDrp) {
-                var sFrom = signedDrp.getAttribute('data-from');
-                var sTo = signedDrp.getAttribute('data-to');
-                if (sFrom) {
-                    if (criteria.contractDateFrom === undefined) criteria.contractDateFrom = _mdyToISO(sFrom);
-                    if (criteria.contractDateTo === undefined) criteria.contractDateTo = _mdyToISO(sTo) || _mdyToISO(sFrom);
-                }
-            }
-
-            // Sold/Rented date range
-            var soldDrp = document.querySelector('[data-drp="' + drpPrefix + (drpPrefix === 'rental' ? 'RentedDate' : 'SoldDate') + '"]');
-            if (soldDrp) {
-                var sdFrom = soldDrp.getAttribute('data-from');
-                var sdTo = soldDrp.getAttribute('data-to');
-                if (sdFrom) {
-                    if (criteria.soldDateFrom === undefined) criteria.soldDateFrom = _mdyToISO(sdFrom);
-                    if (criteria.soldDateTo === undefined) criteria.soldDateTo = _mdyToISO(sdTo) || _mdyToISO(sdFrom);
-                }
-            }
-
-            // Building-specific filters (OData: YearBuilt, StoriesTotal, NumberOfUnitsTotal)
-            var _bIds = window._resolveBuildingFieldIds(currentSearchTab, _isAdvanced);
-            var yearMinEl = document.getElementById(_bIds.yearMin);
-            var yearMaxEl = document.getElementById(_bIds.yearMax);
-            var unitsMinEl = document.getElementById(_bIds.unitsMin);
-            var unitsMaxEl = document.getElementById(_bIds.unitsMax);
-            var floorsMinEl = document.getElementById(_bIds.floorsMin);
-            var floorsMaxEl = document.getElementById(_bIds.floorsMax);
-            if (yearMinEl && yearMinEl.value && yearMinEl.value !== '') {
-                var ym = parseInt(yearMinEl.value);
-                if (!isNaN(ym)) criteria.yearMin = ym;
-            }
-            if (yearMaxEl && yearMaxEl.value && yearMaxEl.value !== '') {
-                var ymx = parseInt(yearMaxEl.value);
-                if (!isNaN(ymx)) criteria.yearMax = ymx;
-            }
-            if (unitsMinEl && unitsMinEl.value && unitsMinEl.value !== '') {
-                var um = parseInt(unitsMinEl.value);
-                if (!isNaN(um)) criteria.unitsMin = um;
-            }
-            if (unitsMaxEl && unitsMaxEl.value && unitsMaxEl.value !== '') {
-                var umx = parseInt(unitsMaxEl.value);
-                if (!isNaN(umx)) criteria.unitsMax = umx;
-            }
-            if (floorsMinEl && floorsMinEl.value && floorsMinEl.value !== '') {
-                var fm = parseInt(floorsMinEl.value);
-                if (!isNaN(fm)) criteria.floorsMin = fm;
-            }
-            if (floorsMaxEl && floorsMaxEl.value && floorsMaxEl.value !== '') {
-                var fmx = parseInt(floorsMaxEl.value);
-                if (!isNaN(fmx)) criteria.floorsMax = fmx;
-            }
-
-            // Building name search
-            var buildingNameEl = document.getElementById('buildingSearchAddress');
-            if (buildingNameEl && buildingNameEl.value.trim() && currentSearchTab === 'building') {
-                if (criteria.buildingName === undefined) criteria.buildingName = buildingNameEl.value.trim();
-            }
-
-            // Transit — subway line proximity search via station coordinates
-
-            // Manhattan Grid — bounding box search via lat/lng
-
-            // ═══════════════════════════════════════════════════════════
-            // GENERIC data-field CHECKBOX SCANNER
-            // Collects ALL checked checkboxes with data-field/data-value
-            // that aren't already handled above.
-            // ═══════════════════════════════════════════════════════════
-            var _handledFields = { 'MlsStatus': 1, 'CommonInterest': 1, 'PropertySubType': 1 };
-
-            // Determine container: advanced mode if visible, else active basic form
-            var _scanContainer = activeBasicForm;
-            var _advMode = document.getElementById('searchAdvancedMode');
-            if (_advMode && _advMode.style.display !== 'none' && !_advMode.classList.contains('hidden')) {
-                _scanContainer = _advMode;
-            }
-
-            if (_scanContainer) {
-                var _allChecked = _scanContainer.querySelectorAll('input[data-field]:checked');
-                var _checkboxFilters = {};
-                for (var _ci = 0; _ci < _allChecked.length; _ci++) {
-                    var _cb = _allChecked[_ci];
-                    // Prefer the CANONICAL Mallan criterion. `data-field` carries
-                    // the provider's vocabulary and is still read by the
-                    // compliance diagnostics, the dead-control guard and
-                    // grid-layouts (where it means a result-column id), so it
-                    // stays in the markup — but Search reads the canonical key
-                    // first where one exists.
-                    var _field = _cb.getAttribute('data-criterion') || _cb.getAttribute('data-field');
-                    // Check BOTH identities. MlsStatus / CommonInterest /
-                    // PropertySubType own dedicated contracts and must never
-                    // fall through to this generic engine — which they would if
-                    // someone later added a data-criterion to them and only the
-                    // resolved key were tested here. Two contracts
-                    // canonicalising one criterion is the drift this work removes.
-                    if (_handledFields[_field] || _handledFields[_cb.getAttribute('data-field')]) continue;
-                    var _val = _cb.getAttribute('data-value') || _cb.value;
-                    if (!_val) continue;
-                    if (!_checkboxFilters[_field]) _checkboxFilters[_field] = [];
-                    if (_checkboxFilters[_field].indexOf(_val) === -1) {
-                        _checkboxFilters[_field].push(_val);
-                    }
-                }
-                // Scan <select> elements with data-field
-                _scanContainer.querySelectorAll('select[data-field]').forEach(function(sel) {
-                    if (sel.selectedIndex <= 0) return;
-                    var _field = sel.getAttribute('data-criterion') || sel.getAttribute('data-field');
-                    if (_handledFields[_field]) return;
-                    var _val = sel.value;
-                    if (_field && _val) {
-                        if (!_checkboxFilters[_field]) _checkboxFilters[_field] = [];
-                        if (_checkboxFilters[_field].indexOf(_val) === -1) {
-                            _checkboxFilters[_field].push(_val);
-                        }
-                    }
-                });
-
-                if (Object.keys(_checkboxFilters).length > 0) {
-                    if (criteria.checkboxFilters === undefined) criteria.checkboxFilters = _checkboxFilters;
-                }
-            }
+            // The chain is now exactly: DOM edit adapter -> canonical workflow
+            // object -> ONE serializer -> execution.
 
             return criteria;
         }
@@ -35813,6 +35381,31 @@ function emailCurrentCalc() {
                 // the BATCH 2 dead-pattern test at
                 // lib/search/__tests__/crm-idx-filter.test.ts.
                 'input[data-sub-status]',
+
+                // ── BUILDING SURFACE: CRITERIA THE CONTRACT DOES NOT OWN ──
+                //
+                // BuildingCriteria offers borough, building name, management
+                // company, neighborhood, ownership, parking, postal code, floors,
+                // address, structure type, units and year built. The Building form
+                // renders far more than that — PropertySubType, Land Lease,
+                // Building Pets, Building Rules, New Development/Resale, Building
+                // Features, Pool, Laundry, Cooling, Accessibility, Exterior
+                // Features, Architectural Style and more.
+                //
+                // `_adapterAppliesTo` already stops the canonical adapters running
+                // on Building, and the legacy generic scanner that used to collect
+                // them anyway has been deleted. So these controls are now enabled
+                // and collected by NOTHING: the agent ticks them and Search ignores
+                // them silently.
+                //
+                // Refused rather than wired. Widening BuildingCriteria because old
+                // controls exist is backwards — a Building fact needs its own
+                // verified authority, after Building identity is resolved.
+                //
+                // The two exceptions are the criteria the contract DOES offer here
+                // and which carry a data-field: CommonInterest (ownership) and
+                // StructureType (structure_type).
+                '#searchBasicModeBuilding input[data-field]:not([data-field="CommonInterest"]):not([data-field="StructureType"])',
 
                 // ── NO HANDLE, THEREFORE UNREADABLE ──
                 // A checkbox with no id, no data-field and no data-local-field

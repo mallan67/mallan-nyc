@@ -442,9 +442,12 @@ describe('every view-divergent control is bound', () => {
     // A parse that silently found nothing would make every assertion below pass
     // vacuously, which is how the first census reported a clean result while
     // missing three whole criteria.
+    // The collector no longer branches on advanced-vs-basic — that whole
+    // reconstruction was deleted — so divergence is now visible only in the
+    // adapter table and the building-fact resolver. The guard measures those.
     const ids = divergentIds();
-    expect(ids.length).toBeGreaterThanOrEqual(12);
-    expect(ids).toEqual(expect.arrayContaining(['adv-min-sqft', 'adv-min-rooms']));
+    expect(ids.length).toBeGreaterThanOrEqual(6);
+    expect(ids).toEqual(expect.arrayContaining(['adv-year-built-from', 'adv-bldg-units-min']));
   });
 
   it('binds every control the collector reads in a view-dependent branch', () => {
@@ -455,6 +458,16 @@ describe('every view-divergent control is bound', () => {
       for (const perTab of Object.values(adapter.ids ?? {}) as any[]) {
         for (const ids of Object.values(perTab) as any[]) {
           (ids as (string | null)[]).forEach((id) => id && bound.add(id));
+        }
+      }
+      // Building-fact adapters DELEGATE to _resolveBuildingFieldIds rather than
+      // restating its ids, so ask the same resolver the adapter asks.
+      if ((adapter as any).buildingFact) {
+        for (const tab of ['sale', 'rent', 'building']) {
+          for (const isAdv of [false, true]) {
+            const resolved = win._resolveBuildingFieldIds(tab, isAdv);
+            (adapter as any).buildingFact.forEach((slot: string) => bound.add(resolved[slot]));
+          }
         }
       }
     }

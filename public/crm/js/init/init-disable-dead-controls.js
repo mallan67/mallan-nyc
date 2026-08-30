@@ -129,6 +129,31 @@
                 // lib/search/__tests__/crm-idx-filter.test.ts.
                 'input[data-sub-status]',
 
+                // ── BUILDING SURFACE: CRITERIA THE CONTRACT DOES NOT OWN ──
+                //
+                // BuildingCriteria offers borough, building name, management
+                // company, neighborhood, ownership, parking, postal code, floors,
+                // address, structure type, units and year built. The Building form
+                // renders far more than that — PropertySubType, Land Lease,
+                // Building Pets, Building Rules, New Development/Resale, Building
+                // Features, Pool, Laundry, Cooling, Accessibility, Exterior
+                // Features, Architectural Style and more.
+                //
+                // `_adapterAppliesTo` already stops the canonical adapters running
+                // on Building, and the legacy generic scanner that used to collect
+                // them anyway has been deleted. So these controls are now enabled
+                // and collected by NOTHING: the agent ticks them and Search ignores
+                // them silently.
+                //
+                // Refused rather than wired. Widening BuildingCriteria because old
+                // controls exist is backwards — a Building fact needs its own
+                // verified authority, after Building identity is resolved.
+                //
+                // The two exceptions are the criteria the contract DOES offer here
+                // and which carry a data-field: CommonInterest (ownership) and
+                // StructureType (structure_type).
+                '#searchBasicModeBuilding input[data-field]:not([data-field="CommonInterest"]):not([data-field="StructureType"])',
+
                 // ── NO HANDLE, THEREFORE UNREADABLE ──
                 // A checkbox with no id, no data-field and no data-local-field
                 // cannot be selected by any collector — there is nothing to

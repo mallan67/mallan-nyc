@@ -138,23 +138,61 @@ describe('adapter keys and shapes come from the canonical contract', () => {
     expect(mismatches).toEqual([]);
   });
 
+  const TAB_TO_WORKFLOW: Record<string, keyof typeof WORKFLOW_CRITERIA> = {
+    sale: 'sale',
+    rent: 'rental',
+    building: 'building',
+  };
+
+  /** The tabs an adapter applies to, however it declares them. */
+  const adapterTabs = (adapter: any): string[] =>
+    adapter.workflows ? [...adapter.workflows] : Object.keys(adapter.ids ?? {});
+
   it('binds a criterion only to workflows that actually offer it', () => {
-    // An adapter wiring a criterion into a workflow the contract does not offer
-    // would let the UI ask a question the product does not.
+    // This walked `adapter.ids` alone. Scope-scanned adapters — checkboxSet,
+    // checkboxBool, featureMap, tags — have no ids map, so they bypassed the
+    // check entirely while sync ran them against whatever tab was active. Adding
+    // `workflows` arrays to those adapters fixed the RUNTIME but left the PROOF
+    // blind to them, which is a second hand-maintained inventory in waiting.
     const wrong: string[] = [];
-    const TAB_TO_WORKFLOW: Record<string, keyof typeof WORKFLOW_CRITERIA> = {
-      sale: 'sale',
-      rent: 'rental',
-      building: 'building',
-    };
     for (const [key, adapter] of Object.entries(REGISTRY)) {
-      for (const tab of Object.keys(adapter.ids ?? {})) {
+      for (const tab of adapterTabs(adapter)) {
         const workflow = TAB_TO_WORKFLOW[tab];
         const offered = WORKFLOW_CRITERIA[workflow] as readonly string[];
         if (!offered.includes(key)) wrong.push(`${key} bound to ${tab}, not offered by ${workflow}`);
       }
     }
     expect(wrong).toEqual([]);
+  });
+
+  it('binds a criterion to EVERY workflow that offers it — exact agreement', () => {
+    // The reverse of the above, and the half that stops the manual `workflows`
+    // arrays drifting: a criterion the contract offers to a workflow, with an
+    // adapter that omits that workflow, is a control the agent can see and the
+    // state will not collect.
+    // Scoped to the three workflows the Search TAB BAR serves. `comparable` is
+    // deliberately excluded: it has no tab, and its criteria are entered through
+    // a separate surface (#comparablesSection) that this state model does not
+    // adapt. Asserting adapters for it would demand bindings to controls that do
+    // not exist on any tab — the invented-control defect, inverted.
+    const TABBED: Array<keyof typeof WORKFLOW_CRITERIA> = ['sale', 'rental', 'building'];
+    const missing: string[] = [];
+    for (const [key, adapter] of Object.entries(REGISTRY)) {
+      const bound = new Set(adapterTabs(adapter).map((t) => TAB_TO_WORKFLOW[t]));
+      for (const workflow of TABBED) {
+        const keys = WORKFLOW_CRITERIA[workflow] as readonly string[];
+        if (!keys.includes(key)) continue;
+        if (!bound.has(workflow)) missing.push(`${key} offered by ${workflow} but not bound there`);
+      }
+    }
+    expect(missing).toEqual([]);
+  });
+
+  it('checks scope-scanned adapters too — guard the guard', () => {
+    // If every adapter happened to carry `ids`, the two assertions above would
+    // pass without ever exercising the case they exist for.
+    const scoped = Object.values(REGISTRY).filter((a: any) => !a.ids && a.workflows);
+    expect(scoped.length).toBeGreaterThanOrEqual(5);
   });
 });
 
@@ -194,7 +232,35 @@ describe('reverse coverage: no enabled control is silently ignored', () => {
   const ownership = () => {
     const block = /var CRITERION_ADAPTERS = \{[\s\S]*?\n        \};/.exec(engine)![0];
     const ids = new Set([...block.matchAll(/'([A-Za-z][A-Za-z0-9_-]*)'/g)].map((m) => m[1]));
-    const fields = new Set([...block.matchAll(/field: '([A-Za-z]+)'/g)].map((m) => m[1]));
+    // Building-fact ids live in `_resolveBuildingFieldIds`, their single owner —
+    // the adapters delegate rather than restate them. An ownership check that
+    // reads only the adapter table reports all 26 as unowned.
+    const resolver = /_resolveBuildingFieldIds = function[\s\S]*?\n        \};/.exec(engine)?.[0] ?? '';
+    const prefixes = [...resolver.matchAll(/\?\s*'([A-Za-z]+)'\s*:\s*'([A-Za-z]+)'/g)].flatMap((m) => [
+      m[1],
+      m[2],
+    ]);
+    for (const m of resolver.matchAll(/'([A-Za-z0-9_-]+)'/g)) {
+      const token = m[1];
+      if (prefixes.includes(token)) continue;
+      if (new RegExp(`tab\\s*===\\s*'${token}'`).test(resolver)) continue;
+      if (new RegExp(`p\\s*\\+\\s*'${token}'`).test(resolver)) {
+        prefixes.forEach((prefix) => ids.add(prefix + token));
+        continue;
+      }
+      ids.add(token);
+    }
+    // Includes legacyFields: one criterion may answer to more than one
+    // data-field spelling. Sale/Rental Basic render NewConstruction while
+    // Building/Advanced render NewConstructionYN, and both are the SAME
+    // criterion — an ownership check that reads only `field` reports the legacy
+    // spelling as unowned.
+    const fields = new Set([
+      ...[...block.matchAll(/field: '([A-Za-z]+)'/g)].map((m) => m[1]),
+      ...[...block.matchAll(/legacyFields: \[([^\]]*)\]/g)].flatMap((m) =>
+        [...m[1].matchAll(/'([A-Za-z]+)'/g)].map((x) => x[1]),
+      ),
+    ]);
     const firstClass = new Set(
       [...(/_FIRST_CLASS_FIELDS = \[([\s\S]*?)\]/.exec(engine) ?? [, ''])[1].matchAll(/'([^']+)'/g)].map(
         (m) => m[1],
@@ -329,7 +395,11 @@ describe('the collector no longer keeps a private id table', () => {
   it('reads Quick Search and keyword from canonical state', () => {
     // A second id table is what allowed the first one to be wrong without
     // anything disagreeing with it.
-    expect(engine).toMatch(/canonicalCriteriaFor\(currentSearchTab\)/);
+    // The whole legacy reconstruction is gone — 488 lines that re-read the DOM
+    // and rebuilt the business question a second time after canonical
+    // serialization had already produced it. What remains is one serializer.
+    expect(engine).toContain('serializeCanonicalToWire(currentSearchTab, criteria)');
+    expect(engine).toContain('THE LEGACY DOM RECONSTRUCTION IS GONE');
     expect(engine).not.toMatch(/var rlsInputId, zipInputId, unitInputId;/);
   });
 });

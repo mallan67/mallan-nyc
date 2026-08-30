@@ -90,7 +90,20 @@ describe('one shared building-field resolver', () => {
 
 describe('collector and restore use the SAME resolver', () => {
   it('the collector resolves ids through the shared rule', () => {
-    expect(engineSrc).toMatch(/_resolveBuildingFieldIds\(currentSearchTab, _isAdvanced\)/);
+    // The invariant is unchanged — ONE owner for the building-fact ids — but its
+    // call site moved. The 488-line legacy collector that used to call
+    // `_resolveBuildingFieldIds(currentSearchTab, _isAdvanced)` directly is gone;
+    // the canonical adapters now delegate to the same resolver through
+    // `_adapterIds`, which is what keeps collector and restore in agreement.
+    //
+    // This test caught a real regression on the way: the first version of those
+    // adapters COPIED the resolver's ids into the adapter table, recreating the
+    // exact split this resolver exists to prevent.
+    expect(engineSrc).toMatch(/_adapterIds\s*\(/);
+    expect(engineSrc).toMatch(/window\._resolveBuildingFieldIds\(tab, view === 'advanced'\)/);
+    expect(engineSrc).toMatch(/buildingFact: \['yearMin', 'yearMax'\]/);
+    // And the ids are NOT restated beside the delegation.
+    expect(engineSrc).not.toMatch(/basic: \['saleBuildingMinYear'/);
   });
 
   it('saved-search restore resolves ids through the shared rule', () => {

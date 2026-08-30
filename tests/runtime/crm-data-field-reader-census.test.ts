@@ -134,16 +134,27 @@ describe('dedicated Search contracts keep their own identity', () => {
   it.each(['MlsStatus', 'CommonInterest', 'PropertySubType'])(
     '%s still has a dedicated reader',
     (field) => {
-      expect(engine).toContain(`data-field="${field}"`);
+      // The invariant is unchanged — these three have their OWN reader rather
+      // than falling through to the generic scan — but its home moved. They were
+      // hand-read inside the 488-line legacy collector, which is gone; each is
+      // now a dedicated canonical adapter declaring `field: '<Name>'`.
+      expect(engine).toContain(`field: '${field}'`);
     },
   );
 
-  it('the generic scanner still skips the dedicated three', () => {
-    // If these fell through to the generic engine they would be canonicalised
-    // twice, by two different contracts.
-    const handled = engine.match(/_handledFields[^;]*;/s)?.[0] ?? '';
+  it('the generic scanner still skips the dedicated fields', () => {
+    // If these fell through to the generic feature scan they would be
+    // canonicalised twice, by two different contracts — one concept, two paths.
+    // `_handledFields` belonged to the deleted collector; the exclusion now lives
+    // in `_FIRST_CLASS_FIELDS`, which the feature adapter consults.
+    const firstClass = engine.match(/_FIRST_CLASS_FIELDS = \[[\s\S]*?\];/)?.[0] ?? '';
     for (const field of ['MlsStatus', 'CommonInterest', 'PropertySubType']) {
-      expect(handled).toContain(field);
+      expect(firstClass).toContain(field);
+    }
+    // And the spellings added since, including the legacy NewConstruction alias
+    // that Sale/Rental Basic actually renders.
+    for (const field of ['PetsAllowed', 'Furnished', 'NewConstructionYN', 'NewConstruction']) {
+      expect(firstClass).toContain(field);
     }
   });
 });

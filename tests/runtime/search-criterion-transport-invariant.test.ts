@@ -134,13 +134,21 @@ const TRANSPORT_BROKEN: Readonly<Record<string, string>> = Object.freeze({
  * The FIRST boundary, and a different defect class from the six lost at the
  * wire: this value dies before a param is ever built for it.
  */
-const COLLECTED_BUT_NOT_SERIALIZED: Readonly<Record<string, string>> = Object.freeze({
-  financingMin:
-    'Set at search-engine.js:1203 and referenced NOWHERE else in the entire CRM ' +
-    '— write-only. The related control family MaximumFinancingPercent is ' +
-    'separately disabled and carries the magic data-value strings "gt:0"/"eq:0", ' +
-    'which no canonical parser owns. Financing has two dead paths, not one.',
-});
+/**
+ * EMPTY, and that is the improvement.
+ *
+ * `financingMin` used to live here: the legacy collector set it and nothing read
+ * it — write-only. That collector is gone. `max_financing_percent` is now a
+ * canonical criterion mapped by the ONE serializer, so the value it carries
+ * reaches the wire and the provider refuses it BY NAME rather than the criterion
+ * evaporating in the client.
+ *
+ * A criterion that is collected and never serialized is silent widening: the
+ * agent's filter disappears between the form and the request. Keeping this set
+ * empty is the invariant; anything added here needs a reason strong enough to
+ * justify a filter that cannot execute.
+ */
+const COLLECTED_BUT_NOT_SERIALIZED: Readonly<Record<string, string>> = Object.freeze({});
 
 describe('criterion transport — the form to the serializer', () => {
   it('every collected criterion is read by the serializer or declared dead', () => {
