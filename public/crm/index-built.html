@@ -17815,8 +17815,10 @@ function manageShowToast(msg) {
                 building: { basic: ['buildingMinFloors', 'buildingMaxFloors'], advanced: ['adv-floors-min', 'adv-floors-max'] } } },
             max_financing_percent: { kind: 'range', shape: 'range_number', ids: {
                 sale:     { basic: ['saleBuildingFinancingMin', 'saleBuildingFinancingMax'], advanced: ['adv-financing', null] },
-                rent:     { basic: ['rentalBuildingFinancingMin', 'rentalBuildingFinancingMax'], advanced: ['adv-financing', null] },
-                building: { basic: ['buildingFinancingMin', 'buildingFinancingMax'], advanced: ['adv-financing', null] } } },
+                // NOT bound to rent/building: the contract offers max_financing_percent
+                // to SALE only, though both surfaces render the controls. Wiring them
+                // here would let the UI expand the contract silently.
+                } },
 
             // ── CLOSED-VOCABULARY SETS (checkbox groups, read by data-field) ──
             // Scope-based rather than id-based: the same data-field markup appears
@@ -17839,29 +17841,35 @@ function manageShowToast(msg) {
                 rent:     { basic: ['rentalSearchAddress'], advanced: ['advancedSearchAddress'] },
                 building: { basic: ['buildingSearchAddress'], advanced: ['advancedSearchAddress'] } } },
             public_remarks_keyword: { kind: 'text', shape: 'text', ids: {
-                sale:     { basic: ['searchKeyword'], advanced: ['adv-keyword'] },
-                rent:     { basic: ['searchKeyword'], advanced: ['adv-keyword'] },
-                building: { basic: ['buildingKeywordSearch'], advanced: ['adv-keyword'] } } },
+                sale:     { basic: ['saleKeywordSearch'], advanced: ['adv-keyword'] },
+                rent:     { basic: ['rentalKeywordSearch'], advanced: ['adv-keyword'] } } },
             management_company: { kind: 'text', shape: 'text', ids: {
                 sale:     { basic: ['saleManagementCompany'], advanced: ['adv-management'] },
                 rent:     { basic: ['rentalManagementCompany'], advanced: ['adv-management'] },
                 building: { basic: ['buildingManagementCompany'], advanced: ['adv-management'] } } },
+            // Advanced-only: the Basic surfaces render no building-name control,
+            // so there is no basic id to invent one for.
             building_name: { kind: 'text', shape: 'text', ids: {
-                sale:     { basic: ['saleBuildingName'], advanced: ['adv-building-name'] },
-                rent:     { basic: ['rentalBuildingName'], advanced: ['adv-building-name'] },
-                building: { basic: ['buildingNameSearch'], advanced: ['adv-building-name'] } } },
+                sale:     { basic: [], advanced: ['adv-building-name'] },
+                rent:     { basic: [], advanced: ['adv-building-name'] },
+                building: { basic: [], advanced: ['adv-building-name'] } } },
             postal_code: { kind: 'text', shape: 'text', ids: {
-                sale:     { basic: ['searchQuickZip'], advanced: ['adv-zip'] },
-                rent:     { basic: ['searchQuickZip'], advanced: ['adv-zip'] },
-                building: { basic: ['searchQuickZip'], advanced: ['adv-zip'] } } },
+                sale:     { basic: ['saleQuickZip'], advanced: ['adv-zip'] },
+                rent:     { basic: ['rentalQuickZip'], advanced: ['adv-zip'] },
+                building: { basic: ['buildingQuickZip'], advanced: ['adv-zip'] } } },
+            // Basic-only: Advanced renders no unit control, so this criterion has
+            // no second view to be carried into.
             unit: { kind: 'text', shape: 'text', ids: {
-                sale:     { basic: ['searchQuickUnit'], advanced: ['adv-unit'] },
-                rent:     { basic: ['searchQuickUnit'], advanced: ['adv-unit'] },
-                building: { basic: ['searchQuickUnit'], advanced: ['adv-unit'] } } },
-            listing_id_canonical: { kind: 'text', shape: 'text', ids: {
-                sale:     { basic: ['searchQuickRLS'], advanced: ['adv-rls-id'] },
-                rent:     { basic: ['searchQuickRLS'], advanced: ['adv-rls-id'] },
-                building: { basic: ['searchQuickRLS'], advanced: ['adv-rls-id'] } } },
+                sale:     { basic: ['saleQuickUnit'], advanced: [] },
+                rent:     { basic: ['rentalQuickUnit'], advanced: [] } } },
+            // text_set, NOT text. The canonical contract declares
+            // `listing_id_canonical: 'text_set'`, the control accepts a
+            // comma-separated list, and the executor splits on commas to build a
+            // disjunction. Storing "ID1,ID2" as one scalar string would have made
+            // the canonical state disagree with its own generated contract.
+            listing_id_canonical: { kind: 'textSet', shape: 'text_set', ids: {
+                sale:     { basic: ['saleQuickRls'], advanced: ['adv-rls-id'] },
+                rent:     { basic: ['rentalQuickRls'], advanced: ['adv-rls-id'] } } },
 
             // ── GEOGRAPHY (tag widgets owned by neighborhood-autocomplete.js) ──
             neighborhood: { kind: 'tags', shape: 'text_set', selector: 'neighborhoods' },
@@ -17901,7 +17909,7 @@ function manageShowToast(msg) {
 
         /** DOM -> canonical value, or undefined when this view cannot answer. */
         function _readAdapter(key, adapter, tab, view) {
-            if (adapter.kind === 'range' || adapter.kind === 'text') {
+            if (adapter.kind === 'range' || adapter.kind === 'text' || adapter.kind === 'textSet') {
                 var ids = ((adapter.ids || {})[tab] || {})[view] || [];
                 var els = ids.map(function (id) { return id ? document.getElementById(id) : null; });
                 // A view with NO control for this criterion cannot speak for it.
@@ -17911,6 +17919,12 @@ function manageShowToast(msg) {
                 if (adapter.kind === 'text') {
                     var t = els[0] && els[0].value != null ? String(els[0].value).trim() : '';
                     return t === '' ? null : t;
+                }
+                if (adapter.kind === 'textSet') {
+                    var rawList = els[0] && els[0].value != null ? String(els[0].value) : '';
+                    var members = rawList.split(',').map(function (m) { return m.trim(); })
+                        .filter(function (m) { return m !== ''; });
+                    return members.length ? members : null;
                 }
                 var min = _numOrUndefined(els[0] && els[0].value);
                 var max = _numOrUndefined(els[1] && els[1].value);
@@ -17963,12 +17977,13 @@ function manageShowToast(msg) {
 
         /** Canonical value -> DOM. */
         function _writeAdapter(key, adapter, tab, view, value) {
-            if (adapter.kind === 'range' || adapter.kind === 'text') {
+            if (adapter.kind === 'range' || adapter.kind === 'text' || adapter.kind === 'textSet') {
                 var ids = ((adapter.ids || {})[tab] || {})[view] || [];
-                var vals = adapter.kind === 'text'
-                    ? [value == null ? '' : String(value)]
-                    : [value && value.min != null ? String(value.min) : '',
-                       value && value.max != null ? String(value.max) : ''];
+                var vals;
+                if (adapter.kind === 'text') vals = [value == null ? '' : String(value)];
+                else if (adapter.kind === 'textSet') vals = [Array.isArray(value) ? value.join(',') : ''];
+                else vals = [value && value.min != null ? String(value.min) : '',
+                             value && value.max != null ? String(value.max) : ''];
                 ids.forEach(function (id, i) {
                     if (!id) return;
                     var el = document.getElementById(id);
@@ -18354,30 +18369,30 @@ function manageShowToast(msg) {
                 }
             }
 
-            // Quick Search fields — RLS ID, Zip, Unit (advanced mode has its own IDs)
-            var rlsInputId, zipInputId, unitInputId;
-            if (_isAdvanced) {
-                rlsInputId = 'adv-rls-id';
-                zipInputId = 'adv-zip';
-                unitInputId = 'searchQuickUnit';
-            } else {
-                rlsInputId = 'searchQuickRls';
-                zipInputId = 'searchQuickZip';
-                unitInputId = 'searchQuickUnit';
+            // Quick Search (listing ID / ZIP / unit) and keyword, FROM CANONICAL STATE.
+            //
+            // This read a second, private id table — and every Basic id in it was
+            // WRONG. `searchQuickRls`, `searchQuickZip`, `searchQuickUnit` and
+            // `searchKeyword` do not exist in the markup: the real controls are
+            // per-workflow (`saleQuickRls` / `rentalQuickRls` / `buildingQuickRls`,
+            // and `saleKeywordSearch` / `rentalKeywordSearch` /
+            // `buildingKeywordSearch`). `getElementById` returned null every time,
+            // so an agent could type a listing ID, ZIP, unit or keyword into a
+            // Basic form and it silently never reached the wire.
+            //
+            // A second id table is what allowed that: it could be wrong without
+            // anything disagreeing with it. These now come from the canonical
+            // state, whose adapters carry the real ids and are checked against the
+            // markup by test.
+            var _qs = canonicalCriteriaFor(currentSearchTab) || {};
+            // `listing_id_canonical` is a text_set — the control accepts a
+            // comma-separated list and the executor builds a disjunction from it.
+            if (Array.isArray(_qs.listing_id_canonical) && _qs.listing_id_canonical.length) {
+                criteria.rlsId = _qs.listing_id_canonical.join(',');
             }
-            var rlsInput = document.getElementById(rlsInputId);
-            var zipInput = document.getElementById(zipInputId);
-            var unitInput = document.getElementById(unitInputId);
-            if (rlsInput && rlsInput.value.trim()) criteria.rlsId = rlsInput.value.trim();
-            if (zipInput && zipInput.value.trim()) criteria.zip = zipInput.value.trim();
-            if (unitInput && unitInput.value.trim()) criteria.unit = unitInput.value.trim();
-
-            // Keyword search (PublicRemarks contains)
-            var keywordId = _isAdvanced ? 'adv-keyword' : 'searchKeyword';
-            var keywordEl = document.getElementById(keywordId);
-            if (keywordEl && keywordEl.value.trim()) {
-                criteria.keyword = keywordEl.value.trim();
-            }
+            if (_qs.postal_code) criteria.zip = _qs.postal_code;
+            if (_qs.unit) criteria.unit = _qs.unit;
+            if (_qs.public_remarks_keyword) criteria.keyword = _qs.public_remarks_keyword;
 
             // Management Company. NOT ListOfficeName: Cotality declares no
             // ManagementCompany Property field, and listing office is a
@@ -18480,7 +18495,7 @@ function manageShowToast(msg) {
             }
 
             // Building name search
-            var buildingNameEl = document.getElementById('buildingSearchAddress') || document.getElementById('buildingNameSearch');
+            var buildingNameEl = document.getElementById('buildingSearchAddress');
             if (buildingNameEl && buildingNameEl.value.trim() && currentSearchTab === 'building') {
                 criteria.buildingName = buildingNameEl.value.trim();
             }

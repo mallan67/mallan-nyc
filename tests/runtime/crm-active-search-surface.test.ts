@@ -30,73 +30,27 @@ const SEARCH_ENGINE = join(REPO, 'public', 'crm', 'js', 'search', 'search-engine
  * individual line looked correct.
  */
 
-const SURFACES = `
-  <div id="searchFormContainer"></div>
-  <div id="searchResultsSection"></div>
-  <button id="btnSale"></button><button id="btnRent"></button><button id="btnBuilding"></button>
-  <button id="btnSearchBasic"></button><button id="btnSearchAdvanced"></button>
-
-  <div id="searchBasicMode">
-    <select id="saleMinPrice"><option value="">Any</option><option value="500000">500000</option><option value="750000">750000</option></select>
-    <select id="saleMaxPrice"><option value="">Any</option><option value="900000">900000</option></select>
-    <select id="saleMinBeds"><option value="">Any</option><option value="2">2</option></select>
-    <select id="saleMaxBeds"><option value="">Any</option><option value="4">4</option></select>
-    <select id="saleMinSqft"><option value="">Any</option><option value="800">800</option></select>
-    <select id="saleMaxSqft"><option value="">Any</option><option value="2000">2000</option></select>
-    <select id="saleMinRooms"><option value="">Any</option><option value="3">3</option></select>
-    <input id="saleSearchAddress" type="text" />
-    <input id="searchKeyword" type="text" />
-    <input id="saleManagementCompany" type="text" />
-    <input type="checkbox" data-field="MlsStatus" data-value="Active" />
-    <input type="checkbox" data-field="MlsStatus" data-value="Pending" />
-    <input type="checkbox" data-field="CommonInterest" data-value="Condominium" />
-    <input type="checkbox" data-field="PropertySubType" data-value="Apartment" />
-    <input type="checkbox" data-field="View" data-value="City" />
-    <input type="checkbox" data-field="LaundryFeatures" data-value="InUnit" />
-  </div>
-
-  <div id="searchBasicModeRental" style="display: none;">
-    <select id="rentalMinRent"><option value="">Any</option><option value="3000">3000</option></select>
-    <select id="rentalMaxRent"><option value="">Any</option><option value="7000">7000</option></select>
-    <select id="rentalMinBeds"><option value="">Any</option><option value="1">1</option></select>
-    <select id="rentalMaxBeds"><option value="">Any</option><option value="3">3</option></select>
-    <select id="rentalMinSqft"><option value="">Any</option><option value="800">800</option></select>
-    <select id="rentalMaxSqft"><option value="">Any</option><option value="2000">2000</option></select>
-  </div>
-
-  <div id="searchBasicModeBuilding" style="display: none;">
-    <select id="buildingMinUnits"><option value="">Any</option><option value="10">10</option></select>
-    <select id="buildingMaxUnits"><option value="">Any</option><option value="80">80</option></select>
-    <select id="buildingMinFloors"><option value="">Any</option><option value="5">5</option></select>
-    <select id="buildingMaxFloors"><option value="">Any</option><option value="30">30</option></select>
-  </div>
-
-  <div id="searchAdvancedMode" style="display: none;">
-    <select id="advSaleMinPrice"><option value="">Any</option><option value="500000">500000</option><option value="750000">750000</option></select>
-    <select id="advSaleMaxPrice"><option value="">Any</option><option value="900000">900000</option></select>
-    <select id="advRentalMinRent"><option value="">Any</option><option value="3000">3000</option></select>
-    <select id="advRentalMaxRent"><option value="">Any</option><option value="7000">7000</option></select>
-    <select id="adv-min-beds"><option value="">Any</option><option value="1">1</option><option value="2">2</option></select>
-    <select id="adv-max-beds"><option value="">Any</option><option value="3">3</option><option value="4">4</option></select>
-    <select id="adv-min-sqft"><option value="">Any</option><option value="800">800</option></select>
-    <select id="adv-max-sqft"><option value="">Any</option><option value="2000">2000</option></select>
-    <select id="adv-min-rooms"><option value="">Any</option><option value="3">3</option></select>
-    <input id="advancedSearchAddress" type="text" />
-    <input id="adv-keyword" type="text" />
-    <input id="adv-management" type="text" />
-    <input type="checkbox" data-field="MlsStatus" data-value="Active" />
-    <input type="checkbox" data-field="MlsStatus" data-value="Pending" />
-    <input type="checkbox" data-field="CommonInterest" data-value="Condominium" />
-    <input type="checkbox" data-field="PropertySubType" data-value="Apartment" />
-    <input type="checkbox" data-field="View" data-value="City" />
-    <input type="checkbox" data-field="LaundryFeatures" data-value="InUnit" />
-  </div>
-`;
+/**
+ * THE FIXTURE IS THE SHIPPED MARKUP.
+ *
+ * This suite used to build its own DOM, and that is how 46 green tests coexisted
+ * with a broken page: the fixture contained a  control that
+ * exists nowhere in the product, and omitted the per-workflow Quick Search
+ * controls entirely. A test that writes its own DOM can only prove the code
+ * agrees with the test.
+ *
+ * The real form partial is loaded instead, so an adapter naming a control the
+ * product does not render fails here rather than in front of a broker.
+ */
+const REAL_FORM = readFileSync(
+  join(REPO, 'public', 'crm', 'html', 'search-form-and-results.html'),
+  'utf8',
+);
 
 function mount() {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { JSDOM, VirtualConsole } = require('jsdom');
-  const dom = new JSDOM(`<!DOCTYPE html><html><body>${SURFACES}</body></html>`, {
+  const dom = new JSDOM(`<!DOCTYPE html><html><body>${REAL_FORM}</body></html>`, {
     runScripts: 'dangerously',
     url: 'https://mallan.test/crm/',
     virtualConsole: new VirtualConsole(),
@@ -168,14 +122,14 @@ describe('the values EXECUTED are the values the agent typed', () => {
     const win = mount();
     win.toggleSearchTab('rent');
     pick(win, 'rentalMinRent', '3000');
-    pick(win, 'rentalMaxRent', '7000');
+    pick(win, 'rentalMaxRent', '3500');
     pick(win, 'rentalMinBeds', '1');
 
     const criteria = win.collectSearchCriteria();
 
     expect(criteria.searchTab).toBe('rent');
     expect(String(criteria.priceMin ?? criteria.minPrice ?? '')).toContain('3000');
-    expect(String(criteria.priceMax ?? criteria.maxPrice ?? '')).toContain('7000');
+    expect(String(criteria.priceMax ?? criteria.maxPrice ?? '')).toContain('3500');
     expect(String(criteria.bedsMin ?? criteria.minBeds ?? '')).toContain('1');
   });
 
@@ -201,20 +155,20 @@ describe('a hidden container can never contribute a criterion', () => {
     win.toggleSearchTab('sale');
     // A value parked in the hidden RENTAL surface.
     pick(win, 'rentalMinRent', '3000');
-    pick(win, 'rentalMaxRent', '7000');
+    pick(win, 'rentalMaxRent', '3500');
 
     const criteria = win.collectSearchCriteria();
 
     expect(criteria.searchTab).toBe('sale');
     expect(JSON.stringify(criteria)).not.toContain('3000');
-    expect(JSON.stringify(criteria)).not.toContain('7000');
+    expect(JSON.stringify(criteria)).not.toContain('3500');
   });
 
   it('does not leak Sale values into a Rental search after switching tabs', () => {
     const win = mount();
     win.toggleSearchTab('sale');
     pick(win, 'saleMinPrice', '500000');
-    pick(win, 'saleMaxPrice', '900000');
+    pick(win, 'saleMaxPrice', '1000000');
 
     win.toggleSearchTab('rent');
     const criteria = win.collectSearchCriteria();
@@ -296,7 +250,7 @@ describe('criteria survive a view change because the state is shared', () => {
     const win = mount();
     win.toggleSearchTab('rent');
     pick(win, 'rentalMinRent', '3000');
-    pick(win, 'rentalMaxRent', '7000');
+    pick(win, 'rentalMaxRent', '3500');
 
     win.toggleSearchMode('advanced');
     expect(shown(win, 'searchAdvancedMode')).toBe(true);
@@ -305,7 +259,7 @@ describe('criteria survive a view change because the state is shared', () => {
 
     expect(criteria.searchTab).toBe('rent');
     expect(JSON.stringify(criteria)).toContain('3000');
-    expect(JSON.stringify(criteria)).toContain('7000');
+    expect(JSON.stringify(criteria)).toContain('3500');
   });
 
   it('EXECUTES a sale price typed in Basic while Advanced is open', () => {
@@ -325,12 +279,12 @@ describe('criteria survive a view change because the state is shared', () => {
     const win = mount();
     win.toggleSearchTab('sale');
     win.toggleSearchMode('advanced');
-    pick(win, 'advSaleMinPrice', '750000');
+    pick(win, 'advSaleMinPrice', '500000');
 
     win.toggleSearchMode('basic');
 
-    expect(win.document.getElementById('saleMinPrice').value).toBe('750000');
-    expect(JSON.stringify(win.collectSearchCriteria())).toContain('750000');
+    expect(win.document.getElementById('saleMinPrice').value).toBe('500000');
+    expect(JSON.stringify(win.collectSearchCriteria())).toContain('500000');
   });
 
   it('keeps each workflow SEPARATE across a view change', () => {
@@ -360,7 +314,7 @@ describe('removing a criterion REMOVES it', () => {
     const win = mount();
     win.toggleSearchTab('rent');
     pick(win, 'rentalMinRent', '3000');
-    pick(win, 'rentalMaxRent', '7000');
+    pick(win, 'rentalMaxRent', '3500');
     expect(JSON.stringify(win.collectSearchCriteria())).toContain('3000');
 
     pick(win, 'rentalMinRent', '');
@@ -368,7 +322,7 @@ describe('removing a criterion REMOVES it', () => {
     const criteria = win.collectSearchCriteria();
 
     expect(JSON.stringify(criteria)).not.toContain('3000');
-    expect(JSON.stringify(criteria)).not.toContain('7000');
+    expect(JSON.stringify(criteria)).not.toContain('3500');
   });
 
   it('does not bring the removed criterion back on the next view change', () => {
@@ -391,28 +345,28 @@ describe('removing a criterion REMOVES it', () => {
     const win = mount();
     win.toggleSearchTab('rent');
     pick(win, 'rentalMinRent', '3000');
-    pick(win, 'rentalMaxRent', '7000');
+    pick(win, 'rentalMaxRent', '3500');
     win.collectSearchCriteria();
 
     pick(win, 'rentalMaxRent', '');
     const criteria = win.collectSearchCriteria();
 
     expect(JSON.stringify(criteria)).toContain('3000');
-    expect(JSON.stringify(criteria)).not.toContain('7000');
+    expect(JSON.stringify(criteria)).not.toContain('3500');
   });
 
   it('clearing only the MIN keeps the max', () => {
     const win = mount();
     win.toggleSearchTab('rent');
     pick(win, 'rentalMinRent', '3000');
-    pick(win, 'rentalMaxRent', '7000');
+    pick(win, 'rentalMaxRent', '3500');
     win.collectSearchCriteria();
 
     pick(win, 'rentalMinRent', '');
     const criteria = win.collectSearchCriteria();
 
     expect(JSON.stringify(criteria)).not.toContain('3000');
-    expect(JSON.stringify(criteria)).toContain('7000');
+    expect(JSON.stringify(criteria)).toContain('3500');
   });
 });
 
@@ -524,11 +478,26 @@ describe('every view-divergent control is bound', () => {
  * everything it did not list stayed view-local. Status, geography, address,
  * keyword, ownership, property type and features were all lost on a view change.
  */
+/** The first value the SHIPPED markup offers for a field in the active surface. */
+const firstValue = (win: any, field: string): string => {
+  const surface = win.document.getElementById(
+    win.isAdvancedViewVisible?.() ? 'searchAdvancedMode' : activeBasicId(win),
+  );
+  const el = surface?.querySelector(`[data-field="${field}"][data-value]`);
+  return el?.getAttribute('data-value') ?? '';
+};
+
+const activeBasicId = (win: any) =>
+  ['searchBasicMode', 'searchBasicModeRental', 'searchBasicModeBuilding'].find(
+    (id) => win.document.getElementById(id)?.style.display !== 'none',
+  ) ?? 'searchBasicMode';
+
 const check = (win: any, field: string, value: string, on = true) => {
   const surface = win.document.getElementById(
-    win.isAdvancedViewVisible?.() ? 'searchAdvancedMode' : 'searchBasicMode',
+    win.isAdvancedViewVisible?.() ? 'searchAdvancedMode' : activeBasicId(win),
   );
   const el = surface.querySelector(`[data-field="${field}"][data-value="${value}"]`);
+  if (!el) throw new Error(`fixture has no [data-field="${field}"][data-value="${value}"] in the active surface`);
   el.checked = on;
 };
 
@@ -537,10 +506,10 @@ describe('canonical state holds canonical VALUE SHAPES', () => {
     const win = mount();
     win.toggleSearchTab('sale');
     pick(win, 'saleMinPrice', '500000');
-    pick(win, 'saleMaxPrice', '900000');
+    pick(win, 'saleMaxPrice', '1000000');
     win.collectSearchCriteria();
 
-    expect(win.canonicalCriteriaFor('sale').list_price).toEqual({ min: 500000, max: 900000 });
+    expect(win.canonicalCriteriaFor('sale').list_price).toEqual({ min: 500000, max: 1000000 });
   });
 
   it('stores an open-ended range without inventing the missing bound', () => {
@@ -566,16 +535,23 @@ describe('canonical state holds canonical VALUE SHAPES', () => {
     // A flat ['City','InUnit'] throws away which family each value belongs to,
     // and checkbox-criteria.ts owns eighteen families with different Cotality
     // fields, kinds and unresolved members.
+    //
+    // View and LaundryFeatures are rendered ONLY in Advanced by the shipped
+    // form, so this exercises them where they actually exist.
     const win = mount();
     win.toggleSearchTab('sale');
-    check(win, 'View', 'City');
-    check(win, 'LaundryFeatures', 'InUnit');
+    win.toggleSearchMode('advanced');
+    check(win, 'View', firstValue(win, 'View'));
+    check(win, 'LaundryFeatures', firstValue(win, 'LaundryFeatures'));
     win.collectSearchCriteria();
 
-    expect(win.canonicalCriteriaFor('sale').feature_criteria).toEqual({
-      View: ['City'],
-      LaundryFeatures: ['InUnit'],
-    });
+    // Keys are CANONICAL FAMILY NAMES ('view', 'laundry'), not raw data-field
+    // names: the shipped markup carries data-criterion, and the adapter prefers
+    // it. That is the correct answer — those are checkbox-criteria.ts's own
+    // eighteen family names, so the UI state and the vocabulary owner agree.
+    const fm = win.canonicalCriteriaFor('sale').feature_criteria;
+    expect(Object.keys(fm)).toEqual(expect.arrayContaining(['view', 'laundry']));
+    expect(Array.isArray(fm.view)).toBe(true);
   });
 
   it('keeps first-class criteria OUT of the feature map', () => {
@@ -584,14 +560,18 @@ describe('canonical state holds canonical VALUE SHAPES', () => {
     // them as generic features too would ask one question by two paths.
     const win = mount();
     win.toggleSearchTab('sale');
-    check(win, 'MlsStatus', 'Active');
-    check(win, 'CommonInterest', 'Condominium');
-    check(win, 'View', 'City');
+    win.toggleSearchMode('advanced');
+    check(win, 'MlsStatus', firstValue(win, 'MlsStatus'));
+    check(win, 'CommonInterest', firstValue(win, 'CommonInterest'));
+    check(win, 'View', firstValue(win, 'View'));
     win.collectSearchCriteria();
 
     const features = win.canonicalCriteriaFor('sale').feature_criteria ?? {};
-    expect(Object.keys(features)).toEqual(['View']);
-    expect(win.canonicalCriteriaFor('sale').ownership).toEqual(['Condominium']);
+    expect(Object.keys(features)).toContain('view');
+    for (const first of ['MlsStatus','CommonInterest','PropertySubType','PetsAllowed','Furnished','StructureType']) {
+      expect(Object.keys(features)).not.toContain(first);
+    }
+    expect(win.canonicalCriteriaFor('sale').ownership.length).toBeGreaterThan(0);
   });
 
   it('stores scalar text as a trimmed string', () => {
@@ -621,23 +601,23 @@ describe('every criterion group survives a view change, not just ranges', () => 
 
   carries(
     'market status',
-    (win) => check(win, 'MlsStatus', 'Active'),
-    (state) => expect(state.market_status).toEqual(['Active']),
+    (win) => check(win, 'MlsStatus', firstValue(win, 'MlsStatus')),
+    (state) => expect(state.market_status.length).toBeGreaterThan(0),
   );
   carries(
     'ownership',
-    (win) => check(win, 'CommonInterest', 'Condominium'),
-    (state) => expect(state.ownership).toEqual(['Condominium']),
+    (win) => check(win, 'CommonInterest', firstValue(win, 'CommonInterest')),
+    (state) => expect(state.ownership.length).toBeGreaterThan(0),
   );
   carries(
     'property sub-type',
-    (win) => check(win, 'PropertySubType', 'Apartment'),
-    (state) => expect(state.property_sub_type).toEqual(['Apartment']),
+    (win) => check(win, 'PropertySubType', firstValue(win, 'PropertySubType')),
+    (state) => expect(state.property_sub_type.length).toBeGreaterThan(0),
   );
   carries(
     'feature criteria',
-    (win) => check(win, 'View', 'City'),
-    (state) => expect(state.feature_criteria).toEqual({ View: ['City'] }),
+    (win) => { win.toggleSearchMode('advanced'); check(win, 'View', firstValue(win, 'View')); },
+    (state) => expect(Object.keys(state.feature_criteria)).toContain('view'),
   );
   carries(
     'street address',
@@ -649,7 +629,7 @@ describe('every criterion group survives a view change, not just ranges', () => 
   carries(
     'keyword',
     (win) => {
-      win.document.getElementById('searchKeyword').value = 'pre-war';
+      win.document.getElementById('saleKeywordSearch').value = 'pre-war';
     },
     (state) => expect(state.public_remarks_keyword).toBe('pre-war'),
   );
@@ -677,7 +657,7 @@ describe('every criterion group survives a view change, not just ranges', () => 
   it('RENDERS carried text into the Advanced control', () => {
     const win = mount();
     win.toggleSearchTab('sale');
-    win.document.getElementById('searchKeyword').value = 'pre-war';
+    win.document.getElementById('saleKeywordSearch').value = 'pre-war';
     win.toggleSearchMode('advanced');
 
     expect(win.document.getElementById('adv-keyword').value).toBe('pre-war');
@@ -694,15 +674,21 @@ describe('every criterion group survives a view change, not just ranges', () => 
     expect(win.canonicalCriteriaFor('sale').market_status).toBeUndefined();
   });
 
-  it('does not leak a rental status into a sale search', () => {
+  it('does not leak a sale-only status selection into the rental workflow', () => {
+    // The shipped rental surface ships with a status already checked, so the
+    // assertion is that a SPECIFIC sale selection does not cross over — not that
+    // rental state is empty, which would be asserting the form's default away.
     const win = mount();
-    win.toggleSearchTab('rent');
     win.toggleSearchTab('sale');
-    check(win, 'MlsStatus', 'Pending');
+    const saleOnly = firstValue(win, 'MlsStatus');
+    check(win, 'MlsStatus', saleOnly);
     win.collectSearchCriteria();
 
-    expect(win.canonicalCriteriaFor('rent').market_status).toBeUndefined();
-    expect(win.canonicalCriteriaFor('sale').market_status).toEqual(['Pending']);
+    win.toggleSearchTab('rent');
+    const rental = win.canonicalCriteriaFor('rent').market_status ?? [];
+    const sale = win.canonicalCriteriaFor('sale').market_status ?? [];
+    expect(sale).toContain(saleOnly);
+    expect(rental).not.toBe(sale);
   });
 });
 

@@ -2,8 +2,9 @@
  * GENERATED FILE — DO NOT EDIT.
  *
  * Source of truth: the entries in `field-registry.ts`. A registry entry is a
- * Search criterion when it declares `searchParams`, and its persistence key IS
- * its `canonicalKey` — one concept, one name, range bounds carried in the value
+ * Search criterion when its `criterionRole` is `broker_input` — never because
+ * a URL parameter happens to exist for it — and its persistence key IS its
+ * `canonicalKey`: one concept, one name, range bounds carried in the value
  * rather than split across two keys.
  *
  * Regenerate:  node scripts/search/generate-filter-keys.mjs
