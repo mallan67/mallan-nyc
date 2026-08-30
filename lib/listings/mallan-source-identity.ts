@@ -77,8 +77,29 @@ export interface MallanSourceIdentityRow {
   rls_eligible?: boolean | null;
 }
 
-/** CRM prefixes that mark a Mallan-AUTHORED local listing. */
-const LOCAL_PREFIXES = ['SL-', 'RL-'] as const;
+/**
+ * CRM prefixes that mark a Mallan-AUTHORED local listing.
+ *
+ * EXPORTED because Search needs the same answer. `crm-idx-filter.ts` sent every
+ * listing-ID criterion to Cotality as `ListingId eq`, including Mallan-domain
+ * references — which match nothing there, so an agent searching a Mallan listing
+ * by its own identifier got an empty result set and no explanation. Deciding
+ * "which domain is this identifier in" is a fact about Mallan identity, so it is
+ * answered here rather than re-derived at each caller.
+ */
+export const MALLAN_LOCAL_ID_PREFIXES = ['SL-', 'RL-'] as const;
+const LOCAL_PREFIXES = MALLAN_LOCAL_ID_PREFIXES;
+
+/**
+ * TRUE when this identifier is in the MALLAN domain rather than the provider's.
+ *
+ * Takes the bare identifier, not a row: Search only ever has the string a broker
+ * typed, and there is no record to consult until the domain is known.
+ */
+export function isMallanLocalIdentifier(listingId: string): boolean {
+  const id = String(listingId ?? '').trim();
+  return LOCAL_PREFIXES.some((p) => id.toUpperCase().startsWith(p));
+}
 
 /** TRUE when the row is a Mallan-authored LOCAL listing (canonical publicly). */
 export function isMallanLocalListing(row: MallanSourceIdentityRow): boolean {

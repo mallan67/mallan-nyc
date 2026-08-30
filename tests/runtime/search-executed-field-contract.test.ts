@@ -46,7 +46,18 @@ const EXECUTED_FIELD_CONTRACT: Readonly<Record<string, { outcome: string; note: 
   Object.freeze({
     ListPrice: { outcome: 'FILTERABLE', note: 'numeric range, ge/le' },
     BedroomsTotal: { outcome: 'FILTERABLE', note: 'numeric range; zero is a real value' },
-    BathroomsTotalInteger: { outcome: 'FILTERABLE', note: '584,883 at ge 1' },
+    // BathroomsTotalInteger REMOVED 2026-08-30 (Section 5).
+    //
+    // It WAS filterable — 584,883 at ge 1 — and that was never the problem.
+    // `bath-contract.ts` rejects it on an exhaustive 8,103-row live read: an
+    // Edm.Int32 that cannot carry 1.5, disagreeing with its own components on
+    // ~1% of rows. The executor now renders that contract's disjunction over
+    // `BathroomsFull` and `BathroomsHalf`.
+    //
+    // Those two are deliberately NOT listed here. Like PropertyType, CityRegion
+    // and PropertySubType below, they are contracted by their own canonical
+    // module and carry their live proof there — recording them again would be a
+    // second place for the same evidence to drift.
     RoomsTotal: { outcome: 'FILTERABLE', note: '572,968 at ge 2' },
     LivingArea: { outcome: 'FILTERABLE', note: '252,242 at ge 500' },
     YearBuilt: { outcome: 'FILTERABLE', note: '459,044 at ge 1900' },

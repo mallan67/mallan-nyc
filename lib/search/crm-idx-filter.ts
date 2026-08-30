@@ -1,4 +1,6 @@
 import { FIELD_REGISTRY } from "@/lib/search/canonical/field-registry";
+import { isMallanLocalIdentifier } from "@/lib/listings/mallan-source-identity";
+import { maxBathsOData, minBathsOData } from "@/lib/search/canonical/bath-contract";
 import { standardStatusOData } from "@/lib/search/canonical/status-token-contract";
 import { boroughOData, neighborhoodOData } from "@/lib/search/canonical/geography";
 import { checkboxFieldOData, isRegisteredCheckboxField, isProviderSuppressedField } from "@/lib/search/canonical/checkbox-criteria";
@@ -107,8 +109,8 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
     ["maxPrice", "ListPrice", "le", false],
     ["minBeds", "BedroomsTotal", "ge", true],
     ["maxBeds", "BedroomsTotal", "le", true],
-    ["minBaths", "BathroomsTotalInteger", "ge", false],
-    ["maxBaths", "BathroomsTotalInteger", "le", false],
+    // minBaths / maxBaths are NOT in this table. See below — bathrooms have a
+    // canonical mapping owner, and a generic `field op value` cannot express it.
     ["minRooms", "RoomsTotal", "ge", false],
     ["maxRooms", "RoomsTotal", "le", false],
     ["minSqft", "LivingArea", "ge", false],
@@ -125,6 +127,36 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
     const value = finiteNumber(raw);
     if (value !== null && (allowZero ? value >= 0 : value > 0)) parts.push(`${field} ${op} ${value}`);
   }
+
+  // ── BATHROOMS: ONE EXECUTION OWNER ──────────────────────────────────────
+  //
+  // This used to sit in the numeric table above as
+  // `BathroomsTotalInteger ge/le <value>` — a field `bath-contract.ts` had
+  // ALREADY REJECTED on an exhaustive 8,103-row live read. Two engines therefore
+  // answered the same bath question differently: the Prisma engine used the
+  // contract, this path used a field the contract rejects, and nothing forced
+  // them to agree.
+  //
+  // Why the field is rejected:
+  //
+  //   It is Edm.Int32, so it cannot represent 1.5. `BathroomsTotalInteger ge 1.5`
+  //   is not even strictly numeric for that type — a test previously locked that
+  //   expression in, its own comment conceding the problem.
+  //
+  //   It disagrees with its own components on ~1% of rows. RLS20105072 reports
+  //   full=2, half=1 and TotalInteger=0 — a two-and-a-half-bath apartment the
+  //   integer field says has none.
+  //
+  //   Half-baths become unexpressible, though `BathroomsHalf` is non-zero on
+  //   2,023 Active rows. A broker searching 1.5+ baths silently loses them.
+  //
+  // The contract renders an exact disjunction over `BathroomsFull` and
+  // `BathroomsHalf`, both live-verified, and it is now the ONLY owner of this
+  // mapping on both engines.
+  const minBaths = finiteNumber(params.get("minBaths"));
+  if (minBaths !== null && minBaths > 0) parts.push(minBathsOData(minBaths));
+  const maxBaths = finiteNumber(params.get("maxBaths"));
+  if (maxBaths !== null && maxBaths > 0) parts.push(maxBathsOData(maxBaths));
 
   // GEOGRAPHY — released from hold 2026-08-26 against live evidence.
   //
@@ -339,9 +371,27 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
   const gridFilter = params.get("gridFilter");
   if (gridFilter) throw new UnsupportedSearchCriterionError("gridFilter", [gridFilter]);
 
+  // ── LISTING ID IS DUAL-DOMAIN ────────────────────────────────────────────
+  //
+  // The canonical reference carries EITHER a Cotality `ListingId` OR a
+  // Mallan-generated `SL-`/`RL-` identifier. This sent every value to Cotality as
+  // `ListingId eq` with no domain check, so searching a Mallan listing by
+  // Mallan's own identifier queried a provider that has never heard of it and
+  // returned nothing — an empty result set that looks exactly like "no such
+  // listing" rather than "you asked the wrong system".
+  //
+  // A Mallan-domain identifier is REFUSED BY NAME here rather than sent. Routing
+  // it to the Mallan-local store is a real capability and a genuinely different
+  // execution path; until that path exists, an honest refusal beats a confident
+  // empty answer. The domain test itself belongs to `mallan-source-identity.ts`,
+  // which owns what a Mallan identifier IS — this file only asks.
   const listingId = params.get("listingId");
   if (listingId) {
     const ids = listingId.split(",").map((s) => s.trim()).filter(Boolean);
+    const mallanDomain = ids.filter((id) => isMallanLocalIdentifier(id));
+    if (mallanDomain.length) {
+      throw new UnsupportedSearchCriterionError("listingId", mallanDomain);
+    }
     const clauses = ids.map((id) => `ListingId eq '${escapeOData(id)}'`);
     if (clauses.length === 1) parts.push(clauses[0]);
     else if (clauses.length > 1) parts.push(`(${clauses.join(" or ")})`);

@@ -1,4 +1,6 @@
 import { buildCrmIdxODataFilter, escapeOData, UnsupportedSearchCriterionError } from "@/lib/search/crm-idx-filter";
+import { isMallanLocalIdentifier } from "@/lib/listings/mallan-source-identity";
+import { maxBathsOData, minBathsOData } from "@/lib/search/canonical/bath-contract";
 import { UnknownPropertySubTypeError } from "@/lib/search/canonical/property-subtype-contract";
 
 describe("buildCrmIdxODataFilter", () => {
@@ -25,8 +27,15 @@ describe("buildCrmIdxODataFilter", () => {
     expect(filter).toContain("ListPrice le 2000000");
     expect(filter).toContain("BedroomsTotal ge 2");
     expect(filter).toContain("BedroomsTotal le 4");
-    expect(filter).toContain("BathroomsTotalInteger ge 1.5");
-    expect(filter).toContain("BathroomsTotalInteger le 3");
+    // CHANGED 2026-08-30 (Section 5). These asserted
+    // `BathroomsTotalInteger ge 1.5` / `le 3` — a field `bath-contract.ts` had
+    // already REJECTED on an exhaustive 8,103-row live read, and an Edm.Int32
+    // that cannot carry 1.5 at all. The test was pinning the defect: the Prisma
+    // engine used the contract while this path used the rejected field, so the
+    // two engines answered the same bath question differently.
+    expect(filter).toContain(minBathsOData(1.5));
+    expect(filter).toContain(maxBathsOData(3));
+    expect(filter).not.toContain("BathroomsTotalInteger");
     expect(filter).toContain("(StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')");
   });
 
@@ -222,17 +231,38 @@ describe("buildCrmIdxODataFilter", () => {
     expect(fq).toContain("contains(PublicRemarks,'owner''s pied-a-terre')");
   });
 
-  it("minBaths / maxBaths → BathroomsTotalInteger ge/le (integer)", () => {
+  it("minBaths / maxBaths route through the canonical bath contract", () => {
+    // These asserted `BathroomsTotalInteger ge 2` / `le 5` — a field
+    // `bath-contract.ts` had ALREADY REJECTED on an exhaustive 8,103-row live
+    // read. The test was pinning the defect in place: two engines answered the
+    // same bath question differently, the Prisma engine using the contract and
+    // this path using the field the contract rejects.
     const f = buildCrmIdxODataFilter(new URLSearchParams({ minBaths: "2", maxBaths: "5" }));
-    expect(f).toContain("BathroomsTotalInteger ge 2");
-    expect(f).toContain("BathroomsTotalInteger le 5");
+    expect(f).not.toContain("BathroomsTotalInteger");
+    expect(f).toContain("BathroomsFull");
+    expect(f).toContain("BathroomsHalf");
   });
 
-  it("minBaths half-bath value 1.5 is preserved", () => {
-    // Not strictly OData-numeric on Edm.Int32, but the filter builder
-    // accepts decimals; documented contract regardless.
+  it("expresses a HALF bath, which the integer field could not", () => {
+    // The old assertion was `BathroomsTotalInteger ge 1.5`, and its own comment
+    // conceded that is "not strictly OData-numeric on Edm.Int32". An Int32
+    // cannot carry 1.5 at all, so half-baths were unexpressible on this path
+    // while `BathroomsHalf` is non-zero on 2,023 Active rows — a broker asking
+    // for 1.5+ baths silently lost every one of them.
+    //
+    // The contract renders it exactly: two full baths, OR one full plus at
+    // least one half.
     const f = buildCrmIdxODataFilter(new URLSearchParams({ minBaths: "1.5" }));
-    expect(f).toContain("BathroomsTotalInteger ge 1.5");
+    expect(f).not.toContain("BathroomsTotalInteger");
+    expect(f).toContain("BathroomsFull ge 2");
+    expect(f).toContain("BathroomsFull eq 1 and BathroomsHalf ge 1");
+  });
+
+  it("uses the SAME owner the Prisma engine uses", () => {
+    // The consolidation itself: one mapping owner, so the two engines cannot
+    // answer the same question differently.
+    const f = buildCrmIdxODataFilter(new URLSearchParams({ minBaths: "2" }));
+    expect(f).toContain(minBathsOData(2));
   });
 
   it("minRooms / maxRooms → RoomsTotal ge/le", () => {
@@ -801,5 +831,59 @@ describe("maximum financing fails loud until it can execute", () => {
   it("does NOT refuse when neither bound is supplied", () => {
     // A refusal on absence would block every ordinary search.
     expect(() => build("minPrice=500000")).not.toThrow();
+  });
+});
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * LISTING ID IS DUAL-DOMAIN, AND THE EXECUTOR NOW KNOWS IT.
+ *
+ * The canonical reference carries EITHER a Cotality `ListingId` OR a
+ * Mallan-generated `SL-`/`RL-` identifier. Every value used to be sent to
+ * Cotality as `ListingId eq`, so searching a Mallan listing by Mallan's own
+ * identifier queried a provider that has never heard of it — returning an empty
+ * result set indistinguishable from "no such listing".
+ */
+describe("listing ID respects the domain the identifier belongs to", () => {
+  const build = (qs: string) => buildCrmIdxODataFilter(new URLSearchParams(qs));
+
+  it("sends a COTALITY-domain id to Cotality", () => {
+    expect(build("listingId=RLS20078109")).toContain("ListingId eq 'RLS20078109'");
+  });
+
+  it("REFUSES a Mallan-domain SL- identifier instead of querying the provider", () => {
+    expect(() => build("listingId=SL-1042")).toThrow(UnsupportedSearchCriterionError);
+  });
+
+  it("REFUSES a Mallan-domain RL- identifier", () => {
+    expect(() => build("listingId=RL-77")).toThrow(UnsupportedSearchCriterionError);
+  });
+
+  it("names the criterion and the Mallan-domain values", () => {
+    try {
+      build("listingId=SL-1042,RL-77");
+      throw new Error("expected a refusal");
+    } catch (e) {
+      const err = e as InstanceType<typeof UnsupportedSearchCriterionError>;
+      expect(err.criterion).toBe("listingId");
+      expect(err.unsupportedValues).toEqual(["SL-1042", "RL-77"]);
+    }
+  });
+
+  it("refuses a MIXED list rather than silently answering half of it", () => {
+    // Sending only the Cotality half would return a result set missing the
+    // Mallan listings the agent explicitly asked for, with nothing saying so.
+    expect(() => build("listingId=RLS20078109,SL-1042")).toThrow(
+      UnsupportedSearchCriterionError,
+    );
+  });
+
+  it("asks the identity module rather than re-deriving the prefixes", () => {
+    // The domain test is a fact about MALLAN IDENTITY. It was already duplicated
+    // across the campaign gate and personal-participation; a fourth copy here
+    // would be a fourth place for it to drift.
+    expect(isMallanLocalIdentifier("SL-1")).toBe(true);
+    expect(isMallanLocalIdentifier("RL-1")).toBe(true);
+    expect(isMallanLocalIdentifier("RLS20078109")).toBe(false);
   });
 });

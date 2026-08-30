@@ -105,7 +105,22 @@ describe('the extraction itself works', () => {
   // below vacuously true, which is the exact failure mode this whole file is
   // about: a table that looks authoritative and answers nothing.
   it('finds the executor numeric table', () => {
-    expect(numericMappings().length).toBeGreaterThanOrEqual(16);
+    // 14, not 16. minBaths/maxBaths LEFT this table in Section 5: bathrooms have
+    // a canonical mapping owner, and a generic `field op value` row cannot
+    // express `BathroomsFull` + `BathroomsHalf`. The table shrinking is the
+    // consolidation working — a criterion with a real owner should not also have
+    // a generic row that can disagree with it.
+    expect(numericMappings().length).toBeGreaterThanOrEqual(14);
+  });
+
+  it('does NOT carry a generic row for a criterion that has a mapping owner', () => {
+    // The bathrooms defect in one assertion: a generic `BathroomsTotalInteger`
+    // row sat here while `bath-contract.ts` rejected that field outright, so the
+    // Prisma engine and the provider engine answered the same question
+    // differently and nothing forced them to agree.
+    const generic = numericMappings().map((m) => m.param);
+    expect(generic).not.toContain('minBaths');
+    expect(generic).not.toContain('maxBaths');
   });
 
   it('finds the params the executor reads', () => {
@@ -394,18 +409,44 @@ describe('execution readiness — the gate the validator will use', () => {
   const spec = (key: string) => FIELD_REGISTRY.find((f) => f.canonicalKey === key)!;
   const wired = { reachesServer: true, strategyImplemented: true };
 
-  it('a known mapping conflict outranks everything — it executes, and executes WRONGLY', () => {
-    expect(executionReadiness(spec('bathrooms'), wired)).toBe('mapping_conflict');
+  it('a mapping conflict outranks everything — it executes, and executes WRONGLY', () => {
+    // NO REGISTRY ENTRY CARRIES ONE ANY MORE, so this uses a synthetic spec.
+    //
+    // Section 5 resolved both: `bathrooms` routed to the BathroomsTotalInteger
+    // field its own contract rejects, and `listing_id_canonical` sent Mallan
+    // SL-/RL- references to a provider that has never heard of them. The rule
+    // still needs pinning — a conflict must outrank capability, evidence and
+    // transport, because executing wrongly is worse than not executing.
+    const synthetic = {
+      ...spec('market_status'),
+      canonicalKey: 'synthetic_conflict',
+      mappingConflict: 'the executor queries a field this contract rejects',
+    } as FieldSpec;
+    expect(executionReadiness(synthetic, wired)).toBe('mapping_conflict');
   });
 
-  it('a DUAL-DOMAIN identifier is blocked, not emitted to the wrong provider', () => {
+  it('no registry entry carries an unresolved mapping conflict', () => {
+    // The Section 5 objective, stated as an invariant rather than a milestone.
+    // A conflict means two owners answer the same question differently, and
+    // nothing forces them to agree.
+    const conflicted = FIELD_REGISTRY.filter((f) => f.mappingConflict).map((f) => f.canonicalKey);
+    expect(conflicted).toEqual([]);
+  });
+
+  it('a DUAL-DOMAIN identifier is refused at the executor, not sent to the wrong provider', () => {
+    // RESOLVED in Section 5, so this no longer asserts a registry conflict.
+    //
     // `listing_id_canonical` holds either a Cotality ListingId or a Mallan
-    // SL-/RL- reference, but the executor emits `ListingId eq` for EVERY value
-    // with no domain check. A Mallan-domain identifier sent to Cotality matches
-    // nothing, so searching a Mallan listing by its own reference silently
-    // returns empty. It stays blocked until a domain-aware lookup exists.
-    expect(spec('listing_id_canonical').mappingConflict).toMatch(/DUAL-DOMAIN/);
-    expect(executionReadiness(spec('listing_id_canonical'), wired)).toBe('mapping_conflict');
+    // SL-/RL- reference, and the executor emitted `ListingId eq` for EVERY value
+    // with no domain check — so searching a Mallan listing by its own reference
+    // queried a provider that has never heard of it and returned an empty set
+    // indistinguishable from "no such listing".
+    //
+    // The refusal now lives where it belongs, in the executor, and is proven
+    // behaviourally in crm-idx-filter.test.ts. What remains asserted here is that
+    // the criterion no longer carries an unresolved conflict.
+    expect(spec('listing_id_canonical').mappingConflict).toBeUndefined();
+    expect(spec('listing_id_canonical').notes ?? '').toMatch(/REFUSED BY NAME/);
   });
 
   it('a criterion with strategy, transport, live evidence and proven semantics is verified', () => {
