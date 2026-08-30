@@ -154,7 +154,16 @@ export type SearchMappingOwner =
   | 'status-token-contract'
   | 'checkbox-criteria'
   | 'property-type-universe'
-  | 'property-subtype-contract';
+  | 'property-subtype-contract'
+  /**
+   * Added 2026-08-30 (Section 5) when bathrooms gained a single execution owner.
+   *
+   * The union is deliberately CLOSED: an owner named here is a module that
+   * renders its own clause from its own live evidence, so a typo or an invented
+   * owner fails at compile time rather than producing a criterion whose "owner"
+   * does not exist.
+   */
+  | 'bath-contract';
 
 export interface FieldSpec {
   canonicalKey: string;
