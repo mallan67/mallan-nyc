@@ -69,9 +69,20 @@ function mount() {
   win.fetch = () => Promise.reject(new Error('no network in tests'));
   win.MallanAPI = { idx: { search: () => Promise.resolve({ listings: [] }) } };
 
-  const script = win.document.createElement('script');
-  script.textContent = readFileSync(SEARCH_ENGINE, 'utf8');
-  win.document.body.appendChild(script);
+  // Same order as index.html: core/nav.js first (it defines the global
+  // `escapeHtml` the tag widget renders through), then the engine, then the
+  // geography widget that owns the neighbourhood/borough tag state the geography
+  // adapter delegates to. Loading the REAL dependency rather than stubbing it
+  // keeps the harness honest about what the page actually needs.
+  for (const rel of [
+    'public/crm/js/core/nav.js',
+    'public/crm/js/search/search-engine.js',
+    'public/crm/js/search/neighborhood-autocomplete.js',
+  ]) {
+    const script = win.document.createElement('script');
+    script.textContent = readFileSync(join(REPO, rel), 'utf8');
+    win.document.body.appendChild(script);
+  }
   return win;
 }
 
@@ -689,6 +700,140 @@ describe('every criterion group survives a view change, not just ranges', () => 
     const sale = win.canonicalCriteriaFor('sale').market_status ?? [];
     expect(sale).toContain(saleOnly);
     expect(rental).not.toBe(sale);
+  });
+});
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * DATES AND GEOGRAPHY — THE LAST TWO STATE OWNERS.
+ *
+ * Both reached canonical state but did not round-trip back out: the date pickers
+ * and the neighbourhood tag widget render their own controls, so the adapters
+ * read them and nothing wrote them. A criterion that can be read but not
+ * rendered is still view-local — the agent sees it vanish on a view change even
+ * though the state remembers it.
+ */
+describe('date criteria round-trip through canonical state', () => {
+  const setDrp = (win: any, drp: string, from: string, to: string) => {
+    const el = win.document.querySelector(`[data-drp="${drp}"]`);
+    if (!el) throw new Error(`fixture has no [data-drp="${drp}"]`);
+    el.setAttribute('data-from', from);
+    el.setAttribute('data-to', to);
+  };
+
+  it('stores a Basic activity range as a canonical date range', () => {
+    const win = mount();
+    win.toggleSearchTab('sale');
+    setDrp(win, 'saleListedUpdated', '2026-01-01', '2026-06-30');
+    win.collectSearchCriteria();
+
+    const state = win.canonicalCriteriaFor('sale').activity_date;
+    expect(state.min).toBe('2026-01-01');
+    expect(state.max).toBe('2026-06-30');
+  });
+
+  it('carries the activity BASIS with the range, not just the bounds', () => {
+    // The composite rule: the same from/to pair means ListingContractDate or
+    // ModificationTimestamp depending on the basis, so a stored range without it
+    // silently re-answers a different question when the default changes.
+    const win = mount();
+    win.toggleSearchTab('sale');
+    const basis = win.document.getElementById('saleListingActivityType');
+    basis.value = basis.querySelector('option[value]:not([value=""])')?.value ?? '';
+    setDrp(win, 'saleListedUpdated', '2026-01-01', '2026-06-30');
+    win.collectSearchCriteria();
+
+    expect(win.canonicalCriteriaFor('sale').activity_date.basis).toBe(basis.value);
+  });
+
+  it('RENDERS a Basic activity range into the Advanced inputs', () => {
+    const win = mount();
+    win.toggleSearchTab('sale');
+    setDrp(win, 'saleListedUpdated', '2026-01-01', '2026-06-30');
+    win.collectSearchCriteria();
+
+    win.toggleSearchMode('advanced');
+
+    expect(win.document.getElementById('adv-listed-from').value).toBe('2026-01-01');
+    expect(win.document.getElementById('adv-listed-to').value).toBe('2026-06-30');
+  });
+
+  it('carries an Advanced contract range back into Basic', () => {
+    const win = mount();
+    win.toggleSearchTab('sale');
+    win.toggleSearchMode('advanced');
+    win.document.getElementById('adv-contract-from').value = '2026-02-01';
+    win.document.getElementById('adv-contract-to').value = '2026-03-01';
+
+    win.toggleSearchMode('basic');
+
+    const wrapper = win.document.querySelector('[data-drp="saleContractSigned"]');
+    expect(wrapper.getAttribute('data-from')).toBe('2026-02-01');
+    expect(wrapper.getAttribute('data-to')).toBe('2026-03-01');
+  });
+
+  it('clearing a date range REMOVES it rather than resurrecting it', () => {
+    const win = mount();
+    win.toggleSearchTab('sale');
+    setDrp(win, 'saleSoldDate', '2026-01-01', '2026-06-30');
+    win.collectSearchCriteria();
+    expect(win.canonicalCriteriaFor('sale').close_date).toBeDefined();
+
+    setDrp(win, 'saleSoldDate', '', '');
+    win.collectSearchCriteria();
+
+    expect(win.canonicalCriteriaFor('sale').close_date).toBeUndefined();
+  });
+});
+
+describe('geography round-trips through the widget that owns it', () => {
+  it('stores selected neighbourhoods as a canonical set', () => {
+    const win = mount();
+    win.toggleSearchTab('sale');
+    win.selectNeighborhood('Tribeca', 'Manhattan', false, 'saleNeighborhoodDropdown', 'saleNeighborhoodTags');
+    win.collectSearchCriteria();
+
+    expect(win.canonicalCriteriaFor('sale').neighborhood).toEqual(['Tribeca']);
+  });
+
+  it('keeps boroughs SEPARATE from neighbourhoods', () => {
+    // They route to different provider fields — CityRegion vs SubdivisionName —
+    // so collapsing them would ask the wrong question of one of them.
+    const win = mount();
+    win.toggleSearchTab('sale');
+    win.selectNeighborhood('Tribeca', 'Manhattan', false, 'saleNeighborhoodDropdown', 'saleNeighborhoodTags');
+    win.selectNeighborhood('Brooklyn', '', true, 'saleNeighborhoodDropdown', 'saleNeighborhoodTags');
+    win.collectSearchCriteria();
+
+    const state = win.canonicalCriteriaFor('sale');
+    expect(state.neighborhood).toEqual(['Tribeca']);
+    expect(state.borough).toEqual(['Brooklyn']);
+  });
+
+  it('RENDERS geography into the view being entered', () => {
+    // This is what was missing: the adapter read the widget but never wrote it,
+    // so switching view showed an empty tag list while the state still held the
+    // selection.
+    const win = mount();
+    win.toggleSearchTab('sale');
+    win.selectNeighborhood('Tribeca', 'Manhattan', false, 'saleNeighborhoodDropdown', 'saleNeighborhoodTags');
+    win.collectSearchCriteria();
+
+    win.toggleSearchMode('advanced');
+
+    expect(win.getSelectedNeighborhoods('advancedNeighborhoodTags')).toEqual(['Tribeca']);
+  });
+
+  it('does not leak one workflow geography into another', () => {
+    const win = mount();
+    win.toggleSearchTab('sale');
+    win.selectNeighborhood('Tribeca', 'Manhattan', false, 'saleNeighborhoodDropdown', 'saleNeighborhoodTags');
+    win.collectSearchCriteria();
+
+    win.toggleSearchTab('rent');
+
+    expect(win.canonicalCriteriaFor('rent').neighborhood).toBeUndefined();
+    expect(win.canonicalCriteriaFor('sale').neighborhood).toEqual(['Tribeca']);
   });
 });
 

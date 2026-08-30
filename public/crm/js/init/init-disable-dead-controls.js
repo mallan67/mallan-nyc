@@ -183,6 +183,32 @@
                 // Use class selector for all four-per-side preset buttons.
                 { selector: '.oh-preset[data-oh="saleOpenHouse"]', reason: 'Open House date range not supported by the search backend.' },
                 { selector: '.oh-preset[data-oh="rentalOpenHouse"]', reason: 'Open House date range not supported by the search backend.' },
+
+                // ── BUILDING SEARCH: LISTING-LEVEL CRITERIA (Maya, 2026-08-30) ──
+                //
+                // These four render on the Building form but ask LISTING questions,
+                // and `WORKFLOW_CRITERIA` offers none of them to the building
+                // workflow. They were left unwired when the canonical adapters were
+                // bound to contract-offered workflows only — and an enabled control
+                // that Search ignores is the exact defect this workstream exists to
+                // remove: the agent types, presses Search, and Mallan silently drops
+                // it. The contract is correct here; the UI is the debt.
+                //
+                // Widening BuildingCriteria to match the controls was rejected
+                // deliberately, per criterion:
+                { selector: '#buildingQuickRls', reason: 'Listing ID identifies a LISTING, not a building — ListingId is a Cotality Property field. Not a Building Search criterion.' },
+                { selector: '#buildingQuickUnit', reason: 'Unit is a listing/unit-level criterion — UnitNumber is a Cotality Property field. Not a Building Search criterion.' },
+                { selector: '#buildingKeywordSearch', reason: 'Keyword searches Property.PublicRemarks — listing description text, not a building fact.' },
+                // Financing carries the strongest evidence of the four: Mallan's
+                // 2026-08-21 live census establishes MaximumFinancingPercent as a
+                // LISTING-level fact, with 380 of 3,402 buildings holding
+                // CONFLICTING financing values across their own listings. Offering
+                // it as a building filter would manufacture a building truth that
+                // does not exist. A genuine building financing rule needs its own
+                // verified building-level authority, after Building identity is
+                // resolved — it cannot reuse a listing's value.
+                { selector: '#buildingFinancingMin', reason: 'Financing % is a LISTING-level fact (380 of 3,402 buildings hold conflicting values across their listings). A building-level rule needs its own verified authority.' },
+                { selector: '#buildingFinancingMax', reason: 'Financing % is a LISTING-level fact (380 of 3,402 buildings hold conflicting values across their listings). A building-level rule needs its own verified authority.' },
             ];
 
             function disableDeadControls() {

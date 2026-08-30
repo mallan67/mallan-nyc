@@ -130,6 +130,36 @@
         if (input) { input.value = ''; input.focus(); }
     };
 
+    /**
+     * SET the whole selection for one tag container.
+     *
+     * Added 2026-08-30 so canonical Search state can RENDER geography back into
+     * whichever view the agent opens. `selectNeighborhood` adds one entry and
+     * `removeNeighborhoodTag` removes one; neither expresses "the selection is
+     * now exactly this", which is what rendering a canonical value requires.
+     *
+     * The setter lives HERE, with the widget that owns `_selected`, rather than
+     * the caller reaching into that state. It also resolves each name back to its
+     * borough and borough-level flag from this module's own list, so the caller
+     * only carries names — the canonical shape — and this module stays the single
+     * authority on what a neighbourhood entry is.
+     */
+    window.setNeighborhoodSelection = function(tagsId, neighborhoodNames, boroughNames) {
+        var id = tagsId || 'saleNeighborhoodTags';
+        var next = [];
+        (boroughNames || []).forEach(function(name) {
+            next.push({ name: name, borough: '', isBoroughLevel: true });
+        });
+        (neighborhoodNames || []).forEach(function(name) {
+            var known = _searchList.filter(function(entry) {
+                return !entry.isBoroughLevel && entry.name === name;
+            })[0];
+            next.push({ name: name, borough: known ? known.borough : '', isBoroughLevel: false });
+        });
+        _selected[id] = next;
+        renderTags(id);
+    };
+
     // Remove a neighborhood tag
     window.removeNeighborhoodTag = function(name, tagsId) {
         var selected = getSelected(tagsId);

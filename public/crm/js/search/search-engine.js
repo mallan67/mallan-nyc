@@ -1536,6 +1536,29 @@
                 sale:     { basic: ['saleQuickRls'], advanced: ['adv-rls-id'] },
                 rent:     { basic: ['rentalQuickRls'], advanced: ['adv-rls-id'] } } },
 
+
+            // ── DATES ───────────────────────────────────────────────────────
+            // Basic uses a date-range-picker WRAPPER carrying data-from/data-to;
+            // Advanced uses two plain inputs. Different idioms, one criterion.
+            //
+            // `activity_date` is a COMPOSITE: the same from/to pair means
+            // ListingContractDate or ModificationTimestamp depending on the basis,
+            // so the basis select is part of the value. The canonical contract
+            // requires it explicitly — a stored range that does not say which date
+            // it means silently re-answers a different question whenever the
+            // default changes.
+            activity_date: { kind: 'dateRange', shape: 'basis_range_date',
+                basisIds: { sale: 'saleListingActivityType', rent: 'rentalListingActivityType' },
+                drp: { sale: 'saleListedUpdated', rent: 'rentalListedUpdated' },
+                ids: {
+                    sale: { basic: [], advanced: ['adv-listed-from', 'adv-listed-to'] },
+                    rent: { basic: [], advanced: ['adv-listed-from', 'adv-listed-to'] } } },
+            listing_contract_date: { kind: 'dateRange', shape: 'range_date',
+                drp: { sale: 'saleContractSigned' },
+                ids: { sale: { basic: [], advanced: ['adv-contract-from', 'adv-contract-to'] } } },
+            close_date: { kind: 'dateRange', shape: 'range_date',
+                drp: { sale: 'saleSoldDate' },
+                ids: { sale: { basic: [], advanced: ['adv-sold-from', 'adv-sold-to'] } } },
             // ── GEOGRAPHY (tag widgets owned by neighborhood-autocomplete.js) ──
             neighborhood: { kind: 'tags', shape: 'text_set', selector: 'neighborhoods' },
             borough:      { kind: 'tags', shape: 'enum_set', selector: 'boroughs' }
@@ -1628,6 +1651,33 @@
                 return Object.keys(map).length ? map : null;
             }
 
+            if (adapter.kind === 'dateRange') {
+                var drpId = (adapter.drp || {})[tab];
+                var wrapper = drpId ? document.querySelector('[data-drp="' + drpId + '"]') : null;
+                var advIds = ((adapter.ids || {})[tab] || {})[view] || [];
+                var advFrom = advIds[0] ? document.getElementById(advIds[0]) : null;
+                var advTo = advIds[1] ? document.getElementById(advIds[1]) : null;
+                if (!wrapper && !advFrom && !advTo) return undefined;
+
+                var from = view === 'advanced' && advFrom ? advFrom.value
+                    : (wrapper ? wrapper.getAttribute('data-from') : '');
+                var to = view === 'advanced' && advTo ? advTo.value
+                    : (wrapper ? wrapper.getAttribute('data-to') : '');
+                var basisEl = (adapter.basisIds || {})[tab]
+                    ? document.getElementById(adapter.basisIds[tab]) : null;
+                var basis = basisEl && basisEl.value ? String(basisEl.value) : '';
+
+                if (!from && !to) return null;
+                var dateValue = {};
+                if (from) dateValue.min = String(from);
+                if (to) dateValue.max = String(to);
+                // Carried only when the criterion HAS a basis. The canonical
+                // object may not store an ambiguous activity-date range; the wire
+                // boundary is where a legacy missing value gets resolved.
+                if (adapter.shape === 'basis_range_date' && basis) dateValue.basis = basis;
+                return dateValue;
+            }
+
             if (adapter.kind === 'tags') {
                 var fn = adapter.selector === 'boroughs' ? window.getSelectedBoroughs : window.getSelectedNeighborhoods;
                 if (typeof fn !== 'function') return undefined;
@@ -1682,8 +1732,43 @@
                 });
                 return;
             }
-            // Tag widgets own their own rendering; neighborhood-autocomplete.js is
-            // the authority for those controls and is not written through here.
+            if (adapter.kind === 'dateRange') {
+                var drpId2 = (adapter.drp || {})[tab];
+                var wrapper2 = drpId2 ? document.querySelector('[data-drp="' + drpId2 + '"]') : null;
+                var advIds2 = ((adapter.ids || {})[tab] || {})[view] || [];
+                var min = value && value.min != null ? String(value.min) : '';
+                var max = value && value.max != null ? String(value.max) : '';
+                if (view === 'advanced') {
+                    var f = advIds2[0] ? document.getElementById(advIds2[0]) : null;
+                    var t = advIds2[1] ? document.getElementById(advIds2[1]) : null;
+                    if (f) f.value = min;
+                    if (t) t.value = max;
+                } else if (wrapper2) {
+                    wrapper2.setAttribute('data-from', min);
+                    wrapper2.setAttribute('data-to', max);
+                }
+                var basisEl2 = (adapter.basisIds || {})[tab]
+                    ? document.getElementById(adapter.basisIds[tab]) : null;
+                if (basisEl2 && value && value.basis) basisEl2.value = value.basis;
+                return;
+            }
+
+            if (adapter.kind === 'tags') {
+                // The widget OWNS its selection state, so the canonical value is
+                // handed back to it rather than written into its DOM directly.
+                // `setNeighborhoodSelection` resolves each name to its borough
+                // from the widget's own list, keeping that knowledge in one place.
+                if (typeof window.setNeighborhoodSelection !== 'function') return;
+                var tagsId2 = typeof _resolveActiveNeighborhoodTagsId === 'function'
+                    ? _resolveActiveNeighborhoodTagsId() : undefined;
+                var store2 = _canonicalCriteria[tab] || {};
+                window.setNeighborhoodSelection(
+                    tagsId2,
+                    store2.neighborhood || [],
+                    store2.borough || []
+                );
+                return;
+            }
         }
 
         /**
