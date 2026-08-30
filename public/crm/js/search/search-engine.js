@@ -559,6 +559,19 @@
             if (criteria.unitsMin) params.minUnits = criteria.unitsMin;
             if (criteria.unitsMax) params.maxUnits = criteria.unitsMax;
             if (criteria.buildingName) params.buildingName = criteria.buildingName;
+            // Maximum financing, BOTH bounds.
+            //
+            // The canonical serializer produced these and this function never read
+            // them, so they died one hop after being built — the criterion never
+            // reached the request at all. `!= null` rather than truthiness so a
+            // legitimate 0 bound is not dropped as though it were absent.
+            //
+            // The server refuses financing by name until Mallan-side execution
+            // exists (Section 6). Emitting it is what makes that refusal
+            // REACHABLE; without it the filter simply vanished and the broker got
+            // a wider result set with an HTTP 200 and nothing saying so.
+            if (criteria.financingMin != null) params.financingMin = criteria.financingMin;
+            if (criteria.financingMax != null) params.financingMax = criteria.financingMax;
             // Status: CRM uppercase -> the live StandardStatus member.
             //
             // STEP 2 CORRECTION 2026-08-22. 'PENDING' used to map to

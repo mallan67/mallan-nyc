@@ -683,6 +683,16 @@ var MallanAPI = (function () {
       if (params.minUnits) qs.push('minUnits=' + params.minUnits);
       if (params.maxUnits) qs.push('maxUnits=' + params.maxUnits);
       if (params.buildingName) qs.push('buildingName=' + encodeURIComponent(params.buildingName));
+      // Maximum financing. BOTH bounds, and `!= null` rather than truthiness so a
+      // legitimate 0 bound is not dropped as though it were absent.
+      //
+      // The canonical serializer emitted these and NOTHING forwarded them, so the
+      // criterion died here — one hop after being built. The server refuses it by
+      // name until Mallan-side execution exists; forwarding is what makes that
+      // refusal reachable instead of the filter silently disappearing and the
+      // broker receiving a wider result set with an HTTP 200.
+      if (params.financingMin != null && params.financingMin !== '') qs.push('financingMin=' + params.financingMin);
+      if (params.financingMax != null && params.financingMax !== '') qs.push('financingMax=' + params.financingMax);
       // checkboxFilters carries the amenity/feature/condition criteria. It was
       // ASSIGNED by buildIdxSearchParams and never forwarded, so every one of
       // those controls was silently inert. The server validates each field and

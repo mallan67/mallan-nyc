@@ -60,9 +60,25 @@ function collectorProduces(): Set<string> {
   const start = searchEngine.indexOf('function collectSearchCriteria');
   const end = searchEngine.indexOf('\n        function ', start + 10);
   const body = searchEngine.slice(start, end);
+  // DIRECT ASSIGNMENTS ARE NOT THE WHOLE PICTURE.
+  //
+  // The canonical serializer writes most criteria DYNAMICALLY from
+  // `CANONICAL_TO_WIRE`, where the names are data rather than identifiers — and
+  // therefore invisible to a `criteria.foo =` scan.
+  //
+  // That blind spot is why `financingMin` and `financingMax` could be produced
+  // here, forwarded by nothing, read by nobody, and still leave five green CI
+  // workflows. A transport invariant that cannot see half the transport reports
+  // coverage it never checked, which is worse than having none.
+  const table = /var CANONICAL_TO_WIRE = \{[\s\S]*?\n        \};/.exec(searchEngine)?.[0] ?? '';
+  const dynamic = [
+    ...table.matchAll(/(?:min|max|basis|set|csv|text):\s*'([A-Za-z_]\w*)'/g),
+  ].map((m) => m[1]);
+
   return new Set([
     ...[...body.matchAll(/criteria\.([A-Za-z_]\w*)\s*=/g)].map((m) => m[1]),
     ...[...body.matchAll(/criteria\.([A-Za-z_]\w*)\.push/g)].map((m) => m[1]),
+    ...dynamic,
   ]);
 }
 
@@ -81,7 +97,19 @@ function serializerConsumes(): Set<string> {
   );
 }
 
-/** Everything `buildIdxSearchParams()` assigns onto its params object. */
+/**
+ * Everything `buildIdxSearchParams()` assigns onto its params object.
+ *
+ * DIRECT ASSIGNMENTS ARE NOT THE WHOLE PICTURE. This scanned for
+ * `params.foo =` only, so every parameter emitted DYNAMICALLY through the
+ * canonical `CANONICAL_TO_WIRE` table was invisible to the census — the keys are
+ * data there, not identifiers.
+ *
+ * That blind spot is why `financingMin` and `financingMax` could be produced by
+ * the serializer, forwarded by nothing, read by nobody, and still leave five
+ * green CI workflows. A transport invariant that cannot see half the transport
+ * is worse than none: it reports coverage it never checked.
+ */
 function serializerEmits(): Set<string> {
   const start = searchEngine.indexOf('window.buildIdxSearchParams = function');
   const end = searchEngine.indexOf('\n        };', start);

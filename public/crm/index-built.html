@@ -13874,6 +13874,16 @@ var MallanAPI = (function () {
       if (params.minUnits) qs.push('minUnits=' + params.minUnits);
       if (params.maxUnits) qs.push('maxUnits=' + params.maxUnits);
       if (params.buildingName) qs.push('buildingName=' + encodeURIComponent(params.buildingName));
+      // Maximum financing. BOTH bounds, and `!= null` rather than truthiness so a
+      // legitimate 0 bound is not dropped as though it were absent.
+      //
+      // The canonical serializer emitted these and NOTHING forwarded them, so the
+      // criterion died here — one hop after being built. The server refuses it by
+      // name until Mallan-side execution exists; forwarding is what makes that
+      // refusal reachable instead of the filter silently disappearing and the
+      // broker receiving a wider result set with an HTTP 200.
+      if (params.financingMin != null && params.financingMin !== '') qs.push('financingMin=' + params.financingMin);
+      if (params.financingMax != null && params.financingMax !== '') qs.push('financingMax=' + params.financingMax);
       // checkboxFilters carries the amenity/feature/condition criteria. It was
       // ASSIGNED by buildIdxSearchParams and never forwarded, so every one of
       // those controls was silently inert. The server validates each field and
@@ -16994,6 +17004,19 @@ function manageShowToast(msg) {
             if (criteria.unitsMin) params.minUnits = criteria.unitsMin;
             if (criteria.unitsMax) params.maxUnits = criteria.unitsMax;
             if (criteria.buildingName) params.buildingName = criteria.buildingName;
+            // Maximum financing, BOTH bounds.
+            //
+            // The canonical serializer produced these and this function never read
+            // them, so they died one hop after being built — the criterion never
+            // reached the request at all. `!= null` rather than truthiness so a
+            // legitimate 0 bound is not dropped as though it were absent.
+            //
+            // The server refuses financing by name until Mallan-side execution
+            // exists (Section 6). Emitting it is what makes that refusal
+            // REACHABLE; without it the filter simply vanished and the broker got
+            // a wider result set with an HTTP 200 and nothing saying so.
+            if (criteria.financingMin != null) params.financingMin = criteria.financingMin;
+            if (criteria.financingMax != null) params.financingMax = criteria.financingMax;
             // Status: CRM uppercase -> the live StandardStatus member.
             //
             // STEP 2 CORRECTION 2026-08-22. 'PENDING' used to map to
@@ -30981,7 +31004,14 @@ function emailCurrentCalc() {
             var listing = Object.assign({}, listingRecord);
 
             var priceKnown = listing.price != null;
+            // THREE STATES, NOT TWO. `null` is unknown, `0` is a real zero, and a
+            // positive number is an amount. Every money reader goes through these.
+            // A truthiness test collapses a genuine 0 into unknown, and a bare
+            // `.toLocaleString()` THROWS on the null that is now preserved — the
+            // crash path introduced by removing the null-to-zero coercion without
+            // tracing every reader.
             var money = function(v) { return v == null ? 'Unavailable' : '$' + Number(v).toLocaleString(); };
+            var moneyMo = function(v) { return v == null ? 'Unavailable' : '$' + Number(v).toLocaleString() + '/mo'; };
             var perUnitPrice = function(divisor) {
                 if (!priceKnown || !divisor) return null;
                 return '$' + Math.round(listing.price / divisor).toLocaleString();
@@ -31054,8 +31084,8 @@ function emailCurrentCalc() {
                 '<span class="px-2 py-0.5 ' + getStatusBadgeClasses(listing.status) + ' rounded text-xs font-semibold">' + statusLabel + '</span>'
                 + '<span class="text-lg font-bold ml-2">' + money(listing.price) + '</span>'
                 + '<div class="flex items-center gap-4 ml-4 text-xs text-gray-500">'
-                + '<div class="text-right"><div class="uppercase text-[10px] text-gray-400">' + (isSale ? 'Maintenance' : 'Rent') + '</div><div class="font-semibold text-gray-700">$' + listing.maintCC.toLocaleString() + '</div></div>'
-                + '<div class="text-right"><div class="uppercase text-[10px] text-gray-400">Est. Monthly</div><div class="font-semibold text-gray-700">$' + listing.totalMonthly.toLocaleString() + ' <i class="fas fa-calculator text-gray-400"></i></div></div>'
+                + '<div class="text-right"><div class="uppercase text-[10px] text-gray-400">' + (isSale ? 'Maintenance' : 'Rent') + '</div><div class="font-semibold text-gray-700">' + money(listing.maintCC) + '</div></div>'
+                + '<div class="text-right"><div class="uppercase text-[10px] text-gray-400">Est. Monthly</div><div class="font-semibold text-gray-700">' + money(listing.totalMonthly) + ' <i class="fas fa-calculator text-gray-400"></i></div></div>'
                 + '</div>';
 
             // ── Helper: only show a field row if it has real data ──
@@ -31149,9 +31179,9 @@ function emailCurrentCalc() {
                             <h3 class="lux-section-title"><i class="fas fa-dollar-sign text-gray-400"></i> Financial</h3>
                             <div class="grid grid-cols-3 gap-x-6 gap-y-1 text-sm">
                                 <div class="lux-field"><span>${isSale ? 'List Price' : 'Monthly Rent'}</span><span class="text-base font-bold">${money(listing.price)}</span></div>
-                                ${listing.originalPrice && listing.originalPrice !== listing.price ? '<div class="lux-field"><span>Original Price</span><span class="text-red-600">$' + listing.originalPrice.toLocaleString() + '</span></div>' : ''}
+                                ${listing.originalPrice != null && listing.originalPrice !== listing.price ? '<div class="lux-field"><span>Original Price</span><span class="text-red-600">' + money(listing.originalPrice) + '</span></div>' : ''}
                                 <div class="lux-field"><span>${isSale ? 'Maint/CC' : 'Net Effective'}</span><span>${listing.maintCC == null ? "Unavailable" : "$" + Number(listing.maintCC).toLocaleString() + "/mo"}</span></div>
-                                ${listing.reTaxes ? '<div class="lux-field"><span>RE Taxes</span><span>$' + listing.reTaxes.toLocaleString() + '/mo</span></div>' : ''}
+                                ${listing.reTaxes != null ? '<div class="lux-field"><span>RE Taxes</span><span>' + moneyMo(listing.reTaxes) + '</span></div>' : ''}
                                 <div class="lux-field"><span>Est. Total Monthly</span><span class="text-green-700 font-bold">${listing.totalMonthly == null ? "Unavailable" : "$" + Number(listing.totalMonthly).toLocaleString() + "/mo"}</span></div>
                                 ${perUnitPrice(listing.intSqft) ? '<div class="lux-field"><span>$/SqFt</span><span>' + perUnitPrice(listing.intSqft) + '</span></div>' : ''}
                                 ${perUnitPrice(listing.rooms) ? '<div class="lux-field"><span>$/Room</span><span>' + perUnitPrice(listing.rooms) + '</span></div>' : ''}
@@ -31228,10 +31258,10 @@ function emailCurrentCalc() {
                                     <!-- Col 1: Price / Financial -->
                                     <div class="space-y-2 text-sm">
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">${isSale ? 'List Price' : 'Monthly Rent'}</span><span class="font-semibold">${money(listing.price)}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Original Price</span><span class="font-semibold">${listing.originalPrice ? '$' + listing.originalPrice.toLocaleString() : '$' + listing.price.toLocaleString()}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Original Price</span><span class="font-semibold">${money(listing.originalPrice != null ? listing.originalPrice : listing.price)}</span></div>
                                         ${isSale ? '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Maintenance / CC</span><span class="font-semibold">' + money(listing.maintCC) + '</span></div>' : '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Net Effective Rent</span><span class="font-semibold">---</span></div>'}
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">RE Taxes</span><span class="font-semibold">${listing.reTaxes ? '$' + listing.reTaxes.toLocaleString() + '/mo' : '---'}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Est. Total Monthly</span><span class="font-semibold">$${listing.totalMonthly.toLocaleString()}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">RE Taxes</span><span class="font-semibold">${moneyMo(listing.reTaxes)}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Est. Total Monthly</span><span class="font-semibold">${money(listing.totalMonthly)}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">$ Per SqFt</span><span class="font-semibold">${perUnitPrice(listing.intSqft) || '---'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">$ Per Room</span><span class="font-semibold">${perUnitPrice(listing.rooms) || '---'}</span></div>
                                         ${isSale ? '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Shares</span><span class="font-semibold">---</span></div>' : '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Security Deposit</span><span class="font-semibold">---</span></div>'}
@@ -32154,7 +32184,7 @@ function emailCurrentCalc() {
             var addr = (listing.address || '') + (listing.unit ? ', ' + listing.unit : '');
             var nbhd = listing.neighborhood || '';
             var borough = listing.borough || null;
-            var price = '$' + Number(listing.price || 0).toLocaleString();
+            var price = money(listing.price);
             var beds = listing.beds === 0 ? 'Studio' : (listing.beds || '—') + ' Bed';
             var baths = (listing.baths || '—') + ' Bath';
             var sqft = listing.intSqft ? listing.intSqft.toLocaleString() + ' SF' : '';
@@ -32205,7 +32235,7 @@ function emailCurrentCalc() {
             var isSale = listing.listingCategory !== 'rental';
             var slug = addr.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
             var url = 'https://mallan.nyc/' + (isSale ? 'buy' : 'rent') + '/' + slug + '-' + listing.id;
-            var title = addr + ' — $' + Number(listing.price || 0).toLocaleString();
+            var title = addr + ' — ' + money(listing.price);
 
             if (navigator.share) {
                 navigator.share({ title: title, url: url }).catch(function() {});
@@ -32558,7 +32588,14 @@ function emailCurrentCalc() {
             var today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
             // The client sheet formats the same way the screen now does: a
             // number the provider supplied, or the word unavailable. Never $0.
+            // THREE STATES, NOT TWO. `null` is unknown, `0` is a real zero, and a
+            // positive number is an amount. Every money reader goes through these.
+            // A truthiness test collapses a genuine 0 into unknown, and a bare
+            // `.toLocaleString()` THROWS on the null that is now preserved — the
+            // crash path introduced by removing the null-to-zero coercion without
+            // tracing every reader.
             var money = function(v) { return v == null ? 'Unavailable' : '$' + Number(v).toLocaleString(); };
+            var moneyMo = function(v) { return v == null ? 'Unavailable' : '$' + Number(v).toLocaleString() + '/mo'; };
             var num = function(v) { return v == null ? '--' : v; };
             var txt = function(v) { return (v === null || v === undefined || v === '') ? '---' : v; };
             var perUnitPrice = function(divisor) {
@@ -32635,9 +32672,9 @@ function emailCurrentCalc() {
             // Financial Details
             h += '<div class="print-section"><h3><i class="fas fa-dollar-sign" style="margin-right:6px"></i> Financial</h3><div class="print-grid">';
             h += '<div class="pf"><span>' + (isSale ? 'List Price' : 'Monthly Rent') + '</span><span>' + money(listing.price) + '</span></div>';
-            if (listing.originalPrice) h += '<div class="pf"><span>Original Price</span><span>$' + listing.originalPrice.toLocaleString() + '</span></div>';
+            if (listing.originalPrice != null) h += '<div class="pf"><span>Original Price</span><span>' + money(listing.originalPrice) + '</span></div>';
             h += '<div class="pf"><span>' + (isSale ? 'Maint/CC' : 'Net Effective') + '</span><span>' + money(listing.maintCC) + '</span></div>';
-            h += '<div class="pf"><span>RE Taxes</span><span>' + (listing.reTaxes ? '$' + listing.reTaxes.toLocaleString() + '/mo' : '---') + '</span></div>';
+            h += '<div class="pf"><span>RE Taxes</span><span>' + moneyMo(listing.reTaxes) + '</span></div>';
             h += '<div class="pf"><span>Est. Monthly</span><span>' + money(listing.totalMonthly) + '</span></div>';
             h += '<div class="pf"><span>$/SqFt</span><span>' + (perUnitPrice(listing.intSqft) || '---') + '</span></div>';
             h += '</div></div>';
@@ -32695,7 +32732,7 @@ function emailCurrentCalc() {
             var _agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', licenseTitle: 'Licensed Real Estate Broker', phone: '', email: '', company: 'Mallan Real Estate Inc.', companyLicense: '#10991205323', license: '' };
             var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : listing.address;
             var displayUnit = listing.addressDisplayYN !== false && listing.unit ? ', ' + listing.unit : '';
-            var subject = encodeURIComponent(displayAddress + displayUnit + ' — $' + listing.price.toLocaleString() + ' — ' + listing.beds + 'BR/' + listing.baths + 'BA');
+            var subject = encodeURIComponent(displayAddress + displayUnit + ' — ' + money(listing.price) + ' — ' + listing.beds + 'BR/' + listing.baths + 'BA');
 
             // Use sending agent info, NOT listing agent — per UCBA Art. I Sec. 5(C)
             var agentBlock = _agent.name + '\n' +
@@ -32705,7 +32742,7 @@ function emailCurrentCalc() {
                 (_agent.email ? 'Email: ' + _agent.email + '\n' : '') +
                 '\nEqual Housing Opportunity';
 
-            var body = encodeURIComponent('Hi,\n\nPlease see the following listing:\n\n' + displayAddress + displayUnit + '\n' + listing.neighborhood + ', NY ' + listing.zip + '\n\nPrice: $' + listing.price.toLocaleString() + '\nRooms: ' + listing.rooms + ' | Beds: ' + listing.beds + ' | Baths: ' + listing.baths + '\nSqFt: ' + (listing.intSqft ? listing.intSqft.toLocaleString() : '---') + '\nStatus: ' + listing.status + ' | DOM: ' + listing.dom + '\n\nL-ID: ' + (listing.lid || '---') + ' | W-ID: ' + (listing.wid || '---') + '\n\n---\n' + agentBlock);
+            var body = encodeURIComponent('Hi,\n\nPlease see the following listing:\n\n' + displayAddress + displayUnit + '\n' + listing.neighborhood + ', NY ' + listing.zip + '\n\nPrice: ' + money(listing.price) + '\nRooms: ' + listing.rooms + ' | Beds: ' + listing.beds + ' | Baths: ' + listing.baths + '\nSqFt: ' + (listing.intSqft ? listing.intSqft.toLocaleString() : '---') + '\nStatus: ' + listing.status + ' | DOM: ' + listing.dom + '\n\nL-ID: ' + (listing.lid || '---') + ' | W-ID: ' + (listing.wid || '---') + '\n\n---\n' + agentBlock);
             window.open('mailto:?subject=' + subject + '&body=' + body);
         }
 
@@ -32924,7 +32961,7 @@ function emailCurrentCalc() {
                 + '<div class="p-6 space-y-4">'
                 + '<div class="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">'
                 + '<strong>' + escapeHtml(listing.address) + (listing.unit ? ', ' + escapeHtml(listing.unit) : '') + '</strong>'
-                + '<div class="text-xs text-gray-400 mt-1">$' + (listing.price ? listing.price.toLocaleString() : '0') + ' | ' + escapeHtml(listing.neighborhood || '') + '</div>'
+                + '<div class="text-xs text-gray-400 mt-1">' + money(listing.price) + ' | ' + escapeHtml(listing.neighborhood || '') + '</div>'
                 + '</div>'
                 + '<div><label class="block text-sm font-medium text-gray-700 mb-1">Date *</label>'
                 + '<input type="date" id="showingDate" class="w-full border rounded-lg px-3 py-2 text-sm" min="' + new Date().toISOString().split('T')[0] + '"></div>'
@@ -33080,8 +33117,8 @@ function emailCurrentCalc() {
                 { label: 'Baths', fn: function(l) { return l.baths; } },
                 { label: 'Sqft', fn: function(l) { return l.intSqft ? l.intSqft.toLocaleString() : 'N/A'; } },
                 { label: '$/Sqft', fn: function(l) { return l.intSqft && l.price ? '$' + Math.round(l.price / l.intSqft).toLocaleString() : 'N/A'; } },
-                { label: 'Maint/CC', fn: function(l) { return l.maintCC ? '$' + l.maintCC.toLocaleString() : 'N/A'; } },
-                { label: 'Taxes', fn: function(l) { return l.reTaxes ? '$' + Math.round(l.reTaxes).toLocaleString() + '/mo' : 'N/A'; } },
+                { label: 'Maint/CC', fn: function(l) { return l.maintCC == null ? 'N/A' : '$' + Number(l.maintCC).toLocaleString(); } },
+                { label: 'Taxes', fn: function(l) { return l.reTaxes == null ? 'N/A' : '$' + Math.round(l.reTaxes).toLocaleString() + '/mo'; } },
                 { label: 'DOM', fn: function(l) { return l.dom || 0; } },
                 { label: 'Neighborhood', fn: function(l) { return escapeHtml(l.neighborhood || ''); } },
                 { label: 'Year Built', fn: function(l) { return l.yearBuilt || 'N/A'; } },
@@ -33224,19 +33261,21 @@ function emailCurrentCalc() {
             // Build timeline from listing data
             var events = [];
             if (listing.listedDate) {
-                events.push({ date: listing.listedDate, label: 'Listed', detail: '$' + (listing.originalPrice || listing.price || 0).toLocaleString() });
+                // `|| 0` made an unknown listing price read as "$0" in the
+                // timeline — the same false financial fact, one renderer over.
+                events.push({ date: listing.listedDate, label: 'Listed', detail: money(listing.originalPrice != null ? listing.originalPrice : listing.price) });
             }
             if (listing.originalPrice && listing.originalPrice !== listing.price && listing.price) {
                 events.push({
                     date: listing.updatedDate || 'N/A',
                     label: 'Price ' + (listing.price < listing.originalPrice ? 'Reduced' : 'Increased'),
-                    detail: '$' + listing.originalPrice.toLocaleString() + ' → $' + listing.price.toLocaleString()
+                    detail: money(listing.originalPrice) + ' → ' + money(listing.price)
                 });
             }
             if (listing.status && listing.status !== 'Active') {
                 events.push({ date: listing.updatedDate || 'N/A', label: 'Status: ' + listing.status, detail: '' });
             }
-            events.push({ date: 'Current', label: 'DOM: ' + (listing.dom || 0) + ' | CDOM: ' + (listing.cdom || 0), detail: '$' + (listing.price || 0).toLocaleString() });
+            events.push({ date: 'Current', label: 'DOM: ' + (listing.dom || 0) + ' | CDOM: ' + (listing.cdom || 0), detail: money(listing.price) });
 
             var timelineHtml = events.map(function(ev) {
                 return '<div class="flex items-start gap-3 pb-4">'
@@ -33291,7 +33330,7 @@ function emailCurrentCalc() {
                 + '<div class="p-6 space-y-4">'
                 + '<div class="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">'
                 + '<strong>' + escapeHtml(listing.address) + '</strong>'
-                + '<div class="text-xs text-gray-400">$' + (listing.price ? listing.price.toLocaleString() : '0') + '</div></div>'
+                + '<div class="text-xs text-gray-400">' + money(listing.price) + '</div></div>'
                 + '<div><label class="block text-sm font-medium text-gray-700 mb-1">Select Clients</label>'
                 + '<div id="portalSendClientList" class="border rounded-lg max-h-48 overflow-y-auto p-2 text-sm">'
                 + '<p class="text-gray-400 text-xs"><i class="fas fa-spinner fa-spin"></i> Loading clients...</p></div></div>'

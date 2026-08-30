@@ -260,6 +260,30 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
   const managementCompany = params.get("managementCompany");
   if (managementCompany) throw new UnsupportedSearchCriterionError("managementCompany", [managementCompany]);
 
+  // Maximum financing: REFUSED BY NAME, not ignored.
+  //
+  // The value is real and densely populated — the 2026-08-21 census found it on
+  // 6,803 of 8,010 Active records — but it lives inside
+  // `CustomProperty.CustomFields`, a declared Edm.String that `$filter` cannot
+  // reach into. So no provider clause is possible, and the registry records
+  // `executionStrategy: 'mallan_projection_filter'`: the answer has to be
+  // computed Mallan-side over the COMPLETE candidate universe before count and
+  // pagination, which is Section 6 work and does not exist yet.
+  //
+  // Until it does, either bound fails loudly. Accepting the parameter and
+  // returning HTTP 200 would hand the broker a result set WIDER than the one
+  // they asked for, with nothing on the page saying so — the silent widening
+  // this whole boundary exists to prevent. Both bounds are named so a min-only
+  // or max-only request is refused just as clearly as both.
+  const financingMin = params.get("financingMin");
+  const financingMax = params.get("financingMax");
+  if (financingMin || financingMax) {
+    throw new UnsupportedSearchCriterionError(
+      "financing",
+      [financingMin, financingMax].filter((v): v is string => !!v),
+    );
+  }
+
   const subType = params.get("propertySubType");
   if (subType) {
     const rendered = propertySubTypeOData(parsePropertySubTypeCriterion(subType));

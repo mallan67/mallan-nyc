@@ -753,3 +753,53 @@ describe("buildCrmIdxODataFilter", () => {
     }))).toThrow(UnsupportedSearchCriterionError);
   });
 });
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * MAXIMUM FINANCING IS REFUSED BY NAME, AT EVERY BOUND COMBINATION.
+ *
+ * The value is real and densely populated — 6,803 of 8,010 Active records — but
+ * it lives inside `CustomProperty.CustomFields`, an Edm.String that `$filter`
+ * cannot reach into. Mallan-side execution over the complete universe is Section
+ * 6 work and does not exist yet.
+ *
+ * Accepting the parameter and returning HTTP 200 would hand the broker a WIDER
+ * result set than they asked for with nothing saying so. A named refusal is the
+ * only honest answer until execution exists.
+ */
+describe("maximum financing fails loud until it can execute", () => {
+  const build = (qs: string) => buildCrmIdxODataFilter(new URLSearchParams(qs));
+
+  it("refuses a MIN-only request", () => {
+    expect(() => build("financingMin=80")).toThrow(UnsupportedSearchCriterionError);
+  });
+
+  it("refuses a MAX-only request", () => {
+    // The bound that used to vanish before reaching the server at all: the
+    // serializer emitted it, nothing forwarded it, and the search silently ran
+    // without it.
+    expect(() => build("financingMax=90")).toThrow(UnsupportedSearchCriterionError);
+  });
+
+  it("refuses BOTH bounds together", () => {
+    expect(() => build("financingMin=75&financingMax=90")).toThrow(
+      UnsupportedSearchCriterionError,
+    );
+  });
+
+  it("names the criterion and the offending values", () => {
+    try {
+      build("financingMin=75&financingMax=90");
+      throw new Error("expected a refusal");
+    } catch (e) {
+      const err = e as InstanceType<typeof UnsupportedSearchCriterionError>;
+      expect(err.criterion).toBe("financing");
+      expect(err.unsupportedValues).toEqual(["75", "90"]);
+    }
+  });
+
+  it("does NOT refuse when neither bound is supplied", () => {
+    // A refusal on absence would block every ordinary search.
+    expect(() => build("minPrice=500000")).not.toThrow();
+  });
+});
