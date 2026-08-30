@@ -2,84 +2,73 @@
 
 **Repository:** `mallan67/mallan-nyc`
 
-**Active Search branch / PR #618:** `fix/neon-p0-event-driven-wake-2026-08-16`
+**Active Search PR:** #618
 
-**Verified Search checkpoint before this directive:** `3096a6448d72895585b9ac93f4cdc84cccc99a18`
+**Active Search branch:** `fix/neon-p0-event-driven-wake-2026-08-16`
 
-**PR #618 at that checkpoint:** draft, open, unmerged, mergeable. All five GitHub PR workflows passed. Green CI is evidence, not workflow closure.
+**Verified Search code checkpoint before this directive:** `e291594e2578be198fefc7b774fd59529e39afa2`
 
-**Durable continuation file:** `docs/claude-instructions/CURRENT.md`
+**PR state at that checkpoint:** open, draft, unmerged, mergeable. All five GitHub PR workflows passed on `e291594e...`. Vercel reported success. Green CI/build is evidence, not Search closure.
 
-> This file deliberately does not hard-code its own resulting commit SHA. The commit containing this revision becomes the new #618 head. Before any mutation, read the live PR head from GitHub and verify the local worktree matches it exactly.
+> This file does not hard-code its own resulting commit SHA. The commit containing this revision becomes the new live #618 head. Before any mutation, read the live PR head and verify the local worktree exactly matches it.
 
-# 0. START HERE — AUTHORITY / BRANCH TRUTH
+# 0. AUTHORITY / START RULES
 
 Before ANY mutation:
 
 1. verify repository == `mallan67/mallan-nyc`;
-2. verify local branch/worktree == the live remote PR #618 head;
-3. fetch/rebase only as needed to reach that exact tracked state — never force over a moving shared branch;
-4. read THIS FILE completely;
-5. read the root `MALLAN-PLATFORM-MASTER-PLAN.md` from frozen documentation authority PR #595 (`agent/publish-mallan-platform-master-plan-2026-08-04`, verified head `3c7f8722a23590652d8280ccb90326448b70f116`) as READ-ONLY product/system authority;
-6. do NOT look for `docs/architecture/MALLAN-PLATFORM-MASTER-PLAN.md` on #618; that was a stale path;
-7. do NOT merge/cherry-pick #595 into #618 merely to read the Master Plan;
-8. use `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` as execution-state evidence where current, subordinate to the Master Plan and this file;
+2. verify local branch/worktree == live remote PR #618 head;
+3. fetch/rebase only as required to reach that exact head; never force over a moving shared branch;
+4. read this file completely;
+5. read the root `MALLAN-PLATFORM-MASTER-PLAN.md` from frozen documentation authority PR #595 (`agent/publish-mallan-platform-master-plan-2026-08-04`, verified head `3c7f8722a23590652d8280ccb90326448b70f116`) READ-ONLY;
+6. do not look for `docs/architecture/MALLAN-PLATFORM-MASTER-PLAN.md` on #618 — that path was stale;
+7. do not merge/cherry-pick #595 merely to read the Master Plan;
+8. use `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` only as subordinate execution-state evidence;
 9. identify the exact numbered section below before editing;
-10. do not skip ahead because another feature looks easier.
+10. do not skip ahead because another feature is easier.
 
-Old chats, audits, census files and handoffs are evidence only. Live authenticated Cotality, current Git evidence and the canonical authorities above control.
+Old chats, audits, census files and handoffs are evidence only. Live authenticated Cotality, current Git evidence, the Master Plan and this continuation directive control.
 
-## Moving stack — verify every session
+# 1. CANONICAL ARCHITECTURE / PROVIDER AUTHORITY
 
-PR #618 is stacked on PR #620 / branch `fix/neon-r2-closure-clean-2026-08-19`, and that base moves.
-
-Verified 2026-08-30 immediately before this directive:
-
-- #618 head: `3096a6448d72895585b9ac93f4cdc84cccc99a18`;
-- #620 head: `82d55a3c2ce357edd34dd5ee7ae66fed853d9ceb`;
-- comparison: **diverged**, Search is **177 commits ahead and 3 commits behind** #620 relative to merge base `a0db2dac8b933bc2d978143721418427c0ebb65a`;
-- GitHub synthetic merge for #618 at this checkpoint: `d43b9fa34121a49b838ecbd42e99210cc53e2f33`;
-- Production is still reported by the active PR authority as `a0db2dac...`; re-verify before any Production claim.
-
-Do not restack/rebase the shared Search branch without Maya's explicit approval. Before merge closure, prove the exact proposed combined tree, not merely the Search-head checks.
-
-# 1. ABSOLUTE PROVIDER AUTHORITY — COTALITY ONLY
-
-Canonical chain:
+Always:
 
 `COTALITY RAW CONTRACT → VERIFIED COTALITY MAPPING → MALLAN STORAGE/PROJECTION → MALLAN BUSINESS RULE → CRM / SEARCH / BUILDING / CMA / MY LISTINGS / EBLAST / PORTALS / PUBLIC`
 
-Cotality is the one external property/provider authority. Do not create Mallan architecture whose provider authority is RESO, RLS, RealPlus, an old Trestle field list or a handwritten historical reference.
+Cotality is Mallan's one external property/provider authority.
 
-For every executable provider-facing capability prove where applicable:
+Do not create provider architecture whose authority is RESO, RLS, RealPlus, an old Trestle field list, a historical audit or a handwritten mapping mirror. REBNY/RLS/UCBA/law remain compliance boundaries, not separate property-data authorities.
+
+For every provider-facing capability prove as applicable:
 
 - exact Cotality resource;
-- exact declared field/container and observed extension key if applicable;
+- exact declared field/container and observed extension key;
 - type/enum encoding;
 - null/empty/sentinel semantics;
-- filter/order/expand/operator support;
+- filter/order/expand/operator behavior;
 - permission/availability;
-- live population/behavior where material;
+- live population/behavior when material;
 - semantic equivalence to the broker-facing concept.
 
-`CustomProperty.CustomFields` is a declared nullable string container. Dated evidence found 52 inner NYC extension keys. Each key needs its own semantics/disposition; decoding the JSON container does not make all keys mapped.
+`CustomProperty.CustomFields` is a declared nullable string container. Dated evidence observed 52 NYC inner keys; each key needs its own semantic and consumer disposition.
 
-# 2. HARD SCOPE / CHANGE CONTROL
+# 2. SCOPE / CHANGE CONTROL
 
 PR #618 is authenticated CRM/backend Search only until Search closes.
 
 IN SCOPE:
 
 - `public/crm/**` authenticated agent Search;
-- Sale/Rental criteria and execution;
+- Sale Search;
+- Rental Search;
 - Building Search foundation;
 - ComparableCriteria/CMA Search foundation;
 - authenticated Search API/mapping/executor;
-- result universe/count/pagination;
+- final result universe/count/pagination;
 - Map / Search Within Results / Search Within Map;
-- Saved Search ownership now and full roundtrip later in §8;
-- workbench selection/client actions;
-- Compare / Reports / CMA after the Search foundation is truthful.
+- Saved Search ownership now and full roundtrip in §8;
+- workbench/selection/client actions;
+- Compare/Reports/CMA after the Search foundation is truthful.
 
 PROTECTED / OUT OF SCOPE:
 
@@ -89,109 +78,139 @@ PROTECTED / OUT OF SCOPE:
 - Cotality writes;
 - Production deployment.
 
-# 3. SEARCH FOUNDATION ALREADY ESTABLISHED — DO NOT REGRESS
+# 3. MOVING STACK — VERIFY EACH SESSION
 
-Historical B2 checkpoint `37d32cf2...` made `FIELD_REGISTRY` mechanically joinable to execution. Later work through `74081a17...`, `dd4eff61...` and `3096a644...` materially established:
+PR #618 is stacked on PR #620 / `fix/neon-r2-closure-clean-2026-08-19`.
 
-- `SaleCriteria`, `RentalCriteria`, `BuildingCriteria`, `ComparableCriteria` ownership;
-- one canonical workflow state rather than Basic/Advanced parallel truth;
-- DOM → canonical → DOM direction;
-- old second DOM reconstruction path removed;
-- status transport defect corrected;
-- criterion roles and workflow applicability in canonical authority;
-- Sponsor Unit decoding centralized in canonical CustomFields parser;
-- Maximum Financing identity merged to one canonical criterion;
-- financing min/max both represented in canonical transport ownership;
-- explicit unsupported/fail-loud behavior where execution is not yet truthful.
+Verified immediately before this directive:
 
-This foundation is not Search completion.
+- #618 code checkpoint: `e291594e2578be198fefc7b774fd59529e39afa2`;
+- #620 head: `82d55a3c2ce357edd34dd5ee7ae66fed853d9ceb`;
+- comparison: **diverged**;
+- Search is **179 commits ahead and 3 commits behind** #620 relative to merge base `a0db2dac8b933bc2d978143721418427c0ebb65a`;
+- current GitHub synthetic merge reported for #618 at that checkpoint: `3c45153cc94e023efba815664ad07ba6fc2e80a2`;
+- #618 is open/draft/unmerged/mergeable;
+- #620 is a separate Neon/R2 lane and remains held from Search work.
 
-# 4. SEARCH STEP 1 — CANONICAL CRITERIA CONTRACTS
+Do not restack/rebase the shared Search branch without Maya's explicit approval. Exact combined-tree proof is required before merge closure; Search-head CI alone does not prove the future combined tree.
+
+# 4. SEARCH STEP 1 — CANONICAL CRITERIA / TRANSPORT
 
 **CURRENT SECTION: 4 — STILL OPEN. DO NOT START §5 YET.**
 
-## 4.1–4.5 material state
+The structural foundation is materially established and must not regress:
 
-The structural canonical-state work is materially complete enough to attempt closure:
+- `SaleCriteria`, `RentalCriteria`, `BuildingCriteria`, `ComparableCriteria` ownership;
+- one canonical state per workflow;
+- Basic/Advanced are views of the same canonical state, not parallel stores;
+- DOM → canonical → DOM direction;
+- old second DOM reconstruction path removed;
+- workflow applicability/criterion roles owned by canonical contracts;
+- Sponsor Unit observed string `"1"/"0"` parsing corrected through the canonical CustomFields decoder;
+- Maximum Financing has one canonical identity, Sale + Building applicability, range shape, both min/max transport names, and fail-loud behavior while execution is unavailable;
+- Saved Search ownership traced; full Saved Search v2 remains §8.
 
-- Sale and Rental have separate workflow contracts over one canonical vocabulary;
-- Building and Comparable/CMA ownership exists without a separate provider truth;
-- Basic/Advanced edit the same canonical workflow object;
-- custom ranges have canonical support;
-- Sponsor Unit observed string encodings `"1"` / `"0"` are decoded correctly;
-- Maximum Financing is Sale + Building, not Rental;
-- Saved Search ownership has been traced; full v2 implementation remains in §8.
+## 4.A MONEY BEHAVIORAL PROOF — CLOSED BY EVIDENCE AT `e291594e...`
 
-## 4.6 Maximum Financing transport — CODE PATH NOW CORRECT, BEHAVIORAL CLOSURE STILL MISSING
+`tests/runtime/crm-detail-money-behavior.test.ts` is real behavioral evidence.
 
-At `3096a644...`, the four transport hops were corrected:
+It:
 
-1. `FIELD_REGISTRY.searchParams` now owns `financingMin` + `financingMax`;
-2. `buildIdxSearchParams` carries both;
-3. `api-client.js` forwards both;
-4. `crm-idx-filter.ts` reads either/both and throws `UnsupportedSearchCriterionError` until complete-universe execution exists.
+- loads the page's actual script chain through `pagination.js`;
+- seeds listings after script load so `data-loader.js` cannot vacuously clear the fixture;
+- invokes the real `showListingDetail()` function;
+- proves the detail DOM actually renders;
+- proves null money renders unavailable and does not throw;
+- proves genuine zero renders `$0`;
+- proves positive values render correctly;
+- proves unknown/zero/positive remain distinguishable in one render;
+- proves detail rendering does not mutate the shared listing record.
 
-This is the correct interim product behavior: a broker asking for financing must not receive a widened HTTP 200 answer.
+This closes the money behavioral proof item opened during §4.
 
-However, DO NOT call this boundary behaviorally closed yet. The new transport test is still principally a **source-structure census**. Mallan's rules explicitly say source-string assertions protect invariants but do not prove workflows.
+### Downstream numeric display defect remains open but is NOT a §4 canonical blocker
 
-Required final §4 financing proof:
+`pagination.js` still converts unknown `beds`, `baths`, `rooms` and `dom` to zero on a display copy. That can fabricate presentation facts, including an unknown bed count appearing as a studio.
 
-- execute the REAL canonical serializer/buildIdxSearchParams path with min-only, max-only, both and neither;
-- execute the REAL API-client request builder/stubbed fetch and prove both query keys reach `/api/idx/search`;
-- prove the server returns the typed unsupported criterion response for min-only, max-only and both while neither proceeds normally;
-- prove zero is not silently dropped if zero reaches the transport contract;
-- no hand-restated shadow transport table in the test.
+Track this through §7/§10. Do not let overall Search close while it remains. Do not drag a broad renderer cleanup backward into §4 unless it directly breaks the remaining §4 proof.
 
-Complete-universe financing filtering is NOT §4. It remains §6.
+## 4.B MAXIMUM FINANCING — ONE BEHAVIORAL HOP STILL MISSING
 
-## 4.7 Null-money reader correction — CODE IMPROVED, CLAIM OF RUNTIME MOUNT IS FALSE
+At `e291594e...`, the production code path is structurally correct:
 
-`3096a644...` corrected the active `pagination.js` money readers so null, genuine zero and positive values are distinct. It also removed two additional false-money cases: zero RE tax treated as absent and unknown list price falling back to `$0` in the timeline.
+`_canonicalCriteria.max_financing_percent → serializeCanonicalToWire() → financingMin/financingMax → buildIdxSearchParams() → MallanAPI.idx.search() → /api/idx/search → UnsupportedSearchCriterionError`
 
-But the new `tests/runtime/crm-pagination-money-render.test.ts` **does not mount/render `pagination.js`** despite the progress recap saying it does. It reads the file, evaluates the helper functions and regex-scans unsafe patterns.
+`tests/runtime/crm-financing-transport-behavior.test.ts` is materially better than the old source census. It executes:
 
-That is a useful anti-regression invariant, but it is not behavioral renderer proof.
+- real `buildIdxSearchParams()`;
+- real `MallanAPI.idx.search()` request builder with stubbed fetch;
+- the emitted `/api/idx/search` URL;
+- real server `buildCrmIdxODataFilter()` refusal;
+- min-only;
+- max-only;
+- both;
+- neither;
+- legitimate zero transport.
 
-Required before closing this defect family:
+But the test currently constructs the object passed to `buildIdxSearchParams()` with `financingMin` / `financingMax` already present.
 
-- load the real `pagination.js` in JSDOM/browser-compatible harness;
-- invoke the real detail render path with null money, real zero and positive money;
-- assert no throw;
-- assert unknown renders unavailable, real zero renders `$0`, positive renders amount;
-- cover the result row/detail financial card/timeline paths actually reached by the render invocation, not only helper extraction;
-- do not replace this with another source-string-only test.
+That bypasses the FIRST production hop:
 
-This behavioral money proof is the last known direct-proof gap blocking §4 closure because the defect was opened and corrected inside the current closure cycle.
+`_canonicalCriteria.max_financing_percent → serializeCanonicalToWire()`
 
-## 4.8 Downstream numeric display defect — TRACK, DO NOT HIDE
+The test therefore proves:
 
-`pagination.js` still intentionally converts unknown `beds`, `baths`, `rooms` and `dom` to zero on a display copy. This can create downstream false presentation (for example unknown beds can look like a Studio).
+`financingMin/financingMax → buildIdxSearchParams → API client → server refusal`
 
-This is NOT canonical criteria-state ownership and does not require dragging a 94-reader renderer cleanup into §4. Record it as a downstream Search result/detail blocker for §7/§10 unless a current §4 behavioral test proves it directly breaks canonical-state closure.
+It does **not** yet behaviorally prove:
 
-Do not lose it and do not call overall Search finished while it remains.
+`canonical max_financing_percent range → financingMin + financingMax`
+
+The source/invariant tests show that mapping exists, but Mallan's closure rule is that source assertions protect invariants and do not substitute for workflow behavior.
+
+### LAST REQUIRED §4 PROOF
+
+Add ONE bounded behavioral test/harness that uses the real production canonical path rather than pre-building wire criteria.
+
+Required:
+
+1. set the real canonical Sale state `max_financing_percent` to min-only;
+2. run the real production serializer path that `collectSearchCriteria()` uses;
+3. prove `financingMin` is produced and reaches the stubbed `/api/idx/search` request;
+4. repeat max-only;
+5. repeat both;
+6. repeat clearing one/both bounds so stale values do not survive;
+7. use Building ownership too if the production adapter exposes it through the same serializer path; at minimum prove Sale because the current behavioral test is labeled browser Search transport;
+8. do not restate `CANONICAL_TO_WIRE` inside the test;
+9. keep the existing downstream request/refusal tests — this new proof complements them rather than replacing them.
+
+If the canonical store setter/adapter is intentionally not exported, mount the real form/adapter/collector path in JSDOM rather than reaching into private state with a shadow implementation.
+
+Once this single proof passes and the exact pushed SHA is green, Section 4 may be marked:
+
+**SECTION 4 — CLOSED BY EVIDENCE**
+
+Then begin §5. Do NOT begin §6 financing execution first.
 
 ## SECTION 4 CLOSURE GATE
 
-Do not move to §5 until all are true:
+Everything below is satisfied except the single canonical-financing behavioral hop above:
 
-- SaleCriteria drives active Sale state;
-- RentalCriteria drives active Rental state;
-- BuildingCriteria + ComparableCriteria ownership established without parallel truth;
-- Basic↔Advanced preserves one canonical object both directions;
-- custom ranges round-trip, including clear-one/clear-both behavior;
+- SaleCriteria drives Sale state;
+- RentalCriteria drives Rental state;
+- BuildingCriteria/ComparableCriteria ownership exists without parallel truth;
+- Basic↔Advanced one-state contract established;
+- custom ranges and clear semantics structurally covered;
 - Sponsor Unit `"1"/"0"` correct;
-- Maximum Financing min/max canonical ownership and full transport/refusal path proven behaviorally;
-- serializer derives from canonical criteria and does not mutate them;
-- every visible criterion is canonically owned or explicitly refused;
+- Maximum Financing both bounds have canonical ownership and explicit server refusal;
+- serializer is canonical → transport, not DOM reconstruction;
 - unsupported/unverified criteria fail explicitly;
-- Saved Search persistence ownership traced, full v2 not pulled forward;
-- null-money correction has one real renderer behavioral proof, not only source assertions;
-- targeted direct + negative + roundtrip tests pass;
-- Current file records the exact closure SHA when the gate is satisfied.
+- visible criteria are owned or explicitly refused;
+- Saved Search ownership traced without pulling v2 forward;
+- money behavior now proven by real renderer execution;
+- targeted/broad gates green at `e291594e...`.
 
-Green CI alone does not satisfy this gate.
+**Remaining blocker: behaviorally exercise `max_financing_percent` from canonical state through `serializeCanonicalToWire()`, not from a prebuilt `{ financingMin, financingMax }` object.**
 
 # 5. SEARCH STEP 2 — REGISTRY → EXECUTOR AUTHORITY
 
@@ -204,65 +223,68 @@ Target:
 Known §5 blockers:
 
 1. bathrooms mapping conflict;
-2. dual-domain `listing_id_canonical` — Mallan `SL-/RL-` identity must not be sent to Cotality as provider ListingId;
+2. dual-domain `listing_id_canonical`: Mallan `SL-/RL-` identity must never be sent to Cotality as though it were provider ListingId;
 3. Sponsor Unit execution ownership/strategy;
-4. Maximum Financing one executor owner/strategy, without prematurely implementing page-local filtering;
-5. unverified year/floors/units/keyword/date semantics must remain `needs_probe`/blocked rather than promoted by code emission;
-6. remove/reduce duplicate maps in browser/filter/API/Saved Search/Map/Report/CMA where registry or named specialized owner should control.
+4. Maximum Financing one authoritative executor owner/strategy, without implementing page-local filtering;
+5. unverified year/floors/units/keyword/date semantics remain blocked until live proof;
+6. remove/reduce duplicate criterion maps in browser/filter/API/Saved Search/Map/Reports/CMA where registry or a named specialized owner should control.
 
-§5 closes only when every executable criterion has exactly one mapping owner and negative drift tests catch divergence.
+§5 closes only when every executable criterion has exactly one mapping owner and drift tests catch divergence.
 
 # 6. SEARCH STEP 3 — FINAL UNIVERSE / COUNT / PAGINATION TRUTH
 
-Required final chain:
+Required chain:
 
-`Cotality candidate universe → Mallan listing authority/return-copy suppression → eligibility/identity → dedupe → Mallan-side corpus filters → sort → final count → pagination`
+`Cotality candidate universe → Mallan listing authority / return-copy suppression → eligibility/identity → dedupe → Mallan-side corpus filters → sort → final count → pagination`
 
-Never page first and then apply membership-changing criteria.
+Never page first and then apply a membership-changing criterion.
 
-## Maximum Financing execution
+## Maximum Financing execution belongs HERE
 
-The observed key is inside `CustomProperty.CustomFields`; provider `$filter` cannot address the inner JSON value.
+Provider `$filter` cannot address the observed financing key inside the `CustomProperty.CustomFields` string.
 
 Implement only over the COMPLETE candidate universe before final count/pagination.
 
-Prove min-only, max-only, both, neither, absent/unparseable and `0.00` sentinel behavior. `0.00` is not literal 0% financing.
+Prove:
 
-Before this work, live-probe the exact narrow expansion:
+- min-only;
+- max-only;
+- both;
+- neither;
+- absent/unparseable;
+- `0.00` sentinel = not specified, never literal 0%.
+
+Before §6 execution, live-probe the exact narrow expansion:
 
 `$expand=CustomProperty($select=CustomFields)`
 
-Do not assume the current bare full-CustomProperty expansion is necessary merely because an older compound inner-select returned 400.
+Do not assume the current bare full-CustomProperty expansion is required because an older compound inner-select returned 400.
 
 ## Open House
 
-Current recorded implementation is post-pagination and therefore wrong-universe. Fix in §6 or fail explicitly; no page-local authoritative Open House answer.
-
-## Count truth
-
-Keep provider count, intermediate count, final Mallan count and exact/lower-bound/incomplete meaning distinct. Empty provider page without proven exhaustion is an anomaly/incomplete state, not completion.
+Current recorded implementation is post-pagination/wrong-universe. Fix in §6 or explicitly refuse; never present a page-local Open House result as authoritative.
 
 # 7. SEARCH STEP 4 — COMPLETE SALE + RENTAL BROKER SEARCH
 
-After §§4–6 are truthful, prove every supported Sale/Rental criterion and meaningful combinations. No visible supported criterion may be ignored, stripped or reinterpreted between Basic/Advanced/server.
+After §§4–6 close, prove every supported Sale/Rental criterion and meaningful combinations.
 
-Carry the downstream detail-render null-numeric defect here if not already corrected: unknown beds/baths/rooms/DOM must not become fabricated zero/studio/zero-days facts.
+Carry the downstream null-numeric display defect here if not already fixed: unknown beds/baths/rooms/DOM must not become fabricated zero/studio/zero-days facts.
 
 # 8. SEARCH STEP 5 — MAP + SAVED SEARCH + WORKBENCH
 
-Map and Grid share one canonical criteria object, one final universe and canonical Listing identity.
+Map/Grid share one canonical criteria object, final universe and Listing identity.
 
-Saved Search v2 belongs here:
+Full Saved Search v2 belongs here:
 
-`canonical criteria → execute → save → reload session/browser → restore canonical criteria → restore UI → execute again`
+`canonical criteria → execute → save → reload → restore canonical criteria → restore UI → execute again`
 
 Selection persists across pages by canonical Listing identity. Detail → return restores exact Search state.
 
 # 9. SEARCH STEP 6 — COMPARE + REPORTS + CMA
 
-Compare/Reports/CMA consume authoritative Search results/selections. They do not reconstruct provider criteria independently.
+Compare/Reports/CMA consume authoritative Search results/selections and must not rebuild provider criteria independently.
 
-Sale CMA uses verified transaction truth (`ClosePrice`/`CloseDate`), never ListPrice as sold truth. Rental CMA must not invent achieved rent.
+Sale CMA uses verified `ClosePrice`/`CloseDate` transaction truth. Rental CMA must not invent achieved rent.
 
 # 10. SEARCH STEP 7 — AUTHENTICATED BROWSER E2E
 
@@ -270,13 +292,13 @@ For Sale + Rental on desktop/tablet/mobile prove:
 
 `login → criteria → Basic↔Advanced → execute → truthful universe/count → sort → paginate → detail → return → Map → Search Within Results/Map → Saved Search → reload/restore → selection → client action → Compare → Report → CMA input → attribution/compliance`
 
-Negative proof includes unsupported criterion refusal, unknown enum fail-closed, incomplete universe labeling, no false Map completeness, no Basic/Advanced loss, no Saved Search loss, return-copy suppression, canonical listing authority, and no unknown money/numeric facts presented as real zero.
+Negative proof includes unsupported criterion refusal, unknown enum fail-closed, incomplete-universe labeling, no false Map completeness, no canonical-state loss, return-copy suppression, canonical listing authority, and no unknown money/numeric facts presented as real zero.
 
-Search is complete only when §10 closes.
+Search completes only when §10 closes.
 
 # 11. MY LISTINGS — AFTER SEARCH
 
-My Listings must distinguish Mallan-authored editable listings, suppressed Cotality return-copies, third-party Cotality read-only inventory, historical listings, Seller/Landlord ownership and assigned Agent/Broker roles. Prove Sale + Rental create/save/reload/edit/save/reload with no silent data loss.
+Distinguish Mallan-authored editable listings, suppressed Cotality return-copies, third-party Cotality read-only inventory, historical listings, owner relationships and assigned Agent/Broker roles. Prove create/save/reload/edit/save/reload with no silent data loss.
 
 # 12. LISTING EBLAST — AFTER MY LISTINGS
 
@@ -288,83 +310,70 @@ No second contact database. No second listing-matching engine.
 
 # 13. NEW AGENT READINESS
 
-After Search + My Listings + Eblast, run a real non-Broker Agent through the day-one brokerage chain on desktop/tablet/mobile. The Agent must not need Maya to repair owner links, recover lost fields, explain ignored Search criteria, reconcile duplicates, recover vanished activity or copy data into parallel systems.
+Run a real non-Broker Agent through the day-one brokerage chain desktop/tablet/mobile after Search + My Listings + Eblast close.
 
 # 14. NEON / R2 — HELD
 
-Do not execute Neon/R2 work during active #618 Search work. PR #620 is a separate moving lane. Search evidence is not Neon/R2 closure evidence.
+Do not execute Neon/R2 work during active #618 Search work. PR #620 is separate. Search evidence is not Neon/R2 closure evidence.
 
-Resume only when Maya explicitly reauthorizes that lane. Production DB/schema/env/R2/destructive operations remain separately controlled.
+Resume only with Maya's explicit authorization. Production DB/schema/env/R2/destructive operations remain separately controlled.
 
-# 15. WORKTREE / BASELINE HAZARDS
-
-Before changing unrelated code because a test fails:
-
-1. establish clean tracked baseline;
-2. verify local branch == live remote head;
-3. identify other worktree/untracked/generated contamination;
-4. reproduce failure without your change where safe;
-5. prove causation;
-6. do not absorb/delete another lane's work to make tests green.
-
-# 16. ANTI-LOOP CLOSURE STANDARD
+# 15. ANTI-LOOP CLOSURE STANDARD
 
 For every defect family:
 
-`PROVEN DEFECT → ROOT CAUSE → ALL AFFECTED READERS/WRITERS → CORRECTION → DIRECT TEST → NEGATIVE TEST → INTEGRATION/PERSISTENCE → DOWNSTREAM → COMPLIANCE → PREVIEW → PRODUCTION WHEN AUTHORIZED`
+`PROVEN DEFECT → ROOT CAUSE → ALL AFFECTED READERS/WRITERS → CORRECTION → DIRECT/NEGATIVE TEST → INTEGRATION/PERSISTENCE → DOWNSTREAM → COMPLIANCE → PREVIEW → PRODUCTION WHEN AUTHORIZED`
 
 Source-string assertions protect invariants; they do not prove behavior. Unit tests, CI and READY Preview are evidence, not end-to-end closure.
 
-Run grouped targeted tests during development. Run broad gates at closure boundaries. Do not return to `test fails → tiny patch → next test fails` without an impact graph.
+Run grouped targeted tests during development and broad gates at closure boundaries. Do not return to `test fails → tiny patch → next test fails` without an impact graph.
 
-# 17. MANDATORY CLAUDE PROGRESS FORMAT
+# 16. MANDATORY CLAUDE PROGRESS FORMAT
 
 Every substantial update/handoff begins with:
 
 - **CURRENT SECTION**
 - **STATUS** — OPEN / IN PROGRESS / CLOSED BY EVIDENCE
 - **HEAD SHA**
-- **BASE / STACK STATUS** — current #620 head + ahead/behind + exact combined-tree proof status
-- **WHAT CLOSED** — specific evidence
+- **BASE / STACK STATUS**
+- **WHAT CLOSED**
 - **KNOWN WRONG-ANSWER BLOCKERS**
 - **WHAT REMAINS IN THIS SECTION**
 - **NEXT SECTION ALLOWED**
 - **HOLDS**
 - **OUT-OF-SCOPE / DOWNSTREAM FINDINGS**
 
-If intentionally departing from sequence, write:
+If intentionally departing from sequence, state:
 
 `SEQUENCE DEVIATION — <reason>`
 
-Do not quietly jump from §4 to §5, Saved Search v2, CMA runtime, My Listings, Eblast or Neon/R2.
-
-# 18. CURRENT PROGRESS NOTATION FOR THE NEXT CLAUDE ACTION
+# 17. CURRENT PROGRESS NOTATION
 
 **CURRENT SECTION:** 4 — Canonical Criteria / Transport Closure
 
-**STATUS:** IN PROGRESS — NOT CLOSED
+**STATUS:** IN PROGRESS — ONE BOUNDED BEHAVIORAL PROOF REMAINS
 
-**PRE-DIRECTIVE CODE SHA:** `3096a6448d72895585b9ac93f4cdc84cccc99a18`
+**VERIFIED CODE SHA:** `e291594e2578be198fefc7b774fd59529e39afa2`
 
-**WHAT CLOSED IN CODE:**
+**CI AT THAT SHA:** all five GitHub PR workflows completed successfully.
 
-- Sponsor Unit observed string `"1"/"0"` parsing;
-- Maximum Financing registry ownership for both bounds;
-- buildIdxSearchParams carries both bounds;
-- API client forwards both bounds;
-- server explicitly refuses financing until §6 execution exists;
-- money helper/readers corrected across pagination source;
-- 5/5 GitHub workflows passed at `3096a644...`.
+**CLOSED BY EVIDENCE:**
 
-**WHAT IS NOT YET CLOSED BY BEHAVIORAL EVIDENCE:**
+- Sponsor Unit `"1"/"0"` decoder;
+- financing registry ownership for min/max;
+- buildIdxSearchParams forwarding;
+- API-client query forwarding;
+- typed server refusal until §6;
+- real money-detail renderer proof for unknown/zero/positive and no shared-row mutation.
 
-1. `crm-pagination-money-render.test.ts` is source/helper analysis, not an actual mounted detail render. Add one real renderer behavioral test.
-2. Financing transport is structurally proven but still needs one executed client transport/refusal roundtrip using the real serializer/request builder, not only source regexes.
+**ONE REMAINING §4 BLOCKER:**
 
-**DOWNSTREAM OPEN FINDING, NOT A §4 CANONICAL BLOCKER:**
+The financing behavior test pre-populates `financingMin`/`financingMax` and therefore bypasses the real first production hop from canonical `max_financing_percent` through `serializeCanonicalToWire()`.
 
-- unknown beds/baths/rooms/DOM are still coerced to zero on a detail display copy; track for §7/§10 and do not let overall Search close with fabricated zero/studio facts.
+Close that exact hop behaviorally. Then, if exact-head CI is green, mark §4 CLOSED BY EVIDENCE and begin §5.
 
-**NEXT SECTION ALLOWED:** none until the two behavioral proofs above close §4.
+**NEXT SECTION ALLOWED:** §5 only after that proof.
 
-After those two proofs pass and the exact pushed SHA is green, update this file with `SECTION 4 — CLOSED BY EVIDENCE` and begin §5. Do NOT begin §6 financing execution first.
+**DO NOT START:** §6 complete-universe financing, §8 Saved Search v2, CMA runtime, My Listings, Eblast, Neon/R2.
+
+**DOWNSTREAM TRACKED:** unknown beds/baths/rooms/DOM → display-copy zero; must be corrected before §7/§10 closure.
