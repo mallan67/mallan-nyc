@@ -90,8 +90,13 @@ export function readSponsorUnit(customFieldsRaw: unknown): boolean | null {
   const parsed = decode(customFieldsRaw);
   if (!parsed) return null;
   const v = parsed.SponsorUnitYN;
-  if (v === true || v === 'true' || v === 'Yes' || v === 1) return true;
-  if (v === false || v === 'false' || v === 'No' || v === 0) return false;
+  // The payload's OBSERVED forms include the STRINGS "1" and "0" (live census).
+  // The reader this replaced accepted numeric 1/0, "true"/"false" and "Yes"/"No"
+  // but not those — so a sponsor unit reported as "1" read as null, and the
+  // criterion silently found nothing. Carried over verbatim, this new parser
+  // reproduced a defect the census had already identified.
+  if (v === true || v === 'true' || v === 'Yes' || v === 1 || v === '1') return true;
+  if (v === false || v === 'false' || v === 'No' || v === 0 || v === '0') return false;
   return null;
 }
 

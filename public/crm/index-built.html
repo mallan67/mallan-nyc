@@ -18496,7 +18496,12 @@ function manageShowToast(msg) {
             year_built:            { min: 'yearMin', max: 'yearMax' },
             units_total:           { min: 'unitsMin', max: 'unitsMax' },
             stories_total:         { min: 'floorsMin', max: 'floorsMax' },
-            max_financing_percent: { min: 'financingMin' },
+            // BOTH bounds. Only `min` was mapped, so a broker's MAXIMUM
+            // financing constraint vanished between the canonical object and the
+            // wire — the canonical contract carries a range and half of it was
+            // being dropped in transit. Silent criterion loss, in the serializer
+            // that exists to prevent exactly that.
+            max_financing_percent: { min: 'financingMin', max: 'financingMax' },
             activity_date:         { min: 'dateFrom', max: 'dateTo', basis: 'dateActivityType' },
             listing_contract_date: { min: 'contractDateFrom', max: 'contractDateTo' },
             close_date:            { min: 'soldDateFrom', max: 'soldDateTo' },
@@ -30982,9 +30987,18 @@ function emailCurrentCalc() {
                 return '$' + Math.round(listing.price / divisor).toLocaleString();
             };
 
-            if (listing.totalMonthly == null) listing.totalMonthly = 0;
-            if (listing.maintCC == null) listing.maintCC = 0;
-            if (listing.reTaxes == null) listing.reTaxes = 0;
+            // UNKNOWN MONEY STAYS UNKNOWN.
+            //
+            // These three lines turned an absent carrying cost into 0 and the
+            // renderers below then printed "$0" as a real financial fact. "$0
+            // maintenance" and "maintenance not supplied" are completely
+            // different statements about a co-op or condo, and a broker reading
+            // $0 on a listing that has never reported its maintenance is being
+            // told something false about the money.
+            //
+            // The `money()` helper three lines above already returns
+            // 'Unavailable' for null — it was written for exactly this and then
+            // undone here. Nulls are preserved and rendered through it.
             if (listing.beds == null) listing.beds = 0;
             if (listing.baths == null) listing.baths = 0;
             if (listing.rooms == null) listing.rooms = 0;
@@ -31136,9 +31150,9 @@ function emailCurrentCalc() {
                             <div class="grid grid-cols-3 gap-x-6 gap-y-1 text-sm">
                                 <div class="lux-field"><span>${isSale ? 'List Price' : 'Monthly Rent'}</span><span class="text-base font-bold">${money(listing.price)}</span></div>
                                 ${listing.originalPrice && listing.originalPrice !== listing.price ? '<div class="lux-field"><span>Original Price</span><span class="text-red-600">$' + listing.originalPrice.toLocaleString() + '</span></div>' : ''}
-                                <div class="lux-field"><span>${isSale ? 'Maint/CC' : 'Net Effective'}</span><span>$${listing.maintCC.toLocaleString()}/mo</span></div>
+                                <div class="lux-field"><span>${isSale ? 'Maint/CC' : 'Net Effective'}</span><span>${listing.maintCC == null ? "Unavailable" : "$" + Number(listing.maintCC).toLocaleString() + "/mo"}</span></div>
                                 ${listing.reTaxes ? '<div class="lux-field"><span>RE Taxes</span><span>$' + listing.reTaxes.toLocaleString() + '/mo</span></div>' : ''}
-                                <div class="lux-field"><span>Est. Total Monthly</span><span class="text-green-700 font-bold">$${listing.totalMonthly.toLocaleString()}/mo</span></div>
+                                <div class="lux-field"><span>Est. Total Monthly</span><span class="text-green-700 font-bold">${listing.totalMonthly == null ? "Unavailable" : "$" + Number(listing.totalMonthly).toLocaleString() + "/mo"}</span></div>
                                 ${perUnitPrice(listing.intSqft) ? '<div class="lux-field"><span>$/SqFt</span><span>' + perUnitPrice(listing.intSqft) + '</span></div>' : ''}
                                 ${perUnitPrice(listing.rooms) ? '<div class="lux-field"><span>$/Room</span><span>' + perUnitPrice(listing.rooms) + '</span></div>' : ''}
                                 ${isSale ? '<div class="lux-field"><span>Financing</span><span>---</span></div><div class="lux-field"><span>Flip Tax</span><span>---</span></div>' : ''}
@@ -31215,7 +31229,7 @@ function emailCurrentCalc() {
                                     <div class="space-y-2 text-sm">
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">${isSale ? 'List Price' : 'Monthly Rent'}</span><span class="font-semibold">${money(listing.price)}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Original Price</span><span class="font-semibold">${listing.originalPrice ? '$' + listing.originalPrice.toLocaleString() : '$' + listing.price.toLocaleString()}</span></div>
-                                        ${isSale ? '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Maintenance / CC</span><span class="font-semibold">$' + listing.maintCC.toLocaleString() + '</span></div>' : '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Net Effective Rent</span><span class="font-semibold">---</span></div>'}
+                                        ${isSale ? '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Maintenance / CC</span><span class="font-semibold">' + money(listing.maintCC) + '</span></div>' : '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Net Effective Rent</span><span class="font-semibold">---</span></div>'}
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">RE Taxes</span><span class="font-semibold">${listing.reTaxes ? '$' + listing.reTaxes.toLocaleString() + '/mo' : '---'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Est. Total Monthly</span><span class="font-semibold">$${listing.totalMonthly.toLocaleString()}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">$ Per SqFt</span><span class="font-semibold">${perUnitPrice(listing.intSqft) || '---'}</span></div>

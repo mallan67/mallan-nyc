@@ -2061,7 +2061,12 @@
             year_built:            { min: 'yearMin', max: 'yearMax' },
             units_total:           { min: 'unitsMin', max: 'unitsMax' },
             stories_total:         { min: 'floorsMin', max: 'floorsMax' },
-            max_financing_percent: { min: 'financingMin' },
+            // BOTH bounds. Only `min` was mapped, so a broker's MAXIMUM
+            // financing constraint vanished between the canonical object and the
+            // wire — the canonical contract carries a range and half of it was
+            // being dropped in transit. Silent criterion loss, in the serializer
+            // that exists to prevent exactly that.
+            max_financing_percent: { min: 'financingMin', max: 'financingMax' },
             activity_date:         { min: 'dateFrom', max: 'dateTo', basis: 'dateActivityType' },
             listing_contract_date: { min: 'contractDateFrom', max: 'contractDateTo' },
             close_date:            { min: 'soldDateFrom', max: 'soldDateTo' },

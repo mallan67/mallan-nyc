@@ -75,6 +75,17 @@ describe('reading the financing observation', () => {
     expect(facts.sponsorUnit).toBe(true);
     expect(readSponsorUnit(payload({ SponsorUnitYN: false }))).toBe(false);
   });
+
+  it('accepts the OBSERVED string forms "1" and "0"', () => {
+    // The live census found the payload carries these as STRINGS. The reader
+    // this parser replaced accepted numeric 1/0, 'true'/'false' and 'Yes'/'No'
+    // but not '1'/'0' — so a sponsor unit reported as "1" read as null and the
+    // criterion silently found nothing. Carrying that logic over verbatim
+    // reproduced a defect the census had already identified.
+    expect(readSponsorUnit(payload({ SponsorUnitYN: '1' }))).toBe(true);
+    expect(readSponsorUnit(payload({ SponsorUnitYN: '0' }))).toBe(false);
+    expect(readSponsorUnit(payload({ SponsorUnitYN: 'maybe' }))).toBeNull();
+  });
 });
 
 /**
