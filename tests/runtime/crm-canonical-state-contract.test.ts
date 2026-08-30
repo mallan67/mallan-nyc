@@ -158,6 +158,133 @@ describe('adapter keys and shapes come from the canonical contract', () => {
   });
 });
 
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * REVERSE COVERAGE — EVERY ENABLED CONTROL IS OWNED OR REFUSED. NO THIRD STATE.
+ *
+ * The guards above prove the FORWARD direction: every adapter names a real
+ * control, with a canonical key, the contract's shape, and a permitted workflow.
+ * Nothing proved the converse, and the gap was not theoretical — `#adv-dom-min`
+ * and `#adv-dom-max` shipped enabled with no canonical owner and no refusal, so
+ * an agent could enter a Days-on-Market range that Search never executed.
+ *
+ * A control that is enabled, visible and uncollected is the same silent failure
+ * as the wrong-tab layout. There are exactly two acceptable states.
+ */
+describe('reverse coverage: no enabled control is silently ignored', () => {
+  const deadControls = readFileSync(
+    join(REPO, 'public', 'crm', 'js', 'init', 'init-disable-dead-controls.js'),
+    'utf8',
+  );
+
+  /** Ids and data-fields the refusal module disables. */
+  const refusals = () => {
+    const ids = new Set(
+      [...deadControls.matchAll(/selector: '#([A-Za-z0-9_-]+)'/g)].map((m) => m[1]),
+    );
+    const idAnchors = [...deadControls.matchAll(/idAnchor: '([A-Za-z0-9_-]+)'/g)].map((m) => m[1]);
+    const fields = new Set(
+      [...deadControls.matchAll(/data-field="([A-Za-z]+)"/g)].map((m) => m[1]),
+    );
+    const attrs = [...deadControls.matchAll(/'input\[([a-z-]+)\]'/g)].map((m) => m[1]);
+    return { ids, idAnchors, fields, attrs };
+  };
+
+  /** Everything the adapters own, by id and by data-field. */
+  const ownership = () => {
+    const block = /var CRITERION_ADAPTERS = \{[\s\S]*?\n        \};/.exec(engine)![0];
+    const ids = new Set([...block.matchAll(/'([A-Za-z][A-Za-z0-9_-]*)'/g)].map((m) => m[1]));
+    const fields = new Set([...block.matchAll(/field: '([A-Za-z]+)'/g)].map((m) => m[1]));
+    const firstClass = new Set(
+      [...(/_FIRST_CLASS_FIELDS = \[([\s\S]*?)\]/.exec(engine) ?? [, ''])[1].matchAll(/'([^']+)'/g)].map(
+        (m) => m[1],
+      ),
+    );
+    return { ids, fields, firstClass };
+  };
+
+  /**
+   * Controls that are not Search criteria at all, classified with a reason.
+   * These are financial calculators and typeahead companions — they compute or
+   * assist, they do not ask the provider a question.
+   */
+  const NOT_A_CRITERION = [
+    /^(mortgage|calc|rvb)/, // mortgage / investment / rent-vs-buy calculators
+    /^(enableInvestmentFilter|enableRentVsBuy|showClosingCosts|closingPropType|closingBuildingStatus)$/,
+    /Custom$/, // the "Custom" companion input beside a range select
+    /NeighborhoodInput$/, // typeahead box; the TAGS carry the criterion
+  ];
+
+  it('classifies every enabled searchable control', () => {
+    const { ids: deadIds, idAnchors, fields: deadFields, attrs } = refusals();
+    const { ids: ownedIds, fields: ownedFields, firstClass } = ownership();
+
+    const start = formHtml.indexOf('id="searchBasicMode"');
+    const end = formHtml.indexOf('id="comparablesSection"');
+    const surfaces = formHtml.slice(start, end > 0 ? end : formHtml.length);
+    const tags = [...surfaces.matchAll(/<(input|select)\b[^>]*>/g)].map((m) => m[0]);
+
+    const unowned: string[] = [];
+    for (const tag of tags) {
+      if (/type="hidden"/.test(tag)) continue;
+      const id = /id="([^"]+)"/.exec(tag)?.[1];
+      const field = /data-field="([^"]+)"/.exec(tag)?.[1];
+      const value = /data-value="([^"]*)"/.exec(tag)?.[1];
+
+      // ── refused ──
+      if (id && deadIds.has(id)) continue;
+      if (id && idAnchors.some((a) => id.startsWith(a.replace(/-north$/, '')))) continue;
+      if (field && deadFields.has(field)) continue;
+      if (attrs.some((a) => new RegExp(`\\b${a}\\b`).test(tag))) continue;
+      if (value && /^(lte|gte|gt|eq):/.test(value)) continue;
+      if (value === 'Any') continue;
+
+      // ── owned ──
+      if (id && ownedIds.has(id)) continue;
+      if (field && ownedFields.has(field)) continue;
+      // The feature-map adapter generically owns every non-first-class family.
+      if (field && !firstClass.has(field)) continue;
+
+      // ── not a criterion ──
+      if (id && NOT_A_CRITERION.some((re) => re.test(id))) continue;
+
+      // CRM-local flags never travel to the provider by design, and the refusal
+      // module disables them by attribute selector.
+      if (/data-local-field="/.test(tag)) continue;
+
+      // NO HANDLE AT ALL. A control with neither an `id` nor a `data-field`
+      // cannot be read by any collector — there is nothing to select it by. It is
+      // structurally incapable of carrying a criterion, which is a verifiable
+      // fact about the markup rather than a third state.
+      if (!id && !field) continue;
+
+      unowned.push(id ? `#${id}` : `[data-field="${field}"]`);
+    }
+
+    expect([...new Set(unowned)]).toEqual([]);
+  });
+
+  it('found controls to classify at all — guard the guard', () => {
+    // A parse that matched nothing would pass the assertion above vacuously,
+    // which is exactly how the forward-only guard let #adv-dom-min through.
+    const start = formHtml.indexOf('id="searchBasicMode"');
+    const tags = [...formHtml.slice(start).matchAll(/<(input|select)\b[^>]*>/g)];
+    expect(tags.length).toBeGreaterThan(500);
+  });
+
+  it('refuses the Days-on-Market controls that had no owner', () => {
+    expect(deadControls).toMatch(/#adv-dom-min/);
+    expect(deadControls).toMatch(/#adv-dom-max/);
+  });
+
+  it('refuses GarageYN rather than equating it with canonical parking', () => {
+    // GarageYN is NOT generic parking and the registry records parking's
+    // semantic equivalence as unproven. Wiring garage into a canonical `parking`
+    // criterion would equate two different facts.
+    expect(deadControls).toMatch(/GarageYN is not generic Parking/);
+  });
+});
+
 describe('the collector no longer keeps a private id table', () => {
   it('reads Quick Search and keyword from canonical state', () => {
     // A second id table is what allowed the first one to be wrong without

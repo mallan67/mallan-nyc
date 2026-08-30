@@ -76,6 +76,7 @@ function mount() {
   // keeps the harness honest about what the page actually needs.
   for (const rel of [
     'public/crm/js/core/nav.js',
+    'public/crm/js/search/date-range-picker.js',
     'public/crm/js/search/search-engine.js',
     'public/crm/js/search/neighborhood-autocomplete.js',
   ]) {
@@ -714,17 +715,37 @@ describe('every criterion group survives a view change, not just ranges', () => 
  * though the state remembers it.
  */
 describe('date criteria round-trip through canonical state', () => {
-  const setDrp = (win: any, drp: string, from: string, to: string) => {
+  /**
+   * Seed a picker the way the REAL picker writes it: MM/DD/YYYY.
+   *
+   * These tests used to stamp ISO straight into data-from/data-to, which the
+   * shipped picker never produces — so they proved the adapter worked against a
+   * notation that does not exist. That is the same synthetic-fixture failure as
+   * the invented control ids, one layer down.
+   */
+  const setDrpMDY = (win: any, drp: string, fromMDY: string, toMDY: string) => {
     const el = win.document.querySelector(`[data-drp="${drp}"]`);
     if (!el) throw new Error(`fixture has no [data-drp="${drp}"]`);
-    el.setAttribute('data-from', from);
-    el.setAttribute('data-to', to);
+    if (fromMDY) el.setAttribute('data-from', fromMDY); else el.removeAttribute('data-from');
+    if (toMDY) el.setAttribute('data-to', toMDY); else el.removeAttribute('data-to');
   };
 
-  it('stores a Basic activity range as a canonical date range', () => {
+  /** Choose an activity basis — the criterion is refused without one. */
+  const setBasis = (win: any, id: string) => {
+    const el = win.document.getElementById(id);
+    const opt = el.querySelector('option[value]:not([value=""])');
+    el.value = opt ? opt.getAttribute('value') : '';
+    return el.value;
+  };
+
+  it('stores a Basic activity range as a canonical ISO date range', () => {
+    // The picker writes MM/DD/YYYY; canonical state is ISO. Proving the
+    // conversion is the point — copying the two notations into each other blanks
+    // a native date input one way and defeats parseDateMDY the other.
     const win = mount();
     win.toggleSearchTab('sale');
-    setDrp(win, 'saleListedUpdated', '2026-01-01', '2026-06-30');
+    setBasis(win, 'saleListingActivityType');
+    setDrpMDY(win, 'saleListedUpdated', '01/01/2026', '06/30/2026');
     win.collectSearchCriteria();
 
     const state = win.canonicalCriteriaFor('sale').activity_date;
@@ -738,24 +759,38 @@ describe('date criteria round-trip through canonical state', () => {
     // silently re-answers a different question when the default changes.
     const win = mount();
     win.toggleSearchTab('sale');
-    const basis = win.document.getElementById('saleListingActivityType');
-    basis.value = basis.querySelector('option[value]:not([value=""])')?.value ?? '';
-    setDrp(win, 'saleListedUpdated', '2026-01-01', '2026-06-30');
+    const chosen = setBasis(win, 'saleListingActivityType');
+    setDrpMDY(win, 'saleListedUpdated', '01/01/2026', '06/30/2026');
     win.collectSearchCriteria();
 
-    expect(win.canonicalCriteriaFor('sale').activity_date.basis).toBe(basis.value);
+    expect(win.canonicalCriteriaFor('sale').activity_date.basis).toBe(chosen);
   });
 
   it('RENDERS a Basic activity range into the Advanced inputs', () => {
     const win = mount();
     win.toggleSearchTab('sale');
-    setDrp(win, 'saleListedUpdated', '2026-01-01', '2026-06-30');
+    setBasis(win, 'saleListingActivityType');
+    setDrpMDY(win, 'saleListedUpdated', '01/01/2026', '06/30/2026');
     win.collectSearchCriteria();
 
     win.toggleSearchMode('advanced');
 
     expect(win.document.getElementById('adv-listed-from').value).toBe('2026-01-01');
     expect(win.document.getElementById('adv-listed-to').value).toBe('2026-06-30');
+  });
+
+  it('REFUSES an activity range with no basis chosen', () => {
+    // The shipped select defaults to "Select Activity" with value "", so a range
+    // could be entered without answering "Listed date or Updated date?". A stored
+    // basis_range_date with no basis is the ambiguity the contract forbids: its
+    // meaning would depend on whatever default the wire boundary applied.
+    const win = mount();
+    win.toggleSearchTab('sale');
+    win.document.getElementById('saleListingActivityType').value = '';
+    setDrpMDY(win, 'saleListedUpdated', '01/01/2026', '06/30/2026');
+    win.collectSearchCriteria();
+
+    expect(win.canonicalCriteriaFor('sale').activity_date).toBeUndefined();
   });
 
   it('carries an Advanced contract range back into Basic', () => {
@@ -767,19 +802,21 @@ describe('date criteria round-trip through canonical state', () => {
 
     win.toggleSearchMode('basic');
 
+    // Back in the picker's OWN notation — writing ISO here would defeat
+    // parseDateMDY and the range would vanish the next time it opened.
     const wrapper = win.document.querySelector('[data-drp="saleContractSigned"]');
-    expect(wrapper.getAttribute('data-from')).toBe('2026-02-01');
-    expect(wrapper.getAttribute('data-to')).toBe('2026-03-01');
+    expect(wrapper.getAttribute('data-from')).toBe('02/01/2026');
+    expect(wrapper.getAttribute('data-to')).toBe('03/01/2026');
   });
 
   it('clearing a date range REMOVES it rather than resurrecting it', () => {
     const win = mount();
     win.toggleSearchTab('sale');
-    setDrp(win, 'saleSoldDate', '2026-01-01', '2026-06-30');
+    setDrpMDY(win, 'saleSoldDate', '01/01/2026', '06/30/2026');
     win.collectSearchCriteria();
     expect(win.canonicalCriteriaFor('sale').close_date).toBeDefined();
 
-    setDrp(win, 'saleSoldDate', '', '');
+    setDrpMDY(win, 'saleSoldDate', '', '');
     win.collectSearchCriteria();
 
     expect(win.canonicalCriteriaFor('sale').close_date).toBeUndefined();

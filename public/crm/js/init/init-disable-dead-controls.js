@@ -208,6 +208,76 @@
                 // verified building-level authority, after Building identity is
                 // resolved — it cannot reuse a listing's value.
                 { selector: '#buildingFinancingMin', reason: 'Financing % is a LISTING-level fact (380 of 3,402 buildings hold conflicting values across their listings). A building-level rule needs its own verified authority.' },
+                // ── DAYS ON MARKET (Advanced) ──
+                // Enabled, but no canonical adapter owns it: an agent could enter a
+                // DOM range that Search never executes.  is a real
+                // broker_input in the registry and is BLOCKED there pending live
+                // proof of Cotality filter/sort behaviour and UCBA handling, so the
+                // control is refused here rather than silently ignored.
+                { selector: '#adv-dom-min', reason: 'Days on Market not yet executable — Cotality filter/sort behaviour and UCBA handling unproven.' },
+                { selector: '#adv-dom-max', reason: 'Days on Market not yet executable — Cotality filter/sort behaviour and UCBA handling unproven.' },
+
+                // ── PARKING vs GARAGE ──
+                // Controls labelled "Parking" emit a data-criterion of garage /
+                // data-field="GarageYN". GarageYN is NOT generic parking, and the
+                // registry records parking's semantic equivalence as UNPROVEN.
+                // Wiring garage into a canonical  criterion would equate
+                // two different facts; the honest state is refusal until the
+                // intended Parking semantics are established.
+                { selector: 'input[data-field="GarageYN"]', reason: 'GarageYN is not generic Parking — the equivalence is unproven. Refused pending the intended Parking semantics.' },
+
+
+                // ── ENABLED BUT NEVER COLLECTED (2026-08-30) ──
+                //
+                // Found by the REVERSE coverage guard: the forward guard proved
+                // every adapter names a real control, but nothing proved the
+                // converse — that every enabled control has a canonical owner or
+                // an explicit refusal.
+                //
+                // Each id below was verified UNREAD by search-engine.js. An agent
+                // could enter a value, press Search, and Mallan would ignore it
+                // silently — the same class of defect as the wrong-tab layout and
+                // the four Building controls. Refusing them makes an existing
+                // silent failure VISIBLE; it removes no working functionality.
+                //
+                // Any of these that should become a real criterion needs a
+                // registry entry, a canonical shape and a verified mapping first —
+                // wiring the control is the LAST step, not the first.
+                { selector: '#adv-updated-from', reason: 'Date range not collected by Search — no canonical criterion owns it and the engine never reads the control.' },
+                { selector: '#adv-updated-to', reason: 'Date range not collected by Search — no canonical criterion owns it and the engine never reads the control.' },
+                { selector: '#adv-lease-signed-from', reason: 'Date range not collected by Search — no canonical criterion owns it and the engine never reads the control.' },
+                { selector: '#adv-lease-signed-to', reason: 'Date range not collected by Search — no canonical criterion owns it and the engine never reads the control.' },
+                { selector: '#adv-rented-from', reason: 'Date range not collected by Search — no canonical criterion owns it and the engine never reads the control.' },
+                { selector: '#adv-rented-to', reason: 'Date range not collected by Search — no canonical criterion owns it and the engine never reads the control.' },
+                { selector: '#adv-expired-from', reason: 'Date range not collected by Search — no canonical criterion owns it and the engine never reads the control.' },
+                { selector: '#adv-expired-to', reason: 'Date range not collected by Search — no canonical criterion owns it and the engine never reads the control.' },
+                { selector: '#adv-hold-from', reason: 'Date range not collected by Search — no canonical criterion owns it and the engine never reads the control.' },
+                { selector: '#adv-hold-to', reason: 'Date range not collected by Search — no canonical criterion owns it and the engine never reads the control.' },
+                { selector: '#adv-min-expenses', reason: 'Carrying-cost range not collected by Search — maintenance/CC is unreconciled (AssociationFee alone is not canonical monthly cost) and the engine never reads the control.' },
+                { selector: '#adv-max-expenses', reason: 'Carrying-cost range not collected by Search — maintenance/CC is unreconciled (AssociationFee alone is not canonical monthly cost) and the engine never reads the control.' },
+                { selector: '#adv-tax-min', reason: 'Carrying-cost range not collected by Search — maintenance/CC is unreconciled (AssociationFee alone is not canonical monthly cost) and the engine never reads the control.' },
+                { selector: '#adv-tax-max', reason: 'Carrying-cost range not collected by Search — maintenance/CC is unreconciled (AssociationFee alone is not canonical monthly cost) and the engine never reads the control.' },
+                { selector: '#adv-monthly-min', reason: 'Carrying-cost range not collected by Search — maintenance/CC is unreconciled (AssociationFee alone is not canonical monthly cost) and the engine never reads the control.' },
+                { selector: '#adv-monthly-max', reason: 'Carrying-cost range not collected by Search — maintenance/CC is unreconciled (AssociationFee alone is not canonical monthly cost) and the engine never reads the control.' },
+                { selector: '#adv-ceiling-min', reason: 'Building dimension range not collected by Search — no canonical criterion owns it and the engine never reads the control.' },
+                { selector: '#adv-ceiling-max', reason: 'Building dimension range not collected by Search — no canonical criterion owns it and the engine never reads the control.' },
+                { selector: '#adv-floor-min', reason: 'Building dimension range not collected by Search — no canonical criterion owns it and the engine never reads the control.' },
+                { selector: '#adv-floor-max', reason: 'Building dimension range not collected by Search — no canonical criterion owns it and the engine never reads the control.' },
+                { selector: '#adv-cdom-min', reason: 'Building dimension range not collected by Search — no canonical criterion owns it and the engine never reads the control.' },
+                { selector: '#adv-cdom-max', reason: 'Building dimension range not collected by Search — no canonical criterion owns it and the engine never reads the control.' },
+                { selector: '#adv-min-net-rent', reason: 'Net-rent range not collected by Search — net rent is a derived figure with no canonical criterion, and the engine never reads the control.' },
+                { selector: '#adv-max-net-rent', reason: 'Net-rent range not collected by Search — net rent is a derived figure with no canonical criterion, and the engine never reads the control.' },
+                { selector: '#searchListAgent', reason: 'People/office search not collected by Search — agent, broker, office, team and contact are not canonical Search criteria and the engine never reads these controls.' },
+                { selector: '#searchBroker', reason: 'People/office search not collected by Search — agent, broker, office, team and contact are not canonical Search criteria and the engine never reads these controls.' },
+                { selector: '#searchListOffice', reason: 'People/office search not collected by Search — agent, broker, office, team and contact are not canonical Search criteria and the engine never reads these controls.' },
+                { selector: '#searchListTeam', reason: 'People/office search not collected by Search — agent, broker, office, team and contact are not canonical Search criteria and the engine never reads these controls.' },
+                { selector: '#searchAgentPhone', reason: 'People/office search not collected by Search — agent, broker, office, team and contact are not canonical Search criteria and the engine never reads these controls.' },
+                { selector: '#searchShowingContact', reason: 'People/office search not collected by Search — agent, broker, office, team and contact are not canonical Search criteria and the engine never reads these controls.' },
+                { selector: '#searchOwner', reason: 'People/office search not collected by Search — agent, broker, office, team and contact are not canonical Search criteria and the engine never reads these controls.' },
+                { selector: '#searchManagement', reason: 'People/office search not collected by Search — agent, broker, office, team and contact are not canonical Search criteria and the engine never reads these controls.' },
+                { selector: '#rentalBuildingFinancingMin', reason: 'Financing % is a LISTING-level fact and the contract offers max_financing_percent to SALE only; the engine never reads the rental control.' },
+                { selector: '#rentalBuildingFinancingMax', reason: 'Financing % is a LISTING-level fact and the contract offers max_financing_percent to SALE only; the engine never reads the rental control.' },
+
                 { selector: '#buildingFinancingMax', reason: 'Financing % is a LISTING-level fact (380 of 3,402 buildings hold conflicting values across their listings). A building-level rule needs its own verified authority.' },
             ];
 

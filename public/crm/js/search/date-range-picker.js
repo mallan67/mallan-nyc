@@ -24,6 +24,78 @@
             return isNaN(d.getTime()) ? null : d;
         }
 
+        // ─── CANONICAL ISO BOUNDARY ─────────────────────────────────────────
+        //
+        // This picker PRESENTS dates as MM/DD/YYYY and stores that spelling in
+        // data-from / data-to. Advanced Search uses native <input type="date">,
+        // which requires YYYY-MM-DD. Those are two different notations for the
+        // same fact, and canonical state holds exactly one of them: ISO, as the
+        // value contract requires (`range_date` is 'YYYY-MM-DD').
+        //
+        // WHAT THIS PREVENTS. Canonical state briefly copied the two
+        // representations straight into each other. '08/30/2026' written into a
+        // native date input is rejected outright and silently blanks the control;
+        // '2026-08-30' written back into this wrapper is then read by
+        // parseDateMDY, which splits on '/' and returns null — so the range
+        // disappears. A date criterion that vanishes on a view change is the
+        // silent-loss failure this whole state model exists to end.
+        //
+        // The conversion lives HERE, with the module that owns the MDY notation,
+        // exactly as `setNeighborhoodSelection` lives with the widget that owns
+        // the tag state. Callers deal only in canonical ISO.
+        function isoFromMDY(str) {
+            var d = parseDateMDY(str);
+            if (!d) return '';
+            var mm = String(d.getMonth() + 1).padStart(2, '0');
+            var dd = String(d.getDate()).padStart(2, '0');
+            return d.getFullYear() + '-' + mm + '-' + dd;
+        }
+
+        function mdyFromISO(str) {
+            if (!str) return '';
+            var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(str).trim());
+            if (!m) return '';
+            return m[2] + '/' + m[3] + '/' + m[1];
+        }
+
+        /** The stored range for a picker, in CANONICAL ISO. */
+        window.getDateRangeISO = function (drpId) {
+            var wrapper = document.querySelector('[data-drp="' + drpId + '"]');
+            if (!wrapper) return null;
+            return {
+                from: isoFromMDY(wrapper.getAttribute('data-from')),
+                to: isoFromMDY(wrapper.getAttribute('data-to'))
+            };
+        };
+
+        /**
+         * Set a picker's range from CANONICAL ISO, updating both the stored
+         * attributes and the visible trigger text — otherwise the agent sees a
+         * stale label over a changed value.
+         */
+        window.setDateRangeISO = function (drpId, fromISO, toISO) {
+            var wrapper = document.querySelector('[data-drp="' + drpId + '"]');
+            if (!wrapper) return;
+            var from = mdyFromISO(fromISO);
+            var to = mdyFromISO(toISO);
+
+            if (from) wrapper.setAttribute('data-from', from);
+            else wrapper.removeAttribute('data-from');
+            if (to) wrapper.setAttribute('data-to', to);
+            else wrapper.removeAttribute('data-to');
+
+            var trigger = wrapper.querySelector('.drp-trigger');
+            var textEl = trigger ? trigger.querySelector('.drp-text') : null;
+            var clearBtn = trigger ? trigger.querySelector('.drp-clear') : null;
+            if (textEl) {
+                if (from && to) textEl.textContent = from + ' - ' + to;
+                else if (from) textEl.textContent = from;
+                else textEl.textContent = textEl.getAttribute('data-placeholder') || 'Select Date Range';
+                textEl.classList.toggle('has-value', !!from);
+            }
+            if (clearBtn) clearBtn.style.display = from ? '' : 'none';
+        };
+
         function sameDay(a, b) {
             if (!a || !b) return false;
             return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();

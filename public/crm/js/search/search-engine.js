@@ -1494,6 +1494,13 @@
             pets:              { kind: 'checkboxSet', shape: 'enum_set', field: 'PetsAllowed' },
             furnished:         { kind: 'checkboxSet', shape: 'enum_set', field: 'Furnished' },
             structure_type:    { kind: 'checkboxSet', shape: 'enum_set', field: 'StructureType' },
+            // Booleans with their own canonical identity. The UI writes them as
+            // ordinary data-field checkboxes, so without an adapter the generic
+            // feature scan absorbed them into feature_criteria.new_construction —
+            // two identities for one business question, and the wrong nested
+            // shape for anything that later persisted it.
+            new_development:   { kind: 'checkboxBool', shape: 'boolean', field: 'NewConstructionYN' },
+            sponsor_unit:      { kind: 'checkboxBool', shape: 'boolean', field: 'SponsorUnit' },
 
             // ── STRUCTURED FEATURE SELECTION ────────────────────────────────
             // field -> values across every remaining data-field family. Already
@@ -1636,6 +1643,15 @@
                 return picked.length ? picked : null;
             }
 
+            if (adapter.kind === 'checkboxBool') {
+                var bScope = activeSearchSurface();
+                if (!bScope) return undefined;
+                var bBoxes = bScope.querySelectorAll('[data-field="' + adapter.field + '"]');
+                if (!bBoxes.length) return undefined;
+                var anyChecked = bScope.querySelectorAll('[data-field="' + adapter.field + '"]:checked').length > 0;
+                return anyChecked ? true : null;
+            }
+
             if (adapter.kind === 'featureMap') {
                 var fmScope = activeSearchSurface();
                 if (!fmScope) return undefined;
@@ -1659,22 +1675,38 @@
                 var advTo = advIds[1] ? document.getElementById(advIds[1]) : null;
                 if (!wrapper && !advFrom && !advTo) return undefined;
 
+                // Basic reads through the picker's ISO boundary, because the
+                // wrapper stores MM/DD/YYYY while canonical state is ISO. Reading
+                // the attribute directly is what let two notations mix.
+                var basicRange = (drpId && typeof window.getDateRangeISO === 'function')
+                    ? window.getDateRangeISO(drpId) : null;
                 var from = view === 'advanced' && advFrom ? advFrom.value
-                    : (wrapper ? wrapper.getAttribute('data-from') : '');
+                    : (basicRange ? basicRange.from : '');
                 var to = view === 'advanced' && advTo ? advTo.value
-                    : (wrapper ? wrapper.getAttribute('data-to') : '');
+                    : (basicRange ? basicRange.to : '');
                 var basisEl = (adapter.basisIds || {})[tab]
                     ? document.getElementById(adapter.basisIds[tab]) : null;
                 var basis = basisEl && basisEl.value ? String(basisEl.value) : '';
 
                 if (!from && !to) return null;
+
+                // A COMPOSITE range may not be stored without its basis.
+                //
+                // The shipped select defaults to "Select Activity" with value "",
+                // so a range could be entered without answering "Listed date or
+                // Updated date?". Storing that produced a canonical
+                // basis_range_date with no basis — the ambiguity the contract
+                // exists to forbid, because the meaning then depends on whatever
+                // default the wire boundary happens to apply.
+                //
+                // Refused rather than defaulted: the criterion does not become
+                // canonical until the agent answers.
+                if (adapter.shape === 'basis_range_date' && !basis) return null;
+
                 var dateValue = {};
                 if (from) dateValue.min = String(from);
                 if (to) dateValue.max = String(to);
-                // Carried only when the criterion HAS a basis. The canonical
-                // object may not store an ambiguous activity-date range; the wire
-                // boundary is where a legacy missing value gets resolved.
-                if (adapter.shape === 'basis_range_date' && basis) dateValue.basis = basis;
+                if (adapter.shape === 'basis_range_date') dateValue.basis = basis;
                 return dateValue;
             }
 
@@ -1720,6 +1752,15 @@
                 return;
             }
 
+            if (adapter.kind === 'checkboxBool') {
+                var bScope2 = activeSearchSurface();
+                if (!bScope2) return;
+                bScope2.querySelectorAll('[data-field="' + adapter.field + '"]').forEach(function (cb) {
+                    cb.checked = value === true;
+                });
+                return;
+            }
+
             if (adapter.kind === 'featureMap') {
                 var fmScope = activeSearchSurface();
                 if (!fmScope) return;
@@ -1739,13 +1780,15 @@
                 var min = value && value.min != null ? String(value.min) : '';
                 var max = value && value.max != null ? String(value.max) : '';
                 if (view === 'advanced') {
+                    // Native <input type="date"> takes ISO directly.
                     var f = advIds2[0] ? document.getElementById(advIds2[0]) : null;
                     var t = advIds2[1] ? document.getElementById(advIds2[1]) : null;
                     if (f) f.value = min;
                     if (t) t.value = max;
-                } else if (wrapper2) {
-                    wrapper2.setAttribute('data-from', min);
-                    wrapper2.setAttribute('data-to', max);
+                } else if (drpId2 && typeof window.setDateRangeISO === 'function') {
+                    // The picker converts ISO back to its own MM/DD/YYYY notation
+                    // and refreshes the visible label with it.
+                    window.setDateRangeISO(drpId2, min, max);
                 }
                 var basisEl2 = (adapter.basisIds || {})[tab]
                     ? document.getElementById(adapter.basisIds[tab]) : null;
@@ -1776,7 +1819,15 @@
          * so they must not ALSO be collected as generic features. One concept,
          * one path — the same rule enforced server-side in checkbox-criteria.ts.
          */
-        var _FIRST_CLASS_FIELDS = ['MlsStatus', 'CommonInterest', 'PropertySubType', 'PetsAllowed', 'Furnished', 'StructureType'];
+        var _FIRST_CLASS_FIELDS = [
+            'MlsStatus', 'CommonInterest', 'PropertySubType', 'PetsAllowed',
+            'Furnished', 'StructureType',
+            // Added 2026-08-30. These have top-level canonical identities, and the
+            // markup ALSO carries a data-criterion of new_construction, so both
+            // spellings must be excluded or the feature scan recreates the
+            // duplicate under the canonical family name.
+            'NewConstructionYN', 'new_construction', 'SponsorUnit', 'sponsor_unit'
+        ];
 
         /** Read the view the agent has been editing INTO the canonical object. */
         function syncActiveViewToCanonical(tab, view) {
@@ -1815,6 +1866,103 @@
             return _canonicalCriteria[tab || currentSearchTab];
         }
 
+
+        // ─── CANONICAL -> TRANSPORT ─────────────────────────────────────────
+        //
+        // ONE serializer. The canonical workflow object is the business question;
+        // this turns it into the wire object Search executes.
+        //
+        // WHAT THIS REPLACES. `collectSearchCriteria` synced the view into
+        // canonical state, rendered it back, and then started over with
+        // `var criteria = {}` and rebuilt the business question by re-reading the
+        // DOM. That left Mallan with TWO representations — canonical workflow
+        // state and legacy executed criteria — and nothing forcing them to agree.
+        // Saved Search could then persist one object while Search executed
+        // another, which is the failure the whole state model exists to prevent.
+        //
+        // The rendered DOM is PRESENTATION. Search reads canonical state.
+        //
+        // Legacy blocks further down now only fill keys this did not set, so
+        // canonical state always wins where it has an owner; the reverse-coverage
+        // guard proves nothing enabled is left unowned and unrefused.
+        var CANONICAL_TO_WIRE = {
+            list_price:            { min: 'priceMin', max: 'priceMax' },
+            bedrooms:              { min: 'bedsMin', max: 'bedsMax' },
+            bathrooms:             { min: 'bathsMin', max: 'bathsMax' },
+            rooms_total:           { min: 'roomsMin', max: 'roomsMax' },
+            living_area:           { min: 'sqftMin', max: 'sqftMax' },
+            year_built:            { min: 'yearMin', max: 'yearMax' },
+            units_total:           { min: 'unitsMin', max: 'unitsMax' },
+            stories_total:         { min: 'floorsMin', max: 'floorsMax' },
+            max_financing_percent: { min: 'financingMin' },
+            activity_date:         { min: 'dateFrom', max: 'dateTo', basis: 'dateActivityType' },
+            listing_contract_date: { min: 'contractDateFrom', max: 'contractDateTo' },
+            close_date:            { min: 'soldDateFrom', max: 'soldDateTo' },
+            market_status:         { set: 'statuses' },
+            ownership:             { set: 'ownership' },
+            property_sub_type:     { csv: 'propertySubType' },
+            neighborhood:          { set: 'neighborhoods' },
+            borough:               { csv: 'borough' },
+            street_address:        { text: 'address' },
+            public_remarks_keyword:{ text: 'keyword' },
+            management_company:    { text: 'managementCompany' },
+            building_name:         { text: 'buildingName' },
+            postal_code:           { text: 'zip' },
+            unit:                  { text: 'unit' },
+            listing_id_canonical:  { csv: 'rlsId' }
+        };
+
+        /** Criteria that travel inside `checkboxFilters`, keyed by provider field. */
+        var CANONICAL_TO_CHECKBOX_FIELD = {
+            pets: 'PetsAllowed',
+            furnished: 'Furnished',
+            structure_type: 'StructureType',
+            new_development: 'NewConstructionYN',
+            sponsor_unit: 'SponsorUnit'
+        };
+
+        function serializeCanonicalToWire(tab, criteria) {
+            var store = _canonicalCriteria[tab] || {};
+
+            Object.keys(CANONICAL_TO_WIRE).forEach(function (key) {
+                var value = store[key];
+                if (value == null) return;
+                var map = CANONICAL_TO_WIRE[key];
+
+                if (map.set) { if (value.length) criteria[map.set] = value.slice(); return; }
+                if (map.csv) { if (value.length) criteria[map.csv] = value.join(','); return; }
+                if (map.text) { if (String(value).trim()) criteria[map.text] = String(value).trim(); return; }
+
+                // Ranges and basis ranges.
+                if (value.min != null && value.min !== '') criteria[map.min] = value.min;
+                if (map.max && value.max != null && value.max !== '') criteria[map.max] = value.max;
+                if (map.basis && value.basis) criteria[map.basis] = value.basis;
+            });
+
+            // feature_criteria is ALREADY field -> values, which is the shape
+            // `checkboxFilters` travels in.
+            if (store.feature_criteria && Object.keys(store.feature_criteria).length) {
+                criteria.checkboxFilters = criteria.checkboxFilters || {};
+                Object.keys(store.feature_criteria).forEach(function (field) {
+                    criteria.checkboxFilters[field] = store.feature_criteria[field].slice();
+                });
+            }
+
+            // First-class criteria that still travel as checkbox fields. They keep
+            // ONE canonical identity in state and are only flattened here, at the
+            // transport boundary — the UI never offers them twice.
+            Object.keys(CANONICAL_TO_CHECKBOX_FIELD).forEach(function (key) {
+                var value = store[key];
+                if (value == null) return;
+                var field = CANONICAL_TO_CHECKBOX_FIELD[key];
+                criteria.checkboxFilters = criteria.checkboxFilters || {};
+                if (value === true) criteria.checkboxFilters[field] = ['true'];
+                else if (Array.isArray(value) && value.length) criteria.checkboxFilters[field] = value.slice();
+            });
+
+            return criteria;
+        }
+
         function collectSearchCriteria() {
             // The view on screen may hold edits the canonical object has not
             // seen yet. Sync, then render, so the controls the reads below use
@@ -1825,6 +1973,11 @@
 
             var criteria = {};
             criteria.searchTab = currentSearchTab; // 'sale', 'rent', or 'building'
+
+            // CANONICAL STATE IS THE BUSINESS QUESTION. Everything the adapters
+            // own is serialized here; the legacy blocks below only fill keys this
+            // did not set, so the rendered DOM cannot contradict canonical state.
+            serializeCanonicalToWire(currentSearchTab, criteria);
 
             // The Basic surface for the ACTIVE tab. This read
             // getElementById('searchBasicMode') — the Sale container — on every
@@ -1900,11 +2053,11 @@
                 bedsMax = document.getElementById('saleMaxBeds');
             }
             if (bedsMin && bedsMin.value !== '' && bedsMin.value !== 'custom') {
-                criteria.bedsMin = parseInt(bedsMin.value);
+                if (criteria.bedsMin === undefined) criteria.bedsMin = parseInt(bedsMin.value);
                 if (isNaN(criteria.bedsMin)) delete criteria.bedsMin;
             }
             if (bedsMax && bedsMax.value !== '' && bedsMax.value !== 'custom') {
-                criteria.bedsMax = parseInt(bedsMax.value);
+                if (criteria.bedsMax === undefined) criteria.bedsMax = parseInt(bedsMax.value);
                 if (isNaN(criteria.bedsMax)) delete criteria.bedsMax;
             }
 
@@ -1921,11 +2074,11 @@
                 bathsMax = document.getElementById('saleMaxBaths');
             }
             if (bathsMin && bathsMin.value !== '' && bathsMin.value !== 'custom') {
-                criteria.bathsMin = parseFloat(bathsMin.value);
+                if (criteria.bathsMin === undefined) criteria.bathsMin = parseFloat(bathsMin.value);
                 if (isNaN(criteria.bathsMin)) delete criteria.bathsMin;
             }
             if (bathsMax && bathsMax.value !== '' && bathsMax.value !== 'custom') {
-                criteria.bathsMax = parseFloat(bathsMax.value);
+                if (criteria.bathsMax === undefined) criteria.bathsMax = parseFloat(bathsMax.value);
                 if (isNaN(criteria.bathsMax)) delete criteria.bathsMax;
             }
 
@@ -1942,11 +2095,11 @@
                 roomsMax = document.getElementById('saleMaxRooms');
             }
             if (roomsMin && roomsMin.value && roomsMin.value !== '' && roomsMin.value !== 'custom') {
-                criteria.roomsMin = parseInt(roomsMin.value);
+                if (criteria.roomsMin === undefined) criteria.roomsMin = parseInt(roomsMin.value);
                 if (isNaN(criteria.roomsMin)) delete criteria.roomsMin;
             }
             if (roomsMax && roomsMax.value && roomsMax.value !== '' && roomsMax.value !== 'custom') {
-                criteria.roomsMax = parseInt(roomsMax.value);
+                if (criteria.roomsMax === undefined) criteria.roomsMax = parseInt(roomsMax.value);
                 if (isNaN(criteria.roomsMax)) delete criteria.roomsMax;
             }
 
@@ -1963,11 +2116,11 @@
                 sqftMax = document.getElementById('saleMaxSqft');
             }
             if (sqftMin && sqftMin.value && sqftMin.value !== '' && sqftMin.value !== 'custom') {
-                criteria.sqftMin = parseInt(sqftMin.value);
+                if (criteria.sqftMin === undefined) criteria.sqftMin = parseInt(sqftMin.value);
                 if (isNaN(criteria.sqftMin)) delete criteria.sqftMin;
             }
             if (sqftMax && sqftMax.value && sqftMax.value !== '' && sqftMax.value !== 'custom') {
-                criteria.sqftMax = parseInt(sqftMax.value);
+                if (criteria.sqftMax === undefined) criteria.sqftMax = parseInt(sqftMax.value);
                 if (isNaN(criteria.sqftMax)) delete criteria.sqftMax;
             }
 
@@ -1975,7 +2128,7 @@
             if (activeBasicForm) {
                 var ownershipChecks = activeBasicForm.querySelectorAll('[data-field="CommonInterest"]:checked');
                 if (ownershipChecks.length > 0) {
-                    criteria.ownership = Array.from(ownershipChecks).map(function(cb) { return cb.getAttribute('data-value') || cb.value; });
+                    if (criteria.ownership === undefined) criteria.ownership = Array.from(ownershipChecks).map(function(cb) { return cb.getAttribute('data-value') || cb.value; });
                 }
             }
 
@@ -1990,7 +2143,7 @@
                 propertySubTypeChecked.push(cb.getAttribute('data-value') || cb.value);
             });
             if (propertySubTypeChecked.length > 0) {
-                criteria.propertySubType = propertySubTypeChecked.join(',');
+                if (criteria.propertySubType === undefined) criteria.propertySubType = propertySubTypeChecked.join(',');
             }
 
             // Status checkboxes (MlsStatus) — collect all checked statuses
@@ -2012,7 +2165,7 @@
             if (statusContainer) {
                 var statusChecks = statusContainer.querySelectorAll('[data-field="MlsStatus"]:checked');
                 if (statusChecks.length > 0) {
-                    criteria.statuses = [];
+                    if (criteria.statuses === undefined) criteria.statuses = [];
                     statusChecks.forEach(function(cb) {
                         var val = cb.getAttribute('data-value');
                         var sub = cb.getAttribute('data-sub-status');
@@ -2070,7 +2223,7 @@
                 addressInput = advAddr;
             }
             if (addressInput && addressInput.value.trim()) {
-                criteria.address = addressInput.value.trim();
+                if (criteria.address === undefined) criteria.address = addressInput.value.trim();
             }
 
             // Neighborhood autocomplete tags — read from active tags container.
@@ -2085,7 +2238,7 @@
                 var tagsId = _resolveActiveNeighborhoodTagsId();
                 var selectedNeighborhoods = getSelectedNeighborhoods(tagsId);
                 if (selectedNeighborhoods.length > 0) {
-                    criteria.neighborhoods = selectedNeighborhoods;
+                    if (criteria.neighborhoods === undefined) criteria.neighborhoods = selectedNeighborhoods;
                 }
 
                 var selectedBoroughs = (typeof getSelectedBoroughs === 'function')
@@ -2109,12 +2262,12 @@
                     // (lib/search/canonical/geography.ts), so every selected
                     // borough is carried and the question asked is the question
                     // answered.
-                    criteria.borough = selectedBoroughs.join(',');
+                    if (criteria.borough === undefined) criteria.borough = selectedBoroughs.join(',');
                 } else if (selectedNeighborhoods.length > 0) {
                     var boroughs = selectedNeighborhoods.map(function(n) { return _findBoroughForNeighborhood(n); }).filter(Boolean);
                     var uniqueBoroughs = boroughs.filter(function(b, i, arr) { return arr.indexOf(b) === i; });
                     if (uniqueBoroughs.length > 0) {
-                        criteria.borough = uniqueBoroughs.join(',');
+                        if (criteria.borough === undefined) criteria.borough = uniqueBoroughs.join(',');
                     }
                 }
             }
@@ -2138,7 +2291,7 @@
             // `listing_id_canonical` is a text_set — the control accepts a
             // comma-separated list and the executor builds a disjunction from it.
             if (Array.isArray(_qs.listing_id_canonical) && _qs.listing_id_canonical.length) {
-                criteria.rlsId = _qs.listing_id_canonical.join(',');
+                if (criteria.rlsId === undefined) criteria.rlsId = _qs.listing_id_canonical.join(',');
             }
             if (_qs.postal_code) criteria.zip = _qs.postal_code;
             if (_qs.unit) criteria.unit = _qs.unit;
@@ -2152,7 +2305,7 @@
             var mgmtId = _isAdvanced ? 'adv-management' : 'searchManagementCompany';
             var mgmtEl = document.getElementById(mgmtId);
             if (mgmtEl && mgmtEl.value.trim()) {
-                criteria.managementCompany = mgmtEl.value.trim();
+                if (criteria.managementCompany === undefined) criteria.managementCompany = mgmtEl.value.trim();
             }
 
             // Building Financing %.
@@ -2183,9 +2336,9 @@
                 var fromStr = listedDrp.getAttribute('data-from');
                 var toStr = listedDrp.getAttribute('data-to');
                 if (fromStr) {
-                    criteria.dateActivityType = activityType; // 'Listed', 'Updated', or 'ListedAndUpdated'
-                    criteria.dateFrom = _mdyToISO(fromStr);
-                    criteria.dateTo = _mdyToISO(toStr) || _mdyToISO(fromStr);
+                    if (criteria.dateActivityType === undefined) criteria.dateActivityType = activityType; // 'Listed', 'Updated', or 'ListedAndUpdated'
+                    if (criteria.dateFrom === undefined) criteria.dateFrom = _mdyToISO(fromStr);
+                    if (criteria.dateTo === undefined) criteria.dateTo = _mdyToISO(toStr) || _mdyToISO(fromStr);
                 }
             }
 
@@ -2195,8 +2348,8 @@
                 var sFrom = signedDrp.getAttribute('data-from');
                 var sTo = signedDrp.getAttribute('data-to');
                 if (sFrom) {
-                    criteria.contractDateFrom = _mdyToISO(sFrom);
-                    criteria.contractDateTo = _mdyToISO(sTo) || _mdyToISO(sFrom);
+                    if (criteria.contractDateFrom === undefined) criteria.contractDateFrom = _mdyToISO(sFrom);
+                    if (criteria.contractDateTo === undefined) criteria.contractDateTo = _mdyToISO(sTo) || _mdyToISO(sFrom);
                 }
             }
 
@@ -2206,8 +2359,8 @@
                 var sdFrom = soldDrp.getAttribute('data-from');
                 var sdTo = soldDrp.getAttribute('data-to');
                 if (sdFrom) {
-                    criteria.soldDateFrom = _mdyToISO(sdFrom);
-                    criteria.soldDateTo = _mdyToISO(sdTo) || _mdyToISO(sdFrom);
+                    if (criteria.soldDateFrom === undefined) criteria.soldDateFrom = _mdyToISO(sdFrom);
+                    if (criteria.soldDateTo === undefined) criteria.soldDateTo = _mdyToISO(sdTo) || _mdyToISO(sdFrom);
                 }
             }
 
@@ -2247,7 +2400,7 @@
             // Building name search
             var buildingNameEl = document.getElementById('buildingSearchAddress');
             if (buildingNameEl && buildingNameEl.value.trim() && currentSearchTab === 'building') {
-                criteria.buildingName = buildingNameEl.value.trim();
+                if (criteria.buildingName === undefined) criteria.buildingName = buildingNameEl.value.trim();
             }
 
             // Transit — subway line proximity search via station coordinates
@@ -2309,7 +2462,7 @@
                 });
 
                 if (Object.keys(_checkboxFilters).length > 0) {
-                    criteria.checkboxFilters = _checkboxFilters;
+                    if (criteria.checkboxFilters === undefined) criteria.checkboxFilters = _checkboxFilters;
                 }
             }
 
