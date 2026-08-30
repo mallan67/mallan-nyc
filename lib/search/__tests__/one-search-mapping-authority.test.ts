@@ -55,6 +55,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { FIELD_REGISTRY, executionReadiness, type FieldSpec } from '../canonical/field-registry';
 import { CANONICAL_FILTER_KEYS } from '../canonical/filter-keys.generated';
+import { DEFAULT_MARKET_STATUS_TOKENS, standardStatusOData } from '../canonical/status-token-contract';
 
 const REPO = resolve(__dirname, '../../..');
 const EXECUTOR_PATH = 'lib/search/crm-idx-filter.ts';
@@ -528,5 +529,167 @@ describe('execution readiness — the gate the validator will use', () => {
       .filter(([, keys]) => keys.length > 1)
       .map(([label, keys]) => `${label}: ${keys.join(', ')}`);
     expect(duplicates).toEqual([]);
+  });
+});
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * SECTION 5 — ONE EXECUTION OWNER PER EXECUTABLE CRITERION.
+ *
+ * The section above proves the two tables JOIN and do not disagree. That is
+ * necessary and not sufficient: a criterion can join cleanly and still have
+ * nobody who owns HOW it runs, or have a second copy of its vocabulary sitting
+ * in the executor waiting to drift.
+ *
+ * These cases pin the two remaining ownership questions.
+ */
+describe('section 5 — every executable criterion has exactly one execution owner', () => {
+  const spec = (key: string) => FIELD_REGISTRY.find((f) => f.canonicalKey === key)!;
+  const unwired = { reachesServer: false, strategyImplemented: false };
+
+  it('BOTH CustomFields criteria are classified the same way, because they are the same case', () => {
+    // `max_financing_percent` and `sponsor_unit` are one situation: a real,
+    // decodable fact living inside `CustomProperty.CustomFields`, a declared
+    // Edm.String that `$filter` cannot reach into. Neither is provider-filterable
+    // and both are legitimately executable Mallan-side over the complete universe.
+    //
+    // They were classified DIFFERENTLY. max_financing_percent carried
+    // `executionStrategy: 'mallan_projection_filter'` and therefore read as
+    // not_yet_wired — repairable. sponsor_unit carried no strategy at all, so
+    // `executionReadiness()` hit its `filterable === 'unsupported' && !strategy`
+    // branch and returned `unsupported` — the verdict reserved for a PERMANENT
+    // refusal like management_company, which Cotality has no field for and never
+    // will.
+    //
+    // That is the same category error the registry header warns about, one level
+    // down: a criterion Mallan simply has not built yet was recorded as one
+    // Mallan can never build. Section 6 would then have had no reason to look at
+    // it again.
+    for (const key of ['max_financing_percent', 'sponsor_unit']) {
+      const s = spec(key);
+      expect(`${key}:${s.cotalityField ?? 'null'}`).toBe(`${key}:CustomProperty.CustomFields`);
+      expect(`${key}:${s.filterable}`).toBe(`${key}:unsupported`);
+      expect(`${key}:${s.executionStrategy}`).toBe(`${key}:mallan_projection_filter`);
+      expect(`${key}:${executionReadiness(s, unwired)}`).toBe(`${key}:not_yet_wired`);
+    }
+  });
+
+  it('and a criterion the provider genuinely cannot express stays a permanent refusal', () => {
+    // The guard-the-guard for the case above: if declaring a Mallan strategy
+    // moved EVERYTHING out of `unsupported`, the distinction would be worthless.
+    // management_company must not follow sponsor_unit out of that state.
+    expect(spec('management_company').executionStrategy).toBeUndefined();
+    expect(executionReadiness(spec('management_company'), unwired)).toBe('unsupported');
+  });
+
+  it('the CommonInterest vocabulary is declared ONCE, and not by the executor', () => {
+    // THREE copies of this 13-member list existed. `live-truth.ts` owns it, read
+    // from data/cotality-enums.live.json. `ownership.ts` restated it as
+    // CLASSIFY + OTHER_MEMBERS. The executor kept a private `COMMON_INTEREST` Set
+    // of its own. All three agreed at the time of writing, which is precisely why
+    // it was worth fixing: identical copies do not announce themselves until the
+    // day someone updates one of them, and then the executor validates broker
+    // input against a vocabulary the provider no longer has.
+    //
+    // Asserted on SUBSTANCE, not on a variable name. Renaming the Set must not
+    // make this pass — what matters is that the member literals live in exactly
+    // one place. `Condop` is the sharpest probe: it is NYC-specific, it appears
+    // in no other vocabulary, and nothing else in the executor would mention it.
+    const members = ['Condominium', 'StockCooperative', 'Condop', 'BareLandCondominium', 'PlannedDevelopment'];
+    const hardcoded = members.filter((m) => executorSrc.includes(`"${m}"`) || executorSrc.includes(`'${m}'`));
+    expect(hardcoded).toEqual([]);
+    expect(executorSrc).toMatch(/COMMON_INTEREST_MEMBERS.*from "@\/lib\/search\/canonical\/live-truth"/);
+  });
+
+  it('and the classification layer derives from that owner rather than restating it', () => {
+    // ownership.ts still owns the MAPPING (which member means co-op), which is
+    // real information. It must not also own the LIST — that half was a
+    // restatement, and `OTHER_MEMBERS` is now computed as "every live member that
+    // is not one of the five segmentation classes".
+    const ownershipSrc = read('lib/search/canonical/ownership.ts');
+    expect(ownershipSrc).toMatch(/import \{ COMMON_INTEREST_MEMBERS \} from '\.\/live-truth'/);
+    expect(ownershipSrc).not.toMatch(/'BareLandCondominium'/);
+  });
+
+  it('the DEFAULT status universe is rendered BY the owner, not hand-rolled beside it', () => {
+    // `market_status` declares `mappingOwner: 'status-token-contract'`, and for an
+    // explicit status the executor does delegate. But when the broker names NO
+    // status it pushed a literal string of its own:
+    //
+    //   "(StandardStatus eq 'Active' or ... 'ComingSoon' or ... 'ActiveUnderContract')"
+    //
+    // So the field had TWO renderers after all — the owner for the explicit case,
+    // and an inline literal for the default. The default is the case that runs on
+    // almost every search, and it is a Mallan business rule about which listings
+    // are "on market", which is exactly the kind of decision the owner exists to
+    // hold. Left inline, the two can disagree about what Active means the moment
+    // either changes.
+    expect(executorSrc).not.toMatch(/StandardStatus eq '/);
+
+    // Guard-the-guard: delegating must produce the SAME clause that shipped, or
+    // this is a behaviour change wearing a refactor's clothes.
+    const { filter } = standardStatusOData([...DEFAULT_MARKET_STATUS_TOKENS]);
+    expect(filter).toBe(
+      "(StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')",
+    );
+  });
+
+  it('every Cotality field the executor NAMES is declared by a registry entry', () => {
+    // The check the census could not previously make, and the reason it could
+    // not: its parser only compared the 14 rows of the numeric TABLE. The
+    // executor also names fields inline — `PostalCode eq`, `contains(PublicRemarks,`,
+    // `CloseDate ge` — and the old parser collected those parameter NAMES while
+    // discarding the field each one targets. So it reported "(none) disagree"
+    // across roughly half the mappings it had never looked at. "(none)" meaning
+    // NOT CHECKED is worse than a known gap, because it reads as proof.
+    //
+    // Comments are stripped first: the bathrooms section explains at length why
+    // `BathroomsTotalInteger ge/le` was REMOVED, and matching that sentence would
+    // report a deleted mapping as a live one. The cheapest way to silence such a
+    // failure is to delete the explanation, so the gate would destroy the
+    // reasoning it exists to protect.
+    const code = executorSrc
+      .split('\n')
+      .map((line) => {
+        const t = line.trim();
+        return t.startsWith('//') || t.startsWith('*') || t.startsWith('/*') ? '' : line;
+      })
+      .join('\n');
+
+    // Guard the guard, both directions: prose gone, live code intact. Without
+    // this, an over-eager strip would empty the file and pass vacuously.
+    expect(code).not.toContain('BathroomsTotalInteger');
+    expect(code).toContain('PostalCode');
+
+    const named = new Set<string>();
+    const opRe = /\b([A-Z][A-Za-z0-9]+)\s+(?:eq|ne|ge|le|gt|lt)\b/g;
+    let m: RegExpExecArray | null;
+    while ((m = opRe.exec(code))) named.add(m[1]);
+    const fnRe = /\b(?:contains|startswith|endswith)\(\s*([A-Z][A-Za-z0-9]+)\s*,/g;
+    while ((m = fnRe.exec(code))) named.add(m[1]);
+    expect(named.size).toBeGreaterThanOrEqual(8);
+
+    const declared = new Set<string>();
+    for (const s of FIELD_REGISTRY) {
+      if (s.cotalityField) declared.add(s.cotalityField);
+      for (const f of s.cotalityFields ?? []) declared.add(f);
+    }
+    const unowned = [...named].filter((f) => !declared.has(f)).sort();
+    expect(unowned).toEqual([]);
+  });
+
+  it('no executable criterion is left with nothing deciding HOW it runs', () => {
+    // `no_strategy` is not a lesser grade of readiness — it means nothing has
+    // decided how this criterion would execute at all. A criterion the UI can
+    // send, that the registry says the provider supports, with no strategy, is a
+    // criterion whose behaviour is undefined at the moment a broker uses it.
+    const wired = { reachesServer: true, strategyImplemented: true };
+    const stray = FIELD_REGISTRY.filter(
+      (f) =>
+        f.criterionRole === 'broker_input' &&
+        f.filterable === 'yes' &&
+        executionReadiness(f, wired) === 'no_strategy',
+    ).map((f) => `${f.canonicalKey} (vocabularyOwner=${f.vocabularyOwner ?? 'none'})`);
+    expect(stray).toEqual([]);
   });
 });

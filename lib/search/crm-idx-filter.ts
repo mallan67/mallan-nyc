@@ -1,10 +1,22 @@
 import { FIELD_REGISTRY } from "@/lib/search/canonical/field-registry";
 import { isMallanLocalIdentifier } from "@/lib/listings/mallan-source-identity";
 import { maxBathsOData, minBathsOData } from "@/lib/search/canonical/bath-contract";
-import { standardStatusOData } from "@/lib/search/canonical/status-token-contract";
+import { DEFAULT_MARKET_STATUS_TOKENS, standardStatusOData } from "@/lib/search/canonical/status-token-contract";
 import { boroughOData, neighborhoodOData } from "@/lib/search/canonical/geography";
 import { checkboxFieldOData, isRegisteredCheckboxField, isProviderSuppressedField } from "@/lib/search/canonical/checkbox-criteria";
 import { propertyTypeUniverseOData } from "@/lib/search/canonical/property-type-universe";
+import { COMMON_INTEREST_MEMBERS } from "@/lib/search/canonical/live-truth";
+
+/**
+ * The live CommonInterest vocabulary, from its ONE owner.
+ *
+ * This file previously carried a private 13-member `COMMON_INTEREST` Set of its own —
+ * the same members live-truth.ts already held, read from data/cotality-enums.live.json.
+ * Identical copies are not harmless: whichever one someone updates when the provider
+ * vocabulary changes, the other keeps validating broker input against the old list.
+ * A Set because membership is what this file asks; the owner holds the ordered list.
+ */
+const COMMON_INTEREST: ReadonlySet<string> = new Set(COMMON_INTEREST_MEMBERS);
 import {
   parsePropertySubTypeCriterion,
   propertySubTypeOData,
@@ -69,22 +81,6 @@ function finiteNumber(value: string | null): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-/** Exact live Cotality CommonInterest vocabulary, read from Property metadata. */
-const COMMON_INTEREST = new Set([
-  "BareLandCondominium",
-  "CommunityApartment",
-  "Condominium",
-  "Condop",
-  "CoOwnership",
-  "Freehold",
-  "Leasehold",
-  "None",
-  "Other",
-  "PlannedDevelopment",
-  "RentalBuilding",
-  "StockCooperative",
-  "Timeshare",
-]);
 
 function renderExactEnum(field: string, raw: string, allowed: ReadonlySet<string>, criterion: string): string {
   const values = raw.split(",").map((v) => v.trim()).filter(Boolean);
@@ -192,7 +188,11 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
     const { filter } = standardStatusOData(status.split(","));
     if (filter) parts.push(filter);
   } else {
-    parts.push("(StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')");
+    // The default on-market universe is the OWNER's business rule, not a literal
+    // built here. Rendered through the same function an explicit status uses, so the
+    // two cannot drift apart about what counts as on-market.
+    const { filter } = standardStatusOData([...DEFAULT_MARKET_STATUS_TOKENS]);
+    if (filter) parts.push(filter);
   }
 
   const address = params.get("address");

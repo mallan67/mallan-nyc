@@ -46,6 +46,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { DEFAULT_MARKET_STATUS_TOKENS, standardStatusOData } from '@/lib/search/canonical/status-token-contract';
 
 const REPO = join(__dirname, '..', '..');
 const read = (rel: string) => readFileSync(join(REPO, rel), 'utf8');
@@ -315,10 +316,24 @@ describe('the market-status criterion reaches the server', () => {
 
   it('and the server reads it rather than falling back to its default', () => {
     expect(serverReads().has('status')).toBe(true);
+
     // The default exists and is correct for "no status asked". It must never be
     // what a broker gets after asking for one.
-    expect(crmFilter).toMatch(
-      /StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract'/,
+    //
+    // ASSERTED AGAINST THE OWNER since Section 5. This used to grep the filter
+    // for the literal clause, because the filter built one itself — a second
+    // renderer for a field whose registry entry names status-token-contract as
+    // its mapping owner. The default now goes through that owner, so the filter
+    // no longer contains the string and the old grep would fail on a change that
+    // altered no behaviour at all.
+    //
+    // Behaviour is pinned harder than before: the previous version matched a
+    // substring of a hand-written literal, while this renders the real clause
+    // through the real function and compares it whole.
+    expect(crmFilter).toMatch(/DEFAULT_MARKET_STATUS_TOKENS/);
+    const { filter } = standardStatusOData([...DEFAULT_MARKET_STATUS_TOKENS]);
+    expect(filter).toBe(
+      "(StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')",
     );
   });
 });

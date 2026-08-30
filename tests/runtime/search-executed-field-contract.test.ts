@@ -36,6 +36,19 @@ const filterSource = readFileSync(join(REPO, 'lib/search/crm-idx-filter.ts'), 'u
 // The checkbox registry now owns the boolean criteria too, so the provider
 // fields it can emit live there rather than in a booleanFields set.
 const registrySource = readFileSync(join(REPO, 'lib/search/canonical/checkbox-criteria.ts'), 'utf8');
+/**
+ * StandardStatus clauses are rendered HERE, not in the filter.
+ *
+ * Section 5 moved the default on-market universe out of crm-idx-filter.ts, which
+ * had been pushing a literal
+ * `"(StandardStatus eq 'Active' or ... 'ComingSoon' or ... 'ActiveUnderContract')"`
+ * of its own while `market_status` declared status-token-contract as its mapping
+ * owner — so the field had two renderers. This scan follows the mapping to where
+ * it now lives, exactly as the registry scan below already does for booleans.
+ * Dropping StandardStatus from the recorded set instead would have discarded a
+ * real live probe result (all 11 members) to make a source grep pass.
+ */
+const statusSource = readFileSync(join(REPO, 'lib/search/canonical/status-token-contract.ts'), 'utf8');
 
 /**
  * Every provider field `buildCrmIdxODataFilter` can emit, with its live
@@ -150,6 +163,7 @@ describe('every provider field the filter can emit has an execution result', () 
   }
   const code = stripComments(filterSource);
   const registryCode = stripComments(registrySource);
+  const statusCode = stripComments(statusSource);
 
   function emittedProviderFields(): string[] {
     const found = new Set<string>();
@@ -190,6 +204,8 @@ describe('every provider field the filter can emit has an execution result', () 
     for (const m of registryCode.matchAll(/kind: '(?:boolean|scalar_enum)',\s+cotalityField: '([A-Za-z]+)'/g)) {
       found.add(m[1]);
     }
+    // Same principle for status: read the field from the module that renders it.
+    for (const m of statusCode.matchAll(/`([A-Z][A-Za-z]+) eq /g)) found.add(m[1]);
 
     // Fields contracted by their own canonical modules carry their proof there.
     for (const contracted of ['PropertyType', 'CityRegion', 'SubdivisionName', 'PropertySubType', 'CommonInterest']) {

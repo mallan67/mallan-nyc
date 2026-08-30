@@ -163,6 +163,32 @@ export function crmTokenToStandardStatus(token: unknown): StandardStatusMember |
 
 
 /**
+ * The DEFAULT market universe — what a Search means when the broker names no status.
+ *
+ * This lived as a literal OData string inside crm-idx-filter.ts:
+ *
+ *   "(StandardStatus eq 'Active' or ... 'ComingSoon' or ... 'ActiveUnderContract')"
+ *
+ * so StandardStatus had TWO renderers — this module for an explicit status, and a
+ * hand-rolled literal for the default. The default is the path almost every search
+ * takes, and 'which listings count as on-market' is a Mallan business rule, which is
+ * the kind of decision this module exists to hold. Held here, the default and an
+ * explicit selection cannot drift apart, because both render through the same
+ * function and the same member vocabulary.
+ *
+ * TOKENS, not a rendered clause: the caller renders them via standardStatusOData so
+ * an unsupported member would fail loudly here exactly as it does for broker input.
+ *
+ * NOT a provider claim. Membership of these three in StandardStatus is recorded
+ * against the live probe in the registry entry for market_status.
+ */
+export const DEFAULT_MARKET_STATUS_TOKENS: readonly StandardStatusMember[] = Object.freeze([
+  'Active',
+  'ComingSoon',
+  'ActiveUnderContract',
+]);
+
+/**
  * The OData predicate for a set of CRM tokens.
  *
  * THROWS `UnsupportedStatusCriterionError` if ANY token has no provider member.

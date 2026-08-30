@@ -7,6 +7,8 @@
  * This is the co-op/condo separation axis the comps engine currently lacks.
  */
 
+import { COMMON_INTEREST_MEMBERS } from './live-truth';
+
 export type OwnershipClass = 'condo' | 'coop' | 'condop' | 'rental_building' | 'none' | 'other' | 'unknown';
 
 const CLASSIFY: Readonly<Record<string, OwnershipClass>> = Object.freeze({
@@ -21,10 +23,9 @@ const CLASSIFY: Readonly<Record<string, OwnershipClass>> = Object.freeze({
  * Valid live CommonInterest members that aren't an NYC segmentation class. They classify as 'other'
  * (recognized, never dropped to 'unknown'), so a valid ownership value is never silently excluded.
  */
-const OTHER_MEMBERS: ReadonlySet<string> = new Set([
-  'BareLandCondominium', 'CommunityApartment', 'CoOwnership', 'Freehold',
-  'Leasehold', 'Other', 'PlannedDevelopment', 'Timeshare',
-]);
+const OTHER_MEMBERS: ReadonlySet<string> = new Set(
+  COMMON_INTEREST_MEMBERS.filter((m) => !(m in CLASSIFY)),
+);
 
 /** Classify a record's CommonInterest. Valid non-segmentation members → 'other'; unrecognized → 'unknown'. */
 export function ownershipClass(commonInterest: unknown): OwnershipClass {
