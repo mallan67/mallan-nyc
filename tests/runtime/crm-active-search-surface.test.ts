@@ -1011,6 +1011,151 @@ describe('an unanswerable criterion BLOCKS the search visibly', () => {
   });
 });
 
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ARBITRARY CUSTOM VALUES, ON THE NON-PRICE FAMILIES.
+ *
+ * Price is the easy case: those selects have STATIC `<id>Custom` companion
+ * inputs beside them, so nothing is replaced and the earlier tests proved it.
+ *
+ * Beds, rooms, square footage, year, units and floors have no companion. Picking
+ * "Custom" REPLACES the select with a numeric input carrying the same id. So
+ * reading a control the agent has already converted works — but rendering a
+ * canonical number into an UNTOUCHED `<select>` was unproven, and assigning an
+ * unlisted value to a select is a silent no-op: the control shows nothing and
+ * the criterion disappears on the next read.
+ *
+ * Each case below drives the shipped controls end to end:
+ *   canonical arbitrary number -> untouched select -> converted control
+ *   -> rendered value -> view change -> identical canonical value.
+ */
+describe('arbitrary Custom values survive on non-price ranges', () => {
+  /** Pick "Custom" the way an agent does, letting the change handler convert. */
+  const goCustom = (win: any, id: string, value: string) => {
+    const sel = win.document.getElementById(id);
+    sel.value = 'custom';
+    sel.dispatchEvent(new win.Event('change', { bubbles: true }));
+    const converted = win.document.getElementById(id);
+    converted.value = value;
+    return converted;
+  };
+
+  it('converts the select in place, keeping the same id', () => {
+    // Guard the guard: if the change handler did not convert, every assertion
+    // below would be testing a plain select and prove nothing.
+    const win = mount();
+    win.toggleSearchTab('sale');
+    const el = goCustom(win, 'saleMinBeds', '7');
+
+    expect(el.tagName).toBe('INPUT');
+    expect(el.getAttribute('data-was-select')).toBe('true');
+    expect(el.id).toBe('saleMinBeds');
+  });
+
+  it('BEDS: an arbitrary custom count enters canonical state', () => {
+    const win = mount();
+    win.toggleSearchTab('sale');
+    goCustom(win, 'saleMinBeds', '7');
+    win.collectSearchCriteria();
+
+    expect(win.canonicalCriteriaFor('sale').bedrooms).toEqual({ min: 7 });
+  });
+
+  it('BEDS: renders into an UNTOUCHED Advanced select by converting it', () => {
+    // The unproven half. `adv-min-beds` has no option for 7 and no companion
+    // input, so assigning the value would be a no-op — the canonical writer has
+    // to perform the same conversion the agent's click performs.
+    // Uses a count NO select offers.
+    //
+    // My first attempt used 7, which `adv-min-beds` happens to offer — so it
+    // rendered as an ordinary select and proved nothing about conversion. I had
+    // read that option list from a TRUNCATED slice of the markup and concluded
+    // it stopped at 6. 11 is offered by neither side, so the canonical writer
+    // must perform the same conversion the agent's click performs, or the value
+    // is a silent no-op on a `<select>`.
+    const win = mount();
+    win.toggleSearchTab('sale');
+    goCustom(win, 'saleMinBeds', '11');
+    win.collectSearchCriteria();
+
+    win.toggleSearchMode('advanced');
+
+    const adv = win.document.getElementById('adv-min-beds');
+    expect(adv.tagName).toBe('INPUT');
+    expect(adv.value).toBe('11');
+    expect(win.canonicalCriteriaFor('sale').bedrooms).toEqual({ min: 11 });
+  });
+
+  it('SQFT: Advanced custom value carries back into Basic', () => {
+    const win = mount();
+    win.toggleSearchTab('sale');
+    win.toggleSearchMode('advanced');
+    goCustom(win, 'adv-min-sqft', '3333');
+    win.collectSearchCriteria();
+
+    win.toggleSearchMode('basic');
+
+    const basic = win.document.getElementById('saleMinSqft');
+    expect(basic.value).toBe('3333');
+    expect(win.canonicalCriteriaFor('sale').living_area).toEqual({ min: 3333 });
+  });
+
+  it('ROOMS: a custom value survives a Basic -> Advanced -> Basic round trip', () => {
+    const win = mount();
+    win.toggleSearchTab('sale');
+    goCustom(win, 'saleMinRooms', '11');
+    win.collectSearchCriteria();
+
+    win.toggleSearchMode('advanced');
+    win.toggleSearchMode('basic');
+
+    expect(win.canonicalCriteriaFor('sale').rooms_total).toEqual({ min: 11 });
+    expect(win.document.getElementById('saleMinRooms').value).toBe('11');
+  });
+
+  it('BUILDING FACTS: custom year, units and floors survive a view change', () => {
+    // These resolve their ids through `_resolveBuildingFieldIds`, so they
+    // exercise the delegation path as well as the conversion.
+    const win = mount();
+    win.toggleSearchTab('building');
+    goCustom(win, 'buildingMinYear', '1893');
+    goCustom(win, 'buildingMinUnits', '137');
+    goCustom(win, 'buildingMinFloors', '43');
+    win.collectSearchCriteria();
+
+    win.toggleSearchMode('advanced');
+
+    const state = win.canonicalCriteriaFor('building');
+    expect(state.year_built).toEqual({ min: 1893 });
+    expect(state.units_total).toEqual({ min: 137 });
+    expect(state.stories_total).toEqual({ min: 43 });
+    expect(win.document.getElementById('adv-year-built-from').value).toBe('1893');
+  });
+
+  it('EXECUTES the custom value, and canonical state agrees with the wire', () => {
+    const win = mount();
+    win.toggleSearchTab('sale');
+    goCustom(win, 'saleMinBeds', '7');
+    const criteria = win.collectSearchCriteria();
+
+    expect(criteria.bedsMin).toBe(7);
+    expect(win.canonicalCriteriaFor('sale').bedrooms.min).toBe(7);
+  });
+
+  it('clearing a custom value REMOVES the criterion', () => {
+    const win = mount();
+    win.toggleSearchTab('sale');
+    goCustom(win, 'saleMinBeds', '7');
+    win.collectSearchCriteria();
+
+    win.document.getElementById('saleMinBeds').value = '';
+    win.collectSearchCriteria();
+
+    expect(win.canonicalCriteriaFor('sale').bedrooms).toBeUndefined();
+  });
+});
+
+
 describe('reset clears the workflow the agent is actually on', () => {
   it('clears the RENTAL form, not the Sale one', () => {
     // `clearSearchForm` listed only 'searchBasicMode', so Clear on Rentals reset

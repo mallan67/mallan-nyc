@@ -522,6 +522,20 @@ export async function GET(req: NextRequest) {
           maxTotal: top,
           count: true,
           expandMedia: false,
+          // CustomProperty carries the financing observation.
+          //
+          // `MaximumFinancingPercent` is not a Property field — it is a key
+          // inside `CustomProperty.CustomFields`, a declared nullable Edm.String.
+          // Without this expansion the authenticated Search path never RECEIVES
+          // it, so the criterion could not execute no matter how the client was
+          // wired: the census traced the break to exactly here.
+          //
+          // The expand is bare `CustomProperty`. The inner
+          // `$select=DownPaymentAssistance…,CustomFields` form is what Trestle
+          // rejected with HTTP 400 in the 2026-05-15 production logs, so the
+          // opt-in deliberately asks for the whole entity and the mapper stays
+          // defensive about which fields come back.
+          expandCustomProperty: true,
         });
         return {
           records: page.records,

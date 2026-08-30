@@ -1516,10 +1516,12 @@
             stories_total: { kind: 'range', shape: 'range_number', buildingFact: ['floorsMin', 'floorsMax'], workflows: ['sale', 'rent', 'building'] },
             max_financing_percent: { kind: 'range', shape: 'range_number', ids: {
                 sale:     { basic: ['saleBuildingFinancingMin', 'saleBuildingFinancingMax'], advanced: ['adv-financing', null] },
-                // NOT bound to rent/building: the contract offers max_financing_percent
-                // to SALE only, though both surfaces render the controls. Wiring them
-                // here would let the UI expand the contract silently.
-                } },
+                // BUILDING owns this too, as of 2026-08-30. Maximum Financing Allowed
+                // is something an agent researches ABOUT A BUILDING, and the
+                // contract now offers it to sale + building. Rental is deliberately
+                // absent: financing is not a rental-selection criterion, and the
+                // rental controls stay refused rather than wired.
+                building: { basic: ['buildingFinancingMin', 'buildingFinancingMax'], advanced: ['adv-financing', null] } } },
 
             // ── CLOSED-VOCABULARY SETS (checkbox groups, read by data-field) ──
             // Scope-based rather than id-based: the same data-field markup appears
@@ -1871,11 +1873,24 @@
                     // otherwise rendering a custom price silently blanks the
                     // control and the criterion disappears on the next read.
                     if (el.tagName === 'SELECT' && next !== '' && !el.querySelector('option[value="' + next + '"]')) {
+                        // PRICE keeps its static companion input beside the select.
                         var companion = document.getElementById(id + 'Custom');
                         if (companion) {
                             el.value = 'custom';
                             companion.value = next;
                             return;
+                        }
+                        // EVERYTHING ELSE — beds, rooms, sqft, year, units,
+                        // floors — has no companion: the select itself becomes a
+                        // numeric input. Without this the value silently vanished,
+                        // because assigning an unlisted value to a <select> is a
+                        // no-op and the control simply showed nothing.
+                        if (typeof window.convertSelectToCustomInput === 'function') {
+                            var converted = window.convertSelectToCustomInput(el);
+                            if (converted) {
+                                converted.value = next;
+                                return;
+                            }
                         }
                     }
                     if (el.value !== next) el.value = next;
@@ -3912,6 +3927,68 @@
             return true; // handled
         }
 
+        /**
+         * Convert a range <select> into its Custom numeric input, in place.
+         *
+         * ONE OWNER for the conversion. It lived inline inside a change handler,
+         * so it could only ever run when a HUMAN picked "Custom". Canonical state
+         * needs the same conversion when it RENDERS an arbitrary number into a
+         * view the agent has not touched yet — otherwise switching Basic to
+         * Advanced with a custom bedroom count silently blanks the control,
+         * because a <select> cannot hold a value none of its options carry.
+         *
+         * Price is the exception and keeps its own path: those selects have
+         * STATIC `<id>Custom` companion inputs beside them, so nothing is
+         * replaced. Beds, rooms, sqft, year, units and floors have no companion —
+         * the select itself becomes the input, carrying the same id.
+         *
+         * Returns the input, or null when the element is not convertible.
+         */
+        window.convertSelectToCustomInput = function (sel) {
+            if (!sel || sel.tagName !== 'SELECT') return null;
+
+            var id = sel.id || '';
+            var lower = id.toLowerCase();
+            var isPrice = lower.indexOf('price') !== -1 || lower.indexOf('rent') !== -1;
+            var isSqft = lower.indexOf('sqft') !== -1;
+            var placeholder = isPrice ? 'Enter price (e.g. 1500000)' : isSqft ? 'Enter sqft' : 'Enter value';
+
+            var input = document.createElement('input');
+            input.type = 'number';
+            input.id = sel.id;
+            input.className = sel.className;
+            input.placeholder = placeholder;
+            input.style.cssText = sel.style.cssText;
+            input.setAttribute('data-was-select', 'true');
+            // The options are kept so the control can become a dropdown again.
+            input.setAttribute('data-original-options', sel.innerHTML);
+
+            var wrapper = document.createElement('div');
+            wrapper.className = 'flex items-center gap-1 flex-1 min-w-0';
+            var clearBtn = document.createElement('button');
+            clearBtn.type = 'button';
+            clearBtn.className = 'text-red-400 hover:text-red-600 text-xs flex-shrink-0';
+            clearBtn.innerHTML = '<i class="fas fa-times"></i>';
+            clearBtn.title = 'Back to dropdown';
+            clearBtn.onclick = function () {
+                var restoredSelect = document.createElement('select');
+                restoredSelect.id = input.id;
+                restoredSelect.className = input.className;
+                restoredSelect.innerHTML = input.getAttribute('data-original-options');
+                wrapper.parentNode.replaceChild(restoredSelect, wrapper);
+                if (typeof updateTrackerMatchEstimate === 'function') updateTrackerMatchEstimate();
+            };
+
+            sel.parentNode.replaceChild(wrapper, sel);
+            wrapper.appendChild(input);
+            wrapper.appendChild(clearBtn);
+
+            input.addEventListener('input', function () {
+                if (typeof updateTrackerMatchEstimate === 'function') updateTrackerMatchEstimate();
+            });
+            return input;
+        };
+
         (function() {
             document.addEventListener('change', function(e) {
                 var sel = e.target;
@@ -3930,54 +4007,8 @@
 
                 if (sel.value !== 'custom') return;
 
-                // Determine what kind of field this is (for placeholder and formatting)
-                var id = sel.id || '';
-                var isPrice = id.toLowerCase().indexOf('price') !== -1 || id.toLowerCase().indexOf('rent') !== -1;
-                var isSqft = id.toLowerCase().indexOf('sqft') !== -1;
-                var placeholder = isPrice ? 'Enter price (e.g. 1500000)' : isSqft ? 'Enter sqft' : 'Enter value';
-
-                // Create text input to replace the select
-                var input = document.createElement('input');
-                input.type = 'number';
-                input.id = sel.id;
-                input.className = sel.className;
-                input.placeholder = placeholder;
-                input.style.cssText = sel.style.cssText;
-                input.setAttribute('data-was-select', 'true');
-
-                // Store the original select's options for restoration
-                var optionsHTML = sel.innerHTML;
-                input.setAttribute('data-original-options', optionsHTML);
-
-                // Add a clear/restore button
-                var wrapper = document.createElement('div');
-                wrapper.className = 'flex items-center gap-1 flex-1 min-w-0';
-                wrapper.innerHTML = '';
-                var clearBtn = document.createElement('button');
-                clearBtn.type = 'button';
-                clearBtn.className = 'text-red-400 hover:text-red-600 text-xs flex-shrink-0';
-                clearBtn.innerHTML = '<i class="fas fa-times"></i>';
-                clearBtn.title = 'Back to dropdown';
-                clearBtn.onclick = function() {
-                    // Restore the original select
-                    var restoredSelect = document.createElement('select');
-                    restoredSelect.id = input.id;
-                    restoredSelect.className = input.className;
-                    restoredSelect.innerHTML = input.getAttribute('data-original-options');
-                    wrapper.parentNode.replaceChild(restoredSelect, wrapper);
-                    // Trigger tracker update
-                    if (typeof updateTrackerMatchEstimate === 'function') updateTrackerMatchEstimate();
-                };
-
-                sel.parentNode.replaceChild(wrapper, sel);
-                wrapper.appendChild(input);
-                wrapper.appendChild(clearBtn);
-                input.focus();
-
-                // Trigger tracker update on input
-                input.addEventListener('input', function() {
-                    if (typeof updateTrackerMatchEstimate === 'function') updateTrackerMatchEstimate();
-                });
+                var input = window.convertSelectToCustomInput(sel);
+                if (input) input.focus();
             });
         })();
 

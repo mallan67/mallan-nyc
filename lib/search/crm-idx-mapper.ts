@@ -1,6 +1,7 @@
 import { resolveListingMedia } from "@/lib/media/listing-media-resolver";
 import { classifyPropertyType } from "@/lib/search/canonical/property-type-universe";
 import { isStandardStatusMember } from "@/lib/search/canonical/status-token-contract";
+import { readCustomFields } from "@/lib/search/canonical/custom-fields";
 
 /**
  * Existing authenticated-feed display convention. This is a Mallan runtime
@@ -162,18 +163,25 @@ export function mapTrestleToCrmListing(
       : customProps?.DownPaymentAssistanceCount;
   const dpaCount = dpaCountSrc != null && dpaCountSrc !== "" ? Number(dpaCountSrc) : null;
 
-  let sponsorUnit: boolean | null = null;
+  // ONE parser for CustomProperty.CustomFields.
+  //
+  // This hand-decoded the JSON payload for `SponsorUnitYN` alone. Adding a
+  // second reader for `MaximumFinancingPercent` here — and a third wherever the
+  // projection needed it — would give one provider payload several
+  // interpretations free to disagree about the same listing. The decoding,
+  // the 0.00 sentinel rule and the range checks live in one canonical module.
   const customFieldsRaw = customProps?.CustomFields;
-  if (typeof customFieldsRaw === "string" && customFieldsRaw.length > 0) {
-    try {
-      const parsed = JSON.parse(customFieldsRaw) as Record<string, unknown>;
-      const v = parsed?.SponsorUnitYN;
-      if (v === true || v === "true" || v === "Yes" || v === 1) sponsorUnit = true;
-      else if (v === false || v === "false" || v === "No" || v === 0) sponsorUnit = false;
-    } catch {
-      sponsorUnit = null;
-    }
-  }
+  const customFacts = readCustomFields(customFieldsRaw);
+  const sponsorUnit = customFacts.sponsorUnit;
+
+  // A LISTING-level observation of the building's financing limit. Kept as the
+  // observation it is — `not_specified` is distinct from a stated 0, because the
+  // provider uses 0.00 as its not-specified sentinel. Reconciling several
+  // listings into one BUILDING answer is a separate step with its own rule.
+  const maximumFinancingPercent =
+    customFacts.maximumFinancingPercent.kind === "stated"
+      ? customFacts.maximumFinancingPercent.percent
+      : null;
 
   const originalPrice = num(raw.OriginalListPrice);
   let priceChange: string | null = null;
@@ -345,6 +353,7 @@ export function mapTrestleToCrmListing(
     downPaymentAssistanceAmount: dpaAmount,
     downPaymentAssistanceCount: dpaCount,
     sponsorUnit,
+    maximumFinancingPercent,
 
     permissions: {
       // No live Property field named OwnerOptOut/ParticipantOnly has been

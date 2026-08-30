@@ -260,7 +260,6 @@
                 // does not exist. A genuine building financing rule needs its own
                 // verified building-level authority, after Building identity is
                 // resolved — it cannot reuse a listing's value.
-                { selector: '#buildingFinancingMin', reason: 'Financing % is a LISTING-level fact (380 of 3,402 buildings hold conflicting values across their listings). A building-level rule needs its own verified authority.' },
                 // ── DAYS ON MARKET (Advanced) ──
                 // Enabled, but no canonical adapter owns it: an agent could enter a
                 // DOM range that Search never executes.  is a real
@@ -330,8 +329,6 @@
                 { selector: '#searchManagement', reason: 'People/office search not collected by Search — agent, broker, office, team and contact are not canonical Search criteria and the engine never reads these controls.' },
                 { selector: '#rentalBuildingFinancingMin', reason: 'Financing % is a LISTING-level fact and the contract offers max_financing_percent to SALE only; the engine never reads the rental control.' },
                 { selector: '#rentalBuildingFinancingMax', reason: 'Financing % is a LISTING-level fact and the contract offers max_financing_percent to SALE only; the engine never reads the rental control.' },
-
-                { selector: '#buildingFinancingMax', reason: 'Financing % is a LISTING-level fact (380 of 3,402 buildings hold conflicting values across their listings). A building-level rule needs its own verified authority.' },
             ];
 
             function disableDeadControls() {

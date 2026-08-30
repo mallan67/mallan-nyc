@@ -319,6 +319,7 @@ export const WORKFLOW_CRITERIA = {
     'borough',
     'building_name',
     'management_company',
+    'max_financing_percent',
     'neighborhood',
     'ownership',
     'parking',
@@ -443,6 +444,7 @@ export type BuildingCriteria = Pick<
   | 'borough'
   | 'building_name'
   | 'management_company'
+  | 'max_financing_percent'
   | 'neighborhood'
   | 'ownership'
   | 'parking'
