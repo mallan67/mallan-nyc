@@ -44,6 +44,15 @@ const SURFACES = `
     <select id="saleMinSqft"><option value="">Any</option><option value="800">800</option></select>
     <select id="saleMaxSqft"><option value="">Any</option><option value="2000">2000</option></select>
     <select id="saleMinRooms"><option value="">Any</option><option value="3">3</option></select>
+    <input id="saleSearchAddress" type="text" />
+    <input id="searchKeyword" type="text" />
+    <input id="saleManagementCompany" type="text" />
+    <input type="checkbox" data-field="MlsStatus" data-value="Active" />
+    <input type="checkbox" data-field="MlsStatus" data-value="Pending" />
+    <input type="checkbox" data-field="CommonInterest" data-value="Condominium" />
+    <input type="checkbox" data-field="PropertySubType" data-value="Apartment" />
+    <input type="checkbox" data-field="View" data-value="City" />
+    <input type="checkbox" data-field="LaundryFeatures" data-value="InUnit" />
   </div>
 
   <div id="searchBasicModeRental" style="display: none;">
@@ -72,6 +81,15 @@ const SURFACES = `
     <select id="adv-min-sqft"><option value="">Any</option><option value="800">800</option></select>
     <select id="adv-max-sqft"><option value="">Any</option><option value="2000">2000</option></select>
     <select id="adv-min-rooms"><option value="">Any</option><option value="3">3</option></select>
+    <input id="advancedSearchAddress" type="text" />
+    <input id="adv-keyword" type="text" />
+    <input id="adv-management" type="text" />
+    <input type="checkbox" data-field="MlsStatus" data-value="Active" />
+    <input type="checkbox" data-field="MlsStatus" data-value="Pending" />
+    <input type="checkbox" data-field="CommonInterest" data-value="Condominium" />
+    <input type="checkbox" data-field="PropertySubType" data-value="Apartment" />
+    <input type="checkbox" data-field="View" data-value="City" />
+    <input type="checkbox" data-field="LaundryFeatures" data-value="InUnit" />
   </div>
 `;
 
@@ -466,11 +484,11 @@ describe('every view-divergent control is bound', () => {
   it('binds every control the collector reads in a view-dependent branch', () => {
     const win = mount();
     const bound = new Set<string>();
-    const bindings = win.CRITERION_VIEW_BINDINGS ?? {};
-    for (const perTab of Object.values(bindings) as any[]) {
-      for (const perView of Object.values(perTab) as any[]) {
-        for (const ids of Object.values(perView) as any[]) {
-          (ids as string[]).forEach((id) => bound.add(id));
+    const adapters = win.CRITERION_ADAPTERS ?? {};
+    for (const adapter of Object.values(adapters) as any[]) {
+      for (const perTab of Object.values(adapter.ids ?? {}) as any[]) {
+        for (const ids of Object.values(perTab) as any[]) {
+          (ids as (string | null)[]).forEach((id) => id && bound.add(id));
         }
       }
     }
@@ -487,12 +505,204 @@ describe('every view-divergent control is bound', () => {
     // The bindings are view adapters onto canonical criteria. Keying them by
     // control name would make the UI its own vocabulary again.
     const win = mount();
-    const keys = Object.keys(win.CRITERION_VIEW_BINDINGS ?? {});
+    const keys = Object.keys(win.CRITERION_ADAPTERS ?? {});
     expect(keys.length).toBeGreaterThan(0);
     for (const key of keys) {
       expect(key).toMatch(/^[a-z][a-z0-9_]*$/);
       expect(key).not.toMatch(/^(adv|sale|rental|building)[A-Z-]/);
     }
+  });
+});
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * THE STATE IS TYPED, AND IT COVERS MORE THAN RANGES.
+ *
+ * The first version stored raw DOM strings — list_price as ['3000','7000'] — for
+ * three criteria. That was a DOM synchronisation cache wearing a canonical name:
+ * it carried the shape of the CONTROL rather than the shape of the FACT, and
+ * everything it did not list stayed view-local. Status, geography, address,
+ * keyword, ownership, property type and features were all lost on a view change.
+ */
+const check = (win: any, field: string, value: string, on = true) => {
+  const surface = win.document.getElementById(
+    win.isAdvancedViewVisible?.() ? 'searchAdvancedMode' : 'searchBasicMode',
+  );
+  const el = surface.querySelector(`[data-field="${field}"][data-value="${value}"]`);
+  el.checked = on;
+};
+
+describe('canonical state holds canonical VALUE SHAPES', () => {
+  it('stores a range as { min, max } numbers, not control strings', () => {
+    const win = mount();
+    win.toggleSearchTab('sale');
+    pick(win, 'saleMinPrice', '500000');
+    pick(win, 'saleMaxPrice', '900000');
+    win.collectSearchCriteria();
+
+    expect(win.canonicalCriteriaFor('sale').list_price).toEqual({ min: 500000, max: 900000 });
+  });
+
+  it('stores an open-ended range without inventing the missing bound', () => {
+    const win = mount();
+    win.toggleSearchTab('sale');
+    pick(win, 'saleMinPrice', '500000');
+    win.collectSearchCriteria();
+
+    expect(win.canonicalCriteriaFor('sale').list_price).toEqual({ min: 500000 });
+  });
+
+  it('stores a closed-vocabulary selection as a set', () => {
+    const win = mount();
+    win.toggleSearchTab('sale');
+    check(win, 'MlsStatus', 'Active');
+    check(win, 'MlsStatus', 'Pending');
+    win.collectSearchCriteria();
+
+    expect(win.canonicalCriteriaFor('sale').market_status.sort()).toEqual(['Active', 'Pending']);
+  });
+
+  it('stores features as a FAMILY MAP, not a flat list', () => {
+    // A flat ['City','InUnit'] throws away which family each value belongs to,
+    // and checkbox-criteria.ts owns eighteen families with different Cotality
+    // fields, kinds and unresolved members.
+    const win = mount();
+    win.toggleSearchTab('sale');
+    check(win, 'View', 'City');
+    check(win, 'LaundryFeatures', 'InUnit');
+    win.collectSearchCriteria();
+
+    expect(win.canonicalCriteriaFor('sale').feature_criteria).toEqual({
+      View: ['City'],
+      LaundryFeatures: ['InUnit'],
+    });
+  });
+
+  it('keeps first-class criteria OUT of the feature map', () => {
+    // `MlsStatus`, `CommonInterest`, `PropertySubType`, `PetsAllowed`,
+    // `Furnished` and `StructureType` are criteria in their own right. Collecting
+    // them as generic features too would ask one question by two paths.
+    const win = mount();
+    win.toggleSearchTab('sale');
+    check(win, 'MlsStatus', 'Active');
+    check(win, 'CommonInterest', 'Condominium');
+    check(win, 'View', 'City');
+    win.collectSearchCriteria();
+
+    const features = win.canonicalCriteriaFor('sale').feature_criteria ?? {};
+    expect(Object.keys(features)).toEqual(['View']);
+    expect(win.canonicalCriteriaFor('sale').ownership).toEqual(['Condominium']);
+  });
+
+  it('stores scalar text as a trimmed string', () => {
+    const win = mount();
+    win.toggleSearchTab('sale');
+    win.document.getElementById('saleSearchAddress').value = '  845 Fifth Ave  ';
+    win.collectSearchCriteria();
+
+    expect(win.canonicalCriteriaFor('sale').street_address).toBe('845 Fifth Ave');
+  });
+});
+
+describe('every criterion group survives a view change, not just ranges', () => {
+  const carries = (
+    label: string,
+    apply: (win: any) => void,
+    expected: (state: any) => void,
+  ) => {
+    it(`carries ${label} from Basic into Advanced`, () => {
+      const win = mount();
+      win.toggleSearchTab('sale');
+      apply(win);
+      win.toggleSearchMode('advanced');
+      expected(win.canonicalCriteriaFor('sale'));
+    });
+  };
+
+  carries(
+    'market status',
+    (win) => check(win, 'MlsStatus', 'Active'),
+    (state) => expect(state.market_status).toEqual(['Active']),
+  );
+  carries(
+    'ownership',
+    (win) => check(win, 'CommonInterest', 'Condominium'),
+    (state) => expect(state.ownership).toEqual(['Condominium']),
+  );
+  carries(
+    'property sub-type',
+    (win) => check(win, 'PropertySubType', 'Apartment'),
+    (state) => expect(state.property_sub_type).toEqual(['Apartment']),
+  );
+  carries(
+    'feature criteria',
+    (win) => check(win, 'View', 'City'),
+    (state) => expect(state.feature_criteria).toEqual({ View: ['City'] }),
+  );
+  carries(
+    'street address',
+    (win) => {
+      win.document.getElementById('saleSearchAddress').value = '845 Fifth Ave';
+    },
+    (state) => expect(state.street_address).toBe('845 Fifth Ave'),
+  );
+  carries(
+    'keyword',
+    (win) => {
+      win.document.getElementById('searchKeyword').value = 'pre-war';
+    },
+    (state) => expect(state.public_remarks_keyword).toBe('pre-war'),
+  );
+  carries(
+    'management company',
+    (win) => {
+      win.document.getElementById('saleManagementCompany').value = 'Douglas Elliman PM';
+    },
+    (state) => expect(state.management_company).toBe('Douglas Elliman PM'),
+  );
+
+  it('RENDERS a carried status into the Advanced controls, not just the store', () => {
+    // The store being right is not enough — the agent must SEE it, and the
+    // collector reads the rendered view.
+    const win = mount();
+    win.toggleSearchTab('sale');
+    check(win, 'MlsStatus', 'Active');
+    win.toggleSearchMode('advanced');
+
+    const adv = win.document.getElementById('searchAdvancedMode');
+    expect(adv.querySelector('[data-field="MlsStatus"][data-value="Active"]').checked).toBe(true);
+    expect(adv.querySelector('[data-field="MlsStatus"][data-value="Pending"]').checked).toBe(false);
+  });
+
+  it('RENDERS carried text into the Advanced control', () => {
+    const win = mount();
+    win.toggleSearchTab('sale');
+    win.document.getElementById('searchKeyword').value = 'pre-war';
+    win.toggleSearchMode('advanced');
+
+    expect(win.document.getElementById('adv-keyword').value).toBe('pre-war');
+  });
+
+  it('UNCHECKING a status in Advanced removes it — deliberate emptiness wins', () => {
+    const win = mount();
+    win.toggleSearchTab('sale');
+    check(win, 'MlsStatus', 'Active');
+    win.toggleSearchMode('advanced');
+    check(win, 'MlsStatus', 'Active', false);
+    win.collectSearchCriteria();
+
+    expect(win.canonicalCriteriaFor('sale').market_status).toBeUndefined();
+  });
+
+  it('does not leak a rental status into a sale search', () => {
+    const win = mount();
+    win.toggleSearchTab('rent');
+    win.toggleSearchTab('sale');
+    check(win, 'MlsStatus', 'Pending');
+    win.collectSearchCriteria();
+
+    expect(win.canonicalCriteriaFor('rent').market_status).toBeUndefined();
+    expect(win.canonicalCriteriaFor('sale').market_status).toEqual(['Pending']);
   });
 });
 

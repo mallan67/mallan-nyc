@@ -17758,118 +17758,274 @@ function manageShowToast(msg) {
 
         // ─── CANONICAL CRITERIA STATE ───────────────────────────────────────
         //
-        // ONE criteria object per workflow. Basic and Advanced are two VIEWS of
-        // it; neither is the authority.
+        // ONE typed criteria object per workflow, keyed by CANONICAL criterion
+        // names and holding CANONICAL VALUE SHAPES. Basic and Advanced are two
+        // views of it; neither is the authority, and the DOM is a projection.
         //
-        // WHAT THIS FIXES. Showing exactly one Basic surface stopped the collector
-        // reading a hidden container, but Basic and Advanced remained two separate
-        // DOM stores: the collector chose ids by (tab, isAdvanced), and the two
-        // sets never met. Type a rent range in Basic, open Advanced, press Search
-        // while Advanced is still open, and the EMPTY Advanced controls executed —
-        // the same substitution as before, one layer up.
+        // WHAT THIS REPLACES. The first version stored raw DOM strings —
+        // list_price as ['3000','7000'] — for three criteria. That was a DOM
+        // synchronisation cache wearing a canonical name: it carried the shape of
+        // the control rather than the shape of the fact, and everything it did
+        // not list stayed view-local. Status, geography, address, keyword,
+        // ownership, property type, pets, furnished, features, dates and
+        // management company were all still lost when the agent switched view.
         //
-        // NOT A COPY BETWEEN FORMS. Values never move control-to-control. They
-        // move DOM -> canonical state -> DOM: the active view is read INTO the
-        // canonical object when it is left, and the canonical object is RENDERED
-        // into a view when it is entered. That is what makes them views rather
-        // than stores, and it is why switching tabs cannot leak — each workflow
-        // holds its own object.
+        // Values are now stored the way the canonical contract defines them:
         //
-        // COVERAGE IS DECLARED, NOT ASSUMED. Only the criteria listed below have
-        // divergent per-view controls and therefore need carrying. Every other
-        // control lives in exactly one surface, and since exactly one surface is
-        // visible, reading it is already unambiguous. A criterion that later gains
-        // a second view MUST be added here, or it silently reverts to being
-        // view-local — which is the defect this table exists to close.
-        var CRITERION_VIEW_BINDINGS = {
-            list_price: {
+        //   range_number   { min?: number, max?: number }
+        //   range_date     { min?: 'YYYY-MM-DD', max?: 'YYYY-MM-DD' }
+        //   enum_set       ['Active', 'Pending']
+        //   text_set       ['RLS123', 'RLS456']
+        //   feature_map    { view: ['City'], laundry: ['InUnit'] }
+        //   text           '17C'
+        //   boolean        true
+        //
+        // An adapter converts DOM -> canonical on the way in and canonical -> DOM
+        // on the way out. Nothing is ever copied control-to-control: the traffic
+        // is always DOM -> canonical -> DOM, which is what makes Basic and
+        // Advanced views rather than stores.
+        var CRITERION_ADAPTERS = {
+            // ── RANGES ──────────────────────────────────────────────────────
+            list_price: { kind: 'range', shape: 'range_number', ids: {
                 sale:     { basic: ['saleMinPrice', 'saleMaxPrice'], advanced: ['advSaleMinPrice', 'advSaleMaxPrice'] },
-                rent:     { basic: ['rentalMinRent', 'rentalMaxRent'], advanced: ['advRentalMinRent', 'advRentalMaxRent'] }
-            },
-            bedrooms: {
+                rent:     { basic: ['rentalMinRent', 'rentalMaxRent'], advanced: ['advRentalMinRent', 'advRentalMaxRent'] } } },
+            bedrooms: { kind: 'range', shape: 'range_number', ids: {
                 sale:     { basic: ['saleMinBeds', 'saleMaxBeds'], advanced: ['adv-min-beds', 'adv-max-beds'] },
-                rent:     { basic: ['rentalMinBeds', 'rentalMaxBeds'], advanced: ['adv-min-beds', 'adv-max-beds'] }
-            },
-            bathrooms: {
+                rent:     { basic: ['rentalMinBeds', 'rentalMaxBeds'], advanced: ['adv-min-beds', 'adv-max-beds'] } } },
+            bathrooms: { kind: 'range', shape: 'range_number', ids: {
                 sale:     { basic: ['saleMinBaths', 'saleMaxBaths'], advanced: ['adv-min-baths', 'adv-max-baths'] },
-                rent:     { basic: ['rentalMinBaths', 'rentalMaxBaths'], advanced: ['adv-min-baths', 'adv-max-baths'] }
-            },
-            rooms_total: {
+                rent:     { basic: ['rentalMinBaths', 'rentalMaxBaths'], advanced: ['adv-min-baths', 'adv-max-baths'] } } },
+            rooms_total: { kind: 'range', shape: 'range_number', ids: {
                 sale:     { basic: ['saleMinRooms', 'saleMaxRooms'], advanced: ['adv-min-rooms', 'adv-max-rooms'] },
-                rent:     { basic: ['rentalMinRooms', 'rentalMaxRooms'], advanced: ['adv-min-rooms', 'adv-max-rooms'] }
-            },
-            living_area: {
+                rent:     { basic: ['rentalMinRooms', 'rentalMaxRooms'], advanced: ['adv-min-rooms', 'adv-max-rooms'] } } },
+            living_area: { kind: 'range', shape: 'range_number', ids: {
                 sale:     { basic: ['saleMinSqft', 'saleMaxSqft'], advanced: ['adv-min-sqft', 'adv-max-sqft'] },
-                rent:     { basic: ['rentalMinSqft', 'rentalMaxSqft'], advanced: ['adv-min-sqft', 'adv-max-sqft'] }
-            },
-            // Building facts diverge through a THIRD idiom — _resolveBuildingFieldIds(tab, isAdvanced)
-            // — which is why the first pass missed them entirely.
-            year_built: {
+                rent:     { basic: ['rentalMinSqft', 'rentalMaxSqft'], advanced: ['adv-min-sqft', 'adv-max-sqft'] } } },
+            year_built: { kind: 'range', shape: 'range_number', ids: {
                 sale:     { basic: ['saleBuildingMinYear', 'saleBuildingMaxYear'], advanced: ['adv-year-built-from', 'adv-year-built-to'] },
                 rent:     { basic: ['rentalBuildingMinYear', 'rentalBuildingMaxYear'], advanced: ['adv-year-built-from', 'adv-year-built-to'] },
-                building: { basic: ['buildingMinYear', 'buildingMaxYear'], advanced: ['adv-year-built-from', 'adv-year-built-to'] }
-            },
-            units_total: {
+                building: { basic: ['buildingMinYear', 'buildingMaxYear'], advanced: ['adv-year-built-from', 'adv-year-built-to'] } } },
+            units_total: { kind: 'range', shape: 'range_number', ids: {
                 sale:     { basic: ['saleBuildingMinUnits', 'saleBuildingMaxUnits'], advanced: ['adv-bldg-units-min', 'adv-bldg-units-max'] },
                 rent:     { basic: ['rentalBuildingMinUnits', 'rentalBuildingMaxUnits'], advanced: ['adv-bldg-units-min', 'adv-bldg-units-max'] },
-                building: { basic: ['buildingMinUnits', 'buildingMaxUnits'], advanced: ['adv-bldg-units-min', 'adv-bldg-units-max'] }
-            },
-            stories_total: {
+                building: { basic: ['buildingMinUnits', 'buildingMaxUnits'], advanced: ['adv-bldg-units-min', 'adv-bldg-units-max'] } } },
+            stories_total: { kind: 'range', shape: 'range_number', ids: {
                 sale:     { basic: ['saleBuildingMinFloors', 'saleBuildingMaxFloors'], advanced: ['adv-floors-min', 'adv-floors-max'] },
                 rent:     { basic: ['rentalBuildingMinFloors', 'rentalBuildingMaxFloors'], advanced: ['adv-floors-min', 'adv-floors-max'] },
-                building: { basic: ['buildingMinFloors', 'buildingMaxFloors'], advanced: ['adv-floors-min', 'adv-floors-max'] }
-            }
+                building: { basic: ['buildingMinFloors', 'buildingMaxFloors'], advanced: ['adv-floors-min', 'adv-floors-max'] } } },
+            max_financing_percent: { kind: 'range', shape: 'range_number', ids: {
+                sale:     { basic: ['saleBuildingFinancingMin', 'saleBuildingFinancingMax'], advanced: ['adv-financing', null] },
+                rent:     { basic: ['rentalBuildingFinancingMin', 'rentalBuildingFinancingMax'], advanced: ['adv-financing', null] },
+                building: { basic: ['buildingFinancingMin', 'buildingFinancingMax'], advanced: ['adv-financing', null] } } },
+
+            // ── CLOSED-VOCABULARY SETS (checkbox groups, read by data-field) ──
+            // Scope-based rather than id-based: the same data-field markup appears
+            // in each surface, so the adapter asks the ACTIVE scope.
+            market_status:     { kind: 'checkboxSet', shape: 'enum_set', field: 'MlsStatus', scope: 'status' },
+            ownership:         { kind: 'checkboxSet', shape: 'enum_set', field: 'CommonInterest' },
+            property_sub_type: { kind: 'checkboxSet', shape: 'enum_set', field: 'PropertySubType' },
+            pets:              { kind: 'checkboxSet', shape: 'enum_set', field: 'PetsAllowed' },
+            furnished:         { kind: 'checkboxSet', shape: 'enum_set', field: 'Furnished' },
+            structure_type:    { kind: 'checkboxSet', shape: 'enum_set', field: 'StructureType' },
+
+            // ── STRUCTURED FEATURE SELECTION ────────────────────────────────
+            // field -> values across every remaining data-field family. Already
+            // the canonical feature_map shape, so it is stored as-is.
+            feature_criteria: { kind: 'featureMap', shape: 'feature_map' },
+
+            // ── SCALAR TEXT ─────────────────────────────────────────────────
+            street_address: { kind: 'text', shape: 'text', ids: {
+                sale:     { basic: ['saleSearchAddress'], advanced: ['advancedSearchAddress'] },
+                rent:     { basic: ['rentalSearchAddress'], advanced: ['advancedSearchAddress'] },
+                building: { basic: ['buildingSearchAddress'], advanced: ['advancedSearchAddress'] } } },
+            public_remarks_keyword: { kind: 'text', shape: 'text', ids: {
+                sale:     { basic: ['searchKeyword'], advanced: ['adv-keyword'] },
+                rent:     { basic: ['searchKeyword'], advanced: ['adv-keyword'] },
+                building: { basic: ['buildingKeywordSearch'], advanced: ['adv-keyword'] } } },
+            management_company: { kind: 'text', shape: 'text', ids: {
+                sale:     { basic: ['saleManagementCompany'], advanced: ['adv-management'] },
+                rent:     { basic: ['rentalManagementCompany'], advanced: ['adv-management'] },
+                building: { basic: ['buildingManagementCompany'], advanced: ['adv-management'] } } },
+            building_name: { kind: 'text', shape: 'text', ids: {
+                sale:     { basic: ['saleBuildingName'], advanced: ['adv-building-name'] },
+                rent:     { basic: ['rentalBuildingName'], advanced: ['adv-building-name'] },
+                building: { basic: ['buildingNameSearch'], advanced: ['adv-building-name'] } } },
+            postal_code: { kind: 'text', shape: 'text', ids: {
+                sale:     { basic: ['searchQuickZip'], advanced: ['adv-zip'] },
+                rent:     { basic: ['searchQuickZip'], advanced: ['adv-zip'] },
+                building: { basic: ['searchQuickZip'], advanced: ['adv-zip'] } } },
+            unit: { kind: 'text', shape: 'text', ids: {
+                sale:     { basic: ['searchQuickUnit'], advanced: ['adv-unit'] },
+                rent:     { basic: ['searchQuickUnit'], advanced: ['adv-unit'] },
+                building: { basic: ['searchQuickUnit'], advanced: ['adv-unit'] } } },
+            listing_id_canonical: { kind: 'text', shape: 'text', ids: {
+                sale:     { basic: ['searchQuickRLS'], advanced: ['adv-rls-id'] },
+                rent:     { basic: ['searchQuickRLS'], advanced: ['adv-rls-id'] },
+                building: { basic: ['searchQuickRLS'], advanced: ['adv-rls-id'] } } },
+
+            // ── GEOGRAPHY (tag widgets owned by neighborhood-autocomplete.js) ──
+            neighborhood: { kind: 'tags', shape: 'text_set', selector: 'neighborhoods' },
+            borough:      { kind: 'tags', shape: 'enum_set', selector: 'boroughs' }
         };
 
-        /** Per-workflow canonical criteria. Separate objects, so tabs cannot leak. */
+        /**
+         * Per-workflow canonical criteria, in CANONICAL VALUE SHAPES.
+         * Separate objects, so one workflow's criteria cannot leak into another.
+         */
         var _canonicalCriteria = { sale: {}, rent: {}, building: {} };
 
-        /** Which view is on screen for the purposes of binding lookup. */
+        /** Which view is on screen, for adapter lookup. */
         function activeViewName() {
             return isAdvancedViewVisible() ? 'advanced' : 'basic';
         }
 
-        function _bindingIds(key, tab, view) {
-            var perTab = CRITERION_VIEW_BINDINGS[key] || {};
-            var perView = perTab[tab] || {};
-            return perView[view] || [];
+        /** The element scope an adapter reads within. */
+        function _adapterScope(adapter) {
+            if (adapter.scope === 'status' && isAdvancedViewVisible()) {
+                // Advanced keeps sale/rental status options in separate divs and
+                // shows one; the generic active-surface scope would collect both.
+                var rentalOpts = document.getElementById('rentalStatusOptions');
+                var saleOpts = document.getElementById('saleStatusOptions');
+                if (rentalOpts && rentalOpts.style.display !== 'none') return rentalOpts;
+                if (saleOpts && saleOpts.style.display !== 'none') return saleOpts;
+                return saleOpts || activeSearchSurface();
+            }
+            return activeSearchSurface();
+        }
+
+        function _numOrUndefined(raw) {
+            if (raw == null || String(raw).trim() === '') return undefined;
+            var n = parseFloat(String(raw).replace(/,/g, ''));
+            return isNaN(n) ? undefined : n;
+        }
+
+        /** DOM -> canonical value, or undefined when this view cannot answer. */
+        function _readAdapter(key, adapter, tab, view) {
+            if (adapter.kind === 'range' || adapter.kind === 'text') {
+                var ids = ((adapter.ids || {})[tab] || {})[view] || [];
+                var els = ids.map(function (id) { return id ? document.getElementById(id) : null; });
+                // A view with NO control for this criterion cannot speak for it.
+                // That is the ONLY silence; a control that is present and empty is
+                // a deliberate removal.
+                if (!els.some(function (el) { return !!el; })) return undefined;
+                if (adapter.kind === 'text') {
+                    var t = els[0] && els[0].value != null ? String(els[0].value).trim() : '';
+                    return t === '' ? null : t;
+                }
+                var min = _numOrUndefined(els[0] && els[0].value);
+                var max = _numOrUndefined(els[1] && els[1].value);
+                if (min === undefined && max === undefined) return null;
+                var range = {};
+                if (min !== undefined) range.min = min;
+                if (max !== undefined) range.max = max;
+                return range;
+            }
+
+            if (adapter.kind === 'checkboxSet') {
+                var scope = _adapterScope(adapter);
+                if (!scope) return undefined;
+                var boxes = scope.querySelectorAll('[data-field="' + adapter.field + '"]');
+                if (!boxes.length) return undefined;
+                var picked = [];
+                scope.querySelectorAll('[data-field="' + adapter.field + '"]:checked').forEach(function (cb) {
+                    var v = cb.getAttribute('data-sub-status') || cb.getAttribute('data-value') || cb.value;
+                    if (v && picked.indexOf(v) === -1) picked.push(v);
+                });
+                return picked.length ? picked : null;
+            }
+
+            if (adapter.kind === 'featureMap') {
+                var fmScope = activeSearchSurface();
+                if (!fmScope) return undefined;
+                var map = {};
+                fmScope.querySelectorAll('input[data-field]:checked').forEach(function (cb) {
+                    var f = cb.getAttribute('data-criterion') || cb.getAttribute('data-field');
+                    var v = cb.getAttribute('data-value') || cb.value;
+                    // Criteria with a first-class identity are NOT features.
+                    if (!f || !v || _FIRST_CLASS_FIELDS.indexOf(f) !== -1) return;
+                    if (!map[f]) map[f] = [];
+                    if (map[f].indexOf(v) === -1) map[f].push(v);
+                });
+                return Object.keys(map).length ? map : null;
+            }
+
+            if (adapter.kind === 'tags') {
+                var fn = adapter.selector === 'boroughs' ? window.getSelectedBoroughs : window.getSelectedNeighborhoods;
+                if (typeof fn !== 'function') return undefined;
+                var tagsId = typeof _resolveActiveNeighborhoodTagsId === 'function'
+                    ? _resolveActiveNeighborhoodTagsId() : undefined;
+                var picked2 = fn(tagsId) || [];
+                return picked2.length ? picked2.slice() : null;
+            }
+
+            return undefined;
+        }
+
+        /** Canonical value -> DOM. */
+        function _writeAdapter(key, adapter, tab, view, value) {
+            if (adapter.kind === 'range' || adapter.kind === 'text') {
+                var ids = ((adapter.ids || {})[tab] || {})[view] || [];
+                var vals = adapter.kind === 'text'
+                    ? [value == null ? '' : String(value)]
+                    : [value && value.min != null ? String(value.min) : '',
+                       value && value.max != null ? String(value.max) : ''];
+                ids.forEach(function (id, i) {
+                    if (!id) return;
+                    var el = document.getElementById(id);
+                    if (!el) return;
+                    var next = vals[i] != null ? vals[i] : '';
+                    if (el.value !== next) el.value = next;
+                });
+                return;
+            }
+
+            if (adapter.kind === 'checkboxSet') {
+                var scope = _adapterScope(adapter);
+                if (!scope) return;
+                var wanted = value || [];
+                scope.querySelectorAll('[data-field="' + adapter.field + '"]').forEach(function (cb) {
+                    var v = cb.getAttribute('data-sub-status') || cb.getAttribute('data-value') || cb.value;
+                    cb.checked = wanted.indexOf(v) !== -1;
+                });
+                return;
+            }
+
+            if (adapter.kind === 'featureMap') {
+                var fmScope = activeSearchSurface();
+                if (!fmScope) return;
+                var map = value || {};
+                fmScope.querySelectorAll('input[data-field]').forEach(function (cb) {
+                    var f = cb.getAttribute('data-criterion') || cb.getAttribute('data-field');
+                    var v = cb.getAttribute('data-value') || cb.value;
+                    if (!f || _FIRST_CLASS_FIELDS.indexOf(f) !== -1) return;
+                    cb.checked = !!(map[f] && map[f].indexOf(v) !== -1);
+                });
+                return;
+            }
+            // Tag widgets own their own rendering; neighborhood-autocomplete.js is
+            // the authority for those controls and is not written through here.
         }
 
         /**
-         * Read the view the agent has been editing INTO the canonical object.
-         * Called before any view or tab change, and before collecting.
+         * data-fields that are first-class canonical criteria in their own right,
+         * so they must not ALSO be collected as generic features. One concept,
+         * one path — the same rule enforced server-side in checkbox-criteria.ts.
          */
+        var _FIRST_CLASS_FIELDS = ['MlsStatus', 'CommonInterest', 'PropertySubType', 'PetsAllowed', 'Furnished', 'StructureType'];
+
+        /** Read the view the agent has been editing INTO the canonical object. */
         function syncActiveViewToCanonical(tab, view) {
             tab = tab || currentSearchTab;
             view = view || activeViewName();
             var store = _canonicalCriteria[tab];
             if (!store) return;
-            Object.keys(CRITERION_VIEW_BINDINGS).forEach(function (key) {
-                var ids = _bindingIds(key, tab, view);
-                if (!ids.length) return;
-                var elements = ids.map(function (id) { return document.getElementById(id); });
-                // A view with NO control for this criterion cannot speak for it.
-                // That is the only case where a read is ignored — and it is what
-                // the "all values empty" guard was really trying to express.
-                if (!elements.some(function (el) { return !!el; })) return;
-
-                var values = elements.map(function (el) {
-                    return el && el.value != null ? String(el.value) : '';
-                });
-
-                // A DELIBERATELY EMPTIED control removes the criterion.
-                //
-                // This previously refused to write when every value was empty,
-                // which silently RESURRECTED filters: an agent searching
-                // $3,000-$7,000, then setting both price controls back to Any,
-                // had the empty read ignored and the stored $3,000-$7,000
-                // rendered straight back. Mallan restored a criterion the agent
-                // had just removed, and the results looked correct.
-                //
-                // Absence of a CONTROL and emptiness of a control are different
-                // facts; only the first is silence.
-                if (values.some(function (v) { return v !== ''; })) store[key] = values;
-                else delete store[key];
+            Object.keys(CRITERION_ADAPTERS).forEach(function (key) {
+                var value = _readAdapter(key, CRITERION_ADAPTERS[key], tab, view);
+                // undefined  -> this view has no control for it; stay silent.
+                // null       -> present and deliberately empty; REMOVE.
+                if (value === undefined) return;
+                if (value === null) delete store[key];
+                else store[key] = value;
             });
         }
 
@@ -17879,22 +18035,19 @@ function manageShowToast(msg) {
             view = view || activeViewName();
             var store = _canonicalCriteria[tab];
             if (!store) return;
-            Object.keys(CRITERION_VIEW_BINDINGS).forEach(function (key) {
-                var ids = _bindingIds(key, tab, view);
-                if (!ids.length) return;
-                var values = store[key] || [];
-                ids.forEach(function (id, i) {
-                    var el = document.getElementById(id);
-                    if (!el) return;
-                    var next = values[i] != null ? values[i] : '';
-                    if (el.value !== next) el.value = next;
-                });
+            Object.keys(CRITERION_ADAPTERS).forEach(function (key) {
+                _writeAdapter(key, CRITERION_ADAPTERS[key], tab, view, store[key]);
             });
         }
 
         /** Forget the active workflow's criteria — a reset, not a view change. */
         function clearCanonicalCriteria(tab) {
             _canonicalCriteria[tab || currentSearchTab] = {};
+        }
+
+        /** Read-only view of the canonical state, for tests and diagnostics. */
+        function canonicalCriteriaFor(tab) {
+            return _canonicalCriteria[tab || currentSearchTab];
         }
 
         function collectSearchCriteria() {
