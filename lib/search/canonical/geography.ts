@@ -45,20 +45,26 @@
  * and tested rather than assumed.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * NEIGHBORHOOD USES THE EXISTING MALLAN ALIAS INFRASTRUCTURE
+ * NEIGHBORHOOD USES THE PROVIDER'S OWN VOCABULARY — CORRECTED 2026-08-31
  *
- * No new geography authority is introduced. `data/rls/geo/neighborhood-aliases.json`
- * (593 aliases onto 72 canonical polygon names, byte-identical to the browser
- * copy at public/geo/) is reversed here so a canonical selection expands to
- * EVERY provider spelling Mallan knows for it. Sending only the canonical name
- * would return a silently short universe.
+ * This section used to read: "No new geography authority is introduced.
+ * `data/rls/geo/neighborhood-aliases.json` (593 aliases onto 72 canonical polygon
+ * names) is reversed here so a canonical selection expands to EVERY provider
+ * spelling Mallan knows for it. Sending only the canonical name would return a
+ * silently short universe."
  *
- * A value the alias file does not know is passed through as an exact
- * SubdivisionName match. That is not an invented equivalence — it is the
- * provider's own field matched literally, and the live feed carries names the
- * alias file has not caught up with (e.g. Hudson Yards, Two Bridges, Yorkville).
+ * The reasoning was sound and the premise was false, which is the most dangerous
+ * combination. That file maps provider names onto POLYGON SHAPES for map
+ * rendering — a grouping, not an identity — so the expansion did not add
+ * spellings of one neighbourhood, it added OTHER NEIGHBOURHOODS. Williamsburg
+ * returned Bushwick and Ridgewood; Prospect Heights returned Stuyvesant Heights.
+ * Guarding against a short universe produced a silently wide one.
+ *
+ * The vocabulary now comes from the feed itself — see LIVE_BY_FOLDED below for
+ * the measurements. The alias file keeps its real job, polygons and map
+ * rendering, and is no longer consulted for provider execution.
  */
-import aliasData from "@/data/rls/geo/neighborhood-aliases.json";
+import { SUBDIVISION_NAME_LIVE } from "@/lib/search/canonical/subdivision-vocabulary.generated";
 import { escapeOData } from "@/lib/search/crm-idx-filter";
 
 /** The five live `CityRegion` values, in PROVIDER spelling. */
@@ -142,55 +148,101 @@ export function boroughOData(values: readonly unknown[]): string | null {
     : `(${members.map((m) => `CityRegion eq '${m}'`).join(" or ")})`;
 }
 
-/** canonical polygon name -> every provider spelling Mallan knows for it. */
-const VARIANTS_BY_CANONICAL: ReadonlyMap<string, readonly string[]> = (() => {
-  const raw = (aliasData as { aliases?: Record<string, unknown> }).aliases ?? {};
-  const byCanonical = new Map<string, string[]>();
-
-  for (const [variant, target] of Object.entries(raw)) {
-    // A null target means "distinct place, no polygon" — it is still a real
-    // provider spelling, so it stays searchable as itself.
-    const canonicals = Array.isArray(target) ? target : target ? [target] : [];
-    for (const canonical of canonicals) {
-      const key = fold(String(canonical));
-      const list = byCanonical.get(key) ?? [];
-      if (!list.includes(String(canonical))) list.push(String(canonical));
-      if (!list.includes(variant)) list.push(variant);
-      byCanonical.set(key, list);
-    }
+/**
+ * Live SubdivisionName values, grouped by their case-folded form.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * THE ALIAS REVERSAL THIS REPLACED, AND WHY IT WAS NOT MERELY UNPROVEN
+ *
+ * This module used to expand a selection through
+ * `data/rls/geo/neighborhood-aliases.json`, whose own `_meta` reads "Maps RLS
+ * SubdivisionName variants", generatedAt 2026-03-19 — five months before the
+ * geography probe. Old RLS evidence was defining current provider truth, which
+ * inverts the architecture: COTALITY RAW -> VERIFIED MAPPING -> MALLAN CANONICAL.
+ *
+ * Measured live 2026-08-31, it was also WRONG. That file maps provider names onto
+ * 72 POLYGON SHAPES for map rendering — a grouping, not an identity — so
+ * reversing it merged distinct neighbourhoods:
+ *
+ *   Williamsburg       191 rows literal -> 331 expanded, adding Bushwick (109)
+ *                      and Ridgewood (16), which is in QUEENS
+ *   Downtown Brooklyn   88 -> 431, adding Flatbush, Bay Ridge and Midwood
+ *   Prospect Heights    19 -> 149, adding Stuyvesant Heights (67), in Bed-Stuy
+ *   Bayside              2 ->  92, adding Jamaica (36)
+ *
+ * A broker selecting Williamsburg received Bushwick and Ridgewood listings under
+ * HTTP 200 with nothing on the page to say so. A SHORT universe is a visible
+ * problem; a silently WIDE one is answered confidently and wrongly.
+ *
+ * 437 of the 593 alias spellings matched nothing live at all.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * WHAT REPLACES IT
+ *
+ * The provider's own vocabulary, read exhaustively from the live Search universe
+ * and generated into `subdivision-vocabulary.generated.ts`. Resolution is
+ * case-insensitive against that list, which keeps the ONE part of the old
+ * expansion that was real — SoHo / Soho / SOHO are one neighbourhood spelled
+ * three ways (48 + 6 + 1 rows) — while adding no adjacency. Every emitted term is
+ * a value the feed carries: identity, never an asserted equivalence.
+ *
+ * The alias file remains valid for polygons and map rendering. It is no longer
+ * consulted for provider execution, and this module no longer imports it.
+ */
+const LIVE_BY_FOLDED: ReadonlyMap<string, readonly string[]> = (() => {
+  const byFolded = new Map<string, string[]>();
+  for (const name of Object.keys(SUBDIVISION_NAME_LIVE)) {
+    const key = fold(name);
+    const list = byFolded.get(key) ?? [];
+    list.push(name);
+    byFolded.set(key, list);
   }
-  return byCanonical;
+  return byFolded;
 })();
 
 /**
- * Every provider spelling to search for a selected neighborhood.
+ * Every LIVE provider spelling for a selected neighborhood.
  *
- * A known canonical expands to itself plus its variants. An unknown value is
- * matched literally — the live feed carries names the alias file has not caught
- * up with, and refusing them would remove real inventory from reach.
+ * Empty when the feed carries no such name — which the caller must treat as a
+ * refusal, not as an empty filter.
  */
 export function neighborhoodVariants(value: string): readonly string[] {
-  return VARIANTS_BY_CANONICAL.get(fold(value)) ?? [value];
+  return LIVE_BY_FOLDED.get(fold(value)) ?? [];
 }
 
 /**
  * The OData predicate for a set of neighborhood selections, or null if none.
  *
- * Always parenthesised when it contains more than one term so it cannot bind
- * loosely against the surrounding ` and ` joins.
+ * THROWS on a name the live feed does not carry. Three canonical names —
+ * `Gramercy`, `Stuyvesant Town` and `Union Square` — expanded entirely to
+ * spellings the feed does not have, so selecting one produced a syntactically
+ * valid filter matching zero rows under HTTP 200: indistinguishable from "no
+ * listings match your criteria", while `Gramercy Park` sat in the feed with real
+ * inventory and no way to reach it. A criterion that can only ever match zero
+ * rows must fail loudly, exactly as an unknown borough or status token does.
+ *
+ * Always parenthesised so it cannot bind loosely against the surrounding
+ * ` and ` joins.
  */
 export function neighborhoodOData(values: readonly unknown[]): string | null {
   const spellings: string[] = [];
+  const unknown: string[] = [];
 
   for (const value of values) {
     if (typeof value !== "string") continue;
     const trimmed = value.trim();
     if (!trimmed) continue;
-    for (const spelling of neighborhoodVariants(trimmed)) {
+    const live = neighborhoodVariants(trimmed);
+    if (live.length === 0) {
+      unknown.push(trimmed);
+      continue;
+    }
+    for (const spelling of live) {
       if (!spellings.includes(spelling)) spellings.push(spelling);
     }
   }
 
+  if (unknown.length > 0) throw new UnsupportedGeographyError("neighborhood", unknown);
   if (spellings.length === 0) return null;
 
   const terms = spellings.map((s) => `SubdivisionName eq '${escapeOData(s)}'`);

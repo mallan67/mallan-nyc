@@ -64,6 +64,48 @@ describe("the canonical bath contract matches the true total exactly", () => {
     expect(minAdmits(1.5, { full: 1, half: null })).toBe(false);
     expect(maxAdmits(1, { full: 1, half: null })).toBe(true);
   });
+
+  it("THE CANONICAL MALLAN BATH DEFINITION, stated case by case", () => {
+    // Maya's ruling, 2026-08-31: half baths are real Cotality data and are
+    // first-class bath information. They are never rounded away, and never
+    // replaced by BathroomsTotalInteger — an Edm.Int32 that cannot represent 1.5
+    // and disagrees with its own components on ~1% of rows.
+    //
+    // Total baths for numeric search = BathroomsFull + (BathroomsHalf x 0.5).
+    //
+    // Named individually rather than left implicit in the property-based sweep
+    // above, because this is the BUSINESS definition the sweep is checking
+    // against. If the rule ever changes, it should change here, visibly.
+    expect(bathTotal(1, 1)).toBe(1.5);
+    expect(bathTotal(2, 0)).toBe(2);
+    expect(bathTotal(2, 1)).toBe(2.5);
+    expect(bathTotal(0, 1)).toBe(0.5);
+    expect(bathTotal(3, 2)).toBe(4);
+  });
+
+  it("and the fractional boundaries hold from both directions", () => {
+    // A 1.5-bath listing is admitted by minBaths=1.5 and by maxBaths=1.5, and
+    // excluded by minBaths=2 and maxBaths=1. Boundary inclusivity stated
+    // explicitly so a future off-by-a-half cannot pass unnoticed.
+    const oneAndAHalf = { full: 1, half: 1 };
+    expect(minAdmits(1.5, oneAndAHalf)).toBe(true);
+    expect(maxAdmits(1.5, oneAndAHalf)).toBe(true);
+    expect(minAdmits(2, oneAndAHalf)).toBe(false);
+    expect(maxAdmits(1, oneAndAHalf)).toBe(false);
+
+    const twoAndAHalf = { full: 2, half: 1 };
+    expect(minAdmits(2.5, twoAndAHalf)).toBe(true);
+    expect(maxAdmits(2.5, twoAndAHalf)).toBe(true);
+    expect(minAdmits(3, twoAndAHalf)).toBe(false);
+    expect(maxAdmits(2, twoAndAHalf)).toBe(false);
+  });
+
+  it("a half bath is never rounded away — 2 full + 1 half is not 2 baths", () => {
+    // The regression that would silently lose the 2,023 Active listings whose
+    // BathroomsHalf is non-zero.
+    expect(bathTotal(2, 1)).not.toBe(2);
+    expect(maxAdmits(2, { full: 2, half: 1 })).toBe(false);
+  });
 });
 
 describe("the OData renderer uses only live-permitted operators", () => {

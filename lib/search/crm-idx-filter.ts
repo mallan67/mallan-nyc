@@ -264,7 +264,7 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
       const rawStreet = stripStreetSuffix(dirMatch[3]);
       const streetPart = rawStreet.replace(/(ST|ND|RD|TH)\b/gi, "").trim();
       const streetPartFull = escapeOData(rawStreet);
-      const conditions = [`startswith(StreetNumber,'${streetNum}')`, `StreetDirPrefix eq '${direction}'`];
+      const conditions = [`StreetNumber eq '${streetNum}'`, `StreetDirPrefix eq '${direction}'`];
       if (streetPart && streetPart !== streetPartFull) {
         conditions.push(`(contains(StreetName,'${escapeOData(streetPart)}') or contains(StreetName,'${streetPartFull}'))`);
       } else if (streetPart) {
@@ -280,12 +280,12 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
           const stripped = streetPart.replace(/(ST|ND|RD|TH)\b/gi, "").trim();
           const nameFilters = [`contains(StreetName,'${escapeOData(streetPart)}')`];
           if (stripped !== streetPart) nameFilters.push(`contains(StreetName,'${escapeOData(stripped)}')`);
-          parts.push(`(startswith(StreetNumber,'${streetNum}') and (${nameFilters.join(" or ")}))`);
+          parts.push(`(StreetNumber eq '${streetNum}' and (${nameFilters.join(" or ")}))`);
         } else {
-          parts.push(`(startswith(StreetNumber,'${streetNum}') or contains(BuildingName,'${escapeOData(raw)}'))`);
+          parts.push(`(StreetNumber eq '${streetNum}' or contains(BuildingName,'${escapeOData(raw)}'))`);
         }
       } else if (/^\d+$/.test(raw)) {
-        parts.push(`(startswith(StreetNumber,'${escapeOData(raw)}') or contains(BuildingName,'${escapeOData(raw)}'))`);
+        parts.push(`(StreetNumber eq '${escapeOData(raw)}' or contains(BuildingName,'${escapeOData(raw)}'))`);
       } else {
         const cleaned = stripStreetSuffix(raw);
         parts.push(`(contains(StreetName,'${escapeOData(cleaned || raw)}') or contains(BuildingName,'${escapeOData(raw)}'))`);

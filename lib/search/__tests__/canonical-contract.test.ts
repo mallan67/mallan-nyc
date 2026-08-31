@@ -409,10 +409,26 @@ describe("authority resolution, not a static per-field author", () => {
     }
   });
 
-  it("geography stays provisional until the live NYC study", () => {
-    for (const key of ["borough", "neighborhood"]) {
-      expect(get(key).authorityResolution).toBe("unresolved");
-    }
+  it("neighborhood is resolved BY the live NYC study; borough still is not", () => {
+    // This required BOTH to stay unresolved "until the live NYC study". That
+    // study ran for neighbourhood on 2026-08-31: the Search-eligible universe was
+    // read exhaustively (7,770 rows, 8 pages, not truncated) for 240 distinct
+    // SubdivisionName values, and geography.ts now emits only values from that
+    // list. Every term is one the provider itself carries — identity, not an
+    // asserted equivalence — so holding it at `unresolved` would now be the
+    // inaccurate state.
+    //
+    // It also found the reason the hold was right: reversing the RLS alias file
+    // had been merging distinct neighbourhoods, so Williamsburg returned Bushwick
+    // and Ridgewood, which is in Queens.
+    expect(get("neighborhood").authorityResolution).toBe("fixed");
+    expect(get("neighborhood").sourceAuthority).toBe("cotality");
+
+    // BOROUGH IS A DIFFERENT QUESTION and stays provisional. The open item there
+    // is which provider fact is canonical — CountyOrParish is a COUNTY, not a
+    // borough — and no study has settled that. Resolving it here merely because
+    // its neighbour resolved is exactly the inference this file forbids.
+    expect(get("borough").authorityResolution).toBe("unresolved");
   });
 
   it("pipeline lineage is a separate concept, not a canonical source", () => {

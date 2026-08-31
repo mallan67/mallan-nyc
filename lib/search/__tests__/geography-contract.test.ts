@@ -124,14 +124,63 @@ describe("neighborhood -> SubdivisionName", () => {
     expect(neighborhoodOData(["Murray Hill"])).toContain("SubdivisionName eq 'Murray Hill'");
   });
 
-  it("expands a canonical name to every provider spelling Mallan knows for it", () => {
-    // The alias file maps 593 variants onto 72 canonical polygons. A broker
-    // asking for the canonical name must receive every provider spelling of it,
-    // or the result universe is silently short.
+  it("does NOT expand a selection into neighbouring neighbourhoods", () => {
+    // REVERSED 2026-08-31 against live Cotality. This previously asserted that
+    // `East Village` must also emit `Alphabet City`, on the reasoning that the
+    // alias file maps 593 variants onto 72 canonical polygons and a short
+    // expansion means a short universe.
+    //
+    // The premise was wrong. That file maps provider names onto POLYGON SHAPES
+    // for map rendering — a grouping, not an identity — and reversing it into
+    // Search merged distinct neighbourhoods. Measured live:
+    //
+    //   Williamsburg       191 rows -> 331, adding Bushwick (109) and
+    //                      Ridgewood (16), which is in QUEENS
+    //   Downtown Brooklyn   88 -> 431, adding Flatbush, Bay Ridge, Midwood
+    //   Prospect Heights    19 -> 149, adding Stuyvesant Heights (67), Bed-Stuy
+    //   Bayside              2 ->  92, adding Jamaica (36)
+    //
+    // A broker selecting Williamsburg was handed Bushwick and Ridgewood under
+    // HTTP 200 with nothing to say so. A short universe is a visible problem; a
+    // silently WIDE one is answered confidently and wrongly.
     const filter = neighborhoodOData(["East Village"]);
     expect(filter).toContain("SubdivisionName eq 'East Village'");
-    expect(filter).toContain("SubdivisionName eq 'Alphabet City'");
-    expect(filter.startsWith("(")).toBe(true);
+    expect(filter).not.toContain("Alphabet City");
+  });
+
+  it("still groups genuine CASE variants of one name", () => {
+    // The part of the old expansion that was real. SoHo, Soho and SOHO are one
+    // neighbourhood spelled three ways in the feed (48 + 6 + 1 rows), and losing
+    // the last two would be a genuinely short universe. Resolution is
+    // case-insensitive against the live vocabulary, so this needs no alias table:
+    // every term is a value the provider itself carries.
+    const filter = neighborhoodOData(["SoHo"]);
+    expect(filter).toContain("SubdivisionName eq 'SoHo'");
+    expect(filter).toContain("SubdivisionName eq 'Soho'");
+    expect(filter).toContain("SubdivisionName eq 'SOHO'");
+    // …and nothing else. Case variants only, never adjacency.
+    expect(filter).not.toContain("Hudson Square");
+  });
+
+  it("reaches live neighbourhoods the retired alias file never knew", () => {
+    // 18 live SubdivisionName values were absent from the alias file entirely,
+    // including Yorkville, Hudson Yards, Gramercy Park and Two Bridges.
+    for (const name of ["Yorkville", "Hudson Yards", "Gramercy Park", "Two Bridges"]) {
+      expect(neighborhoodOData([name])).toContain(`SubdivisionName eq '${name}'`);
+    }
+  });
+
+  it("REFUSES a name the live feed does not carry, instead of returning an empty set", () => {
+    // The failure this closes. `Gramercy`, `Stuyvesant Town` and `Union Square`
+    // expanded ENTIRELY to spellings the feed does not carry, so selecting one
+    // produced a syntactically valid filter matching zero rows under HTTP 200 —
+    // indistinguishable from "no listings match your criteria". Meanwhile
+    // `Gramercy Park` sat in the feed with real inventory, unreachable.
+    //
+    // A criterion that can only ever match zero rows must fail loudly.
+    expect(() => neighborhoodOData(["Gramercy"])).toThrow(/Gramercy/);
+    expect(() => neighborhoodOData(["Stuyvesant Town"])).toThrow();
+    expect(() => neighborhoodOData(["Nonexistent Heights"])).toThrow();
   });
 
   it("ORs multiple neighborhoods into one clause", () => {

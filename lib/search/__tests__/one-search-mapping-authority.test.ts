@@ -337,16 +337,72 @@ describe('mutation guards — the authority graph cannot be bypassed', () => {
     ]);
   });
 
-  it('and only ONE Search criterion is fully verified executable today', () => {
-    // capability:yes is necessary and NOT sufficient. Verified executable needs a
-    // proven clause, capability yes, live evidence AND no conflict with a
-    // canonical contract. `bathrooms` is capability:yes with a proven clause and
-    // is NOT verified: it queries BathroomsTotalInteger, which bath-contract.ts
-    // lists under `rejected` on live evidence. A built clause is not a correct one.
-    const marketStatus = FIELD_REGISTRY.find((f) => f.canonicalKey === 'market_status');
-    expect(marketStatus?.filterable).toBe('yes');
-    expect(marketStatus?.mappingOwner).toBe('status-token-contract');
-    expect(marketStatus?.searchParams).toEqual(['status', 'statuses']);
+  it('ANYTHING THE EXECUTOR CAN RUN IS VERIFIED, REFUSED, OR EXPLICITLY NOT WIRED', () => {
+    // REPLACED a test titled "and only ONE Search criterion is fully verified
+    // executable today", which asserted three properties of `market_status` and
+    // proved nothing about the count in its own title. Once sixteen criteria were
+    // promoted it was a historical sentence frozen into an assertion, and its
+    // explanation — that bathrooms queries BathroomsTotalInteger — described code
+    // deleted in Section 5.
+    //
+    // THE INVARIANT THAT ACTUALLY MATTERS, derived rather than declared:
+    // a criterion the live executor can run must be verified_executable, or
+    // carry a named refusal, or be explicitly not_yet_wired. A criterion sitting
+    // at needs_probe / mapping_conflict / no_strategy WHILE EXECUTING is the
+    // Section 5 defect in one sentence — the authority model saying "unproven"
+    // while the executor says "go".
+    //
+    // This is why the previous census could report CLEAN while `neighborhood`
+    // ran with semanticEquivalenceProven: false: nothing compared what executes
+    // against what is proven.
+    // A PARAM IS REFUSED IF READING IT LEADS TO A THROW — not if its name happens
+    // to match the error label. Those differ: the financing bounds are
+    // `financingMin`/`financingMax` while the error reads
+    // `UnsupportedSearchCriterionError("financing", …)`, because "financing" is
+    // the better message for a broker. Matching on the label alone reported
+    // max_financing_percent as executing-unproven when it is refused outright.
+    const refusesParam = (param: string): boolean => {
+      const re = new RegExp(`params\\.get\\("${param}"\\)`, 'g');
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(executorSrc))) {
+        // The refusal is the next thing that happens to the value it read.
+        if (/UnsupportedSearchCriterionError/.test(executorSrc.slice(m.index, m.index + 600))) return true;
+      }
+      return false;
+    };
+
+    // Guard the guard, both directions: the scan must find the known refusals,
+    // and must NOT call an executing criterion refused — otherwise everything
+    // would look refused-and-therefore-fine and the whole check would be vacuous.
+    expect(refusesParam('managementCompany')).toBe(true);
+    expect(refusesParam('keyword')).toBe(true);
+    expect(refusesParam('financingMin')).toBe(true);
+    expect(refusesParam('gridFilter')).toBe(true);
+    expect(refusesParam('zip')).toBe(false);
+    expect(refusesParam('neighborhood')).toBe(false);
+
+    const executedParams = new Set([...paramsRead(), ...numericMappings().map((n) => n.param)]);
+
+    const offenders: string[] = [];
+    for (const spec of FIELD_REGISTRY) {
+      if (spec.criterionRole !== 'broker_input') continue;
+      const params = spec.searchParams ?? [];
+      if (params.length === 0) continue;
+      // Does the executor act on any of this criterion's params at all?
+      if (!params.some((p) => executedParams.has(p))) continue;
+      // A criterion refused by name is a named, honest boundary.
+      if (params.some((p) => refusesParam(p))) continue;
+
+      // strategyImplemented: the executor demonstrably acts on it. reachesServer
+      // is asserted separately by the transport invariant; assuming it here would
+      // let a transport-broken criterion read as fully wired.
+      const readiness = executionReadiness(spec, { reachesServer: true, strategyImplemented: true });
+      if (readiness !== 'verified_executable' && readiness !== 'not_yet_wired') {
+        offenders.push(`${spec.canonicalKey} → ${readiness}`);
+      }
+    }
+    // Fails BY CRITERION so the failure names what is executing unproven.
+    expect(offenders).toEqual([]);
   });
 
   it('the canonical persistence shape is versioned past the incompatible change', () => {
@@ -537,14 +593,27 @@ describe('execution readiness — the gate the validator will use', () => {
   });
 
   it('a PROVEN provider field with UNPROVEN equivalences is not verified', () => {
-    // geography.ts proves CityRegion and SubdivisionName exist and are
-    // filterable. It does NOT prove the 593 neighbourhood alias equivalences,
-    // which were generated 2026-03-19 against an RLS-era understanding, five
-    // months before that probe. Field existence and equivalence correctness are
-    // DIFFERENT PROOFS and the model must not collapse them.
-    expect(spec('neighborhood').liveEvidence).toBeDefined();
-    expect(spec('neighborhood').semanticEquivalenceProven).toBe(false);
-    expect(executionReadiness(spec('neighborhood'), wired)).toBe('needs_probe');
+    // THE EXAMPLE MOVED; THE RULE DID NOT. This used `neighborhood`: geography.ts
+    // proved CityRegion and SubdivisionName exist and are filterable, but not the
+    // 593 alias equivalences generated 2026-03-19 against an RLS-era
+    // understanding. Field existence and equivalence correctness are DIFFERENT
+    // PROOFS and the model must not collapse them.
+    //
+    // Neighbourhood no longer makes an equivalence claim at all — it emits only
+    // values the feed itself carries — so it is the wrong example now.
+    // `max_financing_percent` carries the case instead, and carries it well: the
+    // field is proven live and densely populated (6,803 of 8,010 Active), and its
+    // MEANING is still open, because 0.00 is a not-specified sentinel rather than
+    // a 0% limit and 380 of 3,402 buildings disagree with themselves across their
+    // own listings.
+    expect(spec('max_financing_percent').liveEvidence).toBeDefined();
+    expect(spec('max_financing_percent').semanticEquivalenceProven).toBe(false);
+    expect(executionReadiness(spec('max_financing_percent'), wired)).toBe('needs_probe');
+
+    // And the neighbourhood half of the lesson, kept as the positive case: a
+    // criterion that matches the provider's OWN values makes no equivalence claim
+    // to prove.
+    expect(spec('neighborhood').semanticEquivalenceProven).toBe(true);
   });
 
   it('live evidence is STRUCTURED, never inferred from note prose', () => {
@@ -736,6 +805,55 @@ describe('section 5 — every executable criterion has exactly one execution own
     }
     const unowned = [...named].filter((f) => !declared.has(f)).sort();
     expect(unowned).toEqual([]);
+  });
+
+  it('a MALLAN-OWNED fact does not need Cotality evidence to be verified', () => {
+    // ARCHITECTURAL DEFECT, corrected 2026-08-31.
+    //
+    // `executionReadiness()` required `liveEvidence` after the strategy check
+    // regardless of WHERE execution happens. `mallan_exclusive` is a Mallan CRM
+    // fact — executionStrategy 'mallan_derived_filter', sourceAuthority
+    // 'mallan_crm', cotalityField null — and correctly has no Cotality evidence,
+    // because there is no Cotality field to have evidence ABOUT.
+    //
+    // So it could never reach verified_executable no matter how perfectly
+    // Section 6 implemented it. The only way to satisfy the old rule was to
+    // attach provider evidence to a fact the provider does not own — inventing
+    // exactly the kind of false authority this registry exists to prevent.
+    //
+    // Evidence must be demanded of whoever actually owns the fact.
+    const wired = { reachesServer: true, strategyImplemented: true };
+    const exclusive = spec('mallan_exclusive');
+    expect(exclusive.executionStrategy).toBe('mallan_derived_filter');
+    expect(exclusive.cotalityField).toBeNull();
+    expect(exclusive.liveEvidence).toBeUndefined();
+    expect(executionReadiness(exclusive, wired)).toBe('verified_executable');
+  });
+
+  it('but a PROVIDER-executed criterion still cannot skip its live evidence', () => {
+    // The other half. If dropping the requirement for Mallan facts also dropped
+    // it for provider ones, the correction would have removed the entire point
+    // of the gate.
+    const wired = { reachesServer: true, strategyImplemented: true };
+    const synthetic = {
+      ...spec('market_status'),
+      canonicalKey: 'synthetic_provider_no_evidence',
+      liveEvidence: undefined,
+    } as FieldSpec;
+    expect(executionReadiness(synthetic, wired)).toBe('needs_probe');
+  });
+
+  it('and a MALLAN-PROJECTION criterion over a PROVIDER fact still needs provider evidence', () => {
+    // The middle case, which is the subtle one. max_financing_percent is filtered
+    // Mallan-side, but the raw fact comes from CustomProperty.CustomFields — a
+    // Cotality field. Mallan owning the FILTER does not make Mallan the authority
+    // on the VALUE, so provider evidence is still required for the input.
+    const wired = { reachesServer: true, strategyImplemented: true };
+    const financing = spec('max_financing_percent');
+    expect(financing.executionStrategy).toBe('mallan_projection_filter');
+    expect(financing.cotalityField).toBe('CustomProperty.CustomFields');
+    const withoutEvidence = { ...financing, liveEvidence: undefined } as FieldSpec;
+    expect(executionReadiness(withoutEvidence, wired)).toBe('needs_probe');
   });
 
   it('no executable criterion is left with nothing deciding HOW it runs', () => {

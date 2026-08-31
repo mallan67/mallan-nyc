@@ -683,6 +683,23 @@ var MallanAPI = (function () {
       if (params.minUnits) qs.push('minUnits=' + params.minUnits);
       if (params.maxUnits) qs.push('maxUnits=' + params.maxUnits);
       if (params.buildingName) qs.push('buildingName=' + encodeURIComponent(params.buildingName));
+      // KEYWORD AND UNIT: forwarded so they stop DISAPPEARING silently.
+      //
+      // Both were assigned by buildIdxSearchParams and forwarded by nothing, so
+      // an agent typed a narrowing criterion, the browser dropped it, and the
+      // search ran WIDER than asked with an HTTP 200 and nothing to say so.
+      // That is the same defect financing had below, and it is fixed the same
+      // way: transport the value and let the server give a truthful answer.
+      //
+      // The two answers differ, which is the point. `unit` now EXECUTES — it
+      // maps to toupper(UnitNumber) eq, proven live 2026-08-31 and returning the
+      // exact union of case variants. `keyword` is REFUSED by name, because
+      // contains(PublicRemarks,...) never returns: five probes, every shape,
+      // each aborting with no HTTP status. Forwarding it makes that refusal
+      // reachable as a typed UNSUPPORTED_CRITERION instead of a criterion that
+      // quietly evaporates between the form and the request.
+      if (params.unit) qs.push('unit=' + encodeURIComponent(params.unit));
+      if (params.keyword) qs.push('keyword=' + encodeURIComponent(params.keyword));
       // Maximum financing. BOTH bounds, and `!= null` rather than truthiness so a
       // legitimate 0 bound is not dropped as though it were absent.
       //

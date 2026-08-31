@@ -113,13 +113,62 @@ describe("buildCrmIdxODataFilter", () => {
     expect(escapeOData("Broker's Open")).toBe("Broker''s Open");
 
     const withDirection = buildCrmIdxODataFilter(new URLSearchParams("address=400 East 90th Street"));
-    expect(withDirection).toContain("startswith(StreetNumber,'400')");
+    expect(withDirection).toContain("StreetNumber eq '400'");
     expect(withDirection).toContain("StreetDirPrefix eq 'E'");
     expect(withDirection).toContain("contains(StreetName,'90')");
 
     const textOnly = buildCrmIdxODataFilter(new URLSearchParams("address=Park Avenue"));
     expect(textOnly).toContain("contains(StreetName,'PARK')");
     expect(textOnly).toContain("contains(BuildingName,'PARK AVENUE')");
+  });
+
+  describe("a street NUMBER is matched exactly, never as a prefix", () => {
+    // LIVE COTALITY 2026-08-31. `startswith` was chosen because the provider
+    // accepts it — which proves Cotality parses the function, not that it answers
+    // the broker's question. Measured, it does not:
+    //
+    //   startswith(StreetNumber,'4')     64,603 rows, of which 63,362 (98.1%)
+    //                                    are NOT street number 4 — they are 40,
+    //                                    400, 4000, 4A…
+    //   startswith(StreetNumber,'40')    12,582 rows, 9,465 (75.2%) not 40
+    //   startswith(StreetNumber,'400')    3,561 rows,    73 (2.1%) not 400
+    //
+    // A broker who selects 400 East 90th Street is asking for one building, not
+    // for every address beginning with 400. Prefix matching is a legitimate
+    // DISCOVERY behaviour for free-text autocomplete; it is wrong for a Search
+    // criterion, and the two must not be confused.
+    it("400 East 90th Street asks for 400, not 400-anything", () => {
+      const f = buildCrmIdxODataFilter(new URLSearchParams("address=400 East 90th Street"));
+      expect(f).toContain("StreetNumber eq '400'");
+      expect(f).not.toContain("startswith(StreetNumber");
+    });
+
+    it("4 does not silently mean 4, 40, 400 and 4000", () => {
+      // The collision case, at its worst: 98.1% of what the old predicate
+      // returned for `4` was not street number 4.
+      const f = buildCrmIdxODataFilter(new URLSearchParams({ address: "4" }));
+      expect(f).toContain("StreetNumber eq '4'");
+      expect(f).not.toContain("startswith(StreetNumber");
+    });
+
+    it("each of 4 / 40 / 400 / 4000 asks only for itself", () => {
+      for (const n of ["4", "40", "400", "4000"]) {
+        const f = buildCrmIdxODataFilter(new URLSearchParams({ address: n }));
+        expect(f).toContain(`StreetNumber eq '${n}'`);
+        // The negative half: none of them may match another's rows.
+        for (const other of ["4", "40", "400", "4000"].filter((x) => x !== n)) {
+          expect(f).not.toContain(`StreetNumber eq '${other}'`);
+        }
+      }
+    });
+
+    it("STREET NAME still matches partially, because that is a name not an identifier", () => {
+      // Exactness applies to the NUMBER. `contains(StreetName,'90')` is correct:
+      // the broker types "90th" and the feed stores "90th"/"90" variously, and a
+      // street name is descriptive rather than an identifier.
+      const f = buildCrmIdxODataFilter(new URLSearchParams("address=400 East 90th Street"));
+      expect(f).toContain("contains(StreetName,'90')");
+    });
   });
 
   it("builds date, building, ownership, and listing id filters", () => {
@@ -493,7 +542,8 @@ describe("buildCrmIdxODataFilter", () => {
 
   it("address parser — all-numeric input → StreetNumber + BuildingName fallback", () => {
     const f = buildCrmIdxODataFilter(new URLSearchParams({ address: "400" }));
-    expect(f).toContain("startswith(StreetNumber,'400')");
+    // EXACT since 2026-08-31 — see "a street NUMBER is matched exactly" above.
+    expect(f).toContain("StreetNumber eq '400'");
     // Fallback into BuildingName for short numeric input
     expect(f).toContain("contains(BuildingName,'400')");
   });

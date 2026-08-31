@@ -148,8 +148,18 @@ const TRANSPORT_BROKEN: Readonly<Record<string, string>> = Object.freeze({
   // transporting it does not hand the browser an open field=value passthrough.
   // Un-declared deliberately, because the third guard in this file refuses to
   // let a fixed param sit in the table hiding a future regression.
-  keyword: 'Assigned, never forwarded. Keyword search does nothing.',
-  unit: 'Assigned, never forwarded. Unit-number narrowing does nothing.',
+  // keyword and unit were CLOSED 2026-08-31 (Section 5.F) and are deliberately
+  // un-declared here, because the third guard in this file refuses to let a fixed
+  // param sit in the table hiding a future regression.
+  //
+  // Both were assigned and forwarded by nothing, so an agent typed a narrowing
+  // criterion and the search ran WIDER than asked under HTTP 200. They now
+  // transport, and the server answers each truthfully rather than identically:
+  // `unit` EXECUTES as toupper(UnitNumber) eq, proven live; `keyword` is REFUSED
+  // by name, because contains(PublicRemarks,...) never returns — five probes,
+  // every shape, each aborting with no HTTP status. A refusal the agent can see
+  // is the fix; a criterion that evaporates between the form and the request is
+  // the defect.
   managementCompany:
     'Assigned, never forwarded. The server throws UnsupportedSearchCriterionError ' +
     'for it, so that fail-closed path is unreachable from the UI.',
