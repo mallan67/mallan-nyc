@@ -197,6 +197,14 @@ describe('every provider field the filter can emit has an execution result', () 
     for (const m of code.matchAll(/startswith\(([A-Z][A-Za-z]+),/g)) found.add(m[1]);
     for (const m of code.matchAll(/`([A-Z][A-Za-z]+) eq /g)) found.add(m[1]);
     for (const m of code.matchAll(/([A-Z][A-Za-z]{3,}) (?:eq|ge|le|gt|lt) /g)) found.add(m[1]);
+    // A field can also be COMPARED THROUGH A FUNCTION — `toupper(UnitNumber) eq
+    // 'X'` — where the name is followed by `)` rather than by the operator. Every
+    // pattern above went blind to UnitNumber the moment the unit clause became
+    // case-insensitive on 2026-08-31, which would have read as the field no
+    // longer being emitted at all.
+    for (const m of code.matchAll(/(?:toupper|tolower|trim)\(([A-Z][A-Za-z]+)\)\s*(?:eq|ne|ge|le|gt|lt) /g)) {
+      found.add(m[1]);
+    }
     // Boolean criteria are emitted from the REGISTRY now, as
     // `${contract.cotalityField} eq true|false`. Reading their provider names
     // from the registry keeps this guard pointed at wherever the mapping
@@ -223,8 +231,28 @@ describe('every provider field the filter can emit has an execution result', () 
 
   it('the recorded set has not rotted — every entry is still emitted', () => {
     const emitted = new Set(emittedProviderFields());
-    const stale = Object.keys(EXECUTED_FIELD_CONTRACT).filter((f) => !emitted.has(f));
+    // NOT_VIABLE is recorded as a PROHIBITION, not as an emission. PublicRemarks
+    // is the case: this file already warned that "restoring its transport naively
+    // would turn a silently-inert filter into a hanging search", and on
+    // 2026-08-31 the `keyword` criterion was changed to refuse by name rather
+    // than emit a clause the provider never answers. Requiring a NOT_VIABLE field
+    // to still be emitted would make acting on this file's own warning fail the
+    // test that carries it.
+    const stale = Object.keys(EXECUTED_FIELD_CONTRACT)
+      .filter((f) => EXECUTED_FIELD_CONTRACT[f].outcome !== 'NOT_VIABLE')
+      .filter((f) => !emitted.has(f));
     expect(stale).toEqual([]);
+  });
+
+  it('and a NOT_VIABLE field is genuinely NOT emitted any more', () => {
+    // The other half of the exemption above. Excusing NOT_VIABLE from the rot
+    // check would otherwise let a field be recorded as unusable while the
+    // executor kept right on sending it.
+    const emitted = new Set(emittedProviderFields());
+    const stillEmitted = Object.keys(EXECUTED_FIELD_CONTRACT)
+      .filter((f) => EXECUTED_FIELD_CONTRACT[f].outcome === 'NOT_VIABLE')
+      .filter((f) => emitted.has(f));
+    expect(stillEmitted).toEqual([]);
   });
 
   it('records PublicRemarks as NOT_VIABLE rather than filterable', () => {

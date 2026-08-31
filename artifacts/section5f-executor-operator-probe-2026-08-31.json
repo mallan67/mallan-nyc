@@ -1,0 +1,739 @@
+{
+  "probedAt": "2026-08-31",
+  "probedAtExact": "2026-08-31T00:10:16.398Z",
+  "base": "https://api.cotality.com/trestle",
+  "universe": "PropertyType eq 'Residential' and (StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')",
+  "sampleRow": {
+    "ListingId": "RLS10992949",
+    "PostalCode": "10027",
+    "UnitNumber": "3E"
+  },
+  "totals": {
+    "probes": 72,
+    "supported": 68,
+    "providerRejected": 1,
+    "unverified": 3
+  },
+  "results": [
+    {
+      "criterion": "list_price",
+      "label": "ge",
+      "filter": "ListPrice ge 500000",
+      "expect": "min-price bound is accepted",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 184518,
+      "error": null
+    },
+    {
+      "criterion": "list_price",
+      "label": "le",
+      "filter": "ListPrice le 500000",
+      "expect": "max-price bound is accepted",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 407529,
+      "error": null
+    },
+    {
+      "criterion": "list_price",
+      "label": "excludes",
+      "filter": "ListPrice ge 999000000",
+      "expect": "an absurd floor excludes nearly everything",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 3,
+      "error": null
+    },
+    {
+      "criterion": "list_price",
+      "label": "null",
+      "filter": "ListPrice eq null",
+      "expect": "rows with NO price",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 0,
+      "error": null
+    },
+    {
+      "criterion": "list_price",
+      "label": "zero",
+      "filter": "ListPrice eq 0",
+      "expect": "rows priced exactly 0 — real or sentinel?",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 656,
+      "error": null
+    },
+    {
+      "criterion": "list_price",
+      "label": "negative",
+      "filter": "ListPrice lt 0",
+      "expect": "negative sentinel present?",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 2,
+      "error": null
+    },
+    {
+      "criterion": "list_price",
+      "label": "compound",
+      "filter": "PropertyType eq 'Residential' and (StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract') and ListPrice ge 500000",
+      "expect": "survives the real universe",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 5828,
+      "error": null
+    },
+    {
+      "criterion": "bedrooms",
+      "label": "ge",
+      "filter": "BedroomsTotal ge 2",
+      "expect": "min-beds bound accepted",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 277159,
+      "error": null
+    },
+    {
+      "criterion": "bedrooms",
+      "label": "le",
+      "filter": "BedroomsTotal le 2",
+      "expect": "max-beds bound accepted",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 484901,
+      "error": null
+    },
+    {
+      "criterion": "bedrooms",
+      "label": "null",
+      "filter": "BedroomsTotal eq null",
+      "expect": "unknown bedroom count",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 3870,
+      "error": null
+    },
+    {
+      "criterion": "bedrooms",
+      "label": "zero",
+      "filter": "BedroomsTotal eq 0",
+      "expect": "studio — a REAL zero, not unknown",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 88158,
+      "error": null
+    },
+    {
+      "criterion": "bedrooms",
+      "label": "negative",
+      "filter": "BedroomsTotal lt 0",
+      "expect": "negative sentinel present?",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 0,
+      "error": null
+    },
+    {
+      "criterion": "bedrooms",
+      "label": "compound",
+      "filter": "PropertyType eq 'Residential' and (StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract') and BedroomsTotal ge 2",
+      "expect": "survives the real universe",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 4000,
+      "error": null
+    },
+    {
+      "criterion": "rooms_total",
+      "label": "ge",
+      "filter": "RoomsTotal ge 3",
+      "expect": "min-rooms bound accepted",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 489099,
+      "error": null
+    },
+    {
+      "criterion": "rooms_total",
+      "label": "le",
+      "filter": "RoomsTotal le 3",
+      "expect": "max-rooms bound accepted",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 291270,
+      "error": null
+    },
+    {
+      "criterion": "rooms_total",
+      "label": "null",
+      "filter": "RoomsTotal eq null",
+      "expect": "unknown room count",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 3870,
+      "error": null
+    },
+    {
+      "criterion": "rooms_total",
+      "label": "negative",
+      "filter": "RoomsTotal lt 0",
+      "expect": "negative sentinel present?",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 0,
+      "error": null
+    },
+    {
+      "criterion": "living_area",
+      "label": "ge",
+      "filter": "LivingArea ge 500",
+      "expect": "min-sqft bound accepted",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 252301,
+      "error": null
+    },
+    {
+      "criterion": "living_area",
+      "label": "le",
+      "filter": "LivingArea le 500",
+      "expect": "max-sqft bound accepted",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 168549,
+      "error": null
+    },
+    {
+      "criterion": "living_area",
+      "label": "null",
+      "filter": "LivingArea eq null",
+      "expect": "unknown area",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 173893,
+      "error": null
+    },
+    {
+      "criterion": "living_area",
+      "label": "zero",
+      "filter": "LivingArea eq 0",
+      "expect": "zero sqft — real or sentinel?",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 151404,
+      "error": null
+    },
+    {
+      "criterion": "living_area",
+      "label": "negative",
+      "filter": "LivingArea lt 0",
+      "expect": "negative sentinel present?",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 59,
+      "error": null
+    },
+    {
+      "criterion": "year_built",
+      "label": "ge",
+      "filter": "YearBuilt ge 1900",
+      "expect": "min-year bound accepted",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 459187,
+      "error": null
+    },
+    {
+      "criterion": "year_built",
+      "label": "le",
+      "filter": "YearBuilt le 2020",
+      "expect": "max-year bound accepted",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 467114,
+      "error": null
+    },
+    {
+      "criterion": "year_built",
+      "label": "null",
+      "filter": "YearBuilt eq null",
+      "expect": "unknown year",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 105979,
+      "error": null
+    },
+    {
+      "criterion": "year_built",
+      "label": "zero",
+      "filter": "YearBuilt eq 0",
+      "expect": "year 0 sentinel?",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 0,
+      "error": null
+    },
+    {
+      "criterion": "year_built",
+      "label": "negative",
+      "filter": "YearBuilt lt 0",
+      "expect": "negative sentinel present?",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 0,
+      "error": null
+    },
+    {
+      "criterion": "stories_total",
+      "label": "ge",
+      "filter": "StoriesTotal ge 1",
+      "expect": "min-floors bound accepted",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 469247,
+      "error": null
+    },
+    {
+      "criterion": "stories_total",
+      "label": "le",
+      "filter": "StoriesTotal le 10",
+      "expect": "max-floors bound accepted",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 309926,
+      "error": null
+    },
+    {
+      "criterion": "stories_total",
+      "label": "null",
+      "filter": "StoriesTotal eq null",
+      "expect": "unknown floor count",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 57804,
+      "error": null
+    },
+    {
+      "criterion": "stories_total",
+      "label": "zero",
+      "filter": "StoriesTotal eq 0",
+      "expect": "zero floors — sentinel?",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 64384,
+      "error": null
+    },
+    {
+      "criterion": "stories_total",
+      "label": "negative",
+      "filter": "StoriesTotal lt 0",
+      "expect": "negative sentinel present?",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 0,
+      "error": null
+    },
+    {
+      "criterion": "units_total",
+      "label": "ge",
+      "filter": "NumberOfUnitsTotal ge 1",
+      "expect": "min-units bound accepted",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 323663,
+      "error": null
+    },
+    {
+      "criterion": "units_total",
+      "label": "le",
+      "filter": "NumberOfUnitsTotal le 10",
+      "expect": "THE EXACT max-only clause the executor emits",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 348063,
+      "error": null
+    },
+    {
+      "criterion": "units_total",
+      "label": "null",
+      "filter": "NumberOfUnitsTotal eq null",
+      "expect": "unknown unit count",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 0,
+      "error": null
+    },
+    {
+      "criterion": "units_total",
+      "label": "zero",
+      "filter": "NumberOfUnitsTotal eq 0",
+      "expect": "zero units — sentinel?",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 267543,
+      "error": null
+    },
+    {
+      "criterion": "units_total",
+      "label": "negative_one",
+      "filter": "NumberOfUnitsTotal eq -1",
+      "expect": "THE -1 SENTINEL: does it exist live?",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 229,
+      "error": null
+    },
+    {
+      "criterion": "units_total",
+      "label": "negative_any",
+      "filter": "NumberOfUnitsTotal lt 0",
+      "expect": "any negative value at all",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 229,
+      "error": null
+    },
+    {
+      "criterion": "units_total",
+      "label": "sentinel_leaks_into_max",
+      "filter": "NumberOfUnitsTotal le 10 and NumberOfUnitsTotal lt 0",
+      "expect": "DOES a negative row satisfy maxUnits=10? non-zero here = wrong answers today",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 229,
+      "error": null
+    },
+    {
+      "criterion": "postal_code",
+      "label": "eq_live",
+      "filter": "PostalCode eq '10027'",
+      "expect": "exact ZIP from live data",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 7432,
+      "error": null
+    },
+    {
+      "criterion": "postal_code",
+      "label": "excludes",
+      "filter": "PostalCode eq '00000'",
+      "expect": "a non-existent ZIP excludes",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 215,
+      "error": null
+    },
+    {
+      "criterion": "postal_code",
+      "label": "null",
+      "filter": "PostalCode eq null",
+      "expect": "rows with no ZIP",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 0,
+      "error": null
+    },
+    {
+      "criterion": "postal_code",
+      "label": "compound",
+      "filter": "PropertyType eq 'Residential' and (StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract') and PostalCode eq '10027'",
+      "expect": "survives the real universe",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 85,
+      "error": null
+    },
+    {
+      "criterion": "unit",
+      "label": "eq_upper",
+      "filter": "UnitNumber eq '3E'",
+      "expect": "the executor UPPERCASES before comparing",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 2403,
+      "error": null
+    },
+    {
+      "criterion": "unit",
+      "label": "eq_lower",
+      "filter": "UnitNumber eq '3e'",
+      "expect": "CASE SENSITIVITY: differing count = case-exact",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 16,
+      "error": null
+    },
+    {
+      "criterion": "unit",
+      "label": "null",
+      "filter": "UnitNumber eq null",
+      "expect": "rows with no unit number",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 9187,
+      "error": null
+    },
+    {
+      "criterion": "building_name",
+      "label": "contains",
+      "filter": "contains(BuildingName,'Park')",
+      "expect": "contains() on BuildingName",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 9248,
+      "error": null
+    },
+    {
+      "criterion": "building_name",
+      "label": "excludes",
+      "filter": "contains(BuildingName,'ZZQXNOTREAL')",
+      "expect": "a nonsense needle excludes",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 0,
+      "error": null
+    },
+    {
+      "criterion": "public_remarks_keyword",
+      "label": "contains",
+      "filter": "contains(PublicRemarks,'renovated')",
+      "expect": "contains() on PublicRemarks",
+      "state": "UNVERIFIED",
+      "httpStatus": null,
+      "count": null,
+      "error": "Cotality request unreachable: This operation was aborted"
+    },
+    {
+      "criterion": "public_remarks_keyword",
+      "label": "excludes",
+      "filter": "contains(PublicRemarks,'ZZQXNOTREAL')",
+      "expect": "nonsense needle excludes",
+      "state": "UNVERIFIED",
+      "httpStatus": null,
+      "count": null,
+      "error": "Cotality request unreachable: This operation was aborted"
+    },
+    {
+      "criterion": "public_remarks_keyword",
+      "label": "compound",
+      "filter": "PropertyType eq 'Residential' and (StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract') and contains(PublicRemarks,'renovated')",
+      "expect": "survives the real universe",
+      "state": "UNVERIFIED",
+      "httpStatus": null,
+      "count": null,
+      "error": "Cotality request unreachable: This operation was aborted"
+    },
+    {
+      "criterion": "street_address",
+      "label": "startswith_number",
+      "filter": "startswith(StreetNumber,'543')",
+      "expect": "startswith on StreetNumber",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 317,
+      "error": null
+    },
+    {
+      "criterion": "street_address",
+      "label": "startswith_false_match",
+      "filter": "startswith(StreetNumber,'4')",
+      "expect": "BREADTH: 4 matches 4, 40, 400, 4000",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 64603,
+      "error": null
+    },
+    {
+      "criterion": "street_address",
+      "label": "dirprefix_as_string",
+      "filter": "StreetDirPrefix eq 'E'",
+      "expect": "THE ENUM COMPARED AS A STRING — exactly what the executor emits",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 130553,
+      "error": null
+    },
+    {
+      "criterion": "street_address",
+      "label": "dirprefix_east_word",
+      "filter": "StreetDirPrefix eq 'East'",
+      "expect": "is the member spelled out instead?",
+      "state": "PROVIDER_REJECTED",
+      "httpStatus": 400,
+      "count": null,
+      "error": "{\"error\":{\"code\":\"\",\"message\":\"The query specified in the URI is not valid. The string 'East' is not a valid enumeration type constant.\",\"details\":[],\"innererror\":{\"message\":\"The string 'East' is not a valid enumeration type constant.\",\"type\":\"Microsoft.OData.ODataException\",\"stacktrace\":\"   at Micr"
+    },
+    {
+      "criterion": "street_address",
+      "label": "contains_streetname",
+      "filter": "contains(StreetName,'90')",
+      "expect": "contains() on StreetName",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 3066,
+      "error": null
+    },
+    {
+      "criterion": "street_address",
+      "label": "full_structured",
+      "filter": "(startswith(StreetNumber,'400') and StreetDirPrefix eq 'E' and contains(StreetName,'90'))",
+      "expect": "THE WHOLE EXPRESSION the executor builds for a directional address",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 172,
+      "error": null
+    },
+    {
+      "criterion": "close_date",
+      "label": "ge",
+      "filter": "CloseDate ge 2026-01-01",
+      "expect": "Edm.Date bare literal, as emitted",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 14179,
+      "error": null
+    },
+    {
+      "criterion": "close_date",
+      "label": "le",
+      "filter": "CloseDate le 2026-12-31",
+      "expect": "upper bound",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 577757,
+      "error": null
+    },
+    {
+      "criterion": "close_date",
+      "label": "null",
+      "filter": "CloseDate eq null",
+      "expect": "not-yet-closed rows",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 13509,
+      "error": null
+    },
+    {
+      "criterion": "listing_contract_date",
+      "label": "ge",
+      "filter": "ListingContractDate ge 2026-01-01",
+      "expect": "Edm.Date bare literal",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 17593,
+      "error": null
+    },
+    {
+      "criterion": "listing_contract_date",
+      "label": "le",
+      "filter": "ListingContractDate le 2026-12-31",
+      "expect": "upper bound",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 581663,
+      "error": null
+    },
+    {
+      "criterion": "activity_date",
+      "label": "listed_ge",
+      "filter": "ListingContractDate ge 2026-06-01",
+      "expect": "Listed basis, as emitted",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 5883,
+      "error": null
+    },
+    {
+      "criterion": "activity_date",
+      "label": "updated_gt",
+      "filter": "ModificationTimestamp gt 2026-06-01T00:00:00Z",
+      "expect": "Updated basis uses gt + Z form",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 273236,
+      "error": null
+    },
+    {
+      "criterion": "activity_date",
+      "label": "updated_le",
+      "filter": "ModificationTimestamp le 2026-06-01T23:59:59Z",
+      "expect": "Updated upper bound end-of-day",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 318371,
+      "error": null
+    },
+    {
+      "criterion": "activity_date",
+      "label": "boundary_range",
+      "filter": "ListingContractDate ge 2026-06-02 and ListingContractDate le 2026-06-02",
+      "expect": "one-day range",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 105,
+      "error": null
+    },
+    {
+      "criterion": "activity_date",
+      "label": "boundary_eq",
+      "filter": "ListingContractDate eq 2026-06-02",
+      "expect": "same day by equality — counts MUST match",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 105,
+      "error": null
+    },
+    {
+      "criterion": "listing_id_canonical",
+      "label": "eq_live",
+      "filter": "ListingId eq 'RLS10992949'",
+      "expect": "provider-domain ListingId from live data",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 1,
+      "error": null
+    },
+    {
+      "criterion": "listing_id_canonical",
+      "label": "eq_mallan_domain",
+      "filter": "ListingId eq 'SL-0001'",
+      "expect": "a Mallan reference the provider never issued",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 0,
+      "error": null
+    },
+    {
+      "criterion": "bathrooms",
+      "label": "contract_disjunct",
+      "filter": "(BathroomsFull eq 1 and BathroomsHalf ge 1)",
+      "expect": "the exact half-bath term bath-contract renders",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 21240,
+      "error": null
+    },
+    {
+      "criterion": "bathrooms",
+      "label": "contract_full_only",
+      "filter": "BathroomsFull ge 2",
+      "expect": "the whole-number term",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 150225,
+      "error": null
+    },
+    {
+      "criterion": "bathrooms",
+      "label": "contract_le",
+      "filter": "(BathroomsFull eq 1 and BathroomsHalf le 1)",
+      "expect": "the max-side term",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 272289,
+      "error": null
+    }
+  ]
+}

@@ -7,6 +7,11 @@ import { checkboxFieldOData, isRegisteredCheckboxField, isProviderSuppressedFiel
 import { propertyTypeUniverseOData } from "@/lib/search/canonical/property-type-universe";
 import { COMMON_INTEREST_MEMBERS } from "@/lib/search/canonical/live-truth";
 
+import {
+  parsePropertySubTypeCriterion,
+  propertySubTypeOData,
+} from "@/lib/search/canonical/property-subtype-contract";
+
 /**
  * The live CommonInterest vocabulary, from its ONE owner.
  *
@@ -17,10 +22,6 @@ import { COMMON_INTEREST_MEMBERS } from "@/lib/search/canonical/live-truth";
  * A Set because membership is what this file asks; the owner holds the ordered list.
  */
 const COMMON_INTEREST: ReadonlySet<string> = new Set(COMMON_INTEREST_MEMBERS);
-import {
-  parsePropertySubTypeCriterion,
-  propertySubTypeOData,
-} from "@/lib/search/canonical/property-subtype-contract";
 
 /**
  * A broker criterion that Mallan cannot currently express using the verified
@@ -75,6 +76,33 @@ function stripStreetSuffix(value: string): string {
     .trim();
 }
 
+/**
+ * The smallest value that can be a REAL measurement of each field.
+ *
+ * ZERO IS JUDGED PER FIELD AND NEVER GLOBALLY. `BedroomsTotal` 0 is a STUDIO —
+ * a correct zero on 88,158 live rows that a broker means to find — while
+ * `LivingArea` 0 is a dwelling with no floor area, which is not a thing. A
+ * blanket "drop the zeros" rule would delete studios from Search, which is a
+ * worse defect than the one it set out to fix. So `BedroomsTotal` is absent
+ * here on purpose, and its live negative count is zero.
+ *
+ * This is the three-state rule — null unknown, 0 a real zero, positive an
+ * amount — applied where the provider encodes unknown as an in-band value
+ * instead of null. `NumberOfUnitsTotal` proves the case: it is NEVER null live
+ * (0 rows), and instead carries 0 on 267,543 rows and -1 on 229.
+ *
+ * Values measured against live Cotality 2026-08-31; evidence in
+ * artifacts/section5f-sentinel-leak-2026-08-31.json.
+ */
+const REAL_MINIMUM: Readonly<Record<string, number>> = {
+  ListPrice: 1,
+  RoomsTotal: 1,
+  LivingArea: 1,
+  YearBuilt: 1,
+  StoriesTotal: 1,
+  NumberOfUnitsTotal: 1,
+};
+
 function finiteNumber(value: string | null): number | null {
   if (value == null || value === "") return null;
   const n = Number(value);
@@ -121,7 +149,35 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
   for (const [param, field, op, allowZero] of numeric) {
     const raw = param === "minBeds" ? (params.get(param) ?? params.get("beds")) : params.get(param);
     const value = finiteNumber(raw);
-    if (value !== null && (allowZero ? value >= 0 : value > 0)) parts.push(`${field} ${op} ${value}`);
+    if (value === null) continue;
+    if (!(allowZero ? value >= 0 : value > 0)) continue;
+
+    // A MAX BOUND MUST NOT ADMIT VALUES THAT CANNOT BE A REAL MEASUREMENT.
+    //
+    // `le` admits everything BELOW the range, and several of these fields encode
+    // "not specified" as an in-band number rather than null. Measured live
+    // 2026-08-31:
+    //
+    //   LivingArea le 500          168,549 rows, 151,463 of them (89.9%) area
+    //                              0 or negative — a max-square-feet search is
+    //                              almost entirely listings of unknown size
+    //   NumberOfUnitsTotal le 10   348,063 rows, 267,772 (76.9%) not-a-count,
+    //                              including 229 at exactly -1
+    //   StoriesTotal le 10         309,926 rows, 64,384 (20.8%) zero storeys
+    //
+    // The broker asked for "at most N". A row whose value is unknown is not
+    // known to be at most N, so returning it is a WRONG ANSWER — and one that
+    // looks exactly like a correct one, since nothing on the page says the size
+    // is unknown. Fail closed by bounding the low end at the smallest real value.
+    //
+    // The min side needs no such guard: `LivingArea ge 800` already cannot admit
+    // a 0 or -1 row, so a floor there would be noise.
+    const floor = op === "le" ? REAL_MINIMUM[field] : undefined;
+    if (floor !== undefined && floor > 0) {
+      parts.push(`(${field} le ${value} and ${field} ge ${floor})`);
+      continue;
+    }
+    parts.push(`${field} ${op} ${value}`);
   }
 
   // ── BATHROOMS: ONE EXECUTION OWNER ──────────────────────────────────────
@@ -279,10 +335,31 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
   if (contractDateTo) parts.push(`ListingContractDate le ${contractDateTo}`);
 
   const unit = params.get("unit");
-  if (unit) parts.push(`UnitNumber eq '${escapeOData(unit.toUpperCase())}'`);
+  // CASE-INSENSITIVE ON PURPOSE. Matching is case-exact live, and the stored
+  // values are not uniform: UnitNumber eq '3E' returns 2,403 rows and
+  // UnitNumber eq '3e' returns 16 more. Uppercasing the input and comparing
+  // exactly reached the 2,403 and could never reach the 16, whichever case the
+  // broker typed. toupper() is supported and returns exactly the union (2,419),
+  // measured 2026-08-31 rather than assumed.
+  if (unit) parts.push(`toupper(UnitNumber) eq '${escapeOData(unit.toUpperCase())}'`);
 
+  // KEYWORD IS REFUSED: the provider never ANSWERS this query.
+  //
+  // Probed 2026-08-31 five times — with and without $count, at top=1, and
+  // narrowed to a single ZIP — and every attempt aborted with NO HTTP status.
+  // Cotality did not reject it; it never replied. contains() itself is fine:
+  // the identical shape on BuildingName returns a row immediately, so this is
+  // PublicRemarks specifically.
+  //
+  // UNVERIFIED IS NOT UNSUPPORTED, so the registry keeps needs_probe rather than
+  // asserting a provider refusal nobody observed. But a query that never returns
+  // must not be sent. This clause only avoided hanging searches because the
+  // serializer assigns `keyword` and api-client.js never forwards it — it was one
+  // transport fix away from stalling every search that used it, with nothing here
+  // to say so. Refusing by name makes the reason visible to whoever repairs the
+  // transport.
   const keyword = params.get("keyword");
-  if (keyword) parts.push(`contains(PublicRemarks,'${escapeOData(keyword)}')`);
+  if (keyword) throw new UnsupportedSearchCriterionError("keyword", [keyword]);
 
   const buildingName = params.get("buildingName");
   if (buildingName) parts.push(`contains(BuildingName,'${escapeOData(buildingName)}')`);

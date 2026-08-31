@@ -218,17 +218,40 @@ describe("buildCrmIdxODataFilter", () => {
     expect(f).toContain("PostalCode eq '10128'");
   });
 
-  it("unit → UnitNumber eq (uppercased)", () => {
+  it("unit → case-insensitive match, because the provider stores both cases", () => {
+    // LIVE COTALITY 2026-08-31. Matching is CASE-EXACT, and the stored values are
+    // not uniform: `UnitNumber eq '3E'` returns 2,403 rows while
+    // `UnitNumber eq '3e'` returns 16 more. Uppercasing the broker's input and
+    // comparing exactly — what this did — reaches the 2,403 and can never reach
+    // the 16, whichever case the broker types.
+    //
+    // `toupper()` is supported, and `toupper(UnitNumber) eq '3E'` returns exactly
+    // 2,419 = 2,403 + 16: the union, no more and no less. Proven rather than
+    // assumed, since a function the provider silently ignored would return the
+    // same 2,403 and look identical to a fix.
     const f = buildCrmIdxODataFilter(new URLSearchParams({ unit: "4a" }));
-    expect(f).toContain("UnitNumber eq '4A'");
+    expect(f).toContain("toupper(UnitNumber) eq '4A'");
   });
 
-  it("keyword → contains(PublicRemarks, escapedValue)", () => {
-    const f = buildCrmIdxODataFilter(new URLSearchParams({ keyword: "renovated kitchen" }));
-    expect(f).toContain("contains(PublicRemarks,'renovated kitchen')");
-    // Single-quote escaping for keyword
-    const fq = buildCrmIdxODataFilter(new URLSearchParams({ keyword: "owner's pied-a-terre" }));
-    expect(fq).toContain("contains(PublicRemarks,'owner''s pied-a-terre')");
+  it("keyword is REFUSED — the provider never answers this query", () => {
+    // SECTION 5.F, 2026-08-31. `contains(PublicRemarks,...)` was probed five
+    // times — with and without $count, at top=1, and narrowed to a single ZIP —
+    // and every attempt aborted with NO HTTP STATUS. The provider did not reject
+    // it; it never answered. `contains()` itself is fine: the identical shape on
+    // BuildingName returns a row immediately, so this is PublicRemarks
+    // specifically.
+    //
+    // UNVERIFIED is not UNSUPPORTED, so the registry keeps `needs_probe` rather
+    // than asserting a refusal that was never observed. But a query that never
+    // returns must not be sent. It happens not to run today only because the
+    // serializer assigns `keyword` and api-client.js never forwards it — so the
+    // clause sat here, one transport fix away from hanging every search that
+    // used it. Refusing by name makes that impossible, and makes the reason
+    // visible to whoever fixes the transport.
+    expect(() => buildCrmIdxODataFilter(new URLSearchParams({ keyword: "renovated kitchen" })))
+      .toThrow(UnsupportedSearchCriterionError);
+    expect(() => buildCrmIdxODataFilter(new URLSearchParams({ keyword: "renovated kitchen" })))
+      .toThrow(/keyword/);
   });
 
   it("minBaths / maxBaths route through the canonical bath contract", () => {
@@ -275,6 +298,66 @@ describe("buildCrmIdxODataFilter", () => {
     const f = buildCrmIdxODataFilter(new URLSearchParams({ minSqft: "800", maxSqft: "3500" }));
     expect(f).toContain("LivingArea ge 800");
     expect(f).toContain("LivingArea le 3500");
+  });
+
+  describe("a max bound must not admit values that cannot be a real measurement", () => {
+    // LIVE COTALITY, 2026-08-31. Several numeric fields encode "not specified"
+    // as an in-band value instead of null, and a `le` bound admits everything
+    // BELOW the range — so those rows come back as though they qualified.
+    //
+    //   LivingArea le 500          168,549 rows, 151,463 of them (89.9%) with
+    //                              area 0 or negative — a max-square-feet search
+    //                              is almost entirely listings of unknown size
+    //   NumberOfUnitsTotal le 10   348,063 rows, 267,772 (76.9%) not-a-count
+    //   StoriesTotal le 10         309,926 rows, 64,384 (20.8%) zero storeys
+    //
+    // The broker asked for "at most N". A row whose value is unknown is not
+    // known to be at most N, so returning it is a wrong answer, not a generous
+    // one. Fail closed: bound the low end at the smallest REAL value.
+    it("maxSqft excludes listings whose area is 0 or negative", () => {
+      const f = buildCrmIdxODataFilter(new URLSearchParams({ maxSqft: "3500" }));
+      expect(f).toContain("LivingArea le 3500");
+      expect(f).toContain("LivingArea ge 1");
+    });
+
+    it("maxUnits excludes the -1 not-a-count sentinel", () => {
+      const f = buildCrmIdxODataFilter(new URLSearchParams({ maxUnits: "10" }));
+      expect(f).toContain("NumberOfUnitsTotal le 10");
+      expect(f).toContain("NumberOfUnitsTotal ge 1");
+    });
+
+    it("maxFloors excludes zero-storey buildings", () => {
+      const f = buildCrmIdxODataFilter(new URLSearchParams({ maxFloors: "10" }));
+      expect(f).toContain("StoriesTotal ge 1");
+    });
+
+    it("maxPrice and maxRooms are guarded too, on the same principle", () => {
+      expect(buildCrmIdxODataFilter(new URLSearchParams({ maxPrice: "500000" }))).toContain("ListPrice ge 1");
+      expect(buildCrmIdxODataFilter(new URLSearchParams({ maxRooms: "3" }))).toContain("RoomsTotal ge 1");
+    });
+
+    it("BUT maxBeds keeps studios — zero bedrooms is a REAL zero", () => {
+      // The whole point of judging zero per field. 88,158 live rows have
+      // BedroomsTotal 0 and every one is a studio a broker means to find.
+      // Guarding this field at 1 would silently delete studios from Search,
+      // turning a fix for unknown values into a worse defect than the one it fixes.
+      const f = buildCrmIdxODataFilter(new URLSearchParams({ maxBeds: "2" }));
+      expect(f).toContain("BedroomsTotal le 2");
+      expect(f).not.toContain("BedroomsTotal ge 1");
+    });
+
+    it("and a studios-only search still resolves to exactly zero", () => {
+      const f = buildCrmIdxODataFilter(new URLSearchParams({ maxBeds: "0", minBeds: "0" }));
+      expect(f).toContain("BedroomsTotal le 0");
+    });
+
+    it("a MIN bound needs no guard — the sentinel is already below it", () => {
+      // `LivingArea ge 800` cannot admit a 0 or -1 row, so adding a floor there
+      // would be noise. Only the max side has the leak.
+      const f = buildCrmIdxODataFilter(new URLSearchParams({ minSqft: "800" }));
+      expect(f).toContain("LivingArea ge 800");
+      expect(f).not.toContain("LivingArea ge 1");
+    });
   });
 
   it("minYear / maxYear → YearBuilt ge/le", () => {

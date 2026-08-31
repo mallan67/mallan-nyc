@@ -279,10 +279,36 @@ describe('mutation guards — the authority graph cannot be bypassed', () => {
     // verified against live Cotality and `isVerified('yes')` returns true; none
     // of the seven had a probe record. Redefining 'yes' downward to keep their
     // labels would have corrupted every other consumer of that contract.
+    //
+    // SIXTEEN PROMOTED 2026-08-31 (Section 5.F) — by probe, not by declaration.
+    // Each was run against LIVE Cotality using the EXACT expression the executor
+    // emits, establishing operator support, a positive hit, an exclusion that
+    // actually excludes, null/sentinel behaviour, and survival beside the real
+    // Sale universe. Evidence:
+    // artifacts/section5f-executor-operator-probe-2026-08-31.json.
+    //
+    // The probe was not a formality. It found a wrong answer in production:
+    // `NumberOfUnitsTotal le N` admitted 267,772 rows (76.9%) with no unit count,
+    // and `LivingArea le N` admitted 151,463 (89.9%) with no area, because both
+    // fields encode "not specified" as an in-band 0 or -1 rather than null. Those
+    // criteria were CORRECTED before promotion, not promoted around.
+    //
+    // `public_remarks_keyword` was deliberately NOT promoted: contains() on
+    // PublicRemarks never returned across five attempts and every shape, which is
+    // UNVERIFIED — neither supported nor refused — and stays needs_probe.
     expect(verified).toEqual([
+      'activity_date',
+      'bathrooms',
+      'bedrooms',
       'borough',
+      'building_name',
+      'close_date',
       'furnished',
+      'list_price',
+      'listing_contract_date',
+      'listing_id_canonical',
       'listing_universe',
+      'living_area',
       'mallan_exclusive',
       'market_status',
       'media_category',
@@ -298,9 +324,16 @@ describe('mutation guards — the authority graph cannot be bypassed', () => {
       // rather than the capability lowered.
       'ownership',
       'pets',
+      'postal_code',
       'property_sub_type',
+      'rooms_total',
+      'stories_total',
+      'street_address',
       'structure_type',
       'transaction_type',
+      'unit',
+      'units_total',
+      'year_built',
     ]);
   });
 
@@ -456,12 +489,20 @@ describe('execution readiness — the gate the validator will use', () => {
   });
 
   it('capability short of yes on the provider path is needs_probe', () => {
-    // list_price was demoted from 'yes' to 'needs_probe': the shared
-    // CapabilityStatus contract defines 'yes' as VERIFIED against live Cotality,
-    // and no probe record exists for it. Redefining 'yes' downward to keep the
-    // old label would have corrupted every other consumer of that contract.
-    expect(spec('list_price').filterable).toBe('needs_probe');
-    expect(executionReadiness(spec('list_price'), wired)).toBe('needs_probe');
+    // The EXAMPLE moved on 2026-08-31; the rule did not. This used `list_price`,
+    // which was demoted to needs_probe on 2026-08-28 for having no probe record
+    // and was promoted back by the Section 5.F probe batch.
+    //
+    // `public_remarks_keyword` now carries the case, and carries it better,
+    // because it is unverified for the most interesting reason: the provider
+    // never REFUSED `contains(PublicRemarks,...)`. It simply never answered —
+    // five attempts, every shape, each aborting with no HTTP status — while the
+    // identical shape on BuildingName returns a row immediately.
+    //
+    // Not answering is not the same as refusing, and neither is the same as
+    // working. A query that never returns is not a capability.
+    expect(spec('public_remarks_keyword').filterable).toBe('needs_probe');
+    expect(executionReadiness(spec('public_remarks_keyword'), wired)).toBe('needs_probe');
   });
 
   it('the provider refusing a criterion is NOT the same as it being unexecutable', () => {
@@ -508,11 +549,23 @@ describe('execution readiness — the gate the validator will use', () => {
 
   it('live evidence is STRUCTURED, never inferred from note prose', () => {
     // year_built's note contains the words "probe record" inside the sentence
-    // "this file has no probe record for" it. The old prose scan read the ABSENCE
-    // of evidence as evidence and reported it live-verified.
+    // "had no probe record for" it. The old prose scan read the ABSENCE of
+    // evidence as evidence and reported it live-verified.
+    //
+    // That sentence is STILL THERE, and year_built is now genuinely probed — so
+    // the file currently holds a note whose prose reads unverified beside
+    // structured evidence proving otherwise. That is not a contradiction to tidy
+    // away: it is the strongest possible statement of the rule. Prose is history
+    // and reasoning; `liveEvidence` is the fact. Only one of them may be read as
+    // proof, and a scanner that reads the other gets this criterion exactly
+    // backwards in both directions.
     expect(spec('year_built').notes).toMatch(/no probe record/);
-    expect(spec('year_built').liveEvidence).toBeUndefined();
+    expect(spec('year_built').liveEvidence?.probedAt).toBe('2026-08-31');
     expect(spec('market_status').liveEvidence?.probedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+
+    // The ABSENCE half of the rule still needs a live example, or a bug that
+    // stamped evidence onto everything would pass this test.
+    expect(spec('public_remarks_keyword').liveEvidence).toBeUndefined();
   });
 
   it('ONE canonical entry per business fact — no same-concept duplicate', () => {
@@ -667,7 +720,14 @@ describe('section 5 — every executable criterion has exactly one execution own
     while ((m = opRe.exec(code))) named.add(m[1]);
     const fnRe = /\b(?:contains|startswith|endswith)\(\s*([A-Z][A-Za-z0-9]+)\s*,/g;
     while ((m = fnRe.exec(code))) named.add(m[1]);
+    // A field can also be COMPARED through a function — `toupper(UnitNumber) eq
+    // 'X'` — where the name is followed by `)` rather than the operator. The
+    // pattern above went blind to UnitNumber the moment the unit clause became
+    // case-insensitive, and the size guard below is what caught it.
+    const wrapRe = /\b(?:toupper|tolower|trim)\(\s*([A-Z][A-Za-z0-9]+)\s*\)\s*(?:eq|ne|ge|le|gt|lt)\b/g;
+    while ((m = wrapRe.exec(code))) named.add(m[1]);
     expect(named.size).toBeGreaterThanOrEqual(8);
+    expect(named).toContain('UnitNumber');
 
     const declared = new Set<string>();
     for (const s of FIELD_REGISTRY) {

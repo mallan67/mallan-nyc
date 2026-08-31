@@ -163,6 +163,13 @@ function parseExecutor() {
   while ((m = opRe.exec(executorCode))) fields.add(m[1]);
   const fnRe = /\b(?:contains|startswith|endswith)\(\s*([A-Z][A-Za-z0-9]+)\s*,/g;
   while ((m = fnRe.exec(executorCode))) fields.add(m[1]);
+  // A field can also be COMPARED through a function: `toupper(UnitNumber) eq 'X'`.
+  // The operator pattern above cannot see it — the field name is followed by `)`
+  // rather than by the operator — and it went blind to UnitNumber the moment the
+  // unit clause became case-insensitive. The extraction guard caught that, which
+  // is what it is for.
+  const wrapRe = /\b(?:toupper|tolower|trim)\(\s*([A-Z][A-Za-z0-9]+)\s*\)\s*(?:eq|ne|ge|le|gt|lt)\b/g;
+  while ((m = wrapRe.exec(executorCode))) fields.add(m[1]);
 
   return { numeric, paramsRead: [...paramsRead].sort(), delegated, fields: [...fields].sort() };
 }
@@ -196,7 +203,17 @@ console.log(`executor delegates to modules:    ${executor.delegated.join(', ')}`
 // which is the precise failure this census exists to catch.
 if (executor.numeric.length < 10) fail('extraction', `numeric table parse found only ${executor.numeric.length} rows`);
 if (executor.paramsRead.length < 20) fail('extraction', `params.get parse found only ${executor.paramsRead.length}`);
-if (executor.fields.length < 10) fail('extraction', `OData field parse found only ${executor.fields.length}`);
+// NAMED ANCHORS, NOT A COUNT. A bare threshold is a number that gets lowered
+// until it passes: when `keyword` was refused on 2026-08-31 the field count
+// legitimately dropped, and the only signal was "found only 9", which says
+// nothing about whether the parser broke or the code changed. Anchor fields the
+// executor demonstrably still compares — a parser that stops working loses these
+// specifically, and no edit can quietly satisfy it except restoring the parse.
+for (const anchor of ['PostalCode', 'ListingId', 'UnitNumber', 'CloseDate']) {
+  if (!executor.fields.includes(anchor)) {
+    fail('extraction', `OData field parse lost '${anchor}' — the parser, not the executor, is likely broken`);
+  }
+}
 if (byParam.size < 20) fail('extraction', `registry searchParams parse found only ${byParam.size}`);
 
 // The comment stripper itself is guarded, in BOTH directions. If it silently ate
