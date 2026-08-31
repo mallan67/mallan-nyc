@@ -14,8 +14,11 @@
  * The difference matters more here than almost anywhere else. A 502 invites a
  * retry of the exact action that cannot succeed, and it hides WHICH of several
  * selected neighbourhoods was the dead one — the single fact the broker needs in
- * order to fix their own search. `Gramercy` is the live case: it returns nothing
- * while `Gramercy Park` sits in the feed with real inventory.
+ * order to fix their own search.
+ *
+ * THE DEAD VALUE MUST BE ONE THE FEED GENUINELY LACKS. `Gramercy` reads like
+ * one and is not — 930 rows across all statuses. This suite was briefly written
+ * against it, which was the on-market-allowlist defect appearing in test form.
  *
  * This exercises the route's CLASSIFIER against the real geography module, not a
  * mock, because the throw was already right — the classifier was what was wrong.
@@ -38,11 +41,14 @@ describe('geography errors join the canonical unsupported-criterion protocol', (
   it('the module really does throw for a name the feed does not carry', () => {
     // Guard the guard. If geography stopped throwing, every assertion below
     // would pass vacuously by never producing an error at all.
-    expect(() => neighborhoodOData(['Gramercy'])).toThrow(UnsupportedGeographyError);
+    expect(() => neighborhoodOData(['Nonexistent Heights'])).toThrow(UnsupportedGeographyError);
+    // …and a name that IS live must not throw. Without this the case above
+    // passes for a refusal that rejects everything.
+    expect(() => neighborhoodOData(['Gramercy'])).not.toThrow();
   });
 
   it('a dead neighbourhood becomes 400 UNSUPPORTED_CRITERION, not 502', () => {
-    const res = routeResponseFor({ neighborhood: 'Gramercy' });
+    const res = routeResponseFor({ neighborhood: 'Nonexistent Heights' });
     expect(res).not.toBeNull();
     expect(res!.status).toBe(400);
     expect(res!.body.code).toBe('UNSUPPORTED_CRITERION');
@@ -50,11 +56,11 @@ describe('geography errors join the canonical unsupported-criterion protocol', (
 
   it('names the criterion and WHICH value was dead', () => {
     // With several selected, the broker must be told which one to change.
-    // `Yorkville` and `Tribeca` are live; `Union Square` is not.
-    const res = routeResponseFor({ neighborhood: 'Yorkville,Union Square,Tribeca' });
+    // `Yorkville` and `Tribeca` are live; the middle value is not a place.
+    const res = routeResponseFor({ neighborhood: 'Yorkville,Zzzz Not A Place,Tribeca' });
     expect(res!.status).toBe(400);
     expect(res!.body.criterion).toBe('neighborhood');
-    expect(res!.body.unsupportedValues).toEqual(['Union Square']);
+    expect(res!.body.unsupportedValues).toEqual(['Zzzz Not A Place']);
   });
 
   it('an unknown borough is refused the same way', () => {

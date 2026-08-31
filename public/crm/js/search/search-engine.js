@@ -46,16 +46,50 @@
             openNeighborhoodMap(function(result) {
                 if (!result.selectedNeighborhoods || result.selectedNeighborhoods.length === 0) return;
 
-                var canonicals = result.selectedNeighborhoods;
+                // ── THE MAP BRIDGE ───────────────────────────────────────────────
+                //
+                // Polygon names are PRESENTATION GEOMETRY and may not become provider
+                // Search truth. They came from the map's own geojson and were written
+                // straight into the neighbourhood tags, then auto-searched 200ms later
+                // — so a shape whose name the provider does not carry produced an
+                // error and no results from something the map invited the broker to
+                // click, while an adjacent shape worked.
+                //
+                // Each name is now resolved through the live Cotality identity
+                // contract, the same evidence the server executes against. What
+                // resolves is searched under its CANONICAL LABEL rather than the
+                // polygon's spelling. What does not resolve is named to the broker and
+                // dropped — never sent.
+                var raw = result.selectedNeighborhoods;
+                var vocab = window.MallanNeighborhoods;
+                var canonicals = [];
+                var unavailable = [];
+
+                for (var i = 0; i < raw.length; i++) {
+                    var identity = vocab ? vocab.resolve(raw[i]) : null;
+                    if (identity) {
+                        if (canonicals.indexOf(identity.label) === -1) canonicals.push(identity.label);
+                    } else {
+                        unavailable.push(raw[i]);
+                    }
+                }
+
+                if (unavailable.length > 0 && typeof showToast === 'function') {
+                    showToast(
+                        unavailable.join(', ') +
+                        (unavailable.length === 1 ? ' is' : ' are') +
+                        ' not available to search — no Cotality listings use that name.',
+                        'warning'
+                    );
+                }
+                if (canonicals.length === 0) return;
 
                 // Determine which tags container is active based on current search mode/tab
                 var tagsId = _resolveActiveNeighborhoodTagsId();
 
-                // Add each selected neighborhood as a tag (skip duplicates)
                 if (typeof selectNeighborhood === 'function') {
-                    for (var i = 0; i < canonicals.length; i++) {
-                        var name = canonicals[i];
-                        // Find the borough for this neighborhood from the autocomplete data
+                    for (var j = 0; j < canonicals.length; j++) {
+                        var name = canonicals[j];
                         var borough = _findBoroughForNeighborhood(name);
                         selectNeighborhood(name, borough, !borough, '', tagsId);
                     }
@@ -136,18 +170,24 @@
             };
         };
 
+        // ── THE HARD-CODED BOROUGH TABLE IS GONE (Section 5, 2026-08-31) ─────────
+        //
+        // A literal neighbourhood->borough map lived here and saved-searches.js
+        // called into it, so 'four vocabularies became one' was false: this was a
+        // second geography authority, and it was WRONG. It placed MOTT HAVEN UNDER
+        // MANHATTAN, while the live Cotality feed puts it in the Bronx on 574 of
+        // 575 rows — so a broker filtering the Bronx lost it and one filtering
+        // Manhattan was handed a Bronx neighbourhood.
+        //
+        // Borough association now comes from the generated live Cotality contract
+        // via window.MallanNeighborhoods, which is the same evidence the server
+        // executes against.
         function _findBoroughForNeighborhood(name) {
-            var boroughs = {
-                'Bronx': ['Allerton','Baychester','Bedford Park','Belmont','City Island','Co-op City','Fordham','Kingsbridge','Morris Park','Pelham Bay','Central Riverdale','Fieldston','North Riverdale','Spuyten Duyvil','Throgs Neck','Woodlawn'],
-                'Brooklyn': ['Bath Beach','Bay Ridge','Fort Hamilton','Bedford - Stuyvesant','Ocean Hill','Stuyvesant Heights','Bensonhurst','Boerum Hill','Borough Park','Brighton Beach','Brooklyn Heights','Bushwick','Carroll Gardens','Cobble Hill','Coney Island','Crown Heights','Ditmas Park','Downtown Brooklyn','Dumbo','DUMBO','Dyker Heights','Flatbush','Fort Greene','Gowanus','Greenpoint','Park Slope','Prospect Heights','Red Hook','Sheepshead Bay','Sunset Park','Williamsburg','Windsor Terrace','South Slope'],
-                'Manhattan': ['Battery Park City','Carnegie Hill','Central Harlem','Chelsea','Chinatown','Civic Center','East Harlem','East Village','Financial District','Flatiron','Gramercy Park','Gramercy','Greenwich Village','Hamilton Heights','Harlem','Hell\'s Kitchen','Hudson Square','Hudson Yards','Inwood','Kips Bay','Lenox Hill','Lincoln Square','Little Italy','Lower East Side','Manhattan Valley','Manhattanville','Marble Hill','Meatpacking District','Midtown','Midtown East','Midtown West','Morningside Heights','Mott Haven','Murray Hill','NoHo','NoMad','Nolita','Peter Cooper Village','Roosevelt Island','SoHo','Stuyvesant Town','Sugar Hill','Sutton Place','Times Square','Tribeca','Tudor City','Turtle Bay','Two Bridges','Union Square','Upper East Side','Upper West Side','Washington Heights','West Harlem','West Village','Yorkville'],
-                'Queens': ['Astoria','Bayside','Corona','Elmhurst','Flushing','Forest Hills','Hunters Point','Jackson Heights','Jamaica','Kew Gardens','Long Island City','Long Island City (LIC)','Rego Park','Ridgewood','Sunnyside','Whitestone','Woodside'],
-                'Staten Island': ['Annadale','Arden Heights','Dongan Hills','Great Kills','New Dorp','New Brighton','South Beach','St. George','Stapleton','Todt Hill']
-            };
-            for (var b in boroughs) {
-                if (boroughs[b].indexOf(name) !== -1) return b;
-            }
-            return '';
+            if (!window.MallanNeighborhoods) return '';
+            var provider = window.MallanNeighborhoods.boroughFor(name);
+            // The BROKER label, because this feeds tag display. The provider value
+            // (StatenIsland) must never be shown or re-sent as a label.
+            return provider ? window.MallanNeighborhoods.boroughLabel(provider) : '';
         }
 
         function normalizeAddress(str) {

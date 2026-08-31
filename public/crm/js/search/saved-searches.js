@@ -350,8 +350,23 @@
             if (criteria.neighborhoods && criteria.neighborhoods.length > 0 && typeof selectNeighborhood === 'function') {
                 var tagsId = typeof _resolveActiveNeighborhoodTagsId === 'function' ? _resolveActiveNeighborhoodTagsId() : 'saleNeighborhoodTags';
                 criteria.neighborhoods.forEach(function(n) {
-                    var borough = typeof _findBoroughForNeighborhood === 'function' ? _findBoroughForNeighborhood(n) : '';
-                    selectNeighborhood(n, borough, !borough, '', tagsId);
+                    // ONE AUTHORITY. This read a hard-coded borough table that placed
+                    // Mott Haven in Manhattan, and any name the table did not list came
+                    // back with no borough — which `!borough` then flagged as
+                    // BOROUGH-LEVEL, so a restored neighbourhood was silently
+                    // reclassified as a whole borough and the search widened.
+                    var vocab = window.MallanNeighborhoods;
+                    var identity = vocab ? vocab.resolve(n) : null;
+                    if (!identity) {
+                        // A stored name the live feed no longer carries is reported,
+                        // not silently turned into something else.
+                        if (typeof showToast === 'function') {
+                            showToast('Saved neighbourhood "' + n + '" is no longer available to search.', 'warning');
+                        }
+                        return;
+                    }
+                    var borough = identity.borough ? vocab.boroughLabel(identity.borough) : '';
+                    selectNeighborhood(identity.label, borough, false, '', tagsId);
                 });
             }
 

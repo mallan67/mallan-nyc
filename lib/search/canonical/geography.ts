@@ -64,7 +64,7 @@
  * the measurements. The alias file keeps its real job, polygons and map
  * rendering, and is no longer consulted for provider execution.
  */
-import { SUBDIVISION_NAME_LIVE } from "@/lib/search/canonical/subdivision-vocabulary.generated";
+import { identityFor, spellingsFor } from "@/lib/search/canonical/subdivision-vocabulary.generated";
 import { escapeOData } from "@/lib/search/crm-idx-filter";
 
 /** The five live `CityRegion` values, in PROVIDER spelling. */
@@ -189,16 +189,6 @@ export function boroughOData(values: readonly unknown[]): string | null {
  * The alias file remains valid for polygons and map rendering. It is no longer
  * consulted for provider execution, and this module no longer imports it.
  */
-const LIVE_BY_FOLDED: ReadonlyMap<string, readonly string[]> = (() => {
-  const byFolded = new Map<string, string[]>();
-  for (const name of Object.keys(SUBDIVISION_NAME_LIVE)) {
-    const key = fold(name);
-    const list = byFolded.get(key) ?? [];
-    list.push(name);
-    byFolded.set(key, list);
-  }
-  return byFolded;
-})();
 
 /**
  * Every LIVE provider spelling for a selected neighborhood.
@@ -207,7 +197,21 @@ const LIVE_BY_FOLDED: ReadonlyMap<string, readonly string[]> = (() => {
  * refusal, not as an empty filter.
  */
 export function neighborhoodVariants(value: string): readonly string[] {
-  return LIVE_BY_FOLDED.get(fold(value)) ?? [];
+  return spellingsFor(value);
+}
+
+/**
+ * The borough LABEL a broker reads for a provider CityRegion value.
+ *
+ * The provider spells it `StatenIsland`; every Mallan surface says
+ * `Staten Island`. Sending the human spelling produces a valid filter matching
+ * zero rows, so the two must never be the same string — this converts one way
+ * only, for display.
+ */
+export function boroughLabel(providerValue: unknown): string {
+  if (typeof providerValue !== "string") return "";
+  const trimmed = providerValue.trim();
+  return trimmed === "StatenIsland" ? "Staten Island" : trimmed;
 }
 
 /**

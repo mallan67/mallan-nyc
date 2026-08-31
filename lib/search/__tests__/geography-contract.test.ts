@@ -171,16 +171,31 @@ describe("neighborhood -> SubdivisionName", () => {
   });
 
   it("REFUSES a name the live feed does not carry, instead of returning an empty set", () => {
-    // The failure this closes. `Gramercy`, `Stuyvesant Town` and `Union Square`
-    // expanded ENTIRELY to spellings the feed does not carry, so selecting one
-    // produced a syntactically valid filter matching zero rows under HTTP 200 —
-    // indistinguishable from "no listings match your criteria". Meanwhile
-    // `Gramercy Park` sat in the feed with real inventory, unreachable.
-    //
-    // A criterion that can only ever match zero rows must fail loudly.
-    expect(() => neighborhoodOData(["Gramercy"])).toThrow(/Gramercy/);
-    expect(() => neighborhoodOData(["Stuyvesant Town"])).toThrow();
+    // A criterion that can only ever match zero rows must fail loudly rather than
+    // produce a valid filter matching nothing under HTTP 200.
     expect(() => neighborhoodOData(["Nonexistent Heights"])).toThrow();
+    expect(() => neighborhoodOData(["Zzzz Not A Place"])).toThrow();
+  });
+
+  it("but a name with no CURRENT on-market inventory is NOT refused", () => {
+    // CORRECTED 2026-08-31. This case previously asserted that `Gramercy`,
+    // `Stuyvesant Town` and `Union Square` must THROW, on the reasoning that they
+    // expanded entirely to spellings the feed does not carry.
+    //
+    // The reasoning was right and the evidence was too narrow. The vocabulary had
+    // been read from the on-market slice — 7,741 rows of 591,409 — and enforced as
+    // a universal refusal at every status. Read across the whole feed those names
+    // are real: Gramercy 930 rows, Union Square 654, Civic Center 122. The refusal
+    // message asserted "Not a live Cotality value", a universal negative 1.3% of
+    // the feed cannot support, and a Closed/comps search for any of them
+    // hard-failed — `comparable` being exactly the workflow that universe excludes.
+    //
+    // Silent widening had been replaced by a hard refusal of legitimate queries.
+    for (const name of ["Gramercy", "Stuyvesant Town", "Union Square"]) {
+      expect(`${name}:${typeof neighborhoodOData([name])}`).toBe(`${name}:string`);
+    }
+    // …and it still does not merge into the neighbouring name.
+    expect(neighborhoodOData(["Gramercy"])).not.toContain("Gramercy Park");
   });
 
   it("ORs multiple neighborhoods into one clause", () => {

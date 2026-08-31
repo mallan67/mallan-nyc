@@ -29,25 +29,26 @@ const REPO = join(__dirname, '..', '..');
 const read = (rel: string) => readFileSync(join(REPO, rel), 'utf8');
 
 const browserVocab = JSON.parse(read('public/crm/data/neighborhood-vocabulary.generated.json')) as {
-  byBorough: Record<string, string[]>;
+  boroughLabels: Record<string, string>;
+  identities: Array<{ label: string; borough: string | null; boroughLabel: string | null; spellings: string[] }>;
 };
 const autocompleteSrc = read('public/crm/js/search/neighborhood-autocomplete.js');
 const searchEngineSrc = read('public/crm/js/search/search-engine.js');
 
-const browserNames = Object.values(browserVocab.byBorough).flat();
+const browserLabels = browserVocab.identities.map((i) => i.label);
 
 describe('the browser and the server share one neighbourhood vocabulary', () => {
-  it('the browser file is not empty and covers every live value', () => {
+  it('the browser file is not empty', () => {
     // Guard the guard: an empty or truncated file would make every set
     // comparison below pass vacuously.
-    expect(browserNames.length).toBe(Object.keys(SUBDIVISION_NAME_LIVE).length);
-    expect(browserNames.length).toBeGreaterThan(200);
+    expect(browserLabels.length).toBeGreaterThan(200);
+    expect(new Set(browserLabels).size).toBe(browserLabels.length); // no duplicate labels
   });
 
   it('every name the browser offers is a value the server accepts', () => {
     // THE INVARIANT THAT ACTUALLY MATTERS. A name here that the server refuses is
     // a control that produces an error the broker cannot act on.
-    const rejected = browserNames.filter((n) => {
+    const rejected = browserLabels.filter((n) => {
       try {
         return neighborhoodOData([n]) === null;
       } catch {
@@ -57,22 +58,42 @@ describe('the browser and the server share one neighbourhood vocabulary', () => 
     expect(rejected).toEqual([]);
   });
 
-  it('and every live value is offered by the browser — no unreachable inventory', () => {
-    // The other direction. The old hard-coded list omitted live neighbourhoods,
-    // so listings existed that no broker could filter to.
-    const missing = Object.keys(SUBDIVISION_NAME_LIVE).filter((n) => !browserNames.includes(n));
-    expect(missing).toEqual([]);
+  it('and every live value stays SEARCHABLE even when it is not offered', () => {
+    // OFFER AND ACCEPT ARE DELIBERATELY DIFFERENT SETS, and this is the assertion
+    // that keeps them honest.
+    //
+    // This used to require that every live value be offered in the dropdown. That
+    // was right while both sets came from the same on-market read, and it became
+    // wrong once the vocabulary was read from the whole feed: the feed carries 632
+    // identities including `null` (3,508 rows), `OTHER`, legacy codes like
+    // `GRENVILL` and `UPWEST`, borough names used as neighbourhoods, and non-NYC
+    // places. None of those belongs in a broker's dropdown, and every one of them
+    // must remain searchable, because refusing a value the provider holds is what
+    // made a Closed/comps search for Gramercy hard-fail.
+    //
+    // So: offered is a presentation decision; accepted is an execution fact.
+    const unsearchable = Object.keys(SUBDIVISION_NAME_LIVE).filter((n) => {
+      try {
+        return neighborhoodOData([n]) === null;
+      } catch {
+        return true;
+      }
+    });
+    expect(unsearchable).toEqual([]);
   });
 
-  it('the names the old hard-coded list invented are gone', () => {
-    // `Stuyvesant Town` and `Union Square` were selectable and unsearchable.
-    // Asserted against the DATA rather than the source text, so a comment
-    // mentioning them (this file explains them at length) cannot mask a
-    // regression.
-    expect(browserNames).not.toContain('Stuyvesant Town');
-    expect(browserNames).not.toContain('Union Square');
-    // …while the live neighbourhood the old list confused with one of them IS here.
-    expect(browserNames).toContain('Gramercy Park');
+  it('names with no CURRENT inventory are not offered, but ARE searchable', () => {
+    // `Stuyvesant Town` and `Union Square` were offered by the old hard-coded list
+    // and were unsearchable — the worst combination. They are now the reverse:
+    // absent from the dropdown because they have no on-market inventory to find,
+    // and fully searchable for comps and saved searches. Union Square carries 654
+    // rows feed-wide.
+    expect(browserLabels).not.toContain('Stuyvesant Town');
+    expect(browserLabels).not.toContain('Union Square');
+    expect(() => neighborhoodOData(['Union Square'])).not.toThrow();
+    expect(() => neighborhoodOData(['Stuyvesant Town'])).not.toThrow();
+    // …and the neighbouring name it must never be merged with IS offered.
+    expect(browserLabels).toContain('Gramercy Park');
   });
 
   it('the autocomplete no longer carries a neighbourhood list of its own', () => {
@@ -98,14 +119,22 @@ describe('the browser and the server share one neighbourhood vocabulary', () => 
     expect(mapSrc).toMatch(/neighborhood-aliases/);
   });
 
-  it('each borough group is non-empty and uses PROVIDER spelling', () => {
+  it('provider borough VALUES and broker LABELS are both carried, and differ', () => {
     // `StatenIsland` is the trap: every Mallan surface spells it "Staten Island",
-    // and sending that produces a valid filter matching zero rows.
-    expect(Object.keys(browserVocab.byBorough).sort()).toEqual([
+    // and sending the human spelling produces a valid filter matching zero rows.
+    // The file must carry BOTH — the value to send, the label to show — so no
+    // consumer has to guess which one it is holding.
+    expect(browserVocab.boroughLabels.StatenIsland).toBe('Staten Island');
+    expect(Object.keys(browserVocab.boroughLabels).sort()).toEqual([
       'Bronx', 'Brooklyn', 'Manhattan', 'Queens', 'StatenIsland',
     ]);
-    for (const [borough, names] of Object.entries(browserVocab.byBorough)) {
-      expect(`${borough}:${names.length > 0}`).toBe(`${borough}:true`);
+
+    const si = browserVocab.identities.filter((i) => i.borough === 'StatenIsland');
+    expect(si.length).toBeGreaterThan(0);
+    for (const i of si) {
+      expect(`${i.label}:${i.boroughLabel}`).toBe(`${i.label}:Staten Island`);
     }
+    // No identity may present the raw provider spelling as its label.
+    expect(browserVocab.identities.some((i) => i.boroughLabel === 'StatenIsland')).toBe(false);
   });
 });

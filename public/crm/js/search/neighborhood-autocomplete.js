@@ -24,6 +24,11 @@
     // Evidence: artifacts/section5-closure-probe + subdivision-borough-uniqueness,
     // 240 values read exhaustively, each proven unique to one borough.
     var NEIGHBORHOODS = {};
+    var _identities = [];
+    var _boroughLabels = {};
+
+    /** Same fold as the server contract: case, space and punctuation insensitive. */
+    function _fold(v) { return String(v).toLowerCase().replace(/[^a-z]/g, ''); }
 
     // Built from the loaded vocabulary. Empty until the fetch resolves, which is
     // correct: an autocomplete that suggests nothing is visibly not ready, whereas
@@ -42,28 +47,90 @@
         });
     }
 
+    // ── LOADING, FAILED AND READY ARE THREE STATES ───────────────────────────
+    //
+    // They were one. The list was empty while loading AND after a failed fetch,
+    // and both rendered 'No neighborhoods found' — an affirmative answer that is
+    // definitely wrong in both cases. A broker could not tell 'not ready yet'
+    // from 'that place does not exist', and the catch was empty so nothing was
+    // reported anywhere.
+    var _vocabState = 'loading';   // 'loading' | 'ready' | 'failed'
+
+    function neighborhoodVocabStatus() { return _vocabState; }
+
     (function loadNeighborhoodVocabulary() {
         // The SAME absolute path every other CRM data loader uses — panels.js and
         // transit-search.js both fetch '/crm/data/...' unconditionally.
-        //
-        // My first version derived the path from window.location, copying the shape
-        // of the retired alias loader. It had a branch that resolved to '/data/...'
-        // when the page is served at '/crm' with no trailing slash, and a failed
-        // fetch here is SILENT by design — the box simply suggests nothing — so a
-        // broker would have found neighbourhoods unselectable with no error anywhere.
         fetch('/crm/data/neighborhood-vocabulary.generated.json')
-            .then(function (r) { return r.ok ? r.json() : null; })
-            .then(function (data) {
-                if (!data || !data.byBorough) return;
-                // PROVIDER SPELLING IS PRESERVED EXACTLY. Cotality spells it
-                // `StatenIsland`; the label shown to a broker is cosmetic and must
-                // never be sent as the value, which is the borough trap geography.ts
-                // documents.
-                NEIGHBORHOODS = data.byBorough;
-                buildSearchList();
+            .then(function (r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
             })
-            .catch(function () { /* non-fatal: the box simply suggests nothing */ });
+            .then(function (data) {
+                if (!data || !Array.isArray(data.identities) || data.identities.length === 0) {
+                    throw new Error('empty vocabulary');
+                }
+                _identities = data.identities;
+                _boroughLabels = data.boroughLabels || {};
+                // ONE ENTRY PER IDENTITY, not one per provider spelling. SoHo, Soho
+                // and SOHO are one neighbourhood and must appear once; the union of
+                // spellings executes server-side, so capitalisation loses nothing.
+                NEIGHBORHOODS = {};
+                _identities.forEach(function (i) {
+                    // The BROKER LABEL for the borough. The provider value is
+                    // StatenIsland; nobody should ever read that in a dropdown.
+                    var label = i.boroughLabel || _boroughLabels[i.borough] || i.borough;
+                    if (!label) return;   // genuinely split names carry no borough
+                    if (!NEIGHBORHOODS[label]) NEIGHBORHOODS[label] = [];
+                    NEIGHBORHOODS[label].push(i.label);
+                });
+                buildSearchList();
+                _vocabState = 'ready';
+                document.dispatchEvent(new CustomEvent('mallan:neighborhoods-ready'));
+            })
+            .catch(function (err) {
+                // NOT SILENT. A failed load must never look like a real answer.
+                _vocabState = 'failed';
+                if (window.console && console.warn) {
+                    console.warn('[neighborhoods] vocabulary failed to load:', err && err.message);
+                }
+                document.dispatchEvent(new CustomEvent('mallan:neighborhoods-failed'));
+            });
     })();
+
+    // ── THE ONE BROWSER GEOGRAPHY AUTHORITY ──────────────────────────────────
+    //
+    // search-engine.js carried a hard-coded neighbourhood->borough table and
+    // saved-searches.js called into it, so the claim that four vocabularies had
+    // become one was false. That table also placed MOTT HAVEN IN MANHATTAN; the
+    // live feed puts it in the Bronx on 574 of 575 rows.
+    window.MallanNeighborhoods = {
+        state: neighborhoodVocabStatus,
+        identities: function () { return _identities.slice(); },
+        /** Provider CityRegion value for a neighbourhood, or '' when unknown/split. */
+        boroughFor: function (name) {
+            var i = this.resolve(name);
+            return (i && i.borough) || '';
+        },
+        /** Broker label for a provider borough value. StatenIsland -> Staten Island. */
+        boroughLabel: function (providerValue) {
+            return _boroughLabels[providerValue] || providerValue || '';
+        },
+        /** The identity a typed/stored/polygon name means, or null if not live. */
+        resolve: function (name) {
+            if (typeof name !== 'string') return null;
+            var key = _fold(name);
+            if (!key) return null;
+            for (var n = 0; n < _identities.length; n++) {
+                var idn = _identities[n];
+                if (_fold(idn.label) === key) return idn;
+                for (var k = 0; k < idn.spellings.length; k++) {
+                    if (_fold(idn.spellings[k]) === key) return idn;
+                }
+            }
+            return null;
+        }
+    };
 
     // Track selected neighborhoods per input (keyed by tagsContainerId)
     var _selected = {};
@@ -105,7 +172,21 @@
         }).slice(0, 12);
 
         if (matches.length === 0) {
-            dropdown.innerHTML = '<div class="px-3 py-2 text-gray-400">No neighborhoods found</div>';
+            // THREE STATES, THREE MESSAGES. This said "No neighborhoods found"
+            // whatever the reason, so a vocabulary that had not loaded yet — or had
+            // failed to load entirely, silently, with an empty catch — gave the
+            // broker a confident answer about NYC geography. "That place does not
+            // exist" and "I have not loaded the list" are different facts.
+            var msg;
+            if (_vocabState === 'loading') {
+                msg = '<i class="fas fa-circle-notch fa-spin mr-2"></i>Loading neighborhoods…';
+            } else if (_vocabState === 'failed') {
+                msg = '<i class="fas fa-triangle-exclamation mr-2"></i>' +
+                      'Neighborhood list unavailable — reload the page to try again.';
+            } else {
+                msg = 'No neighborhoods found';
+            }
+            dropdown.innerHTML = '<div class="px-3 py-2 text-gray-400">' + msg + '</div>';
             dropdown.classList.remove('hidden');
             return;
         }

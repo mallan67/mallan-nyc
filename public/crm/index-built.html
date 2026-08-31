@@ -3269,12 +3269,15 @@ function toggleSection(header) {
 <!-- Modals extracted to html/modals/ directory -->
 <div id="section-main" class="p-6">
                 <div id="searchFormContainer">
-                    <!-- RLS Listing Tracker — total active listings from REBNY RLS -->
+                    <!-- Listing tracker: live counts from the Cotality API, the one external provider authority. -->
+                    <!-- Wording corrected 2026-08-31: this said REBNY RLS, which named the -->
+                    <!-- wrong data engine. REBNY/RLS remain compliance and attribution context, -->
+                    <!-- not the provider of these numbers. -->
                     <div id="rlsListingTracker" class="bg-gradient-to-r from-gray-900 to-gray-800 rounded-xl shadow-md mb-4 px-5 py-3.5 flex items-center justify-between flex-wrap gap-3">
                         <div class="flex items-center gap-3">
                             <div class="flex items-center gap-2">
                                 <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                                <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">REBNY RLS Live</span>
+                                <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Cotality Live</span>
                             </div>
                             <div class="flex items-center gap-4">
                                 <div class="flex items-center gap-1.5">
@@ -16508,16 +16511,50 @@ function manageShowToast(msg) {
             openNeighborhoodMap(function(result) {
                 if (!result.selectedNeighborhoods || result.selectedNeighborhoods.length === 0) return;
 
-                var canonicals = result.selectedNeighborhoods;
+                // ── THE MAP BRIDGE ───────────────────────────────────────────────
+                //
+                // Polygon names are PRESENTATION GEOMETRY and may not become provider
+                // Search truth. They came from the map's own geojson and were written
+                // straight into the neighbourhood tags, then auto-searched 200ms later
+                // — so a shape whose name the provider does not carry produced an
+                // error and no results from something the map invited the broker to
+                // click, while an adjacent shape worked.
+                //
+                // Each name is now resolved through the live Cotality identity
+                // contract, the same evidence the server executes against. What
+                // resolves is searched under its CANONICAL LABEL rather than the
+                // polygon's spelling. What does not resolve is named to the broker and
+                // dropped — never sent.
+                var raw = result.selectedNeighborhoods;
+                var vocab = window.MallanNeighborhoods;
+                var canonicals = [];
+                var unavailable = [];
+
+                for (var i = 0; i < raw.length; i++) {
+                    var identity = vocab ? vocab.resolve(raw[i]) : null;
+                    if (identity) {
+                        if (canonicals.indexOf(identity.label) === -1) canonicals.push(identity.label);
+                    } else {
+                        unavailable.push(raw[i]);
+                    }
+                }
+
+                if (unavailable.length > 0 && typeof showToast === 'function') {
+                    showToast(
+                        unavailable.join(', ') +
+                        (unavailable.length === 1 ? ' is' : ' are') +
+                        ' not available to search — no Cotality listings use that name.',
+                        'warning'
+                    );
+                }
+                if (canonicals.length === 0) return;
 
                 // Determine which tags container is active based on current search mode/tab
                 var tagsId = _resolveActiveNeighborhoodTagsId();
 
-                // Add each selected neighborhood as a tag (skip duplicates)
                 if (typeof selectNeighborhood === 'function') {
-                    for (var i = 0; i < canonicals.length; i++) {
-                        var name = canonicals[i];
-                        // Find the borough for this neighborhood from the autocomplete data
+                    for (var j = 0; j < canonicals.length; j++) {
+                        var name = canonicals[j];
                         var borough = _findBoroughForNeighborhood(name);
                         selectNeighborhood(name, borough, !borough, '', tagsId);
                     }
@@ -16598,18 +16635,24 @@ function manageShowToast(msg) {
             };
         };
 
+        // ── THE HARD-CODED BOROUGH TABLE IS GONE (Section 5, 2026-08-31) ─────────
+        //
+        // A literal neighbourhood->borough map lived here and saved-searches.js
+        // called into it, so 'four vocabularies became one' was false: this was a
+        // second geography authority, and it was WRONG. It placed MOTT HAVEN UNDER
+        // MANHATTAN, while the live Cotality feed puts it in the Bronx on 574 of
+        // 575 rows — so a broker filtering the Bronx lost it and one filtering
+        // Manhattan was handed a Bronx neighbourhood.
+        //
+        // Borough association now comes from the generated live Cotality contract
+        // via window.MallanNeighborhoods, which is the same evidence the server
+        // executes against.
         function _findBoroughForNeighborhood(name) {
-            var boroughs = {
-                'Bronx': ['Allerton','Baychester','Bedford Park','Belmont','City Island','Co-op City','Fordham','Kingsbridge','Morris Park','Pelham Bay','Central Riverdale','Fieldston','North Riverdale','Spuyten Duyvil','Throgs Neck','Woodlawn'],
-                'Brooklyn': ['Bath Beach','Bay Ridge','Fort Hamilton','Bedford - Stuyvesant','Ocean Hill','Stuyvesant Heights','Bensonhurst','Boerum Hill','Borough Park','Brighton Beach','Brooklyn Heights','Bushwick','Carroll Gardens','Cobble Hill','Coney Island','Crown Heights','Ditmas Park','Downtown Brooklyn','Dumbo','DUMBO','Dyker Heights','Flatbush','Fort Greene','Gowanus','Greenpoint','Park Slope','Prospect Heights','Red Hook','Sheepshead Bay','Sunset Park','Williamsburg','Windsor Terrace','South Slope'],
-                'Manhattan': ['Battery Park City','Carnegie Hill','Central Harlem','Chelsea','Chinatown','Civic Center','East Harlem','East Village','Financial District','Flatiron','Gramercy Park','Gramercy','Greenwich Village','Hamilton Heights','Harlem','Hell\'s Kitchen','Hudson Square','Hudson Yards','Inwood','Kips Bay','Lenox Hill','Lincoln Square','Little Italy','Lower East Side','Manhattan Valley','Manhattanville','Marble Hill','Meatpacking District','Midtown','Midtown East','Midtown West','Morningside Heights','Mott Haven','Murray Hill','NoHo','NoMad','Nolita','Peter Cooper Village','Roosevelt Island','SoHo','Stuyvesant Town','Sugar Hill','Sutton Place','Times Square','Tribeca','Tudor City','Turtle Bay','Two Bridges','Union Square','Upper East Side','Upper West Side','Washington Heights','West Harlem','West Village','Yorkville'],
-                'Queens': ['Astoria','Bayside','Corona','Elmhurst','Flushing','Forest Hills','Hunters Point','Jackson Heights','Jamaica','Kew Gardens','Long Island City','Long Island City (LIC)','Rego Park','Ridgewood','Sunnyside','Whitestone','Woodside'],
-                'Staten Island': ['Annadale','Arden Heights','Dongan Hills','Great Kills','New Dorp','New Brighton','South Beach','St. George','Stapleton','Todt Hill']
-            };
-            for (var b in boroughs) {
-                if (boroughs[b].indexOf(name) !== -1) return b;
-            }
-            return '';
+            if (!window.MallanNeighborhoods) return '';
+            var provider = window.MallanNeighborhoods.boroughFor(name);
+            // The BROKER label, because this feeds tag display. The provider value
+            // (StatenIsland) must never be shown or re-sent as a label.
+            return provider ? window.MallanNeighborhoods.boroughLabel(provider) : '';
         }
 
         function normalizeAddress(str) {
@@ -24811,8 +24854,23 @@ function parseBudgetValue(td) {
             if (criteria.neighborhoods && criteria.neighborhoods.length > 0 && typeof selectNeighborhood === 'function') {
                 var tagsId = typeof _resolveActiveNeighborhoodTagsId === 'function' ? _resolveActiveNeighborhoodTagsId() : 'saleNeighborhoodTags';
                 criteria.neighborhoods.forEach(function(n) {
-                    var borough = typeof _findBoroughForNeighborhood === 'function' ? _findBoroughForNeighborhood(n) : '';
-                    selectNeighborhood(n, borough, !borough, '', tagsId);
+                    // ONE AUTHORITY. This read a hard-coded borough table that placed
+                    // Mott Haven in Manhattan, and any name the table did not list came
+                    // back with no borough — which `!borough` then flagged as
+                    // BOROUGH-LEVEL, so a restored neighbourhood was silently
+                    // reclassified as a whole borough and the search widened.
+                    var vocab = window.MallanNeighborhoods;
+                    var identity = vocab ? vocab.resolve(n) : null;
+                    if (!identity) {
+                        // A stored name the live feed no longer carries is reported,
+                        // not silently turned into something else.
+                        if (typeof showToast === 'function') {
+                            showToast('Saved neighbourhood "' + n + '" is no longer available to search.', 'warning');
+                        }
+                        return;
+                    }
+                    var borough = identity.borough ? vocab.boroughLabel(identity.borough) : '';
+                    selectNeighborhood(identity.label, borough, false, '', tagsId);
                 });
             }
 
@@ -33802,6 +33860,11 @@ function emailCurrentCalc() {
     // Evidence: artifacts/section5-closure-probe + subdivision-borough-uniqueness,
     // 240 values read exhaustively, each proven unique to one borough.
     var NEIGHBORHOODS = {};
+    var _identities = [];
+    var _boroughLabels = {};
+
+    /** Same fold as the server contract: case, space and punctuation insensitive. */
+    function _fold(v) { return String(v).toLowerCase().replace(/[^a-z]/g, ''); }
 
     // Built from the loaded vocabulary. Empty until the fetch resolves, which is
     // correct: an autocomplete that suggests nothing is visibly not ready, whereas
@@ -33820,28 +33883,90 @@ function emailCurrentCalc() {
         });
     }
 
+    // ── LOADING, FAILED AND READY ARE THREE STATES ───────────────────────────
+    //
+    // They were one. The list was empty while loading AND after a failed fetch,
+    // and both rendered 'No neighborhoods found' — an affirmative answer that is
+    // definitely wrong in both cases. A broker could not tell 'not ready yet'
+    // from 'that place does not exist', and the catch was empty so nothing was
+    // reported anywhere.
+    var _vocabState = 'loading';   // 'loading' | 'ready' | 'failed'
+
+    function neighborhoodVocabStatus() { return _vocabState; }
+
     (function loadNeighborhoodVocabulary() {
         // The SAME absolute path every other CRM data loader uses — panels.js and
         // transit-search.js both fetch '/crm/data/...' unconditionally.
-        //
-        // My first version derived the path from window.location, copying the shape
-        // of the retired alias loader. It had a branch that resolved to '/data/...'
-        // when the page is served at '/crm' with no trailing slash, and a failed
-        // fetch here is SILENT by design — the box simply suggests nothing — so a
-        // broker would have found neighbourhoods unselectable with no error anywhere.
         fetch('/crm/data/neighborhood-vocabulary.generated.json')
-            .then(function (r) { return r.ok ? r.json() : null; })
-            .then(function (data) {
-                if (!data || !data.byBorough) return;
-                // PROVIDER SPELLING IS PRESERVED EXACTLY. Cotality spells it
-                // `StatenIsland`; the label shown to a broker is cosmetic and must
-                // never be sent as the value, which is the borough trap geography.ts
-                // documents.
-                NEIGHBORHOODS = data.byBorough;
-                buildSearchList();
+            .then(function (r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
             })
-            .catch(function () { /* non-fatal: the box simply suggests nothing */ });
+            .then(function (data) {
+                if (!data || !Array.isArray(data.identities) || data.identities.length === 0) {
+                    throw new Error('empty vocabulary');
+                }
+                _identities = data.identities;
+                _boroughLabels = data.boroughLabels || {};
+                // ONE ENTRY PER IDENTITY, not one per provider spelling. SoHo, Soho
+                // and SOHO are one neighbourhood and must appear once; the union of
+                // spellings executes server-side, so capitalisation loses nothing.
+                NEIGHBORHOODS = {};
+                _identities.forEach(function (i) {
+                    // The BROKER LABEL for the borough. The provider value is
+                    // StatenIsland; nobody should ever read that in a dropdown.
+                    var label = i.boroughLabel || _boroughLabels[i.borough] || i.borough;
+                    if (!label) return;   // genuinely split names carry no borough
+                    if (!NEIGHBORHOODS[label]) NEIGHBORHOODS[label] = [];
+                    NEIGHBORHOODS[label].push(i.label);
+                });
+                buildSearchList();
+                _vocabState = 'ready';
+                document.dispatchEvent(new CustomEvent('mallan:neighborhoods-ready'));
+            })
+            .catch(function (err) {
+                // NOT SILENT. A failed load must never look like a real answer.
+                _vocabState = 'failed';
+                if (window.console && console.warn) {
+                    console.warn('[neighborhoods] vocabulary failed to load:', err && err.message);
+                }
+                document.dispatchEvent(new CustomEvent('mallan:neighborhoods-failed'));
+            });
     })();
+
+    // ── THE ONE BROWSER GEOGRAPHY AUTHORITY ──────────────────────────────────
+    //
+    // search-engine.js carried a hard-coded neighbourhood->borough table and
+    // saved-searches.js called into it, so the claim that four vocabularies had
+    // become one was false. That table also placed MOTT HAVEN IN MANHATTAN; the
+    // live feed puts it in the Bronx on 574 of 575 rows.
+    window.MallanNeighborhoods = {
+        state: neighborhoodVocabStatus,
+        identities: function () { return _identities.slice(); },
+        /** Provider CityRegion value for a neighbourhood, or '' when unknown/split. */
+        boroughFor: function (name) {
+            var i = this.resolve(name);
+            return (i && i.borough) || '';
+        },
+        /** Broker label for a provider borough value. StatenIsland -> Staten Island. */
+        boroughLabel: function (providerValue) {
+            return _boroughLabels[providerValue] || providerValue || '';
+        },
+        /** The identity a typed/stored/polygon name means, or null if not live. */
+        resolve: function (name) {
+            if (typeof name !== 'string') return null;
+            var key = _fold(name);
+            if (!key) return null;
+            for (var n = 0; n < _identities.length; n++) {
+                var idn = _identities[n];
+                if (_fold(idn.label) === key) return idn;
+                for (var k = 0; k < idn.spellings.length; k++) {
+                    if (_fold(idn.spellings[k]) === key) return idn;
+                }
+            }
+            return null;
+        }
+    };
 
     // Track selected neighborhoods per input (keyed by tagsContainerId)
     var _selected = {};
@@ -33883,7 +34008,21 @@ function emailCurrentCalc() {
         }).slice(0, 12);
 
         if (matches.length === 0) {
-            dropdown.innerHTML = '<div class="px-3 py-2 text-gray-400">No neighborhoods found</div>';
+            // THREE STATES, THREE MESSAGES. This said "No neighborhoods found"
+            // whatever the reason, so a vocabulary that had not loaded yet — or had
+            // failed to load entirely, silently, with an empty catch — gave the
+            // broker a confident answer about NYC geography. "That place does not
+            // exist" and "I have not loaded the list" are different facts.
+            var msg;
+            if (_vocabState === 'loading') {
+                msg = '<i class="fas fa-circle-notch fa-spin mr-2"></i>Loading neighborhoods…';
+            } else if (_vocabState === 'failed') {
+                msg = '<i class="fas fa-triangle-exclamation mr-2"></i>' +
+                      'Neighborhood list unavailable — reload the page to try again.';
+            } else {
+                msg = 'No neighborhoods found';
+            }
+            dropdown.innerHTML = '<div class="px-3 py-2 text-gray-400">' + msg + '</div>';
             dropdown.classList.remove('hidden');
             return;
         }
