@@ -10,9 +10,13 @@
  *   4. the map polygon names
  *
  * They disagreed in the way that matters. The autocomplete offered
- * `Stuyvesant Town` and `Union Square`, which the live feed does not carry, so a
- * broker could select a neighbourhood the server can only refuse — and it omitted
- * live neighbourhoods with real inventory, which no broker could reach at all.
+ * `Stuyvesant Town` and `Union Square` while the server refused them, and it
+ * omitted live neighbourhoods no broker could then reach.
+ *
+ * CORRECTED 2026-08-31: the refusal was the defect, not those names. The server
+ * was judging against a vocabulary read from 1.3% of the feed; read whole, both
+ * are real — Union Square carries 654 rows. They are now ACCEPTED everywhere and
+ * simply not OFFERED, because they have no current on-market inventory.
  *
  * (2) and (3) are gone. (1) is generated from probe evidence and the browser file
  * is generated beside it from the SAME evidence, so neither can be edited
@@ -30,12 +34,22 @@ const read = (rel: string) => readFileSync(join(REPO, rel), 'utf8');
 
 const browserVocab = JSON.parse(read('public/crm/data/neighborhood-vocabulary.generated.json')) as {
   boroughLabels: Record<string, string>;
-  identities: Array<{ label: string; borough: string | null; boroughLabel: string | null; spellings: string[] }>;
+  identities: Array<{
+    label: string;
+    /** NEVER null now — identity is (borough x name), so the borough is part of it. */
+    borough: string;
+    boroughLabel: string;
+    spellings: string[];
+    /** Whether the dropdown shows it. Execution ignores this. */
+    offered: boolean;
+  }>;
 };
 const autocompleteSrc = read('public/crm/js/search/neighborhood-autocomplete.js');
 const searchEngineSrc = read('public/crm/js/search/search-engine.js');
 
 const browserLabels = browserVocab.identities.map((i) => i.label);
+/** What the dropdown actually shows — a FLAG now, not the whole file. */
+const offeredLabels = browserVocab.identities.filter((i) => i.offered).map((i) => i.label);
 
 describe('the browser and the server share one neighbourhood vocabulary', () => {
   it('the browser file is not empty', () => {
@@ -48,7 +62,7 @@ describe('the browser and the server share one neighbourhood vocabulary', () => 
   it('every name the browser offers is a value the server accepts', () => {
     // THE INVARIANT THAT ACTUALLY MATTERS. A name here that the server refuses is
     // a control that produces an error the broker cannot act on.
-    const rejected = browserLabels.filter((n) => {
+    const rejected = offeredLabels.filter((n) => {
       try {
         return neighborhoodOData([n]) === null;
       } catch {
@@ -79,7 +93,16 @@ describe('the browser and the server share one neighbourhood vocabulary', () => 
         return true;
       }
     });
-    expect(unsearchable).toEqual([]);
+    // `Bay Terrace` is the ONE deliberate exception and it is not a gap: Mallan
+    // declares it two real places, one in Queens and one in Staten Island, so the
+    // bare name resolves to neither. Reporting it as ambiguous is the whole point
+    // — silently picking Queens would be the quiet substitution this contract
+    // exists to prevent. Both qualified forms search normally.
+    expect(unsearchable).toEqual(['Bay Terrace']);
+    expect(() => neighborhoodOData(['Bay Terrace, Queens'])).not.toThrow();
+    expect(() => neighborhoodOData(['Bay Terrace, Staten Island'])).not.toThrow();
+    expect(neighborhoodOData(['Bay Terrace, Queens'])).toContain("CityRegion eq 'Queens'");
+    expect(neighborhoodOData(['Bay Terrace, Staten Island'])).toContain("CityRegion eq 'StatenIsland'");
   });
 
   it('names with no CURRENT inventory are not offered, but ARE searchable', () => {
@@ -88,12 +111,17 @@ describe('the browser and the server share one neighbourhood vocabulary', () => 
     // absent from the dropdown because they have no on-market inventory to find,
     // and fully searchable for comps and saved searches. Union Square carries 654
     // rows feed-wide.
-    expect(browserLabels).not.toContain('Stuyvesant Town');
-    expect(browserLabels).not.toContain('Union Square');
+    // NOT OFFERED in the dropdown…
+    expect(offeredLabels).not.toContain('Stuyvesant Town');
+    expect(offeredLabels).not.toContain('Union Square');
+    // …but PRESENT in the browser's accept set, which is what lets a Saved
+    // Search restore them instead of being told they no longer exist.
+    expect(browserLabels).toContain('Stuyvesant Town');
+    expect(browserLabels).toContain('Union Square');
     expect(() => neighborhoodOData(['Union Square'])).not.toThrow();
     expect(() => neighborhoodOData(['Stuyvesant Town'])).not.toThrow();
     // …and the neighbouring name it must never be merged with IS offered.
-    expect(browserLabels).toContain('Gramercy Park');
+    expect(offeredLabels).toContain('Gramercy Park');
   });
 
   it('the autocomplete no longer carries a neighbourhood list of its own', () => {

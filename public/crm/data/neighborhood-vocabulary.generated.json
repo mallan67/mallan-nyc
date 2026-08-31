@@ -1,13 +1,13 @@
 {
   "_generated": "node scripts/search/generate-neighborhood-identities.mjs — do not edit",
   "_meta": {
-    "description": "Canonical neighbourhood identities from the full live Cotality feed. One label per identity; every provider spelling behind it so capitalisation never loses inventory. Map polygon names are a SEPARATE vocabulary and are not in this file.",
+    "description": "Canonical neighbourhood identities from the full live Cotality feed. Identity is (borough x normalised name); the borough is part of the predicate, not just a label. Carries the FULL accept set so Saved Search can restore a valid name the dropdown does not offer. Map polygon names are a SEPARATE vocabulary and are not in this file.",
     "probedAt": "2026-08-31",
     "rowsRead": 591409,
+    "universe": "ALL Property rows — no PropertyType restriction",
     "evidence": "artifacts/subdivision-full-feed-2026-08-31.json",
-    "totalIdentities": 632,
-    "offeredIdentities": 232,
-    "boroughDominanceThreshold": 0.95
+    "totalIdentities": 633,
+    "offeredIdentities": 233
   },
   "boroughLabels": {
     "Manhattan": "Manhattan",
@@ -18,1924 +18,6425 @@
   },
   "identities": [
     {
+      "label": "Allerton",
+      "spellings": [
+        "Allerton"
+      ],
+      "rows": 10,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
+    },
+    {
       "label": "Alphabet City",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Alphabet City"
-      ]
+      ],
+      "rows": 428,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "Ancram",
+      "spellings": [
+        "Ancram"
+      ],
+      "rows": 2,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Annadale",
-      "borough": "StatenIsland",
-      "boroughLabel": "Staten Island",
       "spellings": [
         "Annadale"
-      ]
+      ],
+      "rows": 22,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": true
+    },
+    {
+      "label": "Arden Heights",
+      "spellings": [
+        "Arden Heights"
+      ],
+      "rows": 16,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
+    },
+    {
+      "label": "Arlington",
+      "spellings": [
+        "Arlington"
+      ],
+      "rows": 1,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
+    },
+    {
+      "label": "Arrochar",
+      "spellings": [
+        "Arrochar"
+      ],
+      "rows": 6,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
     },
     {
       "label": "Arverne",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Arverne"
-      ]
+      ],
+      "rows": 16,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
     },
     {
       "label": "Astoria",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Astoria",
         "ASTORIA"
-      ]
+      ],
+      "rows": 7444,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
     },
     {
       "label": "Astoria Heights",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Astoria Heights"
-      ]
+      ],
+      "rows": 10,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "Auburndale",
+      "spellings": [
+        "Auburndale"
+      ],
+      "rows": 27,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
     },
     {
       "label": "Bath Beach",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Bath Beach"
-      ]
+      ],
+      "rows": 170,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "BATTERY",
+      "spellings": [
+        "BATTERY"
+      ],
+      "rows": 107,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Battery Park",
+      "spellings": [
+        "Battery Park"
+      ],
+      "rows": 81,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Battery Park City",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Battery Park City"
-      ]
+      ],
+      "rows": 4270,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
     },
     {
       "label": "Bay Ridge",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Bay Ridge",
         "BAYRIDGE"
-      ]
+      ],
+      "rows": 2418,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
     },
     {
-      "label": "Bay Terrace",
-      "borough": null,
-      "boroughLabel": null,
+      "label": "Bay Terrace, Queens",
       "spellings": [
         "Bay Terrace"
-      ]
+      ],
+      "rows": 42,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "Bay Terrace, Staten Island",
+      "spellings": [
+        "Bay Terrace"
+      ],
+      "rows": 17,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": true
     },
     {
       "label": "Baychester",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Baychester",
         "BAYCHESTER"
-      ]
+      ],
+      "rows": 27,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
     },
     {
       "label": "Bayside",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Bayside"
-      ]
+      ],
+      "rows": 120,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
     },
     {
       "label": "Bayswater",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Bayswater"
-      ]
+      ],
+      "rows": 4,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "BED-STUY",
+      "spellings": [
+        "BED-STUY",
+        "Bed Stuy"
+      ],
+      "rows": 155,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Bedford Park",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Bedford Park",
         "BEDFORDPARK"
-      ]
+      ],
+      "rows": 96,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
     },
     {
       "label": "Bedford-Stuyvesant",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Bedford-Stuyvesant",
         "Bedford - Stuyvesant",
         "Bedford Stuyvesant",
         "Bedford/Stuyvesant"
-      ]
+      ],
+      "rows": 10319,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "Beechhurst",
+      "spellings": [
+        "Beechhurst"
+      ],
+      "rows": 1,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "Beechurst",
+      "spellings": [
+        "Beechurst"
+      ],
+      "rows": 12,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
     },
     {
       "label": "Beekman",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Beekman",
         "BEEKMAN"
-      ]
+      ],
+      "rows": 959,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "Beekman Place",
+      "spellings": [
+        "Beekman Place"
+      ],
+      "rows": 36,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Bellaire",
+      "spellings": [
+        "Bellaire"
+      ],
+      "rows": 4,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
     },
     {
       "label": "Belle Harbor",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Belle Harbor"
-      ]
+      ],
+      "rows": 87,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
     },
     {
       "label": "Bellerose",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Bellerose"
-      ]
+      ],
+      "rows": 48,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
     },
     {
       "label": "Belmont",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Belmont"
-      ]
+      ],
+      "rows": 75,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
+    },
+    {
+      "label": "Belmont | Little Ita",
+      "spellings": [
+        "Belmont | Little Ita"
+      ],
+      "rows": 10,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
+    },
+    {
+      "label": "Belmont | Little Italy",
+      "spellings": [
+        "Belmont | Little Italy"
+      ],
+      "rows": 2,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
+    },
+    {
+      "label": "BENHURST",
+      "spellings": [
+        "BENHURST"
+      ],
+      "rows": 5,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Bensonhurst",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Bensonhurst"
-      ]
+      ],
+      "rows": 409,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
     },
     {
       "label": "Bergen Beach",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Bergen Beach",
         "BERGENBEACH"
-      ]
+      ],
+      "rows": 62,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "Beverley Square West",
+      "spellings": [
+        "Beverley Square West"
+      ],
+      "rows": 3,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Birchwood Towers",
+      "spellings": [
+        "Birchwood Towers"
+      ],
+      "rows": 2,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "BKLYNHTS",
+      "spellings": [
+        "BKLYNHTS"
+      ],
+      "rows": 95,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "BLHARBOR",
+      "spellings": [
+        "BLHARBOR"
+      ],
+      "rows": 2,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "Blissville",
+      "spellings": [
+        "Blissville"
+      ],
+      "rows": 1,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "Boerum",
+      "spellings": [
+        "Boerum"
+      ],
+      "rows": 14,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Boerum Hill",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Boerum Hill"
-      ]
+      ],
+      "rows": 4365,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "BOERUMHL",
+      "spellings": [
+        "BOERUMHL"
+      ],
+      "rows": 65,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "BOROPARK",
+      "spellings": [
+        "BOROPARK"
+      ],
+      "rows": 2,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Borough Park",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Borough Park"
-      ]
+      ],
+      "rows": 239,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "Bowery",
+      "spellings": [
+        "Bowery"
+      ],
+      "rows": 1,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Bowne Park",
+      "spellings": [
+        "Bowne Park"
+      ],
+      "rows": 5,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
     },
     {
       "label": "Breezy Point",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Breezy Point"
-      ]
+      ],
+      "rows": 25,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
     },
     {
       "label": "Briarwood",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Briarwood"
-      ]
+      ],
+      "rows": 212,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "Brickwood Towers",
+      "spellings": [
+        "Brickwood Towers"
+      ],
+      "rows": 5,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "BRIGHTON",
+      "spellings": [
+        "BRIGHTON"
+      ],
+      "rows": 5,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Brighton Beach",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Brighton Beach"
-      ]
+      ],
+      "rows": 369,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
     },
     {
       "label": "Broad Channel",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Broad Channel"
-      ]
+      ],
+      "rows": 8,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "Broadway Junction",
+      "spellings": [
+        "Broadway Junction"
+      ],
+      "rows": 4,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Bronx",
+      "spellings": [
+        "Bronx"
+      ],
+      "rows": 218,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
     },
     {
       "label": "Bronxdale",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Bronxdale"
-      ]
+      ],
+      "rows": 17,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
+    },
+    {
+      "label": "BRONXOTHER",
+      "spellings": [
+        "BRONXOTHER",
+        "Bronx (Other)"
+      ],
+      "rows": 3,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
     },
     {
       "label": "Bronxwood",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Bronxwood"
-      ]
+      ],
+      "rows": 14,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
+    },
+    {
+      "label": "Brooklyn",
+      "spellings": [
+        "Brooklyn",
+        "BROOKLYN"
+      ],
+      "rows": 1173,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "BROOKLYN [ALL]",
+      "spellings": [
+        "BROOKLYN [ALL]"
+      ],
+      "rows": 27,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Brooklyn Heights",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Brooklyn Heights"
-      ]
+      ],
+      "rows": 8779,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "Brookville",
+      "spellings": [
+        "Brookville"
+      ],
+      "rows": 3,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
     },
     {
       "label": "Brownsville",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Brownsville"
-      ]
+      ],
+      "rows": 196,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "Bryant Park",
+      "spellings": [
+        "Bryant Park"
+      ],
+      "rows": 1,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Bulls Head",
+      "spellings": [
+        "Bulls Head"
+      ],
+      "rows": 19,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
     },
     {
       "label": "Bushwick",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Bushwick"
-      ]
+      ],
+      "rows": 5812,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "BUSK",
+      "spellings": [
+        "BUSK"
+      ],
+      "rows": 111,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Cambria Heights",
+      "spellings": [
+        "Cambria Heights"
+      ],
+      "rows": 18,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
     },
     {
       "label": "Canarsie",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Canarsie",
         "CANARSIE"
-      ]
+      ],
+      "rows": 382,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "CARLGDNS",
+      "spellings": [
+        "CARLGDNS"
+      ],
+      "rows": 84,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "CARNEGIE",
+      "spellings": [
+        "CARNEGIE"
+      ],
+      "rows": 58,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Carnegie Hill",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Carnegie Hill"
-      ]
+      ],
+      "rows": 3949,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
     },
     {
       "label": "Carroll Gardens",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Carroll Gardens"
-      ]
+      ],
+      "rows": 4202,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "Castle Hill",
+      "spellings": [
+        "Castle Hill"
+      ],
+      "rows": 6,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
     },
     {
       "label": "Castleton Corners",
-      "borough": "StatenIsland",
-      "boroughLabel": "Staten Island",
       "spellings": [
         "Castleton Corners"
-      ]
+      ],
+      "rows": 3,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": true
+    },
+    {
+      "label": "Caton Park",
+      "spellings": [
+        "Caton Park"
+      ],
+      "rows": 3,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Catskill",
+      "spellings": [
+        "Catskill"
+      ],
+      "rows": 2,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "CENTPKSTH",
+      "spellings": [
+        "CENTPKSTH"
+      ],
+      "rows": 64,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Central Harlem",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Central Harlem"
-      ]
+      ],
+      "rows": 2404,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
     },
     {
       "label": "Central Park South",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Central Park South"
-      ]
+      ],
+      "rows": 2254,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "Central Park West",
+      "spellings": [
+        "Central Park West"
+      ],
+      "rows": 227,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Central Riverdale",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Central Riverdale"
-      ]
+      ],
+      "rows": 244,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
+    },
+    {
+      "label": "Central Village",
+      "spellings": [
+        "Central Village"
+      ],
+      "rows": 606,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Charleston",
+      "spellings": [
+        "Charleston"
+      ],
+      "rows": 1,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
     },
     {
       "label": "Chelsea",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Chelsea",
         "CHELSEA"
-      ]
+      ],
+      "rows": 20075,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "Chelsea / Flatiron",
+      "spellings": [
+        "Chelsea / Flatiron",
+        "Chelsea/Flatiron"
+      ],
+      "rows": 31,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Chelsea/Hudson Yards",
+      "spellings": [
+        "Chelsea/Hudson Yards"
+      ],
+      "rows": 2985,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Chinatown",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Chinatown"
-      ]
+      ],
+      "rows": 1477,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "Chinatown / Little I",
+      "spellings": [
+        "Chinatown / Little I"
+      ],
+      "rows": 8,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Chinatown Little Ita",
+      "spellings": [
+        "Chinatown Little Ita"
+      ],
+      "rows": 3,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "City Island",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "City Island"
-      ]
+      ],
+      "rows": 48,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
     },
     {
       "label": "City Line",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "City Line",
         "CITYLINE"
-      ]
+      ],
+      "rows": 23,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "Civic Center",
+      "spellings": [
+        "Civic Center"
+      ],
+      "rows": 122,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Claremont",
+      "spellings": [
+        "Claremont"
+      ],
+      "rows": 5,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
+    },
+    {
+      "label": "Claremont Village",
+      "spellings": [
+        "Claremont Village"
+      ],
+      "rows": 2,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
     },
     {
       "label": "Clason Point",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Clason Point",
         "CLASONPOINT"
-      ]
+      ],
+      "rows": 19,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
+    },
+    {
+      "label": "Clearview",
+      "spellings": [
+        "Clearview"
+      ],
+      "rows": 13,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "Cliffside Park",
+      "spellings": [
+        "Cliffside Park"
+      ],
+      "rows": 2,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Clifton",
+      "spellings": [
+        "Clifton"
+      ],
+      "rows": 7,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
+    },
+    {
+      "label": "CLINTHL",
+      "spellings": [
+        "CLINTHL"
+      ],
+      "rows": 61,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Clinton",
+      "spellings": [
+        "Clinton",
+        "CLINTON"
+      ],
+      "rows": 8447,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Clinton / Hell's Kit",
+      "spellings": [
+        "Clinton / Hell's Kit"
+      ],
+      "rows": 129,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "CLINTON DUT",
+      "spellings": [
+        "CLINTON DUT"
+      ],
+      "rows": 4,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Clinton Hill",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Clinton Hill"
-      ]
+      ],
+      "rows": 6886,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "Clinton Hill/Ft Gree",
+      "spellings": [
+        "Clinton Hill/Ft Gree"
+      ],
+      "rows": 6,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "CNA",
+      "spellings": [
+        "CNA"
+      ],
+      "rows": 1,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
     },
     {
       "label": "Cobble Hill",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Cobble Hill"
-      ]
+      ],
+      "rows": 3159,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "COBBLEHL",
+      "spellings": [
+        "COBBLEHL"
+      ],
+      "rows": 58,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "College Point",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "College Point"
-      ]
+      ],
+      "rows": 26,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "Columbia",
+      "spellings": [
+        "Columbia"
+      ],
+      "rows": 10,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Columbia Presb",
+      "spellings": [
+        "Columbia Presb"
+      ],
+      "rows": 2,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Columbia St Waterfr",
+      "spellings": [
+        "Columbia St Waterfr",
+        "Columbia St Waterfr."
+      ],
+      "rows": 70,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Columbia St Waterfro",
+      "spellings": [
+        "Columbia St Waterfro"
+      ],
+      "rows": 17,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Columbia St Waterfront District",
+      "spellings": [
+        "Columbia St Waterfront District"
+      ],
+      "rows": 12,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Columbia St. Waterfront",
+      "spellings": [
+        "Columbia St. Waterfront",
+        "COLUMBIASTWATERFRONT"
+      ],
+      "rows": 34,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Columbia Street Wat",
+      "spellings": [
+        "Columbia Street Wat"
+      ],
+      "rows": 18,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Columbia Street Wate",
+      "spellings": [
+        "Columbia Street Wate"
+      ],
+      "rows": 255,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Columbia Street Waterfront",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Columbia Street Waterfront"
-      ]
+      ],
+      "rows": 48,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "Columbia Street Waterfront District",
+      "spellings": [
+        "Columbia Street Waterfront District"
+      ],
+      "rows": 1,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Columbia Street WD",
+      "spellings": [
+        "Columbia Street WD"
+      ],
+      "rows": 85,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Columbia Waterfront",
+      "spellings": [
+        "Columbia Waterfront"
+      ],
+      "rows": 76,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "COLUMBUSCIR",
+      "spellings": [
+        "COLUMBUSCIR"
+      ],
+      "rows": 3,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Concord",
-      "borough": "StatenIsland",
-      "boroughLabel": "Staten Island",
       "spellings": [
         "Concord"
-      ]
+      ],
+      "rows": 7,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": true
     },
     {
       "label": "Concourse",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Concourse"
-      ]
+      ],
+      "rows": 332,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
     },
     {
       "label": "Concourse Village",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Concourse Village"
-      ]
+      ],
+      "rows": 175,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
     },
     {
       "label": "Coney Island",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Coney Island"
-      ]
+      ],
+      "rows": 108,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "CONEYISL",
+      "spellings": [
+        "CONEYISL"
+      ],
+      "rows": 7,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Copake",
+      "spellings": [
+        "Copake"
+      ],
+      "rows": 1,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Corona",
+      "spellings": [
+        "Corona"
+      ],
+      "rows": 95,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
     },
     {
       "label": "Country Club",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Country Club"
-      ]
+      ],
+      "rows": 26,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
+    },
+    {
+      "label": "Court Square",
+      "spellings": [
+        "Court Square"
+      ],
+      "rows": 1045,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "Crotona Park East",
+      "spellings": [
+        "Crotona Park East"
+      ],
+      "rows": 4,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
     },
     {
       "label": "Crown Heights",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Crown Heights"
-      ]
+      ],
+      "rows": 6752,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "CROWNHEI",
+      "spellings": [
+        "CROWNHEI"
+      ],
+      "rows": 34,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "CYPRESS",
+      "spellings": [
+        "CYPRESS"
+      ],
+      "rows": 1,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Cypress Hills",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Cypress Hills"
-      ]
+      ],
+      "rows": 98,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "Dash Estate",
+      "spellings": [
+        "Dash Estate"
+      ],
+      "rows": 1,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
+    },
+    {
+      "label": "Ditmars Park",
+      "spellings": [
+        "Ditmars Park"
+      ],
+      "rows": 1,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Ditmars Steinway",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Ditmars Steinway",
         "Ditmars-Steinway"
-      ]
+      ],
+      "rows": 259,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
     },
     {
       "label": "Ditmas Park",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Ditmas Park",
         "Ditmas park"
-      ]
+      ],
+      "rows": 1396,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "Ditmas Park West",
+      "spellings": [
+        "Ditmas Park West"
+      ],
+      "rows": 2,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "DITMASPK",
+      "spellings": [
+        "DITMASPK"
+      ],
+      "rows": 44,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "DNU-Brooklyn",
+      "spellings": [
+        "DNU-Brooklyn"
+      ],
+      "rows": 31,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Dongan Hills",
+      "spellings": [
+        "Dongan Hills"
+      ],
+      "rows": 23,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
     },
     {
       "label": "Douglaston",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Douglaston"
-      ]
+      ],
+      "rows": 38,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "Downtown",
+      "spellings": [
+        "Downtown"
+      ],
+      "rows": 346,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "DOWNTOWN [ALL]",
+      "spellings": [
+        "DOWNTOWN [ALL]"
+      ],
+      "rows": 27,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Downtown Brooklyn",
-      "borough": null,
-      "boroughLabel": null,
       "spellings": [
         "Downtown Brooklyn"
-      ]
+      ],
+      "rows": 6988,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "DTWNBKYN",
+      "spellings": [
+        "DTWNBKYN"
+      ],
+      "rows": 30,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "DUMBO",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Dumbo",
         "DUMBO"
-      ]
+      ],
+      "rows": 2211,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "DUMBO / Vinegar Hill",
+      "spellings": [
+        "DUMBO / Vinegar Hill",
+        "Dumbo - Vinegar Hill"
+      ],
+      "rows": 855,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "DUMBO-Vinegar Hill-Downtown Brooklyn-Boerum Hill",
+      "spellings": [
+        "DUMBO-Vinegar Hill-Downtown Brooklyn-Boerum Hill"
+      ],
+      "rows": 1,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Dyker Heights",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Dyker Heights"
-      ]
+      ],
+      "rows": 270,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "DYKERSHT",
+      "spellings": [
+        "DYKERSHT"
+      ],
+      "rows": 1,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "E. Greenwich Village",
+      "spellings": [
+        "E. Greenwich Village"
+      ],
+      "rows": 871,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "East Elmhurst",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "East Elmhurst"
-      ]
+      ],
+      "rows": 115,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
     },
     {
       "label": "East Flatbush",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "East Flatbush"
-      ]
+      ],
+      "rows": 828,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "East Flatbush-Farragut",
+      "spellings": [
+        "East Flatbush-Farragut"
+      ],
+      "rows": 1,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "East Flushing",
+      "spellings": [
+        "East Flushing"
+      ],
+      "rows": 3,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
     },
     {
       "label": "East Harlem",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "East Harlem"
-      ]
+      ],
+      "rows": 4827,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "East Midwood",
+      "spellings": [
+        "East Midwood"
+      ],
+      "rows": 1,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "East Morrisania",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "East Morrisania"
-      ]
+      ],
+      "rows": 3,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
     },
     {
       "label": "East New York",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "East New York"
-      ]
+      ],
+      "rows": 562,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "East Tremont",
+      "spellings": [
+        "East Tremont"
+      ],
+      "rows": 26,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
     },
     {
       "label": "East Village",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "East Village"
-      ]
+      ],
+      "rows": 9166,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
     },
     {
       "label": "East Williamsburg",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "East Williamsburg",
         "EASTWILLIAMSBURG"
-      ]
+      ],
+      "rows": 1943,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
     },
     {
       "label": "Eastchester",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Eastchester"
-      ]
+      ],
+      "rows": 15,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
+    },
+    {
+      "label": "Easthampton",
+      "spellings": [
+        "Easthampton"
+      ],
+      "rows": 4,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "EASTVILL",
+      "spellings": [
+        "EASTVILL"
+      ],
+      "rows": 157,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Edenwald",
+      "spellings": [
+        "Edenwald"
+      ],
+      "rows": 11,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
     },
     {
       "label": "Edgemere",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Edgemere"
-      ]
+      ],
+      "rows": 6,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "EFLATBUS",
+      "spellings": [
+        "EFLATBUS"
+      ],
+      "rows": 9,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "EHARLEM",
+      "spellings": [
+        "EHARLEM"
+      ],
+      "rows": 47,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Elm Park",
+      "spellings": [
+        "Elm Park"
+      ],
+      "rows": 2,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
     },
     {
       "label": "Elmhurst",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Elmhurst"
-      ]
+      ],
+      "rows": 595,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
     },
     {
       "label": "Eltingville",
-      "borough": "StatenIsland",
-      "boroughLabel": "Staten Island",
       "spellings": [
         "Eltingville",
         "ELTINGVILLE"
-      ]
+      ],
+      "rows": 22,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": true
+    },
+    {
+      "label": "Emerson Hill",
+      "spellings": [
+        "Emerson Hill"
+      ],
+      "rows": 6,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
+    },
+    {
+      "label": "ENY",
+      "spellings": [
+        "ENY"
+      ],
+      "rows": 2,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Erasmus",
+      "spellings": [
+        "Erasmus"
+      ],
+      "rows": 1,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Essex Falls",
+      "spellings": [
+        "Essex Falls"
+      ],
+      "rows": 1,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Estate Area",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Estate Area"
-      ]
+      ],
+      "rows": 21,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
+    },
+    {
+      "label": "Far Rockaway",
+      "spellings": [
+        "Far Rockaway"
+      ],
+      "rows": 33,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
     },
     {
       "label": "Farragut",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Farragut"
-      ]
+      ],
+      "rows": 70,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "FASHCNTR",
+      "spellings": [
+        "FASHCNTR"
+      ],
+      "rows": 199,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Fashion District",
+      "spellings": [
+        "Fashion District"
+      ],
+      "rows": 5,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "FHAMIL",
+      "spellings": [
+        "FHAMIL"
+      ],
+      "rows": 5,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Fieldston",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Fieldston"
-      ]
+      ],
+      "rows": 235,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
     },
     {
       "label": "Financial District",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Financial District"
-      ]
+      ],
+      "rows": 12619,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "FINLDIST",
+      "spellings": [
+        "FINLDIST"
+      ],
+      "rows": 243,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Fiske Terrace",
+      "spellings": [
+        "Fiske Terrace"
+      ],
+      "rows": 7,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Flatbush",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Flatbush",
         "FLATBUSH"
-      ]
+      ],
+      "rows": 2514,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
     },
     {
       "label": "Flatiron",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Flatiron",
         "FLATIRON"
-      ]
+      ],
+      "rows": 7601,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "Flatiron District",
+      "spellings": [
+        "Flatiron District"
+      ],
+      "rows": 286,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "FLATLAND",
+      "spellings": [
+        "FLATLAND"
+      ],
+      "rows": 2,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Flatlands",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Flatlands"
-      ]
+      ],
+      "rows": 286,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "Floral Park",
+      "spellings": [
+        "Floral Park"
+      ],
+      "rows": 15,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
     },
     {
       "label": "Flushing",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Flushing",
         "FLUSHING"
-      ]
+      ],
+      "rows": 689,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "Flushing Heights",
+      "spellings": [
+        "Flushing Heights"
+      ],
+      "rows": 1,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
     },
     {
       "label": "Fordham",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Fordham",
         "FORDHAM"
-      ]
+      ],
+      "rows": 218,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
+    },
+    {
+      "label": "Fordham Heights",
+      "spellings": [
+        "Fordham Heights"
+      ],
+      "rows": 2,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
+    },
+    {
+      "label": "Fordham Manor",
+      "spellings": [
+        "Fordham Manor"
+      ],
+      "rows": 5,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
     },
     {
       "label": "Forest Hills",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Forest Hills"
-      ]
+      ],
+      "rows": 2253,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "Forest Hills Garden",
+      "spellings": [
+        "Forest Hills Garden"
+      ],
+      "rows": 2,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "Forest Hills Gardens",
+      "spellings": [
+        "Forest Hills Gardens"
+      ],
+      "rows": 2,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "Forest Park",
+      "spellings": [
+        "Forest Park"
+      ],
+      "rows": 6,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "FORHILLS",
+      "spellings": [
+        "FORHILLS"
+      ],
+      "rows": 31,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
     },
     {
       "label": "Fort George",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Fort George"
-      ]
+      ],
+      "rows": 179,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
     },
     {
       "label": "Fort Greene",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Fort Greene"
-      ]
+      ],
+      "rows": 5495,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
     },
     {
       "label": "Fort Hamilton",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Fort Hamilton"
-      ]
+      ],
+      "rows": 709,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "FORTGRNE",
+      "spellings": [
+        "FORTGRNE"
+      ],
+      "rows": 52,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Fresh Kills",
+      "spellings": [
+        "Fresh Kills"
+      ],
+      "rows": 1,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
+    },
+    {
+      "label": "Fresh Meadows",
+      "spellings": [
+        "Fresh Meadows"
+      ],
+      "rows": 35,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "Fulton Ferry",
+      "spellings": [
+        "Fulton Ferry"
+      ],
+      "rows": 63,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Garment District",
+      "spellings": [
+        "Garment District"
+      ],
+      "rows": 69,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "GDL",
+      "spellings": [
+        "GDL"
+      ],
+      "rows": 5,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "Georgetown",
+      "spellings": [
+        "Georgetown"
+      ],
+      "rows": 41,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Gerritsen Beach",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Gerritsen Beach"
-      ]
+      ],
+      "rows": 61,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
     },
     {
       "label": "Glen Oaks",
-      "borough": null,
-      "boroughLabel": null,
       "spellings": [
         "Glen Oaks"
-      ]
+      ],
+      "rows": 53,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
     },
     {
       "label": "Glendale",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Glendale"
-      ]
+      ],
+      "rows": 122,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
     },
     {
       "label": "Gowanus",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Gowanus",
         "GOWANUS"
-      ]
+      ],
+      "rows": 1804,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "Gramercy",
+      "spellings": [
+        "Gramercy",
+        "GRAMERCY"
+      ],
+      "rows": 930,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Gramercy Park",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Gramercy Park"
-      ]
+      ],
+      "rows": 9542,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "GRANDCONCOURSE",
+      "spellings": [
+        "GRANDCONCOURSE"
+      ],
+      "rows": 34,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
+    },
+    {
+      "label": "Graniteville",
+      "spellings": [
+        "Graniteville"
+      ],
+      "rows": 9,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
+    },
+    {
+      "label": "Grant City",
+      "spellings": [
+        "Grant City"
+      ],
+      "rows": 8,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
     },
     {
       "label": "Grasmere",
-      "borough": "StatenIsland",
-      "boroughLabel": "Staten Island",
       "spellings": [
         "Grasmere"
-      ]
+      ],
+      "rows": 7,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": true
     },
     {
       "label": "Gravesend",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Gravesend"
-      ]
+      ],
+      "rows": 319,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "GRAVESND",
+      "spellings": [
+        "GRAVESND"
+      ],
+      "rows": 3,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Great Kills",
-      "borough": "StatenIsland",
-      "boroughLabel": "Staten Island",
       "spellings": [
         "Great Kills"
-      ]
+      ],
+      "rows": 33,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": true
     },
     {
       "label": "Greenpoint",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Greenpoint",
         "Green Point"
-      ]
+      ],
+      "rows": 6308,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "GREENPT",
+      "spellings": [
+        "GREENPT"
+      ],
+      "rows": 85,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Greenridge",
+      "spellings": [
+        "Greenridge"
+      ],
+      "rows": 2,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
+    },
+    {
+      "label": "GREENWD",
+      "spellings": [
+        "GREENWD"
+      ],
+      "rows": 15,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Greenwich Village",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Greenwich Village"
-      ]
+      ],
+      "rows": 19695,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "Greenwich Village/We",
+      "spellings": [
+        "Greenwich Village/We"
+      ],
+      "rows": 212,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Greenwich Village/West Village",
+      "spellings": [
+        "Greenwich Village/West Village"
+      ],
+      "rows": 84,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Greenwood",
+      "spellings": [
+        "Greenwood"
+      ],
+      "rows": 184,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Greenwood Heights",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Greenwood Heights"
-      ]
+      ],
+      "rows": 1232,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "GRENVILL",
+      "spellings": [
+        "GRENVILL"
+      ],
+      "rows": 1327,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Grenwich Village",
+      "spellings": [
+        "Grenwich Village"
+      ],
+      "rows": 1,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Grymes Hill",
+      "spellings": [
+        "Grymes Hill"
+      ],
+      "rows": 12,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
+    },
+    {
+      "label": "Guttenberg",
+      "spellings": [
+        "Guttenberg"
+      ],
+      "rows": 1,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "HAMHGTS",
+      "spellings": [
+        "HAMHGTS"
+      ],
+      "rows": 69,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Hamilton Heights",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Hamilton Heights"
-      ]
+      ],
+      "rows": 3531,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "Hammels",
+      "spellings": [
+        "Hammels"
+      ],
+      "rows": 9,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
     },
     {
       "label": "Harlem",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Harlem",
         "HARLEM"
-      ]
+      ],
+      "rows": 10103,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "Harlem / Morningside",
+      "spellings": [
+        "Harlem / Morningside"
+      ],
+      "rows": 32,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "HDBH",
+      "spellings": [
+        "HDBH"
+      ],
+      "rows": 1,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "Heartland Village",
+      "spellings": [
+        "Heartland Village"
+      ],
+      "rows": 9,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
     },
     {
       "label": "Hell's Kitchen",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Hell's Kitchen",
         "Hells Kitchen"
-      ]
+      ],
+      "rows": 3164,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
     },
     {
       "label": "Highbridge",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Highbridge",
         "High Bridge",
         "HIGHBRIDGE"
-      ]
+      ],
+      "rows": 88,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
+    },
+    {
+      "label": "Highland Park",
+      "spellings": [
+        "Highland Park"
+      ],
+      "rows": 7,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Hillcrest",
+      "spellings": [
+        "Hillcrest"
+      ],
+      "rows": 5,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "Hillsdale",
+      "spellings": [
+        "Hillsdale"
+      ],
+      "rows": 1,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Hoboken",
+      "spellings": [
+        "Hoboken"
+      ],
+      "rows": 14,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Hollis",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Hollis"
-      ]
+      ],
+      "rows": 22,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "Hollis Hills",
+      "spellings": [
+        "Hollis Hills"
+      ],
+      "rows": 3,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "Holliswood",
+      "spellings": [
+        "Holliswood"
+      ],
+      "rows": 4,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "HOMECRE",
+      "spellings": [
+        "HOMECRE"
+      ],
+      "rows": 1,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Homecrest",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Homecrest"
-      ]
+      ],
+      "rows": 183,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
     },
     {
       "label": "Howard Beach",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Howard Beach"
-      ]
+      ],
+      "rows": 35,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "Hudson",
+      "spellings": [
+        "Hudson"
+      ],
+      "rows": 8,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Hudson Heights",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Hudson Heights"
-      ]
+      ],
+      "rows": 2352,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
     },
     {
       "label": "Hudson Square",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Hudson Square"
-      ]
+      ],
+      "rows": 683,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "Hudson Yard",
+      "spellings": [
+        "Hudson Yard"
+      ],
+      "rows": 1,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Hudson Yards",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Hudson Yards"
-      ]
+      ],
+      "rows": 1160,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "Hudson Yards / MSG",
+      "spellings": [
+        "Hudson Yards / MSG"
+      ],
+      "rows": 1,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Huguenot",
+      "spellings": [
+        "Huguenot"
+      ],
+      "rows": 17,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
     },
     {
       "label": "Hunters Point",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Hunters Point"
-      ]
+      ],
+      "rows": 686,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "Hunters Point-Sunnyside-West Maspeth",
+      "spellings": [
+        "Hunters Point-Sunnyside-West Maspeth",
+        "Hunters Point-sunnyside-west Maspeth"
+      ],
+      "rows": 2,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "Huntington",
+      "spellings": [
+        "Huntington"
+      ],
+      "rows": 13,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "Hunts Point",
+      "spellings": [
+        "Hunts Point"
+      ],
+      "rows": 18,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
     },
     {
       "label": "Inwood",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Inwood",
         "INWOOD"
-      ]
+      ],
+      "rows": 1927,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "Inwood / Washington",
+      "spellings": [
+        "Inwood / Washington"
+      ],
+      "rows": 43,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Inwood/Marble Hill",
+      "spellings": [
+        "Inwood/Marble Hill"
+      ],
+      "rows": 23,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "ITALCHIN",
+      "spellings": [
+        "ITALCHIN"
+      ],
+      "rows": 90,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Italy",
+      "spellings": [
+        "Italy"
+      ],
+      "rows": 1,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Jackson Heights",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Jackson Heights",
         "Jackson heights"
-      ]
+      ],
+      "rows": 2281,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "JACOBJAV",
+      "spellings": [
+        "JACOBJAV"
+      ],
+      "rows": 22,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Jamaica",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Jamaica"
-      ]
+      ],
+      "rows": 335,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "Jamaica Center",
+      "spellings": [
+        "Jamaica Center"
+      ],
+      "rows": 2,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "Jamaica Estate",
+      "spellings": [
+        "Jamaica Estate"
+      ],
+      "rows": 5,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
     },
     {
       "label": "Jamaica Estates",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Jamaica Estates"
-      ]
+      ],
+      "rows": 203,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
     },
     {
       "label": "Jamaica Hills",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Jamaica Hills"
-      ]
+      ],
+      "rows": 73,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "Jersey City",
+      "spellings": [
+        "Jersey City"
+      ],
+      "rows": 1,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Jersey City Downtown",
+      "spellings": [
+        "Jersey City Downtown"
+      ],
+      "rows": 2,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "JKHTS",
+      "spellings": [
+        "JKHTS"
+      ],
+      "rows": 6,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "JMCA",
+      "spellings": [
+        "JMCA"
+      ],
+      "rows": 15,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "KENSINGT",
+      "spellings": [
+        "KENSINGT"
+      ],
+      "rows": 20,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Kensingtn/Ocean Pkwy",
+      "spellings": [
+        "Kensingtn/Ocean Pkwy"
+      ],
+      "rows": 37,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Kensington",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Kensington"
-      ]
+      ],
+      "rows": 2435,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "Kensington / Ocean Pkwy",
+      "spellings": [
+        "Kensington / Ocean Pkwy"
+      ],
+      "rows": 11,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Kensington and Parkv",
+      "spellings": [
+        "Kensington and Parkv"
+      ],
+      "rows": 13,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Kew Gardens",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Kew Gardens"
-      ]
+      ],
+      "rows": 342,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
     },
     {
       "label": "Kew Gardens Hills",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Kew Gardens Hills"
-      ]
+      ],
+      "rows": 119,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "Kinderhook",
+      "spellings": [
+        "Kinderhook"
+      ],
+      "rows": 1,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Kings Club District",
+      "spellings": [
+        "Kings Club District"
+      ],
+      "rows": 1,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Kingsbridge",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Kingsbridge",
         "KINGSBRIDGE"
-      ]
+      ],
+      "rows": 423,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
     },
     {
       "label": "Kingsbridge Heights",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Kingsbridge Heights"
-      ]
+      ],
+      "rows": 55,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
     },
     {
       "label": "Kips Bay",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Kips Bay",
         "KIPSBAY"
-      ]
+      ],
+      "rows": 5164,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "Koreatown",
+      "spellings": [
+        "Koreatown"
+      ],
+      "rows": 1,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Laconia",
+      "spellings": [
+        "Laconia"
+      ],
+      "rows": 1,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
+    },
+    {
+      "label": "Laurelton",
+      "spellings": [
+        "Laurelton"
+      ],
+      "rows": 27,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "Lefferts",
+      "spellings": [
+        "Lefferts"
+      ],
+      "rows": 15,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Lefferts Garden",
+      "spellings": [
+        "Lefferts Garden"
+      ],
+      "rows": 5,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Lefferts Gardens",
+      "spellings": [
+        "Lefferts Gardens"
+      ],
+      "rows": 474,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Lenox Hill",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Lenox Hill"
-      ]
+      ],
+      "rows": 6469,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "Lenox Hill-Roosevelt",
+      "spellings": [
+        "Lenox Hill-Roosevelt"
+      ],
+      "rows": 1,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Lenox Hill-Roosevelt Island",
+      "spellings": [
+        "Lenox Hill-Roosevelt Island",
+        "Lenox Hill-roosevelt Island"
+      ],
+      "rows": 8,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "LINCOLN",
+      "spellings": [
+        "LINCOLN"
+      ],
+      "rows": 160,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Lincoln Center",
+      "spellings": [
+        "Lincoln Center"
+      ],
+      "rows": 230,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Lincoln Square",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Lincoln Square"
-      ]
+      ],
+      "rows": 8949,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
     },
     {
       "label": "Lindenwood",
-      "borough": null,
-      "boroughLabel": null,
       "spellings": [
         "Lindenwood"
-      ]
+      ],
+      "rows": 14,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
     },
     {
       "label": "Little Italy",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Little Italy"
-      ]
+      ],
+      "rows": 962,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
     },
     {
       "label": "Little Neck",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Little Neck"
-      ]
+      ],
+      "rows": 32,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "Livingston",
+      "spellings": [
+        "Livingston"
+      ],
+      "rows": 3,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
+    },
+    {
+      "label": "LNGCTY",
+      "spellings": [
+        "LNGCTY"
+      ],
+      "rows": 107,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
     },
     {
       "label": "Locust Point",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Locust Point"
-      ]
+      ],
+      "rows": 1,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
+    },
+    {
+      "label": "Lodi",
+      "spellings": [
+        "Lodi"
+      ],
+      "rows": 1,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "LOEAST",
+      "spellings": [
+        "LOEAST"
+      ],
+      "rows": 263,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Long Island",
+      "spellings": [
+        "Long Island"
+      ],
+      "rows": 6,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
     },
     {
       "label": "Long Island City",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Long Island City"
-      ]
+      ],
+      "rows": 7407,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
     },
     {
       "label": "Longwood",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Longwood",
         "LONGWOOD"
-      ]
+      ],
+      "rows": 45,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
     },
     {
       "label": "Lower East Side",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Lower East Side"
-      ]
+      ],
+      "rows": 8439,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "Lower East Side/Chin",
+      "spellings": [
+        "Lower East Side/Chin"
+      ],
+      "rows": 78,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Lower East Side/Chinatown",
+      "spellings": [
+        "Lower East Side/Chinatown"
+      ],
+      "rows": 9,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Lower Manhattan",
+      "spellings": [
+        "Lower Manhattan"
+      ],
+      "rows": 153,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Madison",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Madison",
         "MADISON"
-      ]
+      ],
+      "rows": 54,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "Malba",
+      "spellings": [
+        "Malba"
+      ],
+      "rows": 2,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "MANBEACH",
+      "spellings": [
+        "MANBEACH"
+      ],
+      "rows": 1,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Manhattan",
+      "spellings": [
+        "Manhattan",
+        "MANHATTAN"
+      ],
+      "rows": 875,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Manhattan Avenue",
+      "spellings": [
+        "Manhattan Avenue"
+      ],
+      "rows": 6,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Manhattan Beach",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Manhattan Beach"
-      ]
+      ],
+      "rows": 90,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "Manhattan Terrace",
+      "spellings": [
+        "Manhattan Terrace"
+      ],
+      "rows": 9,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Manhattan Valley",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Manhattan Valley"
-      ]
+      ],
+      "rows": 1635,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
     },
     {
       "label": "Manhattanville",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Manhattanville"
-      ]
+      ],
+      "rows": 48,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "Manor Heights",
+      "spellings": [
+        "Manor Heights"
+      ],
+      "rows": 4,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
     },
     {
       "label": "Mapleton",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Mapleton",
         "MAPLETON"
-      ]
+      ],
+      "rows": 33,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
     },
     {
       "label": "Marble Hill",
-      "borough": null,
-      "boroughLabel": null,
       "spellings": [
         "Marble Hill"
-      ]
+      ],
+      "rows": 70,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
     },
     {
       "label": "Marine Park",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Marine Park"
-      ]
+      ],
+      "rows": 184,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "Marine Park/Mill Basin",
+      "spellings": [
+        "Marine Park/Mill Basin"
+      ],
+      "rows": 4,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Marine Pk/Mill Basin",
+      "spellings": [
+        "Marine Pk/Mill Basin"
+      ],
+      "rows": 2,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Mariners Harbor",
-      "borough": "StatenIsland",
-      "boroughLabel": "Staten Island",
       "spellings": [
         "Mariners Harbor"
-      ]
+      ],
+      "rows": 13,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": true
     },
     {
       "label": "Maspeth",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Maspeth"
-      ]
+      ],
+      "rows": 170,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "Meatpacking",
+      "spellings": [
+        "Meatpacking"
+      ],
+      "rows": 79,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Meatpacking District",
+      "spellings": [
+        "Meatpacking District"
+      ],
+      "rows": 39,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Meiers Corners",
-      "borough": "StatenIsland",
-      "boroughLabel": "Staten Island",
       "spellings": [
         "Meiers Corners"
-      ]
+      ],
+      "rows": 1,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": true
     },
     {
       "label": "Melrose",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Melrose",
         "MELROSE"
-      ]
+      ],
+      "rows": 83,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
+    },
+    {
+      "label": "Middle East Side",
+      "spellings": [
+        "Middle East Side"
+      ],
+      "rows": 954,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Middle Village",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Middle Village"
-      ]
+      ],
+      "rows": 121,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "Middle West Side",
+      "spellings": [
+        "Middle West Side"
+      ],
+      "rows": 606,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Midland Beach",
-      "borough": "StatenIsland",
-      "boroughLabel": "Staten Island",
       "spellings": [
         "Midland Beach"
-      ]
+      ],
+      "rows": 6,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": true
     },
     {
       "label": "Midtown",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Midtown",
         "MIDTOWN",
         "midtown"
-      ]
+      ],
+      "rows": 4981,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "MIDTOWN [ALL]",
+      "spellings": [
+        "MIDTOWN [ALL]"
+      ],
+      "rows": 1,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Midtown Center",
+      "spellings": [
+        "Midtown Center"
+      ],
+      "rows": 33,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Midtown Central",
+      "spellings": [
+        "Midtown Central"
+      ],
+      "rows": 412,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Midtown East",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Midtown East"
-      ]
+      ],
+      "rows": 11944,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "Midtown South",
+      "spellings": [
+        "Midtown South"
+      ],
+      "rows": 64,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Midtown West",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Midtown West"
-      ]
+      ],
+      "rows": 13244,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "Midtown West / Hell'",
+      "spellings": [
+        "Midtown West / Hell'"
+      ],
+      "rows": 30,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Midwood",
-      "borough": null,
-      "boroughLabel": null,
       "spellings": [
         "Midwood",
         "MIDWOOD"
-      ]
+      ],
+      "rows": 1677,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "Midwood Park",
+      "spellings": [
+        "Midwood Park"
+      ],
+      "rows": 3,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Mill Basin",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Mill Basin"
-      ]
+      ],
+      "rows": 64,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "Montclair",
+      "spellings": [
+        "Montclair"
+      ],
+      "rows": 2,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "MORNHGTS",
+      "spellings": [
+        "MORNHGTS"
+      ],
+      "rows": 18,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Morningside Heights",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Morningside Heights"
-      ]
+      ],
+      "rows": 2991,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
     },
     {
       "label": "Morris Heights",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Morris Heights"
-      ]
+      ],
+      "rows": 16,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
     },
     {
       "label": "Morris Park",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Morris Park"
-      ]
+      ],
+      "rows": 39,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
     },
     {
       "label": "Morrisania",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Morrisania"
-      ]
+      ],
+      "rows": 62,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
     },
     {
       "label": "Mott Haven",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Mott Haven",
         "MOTTHAVEN"
-      ]
+      ],
+      "rows": 575,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
+    },
+    {
+      "label": "Mount Eden",
+      "spellings": [
+        "Mount Eden"
+      ],
+      "rows": 4,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
     },
     {
       "label": "Mount Hope",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Mount Hope"
-      ]
+      ],
+      "rows": 26,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
+    },
+    {
+      "label": "MPARK",
+      "spellings": [
+        "MPARK"
+      ],
+      "rows": 4,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "MSPH",
+      "spellings": [
+        "MSPH"
+      ],
+      "rows": 4,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "Mt. Morris Park",
+      "spellings": [
+        "Mt. Morris Park"
+      ],
+      "rows": 489,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "MURRAY",
+      "spellings": [
+        "MURRAY"
+      ],
+      "rows": 383,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Murray Hill",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Murray Hill"
-      ]
+      ],
+      "rows": 13428,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "Murray Hill (QNS)",
+      "spellings": [
+        "Murray Hill (QNS)"
+      ],
+      "rows": 1,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Murray Hill / Kip's",
+      "spellings": [
+        "Murray Hill / Kip's"
+      ],
+      "rows": 78,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Murray Hill / Kips B",
+      "spellings": [
+        "Murray Hill / Kips B"
+      ],
+      "rows": 4,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Murray Hill Kips Bay",
+      "spellings": [
+        "Murray Hill Kips Bay",
+        "Murray Hill-kips Bay"
+      ],
+      "rows": 1999,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "MV",
+      "spellings": [
+        "MV"
+      ],
+      "rows": 4,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "Navy Yard",
+      "spellings": [
+        "Navy Yard"
+      ],
+      "rows": 3,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Neponsit",
+      "spellings": [
+        "Neponsit"
+      ],
+      "rows": 12,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "New Brighton",
+      "spellings": [
+        "New Brighton"
+      ],
+      "rows": 12,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
+    },
+    {
+      "label": "New Dorp",
+      "spellings": [
+        "New Dorp"
+      ],
+      "rows": 24,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
+    },
+    {
+      "label": "New Dorp Beach",
+      "spellings": [
+        "New Dorp Beach"
+      ],
+      "rows": 3,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
     },
     {
       "label": "New Lots",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "New Lots"
-      ]
+      ],
+      "rows": 122,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
     },
     {
       "label": "New Springville",
-      "borough": "StatenIsland",
-      "boroughLabel": "Staten Island",
       "spellings": [
         "New Springville"
-      ]
+      ],
+      "rows": 31,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": true
+    },
+    {
+      "label": "NEW UTRECHT",
+      "spellings": [
+        "NEW UTRECHT"
+      ],
+      "rows": 2,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "NEW YORK",
+      "spellings": [
+        "NEW YORK"
+      ],
+      "rows": 6,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "New York City",
+      "spellings": [
+        "New York City"
+      ],
+      "rows": 23,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "NoHo",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Noho",
         "NoHo",
         "NOHO"
-      ]
+      ],
+      "rows": 882,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "Noho/Central Village",
+      "spellings": [
+        "Noho/Central Village"
+      ],
+      "rows": 1,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Nolita",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Nolita",
         "NoLita",
         "NoLIta"
-      ]
+      ],
+      "rows": 1096,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
     },
     {
       "label": "NoMad",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "NoMad",
         "NOMAD",
         "Nomad"
-      ]
+      ],
+      "rows": 3471,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
     },
     {
       "label": "North Corona",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "North Corona"
-      ]
+      ],
+      "rows": 13,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "North New York",
+      "spellings": [
+        "North New York"
+      ],
+      "rows": 4,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
     },
     {
       "label": "North Riverdale",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "North Riverdale",
         "NORTH RIVERDALE"
-      ]
+      ],
+      "rows": 478,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
+    },
+    {
+      "label": "North Side-south Side",
+      "spellings": [
+        "North Side-south Side"
+      ],
+      "rows": 5,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "NORTHEAST BRONX",
+      "spellings": [
+        "NORTHEAST BRONX"
+      ],
+      "rows": 4,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
+    },
+    {
+      "label": "Northeast Flatbush",
+      "spellings": [
+        "Northeast Flatbush"
+      ],
+      "rows": 4,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "NORTHWEST BRONX",
+      "spellings": [
+        "NORTHWEST BRONX"
+      ],
+      "rows": 2,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
     },
     {
       "label": "Norwood",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Norwood"
-      ]
+      ],
+      "rows": 136,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
+    },
+    {
+      "label": "null",
+      "spellings": [
+        "null"
+      ],
+      "rows": 3508,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "NYU",
+      "spellings": [
+        "NYU"
+      ],
+      "rows": 17,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Oakland Gardens",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Oakland Gardens"
-      ]
+      ],
+      "rows": 34,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "Oakwood",
+      "spellings": [
+        "Oakwood"
+      ],
+      "rows": 8,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
+    },
+    {
+      "label": "Oakwood Beach",
+      "spellings": [
+        "Oakwood Beach"
+      ],
+      "rows": 1,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
+    },
+    {
+      "label": "Oakwood Heights",
+      "spellings": [
+        "Oakwood Heights"
+      ],
+      "rows": 1,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
     },
     {
       "label": "Ocean Hill",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Ocean Hill"
-      ]
+      ],
+      "rows": 414,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "Ocean Hill Brownsvil",
+      "spellings": [
+        "Ocean Hill Brownsvil"
+      ],
+      "rows": 1,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Ocean Hill Brownsville",
+      "spellings": [
+        "Ocean Hill Brownsville"
+      ],
+      "rows": 6,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Ocean Parkway",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Ocean Parkway"
-      ]
+      ],
+      "rows": 82,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "OCEANHIL",
+      "spellings": [
+        "OCEANHIL"
+      ],
+      "rows": 4,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Old Chatham",
+      "spellings": [
+        "Old Chatham"
+      ],
+      "rows": 1,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Old Howard Beach",
+      "spellings": [
+        "Old Howard Beach"
+      ],
+      "rows": 3,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "Old Mill Basin",
+      "spellings": [
+        "Old Mill Basin"
+      ],
+      "rows": 62,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Olinville",
+      "spellings": [
+        "Olinville",
+        "OLINVILLE"
+      ],
+      "rows": 5,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
+    },
+    {
+      "label": "OP",
+      "spellings": [
+        "OP"
+      ],
+      "rows": 2,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "OTHER",
+      "spellings": [
+        "OTHER",
+        "Other"
+      ],
+      "rows": 47,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Other Bronx",
+      "spellings": [
+        "Other Bronx"
+      ],
+      "rows": 144,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
+    },
+    {
+      "label": "Other Brooklyn",
+      "spellings": [
+        "Other Brooklyn"
+      ],
+      "rows": 136,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Other Queens",
+      "spellings": [
+        "Other Queens"
+      ],
+      "rows": 148,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "Out of Town",
+      "spellings": [
+        "Out of Town"
+      ],
+      "rows": 2,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Ozone Park",
+      "spellings": [
+        "Ozone Park"
+      ],
+      "rows": 45,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "Pacific Park",
+      "spellings": [
+        "Pacific Park"
+      ],
+      "rows": 231,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Paerdegat Basin",
+      "spellings": [
+        "Paerdegat Basin"
+      ],
+      "rows": 15,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Palisades Park",
+      "spellings": [
+        "Palisades Park"
+      ],
+      "rows": 1,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "Park Hill",
+      "spellings": [
+        "Park Hill"
+      ],
+      "rows": 2,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
     },
     {
       "label": "Park Slope",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Park Slope"
-      ]
+      ],
+      "rows": 18299,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "Park Slope South",
+      "spellings": [
+        "Park Slope South"
+      ],
+      "rows": 5,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Park Slope-gowanus",
+      "spellings": [
+        "Park Slope-gowanus"
+      ],
+      "rows": 2,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Park Slope/Prospect",
+      "spellings": [
+        "Park Slope/Prospect"
+      ],
+      "rows": 141,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Park Slope/Prospect Park",
+      "spellings": [
+        "Park Slope/Prospect Park"
+      ],
+      "rows": 9,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Parkchester",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Parkchester",
         "PARKCHESTER"
-      ]
+      ],
+      "rows": 98,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
+    },
+    {
+      "label": "Parkland",
+      "spellings": [
+        "Parkland"
+      ],
+      "rows": 5,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "PARKSLOP",
+      "spellings": [
+        "PARKSLOP"
+      ],
+      "rows": 237,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Pelham Bay",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Pelham Bay"
-      ]
+      ],
+      "rows": 28,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
     },
     {
       "label": "Pelham Gardens",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Pelham Gardens"
-      ]
+      ],
+      "rows": 23,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
     },
     {
       "label": "Pelham Parkway",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Pelham Parkway"
-      ]
+      ],
+      "rows": 76,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
+    },
+    {
+      "label": "Peter Cooper Village",
+      "spellings": [
+        "Peter Cooper Village"
+      ],
+      "rows": 2,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Pleasant Plains",
-      "borough": "StatenIsland",
-      "boroughLabel": "Staten Island",
       "spellings": [
         "Pleasant Plains"
-      ]
+      ],
+      "rows": 3,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": true
+    },
+    {
+      "label": "Pomonok",
+      "spellings": [
+        "Pomonok"
+      ],
+      "rows": 4,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
     },
     {
       "label": "Port Morris",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Port Morris"
-      ]
+      ],
+      "rows": 29,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
     },
     {
       "label": "Port Richmond",
-      "borough": "StatenIsland",
-      "boroughLabel": "Staten Island",
       "spellings": [
         "Port Richmond"
-      ]
+      ],
+      "rows": 17,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": true
     },
     {
       "label": "Prince's Bay",
-      "borough": "StatenIsland",
-      "boroughLabel": "Staten Island",
       "spellings": [
         "Prince's Bay"
-      ]
+      ],
+      "rows": 11,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": true
+    },
+    {
+      "label": "PROSHEI",
+      "spellings": [
+        "PROSHEI"
+      ],
+      "rows": 310,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "PROSLEFR",
+      "spellings": [
+        "PROSLEFR"
+      ],
+      "rows": 87,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "PROSPARK",
+      "spellings": [
+        "PROSPARK"
+      ],
+      "rows": 38,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Prospect Heights",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Prospect Heights"
-      ]
+      ],
+      "rows": 4916,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "Prospect Hights",
+      "spellings": [
+        "Prospect Hights"
+      ],
+      "rows": 1,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Prospect Leffert Gdn",
+      "spellings": [
+        "Prospect Leffert Gdn"
+      ],
+      "rows": 142,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Prospect Lefferts",
+      "spellings": [
+        "Prospect Lefferts"
+      ],
+      "rows": 6,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Prospect Lefferts Ga",
+      "spellings": [
+        "Prospect Lefferts Ga"
+      ],
+      "rows": 18,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Prospect Lefferts Gardens",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Prospect Lefferts Gardens"
-      ]
+      ],
+      "rows": 1189,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "Prospect Lefferts Gardens-Wingate",
+      "spellings": [
+        "Prospect Lefferts Gardens-Wingate"
+      ],
+      "rows": 2,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Prospect Park",
+      "spellings": [
+        "Prospect Park"
+      ],
+      "rows": 14,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Prospect Park South",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Prospect Park South"
-      ]
+      ],
+      "rows": 808,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "Prospect-Lefferts G",
+      "spellings": [
+        "Prospect-Lefferts G",
+        "Prospect Lefferts G"
+      ],
+      "rows": 49,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Queens",
+      "spellings": [
+        "Queens",
+        "QUEENS"
+      ],
+      "rows": 502,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "Queens (Other)",
+      "spellings": [
+        "Queens (Other)"
+      ],
+      "rows": 312,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
     },
     {
       "label": "Queens Village",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Queens Village"
-      ]
+      ],
+      "rows": 61,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "Queensboro Hill",
+      "spellings": [
+        "Queensboro Hill"
+      ],
+      "rows": 12,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "Ramsen Village",
+      "spellings": [
+        "Ramsen Village"
+      ],
+      "rows": 1,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Randall Manor",
+      "spellings": [
+        "Randall Manor"
+      ],
+      "rows": 8,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
+    },
+    {
+      "label": "RB",
+      "spellings": [
+        "RB"
+      ],
+      "rows": 9,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
     },
     {
       "label": "Red Hook",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Red Hook",
         "REDHOOK",
         "Redhook",
         "RED HOOK"
-      ]
+      ],
+      "rows": 746,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
     },
     {
       "label": "Rego Park",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Rego Park"
-      ]
+      ],
+      "rows": 1325,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "Remsen Village",
+      "spellings": [
+        "Remsen Village"
+      ],
+      "rows": 36,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "RGWD",
+      "spellings": [
+        "RGWD"
+      ],
+      "rows": 17,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "RI",
+      "spellings": [
+        "RI"
+      ],
+      "rows": 37,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Richmond Hill",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Richmond Hill"
-      ]
+      ],
+      "rows": 73,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "Richmond Hills",
+      "spellings": [
+        "Richmond Hills"
+      ],
+      "rows": 2,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "Richmond Town",
+      "spellings": [
+        "Richmond Town",
+        "Richmondtown",
+        "RICHMONDTOWN"
+      ],
+      "rows": 14,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
+    },
+    {
+      "label": "Richmond Valley",
+      "spellings": [
+        "Richmond Valley"
+      ],
+      "rows": 2,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
     },
     {
       "label": "Ridgewood",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Ridgewood"
-      ]
+      ],
+      "rows": 1475,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
     },
     {
       "label": "Riverdale",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Riverdale",
         "RIVERDALE"
-      ]
+      ],
+      "rows": 2692,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
     },
     {
       "label": "Rochdale Village",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Rochdale Village"
-      ]
+      ],
+      "rows": 4,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "Rockaway",
+      "spellings": [
+        "Rockaway"
+      ],
+      "rows": 55,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "Rockaway All",
+      "spellings": [
+        "Rockaway All"
+      ],
+      "rows": 1,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
     },
     {
       "label": "Rockaway Beach",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Rockaway Beach"
-      ]
+      ],
+      "rows": 77,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
     },
     {
       "label": "Rockaway Park",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Rockaway Park"
-      ]
+      ],
+      "rows": 212,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "Rockwood Park",
+      "spellings": [
+        "Rockwood Park"
+      ],
+      "rows": 1,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
     },
     {
       "label": "Roosevelt Island",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Roosevelt Island"
-      ]
+      ],
+      "rows": 669,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
     },
     {
       "label": "Rose Hill",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Rose Hill"
-      ]
+      ],
+      "rows": 2,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
     },
     {
       "label": "Rosebank",
-      "borough": "StatenIsland",
-      "boroughLabel": "Staten Island",
       "spellings": [
         "Rosebank",
         "ROSEBANK"
-      ]
+      ],
+      "rows": 10,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": true
     },
     {
       "label": "Rosedale",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Rosedale"
-      ]
+      ],
+      "rows": 16,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "Rossville",
+      "spellings": [
+        "Rossville"
+      ],
+      "rows": 29,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
+    },
+    {
+      "label": "Royal Oak",
+      "spellings": [
+        "Royal Oak"
+      ],
+      "rows": 1,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
+    },
+    {
+      "label": "RP",
+      "spellings": [
+        "RP"
+      ],
+      "rows": 4,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "RWP",
+      "spellings": [
+        "RWP"
+      ],
+      "rows": 4,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "Saint Albans",
+      "spellings": [
+        "Saint Albans"
+      ],
+      "rows": 5,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "Saint George",
+      "spellings": [
+        "Saint George"
+      ],
+      "rows": 2,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
+    },
+    {
+      "label": "Schuylerville",
+      "spellings": [
+        "Schuylerville"
+      ],
+      "rows": 4,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
+    },
+    {
+      "label": "Sea Gate",
+      "spellings": [
+        "Sea Gate",
+        "Seagate"
+      ],
+      "rows": 39,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Seaport District",
+      "spellings": [
+        "Seaport District"
+      ],
+      "rows": 189,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Seaside",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Seaside"
-      ]
+      ],
+      "rows": 7,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "SHEEPBAY",
+      "spellings": [
+        "SHEEPBAY"
+      ],
+      "rows": 9,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Sheepshead Bay",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Sheepshead Bay"
-      ]
+      ],
+      "rows": 713,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "Shore Acres",
+      "spellings": [
+        "Shore Acres"
+      ],
+      "rows": 11,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
+    },
+    {
+      "label": "Silver Lake",
+      "spellings": [
+        "Silver Lake"
+      ],
+      "rows": 3,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
     },
     {
       "label": "SoHo",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Soho",
         "SoHo",
         "SOHO"
-      ]
+      ],
+      "rows": 6305,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "SoHo-Nolita",
+      "spellings": [
+        "SoHo-Nolita",
+        "SoHo/Nolita"
+      ],
+      "rows": 1099,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Somerville",
+      "spellings": [
+        "Somerville"
+      ],
+      "rows": 1,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
     },
     {
       "label": "Soundview",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Soundview"
-      ]
+      ],
+      "rows": 36,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
+    },
+    {
+      "label": "South Beach",
+      "spellings": [
+        "South Beach"
+      ],
+      "rows": 13,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
     },
     {
       "label": "South Harlem",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "South Harlem"
-      ]
+      ],
+      "rows": 749,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
     },
     {
       "label": "South Jamaica",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "South Jamaica"
-      ]
+      ],
+      "rows": 23,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "South Marlboro",
+      "spellings": [
+        "South Marlboro"
+      ],
+      "rows": 1,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "South Midwood",
+      "spellings": [
+        "South Midwood"
+      ],
+      "rows": 1,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "South Ozone Park",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "South Ozone Park"
-      ]
+      ],
+      "rows": 28,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "South Richmond Hill",
+      "spellings": [
+        "South Richmond Hill"
+      ],
+      "rows": 4,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "South Slope",
+      "spellings": [
+        "South Slope"
+      ],
+      "rows": 33,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "South Street Seaport",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "South Street Seaport"
-      ]
+      ],
+      "rows": 1796,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "South Village",
+      "spellings": [
+        "South Village"
+      ],
+      "rows": 9,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "South Williamsburg",
+      "spellings": [
+        "South Williamsburg"
+      ],
+      "rows": 43,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "SOUTHEAST BRONX",
+      "spellings": [
+        "SOUTHEAST BRONX"
+      ],
+      "rows": 1,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
+    },
+    {
+      "label": "Southold",
+      "spellings": [
+        "Southold"
+      ],
+      "rows": 7,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "SOUTHSTSEAPORT",
+      "spellings": [
+        "SOUTHSTSEAPORT"
+      ],
+      "rows": 2,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Spring Creek",
+      "spellings": [
+        "Spring Creek"
+      ],
+      "rows": 1,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Springfield Gardens",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Springfield Gardens"
-      ]
+      ],
+      "rows": 15,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
     },
     {
       "label": "Spuyten Duyvil",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Spuyten Duyvil",
         "SPUYTENDUYVIL"
-      ]
+      ],
+      "rows": 738,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
+    },
+    {
+      "label": "SS",
+      "spellings": [
+        "SS"
+      ],
+      "rows": 29,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
     },
     {
       "label": "St. Albans",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "St. Albans",
         "St Albans"
-      ]
+      ],
+      "rows": 39,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
     },
     {
       "label": "St. George",
-      "borough": "StatenIsland",
-      "boroughLabel": "Staten Island",
       "spellings": [
         "St. George"
-      ]
+      ],
+      "rows": 120,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": true
     },
     {
       "label": "Stapleton",
-      "borough": "StatenIsland",
-      "boroughLabel": "Staten Island",
       "spellings": [
         "Stapleton"
-      ]
+      ],
+      "rows": 17,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": true
+    },
+    {
+      "label": "Stapleton Heights",
+      "spellings": [
+        "Stapleton Heights"
+      ],
+      "rows": 1,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
+    },
+    {
+      "label": "Starrett City",
+      "spellings": [
+        "Starrett City"
+      ],
+      "rows": 2,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Staten Island",
+      "spellings": [
+        "Staten Island",
+        "STATEN ISLAND"
+      ],
+      "rows": 75,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
+    },
+    {
+      "label": "Staten Island (Othe",
+      "spellings": [
+        "Staten Island (Othe"
+      ],
+      "rows": 1,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
+    },
+    {
+      "label": "Steinway-Ditmars",
+      "spellings": [
+        "Steinway-Ditmars"
+      ],
+      "rows": 74,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "STUYHEI",
+      "spellings": [
+        "STUYHEI"
+      ],
+      "rows": 5,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Stuyvesant",
+      "spellings": [
+        "Stuyvesant"
+      ],
+      "rows": 1,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Stuyvesant Heights",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Stuyvesant Heights"
-      ]
+      ],
+      "rows": 1836,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "Stuyvesant Town",
+      "spellings": [
+        "Stuyvesant Town"
+      ],
+      "rows": 14,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Sugar Hill",
+      "spellings": [
+        "Sugar Hill"
+      ],
+      "rows": 10,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Sunnyside",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Sunnyside",
         "SUNNYSIDE"
-      ]
+      ],
+      "rows": 1136,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
     },
     {
       "label": "Sunnyside Gardens",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Sunnyside Gardens"
-      ]
+      ],
+      "rows": 22,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
     },
     {
       "label": "Sunset Park",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Sunset Park"
-      ]
+      ],
+      "rows": 1351,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "SUNSETPK",
+      "spellings": [
+        "SUNSETPK"
+      ],
+      "rows": 16,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Sutton",
+      "spellings": [
+        "Sutton",
+        "SUTTON"
+      ],
+      "rows": 296,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Sutton Area",
+      "spellings": [
+        "Sutton Area"
+      ],
+      "rows": 111,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Sutton Place",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Sutton Place"
-      ]
+      ],
+      "rows": 4745,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "The Bronx",
+      "spellings": [
+        "The Bronx"
+      ],
+      "rows": 2,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
+    },
+    {
+      "label": "The Bronx (Other)",
+      "spellings": [
+        "The Bronx (Other)"
+      ],
+      "rows": 30,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
+    },
+    {
+      "label": "The Rockaways",
+      "spellings": [
+        "The Rockaways"
+      ],
+      "rows": 5,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "Theater District",
+      "spellings": [
+        "Theater District"
+      ],
+      "rows": 150,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Throggs Neck",
+      "spellings": [
+        "Throggs Neck"
+      ],
+      "rows": 11,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
     },
     {
       "label": "Throgs Neck",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Throgs Neck",
         "THROGSNECK"
-      ]
+      ],
+      "rows": 91,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
+    },
+    {
+      "label": "Times Square Theatre",
+      "spellings": [
+        "Times Square Theatre"
+      ],
+      "rows": 3,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Todt Hill",
-      "borough": "StatenIsland",
-      "boroughLabel": "Staten Island",
       "spellings": [
         "Todt Hill"
-      ]
+      ],
+      "rows": 21,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": true
     },
     {
       "label": "Tompkinsville",
-      "borough": "StatenIsland",
-      "boroughLabel": "Staten Island",
       "spellings": [
         "Tompkinsville"
-      ]
+      ],
+      "rows": 14,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": true
     },
     {
       "label": "Tottenville",
-      "borough": "StatenIsland",
-      "boroughLabel": "Staten Island",
       "spellings": [
         "Tottenville"
-      ]
+      ],
+      "rows": 19,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": true
+    },
+    {
+      "label": "Travis",
+      "spellings": [
+        "Travis"
+      ],
+      "rows": 1,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
+    },
+    {
+      "label": "Tremont",
+      "spellings": [
+        "Tremont",
+        "TREMONT"
+      ],
+      "rows": 8,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
     },
     {
       "label": "Tribeca",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Tribeca",
         "TRIBECA",
         "TriBeCa"
-      ]
+      ],
+      "rows": 9983,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
     },
     {
       "label": "Tudor City",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Tudor City"
-      ]
+      ],
+      "rows": 942,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "TURTLBAY",
+      "spellings": [
+        "TURTLBAY"
+      ],
+      "rows": 167,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Turtle Bay",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Turtle Bay"
-      ]
+      ],
+      "rows": 6385,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "Turtle Bay-East Midtown",
+      "spellings": [
+        "Turtle Bay-East Midtown"
+      ],
+      "rows": 2,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Two Bridges",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Two Bridges"
-      ]
+      ],
+      "rows": 146,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "Union Square",
+      "spellings": [
+        "Union Square"
+      ],
+      "rows": 654,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Union Square Park",
+      "spellings": [
+        "Union Square Park"
+      ],
+      "rows": 21,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Unionport",
+      "spellings": [
+        "Unionport"
+      ],
+      "rows": 8,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
     },
     {
       "label": "University Heights",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "University Heights"
-      ]
+      ],
+      "rows": 36,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
+    },
+    {
+      "label": "UPEAST",
+      "spellings": [
+        "UPEAST"
+      ],
+      "rows": 1216,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Upper Carnegie",
+      "spellings": [
+        "Upper Carnegie"
+      ],
+      "rows": 50,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Upper Carnegie Hill",
+      "spellings": [
+        "Upper Carnegie Hill"
+      ],
+      "rows": 1,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Upper East Side",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Upper East Side",
         "UPPER EAST SIDE"
-      ]
+      ],
+      "rows": 52028,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "Upper Fifth",
+      "spellings": [
+        "Upper Fifth"
+      ],
+      "rows": 15,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Upper M",
+      "spellings": [
+        "Upper M"
+      ],
+      "rows": 30,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Upper Manhattan",
+      "spellings": [
+        "Upper Manhattan"
+      ],
+      "rows": 164,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "UPPER MANHATTAN [ALL",
+      "spellings": [
+        "UPPER MANHATTAN [ALL",
+        "UPPER MANHATTAN [ALL]"
+      ],
+      "rows": 27,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Upper Saddle River",
+      "spellings": [
+        "Upper Saddle River"
+      ],
+      "rows": 1,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Upper West Side",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Upper West Side",
         "UPPER WEST SIDE"
-      ]
+      ],
+      "rows": 48377,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "Upstate New York",
+      "spellings": [
+        "Upstate New York"
+      ],
+      "rows": 1,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "UPWEST",
+      "spellings": [
+        "UPWEST"
+      ],
+      "rows": 825,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Utopia",
+      "spellings": [
+        "Utopia"
+      ],
+      "rows": 3,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
     },
     {
       "label": "Van Nest",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Van Nest"
-      ]
+      ],
+      "rows": 21,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
+    },
+    {
+      "label": "Van Pelt Manor",
+      "spellings": [
+        "Van Pelt Manor"
+      ],
+      "rows": 1,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Vinegar Hill",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Vinegar Hill"
-      ]
+      ],
+      "rows": 274,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "W. Greenwich Village",
+      "spellings": [
+        "W. Greenwich Village"
+      ],
+      "rows": 495,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Wakefield",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Wakefield",
         "WAKEFIELD"
-      ]
+      ],
+      "rows": 55,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
+    },
+    {
+      "label": "Ward Hill",
+      "spellings": [
+        "Ward Hill"
+      ],
+      "rows": 1,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
+    },
+    {
+      "label": "WASHHGTS",
+      "spellings": [
+        "WASHHGTS"
+      ],
+      "rows": 17,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Washington & Hudson",
+      "spellings": [
+        "Washington & Hudson"
+      ],
+      "rows": 52,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Washington & Hudson Heights",
+      "spellings": [
+        "Washington & Hudson Heights"
+      ],
+      "rows": 5,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Washington Heights",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Washington Heights"
-      ]
+      ],
+      "rows": 7581,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
     },
     {
       "label": "Weeksville",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Weeksville"
-      ]
+      ],
+      "rows": 215,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "West 30's",
+      "spellings": [
+        "West 30's"
+      ],
+      "rows": 45,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "West 30s - Clinton",
+      "spellings": [
+        "West 30s - Clinton"
+      ],
+      "rows": 18,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "West Brighton",
+      "spellings": [
+        "West Brighton"
+      ],
+      "rows": 17,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
+    },
+    {
+      "label": "West Farms",
+      "spellings": [
+        "West Farms",
+        "WESTFARMS"
+      ],
+      "rows": 22,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
     },
     {
       "label": "West Harlem",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "West Harlem"
-      ]
+      ],
+      "rows": 5141,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "West Harlem & Manhat",
+      "spellings": [
+        "West Harlem & Manhat"
+      ],
+      "rows": 22,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "West Midwood",
+      "spellings": [
+        "West Midwood"
+      ],
+      "rows": 2,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "West New Brighton",
+      "spellings": [
+        "West New Brighton"
+      ],
+      "rows": 1,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
+    },
+    {
+      "label": "West Side",
+      "spellings": [
+        "West Side"
+      ],
+      "rows": 1,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "West Village",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "West Village"
-      ]
+      ],
+      "rows": 9557,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "West Village / Green",
+      "spellings": [
+        "West Village / Green"
+      ],
+      "rows": 3,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Westchester Square",
+      "spellings": [
+        "Westchester Square"
+      ],
+      "rows": 6,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
+    },
+    {
+      "label": "Westchester Village",
+      "spellings": [
+        "Westchester Village"
+      ],
+      "rows": 4,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
+    },
+    {
+      "label": "Westerleigh",
+      "spellings": [
+        "Westerleigh"
+      ],
+      "rows": 25,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
+    },
+    {
+      "label": "WESTVILL",
+      "spellings": [
+        "WESTVILL"
+      ],
+      "rows": 231,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "WH",
+      "spellings": [
+        "WH"
+      ],
+      "rows": 2,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
     },
     {
       "label": "Whitestone",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Whitestone"
-      ]
+      ],
+      "rows": 69,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "WILLIAMS",
+      "spellings": [
+        "WILLIAMS"
+      ],
+      "rows": 220,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Williamsbridge",
+      "spellings": [
+        "Williamsbridge",
+        "WILLIAMSBRIDGE"
+      ],
+      "rows": 50,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
     },
     {
       "label": "Williamsburg",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Williamsburg"
-      ]
+      ],
+      "rows": 17211,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "Williamsburg N Side",
+      "spellings": [
+        "Williamsburg N Side"
+      ],
+      "rows": 75,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Williamsburg S Side",
+      "spellings": [
+        "Williamsburg S Side"
+      ],
+      "rows": 101,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Williamsburg,North",
+      "spellings": [
+        "Williamsburg,North"
+      ],
+      "rows": 7,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Williamsburg,South",
+      "spellings": [
+        "Williamsburg,South"
+      ],
+      "rows": 11,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Willowbrook",
+      "spellings": [
+        "Willowbrook"
+      ],
+      "rows": 2,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
+    },
+    {
+      "label": "Windor Terrace",
+      "spellings": [
+        "Windor Terrace"
+      ],
+      "rows": 1,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Windsor Terrace",
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
       "spellings": [
         "Windsor Terrace"
-      ]
+      ],
+      "rows": 2329,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
+    },
+    {
+      "label": "WINDTERR",
+      "spellings": [
+        "WINDTERR"
+      ],
+      "rows": 15,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
     },
     {
       "label": "Wingate",
-      "borough": null,
-      "boroughLabel": null,
       "spellings": [
         "Wingate"
-      ]
+      ],
+      "rows": 84,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": true
     },
     {
       "label": "Woodhaven",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Woodhaven"
-      ]
+      ],
+      "rows": 96,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
+    },
+    {
+      "label": "Woodlawn",
+      "spellings": [
+        "Woodlawn"
+      ],
+      "rows": 19,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
     },
     {
       "label": "Woodlawn Heights",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Woodlawn Heights"
-      ]
+      ],
+      "rows": 12,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
+    },
+    {
+      "label": "Woodrow",
+      "spellings": [
+        "Woodrow"
+      ],
+      "rows": 13,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
     },
     {
       "label": "Woodside",
-      "borough": "Queens",
-      "boroughLabel": "Queens",
       "spellings": [
         "Woodside"
-      ]
+      ],
+      "rows": 1100,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": true
     },
     {
       "label": "Woodstock",
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
       "spellings": [
         "Woodstock"
-      ]
+      ],
+      "rows": 9,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": true
+    },
+    {
+      "label": "WS",
+      "spellings": [
+        "WS"
+      ],
+      "rows": 52,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "WST",
+      "spellings": [
+        "WST"
+      ],
+      "rows": 1,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "X_B_OTHER",
+      "spellings": [
+        "X_B_OTHER"
+      ],
+      "rows": 8,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Yonkers",
+      "spellings": [
+        "Yonkers"
+      ],
+      "rows": 3,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "Yorkville",
-      "borough": "Manhattan",
-      "boroughLabel": "Manhattan",
       "spellings": [
         "Yorkville"
-      ]
+      ],
+      "rows": 4685,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": true
+    },
+    {
+      "label": "ZEREGA",
+      "spellings": [
+        "ZEREGA"
+      ],
+      "rows": 1,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
     }
   ]
 }

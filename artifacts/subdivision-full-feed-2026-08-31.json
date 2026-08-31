@@ -1,8 +1,8 @@
 {
   "probedAt": "2026-08-31",
-  "probedAtExact": "2026-08-31T06:37:17.890Z",
-  "universe": "(PropertyType eq 'Residential' or PropertyType eq 'ResidentialLease')",
-  "scope": "ALL STATUSES — deliberately not the on-market slice",
+  "probedAtExact": "2026-08-31T07:26:17.591Z",
+  "universe": "ALL Property rows — no PropertyType restriction",
+  "scope": "ALL statuses AND all PropertyTypes — covers whatever Building Search executes",
   "rowsRead": 591409,
   "pagesRead": 592,
   "truncated": false,

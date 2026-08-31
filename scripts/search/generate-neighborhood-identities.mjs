@@ -2,46 +2,50 @@
  * GENERATE the canonical neighbourhood identity contract from the FULL live feed.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * TWO SETS, BECAUSE THEY ANSWER TWO QUESTIONS
+ * A NEIGHBOURHOOD NAME ALONE IS NOT AN IDENTITY
  *
- *   ACCEPT  — every identity the provider actually carries, at any status.
- *             This is what execution may filter on. Refusing a value the feed
- *             holds is how a Closed/comps search for Gramercy (930 rows) came to
- *             hard-fail with "Not a live Cotality value" — a universal negative
- *             asserted from a read of 1.3% of the feed.
+ * The full-feed census disproved global uniqueness: 124 of 632 folded names span
+ * more than one CityRegion. The first response was a 95% dominance threshold that
+ * assigned a borough for display and left `borough: null` otherwise — which fixed
+ * nothing and broke two things:
  *
- *   OFFER   — the identities a broker is shown in the autocomplete. The full feed
- *             carries 632 identities including `null` (3,508 rows), `OTHER`,
- *             legacy codes (`GRENVILL`, `UPWEST`, `PROSHEI`), borough names used
- *             as neighbourhoods, and non-NYC places (Hoboken, Yonkers, Catskill).
- *             Those are real provider values and must remain searchable; none of
- *             them belongs in a broker's dropdown.
+ *   - `Downtown Brooklyn` (6,401 Brooklyn / 586 Manhattan = 91.6%) and `Midwood`
+ *     fell under the threshold, so the autocomplete loader's `if (!label) return`
+ *     dropped them and two major neighbourhoods became unselectable;
+ *   - the Map called `selectNeighborhood(name, borough, !borough, …)`, so a null
+ *     borough marked a NEIGHBOURHOOD as BOROUGH-LEVEL — recreating the widening
+ *     defect it was meant to remove.
  *
- * OFFER defaults to the identities with CURRENT on-market inventory, which is
- * both clean and the set a broker can actually find something in. Everything else
- * stays executable. WHICH provider values deserve a place in the UI beyond that is
- * a Mallan product decision, not a Cotality fact — see the report to Maya.
+ * And execution still emitted `SubdivisionName eq '…'` alone, so the system knew
+ * the name was not globally unique and searched as though it were.
  *
- * ─────────────────────────────────────────────────────────────────────────────
- * CASE VARIANTS COLLAPSE; DIFFERENT NAMES DO NOT
- *
- * `SoHo`/`Soho`/`SOHO` are one identity and the union executes, so capitalisation
- * never loses inventory. `Gramercy` (930) and `Gramercy Park` (9,542) stay
- * separate — different names are never merged without live proof.
- *
- * THE LABEL IS A MALLAN DECISION, THE SPELLINGS ARE COTALITY'S. The commonest
- * provider spelling of SoHo is `Soho` and of DUMBO is `Dumbo`; Maya's required
- * labels are `SoHo` and `DUMBO`. So the label comes from an explicit table where
- * one exists, and otherwise defaults to the provider's commonest form.
+ * IDENTITY IS NOW (borough × normalised name), AND THE BOROUGH EXECUTES. Every
+ * identity has a borough; none is null. The predicate becomes
+ * `CityRegion eq <borough> and (SubdivisionName eq <spelling> or …)`.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * BOROUGH BY DOMINANCE, NOT BY STRICT UNIQUENESS
+ * TWO PLACES, OR ONE PLACE MIS-TAGGED?
  *
- * Strict uniqueness marked `Mott Haven` ambiguous over ONE stray Manhattan row
- * against 574 Bronx rows. A 95% threshold assigns it to the Bronx — which is the
- * regression the deleted hard-coded table got wrong — while leaving genuinely
- * split names unassigned: `Marble Hill` (58 Bronx / 12 Manhattan, a real NYC
- * quirk) and `Bay Terrace` (42 Queens / 17 Staten Island, two different places).
+ * The counts cannot tell you. `Bay Terrace` is 42 Queens / 17 Staten Island and
+ * there genuinely IS one of each. `Downtown Brooklyn` is 6,401 Brooklyn / 586
+ * Manhattan and there is no Downtown Brooklyn in Manhattan — that is provider
+ * error. Both look identical to a threshold.
+ *
+ * So it is a MALLAN DECISION, declared explicitly below, which the executor then
+ * enforces. A name not listed there resolves to its dominant borough, and the
+ * minority rows are excluded by the CityRegion term — which is the point: they
+ * are mis-tagged, and a broker asking for Downtown Brooklyn is asking for
+ * Brooklyn. Every exclusion is written to an artifact so the decision is visible.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ACCEPT vs OFFER
+ *
+ *   ACCEPT — every identity, shipped to BOTH server and browser. The browser needs
+ *            it to restore a Saved Search: `Union Square` is valid and searchable
+ *            but not offered, and a browser holding only the OFFER set told the
+ *            broker it "is no longer available to search" and dropped it.
+ *   OFFER  — the subset shown in autocomplete, carried as a FLAG rather than by
+ *            omission.
  *
  * Run: node scripts/search/generate-neighborhood-identities.mjs
  */
@@ -54,6 +58,7 @@ const FULL = 'artifacts/subdivision-full-feed-2026-08-31.json';
 const ONMARKET = 'artifacts/section5-closure-probe-2026-08-31.json';
 const TS_OUT = 'lib/search/canonical/subdivision-vocabulary.generated.ts';
 const JSON_OUT = 'public/crm/data/neighborhood-vocabulary.generated.json';
+const EXCLUSIONS_OUT = 'artifacts/neighborhood-minority-borough-exclusions.json';
 
 const full = JSON.parse(readFileSync(resolve(REPO, FULL), 'utf8'));
 const onmkt = JSON.parse(readFileSync(resolve(REPO, ONMARKET), 'utf8'));
@@ -65,63 +70,97 @@ if (!Array.isArray(full.identities) || full.identities.length < 400) {
 if (onmkt.neighborhood?.complete !== true) throw new Error('REFUSING: the on-market read was truncated');
 
 /**
- * PRESENTATION LABELS — a Mallan naming decision, recorded explicitly.
+ * NAMES MALLAN DECLARES TO BE MORE THAN ONE PLACE.
  *
- * Maya's five worked examples, plus the same treatment for the other conventional
- * NYC forms where the provider's commonest spelling is an all-caps or flat form.
- * Keyed by folded identity so it cannot drift with spelling.
+ * A Mallan product decision about NYC geography, not a Cotality fact — the feed
+ * cannot distinguish "two places share a name" from "one place is mis-tagged".
+ *
+ * `Bay Terrace` is the only case the evidence and NYC reality both support: there
+ * is a Bay Terrace in Queens and another in Staten Island. Every other split in
+ * the census is provider error (Downtown Brooklyn tagged Manhattan), a one-place
+ * boundary quirk (Marble Hill is legally Manhattan and physically attached to the
+ * Bronx), a borough name used as a neighbourhood, or somewhere outside NYC
+ * altogether (Hoboken, Yonkers, Catskill).
+ *
+ * Adding an entry here is Maya's call; the other 23 splits are reported, not
+ * guessed at.
  */
+const MULTI_BOROUGH_PLACES = {
+  bayterrace: ['Queens', 'StatenIsland'],
+};
+
+/** PRESENTATION LABELS — Mallan naming, keyed by folded identity. */
 const LABEL_OVERRIDES = {
-  soho: 'SoHo',
-  noho: 'NoHo',
-  dumbo: 'DUMBO',
-  nomad: 'NoMad',
-  midtown: 'Midtown',
-  nolita: 'Nolita',
-  tribeca: 'Tribeca',
+  soho: 'SoHo', noho: 'NoHo', dumbo: 'DUMBO', nomad: 'NoMad',
+  midtown: 'Midtown', nolita: 'Nolita', tribeca: 'Tribeca',
 };
 
 /** Provider CityRegion value -> the label a broker reads. */
 const BOROUGH_LABELS = {
-  Manhattan: 'Manhattan',
-  Brooklyn: 'Brooklyn',
-  Queens: 'Queens',
-  Bronx: 'Bronx',
-  StatenIsland: 'Staten Island',
+  Manhattan: 'Manhattan', Brooklyn: 'Brooklyn', Queens: 'Queens',
+  Bronx: 'Bronx', StatenIsland: 'Staten Island',
 };
-
-/** A borough is assigned when it accounts for at least this share of the rows. */
-const BOROUGH_DOMINANCE = 0.95;
 
 const onMarketNames = new Set((onmkt.neighborhood.values ?? []).map((v) => v.name));
 
-const identities = full.identities.map((i) => {
-  const counts = Object.entries(i.boroughs ?? {}).sort((a, b) => b[1] - a[1]);
-  const total = counts.reduce((s, [, n]) => s + n, 0);
-  const dominant = counts.length && total > 0 && counts[0][1] / total >= BOROUGH_DOMINANCE
-    ? counts[0][0]
-    : null;
-  const spellings = i.spellings.map((s) => s.value);
-  return {
-    folded: i.folded,
-    label: LABEL_OVERRIDES[i.folded] ?? i.commonestSpelling,
-    spellings,
-    rows: i.rows,
-    borough: dominant,
-    boroughLabel: dominant ? BOROUGH_LABELS[dominant] ?? dominant : null,
-    // OFFERED when it has current on-market inventory under any spelling.
-    offered: spellings.some((s) => onMarketNames.has(s)),
-  };
-}).sort((a, b) => a.label.localeCompare(b.label));
+const identities = [];
+const droppedMinority = [];
 
+for (const i of full.identities) {
+  const counts = Object.entries(i.boroughs ?? {}).sort((a, b) => b[1] - a[1]);
+  if (counts.length === 0) continue;             // no borough evidence at all
+  const spellings = i.spellings.map((s) => s.value);
+  const base = LABEL_OVERRIDES[i.folded] ?? i.commonestSpelling;
+  const declared = MULTI_BOROUGH_PLACES[i.folded];
+
+  // A DECLARED multi-place name becomes one identity per borough, each labelled
+  // with its borough so a single wire value stays unambiguous.
+  const boroughs = declared
+    ? counts.filter(([b]) => declared.includes(b)).map(([b]) => b)
+    : [counts[0][0]];
+
+  if (!declared && counts.length > 1) {
+    const total = counts.reduce((s, [, n]) => s + n, 0);
+    droppedMinority.push({
+      name: base,
+      resolvedTo: counts[0][0],
+      keptRows: counts[0][1],
+      keptShare: Number((counts[0][1] / total).toFixed(4)),
+      excludedRowsByBorough: Object.fromEntries(counts.slice(1)),
+    });
+  }
+
+  for (const borough of boroughs) {
+    identities.push({
+      folded: i.folded,
+      label: declared ? `${base}, ${BOROUGH_LABELS[borough] ?? borough}` : base,
+      spellings,
+      rows: declared ? (i.boroughs[borough] ?? 0) : i.rows,
+      borough,
+      boroughLabel: BOROUGH_LABELS[borough] ?? borough,
+      offered: spellings.some((s) => onMarketNames.has(s)),
+    });
+  }
+}
+identities.sort((a, b) => a.label.localeCompare(b.label));
 const offered = identities.filter((i) => i.offered);
 
 // GUARD THE GUARDS. Each of these caught a real defect during development.
 if (offered.length < 150) throw new Error(`REFUSING: only ${offered.length} offered identities`);
-const mott = identities.find((i) => i.folded === 'motthaven');
-if (!mott || mott.borough !== 'Bronx') {
-  throw new Error(`REFUSING: Mott Haven resolved to ${mott?.borough} — the regression case must be Bronx`);
+if (identities.some((i) => !i.borough)) {
+  throw new Error('REFUSING: an identity has no borough — a null borough is the defect being removed');
 }
+const need = (label, borough) => {
+  const hit = identities.find((i) => i.label === label);
+  if (!hit || hit.borough !== borough) {
+    throw new Error(`REFUSING: ${label} resolved to ${hit ? hit.borough : 'MISSING'} — expected ${borough}`);
+  }
+};
+need('Mott Haven', 'Bronx');            // the regression case
+need('Downtown Brooklyn', 'Brooklyn');  // was null under the 95% threshold
+need('Midwood', 'Brooklyn');            // was null under the 95% threshold
+need('Bay Terrace, Queens', 'Queens');
+need('Bay Terrace, Staten Island', 'StatenIsland');
 const soho = identities.find((i) => i.folded === 'soho');
 if (!soho || soho.label !== 'SoHo' || soho.spellings.length < 3) {
   throw new Error('REFUSING: the SoHo case group did not collapse as required');
@@ -129,84 +168,110 @@ if (!soho || soho.label !== 'SoHo' || soho.spellings.length < 3) {
 if (identities.some((i) => i.boroughLabel === 'StatenIsland')) {
   throw new Error('REFUSING: raw provider spelling StatenIsland leaked into a broker label');
 }
+for (const name of ['Union Square', 'Gramercy', 'Stuyvesant Town']) {
+  if (!identities.some((i) => i.label === name)) {
+    throw new Error(`REFUSING: ${name} missing — ACCEPT must cover names with no on-market inventory`);
+  }
+}
 
-// ── SERVER CONTRACT ─────────────────────────────────────────────────────────
+/** `folded` is derivable and is not emitted; see BY_FOLDED below. */
+const emit = ({ folded, ...rest }) => rest;
+
 const ts = [
   '/**',
   ' * GENERATED — do not edit. `node scripts/search/generate-neighborhood-identities.mjs`',
   ' *',
   ' * Canonical neighbourhood identities from the FULL live Cotality feed:',
-  ` * ${full.rowsRead.toLocaleString()} rows across every status, ${full.pagesRead} pages, not truncated,`,
-  ` * read ${full.probedAt}. ${identities.length} identities, ${identities.filter((i) => i.spellings.length > 1).length} of them`,
-  ' * carrying more than one provider spelling.',
+  ` * ${full.rowsRead.toLocaleString()} rows, ${full.pagesRead} pages, not truncated, read ${full.probedAt}.`,
+  ` * Universe: ${full.universe}.`,
   ' *',
-  ' * ACCEPT is every identity here — refusing a value the feed carries is what made',
-  ' * a Closed/comps search for Gramercy hard-fail. OFFER is the subset with current',
-  ' * on-market inventory and is a presentation concern, not an execution one.',
+  ' * IDENTITY IS (borough × normalised name). The census disproved global name',
+  ' * uniqueness — 124 of 632 folded names span more than one CityRegion — so the',
+  ' * borough is part of the identity AND part of the predicate, not just a label.',
+  ' *',
+  ` * ${identities.length} identities, ${offered.length} offered in the autocomplete.`,
+  ' * ACCEPT ships everywhere; OFFER is a flag, so a Saved Search can restore a valid',
+  ' * name the dropdown does not show.',
   ' *',
   ` * Evidence: ${FULL}`,
   ' */',
   '',
   'export interface NeighborhoodIdentity {',
-  '  /** The ONE label a broker sees. A Mallan naming decision. */',
+  '  /** The ONE label a broker sees. Carries the borough when the name is two places. */',
   '  readonly label: string;',
   '  /** Every raw Cotality spelling behind it. The union executes. */',
   '  readonly spellings: readonly string[];',
   '  readonly rows: number;',
-  '  /** Provider CityRegion value when one borough holds >=95% of rows, else null. */',
-  '  readonly borough: string | null;',
+  '  /** Provider CityRegion value. NEVER null — it is part of the identity. */',
+  '  readonly borough: string;',
   '  /** The borough label a broker reads. `StatenIsland` -> `Staten Island`. */',
-  '  readonly boroughLabel: string | null;',
-  '  /** Whether this identity is offered in the browser autocomplete. */',
+  '  readonly boroughLabel: string;',
+  '  /** Whether the browser autocomplete offers it. Execution ignores this. */',
   '  readonly offered: boolean;',
   '}',
   '',
   'export const NEIGHBORHOOD_IDENTITIES: readonly NeighborhoodIdentity[] = Object.freeze([',
-  // `folded` is deliberately NOT emitted: it is derivable, and one compound
-  // provider name folds to a 40+ character lowercase run that the repo secrets
-  // scanner reads as a possible API key — which failed CI.
-  ...identities.map(({ folded, ...rest }) => `  ${JSON.stringify(rest)},`),
+  ...identities.map((i) => `  ${JSON.stringify(emit(i))},`),
   ']);',
   '',
-  'const FOLD = (v: string): string => v.toLowerCase().replace(/[^a-z]/g, \'\');',
+  "const FOLD = (v: string): string => v.toLowerCase().replace(/[^a-z]/g, '');",
   '',
   '/**',
-  ' * Indexed by EVERY folded spelling, not by a stored key.',
+  ' * Indexed by every folded label AND spelling.',
   ' *',
-  ' * The folded key is derivable, so storing it was a second copy that could drift —',
-  ' * and one compound provider name folds to a 40+ character lowercase run that the',
-  ' * repo secrets scanner reads as a possible API key, failing CI.',
+  ' * The folded key is derivable, so storing it would be a second copy that could',
+  ' * drift — and one compound provider name folds to a 40+ character lowercase run',
+  ' * that the repo secrets scanner reads as a possible API key, failing CI.',
   ' */',
-  'const BY_FOLDED: ReadonlyMap<string, NeighborhoodIdentity> = new Map(',
-  '  NEIGHBORHOOD_IDENTITIES.flatMap((i) =>',
-  '    [i.label, ...i.spellings].map((s) => [FOLD(s), i] as const),',
-  '  ),',
-  ');',
+  'const BY_FOLDED: ReadonlyMap<string, NeighborhoodIdentity[]> = (() => {',
+  '  const m = new Map<string, NeighborhoodIdentity[]>();',
+  '  for (const i of NEIGHBORHOOD_IDENTITIES) {',
+  '    for (const key of [i.label, ...i.spellings].map(FOLD)) {',
+  '      const list = m.get(key) ?? [];',
+  '      if (!list.includes(i)) list.push(i);',
+  '      m.set(key, list);',
+  '    }',
+  '  }',
+  '  return m;',
+  '})();',
   '',
-  '/** The identity a typed or stored neighbourhood value means, or null. */',
-  'export function identityFor(value: unknown): NeighborhoodIdentity | null {',
-  '  if (typeof value !== \'string\') return null;',
+  '/**',
+  ' * The identity a typed, stored or polygon name means.',
+  ' *',
+  ' * `borough` disambiguates a name that is two places. Without it an ambiguous',
+  ' * name returns null rather than silently picking one — guessing between',
+  ' * Bay Terrace in Queens and Bay Terrace in Staten Island is exactly the quiet',
+  ' * substitution this contract exists to prevent.',
+  ' */',
+  'export function identityFor(value: unknown, borough?: string | null): NeighborhoodIdentity | null {',
+  "  if (typeof value !== 'string') return null;",
   '  const key = FOLD(value.trim());',
   '  if (!key) return null;',
-  '  return BY_FOLDED.get(key) ?? null;',
+  '  const hits = BY_FOLDED.get(key);',
+  '  if (!hits || hits.length === 0) return null;',
+  '  if (hits.length === 1) return hits[0];',
+  '  if (!borough) return null;',
+  '  const want = FOLD(borough);',
+  '  return hits.find((h) => FOLD(h.borough) === want || FOLD(h.boroughLabel) === want) ?? null;',
   '}',
   '',
-  '/**',
-  ' * The borough a neighbourhood belongs to, as the PROVIDER value.',
-  ' *',
-  ' * Replaces a hard-coded browser table that placed Mott Haven in Manhattan; the',
-  ' * feed puts it in the Bronx on 574 of 575 rows.',
-  ' */',
-  'export function boroughForNeighborhood(value: unknown): string | null {',
-  '  return identityFor(value)?.borough ?? null;',
+  '/** Every identity a name could mean — for reporting an ambiguity to the broker. */',
+  'export function identitiesFor(value: unknown): readonly NeighborhoodIdentity[] {',
+  "  if (typeof value !== 'string') return [];",
+  '  return BY_FOLDED.get(FOLD(value.trim())) ?? [];',
   '}',
   '',
-  '/** Every raw Cotality spelling to search for a selection. Empty when unknown. */',
-  'export function spellingsFor(value: unknown): readonly string[] {',
-  '  return identityFor(value)?.spellings ?? [];',
+  '/** The borough a neighbourhood belongs to, as the PROVIDER value. */',
+  'export function boroughForNeighborhood(value: unknown, borough?: string | null): string | null {',
+  '  return identityFor(value, borough)?.borough ?? null;',
   '}',
   '',
-  '/** BACK-COMPAT: raw spelling -> row count, as the previous contract exposed. */',
+  '/** Every raw Cotality spelling to search for a selection. */',
+  'export function spellingsFor(value: unknown, borough?: string | null): readonly string[] {',
+  '  return identityFor(value, borough)?.spellings ?? [];',
+  '}',
+  '',
+  '/** BACK-COMPAT: raw spelling -> row count. */',
   'export const SUBDIVISION_NAME_LIVE: Readonly<Record<string, number>> = Object.freeze(',
   '  Object.fromEntries(',
   '    NEIGHBORHOOD_IDENTITIES.flatMap((i) => i.spellings.map((s) => [s, i.rows])),',
@@ -218,9 +283,10 @@ const ts = [
   '',
 ];
 writeFileSync(resolve(REPO, TS_OUT), ts.join('\n'));
-console.log(`wrote ${TS_OUT}: ${identities.length} identities (${offered.length} offered) from ${full.rowsRead} rows`);
+console.log(`wrote ${TS_OUT}: ${identities.length} identities (${offered.length} offered)`);
 
-// ── BROWSER CONTRACT ────────────────────────────────────────────────────────
+// THE BROWSER GETS THE FULL ACCEPT SET, with `offered` as a flag. Shipping only
+// the offered subset is what made Saved Search restore drop `Union Square`.
 writeFileSync(
   resolve(REPO, JSON_OUT),
   JSON.stringify(
@@ -228,28 +294,40 @@ writeFileSync(
       _generated: 'node scripts/search/generate-neighborhood-identities.mjs — do not edit',
       _meta: {
         description:
-          'Canonical neighbourhood identities from the full live Cotality feed. One label per ' +
-          'identity; every provider spelling behind it so capitalisation never loses inventory. ' +
-          'Map polygon names are a SEPARATE vocabulary and are not in this file.',
+          'Canonical neighbourhood identities from the full live Cotality feed. Identity is ' +
+          '(borough x normalised name); the borough is part of the predicate, not just a label. ' +
+          'Carries the FULL accept set so Saved Search can restore a valid name the dropdown ' +
+          'does not offer. Map polygon names are a SEPARATE vocabulary and are not in this file.',
         probedAt: full.probedAt,
         rowsRead: full.rowsRead,
+        universe: full.universe,
         evidence: FULL,
         totalIdentities: identities.length,
         offeredIdentities: offered.length,
-        boroughDominanceThreshold: BOROUGH_DOMINANCE,
       },
       boroughLabels: BOROUGH_LABELS,
-      // Only the offered subset ships to the browser dropdown; execution accepts
-      // the full set server-side, so nothing becomes unsearchable.
-      identities: offered.map((i) => ({
-        label: i.label,
-        borough: i.borough,
-        boroughLabel: i.boroughLabel,
-        spellings: i.spellings,
-      })),
+      identities: identities.map(emit),
     },
     null,
     2,
   ) + '\n',
 );
-console.log(`wrote ${JSON_OUT}: ${offered.length} offered identities`);
+console.log(`wrote ${JSON_OUT}: ${identities.length} identities, ${offered.length} offered`);
+
+writeFileSync(
+  resolve(REPO, EXCLUSIONS_OUT),
+  JSON.stringify(
+    {
+      generatedFrom: FULL,
+      note:
+        'Names resolved to their dominant borough. The excluded rows are provider mis-tagging ' +
+        'and are removed from the search by the CityRegion term. Recorded so the decision is ' +
+        'visible rather than silent, and so a genuine second place can be promoted into ' +
+        'MULTI_BOROUGH_PLACES if one is found here.',
+      exclusions: droppedMinority,
+    },
+    null,
+    2,
+  ) + '\n',
+);
+console.log(`minority-borough exclusions recorded: ${droppedMinority.length}`);

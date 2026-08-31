@@ -64,7 +64,7 @@
  * the measurements. The alias file keeps its real job, polygons and map
  * rendering, and is no longer consulted for provider execution.
  */
-import { identityFor, spellingsFor } from "@/lib/search/canonical/subdivision-vocabulary.generated";
+import { identitiesFor, identityFor, spellingsFor } from "@/lib/search/canonical/subdivision-vocabulary.generated";
 import { escapeOData } from "@/lib/search/crm-idx-filter";
 
 /** The five live `CityRegion` values, in PROVIDER spelling. */
@@ -174,7 +174,13 @@ export function boroughOData(values: readonly unknown[]): string | null {
  * HTTP 200 with nothing on the page to say so. A SHORT universe is a visible
  * problem; a silently WIDE one is answered confidently and wrongly.
  *
- * 437 of the 593 alias spellings matched nothing live at all.
+ * 437 of the 593 alias spellings matched nothing in the ON-MARKET slice that first census read.
+ *
+ * CORRECTED 2026-08-31: that census covered 7,741 rows of 591,409, and the
+ * conclusion drawn from it — that Gramercy, Stuyvesant Town and Union Square
+ * were absent from the feed — was false. Read across every row and every status
+ * they are real (930, 14 and 654 rows), and refusing them broke Closed/comps
+ * searches. The vocabulary now comes from the whole feed.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * WHAT REPLACES IT
@@ -229,26 +235,52 @@ export function boroughLabel(providerValue: unknown): string {
  * ` and ` joins.
  */
 export function neighborhoodOData(values: readonly unknown[]): string | null {
-  const spellings: string[] = [];
+  const groups: string[] = [];
+  const seen = new Set<string>();
   const unknown: string[] = [];
+  const ambiguous: string[] = [];
 
   for (const value of values) {
     if (typeof value !== "string") continue;
     const trimmed = value.trim();
     if (!trimmed) continue;
-    const live = neighborhoodVariants(trimmed);
-    if (live.length === 0) {
-      unknown.push(trimmed);
+
+    const identity = identityFor(trimmed);
+    if (!identity) {
+      // A name the feed carries in more than one borough resolves to nothing
+      // without a borough, and must be reported as AMBIGUOUS rather than as
+      // unknown — those are different problems with different fixes.
+      (identitiesFor(trimmed).length > 1 ? ambiguous : unknown).push(trimmed);
       continue;
     }
-    for (const spelling of live) {
-      if (!spellings.includes(spelling)) spellings.push(spelling);
-    }
+    if (seen.has(identity.label)) continue;
+    seen.add(identity.label);
+
+    // THE BOROUGH IS PART OF THE PREDICATE, NOT JUST THE LABEL.
+    //
+    // This emitted `SubdivisionName eq '…'` alone while the census had already
+    // disproved global name uniqueness — 124 of 632 folded names span more than
+    // one CityRegion — so the executor searched as though a name identified a
+    // place when the evidence said it did not.
+    //
+    // Scoping by CityRegion does two things: it keeps `Bay Terrace, Queens` and
+    // `Bay Terrace, Staten Island` apart, and it enforces Mallan's dominant-borough
+    // decision, so the 586 rows tagged `Downtown Brooklyn` in Manhattan — provider
+    // error, since there is no Downtown Brooklyn in Manhattan — stop arriving in a
+    // Brooklyn search.
+    const spellingTerms = identity.spellings
+      .map((s) => `SubdivisionName eq '${escapeOData(s)}'`)
+      .join(" or ");
+    groups.push(
+      `(CityRegion eq '${escapeOData(identity.borough)}' and ` +
+        (identity.spellings.length === 1 ? spellingTerms : `(${spellingTerms})`) +
+        `)`,
+    );
   }
 
   if (unknown.length > 0) throw new UnsupportedGeographyError("neighborhood", unknown);
-  if (spellings.length === 0) return null;
+  if (ambiguous.length > 0) throw new UnsupportedGeographyError("neighborhood", ambiguous);
+  if (groups.length === 0) return null;
 
-  const terms = spellings.map((s) => `SubdivisionName eq '${escapeOData(s)}'`);
-  return terms.length === 1 ? `(${terms[0]})` : `(${terms.join(" or ")})`;
+  return groups.length === 1 ? groups[0] : `(${groups.join(" or ")})`;
 }

@@ -26,7 +26,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * WHAT THIS READS
  *
- * Every Residential / ResidentialLease row at EVERY status, selecting only
+ * EVERY Property row — every status AND every PropertyType — selecting only
  * SubdivisionName and CityRegion. That is ~592 pages. It is a one-time contract
  * build, read-only, and the right size for a fact the whole product depends on.
  *
@@ -45,7 +45,19 @@ const client = createCotalityClient();
 const PROBED_AT = new Date().toISOString().slice(0, 10);
 
 /** EVERY status. The point of this probe is that status must not scope identity. */
-const UNIVERSE = "(PropertyType eq 'Residential' or PropertyType eq 'ResidentialLease')";
+// EVERY Property row, with NO PropertyType restriction.
+//
+// The first pass scoped this to Residential + ResidentialLease, which are the Sale
+// and Rental universes. Building Search sends no `type` at all, so the executor
+// adds no PropertyType predicate for it — meaning Building could execute over a
+// broader universe than the geography vocabulary that validates it.
+//
+// Measured 2026-08-31: those two types account for 591,409 of 591,409 rows, so the
+// scoped census happened to cover Building. Relying on that coincidence is exactly
+// the silent divergence the positive PropertyType universe contract exists to
+// prevent, so the universe is now unconditional and cannot drift out from under
+// Building if the feed ever carries another type.
+const UNIVERSE = null;
 
 /** Same fold as geography.ts: case, space and punctuation insensitive. */
 const fold = (v) => v.toLowerCase().replace(/[^a-z]/g, '');
@@ -54,7 +66,8 @@ async function main() {
   process.stderr.write('\n=== full-feed SubdivisionName census (all statuses) ===\n');
   const page = await client.page(
     'Property',
-    { $select: 'SubdivisionName,CityRegion', $filter: UNIVERSE, $top: 1000 },
+    UNIVERSE ? { $select: 'SubdivisionName,CityRegion', $filter: UNIVERSE, $top: 1000 }
+            : { $select: 'SubdivisionName,CityRegion', $top: 1000 },
     { maxRows: Infinity, maxPages: 1200 },
   );
   const rows = page.rows ?? [];
@@ -117,8 +130,8 @@ async function main() {
   const out = {
     probedAt: PROBED_AT,
     probedAtExact: new Date().toISOString(),
-    universe: UNIVERSE,
-    scope: 'ALL STATUSES — deliberately not the on-market slice',
+    universe: UNIVERSE ?? 'ALL Property rows — no PropertyType restriction',
+    scope: 'ALL statuses AND all PropertyTypes — covers whatever Building Search executes',
     rowsRead: rows.length,
     pagesRead: page.pages,
     truncated: Boolean(page.truncated),

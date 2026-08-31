@@ -72,15 +72,32 @@
                 }
                 _identities = data.identities;
                 _boroughLabels = data.boroughLabels || {};
-                // ONE ENTRY PER IDENTITY, not one per provider spelling. SoHo, Soho
-                // and SOHO are one neighbourhood and must appear once; the union of
-                // spellings executes server-side, so capitalisation loses nothing.
+                // ACCEPT AND OFFER ARE DIFFERENT SETS, AND THE BROWSER NEEDS BOTH.
+                //
+                // `_identities` holds every identity the provider carries, because
+                // resolve() must recognise a SAVED search containing a valid name the
+                // dropdown does not offer. Shipping only the offered subset is what
+                // made Saved Search restore tell the broker that `Union Square` "is no
+                // longer available to search" and silently drop it — a valid,
+                // searchable, historically real neighbourhood.
+                //
+                // The dropdown itself shows only `offered`.
+                //
+                // ONE ENTRY PER IDENTITY, not one per provider spelling: SoHo, Soho and
+                // SOHO are one neighbourhood and appear once, while the union of
+                // spellings executes server-side so capitalisation loses nothing.
                 NEIGHBORHOODS = {};
                 _identities.forEach(function (i) {
+                    if (!i.offered) return;
                     // The BROKER LABEL for the borough. The provider value is
                     // StatenIsland; nobody should ever read that in a dropdown.
+                    //
+                    // Every identity now HAS a borough — identity is (borough x name)
+                    // — so nothing is dropped here. The previous version skipped any
+                    // identity whose borough was null, which silently removed
+                    // Downtown Brooklyn and Midwood from the autocomplete entirely.
                     var label = i.boroughLabel || _boroughLabels[i.borough] || i.borough;
-                    if (!label) return;   // genuinely split names carry no borough
+                    if (!label) return;
                     if (!NEIGHBORHOODS[label]) NEIGHBORHOODS[label] = [];
                     NEIGHBORHOODS[label].push(i.label);
                 });
