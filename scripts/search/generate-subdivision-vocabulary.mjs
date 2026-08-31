@@ -98,3 +98,63 @@ const lines = [
 
 writeFileSync(resolve(REPO, OUT), lines.join('\n') + '\n');
 console.log(`wrote ${OUT}: ${values.length} live SubdivisionName values from ${n.rowsRead} rows`);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// THE BROWSER GETS THE SAME VOCABULARY, FROM THE SAME EVIDENCE.
+//
+// Four neighbourhood lists existed: this generated server contract, a hard-coded
+// array in neighborhood-autocomplete.js, a neighbourhood→borough table in
+// search-engine.js, and the map polygon names. The autocomplete list offered
+// `Stuyvesant Town` and `Union Square`, which the live feed does not carry — so
+// the UI invited a selection the server now refuses.
+//
+// Hand-copying the 240 names into another JS array would make a FIFTH list.
+// Generating the browser file from the same probe is what makes them one
+// vocabulary that cannot drift, because neither can be edited independently.
+//
+// POLYGON NAMES STAY SEPARATE ON PURPOSE. The map renders shapes and its names
+// are a different vocabulary answering a different question; conflating them is
+// what produced the alias reversal in the first place. The bridge between them is
+// explicit and lives in the map layer, not here.
+// ─────────────────────────────────────────────────────────────────────────────
+const UNIQUENESS = 'artifacts/subdivision-borough-uniqueness-2026-08-31.json';
+const BROWSER_OUT = 'public/crm/data/neighborhood-vocabulary.generated.json';
+
+const uniq = JSON.parse(readFileSync(resolve(REPO, UNIQUENESS), 'utf8'));
+if (uniq.complete !== true) {
+  throw new Error('REFUSING to generate the browser vocabulary: uniqueness read was truncated');
+}
+if (uniq.uniquePerBorough !== true) {
+  // A name in two boroughs means the browser cannot present a flat per-borough
+  // list without lying about which place the broker picked.
+  throw new Error('REFUSING: a SubdivisionName spans more than one borough — grouping would be ambiguous');
+}
+const grouped = uniq.byBorough ?? {};
+const groupedTotal = Object.values(grouped).reduce((sum, arr) => sum + arr.length, 0);
+if (groupedTotal !== values.length) {
+  throw new Error(`REFUSING: grouped ${groupedTotal} names but the vocabulary has ${values.length}`);
+}
+
+writeFileSync(
+  resolve(REPO, BROWSER_OUT),
+  JSON.stringify(
+    {
+      _generated: 'node scripts/search/generate-subdivision-vocabulary.mjs — do not edit',
+      _meta: {
+        description:
+          'Live Cotality SubdivisionName values, grouped by the CityRegion each is proven unique to. ' +
+          'The ONE neighbourhood vocabulary shared by the CRM autocomplete and the server executor. ' +
+          'Map polygon names are a SEPARATE vocabulary and are not in this file.',
+        probedAt: probe.probedAt,
+        rowsRead: n.rowsRead,
+        uniquenessEvidence: UNIQUENESS,
+        vocabularyEvidence: EVIDENCE,
+        totalNames: groupedTotal,
+      },
+      byBorough: grouped,
+    },
+    null,
+    2,
+  ) + '\n',
+);
+console.log(`wrote ${BROWSER_OUT}: ${groupedTotal} names across ${Object.keys(grouped).length} boroughs`);

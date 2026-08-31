@@ -409,26 +409,40 @@ describe("authority resolution, not a static per-field author", () => {
     }
   });
 
-  it("neighborhood is resolved BY the live NYC study; borough still is not", () => {
-    // This required BOTH to stay unresolved "until the live NYC study". That
-    // study ran for neighbourhood on 2026-08-31: the Search-eligible universe was
-    // read exhaustively (7,770 rows, 8 pages, not truncated) for 240 distinct
-    // SubdivisionName values, and geography.ts now emits only values from that
-    // list. Every term is one the provider itself carries — identity, not an
-    // asserted equivalence — so holding it at `unresolved` would now be the
-    // inaccurate state.
+  it("geography is authored by whoever authored the LISTING", () => {
+    // TWICE-CORRECTED, and the second correction is the interesting one.
     //
-    // It also found the reason the hold was right: reversing the RLS alias file
-    // had been merging distinct neighbourhoods, so Williamsburg returned Bushwick
-    // and Ridgewood, which is in Queens.
-    expect(get("neighborhood").authorityResolution).toBe("fixed");
-    expect(get("neighborhood").sourceAuthority).toBe("cotality");
-
-    // BOROUGH IS A DIFFERENT QUESTION and stays provisional. The open item there
-    // is which provider fact is canonical — CountyOrParish is a COUNTY, not a
-    // borough — and no study has settled that. Resolving it here merely because
-    // its neighbour resolved is exactly the inference this file forbids.
-    expect(get("borough").authorityResolution).toBe("unresolved");
+    // This originally required both to stay "unresolved until the live NYC
+    // study". That study ran on 2026-08-31 — the Search universe read
+    // exhaustively for 240 distinct SubdivisionName values, each proven unique to
+    // one borough — so I resolved neighborhood to fixed/cotality.
+    //
+    // That was still wrong, and wrong in a way the probe could not reveal, because
+    // it answers a DIFFERENT QUESTION. The study settles which provider field
+    // expresses the concept. `authorityResolution` asks who AUTHORS the fact on a
+    // given listing, and app/api/crm/listings/route.ts answers it plainly:
+    //
+    //   borough:      (persistence.topLevel.borough as string) ?? null
+    //   neighborhood: (persistence.topLevel.neighborhood as string) ?? null
+    //
+    // Those are the values a Mallan agent typed into the CRM form. Declaring the
+    // fact fixed/cotality would say Cotality owns the canonical neighbourhood on
+    // EVERY listing including Mallan's own — which would let a SUPPRESSED
+    // Mallan-office provider representation supply a canonical fact about a
+    // listing Mallan authored, the return-copy inversion the architecture exists
+    // to prevent.
+    //
+    // Geography is an ADDRESS fact and is authored exactly like street_address,
+    // postal_code and unit.
+    for (const key of ["borough", "neighborhood"]) {
+      expect(get(key).authorityResolution).toBe("by_listing_authority");
+      expect(get(key).authorityByListingKind).toEqual({
+        mallanLocal: "mallan_crm",
+        providerListing: "cotality",
+      });
+      // A per-listing-kind fact must not ALSO carry a static author.
+      expect(get(key).sourceAuthority).toBeUndefined();
+    }
   });
 
   it("pipeline lineage is a separate concept, not a canonical source", () => {

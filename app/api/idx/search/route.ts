@@ -40,6 +40,7 @@ import {
 } from "@/lib/search/canonical/sort-contract";
 import { UnknownPropertySubTypeError } from "@/lib/search/canonical/property-subtype-contract";
 import { UnsupportedStatusCriterionError } from "@/lib/search/canonical/status-token-contract";
+import { UnsupportedGeographyError } from "@/lib/search/canonical/geography";
 import { hasUsableListingIdentity, mapTrestleToCrmListing } from "@/lib/search/crm-idx-mapper";
 
 
@@ -297,6 +298,29 @@ export function idxSearchErrorResponse(error: unknown): {
         code: "UNSUPPORTED_CRITERION",
         criterion: "propertySubType",
         unsupportedValues: [...error.unknownTokens],
+      },
+    };
+  }
+
+  // Geography refuses a borough or neighbourhood with no live Cotality
+  // counterpart, so a dead value cannot become a valid-looking filter that
+  // matches zero rows under HTTP 200. That refusal was correct and was NOT
+  // REACHING THE BROKER: it fell through to the generic 502 below, which invites
+  // a retry of the exact action that cannot succeed and discards WHICH of several
+  // selected neighbourhoods was the dead one — the only fact the broker needs to
+  // fix their own search.
+  if (error instanceof UnsupportedGeographyError) {
+    return {
+      status: 400,
+      body: {
+        error: "Unsupported search criterion.",
+        code: "UNSUPPORTED_CRITERION",
+        criterion: error.criterion,
+        unsupportedValues: [...error.unsupportedValues],
+        // The reason travels with it: "not a live Cotality value" is a different
+        // fact from a typo, and `Gramercy` is exactly the case where it matters —
+        // it is dead while `Gramercy Park` has real inventory.
+        detail: error.message,
       },
     };
   }

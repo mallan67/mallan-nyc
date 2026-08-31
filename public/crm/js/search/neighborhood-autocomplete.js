@@ -5,53 +5,59 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 (function() {
-    // All NYC neighborhoods organized by borough (matches Advanced Search tree)
-    var NEIGHBORHOODS = {
-        'Bronx': [
-            'Allerton','Baychester','Bedford Park','Belmont','City Island','Co-op City',
-            'Fordham','Kingsbridge','Morris Park','Pelham Bay','Central Riverdale',
-            'Fieldston','North Riverdale','Spuyten Duyvil','Throgs Neck','Woodlawn'
-        ],
-        'Brooklyn': [
-            'Bath Beach','Bay Ridge','Fort Hamilton','Bedford - Stuyvesant','Ocean Hill',
-            'Stuyvesant Heights','Bensonhurst','Boerum Hill','Borough Park','Brighton Beach',
-            'Brooklyn Heights','Bushwick','Carroll Gardens','Cobble Hill','Coney Island',
-            'Crown Heights','Ditmas Park','Downtown Brooklyn','Dumbo','Dyker Heights',
-            'Flatbush','Fort Greene','Gowanus','Greenpoint','Park Slope','Prospect Heights',
-            'Red Hook','Sheepshead Bay','Sunset Park','Williamsburg','Windsor Terrace'
-        ],
-        'Manhattan': [
-            'Battery Park City','Carnegie Hill','Central Harlem','Chelsea','Chinatown',
-            'Civic Center','East Harlem','East Village','Financial District','Flatiron',
-            'Gramercy Park','Greenwich Village','Hamilton Heights','Hell\'s Kitchen',
-            'Hudson Square','Hudson Yards','Inwood','Kips Bay','Lenox Hill','Lincoln Square',
-            'Little Italy','Lower East Side','Manhattan Valley','Manhattanville','Marble Hill',
-            'Meatpacking District','Midtown','Midtown East','Midtown West','Morningside Heights',
-            'Murray Hill','NoHo','NoMad','Nolita','Peter Cooper Village','Roosevelt Island',
-            'SoHo','Stuyvesant Town','Sugar Hill','Sutton Place','Times Square','Tribeca',
-            'Tudor City','Turtle Bay','Two Bridges','Union Square','Upper East Side',
-            'Upper West Side','Washington Heights','West Harlem','West Village','Yorkville'
-        ],
-        'Queens': [
-            'Astoria','Bayside','Corona','Elmhurst','Flushing','Forest Hills',
-            'Hunters Point','Jackson Heights','Jamaica','Kew Gardens',
-            'Long Island City (LIC)','Rego Park','Ridgewood','Sunnyside','Whitestone','Woodside'
-        ],
-        'Staten Island': [
-            'Annadale','Arden Heights','Dongan Hills','Great Kills','New Dorp',
-            'St. George','Stapleton','Todt Hill'
-        ]
-    };
+    // ── THE ONE NEIGHBOURHOOD VOCABULARY, LOADED NOT HARD-CODED ──────────────
+    //
+    // This carried its own array of ~130 names. It offered `Stuyvesant Town` and
+    // `Union Square`, which the live Cotality feed does not carry, so the UI
+    // invited a selection the server can only refuse — and it omitted live
+    // neighbourhoods with real inventory, which no broker could then reach.
+    //
+    // Four lists existed for one concept: this one, the server contract, the
+    // neighbourhood->borough table in search-engine.js, and the map polygon names.
+    // Copying the 240 live names into this array would have made a fifth. It now
+    // loads the SAME generated file the server vocabulary is generated from, so
+    // neither can be edited independently.
+    //
+    // MAP POLYGON NAMES REMAIN A SEPARATE VOCABULARY answering a different
+    // question (which shape to draw). The bridge lives in the map layer.
+    //
+    // Evidence: artifacts/section5-closure-probe + subdivision-borough-uniqueness,
+    // 240 values read exhaustively, each proven unique to one borough.
+    var NEIGHBORHOODS = {};
 
-    // Build flat search list with borough labels
+    // Built from the loaded vocabulary. Empty until the fetch resolves, which is
+    // correct: an autocomplete that suggests nothing is visibly not ready, whereas
+    // one suggesting a stale hard-coded list looks ready and is wrong.
     var _searchList = [];
-    Object.keys(NEIGHBORHOODS).forEach(function(borough) {
-        // Add borough itself as selectable
-        _searchList.push({ name: borough, borough: '', display: borough, isBoroughLevel: true });
-        NEIGHBORHOODS[borough].forEach(function(n) {
-            _searchList.push({ name: n, borough: borough, display: n + ', ' + borough, isBoroughLevel: false });
+
+    function buildSearchList() {
+        _searchList = [];
+        Object.keys(NEIGHBORHOODS).forEach(function(borough) {
+            // The borough itself stays selectable — it is a separate criterion
+            // (CityRegion), not a neighbourhood, and is marked as such.
+            _searchList.push({ name: borough, borough: '', display: borough, isBoroughLevel: true });
+            NEIGHBORHOODS[borough].forEach(function(n) {
+                _searchList.push({ name: n, borough: borough, display: n + ', ' + borough, isBoroughLevel: false });
+            });
         });
-    });
+    }
+
+    (function loadNeighborhoodVocabulary() {
+        var base = window.location.pathname.replace(/\/[^/]*$/, '');
+        var url = (base.endsWith('/crm') ? '/crm/data/' : 'data/') + 'neighborhood-vocabulary.generated.json';
+        fetch(url)
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (data) {
+                if (!data || !data.byBorough) return;
+                // PROVIDER SPELLING IS PRESERVED EXACTLY. Cotality spells it
+                // `StatenIsland`; the label shown to a broker is cosmetic and must
+                // never be sent as the value, which is the borough trap geography.ts
+                // documents.
+                NEIGHBORHOODS = data.byBorough;
+                buildSearchList();
+            })
+            .catch(function () { /* non-fatal: the box simply suggests nothing */ });
+    })();
 
     // Track selected neighborhoods per input (keyed by tagsContainerId)
     var _selected = {};

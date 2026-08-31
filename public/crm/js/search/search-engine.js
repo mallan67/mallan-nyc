@@ -1,52 +1,24 @@
         // Active search criteria — shared across search-engine, refine panel, and reports
         var activeSearchCriteria = null;
 
-        // ── Neighborhood alias map: canonical polygon name → RLS variants ──
-        // Alias values can be: string (single polygon), array (multi-polygon), or null (no polygon)
-        var _neighborhoodAliases = null;
-        var _aliasReverseMap = {};       // canonical → [variant1, variant2, ...]
-
-        (function loadNeighborhoodAliases() {
-            var base = window.location.pathname.replace(/\/[^/]*$/, '');
-            var url = (base.endsWith('/crm') ? '/geo/' : '../geo/') + 'neighborhood-aliases.json';
-            fetch(url)
-                .then(function(r) { return r.ok ? r.json() : null; })
-                .then(function(data) {
-                    if (data && data.aliases) {
-                        _neighborhoodAliases = data.aliases;
-                        _aliasReverseMap = {};
-                        Object.keys(data.aliases).forEach(function(variant) {
-                            var val = data.aliases[variant];
-                            if (!val) return; // null = distinct, no polygon
-                            // val can be string or array
-                            var canonicals = Array.isArray(val) ? val : [val];
-                            canonicals.forEach(function(canonical) {
-                                if (!_aliasReverseMap[canonical]) _aliasReverseMap[canonical] = [];
-                                _aliasReverseMap[canonical].push(variant);
-                            });
-                        });
-                    }
-                })
-                .catch(function() { /* non-fatal */ });
-        })();
-
-        /**
-         * Expand canonical names to include all RLS SubdivisionName variants.
-         * Used by the search query builder so the filter matches any listing
-         * regardless of which variant was used in the RLS data.
-         */
-        // DEPRECATED: Neighborhood variant expansion handled server-side. Kept for potential future use.
-        function expandCanonicalToVariants(canonicalNames) {
-            if (!_aliasReverseMap || !canonicalNames) return canonicalNames;
-            var expanded = [];
-            canonicalNames.forEach(function(name) {
-                expanded.push(name);
-                if (_aliasReverseMap[name]) {
-                    _aliasReverseMap[name].forEach(function(v) { expanded.push(v); });
-                }
-            });
-            return expanded;
-        }
+        // ── THE RLS ALIAS REVERSAL IS GONE (Section 5, 2026-08-31) ───────────────
+        //
+        // This fetched data/rls/geo/neighborhood-aliases.json and built
+        // `_aliasReverseMap`, canonical -> RLS variants, to expand a selection
+        // before searching. The expansion function was already marked deprecated
+        // and called from nowhere, but the file was still fetched and reversed on
+        // every page load, leaving a second neighbourhood authority sitting in the
+        // browser waiting to be picked up again.
+        //
+        // It should not be picked up again. Measured live, that reversal did not add
+        // spellings of one neighbourhood — it added OTHER NEIGHBOURHOODS, because the
+        // file maps names onto POLYGON SHAPES for map rendering. Williamsburg gained
+        // Bushwick and Ridgewood, which is in Queens.
+        //
+        // Neighbourhood values now come from the generated live Cotality vocabulary,
+        // shared with the server. Polygon names stay a SEPARATE vocabulary owned by
+        // the map layer, which still loads the alias file for the job it was built
+        // for: drawing shapes.
 
         /**
          * openNeighborhoodMapForSearch() — bridge between map modal and search form.

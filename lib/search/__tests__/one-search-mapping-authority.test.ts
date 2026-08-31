@@ -807,6 +807,84 @@ describe('section 5 — every executable criterion has exactly one execution own
     expect(unowned).toEqual([]);
   });
 
+  it('UNRESOLVED AUTHORITY CANNOT BE VERIFIED, whatever else is proven', () => {
+    // The contradiction that kept Section 5 open. `borough` carried
+    // authorityResolution 'unresolved' and providerMappingStatus 'partial' while
+    // being filterable:'yes', actively executed, AND listed in the verified set —
+    // because executionReadiness() checked conflict, strategy, transport,
+    // filterability, evidence and semantic equivalence, and never once asked who
+    // AUTHORS the fact.
+    //
+    // #618's rule is that unresolved stays unresolved: a criterion does not become
+    // verified because an enum exists and an expression executes. Authority is a
+    // separate question from capability, and skipping it let an explicitly
+    // unresolved criterion report as fully verified.
+    const wired = { reachesServer: true, strategyImplemented: true };
+    const synthetic = {
+      ...spec('market_status'),
+      canonicalKey: 'synthetic_unresolved',
+      authorityResolution: 'unresolved',
+    } as FieldSpec;
+    expect(executionReadiness(synthetic, wired)).toBe('needs_probe');
+  });
+
+  it('and no EXECUTED criterion is left with unresolved authority', () => {
+    // The live half. Fails by name so the criterion is identified, not just the
+    // count — and so that resolving one by editing its enum, rather than by
+    // establishing who authors it, is visible in the diff.
+    const executedParams = new Set([...paramsRead(), ...numericMappings().map((n) => n.param)]);
+    // A param the executor READS in order to REFUSE it is not executing. That
+    // distinction matters here: `management_company` is deliberately unresolved
+    // AND deliberately refused — Cotality declares no such Property field, and
+    // listing office is a different fact — so requiring it to resolve would force
+    // an authority decision about a criterion Mallan will never run.
+    const refuses = (param: string): boolean => {
+      const re = new RegExp(`params\\.get\\("${param}"\\)`, 'g');
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(executorSrc))) {
+        if (/UnsupportedSearchCriterionError/.test(executorSrc.slice(m.index, m.index + 600))) return true;
+      }
+      return false;
+    };
+    expect(refuses('managementCompany')).toBe(true);
+    expect(refuses('borough')).toBe(false);
+
+    const offenders = FIELD_REGISTRY.filter(
+      (f) =>
+        f.criterionRole === 'broker_input' &&
+        (f.searchParams ?? []).some((p) => executedParams.has(p)) &&
+        !(f.searchParams ?? []).some((p) => refuses(p)) &&
+        f.authorityResolution === 'unresolved',
+    ).map((f) => f.canonicalKey);
+    expect(offenders).toEqual([]);
+  });
+
+  it('GEOGRAPHY IS AUTHORED BY WHOEVER AUTHORED THE LISTING', () => {
+    // Traced rather than inferred from the provider Search field, which is how
+    // `neighborhood` briefly became fixed/cotality — a claim that Cotality owns
+    // the canonical neighbourhood on EVERY listing. It does not.
+    //
+    // app/api/crm/listings/route.ts writes both columns from
+    // `persistence.topLevel`, i.e. what the Mallan agent entered on the CRM form:
+    //
+    //   borough:      (persistence.topLevel.borough as string) ?? null
+    //   neighborhood: (persistence.topLevel.neighborhood as string) ?? null
+    //
+    // So a Mallan-authored listing has Mallan-authored geography. Declaring it
+    // fixed/cotality would let a SUPPRESSED Mallan-office provider representation
+    // supply a canonical fact about a listing Mallan itself authored — the exact
+    // return-copy inversion the listing architecture exists to prevent.
+    //
+    // Same shape as street_address, postal_code and unit, which is the point:
+    // geography is an ADDRESS fact and is authored the same way they are.
+    for (const key of ['borough', 'neighborhood']) {
+      const s = spec(key);
+      expect(`${key}:${s.authorityResolution}`).toBe(`${key}:by_listing_authority`);
+      expect(s.authorityByListingKind).toEqual({ mallanLocal: 'mallan_crm', providerListing: 'cotality' });
+      expect(`${key}:${s.sourceAuthority ?? 'none'}`).toBe(`${key}:none`);
+    }
+  });
+
   it('a MALLAN-OWNED fact does not need Cotality evidence to be verified', () => {
     // ARCHITECTURAL DEFECT, corrected 2026-08-31.
     //
