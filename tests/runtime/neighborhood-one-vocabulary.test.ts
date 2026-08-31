@@ -28,6 +28,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { SUBDIVISION_NAME_LIVE } from '@/lib/search/canonical/subdivision-vocabulary.generated';
 import { neighborhoodOData } from '@/lib/search/canonical/geography';
+import { identitiesFor } from '@/lib/search/canonical/subdivision-vocabulary.generated';
 
 const REPO = join(__dirname, '..', '..');
 const read = (rel: string) => readFileSync(join(REPO, rel), 'utf8');
@@ -93,16 +94,30 @@ describe('the browser and the server share one neighbourhood vocabulary', () => 
         return true;
       }
     });
-    // `Bay Terrace` is the ONE deliberate exception and it is not a gap: Mallan
-    // declares it two real places, one in Queens and one in Staten Island, so the
-    // bare name resolves to neither. Reporting it as ambiguous is the whole point
-    // — silently picking Queens would be the quiet substitution this contract
-    // exists to prevent. Both qualified forms search normally.
-    expect(unsearchable).toEqual(['Bay Terrace']);
-    expect(() => neighborhoodOData(['Bay Terrace, Queens'])).not.toThrow();
-    expect(() => neighborhoodOData(['Bay Terrace, Staten Island'])).not.toThrow();
+    // EVERY bare name that is unsearchable must be one the contract declares
+    // AMBIGUOUS — and every one of those must have qualified forms that work.
+    //
+    // Being unsearchable bare is not a gap here, it is the design: `Bay Terrace`
+    // is two real places, and `Downtown`, `Hoboken`, `OTHER` and the rest carry no
+    // Mallan decision and no borough at the declared floor. Silently picking the
+    // larger bucket is the substitution this contract exists to prevent.
+    for (const name of unsearchable) {
+      const options = identitiesFor(name);
+      expect(`${name}:ambiguous`).toBe(`${name}:${options.length > 1 ? 'ambiguous' : 'NOT-AMBIGUOUS'}`);
+      // …and each qualified form searches, scoped to its own borough.
+      for (const o of options) {
+        expect(`${o.label}:${(neighborhoodOData([o.label]) ?? '').includes(`CityRegion eq '${o.borough}'`)}`)
+          .toBe(`${o.label}:true`);
+      }
+    }
+    // The worked case, named so a regression says which one broke.
+    expect(unsearchable).toContain('Bay Terrace');
     expect(neighborhoodOData(['Bay Terrace, Queens'])).toContain("CityRegion eq 'Queens'");
     expect(neighborhoodOData(['Bay Terrace, Staten Island'])).toContain("CityRegion eq 'StatenIsland'");
+    // A name WITH a Mallan decision is not ambiguous, even on a 7/7 split.
+    expect(unsearchable).not.toContain('Stuyvesant Town');
+    expect(unsearchable).not.toContain('Downtown Brooklyn');
+    expect(unsearchable).not.toContain('Marble Hill');
   });
 
   it('names with no CURRENT inventory are not offered, but ARE searchable', () => {

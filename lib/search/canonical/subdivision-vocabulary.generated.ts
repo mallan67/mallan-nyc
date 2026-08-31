@@ -6,18 +6,23 @@
  * Universe: ALL Property rows — no PropertyType restriction.
  *
  * IDENTITY IS (borough × normalised name). The census disproved global name
- * uniqueness — 124 of 632 folded names span more than one CityRegion — so the
- * borough is part of the identity AND part of the predicate, not just a label.
+ * uniqueness — 124 of 632 folded names span more than one CityRegion.
  *
- * 633 identities, 233 offered in the autocomplete.
- * ACCEPT ships everywhere; OFFER is a flag, so a Saved Search can restore a valid
- * name the dropdown does not show.
+ * WHICH borough a name means is a MALLAN decision, not a count. Marble Hill is
+ * Bronx 58 / Manhattan 12 in the feed and is legally MANHATTAN, so a plurality
+ * rule returns the wrong answer. Decisions live in the generator with an owner
+ * and a reason; the observed evidence is preserved uninterpreted in
+ * artifacts/neighborhood-borough-resolution.json.
+ *
+ * 651 identities, 233 offered, 38 names left AMBIGUOUS
+ * (no decision and no borough at the declared floor). A bare ambiguous name
+ * resolves to NOTHING and must be qualified — it is never auto-assigned.
  *
  * Evidence: artifacts/subdivision-full-feed-2026-08-31.json
  */
 
 export interface NeighborhoodIdentity {
-  /** The ONE label a broker sees. Carries the borough when the name is two places. */
+  /** The ONE label a broker sees. Carries the borough when the name is ambiguous. */
   readonly label: string;
   /** Every raw Cotality spelling behind it. The union executes. */
   readonly spellings: readonly string[];
@@ -109,7 +114,8 @@ export const NEIGHBORHOOD_IDENTITIES: readonly NeighborhoodIdentity[] = Object.f
   {"label":"Castle Hill","spellings":["Castle Hill"],"rows":6,"borough":"Bronx","boroughLabel":"Bronx","offered":false},
   {"label":"Castleton Corners","spellings":["Castleton Corners"],"rows":3,"borough":"StatenIsland","boroughLabel":"Staten Island","offered":true},
   {"label":"Caton Park","spellings":["Caton Park"],"rows":3,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
-  {"label":"Catskill","spellings":["Catskill"],"rows":2,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
+  {"label":"Catskill, Bronx","spellings":["Catskill"],"rows":1,"borough":"Bronx","boroughLabel":"Bronx","offered":false},
+  {"label":"Catskill, Brooklyn","spellings":["Catskill"],"rows":1,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
   {"label":"CENTPKSTH","spellings":["CENTPKSTH"],"rows":64,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
   {"label":"Central Harlem","spellings":["Central Harlem"],"rows":2404,"borough":"Manhattan","boroughLabel":"Manhattan","offered":true},
   {"label":"Central Park South","spellings":["Central Park South"],"rows":2254,"borough":"Manhattan","boroughLabel":"Manhattan","offered":true},
@@ -178,9 +184,10 @@ export const NEIGHBORHOOD_IDENTITIES: readonly NeighborhoodIdentity[] = Object.f
   {"label":"DNU-Brooklyn","spellings":["DNU-Brooklyn"],"rows":31,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
   {"label":"Dongan Hills","spellings":["Dongan Hills"],"rows":23,"borough":"StatenIsland","boroughLabel":"Staten Island","offered":false},
   {"label":"Douglaston","spellings":["Douglaston"],"rows":38,"borough":"Queens","boroughLabel":"Queens","offered":true},
-  {"label":"Downtown","spellings":["Downtown"],"rows":346,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
   {"label":"DOWNTOWN [ALL]","spellings":["DOWNTOWN [ALL]"],"rows":27,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
   {"label":"Downtown Brooklyn","spellings":["Downtown Brooklyn"],"rows":6988,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":true},
+  {"label":"Downtown, Brooklyn","spellings":["Downtown"],"rows":249,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
+  {"label":"Downtown, Manhattan","spellings":["Downtown"],"rows":97,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
   {"label":"DTWNBKYN","spellings":["DTWNBKYN"],"rows":30,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
   {"label":"DUMBO","spellings":["Dumbo","DUMBO"],"rows":2211,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":true},
   {"label":"DUMBO / Vinegar Hill","spellings":["DUMBO / Vinegar Hill","Dumbo - Vinegar Hill"],"rows":855,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
@@ -200,7 +207,8 @@ export const NEIGHBORHOOD_IDENTITIES: readonly NeighborhoodIdentity[] = Object.f
   {"label":"East Village","spellings":["East Village"],"rows":9166,"borough":"Manhattan","boroughLabel":"Manhattan","offered":true},
   {"label":"East Williamsburg","spellings":["East Williamsburg","EASTWILLIAMSBURG"],"rows":1943,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":true},
   {"label":"Eastchester","spellings":["Eastchester"],"rows":15,"borough":"Bronx","boroughLabel":"Bronx","offered":true},
-  {"label":"Easthampton","spellings":["Easthampton"],"rows":4,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
+  {"label":"Easthampton, Brooklyn","spellings":["Easthampton"],"rows":1,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
+  {"label":"Easthampton, Manhattan","spellings":["Easthampton"],"rows":3,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
   {"label":"EASTVILL","spellings":["EASTVILL"],"rows":157,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
   {"label":"Edenwald","spellings":["Edenwald"],"rows":11,"borough":"Bronx","boroughLabel":"Bronx","offered":false},
   {"label":"Edgemere","spellings":["Edgemere"],"rows":6,"borough":"Queens","boroughLabel":"Queens","offered":true},
@@ -287,19 +295,22 @@ export const NEIGHBORHOOD_IDENTITIES: readonly NeighborhoodIdentity[] = Object.f
   {"label":"Highland Park","spellings":["Highland Park"],"rows":7,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
   {"label":"Hillcrest","spellings":["Hillcrest"],"rows":5,"borough":"Queens","boroughLabel":"Queens","offered":false},
   {"label":"Hillsdale","spellings":["Hillsdale"],"rows":1,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
-  {"label":"Hoboken","spellings":["Hoboken"],"rows":14,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
+  {"label":"Hoboken, Bronx","spellings":["Hoboken"],"rows":2,"borough":"Bronx","boroughLabel":"Bronx","offered":false},
+  {"label":"Hoboken, Brooklyn","spellings":["Hoboken"],"rows":7,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
+  {"label":"Hoboken, Manhattan","spellings":["Hoboken"],"rows":5,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
   {"label":"Hollis","spellings":["Hollis"],"rows":22,"borough":"Queens","boroughLabel":"Queens","offered":true},
   {"label":"Hollis Hills","spellings":["Hollis Hills"],"rows":3,"borough":"Queens","boroughLabel":"Queens","offered":false},
   {"label":"Holliswood","spellings":["Holliswood"],"rows":4,"borough":"Queens","boroughLabel":"Queens","offered":false},
   {"label":"HOMECRE","spellings":["HOMECRE"],"rows":1,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
   {"label":"Homecrest","spellings":["Homecrest"],"rows":183,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":true},
   {"label":"Howard Beach","spellings":["Howard Beach"],"rows":35,"borough":"Queens","boroughLabel":"Queens","offered":true},
-  {"label":"Hudson","spellings":["Hudson"],"rows":8,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
   {"label":"Hudson Heights","spellings":["Hudson Heights"],"rows":2352,"borough":"Manhattan","boroughLabel":"Manhattan","offered":true},
   {"label":"Hudson Square","spellings":["Hudson Square"],"rows":683,"borough":"Manhattan","boroughLabel":"Manhattan","offered":true},
   {"label":"Hudson Yard","spellings":["Hudson Yard"],"rows":1,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
   {"label":"Hudson Yards","spellings":["Hudson Yards"],"rows":1160,"borough":"Manhattan","boroughLabel":"Manhattan","offered":true},
   {"label":"Hudson Yards / MSG","spellings":["Hudson Yards / MSG"],"rows":1,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
+  {"label":"Hudson, Brooklyn","spellings":["Hudson"],"rows":5,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
+  {"label":"Hudson, Manhattan","spellings":["Hudson"],"rows":3,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
   {"label":"Huguenot","spellings":["Huguenot"],"rows":17,"borough":"StatenIsland","boroughLabel":"Staten Island","offered":false},
   {"label":"Hunters Point","spellings":["Hunters Point"],"rows":686,"borough":"Queens","boroughLabel":"Queens","offered":true},
   {"label":"Hunters Point-Sunnyside-West Maspeth","spellings":["Hunters Point-Sunnyside-West Maspeth","Hunters Point-sunnyside-west Maspeth"],"rows":2,"borough":"Queens","boroughLabel":"Queens","offered":false},
@@ -348,7 +359,9 @@ export const NEIGHBORHOOD_IDENTITIES: readonly NeighborhoodIdentity[] = Object.f
   {"label":"Lindenwood","spellings":["Lindenwood"],"rows":14,"borough":"Queens","boroughLabel":"Queens","offered":true},
   {"label":"Little Italy","spellings":["Little Italy"],"rows":962,"borough":"Manhattan","boroughLabel":"Manhattan","offered":true},
   {"label":"Little Neck","spellings":["Little Neck"],"rows":32,"borough":"Queens","boroughLabel":"Queens","offered":true},
-  {"label":"Livingston","spellings":["Livingston"],"rows":3,"borough":"StatenIsland","boroughLabel":"Staten Island","offered":false},
+  {"label":"Livingston, Bronx","spellings":["Livingston"],"rows":1,"borough":"Bronx","boroughLabel":"Bronx","offered":false},
+  {"label":"Livingston, Manhattan","spellings":["Livingston"],"rows":1,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
+  {"label":"Livingston, Staten Island","spellings":["Livingston"],"rows":1,"borough":"StatenIsland","boroughLabel":"Staten Island","offered":false},
   {"label":"LNGCTY","spellings":["LNGCTY"],"rows":107,"borough":"Queens","boroughLabel":"Queens","offered":false},
   {"label":"Locust Point","spellings":["Locust Point"],"rows":1,"borough":"Bronx","boroughLabel":"Bronx","offered":true},
   {"label":"Lodi","spellings":["Lodi"],"rows":1,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
@@ -371,7 +384,7 @@ export const NEIGHBORHOOD_IDENTITIES: readonly NeighborhoodIdentity[] = Object.f
   {"label":"Manhattanville","spellings":["Manhattanville"],"rows":48,"borough":"Manhattan","boroughLabel":"Manhattan","offered":true},
   {"label":"Manor Heights","spellings":["Manor Heights"],"rows":4,"borough":"StatenIsland","boroughLabel":"Staten Island","offered":false},
   {"label":"Mapleton","spellings":["Mapleton","MAPLETON"],"rows":33,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":true},
-  {"label":"Marble Hill","spellings":["Marble Hill"],"rows":70,"borough":"Bronx","boroughLabel":"Bronx","offered":true},
+  {"label":"Marble Hill","spellings":["Marble Hill"],"rows":70,"borough":"Manhattan","boroughLabel":"Manhattan","offered":true},
   {"label":"Marine Park","spellings":["Marine Park"],"rows":184,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":true},
   {"label":"Marine Park/Mill Basin","spellings":["Marine Park/Mill Basin"],"rows":4,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
   {"label":"Marine Pk/Mill Basin","spellings":["Marine Pk/Mill Basin"],"rows":2,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
@@ -423,8 +436,9 @@ export const NEIGHBORHOOD_IDENTITIES: readonly NeighborhoodIdentity[] = Object.f
   {"label":"New Lots","spellings":["New Lots"],"rows":122,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":true},
   {"label":"New Springville","spellings":["New Springville"],"rows":31,"borough":"StatenIsland","boroughLabel":"Staten Island","offered":true},
   {"label":"NEW UTRECHT","spellings":["NEW UTRECHT"],"rows":2,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
-  {"label":"NEW YORK","spellings":["NEW YORK"],"rows":6,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
   {"label":"New York City","spellings":["New York City"],"rows":23,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
+  {"label":"NEW YORK, Brooklyn","spellings":["NEW YORK"],"rows":5,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
+  {"label":"NEW YORK, Manhattan","spellings":["NEW YORK"],"rows":1,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
   {"label":"NoHo","spellings":["Noho","NoHo","NOHO"],"rows":882,"borough":"Manhattan","boroughLabel":"Manhattan","offered":true},
   {"label":"Noho/Central Village","spellings":["Noho/Central Village"],"rows":1,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
   {"label":"Nolita","spellings":["Nolita","NoLita","NoLIta"],"rows":1096,"borough":"Manhattan","boroughLabel":"Manhattan","offered":true},
@@ -437,7 +451,8 @@ export const NEIGHBORHOOD_IDENTITIES: readonly NeighborhoodIdentity[] = Object.f
   {"label":"Northeast Flatbush","spellings":["Northeast Flatbush"],"rows":4,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
   {"label":"NORTHWEST BRONX","spellings":["NORTHWEST BRONX"],"rows":2,"borough":"Bronx","boroughLabel":"Bronx","offered":false},
   {"label":"Norwood","spellings":["Norwood"],"rows":136,"borough":"Bronx","boroughLabel":"Bronx","offered":true},
-  {"label":"null","spellings":["null"],"rows":3508,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
+  {"label":"null, Brooklyn","spellings":["null"],"rows":2029,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
+  {"label":"null, Manhattan","spellings":["null"],"rows":1255,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
   {"label":"NYU","spellings":["NYU"],"rows":17,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
   {"label":"Oakland Gardens","spellings":["Oakland Gardens"],"rows":34,"borough":"Queens","boroughLabel":"Queens","offered":true},
   {"label":"Oakwood","spellings":["Oakwood"],"rows":8,"borough":"StatenIsland","boroughLabel":"Staten Island","offered":false},
@@ -453,10 +468,13 @@ export const NEIGHBORHOOD_IDENTITIES: readonly NeighborhoodIdentity[] = Object.f
   {"label":"Old Mill Basin","spellings":["Old Mill Basin"],"rows":62,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
   {"label":"Olinville","spellings":["Olinville","OLINVILLE"],"rows":5,"borough":"Bronx","boroughLabel":"Bronx","offered":false},
   {"label":"OP","spellings":["OP"],"rows":2,"borough":"Queens","boroughLabel":"Queens","offered":false},
-  {"label":"OTHER","spellings":["OTHER","Other"],"rows":47,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
   {"label":"Other Bronx","spellings":["Other Bronx"],"rows":144,"borough":"Bronx","boroughLabel":"Bronx","offered":false},
   {"label":"Other Brooklyn","spellings":["Other Brooklyn"],"rows":136,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
   {"label":"Other Queens","spellings":["Other Queens"],"rows":148,"borough":"Queens","boroughLabel":"Queens","offered":false},
+  {"label":"OTHER, Bronx","spellings":["OTHER","Other"],"rows":6,"borough":"Bronx","boroughLabel":"Bronx","offered":false},
+  {"label":"OTHER, Brooklyn","spellings":["OTHER","Other"],"rows":21,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
+  {"label":"OTHER, Manhattan","spellings":["OTHER","Other"],"rows":17,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
+  {"label":"OTHER, Queens","spellings":["OTHER","Other"],"rows":3,"borough":"Queens","boroughLabel":"Queens","offered":false},
   {"label":"Out of Town","spellings":["Out of Town"],"rows":2,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
   {"label":"Ozone Park","spellings":["Ozone Park"],"rows":45,"borough":"Queens","boroughLabel":"Queens","offered":false},
   {"label":"Pacific Park","spellings":["Pacific Park"],"rows":231,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
@@ -551,7 +569,8 @@ export const NEIGHBORHOOD_IDENTITIES: readonly NeighborhoodIdentity[] = Object.f
   {"label":"South Village","spellings":["South Village"],"rows":9,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
   {"label":"South Williamsburg","spellings":["South Williamsburg"],"rows":43,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
   {"label":"SOUTHEAST BRONX","spellings":["SOUTHEAST BRONX"],"rows":1,"borough":"Bronx","boroughLabel":"Bronx","offered":false},
-  {"label":"Southold","spellings":["Southold"],"rows":7,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
+  {"label":"Southold, Brooklyn","spellings":["Southold"],"rows":1,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
+  {"label":"Southold, Manhattan","spellings":["Southold"],"rows":6,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
   {"label":"SOUTHSTSEAPORT","spellings":["SOUTHSTSEAPORT"],"rows":2,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
   {"label":"Spring Creek","spellings":["Spring Creek"],"rows":1,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
   {"label":"Springfield Gardens","spellings":["Springfield Gardens"],"rows":15,"borough":"Queens","boroughLabel":"Queens","offered":true},
@@ -562,8 +581,11 @@ export const NEIGHBORHOOD_IDENTITIES: readonly NeighborhoodIdentity[] = Object.f
   {"label":"Stapleton","spellings":["Stapleton"],"rows":17,"borough":"StatenIsland","boroughLabel":"Staten Island","offered":true},
   {"label":"Stapleton Heights","spellings":["Stapleton Heights"],"rows":1,"borough":"StatenIsland","boroughLabel":"Staten Island","offered":false},
   {"label":"Starrett City","spellings":["Starrett City"],"rows":2,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
-  {"label":"Staten Island","spellings":["Staten Island","STATEN ISLAND"],"rows":75,"borough":"StatenIsland","boroughLabel":"Staten Island","offered":false},
   {"label":"Staten Island (Othe","spellings":["Staten Island (Othe"],"rows":1,"borough":"StatenIsland","boroughLabel":"Staten Island","offered":false},
+  {"label":"Staten Island, Bronx","spellings":["Staten Island","STATEN ISLAND"],"rows":11,"borough":"Bronx","boroughLabel":"Bronx","offered":false},
+  {"label":"Staten Island, Brooklyn","spellings":["Staten Island","STATEN ISLAND"],"rows":24,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
+  {"label":"Staten Island, Manhattan","spellings":["Staten Island","STATEN ISLAND"],"rows":9,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
+  {"label":"Staten Island, Staten Island","spellings":["Staten Island","STATEN ISLAND"],"rows":30,"borough":"StatenIsland","boroughLabel":"Staten Island","offered":false},
   {"label":"Steinway-Ditmars","spellings":["Steinway-Ditmars"],"rows":74,"borough":"Queens","boroughLabel":"Queens","offered":false},
   {"label":"STUYHEI","spellings":["STUYHEI"],"rows":5,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
   {"label":"Stuyvesant","spellings":["Stuyvesant"],"rows":1,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
@@ -661,24 +683,43 @@ export const NEIGHBORHOOD_IDENTITIES: readonly NeighborhoodIdentity[] = Object.f
   {"label":"WS","spellings":["WS"],"rows":52,"borough":"Queens","boroughLabel":"Queens","offered":false},
   {"label":"WST","spellings":["WST"],"rows":1,"borough":"Queens","boroughLabel":"Queens","offered":false},
   {"label":"X_B_OTHER","spellings":["X_B_OTHER"],"rows":8,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
-  {"label":"Yonkers","spellings":["Yonkers"],"rows":3,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
+  {"label":"Yonkers, Brooklyn","spellings":["Yonkers"],"rows":1,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
+  {"label":"Yonkers, Manhattan","spellings":["Yonkers"],"rows":2,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
   {"label":"Yorkville","spellings":["Yorkville"],"rows":4685,"borough":"Manhattan","boroughLabel":"Manhattan","offered":true},
   {"label":"ZEREGA","spellings":["ZEREGA"],"rows":1,"borough":"Bronx","boroughLabel":"Bronx","offered":false},
 ]);
 
 const FOLD = (v: string): string => v.toLowerCase().replace(/[^a-z]/g, '');
 
+/** Broker borough labels, for parsing a qualified "Name, Borough" input. */
+const BOROUGH_LABEL_FOLDS = new Set(["manhattan","brooklyn","queens","bronx","statenisland","statenisland"]);
+
 /**
- * Indexed by every folded label AND spelling.
+ * Split a qualified label into its base name and borough.
  *
- * The folded key is derivable, so storing it would be a second copy that could
- * drift — and one compound provider name folds to a 40+ character lowercase run
- * that the repo secrets scanner reads as a possible API key, failing CI.
+ * A QUALIFIED LABEL MUST NOT BE FOLDED WHOLE. `Downtown, Brooklyn` and
+ * `Downtown Brooklyn` fold to the same key, so indexing the qualified form made
+ * a real neighbourhood collide with the disambiguated form of a different one —
+ * and `Downtown Brooklyn` became unsearchable while being offered in the
+ * dropdown. The borough suffix is parsed instead of flattened.
+ */
+function splitQualified(value: string): { base: string; borough: string | null } {
+  const comma = value.lastIndexOf(',');
+  if (comma === -1) return { base: value, borough: null };
+  const tail = value.slice(comma + 1).trim();
+  if (!BOROUGH_LABEL_FOLDS.has(FOLD(tail))) return { base: value, borough: null };
+  return { base: value.slice(0, comma).trim(), borough: tail };
+}
+
+/**
+ * Indexed by folded BASE name and by every raw spelling. A key may map to
+ * SEVERAL identities — that is what ambiguity looks like, and it must survive.
  */
 const BY_FOLDED: ReadonlyMap<string, NeighborhoodIdentity[]> = (() => {
   const m = new Map<string, NeighborhoodIdentity[]>();
   for (const i of NEIGHBORHOOD_IDENTITIES) {
-    for (const key of [i.label, ...i.spellings].map(FOLD)) {
+    const keys = [splitQualified(i.label).base, ...i.spellings].map(FOLD);
+    for (const key of keys) {
       const list = m.get(key) ?? [];
       if (!list.includes(i)) list.push(i);
       m.set(key, list);
@@ -687,30 +728,29 @@ const BY_FOLDED: ReadonlyMap<string, NeighborhoodIdentity[]> = (() => {
   return m;
 })();
 
+/** Every identity a name could mean. Length > 1 means AMBIGUOUS. */
+export function identitiesFor(value: unknown): readonly NeighborhoodIdentity[] {
+  if (typeof value !== 'string') return [];
+  return BY_FOLDED.get(FOLD(splitQualified(value.trim()).base)) ?? [];
+}
+
 /**
  * The identity a typed, stored or polygon name means.
  *
- * `borough` disambiguates a name that is two places. Without it an ambiguous
- * name returns null rather than silently picking one — guessing between
- * Bay Terrace in Queens and Bay Terrace in Staten Island is exactly the quiet
- * substitution this contract exists to prevent.
+ * `borough` disambiguates. Without it an ambiguous name returns null rather than
+ * silently picking one — choosing between Bay Terrace in Queens and Bay Terrace
+ * in Staten Island is exactly the quiet substitution this contract prevents.
  */
 export function identityFor(value: unknown, borough?: string | null): NeighborhoodIdentity | null {
   if (typeof value !== 'string') return null;
-  const key = FOLD(value.trim());
-  if (!key) return null;
-  const hits = BY_FOLDED.get(key);
-  if (!hits || hits.length === 0) return null;
+  const parsed = splitQualified(value.trim());
+  const hits = identitiesFor(value);
+  if (hits.length === 0) return null;
   if (hits.length === 1) return hits[0];
+  borough = borough ?? parsed.borough;
   if (!borough) return null;
   const want = FOLD(borough);
   return hits.find((h) => FOLD(h.borough) === want || FOLD(h.boroughLabel) === want) ?? null;
-}
-
-/** Every identity a name could mean — for reporting an ambiguity to the broker. */
-export function identitiesFor(value: unknown): readonly NeighborhoodIdentity[] {
-  if (typeof value !== 'string') return [];
-  return BY_FOLDED.get(FOLD(value.trim())) ?? [];
 }
 
 /** The borough a neighbourhood belongs to, as the PROVIDER value. */

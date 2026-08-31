@@ -30,6 +30,30 @@
     /** Same fold as the server contract: case, space and punctuation insensitive. */
     function _fold(v) { return String(v).toLowerCase().replace(/[^a-z]/g, ''); }
 
+    /**
+     * Split a qualified label into base name and borough.
+     *
+     * A QUALIFIED LABEL MUST NOT BE FOLDED WHOLE: 'Downtown, Brooklyn' and the
+     * real neighbourhood 'Downtown Brooklyn' fold to the same key, which made a
+     * genuine name collide with the disambiguated form of a different one — and
+     * 'Downtown Brooklyn' became unsearchable while still being offered.
+     *
+     * Mirrors splitQualified() in the generated server contract exactly. The whole
+     * point of this module is that the two resolvers cannot answer differently.
+     */
+    function _splitQualified(value) {
+        var comma = String(value).lastIndexOf(',');
+        if (comma === -1) return { base: value, borough: null };
+        var tail = String(value).slice(comma + 1).trim();
+        var folds = {};
+        Object.keys(_boroughLabels).forEach(function (k) {
+            folds[_fold(k)] = true;
+            folds[_fold(_boroughLabels[k])] = true;
+        });
+        if (!folds[_fold(tail)]) return { base: value, borough: null };
+        return { base: String(value).slice(0, comma).trim(), borough: tail };
+    }
+
     // Built from the loaded vocabulary. Empty until the fetch resolves, which is
     // correct: an autocomplete that suggests nothing is visibly not ready, whereas
     // one suggesting a stale hard-coded list looks ready and is wrong.
@@ -133,19 +157,69 @@
         boroughLabel: function (providerValue) {
             return _boroughLabels[providerValue] || providerValue || '';
         },
-        /** The identity a typed/stored/polygon name means, or null if not live. */
-        resolve: function (name) {
-            if (typeof name !== 'string') return null;
-            var key = _fold(name);
-            if (!key) return null;
+        /**
+         * EVERY identity a name could mean. Length > 1 is AMBIGUOUS.
+         *
+         * Both Bay Terrace identities carry the raw spelling "Bay Terrace", so a
+         * bare lookup finds two.
+         */
+        candidates: function (name) {
+            if (typeof name !== 'string') return [];
+            // Match on the BASE name. Folding a qualified label whole makes
+            // 'Downtown, Brooklyn' collide with the real 'Downtown Brooklyn'.
+            var key = _fold(_splitQualified(name.trim()).base);
+            if (!key) return [];
+            var out = [];
             for (var n = 0; n < _identities.length; n++) {
                 var idn = _identities[n];
-                if (_fold(idn.label) === key) return idn;
-                for (var k = 0; k < idn.spellings.length; k++) {
-                    if (_fold(idn.spellings[k]) === key) return idn;
+                var match = _fold(_splitQualified(idn.label).base) === key;
+                for (var k = 0; !match && k < idn.spellings.length; k++) {
+                    if (_fold(idn.spellings[k]) === key) match = true;
+                }
+                if (match && out.indexOf(idn) === -1) out.push(idn);
+            }
+            return out;
+        },
+
+        /**
+         * THE SAME CARDINALITY RULE THE SERVER USES.
+         *
+         * This returned the FIRST match, so a bare `Bay Terrace` silently became
+         * whichever of Queens or Staten Island appeared first in the JSON — while
+         * the server resolver returned null and called it ambiguous. Two resolvers,
+         * two answers, and the Map and Saved Search both ran the browser one.
+         *
+         *   0 matches  -> unknown
+         *   1 match    -> that identity
+         *   many       -> AMBIGUOUS unless a borough disambiguates
+         *
+         * `state()` is the shape callers should use, because "I have never heard of
+         * this" and "this could be two places" need different messages and
+         * different repairs.
+         */
+        resolveState: function (name, borough) {
+            var hits = this.candidates(name);
+            // A qualified input carries its own borough; honour it when the caller
+            // did not pass one separately.
+            if (!borough && typeof name === 'string') {
+                borough = _splitQualified(name.trim()).borough;
+            }
+            if (hits.length === 0) return { state: 'unknown', identity: null, candidates: [] };
+            if (hits.length === 1) return { state: 'ok', identity: hits[0], candidates: hits };
+            if (borough) {
+                var want = _fold(borough);
+                for (var n = 0; n < hits.length; n++) {
+                    if (_fold(hits[n].borough) === want || _fold(hits[n].boroughLabel) === want) {
+                        return { state: 'ok', identity: hits[n], candidates: hits };
+                    }
                 }
             }
-            return null;
+            return { state: 'ambiguous', identity: null, candidates: hits };
+        },
+
+        /** The identity a name means, or null when unknown OR ambiguous. */
+        resolve: function (name, borough) {
+            return this.resolveState(name, borough).identity;
         }
     };
 

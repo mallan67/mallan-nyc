@@ -1,13 +1,15 @@
 {
   "_generated": "node scripts/search/generate-neighborhood-identities.mjs — do not edit",
   "_meta": {
-    "description": "Canonical neighbourhood identities from the full live Cotality feed. Identity is (borough x normalised name); the borough is part of the predicate, not just a label. Carries the FULL accept set so Saved Search can restore a valid name the dropdown does not offer. Map polygon names are a SEPARATE vocabulary and are not in this file.",
+    "description": "Canonical neighbourhood identities from the full live Cotality feed. Identity is (borough x normalised name). Carries the FULL accept set so Saved Search can restore a valid name the dropdown does not offer. A folded name mapping to more than one identity is AMBIGUOUS and must be qualified by borough — never auto-picked. Map polygon names are a SEPARATE vocabulary and are not in this file.",
     "probedAt": "2026-08-31",
     "rowsRead": 591409,
     "universe": "ALL Property rows — no PropertyType restriction",
     "evidence": "artifacts/subdivision-full-feed-2026-08-31.json",
-    "totalIdentities": 633,
-    "offeredIdentities": 233
+    "boroughResolution": "artifacts/neighborhood-borough-resolution.json",
+    "totalIdentities": 651,
+    "offeredIdentities": 233,
+    "ambiguousNames": 38
   },
   "boroughLabels": {
     "Manhattan": "Manhattan",
@@ -811,11 +813,21 @@
       "offered": false
     },
     {
-      "label": "Catskill",
+      "label": "Catskill, Bronx",
       "spellings": [
         "Catskill"
       ],
-      "rows": 2,
+      "rows": 1,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
+    },
+    {
+      "label": "Catskill, Brooklyn",
+      "spellings": [
+        "Catskill"
+      ],
+      "rows": 1,
       "borough": "Brooklyn",
       "boroughLabel": "Brooklyn",
       "offered": false
@@ -1510,16 +1522,6 @@
       "offered": true
     },
     {
-      "label": "Downtown",
-      "spellings": [
-        "Downtown"
-      ],
-      "rows": 346,
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
-      "offered": false
-    },
-    {
       "label": "DOWNTOWN [ALL]",
       "spellings": [
         "DOWNTOWN [ALL]"
@@ -1538,6 +1540,26 @@
       "borough": "Brooklyn",
       "boroughLabel": "Brooklyn",
       "offered": true
+    },
+    {
+      "label": "Downtown, Brooklyn",
+      "spellings": [
+        "Downtown"
+      ],
+      "rows": 249,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Downtown, Manhattan",
+      "spellings": [
+        "Downtown"
+      ],
+      "rows": 97,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
     },
     {
       "label": "DTWNBKYN",
@@ -1733,11 +1755,21 @@
       "offered": true
     },
     {
-      "label": "Easthampton",
+      "label": "Easthampton, Brooklyn",
       "spellings": [
         "Easthampton"
       ],
-      "rows": 4,
+      "rows": 1,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Easthampton, Manhattan",
+      "spellings": [
+        "Easthampton"
+      ],
+      "rows": 3,
       "borough": "Manhattan",
       "boroughLabel": "Manhattan",
       "offered": false
@@ -2615,13 +2647,33 @@
       "offered": false
     },
     {
-      "label": "Hoboken",
+      "label": "Hoboken, Bronx",
       "spellings": [
         "Hoboken"
       ],
-      "rows": 14,
+      "rows": 2,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
+    },
+    {
+      "label": "Hoboken, Brooklyn",
+      "spellings": [
+        "Hoboken"
+      ],
+      "rows": 7,
       "borough": "Brooklyn",
       "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Hoboken, Manhattan",
+      "spellings": [
+        "Hoboken"
+      ],
+      "rows": 5,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
       "offered": false
     },
     {
@@ -2685,16 +2737,6 @@
       "offered": true
     },
     {
-      "label": "Hudson",
-      "spellings": [
-        "Hudson"
-      ],
-      "rows": 8,
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
-      "offered": false
-    },
-    {
       "label": "Hudson Heights",
       "spellings": [
         "Hudson Heights"
@@ -2740,6 +2782,26 @@
         "Hudson Yards / MSG"
       ],
       "rows": 1,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Hudson, Brooklyn",
+      "spellings": [
+        "Hudson"
+      ],
+      "rows": 5,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Hudson, Manhattan",
+      "spellings": [
+        "Hudson"
+      ],
+      "rows": 3,
       "borough": "Manhattan",
       "boroughLabel": "Manhattan",
       "offered": false
@@ -3231,11 +3293,31 @@
       "offered": true
     },
     {
-      "label": "Livingston",
+      "label": "Livingston, Bronx",
       "spellings": [
         "Livingston"
       ],
-      "rows": 3,
+      "rows": 1,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
+    },
+    {
+      "label": "Livingston, Manhattan",
+      "spellings": [
+        "Livingston"
+      ],
+      "rows": 1,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Livingston, Staten Island",
+      "spellings": [
+        "Livingston"
+      ],
+      "rows": 1,
       "borough": "StatenIsland",
       "boroughLabel": "Staten Island",
       "offered": false
@@ -3470,8 +3552,8 @@
         "Marble Hill"
       ],
       "rows": 70,
-      "borough": "Bronx",
-      "boroughLabel": "Bronx",
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
       "offered": true
     },
     {
@@ -3991,16 +4073,6 @@
       "offered": false
     },
     {
-      "label": "NEW YORK",
-      "spellings": [
-        "NEW YORK"
-      ],
-      "rows": 6,
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
-      "offered": false
-    },
-    {
       "label": "New York City",
       "spellings": [
         "New York City"
@@ -4008,6 +4080,26 @@
       "rows": 23,
       "borough": "Brooklyn",
       "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "NEW YORK, Brooklyn",
+      "spellings": [
+        "NEW YORK"
+      ],
+      "rows": 5,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "NEW YORK, Manhattan",
+      "spellings": [
+        "NEW YORK"
+      ],
+      "rows": 1,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
       "offered": false
     },
     {
@@ -4138,13 +4230,23 @@
       "offered": true
     },
     {
-      "label": "null",
+      "label": "null, Brooklyn",
       "spellings": [
         "null"
       ],
-      "rows": 3508,
+      "rows": 2029,
       "borough": "Brooklyn",
       "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "null, Manhattan",
+      "spellings": [
+        "null"
+      ],
+      "rows": 1255,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
       "offered": false
     },
     {
@@ -4299,17 +4401,6 @@
       "offered": false
     },
     {
-      "label": "OTHER",
-      "spellings": [
-        "OTHER",
-        "Other"
-      ],
-      "rows": 47,
-      "borough": "Brooklyn",
-      "boroughLabel": "Brooklyn",
-      "offered": false
-    },
-    {
       "label": "Other Bronx",
       "spellings": [
         "Other Bronx"
@@ -4335,6 +4426,50 @@
         "Other Queens"
       ],
       "rows": 148,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "OTHER, Bronx",
+      "spellings": [
+        "OTHER",
+        "Other"
+      ],
+      "rows": 6,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
+    },
+    {
+      "label": "OTHER, Brooklyn",
+      "spellings": [
+        "OTHER",
+        "Other"
+      ],
+      "rows": 21,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "OTHER, Manhattan",
+      "spellings": [
+        "OTHER",
+        "Other"
+      ],
+      "rows": 17,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "OTHER, Queens",
+      "spellings": [
+        "OTHER",
+        "Other"
+      ],
+      "rows": 3,
       "borough": "Queens",
       "boroughLabel": "Queens",
       "offered": false
@@ -5294,11 +5429,21 @@
       "offered": false
     },
     {
-      "label": "Southold",
+      "label": "Southold, Brooklyn",
       "spellings": [
         "Southold"
       ],
-      "rows": 7,
+      "rows": 1,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Southold, Manhattan",
+      "spellings": [
+        "Southold"
+      ],
+      "rows": 6,
       "borough": "Manhattan",
       "boroughLabel": "Manhattan",
       "offered": false
@@ -5406,22 +5551,55 @@
       "offered": false
     },
     {
-      "label": "Staten Island",
-      "spellings": [
-        "Staten Island",
-        "STATEN ISLAND"
-      ],
-      "rows": 75,
-      "borough": "StatenIsland",
-      "boroughLabel": "Staten Island",
-      "offered": false
-    },
-    {
       "label": "Staten Island (Othe",
       "spellings": [
         "Staten Island (Othe"
       ],
       "rows": 1,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
+      "offered": false
+    },
+    {
+      "label": "Staten Island, Bronx",
+      "spellings": [
+        "Staten Island",
+        "STATEN ISLAND"
+      ],
+      "rows": 11,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
+    },
+    {
+      "label": "Staten Island, Brooklyn",
+      "spellings": [
+        "Staten Island",
+        "STATEN ISLAND"
+      ],
+      "rows": 24,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Staten Island, Manhattan",
+      "spellings": [
+        "Staten Island",
+        "STATEN ISLAND"
+      ],
+      "rows": 9,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Staten Island, Staten Island",
+      "spellings": [
+        "Staten Island",
+        "STATEN ISLAND"
+      ],
+      "rows": 30,
       "borough": "StatenIsland",
       "boroughLabel": "Staten Island",
       "offered": false
@@ -6409,11 +6587,21 @@
       "offered": false
     },
     {
-      "label": "Yonkers",
+      "label": "Yonkers, Brooklyn",
       "spellings": [
         "Yonkers"
       ],
-      "rows": 3,
+      "rows": 1,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Yonkers, Manhattan",
+      "spellings": [
+        "Yonkers"
+      ],
+      "rows": 2,
       "borough": "Manhattan",
       "boroughLabel": "Manhattan",
       "offered": false

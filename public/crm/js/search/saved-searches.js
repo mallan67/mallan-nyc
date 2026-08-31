@@ -356,8 +356,23 @@
                     // BOROUGH-LEVEL, so a restored neighbourhood was silently
                     // reclassified as a whole borough and the search widened.
                     var vocab = window.MallanNeighborhoods;
-                    var identity = vocab ? vocab.resolve(n) : null;
-                    if (!identity) {
+                    var r = vocab ? vocab.resolveState(n) : { state: 'unknown', identity: null, candidates: [] };
+                    if (r.state === 'ambiguous') {
+                        // A LEGACY saved search can hold a bare name that now means
+                        // two places. Migrating it to whichever came first would
+                        // silently change what the broker saved — so it is surfaced
+                        // for correction instead.
+                        if (typeof showToast === 'function') {
+                            showToast(
+                                'Saved neighbourhood "' + n + '" could be ' +
+                                r.candidates.map(function (c) { return c.label; }).join(' or ') +
+                                ' — reselect it to update this saved search.',
+                                'warning'
+                            );
+                        }
+                        return;
+                    }
+                    if (r.state === 'unknown') {
                         // A stored name the live feed no longer carries is reported,
                         // not silently turned into something else.
                         if (typeof showToast === 'function') {
@@ -365,6 +380,7 @@
                         }
                         return;
                     }
+                    var identity = r.identity;
                     var borough = identity.borough ? vocab.boroughLabel(identity.borough) : '';
                     selectNeighborhood(identity.label, borough, false, '', tagsId);
                 });

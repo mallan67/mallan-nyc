@@ -64,11 +64,18 @@
                 var vocab = window.MallanNeighborhoods;
                 var canonicals = [];
                 var unavailable = [];
+                var ambiguous = [];
 
                 for (var i = 0; i < raw.length; i++) {
-                    var identity = vocab ? vocab.resolve(raw[i]) : null;
-                    if (identity) {
-                        if (canonicals.indexOf(identity.label) === -1) canonicals.push(identity.label);
+                    // UNKNOWN AND AMBIGUOUS ARE DIFFERENT PROBLEMS. A polygon named
+                    // simply `Bay Terrace` matches two real places — Queens and
+                    // Staten Island — and picking one is a wrong answer, not a
+                    // convenience. The previous resolver returned the first match.
+                    var r = vocab ? vocab.resolveState(raw[i]) : { state: 'unknown', identity: null, candidates: [] };
+                    if (r.state === 'ok') {
+                        if (canonicals.indexOf(r.identity.label) === -1) canonicals.push(r.identity.label);
+                    } else if (r.state === 'ambiguous') {
+                        ambiguous.push({ name: raw[i], options: r.candidates.map(function (c) { return c.label; }) });
                     } else {
                         unavailable.push(raw[i]);
                     }
@@ -79,6 +86,17 @@
                         unavailable.join(', ') +
                         (unavailable.length === 1 ? ' is' : ' are') +
                         ' not available to search — no Cotality listings use that name.',
+                        'warning'
+                    );
+                }
+                if (ambiguous.length > 0 && typeof showToast === 'function') {
+                    // Name the choices so the agent can make it, rather than having
+                    // one made for them silently.
+                    showToast(
+                        ambiguous.map(function (a) {
+                            return '"' + a.name + '" could be ' + a.options.join(' or ') +
+                                   ' — pick one from the neighbourhood box.';
+                        }).join(' '),
                         'warning'
                     );
                 }
