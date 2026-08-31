@@ -33821,9 +33821,15 @@ function emailCurrentCalc() {
     }
 
     (function loadNeighborhoodVocabulary() {
-        var base = window.location.pathname.replace(/\/[^/]*$/, '');
-        var url = (base.endsWith('/crm') ? '/crm/data/' : 'data/') + 'neighborhood-vocabulary.generated.json';
-        fetch(url)
+        // The SAME absolute path every other CRM data loader uses — panels.js and
+        // transit-search.js both fetch '/crm/data/...' unconditionally.
+        //
+        // My first version derived the path from window.location, copying the shape
+        // of the retired alias loader. It had a branch that resolved to '/data/...'
+        // when the page is served at '/crm' with no trailing slash, and a failed
+        // fetch here is SILENT by design — the box simply suggests nothing — so a
+        // broker would have found neighbourhoods unselectable with no error anywhere.
+        fetch('/crm/data/neighborhood-vocabulary.generated.json')
             .then(function (r) { return r.ok ? r.json() : null; })
             .then(function (data) {
                 if (!data || !data.byBorough) return;
