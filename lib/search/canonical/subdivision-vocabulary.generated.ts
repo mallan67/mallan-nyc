@@ -703,7 +703,7 @@ export const NEIGHBORHOOD_IDENTITIES: readonly NeighborhoodIdentity[] = Object.f
 
 const FOLD = (v: string): string => v.toLowerCase().replace(/[^a-z]/g, '');
 
-/** Broker borough labels, for parsing a qualified "Name, Borough" input. */
+/** Broker borough labels, for parsing a qualified "Name (Borough)" input. */
 const BOROUGH_LABEL_FOLDS = new Set(["manhattan","brooklyn","queens","bronx","statenisland","statenisland"]);
 
 /**

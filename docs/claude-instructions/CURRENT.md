@@ -10,13 +10,17 @@
 
 **Section 4 status:** **CLOSED BY EVIDENCE**
 
-**Latest independently audited Section 5 checkpoint code SHA:** `4163435a907ad1ec56149a60fb3057187a395c6f`
+**Verified Section 5 functional closure code SHA:** `8e03fd3f7ac8d057bd2db44f46510d9ff4063c8b`
 
-**Current active section:** **Section 5 — Registry → Executor Authority**
+**Section 5 status:** **CLOSED BY EVIDENCE** — independently accepted. No remaining wrong-answer defect in the §5 geography / transport / Registry→Executor chain.
 
-**Section 5 status:** **OPEN — the prior three closure blockers are fixed at `4163435a...`, but independent review exposed two remaining Registry→Executor defects. §6 is NOT authorized.**
+**Current active section:** **SECTION 6 — FINAL UNIVERSE / COUNT / PAGINATION TRUTH**
 
-> This file does not hard-code its own resulting documentation commit SHA. The commit containing this revision becomes the live #618 head after the documentation update. The audited **code** checkpoint remains `4163435a...` unless later code changes are independently reviewed. Before any mutation, read the live PR head and verify the local worktree exactly matches it.
+**Section 6 status:** **AUTHORIZED.**
+
+> DO NOT REOPEN §5. Geography, neighbourhood transport, qualifier semantics, Saved Search geography restore, browser/server resolver parity and the Registry→Executor work are proven at `8e03fd3f...`. Return to §5 only if a NEW behavioral defect directly invalidates an established invariant.
+
+> This file does not hard-code its own resulting documentation commit SHA. The commit containing this revision becomes the live #618 head. Before any mutation, read the live PR head and verify the local worktree exactly matches it.
 
 # 0. AUTHORITY / START RULES
 
@@ -157,7 +161,9 @@ This did not block Section 4 canonical closure, but it MUST be corrected before 
 
 # 5. SEARCH STEP 2 — REGISTRY → EXECUTOR AUTHORITY
 
-**CURRENT SECTION: 5 — OPEN. DO NOT DECLARE CLOSED YET.**
+**SECTION 5 — CLOSED BY EVIDENCE at `8e03fd3f7ac8d057bd2db44f46510d9ff4063c8b`.**
+
+Everything below is the RECORD of what was established and must hold. Do not reopen it. The invariants are listed in §17; a change that breaks one is a new defect, not a reopened section.
 
 Target architecture:
 
@@ -444,9 +450,11 @@ By Section 5 closure, machine-checkably prove:
 
 The census must fail CI if a new executor mapping appears without an authority owner or if an executing criterion is not canonically verified.
 
-## SECTION 5 CLOSURE GATE
+## SECTION 5 CLOSURE GATE — SATISFIED
 
-Do not move to §6 until:
+Every item below was met at `8e03fd3f...` and independently accepted. Retained as the standard §6 closure is held to, not as open work.
+
+The bar that was cleared:
 
 - bathroom semantics remain aligned with fractional Full + Half×0.5;
 - listing-ID domains remain explicitly resolved;
@@ -595,50 +603,46 @@ If intentionally departing from sequence, state:
 
 # 17. CURRENT PROGRESS NOTATION
 
-**CURRENT SECTION:** 5 — Registry → Executor Authority
+**CURRENT SECTION:** 6 — Final Universe / Count / Pagination Truth
 
-**STATUS:** **OPEN — the previous three blockers are closed at `4163435a...`; independent audit rejected closure on two newly exposed defects**
+**STATUS:** **AUTHORIZED — Section 5 closed by evidence.**
 
 **SECTION 4 CLOSURE SHA:** `939884e15ec8447988c7fb791a8978fb8676f3a4`
 
-**LATEST AUDITED §5 CODE CHECKPOINT SHA:** `4163435a907ad1ec56149a60fb3057187a395c6f`
+**SECTION 5 FUNCTIONAL CLOSURE SHA:** `8e03fd3f7ac8d057bd2db44f46510d9ff4063c8b`
 
-**CHECKPOINT DELIVERY PROOF:** all five GitHub PR workflows passed at exact `4163435a...`; Vercel Preview `dpl_EnG6juKwyLZZfrVREzwzvw89qD3W` is READY at the same SHA. Green delivery does not override the two Registry→Executor defects below.
+**§5 CLOSURE PROOF:** all five GitHub PR workflows green at that exact SHA; Vercel Preview `dpl_9k7jrmmk2G7PGpKAjvRciWrN99YQ` READY with `githubCommitSha=8e03fd3f...`; #618 open, draft, unmerged, mergeable.
 
-**STACK:** #620 head `82d55a3c2ce357edd34dd5ee7ae66fed853d9ceb`; #618 and #620 remain diverged; audited #618 code is 195 commits ahead / 3 behind from merge base `a0db2dac8b933bc2d978143721418427c0ebb65a`. No restack without Maya authorization.
+**§5 ESTABLISHED INVARIANTS — DO NOT REOPEN:**
 
-**§5 PROGRESS ACCEPTED / DO NOT REOPEN WITHOUT NEW EVIDENCE:**
+- fractional bathroom authority = Full + Half×0.5, half baths preserved as first-class data;
+- provider / Mallan listing-ID domain separation;
+- Sponsor Unit and Maximum Financing = Mallan-side complete-universe strategies, refused until §6;
+- exact StreetNumber Search; case-insensitive UnitNumber via live-proven `toupper()`;
+- numeric max-bound sentinel guards, with BedroomsTotal zero preserved as a studio;
+- unresolved authority can never report `verified_executable`;
+- geography evidence = 591,409 Property rows, every status, every PropertyType, not truncated;
+- neighbourhood identity is (borough × normalised name); global name uniqueness is withdrawn;
+- Cotality observation is separated from `mallan_canonical_geography` decisions, with no plurality fallback and no hidden presence cutoff;
+- ambiguity preserves every observed borough and the bare name resolves to nothing;
+- a supplied borough qualifier is never ignored — `impossible_qualifier` is its own truthful refusal;
+- browser and server resolvers are behaviourally identical, swept over every label and provider spelling;
+- neighbourhood lists travel as REPEATED query parameters, so literal-comma provider values survive losslessly;
+- Saved Search records an unrestorable geography criterion as a restore issue and does not auto-run;
+- ACCEPT and OFFER are distinct sets; case variants collapse without losing provider spellings.
 
-- fractional bathroom authority = Full + Half×0.5; half baths preserved;
-- provider/Mallan listing-ID domain separation;
-- Sponsor Unit future strategy = Mallan-side complete-universe projection; refused until §6;
-- Maximum Financing future strategy = Mallan-side complete-universe projection; refused until §6;
-- exact StreetNumber Search, case-insensitive UnitNumber execution, corrected sentinel behavior and typed provider boundaries;
-- unresolved authority cannot report `verified_executable`;
-- full-feed geography evidence = 591,409 Property rows / 592 pages / all statuses / all PropertyTypes;
-- 124/632 folded neighborhood names span multiple CityRegions, so global name uniqueness is withdrawn;
-- Cotality observed geography must remain separate from `mallan_canonical_geography` decisions;
-- browser/server resolver parity is behaviorally tested;
-- case variants collapse without losing raw provider spellings;
-- ACCEPT and OFFER are distinct concepts;
-- Map distinguishes resolved / unknown / ambiguous and does not auto-pick ambiguity;
-- absolute CRM vocabulary path and explicit loading/failure states are committed;
-- Saved Search restore now blocks auto-run on ambiguous/unknown neighborhoods and has behavioral proof;
-- ambiguous vs not-live geography errors are truthful and fail closed;
-- prior stale dominant-borough/provider-error authority prose was cleaned;
-- Mallan-constructed ambiguous labels use parentheses, e.g. `Bay Terrace (Queens)`, so they do not conflict with the old comma-separated multi-select delimiter;
-- active provider-engine wording is Cotality;
-- exact-SHA CI and Vercel Preview are green.
+**SECTION 6 SCOPE — WHAT IT OWNS:**
 
-**CURRENT §5 WRONG-ANSWER / CLOSURE BLOCKERS — ONLY THESE:**
+Complete-universe execution for criteria that cannot truthfully execute as a direct provider predicate, including the already-declared Mallan-side strategies (Maximum Financing, Sponsor Unit). The chain is:
 
-1. **Neighborhood transport is not lossless.** Browser `join(',')` + one encoded `neighborhood` param + server `split(',')` corrupts valid accepted Cotality names that themselves contain commas. The current full-feed contract includes `Williamsburg,North` and `Williamsburg,South`; the generated resolution artifact itself states the current transport splits them and the search is wrong. Replace CSV neighborhood transport with one lossless list representation across browser/API/route and behaviorally prove literal-comma + ordinary + qualified + combined cases.
-2. **The ambiguous branch hides a 5% borough-selection rule while claiming “no decision.”** `SPLIT_PRESENCE_FLOOR = 0.05` discards observed boroughs below 5%; when only one remains, the generator emits an unqualified bare identity even though the artifact says `ambiguous_requires_borough`, “bare name must be qualified,” and owner `cotality_observation`. Baychester (Bronx 26 / Manhattan 1) is the concrete contradiction. Preserve all observed boroughs for true ambiguity or explicitly model any cutoff as a Mallan-owned business rule; add invariants that behavior, basis, owner and artifact agree.
+`Cotality candidate universe → Mallan listing authority / return-copy suppression → eligibility/identity → dedupe → Mallan-side corpus filters → sort → final count → pagination`
 
-**FINAL §5 PASS:** correct those two only; update the neighborhood transport invariant so “searchable” proves the actual browser→wire→route chain; add ambiguity generator guards; regenerate generated files/bundle; run targeted geography/transport/Saved Search/error-boundary suites, registry→executor census, broad Search/compliance gates, exact GitHub workflows and exact-SHA Vercel Preview; then STOP for independent §5 closure review.
+Never page first and then apply a membership-changing criterion. DO NOT implement page-local substitutes. Open House is in scope: the current implementation is post-pagination / wrong-universe and must be fixed or explicitly refused.
 
-**NEXT SECTION ALLOWED:** none. §6 only after independent Section 5 closure.
+Before §6 financing execution, live-probe the exact narrow expansion `$expand=CustomProperty($select=CustomFields)` — the current bare full-CustomProperty expansion is inferred from an older compound-select 400, not proven necessary.
 
-**DO NOT START YET:** §6 complete-universe financing/Open House, §8 Saved Search v2, CMA runtime, My Listings, Eblast, Neon/R2.
+**SEQUENCE AFTER §6:** §7 complete Sale/Rental Search → §8 Map + Saved Search + Workbench → §9 Compare + Reports + CMA → §10 authenticated browser E2E on desktop/tablet/mobile.
 
-**DOWNSTREAM TRACKED:** unknown beds/baths/rooms/DOM → display-copy zero and detailed bathroom presentation (`2 full, 1 half`) must be corrected before §7/§10 closure.
+**HOLDS:** no restack of #618 onto #620; no Neon/R2; no schema, migration or env change; no Production deployment; public consumer Search remains protected zero-delta.
+
+**DOWNSTREAM TRACKED (for §7/§10, not §6):** unknown beds/baths/rooms/DOM render as display-copy zero; detailed bathroom presentation must preserve components (`2 full, 1 half`); the IDX attribution bar still reads "REBNY RLS via Trestle" and is compliance-shaped text awaiting Maya's decision.

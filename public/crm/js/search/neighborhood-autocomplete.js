@@ -52,7 +52,7 @@
      */
     function _splitQualified(value) {
         // PARENTHESES, NOT A COMMA. The neighborhood request param is
-        // once comma-separated for multi-select, so 'Bay Terrace, Queens' split into
+        // was once comma-separated for multi-select, so 'Bay Terrace, Queens' split into
         // two neighbourhoods and the qualified form never reached the executor.
         // The list now travels as repeated parameters, and the parenthesised form
         // is what keeps a qualifier readable on either side.

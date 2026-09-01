@@ -158,13 +158,28 @@ describe('closed vocabularies have exactly one owner', () => {
     }
   });
 
-  it('neighborhood is OPEN, because no closed vocabulary is proven for it', () => {
-    // `neighborhoodOData` deliberately passes an unrecognised name through as a
-    // literal SubdivisionName. Declaring it enum_set would claim a proven
-    // canonical geography vocabulary that does not exist — the 593 alias
-    // equivalences date from 2026-03-19 and are still unverified against live
-    // SubdivisionName.
+  it('neighborhood is a DYNAMIC provider string set, not a closed enum', () => {
+    // PROSE CORRECTED 2026-09-01 (§5 closure). The assertions are unchanged and
+    // still right; the explanation under them described a world that no longer
+    // exists.
+    //
+    // It said no canonical geography vocabulary existed, that `neighborhoodOData`
+    // passed an unrecognised name through as a literal SubdivisionName, and that
+    // the 2026-03-19 alias file was the neighbourhood execution authority. All
+    // three are now false. That alias file was retired from provider execution; a
+    // full-feed census of 591,409 rows produced a generated live-Cotality
+    // vocabulary; and an unknown value now FAILS CLOSED rather than passing
+    // through.
+    //
+    // WHY THE SHAPE IS STILL `text_set`: the broker types a provider string, and
+    // the set of live SubdivisionName values is dynamic — regenerated from the
+    // feed, not frozen in this contract. `enum_set` would claim a closed
+    // vocabulary owned here, and this file does not own it.
     expect(CRITERION_VALUE_SHAPE.neighborhood).toBe('text_set');
+    // …and no vocabulary OWNER here either, because that map is for closed
+    // enum/feature-map membership. Neighbourhood execution is delegated through
+    // FIELD_REGISTRY `mappingOwner: 'geography'` to the generated contract, which
+    // is where the members and the borough decisions actually live.
     expect(CRITERION_VOCABULARY_OWNER.neighborhood).toBeUndefined();
   });
 });

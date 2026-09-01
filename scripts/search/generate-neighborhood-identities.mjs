@@ -224,10 +224,10 @@ for (const i of full.identities) {
   for (const borough of boroughs) {
     identities.push({
       folded: i.folded,
-      // PARENTHESES, NOT A COMMA. The neighborhood request param is
-      // comma-separated for multi-select, so a comma inside the label split
-      // `Bay Terrace, Queens` into two neighbourhoods and the qualified form
-      // could never reach the executor intact.
+      // `Name (Borough)` IS THE CANONICAL MALLAN DISAMBIGUATION SYNTAX.
+      // One label, parseable on both sides, and unambiguous when a name is more
+      // than one place. It is not a workaround: neighbourhood lists travel as
+      // repeated query parameters, so any character is safe on the wire.
       label: qualify ? `${base} (${BOROUGH_LABELS[borough] ?? borough})` : base,
       spellings,
       rows: qualify ? (i.boroughs[borough] ?? 0) : i.rows,
@@ -271,14 +271,16 @@ const soho = identities.find((i) => i.folded === 'soho');
 if (!soho || soho.label !== 'SoHo' || soho.spellings.length < 3) {
   throw new Error('REFUSING: the SoHo case group did not collapse as required');
 }
-// A label I CONSTRUCT must never contain a comma: the neighborhood request param
-// is comma-separated for multi-select, so `Bay Terrace, Queens` split into two
-// neighbourhoods and the qualified form could never reach the executor.
+// A CONSTRUCTED label uses `Name (Borough)`, never a comma — one canonical
+// disambiguation syntax, so a qualifier reads the same everywhere and parses the
+// same on both sides.
 //
-// Raw PROVIDER names containing commas are a separate, pre-existing matter —
-// `Williamsburg,North` and `Williamsburg,South` cannot survive that param either,
-// which is a defect this generator did not create and does not hide. They are
-// recorded below rather than silently reshaped.
+// RAW PROVIDER COMMAS ARE DATA AND ARE PRESERVED. `Williamsburg,North` and
+// `Williamsburg,South` reach the executor exactly as Cotality spells them,
+// because neighbourhood lists travel as REPEATED QUERY PARAMETERS rather than one
+// comma-joined value. They are listed below as named regression evidence: an
+// earlier comma-joined param split them into two criteria, so the executor
+// answered a question nobody asked.
 const commaQualified = identities.filter((i) => i.label.includes(',') && i.label.includes('('));
 if (commaQualified.length) {
   throw new Error(`REFUSING: ${commaQualified.length} constructed labels contain a comma`);
@@ -395,7 +397,7 @@ const ts = [
   '',
   "const FOLD = (v: string): string => v.toLowerCase().replace(/[^a-z]/g, '');",
   '',
-  '/** Broker borough labels, for parsing a qualified "Name, Borough" input. */',
+  '/** Broker borough labels, for parsing a qualified "Name (Borough)" input. */',
   `const BOROUGH_LABEL_FOLDS = new Set(${JSON.stringify(
       [...new Set([...Object.keys(BOROUGH_LABELS), ...Object.values(BOROUGH_LABELS)])]
         .map((b) => b.toLowerCase().replace(/[^a-z]/g, '')),

@@ -1,5 +1,45 @@
 # MALLAN CONTINUOUS EXECUTION STATE
 
+## ⛳ CURRENT AUTHORITATIVE STATE — 2026-09-01
+
+> **`docs/claude-instructions/CURRENT.md` IS THE CONTINUATION AUTHORITY.** Read it first.
+> This file is subordinate execution-state evidence. Everything below this block is a
+> HISTORICAL SNAPSHOT and is superseded where it disagrees.
+
+| | |
+|---|---|
+| **Repo / branch** | `mallan67/mallan-nyc` · `fix/neon-p0-event-driven-wake-2026-08-16` |
+| **PR** | **#618 — open, draft, unmerged, mergeable** |
+| **Section 4** | **CLOSED BY EVIDENCE** — `939884e15ec8447988c7fb791a8978fb8676f3a4` |
+| **Section 5** | **CLOSED BY EVIDENCE** — `8e03fd3f7ac8d057bd2db44f46510d9ff4063c8b` |
+| **Current section** | **SECTION 6 — FINAL UNIVERSE / COUNT / PAGINATION TRUTH · AUTHORIZED** |
+| **Stack** | #620 is a separate Neon/R2 lane. #618 and #620 remain diverged. **No restack without Maya's authorization.** |
+
+**§5 closure proof:** all five GitHub PR workflows green at exactly `8e03fd3f...`;
+Vercel Preview `dpl_9k7jrmmk2G7PGpKAjvRciWrN99YQ` READY with
+`githubCommitSha=8e03fd3f7ac8d057bd2db44f46510d9ff4063c8b`.
+
+**DO NOT REOPEN §5.** Geography, neighbourhood transport, qualifier semantics, Saved
+Search geography restore, browser/server resolver parity and Registry→Executor authority
+are proven at that SHA. Return only if a NEW behavioral defect directly invalidates an
+established invariant — the invariants are listed in `CURRENT.md` §17.
+
+**Section 6 owns** complete-universe execution for criteria that cannot truthfully run as a
+direct provider predicate — including the declared Mallan-side strategies for Maximum
+Financing and Sponsor Unit, and the post-pagination Open House defect. Never page first and
+then apply a membership-changing criterion. No page-local substitutes.
+
+**Holds:** no Neon/R2 work in this lane; no schema, migration or env change; no Production
+deployment; public consumer Search stays zero-delta.
+
+---
+
+## 🗄️ HISTORICAL SNAPSHOT — 2026-08-26 (SUPERSEDED)
+
+> Retained as evidence of how the investigation proceeded. Its working baseline
+> (`220c7e9…`), its "active workstream" line and its section pointers are STALE. Where it
+> disagrees with the block above or with `CURRENT.md`, those win.
+
 **Updated:** 2026-08-26
 **Purpose:** survive a context reset without restarting the investigation.
 

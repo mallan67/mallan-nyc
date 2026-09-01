@@ -999,7 +999,7 @@
                 }
         }
 
-        // Server-side search: query Trestle API with criteria — this is the PRIMARY data source
+        // Server-side search: query the Cotality API with criteria — this is the PRIMARY data source
         function _serverSearch(criteria, localResults) {
             var params = window.buildIdxSearchParams(criteria);
 
@@ -1018,11 +1018,11 @@
             params.page = 1;
             params.limit = searchResultsState.perPage || 50;
 
-            console.log('[Search] Querying Trestle API:', JSON.stringify(params));
+            console.log('[Search] Querying Cotality API:', JSON.stringify(params));
             if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = true;
             MallanAPI.idx.search(params).then(function(result) {
                 if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = false;
-                console.log('[Search] Trestle returned:', result ? (result.listings ? result.listings.length + ' listings' : 'no listings array') : 'null');
+                console.log('[Search] Cotality returned:', result ? (result.listings ? result.listings.length + ' listings' : 'no listings array') : 'null');
                 // A BOUNDED TRAVERSAL THAT FOUND NOTHING IS NOT AN EMPTY
                 // UNIVERSE.
                 //
@@ -1190,7 +1190,7 @@
                     console.error('[Search] Render after server search failed:', renderErr);
                 }
                 _saveSearchState();
-                console.log('[Search] Rendered ' + serverListings.length + ' listings from Trestle');
+                console.log('[Search] Rendered ' + serverListings.length + ' listings from Cotality');
             }).catch(function(err) {
                 if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = false;
                 console.error('[Search] Search failed:', err);
@@ -1386,7 +1386,7 @@
             resultsDiv.classList.remove('hidden');
         }
 
-        // Server-side address search via Trestle API
+        // Server-side address search via the Cotality API
         function _serverAddressSearch(query, resultsDivId, localMatches) {
             var resultsDiv = document.getElementById(resultsDivId);
             if (!resultsDiv) return;
