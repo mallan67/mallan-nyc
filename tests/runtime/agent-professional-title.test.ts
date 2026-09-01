@@ -138,7 +138,9 @@ describe('agent-inquiry route wiring', () => {
   });
 
   it('omits the title line rather than printing an empty one', () => {
-    expect(routeSrc).toContain('opts.fromTitle\n            ?');
+    // Whitespace and line-ending agnostic: this source is checked out CRLF
+    // on Windows, so an exact-newline substring match is not portable.
+    expect(routeSrc).toMatch(/opts\.fromTitle\s*\?/);
   });
 
   it('logs loudly instead of silently substituting a guessed title', () => {
