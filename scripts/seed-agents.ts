@@ -41,6 +41,15 @@ async function main() {
     } else {
       // Create new agent with a placeholder password hash
       // (they'll need to set a real password via the CRM)
+      // `license_type` is the NY licence designation — an Associate Broker is
+      // legitimately "broker". `role` is the CRM AUTHORISATION grant: "BROKER"
+      // unlocks the admin surfaces (audit log, every agent's leads, automation,
+      // campaigns, /admin login), so it belongs to the PRINCIPAL broker alone.
+      // An *associate* broker must not inherit it from her title.
+      const titleLc = agent.title.toLowerCase();
+      const isLicensedBroker = titleLc.includes('broker');
+      const isPrincipalBroker = isLicensedBroker && !titleLc.includes('associate');
+
       await prisma.agent.create({
         data: {
           first_name: firstName,
@@ -49,8 +58,8 @@ async function main() {
           email: agent.email,
           password_hash: '$placeholder-needs-reset$',
           phone: agent.phone,
-          license_type: agent.title.toLowerCase().includes('broker') ? 'broker' : 'salesperson',
-          role: agent.title.toLowerCase().includes('broker') ? 'BROKER' : 'AGENT',
+          license_type: isLicensedBroker ? 'broker' : 'salesperson',
+          role: isPrincipalBroker ? 'BROKER' : 'AGENT',
           public_slug: slug,
           title: agent.title,
           bio: agent.bio,
