@@ -81,5 +81,35 @@ describe('geography errors join the canonical unsupported-criterion protocol', (
   it('carries the reason, so the broker learns it is not a live Cotality value', () => {
     const res = routeResponseFor({ neighborhood: 'Nonexistent Heights' });
     expect(res!.body.detail).toMatch(/live Cotality value/i);
+    expect(res!.body.refusal).toBe('not_live');
+  });
+
+  it('AMBIGUOUS is a different refusal, and must not claim the value is not live', () => {
+    // The refusal was right and the explanation was false. Cotality carries
+    // `Bay Terrace` on 59 rows; what Mallan cannot know without a borough is WHICH
+    // Bay Terrace — Queens or Staten Island. Telling a broker their real
+    // neighbourhood does not exist sends them to fix the wrong thing, and
+    // misreports the provider.
+    const res = routeResponseFor({ neighborhood: 'Bay Terrace' });
+    expect(res!.status).toBe(400);
+    expect(res!.body.code).toBe('UNSUPPORTED_CRITERION');
+    expect(res!.body.refusal).toBe('ambiguous');
+    // THE FALSE SENTENCE MUST BE ABSENT.
+    expect(res!.body.detail).not.toMatch(/Not a live Cotality value/);
+    expect(res!.body.detail).toMatch(/more than one borough/i);
+    // …and the broker is told what to choose between.
+    expect([...(res!.body.options as string[])].sort()).toEqual([
+      'Bay Terrace (Queens)', 'Bay Terrace (Staten Island)',
+    ]);
+  });
+
+  it('both refusals still FAIL CLOSED — only the explanation differs', () => {
+    for (const name of ['Nonexistent Heights', 'Bay Terrace']) {
+      const res = routeResponseFor({ neighborhood: name });
+      expect(`${name}:${res!.status}`).toBe(`${name}:400`);
+      expect(`${name}:${res!.body.code}`).toBe(`${name}:UNSUPPORTED_CRITERION`);
+    }
+    // A qualified value is not refused at all.
+    expect(routeResponseFor({ neighborhood: 'Bay Terrace (Queens)' })).toBeNull();
   });
 });

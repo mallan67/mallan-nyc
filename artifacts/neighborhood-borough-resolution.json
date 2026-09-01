@@ -10,6 +10,13 @@
     "mallan_dominance_default": "At or above the declared 99% floor, Mallan treats the name as that borough. A decision about sufficiency of evidence, NOT a claim about the residue.",
     "ambiguous_requires_borough": "No decision and no borough at the floor. Split per borough; the bare name resolves to nothing and must be qualified."
   },
+  "commaBearingProviderNames": {
+    "note": "These raw Cotality SubdivisionName values contain a comma. The neighborhood request param is comma-separated for multi-select, so selecting one splits it into two criteria and the search is wrong. PRE-EXISTING and NOT introduced here; recorded so it is visible rather than discovered later.",
+    "names": [
+      "Williamsburg,North",
+      "Williamsburg,South"
+    ]
+  },
   "resolutions": [
     {
       "name": "Allerton",

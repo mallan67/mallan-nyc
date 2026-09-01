@@ -357,27 +357,35 @@
                     // reclassified as a whole borough and the search widened.
                     var vocab = window.MallanNeighborhoods;
                     var r = vocab ? vocab.resolveState(n) : { state: 'unknown', identity: null, candidates: [] };
+                    // A SKIPPED NEIGHBOURHOOD IS A RESTORE ISSUE, NOT A WARNING.
+                    //
+                    // Both branches below used to show a toast and `return`, adding
+                    // nothing to _restoreIssues — so the gate below saw a clean
+                    // restore and auto-fired performSearch(). A legacy record saved
+                    // as bare `Bay Terrace` therefore ran WITHOUT its neighbourhood
+                    // criterion: a broader search than the broker saved, executed on
+                    // their behalf, with only a toast to say so.
+                    //
+                    // The server's disposition check cannot cover this — it
+                    // classifies checkbox criteria and does not know about geography
+                    // ambiguity — so the issue has to be raised here.
                     if (r.state === 'ambiguous') {
                         // A LEGACY saved search can hold a bare name that now means
                         // two places. Migrating it to whichever came first would
-                        // silently change what the broker saved — so it is surfaced
-                        // for correction instead.
-                        if (typeof showToast === 'function') {
-                            showToast(
-                                'Saved neighbourhood "' + n + '" could be ' +
-                                r.candidates.map(function (c) { return c.label; }).join(' or ') +
-                                ' — reselect it to update this saved search.',
-                                'warning'
-                            );
-                        }
+                        // silently change what the broker saved.
+                        _restoreIssues.push(
+                            'neighborhood = ' + n + ': could be ' +
+                            r.candidates.map(function (c) { return c.label; }).join(' or ') +
+                            ' — reselect it to update this saved search'
+                        );
                         return;
                     }
                     if (r.state === 'unknown') {
                         // A stored name the live feed no longer carries is reported,
                         // not silently turned into something else.
-                        if (typeof showToast === 'function') {
-                            showToast('Saved neighbourhood "' + n + '" is no longer available to search.', 'warning');
-                        }
+                        _restoreIssues.push(
+                            'neighborhood = ' + n + ': no longer a live Cotality neighbourhood'
+                        );
                         return;
                     }
                     var identity = r.identity;

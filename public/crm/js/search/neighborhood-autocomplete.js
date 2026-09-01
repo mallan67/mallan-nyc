@@ -7,22 +7,31 @@
 (function() {
     // ── THE ONE NEIGHBOURHOOD VOCABULARY, LOADED NOT HARD-CODED ──────────────
     //
-    // This carried its own array of ~130 names. It offered `Stuyvesant Town` and
-    // `Union Square`, which the live Cotality feed does not carry, so the UI
-    // invited a selection the server can only refuse — and it omitted live
-    // neighbourhoods with real inventory, which no broker could then reach.
+    // This carried its own array of ~130 names, so the UI could offer a selection
+    // the server refused while omitting live neighbourhoods no broker could reach.
     //
     // Four lists existed for one concept: this one, the server contract, the
     // neighbourhood->borough table in search-engine.js, and the map polygon names.
-    // Copying the 240 live names into this array would have made a fifth. It now
-    // loads the SAME generated file the server vocabulary is generated from, so
-    // neither can be edited independently.
+    // Copying the live names into this array would have made a fifth. It now loads
+    // the SAME generated file the server contract is generated from, so neither can
+    // be edited independently.
     //
     // MAP POLYGON NAMES REMAIN A SEPARATE VOCABULARY answering a different
     // question (which shape to draw). The bridge lives in the map layer.
     //
-    // Evidence: artifacts/section5-closure-probe + subdivision-borough-uniqueness,
-    // 240 values read exhaustively, each proven unique to one borough.
+    // TWO EARLIER CLAIMS HERE ARE WITHDRAWN:
+    //
+    //   - that `Stuyvesant Town` and `Union Square` are not carried by the live
+    //     feed. They are — 14 and 654 rows. The vocabulary that judged them had
+    //     been read from 1.3% of the feed. They are ACCEPTED and searchable, and
+    //     simply not OFFERED, having no current on-market inventory.
+    //   - that the 240 values were each proven unique to one borough. That held
+    //     only within the on-market slice. Across the whole feed 124 of 632 folded
+    //     names span more than one CityRegion, which is why identity is
+    //     (borough × name) and a bare ambiguous name resolves to nothing.
+    //
+    // Evidence: artifacts/subdivision-full-feed-2026-08-31.json — 591,409 rows,
+    // every status, every PropertyType, not truncated.
     var NEIGHBORHOODS = {};
     var _identities = [];
     var _boroughLabels = {};
@@ -42,16 +51,24 @@
      * point of this module is that the two resolvers cannot answer differently.
      */
     function _splitQualified(value) {
-        var comma = String(value).lastIndexOf(',');
-        if (comma === -1) return { base: value, borough: null };
-        var tail = String(value).slice(comma + 1).trim();
+        // PARENTHESES, NOT A COMMA. The neighborhood request param is
+        // comma-separated for multi-select, so 'Bay Terrace, Queens' split into
+        // two neighbourhoods and the qualified form never reached the executor.
+        // String operations, not a regex — mirrors splitQualified() in the
+        // generated server contract exactly, and avoids the backslash-eating that
+        // silently corrupted the emitted pattern.
+        var v = String(value);
+        var close = v.lastIndexOf(')');
+        var open = v.lastIndexOf('(');
+        if (close !== v.length - 1 || open <= 0) return { base: value, borough: null };
+        var tail = v.slice(open + 1, close).trim();
         var folds = {};
         Object.keys(_boroughLabels).forEach(function (k) {
             folds[_fold(k)] = true;
             folds[_fold(_boroughLabels[k])] = true;
         });
         if (!folds[_fold(tail)]) return { base: value, borough: null };
-        return { base: String(value).slice(0, comma).trim(), borough: tail };
+        return { base: v.slice(0, open).trim(), borough: tail };
     }
 
     // Built from the loaded vocabulary. Empty until the fetch resolves, which is

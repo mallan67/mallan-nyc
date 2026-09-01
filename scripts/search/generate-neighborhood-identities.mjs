@@ -170,7 +170,11 @@ for (const i of full.identities) {
   for (const borough of boroughs) {
     identities.push({
       folded: i.folded,
-      label: qualify ? `${base}, ${BOROUGH_LABELS[borough] ?? borough}` : base,
+      // PARENTHESES, NOT A COMMA. The neighborhood request param is
+      // comma-separated for multi-select, so a comma inside the label split
+      // `Bay Terrace, Queens` into two neighbourhoods and the qualified form
+      // could never reach the executor intact.
+      label: qualify ? `${base} (${BOROUGH_LABELS[borough] ?? borough})` : base,
       spellings,
       rows: qualify ? (i.boroughs[borough] ?? 0) : i.rows,
       borough,
@@ -207,12 +211,27 @@ need('Downtown Brooklyn', 'Brooklyn');
 need('Midwood', 'Brooklyn');
 need('Marble Hill', 'Manhattan');          // the count-based rule would say Bronx
 need('Stuyvesant Town', 'Manhattan');      // the feed splits 7/7
-need('Bay Terrace, Queens', 'Queens');
-need('Bay Terrace, Staten Island', 'StatenIsland');
+need('Bay Terrace (Queens)', 'Queens');
+need('Bay Terrace (Staten Island)', 'StatenIsland');
 const soho = identities.find((i) => i.folded === 'soho');
 if (!soho || soho.label !== 'SoHo' || soho.spellings.length < 3) {
   throw new Error('REFUSING: the SoHo case group did not collapse as required');
 }
+// A label I CONSTRUCT must never contain a comma: the neighborhood request param
+// is comma-separated for multi-select, so `Bay Terrace, Queens` split into two
+// neighbourhoods and the qualified form could never reach the executor.
+//
+// Raw PROVIDER names containing commas are a separate, pre-existing matter —
+// `Williamsburg,North` and `Williamsburg,South` cannot survive that param either,
+// which is a defect this generator did not create and does not hide. They are
+// recorded below rather than silently reshaped.
+const commaQualified = identities.filter((i) => i.label.includes(',') && i.label.includes('('));
+if (commaQualified.length) {
+  throw new Error(`REFUSING: ${commaQualified.length} constructed labels contain a comma`);
+}
+const commaInProviderName = [...new Set(
+  identities.filter((i) => i.label.includes(',')).map((i) => i.label),
+)];
 if (identities.some((i) => i.boroughLabel === 'StatenIsland')) {
   throw new Error('REFUSING: raw provider spelling StatenIsland leaked into a broker label');
 }
@@ -294,11 +313,17 @@ const ts = [
   ' * dropdown. The borough suffix is parsed instead of flattened.',
   ' */',
   'function splitQualified(value: string): { base: string; borough: string | null } {',
-  "  const comma = value.lastIndexOf(',');",
-  '  if (comma === -1) return { base: value, borough: null };',
-  '  const tail = value.slice(comma + 1).trim();',
+  // STRING OPERATIONS, NOT A REGEX. Emitting a regex through this generator means
+  // emitting backslashes, and they have been eaten twice by the shell layers this
+  // file is edited through — producing /^(.*)s*(([^()]+))s*$/, which silently
+  // matched the wrong thing instead of failing. There is nothing here a regex does
+  // better.
+  '  const close = value.lastIndexOf(")");',
+  '  const open = value.lastIndexOf("(");',
+  '  if (close !== value.length - 1 || open <= 0) return { base: value, borough: null };',
+  '  const tail = value.slice(open + 1, close).trim();',
   '  if (!BOROUGH_LABEL_FOLDS.has(FOLD(tail))) return { base: value, borough: null };',
-  '  return { base: value.slice(0, comma).trim(), borough: tail };',
+  '  return { base: value.slice(0, open).trim(), borough: tail };',
   '}',
   '',
   '/**',
@@ -421,6 +446,14 @@ writeFileSync(
         ambiguous_requires_borough:
           'No decision and no borough at the floor. Split per borough; the bare name resolves to ' +
           'nothing and must be qualified.',
+      },
+      commaBearingProviderNames: {
+        note:
+          'These raw Cotality SubdivisionName values contain a comma. The neighborhood request '
+          + 'param is comma-separated for multi-select, so selecting one splits it into two '
+          + 'criteria and the search is wrong. PRE-EXISTING and NOT introduced here; recorded so '
+          + 'it is visible rather than discovered later.',
+        names: commaInProviderName,
       },
       resolutions: resolutionLog,
     },

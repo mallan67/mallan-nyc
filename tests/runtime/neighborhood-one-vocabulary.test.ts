@@ -112,8 +112,8 @@ describe('the browser and the server share one neighbourhood vocabulary', () => 
     }
     // The worked case, named so a regression says which one broke.
     expect(unsearchable).toContain('Bay Terrace');
-    expect(neighborhoodOData(['Bay Terrace, Queens'])).toContain("CityRegion eq 'Queens'");
-    expect(neighborhoodOData(['Bay Terrace, Staten Island'])).toContain("CityRegion eq 'StatenIsland'");
+    expect(neighborhoodOData(['Bay Terrace (Queens)'])).toContain("CityRegion eq 'Queens'");
+    expect(neighborhoodOData(['Bay Terrace (Staten Island)'])).toContain("CityRegion eq 'StatenIsland'");
     // A name WITH a Mallan decision is not ambiguous, even on a 7/7 split.
     expect(unsearchable).not.toContain('Stuyvesant Town');
     expect(unsearchable).not.toContain('Downtown Brooklyn');

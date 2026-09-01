@@ -79,19 +79,54 @@ export const CITY_REGION_MEMBERS = [
 export type CityRegionMember = (typeof CITY_REGION_MEMBERS)[number];
 
 /** A geography criterion carried a value with no live provider counterpart. */
+/**
+ * WHY a geography value was refused. Both fail closed; they are not the same fact.
+ *
+ *   `not_live`   the provider does not carry this value at all.
+ *   `ambiguous`  the provider DOES carry it, and it names more than one place.
+ */
+export type GeographyRefusal = 'not_live' | 'ambiguous';
+
 export class UnsupportedGeographyError extends Error {
   readonly criterion: string;
   readonly unsupportedValues: readonly string[];
+  readonly refusal: GeographyRefusal;
+  /** For an ambiguous value: the qualified labels the broker may choose between. */
+  readonly options: readonly string[];
 
-  constructor(criterion: string, unsupportedValues: readonly string[]) {
+  constructor(
+    criterion: string,
+    unsupportedValues: readonly string[],
+    refusal: GeographyRefusal = 'not_live',
+    options: readonly string[] = [],
+  ) {
+    // THE REFUSAL WAS RIGHT AND THE EXPLANATION WAS FALSE.
+    //
+    // Both cases threw this with "Not a live Cotality value". For `Bay Terrace`
+    // that is untrue: Cotality carries it on 59 rows. What Mallan cannot know,
+    // without a borough, is WHICH Bay Terrace the broker means — Queens or
+    // Staten Island.
+    //
+    // Telling a broker their real neighbourhood does not exist sends them to fix
+    // the wrong thing, and it misreports the provider. The two truths stay
+    // separate; the fail-closed behaviour is identical.
+    const values = unsupportedValues.map((v) => `'${v}'`).join(", ");
     super(
-      `Unsupported ${criterion} criterion: ${unsupportedValues.map((v) => `'${v}'`).join(", ")}. ` +
-        `Not a live Cotality value. The criterion is rejected rather than dropped — dropping it ` +
-        `would remove the geographic narrowing and answer a broader question under HTTP 200.`,
+      refusal === 'ambiguous'
+        ? `Ambiguous ${criterion} criterion: ${values}. ` +
+          `Cotality carries this name in more than one borough, so it identifies more than one ` +
+          `place${options.length ? ` — ${options.join(" or ")}` : ""}. Choose one. The criterion is ` +
+          `rejected rather than resolved on the broker's behalf, because picking one silently ` +
+          `answers a different question from the one they asked.`
+        : `Unsupported ${criterion} criterion: ${values}. ` +
+          `Not a live Cotality value. The criterion is rejected rather than dropped — dropping it ` +
+          `would remove the geographic narrowing and answer a broader question under HTTP 200.`,
     );
     this.name = "UnsupportedGeographyError";
     this.criterion = criterion;
     this.unsupportedValues = unsupportedValues;
+    this.refusal = refusal;
+    this.options = options;
   }
 }
 
@@ -264,10 +299,17 @@ export function neighborhoodOData(values: readonly unknown[]): string | null {
     // place when the evidence said it did not.
     //
     // Scoping by CityRegion does two things: it keeps `Bay Terrace, Queens` and
-    // `Bay Terrace, Staten Island` apart, and it enforces Mallan's dominant-borough
-    // decision, so the 586 rows tagged `Downtown Brooklyn` in Manhattan — provider
-    // error, since there is no Downtown Brooklyn in Manhattan — stop arriving in a
-    // Brooklyn search.
+    // `Bay Terrace, Staten Island` apart, and it EXECUTES the Mallan geography
+    // decision recorded for the identity, so a search means the borough Mallan
+    // declared rather than every borough the name happens to appear in.
+    //
+    // WITHDRAWN: this said the scoping enforced a "dominant-borough decision" and
+    // called the 586 Manhattan-tagged `Downtown Brooklyn` rows provider error.
+    // Neither claim was established. Counts show which CityRegion × SubdivisionName
+    // combinations exist; they cannot say whether a minority is provider error, a
+    // second real place, historical encoding or a boundary case. Downtown Brooklyn
+    // resolves to Brooklyn because Mallan DECLARES it so — the reason is recorded
+    // with the decision — not because Brooklyn had more rows.
     const spellingTerms = identity.spellings
       .map((s) => `SubdivisionName eq '${escapeOData(s)}'`)
       .join(" or ");
@@ -278,8 +320,12 @@ export function neighborhoodOData(values: readonly unknown[]): string | null {
     );
   }
 
-  if (unknown.length > 0) throw new UnsupportedGeographyError("neighborhood", unknown);
-  if (ambiguous.length > 0) throw new UnsupportedGeographyError("neighborhood", ambiguous);
+  if (unknown.length > 0) throw new UnsupportedGeographyError("neighborhood", unknown, 'not_live');
+  if (ambiguous.length > 0) {
+    // Name the choices. A refusal the broker cannot act on is only half a refusal.
+    const options = [...new Set(ambiguous.flatMap((n) => identitiesFor(n).map((i) => i.label)))];
+    throw new UnsupportedGeographyError("neighborhood", ambiguous, 'ambiguous', options);
+  }
   if (groups.length === 0) return null;
 
   return groups.length === 1 ? groups[0] : `(${groups.join(" or ")})`;

@@ -317,9 +317,14 @@ export function idxSearchErrorResponse(error: unknown): {
         code: "UNSUPPORTED_CRITERION",
         criterion: error.criterion,
         unsupportedValues: [...error.unsupportedValues],
-        // The reason travels with it: "not a live Cotality value" is a different
-        // fact from a typo, and `Gramercy` is exactly the case where it matters —
-        // it is dead while `Gramercy Park` has real inventory.
+        // NOT-LIVE AND AMBIGUOUS ARE DIFFERENT FACTS, and the broker's next action
+        // differs. A not-live name is a dead end; an ambiguous one is a real
+        // Cotality neighbourhood that names more than one place and needs a
+        // borough. Both fail closed; only the explanation differs, and telling a
+        // broker that Bay Terrace "is not a live Cotality value" sends them to fix
+        // the wrong thing.
+        refusal: error.refusal,
+        options: [...error.options],
         detail: error.message,
       },
     };

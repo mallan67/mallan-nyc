@@ -112,7 +112,7 @@ describe('the browser resolver behaves exactly like the server resolver', () => 
     expect(r.state).toBe('ambiguous');
     expect(r.identity).toBeNull();
     expect(r.candidates.map((c) => c.label).sort()).toEqual([
-      'Bay Terrace, Queens', 'Bay Terrace, Staten Island',
+      'Bay Terrace (Queens)', 'Bay Terrace (Staten Island)',
     ]);
     // The server agrees — that agreement is the invariant.
     expect(identityFor('Bay Terrace')).toBeNull();
@@ -127,8 +127,8 @@ describe('the browser resolver behaves exactly like the server resolver', () => 
 
   it('a QUALIFIED label resolves to its own borough, both sides', () => {
     for (const [label, borough] of [
-      ['Bay Terrace, Queens', 'Queens'],
-      ['Bay Terrace, Staten Island', 'StatenIsland'],
+      ['Bay Terrace (Queens)', 'Queens'],
+      ['Bay Terrace (Staten Island)', 'StatenIsland'],
     ] as const) {
       const r = vocab.resolveState(label);
       expect(`${label}:${r.state}`).toBe(`${label}:ok`);
