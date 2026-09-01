@@ -484,7 +484,8 @@ The bar that was cleared:
 
 # 6. SEARCH STEP 3 — FINAL UNIVERSE / COUNT / PAGINATION TRUTH
 
-**STATUS: BLOCKED UNTIL SECTION 5 CLOSES.**
+**STATUS: AUTHORIZED.** Section 5 closed by evidence at
+`8e03fd3f7ac8d057bd2db44f46510d9ff4063c8b` and the block on this section is lifted.
 
 Required chain:
 
