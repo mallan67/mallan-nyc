@@ -10,13 +10,13 @@
 
 **Section 4 status:** **CLOSED BY EVIDENCE**
 
-**Latest independently audited Section 5 checkpoint code SHA:** `9919e89aaceeb34bd06a3f3de7c37aa800fd703d`
+**Latest independently audited Section 5 checkpoint code SHA:** `4163435a907ad1ec56149a60fb3057187a395c6f`
 
 **Current active section:** **Section 5 — Registry → Executor Authority**
 
-**Section 5 status:** **OPEN — `9919e89a...` materially fixes the geography architecture, but the final closure candidate is rejected on three bounded defects. §6 is NOT authorized.**
+**Section 5 status:** **OPEN — the prior three closure blockers are fixed at `4163435a...`, but independent review exposed two remaining Registry→Executor defects. §6 is NOT authorized.**
 
-> This file does not hard-code its own resulting documentation commit SHA. The commit containing this revision becomes the live #618 head after the documentation update. The audited **code** checkpoint remains `9919e89a...` unless later code changes are independently reviewed. Before any mutation, read the live PR head and verify the local worktree exactly matches it.
+> This file does not hard-code its own resulting documentation commit SHA. The commit containing this revision becomes the live #618 head after the documentation update. The audited **code** checkpoint remains `4163435a...` unless later code changes are independently reviewed. Before any mutation, read the live PR head and verify the local worktree exactly matches it.
 
 # 0. AUTHORITY / START RULES
 
@@ -92,14 +92,14 @@ PR #618 is stacked on PR #620 / `fix/neon-r2-closure-clean-2026-08-19`.
 
 Latest independently verified Search checkpoint before this CURRENT.md update:
 
-- #618 code SHA: `9919e89aaceeb34bd06a3f3de7c37aa800fd703d`;
+- #618 code SHA: `4163435a907ad1ec56149a60fb3057187a395c6f`;
 - #620 head: `82d55a3c2ce357edd34dd5ee7ae66fed853d9ceb`;
 - comparison: **diverged**;
-- #618 is **193 commits ahead and 3 commits behind** #620 relative to merge base `a0db2dac8b933bc2d978143721418427c0ebb65a`;
-- GitHub synthetic merge for #618 at the audited code checkpoint: `d27282eae5a5e03e4aa697ccef9af8854df3b634`;
+- #618 is **195 commits ahead and 3 commits behind** #620 relative to merge base `a0db2dac8b933bc2d978143721418427c0ebb65a`;
+- GitHub synthetic merge for #618 at the audited code checkpoint: `1838e1c3647fabe8129d24281ec609409a5b3f1a`;
 - #618: open, draft, unmerged, mergeable;
-- all five GitHub PR workflows completed successfully on exact code SHA `9919e89a...`: Release Truth, Claude Code Review, Guardrails, Target Platform Build and PR checks;
-- Vercel Preview deployment `dpl_5XBpXvswjcgFerQAz7wzSnR8RAhC` is READY and carries exact `githubCommitSha=9919e89aaceeb34bd06a3f3de7c37aa800fd703d`;
+- all five GitHub PR workflows completed successfully on exact code SHA `4163435a...`: Release Truth, Claude Code Review, Guardrails, Target Platform Build and PR checks;
+- Vercel Preview deployment `dpl_EnG6juKwyLZZfrVREzwzvw89qD3W` is READY and carries exact `githubCommitSha=4163435a907ad1ec56149a60fb3057187a395c6f`;
 - #620 remains a separate Neon/R2 lane and is not Search closure evidence.
 
 Do not restack/rebase the shared Search branch without Maya's explicit approval. Exact combined-tree proof is required before merge closure; Search-head CI alone does not prove the future combined tree.
@@ -243,9 +243,11 @@ Accepted progress from the §5 passes unless new contrary evidence appears:
 - sentinel guards on max-bound numeric provider predicates prevent unknown/zero/-1 values satisfying real upper bounds where proven sentinel semantics apply;
 - BedroomsTotal zero remains a real studio and must not be sentinel-filtered;
 - PostalCode `00000` is observed in-band unknown/sentinel, not a valid negative control; absence proof uses genuinely absent values;
-- `UnsupportedGeographyError` must surface through the typed `UNSUPPORTED_CRITERION` 400 boundary, with truthful reason text;
+- `UnsupportedGeographyError` surfaces through the typed `UNSUPPORTED_CRITERION` 400 boundary;
+- the geography error boundary now truthfully distinguishes `not_live` from `ambiguous` and carries qualified options for ambiguity;
 - `executionReadiness()` must never call an explicitly unresolved authority verified executable;
-- Mallan-derived/Mallan-CRM facts must not require fabricated Cotality evidence merely to become executable under a Mallan-side strategy.
+- Mallan-derived/Mallan-CRM facts must not require fabricated Cotality evidence merely to become executable under a Mallan-side strategy;
+- Saved Search ambiguous/unknown neighborhood restore now records `_restoreIssues` and behaviorally blocks auto-execution rather than silently widening the saved query.
 
 ## 5.G Neighborhood identity contract — LIVE COTALITY EVIDENCE + EXPLICIT MALLAN RULE
 
@@ -261,7 +263,7 @@ The current full-feed evidence reads:
 - **592 pages**;
 - **not truncated**;
 - **all statuses**;
-- **all PropertyTypes / no PropertyType restriction**, so the evidence cannot drift away from Building Search merely because today's populated universe happens to be Residential + ResidentialLease;
+- **all PropertyTypes / no PropertyType restriction**;
 - **632 folded SubdivisionName identities**;
 - **124 of 632 folded names span more than one CityRegion**.
 
@@ -269,20 +271,22 @@ Therefore the old conclusion that folded neighborhood names were globally unique
 
 Raw observed `(normalized SubdivisionName × CityRegion × count)` combinations are evidence. They do not, by themselves, prove that a minority combination is provider error, a second real place, historical encoding, or a boundary case.
 
-### 5.G.2 Mallan business geography — separate from Cotality observation
+### 5.G.2 Mallan business geography — separation rule
 
-`mallan_canonical_geography` owns the interpretation layer after Cotality evidence.
+`mallan_canonical_geography` owns interpretation after Cotality evidence.
 
-Current rule model at audited code SHA `9919e89a...`:
+Accepted rules:
 
-- 507 names have one observed borough;
-- 75 meet an explicit Mallan **99% sufficiency floor** and use that borough; this is a Mallan operating rule, NOT a claim that the residue is provider error;
-- explicit Mallan geography decisions cover known cases such as Marble Hill, Downtown Brooklyn, Midwood and Stuyvesant Town;
-- Bay Terrace is explicitly modeled as two places, Queens and Staten Island;
-- 38 names remain **AMBIGUOUS** and are split into borough-qualified identities; a bare ambiguous name resolves to nothing and must be qualified;
-- there is **no plurality fallback** below the declared floor.
+- a business decision must be explicitly named, owned and explained;
+- Cotality observation remains uninterpreted evidence;
+- the declared 99% dominance default is a Mallan operating decision, not a provider-error claim;
+- explicit Mallan geography decisions cover cases such as Marble Hill, Downtown Brooklyn, Midwood and Stuyvesant Town;
+- Bay Terrace is explicitly modeled as two real places;
+- there is no hidden plurality fallback.
 
-Marble Hill is the guard case: the feed has more Bronx-tagged than Manhattan-tagged rows, but the Mallan geography decision is Manhattan. This proves why observation and business interpretation must remain separate layers.
+Marble Hill remains the guard case: provider counts alone would choose Bronx, while the declared Mallan geography decision is Manhattan.
+
+**NEW CLOSURE FINDING at `4163435a...`: the implementation still violates this separation for the so-called ambiguous branch.** See Blocker 2 below.
 
 ### 5.G.3 Case/spelling variation — accepted
 
@@ -298,118 +302,129 @@ Examples:
 
 Do NOT merge genuinely different names without evidence. `Gramercy` and `Gramercy Park` remain separate.
 
-### 5.G.4 ACCEPT vs OFFER — accepted
+### 5.G.4 ACCEPT vs OFFER — accepted concept, transport must be lossless
 
-The browser now receives the full ACCEPT identity contract. `offered` is only a presentation flag for current autocomplete choices.
+The browser receives the full ACCEPT identity contract. `offered` is only a presentation flag for current autocomplete choices.
 
-A valid historical/Closed identity such as Union Square may be accepted/restorable even when it is not offered in the current-market dropdown.
+A valid historical/Closed identity such as Union Square may be accepted/restorable even when not offered in the current-market dropdown.
 
-This prevents OFFER from becoming an accidental execution authority.
+However, **ACCEPT is not truthful unless every accepted identity can survive the actual browser→wire→route transport without being split or rewritten.** This is the new comma-bearing transport blocker below.
 
-### 5.G.5 Browser/server resolver parity — accepted at `9919e89a...`
+### 5.G.5 Browser/server resolver parity — accepted for resolver logic
 
-The generated server resolver and shipped browser resolver now share the same cardinality rule:
+The generated server resolver and shipped browser resolver share the same cardinality behavior for the identities they are given:
 
 - 0 candidates → unknown;
 - 1 candidate → resolved;
-- multiple candidates → ambiguous unless an explicit borough/qualified label disambiguates.
+- multiple candidates → ambiguous unless a borough/qualified label disambiguates.
 
-The browser no longer returns the first raw-spelling match for a bare ambiguous value. `Bay Terrace` resolves to neither place; `Bay Terrace, Queens` and `Bay Terrace, Staten Island` resolve to their specific identities.
+Qualified labels now use parentheses rather than commas, e.g.:
 
-Qualified labels parse the borough suffix before folding, so `Downtown, Brooklyn` cannot collide with the distinct real name `Downtown Brooklyn`.
+- `Bay Terrace (Queens)`;
+- `Bay Terrace (Staten Island)`.
 
-`tests/runtime/browser-neighborhood-resolver.test.ts` executes the shipped browser module against the generated vocabulary and sweeps identity labels and raw provider spellings for browser/server disagreement.
+This avoids collision with the existing comma-delimited request representation for Mallan-constructed qualified labels.
 
-### 5.G.6 Map boundary — accepted at `9919e89a...`
+`tests/runtime/browser-neighborhood-resolver.test.ts` executes the shipped browser resolver against the generated vocabulary. Preserve it, but do not treat resolver parity as proof of transport parity.
+
+### 5.G.6 Map boundary — accepted
 
 Polygon names remain presentation geometry only.
 
-Map → Search now calls the browser canonical resolver. It distinguishes:
+Map → Search calls the browser canonical resolver and distinguishes resolved / unknown / ambiguous. Unknown and ambiguous values are not auto-picked and not written blindly as provider Search truth.
 
-- resolved identity → canonical Search value;
-- unknown → reported and not sent;
-- ambiguous → candidate choices reported and not auto-picked.
+Old RLS polygon/alias data may remain for drawing geometry only.
 
-Old RLS polygon/alias data may remain for drawing geometry, but it is not provider Search identity.
-
-### 5.G.7 Loader/provider terminology — accepted at `9919e89a...`
+### 5.G.7 Loader/provider terminology — accepted
 
 Accepted:
 
-- neighborhood vocabulary loads from absolute `/crm/data/neighborhood-vocabulary.generated.json`;
-- loading / ready / failed are explicit states;
-- raw provider `StatenIsland` is not the broker-facing label; display is `Staten Island`;
-- active authenticated Search provider wording was corrected to Cotality where the provider engine is being described;
-- REBNY/RLS may remain where genuinely required for compliance/attribution/legal context.
+- absolute `/crm/data/neighborhood-vocabulary.generated.json`;
+- explicit loading / ready / failed states;
+- provider `StatenIsland` displays as `Staten Island`;
+- active provider-engine wording is Cotality;
+- REBNY/RLS only where genuinely compliance/attribution/legal context.
 
-## 5.H FINAL BOUNDED §5 BLOCKERS AFTER INDEPENDENT REVIEW OF `9919e89a...`
+### 5.G.8 Prior three blockers — CLOSED at `4163435a...`
 
-Do **not** reopen the already-fixed geography architecture. Only these bounded defects remain.
+Independent review accepts these corrections:
 
-### BLOCKER 1 — Saved Search restore can still silently widen an ambiguous/unknown neighborhood
+1. Saved Search restore now appends ambiguous/unknown neighborhood failures to `_restoreIssues` and a behavioral test proves they prevent `performSearch()` while qualified/ordinary values still restore and execute.
+2. `UnsupportedGeographyError` now distinguishes `not_live` from `ambiguous`; the route carries `refusal`, `options` and truthful detail while keeping both fail-closed 400 `UNSUPPORTED_CRITERION`.
+3. The stale dominant-borough/provider-mis-tagging/deleted-artifact claims identified in the previous review were removed or explicitly withdrawn from active authority prose.
 
-`_criteriaToFormFields()` creates `_restoreIssues` specifically so any criterion that cannot be faithfully restored blocks auto-execution.
+## 5.H FINAL BOUNDED §5 BLOCKERS AFTER INDEPENDENT REVIEW OF `4163435a...`
 
-But the neighborhood branch currently does:
+Do **not** reopen the already-fixed work above. Section 5 remains open for exactly these two defects.
 
-- `resolveState(n) === ambiguous` → show warning and `return` from that item;
-- `resolveState(n) === unknown` → show warning and `return` from that item;
-- **neither branch pushes a restore issue**.
+### BLOCKER 1 — accepted live provider neighborhood values cannot survive comma-delimited transport
 
-`loadSavedSearch()` blocks execution only when `restoreIssues.length > 0` or when the server independently reports a non-executable disposition.
+The active shipped chain still encodes the neighborhood set as comma-separated text:
 
-The server `savedSearchDisposition()` currently derives its status from `checkbox_filters`; it does not classify neighborhood ambiguity/unknown geography. Therefore a legacy saved search containing bare `Bay Terrace` can be reported server-side as executable, have the neighborhood skipped by the browser, and then auto-run a broader search.
+`criteria.neighborhoods[] → join(',') → one neighborhood query param → server split(',') → neighborhoodOData()`
 
-Required correction:
+That representation is not lossless because the full ACCEPT vocabulary itself contains literal Cotality `SubdivisionName` values with commas:
 
-- ambiguous neighborhood restore MUST push a named `_restoreIssues` entry including the candidate qualified identities;
-- unknown neighborhood restore MUST push a named `_restoreIssues` entry;
-- local restore completeness must independently stop `performSearch()` even when server `criteria_status` says executable;
-- add a **behavioral** test that runs the actual Saved Search restore/load path and proves bare ambiguous and unknown neighborhoods do not call `performSearch()`;
-- prove qualified `Bay Terrace, Queens` and `Bay Terrace, Staten Island` restore normally.
+- `Williamsburg,North`;
+- `Williamsburg,South`.
 
-Full Saved Search v2 remains §8. This narrow fail-closed restore fix is §5 because the active geography writer/reader cannot be certified while it can drop a criterion and execute.
+The generated contract keeps those exact provider spellings, and `artifacts/neighborhood-borough-resolution.json` explicitly records that the current comma-separated request param splits them and **the search is wrong**.
 
-### BLOCKER 2 — ambiguous live Cotality geography is reported with a false absence message
+This cannot be deferred merely because they are not currently OFFERED. Section 5 claims ACCEPT represents executable provider identity, and Comparable/Closed/Saved Search paths may carry accepted values that are not offered in the current-market autocomplete.
 
-`neighborhoodOData()` correctly distinguishes `unknown` from `ambiguous`, but both currently throw `UnsupportedGeographyError`, whose constructor text says:
-
-`Not a live Cotality value.`
-
-That is false for a bare ambiguous live value such as `Bay Terrace`; Cotality does carry the value, but Mallan requires borough qualification because the name maps to multiple identities.
+The existing “every live value stays searchable” test is insufficient because it calls `neighborhoodOData([name])` directly and bypasses the browser serializer, URL parameter and server parser. That is a green test around the actual defect.
 
 Required correction:
 
-- preserve typed fail-closed route behavior;
-- distinguish **unknown/not-live** from **ambiguous/requires-borough** in the error reason/details;
-- do not describe a live ambiguous provider value as absent;
-- add direct route/boundary proof for both cases.
+- replace comma-delimited neighborhood transport with one lossless canonical list contract through every hop;
+- preserve provider spellings exactly — do not rename `Williamsburg,North` or `Williamsburg,South` merely to fit the wire;
+- use a representation that cannot confuse a delimiter with provider data (for example repeated query parameters or another explicit list encoding), and migrate all authenticated Search readers/writers consistently;
+- keep borough/status transports separate; do not casually refactor unrelated CSV criteria unless the impact graph requires it;
+- add behavioral transport proof from broker criteria through the actual query representation and route parser/executor for:
+  - `Williamsburg,North`;
+  - `Williamsburg,South`;
+  - ordinary multi-select `Tribeca` + `Yorkville`;
+  - `Bay Terrace (Queens)`;
+  - one literal-comma name combined with an ordinary neighborhood;
+- update the vocabulary “searchable” test so SEARCHABLE means the shipped browser→route chain, not only direct `neighborhoodOData()` invocation;
+- add a negative guard that no accepted provider value becomes multiple criteria because of transport encoding.
 
-### BLOCKER 3 — authority prose still contains withdrawn/contradictory geography claims
+### BLOCKER 2 — the 5% split-presence cutoff silently makes a borough decision while labeling the result “ambiguous / no decision”
 
-The executable behavior is newer than some comments/registry notes. §5 cannot close while its authority record simultaneously states the old and new models.
+The generator currently declares:
 
-Required cleanup:
+- `DOMINANCE_FLOOR = 0.99`;
+- `SPLIT_PRESENCE_FLOOR = 0.05`.
 
-- `FIELD_REGISTRY` neighborhood note still contains the superseded sentence that every other split resolves to the dominant borough and references removed `artifacts/neighborhood-minority-borough-exclusions.json`; remove/rewrite that stale paragraph rather than appending another correction after it;
-- `geography.ts` still says the executor enforces a “dominant-borough decision” and calls Downtown Brooklyn minority rows “provider error”; that claim was withdrawn and is not established by Cotality counts;
-- `neighborhood-autocomplete.js` top comments still describe Union Square/Stuyvesant Town as absent and cite the old 240-value single-borough census; replace with the full-feed evidence/rule model;
-- no removed artifact or withdrawn provider-error/dominance claim may remain as current authority prose.
+For a name with multiple observed boroughs, no explicit Mallan decision, and top share below 99%, it enters `ambiguous_requires_borough` — but then keeps only boroughs whose share is at least 5%.
 
-### Final §5 correction set
+If the minority observed borough is below 5%, only one borough survives. `qualify` then becomes false, so the generator emits one **unqualified bare identity** even while the resolution artifact says:
 
-The next code pass is limited to:
+`No Mallan decision ... The bare name must be qualified; it is never auto-assigned.`
 
-1. Saved Search ambiguous/unknown neighborhood restore → `_restoreIssues` + behavioral no-auto-run proof;
-2. truthful unknown-vs-ambiguous server error semantics;
-3. remove stale contradictory geography authority prose/references;
-4. regenerate `public/crm/index-built.html` if browser source changes;
-5. rerun the targeted geography/Saved Search/error-boundary suites as a group;
-6. rerun registry→executor census and negative drift proof;
-7. rerun broad Search/compliance/UCBA/IDX gates;
-8. push one bounded checkpoint;
-9. prove all five GitHub workflows and exact-SHA Vercel Preview;
-10. STOP for independent §5 closure review before touching §6.
+Concrete proof: `Baychester` is observed Bronx 26 / Manhattan 1. The artifact records:
+
+- `basis = ambiguous_requires_borough`;
+- `resolvedTo = [Bronx]`;
+- owner = `cotality_observation`;
+- reason = bare name must be qualified / never auto-assigned.
+
+But the generated vocabulary emits one unqualified `Baychester` identity in Bronx, so bare `Baychester` resolves automatically.
+
+This is not merely a wording defect. The 5% cutoff is making an interpretation about which observed borough “counts.” That is a Mallan business rule, yet the artifact labels the outcome Cotality observation and simultaneously says no decision exists.
+
+Required correction:
+
+- do not infer that an observed borough below 5% is noise/provider error;
+- preferred fail-safe model under the no-guess rule: when `basis = ambiguous_requires_borough`, preserve **every observed borough with positive evidence**, emit a qualified identity for each, and make bare input resolve to nothing;
+- if Mallan intentionally wants a presence-floor policy instead, it must become an explicitly named Mallan-owned rule/basis with a stated reason and tests; it may not masquerade as `cotality_observation` or “no decision”;
+- add generator invariants:
+  - every `ambiguous_requires_borough` resolution emits more than one identity;
+  - every bare ambiguous name satisfies `identityFor(name) === null`;
+  - absent an explicit Mallan-owned rule, ambiguous `resolvedTo` equals all observed boroughs with positive evidence;
+  - any threshold-based interpretation is owned by `mallan_canonical_geography`, not `cotality_observation`;
+  - the generated ambiguous count equals the actual count of bare names that do not resolve;
+- add worked regression cases including `Baychester` and at least one multi-borough case where all boroughs exceed the floor.
 
 ## 5.I Registry → executor census
 
@@ -423,7 +438,9 @@ By Section 5 closure, machine-checkably prove:
 - zero duplicate active execution maps for the same semantic criterion;
 - every unsupported/unverified criterion has explicit fail behavior;
 - every criterion the live executor can execute resolves to `verified_executable` under the canonical readiness model;
-- `needs_probe`, semantic-false, unresolved, refused or not-yet-wired criteria cannot masquerade as verified execution.
+- `needs_probe`, semantic-false, unresolved, refused or not-yet-wired criteria cannot masquerade as verified execution;
+- every accepted neighborhood identity survives the actual authenticated Search transport intact;
+- every geography decision is attributed to the correct authority layer.
 
 The census must fail CI if a new executor mapping appears without an authority owner or if an executing criterion is not canonically verified.
 
@@ -441,15 +458,17 @@ Do not move to §6 until:
 - browser geography has no second hard-coded authority;
 - case-only neighborhood variants collapse without losing verified provider spellings/inventory;
 - full-feed neighborhood evidence is distinct from Mallan geography business decisions;
-- ambiguous neighborhood identity never auto-picks a borough;
+- ambiguous neighborhood identity never auto-picks a borough unless an explicit Mallan-owned decision resolves it;
 - Map cannot write an unverified/ambiguous polygon name into Search;
 - Saved Search restore cannot drop an ambiguous or unknown neighborhood and then auto-execute;
 - ambiguous live Cotality geography is not falsely described as absent/non-live;
+- every accepted provider neighborhood value survives browser→URL→route transport intact, including values containing delimiter characters;
+- no hidden percentage threshold converts an “ambiguous / no decision” state into an unqualified auto-resolved identity;
 - neighborhood load/error state is explicit and the absolute CRM data path is used;
 - active Search provider language does not call REBNY/RLS the provider engine;
-- registry/comments/evidence references agree with the current authority model and contain no withdrawn dominance/provider-error claim as current truth;
+- registry/comments/evidence references agree with the current authority model;
 - registry→executor census is clean under the stronger readiness invariant;
-- negative drift tests catch duplicate/unauthorized execution mapping and geography drift;
+- negative drift tests catch duplicate/unauthorized execution mapping, geography authority drift and transport loss;
 - grouped targeted tests pass;
 - broad Search/compliance gates pass at the closure checkpoint;
 - exact GitHub workflows and Vercel Preview pass on the closure head;
@@ -519,7 +538,7 @@ For Sale + Rental on desktop/tablet/mobile prove:
 
 `login → criteria → Basic↔Advanced → execute → truthful universe/count → sort → paginate → detail → return → Map → Search Within Results/Map → Saved Search → reload/restore → selection → client action → Compare → Report → CMA input → attribution/compliance`
 
-Negative proof includes unsupported criterion refusal, unknown enum fail-closed, incomplete-universe labeling, no false Map completeness, no canonical-state loss, return-copy suppression, canonical listing authority, no unknown money/numeric facts presented as real zero, and no case/spelling variation causing neighborhood inventory loss.
+Negative proof includes unsupported criterion refusal, unknown enum fail-closed, incomplete-universe labeling, no false Map completeness, no canonical-state loss, return-copy suppression, canonical listing authority, no unknown money/numeric facts presented as real zero, and no case/spelling/transport variation causing neighborhood inventory loss.
 
 Search completes only when §10 closes.
 
@@ -578,15 +597,15 @@ If intentionally departing from sequence, state:
 
 **CURRENT SECTION:** 5 — Registry → Executor Authority
 
-**STATUS:** **OPEN — `9919e89a...` final closure candidate rejected by independent audit on three bounded defects**
+**STATUS:** **OPEN — the previous three blockers are closed at `4163435a...`; independent audit rejected closure on two newly exposed defects**
 
 **SECTION 4 CLOSURE SHA:** `939884e15ec8447988c7fb791a8978fb8676f3a4`
 
-**LATEST AUDITED §5 CODE CHECKPOINT SHA:** `9919e89aaceeb34bd06a3f3de7c37aa800fd703d`
+**LATEST AUDITED §5 CODE CHECKPOINT SHA:** `4163435a907ad1ec56149a60fb3057187a395c6f`
 
-**CHECKPOINT DELIVERY PROOF:** all five GitHub PR workflows passed at exact `9919e89a...`; Vercel Preview `dpl_5XBpXvswjcgFerQAz7wzSnR8RAhC` is READY at the same SHA. Green delivery does not override the three behavioral/authority blockers below.
+**CHECKPOINT DELIVERY PROOF:** all five GitHub PR workflows passed at exact `4163435a...`; Vercel Preview `dpl_EnG6juKwyLZZfrVREzwzvw89qD3W` is READY at the same SHA. Green delivery does not override the two Registry→Executor defects below.
 
-**STACK:** #620 head `82d55a3c2ce357edd34dd5ee7ae66fed853d9ceb`; #618 and #620 remain diverged; #618 is 193 commits ahead / 3 behind from merge base `a0db2dac8b933bc2d978143721418427c0ebb65a`. No restack without Maya authorization.
+**STACK:** #620 head `82d55a3c2ce357edd34dd5ee7ae66fed853d9ceb`; #618 and #620 remain diverged; audited #618 code is 195 commits ahead / 3 behind from merge base `a0db2dac8b933bc2d978143721418427c0ebb65a`. No restack without Maya authorization.
 
 **§5 PROGRESS ACCEPTED / DO NOT REOPEN WITHOUT NEW EVIDENCE:**
 
@@ -598,24 +617,25 @@ If intentionally departing from sequence, state:
 - unresolved authority cannot report `verified_executable`;
 - full-feed geography evidence = 591,409 Property rows / 592 pages / all statuses / all PropertyTypes;
 - 124/632 folded neighborhood names span multiple CityRegions, so global name uniqueness is withdrawn;
-- Cotality observed geography is separated from `mallan_canonical_geography` business decisions;
-- no plurality fallback below the declared rule floor;
-- browser/server resolver parity is behaviorally tested on shipped browser code;
-- case variants collapse without losing provider spellings;
-- ACCEPT and OFFER are distinct;
-- bare ambiguous neighborhood values do not auto-pick a borough in browser/server resolver;
+- Cotality observed geography must remain separate from `mallan_canonical_geography` decisions;
+- browser/server resolver parity is behaviorally tested;
+- case variants collapse without losing raw provider spellings;
+- ACCEPT and OFFER are distinct concepts;
 - Map distinguishes resolved / unknown / ambiguous and does not auto-pick ambiguity;
 - absolute CRM vocabulary path and explicit loading/failure states are committed;
+- Saved Search restore now blocks auto-run on ambiguous/unknown neighborhoods and has behavioral proof;
+- ambiguous vs not-live geography errors are truthful and fail closed;
+- prior stale dominant-borough/provider-error authority prose was cleaned;
+- Mallan-constructed ambiguous labels use parentheses, e.g. `Bay Terrace (Queens)`, so they do not conflict with the old comma-separated multi-select delimiter;
 - active provider-engine wording is Cotality;
 - exact-SHA CI and Vercel Preview are green.
 
 **CURRENT §5 WRONG-ANSWER / CLOSURE BLOCKERS — ONLY THESE:**
 
-1. Saved Search restore detects ambiguous/unknown neighborhood values but does not append them to `_restoreIssues`; because server disposition currently does not classify geography ambiguity, the skipped neighborhood can still be followed by auto-execution of a broader search. Add restore issues + real no-auto-run behavioral proof.
-2. Server geography boundary calls ambiguous live values “Not a live Cotality value.” Distinguish unknown from ambiguous/requires-borough truthfully while preserving fail-closed typed behavior.
-3. Clean stale authority prose: remove the superseded dominant-borough/provider-mis-tagging paragraph and deleted-artifact reference from `FIELD_REGISTRY`; remove withdrawn provider-error/dominance prose from `geography.ts`; replace the old 240-value/single-borough/Union-Square-absent comments in `neighborhood-autocomplete.js`.
+1. **Neighborhood transport is not lossless.** Browser `join(',')` + one encoded `neighborhood` param + server `split(',')` corrupts valid accepted Cotality names that themselves contain commas. The current full-feed contract includes `Williamsburg,North` and `Williamsburg,South`; the generated resolution artifact itself states the current transport splits them and the search is wrong. Replace CSV neighborhood transport with one lossless list representation across browser/API/route and behaviorally prove literal-comma + ordinary + qualified + combined cases.
+2. **The ambiguous branch hides a 5% borough-selection rule while claiming “no decision.”** `SPLIT_PRESENCE_FLOOR = 0.05` discards observed boroughs below 5%; when only one remains, the generator emits an unqualified bare identity even though the artifact says `ambiguous_requires_borough`, “bare name must be qualified,” and owner `cotality_observation`. Baychester (Bronx 26 / Manhattan 1) is the concrete contradiction. Preserve all observed boroughs for true ambiguity or explicitly model any cutoff as a Mallan-owned business rule; add invariants that behavior, basis, owner and artifact agree.
 
-**FINAL §5 PASS:** correct those three only; regenerate the CRM bundle if needed; run targeted Saved Search/geography/error-boundary tests, registry→executor census, broad Search/compliance gates, exact GitHub workflows and exact-SHA Vercel Preview; then STOP for independent §5 closure review.
+**FINAL §5 PASS:** correct those two only; update the neighborhood transport invariant so “searchable” proves the actual browser→wire→route chain; add ambiguity generator guards; regenerate generated files/bundle; run targeted geography/transport/Saved Search/error-boundary suites, registry→executor census, broad Search/compliance gates, exact GitHub workflows and exact-SHA Vercel Preview; then STOP for independent §5 closure review.
 
 **NEXT SECTION ALLOWED:** none. §6 only after independent Section 5 closure.
 
