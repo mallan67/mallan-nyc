@@ -10,13 +10,13 @@
 
 **Section 4 status:** **CLOSED BY EVIDENCE**
 
-**Latest audited Section 5 checkpoint code SHA:** `60b24ccbc25d68c3f7aef80c582508cdc6950e6e`
+**Latest independently audited Section 5 checkpoint code SHA:** `9919e89aaceeb34bd06a3f3de7c37aa800fd703d`
 
 **Current active section:** **Section 5 — Registry → Executor Authority**
 
-**Section 5 status:** **OPEN — closure candidate rejected by independent audit. §6 is NOT authorized.**
+**Section 5 status:** **OPEN — `9919e89a...` materially fixes the geography architecture, but the final closure candidate is rejected on three bounded defects. §6 is NOT authorized.**
 
-> This file does not hard-code its own resulting commit SHA. The commit containing this revision becomes the new live #618 head. Before any mutation, read the live PR head and verify the local worktree exactly matches it.
+> This file does not hard-code its own resulting documentation commit SHA. The commit containing this revision becomes the live #618 head after the documentation update. The audited **code** checkpoint remains `9919e89a...` unless later code changes are independently reviewed. Before any mutation, read the live PR head and verify the local worktree exactly matches it.
 
 # 0. AUTHORITY / START RULES
 
@@ -92,18 +92,15 @@ PR #618 is stacked on PR #620 / `fix/neon-r2-closure-clean-2026-08-19`.
 
 Latest independently verified Search checkpoint before this CURRENT.md update:
 
-- #618 code SHA: `60b24ccbc25d68c3f7aef80c582508cdc6950e6e`;
+- #618 code SHA: `9919e89aaceeb34bd06a3f3de7c37aa800fd703d`;
 - #620 head: `82d55a3c2ce357edd34dd5ee7ae66fed853d9ceb`;
 - comparison: **diverged**;
-- #618 is **188 commits ahead and 3 commits behind** #620 relative to merge base `a0db2dac8b933bc2d978143721418427c0ebb65a`;
-- GitHub synthetic merge for #618 at that checkpoint: `529d9f427ac5b7f0aec40fe2c5afa83181607dc6`;
+- #618 is **193 commits ahead and 3 commits behind** #620 relative to merge base `a0db2dac8b933bc2d978143721418427c0ebb65a`;
+- GitHub synthetic merge for #618 at the audited code checkpoint: `d27282eae5a5e03e4aa697ccef9af8854df3b634`;
 - #618: open, draft, unmerged, mergeable;
-- all five GitHub PR workflows completed successfully on `60b24ccb...`;
-- Vercel Preview for `60b24ccb...` is READY;
-- the separate `release-truth` status context remained pending even though the Release Truth workflow itself completed successfully;
+- all five GitHub PR workflows completed successfully on exact code SHA `9919e89a...`: Release Truth, Claude Code Review, Guardrails, Target Platform Build and PR checks;
+- Vercel Preview deployment `dpl_5XBpXvswjcgFerQAz7wzSnR8RAhC` is READY and carries exact `githubCommitSha=9919e89aaceeb34bd06a3f3de7c37aa800fd703d`;
 - #620 remains a separate Neon/R2 lane and is not Search closure evidence.
-
-IMPORTANT: after `60b24ccb...`, Claude found and locally edited the neighborhood vocabulary fetch path from a conditional/relative path to the established absolute `/crm/data/neighborhood-vocabulary.generated.json`. That correction was **not on GitHub and was not covered by the green `60b24ccb...` CI/Vercel checkpoint** when independently audited. Treat any such local post-checkpoint work as unproven until it is committed, pushed and tested at the new exact head.
 
 Do not restack/rebase the shared Search branch without Maya's explicit approval. Exact combined-tree proof is required before merge closure; Search-head CI alone does not prove the future combined tree.
 
@@ -144,9 +141,9 @@ Product contract:
 - provider `$filter` cannot address the inner JSON key;
 - until Section 6 complete-universe execution exists, financing must fail loudly rather than silently widen results.
 
-Behavioral proof covers the shipped control → canonical → serializer → request builder → browser API client → `/api/idx/search` chain, including min-only, max-only, both, clear-one and clear-both behavior.
+Behavioral proof covers shipped control → canonical → serializer → request builder → browser API client → `/api/idx/search`, including min-only, max-only, both, clear-one and clear-both.
 
-Complete-universe financing execution is NOT Section 4. It remains Section 6.
+Complete-universe financing execution is Section 6, not Section 4.
 
 ## 4.D Money reader defect opened during closure — behaviorally closed
 
@@ -193,24 +190,22 @@ Classify each criterion as exactly one of:
 
 Do not patch one reader without identifying all competing readers/writers first.
 
-## 5.B Bathrooms — canonical contract now established; preserve it
-
-Do not reopen the bathroom meaning unless new live Cotality evidence contradicts it.
+## 5.B Bathrooms — preserve the verified contract
 
 Verified rule:
 
 - Full baths = `BathroomsFull`;
 - Half baths = `BathroomsHalf`;
-- half baths are real first-class Cotality data and MUST NOT be rounded away;
+- half baths are first-class Cotality data and MUST NOT be rounded away;
 - canonical numeric total = `BathroomsFull + (BathroomsHalf × 0.5)`;
 - examples: 1 full + 1 half = 1.5; 2 full + 1 half = 2.5;
-- `BathroomsTotalInteger` is NOT canonical because it cannot preserve fractional bath truth;
-- detailed UI/reporting should preserve components such as `2 full, 1 half`, not only display `2.5`;
-- quarter/partial bath components currently showed no meaningful non-zero data in the verified current feed; do not invent semantics and do not assume that remains permanent without provider evidence.
+- `BathroomsTotalInteger` is NOT canonical;
+- detailed UI/reporting should preserve components such as `2 full, 1 half`;
+- quarter/partial bath components had no meaningful non-zero population in the verified current feed; do not invent semantics.
 
 ## 5.C Listing ID dual-domain — preserve the closed boundary
 
-Canonical listing reference has distinct identity domains:
+Distinct identity domains:
 
 - Mallan local `SL-/RL-...` canonical identity;
 - provider Cotality `ListingId` representation identity;
@@ -222,7 +217,7 @@ Mallan local identity must never be sent blindly to Cotality as `ListingId`. Pro
 
 Section 4 proved decoding/transport/refusal semantics. Section 5 owns the strategy only.
 
-Because Sponsor Unit lives inside `CustomProperty.CustomFields`, do not invent a top-level provider field or generic checkbox mapping. The accepted future strategy is Mallan-side projection/complete-universe filtering; until §6 implements that truthfully, keep explicit refusal.
+Because Sponsor Unit lives inside `CustomProperty.CustomFields`, do not invent a top-level provider field or generic checkbox mapping. Accepted future strategy = Mallan-side projection/complete-universe filtering; until §6 implements that truthfully, keep explicit refusal.
 
 ## 5.E Maximum Financing execution ownership
 
@@ -237,94 +232,198 @@ Do NOT implement page-local financing filtering here.
 
 ## 5.F Accepted provider/operator corrections — do not throw these away
 
-The following are accepted progress from the `798787ae` → `242ba3a9` → `60b24ccb` closure passes unless new contrary evidence appears:
+Accepted progress from the §5 passes unless new contrary evidence appears:
 
 - exact `StreetNumber eq` Search semantics replace numeric prefix matching for a selected/full address;
-- `UnitNumber` case-insensitive execution uses the live-proven `toupper(UnitNumber)` shape;
+- `UnitNumber` case-insensitive execution uses live-proven `toupper(UnitNumber)`;
 - provider `ListingId` positive path is live-proven while Mallan local IDs are refused from provider execution;
 - `StreetDirPrefix` uses the live Cotality enum member form;
 - date literal/operator shapes used by Search were live-probed;
 - `PublicRemarks` keyword remains unverified at provider level and must fail loud, not disappear;
-- sentinel guards on max-bound numeric provider predicates prevent unknown/zero/-1 values from satisfying a real upper bound where the field contract proves those values are not real facts;
+- sentinel guards on max-bound numeric provider predicates prevent unknown/zero/-1 values satisfying real upper bounds where proven sentinel semantics apply;
 - BedroomsTotal zero remains a real studio and must not be sentinel-filtered;
-- PostalCode `00000` is an observed in-band unknown/sentinel, not a valid negative control; absence proof was rerun with genuinely absent values;
-- `UnsupportedGeographyError` must surface through the typed `UNSUPPORTED_CRITERION` 400 protocol;
+- PostalCode `00000` is observed in-band unknown/sentinel, not a valid negative control; absence proof uses genuinely absent values;
+- `UnsupportedGeographyError` must surface through the typed `UNSUPPORTED_CRITERION` 400 boundary, with truthful reason text;
 - `executionReadiness()` must never call an explicitly unresolved authority verified executable;
 - Mallan-derived/Mallan-CRM facts must not require fabricated Cotality evidence merely to become executable under a Mallan-side strategy.
 
-## 5.G Neighborhood identity contract — LIVE COTALITY ONLY
+## 5.G Neighborhood identity contract — LIVE COTALITY EVIDENCE + EXPLICIT MALLAN RULE
 
-This is now a Section 5 closure blocker because browser autocomplete, Map and server execution can all write/read neighborhood criteria.
+Neighborhood is a Section 5 concern because typed input, autocomplete, Map, Saved Search and server execution all write/read the same Search criterion.
 
-### Provider identity
+### 5.G.1 Provider evidence — corrected full universe
 
-Live Cotality `SubdivisionName` is the provider Search fact. The latest bounded census read the Search universe exhaustively and established that the observed folded `SubdivisionName` identities did not span more than one `CityRegion` borough in that census.
+Live Cotality `SubdivisionName` is the provider Search fact and `CityRegion` is the provider borough fact.
 
-That proof does NOT authorize an old RLS/RESO alias file, polygon group or hard-coded browser table to define Cotality neighborhood identity.
+The current full-feed evidence reads:
 
-### Case/spelling variation rule — REQUIRED
+- **591,409 Property rows**;
+- **592 pages**;
+- **not truncated**;
+- **all statuses**;
+- **all PropertyTypes / no PropertyType restriction**, so the evidence cannot drift away from Building Search merely because today's populated universe happens to be Residential + ResidentialLease;
+- **632 folded SubdivisionName identities**;
+- **124 of 632 folded names span more than one CityRegion**.
 
-Case-only spelling variations of the same live Cotality neighborhood are ONE broker-facing identity.
+Therefore the old conclusion that folded neighborhood names were globally unique to one borough is **withdrawn**. It was true only in the earlier bounded/on-market slice and cannot be used as full-feed authority.
+
+Raw observed `(normalized SubdivisionName × CityRegion × count)` combinations are evidence. They do not, by themselves, prove that a minority combination is provider error, a second real place, historical encoding, or a boundary case.
+
+### 5.G.2 Mallan business geography — separate from Cotality observation
+
+`mallan_canonical_geography` owns the interpretation layer after Cotality evidence.
+
+Current rule model at audited code SHA `9919e89a...`:
+
+- 507 names have one observed borough;
+- 75 meet an explicit Mallan **99% sufficiency floor** and use that borough; this is a Mallan operating rule, NOT a claim that the residue is provider error;
+- explicit Mallan geography decisions cover known cases such as Marble Hill, Downtown Brooklyn, Midwood and Stuyvesant Town;
+- Bay Terrace is explicitly modeled as two places, Queens and Staten Island;
+- 38 names remain **AMBIGUOUS** and are split into borough-qualified identities; a bare ambiguous name resolves to nothing and must be qualified;
+- there is **no plurality fallback** below the declared floor.
+
+Marble Hill is the guard case: the feed has more Bronx-tagged than Manhattan-tagged rows, but the Mallan geography decision is Manhattan. This proves why observation and business interpretation must remain separate layers.
+
+### 5.G.3 Case/spelling variation — accepted
+
+Case-only variants of one live Cotality identity collapse to one broker-facing option while preserving every raw provider spelling for execution.
 
 Examples:
 
-- `SoHo`, `SOHO`, `Soho`, `soho` → one **SoHo** choice;
-- `NoHo`, `NOHO`, `Noho`, `noho` → one **NoHo** choice;
-- `DUMBO`, `Dumbo`, `dumbo` → one **DUMBO** choice;
-- `NoMad`, `NOMAD`, `nomad` → one **NoMad** choice;
-- `Midtown`, `midtown` → one **Midtown** choice.
+- `SoHo`, `SOHO`, `Soho`, `soho` → one **SoHo** identity;
+- `NoHo`, `NOHO`, `Noho`, `noho` → one **NoHo** identity;
+- `DUMBO`, `Dumbo`, `dumbo` → one **DUMBO** identity;
+- `NoMad`, `NOMAD`, `nomad` → one **NoMad** identity;
+- `Midtown`, `midtown` → one **Midtown** identity.
 
-The broker must see one clean canonical label. Mallan must preserve all verified raw Cotality spellings behind that identity and execute the union so capitalization never causes lost inventory.
+Do NOT merge genuinely different names without evidence. `Gramercy` and `Gramercy Park` remain separate.
 
-Do NOT expose every case variant as a separate neighborhood in the UI.
+### 5.G.4 ACCEPT vs OFFER — accepted
 
-Do NOT casually merge genuinely different names. `Gramercy` and `Gramercy Park`, or `Stuyvesant Town` and another provider value, are not equivalents unless live Cotality evidence proves that semantic relationship.
+The browser now receives the full ACCEPT identity contract. `offered` is only a presentation flag for current autocomplete choices.
 
-This same normalization must hold across:
+A valid historical/Closed identity such as Union Square may be accepted/restorable even when it is not offered in the current-market dropdown.
 
-`typed input → autocomplete → canonical criteria → Saved Search restore → Map bridge → server execution`
+This prevents OFFER from becoming an accidental execution authority.
 
-### Current wrong-answer blockers at the latest audited checkpoint
+### 5.G.5 Browser/server resolver parity — accepted at `9919e89a...`
 
-1. `public/crm/js/search/search-engine.js` still contains a live hard-coded `_findBoroughForNeighborhood()` table, so the claim “four vocabularies → one” is false. It already contains wrong geography: the table places **Mott Haven under Manhattan**, while the live Cotality evidence places Mott Haven in the **Bronx**. Remove this competing authority and derive browser neighborhood→borough knowledge from the live Cotality-generated contract.
-2. The Map still loads legacy RLS-named polygon/alias assets and returns polygon names directly as `selectedNeighborhoods` into Search. Polygon geometry may remain presentation geometry, but it may NOT become provider Search truth. A Map selection must bridge to a verified live Cotality identity, or Map-as-a-Search-writer must remain disabled until §8.
-3. The pushed `60b24ccb...` autocomplete fetch path can resolve to the wrong `/data/...` URL on `/crm`; Claude found an absolute `/crm/data/...` correction locally after the push. Commit/push/prove it before closure.
-4. The current browser vocabulary exposes raw provider spellings individually (`SoHo`/`Soho`/`SOHO`, `Dumbo`/`DUMBO`, etc.) and can expose raw `StatenIsland` as a broker-facing borough label. Collapse provider variants behind one canonical presentation label while preserving provider values internally.
-5. Neighborhood vocabulary loading/failure is not truthfully represented. Empty `_searchList` while loading or after a failed fetch must not tell the broker “No neighborhoods found.” Provide explicit loading and load-failed states.
-6. The borough registry row has been changed to `by_listing_authority`, but its explanatory note still says the authority is provisional/needs probe. Make the authority record and its prose agree.
+The generated server resolver and shipped browser resolver now share the same cardinality rule:
 
-### Required neighborhood/map tests before §5 closes
+- 0 candidates → unknown;
+- 1 candidate → resolved;
+- multiple candidates → ambiguous unless an explicit borough/qualified label disambiguates.
 
-Add negative/behavioral coverage that fails for:
+The browser no longer returns the first raw-spelling match for a bare ambiguous value. `Bay Terrace` resolves to neither place; `Bay Terrace, Queens` and `Bay Terrace, Staten Island` resolve to their specific identities.
 
-- any second hard-coded neighborhood→borough authority;
-- Mott Haven assigned to Manhattan;
-- a Map-emitted Search value that has no verified live Cotality identity;
-- separate broker-facing options for case-only variants of one identity;
-- lost Cotality inventory because capitalization differs;
-- raw provider `StatenIsland` shown as the broker label instead of `Staten Island`;
-- silent vocabulary-load failure or false “No neighborhoods found” while loading;
-- reintroduction of a relative `/data/...` neighborhood vocabulary fetch on the CRM route.
+Qualified labels parse the borough suffix before folding, so `Downtown, Brooklyn` cannot collide with the distinct real name `Downtown Brooklyn`.
 
-## 5.H Active CRM UI provider terminology — bounded correction now, full UX cleanup later
+`tests/runtime/browser-neighborhood-resolver.test.ts` executes the shipped browser module against the generated vocabulary and sweeps identity labels and raw provider spellings for browser/server disagreement.
 
-The authenticated Search form currently presents an **“REBNY RLS Live”** tracker even though Cotality is the active provider authority. Correct active provider/data-source UI language to Cotality. REBNY/RLS may remain where it is genuinely compliance, attribution or legal context; do not present it as the Search data engine.
+### 5.G.6 Map boundary — accepted at `9919e89a...`
 
-The form also retains substantial legacy status/control vocabulary and DOM names such as `data-field="MlsStatus"`. The canonical backend correctly uses Cotality `StandardStatus`, and unsupported legacy sub-status controls are presently disabled rather than silently executed. Do not pull the entire UI redesign into §5: preserve fail-closed behavior now, correct active authority/provider wording now, and carry broad disabled-control simplification/product redesign into §7 unless it directly affects truthful Search execution.
+Polygon names remain presentation geometry only.
+
+Map → Search now calls the browser canonical resolver. It distinguishes:
+
+- resolved identity → canonical Search value;
+- unknown → reported and not sent;
+- ambiguous → candidate choices reported and not auto-picked.
+
+Old RLS polygon/alias data may remain for drawing geometry, but it is not provider Search identity.
+
+### 5.G.7 Loader/provider terminology — accepted at `9919e89a...`
+
+Accepted:
+
+- neighborhood vocabulary loads from absolute `/crm/data/neighborhood-vocabulary.generated.json`;
+- loading / ready / failed are explicit states;
+- raw provider `StatenIsland` is not the broker-facing label; display is `Staten Island`;
+- active authenticated Search provider wording was corrected to Cotality where the provider engine is being described;
+- REBNY/RLS may remain where genuinely required for compliance/attribution/legal context.
+
+## 5.H FINAL BOUNDED §5 BLOCKERS AFTER INDEPENDENT REVIEW OF `9919e89a...`
+
+Do **not** reopen the already-fixed geography architecture. Only these bounded defects remain.
+
+### BLOCKER 1 — Saved Search restore can still silently widen an ambiguous/unknown neighborhood
+
+`_criteriaToFormFields()` creates `_restoreIssues` specifically so any criterion that cannot be faithfully restored blocks auto-execution.
+
+But the neighborhood branch currently does:
+
+- `resolveState(n) === ambiguous` → show warning and `return` from that item;
+- `resolveState(n) === unknown` → show warning and `return` from that item;
+- **neither branch pushes a restore issue**.
+
+`loadSavedSearch()` blocks execution only when `restoreIssues.length > 0` or when the server independently reports a non-executable disposition.
+
+The server `savedSearchDisposition()` currently derives its status from `checkbox_filters`; it does not classify neighborhood ambiguity/unknown geography. Therefore a legacy saved search containing bare `Bay Terrace` can be reported server-side as executable, have the neighborhood skipped by the browser, and then auto-run a broader search.
+
+Required correction:
+
+- ambiguous neighborhood restore MUST push a named `_restoreIssues` entry including the candidate qualified identities;
+- unknown neighborhood restore MUST push a named `_restoreIssues` entry;
+- local restore completeness must independently stop `performSearch()` even when server `criteria_status` says executable;
+- add a **behavioral** test that runs the actual Saved Search restore/load path and proves bare ambiguous and unknown neighborhoods do not call `performSearch()`;
+- prove qualified `Bay Terrace, Queens` and `Bay Terrace, Staten Island` restore normally.
+
+Full Saved Search v2 remains §8. This narrow fail-closed restore fix is §5 because the active geography writer/reader cannot be certified while it can drop a criterion and execute.
+
+### BLOCKER 2 — ambiguous live Cotality geography is reported with a false absence message
+
+`neighborhoodOData()` correctly distinguishes `unknown` from `ambiguous`, but both currently throw `UnsupportedGeographyError`, whose constructor text says:
+
+`Not a live Cotality value.`
+
+That is false for a bare ambiguous live value such as `Bay Terrace`; Cotality does carry the value, but Mallan requires borough qualification because the name maps to multiple identities.
+
+Required correction:
+
+- preserve typed fail-closed route behavior;
+- distinguish **unknown/not-live** from **ambiguous/requires-borough** in the error reason/details;
+- do not describe a live ambiguous provider value as absent;
+- add direct route/boundary proof for both cases.
+
+### BLOCKER 3 — authority prose still contains withdrawn/contradictory geography claims
+
+The executable behavior is newer than some comments/registry notes. §5 cannot close while its authority record simultaneously states the old and new models.
+
+Required cleanup:
+
+- `FIELD_REGISTRY` neighborhood note still contains the superseded sentence that every other split resolves to the dominant borough and references removed `artifacts/neighborhood-minority-borough-exclusions.json`; remove/rewrite that stale paragraph rather than appending another correction after it;
+- `geography.ts` still says the executor enforces a “dominant-borough decision” and calls Downtown Brooklyn minority rows “provider error”; that claim was withdrawn and is not established by Cotality counts;
+- `neighborhood-autocomplete.js` top comments still describe Union Square/Stuyvesant Town as absent and cite the old 240-value single-borough census; replace with the full-feed evidence/rule model;
+- no removed artifact or withdrawn provider-error/dominance claim may remain as current authority prose.
+
+### Final §5 correction set
+
+The next code pass is limited to:
+
+1. Saved Search ambiguous/unknown neighborhood restore → `_restoreIssues` + behavioral no-auto-run proof;
+2. truthful unknown-vs-ambiguous server error semantics;
+3. remove stale contradictory geography authority prose/references;
+4. regenerate `public/crm/index-built.html` if browser source changes;
+5. rerun the targeted geography/Saved Search/error-boundary suites as a group;
+6. rerun registry→executor census and negative drift proof;
+7. rerun broad Search/compliance/UCBA/IDX gates;
+8. push one bounded checkpoint;
+9. prove all five GitHub workflows and exact-SHA Vercel Preview;
+10. STOP for independent §5 closure review before touching §6.
 
 ## 5.I Registry → executor census
 
-By Section 5 closure, produce one machine-checkable census showing:
+By Section 5 closure, machine-checkably prove:
 
 - every executable canonical criterion;
 - its registry owner;
 - its execution strategy;
-- the exact provider mapping or Mallan-side strategy;
-- any specialized subordinate vocabulary owner;
+- exact provider mapping or Mallan-side strategy;
+- specialized subordinate vocabulary owner where applicable;
 - zero duplicate active execution maps for the same semantic criterion;
 - every unsupported/unverified criterion has explicit fail behavior;
-- any criterion the live executor can execute resolves to `verified_executable` under the canonical readiness model;
-- any `needs_probe`, semantic-false, unresolved, refused or not-yet-wired criterion cannot masquerade as verified execution.
+- every criterion the live executor can execute resolves to `verified_executable` under the canonical readiness model;
+- `needs_probe`, semantic-false, unresolved, refused or not-yet-wired criteria cannot masquerade as verified execution.
 
 The census must fail CI if a new executor mapping appears without an authority owner or if an executing criterion is not canonically verified.
 
@@ -332,21 +431,25 @@ The census must fail CI if a new executor mapping appears without an authority o
 
 Do not move to §6 until:
 
-- bathroom semantics remain aligned with the fractional full+half contract;
+- bathroom semantics remain aligned with fractional Full + Half×0.5;
 - listing-ID domains remain explicitly resolved;
-- every executable criterion has exactly one authoritative mapping/execution owner;
-- route-level special cases are either justified named strategies or folded under the canonical owner;
+- every executable criterion has exactly one authoritative execution owner;
+- route-level special cases are justified named strategies or folded under the canonical owner;
 - Sponsor Unit strategy is authoritative and not an invented top-level field;
-- Maximum Financing has one execution owner/strategy but is not prematurely page-filtered;
+- Maximum Financing has one strategy but is not prematurely page-filtered;
 - unverified capabilities remain blocked;
 - browser geography has no second hard-coded authority;
-- case-only neighborhood variants collapse to one broker-facing identity without losing any verified Cotality spellings/inventory;
-- Map cannot write a non-Cotality neighborhood value into Search;
-- neighborhood load/error state is explicit and the CRM data path works in Preview;
+- case-only neighborhood variants collapse without losing verified provider spellings/inventory;
+- full-feed neighborhood evidence is distinct from Mallan geography business decisions;
+- ambiguous neighborhood identity never auto-picks a borough;
+- Map cannot write an unverified/ambiguous polygon name into Search;
+- Saved Search restore cannot drop an ambiguous or unknown neighborhood and then auto-execute;
+- ambiguous live Cotality geography is not falsely described as absent/non-live;
+- neighborhood load/error state is explicit and the absolute CRM data path is used;
 - active Search provider language does not call REBNY/RLS the provider engine;
-- registry notes agree with the actual authority state;
+- registry/comments/evidence references agree with the current authority model and contain no withdrawn dominance/provider-error claim as current truth;
 - registry→executor census is clean under the stronger readiness invariant;
-- negative drift tests catch duplicate/unauthorized execution mapping and geography authority drift;
+- negative drift tests catch duplicate/unauthorized execution mapping and geography drift;
 - grouped targeted tests pass;
 - broad Search/compliance gates pass at the closure checkpoint;
 - exact GitHub workflows and Vercel Preview pass on the closure head;
@@ -368,15 +471,7 @@ Provider `$filter` cannot address the observed financing key inside `CustomPrope
 
 Implement only over the COMPLETE candidate universe before final count/pagination.
 
-Prove:
-
-- min-only;
-- max-only;
-- both;
-- neither;
-- absent/unparseable;
-- `0.00` sentinel = not specified, never literal 0%;
-- disagreement across listings in one building does not get collapsed into a fake building fact.
+Prove min-only, max-only, both, neither, absent/unparseable, `0.00` sentinel = not specified, and no cross-listing building-fact fabrication.
 
 Before §6 execution, live-probe the exact narrow expansion:
 
@@ -398,13 +493,13 @@ After §§4–6 close, prove every supported Sale/Rental criterion and meaningfu
 
 Carry the downstream null-numeric display defect here if not already fixed: unknown beds/baths/rooms/DOM must not become fabricated zero/studio/zero-days facts.
 
-Also simplify the broker-facing Search surface: remove obsolete disabled legacy controls rather than making agents work around a museum of unsupported options. This UI cleanup must preserve the canonical criteria and verified Cotality mappings; it does not authorize new filters merely because old markup exists.
+Also simplify the broker-facing Search surface: remove obsolete disabled legacy controls rather than making agents work around unsupported options. Preserve canonical criteria and verified Cotality mappings; old markup does not authorize new filters.
 
 # 8. SEARCH STEP 5 — MAP + SAVED SEARCH + WORKBENCH
 
 Map/Grid share one canonical criteria object, final universe and Listing identity.
 
-Polygon/geometry names may be presentation assets, but Map selection that writes Search criteria must resolve through the verified live Cotality neighborhood identity contract established in §5. No RLS/RESO polygon alias becomes provider Search truth.
+Polygon/geometry names may be presentation assets, but Map selection that writes Search criteria must resolve through the verified Cotality/Mallan neighborhood identity contract established in §5.
 
 Full Saved Search v2 belongs here:
 
@@ -483,44 +578,44 @@ If intentionally departing from sequence, state:
 
 **CURRENT SECTION:** 5 — Registry → Executor Authority
 
-**STATUS:** **OPEN — latest closure candidate rejected by independent audit**
+**STATUS:** **OPEN — `9919e89a...` final closure candidate rejected by independent audit on three bounded defects**
 
 **SECTION 4 CLOSURE SHA:** `939884e15ec8447988c7fb791a8978fb8676f3a4`
 
-**LATEST AUDITED §5 CHECKPOINT SHA:** `60b24ccbc25d68c3f7aef80c582508cdc6950e6e`
+**LATEST AUDITED §5 CODE CHECKPOINT SHA:** `9919e89aaceeb34bd06a3f3de7c37aa800fd703d`
 
-**CHECKPOINT CI:** all five GitHub PR workflows passed; Vercel Preview READY. The post-checkpoint local neighborhood-path correction was not part of that green SHA.
+**CHECKPOINT DELIVERY PROOF:** all five GitHub PR workflows passed at exact `9919e89a...`; Vercel Preview `dpl_5XBpXvswjcgFerQAz7wzSnR8RAhC` is READY at the same SHA. Green delivery does not override the three behavioral/authority blockers below.
+
+**STACK:** #620 head `82d55a3c2ce357edd34dd5ee7ae66fed853d9ceb`; #618 and #620 remain diverged; #618 is 193 commits ahead / 3 behind from merge base `a0db2dac8b933bc2d978143721418427c0ebb65a`. No restack without Maya authorization.
 
 **§5 PROGRESS ACCEPTED / DO NOT REOPEN WITHOUT NEW EVIDENCE:**
 
-- fractional bathroom authority: Full + Half×0.5; half baths preserved as first-class data;
+- fractional bathroom authority = Full + Half×0.5; half baths preserved;
 - provider/Mallan listing-ID domain separation;
-- Sponsor Unit future strategy = Mallan-side projection, refused until §6;
-- Maximum Financing future strategy = Mallan-side projection, refused until §6;
-- exact StreetNumber Search instead of prefix widening;
-- case-insensitive UnitNumber provider execution via live-proven function;
-- keyword refusal reaches the server boundary rather than being silently dropped;
-- ZIP `00000` sentinel finding and corrected negative proof;
-- numeric max-bound sentinel guards with studio exception;
+- Sponsor Unit future strategy = Mallan-side complete-universe projection; refused until §6;
+- Maximum Financing future strategy = Mallan-side complete-universe projection; refused until §6;
+- exact StreetNumber Search, case-insensitive UnitNumber execution, corrected sentinel behavior and typed provider boundaries;
 - unresolved authority cannot report `verified_executable`;
-- geography authority is by listing authority: Mallan-local geography is Mallan-authored, third-party provider geography is Cotality-authored;
-- typed UnsupportedGeography 400 boundary;
-- live `SubdivisionName × CityRegion` uniqueness census at the audited checkpoint.
+- full-feed geography evidence = 591,409 Property rows / 592 pages / all statuses / all PropertyTypes;
+- 124/632 folded neighborhood names span multiple CityRegions, so global name uniqueness is withdrawn;
+- Cotality observed geography is separated from `mallan_canonical_geography` business decisions;
+- no plurality fallback below the declared rule floor;
+- browser/server resolver parity is behaviorally tested on shipped browser code;
+- case variants collapse without losing provider spellings;
+- ACCEPT and OFFER are distinct;
+- bare ambiguous neighborhood values do not auto-pick a borough in browser/server resolver;
+- Map distinguishes resolved / unknown / ambiguous and does not auto-pick ambiguity;
+- absolute CRM vocabulary path and explicit loading/failure states are committed;
+- active provider-engine wording is Cotality;
+- exact-SHA CI and Vercel Preview are green.
 
-**CURRENT §5 WRONG-ANSWER / CLOSURE BLOCKERS:**
+**CURRENT §5 WRONG-ANSWER / CLOSURE BLOCKERS — ONLY THESE:**
 
-1. commit/push/prove the absolute `/crm/data/neighborhood-vocabulary.generated.json` loader correction;
-2. remove the live hard-coded `_findBoroughForNeighborhood()` table and derive borough association from the live Cotality contract;
-3. correct the Mott Haven wrong-borough proof and add a regression test;
-4. stop Map polygon/RLS names from writing directly into Cotality Search; bridge to live Cotality identity or disable Map-as-writer until §8;
-5. collapse case-only variants (`SoHo`/`SOHO`/`Soho`, etc.) into one broker-facing identity while searching the union of all verified raw Cotality variants;
-6. keep raw provider spellings/internal values separate from presentation labels (`StatenIsland` provider value → `Staten Island` broker label);
-7. add explicit neighborhood loading and load-failed UI states;
-8. make borough/neighborhood registry prose agree with the actual authority state;
-9. change active authenticated Search provider wording from “REBNY RLS Live” to Cotality while preserving REBNY/RLS only where it is truly compliance/attribution/legal context;
-10. strengthen the one-vocabulary/census tests so a second browser/Map authority cannot pass green;
-11. regenerate the CRM bundle and rerun grouped §5 tests, census/mutation proof, Search/compliance gates, exact GitHub workflows and Vercel Preview at the new head;
-12. stop for independent §5 closure review before touching §6.
+1. Saved Search restore detects ambiguous/unknown neighborhood values but does not append them to `_restoreIssues`; because server disposition currently does not classify geography ambiguity, the skipped neighborhood can still be followed by auto-execution of a broader search. Add restore issues + real no-auto-run behavioral proof.
+2. Server geography boundary calls ambiguous live values “Not a live Cotality value.” Distinguish unknown from ambiguous/requires-borough truthfully while preserving fail-closed typed behavior.
+3. Clean stale authority prose: remove the superseded dominant-borough/provider-mis-tagging paragraph and deleted-artifact reference from `FIELD_REGISTRY`; remove withdrawn provider-error/dominance prose from `geography.ts`; replace the old 240-value/single-borough/Union-Square-absent comments in `neighborhood-autocomplete.js`.
+
+**FINAL §5 PASS:** correct those three only; regenerate the CRM bundle if needed; run targeted Saved Search/geography/error-boundary tests, registry→executor census, broad Search/compliance gates, exact GitHub workflows and exact-SHA Vercel Preview; then STOP for independent §5 closure review.
 
 **NEXT SECTION ALLOWED:** none. §6 only after independent Section 5 closure.
 
