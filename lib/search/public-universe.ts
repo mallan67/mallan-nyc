@@ -78,31 +78,6 @@ export interface PublicUniverseInput<TRow, TDto> {
   readonly budget: number;
   /** Rows per candidate read. */
   readonly batchSize?: number;
-  /**
-   * READ ONE PAGE INSTEAD OF THE UNIVERSE — only when membership cannot change.
-   *
-   * Walking the corpus is what makes the count and the page agree, but when no
-   * stage can remove or move a row it is pure cost: the first live measurement
-   * of the corrected path read 7,125 candidates to return 5 rows and took 11.5s
-   * cold, against 0.2s warm. Correct and unusably slow is not a fix.
-   *
-   * The caller must PROVE the precondition, because one part of it cannot be
-   * checked from a page: `reconcile` collapses twins, and a twin can sit outside
-   * any single page, so only a corpus-wide fact ("no Mallan-authored row matches
-   * this predicate") licenses skipping the walk. `count` is then the predicate
-   * count, which is exact precisely because nothing downstream removes anything.
-   *
-   * What CAN be checked here is checked: if `toDtos`, `reconcile` or
-   * `corpusFilter` change the page after all, the precondition was wrong and
-   * this falls back to the full traversal rather than serving a page whose
-   * count no longer describes it.
-   */
-  readonly singlePageWhenSettled?: {
-    /** Caller-proven: no stage can change membership for this request. */
-    readonly proven: boolean;
-    /** The predicate count, which IS the membership count under that proof. */
-    readonly count: number;
-  };
 }
 
 export interface PublicUniverse<TDto> {
@@ -133,35 +108,6 @@ export async function assemblePublicUniverse<TRow, TDto>(
   const pageSize = Math.max(1, input.pageSize);
   const page = Math.max(1, input.page);
   const batchSize = Math.max(1, input.batchSize ?? DEFAULT_BATCH);
-
-  const settled = input.singlePageWhenSettled;
-  if (settled?.proven) {
-    const start = (page - 1) * pageSize;
-    const rows = await input.readBatch(start, pageSize);
-    const dtos = await input.toDtos(rows);
-    const reconciled = input.reconcile(dtos);
-    const survivors = await input.corpusFilter(reconciled);
-
-    // THE PRECONDITION, VERIFIED RATHER THAN TRUSTED.
-    //
-    // Under the proof no stage may remove a row, so any shrinkage means the
-    // proof was wrong — a display gate disagreeing with the SQL predicate, or a
-    // filter that was supposed to be inactive. Serving this page would publish a
-    // count that no longer describes it, so fall through to the honest walk.
-    if (survivors.length === rows.length) {
-      return {
-        rows: survivors,
-        count: settled.count,
-        countMeaning: PublicCountMeaning.EXACT,
-        exhausted: true,
-        candidatesRead: rows.length,
-        exclusions: { reconciled: 0, corpusFiltered: 0 },
-        totalPages: Math.max(1, Math.ceil(settled.count / pageSize)),
-        hasMore: start + survivors.length < settled.count,
-        hasPrevious: page > 1,
-      };
-    }
-  }
 
   const candidates: TDto[] = [];
   let candidatesRead = 0;

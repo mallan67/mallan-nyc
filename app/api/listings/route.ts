@@ -166,6 +166,26 @@ const PAGE_LISTING_SELECT = {
 } satisfies Prisma.ListingSelect;
 
 /**
+ * WHAT A CORPUS FILTER NEEDS: the card projection MINUS the display-only
+ * members.
+ *
+ * A corpus-filter search derives propertyType, yearBuilt, furnished,
+ * petsAllowed and publicRemarks through the same DTO the page uses, so it
+ * cannot use the membership projection. It has no use for `media`,
+ * `listing_media` or `_count` — those feed the gallery, and no filter reads
+ * them. Dropping the three keeps the derivations byte-identical while removing
+ * the relation join, which is the part that scales badly across a corpus.
+ */
+const FILTER_LISTING_SELECT = (() => {
+  const {
+    media: _media,
+    listing_media: _listingMedia,
+    _count: _countRel,
+    ...rest
+  } = PAGE_LISTING_SELECT;
+  return rest satisfies Prisma.ListingSelect;
+})();
+/**
  * EVERYTHING MEMBERSHIP NEEDS, AND NOTHING ELSE.
  *
  * The six distribution-gate columns, the listing identity, the address the
@@ -591,20 +611,34 @@ export async function GET(request: Request) {
             openHouseKeys = membership.listingKeys;
           }
 
-          const serializeCandidate = (
-            l: Awaited<ReturnType<typeof readCandidateBatch>>[number],
+          // Typed by the columns it actually converts, not by one caller's row
+          // shape — the card projection and the corpus-filter projection differ
+          // by three display-only members, and both need serializing.
+          // Typed by the columns it actually converts, not by one caller's row
+          // shape — the card projection and the corpus-filter projection differ
+          // by three display-only members, and both need serializing.
+          const serializeCandidate = <
+            T extends {
+              id: bigint;
+              list_price: unknown;
+              living_area: unknown;
+              agent_id: bigint | null;
+              owner_client_id: bigint | null;
+            },
+          >(
+            l: T,
           ): DbListing =>
             ({
               ...l,
-              id: l.id.toString(),
-              list_price: l.list_price.toString(),
-              living_area: l.living_area?.toString() ?? null,
+              id: String(l.id),
+              list_price: String(l.list_price),
+              living_area: l.living_area != null ? String(l.living_area) : null,
               // C1 fix: stringify BigInt FKs for JSON safety; the classifier
               // only checks `!= null` so the value shape doesn't matter, but
               // mixing BigInts into JSON.stringify throws at serialization.
-              agent_id: l.agent_id != null ? l.agent_id.toString() : null,
-              owner_client_id: l.owner_client_id != null ? l.owner_client_id.toString() : null,
-            }) as DbListing;
+              agent_id: l.agent_id != null ? String(l.agent_id) : null,
+              owner_client_id: l.owner_client_id != null ? String(l.owner_client_id) : null,
+            }) as unknown as DbListing;
 
           // THE CANDIDATE-PREDICATE POPULATION — a DIFFERENT number, kept and
           // named as one.
@@ -624,47 +658,22 @@ export async function GET(request: Request) {
             cacheKey,
           ], { tags: [SEARCH_CACHE_TAG] })();
 
-          // CAN ANY STAGE ACTUALLY CHANGE MEMBERSHIP FOR THIS REQUEST?
+          // DOES ANY STAGE NEED MORE THAN THE MEMBERSHIP PROJECTION?
           //
-          // If none can, the SQL predicate IS the membership and walking the
-          // corpus buys nothing. Measured on Preview: an unfiltered sale search
-          // read 7,125 candidates to return 5 rows, 11.5s cold. Correct and
-          // unusably slow is not a fix, so the walk is reserved for requests
-          // that need it.
+          // A corpus filter derives its five fields through the same DTO the
+          // page uses, so its walk must read the fuller row. Nothing else does.
           //
-          // Two conditions, and the second cannot be judged from a page.
-          // `preferCrmExclusiveOverIdxDuplicate` only ever removes a row from a
-          // group that contains a Mallan-authored one, and that twin may sit
-          // anywhere in the corpus — so the licence to skip the walk is the
-          // corpus-wide fact that NO Mallan-authored row matches this predicate.
-          // One indexed count answers it. When any corpus filter is requested
-          // the question does not arise and the count is not run at all.
+          // This flag REPLACES a shortcut that skipped the walk entirely when no
+          // Mallan-authored row matched the predicate. That precondition proved
+          // dead in Preview: Mallan holds exclusives in every broad sale band, so
+          // it never fired where it was needed, and it charged an extra count
+          // query to every request to find that out. The walk itself is now cheap
+          // enough that skipping it buys nothing worth a precondition.
           const corpusFiltersActive =
             !!openHouseParam ||
             ["ownershipTypes", "yearBuilt", "furnished", "amenities", "keywords"].some(
               (p) => !!searchParams.get(p),
             );
-          const mallanAuthoredInBand = corpusFiltersActive
-            ? 1
-            : await cachedPublicRead(
-                () =>
-                  prisma.listing.count({
-                    where: {
-                      AND: [
-                        dbWhere,
-                        {
-                          OR: [
-                            { listing_id: { startsWith: "SL-" } },
-                            { listing_id: { startsWith: "RL-" } },
-                            { rls_eligible: false },
-                          ],
-                        },
-                      ],
-                    },
-                  }),
-                ["api-listings-mallan-in-band", cacheKey],
-                { tags: [SEARCH_CACHE_TAG] },
-              )();
 
           // THE FINAL PUBLIC UNIVERSE. Reconciliation, display eligibility and
           // every business filter run over the WHOLE corpus; the page is the
@@ -682,7 +691,15 @@ export async function GET(request: Request) {
             // DTO the page uses), and those searches legitimately do more work.
             readBatch: async (batchSkip, batchTake) =>
               corpusFiltersActive
-                ? (await readCandidateBatch(batchSkip, batchTake)).map(serializeCandidate)
+                ? (
+                    await prisma.listing.findMany({
+                      where: dbWhere,
+                      orderBy: dbOrderBy,
+                      skip: batchSkip,
+                      take: batchTake,
+                      select: FILTER_LISTING_SELECT,
+                    })
+                  ).map(serializeCandidate)
                 : ((await prisma.listing.findMany({
                     where: dbWhere,
                     orderBy: dbOrderBy,
@@ -748,12 +765,6 @@ export async function GET(request: Request) {
             pageSize: limit,
             budget: PUBLIC_CANDIDATE_BUDGET,
             batchSize: PUBLIC_CANDIDATE_BATCH,
-            // The assembler re-checks what a page CAN prove and walks the corpus
-            // anyway if this turns out to be wrong.
-            singlePageWhenSettled: {
-              proven: !corpusFiltersActive && mallanAuthoredInBand === 0,
-              count: dbPredicateCount,
-            },
           });
 
           const dbTotal = universe.count;
