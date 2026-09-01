@@ -57,14 +57,71 @@
             _goToPage(1);
         }
 
-        // Column sort toggle
+        /**
+         * Grid columns that have a CANONICAL SERVER SORT, and the key for each
+         * direction. These are the only orderings the provider can apply to the
+         * whole result universe; the canonical contract defines six keys over
+         * three facts (price, listed date, updated date).
+         */
+        var SERVER_SORTABLE_COLUMNS = {
+            price:      { asc: 'price_asc',   desc: 'price_desc'   },
+            listedDate: { asc: 'listed_asc',  desc: 'listed_desc'  }
+        };
+
+        /**
+         * SORTING ORDERS THE SEARCH, NOT THE SCREEN.
+         *
+         * This used to set `sortField`/`sortOrder` and call renderSearchResults().
+         * Those are LOCAL state — the server sort travels as `sortKey` — so on
+         * the authoritative path it reordered the fifty rows in memory while the
+         * pager still read "Page 3 of 93". That fails invisibly: every page is
+         * internally well ordered, so nothing on screen contradicts a broker who
+         * believes they are looking at the cheapest listing in the search.
+         *
+         * When the rows are one page, the sort now goes to the server and the
+         * universe is re-cut from page 1 — a different ordering means a
+         * different page 1, so staying on page 3 would show rows 101-150 of a
+         * sequence the broker never saw the start of.
+         *
+         * A column with NO canonical server sort is REFUSED rather than sorted
+         * locally. Presenting a page-local order under a global pager is the
+         * defect; doing it only for the columns the provider cannot sort would
+         * keep the defect and hide it better.
+         */
         function toggleColumnSort(field) {
-            if (searchResultsState.sortField === field) {
-                searchResultsState.sortOrder = searchResultsState.sortOrder === 'asc' ? 'desc' : 'asc';
-            } else {
+            var nextOrder = (searchResultsState.sortField === field)
+                ? (searchResultsState.sortOrder === 'asc' ? 'desc' : 'asc')
+                : 'asc';
+
+            var scope = (typeof window.getResultScope === 'function')
+                ? window.getResultScope()
+                : { isCompleteUniverse: true };
+
+            if (!scope.isCompleteUniverse) {
+                var serverSort = SERVER_SORTABLE_COLUMNS[field];
+                if (!serverSort) {
+                    // Refused BY NAME. The header arrow is deliberately not
+                    // moved: it would claim an ordering that was not applied.
+                    if (typeof showToast === 'function') {
+                        showToast('This column can only sort the page in view, so it is not applied to a multi-page result. Sort by Price or Listed Date to order the whole search.', 'warning');
+                    }
+                    console.warn('[Search] Column sort refused for "' + field + '": no canonical server sort; a page-local order would misrepresent a multi-page result.');
+                    return;
+                }
                 searchResultsState.sortField = field;
-                searchResultsState.sortOrder = 'asc';
+                searchResultsState.sortOrder = nextOrder;
+                searchResultsState.sortKey = serverSort[nextOrder];
+                searchResultsState.currentPage = 1;
+                if (typeof window._requestResultPage === 'function') {
+                    window._requestResultPage(1);
+                    return;
+                }
             }
+
+            // A locally-held catalogue IS the universe, so sorting it in memory
+            // orders the whole result set and needs no round trip.
+            searchResultsState.sortField = field;
+            searchResultsState.sortOrder = nextOrder;
             renderSearchResults();
         }
 
@@ -90,10 +147,42 @@
 
             var fmt = function(n) { return '$' + Math.round(n).toLocaleString(); };
             var el = function(id) { return document.getElementById(id); };
-            if (el('avgPrice')) el('avgPrice').textContent = fmt(avgPrice);
-            if (el('avgPpsf')) el('avgPpsf').textContent = fmt(ppsf);
-            if (el('avgSqft')) el('avgSqft').textContent = Math.round(avgSqft).toLocaleString() + ' sqft';
-            if (el('resultsTotalCount')) el('resultsTotalCount').textContent = filtered.length;
+            // A STATISTIC MUST SAY WHICH POPULATION IT DESCRIBES.
+            //
+            // These averages are computed over `filtered`, which on the
+            // authoritative path is ONE SERVER PAGE. Presented bare next to a
+            // result count of several thousand, "$4.2M average" reads as market
+            // analysis for the search when it describes fifty rows — and a
+            // broker may repeat it to a client.
+            //
+            // The figures are still shown, because a page average is a real and
+            // useful number. What changes is that it stops claiming to be
+            // something else: when the rows are a window, each value is labelled
+            // with the population it came from.
+            var scope = (typeof window.getResultScope === 'function')
+                ? window.getResultScope()
+                : { isCompleteUniverse: true, loadedCount: filtered.length };
+            var qualifier = scope.isCompleteUniverse
+                ? ''
+                : ' (page of ' + scope.loadedCount + ')';
+
+            if (el('avgPrice')) el('avgPrice').textContent = fmt(avgPrice) + qualifier;
+            if (el('avgPpsf')) el('avgPpsf').textContent = fmt(ppsf) + qualifier;
+            if (el('avgSqft')) el('avgSqft').textContent = Math.round(avgSqft).toLocaleString() + ' sqft' + qualifier;
+            // The count beside them describes the SEARCH, not the page, so it
+            // takes the universe figure whenever one is known.
+            if (el('resultsTotalCount')) {
+                el('resultsTotalCount').textContent = scope.isCompleteUniverse
+                    ? String(filtered.length)
+                    : String(scope.universeCount) + (scope.isExact ? '' : '+');
+            }
+            var avgScopeEl = el('averagesScopeNote');
+            if (avgScopeEl) {
+                avgScopeEl.textContent = scope.isCompleteUniverse
+                    ? ''
+                    : 'Averages describe the ' + scope.loadedCount + ' listings on this page, not all '
+                      + scope.universeCount + (scope.isExact ? '' : '+') + ' results.';
+            }
         }
 
         // Open listing detail in a standalone new browser tab

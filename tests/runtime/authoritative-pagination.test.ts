@@ -62,8 +62,20 @@ function navigate(
   action: 'first' | 'prev' | 'next' | 'last' | 'perPage',
   state: Record<string, unknown>,
 ): number | null {
+  // ANCHORED ON DECLARATIONS, NOT ON A COMMENT — for the second time in this
+  // file. The end anchor was the literal comment `// Column sort toggle`. When
+  // that comment became a JSDoc block explaining why sorting now goes to the
+  // server, indexOf returned -1, `slice(start, -1)` swallowed the rest of the
+  // file, and every navigation test died on `document.addEventListener` in code
+  // it was never meant to evaluate.
+  //
+  // Same failure as the `_requestResultPage` region earlier in this workstream:
+  // a prose edit silently redefining what a test executes. Both ends are now
+  // asserted, so a rename fails loudly instead.
   const start = pagination.indexOf('function _goToPage(');
-  const end = pagination.indexOf('// Column sort toggle');
+  const end = pagination.indexOf('var SERVER_SORTABLE_COLUMNS');
+  if (start < 0) throw new Error('anchor lost in pagination.js: function _goToPage(');
+  if (end <= start) throw new Error('anchor lost or out of order: var SERVER_SORTABLE_COLUMNS');
   const body = pagination.slice(start, end);
 
   let asked: number | null = null;

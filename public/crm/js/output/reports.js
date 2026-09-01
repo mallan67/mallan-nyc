@@ -194,6 +194,37 @@
             reportState.selectedListingIds = selIds.slice(0, 250);
 
             // Update counts in Sort Order tab
+            // A REPORT MUST NOT CALL ONE PAGE "ALL RESULTS".
+            //
+            // `allListings` is `searchResultsState.filteredListings`, which on
+            // the authoritative path is ONE SERVER PAGE. The option was labelled
+            // "All Results (N)" with N the page length, and it is the DEFAULT —
+            // so a broker generating a CSV, print-out or client email for a
+            // 4,000-result search got fifty listings under a label promising all
+            // of them. That output leaves the brokerage.
+            //
+            // The option still exists and still works; it stops misdescribing
+            // itself. When the rows are a window it is named for what it is, and
+            // the note below states the population outright.
+            var reportScope = (typeof window.getResultScope === 'function')
+                ? window.getResultScope()
+                : { isCompleteUniverse: true, loadedCount: allListings.length, universeCount: allListings.length, isExact: true };
+
+            var allLabelEl = document.getElementById('reportAllLabel');
+            if (allLabelEl) {
+                allLabelEl.textContent = reportScope.isCompleteUniverse
+                    ? 'All Results'
+                    : 'Listings on this page';
+            }
+            var scopeNoteEl = document.getElementById('reportScopeNote');
+            if (scopeNoteEl) {
+                scopeNoteEl.textContent = reportScope.isCompleteUniverse
+                    ? ''
+                    : 'This search has ' + reportScope.universeCount + (reportScope.isExact ? '' : '+')
+                      + ' results and ' + reportScope.loadedCount + ' are loaded. A report covers the loaded page '
+                      + 'or the listings you select — select across pages to include more.';
+            }
+
             var allEl = document.getElementById('reportAllCount');
             var selEl = document.getElementById('reportSelectedCount');
             if (allEl) allEl.textContent = Math.min(allListings.length, 250);

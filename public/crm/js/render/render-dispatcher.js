@@ -1,15 +1,37 @@
         function initializeSearchResults() {
-            // Clean stale selectedListings — remove IDs that don't exist in current results
             try {
-                var currentIds = (searchResultsState.filteredListings || listings).map(function(l) { return l.id; });
-                searchResultsState.selectedListings = searchResultsState.selectedListings.filter(function(id) {
-                    return currentIds.indexOf(id) !== -1;
-                });
-                localStorage.setItem('selectedListings', JSON.stringify(searchResultsState.selectedListings));
-                // Also filter out previously-removed listings from this session
+                // SELECTION IS DURABLE BY LISTING IDENTITY, NOT BY WHAT IS ON SCREEN.
+                //
+                // This pruned selectedListings to the ids present in
+                // `filteredListings` and PERSISTED the result. On the
+                // authoritative path those rows are ONE SERVER PAGE, so paging
+                // from 1 to 2 deleted every listing the broker had picked on
+                // page 1 — permanently, to localStorage — while the server
+                // response promises `selectionsAreDurableBy: "ListingKey"`.
+                //
+                // "Not on this page" is not "stale". The cleanup is only sound
+                // when the rows in memory ARE the whole result set, so it now
+                // runs only then, and the durable set is otherwise left alone.
+                var scope = window.getResultScope();
+                if (scope.isCompleteUniverse) {
+                    var currentIds = (searchResultsState.filteredListings || listings).map(function(l) { return l.id; });
+                    searchResultsState.selectedListings = searchResultsState.selectedListings.filter(function(id) {
+                        return currentIds.indexOf(id) !== -1;
+                    });
+                    localStorage.setItem('selectedListings', JSON.stringify(searchResultsState.selectedListings));
+                }
+
+                // A SESSION SUPPRESSION MAY NOT SILENTLY RESIZE A COUNTED PAGE.
+                //
+                // Removing rows from a server page leaves a hole: the page
+                // renders short, the count still describes the universe those
+                // rows came from, and the next page begins where the server
+                // said — so the suppressed rows are not pulled forward, they are
+                // simply missing. Applied to a locally-held catalogue it is
+                // sound, because there the rows and the count are the same set.
                 var removedKey = 'removedListings_' + LOGGED_IN_AGENT.id;
                 var removed = JSON.parse(localStorage.getItem(removedKey)) || [];
-                if (removed.length > 0) {
+                if (removed.length > 0 && scope.isCompleteUniverse) {
                     var removedSet = {};
                     removed.forEach(function(id) { removedSet[id] = true; });
                     var source = searchResultsState.filteredListings || listings.slice();

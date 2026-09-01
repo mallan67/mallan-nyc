@@ -11981,7 +11981,7 @@ function toggleSection(header) {
                         <div class="space-y-2">
                             <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                                 <input type="radio" name="reportSelection" value="all" checked class="w-4 h-4">
-                                <span class="text-sm">All Results (<span id="reportAllCount">400</span>)</span>
+                                <span class="text-sm"><span id="reportAllLabel">All Results</span> (<span id="reportAllCount">400</span>)</span>
                             </label>
                             <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                                 <input type="radio" name="reportSelection" value="selected" class="w-4 h-4">
@@ -11996,6 +11996,7 @@ function toggleSection(header) {
                                 <span class="text-sm">Liked Listings (<span id="reportLikedCount">0</span>)</span>
                             </label>
                         </div>
+                        <p id="reportScopeNote" class="mt-2 text-[11px] text-amber-700"></p>
                         <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                             <p class="text-xs text-yellow-700"><i class="fas fa-exclamation-triangle mr-1"></i> Maximum 250 records per report</p>
                         </div>
@@ -16471,6 +16472,99 @@ function manageShowToast(msg) {
         /**
          * Collapse/expand a major sidebar section (Admin Dashboard, Broker/Agent, Tools)
          */
+
+</script>
+<script>
+// ═══ js/search/result-scope.js ═══
+/**
+ * ONE ANSWER TO: "IS THIS THE RESULT SET, OR ONE PAGE OF IT?"
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * WHY THIS EXISTS
+ *
+ * `searchResultsState.filteredListings` holds ONE SERVER PAGE whenever the
+ * search ran authoritatively. Six independent consumers read it as though it
+ * were the whole result set, and each one got the scope wrong on its own:
+ *
+ *   selection cleanup   pruned selectedListings to the ids on THIS page and
+ *                       persisted the result, so paging from 1 to 2 deleted
+ *                       every listing the broker had picked — while the server
+ *                       response promises `selectionsAreDurableBy: ListingKey`.
+ *   column sort         sorted the fifty rows on screen while the pager read
+ *                       "Page 3 of 93", presenting a page-local order as a
+ *                       global one. It fails invisibly: every page looks
+ *                       correctly ordered.
+ *   reports             rendered a radio labelled "All Results (N)" where N was
+ *                       the current page length, and built CSV/print/email
+ *                       bodies from it — brokerage output, sent to clients.
+ *   averages row        computed price and PPSF over one page and presented
+ *                       them as the market statistics for the search.
+ *   status flags        filtered picked/liked/shown within one page.
+ *   removed listings    re-applied a session suppression to each page load.
+ *
+ * The information needed to tell page from universe already existed —
+ * `resultProvenance`, `serverCount`, `serverTotalPages` — and only the
+ * pagination guard consulted it. The problem was never missing data; it was
+ * that every consumer had to remember to ask, and none of them did.
+ *
+ * So the question gets ONE owner. A consumer that needs to know now asks, and a
+ * consumer that never asks is visibly making a claim it has not checked.
+ *
+ * Loaded before search-engine.js so every later script can call it.
+ */
+(function () {
+    'use strict';
+
+    /**
+     * The scope of what is currently in `filteredListings`.
+     *
+     * `isCompleteUniverse` false means these rows are a WINDOW. Anything that
+     * counts, sorts, averages, reports on, or prunes against them is describing
+     * the window, not the search, and must either say so or ask the server.
+     */
+    window.getResultScope = function getResultScope() {
+        var st = (typeof searchResultsState !== 'undefined' && searchResultsState)
+            ? searchResultsState
+            : {};
+        var rows = st.filteredListings || [];
+        var sc = st.serverCount;
+
+        // The SAME test updateResultsCount uses. A provisional preview is a
+        // local re-filter of whatever catalogue happens to be loaded, so pairing
+        // it with a server total would describe two different sets at once.
+        var authoritative = st.resultProvenance === 'authoritative';
+        var haveServerCount = !!(sc && typeof sc.value === 'number');
+        var isOnePage = authoritative && haveServerCount;
+
+        return {
+            rows: rows,
+            /** Rows actually in memory right now. */
+            loadedCount: rows.length,
+            /** True when `rows` IS the search result, not a window onto it. */
+            isCompleteUniverse: !isOnePage,
+            /** Size of the search result. Equals loadedCount only when complete. */
+            universeCount: isOnePage ? sc.value : rows.length,
+            /** 'exact' | 'lower_bound' | null from the server; 'local' when not paged. */
+            countMeaning: isOnePage ? (sc.meaning || null) : 'local',
+            /** Whether universeCount is exact. A lower bound may never be stated flatly. */
+            isExact: isOnePage ? !!sc.isExact : true
+        };
+    };
+
+    /**
+     * A human-readable qualifier for any figure derived from `rows`.
+     *
+     * Returns '' when the rows ARE the universe, so a complete answer is stated
+     * plainly and only a partial one carries a caveat. Printing "of 50 loaded"
+     * when 50 is the whole search would be its own kind of wrong.
+     */
+    window.describeResultScope = function describeResultScope() {
+        var s = window.getResultScope();
+        if (s.isCompleteUniverse) return '';
+        return 'of ' + s.loadedCount + ' loaded' +
+            (s.isExact ? ' (' + s.universeCount + ' total)' : ' (' + s.universeCount + '+ total)');
+    };
+}());
 
 </script>
 <script>
@@ -22821,17 +22915,39 @@ function parseBudgetValue(td) {
 <script>
 // ═══ js/render/render-dispatcher.js ═══
         function initializeSearchResults() {
-            // Clean stale selectedListings — remove IDs that don't exist in current results
             try {
-                var currentIds = (searchResultsState.filteredListings || listings).map(function(l) { return l.id; });
-                searchResultsState.selectedListings = searchResultsState.selectedListings.filter(function(id) {
-                    return currentIds.indexOf(id) !== -1;
-                });
-                localStorage.setItem('selectedListings', JSON.stringify(searchResultsState.selectedListings));
-                // Also filter out previously-removed listings from this session
+                // SELECTION IS DURABLE BY LISTING IDENTITY, NOT BY WHAT IS ON SCREEN.
+                //
+                // This pruned selectedListings to the ids present in
+                // `filteredListings` and PERSISTED the result. On the
+                // authoritative path those rows are ONE SERVER PAGE, so paging
+                // from 1 to 2 deleted every listing the broker had picked on
+                // page 1 — permanently, to localStorage — while the server
+                // response promises `selectionsAreDurableBy: "ListingKey"`.
+                //
+                // "Not on this page" is not "stale". The cleanup is only sound
+                // when the rows in memory ARE the whole result set, so it now
+                // runs only then, and the durable set is otherwise left alone.
+                var scope = window.getResultScope();
+                if (scope.isCompleteUniverse) {
+                    var currentIds = (searchResultsState.filteredListings || listings).map(function(l) { return l.id; });
+                    searchResultsState.selectedListings = searchResultsState.selectedListings.filter(function(id) {
+                        return currentIds.indexOf(id) !== -1;
+                    });
+                    localStorage.setItem('selectedListings', JSON.stringify(searchResultsState.selectedListings));
+                }
+
+                // A SESSION SUPPRESSION MAY NOT SILENTLY RESIZE A COUNTED PAGE.
+                //
+                // Removing rows from a server page leaves a hole: the page
+                // renders short, the count still describes the universe those
+                // rows came from, and the next page begins where the server
+                // said — so the suppressed rows are not pulled forward, they are
+                // simply missing. Applied to a locally-held catalogue it is
+                // sound, because there the rows and the count are the same set.
                 var removedKey = 'removedListings_' + LOGGED_IN_AGENT.id;
                 var removed = JSON.parse(localStorage.getItem(removedKey)) || [];
-                if (removed.length > 0) {
+                if (removed.length > 0 && scope.isCompleteUniverse) {
                     var removedSet = {};
                     removed.forEach(function(id) { removedSet[id] = true; });
                     var source = searchResultsState.filteredListings || listings.slice();
@@ -27211,6 +27327,37 @@ function openPrintableWindow(html, options) {
             reportState.selectedListingIds = selIds.slice(0, 250);
 
             // Update counts in Sort Order tab
+            // A REPORT MUST NOT CALL ONE PAGE "ALL RESULTS".
+            //
+            // `allListings` is `searchResultsState.filteredListings`, which on
+            // the authoritative path is ONE SERVER PAGE. The option was labelled
+            // "All Results (N)" with N the page length, and it is the DEFAULT —
+            // so a broker generating a CSV, print-out or client email for a
+            // 4,000-result search got fifty listings under a label promising all
+            // of them. That output leaves the brokerage.
+            //
+            // The option still exists and still works; it stops misdescribing
+            // itself. When the rows are a window it is named for what it is, and
+            // the note below states the population outright.
+            var reportScope = (typeof window.getResultScope === 'function')
+                ? window.getResultScope()
+                : { isCompleteUniverse: true, loadedCount: allListings.length, universeCount: allListings.length, isExact: true };
+
+            var allLabelEl = document.getElementById('reportAllLabel');
+            if (allLabelEl) {
+                allLabelEl.textContent = reportScope.isCompleteUniverse
+                    ? 'All Results'
+                    : 'Listings on this page';
+            }
+            var scopeNoteEl = document.getElementById('reportScopeNote');
+            if (scopeNoteEl) {
+                scopeNoteEl.textContent = reportScope.isCompleteUniverse
+                    ? ''
+                    : 'This search has ' + reportScope.universeCount + (reportScope.isExact ? '' : '+')
+                      + ' results and ' + reportScope.loadedCount + ' are loaded. A report covers the loaded page '
+                      + 'or the listings you select — select across pages to include more.';
+            }
+
             var allEl = document.getElementById('reportAllCount');
             var selEl = document.getElementById('reportSelectedCount');
             if (allEl) allEl.textContent = Math.min(allListings.length, 250);
@@ -31069,14 +31216,71 @@ function emailCurrentCalc() {
             _goToPage(1);
         }
 
-        // Column sort toggle
+        /**
+         * Grid columns that have a CANONICAL SERVER SORT, and the key for each
+         * direction. These are the only orderings the provider can apply to the
+         * whole result universe; the canonical contract defines six keys over
+         * three facts (price, listed date, updated date).
+         */
+        var SERVER_SORTABLE_COLUMNS = {
+            price:      { asc: 'price_asc',   desc: 'price_desc'   },
+            listedDate: { asc: 'listed_asc',  desc: 'listed_desc'  }
+        };
+
+        /**
+         * SORTING ORDERS THE SEARCH, NOT THE SCREEN.
+         *
+         * This used to set `sortField`/`sortOrder` and call renderSearchResults().
+         * Those are LOCAL state — the server sort travels as `sortKey` — so on
+         * the authoritative path it reordered the fifty rows in memory while the
+         * pager still read "Page 3 of 93". That fails invisibly: every page is
+         * internally well ordered, so nothing on screen contradicts a broker who
+         * believes they are looking at the cheapest listing in the search.
+         *
+         * When the rows are one page, the sort now goes to the server and the
+         * universe is re-cut from page 1 — a different ordering means a
+         * different page 1, so staying on page 3 would show rows 101-150 of a
+         * sequence the broker never saw the start of.
+         *
+         * A column with NO canonical server sort is REFUSED rather than sorted
+         * locally. Presenting a page-local order under a global pager is the
+         * defect; doing it only for the columns the provider cannot sort would
+         * keep the defect and hide it better.
+         */
         function toggleColumnSort(field) {
-            if (searchResultsState.sortField === field) {
-                searchResultsState.sortOrder = searchResultsState.sortOrder === 'asc' ? 'desc' : 'asc';
-            } else {
+            var nextOrder = (searchResultsState.sortField === field)
+                ? (searchResultsState.sortOrder === 'asc' ? 'desc' : 'asc')
+                : 'asc';
+
+            var scope = (typeof window.getResultScope === 'function')
+                ? window.getResultScope()
+                : { isCompleteUniverse: true };
+
+            if (!scope.isCompleteUniverse) {
+                var serverSort = SERVER_SORTABLE_COLUMNS[field];
+                if (!serverSort) {
+                    // Refused BY NAME. The header arrow is deliberately not
+                    // moved: it would claim an ordering that was not applied.
+                    if (typeof showToast === 'function') {
+                        showToast('This column can only sort the page in view, so it is not applied to a multi-page result. Sort by Price or Listed Date to order the whole search.', 'warning');
+                    }
+                    console.warn('[Search] Column sort refused for "' + field + '": no canonical server sort; a page-local order would misrepresent a multi-page result.');
+                    return;
+                }
                 searchResultsState.sortField = field;
-                searchResultsState.sortOrder = 'asc';
+                searchResultsState.sortOrder = nextOrder;
+                searchResultsState.sortKey = serverSort[nextOrder];
+                searchResultsState.currentPage = 1;
+                if (typeof window._requestResultPage === 'function') {
+                    window._requestResultPage(1);
+                    return;
+                }
             }
+
+            // A locally-held catalogue IS the universe, so sorting it in memory
+            // orders the whole result set and needs no round trip.
+            searchResultsState.sortField = field;
+            searchResultsState.sortOrder = nextOrder;
             renderSearchResults();
         }
 
@@ -31102,10 +31306,42 @@ function emailCurrentCalc() {
 
             var fmt = function(n) { return '$' + Math.round(n).toLocaleString(); };
             var el = function(id) { return document.getElementById(id); };
-            if (el('avgPrice')) el('avgPrice').textContent = fmt(avgPrice);
-            if (el('avgPpsf')) el('avgPpsf').textContent = fmt(ppsf);
-            if (el('avgSqft')) el('avgSqft').textContent = Math.round(avgSqft).toLocaleString() + ' sqft';
-            if (el('resultsTotalCount')) el('resultsTotalCount').textContent = filtered.length;
+            // A STATISTIC MUST SAY WHICH POPULATION IT DESCRIBES.
+            //
+            // These averages are computed over `filtered`, which on the
+            // authoritative path is ONE SERVER PAGE. Presented bare next to a
+            // result count of several thousand, "$4.2M average" reads as market
+            // analysis for the search when it describes fifty rows — and a
+            // broker may repeat it to a client.
+            //
+            // The figures are still shown, because a page average is a real and
+            // useful number. What changes is that it stops claiming to be
+            // something else: when the rows are a window, each value is labelled
+            // with the population it came from.
+            var scope = (typeof window.getResultScope === 'function')
+                ? window.getResultScope()
+                : { isCompleteUniverse: true, loadedCount: filtered.length };
+            var qualifier = scope.isCompleteUniverse
+                ? ''
+                : ' (page of ' + scope.loadedCount + ')';
+
+            if (el('avgPrice')) el('avgPrice').textContent = fmt(avgPrice) + qualifier;
+            if (el('avgPpsf')) el('avgPpsf').textContent = fmt(ppsf) + qualifier;
+            if (el('avgSqft')) el('avgSqft').textContent = Math.round(avgSqft).toLocaleString() + ' sqft' + qualifier;
+            // The count beside them describes the SEARCH, not the page, so it
+            // takes the universe figure whenever one is known.
+            if (el('resultsTotalCount')) {
+                el('resultsTotalCount').textContent = scope.isCompleteUniverse
+                    ? String(filtered.length)
+                    : String(scope.universeCount) + (scope.isExact ? '' : '+');
+            }
+            var avgScopeEl = el('averagesScopeNote');
+            if (avgScopeEl) {
+                avgScopeEl.textContent = scope.isCompleteUniverse
+                    ? ''
+                    : 'Averages describe the ' + scope.loadedCount + ' listings on this page, not all '
+                      + scope.universeCount + (scope.isExact ? '' : '+') + ' results.';
+            }
         }
 
         // Open listing detail in a standalone new browser tab
@@ -35725,6 +35961,22 @@ function emailCurrentCalc() {
             var TOOLTIP = 'Not currently supported';
 
             var DEAD_SELECTORS = [
+                // ── "Search in results" — rendered, never wired ──
+                //
+                // `#resultsSearchInput` appears only in the HTML that draws it
+                // and in an audit script's exclusion list. There is no handler
+                // anywhere: a broker types a refinement, presses Enter, and
+                // nothing whatsoever happens — while the result count and the
+                // rows on screen stay exactly as they were, which reads as "no
+                // further matches" rather than "this box does nothing".
+                //
+                // Disabled rather than quietly implemented: filtering the rows
+                // in memory would be page-local on a multi-page result, which is
+                // the defect class Section 6 exists to remove. A real one has to
+                // re-issue the search server-side, the way the refine panel
+                // already does.
+                '#resultsSearchInput',
+
                 // ── Non-whitelisted checkboxFilter fields ──
                 // The server-side whitelist in lib/search/crm-idx-filter.ts:252
                 // does NOT include these data-field values. The frontend

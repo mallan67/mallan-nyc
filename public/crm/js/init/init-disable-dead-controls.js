@@ -35,6 +35,22 @@
             var TOOLTIP = 'Not currently supported';
 
             var DEAD_SELECTORS = [
+                // ── "Search in results" — rendered, never wired ──
+                //
+                // `#resultsSearchInput` appears only in the HTML that draws it
+                // and in an audit script's exclusion list. There is no handler
+                // anywhere: a broker types a refinement, presses Enter, and
+                // nothing whatsoever happens — while the result count and the
+                // rows on screen stay exactly as they were, which reads as "no
+                // further matches" rather than "this box does nothing".
+                //
+                // Disabled rather than quietly implemented: filtering the rows
+                // in memory would be page-local on a multi-page result, which is
+                // the defect class Section 6 exists to remove. A real one has to
+                // re-issue the search server-side, the way the refine panel
+                // already does.
+                '#resultsSearchInput',
+
                 // ── Non-whitelisted checkboxFilter fields ──
                 // The server-side whitelist in lib/search/crm-idx-filter.ts:252
                 // does NOT include these data-field values. The frontend
