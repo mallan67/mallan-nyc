@@ -120,3 +120,72 @@ export function maxBathsOData(maxBaths: number): string {
   );
   return `(${parts.join(' or ')})`;
 }
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * THE THIRD RENDERER — Prisma, added 2026-09-01.
+ *
+ * The contract had renderers for OData only, so the public DB path carried its
+ * own hand-rolled rule and got the arithmetic wrong in exactly the way this file
+ * was written to prevent:
+ *
+ *     minBaths=1.5  ->  bathrooms_full >= 1 AND bathrooms_half >= 1
+ *
+ * which rejects a 2-full/0-half apartment holding 2.0 baths. On the live
+ * Preview that produced 1,896 results for `minBaths=1.5` against 3,674 for
+ * `minBaths=2` — a stricter minimum returning 1,778 MORE listings.
+ *
+ * One definition, three renderings. A definition with two renderings and a
+ * third path improvising is how the two answers diverged.
+ *
+ * NULL COMPONENTS READ AS ZERO, exactly as `bathTotal` does. This matters only
+ * for Prisma: the live census found BathroomsFull and BathroomsHalf non-null on
+ * all 8,103 Active rows, but a Mallan-authored local listing may leave either
+ * blank, and `{ lte: n }` does NOT match NULL in SQL. Without the explicit null
+ * arm a 1-full/blank-half listing would fail `maxBaths=1.5` despite holding 1.0
+ * baths — the same class of error in the opposite direction.
+ */
+
+/** `bathrooms_half <= n`, counting a blank half-bath as zero. */
+function halfAtMostClause(n: number): PrismaBathWhere {
+  return { OR: [{ bathrooms_half: { lte: n } }, { bathrooms_half: null }] };
+}
+
+/** `bathrooms_full == n`, counting a blank full-bath as zero. */
+function fullExactlyClause(n: number): PrismaBathWhere {
+  return n === 0
+    ? { OR: [{ bathrooms_full: 0 }, { bathrooms_full: null }] }
+    : { bathrooms_full: n };
+}
+
+/** Structural shape of the bath clauses; avoids importing Prisma types here. */
+type PrismaBathWhere = Record<string, unknown>;
+
+/** ONE definition of "total >= min", rendered for Prisma. */
+export function minBathsPrisma(minBaths: number): PrismaBathWhere {
+  const alts = minBathsAlternatives(minBaths).map((a) =>
+    a.fullAtLeast !== undefined
+      ? { bathrooms_full: { gte: a.fullAtLeast } }
+      : {
+          AND: [
+            fullExactlyClause(a.fullExactly as number),
+            // Every generated `halfAtLeast` is >= 1, so a blank half-bath
+            // correctly fails these arms: it cannot supply the missing 0.5.
+            { bathrooms_half: { gte: a.halfAtLeast as number } },
+          ],
+        },
+  );
+  return { OR: alts };
+}
+
+/** ONE definition of "total <= max", rendered for Prisma. */
+export function maxBathsPrisma(maxBaths: number): PrismaBathWhere {
+  const alts = maxBathsAlternatives(maxBaths);
+  // Matches nothing — the same meaning as the OData renderer's `lt 0`.
+  if (alts.length === 0) return { bathrooms_full: { lt: 0 } };
+  return {
+    OR: alts.map((a) => ({
+      AND: [fullExactlyClause(a.fullExactly), halfAtMostClause(a.halfAtMost)],
+    })),
+  };
+}

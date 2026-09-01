@@ -4,15 +4,19 @@
  *
  * Background
  * ----------
- * When a CRM-created exclusive (listing_id prefix `SL-` / `RL-`) is
- * submitted separately through RealPlus to REBNY RLS (OUTSIDE this system), the
- * Trestle sync subsequently pulls
- * the listing back into our DB as a separate row keyed by REBNY's
- * ListingKey (e.g. `RLS20093870`). The two rows are the same physical unit
- * but have different `listing_id`, slug, attribution, and URL. Without
- * dedupe, public surfaces render both rows — Maya's exclusive appears as a
- * duplicate IDX-courtesy card, with wrong attribution, wrong URL, and
- * duplicate-content SEO penalty.
+ * A Mallan-authored listing (listing_id prefix `SL-` / `RL-`) reaches the RLS
+ * outside this system, and the Cotality sync then pulls it back in as a
+ * separate row keyed by the provider's ListingKey (e.g. `RLS20093870`) — a
+ * COTALITY RETURN-COPY of a listing Mallan already owns canonically. The two
+ * rows are the same physical unit but carry different `listing_id`, slug,
+ * attribution and URL. Without reconciliation, public surfaces render both:
+ * Mallan's own listing appears a second time as an IDX-courtesy card, with
+ * wrong attribution, wrong URL, and a duplicate-content penalty.
+ *
+ * (The submission route was previously named here as a specific third-party
+ * product. It has no authority or role in this architecture and named nothing
+ * this helper reasons about — the event is Mallan-authored listing to Cotality
+ * return-copy, and that is how it is described now.)
  *
  * This helper filters at READ time on every public surface so only the CRM
  * row is returned. The IDX duplicate is NOT mutated or deleted — it stays

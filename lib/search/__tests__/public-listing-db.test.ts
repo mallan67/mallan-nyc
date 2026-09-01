@@ -43,8 +43,25 @@ describe("buildPublicListingDbSearch", () => {
 
     expect(where.list_price).toEqual({ gte: 1000000, lte: 2000000 });
     expect(where.bedrooms_total).toEqual({ gte: 2, lte: 4 });
-    expect(where.bathrooms_full).toEqual({ gte: 1, lte: 3 });
-    expect(where.bathrooms_half).toEqual({ gte: 1 });
+    // BATHROOMS ARE NO LONGER TWO FLAT COLUMN BOUNDS.
+    //
+    // This asserted `bathrooms_full >= 1` AND `bathrooms_half >= 1` for
+    // `minBaths=1.5` — the defect itself, pinned as expected behaviour. It made
+    // the suite an obstacle to the fix rather than a guard: a 2-full/0-half
+    // apartment holds 2.0 baths and was excluded, and on Preview `minBaths=1.5`
+    // returned 1,896 listings against 3,674 for `minBaths=2`.
+    //
+    // The rule is `full + half x 0.5`, rendered by the canonical contract as an
+    // exact disjunction, so the shape it emits is deliberately not two bounds.
+    // Asserted BEHAVIOURALLY here — the semantics are proven exhaustively in
+    // bath-contract-public-paths.test.ts.
+    expect(where.bathrooms_full).toBeUndefined();
+    expect(where.bathrooms_half).toBeUndefined();
+    const bathClauses = JSON.stringify(where.AND ?? []);
+    expect(bathClauses).toContain('bathrooms_full');
+    expect(bathClauses).toContain('bathrooms_half');
+    // The min-1.5 arm that the old rule omitted: enough full baths on their own.
+    expect(bathClauses).toContain('"gte":2');
     expect(where.living_area).toEqual({ gte: 900, lte: 1800 });
     expect(where.borough).toEqual({ contains: "Manhattan", mode: "insensitive" });
     expect(where.postal_code).toEqual({ in: ["10021", "10022"] });

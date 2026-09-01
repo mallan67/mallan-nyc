@@ -23,7 +23,8 @@
  * ShowingInstructions (HID tier per the IDX/VOW display rules).
  */
 
-import { lookupNeighborhoodZips } from "@/lib/geo/neighborhood-zips";
+import { lookupNeighborhoodZips } from "@/lib/geo/neighborhood-zips";
+import { minBathsOData, maxBathsOData } from "@/lib/search/canonical/bath-contract";
 
 const ALLOWED_STATUSES = ["Active", "ComingSoon", "ActiveUnderContract"];
 const DEFAULT_STATUS_CLAUSE =
@@ -180,14 +181,26 @@ function buildPriceBedsBathsSqftParts(params: URLSearchParams): string[] {
   if (minBeds !== null && minBeds !== "") parts.push(`BedroomsTotal ge ${parseInt(minBeds, 10)}`);
   if (maxBeds !== null && maxBeds !== "") parts.push(`BedroomsTotal le ${parseInt(maxBeds, 10)}`);
 
+  // BATHROOMS ARE full + half x 0.5 — the SAME rule the DB path and the
+  // authenticated path use, from the same contract.
+  //
+  // This path duplicated the DB path's error rather than sharing its
+  // definition: `BathroomsFull ge floor(min)` plus `BathroomsHalf ge 1`
+  // whenever the request carried a half. So `minBaths=1.5` excluded every
+  // 2-full/0-half listing here too, and `maxBaths` capped only the full count,
+  // letting a 1-full/3-half listing (2.5 baths) satisfy `maxBaths=1.5`.
+  //
+  // Two paths, one question, two hand-written answers — which is the exact
+  // failure mode the canonical contract exists to remove. The renderer emits an
+  // exact disjunction using only eq/ge/le/or; live-verified against the
+  // authorized Cotality contract, most recently 2026-09-01 (min-1.5 -> 4,182
+  // Active, max-1.5 -> 3,872). Provider arithmetic is NOT used: `div` and `mul`
+  // are PROVIDER_REJECTED there, which is why the rule is expanded rather than
+  // computed.
   const minBaths = params.get("minBaths");
   const maxBaths = params.get("maxBaths");
-  if (minBaths) {
-    const bathVal = Number(minBaths);
-    parts.push(`BathroomsFull ge ${Math.floor(bathVal)}`);
-    if (bathVal % 1 >= 0.5) parts.push("BathroomsHalf ge 1");
-  }
-  if (maxBaths) parts.push(`BathroomsFull le ${Math.floor(Number(maxBaths))}`);
+  if (minBaths) parts.push(minBathsOData(Number(minBaths)));
+  if (maxBaths) parts.push(maxBathsOData(Number(maxBaths)));
 
   const minSqft = params.get("minSqft");
   const maxSqft = params.get("maxSqft");
