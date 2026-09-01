@@ -158,6 +158,40 @@ describe('figures state which population they describe', () => {
   });
 });
 
+describe('local filtering does not silently resize a counted page', () => {
+  const ENGINE = read('public/crm/js/search/search-engine.js');
+
+  it('a gate removal on an authoritative page is reported as an INTEGRITY error', () => {
+    // The server applies the same distribution gates before counting, so on a
+    // paged result this filter should remove nothing. If it removes something,
+    // server and client disagree — a defect to surface, not absorb. The rows
+    // are still removed: a non-displayable listing must never reach a screen.
+    expect(DISPATCHER).toContain('var _beforeGates = listings.length;');
+    expect(DISPATCHER).toContain('searchResultsState.clientGateRemovals');
+    expect(DISPATCHER).toContain('INTEGRITY:');
+    // Reported only when the rows are a WINDOW; over a local catalogue the
+    // filter is ordinary and an error would be noise.
+    const block = DISPATCHER.slice(DISPATCHER.indexOf('var _gateRemovals'), DISPATCHER.indexOf('A FLAG FILTER'));
+    expect(block).toContain('!_scope.isCompleteUniverse');
+  });
+
+  it('a page-local flag filter is recorded and stated beside the count', () => {
+    // picked/liked/shown have no server counterpart, so on a paged result they
+    // narrow only the loaded rows. Left unsaid, a handful of rows sit beneath
+    // '3,674 Results' and read as though the search found that many picked.
+    expect(DISPATCHER).toContain('searchResultsState.flagFilterIsPageLocal');
+    expect(ENGINE).toContain('resultsScopeNote');
+    expect(ENGINE).toContain('flagFilterIsPageLocal');
+    expect(read('public/crm/html/search-form-and-results.html')).toContain('id="resultsScopeNote"');
+  });
+
+  it('the note clears itself when the filter is not page-local', () => {
+    // A stale caveat is its own wrong answer.
+    const noteBlock = ENGINE.slice(ENGINE.indexOf('var scopeNoteEl'), ENGINE.indexOf('var scopeNoteEl') + 900);
+    expect(noteBlock).toContain("scopeNoteEl.textContent = ''");
+  });
+});
+
 describe('a dead control is not left looking alive', () => {
   it('the unwired "Search in results" box is disabled', () => {
     expect(DEAD).toContain('#resultsSearchInput');

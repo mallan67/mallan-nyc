@@ -128,6 +128,19 @@
             //       Ref: REBNY "word and phrase list" per Fair Housing Act + NYS + NYC HRL.
             // Display context: IDX (public), VOW (authenticated client), CRM (agent/broker)
             var renderContext = (typeof searchDisplayContext !== 'undefined') ? searchDisplayContext : 'idx';
+            // COMPLIANCE STILL WINS — BUT IT NO LONGER DOES IT SILENTLY.
+            //
+            // The server already applies these gates inside the final-universe
+            // assembly, so on an authoritative page this filter should remove
+            // NOTHING. If it removes something, server and client disagree about
+            // a distribution gate, which is a defect to surface, not a routine
+            // filter to absorb: the page renders short while the count still
+            // describes the universe those rows were cut from.
+            //
+            // The rows are still removed. A non-displayable listing must never
+            // reach a screen, and that is not negotiable for a telemetry gap.
+            // What changes is that the gap stops being invisible.
+            var _beforeGates = listings.length;
             listings = listings.filter(function(l) {
                 var p = l.permissions || {};
                 // Gate 1: Owner Opt-Out — NEVER display in ANY context
@@ -154,12 +167,38 @@
                 }
                 return true;
             });
-            // Apply status flag filters (picked, liked, shown, etc.)
+
+            var _scope = (typeof window.getResultScope === 'function')
+                ? window.getResultScope()
+                : { isCompleteUniverse: true };
+            var _gateRemovals = _beforeGates - listings.length;
+            searchResultsState.clientGateRemovals = _gateRemovals;
+            if (_gateRemovals > 0 && !_scope.isCompleteUniverse) {
+                console.error(
+                    '[Search] INTEGRITY: ' + _gateRemovals + ' row(s) on an authoritative page failed the ' +
+                    'browser distribution gates. The server applies the same gates before counting, so this ' +
+                    'is a server/client disagreement, not routine filtering. The page renders short while ' +
+                    'the count still describes the universe those rows came from.'
+                );
+            }
+
+            // A FLAG FILTER OVER ONE PAGE ANSWERS A SMALLER QUESTION.
+            //
+            // picked/liked/shown are the agent's own local annotations; the
+            // server has no counterpart, so on a paged result this can only ever
+            // filter the rows in memory. "Show me my picked listings" then
+            // answers from fifty rows of several thousand.
+            //
+            // Recorded so the count and the note beside it can say which
+            // population they describe, rather than leaving a filtered page
+            // under a total that describes the whole search.
             if (typeof filterState !== 'undefined' && typeof listingFlags !== 'undefined') {
                 var activeFlags = [];
                 for (var fk in filterState.statusFilters) {
                     if (filterState.statusFilters[fk]) activeFlags.push(fk);
                 }
+                searchResultsState.flagFilterIsPageLocal =
+                    activeFlags.length > 0 && !_scope.isCompleteUniverse;
                 if (activeFlags.length > 0) {
                     listings = listings.filter(function(l) {
                         return activeFlags.some(function(flag) {

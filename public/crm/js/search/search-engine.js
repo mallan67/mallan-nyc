@@ -2914,6 +2914,24 @@
             var countEls = document.querySelectorAll('#resultsCount, #resultsCount2');
             countEls.forEach(function(el) { el.textContent = countText; });
 
+            // A FILTERED PAGE MUST NOT SIT UNDER A WHOLE-SEARCH TOTAL.
+            //
+            // The picked/liked/shown filters are the agent's own annotations and
+            // have no server counterpart, so on a paged result they narrow only
+            // the rows in memory. Left unsaid, the screen shows a handful of
+            // rows beneath "3,674 Results" and reads as though the search found
+            // three thousand picked listings.
+            var scopeNoteEl = document.getElementById('resultsScopeNote');
+            if (scopeNoteEl) {
+                if (searchResultsState.flagFilterIsPageLocal) {
+                    scopeNoteEl.textContent =
+                        'Picked/liked filters apply to the ' + filtered.length +
+                        ' listings loaded on this page, not to all ' + countText.replace(' Results', '') + ' results.';
+                } else {
+                    scopeNoteEl.textContent = '';
+                }
+            }
+
             // Update top pagination
             // '—' rather than a number the server declined to claim.
             var totalPagesText = totalPages === null ? '—' : totalPages;
