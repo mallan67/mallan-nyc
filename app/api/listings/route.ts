@@ -16,6 +16,11 @@ import {
   buildPublicListingDbSearch,
 } from '@/lib/search/public-listing-db';
 import { buildPublicListingTrestleFilter } from '@/lib/search/public-listing-trestle';
+import { assemblePublicUniverse } from '@/lib/search/public-universe';
+import {
+  readOpenHouseMembership,
+  type OpenHouseMembership,
+} from '@/lib/search/open-house-membership';
 import { toPublicListingSummaries } from '@/lib/idx/public-listing-summary';
 // Trestle access audit logger — REBNY requires 12-month retention on MLS data access
 const logTrestleAccess = async (data: Record<string, unknown>) => {
@@ -44,6 +49,76 @@ function nextDay(isoDate: string): string {
   const d = new Date(isoDate + 'T00:00:00');
   d.setDate(d.getDate() + 1);
   return d.toISOString().split('T')[0];
+}
+
+/**
+ * How many candidate rows one public search may read to settle membership.
+ *
+ * A BUDGET, NOT A UNIVERSE. When it is reached the count becomes a declared
+ * LOWER BOUND and the last page number is withheld — the traversal says it did
+ * not finish rather than pretending the inventory ended where the budget did.
+ */
+const PUBLIC_CANDIDATE_BUDGET = 12_000;
+const PUBLIC_CANDIDATE_BATCH = 500;
+
+/**
+ * The same idea on the live-Cotality fallback: a ceiling on candidates read,
+ * declared as a budget and reported as one. The minimum keeps a shallow page
+ * from reading so little that ordinary exclusions empty it.
+ */
+const PUBLIC_TRESTLE_CANDIDATE_BUDGET = 1_000;
+const PUBLIC_TRESTLE_MIN_CANDIDATES = 200;
+
+/** Pages of the OpenHouse resource one request may walk before refusing. */
+const OPEN_HOUSE_MAX_PAGES = 40;
+const OPEN_HOUSE_PAGE_SIZE = 500;
+
+/** A candidate carries its source row so the page can be hydrated after membership settles. */
+type DbCandidate = ReturnType<typeof dbListingToPublicDTO> & { __row: DbListing };
+
+/**
+ * The COMPLETE set of listing keys with an active open house in the requested
+ * range, or an explicit refusal. Never a partial set: see
+ * lib/search/open-house-membership.ts.
+ */
+async function readPublicOpenHouseMembership(
+  openHouseDateParam: string | null,
+): Promise<OpenHouseMembership> {
+  const TRESTLE_API = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
+  const today = new Date().toISOString().split('T')[0];
+
+  let ohDateFilter = `OpenHouseDate ge ${today}`;
+  if (openHouseDateParam && openHouseDateParam !== 'weekend') {
+    ohDateFilter = `OpenHouseDate ge ${openHouseDateParam} and OpenHouseDate lt ${nextDay(openHouseDateParam)}`;
+  } else if (openHouseDateParam === 'weekend') {
+    const { sat, mon } = getNextWeekend();
+    ohDateFilter = `OpenHouseDate ge ${sat} and OpenHouseDate lt ${mon}`;
+  }
+
+  const first = new URLSearchParams();
+  first.set('$select', 'ListingKey');
+  first.set('$filter', `${ohDateFilter} and OpenHouseStatus eq 'Active'`);
+  first.set('$top', String(OPEN_HOUSE_PAGE_SIZE));
+  const firstUrl = `${TRESTLE_API}/odata/OpenHouse?${first.toString()}`;
+
+  return readOpenHouseMembership({
+    maxPages: OPEN_HOUSE_MAX_PAGES,
+    fetchPage: async (nextLink) => {
+      const token = await getAccessToken();
+      const res = await fetch(nextLink ?? firstUrl, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      });
+      // THROWN, NOT SWALLOWED. A non-OK response is a failure to establish
+      // membership; degrading it to an empty page would read as "nothing has an
+      // open house" and return an empty search under a 200.
+      if (!res.ok) throw new Error(`OpenHouse HTTP ${res.status}`);
+      const data = await res.json();
+      return {
+        keys: (data.value || []).map((r: Record<string, unknown>) => String(r.ListingKey)),
+        nextLink: (data['@odata.nextLink'] as string | undefined) ?? null,
+      };
+    },
+  });
 }
 
 function getNextWeekend(): { sat: string; mon: string } {
@@ -330,15 +405,20 @@ export async function GET(request: Request) {
             const andClause = ADDRESS_DISCLOSED_GATE;
             w.AND = Array.isArray(w.AND) ? [...w.AND, andClause] : w.AND ? [w.AND, andClause] : [andClause];
           }
-          const dbTake = limit;
-          const dbSkip = skip;
-
-          const [dbListings, dbTotal] = await Promise.all([
+          // CANDIDATES, NOT A PAGE.
+          //
+          // `skip`/`take` here are CANDIDATE coordinates. The broker's page is
+          // cut later, from membership that has been settled — see
+          // assemblePublicUniverse below. This query used to take `skip: skip,
+          // take: limit` and hand a page straight to filters that then removed
+          // rows from it, which is how a page of 50 rendered 31 and how the
+          // rows removed were lost rather than pulled forward.
+          const readCandidateBatch = (batchSkip: number, batchTake: number) =>
             prisma.listing.findMany({
               where: dbWhere,
               orderBy: dbOrderBy,
-              skip: dbSkip,
-              take: dbTake,
+              skip: batchSkip,
+              take: batchTake,
               select: {
                 id: true,
                 listing_id: true,
@@ -420,15 +500,40 @@ export async function GET(request: Request) {
                 // query — no N+1 (Codex review, 2026-07-16).
                 _count: { select: { listing_media: true } },
               },
-            }),
-            cachedPublicRead(() => prisma.listing.count({ where: dbWhere }), [
-              "api-listings-count",
-              cacheKey,
-            ], { tags: [SEARCH_CACHE_TAG] })(),
-          ]);
+            });
 
-          if (dbListings.length > 0) {
-            const serialized: DbListing[] = dbListings.map((l) => ({
+          // OPEN HOUSE MEMBERSHIP IS ESTABLISHED FIRST, OR THE CRITERION IS REFUSED.
+          //
+          // It used to run last, as a `$top=500` read intersected with rows that
+          // were already a page, inside a `try { } catch { console.warn }`. When
+          // the provider failed the filter simply did not run and the response
+          // carried the UNFILTERED set under an Open House request — a silent
+          // widening behind a 200. Now the complete range is resolved up front
+          // and a range that cannot be completed refuses the search instead of
+          // answering it wrongly.
+          let openHouseKeys: ReadonlySet<string> | null = null;
+          if (openHouseParam) {
+            const membership = await readPublicOpenHouseMembership(
+              openHouseDateParam,
+            );
+            if (membership.state === "unavailable") {
+              return NextResponse.json(
+                {
+                  success: false,
+                  error: "Open House results are unavailable right now.",
+                  criterion: "openHouse",
+                  reason: membership.reason,
+                },
+                { status: 503, headers: { "Cache-Control": "no-store" } },
+              );
+            }
+            openHouseKeys = membership.listingKeys;
+          }
+
+          const serializeCandidate = (
+            l: Awaited<ReturnType<typeof readCandidateBatch>>[number],
+          ): DbListing =>
+            ({
               ...l,
               id: l.id.toString(),
               list_price: l.list_price.toString(),
@@ -438,15 +543,84 @@ export async function GET(request: Request) {
               // mixing BigInts into JSON.stringify throws at serialization.
               agent_id: l.agent_id != null ? l.agent_id.toString() : null,
               owner_client_id: l.owner_client_id != null ? l.owner_client_id.toString() : null,
-            }));
+            }) as DbListing;
 
-            const displayable = filterDisplayableDbListings(serialized);
-            // Public-surface dedupe (2026-05-28): when a Mallan CRM exclusive
+          // THE FINAL PUBLIC UNIVERSE. Reconciliation, display eligibility and
+          // every business filter run over the WHOLE corpus; the page is the
+          // last thing that happens, and `count` describes the same set the
+          // cards come from.
+          const universe = await assemblePublicUniverse<DbListing, DbCandidate>({
+            readBatch: async (batchSkip, batchTake) =>
+              (await readCandidateBatch(batchSkip, batchTake)).map(serializeCandidate),
+            // Display eligibility is already in `dbWhere`; this stays as
+            // defense-in-depth. It runs HERE and not inside readBatch on
+            // purpose: readBatch's row count is the exhaustion signal, and a
+            // filter that shortened a batch would fake the end of the universe.
+            toDtos: (rows) =>
+              filterDisplayableDbListings(rows).map(
+                (l) => Object.assign(dbListingToPublicDTO(l), { __row: l }) as DbCandidate,
+              ),
+            reconcile: (candidates) => preferCrmExclusiveOverIdxDuplicate(candidates),
+            corpusFilter: (candidates) => {
+              const featuresById = new Map<string, Record<string, unknown>>();
+              for (const c of candidates) {
+                featuresById.set(
+                  c.__row.listing_id,
+                  (c.__row.features || {}) as Record<string, unknown>,
+                );
+              }
+              const filtered = applyPublicListingPostFilters(
+                candidates,
+                featuresById,
+                searchParams,
+              );
+              return openHouseKeys
+                ? filtered.filter((l) => openHouseKeys!.has(l.id))
+                : filtered;
+            },
+            page: Math.floor(skip / Math.max(1, limit)) + 1,
+            pageSize: limit,
+            budget: PUBLIC_CANDIDATE_BUDGET,
+            batchSize: PUBLIC_CANDIDATE_BATCH,
+          });
+
+          // THE CANDIDATE-PREDICATE POPULATION — a DIFFERENT number, kept and
+          // named as one.
+          //
+          // This is what `prisma.count(dbWhere)` has always measured: how many
+          // rows the SQL predicate matches, BEFORE display eligibility, Mallan
+          // reconciliation, the business filters and Open House removed
+          // anything. It used to be reported as `total`, which is why the number
+          // above the cards described a population the cards did not come from.
+          // It is genuinely useful — it says how much the Mallan-side stages
+          // removed — so it is kept, cached as an anonymous public read, and
+          // published under its own name where it cannot be mistaken for a
+          // result count. `findMany` stays uncached: its rows carry BigInt ids
+          // that the data cache cannot serialize.
+          const dbPredicateCount = await cachedPublicRead(() => prisma.listing.count({ where: dbWhere }), [
+            "api-listings-count",
+            cacheKey,
+          ], { tags: [SEARCH_CACHE_TAG] })();
+
+          const dbTotal = universe.count;
+
+          // CANDIDATES READ, not rows on this page. A deep page of a real result
+          // set is legitimately empty, and falling through to the live provider
+          // because page 9 of a 3-page search is empty would answer a different
+          // question from a different source.
+          if (universe.candidatesRead > 0) {
+            // THE PAGE, hydrated from rows whose membership is already settled.
+            //
+            // Public-surface dedupe (2026-05-28) — when a Mallan CRM exclusive
             // (SL-/RL-) and a Trestle-synced IDX duplicate represent the same
             // physical unit (same address atoms + unit + zip), keep only the
-            // CRM row. The IDX row stays in DB for audit history. See
+            // CRM row — now runs as the universe's `reconcile` stage over the
+            // COMPLETE corpus. Page-local, it could not collapse a twin that
+            // landed on another page, so one physical unit occupied two
+            // identities in the public universe. See
             // docs/crm/listing-canonical-mallan-exclusive-audit-2026-05-28.md
             // and lib/listings/dedupe-crm-vs-idx.ts.
+            const displayable = universe.rows.map((c) => c.__row);
             // FEED-authority: ONE grouped query for the page (lib/media/feed-media-authority.ts).
             // Only genuinely ambiguous listings are queried — Mallan-owned are excluded, a listing
             // already holding an ACTIVE feed row is proven without a read, and a listing with no
@@ -463,19 +637,14 @@ export async function GET(request: Request) {
 
             // Explicit arrow, NOT a bare `.map(dbListingToPublicDTO)`: `Array.map` passes
             // (value, index, array), so a bare reference would hand the INDEX to the options param.
-            let publicListings = preferCrmExclusiveOverIdxDuplicate(
-              displayable.map((l) =>
-                dbListingToPublicDTO(l, { hadFeedRelationalRows: feedAuthority.get(l.listing_id) }),
-              ),
+            //
+            // Re-mapped rather than reused from the universe because feed-media
+            // authority is a PER-PAGE batched query — resolving it across the
+            // whole corpus would be a large read for a value that changes no
+            // row's membership, only its media.
+            let publicListings = displayable.map((l) =>
+              dbListingToPublicDTO(l, { hadFeedRelationalRows: feedAuthority.get(l.listing_id) }),
             );
-
-            // Build features lookup — passed into applyPublicListingPostFilters
-            // for amenity/keyword evaluation against the raw Trestle features JSON.
-            const featuresById = new Map<string, Record<string, unknown>>();
-            for (const dbL of serialized) {
-              const feat = (dbL.features || {}) as Record<string, unknown>;
-              featuresById.set(dbL.listing_id, feat);
-            }
 
             // Geocode DB listings — use only in-memory + DB cache (fast).
             // Census API geocoding is too slow for search (~2-5s) — it runs during
@@ -486,46 +655,15 @@ export async function GET(request: Request) {
               new Promise<void>((resolve) => setTimeout(resolve, 1500)),
             ]).catch(() => { /* non-fatal */ });
 
-            // All DB-first DTO post-filters (ownership, yearBuilt, furnished,
-            // amenities, keywords) are owned by lib/search/public-listing-db.ts.
-            // Address search is already pushed into the Prisma query via
-            // buildPublicListingDbSearch(). Open House is handled below — it
-            // requires a live Trestle OpenHouse resource lookup that the
-            // helper intentionally does not own.
-            publicListings = applyPublicListingPostFilters(publicListings, featuresById, searchParams);
-
-            // Open House filter on DB path — query Trestle OpenHouse resource
-            if (openHouseParam) {
-              try {
-                const ohToken = await getAccessToken();
-                const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
-                const today = new Date().toISOString().split('T')[0];
-
-                let ohDateFilter = `OpenHouseDate ge ${today}`;
-                if (openHouseDateParam && openHouseDateParam !== 'weekend') {
-                  ohDateFilter = `OpenHouseDate ge ${openHouseDateParam} and OpenHouseDate lt ${nextDay(openHouseDateParam)}`;
-                } else if (openHouseDateParam === 'weekend') {
-                  const { sat, mon } = getNextWeekend();
-                  ohDateFilter = `OpenHouseDate ge ${sat} and OpenHouseDate lt ${mon}`;
-                }
-
-                const ohParams = new URLSearchParams();
-                ohParams.set('$select', 'ListingKey');
-                ohParams.set('$filter', `${ohDateFilter} and OpenHouseStatus eq 'Active'`);
-                ohParams.set('$top', '500');
-                const ohRes = await fetch(`${TRESTLE_API}/odata/OpenHouse?${ohParams.toString()}`, {
-                  headers: { Authorization: `Bearer ${ohToken}`, Accept: 'application/json' },
-                });
-                if (ohRes.ok) {
-                  const ohData = await ohRes.json();
-                  const ohKeys = new Set((ohData.value || []).map((r: Record<string, unknown>) => String(r.ListingKey)));
-                  publicListings = publicListings.filter(l => ohKeys.has(l.id));
-                }
-              } catch (ohErr) {
-                console.warn('[/api/listings] DB-path open house filter failed:', ohErr instanceof Error ? ohErr.message : ohErr);
-              }
-            }
-
+            // MEMBERSHIP IS ALREADY SETTLED.
+            //
+            // The DB-first business filters (ownership, yearBuilt, furnished,
+            // amenities, keywords) and the Open House intersection used to run
+            // HERE, on rows that were already a page. Both are now stages of
+            // assemblePublicUniverse above, applied to the complete corpus
+            // before the count is taken and before the page is cut. Nothing
+            // below this line may remove a listing: `publicListings` IS the
+            // page, and a row dropped now is a row the count already promised.
             // PR-E.1.a (2026-05-14) — bounded live media fallback for the
             // DB-first path.
             //
@@ -617,10 +755,27 @@ export async function GET(request: Request) {
             const responseBody = {
               success: true,
               count: annotatedListings.length,
+              // THE SAME UNIVERSE THE CARDS CAME FROM.
+              //
+              // `total` was `prisma.count(dbWhere)` — the population BEFORE
+              // display eligibility, Mallan reconciliation, the business filters
+              // and the Open House intersection had removed anything. The number
+              // above the results and the results themselves described different
+              // sets, and the gap grew with every criterion the SQL could not
+              // express. It is now the size of the settled universe.
               total: dbTotal,
+              countMeaning: universe.countMeaning,
+              totalPages: universe.totalPages,
+              /** Which stage removed what, kept separate so a missing listing is traceable. */
+              excluded: universe.exclusions,
+              candidatesRead: universe.candidatesRead,
+              /** SQL-predicate matches, before any Mallan-side stage. NOT a result count. */
+              candidatePredicateCount: dbPredicateCount,
               skip,
               limit,
-              hasMore: skip + limit < dbTotal,
+              // Fail-SAFE: also true when the count is only a floor, so a
+              // truncated traversal never reads as "that is everything".
+              hasMore: universe.hasMore,
               // SUMMARY CONTRACTION at the response boundary — cards get the
               // canonical hero + full photosCount, never the whole gallery.
               // Applied AFTER post-filters/dedupe/geocode/live-fallback and
@@ -782,10 +937,26 @@ export async function GET(request: Request) {
           default: orderby = 'ListPrice desc'; break;
         }
 
-        // Fetch extra to account for gate filtering + post-filters
-        // Property type, neighborhood, borough all need heavy post-filtering headroom
-        const hasPostFilter = !!(boundsParam || borough || neighborhood || propertySubTypes || sortParam === 'new-development');
-        const fetchTop = Math.min(Math.ceil((limit + skip) * (hasPostFilter ? 4 : 1.2) + 20), 1000);
+        // A WORK BUDGET, NOT A UNIVERSE.
+        //
+        // This was `(limit + skip) * (hasPostFilter ? 4 : 1.2) + 20`, capped at
+        // 1000 — a guess at how much headroom the Mallan-side filters would need.
+        // Two things were wrong with it, and neither is fixed by a bigger
+        // multiple. It could not PROVE it had read far enough, so whenever
+        // exclusions exceeded the guess the search silently lost rows; and
+        // whichever number came out, the response reported the result as though
+        // the inventory had ended there.
+        //
+        // Open House is deliberately NOT added to a headroom list here. Adding a
+        // criterion to a multiplier does not make the multiplier honest — it
+        // just moves the same guess. What changed is that a truncated read now
+        // SAYS it was truncated: `countMeaning` below reports LOWER_BOUND and
+        // the last page number is withheld, so a budget can bound the work of
+        // one request without ever claiming to be the end of the inventory.
+        const fetchTop = Math.min(
+          Math.max(limit + skip + 20, PUBLIC_TRESTLE_MIN_CANDIDATES),
+          PUBLIC_TRESTLE_CANDIDATE_BUDGET,
+        );
 
         // Amenity fields are NOT added to Trestle $select — many are unavailable
         // on IDX Plus feed and Trestle rejects unknown fields (causes 400/502).
@@ -930,48 +1101,84 @@ export async function GET(request: Request) {
           }
         }
 
-        // Open House filter — requires separate Trestle OpenHouse resource query
+        // OPEN HOUSE — THE SAME COMPLETE-RANGE RULE AS THE DB PATH.
+        //
+        // This was a single `$top=500` read wrapped in a catch that logged and
+        // carried on. Both halves were wrong in the same direction as the DB
+        // path: 501 open houses in the range silently stripped the 501st
+        // listing's open house, and a provider failure skipped the filter
+        // entirely, so an Open House search returned listings with none.
+        //
+        // One reader now owns both executors, so neither can drift from the
+        // other, and an unanswerable range refuses the search instead of
+        // answering it wrongly.
         if (openHouseParam) {
-          try {
-            const ohToken = await getAccessToken();
-            const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
-            const today = new Date().toISOString().split('T')[0];
-
-            // Build date filter based on user selection
-            let ohDateFilter = `OpenHouseDate ge ${today}`;
-            if (openHouseDateParam && openHouseDateParam !== 'weekend') {
-              // Specific date: show open houses on that exact day
-              ohDateFilter = `OpenHouseDate ge ${openHouseDateParam} and OpenHouseDate lt ${nextDay(openHouseDateParam)}`;
-            } else if (openHouseDateParam === 'weekend') {
-              // This weekend: Saturday + Sunday
-              const { sat, mon } = getNextWeekend();
-              ohDateFilter = `OpenHouseDate ge ${sat} and OpenHouseDate lt ${mon}`;
-            }
-
-            const ohParams = new URLSearchParams();
-            ohParams.set('$select', 'ListingKey');
-            ohParams.set('$filter', `${ohDateFilter} and OpenHouseStatus eq 'Active'`);
-            ohParams.set('$top', '500');
-            const ohRes = await fetch(`${TRESTLE_API}/odata/OpenHouse?${ohParams.toString()}`, {
-              headers: { Authorization: `Bearer ${ohToken}`, Accept: 'application/json' },
-            });
-            if (ohRes.ok) {
-              const ohData = await ohRes.json();
-              const ohListingKeys = new Set((ohData.value || []).map((r: Record<string, unknown>) => String(r.ListingKey)));
-              filtered = filtered.filter(l => ohListingKeys.has(l.listingId));
-            }
-          } catch (ohErr) {
-            console.warn('[/api/listings] Open house filter failed:', ohErr instanceof Error ? ohErr.message : ohErr);
+          const membership = await readPublicOpenHouseMembership(openHouseDateParam);
+          if (membership.state === 'unavailable') {
+            return NextResponse.json(
+              {
+                success: false,
+                error: 'Open House results are unavailable right now.',
+                criterion: 'openHouse',
+                reason: membership.reason,
+              },
+              { status: 503, headers: { 'Cache-Control': 'no-store' } },
+            );
           }
+          filtered = filtered.filter((l) => membership.listingKeys.has(String(l.listingId)));
         }
+        // ── Step 4: SETTLE MEMBERSHIP, THEN CUT THE PAGE ──
+        //
+        // Three things used to happen in the wrong order here. The page was cut
+        // from `filtered`; THEN `mergeExclusiveListings` prepended Mallan
+        // exclusives to that page; THEN `excludeUndisclosed` removed rows from
+        // it. So the page grew and shrank after it had been decided, and the
+        // reported total was
+        //
+        //     totalCount + annotatedMerged.length - publicListings.length
+        //
+        // — arithmetic across three different populations. Because a different
+        // number of exclusives lands on each page, that total CHANGED AS THE
+        // USER PAGED, and a listing could occupy a place on more than one page.
+        //
+        // Mallan authority and address permission are membership decisions, so
+        // they belong to the corpus, not to a page. The count below is the size
+        // of the set the cards are cut from — the same one, every page.
+        const trestleDtos = filtered.map(toPublicDTO);
+        const mergedCorpus = await mergeExclusiveListings(
+          trestleDtos,
+          listingType,
+          borough,
+          neighborhood,
+          minPrice ? parseInt(minPrice, 10) : undefined,
+          maxPrice ? parseInt(maxPrice, 10) : undefined,
+          minBeds ? parseInt(minBeds, 10) : undefined,
+        );
+        const corpus = excludeUndisclosed
+          ? mergedCorpus.filter(
+              // No `_source === 'exclusive'` exemption — provenance is not
+              // address permission. See ADDRESS_DISCLOSED_GATE.
+              (l) => l.address?.streetName !== 'Address Undisclosed',
+            )
+          : mergedCorpus;
 
-        // Step 4: Apply skip + limit and convert to public DTO
-        // When post-filtering (bounds, borough, neighborhood), use filtered.length as total
-        // because OData count doesn't account for server-side filtering.
-        const totalCount = (boundsParam || borough || neighborhood)
-          ? filtered.length
-          : (result.odataCount ?? filtered.length);
-        const pageListings = filtered.slice(skip, skip + limit);
+        // WHAT THE COUNT MEANS. `result.odataCount` is the PROVIDER's matching
+        // universe, taken before gates, Mallan-side filters, the exclusives
+        // merge and the disclosure gate removed or added anything — it can
+        // never be a Mallan result count, with or without a bounds/borough
+        // filter. The settled corpus is the only number that describes the
+        // cards, and it is EXACT only when the provider read was not truncated.
+        const totalCount = corpus.length;
+        const candidatesTruncated = !!result.hasMore;
+        const pageDtos = corpus.slice(skip, skip + limit);
+
+        // Media and geocoding enrich only the PROVIDER-origin rows on this page;
+        // exclusives arrive complete from the DB. Recovered by id so the page
+        // order set above is preserved exactly.
+        const internalById = new Map(filtered.map((l) => [String(l.listingId), l]));
+        const pageListings = pageDtos
+          .map((d) => internalById.get(String(d.id)))
+          .filter((l): l is NonNullable<typeof l> => !!l);
 
         // Step 4b+4c: Batch-fetch photos AND geocode IN PARALLEL (both are slow I/O)
         // When $expand=Media was used, photos are already inline — skip batch fetch.
@@ -1107,39 +1314,35 @@ export async function GET(request: Request) {
         // Wait for both to finish in parallel
         await Promise.allSettled([photoPromise, geocodePromise]);
 
-        const publicListings = pageListings.map(toPublicDTO);
-
-        // ── Merge local exclusive listings from DB ──
-        // UCBA Art. I, Sec. 5: Simultaneous Distribution — only show listings
-        // that are Active (already on RLS). Drafts are NOT displayed publicly.
-        // Dedup by listing_id to avoid showing the same listing twice.
-        const mergedListings = await mergeExclusiveListings(
-          publicListings,
-          listingType,
-          borough,
-          neighborhood,
-          minPrice ? parseInt(minPrice, 10) : undefined,
-          maxPrice ? parseInt(maxPrice, 10) : undefined,
-          minBeds ? parseInt(minBeds, 10) : undefined,
+        // The enriched provider rows go back into the page IN PLACE, so the
+        // order settled above survives. Exclusives pass through untouched —
+        // they arrive complete from the DB and were never media-enriched here.
+        const enrichedById = new Map(
+          pageListings.map((l) => [String(l.listingId), toPublicDTO(l)]),
         );
+        const publicListings = pageDtos.map((d) => enrichedById.get(String(d.id)) ?? d);
 
-        // PR-FE.2 Option C (2026-05-15) — annotate co-listed siblings in
-        // the Trestle-direct + exclusive-merged path too. Same shape and
-        // semantics as the DB-first branch above. Pure post-processing,
-        // does not remove or merge rows.
-        let annotatedMerged = annotateCoListedSiblings(mergedListings);
-        if (excludeUndisclosed) {
-          annotatedMerged = annotatedMerged.filter(
-            // No `_source === 'exclusive'` exemption — provenance is not address
-            // permission. See ADDRESS_DISCLOSED_GATE.
-            l => l.address?.streetName !== 'Address Undisclosed'
-          );
-        }
-
+        // PR-FE.2 Option C (2026-05-15) — annotate co-listed siblings in the
+        // Trestle-direct + exclusive-merged path too. Same shape and semantics
+        // as the DB-first branch above. Pure post-processing: it does not remove
+        // or merge rows, and it must stay that way, because membership is
+        // settled and counted before this line.
+        //
+        // The exclusives merge and the disclosure gate used to run HERE, after
+        // the page was cut. Both are membership decisions and both now run on
+        // the corpus at Step 4.
+        const annotatedMerged = annotateCoListedSiblings(publicListings);
         const responseBody = {
           success: true,
           count: annotatedMerged.length,
-          total: totalCount + annotatedMerged.length - publicListings.length,
+          // THE SETTLED CORPUS. Not `totalCount + merged.length - page.length`,
+          // which mixed a provider count with two page lengths and therefore
+          // changed as the user paged.
+          total: totalCount,
+          countMeaning: candidatesTruncated ? 'lower_bound' : 'exact',
+          // Withheld when the candidate read was truncated: "1000+ results /
+          // page 1 of 5" is a self-contradiction.
+          totalPages: candidatesTruncated ? null : Math.max(1, Math.ceil(totalCount / limit)),
           skip,
           limit,
           hasMore: skip + limit < totalCount || result.hasMore,

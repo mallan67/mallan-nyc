@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { fetchFromTrestle } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
-import { isMallanRlsReturnCopy } from "@/lib/listings/mallan-source-identity";
+import {
+  isMallanRlsReturnCopy,
+  trestleExcludeMallanReturnCopiesClause,
+} from "@/lib/listings/mallan-source-identity";
 import {
   classifySuggestQuery,
   isAddressDisplayablePerSuggest,
@@ -268,8 +271,18 @@ export async function GET(request: Request) {
         const escapedQuery = query.replace(/'/g, "''");
         // Search by ListingId (Web #) or ListingKey (RLS/SourceSystemKey).
         // PR-S.1c (2026-05-15): explicit minimal $select; default expandMedia=false.
+        //
+        // THE SUPPRESSION TRAVELS WITH THE QUERY, ON BOTH BRANCHES.
+        //
+        // The address branch has always dropped Mallan return-copies; this one
+        // never did. So the SAME listing was suppressed when a broker typed the
+        // street and suggested when they typed its RLS key — one query form
+        // enforcing the charter and another quietly not. Applied provider-side
+        // so it lands BEFORE the row cap rather than after it.
+        const idReturnCopyClause = trestleExcludeMallanReturnCopiesClause();
+        const idFilter = `(ListingId eq '${escapedQuery}' or ListingKey eq '${escapedQuery}')`;
         const result = await fetchFromTrestle({
-          filter: `(ListingId eq '${escapedQuery}' or ListingKey eq '${escapedQuery}')`,
+          filter: idReturnCopyClause ? `${idFilter} and ${idReturnCopyClause}` : idFilter,
           select: SUGGEST_SELECT_FIELDS,
           top: 3,
           maxTotal: 3,
@@ -278,6 +291,18 @@ export async function GET(request: Request) {
         for (const raw of result.records) {
           const gates = checkDistributionGates(raw);
           if (!gates.displayable) continue;
+          // Defense-in-depth behind the provider clause above: the clause is
+          // omitted entirely when no office id is configured, and a row with
+          // unclassifiable provenance must still fail closed on suppression.
+          if (
+            isMallanRlsReturnCopy({
+              listing_id: raw.ListingId ? String(raw.ListingId) : null,
+              list_office_mls_id: raw.ListOfficeMlsId ? String(raw.ListOfficeMlsId) : null,
+              rls_eligible: true,
+            })
+          ) {
+            continue;
+          }
           // PR-S.1 (2026-05-14): InternetAddressDisplayYN is provider-gated by REBNY.
           // Null = REBNY pre-filter passed = displayable. Only explicit false
           // suppresses. See lib/search/suggest-classify.ts and the
@@ -389,8 +414,17 @@ export async function GET(request: Request) {
       if (!isListingId || isZip) {
         try {
           // PR-S.1c (2026-05-15): explicit minimal $select; default expandMedia=false.
+          //
+          // SUPPRESSION BEFORE THE CAP. The return-copy check below is unchanged
+          // and still runs, but running it ONLY after `top: 20` meant every
+          // suppressed row consumed one of the twenty candidates and the list
+          // could come back short of its eight while eligible matches existed
+          // further down. Pushed into the provider filter, the twenty rows that
+          // arrive are twenty rows that can actually be suggested.
+          const addrReturnCopyClause = trestleExcludeMallanReturnCopiesClause();
+          const addrFilter = filterParts.join(' and ');
           const result = await fetchFromTrestle({
-            filter: filterParts.join(' and '),
+            filter: addrReturnCopyClause ? `${addrFilter} and ${addrReturnCopyClause}` : addrFilter,
             select: SUGGEST_SELECT_FIELDS,
             top: 20,
             maxTotal: 20,

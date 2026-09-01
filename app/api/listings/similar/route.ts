@@ -23,6 +23,28 @@ export const maxDuration = 60;
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
+/**
+ * How many eligible band members the similarity ranker may consider.
+ *
+ * A DECLARED WORK BUDGET, not a similarity decision. Comps are ranked over the
+ * whole band up to this number; the band itself (postcode/neighbourhood + price
+ * window + display eligibility + return-copy suppression) is what bounds the
+ * universe, and it is applied in the query before anything is taken.
+ */
+const SIMILAR_CANDIDATE_BUDGET = 300;
+
+/**
+ * What "similar" actually means here, stated in the response.
+ *
+ * The page presents these as similar listings. It may not imply a global
+ * "most similar in the city" when the candidate set is a bounded band, so the
+ * strategy travels with the payload instead of living only in a comment.
+ */
+const SIMILAR_CANDIDATE_STRATEGY =
+  'bounded: eligible listings in the same postcode or neighbourhood within a computed ' +
+  'price window, display-gated and return-copy suppressed before ranking, ranked by ' +
+  `bedroom match then price and location proximity, considering up to ${SIMILAR_CANDIDATE_BUDGET} candidates`;
+
 function mapPropertyType(r: Record<string, unknown>): string {
   const ci = r.CommonInterest ? String(r.CommonInterest) : '';
   if (ci === 'Condominium') return 'Condo';
@@ -87,7 +109,10 @@ export async function GET(request: NextRequest) {
   const payload = await cachedPublicRead(computeSimilarListings, ['api-listings-similar'], {
     tags: [SEARCH_CACHE_TAG, ...(excludeId ? [listingCacheTag(excludeId)] : [])],
   })({ type, beds, price, postalCode, excludeId, neighborhood, propertyType, propertySubType });
-  return NextResponse.json(payload);
+  // The strategy travels with the answer. These comps are the best matches
+  // within a bounded band, and the response says so rather than letting the
+  // surface imply a global "most similar".
+  return NextResponse.json({ ...payload, candidateStrategy: SIMILAR_CANDIDATE_STRATEGY });
 }
 
 interface SimilarParams {
@@ -160,7 +185,20 @@ async function computeSimilarListings(params: SimilarParams): Promise<Record<str
         ],
       },
       orderBy: { list_price: 'desc' },
-      take: 24, // wider candidate pool; the ranking helper picks the closest matches
+      // THE CANDIDATE POOL MUST NOT DECIDE THE ANSWER BEFORE THE RANKER DOES.
+      //
+      // This was `take: 24` under `list_price desc`, so the ranker only ever saw
+      // the twenty-four MOST EXPENSIVE listings in the band. For a modestly
+      // priced target in a busy postcode that is not a similarity result at all
+      // — the genuinely closest comps were excluded by price before similarity
+      // was ever computed, and the page still called them "similar listings".
+      //
+      // The band is already narrow (same postcode or neighbourhood, price inside
+      // a computed window, eligibility + return-copy suppression applied in this
+      // same query), so it can be read whole for any realistic block. The cap
+      // stays as a declared work budget and is REPORTED — see candidateStrategy
+      // in the response — rather than passing as a claim of global similarity.
+      take: SIMILAR_CANDIDATE_BUDGET,
       // `include` (not `select`) — the default scalar projection is preserved
       // untouched, including the legacy `media` JSON the composer still uses as its
       // fallback input. This widens the EXISTING query; no extra round trip.

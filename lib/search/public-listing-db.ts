@@ -4,6 +4,7 @@ import {
   buildSearchDisplayWhere,
   SEARCH_DISPLAY_GATE,
 } from "@/lib/search/listing-access-decision";
+import { excludeMallanRlsReturnCopies } from "@/lib/listings/mallan-source-identity";
 import { AMENITY_FIELD_MAP, type AmenityFilter } from "@/lib/search/types";
 
 export interface PublicListingDbSearch {
@@ -188,6 +189,29 @@ export function buildPublicListingDbSearch(params: URLSearchParams): PublicListi
         address: { not: Prisma.DbNull },
       },
     ],
+    // MALLAN RLS RETURN-COPY SUPPRESSION — RESTORED 2026-09-01 (Section 6).
+    //
+    // This builder read `buildSearchDisplayWhere().status` — ONE key off a gate
+    // whose own comment says "Applied HERE, inside the canonical public gate, so
+    // it lands BEFORE count, skip and take in every caller. One owner, so no
+    // emitter can forget it." Taking `.status` and discarding the rest is
+    // exactly how an emitter forgets it, and this is the highest-traffic public
+    // reader there is.
+    //
+    // The consequence was not cosmetic. Mallan's own listing returns through
+    // Cotality as an `RLS*` row carrying Mallan's office id; with the clause
+    // gone that copy passed the public gate and could surface as a competing
+    // listing beside its own canonical `SL-`/`RL-` row. The only thing standing
+    // against it was `preferCrmExclusiveOverIdxDuplicate`, which runs AFTER the
+    // page is cut and matches on address atoms rather than provenance — so
+    // across two pages both could appear.
+    //
+    // The whole gate is NOT spread here on purpose: the public reader admits
+    // website-only rows (`rls_eligible: false`) that deliberately bypass the RLS
+    // display gates, and spreading `SEARCH_DISPLAY_GATE` at the top level would
+    // deny them. Only the suppression is inherited, and it is ANDed so it holds
+    // over BOTH arms — a return-copy is never public on either.
+    AND: [excludeMallanRlsReturnCopies()],
   };
 
   const listingType = params.get("type");
