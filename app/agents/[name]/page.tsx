@@ -106,6 +106,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: `${agent.name} | ${agent.title} | Mallan Real Estate`,
     description: `${agent.name}, ${agent.title} at Mallan Real Estate. ${agent.bio.substring(0, 155)}...`,
+    // Without this every agent profile inherits the ROOT canonical
+    // (`canonical: BASE_URL` in app/layout.tsx) and tells Google the page is
+    // the homepage — de-indexing every agent profile into a duplicate of "/".
+    // Canonicalise to the agent's own slug, not the raw route param, so a
+    // name-derived URL (getAgentBySlug also matches full_name) collapses onto
+    // the one canonical profile URL.
+    alternates: { canonical: `https://mallan.nyc/agents/${agent.id}` },
     openGraph: {
       title: `${agent.name} | ${agent.title}`,
       description: `${agent.name}, ${agent.title} at Mallan Real Estate.`,

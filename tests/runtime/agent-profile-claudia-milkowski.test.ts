@@ -21,6 +21,7 @@ const roster = JSON.parse(readFileSync(resolve(ROOT, 'data/agents.json'), 'utf8'
   agents: Array<Record<string, unknown>>;
 };
 const seedSrc = readFileSync(resolve(ROOT, 'prisma/seed.ts'), 'utf8');
+const profilePageSrc = readFileSync(resolve(ROOT, 'app/agents/[name]/page.tsx'), 'utf8');
 const seedAgentsSrc = readFileSync(resolve(ROOT, 'scripts/seed-agents.ts'), 'utf8');
 
 const SLUG = 'claudia-milkowski';
@@ -55,13 +56,14 @@ describe('canonical roster record', () => {
     expect(Object.keys(claudia)).toEqual(Object.keys(julia));
   });
 
-  it('renders the biography as one flowing paragraph, like the other team members', () => {
-    // Maya (featured) is the only multi-paragraph bio; team members are single.
-    for (const id of ['leda-gorgone', 'julia-djaafar', SLUG]) {
-      const a = roster.agents.find((x) => x.id === id)!;
-      expect(String(a.bio)).not.toContain('\n');
-    }
-    expect(String(claudia.bio).length).toBeGreaterThan(400);
+  it('carries the FULL supplied biography with its paragraphs intact', () => {
+    const bio = String(claudia.bio);
+    expect(bio.split('\n\n')).toHaveLength(10);
+    expect(bio.startsWith('With nearly two decades of experience in NYC real estate')).toBe(true);
+    expect(bio.endsWith('create an exceptional real estate experience.')).toBe(true);
+    expect(bio.split(/\s+/).length).toBeGreaterThan(380);
+    // The paragraph breaks only RENDER because the profile body is pre-line.
+    expect(profilePageSrc).toContain('whitespace-pre-line');
   });
 
   it('carries no invented credentials', () => {
@@ -154,5 +156,40 @@ describe('seed-agents.ts role derivation', () => {
     expect(classify('Licensed Real Estate Broker')).toEqual({ license_type: 'broker', role: 'BROKER' });
     expect(classify('Licensed Real Estate Associate Broker')).toEqual({ license_type: 'broker', role: 'AGENT' });
     expect(classify('Licensed Real Estate Salesperson')).toEqual({ license_type: 'salesperson', role: 'AGENT' });
+  });
+});
+
+describe('agent profile canonical URL', () => {
+  it('canonicalises to the agent slug, never the site root', () => {
+    // app/layout.tsx sets `canonical: BASE_URL`; without a per-page override
+    // every agent profile told Google it was the homepage.
+    expect(profilePageSrc).toContain('alternates: { canonical: `https://mallan.nyc/agents/${agent.id}` }');
+  });
+
+  it('is dynamic, so the rule covers every agent, not just Claudia', () => {
+    expect(profilePageSrc).not.toContain('canonical: `https://mallan.nyc/agents/claudia-milkowski`');
+    expect(profilePageSrc).toContain('${agent.id}');
+  });
+});
+
+describe('Julia Djaafar languages', () => {
+  const julia = roster.agents.find((a) => a.id === 'julia-djaafar') as Record<string, any>;
+
+  it('is English, Japanese, Indonesian in that order', () => {
+    expect(julia.languages).toEqual(['English', 'Japanese', 'Indonesian']);
+  });
+
+  it('is seeded identically', () => {
+    const block = seedSrc.slice(seedSrc.indexOf('const julia ='));
+    const upsert = block.slice(0, block.indexOf('console.log'));
+    expect(upsert).toContain('languages: ["English", "Japanese", "Indonesian"]');
+    expect(upsert).not.toContain('languages: ["English", "Japanese"]');
+  });
+
+  it('leaves every other roster language list alone', () => {
+    const langs = Object.fromEntries(roster.agents.map((a) => [a.id, a.languages]));
+    expect(langs['maya-allan']).toEqual(['English', 'Hebrew', 'Georgian']);
+    expect(langs['leda-gorgone']).toEqual(['English', 'Portuguese']);
+    expect(langs['claudia-milkowski']).toEqual(['English', 'Spanish']);
   });
 });
