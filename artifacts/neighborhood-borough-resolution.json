@@ -11,7 +11,7 @@
     "ambiguous_requires_borough": "No decision and no borough at the floor. Split per borough; the bare name resolves to nothing and must be qualified."
   },
   "commaBearingProviderNames": {
-    "note": "These raw Cotality SubdivisionName values contain a comma. The neighborhood request param is comma-separated for multi-select, so selecting one splits it into two criteria and the search is wrong. PRE-EXISTING and NOT introduced here; recorded so it is visible rather than discovered later.",
+    "note": "These raw Cotality SubdivisionName values contain a literal comma. Authenticated Search therefore transports the neighborhood list as REPEATED query parameters and preserves each value losslessly - provider data is never transport syntax. They are kept here as named regression evidence: an earlier comma-joined param split them into two criteria, so the executor answered a question nobody asked. Covered by tests/runtime/neighborhood-transport-lossless.test.ts, which drives the shipped serializer, client, parser and executor end to end.",
     "names": [
       "Williamsburg,North",
       "Williamsburg,South"

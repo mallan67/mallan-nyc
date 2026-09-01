@@ -64,7 +64,7 @@
  * the measurements. The alias file keeps its real job, polygons and map
  * rendering, and is no longer consulted for provider execution.
  */
-import { identitiesFor, identityFor, spellingsFor } from "@/lib/search/canonical/subdivision-vocabulary.generated";
+import { identitiesFor, identityFor, resolveNeighborhood, spellingsFor } from "@/lib/search/canonical/subdivision-vocabulary.generated";
 import { escapeOData } from "@/lib/search/crm-idx-filter";
 
 /** The five live `CityRegion` values, in PROVIDER spelling. */
@@ -84,8 +84,9 @@ export type CityRegionMember = (typeof CITY_REGION_MEMBERS)[number];
  *
  *   `not_live`   the provider does not carry this value at all.
  *   `ambiguous`  the provider DOES carry it, and it names more than one place.
+ *   `impossible_qualifier`  the place exists, and not in the borough supplied.
  */
-export type GeographyRefusal = 'not_live' | 'ambiguous';
+export type GeographyRefusal = 'not_live' | 'ambiguous' | 'impossible_qualifier';
 
 export class UnsupportedGeographyError extends Error {
   readonly criterion: string;
@@ -111,6 +112,7 @@ export class UnsupportedGeographyError extends Error {
     // the wrong thing, and it misreports the provider. The two truths stay
     // separate; the fail-closed behaviour is identical.
     const values = unsupportedValues.map((v) => `'${v}'`).join(", ");
+    const where = options.length ? ` It is ${options.join(" or ")}.` : "";
     super(
       refusal === 'ambiguous'
         ? `Ambiguous ${criterion} criterion: ${values}. ` +
@@ -118,6 +120,17 @@ export class UnsupportedGeographyError extends Error {
           `place${options.length ? ` — ${options.join(" or ")}` : ""}. Choose one. The criterion is ` +
           `rejected rather than resolved on the broker's behalf, because picking one silently ` +
           `answers a different question from the one they asked.`
+        : refusal === 'impossible_qualifier'
+        // A THIRD TRUTH. This case used to fall into the message below and be
+        // reported as not a live Cotality value, which is false twice over: the
+        // neighbourhood exists, and the borough exists — they simply do not go
+        // together. Before that it was not reported at all, because a sole
+        // candidate was returned without reading the qualifier, so
+        // `Tribeca (Queens)` quietly executed as Tribeca in Manhattan.
+        ? `Contradictory ${criterion} criterion: ${values}. ` +
+          `That neighbourhood is not in the borough given.${where} A supplied borough is part of ` +
+          `the criterion and is never ignored — resolving it to the borough the neighbourhood is ` +
+          `actually in would answer a different question from the one asked.`
         : `Unsupported ${criterion} criterion: ${values}. ` +
           `Not a live Cotality value. The criterion is rejected rather than dropped — dropping it ` +
           `would remove the geographic narrowing and answer a broader question under HTTP 200.`,
@@ -274,20 +287,27 @@ export function neighborhoodOData(values: readonly unknown[]): string | null {
   const seen = new Set<string>();
   const unknown: string[] = [];
   const ambiguous: string[] = [];
+  const impossible: string[] = [];
 
   for (const value of values) {
     if (typeof value !== "string") continue;
     const trimmed = value.trim();
     if (!trimmed) continue;
 
-    const identity = identityFor(trimmed);
-    if (!identity) {
-      // A name the feed carries in more than one borough resolves to nothing
-      // without a borough, and must be reported as AMBIGUOUS rather than as
-      // unknown — those are different problems with different fixes.
-      (identitiesFor(trimmed).length > 1 ? ambiguous : unknown).push(trimmed);
-      continue;
-    }
+    // THREE WAYS TO FAIL, THREE DIFFERENT REPAIRS.
+    //
+    //   unknown              the feed has never carried this name
+    //   ambiguous            it names more than one place and none was chosen
+    //   impossible_qualifier the place exists and is NOT in the borough asked for
+    //
+    // The last one used to be invisible: a sole candidate was returned before the
+    // qualifier was read, so `Tribeca (Queens)` resolved to Tribeca in MANHATTAN.
+    // The agent asked for Queens and was handed Manhattan without being told.
+    const resolution = resolveNeighborhood(trimmed);
+    if (resolution.state === 'unknown') { unknown.push(trimmed); continue; }
+    if (resolution.state === 'ambiguous') { ambiguous.push(trimmed); continue; }
+    if (resolution.state === 'impossible_qualifier') { impossible.push(trimmed); continue; }
+    const identity = resolution.identity!;
     if (seen.has(identity.label)) continue;
     seen.add(identity.label);
 
@@ -325,6 +345,12 @@ export function neighborhoodOData(values: readonly unknown[]): string | null {
     // Name the choices. A refusal the broker cannot act on is only half a refusal.
     const options = [...new Set(ambiguous.flatMap((n) => identitiesFor(n).map((i) => i.label)))];
     throw new UnsupportedGeographyError("neighborhood", ambiguous, 'ambiguous', options);
+  }
+  if (impossible.length > 0) {
+    // The place is real; the borough asked for is not where it is. Naming where
+    // it IS turns a refusal into something the broker can act on.
+    const options = [...new Set(impossible.flatMap((n) => identitiesFor(n).map((i) => i.label)))];
+    throw new UnsupportedGeographyError("neighborhood", impossible, 'impossible_qualifier', options);
   }
   if (groups.length === 0) return null;
 

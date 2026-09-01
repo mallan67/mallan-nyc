@@ -65,6 +65,7 @@
                 var canonicals = [];
                 var unavailable = [];
                 var ambiguous = [];
+                var contradictory = [];
 
                 for (var i = 0; i < raw.length; i++) {
                     // UNKNOWN AND AMBIGUOUS ARE DIFFERENT PROBLEMS. A polygon named
@@ -74,6 +75,9 @@
                     var r = vocab ? vocab.resolveState(raw[i]) : { state: 'unknown', identity: null, candidates: [] };
                     if (r.state === 'ok') {
                         if (canonicals.indexOf(r.identity.label) === -1) canonicals.push(r.identity.label);
+                    } else if (r.state === 'impossible_qualifier') {
+                        // The place exists and is not in the borough named.
+                        contradictory.push({ name: raw[i], options: r.candidates.map(function (c) { return c.label; }) });
                     } else if (r.state === 'ambiguous') {
                         ambiguous.push({ name: raw[i], options: r.candidates.map(function (c) { return c.label; }) });
                     } else {
@@ -96,6 +100,14 @@
                         ambiguous.map(function (a) {
                             return '"' + a.name + '" could be ' + a.options.join(' or ') +
                                    ' — pick one from the neighbourhood box.';
+                        }).join(' '),
+                        'warning'
+                    );
+                }
+                if (contradictory.length > 0 && typeof showToast === 'function') {
+                    showToast(
+                        contradictory.map(function (c) {
+                            return '"' + c.name + '" is not in that borough — it is ' + c.options.join(' or ') + '.';
                         }).join(' '),
                         'warning'
                     );

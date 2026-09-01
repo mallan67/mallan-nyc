@@ -13833,11 +13833,13 @@ var MallanAPI = (function () {
     },
   };
 
-  // ─── IDX / Trestle RLS (read-only) ───────────────────────────────────────
+  // ─── IDX / Cotality API (read-only) ──────────────────────────────────────
 
   var idx = {
     /**
-     * Search listings via Trestle/REBNY RLS.
+     * Search listings via the Cotality API, the one external provider authority.
+     * (Was described here as Trestle/REBNY RLS, which named the wrong engine.
+     * REBNY/RLS remain compliance and attribution context, not the data source.)
      * Returns listings in CRM flat shape (same as listings).
      * @param {object} params - { type, minPrice, maxPrice, minBeds, minBaths, neighborhood, borough, status, limit, skip, minYear, maxYear, minFloors, maxFloors, minUnits, maxUnits, buildingName }
      */
@@ -13936,7 +13938,7 @@ var MallanAPI = (function () {
     },
 
     /**
-     * Check IDX/Trestle status (broker-only).
+     * Check IDX/Cotality connection status (broker-only).
      */
     status: function () {
       return _fetch('/api/idx/status');
@@ -16540,6 +16542,7 @@ function manageShowToast(msg) {
                 var canonicals = [];
                 var unavailable = [];
                 var ambiguous = [];
+                var contradictory = [];
 
                 for (var i = 0; i < raw.length; i++) {
                     // UNKNOWN AND AMBIGUOUS ARE DIFFERENT PROBLEMS. A polygon named
@@ -16549,6 +16552,9 @@ function manageShowToast(msg) {
                     var r = vocab ? vocab.resolveState(raw[i]) : { state: 'unknown', identity: null, candidates: [] };
                     if (r.state === 'ok') {
                         if (canonicals.indexOf(r.identity.label) === -1) canonicals.push(r.identity.label);
+                    } else if (r.state === 'impossible_qualifier') {
+                        // The place exists and is not in the borough named.
+                        contradictory.push({ name: raw[i], options: r.candidates.map(function (c) { return c.label; }) });
                     } else if (r.state === 'ambiguous') {
                         ambiguous.push({ name: raw[i], options: r.candidates.map(function (c) { return c.label; }) });
                     } else {
@@ -16571,6 +16577,14 @@ function manageShowToast(msg) {
                         ambiguous.map(function (a) {
                             return '"' + a.name + '" could be ' + a.options.join(' or ') +
                                    ' — pick one from the neighbourhood box.';
+                        }).join(' '),
+                        'warning'
+                    );
+                }
+                if (contradictory.length > 0 && typeof showToast === 'function') {
+                    showToast(
+                        contradictory.map(function (c) {
+                            return '"' + c.name + '" is not in that borough — it is ' + c.options.join(' or ') + '.';
                         }).join(' '),
                         'warning'
                     );
@@ -24915,6 +24929,16 @@ function parseBudgetValue(td) {
                     // The server's disposition check cannot cover this — it
                     // classifies checkbox criteria and does not know about geography
                     // ambiguity — so the issue has to be raised here.
+                    if (r.state === 'impossible_qualifier') {
+                        // A stored value naming a borough the neighbourhood is not in.
+                        // Resolving it to where the place actually IS would change what
+                        // the broker saved.
+                        _restoreIssues.push(
+                            'neighborhood = ' + n + ': that neighbourhood is not in the borough saved — it is ' +
+                            r.candidates.map(function (c) { return c.label; }).join(' or ')
+                        );
+                        return;
+                    }
                     if (r.state === 'ambiguous') {
                         // A LEGACY saved search can hold a bare name that now means
                         // two places. Migrating it to whichever came first would
@@ -33954,8 +33978,10 @@ function emailCurrentCalc() {
      */
     function _splitQualified(value) {
         // PARENTHESES, NOT A COMMA. The neighborhood request param is
-        // comma-separated for multi-select, so 'Bay Terrace, Queens' split into
+        // once comma-separated for multi-select, so 'Bay Terrace, Queens' split into
         // two neighbourhoods and the qualified form never reached the executor.
+        // The list now travels as repeated parameters, and the parenthesised form
+        // is what keeps a qualifier readable on either side.
         // String operations, not a regex — mirrors splitQualified() in the
         // generated server contract exactly, and avoids the backslash-eating that
         // silently corrupted the emitted pattern.
@@ -34124,7 +34150,17 @@ function emailCurrentCalc() {
                 borough = _splitQualified(name.trim()).borough;
             }
             if (hits.length === 0) return { state: 'unknown', identity: null, candidates: [] };
-            if (hits.length === 1) return { state: 'ok', identity: hits[0], candidates: hits };
+
+            // A SUPPLIED QUALIFIER IS CHECKED FIRST, WHATEVER THE CANDIDATE COUNT.
+            //
+            // This returned the sole candidate before looking at the borough, so
+            // `Tribeca (Queens)` resolved to Tribeca in MANHATTAN — the agent asked
+            // for Queens and was handed Manhattan with nothing said. A qualifier is
+            // part of the criterion and may never be ignored.
+            //
+            // `impossible_qualifier` is its own state: the place exists and is not
+            // in the borough asked for, which is neither unknown nor ambiguous and
+            // needs a different repair. Mirrors resolveNeighborhood() on the server.
             if (borough) {
                 var want = _fold(borough);
                 for (var n = 0; n < hits.length; n++) {
@@ -34132,7 +34168,10 @@ function emailCurrentCalc() {
                         return { state: 'ok', identity: hits[n], candidates: hits };
                     }
                 }
+                return { state: 'impossible_qualifier', identity: null, candidates: hits };
             }
+
+            if (hits.length === 1) return { state: 'ok', identity: hits[0], candidates: hits };
             return { state: 'ambiguous', identity: null, candidates: hits };
         },
 

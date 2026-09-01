@@ -369,6 +369,16 @@
                     // The server's disposition check cannot cover this — it
                     // classifies checkbox criteria and does not know about geography
                     // ambiguity — so the issue has to be raised here.
+                    if (r.state === 'impossible_qualifier') {
+                        // A stored value naming a borough the neighbourhood is not in.
+                        // Resolving it to where the place actually IS would change what
+                        // the broker saved.
+                        _restoreIssues.push(
+                            'neighborhood = ' + n + ': that neighbourhood is not in the borough saved — it is ' +
+                            r.candidates.map(function (c) { return c.label; }).join(' or ')
+                        );
+                        return;
+                    }
                     if (r.state === 'ambiguous') {
                         // A LEGACY saved search can hold a bare name that now means
                         // two places. Migrating it to whichever came first would

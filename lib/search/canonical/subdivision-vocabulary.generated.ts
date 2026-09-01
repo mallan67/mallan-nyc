@@ -754,16 +754,47 @@ export function identitiesFor(value: unknown): readonly NeighborhoodIdentity[] {
  * silently picking one — choosing between Bay Terrace in Queens and Bay Terrace
  * in Staten Island is exactly the quiet substitution this contract prevents.
  */
-export function identityFor(value: unknown, borough?: string | null): NeighborhoodIdentity | null {
-  if (typeof value !== 'string') return null;
+/** Why a neighbourhood value did not resolve. Each needs a different repair. */
+export type NeighborhoodResolution = 'ok' | 'unknown' | 'ambiguous' | 'impossible_qualifier';
+
+/**
+ * Resolve a neighbourhood value, saying WHY when it does not resolve.
+ *
+ * A SUPPLIED QUALIFIER IS PART OF THE CRITERION AND IS NEVER IGNORED.
+ *
+ * The previous version returned the sole candidate before looking at the
+ * qualifier, so `Tribeca (Queens)` resolved to Tribeca in MANHATTAN. The agent
+ * asked for Queens and was silently given Manhattan — a changed criterion, not a
+ * near miss. The qualifier is now checked whenever one is present, however many
+ * candidates there are.
+ */
+export function resolveNeighborhood(
+  value: unknown,
+  borough?: string | null,
+): { state: NeighborhoodResolution; identity: NeighborhoodIdentity | null; candidates: readonly NeighborhoodIdentity[] } {
+  if (typeof value !== 'string') return { state: 'unknown', identity: null, candidates: [] };
   const parsed = splitQualified(value.trim());
   const hits = identitiesFor(value);
-  if (hits.length === 0) return null;
-  if (hits.length === 1) return hits[0];
-  borough = borough ?? parsed.borough;
-  if (!borough) return null;
-  const want = FOLD(borough);
-  return hits.find((h) => FOLD(h.borough) === want || FOLD(h.boroughLabel) === want) ?? null;
+  if (hits.length === 0) return { state: 'unknown', identity: null, candidates: [] };
+
+  const want = borough ?? parsed.borough;
+  if (want) {
+    const w = FOLD(want);
+    const hit = hits.find((h) => FOLD(h.borough) === w || FOLD(h.boroughLabel) === w);
+    // An impossible qualifier is NOT an unknown neighbourhood: the place exists,
+    // and the borough asked for is not where it is.
+    return hit
+      ? { state: 'ok', identity: hit, candidates: hits }
+      : { state: 'impossible_qualifier', identity: null, candidates: hits };
+  }
+
+  if (hits.length === 1) return { state: 'ok', identity: hits[0], candidates: hits };
+  return { state: 'ambiguous', identity: null, candidates: hits };
+}
+
+/** The identity a value means, or null when it does not resolve for any reason. */
+export function identityFor(value: unknown, borough?: string | null): NeighborhoodIdentity | null {
+  return resolveNeighborhood(value, borough).identity;
 }
 
 /** The borough a neighbourhood belongs to, as the PROVIDER value. */

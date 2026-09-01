@@ -53,19 +53,22 @@ describe("buildCrmIdxODataFilter", () => {
     expect(filter).toContain("(StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')");
   });
 
-  // ── Geography is HELD, and the hold is fail-closed ────────────────────────
+  // ── Geography is RELEASED, and still fail-closed ──────────────────────────
   //
-  // RETARGETED 2026-08-24 (48978094). These previously asserted
-  // `borough -> CityRegion eq` and `neighborhood -> SubdivisionName eq`.
-  // Cotality exposes SubdivisionName, CityRegion, CountyOrParish,
-  // MLSAreaMajor/Minor and PostalCity as distinct facts whose equivalence to
-  // the Mallan neighborhood/borough concepts is not proven against the live
-  // contract, and the old alias files are not provider authority.
+  // This section read "Geography is HELD" and said the equivalence between
+  // Cotality's geography facts and the Mallan concepts was not proven. That was
+  // true when it was written and is no longer: the hold was lifted for borough on
+  // 2026-08-26 against the live CityRegion probe, and for neighbourhood on
+  // 2026-08-31 against a full-feed census of 591,409 rows that produced the
+  // generated canonical vocabulary these tests now assert against.
   //
-  // The criterion THROWS rather than being dropped. Dropping it would remove
-  // the geographic narrowing and answer a broader question under HTTP 200 —
-  // strictly worse than a visible 400, and the same silent-widening failure
-  // mode the status pass exists to remove.
+  // CountyOrParish is still a COUNTY and is never substituted for a borough, and
+  // the retired alias files are still not provider authority — those parts of the
+  // original note stand.
+  //
+  // What has NOT changed is the fail-closed rule: the criterion THROWS rather than
+  // being dropped, because dropping it removes the geographic narrowing and
+  // answers a broader question under HTTP 200 — strictly worse than a visible 400.
   it("renders a borough as the verified CityRegion predicate", () => {
     expect(buildCrmIdxODataFilter(new URLSearchParams({ borough: "Manhattan" })))
       .toContain("CityRegion eq 'Manhattan'");

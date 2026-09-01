@@ -639,11 +639,13 @@ var MallanAPI = (function () {
     },
   };
 
-  // ─── IDX / Trestle RLS (read-only) ───────────────────────────────────────
+  // ─── IDX / Cotality API (read-only) ──────────────────────────────────────
 
   var idx = {
     /**
-     * Search listings via Trestle/REBNY RLS.
+     * Search listings via the Cotality API, the one external provider authority.
+     * (Was described here as Trestle/REBNY RLS, which named the wrong engine.
+     * REBNY/RLS remain compliance and attribution context, not the data source.)
      * Returns listings in CRM flat shape (same as listings).
      * @param {object} params - { type, minPrice, maxPrice, minBeds, minBaths, neighborhood, borough, status, limit, skip, minYear, maxYear, minFloors, maxFloors, minUnits, maxUnits, buildingName }
      */
@@ -742,7 +744,7 @@ var MallanAPI = (function () {
     },
 
     /**
-     * Check IDX/Trestle status (broker-only).
+     * Check IDX/Cotality connection status (broker-only).
      */
     status: function () {
       return _fetch('/api/idx/status');

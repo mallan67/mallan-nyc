@@ -28,7 +28,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import vm from 'node:vm';
-import { identityFor, identitiesFor } from '@/lib/search/canonical/subdivision-vocabulary.generated';
+import { identityFor, identitiesFor, resolveNeighborhood } from '@/lib/search/canonical/subdivision-vocabulary.generated';
 
 const REPO = join(__dirname, '..', '..');
 const read = (rel: string) => readFileSync(join(REPO, rel), 'utf8');
@@ -43,7 +43,7 @@ interface Identity {
   offered: boolean;
 }
 interface ResolveState {
-  state: 'ok' | 'unknown' | 'ambiguous';
+  state: 'ok' | 'unknown' | 'ambiguous' | 'impossible_qualifier';
   identity: Identity | null;
   candidates: Identity[];
 }
@@ -143,6 +143,38 @@ describe('the browser resolver behaves exactly like the server resolver', () => 
     // …and the broker LABEL works as well as the provider value, because that is
     // what the UI holds.
     expect(vocab.resolveState('Bay Terrace', 'StatenIsland').identity?.borough).toBe('StatenIsland');
+  });
+
+  it('AN IMPOSSIBLE QUALIFIER IS REFUSED, in the browser exactly as on the server', () => {
+    // The defect: a sole candidate was returned BEFORE the qualifier was read, so
+    // `Tribeca (Queens)` resolved to Tribeca in MANHATTAN. The agent asked for
+    // Queens and was handed Manhattan with nothing said — a changed criterion.
+    //
+    // It is its own state: the place exists and is not in the borough asked for,
+    // which is neither unknown nor ambiguous and needs a different repair.
+    const r = vocab.resolveState('Tribeca (Queens)');
+    expect(r.state).toBe('impossible_qualifier');
+    expect(r.identity).toBeNull();
+    expect(resolveNeighborhood('Tribeca (Queens)').state).toBe('impossible_qualifier');
+  });
+
+  it('every qualifier case agrees between browser and server', () => {
+    const cases: Array<[string, string]> = [
+      ['Tribeca', 'ok'],
+      ['Tribeca (Manhattan)', 'ok'],
+      ['Tribeca (Queens)', 'impossible_qualifier'],
+      ['Bay Terrace', 'ambiguous'],
+      ['Bay Terrace (Queens)', 'ok'],
+      ['Bay Terrace (Staten Island)', 'ok'],
+      ['Bay Terrace (Bronx)', 'impossible_qualifier'],
+      ['Nonexistent Heights', 'unknown'],
+    ];
+    for (const [value, expected] of cases) {
+      const browser = vocab.resolveState(value).state;
+      const server = resolveNeighborhood(value).state;
+      expect(`${value}:browser=${browser}`).toBe(`${value}:browser=${expected}`);
+      expect(`${value}:server=${server}`).toBe(`${value}:server=${expected}`);
+    }
   });
 
   it('an unknown name is UNKNOWN, not ambiguous — different problems', () => {

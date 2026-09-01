@@ -52,8 +52,10 @@
      */
     function _splitQualified(value) {
         // PARENTHESES, NOT A COMMA. The neighborhood request param is
-        // comma-separated for multi-select, so 'Bay Terrace, Queens' split into
+        // once comma-separated for multi-select, so 'Bay Terrace, Queens' split into
         // two neighbourhoods and the qualified form never reached the executor.
+        // The list now travels as repeated parameters, and the parenthesised form
+        // is what keeps a qualifier readable on either side.
         // String operations, not a regex — mirrors splitQualified() in the
         // generated server contract exactly, and avoids the backslash-eating that
         // silently corrupted the emitted pattern.
@@ -222,7 +224,17 @@
                 borough = _splitQualified(name.trim()).borough;
             }
             if (hits.length === 0) return { state: 'unknown', identity: null, candidates: [] };
-            if (hits.length === 1) return { state: 'ok', identity: hits[0], candidates: hits };
+
+            // A SUPPLIED QUALIFIER IS CHECKED FIRST, WHATEVER THE CANDIDATE COUNT.
+            //
+            // This returned the sole candidate before looking at the borough, so
+            // `Tribeca (Queens)` resolved to Tribeca in MANHATTAN — the agent asked
+            // for Queens and was handed Manhattan with nothing said. A qualifier is
+            // part of the criterion and may never be ignored.
+            //
+            // `impossible_qualifier` is its own state: the place exists and is not
+            // in the borough asked for, which is neither unknown nor ambiguous and
+            // needs a different repair. Mirrors resolveNeighborhood() on the server.
             if (borough) {
                 var want = _fold(borough);
                 for (var n = 0; n < hits.length; n++) {
@@ -230,7 +242,10 @@
                         return { state: 'ok', identity: hits[n], candidates: hits };
                     }
                 }
+                return { state: 'impossible_qualifier', identity: null, candidates: hits };
             }
+
+            if (hits.length === 1) return { state: 'ok', identity: hits[0], candidates: hits };
             return { state: 'ambiguous', identity: null, candidates: hits };
         },
 
