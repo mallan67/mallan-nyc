@@ -22,19 +22,20 @@
  */
 
 import { makeRequest } from './helpers';
+import type { SessionUser } from '@/lib/auth/session';
 
 // ─── Hand-rolled prisma mock (same pattern as
 // contact-form-consent.test.ts and email-pipeline-fail-loud.test.ts) ───
 const auditEventCreateMock = jest.fn(async () => ({ id: 1n }));
 // The route resolves the sender's PROFESSIONAL TITLE from the canonical Agent
 // record (the JWT carries `role`, the authorisation grant, not `title`).
-const agentFindFirstMock = jest.fn();
+const agentFindUniqueMock = jest.fn();
 
 jest.mock('@/lib/prisma', () => ({
   __esModule: true,
   default: {
     auditEvent: { create: auditEventCreateMock },
-    agent: { findFirst: agentFindFirstMock },
+    agent: { findUnique: agentFindUniqueMock },
   },
 }));
 
@@ -98,14 +99,12 @@ const CLAUDIA_RECORD = {
   email: 'cmilkowski@mallan.nyc',
 };
 
-function authedSession() {
-  return {
-    id: 42n,
-    email: 'maya@mallan.nyc',
-    first_name: 'Maya',
-    last_name: 'Allan',
-    role: 'BROKER',
-  };
+// The REAL contract from lib/auth/session.ts — nothing else. An earlier
+// version of this mock invented `id` / `email` / `first_name` / `last_name`,
+// which do not exist on SessionUser, and that fiction is exactly why the
+// production defect (route read `sessionUser.id`) passed CI.
+function authedSession(overrides: Partial<SessionUser> = {}): SessionUser {
+  return { userId: 42n, userType: 'agent', role: 'BROKER', sessionId: 'sess-test-1', ...overrides };
 }
 
 beforeEach(() => {
@@ -114,8 +113,8 @@ beforeEach(() => {
   auditEventCreateMock.mockClear();
   requireAgentOrBrokerMock.mockReset();
   requireAgentOrBrokerMock.mockResolvedValue(authedSession());
-  agentFindFirstMock.mockReset();
-  agentFindFirstMock.mockResolvedValue(MAYA_RECORD);
+  agentFindUniqueMock.mockReset();
+  agentFindUniqueMock.mockResolvedValue(MAYA_RECORD);
 });
 
 afterEach(() => {
@@ -320,12 +319,10 @@ describe('POST /api/crm/agent-inquiry — professional title vs authorisation', 
     (sendEmailMock.mock.calls[0] as unknown as SendEmailCallArgs)[2];
 
   it('an Associate Broker is advertised as one, never as a Salesperson', async () => {
-    agentFindFirstMock.mockResolvedValue(CLAUDIA_RECORD);
-    requireAgentOrBrokerMock.mockResolvedValue({
-      id: 77n, email: 'cmilkowski@mallan.nyc',
-      first_name: 'Claudia', last_name: 'Milkowski',
-      role: 'AGENT', // authorisation stays AGENT
-    });
+    agentFindUniqueMock.mockResolvedValue(CLAUDIA_RECORD);
+    requireAgentOrBrokerMock.mockResolvedValue(
+      authedSession({ userId: 77n, role: 'AGENT' }), // authorisation stays AGENT
+    );
 
     const { POST } = await import('@/app/api/crm/agent-inquiry/route');
     await POST(makeRequest({ url: 'http://test/api/crm/agent-inquiry', body: validBody() }));
@@ -339,14 +336,12 @@ describe('POST /api/crm/agent-inquiry — professional title vs authorisation', 
   });
 
   it('a salesperson agent is still advertised as a Salesperson', async () => {
-    agentFindFirstMock.mockResolvedValue({
+    agentFindUniqueMock.mockResolvedValue({
       full_name: 'Leda Gorgone', title: 'Licensed Real Estate Salesperson',
       license_type: 'salesperson', role: 'AGENT',
       phone: '(917) 207-5903', email: 'leda@mallan.nyc',
     });
-    requireAgentOrBrokerMock.mockResolvedValue({
-      id: 55n, email: 'leda@mallan.nyc', first_name: 'Leda', last_name: 'Gorgone', role: 'AGENT',
-    });
+    requireAgentOrBrokerMock.mockResolvedValue(authedSession({ userId: 55n, role: 'AGENT' }));
 
     const { POST } = await import('@/app/api/crm/agent-inquiry/route');
     await POST(makeRequest({ url: 'http://test/api/crm/agent-inquiry', body: validBody() }));
@@ -358,7 +353,7 @@ describe('POST /api/crm/agent-inquiry — professional title vs authorisation', 
 
   it('asserts NO designation when the Agent record cannot be read', async () => {
     // Must not fall back to guessing "Salesperson" for an unreadable licensee.
-    agentFindFirstMock.mockRejectedValue(new Error('db down'));
+    agentFindUniqueMock.mockRejectedValue(new Error('db down'));
     const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
     const { POST } = await import('@/app/api/crm/agent-inquiry/route');
@@ -370,5 +365,60 @@ describe('POST /api/crm/agent-inquiry — professional title vs authorisation', 
     expect(html).not.toContain('Licensed Real Estate Broker');
     expect(errSpy).toHaveBeenCalled(); // failed loudly in the log
     errSpy.mockRestore();
+  });
+});
+
+describe('POST /api/crm/agent-inquiry — sender resolved by canonical SessionUser.userId', () => {
+  it('looks the Agent up by the session userId, not a non-existent `id`', async () => {
+    agentFindUniqueMock.mockResolvedValue(CLAUDIA_RECORD);
+    requireAgentOrBrokerMock.mockResolvedValue(authedSession({ userId: 77n, role: 'AGENT' }));
+
+    const { POST } = await import('@/app/api/crm/agent-inquiry/route');
+    await POST(makeRequest({ url: 'http://test/api/crm/agent-inquiry', body: validBody() }));
+
+    expect(agentFindUniqueMock).toHaveBeenCalledTimes(1);
+    const arg = agentFindUniqueMock.mock.calls[0][0] as { where: { id: bigint } };
+    expect(arg.where).toEqual({ id: 77n });
+  });
+
+  it('never falls back to an empty-string email key', async () => {
+    agentFindUniqueMock.mockResolvedValue(MAYA_RECORD);
+    const { POST } = await import('@/app/api/crm/agent-inquiry/route');
+    await POST(makeRequest({ url: 'http://test/api/crm/agent-inquiry', body: validBody() }));
+
+    const arg = agentFindUniqueMock.mock.calls[0][0] as { where: Record<string, unknown> };
+    expect(arg.where).not.toHaveProperty('email');
+    expect(JSON.stringify(arg.where, (_k, v) => (typeof v === 'bigint' ? v.toString() : v)))
+      .not.toContain('""');
+  });
+
+  it('audits WHO sent the inquiry — user_id is the session userId, never null', async () => {
+    // Same defect class: the audit previously read `sessionUser.id`, so every
+    // inquiry was recorded with user_id = null (NY SHIELD attribution lost).
+    agentFindUniqueMock.mockResolvedValue(CLAUDIA_RECORD);
+    requireAgentOrBrokerMock.mockResolvedValue(authedSession({ userId: 77n, role: 'AGENT' }));
+
+    const { POST } = await import('@/app/api/crm/agent-inquiry/route');
+    await POST(makeRequest({ url: 'http://test/api/crm/agent-inquiry', body: validBody() }));
+
+    const audit = (auditEventCreateMock.mock.calls[0] as unknown as Array<{ data: { user_id: bigint; user_type: string } }>)[0].data;
+    expect(audit.user_id).toBe(77n);
+    expect(audit.user_type).toBe('agent'); // authorisation, not licence
+  });
+
+  it('an Associate Broker resolves her real contact details from the canonical row', async () => {
+    agentFindUniqueMock.mockResolvedValue(CLAUDIA_RECORD);
+    requireAgentOrBrokerMock.mockResolvedValue(authedSession({ userId: 77n, role: 'AGENT' }));
+
+    const { POST } = await import('@/app/api/crm/agent-inquiry/route');
+    await POST(makeRequest({ url: 'http://test/api/crm/agent-inquiry', body: validBody() }));
+
+    const html = (sendEmailMock.mock.calls[0] as unknown as SendEmailCallArgs)[2];
+    expect(html).toContain('Claudia Milkowski');
+    expect(html).toContain('Licensed Real Estate Associate Broker');
+    expect(html).toContain('cmilkowski@mallan.nyc');
+    expect(html).toContain('(646) 418-8388');
+    expect(html).not.toContain('Mallan Agent');   // the unresolved-name fallback
+    expect(html).not.toContain('Salesperson');
   });
 });

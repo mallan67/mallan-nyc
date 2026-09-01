@@ -108,10 +108,33 @@ describe('agent-inquiry route wiring', () => {
   it('resolves the sender against the canonical Agent record', () => {
     expect(routeSrc).toContain("import { professionalTitle } from '@/lib/agents/professional-title'");
     expect(routeSrc).toContain('const fromTitle = professionalTitle(senderRecord)');
-    expect(routeSrc).toContain('prisma.agent.findFirst');
+    expect(routeSrc).toContain('prisma.agent.findUnique');
     for (const field of ['title: true', 'license_type: true', 'role: true', 'phone: true']) {
       expect(routeSrc).toContain(field);
     }
+  });
+
+  it('keys the lookup on the CANONICAL SessionUser.userId (Codex P1 regression)', () => {
+    // lib/auth/session.ts defines SessionUser as
+    //   { userId: bigint; userType; role; sessionId }
+    // with no `id`/`email`/name fields. Reading `sessionUser.id` compiled but
+    // was always undefined in production, so the lookup missed and the entire
+    // "From" block degraded. The test mock had invented the wrong shape, which
+    // is why CI did not catch it.
+    expect(routeSrc).toContain('where: { id: sessionUser.userId }');
+    expect(routeSrc).not.toMatch(/sessionUser\.id(?!\w)/);
+    // and no fabricated secondary key to paper over a missing id
+    expect(routeSrc).not.toContain("sessionUser.email ?? ''");
+    expect(routeSrc).not.toContain('{ email: sessionUser.email');
+  });
+
+  it('audits the sender by userId, so WHO sent it is never null', () => {
+    expect(routeSrc).toContain('user_id: sessionUser.userId');
+  });
+
+  it('the session type is imported, so future drift is a compile error', () => {
+    expect(routeSrc).toContain('type SessionUser');
+    expect(routeSrc).toContain('const sessionUser: SessionUser = auth');
   });
 
   it('omits the title line rather than printing an empty one', () => {

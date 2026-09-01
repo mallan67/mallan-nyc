@@ -42,7 +42,7 @@
 // not consumer leads.
 
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAgentOrBroker, isAuthError } from '@/lib/auth';
+import { requireAgentOrBroker, isAuthError, type SessionUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { sendEmail } from '@/lib/email/sendgrid';
 import { escapeHtml } from '@/lib/sanitize';
@@ -200,26 +200,26 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const sessionUser = auth as {
-    id?: string | number | bigint;
-    email?: string | null;
-    first_name?: string | null;
-    last_name?: string | null;
-    role?: string | null;
-  };
+  // The canonical session contract (lib/auth/session.ts) is EXACTLY:
+  //   { userId: bigint; userType: 'agent' | 'lead'; role: string; sessionId: string }
+  // It carries no `id`, `email` or name fields. Reading `sessionUser.id` here
+  // therefore always yielded undefined in production, the Agent lookup missed,
+  // and the whole "From" block silently degraded. Type it properly so the
+  // compiler catches any future drift instead of a cast hiding it.
+  const sessionUser: SessionUser = auth;
+
   // Resolve the sender against the CANONICAL Agent record before advertising a
-  // professional designation. The JWT carries `role` (the CRM authorisation
-  // grant) but not `title` (the NY licence designation), and the two are not
-  // interchangeable: an Associate Broker holds a broker licence yet role
-  // "AGENT", so deriving the title from `role` advertised her as a
-  // "Licensed Real Estate Salesperson" — a false statement about a licensee
-  // in brokerage correspondence (NY DOS 19 NYCRR 175.25).
+  // professional designation. The session carries `role` (the CRM
+  // authorisation grant) but not `title` (the NY licence designation), and the
+  // two are not interchangeable: an Associate Broker holds a broker licence yet
+  // role "AGENT", so deriving the title from `role` advertised her as a
+  // "Licensed Real Estate Salesperson" — a false statement about a licensee in
+  // brokerage correspondence (NY DOS 19 NYCRR 175.25).
   //
+  // Keyed on the session's userId only. There is deliberately NO secondary
+  // lookup key: an empty-string email fallback would silently match nothing (or
+  // worse, the wrong row) and manufacture a designation we cannot stand behind.
   // Read-only, single row, and NO change to the session/JWT contract.
-  const senderId =
-    sessionUser.id != null
-      ? (typeof sessionUser.id === 'bigint' ? sessionUser.id : BigInt(sessionUser.id))
-      : null;
   let senderRecord: {
     full_name: string | null;
     title: string | null;
@@ -229,8 +229,8 @@ export async function POST(req: NextRequest) {
     email: string;
   } | null = null;
   try {
-    senderRecord = await prisma.agent.findFirst({
-      where: senderId != null ? { id: senderId } : { email: sessionUser.email ?? '' },
+    senderRecord = await prisma.agent.findUnique({
+      where: { id: sessionUser.userId },
       select: { full_name: true, title: true, license_type: true, role: true, phone: true, email: true },
     });
   } catch (err) {
@@ -242,13 +242,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const fromName =
-    senderRecord?.full_name?.trim() ||
-    [sessionUser.first_name, sessionUser.last_name].filter(Boolean).join(' ').trim() ||
-    sessionUser.email ||
-    'Mallan Agent';
+  const fromName = senderRecord?.full_name?.trim() || 'Mallan Agent';
   const fromTitle = professionalTitle(senderRecord);
-  const fromEmail = senderRecord?.email || sessionUser.email || '';
+  const fromEmail = senderRecord?.email || '';
   const fromPhone = senderRecord?.phone || '';
 
   const html = buildAgentInquiryHtml({
@@ -293,11 +289,11 @@ export async function POST(req: NextRequest) {
       entity_id: body.listing_id,
       user_type: sessionUser.role === 'BROKER' ? 'broker' : 'agent',
       // AuditEvent.user_id is BigInt? per prisma/schema.prisma:685.
-      // Coerce session id (string|number|bigint) to BigInt; null on
-      // missing.
-      user_id: sessionUser.id != null
-        ? (typeof sessionUser.id === 'bigint' ? sessionUser.id : BigInt(sessionUser.id))
-        : null,
+      // SAME DEFECT as the sender lookup above: this read `sessionUser.id`,
+      // which the canonical contract does not define, so every inquiry was
+      // audited with user_id = null — no record of WHO sent it. The contract
+      // field is `userId`, already a bigint, so no coercion is needed.
+      user_id: sessionUser.userId,
       changes: {
         recipient_agent_name: body.agent_name,
         // Recipient email recorded but NOT logged to console
