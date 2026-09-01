@@ -1,16 +1,14 @@
 # MALLAN CONTINUOUS EXECUTION STATE
 
-> **STATUS ONLY.** This file does not define product architecture or requirements. The sole product/system authority is `MALLAN-PLATFORM-MASTER-PLAN.md`. This file exists so Claude, Codex, ChatGPT and future agents resume the same continuous program after context compaction without inventing a new plan or re-auditing already-proven work.
+> **STATUS ONLY.** This file does not define product architecture or requirements. The sole product/system authority is `MALLAN-PLATFORM-MASTER-PLAN.md`. `docs/claude-instructions/CURRENT.md` is the active continuation directive. This file records what is closed, active, open and held so a new session does not restart the program or repeat already-proven work.
 
-## 0. Hard repository boundary
+**Checkpoint date:** 2026-09-01  
+**Repository:** `mallan67/mallan-nyc` only  
+**Authorized local checkout:** `C:\Users\MayaAllan\Desktop\mallan-nyc`
 
-Authorized project/repository: `mallan67/mallan-nyc` only.
+## 0. Hard start rule
 
-Maya's authorized local checkout is:
-
-`C:\Users\MayaAllan\Desktop\mallan-nyc`
-
-Before local mutation work, resolve and record:
+Before local mutation, record:
 
 1. `pwd`
 2. `git rev-parse --show-toplevel`
@@ -20,151 +18,279 @@ Before local mutation work, resolve and record:
 6. `git status --short`
 7. `git worktree list`
 
-If the local repository root is not the authorized Mallan checkout, stop local mutation work. Do not silently switch to another Mallan clone/worktree.
+If the repository/worktree is not the authorized Mallan checkout, stop mutation work. Do not silently switch to a different clone/worktree.
 
 ## 1. Authority order
 
-1. `MALLAN-PLATFORM-MASTER-PLAN.md` — one and only product/system authority.
-2. This file — current execution/status pointer only.
-3. `AI-START-HERE.md` — startup instructions.
-4. Current code, tests, exact Git SHA, CI, deployment/runtime, Cotality/provider evidence and read-only Production evidence.
-5. Historical audits/plans/PR prose/temporary ledgers — evidence/reference only; they do not redefine architecture.
+1. `MALLAN-PLATFORM-MASTER-PLAN.md` — single product/system authority.
+2. `docs/claude-instructions/CURRENT.md` — current continuation/execution instruction.
+3. This file — status/checkpoint only.
+4. `AI-START-HERE.md` — startup/proof protocol.
+5. Current code, exact SHA/diff, tests/CI, Preview/runtime, Cotality and authorized Production evidence.
+6. Historical chats/audits/PR prose/temporary ledgers — evidence only.
 
-Chat history is never the execution authority.
+No new master audit is created after context loss. A closed layer reopens only when new evidence invalidates a proven invariant.
 
-## 2. Current continuous program
+## 2. Current program and priority
 
-**Program:** Mallan unified brokerage operating system.
+Mallan remains one brokerage operating system. The immediate implementation priority is:
 
-**Current product sequence:**
-
-1. Search — active P0
+1. **Search — ACTIVE P0, finish end to end**
 2. CMA / Property Intelligence
-3. Backend Listing Workspace
-4. Marketing / E-blast / Listings Reporting
+3. Backend Listing / Opportunity Workspace
+4. Marketing / E-blast / Listing Reporting
 5. Decision / Calculators / System Intelligence
-6. Communications / Documents / Agreements / Deal Support
-7. Seller / Landlord / Buyer / Tenant / Investor end-to-end role journeys
+6. Communications / Documents / Agreements / Offering Plans / Deal Support
+7. Seller / Landlord / Buyer / Tenant / Investor end-to-end journeys
 8. Agent Support / Brokerage / Money / Technology governance
-9. Future Mallan → current RLS provider publishing/reconciliation
-10. Historical retirement and final end-to-end Production proof
+9. Future Mallan → provider publishing
+10. Historical retirement / final Production proof
 
-These are layers of one program, not separate master plans.
+A separate bounded **Agent Roster / onboarding / access** lane is active because the brokerage now needs reliable real-Agent access. It may proceed independently, but it must not interrupt/restack Search.
 
-Residual historical recovery/reconciliation remains a supporting evidence lane. It does **not** globally block safe work on the current active product layer. If newly recovered evidence proves a still-valid requirement is missing or contradicts an active layer, update the single master and reopen only the affected dependency.
+## 3. Current Git/runtime identities — refresh before relying on them
 
-## 3. Last completed durable work
+### Main / Production
 
-**Last completed:** the single product authority was reconciled into an executable baseline on draft PR #595.
+Last independently verified `main`:
 
-Master-plan reconciliation commit:
+`2a83952a31c7aaa9367141763c1685269c51c380`
 
-`806499bda28250cfe14bf9c6a087fad1f822eabe`
+That merge includes PR #626 Agent-profile work. Last independently verified Production deployment for that main:
 
-The master now explicitly preserves Maya's latest Search/CMA/Backend Listing decisions and absorbs current known requirements that had remained implicit or stranded across discussions/temporary requirement material, including:
+`dpl_2xwQdeEuSV8Uc7Bcui8pKKARbckq`
 
-- simple Brokerage View + My Business model;
-- independent-contractor responsibility plus required Broker supervision boundary;
-- governed public professional titles/profile/signature;
-- canonical Individual/Entity/contact/professional identity;
-- Mallan-authored vs third-party Cotality vs Cotality return-copy source/authority rules;
-- historical supplemental-source concepts held unless explicitly reopened;
-- Frontend Consumer Search preserve/verify posture;
-- exhaustive Backend Agent Search with Basic/mobile + Advanced/desktop on one criteria truth;
-- exact field contract, final eligible count/pagination semantics, Client Saved Search recall/history, comments, showing state, reverse matching and new/price/status updates;
-- rejected/pass listings route to RECONSIDER instead of automatic resend;
-- CMA on the same Backend Search/Property Intelligence universe with transparent comp selection/adjustments/versioning;
-- client-facing CMA/report creator-only identity and source-professional exclusion;
-- full Backend Listing Workspace with media, client history, Comment, Showing, Share/Email, Compare/Add-to-CMA, Quick Add Open House and Refresh Listing;
-- Marketing/E-blast/Share workflow tied to canonical Listing/Search/Party records;
-- separate polished Seller/Landlord Listing Reporting products with internal provenance and client-safe presentation;
-- four agreement families, immutable originals + amendments, governed document library;
-- Agent professional-requirement reminders;
-- deal-document/payment-readiness chain;
-- commissions/referrals/Agent Money/Brokerage queues;
-- role-specific product navigation/workspaces;
-- provider-independent REBNY/RLS/UCBA rule + field registries and regular change monitoring;
-- provider-pivot architecture;
-- current→target implementation map;
-- stable proof/requirement governance;
-- residual reconciliation as a non-blocking evidence lane rather than a permanent planning gate.
+Refresh both before any later Production claim.
 
-**Honesty:** this is a stronger current baseline, not a claim that every historical file/chat has been exhaustively classified. Newly proven valid historical requirements must still be reconciled into the same master when found.
+### Documentation authority
 
-## 4. Current active product layer
+- PR **#595** — draft, open, unmerged.
+- Branch: `agent/publish-mallan-platform-master-plan-2026-08-04`.
+- This branch owns the Master Plan, this execution state and `docs/claude-instructions/CURRENT.md`.
 
-**LAYER SEARCH-P0-001 — Prove and repair the professional Search contract**
+### Search
 
-State: `ACTIVE`
+- PR **#618** — open, draft, unmerged.
+- Branch: `fix/neon-p0-event-driven-wake-2026-08-16`.
+- Latest independently verified Search head at this checkpoint:
+  `2d55ce6a528adbeaf64584f031aa3711dd8be6bb`.
+- Exact accepted public-Search Preview:
+  `dpl_BSPgzafUMu6cU7Nfu8XH5DU7dCkr` — READY / Preview.
+- Search remains separate from `main` and is not Production-deployed from this PR.
+- Do not restack/rebase #618 onto #620 or another moving lane without Maya's explicit authorization.
 
-Search proof/audit may begin immediately under the existing mutation boundaries.
+## 4. Search — completed durable layers
 
-First execution sequence:
+### §4 Canonical Criteria / Transport — CLOSED
 
-1. resolve current main SHA, active branch/head/PR and Production SHA/deployment when applicable;
-2. inventory every current Advanced Search control/field and the Basic/mobile representation;
-3. map every visible criterion to the canonical criterion, actual current Search request/engine and current verified provider field/derivation;
-4. verify type, picklist, null semantics and query operator from current authorized Cotality/RLS evidence;
-5. classify every criterion as `SUPPORTED`, `LOCAL / DERIVED`, or `UNAVAILABLE`; no silent ignored/broadened criterion;
-6. prove/fix source authority, display eligibility, return-copy suppression and dedupe ordering;
-7. prove/fix deterministic sort, final eligible count, pagination and `hasMore` semantics;
-8. prove SavedSearch supports the full normalized professional criteria contract and Basic/mobile never erases hidden Advanced criteria;
-9. prove Client + Buyer/Tenant Opportunity assignment/recall;
-10. prove/join Client × Listing history from existing reusable events/models rather than creating parallel identity;
-11. integrate comments, client views/reactions and showing state;
-12. prove authorized automatic new-listing + verified price-change + meaningful status-change behavior;
-13. prove rejected/pass listings never auto-resend and material change routes to RECONSIDER;
-14. prove reverse matching from Listing → eligible Buyer/Tenant Saved Searches where authorized;
-15. prove client-safe transformation removes internal/source-professional data before serialization;
-16. connect result selection to Compare/CMA through the same Search contract;
-17. challenge tests for false-positive seams and prove defect-specific RED/GREEN where feasible;
-18. audit affected readers/writers/caches/jobs/projections/client-send/CMA paths;
-19. publish/deploy only under Maya's applicable authorization boundaries;
-20. verify exact deployed SHA and defect-specific Production behavior before closure.
+Closure SHA:
 
-## 5. Residual reconciliation evidence lane
+`939884e15ec8447988c7fb791a8978fb8676f3a4`
 
-**LAYER DOC-RECONCILE-001 — Residual historical completeness reconciliation**
+Established invariants include:
 
-State: `ACTIVE` — **NON-BLOCKING SUPPORTING EVIDENCE LANE**
+- canonical SaleCriteria / RentalCriteria / BuildingCriteria / ComparableCriteria;
+- Basic and Advanced are views of one canonical workflow state;
+- DOM → canonical → DOM with no second competing reconstruction;
+- arbitrary range values and clear semantics survive round-trip;
+- Sponsor Unit and Maximum Financing transport/refusal semantics;
+- canonical bathroom value = `BathroomsFull + 0.5 × BathroomsHalf`; `BathroomsTotalInteger` is not the canonical numeric bathroom truth.
 
-Purpose: continue classifying historical plans/audits/specs/recovered work against the current master without returning the program to a fresh planning cycle.
+Do not reopen without new contradictory behavioral evidence.
 
-When a historical requirement is recovered, classify it as:
+### §5 Registry → Executor Authority — CLOSED
 
-- `PRESERVED`
-- `SUPERSEDED`
-- `INVALIDATED`
-- `MISSING — RESTORE`
-- `HELD / MAYA DECISION REQUIRED`
+Functional closure SHA:
 
-If `MISSING — RESTORE`, restore it into `MALLAN-PLATFORM-MASTER-PLAN.md` and reopen the specific affected product dependency if necessary.
+`8e03fd3f7ac8d057bd2db44f46510d9ff4063c8b`
 
-Do not create another master/addendum.
+Follow-up documentation/test-hardening commits included:
 
-Do not treat historical StreetEasy/external/sponsor concepts, old RESO-framed requirements or stale branch prose as current simply because they exist in a historical document. Current master direction controls unless Maya explicitly reopens the requirement and current authority/provider evidence supports it.
+- `02acd6e6b17a4c5277fce005af9cf8a2966ed0e5`
+- `eb52724542d67a6bb6b513cc3d8e589013d6410f`
+- `60e855219dd95c0c23bc425ce91fea4e51c1ceea`
 
-## 6. Known operational/recovery proof debt carried forward
+Established invariants include lossless repeated neighborhood query parameters, literal provider commas surviving transport, explicit borough-disambiguation, no hidden plurality/5% borough cutoff, browser/server resolver parity and Saved Search/Map fail-closed behavior for ambiguous/unknown/impossible geography.
 
-These remain real supporting work and must not be forgotten, but they do not replace the active Search sequence unless fresh evidence shows a direct dependency or Production safety issue:
+Do not reopen without new contradictory behavioral evidence.
 
-- July 6+ local/bundle recovery claims and non-destructive preservation/disposition;
-- exact return-copy live/public suppression proof where not yet independently closed;
-- expiration Production-history audit where not yet independently closed;
-- R2 policy re-evaluation/re-admission and post-fix backlog/control-plane proof;
-- One Cycle / Neon CPU proof, with application correctness separated from actual CPU savings;
-- fresh stale-summary historical-vs-new-drift measurement;
-- historical stale-summary reconciliation design while Production backfill remains held;
-- R2 orphan inventory/design while real deletes remain held;
-- final fresh system audit after the relevant correction layers.
+### Public Search correctness sub-lane found during §6 — CLOSED
 
-Any historical status/number must be refreshed before being represented as current truth.
+Accepted closure SHA:
 
-## 7. Continuous-run state machine
+`2d55ce6a528adbeaf64584f031aa3711dd8be6bb`
 
-Every material layer must be recorded as:
+The bounded public-Search work corrected proven membership/count/pagination/compliance defects without redesigning the public Search UI. Durable corrections include:
 
-`Layer ID → Claim → Evidence needed → Evidence obtained → State → Defect → Correction → Validation → Dependent impact → Production proof → Closure`
+- result membership settled before final count/pagination;
+- Mallan Cotality return-copy suppression restored to the public DB reader;
+- Open House complete-enough/fail-closed behavior rather than page-local fail-open broadening;
+- public bathrooms use the canonical Full + 0.5 Half semantics on both DB and live-provider paths;
+- the redundant `mergeExclusiveListings` fallback injection was removed because it could re-add rows the full criteria had already rejected;
+- the IDX-disabled local-only path now fails closed on criteria it cannot evaluate rather than answering a looser question.
+
+Pinned wrong-answer probes that exposed the final defect changed from one injected result to zero for both:
+
+- `maxBaths=1.5` against a 2.0-bath pinned listing;
+- impossible `minSqft=99000` against that same listing.
+
+Genuine Mallan exclusives remained available through the canonical DB path.
+
+Performance remained within the accepted profile; representative medians were approximately sale 1.01s, Manhattan 0.78s, keywords 3.57s on the accepted Preview.
+
+Local reported suite at the final public closure tree: 9,281 passing with the same five pre-existing/untracked-WIP failing suites. Validators: compliance 95/95, UCBA 46/46 with zero regressions, RLS unknown 0, IDX 1,277 pass / 0 critical.
+
+CI reporting rule: the `release-truth` **check run** completed successfully, while a commit-status layer may remain `pending` by design when runtime/deploy proof is fail-closed. Report these separately; never compress them into a misleading `all green` statement.
+
+Do not reopen this public sub-lane merely because later authenticated Search work touches shared contracts.
+
+## 5. Search — ACTIVE and open
+
+### §6 Authenticated final universe / count / pagination — ACTIVE
+
+Required chain:
+
+`canonical criteria → Cotality candidates → Mallan listing authority / return-copy suppression → eligibility / identity → dedupe → complete-corpus Mallan filters → deterministic global sort → final count/completion → pagination → workbench consumers`
+
+Known closure targets to prove together:
+
+- selection persists across pagination and view changes by canonical Listing identity;
+- sorting is global/server-authoritative and never page-local;
+- reports cannot label a loaded page as `All Results`;
+- status/removal/compliance filtering cannot create short/empty page holes while totals describe another population;
+- browser-side compliance cannot independently change membership after the server count/slice;
+- `countMeaning=exact` only when genuine completion/exhaustion is proven;
+- complete-corpus filters such as Sponsor Unit / Maximum Financing either execute over the complete eligible universe or explicitly refuse;
+- averages/statistics explicitly identify their population and never present page-only values as full-market analysis;
+- Search Within Results must become a real secondary filter over the authoritative Search snapshot or be removed/disabled.
+
+Do not patch these one by one without first tracing the common result-universe readers/writers.
+
+### Remaining Search sequence after §6
+
+**§7 — Sale + Rental Search**
+
+Prove both separate workflow contracts end to end:
+
+`Basic ↔ Advanced → canonical criteria → execute → truthful results → global sort → paginate → detail → return`
+
+No Sale/Rental criterion leakage. Unknown remains unknown. Unsupported/unverified provider semantics fail visibly rather than being fabricated.
+
+**§8 — Map + Saved Search + Workbench**
+
+One universe/state drives Grid, Gallery, Summary, Master/Detail and Map. Map does not invent exact points from approximate geography. Saved Search must prove:
+
+`create → save → reload → restore canonical criteria → restore UI → execute with same meaning`
+
+Selection and client actions persist by canonical Listing identity.
+
+**§9 — Compare + Reports + CMA**
+
+Compare/Reports/CMA consume the authoritative Search snapshot and selection. Reports must use real server delivery/delivery state. Sale CMA uses verified ClosePrice/CloseDate for Closed valuation evidence. Rental CMA may not invent achieved rent.
+
+**§10 — authenticated browser E2E closure**
+
+Mandatory desktop, tablet and mobile proof for Sale + Rental:
+
+`login → criteria → Basic↔Advanced → execute → truthful count → sort → paginate → detail → return → Map → Search Within Results/Map → Saved Search → reload/restore → select → client action → Compare → Report → CMA input → attribution/compliance`
+
+Search is not complete until §10 closes.
+
+## 6. Agent Roster / onboarding / access — independent active lane
+
+State: `ACTIVE — SEPARATE FROM SEARCH`
+
+The canonical runtime Agent is the existing Prisma `Agent`. Do not build another Agent/contact/auth truth.
+
+### Completed / established Agent facts
+
+- Professional license classification is distinct from authorization role.
+- Licensed Real Estate Associate Broker is a professional/license classification; normal CRM authorization remains `role=AGENT` unless the person is explicitly the Principal/Representative Broker.
+- PR #626 merged Agent-profile/title corrections to main at `2a83952a...`.
+- Existing CRM Agent Roster has an Add Agent modal wired to `POST /api/crm/agents`.
+- Existing `DELETE /api/crm/agents/[id]` is a **soft Deactivate**, not a database hard-delete: it sets status inactive, removes sessions and records audit history.
+- Ordinary Agents authenticate through `/sign-in` and route to `/crm/dashboard`; `/admin/login` is Broker-only.
+
+### Open Agent Roster defects
+
+1. Add Agent displays inputs that the submit payload does not persist — silent data loss.
+2. Associate Broker form values do not map reliably to the canonical license/title contract and can display the Agent as a Salesperson.
+3. Creation does not carry the complete public professional profile contract; an incomplete DB row can override a correct static fallback profile.
+4. `Send Invite` is not a trustworthy atomic/observable workflow: account creation may succeed while invite/email reports an error.
+5. Invite delivery/deliverability is not proven; one current invite reached spam and the UI surfaced an error.
+6. Retry must resend/recover invitation state, never create a second Agent.
+7. `Save Draft` is false if it calls the same create route that sets the account active; implement a true draft/non-active behavior using the existing model if supported, or remove/rename the control.
+8. `/api/crm/agents` and `/api/auth/agent/register` are competing Agent-creation writers; establish one canonical create owner and delegate/retire the duplicate path.
+9. CRM has Deactivate but no governed **Delete Permanently** mistake-rollback action.
+10. Public profile authority is split: active DB Agent drives directory/sitemap while individual profile may fall back to static `data/agents.json` when no active DB row is found. Deactivation/deletion must not leave a ghost public profile.
+11. Onboarding must never require browser DevTools, session cookies, tokens or manually pasted JavaScript.
+
+### Delete Permanently contract
+
+Normal business offboarding = **Deactivate** and preserve brokerage history.
+
+Permanent deletion = **mistake rollback only** for an erroneous/never-used record. It must:
+
+- be Broker-only;
+- refuse self;
+- refuse authorization `role=BROKER` targets;
+- refuse anyone who has ever logged in;
+- preview/recheck all FK plus loose/polymorphic Agent identity references;
+- refuse if any legitimate deal/client/listing/CMA/document/task/commission/protected-period/actor-attribution/business history exists;
+- preserve onboarding/audit evidence written *about* the bad Agent record by broker/system without treating those events as evidence the target conducted brokerage activity;
+- remove only ephemeral auth artifacts such as Session/MFA as part of the purge;
+- never cascade-delete brokerage history merely to make the Agent delete succeed;
+- perform final recount + ephemeral cleanup + Agent delete + purge AuditEvent atomically in one transaction;
+- preserve an immutable target identity/dependency snapshot in the purge AuditEvent;
+- report static public-profile/R2 remnants but not silently modify Git or R2;
+- keep R2 deletion behind separate explicit authorization.
+
+### Local hard-delete implementation evidence — NOT closed
+
+User-provided/local Claude handoff reports:
+
+- branch: `feat/agent-permanent-delete-2026-09-01`;
+- local commit: `5c7ef52e8096fc6e7b91552e4b22f66013637fc5`;
+- based on then-current main `2a83952a...`;
+- files include a declarative Agent purge policy, read-only preview route, atomic purge route and runtime tests;
+- reported proof: 28 new purge tests, 292/292 across 22 Agent suites, type-check clean, compliance 95/0, UCBA zero regressions, RLS zero errors.
+
+**State: `IMPLEMENTED LOCALLY — UNVERIFIED / UNPUSHED AT HANDOFF`.**
+
+Do not represent this as GitHub-durable, merged, Preview-proven or Production-proven until the branch/commit is actually pushed and independently reviewed.
+
+No Production purge is authorized by this checkpoint.
+
+### Agent Roster next sequence
+
+In the separate Agent lane:
+
+1. push the hard-delete branch without rewriting Search;
+2. independently review exact diff/tests and Preview behavior;
+3. add the governed CRM `Delete Permanently` control with dependency preview/email confirmation/double-submit protection;
+4. correct Add Agent field persistence and Associate Broker mapping;
+5. consolidate Agent creation to one canonical writer;
+6. turn invite/password setup into a durable, retryable workflow that reports account state and delivery state separately;
+7. correct public-profile authority so deactivation/deletion cannot create ghost profile behavior;
+8. prove `create → save → reload → edit → save → reload → invite/password setup → login → roster/public profile/sitemap`;
+9. obtain separate authorization before any Production purge or other destructive Production mutation.
+
+## 7. Other open/held work carried forward
+
+These remain real but do not preempt Search unless new evidence proves a direct dependency or Production safety issue:
+
+- PR #620 Neon/R2 closure lane and any Production deployment/runtime proof;
+- R2 deletions/cleanup remain separately authorization-gated;
+- schema/index/migration work remains separately authorization-gated;
+- historical stale-summary/backfill reconciliation remains held where destructive/Production mutation is required;
+- supplemental/private sale inventory and Schedule A requirements remain in the Master Plan, but implementation must follow source-rights/canonical-identity gates and must not derail the current Search closure sequence;
+- Listing Workspace, E-blast, Reporting, Agreements, Offering Plans, Transactions/Money and referrals remain open downstream layers per the Master Plan.
+
+## 8. Continuous closure model
+
+Every material layer uses:
+
+`Layer → Proven defect/claim → evidence needed → evidence obtained → root cause → affected readers/writers → correction → direct tests → negative tests → integration/persistence → downstream/compliance → Preview/runtime → Production proof when authorized → closure`
 
 Allowed states:
 
@@ -172,137 +298,65 @@ Allowed states:
 - `CLOSED`
 - `HELD`
 - `UNVERIFIED`
+- `IMPLEMENTED LOCALLY — UNVERIFIED`
 - `ENVIRONMENT-UNEXERCISABLE`
 - `EXTERNAL-BLOCKED`
 - `SUPERSEDED`
-- `REOPENED because <new evidence/change>`
+- `REOPENED because <evidence>`
 
-A closed layer is not re-audited merely because context compacted. It reopens only if a new diff, dependency change, Production regression or contradictory evidence invalidates its proof.
+Forms additionally require:
 
-## 8. Compaction / restart protocol
+`create → save → reload → edit → save → reload`
 
-At every meaningful checkpoint and before a long agent session ends/compacts, update this file with:
+Green tests do not prove a workflow. Source-string assertions protect invariants but do not substitute for behavioral/runtime proof.
 
-- current program;
-- active Layer ID;
-- exact branch;
-- exact head SHA;
-- relevant PR;
-- current main SHA;
-- exact Production SHA/deployment identity when applicable;
-- exact changes made;
-- tests/CI;
-- live/provider/data proof;
-- ChatGPT audit status;
-- last item completed;
-- current blocker/held mutation;
-- next exact action;
-- newly discovered layers;
-- reopened layers and reason.
+## 9. Mutation boundaries
 
-After context compaction/new session:
+Continuous engineering does not imply continuous Production mutation authority.
+
+Explicit authorization is required before:
+
+- schema/migration/backfill;
+- direct Production Neon/DB mutation;
+- destructive Production cleanup;
+- R2 mutation/deletion;
+- environment/credential change;
+- force-push/squash/rebase of shared branches;
+- manual Production deployment/alias change.
+
+A held mutation freezes only that mutation. Continue safe unrelated implementation/tests/docs.
+
+## 10. Compaction / handoff protocol
+
+At every meaningful checkpoint update this file with:
+
+- current branch/head/PR;
+- current main and Production deployment where material;
+- exact completed layer and closure SHA;
+- active layer;
+- exact open blockers;
+- tests/CI/runtime/provider evidence;
+- auditor ruling;
+- controlled mutations still held;
+- next exact action.
+
+After compaction/new session:
 
 1. read `AI-START-HERE.md`;
-2. read the master plan;
-3. read this file;
-4. resolve current Git/main/Production identity fresh;
-5. compare fresh identity with recorded state;
-6. continue the active/next layer.
+2. read the Master Plan;
+3. read `docs/claude-instructions/CURRENT.md`;
+4. read this file;
+5. refresh Git/runtime/provider identity;
+6. continue the active layer.
 
-Do **not** restart from the beginning unless fresh evidence shows recorded state is invalid.
+Do not restart from the beginning.
 
-## 9. Proof-first rule — no improvement by assertion
+## 11. Last completed / current / next exact actions
 
-A change is not successful because Claude/Codex says it is fixed, code compiles, tests are green, a PR exists, or a merge/deploy occurred.
+**LAST COMPLETED SEARCH LAYER:** bounded public-Search §6 correctness sub-lane accepted at `2d55ce6a528adbeaf64584f031aa3711dd8be6bb`.
 
-For important layers preserve separate evidence fields:
+**CURRENT PRIMARY LAYER:** authenticated §6 final universe/count/pagination truth on PR #618.
 
-- `CLAUDE / CODEX CLAIMED`
-- `DURABLE GIT EVIDENCE`
-- `CI / TEST EVIDENCE`
-- `RUNTIME / PRODUCTION EVIDENCE`
-- `PROVIDER / COTALITY EVIDENCE` where applicable
-- `CHATGPT AUDITOR VERIFIED`
+**NEXT SEARCH ACTION:** reproduce/trace the remaining authenticated §6 selection/sort/report/count/compliance/exactness/complete-corpus/statistics/Search-Within-Results defects as one impact graph, correct root owners, prove them together, then continue directly to §7 unless a controlled authorization boundary is reached.
 
-Prefer RED-before/GREEN-after for critical correctness defects where feasible, plus negative/side-effect boundaries and exact runtime/Production canaries when applicable.
-
-If the repo does not contain the claimed durable change, classify it `UNVERIFIED`; do not infer that local work never happened.
-
-## 10. Operational improvement proof — baseline → change → measured delta
-
-Operational correctness and operational optimization are separate.
-
-If a change claims improvement to Neon CPU/compute, storage, cache, R2/media, shedding/retention or churn, require a before/after measurement from the environment where the claim applies.
-
-Every measurement carries:
-
-- value;
-- timestamp;
-- environment;
-- exact query/probe/source;
-- relevant SHA/deployment;
-- comparison baseline.
-
-Historical numbers may not be reused as current constants.
-
-If the expected metric does not improve, do not call the optimization successful; investigate the discrepancy.
-
-For One Cycle/Neon, track available telemetry such as `skip_neon`, `neon_touched`, `backlog_due`, freshness heartbeat, `external_state_unavailable`, `backlogPending` and actual account compute metrics when available. If required external state is unavailable, CPU savings remain `EXTERNAL-BLOCKED`/`UNVERIFIED` while unrelated correctness work continues.
-
-For R2/media, track relevant object/storage/operation metrics when available plus referenced-media population, missing-from-R2, orphan candidates versus protected references, usable-photo health, hero correctness, policy re-evaluation/readmission/kept-parked/write-failed and backlog convergence. Never suppress valid ingestion/display merely to improve a usage metric.
-
-For cache changes, identify the actual cache layer first and prove invalidation/freshness plus any claimed request/database-work reduction. Do not invent cache metrics.
-
-For retention/shedding, verify the current canonical implementation and exact eligible data class before any claim; destructive Production shedding/backfill remains separately authorization-controlled.
-
-## 11. Added-write / removed-write audit
-
-For every material change:
-
-- **removed write** → prove all readers remain fresh;
-- **added write** → inspect triggers, background jobs, cache invalidation, retries, projections, reporting, audit, compliance and downstream consumers.
-
-Root cause is not closed until the invalid state is prevented and existing consumers are protected.
-
-## 12. Authorization boundary
-
-Continuous engineering does **not** mean perpetual Production-mutation authority.
-
-The agent may continuously investigate, audit, design and implement safe code/tests/docs within authority Maya grants for the run.
-
-Production schema migrations, destructive data cleanup/backfills, environment/credential changes, manual R2 mutations/deletes, force-push/squash/rebase, manual Production deployment/alias changes and other controlled mutations require the applicable explicit authority.
-
-A held mutation freezes only that mutation. All safe independent work continues.
-
-## 13. Current branch/status pointer
-
-Documentation branch / PR:
-
-- Branch: `agent/publish-mallan-platform-master-plan-2026-08-04`
-- PR: `#595` — draft / unmerged at last verified state
-- Master reconciliation commit: `806499bda28250cfe14bf9c6a087fad1f822eabe`
-
-Before relying on those values in a later session, refresh GitHub state. The PR may receive further documentation commits after this status update.
-
-## 14. Last item completed / next exact action
-
-**LAST ITEM COMPLETED:** current known product/business/system requirements reconciled into the single executable master baseline without undoing Maya's latest Search/CMA/Backend Listing decisions.
-
-**CURRENT ACTIVE PRODUCT LAYER:** `SEARCH-P0-001`.
-
-**NEXT EXACT ACTION:** from current code, inventory every Advanced Search criterion and trace each one end to end:
-
-```text
-UI CONTROL
-→ CANONICAL CRITERION
-→ CURRENT REQUEST PARAMETER
-→ CURRENT FILTER / QUERY TRANSLATOR
-→ VERIFIED COTALITY FIELD / DERIVATION
-→ TYPE / PICKLIST / NULL SEMANTICS
-→ RESULT BEHAVIOR
-→ SAVED SEARCH ROUND-TRIP
-→ COUNT / PAGINATION EFFECT
-→ CONTRACT TEST
-```
-
-Record anything visually active but ignored/mis-mapped as a defect immediately, then continue through the Search sequence rather than starting another planning audit.
+**CURRENT SECONDARY LANE:** Agent Roster/onboarding/access. Hard-delete implementation is reported locally at `5c7ef52e...` but remains unpushed/unverified. Its next action is push + independent review/Preview, while onboarding/create/invite/public-profile authority defects remain open.
