@@ -196,11 +196,37 @@ describe('the walk builds only what membership reads', () => {
     expect(route).toContain('!!openHouseParam ||');
   });
 
-  it('the page is hydrated from the source row, not from the walk candidate', () => {
-    // The candidate deliberately lacks media, slug, attribution and the
-    // compliance block. If the page were built from it, cards would render
-    // without photos.
-    expect(route).toContain('const displayable = universe.rows.map((c) => c.__row);');
+  it('the walk reads the membership projection, never the card projection', () => {
+    // The heavy members — features/remarks, the media JSON blob and the
+    // listing_media relation join — cost ~1.3ms per row of read and transfer.
+    // Across a 7,125-row universe that WAS the eleven seconds.
+    expect(route).toContain('select: MEMBERSHIP_LISTING_SELECT');
+    const membership = route.slice(
+      route.indexOf('const MEMBERSHIP_LISTING_SELECT'),
+      route.indexOf('} satisfies Prisma.ListingSelect;', route.indexOf('const MEMBERSHIP_LISTING_SELECT')),
+    );
+    expect(membership.length).toBeGreaterThan(0);
+    for (const heavy of ['media', 'listing_media', 'features', '_count']) {
+      expect(membership).not.toContain(`${heavy}:`);
+    }
+    // …and it must still carry everything membership DOES read.
+    for (const needed of [
+      'listing_id', 'status', 'rls_eligible', 'idx_display_yn',
+      'internet_entire_listing_display_yn', 'owner_opt_out', 'participant_only',
+      'address', 'modification_timestamp',
+    ]) {
+      expect(membership).toContain(`${needed}:`);
+    }
+  });
+
+  it('the page is hydrated with the CARD projection, and keeps the settled order', () => {
+    // The walk candidate deliberately lacks media, so building cards from it
+    // would render a page of photoless listings. The page is re-read with the
+    // full select — and reordered from the settled page rather than from the
+    // database, because membership decided that order and the count describes it.
+    expect(route).toContain('where: { listing_id: { in: pageListingIds } }');
+    expect(route).toContain('select: PAGE_LISTING_SELECT');
+    expect(route).toContain('.map((id) => byListingId.get(id))');
     expect(route).toContain('dbListingToPublicDTO(l, { hadFeedRelationalRows:');
   });
 

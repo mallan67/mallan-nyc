@@ -5,6 +5,7 @@ import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
 import { toPublicDTO, annotateCoListedSiblings } from '@/lib/idx/public-dto';
 import { CARD_SELECT_FIELDS } from '@/lib/idx/card-fields';
+import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { geocodeListings } from '@/lib/geo/geocode';
 import { filterDisplayableDbListings, dbListingToPublicDTO, classifyDbListing, type DbListing } from '@/lib/idx/db-to-public-dto';
@@ -72,6 +73,117 @@ const PUBLIC_CANDIDATE_BATCH = 500;
 const PUBLIC_TRESTLE_CANDIDATE_BUDGET = 1_000;
 const PUBLIC_TRESTLE_MIN_CANDIDATES = 200;
 
+/**
+ * EVERYTHING A CARD NEEDS — used for the PAGE, never for the walk.
+ *
+ * 43 scalar columns plus `features` (which carries ~2.6KB of PublicRemarks),
+ * the `media` JSON blob, and a filtered `listing_media` relation join. Read for
+ * fifty rows that is nothing; read for a 7,125-row candidate universe it was
+ * ~1.3ms per row of pure database read and transfer, and it is what made a
+ * corrected public search take eleven seconds. Membership never looks at any of
+ * the heavy members.
+ */
+const PAGE_LISTING_SELECT = {
+    id: true,
+    listing_id: true,
+    status: true,
+    listing_type: true,
+    property_type: true,
+    property_sub_type: true,
+    list_price: true,
+    bedrooms_total: true,
+    bathrooms_full: true,
+    bathrooms_half: true,
+    living_area: true,
+    borough: true,
+    neighborhood: true,
+    postal_code: true,
+    address: true,
+    features: true,
+    // dbListingToPublicDTO derives several public fields ONLY from
+    // raw_data (the full Trestle payload): virtualTourURL
+    // (VirtualTourURLBranded/Unbranded — not stored in `features`,
+    // which excludes the B26 media group), plus previousListPrice,
+    // daysOnMarket, leaseAmount, availabilityDate, on/closeDate.
+    // Omitting raw_data silently dropped all of these from DB-backed
+    // cards (e.g. the PR-C 3D Tour badge never showed). Response is
+    // cached (5 min), so the extra JSON is amortized.
+    raw_data: true,
+    // PR 4: keep reading `media` JSON as the fallback source for
+    // the 0.3% of listings not yet mirrored into listing_media.
+    media: true,
+    // Phase B: typed agent columns so the public DTO resolves attribution TYPED-FIRST.
+    list_agent_full_name: true, list_office_name: true,
+    list_agent_email: true, list_agent_direct_phone: true,
+    list_office_mls_id: true, list_agent_mls_id: true,
+    co_list_office_mls_id: true, co_list_agent_mls_id: true,
+    // C1 fix (2026-05-13): provenance signals needed by the DTO
+    // to distinguish Mallan exclusives (agent_id / owner_client_id)
+    // from website-only commercial (rls_eligible=false) from
+    // third-party IDX/RLS (everything else). Without these the DTO
+    // hard-codes `_source: "exclusive"` for every row.
+    agent_id: true,
+    owner_client_id: true,
+    rls_eligible: true,
+    idx_display_yn: true,
+    internet_entire_listing_display_yn: true,
+    internet_address_display_yn: true,
+    owner_opt_out: true,
+    participant_only: true,
+    listing_contract_date: true,
+    modification_timestamp: true,
+    created_at: true,
+    updated_at: true,
+    // PR 4 reader swap — relational media table. Filtered to
+    // active rows and ordered by (order, id) so the resolver
+    // receives a stable input. Selected columns mirror
+    // ListingMediaTableRow exactly so we don't over-fetch.
+    listing_media: {
+      where: { status: 'active' },
+      orderBy: [{ order: 'asc' }, { id: 'asc' }],
+      select: {
+        // media_key: MIXED-GALLERY COMPOSITION. resolveDbListingMedia treats an
+        // all-`crm:` relational set as a SUPPLEMENT to the legacy Cotality feed
+        // JSON rather than as the whole gallery; without this column that case is
+        // undetectable and one CRM upload hides the entire feed gallery.
+        media_key: true,
+        media_url_original: true,
+        media_url_cached: true,
+        media_type: true,
+        media_category: true,
+        media_classification: true,
+        order: true,
+        preferred_photo_yn: true,
+        status: true,
+      },
+    },
+    // All-status existence signal for the DTO's media authority (this
+    // select is ACTIVE-only). Without it, a Mallan exclusive whose
+    // relational photos were all deleted would read as "never imported"
+    // and resurrect deleted photos from the legacy JSON. Same batched
+    // query — no N+1 (Codex review, 2026-07-16).
+    _count: { select: { listing_media: true } },
+} satisfies Prisma.ListingSelect;
+
+/**
+ * EVERYTHING MEMBERSHIP NEEDS, AND NOTHING ELSE.
+ *
+ * The six distribution-gate columns, the listing identity, the address the
+ * canonical physical-unit key is built from, and the timestamp reconciliation
+ * uses to pick a winner between two Mallan rows. No media, no relation join, no
+ * remarks.
+ */
+const MEMBERSHIP_LISTING_SELECT = {
+  listing_id: true,
+  status: true,
+  rls_eligible: true,
+  idx_display_yn: true,
+  internet_entire_listing_display_yn: true,
+  owner_opt_out: true,
+  participant_only: true,
+  address: true,
+  modification_timestamp: true,
+} satisfies Prisma.ListingSelect;
 /** Pages of the OpenHouse resource one request may walk before refusing. */
 const OPEN_HOUSE_MAX_PAGES = 40;
 const OPEN_HOUSE_PAGE_SIZE = 500;
@@ -448,87 +560,7 @@ export async function GET(request: Request) {
               orderBy: dbOrderBy,
               skip: batchSkip,
               take: batchTake,
-              select: {
-                id: true,
-                listing_id: true,
-                status: true,
-                listing_type: true,
-                property_type: true,
-                property_sub_type: true,
-                list_price: true,
-                bedrooms_total: true,
-                bathrooms_full: true,
-                bathrooms_half: true,
-                living_area: true,
-                borough: true,
-                neighborhood: true,
-                postal_code: true,
-                address: true,
-                features: true,
-                // dbListingToPublicDTO derives several public fields ONLY from
-                // raw_data (the full Trestle payload): virtualTourURL
-                // (VirtualTourURLBranded/Unbranded — not stored in `features`,
-                // which excludes the B26 media group), plus previousListPrice,
-                // daysOnMarket, leaseAmount, availabilityDate, on/closeDate.
-                // Omitting raw_data silently dropped all of these from DB-backed
-                // cards (e.g. the PR-C 3D Tour badge never showed). Response is
-                // cached (5 min), so the extra JSON is amortized.
-                raw_data: true,
-                // PR 4: keep reading `media` JSON as the fallback source for
-                // the 0.3% of listings not yet mirrored into listing_media.
-                media: true,
-                // Phase B: typed agent columns so the public DTO resolves attribution TYPED-FIRST.
-                list_agent_full_name: true, list_office_name: true,
-                list_agent_email: true, list_agent_direct_phone: true,
-                list_office_mls_id: true, list_agent_mls_id: true,
-                co_list_office_mls_id: true, co_list_agent_mls_id: true,
-                // C1 fix (2026-05-13): provenance signals needed by the DTO
-                // to distinguish Mallan exclusives (agent_id / owner_client_id)
-                // from website-only commercial (rls_eligible=false) from
-                // third-party IDX/RLS (everything else). Without these the DTO
-                // hard-codes `_source: "exclusive"` for every row.
-                agent_id: true,
-                owner_client_id: true,
-                rls_eligible: true,
-                idx_display_yn: true,
-                internet_entire_listing_display_yn: true,
-                internet_address_display_yn: true,
-                owner_opt_out: true,
-                participant_only: true,
-                listing_contract_date: true,
-                modification_timestamp: true,
-                created_at: true,
-                updated_at: true,
-                // PR 4 reader swap — relational media table. Filtered to
-                // active rows and ordered by (order, id) so the resolver
-                // receives a stable input. Selected columns mirror
-                // ListingMediaTableRow exactly so we don't over-fetch.
-                listing_media: {
-                  where: { status: 'active' },
-                  orderBy: [{ order: 'asc' }, { id: 'asc' }],
-                  select: {
-                    // media_key: MIXED-GALLERY COMPOSITION. resolveDbListingMedia treats an
-                    // all-`crm:` relational set as a SUPPLEMENT to the legacy Cotality feed
-                    // JSON rather than as the whole gallery; without this column that case is
-                    // undetectable and one CRM upload hides the entire feed gallery.
-                    media_key: true,
-                    media_url_original: true,
-                    media_url_cached: true,
-                    media_type: true,
-                    media_category: true,
-                    media_classification: true,
-                    order: true,
-                    preferred_photo_yn: true,
-                    status: true,
-                  },
-                },
-                // All-status existence signal for the DTO's media authority (this
-                // select is ACTIVE-only). Without it, a Mallan exclusive whose
-                // relational photos were all deleted would read as "never imported"
-                // and resurrect deleted photos from the legacy JSON. Same batched
-                // query — no N+1 (Codex review, 2026-07-16).
-                _count: { select: { listing_media: true } },
-              },
+              select: PAGE_LISTING_SELECT
             });
 
           // OPEN HOUSE MEMBERSHIP IS ESTABLISHED FIRST, OR THE CRITERION IS REFUSED.
@@ -639,8 +671,29 @@ export async function GET(request: Request) {
           // last thing that happens, and `count` describes the same set the
           // cards come from.
           const universe = await assemblePublicUniverse<DbListing, DbCandidate>({
+            // READ WHAT MEMBERSHIP NEEDS, NOT WHAT A CARD NEEDS.
+            //
+            // Measured on Preview: with DTO construction already removed from
+            // this path, a 7,125-row walk still cost ~9.4s — ~1.3ms per row of
+            // database read and transfer, because every candidate arrived with
+            // ~2.6KB of remarks, a media JSON blob and a filtered relation join
+            // for photos nobody was going to look at. A corpus filter still
+            // needs the full row (it derives its five fields through the same
+            // DTO the page uses), and those searches legitimately do more work.
             readBatch: async (batchSkip, batchTake) =>
-              (await readCandidateBatch(batchSkip, batchTake)).map(serializeCandidate),
+              corpusFiltersActive
+                ? (await readCandidateBatch(batchSkip, batchTake)).map(serializeCandidate)
+                : ((await prisma.listing.findMany({
+                    where: dbWhere,
+                    orderBy: dbOrderBy,
+                    skip: batchSkip,
+                    take: batchTake,
+                    select: MEMBERSHIP_LISTING_SELECT,
+                    // The membership projection carries no BigInt column, so it
+                    // needs no serialization pass. The gate helper reads only
+                    // the six columns above; the cast says so rather than
+                    // pretending this is a whole listing.
+                  })) as unknown as DbListing[]),
             // Display eligibility is already in `dbWhere`; this stays as
             // defense-in-depth. It runs HERE and not inside readBatch on
             // purpose: readBatch's row count is the exhaustion signal, and a
@@ -721,7 +774,33 @@ export async function GET(request: Request) {
             // identities in the public universe. See
             // docs/crm/listing-canonical-mallan-exclusive-audit-2026-05-28.md
             // and lib/listings/dedupe-crm-vs-idx.ts.
-            const displayable = universe.rows.map((c) => c.__row);
+            // HYDRATE THE PAGE, NOT THE UNIVERSE.
+            //
+            // When the walk used the membership projection its rows carry no
+            // media, so the fifty rows on screen are re-read with the full card
+            // select. One small indexed query by listing_id, against a walk that
+            // would otherwise have dragged every heavy column across thousands
+            // of rows. Order is restored from the settled page, not from the
+            // database — membership decided it, and a re-read must not reorder
+            // what the count already described.
+            const pageListingIds = universe.rows.map((c) => c.__row.listing_id);
+            let displayable: DbListing[];
+            if (corpusFiltersActive) {
+              displayable = universe.rows.map((c) => c.__row);
+            } else if (pageListingIds.length === 0) {
+              displayable = [];
+            } else {
+              const hydrated = (
+                await prisma.listing.findMany({
+                  where: { listing_id: { in: pageListingIds } },
+                  select: PAGE_LISTING_SELECT,
+                })
+              ).map(serializeCandidate);
+              const byListingId = new Map(hydrated.map((l) => [l.listing_id, l]));
+              displayable = pageListingIds
+                .map((id) => byListingId.get(id))
+                .filter((l): l is DbListing => !!l);
+            }
             // FEED-authority: ONE grouped query for the page (lib/media/feed-media-authority.ts).
             // Only genuinely ambiguous listings are queried — Mallan-owned are excluded, a listing
             // already holding an ACTIVE feed row is proven without a read, and a listing with no
@@ -1571,7 +1650,6 @@ export async function GET(request: Request) {
 // may be displayed publicly. Draft/Incomplete listings are NOT shown.
 
 import type { PublicListingDTO } from '@/lib/idx/public-dto';
-import type { Prisma } from '@prisma/client';
 
 async function fetchExclusiveListings(
   listingType?: string | null,
