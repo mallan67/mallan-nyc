@@ -192,6 +192,76 @@ describe('local filtering does not silently resize a counted page', () => {
   });
 });
 
+describe('the map states its coverage instead of implying completeness', () => {
+  const MAP = read('public/crm/js/render/results-map.js');
+  const FORM = read('public/crm/html/search-form-and-results.html');
+
+  it('a listing it cannot place is COUNTED, not just skipped', () => {
+    // Placement is still refused — inventing a position would be worse than
+    // omitting the pin. What changes is that the omission is no longer silent.
+    expect(MAP).toContain('_unplaceable++');
+    expect(MAP).toContain('searchResultsState.mapUnplaceableCount');
+  });
+
+  it('the gap is stated ON THE MAP, not only in the console', () => {
+    // The broker reading the map is the person who needs to know it is missing
+    // pins; a console warning reaches the developer instead.
+    expect(FORM).toContain('id="resultsMapCoverageNote"');
+    expect(MAP).toContain("getElementById('resultsMapCoverageNote')");
+    expect(MAP).toContain('could not be placed on the map');
+  });
+
+  it('the notice clears itself when every listing is placed', () => {
+    const block = MAP.slice(MAP.indexOf('var _coverageEl'), MAP.indexOf('return { type:'));
+    expect(block).toContain("_coverageEl.style.display = 'none'");
+  });
+
+  it('an APPROXIMATE pin is still labelled as approximate', () => {
+    // The centroid fallback derives a position rather than inventing a precise
+    // one, and must keep saying so — an approximate pin presented as exact is
+    // the defect this guard exists to prevent regressing.
+    expect(MAP).toContain('approx: approx');
+    expect(MAP).toContain('Approximate location');
+  });
+});
+
+describe('selection is durable by identity, across pages and actions', () => {
+  const SEL = read('public/crm/js/listing/listing-selection.js');
+
+  it('select-all UNIONS the page in rather than replacing the selection', () => {
+    // It assigned `selectedListings = getFilteredListings().map(...)`, so
+    // ticking the box on page 2 discarded every pick made on page 1.
+    const fn = SEL.slice(SEL.indexOf('function toggleSelectAll()'), SEL.indexOf('function updateSelectionActionBar'));
+    expect(fn).toContain('var pageIds =');
+    expect(fn).toContain('merged.indexOf(id) === -1');
+    expect(fn).not.toContain('selectedListings = getFilteredListings().map');
+  });
+
+  it('unticking removes only this page, never the whole selection', () => {
+    // It assigned `= []`, clearing listings the broker had picked on pages they
+    // were no longer looking at.
+    const fn = SEL.slice(SEL.indexOf('function toggleSelectAll()'), SEL.indexOf('function updateSelectionActionBar'));
+    expect(fn).toContain('pageIds.indexOf(id) === -1');
+    expect(fn).not.toMatch(/selectedListings = \[\];/);
+  });
+
+  it('removeFromResults does not prune the selection to the visible page first', () => {
+    // It filtered selectedListings down to ids on this page and assigned the
+    // result back — losing off-page picks BEFORE the removal ran, and then
+    // judging the "select at least one" guard by that truncated set.
+    const fn = SEL.slice(SEL.indexOf('function removeFromResults()'), SEL.indexOf('CLIENT WORKFLOW FUNCTIONS'));
+    expect(fn).toContain('var selected = (searchResultsState.selectedListings || []).slice();');
+    const beforeGuard = fn.slice(0, fn.indexOf('if (selected.length === 0)'));
+    expect(beforeGuard).not.toContain('currentIds.indexOf(id) !== -1');
+  });
+
+  it('a post-removal header never prints the page length as the result total', () => {
+    const fn = SEL.slice(SEL.indexOf('function removeFromResults()'), SEL.indexOf('CLIENT WORKFLOW FUNCTIONS'));
+    expect(fn).toContain('window.getResultScope');
+    expect(fn).toContain('shown on this page');
+  });
+});
+
 describe('a dead control is not left looking alive', () => {
   it('the unwired "Search in results" box is disabled', () => {
     expect(DEAD).toContain('#resultsSearchInput');

@@ -55,6 +55,7 @@
   // with random offset spread across the neighborhood area so pins don't stack.
   function buildGeoJSON(listings) {
     var features = [];
+    var _unplaceable = 0;
     // Track how many listings per neighborhood centroid to spiral-spread them
     var centroidCounts = {};
 
@@ -82,7 +83,18 @@
           approx = true;
         }
       }
-      if (!lat || !lng) continue;
+      // A LISTING THE MAP CANNOT PLACE IS COUNTED, NOT JUST SKIPPED.
+      //
+      // A listing with no coordinates and no resolvable neighbourhood centroid
+      // is dropped here — correctly, because inventing a position for it would
+      // be worse. But dropping it silently means the map shows fewer pins than
+      // the search found and says nothing, so a broker reading the map as the
+      // geography of their results is reading an incomplete picture presented
+      // as a complete one.
+      //
+      // The count is recorded so the surface can state it. Placement is still
+      // refused; only the silence is.
+      if (!lat || !lng) { _unplaceable++; continue; }
       features.push({
         type: 'Feature',
         geometry: { type: 'Point', coordinates: [lng, lat] },
@@ -114,6 +126,27 @@
           approx: approx,
         },
       });
+    }
+    // Published so the map surface can say how many results it could not place.
+    if (typeof searchResultsState !== 'undefined' && searchResultsState) {
+      searchResultsState.mapUnplaceableCount = _unplaceable;
+    }
+    // Stated on the map itself, not only in the console: a broker reading the
+    // map is the person who needs to know it is missing pins.
+    var _coverageEl = (typeof document !== 'undefined')
+      ? document.getElementById('resultsMapCoverageNote') : null;
+    if (_coverageEl) {
+      if (_unplaceable > 0) {
+        _coverageEl.textContent = _unplaceable + ' of ' + listings.length +
+          ' listings could not be placed on the map and are not shown as pins.';
+        _coverageEl.style.display = '';
+      } else {
+        _coverageEl.textContent = '';
+        _coverageEl.style.display = 'none';
+      }
+    }
+    if (_unplaceable > 0) {
+      console.warn('[Map] ' + _unplaceable + ' listing(s) could not be placed: no coordinates and no resolvable neighbourhood centroid. The map is showing fewer pins than the search returned.');
     }
     return { type: 'FeatureCollection', features: features };
   }

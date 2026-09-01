@@ -14,12 +14,37 @@
             renderSearchResults();
         }
 
+        /**
+         * SELECT-ALL ACTS ON WHAT IS ON SCREEN, WITHOUT DESTROYING WHAT IS NOT.
+         *
+         * This assigned `selectedListings = getFilteredListings().map(...)` and,
+         * when unchecked, `= []`. On a paged result those rows are ONE PAGE, so:
+         *
+         *   checking   discarded every listing selected on any other page and
+         *              replaced the selection with this page's ids;
+         *   unchecking cleared the ENTIRE selection, including listings the
+         *              broker had picked on pages they were no longer viewing.
+         *
+         * Selection is durable by listing identity — the server response says so
+         * — and a control scoped to the visible page must not silently reach
+         * outside it. The page's ids are now UNIONED in and REMOVED out, so
+         * picks made elsewhere survive either action.
+         */
         function toggleSelectAll() {
             var checkbox = document.getElementById('selectAllCheckbox') || document.getElementById('gridSelectAll');
+            var pageIds = getFilteredListings().map(function (l) { return l.id; });
+            var current = searchResultsState.selectedListings || [];
+
             if (checkbox && checkbox.checked) {
-                searchResultsState.selectedListings = getFilteredListings().map(l => l.id);
+                var merged = current.slice();
+                pageIds.forEach(function (id) {
+                    if (merged.indexOf(id) === -1) merged.push(id);
+                });
+                searchResultsState.selectedListings = merged;
             } else {
-                searchResultsState.selectedListings = [];
+                searchResultsState.selectedListings = current.filter(function (id) {
+                    return pageIds.indexOf(id) === -1;
+                });
             }
             localStorage.setItem('selectedListings', JSON.stringify(searchResultsState.selectedListings));
             updateSelectionActionBar();
@@ -67,20 +92,28 @@
         }
 
         function removeFromResults() {
-            // Validate: only keep IDs that exist in the current result set
-            var currentIds = (searchResultsState.filteredListings || listings).map(function(l) { return l.id; });
-            searchResultsState.selectedListings = searchResultsState.selectedListings.filter(function(id) {
-                return currentIds.indexOf(id) !== -1;
-            });
+            // THE SELECTION IS NOT PRUNED TO THE VISIBLE PAGE FIRST.
+            //
+            // This began by filtering `selectedListings` down to ids present in
+            // `filteredListings` — one server page on the authoritative path —
+            // and assigning the result back. A broker who had selected thirty
+            // listings across three pages therefore lost every pick that was not
+            // on screen, before the removal even ran, and the "select at least
+            // one" guard then judged them by that truncated set.
+            //
+            // Selection is durable by listing identity. Rows that are not on
+            // this page are still selected; they simply cannot be removed from a
+            // page they are not on, which the suppression list below handles.
+            var selected = (searchResultsState.selectedListings || []).slice();
 
-            if (searchResultsState.selectedListings.length === 0) {
+            if (selected.length === 0) {
                 showToast('Please select at least one listing to remove.', 'warning');
                 return;
             }
 
-            var removeCount = searchResultsState.selectedListings.length;
+            var removeCount = selected.length;
             var removeSet = {};
-            searchResultsState.selectedListings.forEach(function(id) { removeSet[id] = true; });
+            selected.forEach(function(id) { removeSet[id] = true; });
 
             // Actually remove from the filtered results (or create filtered copy of listings)
             var source = searchResultsState.filteredListings || listings.slice();
@@ -91,7 +124,7 @@
             // Store removed IDs so they stay removed during this session
             var removedKey = 'removedListings_' + LOGGED_IN_AGENT.id;
             var alreadyRemoved = JSON.parse(localStorage.getItem(removedKey)) || [];
-            searchResultsState.selectedListings.forEach(function(id) {
+            selected.forEach(function(id) {
                 if (alreadyRemoved.indexOf(id) === -1) alreadyRemoved.push(id);
             });
             localStorage.setItem(removedKey, JSON.stringify(alreadyRemoved));
@@ -103,9 +136,21 @@
             updateSelectionActionBar();
             renderSearchResults();
 
-            // Update total count display
+            // Update total count display.
+            //
+            // This printed the length of `filteredListings` as "N Results" —
+            // the PAGE length on an authoritative set, written over a total that
+            // described the whole search. Removing two rows from page 1 of 4,000
+            // results made the header read "48 Results".
             var totalEl = document.getElementById('totalResults');
-            if (totalEl) totalEl.textContent = (searchResultsState.filteredListings || []).length + ' Results';
+            if (totalEl) {
+                var _scope = (typeof window.getResultScope === 'function')
+                    ? window.getResultScope()
+                    : { isCompleteUniverse: true, loadedCount: (searchResultsState.filteredListings || []).length };
+                totalEl.textContent = _scope.isCompleteUniverse
+                    ? (searchResultsState.filteredListings || []).length + ' Results'
+                    : _scope.loadedCount + ' shown on this page';
+            }
 
             if (typeof showFlagToast === 'function') {
                 showFlagToast('Removed ' + removeCount + ' listing' + (removeCount !== 1 ? 's' : '') + ' from results');
