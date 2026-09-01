@@ -48,6 +48,7 @@ import { sendEmail } from '@/lib/email/sendgrid';
 import { escapeHtml } from '@/lib/sanitize';
 import { checkRouteRateLimit, extractClientIp } from '@/lib/middleware/rate-limiter';
 import { hashIp } from '@/lib/inquiries/create';
+import { professionalTitle } from '@/lib/agents/professional-title';
 
 export const dynamic = 'force-dynamic';
 
@@ -144,7 +145,9 @@ function buildAgentInquiryHtml(opts: {
         '<div style="border-top:1px solid #e5e7eb;padding-top:16px;">',
           '<p style="margin:0 0 2px;font-size:9px;text-transform:uppercase;color:#9ca3af;letter-spacing:1px;">From</p>',
           `<p style="margin:0 0 2px;font-size:15px;font-weight:700;">${e(opts.fromName)}</p>`,
-          `<p style="margin:0 0 2px;font-size:13px;color:#4b5563;">${e(opts.fromTitle)}</p>`,
+          opts.fromTitle
+            ? `<p style="margin:0 0 2px;font-size:13px;color:#4b5563;">${e(opts.fromTitle)}</p>`
+            : '',
           `<p style="margin:0 0 2px;font-size:13px;color:#4b5563;">${BROKERAGE_NAME} · License ${BROKERAGE_LICENSE}</p>`,
           `<p style="margin:0 0 2px;font-size:13px;color:#4b5563;">${BROKERAGE_ADDRESS}</p>`,
           `<p style="margin:0;font-size:13px;color:#2563eb;">${e(opts.fromPhone || BROKERAGE_PHONE)}${opts.fromEmail ? ' · ' + e(opts.fromEmail) : ''}</p>`,
@@ -204,14 +207,49 @@ export async function POST(req: NextRequest) {
     last_name?: string | null;
     role?: string | null;
   };
+  // Resolve the sender against the CANONICAL Agent record before advertising a
+  // professional designation. The JWT carries `role` (the CRM authorisation
+  // grant) but not `title` (the NY licence designation), and the two are not
+  // interchangeable: an Associate Broker holds a broker licence yet role
+  // "AGENT", so deriving the title from `role` advertised her as a
+  // "Licensed Real Estate Salesperson" — a false statement about a licensee
+  // in brokerage correspondence (NY DOS 19 NYCRR 175.25).
+  //
+  // Read-only, single row, and NO change to the session/JWT contract.
+  const senderId =
+    sessionUser.id != null
+      ? (typeof sessionUser.id === 'bigint' ? sessionUser.id : BigInt(sessionUser.id))
+      : null;
+  let senderRecord: {
+    full_name: string | null;
+    title: string | null;
+    license_type: string | null;
+    role: string | null;
+    phone: string | null;
+    email: string;
+  } | null = null;
+  try {
+    senderRecord = await prisma.agent.findFirst({
+      where: senderId != null ? { id: senderId } : { email: sessionUser.email ?? '' },
+      select: { full_name: true, title: true, license_type: true, role: true, phone: true, email: true },
+    });
+  } catch (err) {
+    // Fail LOUD in the log, then degrade to omitting the title. We must never
+    // substitute a guessed designation for one we could not read.
+    console.error(
+      '[agent-inquiry] could not resolve sender Agent record; sending without a professional title:',
+      err instanceof Error ? err.message : err,
+    );
+  }
+
   const fromName =
+    senderRecord?.full_name?.trim() ||
     [sessionUser.first_name, sessionUser.last_name].filter(Boolean).join(' ').trim() ||
     sessionUser.email ||
     'Mallan Agent';
-  const fromTitle =
-    sessionUser.role === 'BROKER' ? 'Licensed Real Estate Broker' : 'Licensed Real Estate Salesperson';
-  const fromEmail = sessionUser.email || '';
-  const fromPhone = ''; // Phone lookup deferred; CRM session doesn't currently expose phone
+  const fromTitle = professionalTitle(senderRecord);
+  const fromEmail = senderRecord?.email || sessionUser.email || '';
+  const fromPhone = senderRecord?.phone || '';
 
   const html = buildAgentInquiryHtml({
     listingId: body.listing_id,

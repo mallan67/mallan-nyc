@@ -26,11 +26,15 @@ import { makeRequest } from './helpers';
 // ─── Hand-rolled prisma mock (same pattern as
 // contact-form-consent.test.ts and email-pipeline-fail-loud.test.ts) ───
 const auditEventCreateMock = jest.fn(async () => ({ id: 1n }));
+// The route resolves the sender's PROFESSIONAL TITLE from the canonical Agent
+// record (the JWT carries `role`, the authorisation grant, not `title`).
+const agentFindFirstMock = jest.fn();
 
 jest.mock('@/lib/prisma', () => ({
   __esModule: true,
   default: {
     auditEvent: { create: auditEventCreateMock },
+    agent: { findFirst: agentFindFirstMock },
   },
 }));
 
@@ -76,6 +80,24 @@ function setEnv(key: 'NODE_ENV' | 'VERCEL_ENV', value: string | undefined) {
   (process.env as Record<string, string | undefined>)[key] = value;
 }
 
+/** Canonical Agent rows as the DB would return them for the title lookup. */
+const MAYA_RECORD = {
+  full_name: 'Maya Allan',
+  title: 'Licensed Real Estate Broker',
+  license_type: 'broker',
+  role: 'BROKER',
+  phone: '(646) 258-4460',
+  email: 'maya@mallan.nyc',
+};
+const CLAUDIA_RECORD = {
+  full_name: 'Claudia Milkowski',
+  title: 'Licensed Real Estate Associate Broker',
+  license_type: 'broker',   // NY licence designation
+  role: 'AGENT',            // CRM authorisation — NOT the principal broker
+  phone: '(646) 418-8388',
+  email: 'cmilkowski@mallan.nyc',
+};
+
 function authedSession() {
   return {
     id: 42n,
@@ -92,6 +114,8 @@ beforeEach(() => {
   auditEventCreateMock.mockClear();
   requireAgentOrBrokerMock.mockReset();
   requireAgentOrBrokerMock.mockResolvedValue(authedSession());
+  agentFindFirstMock.mockReset();
+  agentFindFirstMock.mockResolvedValue(MAYA_RECORD);
 });
 
 afterEach(() => {
@@ -212,7 +236,8 @@ describe('POST /api/crm/agent-inquiry — successful send', () => {
     expect(html).toContain('REBNY RLS');                                 // REBNY attribution
     expect(html).toContain('IDX Plus');                                  // IDX attribution
     expect(html).toContain('Maya Allan');                                // Sender (from session)
-    // Sender role label (BROKER → "Licensed Real Estate Broker")
+    // Sender's professional title, now read from the canonical Agent record
+    // rather than derived from the authorisation role.
     expect(html).toContain('Licensed Real Estate Broker');
     // Operator-supplied message rendered
     expect(html).toContain('Could you please provide showing availability');
@@ -287,5 +312,63 @@ describe('POST /api/crm/agent-inquiry — SMTP fail-loud (P0-B pattern)', () => 
     expect(auditEventCreateMock).toHaveBeenCalledTimes(1);
     const audit = (auditEventCreateMock.mock.calls[0] as unknown as Array<{ data: { action: string; changes: Record<string, unknown> } }>)[0].data;
     expect(audit.changes.error_class).toBe('send_failed');
+  });
+});
+
+describe('POST /api/crm/agent-inquiry — professional title vs authorisation', () => {
+  const htmlFromLastSend = () =>
+    (sendEmailMock.mock.calls[0] as unknown as SendEmailCallArgs)[2];
+
+  it('an Associate Broker is advertised as one, never as a Salesperson', async () => {
+    agentFindFirstMock.mockResolvedValue(CLAUDIA_RECORD);
+    requireAgentOrBrokerMock.mockResolvedValue({
+      id: 77n, email: 'cmilkowski@mallan.nyc',
+      first_name: 'Claudia', last_name: 'Milkowski',
+      role: 'AGENT', // authorisation stays AGENT
+    });
+
+    const { POST } = await import('@/app/api/crm/agent-inquiry/route');
+    await POST(makeRequest({ url: 'http://test/api/crm/agent-inquiry', body: validBody() }));
+
+    const html = htmlFromLastSend();
+    expect(html).toContain('Claudia Milkowski');
+    expect(html).toContain('Licensed Real Estate Associate Broker');
+    expect(html).not.toContain('Licensed Real Estate Salesperson');
+    // Her own phone now reaches the recipient (previously always the office).
+    expect(html).toContain('(646) 418-8388');
+  });
+
+  it('a salesperson agent is still advertised as a Salesperson', async () => {
+    agentFindFirstMock.mockResolvedValue({
+      full_name: 'Leda Gorgone', title: 'Licensed Real Estate Salesperson',
+      license_type: 'salesperson', role: 'AGENT',
+      phone: '(917) 207-5903', email: 'leda@mallan.nyc',
+    });
+    requireAgentOrBrokerMock.mockResolvedValue({
+      id: 55n, email: 'leda@mallan.nyc', first_name: 'Leda', last_name: 'Gorgone', role: 'AGENT',
+    });
+
+    const { POST } = await import('@/app/api/crm/agent-inquiry/route');
+    await POST(makeRequest({ url: 'http://test/api/crm/agent-inquiry', body: validBody() }));
+
+    const html = htmlFromLastSend();
+    expect(html).toContain('Licensed Real Estate Salesperson');
+    expect(html).not.toContain('Associate Broker');
+  });
+
+  it('asserts NO designation when the Agent record cannot be read', async () => {
+    // Must not fall back to guessing "Salesperson" for an unreadable licensee.
+    agentFindFirstMock.mockRejectedValue(new Error('db down'));
+    const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    const { POST } = await import('@/app/api/crm/agent-inquiry/route');
+    const res = await POST(makeRequest({ url: 'http://test/api/crm/agent-inquiry', body: validBody() }));
+
+    expect(res.status).toBe(200); // the inquiry still sends
+    const html = htmlFromLastSend();
+    expect(html).not.toContain('Licensed Real Estate Salesperson');
+    expect(html).not.toContain('Licensed Real Estate Broker');
+    expect(errSpy).toHaveBeenCalled(); // failed loudly in the log
+    errSpy.mockRestore();
   });
 });

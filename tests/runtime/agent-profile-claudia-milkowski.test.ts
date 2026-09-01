@@ -34,7 +34,7 @@ describe('canonical roster record', () => {
 
   it('carries the supplied identity verbatim', () => {
     expect(claudia.name).toBe('Claudia Milkowski');
-    expect(claudia.title).toBe('Associate Real Estate Broker');
+    expect(claudia.title).toBe('Licensed Real Estate Associate Broker');
     expect(claudia.email).toBe('cmilkowski@mallan.nyc');
     expect(claudia.phone).toBe('(646) 418-8388');
     expect(claudia.languages).toEqual(['English', 'Spanish']);
@@ -110,7 +110,7 @@ describe('prisma seed agrees with the roster record', () => {
     expect(seedSrc).toContain('public_slug: "claudia-milkowski"');
     expect(seedSrc).toContain('email: "cmilkowski@mallan.nyc"');
     expect(seedSrc).toContain('photo: "/images/agents/claudia-milkowski.jpg"');
-    expect(seedSrc).toContain('title: "Associate Real Estate Broker"');
+    expect(seedSrc).toContain('title: "Licensed Real Estate Associate Broker"');
     expect(seedSrc).toContain('license_no: "10301200574"');
   });
 
@@ -152,7 +152,7 @@ describe('seed-agents.ts role derivation', () => {
       };
     };
     expect(classify('Licensed Real Estate Broker')).toEqual({ license_type: 'broker', role: 'BROKER' });
-    expect(classify('Associate Real Estate Broker')).toEqual({ license_type: 'broker', role: 'AGENT' });
+    expect(classify('Licensed Real Estate Associate Broker')).toEqual({ license_type: 'broker', role: 'AGENT' });
     expect(classify('Licensed Real Estate Salesperson')).toEqual({ license_type: 'salesperson', role: 'AGENT' });
   });
 });
