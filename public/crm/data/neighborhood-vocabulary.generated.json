@@ -7,9 +7,9 @@
     "universe": "ALL Property rows — no PropertyType restriction",
     "evidence": "artifacts/subdivision-full-feed-2026-08-31.json",
     "boroughResolution": "artifacts/neighborhood-borough-resolution.json",
-    "totalIdentities": 651,
+    "totalIdentities": 663,
     "offeredIdentities": 233,
-    "ambiguousNames": 38
+    "ambiguousNames": 16
   },
   "boroughLabels": {
     "Manhattan": "Manhattan",
@@ -631,14 +631,36 @@
       "offered": true
     },
     {
-      "label": "Brooklyn",
+      "label": "Brooklyn (Brooklyn)",
       "spellings": [
         "Brooklyn",
         "BROOKLYN"
       ],
-      "rows": 1173,
+      "rows": 1156,
       "borough": "Brooklyn",
       "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Brooklyn (Manhattan)",
+      "spellings": [
+        "Brooklyn",
+        "BROOKLYN"
+      ],
+      "rows": 9,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "Brooklyn (Queens)",
+      "spellings": [
+        "Brooklyn",
+        "BROOKLYN"
+      ],
+      "rows": 8,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
       "offered": false
     },
     {
@@ -3465,12 +3487,34 @@
       "offered": false
     },
     {
-      "label": "Manhattan",
+      "label": "Manhattan (Bronx)",
       "spellings": [
         "Manhattan",
         "MANHATTAN"
       ],
-      "rows": 875,
+      "rows": 7,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
+    },
+    {
+      "label": "Manhattan (Brooklyn)",
+      "spellings": [
+        "Manhattan",
+        "MANHATTAN"
+      ],
+      "rows": 2,
+      "borough": "Brooklyn",
+      "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "Manhattan (Manhattan)",
+      "spellings": [
+        "Manhattan",
+        "MANHATTAN"
+      ],
+      "rows": 866,
       "borough": "Manhattan",
       "boroughLabel": "Manhattan",
       "offered": false
@@ -4093,13 +4137,43 @@
       "offered": false
     },
     {
-      "label": "New York City",
+      "label": "New York City (Bronx)",
       "spellings": [
         "New York City"
       ],
-      "rows": 23,
+      "rows": 1,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
+    },
+    {
+      "label": "New York City (Brooklyn)",
+      "spellings": [
+        "New York City"
+      ],
+      "rows": 20,
       "borough": "Brooklyn",
       "boroughLabel": "Brooklyn",
+      "offered": false
+    },
+    {
+      "label": "New York City (Manhattan)",
+      "spellings": [
+        "New York City"
+      ],
+      "rows": 1,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "New York City (Queens)",
+      "spellings": [
+        "New York City"
+      ],
+      "rows": 1,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
       "offered": false
     },
     {
@@ -4230,6 +4304,16 @@
       "offered": true
     },
     {
+      "label": "null (Bronx)",
+      "spellings": [
+        "null"
+      ],
+      "rows": 116,
+      "borough": "Bronx",
+      "boroughLabel": "Bronx",
+      "offered": false
+    },
+    {
       "label": "null (Brooklyn)",
       "spellings": [
         "null"
@@ -4247,6 +4331,26 @@
       "rows": 1255,
       "borough": "Manhattan",
       "boroughLabel": "Manhattan",
+      "offered": false
+    },
+    {
+      "label": "null (Queens)",
+      "spellings": [
+        "null"
+      ],
+      "rows": 102,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
+      "label": "null (Staten Island)",
+      "spellings": [
+        "null"
+      ],
+      "rows": 6,
+      "borough": "StatenIsland",
+      "boroughLabel": "Staten Island",
       "offered": false
     },
     {
@@ -5594,6 +5698,17 @@
       "offered": false
     },
     {
+      "label": "Staten Island (Queens)",
+      "spellings": [
+        "Staten Island",
+        "STATEN ISLAND"
+      ],
+      "rows": 1,
+      "borough": "Queens",
+      "boroughLabel": "Queens",
+      "offered": false
+    },
+    {
       "label": "Staten Island (Staten Island)",
       "spellings": [
         "Staten Island",
@@ -5747,13 +5862,23 @@
       "offered": false
     },
     {
-      "label": "The Bronx (Other)",
+      "label": "The Bronx (Other) (Bronx)",
       "spellings": [
         "The Bronx (Other)"
       ],
-      "rows": 30,
+      "rows": 29,
       "borough": "Bronx",
       "boroughLabel": "Bronx",
+      "offered": false
+    },
+    {
+      "label": "The Bronx (Other) (Manhattan)",
+      "spellings": [
+        "The Bronx (Other)"
+      ],
+      "rows": 1,
+      "borough": "Manhattan",
+      "boroughLabel": "Manhattan",
       "offered": false
     },
     {

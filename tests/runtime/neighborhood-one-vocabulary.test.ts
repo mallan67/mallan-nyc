@@ -87,9 +87,23 @@ describe('the browser and the server share one neighbourhood vocabulary', () => 
     // made a Closed/comps search for Gramercy hard-fail.
     //
     // So: offered is a presentation decision; accepted is an execution fact.
+    // THROUGH THE WIRE, not by calling the executor with a bare string.
+    //
+    // Calling neighborhoodOData(name) directly skips the serializer, the query
+    // string and the route parser — the exact three hops that used to corrupt
+    // `Williamsburg,North` into `Williamsburg` + `North`. A value is only
+    // searchable if it survives the path a broker actually uses, so this builds
+    // the real request parameter and parses it the way the route does.
+    const throughWire = (name: string): string | null => {
+      const qs = new URLSearchParams();
+      qs.append('neighborhood', name);
+      const parsed = new URLSearchParams(qs.toString());
+      const values = parsed.getAll('neighborhood').map((v) => v.trim()).filter(Boolean);
+      return neighborhoodOData(values);
+    };
     const unsearchable = Object.keys(SUBDIVISION_NAME_LIVE).filter((n) => {
       try {
-        return neighborhoodOData([n]) === null;
+        return throughWire(n) === null;
       } catch {
         return true;
       }

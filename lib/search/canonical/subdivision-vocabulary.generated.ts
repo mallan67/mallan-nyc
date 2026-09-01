@@ -14,7 +14,7 @@
  * and a reason; the observed evidence is preserved uninterpreted in
  * artifacts/neighborhood-borough-resolution.json.
  *
- * 651 identities, 233 offered, 38 names left AMBIGUOUS
+ * 663 identities, 233 offered, 16 names left AMBIGUOUS
  * (no decision and no borough at the declared floor). A bare ambiguous name
  * resolves to NOTHING and must be qualified — it is never auto-assigned.
  *
@@ -96,7 +96,9 @@ export const NEIGHBORHOOD_IDENTITIES: readonly NeighborhoodIdentity[] = Object.f
   {"label":"Bronxdale","spellings":["Bronxdale"],"rows":17,"borough":"Bronx","boroughLabel":"Bronx","offered":true},
   {"label":"BRONXOTHER","spellings":["BRONXOTHER","Bronx (Other)"],"rows":3,"borough":"Bronx","boroughLabel":"Bronx","offered":false},
   {"label":"Bronxwood","spellings":["Bronxwood"],"rows":14,"borough":"Bronx","boroughLabel":"Bronx","offered":true},
-  {"label":"Brooklyn","spellings":["Brooklyn","BROOKLYN"],"rows":1173,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
+  {"label":"Brooklyn (Brooklyn)","spellings":["Brooklyn","BROOKLYN"],"rows":1156,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
+  {"label":"Brooklyn (Manhattan)","spellings":["Brooklyn","BROOKLYN"],"rows":9,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
+  {"label":"Brooklyn (Queens)","spellings":["Brooklyn","BROOKLYN"],"rows":8,"borough":"Queens","boroughLabel":"Queens","offered":false},
   {"label":"BROOKLYN [ALL]","spellings":["BROOKLYN [ALL]"],"rows":27,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
   {"label":"Brooklyn Heights","spellings":["Brooklyn Heights"],"rows":8779,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":true},
   {"label":"Brookville","spellings":["Brookville"],"rows":3,"borough":"Queens","boroughLabel":"Queens","offered":false},
@@ -376,7 +378,9 @@ export const NEIGHBORHOOD_IDENTITIES: readonly NeighborhoodIdentity[] = Object.f
   {"label":"Madison","spellings":["Madison","MADISON"],"rows":54,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":true},
   {"label":"Malba","spellings":["Malba"],"rows":2,"borough":"Queens","boroughLabel":"Queens","offered":false},
   {"label":"MANBEACH","spellings":["MANBEACH"],"rows":1,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
-  {"label":"Manhattan","spellings":["Manhattan","MANHATTAN"],"rows":875,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
+  {"label":"Manhattan (Bronx)","spellings":["Manhattan","MANHATTAN"],"rows":7,"borough":"Bronx","boroughLabel":"Bronx","offered":false},
+  {"label":"Manhattan (Brooklyn)","spellings":["Manhattan","MANHATTAN"],"rows":2,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
+  {"label":"Manhattan (Manhattan)","spellings":["Manhattan","MANHATTAN"],"rows":866,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
   {"label":"Manhattan Avenue","spellings":["Manhattan Avenue"],"rows":6,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
   {"label":"Manhattan Beach","spellings":["Manhattan Beach"],"rows":90,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":true},
   {"label":"Manhattan Terrace","spellings":["Manhattan Terrace"],"rows":9,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
@@ -438,7 +442,10 @@ export const NEIGHBORHOOD_IDENTITIES: readonly NeighborhoodIdentity[] = Object.f
   {"label":"NEW UTRECHT","spellings":["NEW UTRECHT"],"rows":2,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
   {"label":"NEW YORK (Brooklyn)","spellings":["NEW YORK"],"rows":5,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
   {"label":"NEW YORK (Manhattan)","spellings":["NEW YORK"],"rows":1,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
-  {"label":"New York City","spellings":["New York City"],"rows":23,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
+  {"label":"New York City (Bronx)","spellings":["New York City"],"rows":1,"borough":"Bronx","boroughLabel":"Bronx","offered":false},
+  {"label":"New York City (Brooklyn)","spellings":["New York City"],"rows":20,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
+  {"label":"New York City (Manhattan)","spellings":["New York City"],"rows":1,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
+  {"label":"New York City (Queens)","spellings":["New York City"],"rows":1,"borough":"Queens","boroughLabel":"Queens","offered":false},
   {"label":"NoHo","spellings":["Noho","NoHo","NOHO"],"rows":882,"borough":"Manhattan","boroughLabel":"Manhattan","offered":true},
   {"label":"Noho/Central Village","spellings":["Noho/Central Village"],"rows":1,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
   {"label":"Nolita","spellings":["Nolita","NoLita","NoLIta"],"rows":1096,"borough":"Manhattan","boroughLabel":"Manhattan","offered":true},
@@ -451,8 +458,11 @@ export const NEIGHBORHOOD_IDENTITIES: readonly NeighborhoodIdentity[] = Object.f
   {"label":"Northeast Flatbush","spellings":["Northeast Flatbush"],"rows":4,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
   {"label":"NORTHWEST BRONX","spellings":["NORTHWEST BRONX"],"rows":2,"borough":"Bronx","boroughLabel":"Bronx","offered":false},
   {"label":"Norwood","spellings":["Norwood"],"rows":136,"borough":"Bronx","boroughLabel":"Bronx","offered":true},
+  {"label":"null (Bronx)","spellings":["null"],"rows":116,"borough":"Bronx","boroughLabel":"Bronx","offered":false},
   {"label":"null (Brooklyn)","spellings":["null"],"rows":2029,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
   {"label":"null (Manhattan)","spellings":["null"],"rows":1255,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
+  {"label":"null (Queens)","spellings":["null"],"rows":102,"borough":"Queens","boroughLabel":"Queens","offered":false},
+  {"label":"null (Staten Island)","spellings":["null"],"rows":6,"borough":"StatenIsland","boroughLabel":"Staten Island","offered":false},
   {"label":"NYU","spellings":["NYU"],"rows":17,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
   {"label":"Oakland Gardens","spellings":["Oakland Gardens"],"rows":34,"borough":"Queens","boroughLabel":"Queens","offered":true},
   {"label":"Oakwood","spellings":["Oakwood"],"rows":8,"borough":"StatenIsland","boroughLabel":"Staten Island","offered":false},
@@ -585,6 +595,7 @@ export const NEIGHBORHOOD_IDENTITIES: readonly NeighborhoodIdentity[] = Object.f
   {"label":"Staten Island (Brooklyn)","spellings":["Staten Island","STATEN ISLAND"],"rows":24,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
   {"label":"Staten Island (Manhattan)","spellings":["Staten Island","STATEN ISLAND"],"rows":9,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
   {"label":"Staten Island (Othe","spellings":["Staten Island (Othe"],"rows":1,"borough":"StatenIsland","boroughLabel":"Staten Island","offered":false},
+  {"label":"Staten Island (Queens)","spellings":["Staten Island","STATEN ISLAND"],"rows":1,"borough":"Queens","boroughLabel":"Queens","offered":false},
   {"label":"Staten Island (Staten Island)","spellings":["Staten Island","STATEN ISLAND"],"rows":30,"borough":"StatenIsland","boroughLabel":"Staten Island","offered":false},
   {"label":"Steinway-Ditmars","spellings":["Steinway-Ditmars"],"rows":74,"borough":"Queens","boroughLabel":"Queens","offered":false},
   {"label":"STUYHEI","spellings":["STUYHEI"],"rows":5,"borough":"Brooklyn","boroughLabel":"Brooklyn","offered":false},
@@ -600,7 +611,8 @@ export const NEIGHBORHOOD_IDENTITIES: readonly NeighborhoodIdentity[] = Object.f
   {"label":"Sutton Area","spellings":["Sutton Area"],"rows":111,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
   {"label":"Sutton Place","spellings":["Sutton Place"],"rows":4745,"borough":"Manhattan","boroughLabel":"Manhattan","offered":true},
   {"label":"The Bronx","spellings":["The Bronx"],"rows":2,"borough":"Bronx","boroughLabel":"Bronx","offered":false},
-  {"label":"The Bronx (Other)","spellings":["The Bronx (Other)"],"rows":30,"borough":"Bronx","boroughLabel":"Bronx","offered":false},
+  {"label":"The Bronx (Other) (Bronx)","spellings":["The Bronx (Other)"],"rows":29,"borough":"Bronx","boroughLabel":"Bronx","offered":false},
+  {"label":"The Bronx (Other) (Manhattan)","spellings":["The Bronx (Other)"],"rows":1,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
   {"label":"The Rockaways","spellings":["The Rockaways"],"rows":5,"borough":"Queens","boroughLabel":"Queens","offered":false},
   {"label":"Theater District","spellings":["Theater District"],"rows":150,"borough":"Manhattan","boroughLabel":"Manhattan","offered":false},
   {"label":"Throggs Neck","spellings":["Throggs Neck"],"rows":11,"borough":"Bronx","boroughLabel":"Bronx","offered":false},

@@ -221,11 +221,21 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
   //
   // Both still FAIL CLOSED on a value with no live counterpart: a dropped
   // geographic criterion widens the search while returning HTTP 200.
-  const neighborhood = params.get("neighborhood");
-  if (neighborhood) {
-    const clause = neighborhoodOData(
-      neighborhood.split(",").map((v) => v.trim()).filter(Boolean),
-    );
+  // REPEATED PARAMETERS, NOT A COMMA-SEPARATED STRING.
+  //
+  // This read one `neighborhood` param and split it on commas, while the browser
+  // joined the selection with commas. That silently corrupts any provider value
+  // containing a comma, and the accepted Cotality vocabulary carries two:
+  // `Williamsburg,North` and `Williamsburg,South`. Selecting one arrived here as
+  // the two names `Williamsburg` and `North`, so the broker's criterion was
+  // changed before the authority ever saw it — and the executor then answered a
+  // question nobody asked.
+  //
+  // `getAll` takes each value exactly as sent. Provider data is never transport
+  // syntax, and no name is reshaped to make the wire easier.
+  const neighborhoods = params.getAll("neighborhood").map((v) => v.trim()).filter(Boolean);
+  if (neighborhoods.length > 0) {
+    const clause = neighborhoodOData(neighborhoods);
     if (clause) parts.push(clause);
   }
   const borough = params.get("borough");

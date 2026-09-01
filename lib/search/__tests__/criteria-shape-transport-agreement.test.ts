@@ -60,8 +60,14 @@ describe('declared value shape vs. executor behaviour', () => {
     // pass and this file would be decoration. An earlier census in this
     // workstream did exactly that and reported confident, wrong results.
     const params = multiValueParams();
-    expect(params.length).toBeGreaterThanOrEqual(4);
-    expect(params).toEqual(expect.arrayContaining(['neighborhood', 'borough', 'listingId']));
+    // NAMED, NOT COUNTED. `neighborhood` left this set on 2026-08-31: its values
+    // can contain a literal comma (`Williamsburg,North`), so it now travels as
+    // repeated query parameters and is read with getAll(). Lowering a threshold
+    // would have hidden that; naming the members says which criteria still use a
+    // comma separator and why the list changed.
+    expect(params).toEqual(expect.arrayContaining(['borough', 'listingId']));
+    expect(params).not.toContain('neighborhood');
+    expect(params.length).toBeGreaterThanOrEqual(3);
   });
 
   it('every comma-split criterion is declared as a SET, never as text', () => {

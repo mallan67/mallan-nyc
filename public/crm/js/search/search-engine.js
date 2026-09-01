@@ -532,7 +532,21 @@
             if (criteria.bathsMin) params.minBaths = criteria.bathsMin;
             if (criteria.bathsMax) params.maxBaths = criteria.bathsMax;
             if (criteria.neighborhoods && criteria.neighborhoods.length > 0) {
-                params.neighborhood = criteria.neighborhoods.join(',');
+                // A LIST, NOT A COMMA-JOINED STRING.
+                //
+                // This was `.join(',')` and the server answered with `.split(',')`,
+                // which silently corrupts any provider value that itself contains a
+                // comma. The accepted Cotality vocabulary carries two:
+                // `Williamsburg,North` and `Williamsburg,South`. Selecting one sent
+                // `neighborhood=Williamsburg,North` and the executor read it as TWO
+                // neighbourhoods — `Williamsburg` and `North` — so the broker's
+                // criterion changed before it reached the authority.
+                //
+                // Provider data must never be interpretable as transport syntax.
+                // The list travels as repeated query parameters, which cannot
+                // collide with any character a value may contain, and the provider
+                // spelling is passed through untouched.
+                params.neighborhood = criteria.neighborhoods.slice();
             }
             if (criteria.borough) params.borough = criteria.borough;
             if (criteria.propertySubType) params.propertySubType = criteria.propertySubType;

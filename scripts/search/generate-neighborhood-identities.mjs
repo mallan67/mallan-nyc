@@ -32,8 +32,10 @@
  *                              borough is treated as that borough. The residue is
  *                              recorded, never characterised.
  *   4. otherwise             — AMBIGUOUS. One identity per borough with real
- *                              presence, each labelled "Name, Borough". The bare
- *                              name then resolves to NEITHER and must be qualified.
+ *                              observed borough, each labelled "Name (Borough)".
+ *                              The bare name resolves to NONE of them and must be
+ *                              qualified. No presence cutoff: dropping small
+ *                              boroughs is a decision, and it hid inside this branch.
  *
  * There is NO plurality fallback. A 57/43 or 50/50 split acquires no borough just
  * because one bucket is larger.
@@ -93,6 +95,40 @@ const CANONICAL_BOROUGH = {
   glenoaks:          { borough: 'Queens',       reason: 'Glen Oaks is in Queens.' },
   lindenwood:        { borough: 'Queens',       reason: 'Lindenwood is in Queens.' },
   sugarhill:         { borough: 'Manhattan',    reason: 'Sugar Hill is in Harlem, Manhattan.' },
+
+  // ── DECIDED 2026-08-31, when the hidden 5% presence cutoff was removed ────
+  //
+  // Each of these sits between the 95% and 99% marks, so the declared dominance
+  // rule does not reach them. They were previously resolved by a SILENT filter
+  // that dropped any borough under 5% and then emitted a single unqualified
+  // identity — so a name whose own record said "never auto-assigned" auto-assigned.
+  //
+  // They are decided here instead, because each is an ordinary NYC fact rather
+  // than a reading of the counts. Names that are NOT ordinary NYC facts — borough
+  // names used as neighbourhoods, placeholders, and places outside the city —
+  // are deliberately absent and stay genuinely ambiguous.
+  fortgreene:        { borough: 'Brooklyn',     reason: 'Fort Greene is a Brooklyn neighbourhood.' },
+  riverdale:         { borough: 'Bronx',        reason: 'Riverdale is in the Bronx.' },
+  centralvillage:    { borough: 'Manhattan',    reason: 'Central Village is the Greenwich Village area of Manhattan.' },
+  concourse:         { borough: 'Bronx',        reason: 'The Concourse is in the Bronx.' },
+  gravesend:         { borough: 'Brooklyn',     reason: 'Gravesend is in Brooklyn.' },
+  vinegarhill:       { borough: 'Brooklyn',     reason: 'Vinegar Hill is in Brooklyn, beside DUMBO.' },
+  homecrest:         { borough: 'Brooklyn',     reason: 'Homecrest is in Brooklyn.' },
+  glendale:          { borough: 'Queens',       reason: 'Glendale is in Queens.' },
+  cypresshills:      { borough: 'Brooklyn',     reason: 'Cypress Hills is in Brooklyn.' },
+  bedfordpark:       { borough: 'Bronx',        reason: 'Bedford Park is in the Bronx.' },
+  woodhaven:         { borough: 'Queens',       reason: 'Woodhaven is in Queens.' },
+  williamsburgnside: { borough: 'Brooklyn',     reason: 'Williamsburg North Side is in Brooklyn.' },
+  richmondhill:      { borough: 'Queens',       reason: 'Richmond Hill is in Queens.' },
+  queensvillage:     { borough: 'Queens',       reason: 'Queens Village is in Queens.' },
+  ozonepark:         { borough: 'Queens',       reason: 'Ozone Park is in Queens.' },
+  southozonepark:    { borough: 'Queens',       reason: 'South Ozone Park is in Queens.' },
+  wests:             { borough: 'Manhattan',    reason: "West 30's is a Manhattan area label." },
+  meatpackingdistrict: { borough: 'Manhattan',  reason: 'The Meatpacking District is in Manhattan.' },
+  morrispark:        { borough: 'Bronx',        reason: 'Morris Park is in the Bronx.' },
+  baychester:        { borough: 'Bronx',        reason: 'Baychester is in the Bronx. The feed shows Bronx 26 / Manhattan 1, which does not reach the dominance floor — so this is a decision, not a count.' },
+  proslefr:          { borough: 'Brooklyn',     reason: 'Legacy code for Prospect Lefferts Gardens, Brooklyn.' },
+  dtwnbkyn:          { borough: 'Brooklyn',     reason: 'Legacy code for Downtown Brooklyn.' },
 };
 
 /**
@@ -105,8 +141,21 @@ const CANONICAL_BOROUGH = {
  */
 const DOMINANCE_FLOOR = 0.99;
 
-/** A borough must hold at least this share to count as a real presence for a split. */
-const SPLIT_PRESENCE_FLOOR = 0.05;
+// THE 5% PRESENCE CUTOFF IS GONE.
+//
+// It read: "a borough must hold at least this share to count as a real presence
+// for a split." That is a Mallan judgement about which observed evidence counts,
+// and it was applied inside the branch that declares NO decision was made —
+// labelled `cotality_observation`, reason "never auto-assigned".
+//
+// The effect was that 26 of 38 supposedly ambiguous names lost their minority
+// boroughs and were emitted as ONE unqualified identity, so a bare name resolved
+// after all. Baychester (Bronx 26 / Manhattan 1) is the plainest case: its record
+// says it must be qualified, and the runtime resolved it silently.
+//
+// True ambiguity now preserves EVERY observed borough with a positive count. A
+// name that should not be ambiguous gets an explicit decision above, where the
+// reason is visible and owned.
 
 /** PRESENTATION LABELS — Mallan naming, keyed by folded identity. */
 const LABEL_OVERRIDES = {
@@ -119,6 +168,9 @@ const BOROUGH_LABELS = {
   Manhattan: 'Manhattan', Brooklyn: 'Brooklyn', Queens: 'Queens',
   Bronx: 'Bronx', StatenIsland: 'Staten Island',
 };
+
+/** Same fold the probe used, so a resolution record can find its identities. */
+const FOLD_KEY = (v) => String(v).toLowerCase().replace(/[^a-z]/g, '');
 
 const onMarketNames = new Set((onmkt.neighborhood.values ?? []).map((v) => v.name));
 
@@ -160,10 +212,12 @@ for (const i of full.identities) {
   } else {
     // AMBIGUOUS. No decision exists and the evidence does not meet the floor, so
     // the name is split per borough and the bare form resolves to neither.
-    boroughs = counts.filter(([, n]) => n / total >= SPLIT_PRESENCE_FLOOR).map(([b]) => b);
+    // EVERY observed borough, with no cutoff. Dropping the small ones is how the
+    // bare name came to resolve while its record said it could not.
+    boroughs = counts.map(([b]) => b);
     basis = 'ambiguous_requires_borough';
-    reason = 'No Mallan decision and no borough at the declared floor. The bare name must be ' +
-             'qualified; it is never auto-assigned.';
+    reason = 'No Mallan decision and no borough at the declared floor. Every observed borough is ' +
+             'preserved, so the bare name must be qualified; it is never auto-assigned.';
   }
 
   const qualify = boroughs.length > 1 || basis === 'mallan_multi_place';
@@ -247,6 +301,50 @@ for (const r of resolutionLog) {
   if (Math.max(...Object.values(r.observed)) / tot < DOMINANCE_FLOOR) {
     throw new Error(`REFUSING: ${r.name} was resolved by dominance below the declared floor`);
   }
+}
+
+// ── AMBIGUITY MUST MEAN WHAT IT SAYS ────────────────────────────────────────
+//
+// The record said `ambiguous_requires_borough`, "never auto-assigned", owner
+// `cotality_observation` — while a hidden 5% cutoff quietly reduced 26 of 38 such
+// names to ONE borough and emitted them unqualified. Behaviour, basis, owner and
+// artifact all have to agree, so each of those is now checked.
+for (const r of resolutionLog) {
+  if (r.basis !== 'ambiguous_requires_borough') continue;
+  const observedBoroughs = Object.entries(r.observed).filter(([, n]) => n > 0).map(([b]) => b);
+
+  // 1. An ambiguous name keeps EVERY observed borough. No silent filtering.
+  const missing = observedBoroughs.filter((b) => !r.resolvedTo.includes(b));
+  if (missing.length) {
+    throw new Error(
+      `REFUSING: ${r.name} is ambiguous but discarded observed borough(s) ${missing.join(", ")} — ` +
+      `a cutoff is a Mallan decision and cannot hide inside an observation`,
+    );
+  }
+  // 2. …and therefore produces more than one identity.
+  if (r.resolvedTo.length < 2) {
+    throw new Error(`REFUSING: ${r.name} is ambiguous but produced ${r.resolvedTo.length} identity`);
+  }
+  // 3. …every one of which is qualified, so the bare name cannot resolve.
+  const emitted = identities.filter((i) => i.folded === FOLD_KEY(r.name));
+  const unqualified = emitted.filter((i) => !i.label.includes('('));
+  if (unqualified.length) {
+    throw new Error(`REFUSING: ${r.name} is ambiguous but emitted an UNQUALIFIED identity`);
+  }
+}
+
+// 4. The reported ambiguous count must equal the bare names that actually fail to
+//    resolve. A number that does not match the behaviour is how this hid.
+const byFoldedCount = new Map();
+for (const i of identities) byFoldedCount.set(i.folded, (byFoldedCount.get(i.folded) ?? 0) + 1);
+const bareUnresolvable = [...byFoldedCount.values()].filter((n) => n > 1).length;
+const declaredAmbiguous = resolutionLog.filter((r) => r.basis === 'ambiguous_requires_borough').length
+  + resolutionLog.filter((r) => r.basis === 'mallan_multi_place').length;
+if (bareUnresolvable !== declaredAmbiguous) {
+  throw new Error(
+    `REFUSING: ${declaredAmbiguous} names are declared ambiguous/multi-place but ${bareUnresolvable} ` +
+    `bare names actually fail to resolve`,
+  );
 }
 
 /** `folded` is derivable and is not emitted; see BY_FOLDED below. */

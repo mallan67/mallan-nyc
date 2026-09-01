@@ -213,9 +213,9 @@
       "resolvedTo": [
         "Bronx"
       ],
-      "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
-      "owner": "cotality_observation"
+      "basis": "mallan_canonical_borough",
+      "reason": "Baychester is in the Bronx. The feed shows Bronx 26 / Manhattan 1, which does not reach the dominance floor — so this is a decision, not a count.",
+      "owner": "mallan_canonical_geography"
     },
     {
       "name": "Bay Ridge",
@@ -279,9 +279,9 @@
       "resolvedTo": [
         "Bronx"
       ],
-      "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
-      "owner": "cotality_observation"
+      "basis": "mallan_canonical_borough",
+      "reason": "Bedford Park is in the Bronx.",
+      "owner": "mallan_canonical_geography"
     },
     {
       "name": "Bedford-Stuyvesant",
@@ -754,10 +754,12 @@
         "Queens": 8
       },
       "resolvedTo": [
-        "Brooklyn"
+        "Brooklyn",
+        "Manhattan",
+        "Queens"
       ],
       "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
+      "reason": "No Mallan decision and no borough at the declared floor. Every observed borough is preserved, so the bare name must be qualified; it is never auto-assigned.",
       "owner": "cotality_observation"
     },
     {
@@ -981,7 +983,7 @@
         "Bronx"
       ],
       "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
+      "reason": "No Mallan decision and no borough at the declared floor. Every observed borough is preserved, so the bare name must be qualified; it is never auto-assigned.",
       "owner": "cotality_observation"
     },
     {
@@ -1053,9 +1055,9 @@
       "resolvedTo": [
         "Manhattan"
       ],
-      "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
-      "owner": "cotality_observation"
+      "basis": "mallan_canonical_borough",
+      "reason": "Central Village is the Greenwich Village area of Manhattan.",
+      "owner": "mallan_canonical_geography"
     },
     {
       "name": "Charleston",
@@ -1554,9 +1556,9 @@
       "resolvedTo": [
         "Bronx"
       ],
-      "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
-      "owner": "cotality_observation"
+      "basis": "mallan_canonical_borough",
+      "reason": "The Concourse is in the Bronx.",
+      "owner": "mallan_canonical_geography"
     },
     {
       "name": "Concourse Village",
@@ -1700,9 +1702,9 @@
       "resolvedTo": [
         "Brooklyn"
       ],
-      "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
-      "owner": "cotality_observation"
+      "basis": "mallan_canonical_borough",
+      "reason": "Cypress Hills is in Brooklyn.",
+      "owner": "mallan_canonical_geography"
     },
     {
       "name": "Dash Estate",
@@ -1825,7 +1827,7 @@
         "Manhattan"
       ],
       "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
+      "reason": "No Mallan decision and no borough at the declared floor. Every observed borough is preserved, so the bare name must be qualified; it is never auto-assigned.",
       "owner": "cotality_observation"
     },
     {
@@ -1863,9 +1865,9 @@
       "resolvedTo": [
         "Brooklyn"
       ],
-      "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
-      "owner": "cotality_observation"
+      "basis": "mallan_canonical_borough",
+      "reason": "Legacy code for Downtown Brooklyn.",
+      "owner": "mallan_canonical_geography"
     },
     {
       "name": "DUMBO",
@@ -2004,7 +2006,7 @@
         "Brooklyn"
       ],
       "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
+      "reason": "No Mallan decision and no borough at the declared floor. Every observed borough is preserved, so the bare name must be qualified; it is never auto-assigned.",
       "owner": "cotality_observation"
     },
     {
@@ -2594,9 +2596,9 @@
       "resolvedTo": [
         "Brooklyn"
       ],
-      "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
-      "owner": "cotality_observation"
+      "basis": "mallan_canonical_borough",
+      "reason": "Fort Greene is a Brooklyn neighbourhood.",
+      "owner": "mallan_canonical_geography"
     },
     {
       "name": "FORTGRNE",
@@ -2716,9 +2718,9 @@
       "resolvedTo": [
         "Queens"
       ],
-      "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
-      "owner": "cotality_observation"
+      "basis": "mallan_canonical_borough",
+      "reason": "Glendale is in Queens.",
+      "owner": "mallan_canonical_geography"
     },
     {
       "name": "Glen Oaks",
@@ -2830,9 +2832,9 @@
       "resolvedTo": [
         "Brooklyn"
       ],
-      "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
-      "owner": "cotality_observation"
+      "basis": "mallan_canonical_borough",
+      "reason": "Gravesend is in Brooklyn.",
+      "owner": "mallan_canonical_geography"
     },
     {
       "name": "GRAVESND",
@@ -3179,7 +3181,7 @@
         "Bronx"
       ],
       "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
+      "reason": "No Mallan decision and no borough at the declared floor. Every observed borough is preserved, so the bare name must be qualified; it is never auto-assigned.",
       "owner": "cotality_observation"
     },
     {
@@ -3239,9 +3241,9 @@
       "resolvedTo": [
         "Brooklyn"
       ],
-      "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
-      "owner": "cotality_observation"
+      "basis": "mallan_canonical_borough",
+      "reason": "Homecrest is in Brooklyn.",
+      "owner": "mallan_canonical_geography"
     },
     {
       "name": "Howard Beach",
@@ -3266,7 +3268,7 @@
         "Manhattan"
       ],
       "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
+      "reason": "No Mallan decision and no borough at the declared floor. Every observed borough is preserved, so the bare name must be qualified; it is never auto-assigned.",
       "owner": "cotality_observation"
     },
     {
@@ -3929,7 +3931,7 @@
         "Bronx"
       ],
       "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
+      "reason": "No Mallan decision and no borough at the declared floor. Every observed borough is preserved, so the bare name must be qualified; it is never auto-assigned.",
       "owner": "cotality_observation"
     },
     {
@@ -4111,10 +4113,12 @@
         "Brooklyn": 2
       },
       "resolvedTo": [
-        "Manhattan"
+        "Manhattan",
+        "Bronx",
+        "Brooklyn"
       ],
       "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
+      "reason": "No Mallan decision and no borough at the declared floor. Every observed borough is preserved, so the bare name must be qualified; it is never auto-assigned.",
       "owner": "cotality_observation"
     },
     {
@@ -4295,9 +4299,9 @@
       "resolvedTo": [
         "Manhattan"
       ],
-      "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
-      "owner": "cotality_observation"
+      "basis": "mallan_canonical_borough",
+      "reason": "The Meatpacking District is in Manhattan.",
+      "owner": "mallan_canonical_geography"
     },
     {
       "name": "Meiers Corners",
@@ -4578,9 +4582,9 @@
       "resolvedTo": [
         "Bronx"
       ],
-      "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
-      "owner": "cotality_observation"
+      "basis": "mallan_canonical_borough",
+      "reason": "Morris Park is in the Bronx.",
+      "owner": "mallan_canonical_geography"
     },
     {
       "name": "Mott Haven",
@@ -4848,7 +4852,7 @@
         "Manhattan"
       ],
       "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
+      "reason": "No Mallan decision and no borough at the declared floor. Every observed borough is preserved, so the bare name must be qualified; it is never auto-assigned.",
       "owner": "cotality_observation"
     },
     {
@@ -4860,10 +4864,13 @@
         "Queens": 1
       },
       "resolvedTo": [
-        "Brooklyn"
+        "Brooklyn",
+        "Bronx",
+        "Manhattan",
+        "Queens"
       ],
       "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
+      "reason": "No Mallan decision and no borough at the declared floor. Every observed borough is preserved, so the bare name must be qualified; it is never auto-assigned.",
       "owner": "cotality_observation"
     },
     {
@@ -5023,10 +5030,13 @@
       },
       "resolvedTo": [
         "Brooklyn",
-        "Manhattan"
+        "Manhattan",
+        "Bronx",
+        "Queens",
+        "StatenIsland"
       ],
       "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
+      "reason": "No Mallan decision and no borough at the declared floor. Every observed borough is preserved, so the bare name must be qualified; it is never auto-assigned.",
       "owner": "cotality_observation"
     },
     {
@@ -5224,7 +5234,7 @@
         "Queens"
       ],
       "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
+      "reason": "No Mallan decision and no borough at the declared floor. Every observed borough is preserved, so the bare name must be qualified; it is never auto-assigned.",
       "owner": "cotality_observation"
     },
     {
@@ -5285,9 +5295,9 @@
       "resolvedTo": [
         "Queens"
       ],
-      "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
-      "owner": "cotality_observation"
+      "basis": "mallan_canonical_borough",
+      "reason": "Ozone Park is in Queens.",
+      "owner": "mallan_canonical_geography"
     },
     {
       "name": "Pacific Park",
@@ -5566,9 +5576,9 @@
       "resolvedTo": [
         "Brooklyn"
       ],
-      "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
-      "owner": "cotality_observation"
+      "basis": "mallan_canonical_borough",
+      "reason": "Legacy code for Prospect Lefferts Gardens, Brooklyn.",
+      "owner": "mallan_canonical_geography"
     },
     {
       "name": "PROSPARK",
@@ -5750,9 +5760,9 @@
       "resolvedTo": [
         "Queens"
       ],
-      "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
-      "owner": "cotality_observation"
+      "basis": "mallan_canonical_borough",
+      "reason": "Queens Village is in Queens.",
+      "owner": "mallan_canonical_geography"
     },
     {
       "name": "Ramsen Village",
@@ -5861,9 +5871,9 @@
       "resolvedTo": [
         "Queens"
       ],
-      "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
-      "owner": "cotality_observation"
+      "basis": "mallan_canonical_borough",
+      "reason": "Richmond Hill is in Queens.",
+      "owner": "mallan_canonical_geography"
     },
     {
       "name": "Richmond Hills",
@@ -5923,9 +5933,9 @@
       "resolvedTo": [
         "Bronx"
       ],
-      "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
-      "owner": "cotality_observation"
+      "basis": "mallan_canonical_borough",
+      "reason": "Riverdale is in the Bronx.",
+      "owner": "mallan_canonical_geography"
     },
     {
       "name": "Rochdale Village",
@@ -6348,7 +6358,7 @@
         "Brooklyn"
       ],
       "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
+      "reason": "No Mallan decision and no borough at the declared floor. Every observed borough is preserved, so the bare name must be qualified; it is never auto-assigned.",
       "owner": "cotality_observation"
     },
     {
@@ -6360,9 +6370,9 @@
       "resolvedTo": [
         "Queens"
       ],
-      "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
-      "owner": "cotality_observation"
+      "basis": "mallan_canonical_borough",
+      "reason": "South Ozone Park is in Queens.",
+      "owner": "mallan_canonical_geography"
     },
     {
       "name": "South Richmond Hill",
@@ -6545,10 +6555,11 @@
         "StatenIsland",
         "Brooklyn",
         "Bronx",
-        "Manhattan"
+        "Manhattan",
+        "Queens"
       ],
       "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
+      "reason": "No Mallan decision and no borough at the declared floor. Every observed borough is preserved, so the bare name must be qualified; it is never auto-assigned.",
       "owner": "cotality_observation"
     },
     {
@@ -6766,10 +6777,11 @@
         "Manhattan": 1
       },
       "resolvedTo": [
-        "Bronx"
+        "Bronx",
+        "Manhattan"
       ],
       "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
+      "reason": "No Mallan decision and no borough at the declared floor. Every observed borough is preserved, so the bare name must be qualified; it is never auto-assigned.",
       "owner": "cotality_observation"
     },
     {
@@ -7199,9 +7211,9 @@
       "resolvedTo": [
         "Brooklyn"
       ],
-      "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
-      "owner": "cotality_observation"
+      "basis": "mallan_canonical_borough",
+      "reason": "Vinegar Hill is in Brooklyn, beside DUMBO.",
+      "owner": "mallan_canonical_geography"
     },
     {
       "name": "Wakefield",
@@ -7408,9 +7420,9 @@
       "resolvedTo": [
         "Manhattan"
       ],
-      "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
-      "owner": "cotality_observation"
+      "basis": "mallan_canonical_borough",
+      "reason": "West 30's is a Manhattan area label.",
+      "owner": "mallan_canonical_geography"
     },
     {
       "name": "West 30s - Clinton",
@@ -7567,9 +7579,9 @@
       "resolvedTo": [
         "Brooklyn"
       ],
-      "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
-      "owner": "cotality_observation"
+      "basis": "mallan_canonical_borough",
+      "reason": "Williamsburg North Side is in Brooklyn.",
+      "owner": "mallan_canonical_geography"
     },
     {
       "name": "Williamsburg,South",
@@ -7666,9 +7678,9 @@
       "resolvedTo": [
         "Queens"
       ],
-      "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
-      "owner": "cotality_observation"
+      "basis": "mallan_canonical_borough",
+      "reason": "Woodhaven is in Queens.",
+      "owner": "mallan_canonical_geography"
     },
     {
       "name": "Woodlawn",
@@ -7777,7 +7789,7 @@
         "Brooklyn"
       ],
       "basis": "ambiguous_requires_borough",
-      "reason": "No Mallan decision and no borough at the declared floor. The bare name must be qualified; it is never auto-assigned.",
+      "reason": "No Mallan decision and no borough at the declared floor. Every observed borough is preserved, so the bare name must be qualified; it is never auto-assigned.",
       "owner": "cotality_observation"
     },
     {

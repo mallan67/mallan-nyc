@@ -28,6 +28,18 @@ import { buildCrmIdxODataFilter } from '@/lib/search/crm-idx-filter';
 import { UnsupportedGeographyError, neighborhoodOData } from '@/lib/search/canonical/geography';
 
 /** Run the real filter and hand whatever it throws to the real classifier. */
+/** Several values for one criterion, as repeated params — the real wire shape. */
+function routeResponseForMany(key: string, values: string[]) {
+  const qs = new URLSearchParams();
+  for (const v of values) qs.append(key, v);
+  try {
+    buildCrmIdxODataFilter(qs);
+    return null;
+  } catch (err) {
+    return idxSearchErrorResponse(err);
+  }
+}
+
 function routeResponseFor(params: Record<string, string>) {
   try {
     buildCrmIdxODataFilter(new URLSearchParams(params));
@@ -57,7 +69,7 @@ describe('geography errors join the canonical unsupported-criterion protocol', (
   it('names the criterion and WHICH value was dead', () => {
     // With several selected, the broker must be told which one to change.
     // `Yorkville` and `Tribeca` are live; the middle value is not a place.
-    const res = routeResponseFor({ neighborhood: 'Yorkville,Zzzz Not A Place,Tribeca' });
+    const res = routeResponseForMany('neighborhood', ['Yorkville', 'Zzzz Not A Place', 'Tribeca']);
     expect(res!.status).toBe(400);
     expect(res!.body.criterion).toBe('neighborhood');
     expect(res!.body.unsupportedValues).toEqual(['Zzzz Not A Place']);

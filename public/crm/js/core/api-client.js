@@ -657,7 +657,17 @@ var MallanAPI = (function () {
       if (params.maxBeds != null) qs.push('maxBeds=' + params.maxBeds);
       if (params.minBaths) qs.push('minBaths=' + params.minBaths);
       if (params.maxBaths) qs.push('maxBaths=' + params.maxBaths);
-      if (params.neighborhood) qs.push('neighborhood=' + encodeURIComponent(params.neighborhood));
+      // ONE PARAMETER PER NEIGHBOURHOOD, so a provider value containing a comma
+      // survives the wire. `Williamsburg,North` is a real Cotality name; sent as
+      // part of a comma-joined string the server split it into two criteria.
+      // Repeated params cannot collide with any character a value may contain.
+      // An older caller passing a single string still works.
+      if (params.neighborhood) {
+        var _hoods = Array.isArray(params.neighborhood) ? params.neighborhood : [params.neighborhood];
+        for (var _h = 0; _h < _hoods.length; _h++) {
+          if (_hoods[_h]) qs.push('neighborhood=' + encodeURIComponent(_hoods[_h]));
+        }
+      }
       if (params.borough) qs.push('borough=' + encodeURIComponent(params.borough));
       if (params.status) qs.push('status=' + encodeURIComponent(params.status));
       if (params.propertySubType) qs.push('propertySubType=' + encodeURIComponent(params.propertySubType));

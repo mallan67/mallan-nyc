@@ -528,12 +528,18 @@ describe("buildCrmIdxODataFilter", () => {
     expect(f).not.toContain("(CommonInterest eq 'Condop')");
   });
 
-  it("multi-neighborhood (csv) becomes one SubdivisionName disjunction", () => {
+  it("multi-neighborhood (repeated params) becomes one disjunction", () => {
     // RE-RELEASED 2026-08-26. SubdivisionName is proven filterable and 100%
     // populated on sampled active rows, so the OR group is restored — and now
     // expands each canonical selection to every provider spelling Mallan knows
     // for it, so the result universe is complete rather than silently short.
-    const filter = buildCrmIdxODataFilter(new URLSearchParams({ neighborhood: "Tribeca,SoHo" }));
+    // REPEATED PARAMS, NOT CSV. The comma separator corrupted the accepted
+    // Cotality names `Williamsburg,North` and `Williamsburg,South`, which the
+    // executor read as four neighbourhoods instead of two.
+    const qs = new URLSearchParams();
+    qs.append("neighborhood", "Tribeca");
+    qs.append("neighborhood", "SoHo");
+    const filter = buildCrmIdxODataFilter(qs);
     expect(filter).toContain("SubdivisionName eq 'Tribeca'");
     expect(filter).toContain("SubdivisionName eq 'SoHo'");
     expect(filter).toContain(" or ");
