@@ -21,6 +21,7 @@ import {
 } from '@/lib/search/public-listing-db';
 import { buildPublicListingTrestleFilter } from '@/lib/search/public-listing-trestle';
 import { assemblePublicUniverse } from '@/lib/search/public-universe';
+import { unsupportedExclusiveCriteria } from '@/lib/search/public-exclusive-criteria';
 import {
   readOpenHouseMembership,
   type OpenHouseMembership,
@@ -1335,24 +1336,38 @@ export async function GET(request: Request) {
         // Mallan authority and address permission are membership decisions, so
         // they belong to the corpus, not to a page. The count below is the size
         // of the set the cards are cut from — the same one, every page.
-        const trestleDtos = filtered.map(toPublicDTO);
-        const mergedCorpus = await mergeExclusiveListings(
-          trestleDtos,
-          listingType,
-          borough,
-          neighborhood,
-          minPrice ? parseInt(minPrice, 10) : undefined,
-          maxPrice ? parseInt(maxPrice, 10) : undefined,
-          minBeds ? parseInt(minBeds, 10) : undefined,
-        );
+        // THE SECOND INJECTION IS GONE.
+        //
+        // `mergeExclusiveListings` used to prepend Mallan rows here. It applied
+        // its own predicate carrying only type / borough / neighborhood / price
+        // / beds — NOT the request's criteria — so it re-injected listings the
+        // search had already excluded. Proven on Preview at 535d2a24: a query
+        // pinned to one listing returned that listing under `maxBaths=1.5`
+        // despite its 2.0 baths, and again under an impossible
+        // `minSqft=99000`. An empty CORRECT answer was being broadened into a
+        // wrong one.
+        //
+        // It is not merely unsafe here, it is REDUNDANT, and that is what
+        // settles the question. This branch is reached only when the DB path
+        // read ZERO candidates, and `dbWhere` already carries the full criteria
+        // AND already admits Mallan-authored inventory — `rls_eligible: true`
+        // under the display gates, website-only `rls_eligible: false`, and the
+        // return-copy clause explicitly keeps `SL-`/`RL-`. So a Mallan exclusive
+        // that genuinely matched would have made `candidatesRead > 0` and been
+        // served by the DB path; this code could only ever add rows the criteria
+        // had rejected.
+        //
+        // The fix is therefore removal, not a second filter engine. Copying the
+        // criteria list into the exclusives query would leave two places to
+        // forget a criterion, which is how this defect and the bathroom defect
+        // both happened.
         const corpus = excludeUndisclosed
-          ? mergedCorpus.filter(
+          ? filtered.map(toPublicDTO).filter(
               // No `_source === 'exclusive'` exemption — provenance is not
               // address permission. See ADDRESS_DISCLOSED_GATE.
               (l) => l.address?.streetName !== 'Address Undisclosed',
             )
-          : mergedCorpus;
-
+          : filtered.map(toPublicDTO);
         // WHAT THE COUNT MEANS. `result.odataCount` is the PROVIDER's matching
         // universe, taken before gates, Mallan-side filters, the exclusives
         // merge and the disclosure gate removed or added anything — it can
@@ -1609,15 +1624,35 @@ export async function GET(request: Request) {
       }
     }
 
-    // IDX not enabled — still show local exclusive listings if any
-    const exclusiveListings = await fetchExclusiveListings(
-      listingType,
-      borough,
-      neighborhood,
-      minPrice ? parseInt(minPrice, 10) : undefined,
-      maxPrice ? parseInt(maxPrice, 10) : undefined,
-      minBeds ? parseInt(minBeds, 10) : undefined,
-    );
+    // IDX not enabled — local Mallan listings only.
+    //
+    // FAIL CLOSED ON A CRITERION THIS PATH CANNOT ANSWER. `fetchExclusiveListings`
+    // evaluates six things: type, borough, neighborhood, price, beds. Every other
+    // public criterion — baths, sqft, year built, ownership, furnished, amenities,
+    // keywords, open house, statuses, sub-types, ZIPs — it simply does not apply.
+    //
+    // Ignoring them returns listings that violate the search. That is exactly the
+    // defect proven on the fallback branch, where an unevaluated criterion turned
+    // a correct empty answer into a wrong non-empty one. An unanswerable criterion
+    // must narrow to nothing here, never widen: being asked a question this path
+    // cannot answer is not permission to answer a different one.
+    const unsupportedForExclusives = unsupportedExclusiveCriteria(searchParams);
+    const exclusiveListings = unsupportedForExclusives.length > 0
+      ? []
+      : await fetchExclusiveListings(
+          listingType,
+          borough,
+          neighborhood,
+          minPrice ? parseInt(minPrice, 10) : undefined,
+          maxPrice ? parseInt(maxPrice, 10) : undefined,
+          minBeds ? parseInt(minBeds, 10) : undefined,
+        );
+    if (unsupportedForExclusives.length > 0) {
+      console.warn(
+        `[/api/listings] IDX disabled: refusing local-exclusive results because ` +
+          `${unsupportedForExclusives.join(', ')} cannot be evaluated on this path.`,
+      );
+    }
 
     return NextResponse.json(
       {
@@ -1813,27 +1848,3 @@ async function fetchExclusiveListings(
  * canonical listing. This comment previously said the Trestle version took
  * precedence, which is the reversed model.
  */
-async function mergeExclusiveListings(
-  trestleListings: PublicListingDTO[],
-  listingType?: string | null,
-  borough?: string | null,
-  neighborhood?: string | null,
-  minPrice?: number,
-  maxPrice?: number,
-  minBeds?: number,
-): Promise<PublicListingDTO[]> {
-  const exclusives = await fetchExclusiveListings(listingType, borough, neighborhood, minPrice, maxPrice, minBeds);
-
-  if (exclusives.length === 0) return trestleListings;
-
-  // Build set of IDs already in Trestle results
-  const trestleIds = new Set(trestleListings.map((l) => l.id));
-
-  // Only add exclusives that aren't already in Trestle results
-  const newExclusives = exclusives.filter((e) => !trestleIds.has(e.id));
-
-  if (newExclusives.length === 0) return trestleListings;
-
-  // Prepend exclusives (your own listings first)
-  return [...newExclusives, ...trestleListings];
-}

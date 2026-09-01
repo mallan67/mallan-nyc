@@ -79,7 +79,6 @@ describe('no membership-changing step runs after the page is cut', () => {
     expect(() => {
       at('const readCandidateBatch =');
       at('assemblePublicUniverse<DbListing, DbCandidate>');
-      at('const mergedCorpus = await mergeExclusiveListings(');
       at('const pageDtos = corpus.slice(skip, skip + limit);');
     }).not.toThrow();
   });
@@ -117,14 +116,43 @@ describe('no membership-changing step runs after the page is cut', () => {
   });
 
   describe('live-Cotality fallback path', () => {
-    it('the exclusives merge happens BEFORE the page slice', () => {
-      // Merging after the slice ADDS rows to a decided page, so one canonical
-      // listing could hold a place on more than one page.
-      expect(at('const mergedCorpus = await mergeExclusiveListings(')).toBeLessThan(
-        at('const pageDtos = corpus.slice(skip, skip + limit);'),
-      );
+    it('NO second injection exists on this path at all', () => {
+      // Stronger than the rule this replaces. `mergeExclusiveListings` used to
+      // prepend Mallan rows using its own predicate — type / borough /
+      // neighborhood / price / beds and nothing else — so it re-injected
+      // listings the request had already excluded. Proven on Preview at
+      // 535d2a24: a pinned query returned a 2.0-bath listing under
+      // `maxBaths=1.5`, and the same listing under an impossible
+      // `minSqft=99000`. A correct empty answer became a wrong non-empty one.
+      //
+      // It was also REDUNDANT, which is why the fix is removal rather than a
+      // second filter engine: this branch runs only when the DB path read ZERO
+      // candidates, and that predicate already carries the full criteria AND
+      // already admits Mallan-authored inventory. A genuinely matching
+      // exclusive would have been served by the DB path.
+      expect(code).not.toContain('mergeExclusiveListings');
+      expect(code).not.toContain('newExclusives');
     });
 
+    it('the local-exclusives reader FAILS CLOSED on a criterion it cannot evaluate', () => {
+      // The IDX-disabled branch still reads local listings, and that reader
+      // applies only six criteria. Ignoring the rest would reproduce the same
+      // defect on a different branch, so an unevaluable criterion narrows to
+      // nothing rather than being skipped.
+      // The refusal LIST lives in the shared module; the route holds the
+      // decision. Asserted against the file that actually owns each half —
+      // checking both against route.ts was wrong the moment the list moved out,
+      // which is what this guard caught.
+      expect(route).toContain('unsupportedExclusiveCriteria(searchParams)');
+      expect(route).toContain('unsupportedForExclusives.length > 0');
+      const owner = readFileSync(
+        resolve(__dirname, '..', '..', 'lib/search/public-exclusive-criteria.ts'),
+        'utf8',
+      );
+      for (const c of ['minBaths', 'maxBaths', 'minSqft', 'keywords', 'amenities', 'openHouse', 'ownershipTypes', 'yearBuilt']) {
+        expect(owner).toContain(`'${c}'`);
+      }
+    });
     it('the address-disclosure gate happens BEFORE the page slice', () => {
       expect(at("(l) => l.address?.streetName !== 'Address Undisclosed',")).toBeLessThan(
         at('const pageDtos = corpus.slice(skip, skip + limit);'),
