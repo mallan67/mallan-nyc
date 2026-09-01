@@ -207,6 +207,86 @@ describe('a budget bounds work; it never claims to be the end of the inventory',
   });
 });
 
+describe('the single-page shortcut is verified, not trusted', () => {
+  it('reads ONE page when membership provably cannot change', async () => {
+    const calls: Array<[number, number]> = [];
+    const u = await assemblePublicUniverse<Row, Row>({
+      readBatch: readerFor(corpus(7125), calls),
+      toDtos: identity,
+      reconcile: identity,
+      corpusFilter: identity,
+      page: 1,
+      pageSize: 5,
+      budget: 12_000,
+      batchSize: 500,
+      singlePageWhenSettled: { proven: true, count: 7125 },
+    });
+    // The measured cost of getting this wrong: 7,125 rows read to return 5.
+    expect(calls).toEqual([[0, 5]]);
+    expect(u.candidatesRead).toBe(5);
+    expect(u.rows).toHaveLength(5);
+    expect(u.count).toBe(7125);
+    expect(u.countMeaning).toBe(PublicCountMeaning.EXACT);
+    expect(u.totalPages).toBe(1425);
+  });
+
+  it('cuts the RIGHT page, not always the first', async () => {
+    const u = await assemblePublicUniverse<Row, Row>({
+      readBatch: readerFor(corpus(1000)),
+      toDtos: identity,
+      reconcile: identity,
+      corpusFilter: identity,
+      page: 4,
+      pageSize: 10,
+      budget: 12_000,
+      singlePageWhenSettled: { proven: true, count: 1000 },
+    });
+    expect(u.rows.map((r) => r.id)).toEqual(
+      ['L30','L31','L32','L33','L34','L35','L36','L37','L38','L39'],
+    );
+    expect(u.hasPrevious).toBe(true);
+    expect(u.hasMore).toBe(true);
+  });
+
+  it('FALLS BACK to the full walk when a stage removes a row after all', async () => {
+    // The caller proved wrong — a display gate disagreeing with the SQL
+    // predicate, say. Serving the short page would publish a count that does not
+    // describe it, so the walk happens regardless and the count is recomputed.
+    const calls: Array<[number, number]> = [];
+    const u = await assemblePublicUniverse<Row, Row>({
+      readBatch: readerFor(corpus(300, (i) => i % 2 === 0), calls),
+      toDtos: identity,
+      reconcile: identity,
+      corpusFilter: keepOnly, // removes half — the "proof" was false
+      page: 1,
+      pageSize: 10,
+      budget: 12_000,
+      batchSize: 100,
+      singlePageWhenSettled: { proven: true, count: 300 },
+    });
+    expect(calls.length).toBeGreaterThan(1);
+    expect(u.count).toBe(150);
+    expect(u.rows).toHaveLength(10);
+    expect(u.candidatesRead).toBe(300);
+  });
+
+  it('walks the corpus whenever the caller does not claim the proof', async () => {
+    const calls: Array<[number, number]> = [];
+    await assemblePublicUniverse<Row, Row>({
+      readBatch: readerFor(corpus(250), calls),
+      toDtos: identity,
+      reconcile: identity,
+      corpusFilter: identity,
+      page: 1,
+      pageSize: 10,
+      budget: 12_000,
+      batchSize: 100,
+      singlePageWhenSettled: { proven: false, count: 250 },
+    });
+    expect(calls.length).toBeGreaterThan(1);
+  });
+});
+
 describe('page edges', () => {
   const base = {
     toDtos: identity,

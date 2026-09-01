@@ -545,6 +545,66 @@ export async function GET(request: Request) {
               owner_client_id: l.owner_client_id != null ? l.owner_client_id.toString() : null,
             }) as DbListing;
 
+          // THE CANDIDATE-PREDICATE POPULATION — a DIFFERENT number, kept and
+          // named as one.
+          //
+          // This is what `prisma.count(dbWhere)` has always measured: how many
+          // rows the SQL predicate matches, BEFORE display eligibility, Mallan
+          // reconciliation, the business filters and Open House removed
+          // anything. It used to be reported as `total`, which is why the number
+          // above the cards described a population the cards did not come from.
+          // It is genuinely useful — it says how much the Mallan-side stages
+          // removed — so it is kept, cached as an anonymous public read, and
+          // published under its own name where it cannot be mistaken for a
+          // result count. `findMany` stays uncached: its rows carry BigInt ids
+          // that the data cache cannot serialize.
+          const dbPredicateCount = await cachedPublicRead(() => prisma.listing.count({ where: dbWhere }), [
+            "api-listings-count",
+            cacheKey,
+          ], { tags: [SEARCH_CACHE_TAG] })();
+
+          // CAN ANY STAGE ACTUALLY CHANGE MEMBERSHIP FOR THIS REQUEST?
+          //
+          // If none can, the SQL predicate IS the membership and walking the
+          // corpus buys nothing. Measured on Preview: an unfiltered sale search
+          // read 7,125 candidates to return 5 rows, 11.5s cold. Correct and
+          // unusably slow is not a fix, so the walk is reserved for requests
+          // that need it.
+          //
+          // Two conditions, and the second cannot be judged from a page.
+          // `preferCrmExclusiveOverIdxDuplicate` only ever removes a row from a
+          // group that contains a Mallan-authored one, and that twin may sit
+          // anywhere in the corpus — so the licence to skip the walk is the
+          // corpus-wide fact that NO Mallan-authored row matches this predicate.
+          // One indexed count answers it. When any corpus filter is requested
+          // the question does not arise and the count is not run at all.
+          const corpusFiltersActive =
+            !!openHouseParam ||
+            ["ownershipTypes", "yearBuilt", "furnished", "amenities", "keywords"].some(
+              (p) => !!searchParams.get(p),
+            );
+          const mallanAuthoredInBand = corpusFiltersActive
+            ? 1
+            : await cachedPublicRead(
+                () =>
+                  prisma.listing.count({
+                    where: {
+                      AND: [
+                        dbWhere,
+                        {
+                          OR: [
+                            { listing_id: { startsWith: "SL-" } },
+                            { listing_id: { startsWith: "RL-" } },
+                            { rls_eligible: false },
+                          ],
+                        },
+                      ],
+                    },
+                  }),
+                ["api-listings-mallan-in-band", cacheKey],
+                { tags: [SEARCH_CACHE_TAG] },
+              )();
+
           // THE FINAL PUBLIC UNIVERSE. Reconciliation, display eligibility and
           // every business filter run over the WHOLE corpus; the page is the
           // last thing that happens, and `count` describes the same set the
@@ -582,25 +642,13 @@ export async function GET(request: Request) {
             pageSize: limit,
             budget: PUBLIC_CANDIDATE_BUDGET,
             batchSize: PUBLIC_CANDIDATE_BATCH,
+            // The assembler re-checks what a page CAN prove and walks the corpus
+            // anyway if this turns out to be wrong.
+            singlePageWhenSettled: {
+              proven: !corpusFiltersActive && mallanAuthoredInBand === 0,
+              count: dbPredicateCount,
+            },
           });
-
-          // THE CANDIDATE-PREDICATE POPULATION — a DIFFERENT number, kept and
-          // named as one.
-          //
-          // This is what `prisma.count(dbWhere)` has always measured: how many
-          // rows the SQL predicate matches, BEFORE display eligibility, Mallan
-          // reconciliation, the business filters and Open House removed
-          // anything. It used to be reported as `total`, which is why the number
-          // above the cards described a population the cards did not come from.
-          // It is genuinely useful — it says how much the Mallan-side stages
-          // removed — so it is kept, cached as an anonymous public read, and
-          // published under its own name where it cannot be mistaken for a
-          // result count. `findMany` stays uncached: its rows carry BigInt ids
-          // that the data cache cannot serialize.
-          const dbPredicateCount = await cachedPublicRead(() => prisma.listing.count({ where: dbWhere }), [
-            "api-listings-count",
-            cacheKey,
-          ], { tags: [SEARCH_CACHE_TAG] })();
 
           const dbTotal = universe.count;
 
