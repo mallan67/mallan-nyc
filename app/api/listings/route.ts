@@ -8,7 +8,10 @@ import { CARD_SELECT_FIELDS } from '@/lib/idx/card-fields';
 import prisma from '@/lib/prisma';
 import { geocodeListings } from '@/lib/geo/geocode';
 import { filterDisplayableDbListings, dbListingToPublicDTO, classifyDbListing, type DbListing } from '@/lib/idx/db-to-public-dto';
-import { preferCrmExclusiveOverIdxDuplicate } from '@/lib/listings/dedupe-crm-vs-idx';
+import {
+  preferCrmExclusiveOverIdxDuplicate,
+  dedupeAddressFromDbRow,
+} from '@/lib/listings/dedupe-crm-vs-idx';
 import { getOpenHouseIndex, findNextOpenHouse } from '@/lib/open-houses/upcoming-open-houses';
 import { buildSearchDisplayWhere, SEARCH_DISPLAY_GATE, ADDRESS_DISCLOSED_GATE } from '@/lib/search/listing-access-decision';
 import {
@@ -73,8 +76,34 @@ const PUBLIC_TRESTLE_MIN_CANDIDATES = 200;
 const OPEN_HOUSE_MAX_PAGES = 40;
 const OPEN_HOUSE_PAGE_SIZE = 500;
 
-/** A candidate carries its source row so the page can be hydrated after membership settles. */
-type DbCandidate = ReturnType<typeof dbListingToPublicDTO> & { __row: DbListing };
+/**
+ * WHAT A CANDIDATE NEEDS TO BE, AND NOTHING MORE.
+ *
+ * Membership reads six things: `id` and `address` (reconciliation), and — only
+ * when a corpus filter is actually requested — propertyType, yearBuilt,
+ * furnished, petsAllowed and publicRemarks. It never reads media, photos, the
+ * slug, the URL, agent attribution or the compliance block.
+ *
+ * Building a full public DTO for every candidate to reach those fields measured
+ * 1.29ms per row, of which media composition alone was two thirds: nine seconds
+ * of the eleven a 7,125-row sale search took, spent composing galleries for rows
+ * that were only being counted. The page still gets the complete DTO — it is
+ * built from `__row` after membership settles, for the fifty rows on screen.
+ *
+ * Satisfies DedupeCandidate and PublicPostFilterListing structurally, so both
+ * existing helpers run unchanged over it.
+ */
+type DbCandidate = {
+  id: string;
+  address?: ReturnType<typeof dedupeAddressFromDbRow> | null;
+  modificationTimestamp?: string | null;
+  propertyType?: string | null;
+  yearBuilt?: number | null;
+  furnished?: string | null;
+  petsAllowed?: string | null;
+  publicRemarks?: string | null;
+  __row: DbListing;
+};
 
 /**
  * The COMPLETE set of listing keys with an active open house in the requested
@@ -617,9 +646,33 @@ export async function GET(request: Request) {
             // purpose: readBatch's row count is the exhaustion signal, and a
             // filter that shortened a batch would fake the end of the universe.
             toDtos: (rows) =>
-              filterDisplayableDbListings(rows).map(
-                (l) => Object.assign(dbListingToPublicDTO(l), { __row: l }) as DbCandidate,
-              ),
+              filterDisplayableDbListings(rows).map((l) => {
+                // The five corpus-filter fields are derived through the SAME
+                // DTO the page uses, so a filter can never see a value the card
+                // would not — but ONLY when a corpus filter was requested. With
+                // none requested those fields are never read, and building them
+                // is the nine seconds this walk used to spend.
+                const filterFields = corpusFiltersActive
+                  ? dbListingToPublicDTO(l)
+                  : null;
+                return {
+                  id: l.listing_id,
+                  // One mapping, shared with buildAddressKeyFromDbRow, so a row
+                  // keyed here and a row keyed through the DTO cannot disagree
+                  // about which physical unit it is.
+                  address: dedupeAddressFromDbRow(l),
+                  modificationTimestamp:
+                    l.modification_timestamp instanceof Date
+                      ? l.modification_timestamp.toISOString()
+                      : (l.modification_timestamp as string | null) ?? null,
+                  propertyType: filterFields?.propertyType ?? null,
+                  yearBuilt: filterFields?.yearBuilt ?? null,
+                  furnished: filterFields?.furnished ?? null,
+                  petsAllowed: filterFields?.petsAllowed ?? null,
+                  publicRemarks: filterFields?.publicRemarks ?? null,
+                  __row: l,
+                } as DbCandidate;
+              }),
             reconcile: (candidates) => preferCrmExclusiveOverIdxDuplicate(candidates),
             corpusFilter: (candidates) => {
               const featuresById = new Map<string, Record<string, unknown>>();

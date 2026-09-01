@@ -264,16 +264,33 @@ export function preferCrmExclusiveOverIdxDuplicate<T extends DedupeCandidate>(
  * excluded in `/api/listings/similar` — and filter the dedupe output
  * against it. See the call site there for the exclude-id-aware pattern.
  */
-export function buildAddressKeyFromDbRow(row: { address: unknown }): string | null {
+/**
+ * The DB-row address, in the shape the dedupe reasons about.
+ *
+ * Extracted from `buildAddressKeyFromDbRow` (2026-09-01) so a caller that needs
+ * a dedupe CANDIDATE rather than a key does not write this mapping a second
+ * time. Section 6 needs exactly that: reconciliation runs over the complete
+ * public corpus, and building a full public DTO for every row purely to reach
+ * `address` cost 1.29ms per row — nine seconds on a 7,125-row universe, for a
+ * page of five.
+ *
+ * ONE mapping, so a row keyed here and a row keyed through the DTO can never
+ * disagree about what physical unit it is.
+ */
+export function dedupeAddressFromDbRow(row: { address: unknown }): DedupeAddressLike {
   const addr = (row.address || {}) as Record<string, unknown>;
-  return buildAddressKey({
+  return {
     streetNumber: String(addr.StreetNumber ?? addr.streetNumber ?? ''),
     streetDirPrefix: String(addr.StreetDirPrefix ?? addr.streetDirPrefix ?? ''),
     streetName: String(addr.StreetName ?? addr.streetName ?? ''),
     streetSuffix: String(addr.StreetSuffix ?? addr.streetSuffix ?? ''),
     unitNumber: String(addr.UnitNumber ?? addr.unitNumber ?? ''),
     postalCode: String(addr.PostalCode ?? addr.postalCode ?? ''),
-  });
+  };
+}
+
+export function buildAddressKeyFromDbRow(row: { address: unknown }): string | null {
+  return buildAddressKey(dedupeAddressFromDbRow(row));
 }
 
 /**

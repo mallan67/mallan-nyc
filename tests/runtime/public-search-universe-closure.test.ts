@@ -155,6 +155,67 @@ describe('no membership-changing step runs after the page is cut', () => {
   });
 });
 
+describe('the walk builds only what membership reads', () => {
+  const route = readFileSync(
+    resolve(__dirname, '..', '..', 'app/api/listings/route.ts'),
+    'utf8',
+  );
+  const helper = readFileSync(
+    resolve(__dirname, '..', '..', 'lib/search/public-listing-db.ts'),
+    'utf8',
+  );
+
+  it('the corpus-filter trigger list matches EXACTLY what the filter helper reads', () => {
+    // THE DANGEROUS COUPLING. The walk skips building the five DTO-derived
+    // filter fields when no corpus filter was requested — nine seconds of work
+    // on a 7,125-row universe. That is only safe while the route's trigger list
+    // and the fields applyPublicListingPostFilters actually reads are the same
+    // set. Add a filter to the helper and forget the list, and the criterion
+    // silently reads null for every row: a WIDER result set, HTTP 200, nothing
+    // on the page saying so.
+    const helperBody = helper.slice(helper.indexOf('export function applyPublicListingPostFilters'));
+    const readByHelper = new Set(
+      [...helperBody.matchAll(/params\.get\("([A-Za-z]+)"\)/g)].map((m) => m[1]),
+    );
+    const triggerLine = route.slice(
+      route.indexOf('const corpusFiltersActive ='),
+      route.indexOf('const mallanAuthoredInBand'),
+    );
+    const triggers = new Set(
+      [...triggerLine.matchAll(/"([A-Za-z]+)"/g)].map((m) => m[1]),
+    );
+    // Guard the guard: if either parse found nothing, every assertion below is
+    // vacuous and this file is decoration.
+    expect(readByHelper.size).toBeGreaterThan(0);
+    expect(triggers.size).toBeGreaterThan(0);
+    const missing = [...readByHelper].filter((k) => !triggers.has(k));
+    expect(missing).toEqual([]);
+  });
+
+  it('openHouse is a trigger too, since it is a membership criterion', () => {
+    expect(route).toContain('!!openHouseParam ||');
+  });
+
+  it('the page is hydrated from the source row, not from the walk candidate', () => {
+    // The candidate deliberately lacks media, slug, attribution and the
+    // compliance block. If the page were built from it, cards would render
+    // without photos.
+    expect(route).toContain('const displayable = universe.rows.map((c) => c.__row);');
+    expect(route).toContain('dbListingToPublicDTO(l, { hadFeedRelationalRows:');
+  });
+
+  it('the dedupe address mapping is the shared authority, not a second copy', () => {
+    expect(route).toContain('dedupeAddressFromDbRow(l)');
+    const dedupe = readFileSync(
+      resolve(__dirname, '..', '..', 'lib/listings/dedupe-crm-vs-idx.ts'),
+      'utf8',
+    );
+    // buildAddressKeyFromDbRow must go THROUGH the shared mapping, so the two
+    // can never drift apart on what a physical unit is.
+    expect(dedupe).toContain('return buildAddressKey(dedupeAddressFromDbRow(row));');
+  });
+});
+
 describe('a Mallan return-copy cannot reappear under a different query form', () => {
   const suggest = readFileSync(
     resolve(__dirname, '..', '..', 'app/api/listings/suggest/route.ts'),
