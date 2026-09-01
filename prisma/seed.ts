@@ -171,6 +171,56 @@ async function main() {
   });
   console.log("  Agent: Julia Djaafar (AGENT) id=" + julia.id);
 
+  const claudia = await prisma.agent.upsert({
+    where: { email: "cmilkowski@mallan.nyc" },
+    update: {
+      first_name: "Claudia",
+      last_name: "Milkowski",
+      full_name: "Claudia Milkowski",
+      password_hash: agentHash,
+      phone: "(646) 418-8388",
+      license_no: "10301200574",
+      // NY licence designation is Associate Broker (license_type "broker"), but
+      // `role` is the CRM AUTHORISATION grant — "BROKER" unlocks the admin
+      // surfaces (audit log, all-agent leads, automation, campaigns). Only the
+      // principal broker holds that. An associate broker is role "AGENT".
+      license_type: "broker",
+      role: "AGENT",
+      status: "active",
+      public_slug: "claudia-milkowski",
+      title: "Associate Real Estate Broker",
+      photo: "/images/agents/claudia-milkowski.jpg",
+      bio: "With nearly two decades of experience in New York City real estate, Claudia Milkowski is known for her comprehensive market insight, impeccable credentials, and unwavering commitment to her clients. Her approach is defined by a keen eye, attentive listening, and meticulous attention to detail \u2014 she guides rather than pressures, treating every client with the respect, warmth, and personal care of a friend, so that what can be a stressful process feels seamless and rewarding. Shaped by her studies at Parsons School of Design and her career as a former Chief Designer for leading fashion companies, Claudia is an accomplished artist whose lifelong passion for art, fashion, and design brings a sophisticated eye for aesthetics, branding, and presentation to her work. She understands how design and architecture shape the way people experience a home, allowing her to identify each client\u2019s individual needs and help them discover their dream property. A highly skilled negotiator, she has adeptly guided clients through complex co-op approval processes and challenging negotiations, bringing creativity, strategy, and determination to every transaction. For buyers, she identifies exceptional opportunities and negotiates effectively; for sellers, she develops sophisticated, targeted marketing strategies designed to maximize exposure, attract qualified buyers, and achieve successful results.",
+      specialties: ["Co-op Board Approvals", "Negotiation", "Seller Marketing Strategy", "Buyer Representation"],
+      languages: ["English", "Spanish"],
+      featured: false,
+    },
+    create: {
+      first_name: "Claudia",
+      last_name: "Milkowski",
+      full_name: "Claudia Milkowski",
+      email: "cmilkowski@mallan.nyc",
+      password_hash: agentHash,
+      phone: "(646) 418-8388",
+      license_no: "10301200574",
+      // NY licence designation is Associate Broker (license_type "broker"), but
+      // `role` is the CRM AUTHORISATION grant — "BROKER" unlocks the admin
+      // surfaces (audit log, all-agent leads, automation, campaigns). Only the
+      // principal broker holds that. An associate broker is role "AGENT".
+      license_type: "broker",
+      role: "AGENT",
+      status: "active",
+      public_slug: "claudia-milkowski",
+      title: "Associate Real Estate Broker",
+      photo: "/images/agents/claudia-milkowski.jpg",
+      bio: "With nearly two decades of experience in New York City real estate, Claudia Milkowski is known for her comprehensive market insight, impeccable credentials, and unwavering commitment to her clients. Her approach is defined by a keen eye, attentive listening, and meticulous attention to detail \u2014 she guides rather than pressures, treating every client with the respect, warmth, and personal care of a friend, so that what can be a stressful process feels seamless and rewarding. Shaped by her studies at Parsons School of Design and her career as a former Chief Designer for leading fashion companies, Claudia is an accomplished artist whose lifelong passion for art, fashion, and design brings a sophisticated eye for aesthetics, branding, and presentation to her work. She understands how design and architecture shape the way people experience a home, allowing her to identify each client\u2019s individual needs and help them discover their dream property. A highly skilled negotiator, she has adeptly guided clients through complex co-op approval processes and challenging negotiations, bringing creativity, strategy, and determination to every transaction. For buyers, she identifies exceptional opportunities and negotiates effectively; for sellers, she develops sophisticated, targeted marketing strategies designed to maximize exposure, attract qualified buyers, and achieve successful results.",
+      specialties: ["Co-op Board Approvals", "Negotiation", "Seller Marketing Strategy", "Buyer Representation"],
+      languages: ["English", "Spanish"],
+      featured: false,
+    },
+  });
+  console.log("  Agent: Claudia Milkowski (AGENT) id=" + claudia.id);
+
   // ═══════════════════════════════════════════════════════════
   // NO FAKE LISTINGS OR DEALS
   // ═══════════════════════════════════════════════════════════
