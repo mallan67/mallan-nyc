@@ -30,6 +30,31 @@ const apiClient = readFileSync(resolve(REPO, 'public/crm/js/core/api-client.js')
 const built = readFileSync(resolve(REPO, 'public/crm/index-built.html'), 'utf8');
 
 /**
+ * The `_requestResultPage` body — anchored on DECLARATIONS, never on prose.
+ *
+ * Four sites used to slice this region ending at a literal COMMENT naming the
+ * provider engine. When that comment was corrected to name the Cotality API,
+ * indexOf returned -1 and `slice(start, -1)` silently became the whole rest of
+ * the file. ONE negative assertion failed loudly. The other three kept passing
+ * while reasoning about code they were never meant to cover — the worse outcome,
+ * because a green test that has quietly changed its subject proves nothing and
+ * says otherwise.
+ *
+ * So the region is computed ONCE, from structural anchors, and a missing or
+ * out-of-order anchor THROWS. A wording edit must never be able to redefine what
+ * a test reasons about.
+ */
+function requestResultPageBlock(): string {
+  const start = engine.indexOf('function _requestResultPage(');
+  const end = engine.indexOf('function _serverSearch(');
+  if (start < 0) throw new Error('anchor lost: function _requestResultPage(');
+  if (end <= start) {
+    throw new Error('anchor lost or out of order: function _serverSearch(');
+  }
+  return engine.slice(start, end);
+}
+
+/**
  * Run the real pagination controls against a stub _requestResultPage and report
  * which page they asked for. Source greps cannot prove navigation arithmetic.
  */
@@ -144,10 +169,7 @@ describe('a provisional set still pages locally', () => {
 });
 
 describe('the page request carries the whole request identity', () => {
-  const block = engine.slice(
-    engine.indexOf('function _requestResultPage('),
-    engine.indexOf('// Server-side search: query Trestle API'),
-  );
+  const block = requestResultPageBlock();
 
   it('serializes criteria through the ONE serializer', () => {
     expect(block).toMatch(/buildIdxSearchParams\(/);
@@ -186,10 +208,7 @@ describe('selection survives a page change', () => {
     // selectedListings lives on searchResultsState and is persisted
     // independently, so swapping the rows on screen cannot discard listings the
     // broker picked on an earlier page. This pins that it stays that way.
-    const block = engine.slice(
-      engine.indexOf('function _requestResultPage('),
-      engine.indexOf('// Server-side search: query Trestle API'),
-    );
+    const block = requestResultPageBlock();
     expect(block).not.toMatch(/selectedListings\s*=/);
     expect(block).not.toMatch(/workingSet\s*=/);
   });
@@ -244,10 +263,7 @@ describe('the map keeps its own bounded universe', () => {
   it('paging does not re-fetch the map universe', () => {
     // Pins are still answering the same question, and 500 rows per page turn
     // would be a real cost for no change on screen.
-    const block = engine.slice(
-      engine.indexOf('function _requestResultPage('),
-      engine.indexOf('// Server-side search: query Trestle API'),
-    );
+    const block = requestResultPageBlock();
     expect(block).not.toMatch(/_loadMapUniverse\(/);
   });
 
@@ -338,10 +354,7 @@ describe('the renderer does not re-paginate a server page', () => {
  * worked.
  */
 describe('the continuation travels with sequential Next only', () => {
-  const block = engine.slice(
-    engine.indexOf('function _requestResultPage('),
-    engine.indexOf('// Server-side search: query Trestle API'),
-  );
+  const block = requestResultPageBlock();
 
   it('only the immediately following page carries it', () => {
     expect(block).toMatch(/targetPage === \(searchResultsState\.currentPage \|\| 1\) \+ 1/);
