@@ -278,11 +278,13 @@ function readButEmitsNothing(): string[] {
  * cannot hide among them.
  */
 const READ_BUT_INTENTIONALLY_EMITS_NOTHING: Readonly<Record<string, string>> = Object.freeze({
-  // Named as the FIRST operand of its guard, which also covers openHouseDateTo.
-  openHouseDateFrom:
-    'Warned and stripped, with openHouseDateTo in the same guard — the backend ' +
-    'has no OpenHouse handler, so sending it would submit a request whose ' +
-    'narrowing intent is discarded server-side.',
+  // openHouseDateFrom/To REMOVED from this set 2026-09-01.
+  //
+  // They were correctly declared silent while the backend had no OpenHouse
+  // handler. It has one now: the authenticated route resolves OpenHouse
+  // membership by ListingKey before the count and the page cut. Leaving them
+  // declared here would let a real transport regression hide behind a
+  // deliberate one — which is the precise failure this set exists to prevent.
   _transitBounds: 'Warned and stripped — the feed carries no Latitude/Longitude.',
   _gridBounds: 'Warned and stripped — the feed carries no Latitude/Longitude.',
 });
