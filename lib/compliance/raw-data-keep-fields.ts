@@ -181,7 +181,7 @@ export const RAW_DATA_KEEP_FIELDS: readonly string[] = [
   // and it should not have been read as one.
   //
   // Its only real consumer was the SQL eligibility predicate in the legacy,
-  // unreachable `backfillEmptyMedia()`. PCT freshness is owned by the canonical
+  // the retired legacy media-backfill path. PCT freshness is owned by the canonical
   // chain instead: Property.PhotosChangeTimestamp -> incremental source trigger
   // -> complete media reconciliation -> media_sync_state.last_photos_change.
   //
