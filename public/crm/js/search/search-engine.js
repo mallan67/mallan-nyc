@@ -738,6 +738,42 @@
             //    plan PR 5), restore both blocks AND remove the
             //    transit/grid entries from DEAD_CONTAINERS in
             //    init-disable-dead-controls.js. Both must move together.
+            // ── SALE AND RENTAL ARE SEPARATE WORKFLOWS ──
+            //
+            // The field registry DECLARES workflow membership and NOTHING
+            // enforces it: crm-idx-filter.ts applies `contractDateFrom`
+            // unconditionally, with no idea which workflow asked. The per-tab
+            // canonical store keeps the two UIs apart, but any caller handing
+            // this serializer a criteria object — a restored Saved Search, the
+            // match tracker, a refine — could still put a Sale criterion on a
+            // Rental query, and the executor would honour it.
+            //
+            // Proven before it was fixed: a rental search carrying
+            // `contractDateFrom` emitted it on the wire.
+            //
+            // Declared as a MAP rather than hand-checked at each emit site, so
+            // a criterion added to one workflow forces a decision here instead
+            // of silently becoming available to both.
+            var WORKFLOW_SCOPED_PARAMS = {
+                contractDateFrom: ['sale'],
+                contractDateTo: ['sale'],
+                sponsorUnit: ['sale'],
+                maintenanceMax: ['sale'],
+                maintenanceMin: ['sale'],
+                furnished: ['rental']
+            };
+            var _activeWorkflow = params.type === 'rental' ? 'rental'
+                : params.type === 'sale' ? 'sale' : null;
+            if (_activeWorkflow) {
+                Object.keys(WORKFLOW_SCOPED_PARAMS).forEach(function (key) {
+                    if (params[key] === undefined) return;
+                    if (WORKFLOW_SCOPED_PARAMS[key].indexOf(_activeWorkflow) !== -1) return;
+                    console.warn('[Search] Dropping "' + key + '": it belongs to the ' +
+                        WORKFLOW_SCOPED_PARAMS[key].join('/') + ' workflow, not ' + _activeWorkflow + '.');
+                    delete params[key];
+                });
+            }
+
             return params;
         };
 
