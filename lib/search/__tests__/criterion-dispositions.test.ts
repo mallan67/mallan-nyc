@@ -21,7 +21,6 @@ const spec = (key: string): FieldSpec =>
 describe('blocked broker inputs — offered, not executable', () => {
   const BLOCKED = [
     'parking',
-    'open_house',
     'days_on_market',
     'maintenance_common_charge',
     'price_per_sqft',
@@ -52,12 +51,32 @@ describe('blocked broker inputs — offered, not executable', () => {
     expect(spec('parking').semanticEquivalenceProven).toBe(false);
   });
 
-  it('open_house is blocked because it currently executes AFTER pagination', () => {
-    // The provider slices the population first and the open-house test runs over
-    // the rows already returned, so the answer comes from an arbitrary page
-    // rather than the complete universe. That is a WRONG answer, not a missing
-    // one — which is why it may not ship while the control stays offered.
-    expect(spec('open_house').notes ?? '').toMatch(/AFTER pagination/i);
+  it('open_house is NO LONGER blocked — the pagination defect is gone', () => {
+    // SUPERSEDED 2026-09-02, and inverted rather than deleted.
+    //
+    // The original block was right: the open-house test ran over rows already
+    // sliced into a page, so the answer came from an arbitrary page rather
+    // than the complete universe - a WRONG answer, not a missing one.
+    //
+    // Membership is now settled BEFORE count and page cut, as a corpusFilter
+    // keyed on ListingKey. Removing these assertions would have left the
+    // codebase unable to tell 'deliberately blocked' from 'silently
+    // regressed', so they now assert the opposite.
+    const oh = spec('open_house');
+    expect(oh.notes ?? '').not.toMatch(/applies it AFTER pagination/i);
+    expect(oh.notes ?? '').toMatch(/UNBLOCKED/);
+    expect(oh.executionStrategy).toBe('provider_filter');
+    // A provider claim needs structured evidence, not prose.
+    expect(oh.liveEvidence?.probedAt).toBeTruthy();
+    expect(oh.liveEvidence?.source).toBeTruthy();
+  });
+
+  it('open_house still declares the Mallan-local half as unbuilt', () => {
+    // authorityByListingKind promises mallanLocal -> mallan_crm. Only the
+    // cotality half exists, and the entry must keep saying so: a registry that
+    // quietly dropped the caveat would read as complete.
+    expect(spec('open_house').notes ?? '').toMatch(/mallanLocal/);
+    expect(spec('open_house').notes ?? '').toMatch(/NOT implemented/);
   });
 
   it('maintenance_common_charge is blocked on an unreconciled fee model', () => {
