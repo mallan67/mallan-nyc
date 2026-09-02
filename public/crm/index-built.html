@@ -23534,14 +23534,37 @@ function parseBudgetValue(td) {
 <script>
 // ═══ js/render/shared-badges.js ═══
 
+        /**
+         * A FEE WE DO NOT KNOW IS NOT A FEE OF ZERO.
+         *
+         * The FARE Act disclosure rendered `'$' + (f.applicationFee || 0)`, so an
+         * ABSENT application fee printed "App fee: $0" — telling a renter there
+         * is no application fee, inside the disclosure that exists to state fees
+         * truthfully. NYC LL 119/2024 carries $1,800-$2,000 per violation, and
+         * this is that surface.
+         *
+         * `||` also cannot tell the two apart in the other direction: a genuine
+         * $0 fee is falsy and took the same branch, so "unknown" and "free" were
+         * rendered identically and neither could be trusted.
+         *
+         * Unknown says so. A real zero still says $0, because that is a real and
+         * useful fact about a rental.
+         */
+        function fareFeeAmount(value) {
+            if (value === null || value === undefined || value === '') return 'Not stated';
+            var n = Number(value);
+            if (isNaN(n)) return 'Not stated';
+            return '$' + n.toLocaleString();
+        }
+
         // ── FARE Act Fee Disclosure Helper (NYC Local Law, eff. June 2025) ──
         function fareActDisclosure(listing) {
             if (listing.listingCategory !== 'rental' || !listing.fareActFees) return '';
             var f = listing.fareActFees;
             return '<div class="text-[10px] bg-amber-50 border border-amber-100 rounded px-2 py-1 mt-1.5" data-compliance="fare-act">'
                 + '<i class="fas fa-receipt text-amber-400 mr-1"></i>'
-                + '<strong>Fee Disclosure:</strong> Broker fee paid by <strong><span data-fare-field="BrokerFeePaidBy">' + (f.brokerFeePaidBy || 'N/A') + '</span></strong>'
-                + ' &middot; App fee: <span data-fare-field="ApplicationFee">$' + (f.applicationFee || 0) + '</span>'
+                + '<strong>Fee Disclosure:</strong> Broker fee paid by <strong><span data-fare-field="BrokerFeePaidBy">' + (f.brokerFeePaidBy || 'Not stated') + '</span></strong>'
+                + ' &middot; App fee: <span data-fare-field="ApplicationFee">' + fareFeeAmount(f.applicationFee) + '</span>'
                 + (f.moveInFees ? ' &middot; Move-in: <span data-fare-field="MoveInFees">' + f.moveInFees + '</span>' : '')
                 + (f.otherFees ? ' &middot; Other: <span data-fare-field="OtherFees">' + f.otherFees + '</span>' : '')
                 + '</div>';

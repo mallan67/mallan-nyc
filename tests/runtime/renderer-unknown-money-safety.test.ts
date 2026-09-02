@@ -191,3 +191,54 @@ describe("Mallan's own workflow defaults are left alone", () => {
     expect(rentals).toMatch(/s\.status \|\| 'Scheduled'/);
   });
 });
+
+/**
+ * THE FARE ACT DISCLOSURE MAY NOT INVENT A ZERO FEE.
+ *
+ * `'$' + (f.applicationFee || 0)` printed "App fee: $0" for an ABSENT fee —
+ * telling a renter no application fee exists, inside the disclosure that exists
+ * to state fees truthfully. NYC LL 119/2024 carries $1,800-$2,000 per violation.
+ *
+ * `||` could not tell the two cases apart in either direction: a genuine $0 fee
+ * is falsy and took the same branch, so "unknown" and "free" rendered
+ * identically and neither could be trusted.
+ */
+describe('FARE Act fee disclosure separates unknown from zero', () => {
+  const BADGES = readFileSync(
+    resolve(__dirname, '..', '..', 'public/crm/js/render/shared-badges.js'),
+    'utf8',
+  );
+
+  it('no longer coerces an absent application fee to 0', () => {
+    const fn = BADGES.slice(
+      BADGES.indexOf('function fareActDisclosure'),
+      BADGES.indexOf('Participant Only Badge Helper'),
+    );
+    expect(fn).not.toContain('(f.applicationFee || 0)');
+    expect(fn).toContain('fareFeeAmount(f.applicationFee)');
+  });
+
+  it('the formatter reports unknown as unknown and a real zero as $0', () => {
+    // Extracted and executed rather than pattern-matched: the distinction is
+    // behavioural, and a comment claiming it proves nothing.
+    const src = BADGES.slice(
+      BADGES.indexOf('function fareFeeAmount'),
+      BADGES.indexOf('// ── FARE Act Fee Disclosure Helper'),
+    );
+    // eslint-disable-next-line no-new-func
+    const fareFeeAmount = new Function(`${src}; return fareFeeAmount;`)() as (v: unknown) => string;
+
+    expect(fareFeeAmount(null)).toBe('Not stated');
+    expect(fareFeeAmount(undefined)).toBe('Not stated');
+    expect(fareFeeAmount('')).toBe('Not stated');
+    expect(fareFeeAmount('not-a-number')).toBe('Not stated');
+    // A real zero is a real fact about a rental and must survive.
+    expect(fareFeeAmount(0)).toBe('$0');
+    expect(fareFeeAmount(50)).toBe('$50');
+    expect(fareFeeAmount(1500)).toBe('$1,500');
+  });
+
+  it('an unknown broker-fee payer is not labelled with a bare abbreviation', () => {
+    expect(BADGES).toContain("f.brokerFeePaidBy || 'Not stated'");
+  });
+});
