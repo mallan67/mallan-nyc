@@ -756,6 +756,7 @@ var Panels = (function () {
               '<button onclick="CRM.doImpersonate(\'' + E(a.id) + '\')" class="px-3 py-1.5 bg-gray-800 text-white rounded-lg text-xs font-semibold hover:bg-gray-700 flex items-center gap-1.5"><i class="fas fa-user-secret"></i> Impersonate</button>' +
               '<button onclick="Panels._editAgent(\'' + E(a.id) + '\')" class="px-3 py-1.5 border border-gray-300 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 flex items-center gap-1.5"><i class="fas fa-edit"></i> Edit</button>' +
               '<button onclick="Panels._deactivateAgent(\'' + E(a.id) + '\',\'' + E(name) + '\')" class="px-3 py-1.5 border border-red-200 text-red-400 rounded-lg text-xs font-semibold hover:bg-red-50 hover:text-red-600 flex items-center gap-1.5"><i class="fas fa-ban"></i> Deactivate</button>' +
+              '<button onclick="Panels._purgeAgent(\'' + E(a.id) + '\',\'' + E(name) + '\')" class="px-3 py-1.5 border border-red-300 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-600 hover:text-white flex items-center gap-1.5"><i class="fas fa-trash"></i> Delete Permanently</button>' +
             '</div>' +
           '</div>' +
           // Tabs
@@ -1049,6 +1050,89 @@ var Panels = (function () {
     }).catch(function (err) { CRM.toast('Error: ' + (err.message || 'Failed'), 'error'); });
   }
 
+  /**
+   * PERMANENT deletion — mistake rollback only.
+   *
+   * Deliberately a two-step, high-friction flow, because it is irreversible:
+   *   1. ask the server for a READ-ONLY dependency preview and show exactly why
+   *      this agent can or cannot be permanently deleted;
+   *   2. require the broker to TYPE the agent email before the POST.
+   *
+   * The preview is advisory only — the server re-checks every dependency inside
+   * its own transaction, so a stale preview can never widen what is allowed. An
+   * agent with business history, login history, the BROKER role or blocking
+   * attribution is refused here AND on the server, and directed to Deactivate.
+   */
+  var _purgeBusy = false;
+
+  /**
+   * PERMANENT deletion - mistake rollback only.
+   *
+   * Deliberately a two-step, high-friction flow, because it is irreversible:
+   *   1. ask the server for a READ-ONLY dependency preview and show exactly why
+   *      this agent can or cannot be permanently deleted;
+   *   2. require the broker to TYPE the agent email before the POST.
+   *
+   * The preview is advisory only - the server re-checks every dependency inside
+   * its own transaction, so a stale preview can never widen what is allowed. An
+   * agent with business history, login history, the BROKER role or blocking
+   * attribution is refused here AND on the server, and directed to Deactivate.
+   */
+  function _purgeAgent(id, name) {
+    if (_purgeBusy) return;
+    CRM.toast('Checking dependencies...', 'info');
+    MallanAPI.agents.purgePreview(id).then(function (p) {
+      var email = (p.agent && p.agent.email) || '';
+      var blockers = p.blocked_by || {};
+      var keys = Object.keys(blockers);
+
+      if (!p.can_purge) {
+        var detail = keys.map(function (k) {
+          return '  - ' + k.replace(/_/g, ' ') + ': ' + blockers[k];
+        }).join('\n');
+        alert(
+          'Cannot permanently delete "' + name + '".\n\n'
+          + (p.message || 'This agent cannot be permanently deleted.')
+          + (detail ? '\n\nBlocked by:\n' + detail : '')
+          + '\n\nUse Deactivate instead - it disables their login and removes them from '
+          + 'the public roster while preserving every record.'
+        );
+        return;
+      }
+
+      var wd = p.will_delete || {};
+      var media = p.orphaned_media || {};
+      var typed = prompt(
+        'PERMANENTLY DELETE "' + name + '"?\n\n'
+        + 'This cannot be undone.\n\n'
+        + 'Deleted: agent record, ' + (wd.sessions || 0) + ' session(s), '
+        + (wd.mfa_sessions || 0) + ' MFA session(s).\n'
+        + 'Kept: the full audit trail, including a record of this deletion.\n'
+        + (media.r2_key ? 'Kept: headshot ' + media.r2_key + ' - media is never deleted here.\n' : '')
+        + (p.public_profile_will_remain
+            ? '\nNOTE: this agent also has a static public profile, which REMAINS live after the account is deleted.\n'
+            : '')
+        + '\nType the agent email to confirm:\n' + email,
+        ''
+      );
+      if (typed === null) return;
+      if (typed.trim().toLowerCase() !== email.toLowerCase()) {
+        CRM.toast('Email did not match. Nothing was deleted.', 'warning');
+        return;
+      }
+
+      _purgeBusy = true;
+      MallanAPI.agents.purge(id, typed.trim()).then(function () {
+        CRM.toast('Agent permanently deleted', 'success');
+        agentRoster();
+      }).catch(function (err) {
+        CRM.toast('Not deleted: ' + (err.message || 'Failed'), 'error');
+      }).then(function () { _purgeBusy = false; });
+    }).catch(function (err) {
+      CRM.toast('Could not check dependencies: ' + (err.message || 'Failed'), 'error');
+    });
+  }
+
   function _addAgent() {
     var html = '<form id="addAgentForm" class="space-y-5">' +
 
@@ -1097,6 +1181,11 @@ var Panels = (function () {
               '<option value="Licensed Broker">Licensed Broker</option>' +
             '</select></div>' +
           '<div class="form-group"><label class="form-label">NY DOS License # *</label><input class="form-input" name="license_number" required placeholder="10XXXXXXXXX"></div>' +
+          '<div class="form-group sm:col-span-3"><label class="form-label">Public Title</label><input class="form-input" name="title" placeholder="Auto-filled from the licence designation above"><p class="text-xs text-gray-500 mt-1">Leave blank to use the standard title for the selected licence.</p></div>' +
+          '<div class="form-group sm:col-span-3"><label class="form-label">Public Biography</label><textarea class="form-input" name="bio" rows="4" placeholder="Shown on the public agent profile"></textarea></div>' +
+          '<div class="form-group"><label class="form-label">Languages</label><input class="form-input" name="languages" placeholder="English, Spanish"></div>' +
+          '<div class="form-group"><label class="form-label">Specialties</label><input class="form-input" name="specialties" placeholder="Co-op Board Approvals, Negotiation"></div>' +
+          '<div class="form-group"><label class="form-label">Public URL slug</label><input class="form-input" name="public_slug" placeholder="firstname-lastname"></div>' +
           '<div class="form-group"><label class="form-label">License Expiration *</label><input class="form-input" type="date" name="license_expiry" required></div>' +
         '</div>' +
         '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">' +
@@ -1231,10 +1320,57 @@ var Panels = (function () {
     reader.readAsDataURL(input.files[0]);
   }
 
+  /**
+   * CANONICAL LICENCE DESIGNATION MAP - the single place the Add Agent form's
+   * licence choice becomes stored identity.
+   *
+   * The select emits a human DESIGNATION. Two different columns come out of it:
+   *
+   *   license_type  the NY licence class the database stores: "broker" or
+   *                 "salesperson". It is NOT free text. The form used to post
+   *                 the display string straight through, so an Associate Broker
+   *                 was stored as license_type "Licensed Associate Broker".
+   *
+   *   title         what we ADVERTISE. It was never sent at all, so it landed
+   *                 NULL and the public profile fell through to its
+   *                 "Licensed Real Estate Salesperson" display default - which
+   *                 is how an Associate Broker ended up publicly mislabelled.
+   *
+   * `role` is a third axis entirely - the CRM authorisation grant - and is set
+   * server-side to "AGENT" always. An Associate Broker holds a broker licence
+   * and is NOT the principal broker, so she must never receive role BROKER.
+   */
+  var LICENSE_DESIGNATIONS = {
+    'Licensed Real Estate Salesperson': {
+      license_type: 'salesperson',
+      title: 'Licensed Real Estate Salesperson',
+    },
+    'Licensed Associate Broker': {
+      license_type: 'broker',
+      title: 'Licensed Real Estate Associate Broker',
+    },
+    'Licensed Broker': {
+      license_type: 'broker',
+      title: 'Licensed Real Estate Broker',
+    },
+  };
+
+  function _designationFor(selected) {
+    return LICENSE_DESIGNATIONS[selected] || { license_type: null, title: null };
+  }
+
+  var _addAgentBusy = false;
+
   function _submitAddAgent(mode) {
     var form = document.getElementById('addAgentForm');
     if (!form) return;
     if (mode === 'invite' && !form.checkValidity()) { form.reportValidity(); return; }
+
+    // IDEMPOTENCE. Every click used to fire its own POST. The first succeeded
+    // and the rest hit the server email-uniqueness check and came back 409, so
+    // the UI reported "Error" over an account that HAD been created. One
+    // in-flight submission at a time.
+    if (_addAgentBusy) return;
 
     var raw = {};
     new FormData(form).forEach(function (v, k) {
@@ -1242,16 +1378,34 @@ var Panels = (function () {
       if (v) raw[k] = v;
     });
 
-    // Map form fields to API field names
+    var designation = _designationFor(raw.license_type);
+
+    // FIELD OWNERSHIP. This previously sent 8 fields and silently dropped every
+    // other input the form renders - including `title`, which is why an
+    // Associate Broker was stored with a NULL title and then advertised on the
+    // public site as a "Licensed Real Estate Salesperson" by the display
+    // default. If the form collects it, it is sent.
     var data = {
       first_name: raw.first_name || '',
       last_name: raw.last_name || '',
-      email: raw.email || '',
+      email: (raw.email || '').trim(),
       phone: raw.phone || null,
       license_no: raw.license_number || raw.license_no || null,
-      license_type: raw.license_type || null,
-      sale_split: raw.sale_split ? Number(raw.sale_split) / 100 : null,
-      rental_split: raw.rental_split ? Number(raw.rental_split) / 100 : null,
+      license_type: designation.license_type,
+      // The form field is `agent_split`; the API takes sale_split/rental_split.
+      // Reading raw.sale_split meant the split was silently dropped every time.
+      sale_split: raw.agent_split ? Number(raw.agent_split) / 100 : null,
+      rental_split: raw.agent_split ? Number(raw.agent_split) / 100 : null,
+      // Public professional identity - part of the same governed record.
+      title: raw.title || designation.title,
+      bio: raw.bio || null,
+      public_slug: raw.public_slug
+        || ((raw.first_name || '') + '-' + (raw.last_name || '')).toLowerCase().replace(/\s+/g, '-'),
+      languages: raw.languages
+        ? String(raw.languages).split(',').map(function (x) { return x.trim(); }).filter(Boolean) : [],
+      specialties: raw.specialties
+        ? String(raw.specialties).split(',').map(function (x) { return x.trim(); }).filter(Boolean) : [],
+      featured: false,
     };
 
     if (!data.first_name || !data.last_name || !data.email) {
@@ -1259,38 +1413,56 @@ var Panels = (function () {
       return;
     }
 
+    _addAgentBusy = true;
+    CRM.toast('Creating agent...', 'info');
+
     MallanAPI.agents.create(data).then(function (res) {
       var agentId = res.id;
       var tempPw = res.tempPassword || '';
 
-      // Upload photo if provided
+      // TRUTHFUL STATES. The account now EXISTS. Everything after this point is
+      // a follow-up step that can fail on its own, and a failure in one must
+      // never be reported as "the agent was not created".
+      CRM.toast('Account created for ' + data.first_name + ' ' + data.last_name, 'success');
+
       var photoInput = document.getElementById('addAgentPhotoInput');
       var photoFile = photoInput && photoInput.files && photoInput.files[0];
-      if (photoFile && agentId) {
-        var formData = new FormData();
-        formData.append('file', photoFile);
-        fetch('/api/crm/agents/' + agentId + '/photo', {
-          method: 'POST',
-          credentials: 'include',
-          body: formData,
-        }).then(function (r) { return r.json(); }).then(function (photoRes) {
-          if (photoRes.url) {
-            // Update agent with photo URL
-            MallanAPI.agents.update(agentId, { photo: photoRes.url }).catch(function () { /* best effort */ });
-          }
-        }).catch(function () { /* photo upload is best-effort */ });
-      }
+      if (!(photoFile && agentId)) return { agentId: agentId, tempPw: tempPw, photo: 'none' };
 
+      var formData = new FormData();
+      formData.append('file', photoFile);
+      return fetch('/api/crm/agents/' + agentId + '/photo', {
+        method: 'POST', credentials: 'include', body: formData,
+      }).then(function (r) {
+        if (!r.ok) throw new Error('photo upload returned ' + r.status);
+        return r.json();
+      }).then(function (photoRes) {
+        // The route responds { photo }, not { url }. Reading `url` meant this
+        // branch never ran - and the follow-up PATCH was redundant anyway,
+        // because the photo route already writes agent.photo itself.
+        return { agentId: agentId, tempPw: tempPw, photo: photoRes.photo ? 'uploaded' : 'no-url' };
+      }).catch(function (err) {
+        // Loud, and explicitly NOT a creation failure.
+        CRM.toast('Account created, but the headshot did not upload: '
+          + (err.message || 'unknown') + '. Add it from Edit.', 'warning');
+        return { agentId: agentId, tempPw: tempPw, photo: 'failed' };
+      });
+    }).then(function (out) {
       CRM.closeModal();
-      if (mode === 'invite' && tempPw) {
-        CRM.toast('Agent created. Temp password: ' + tempPw, 'success');
-      } else {
-        CRM.toast('Agent added successfully', 'success');
+      if (mode === 'invite' && out && out.tempPw) {
+        CRM.toast('Temporary password: ' + out.tempPw + ' - give this to the agent.', 'success');
       }
       agentRoster();
     }).catch(function (err) {
-      CRM.toast('Error: ' + (err.message || 'Failed to add agent'), 'error');
-    });
+      var msg = err.message || 'Failed to add agent';
+      // A duplicate is not a mystery error: the account already exists.
+      if (/already exists/i.test(msg)) {
+        CRM.toast('An agent with that email already exists - no new record was created.', 'warning');
+        agentRoster();
+      } else {
+        CRM.toast('Agent was NOT created: ' + msg, 'error');
+      }
+    }).then(function () { _addAgentBusy = false; });
   }
 
   function _editAgent(id) {
@@ -9604,7 +9776,7 @@ var Panels = (function () {
           '<td class="px-3 py-2"><p class="text-sm font-medium text-gray-900">' + E(addr) + '</p></td>' +
           '<td class="px-3 py-2 text-xs text-gray-500">' + E(l._isRental ? 'Rental' : 'Sale') + '</td>' +
           '<td class="px-3 py-2 text-sm font-semibold">' + $(price) + '</td>' +
-          '<td class="px-3 py-2">' + UI.statusBadge(l.status || 'Active') + '</td>' +
+          '<td class="px-3 py-2">' + UI.statusBadge(l.status || 'UNKNOWN') + '</td>' +
           '<td class="px-3 py-2 text-xs text-gray-600">' + dom + '</td>' +
           '<td class="px-3 py-2">' + expiryHtml + '</td>' +
           '<td class="px-3 py-2">' + (function () {
@@ -12172,7 +12344,7 @@ var Panels = (function () {
               '<p class="text-sm font-medium truncate">' + E(addr) + '</p>' +
               '<div class="flex items-center gap-3 text-xs text-gray-500">' +
                 '<span class="font-bold text-gray-900">' + $(price) + '</span>' +
-                UI.statusBadge(l.status || 'Active') +
+                UI.statusBadge(l.status || 'UNKNOWN') +
                 '<span>' + dom + ' DOM</span>' +
                 (l._neighborhood ? '<span>' + E(l._neighborhood) + '</span>' : '') +
               '</div>' +
@@ -13389,6 +13561,7 @@ var Panels = (function () {
     _agentTab: _agentTab,
     _filterRoster: _filterRoster,
     _deactivateAgent: _deactivateAgent,
+    _purgeAgent: _purgeAgent,
     _extractEmailContacts: _extractEmailContacts,
     _submitEmailImport: _submitEmailImport,
     _togglePartner: _togglePartner,

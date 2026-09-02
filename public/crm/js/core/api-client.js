@@ -50,11 +50,39 @@ var MallanAPI = (function () {
         return Promise.reject(new Error('Access denied'));
       }
       if (!res.ok) {
-        return res.json().then(function (data) {
-          return Promise.reject(new Error(data.error || 'Request failed: ' + res.status));
-        }).catch(function () {
-          return Promise.reject(new Error('Request failed: ' + res.status));
-        });
+        // TWO FAILURES USED TO COLLAPSE INTO ONE.
+        //
+        // This was `res.json().then(reject(...)).catch(reject(generic))`. The
+        // trailing .catch was meant for "the body is not JSON" — but a .catch
+        // after a .then also catches whatever that .then REJECTS WITH, and the
+        // .then rejected on purpose. So the deliberate rejection was captured
+        // and overwritten by the generic one, and NO endpoint in the CRM has
+        // ever shown a server error message. Everything read
+        // "Request failed: 400".
+        //
+        // Parsing the body and building the rejection are now separate steps,
+        // so a parse failure and an error response cannot be mistaken for each
+        // other.
+        return res
+          .json()
+          .then(function (data) { return data; }, function () { return null; })
+          .then(function (data) {
+            var err = new Error((data && data.error) || 'Request failed: ' + res.status);
+            // Attached, not substituted: every caller reading err.message is
+            // unaffected, and callers that can ACT on the detail can now reach
+            // it. UNSUPPORTED_CRITERION carries the criterion name and the
+            // offending values — the only two facts that tell a broker what to
+            // change. Dropping them turned a precise refusal into "try again",
+            // which for a refused criterion is advice that cannot ever work.
+            err.status = res.status;
+            if (data) {
+              if (data.code) err.code = data.code;
+              if (data.criterion) err.criterion = data.criterion;
+              if (data.unsupportedValues) err.unsupportedValues = data.unsupportedValues;
+              err.body = data;
+            }
+            return Promise.reject(err);
+          });
       }
       return res.json();
     });
@@ -338,6 +366,31 @@ var MallanAPI = (function () {
     },
 
     /**
+     * Read-only dependency preview for PERMANENT deletion. Safe to call
+     * freely — it writes nothing. Returns can_purge plus blocked_by, and the
+     * media/static-profile consequences of removing the account.
+     */
+    purgePreview: function (id) {
+      return _fetch('/api/crm/agents/' + encodeURIComponent(id) + '/purge-preview');
+    },
+
+    /**
+     * PERMANENT deletion — mistake rollback only, for an erroneous record that
+     * was never used. Distinct from deactivate(), which is normal offboarding
+     * and retains all history.
+     *
+     * The server re-checks every dependency inside its own transaction, so the
+     * preview above is advisory and never acts as authorization. confirmEmail
+     * must match the target agent's email exactly.
+     */
+    purge: function (id, confirmEmail) {
+      return _fetch('/api/crm/agents/' + encodeURIComponent(id) + '/purge', {
+        method: 'POST',
+        body: JSON.stringify({ confirm_email: confirmEmail }),
+      });
+    },
+
+    /**
      * PR-CRM.6 (2026-05-24) — start a server-side delegated impersonation
      * session for the given agent. Broker-only on the backend
      * (requireBroker); the server writes an AuditEvent ("impersonate_start"),
@@ -611,11 +664,13 @@ var MallanAPI = (function () {
     },
   };
 
-  // ─── IDX / Trestle RLS (read-only) ───────────────────────────────────────
+  // ─── IDX / Cotality API (read-only) ──────────────────────────────────────
 
   var idx = {
     /**
-     * Search listings via Trestle/REBNY RLS.
+     * Search listings via the Cotality API, the one external provider authority.
+     * (Was described here as Trestle/REBNY RLS, which named the wrong engine.
+     * REBNY/RLS remain compliance and attribution context, not the data source.)
      * Returns listings in CRM flat shape (same as listings).
      * @param {object} params - { type, minPrice, maxPrice, minBeds, minBaths, neighborhood, borough, status, limit, skip, minYear, maxYear, minFloors, maxFloors, minUnits, maxUnits, buildingName }
      */
@@ -629,7 +684,17 @@ var MallanAPI = (function () {
       if (params.maxBeds != null) qs.push('maxBeds=' + params.maxBeds);
       if (params.minBaths) qs.push('minBaths=' + params.minBaths);
       if (params.maxBaths) qs.push('maxBaths=' + params.maxBaths);
-      if (params.neighborhood) qs.push('neighborhood=' + encodeURIComponent(params.neighborhood));
+      // ONE PARAMETER PER NEIGHBOURHOOD, so a provider value containing a comma
+      // survives the wire. `Williamsburg,North` is a real Cotality name; sent as
+      // part of a comma-joined string the server split it into two criteria.
+      // Repeated params cannot collide with any character a value may contain.
+      // An older caller passing a single string still works.
+      if (params.neighborhood) {
+        var _hoods = Array.isArray(params.neighborhood) ? params.neighborhood : [params.neighborhood];
+        for (var _h = 0; _h < _hoods.length; _h++) {
+          if (_hoods[_h]) qs.push('neighborhood=' + encodeURIComponent(_hoods[_h]));
+        }
+      }
       if (params.borough) qs.push('borough=' + encodeURIComponent(params.borough));
       if (params.status) qs.push('status=' + encodeURIComponent(params.status));
       if (params.propertySubType) qs.push('propertySubType=' + encodeURIComponent(params.propertySubType));
@@ -655,15 +720,56 @@ var MallanAPI = (function () {
       if (params.minUnits) qs.push('minUnits=' + params.minUnits);
       if (params.maxUnits) qs.push('maxUnits=' + params.maxUnits);
       if (params.buildingName) qs.push('buildingName=' + encodeURIComponent(params.buildingName));
+      // KEYWORD AND UNIT: forwarded so they stop DISAPPEARING silently.
+      //
+      // Both were assigned by buildIdxSearchParams and forwarded by nothing, so
+      // an agent typed a narrowing criterion, the browser dropped it, and the
+      // search ran WIDER than asked with an HTTP 200 and nothing to say so.
+      // That is the same defect financing had below, and it is fixed the same
+      // way: transport the value and let the server give a truthful answer.
+      //
+      // The two answers differ, which is the point. `unit` now EXECUTES — it
+      // maps to toupper(UnitNumber) eq, proven live 2026-08-31 and returning the
+      // exact union of case variants. `keyword` is REFUSED by name, because
+      // contains(PublicRemarks,...) never returns: five probes, every shape,
+      // each aborting with no HTTP status. Forwarding it makes that refusal
+      // reachable as a typed UNSUPPORTED_CRITERION instead of a criterion that
+      // quietly evaporates between the form and the request.
+      if (params.unit) qs.push('unit=' + encodeURIComponent(params.unit));
+      if (params.keyword) qs.push('keyword=' + encodeURIComponent(params.keyword));
+      // Maximum financing. BOTH bounds, and `!= null` rather than truthiness so a
+      // legitimate 0 bound is not dropped as though it were absent.
+      //
+      // The canonical serializer emitted these and NOTHING forwarded them, so the
+      // criterion died here — one hop after being built. The server refuses it by
+      // name until Mallan-side execution exists; forwarding is what makes that
+      // refusal reachable instead of the filter silently disappearing and the
+      // broker receiving a wider result set with an HTTP 200.
+      if (params.financingMin != null && params.financingMin !== '') qs.push('financingMin=' + params.financingMin);
+      if (params.financingMax != null && params.financingMax !== '') qs.push('financingMax=' + params.financingMax);
+      // checkboxFilters carries the amenity/feature/condition criteria. It was
+      // ASSIGNED by buildIdxSearchParams and never forwarded, so every one of
+      // those controls was silently inert. The server validates each field and
+      // value against a closed live-verified registry, so transporting it does
+      // NOT hand the browser an open field=value passthrough.
+      if (params.checkboxFilters) qs.push('checkboxFilters=' + encodeURIComponent(params.checkboxFilters));
       if (params.sort) qs.push('sort=' + encodeURIComponent(params.sort));
       if (params.limit) qs.push('limit=' + params.limit);
       if (params.skip) qs.push('skip=' + params.skip);
+      // 1-based page over the FINAL universe. Distinct from `skip`, which is a
+      // PROVIDER offset and cannot express a broker page once gated and deduped
+      // rows mean provider offset 50 is not the 51st result.
+      if (params.page) qs.push('page=' + params.page);
+      if (params.exactCount) qs.push('exactCount=true');
+      // Opaque resume position. A caller must not construct one — it is only
+      // ever echoed back from a previous response.
+      if (params.continuation) qs.push('continuation=' + encodeURIComponent(params.continuation));
       var query = qs.length ? '?' + qs.join('&') : '';
       return _fetch('/api/idx/search' + query);
     },
 
     /**
-     * Check IDX/Trestle status (broker-only).
+     * Check IDX/Cotality connection status (broker-only).
      */
     status: function () {
       return _fetch('/api/idx/status');
