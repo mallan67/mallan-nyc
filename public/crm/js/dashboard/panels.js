@@ -1050,19 +1050,6 @@ var Panels = (function () {
     }).catch(function (err) { CRM.toast('Error: ' + (err.message || 'Failed'), 'error'); });
   }
 
-  /**
-   * PERMANENT deletion — mistake rollback only.
-   *
-   * Deliberately a two-step, high-friction flow, because it is irreversible:
-   *   1. ask the server for a READ-ONLY dependency preview and show exactly why
-   *      this agent can or cannot be permanently deleted;
-   *   2. require the broker to TYPE the agent email before the POST.
-   *
-   * The preview is advisory only — the server re-checks every dependency inside
-   * its own transaction, so a stale preview can never widen what is allowed. An
-   * agent with business history, login history, the BROKER role or blocking
-   * attribution is refused here AND on the server, and directed to Deactivate.
-   */
   var _purgeBusy = false;
 
   /**
@@ -1141,19 +1128,19 @@ var Panels = (function () {
         '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2"><i class="fas fa-user text-gold"></i> Personal Information</h3>' +
         '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
           '<div class="form-group"><label class="form-label">First Name *</label><input class="form-input" name="first_name" required placeholder="First name"></div>' +
-          '<div class="form-group"><label class="form-label">Middle Name</label><input class="form-input" name="middle_name" placeholder="Middle name"></div>' +
+          '<div class="form-group"><label class="form-label">Middle Name</label><input class="form-input" name="middle_name" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved." placeholder="Middle name"></div>' +
           '<div class="form-group"><label class="form-label">Last Name *</label><input class="form-input" name="last_name" required placeholder="Last name"></div>' +
         '</div>' +
         '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">' +
           '<div class="form-group"><label class="form-label">Email *</label><input class="form-input" type="email" name="email" required placeholder="agent@mallan.nyc"></div>' +
           '<div class="form-group"><label class="form-label">Phone *</label><input class="form-input" type="tel" name="phone" required placeholder="646-XXX-XXXX"></div>' +
-          '<div class="form-group"><label class="form-label">Secondary Phone</label><input class="form-input" type="tel" name="secondary_phone" placeholder="Optional"></div>' +
+          '<div class="form-group"><label class="form-label">Secondary Phone</label><input class="form-input" type="tel" name="secondary_phone" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved." placeholder="Optional"></div>' +
         '</div>' +
         '<div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mt-3">' +
-          '<div class="form-group"><label class="form-label">Home Address</label><input class="form-input" name="home_address" placeholder="Street address"></div>' +
-          '<div class="form-group"><label class="form-label">City</label><input class="form-input" name="city" value="New York" placeholder="City"></div>' +
-          '<div class="form-group"><label class="form-label">State</label><input class="form-input" name="state" value="NY" placeholder="State"></div>' +
-          '<div class="form-group"><label class="form-label">Zip</label><input class="form-input" name="zip" placeholder="10001"></div>' +
+          '<div class="form-group"><label class="form-label">Home Address</label><input class="form-input" name="home_address" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved." placeholder="Street address"></div>' +
+          '<div class="form-group"><label class="form-label">City</label><input class="form-input" name="city" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved." value="New York" placeholder="City"></div>' +
+          '<div class="form-group"><label class="form-label">State</label><input class="form-input" name="state" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved." value="NY" placeholder="State"></div>' +
+          '<div class="form-group"><label class="form-label">Zip</label><input class="form-input" name="zip" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved." placeholder="10001"></div>' +
         '</div>' +
         '<div class="mt-3">' +
           '<label class="form-label">Agent Headshot</label>' +
@@ -1190,7 +1177,7 @@ var Panels = (function () {
         '</div>' +
         '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">' +
           '<div class="form-group"><label class="form-label">DOS License Status</label>' +
-            '<select class="form-input form-select" name="license_status">' +
+            '<select class="form-input form-select" name="license_status" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved.">' +
               '<option value="Active">Active</option>' +
               '<option value="Inactive">Inactive</option>' +
               '<option value="Expired">Expired</option>' +
@@ -1198,15 +1185,15 @@ var Panels = (function () {
               '<option value="Revoked">Revoked</option>' +
             '</select></div>' +
           '<div class="form-group"><label class="form-label">REBNY Member ID</label><input class="form-input" name="rebny_member_id" placeholder="REBNY Member ID"></div>' +
-          '<div class="form-group"><label class="form-label">NRD/NRDS ID</label><input class="form-input" name="nrds_id" placeholder="NRD/NRDS ID"></div>' +
+          '<div class="form-group"><label class="form-label">NRD/NRDS ID</label><input class="form-input" name="nrds_id" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved." placeholder="NRD/NRDS ID"></div>' +
         '</div>' +
         '<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-3">' +
           '<h4 class="text-xs font-bold text-yellow-800 uppercase mb-2"><i class="fas fa-graduation-cap mr-1"></i> Continuing Education (CE) Hours</h4>' +
           '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
-            '<div class="form-group mb-0"><label class="form-label">CE Hours Completed</label><input class="form-input" type="number" name="ce_hours_completed" min="0" max="100" placeholder="0"></div>' +
-            '<div class="form-group mb-0"><label class="form-label">CE Cycle End Date</label><input class="form-input" type="date" name="ce_cycle_end_date"></div>' +
+            '<div class="form-group mb-0"><label class="form-label">CE Hours Completed</label><input class="form-input" type="number" name="ce_hours_completed" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved." min="0" max="100" placeholder="0"></div>' +
+            '<div class="form-group mb-0"><label class="form-label">CE Cycle End Date</label><input class="form-input" type="date" name="ce_cycle_end_date" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved."></div>' +
             '<div class="form-group mb-0"><label class="form-label">Fair Housing Completed</label>' +
-              '<select class="form-input form-select" name="fair_housing_completed">' +
+              '<select class="form-input form-select" name="fair_housing_completed" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved.">' +
                 '<option value="">Select...</option>' +
                 '<option value="Yes">Yes</option>' +
                 '<option value="No">No</option>' +
@@ -1219,13 +1206,13 @@ var Panels = (function () {
       '<div class="border-t pt-5">' +
         '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2"><i class="fas fa-handshake text-gold"></i> Brokerage &amp; Commission</h3>' +
         '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
-          '<div class="form-group"><label class="form-label">Start Date *</label><input class="form-input" type="date" name="start_date" required></div>' +
+          '<div class="form-group"><label class="form-label">Start Date *</label><input class="form-input" type="date" name="start_date" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved." required></div>' +
           '<div class="form-group"><label class="form-label">Agent Commission Split %</label>' +
             '<input class="form-input" type="number" name="agent_split" value="60" min="0" max="100" oninput="var bk=document.getElementById(\'brokerageSideCalc\');if(bk)bk.textContent=(100-Number(this.value||0))+\'%\';">' +
             '<p class="text-xs text-gray-400 mt-1">Brokerage side: <span id="brokerageSideCalc" class="font-semibold text-gray-600">40%</span></p>' +
           '</div>' +
           '<div class="form-group"><label class="form-label">Team / Department</label>' +
-            '<select class="form-input form-select" name="team">' +
+            '<select class="form-input form-select" name="team" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved.">' +
               '<option value="">No Team</option>' +
               '<option value="Sales Team A">Sales Team A</option>' +
               '<option value="Rental Team">Rental Team</option>' +
@@ -1234,10 +1221,10 @@ var Panels = (function () {
             '</select></div>' +
         '</div>' +
         '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">' +
-          '<div class="form-group"><label class="form-label">Desk Fee (Monthly)</label><input class="form-input" type="number" name="desk_fee" min="0" placeholder="$0.00"></div>' +
-          '<div class="form-group"><label class="form-label">Referral Fee %</label><input class="form-input" type="number" name="referral_fee_pct" min="0" max="100" placeholder="0"></div>' +
+          '<div class="form-group"><label class="form-label">Desk Fee (Monthly)</label><input class="form-input" type="number" name="desk_fee" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved." min="0" placeholder="$0.00"></div>' +
+          '<div class="form-group"><label class="form-label">Referral Fee %</label><input class="form-input" type="number" name="referral_fee_pct" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved." min="0" max="100" placeholder="0"></div>' +
           '<div class="form-group"><label class="form-label">Contract Term</label>' +
-            '<select class="form-input form-select" name="contract_term">' +
+            '<select class="form-input form-select" name="contract_term" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved.">' +
               '<option value="">Select...</option>' +
               '<option value="1 Year">1 Year</option>' +
               '<option value="2 Years">2 Years</option>' +
@@ -1292,7 +1279,7 @@ var Panels = (function () {
       // ── Section 6: Internal Notes ──
       '<div class="border-t pt-5">' +
         '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2"><i class="fas fa-sticky-note text-gold"></i> Internal Notes</h3>' +
-        '<div class="form-group mb-0"><textarea class="form-input" name="internal_notes" rows="3" placeholder="Optional notes about this agent (broker eyes only)..."></textarea></div>' +
+        '<div class="form-group mb-0"><textarea class="form-input" name="internal_notes" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved." rows="3" placeholder="Optional notes about this agent (broker eyes only)..."></textarea></div>' +
       '</div>' +
 
     '</form>';
@@ -1303,7 +1290,13 @@ var Panels = (function () {
         '<p class="text-xs text-gray-400"><i class="fas fa-shield-alt mr-1"></i> Data protected under NY SHIELD Act</p>' +
         '<div class="flex items-center gap-2">' +
           '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
-          '<button class="btn btn-outline" onclick="Panels._submitAddAgent(\'draft\')"><i class="fas fa-save mr-1"></i> Save Draft</button>' +
+          // "Save Draft" was a lie: it called the same create endpoint, which
+          // hardcodes status "active" server-side, so it produced a real,
+          // live, loggable-in account. There is no non-active Agent state to
+          // implement it against without schema growth, so the control is gone
+          // rather than renamed - a second button that silently does the same
+          // thing as Send Invite is how the erroneous record got made twice.
+
           '<button class="btn btn-gold" onclick="Panels._submitAddAgent(\'invite\')"><i class="fas fa-paper-plane mr-1"></i> Send Invite</button>' +
         '</div>' +
       '</div>',
@@ -1364,7 +1357,8 @@ var Panels = (function () {
   function _submitAddAgent(mode) {
     var form = document.getElementById('addAgentForm');
     if (!form) return;
-    if (mode === 'invite' && !form.checkValidity()) { form.reportValidity(); return; }
+    // Only one submit path remains, so validity is always enforced.
+    if (!form.checkValidity()) { form.reportValidity(); return; }
 
     // IDEMPOTENCE. Every click used to fire its own POST. The first succeeded
     // and the rest hit the server email-uniqueness check and came back 409, so
@@ -1391,6 +1385,9 @@ var Panels = (function () {
       email: (raw.email || '').trim(),
       phone: raw.phone || null,
       license_no: raw.license_number || raw.license_no || null,
+      license_expiry: raw.license_expiry || null,
+      // The schema comment for trestle_mls_id names it the REBNY MLS member ID.
+      trestle_mls_id: raw.rebny_member_id || null,
       license_type: designation.license_type,
       // The form field is `agent_split`; the API takes sale_split/rental_split.
       // Reading raw.sale_split meant the split was silently dropped every time.
@@ -9776,7 +9773,7 @@ var Panels = (function () {
           '<td class="px-3 py-2"><p class="text-sm font-medium text-gray-900">' + E(addr) + '</p></td>' +
           '<td class="px-3 py-2 text-xs text-gray-500">' + E(l._isRental ? 'Rental' : 'Sale') + '</td>' +
           '<td class="px-3 py-2 text-sm font-semibold">' + $(price) + '</td>' +
-          '<td class="px-3 py-2">' + UI.statusBadge(l.status || 'UNKNOWN') + '</td>' +
+          '<td class="px-3 py-2">' + UI.statusBadge(l.status || 'Active') + '</td>' +
           '<td class="px-3 py-2 text-xs text-gray-600">' + dom + '</td>' +
           '<td class="px-3 py-2">' + expiryHtml + '</td>' +
           '<td class="px-3 py-2">' + (function () {
@@ -12344,7 +12341,7 @@ var Panels = (function () {
               '<p class="text-sm font-medium truncate">' + E(addr) + '</p>' +
               '<div class="flex items-center gap-3 text-xs text-gray-500">' +
                 '<span class="font-bold text-gray-900">' + $(price) + '</span>' +
-                UI.statusBadge(l.status || 'UNKNOWN') +
+                UI.statusBadge(l.status || 'Active') +
                 '<span>' + dom + ' DOM</span>' +
                 (l._neighborhood ? '<span>' + E(l._neighborhood) + '</span>' : '') +
               '</div>' +

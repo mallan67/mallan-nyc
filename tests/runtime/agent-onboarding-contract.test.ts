@@ -177,3 +177,72 @@ describe('Delete Permanently is wired and distinct from Deactivate', () => {
     expect(dash).toContain('/crm/js/dashboard/panels.js');
   });
 });
+
+describe('visible-field census - nothing disappears silently', () => {
+  const formRegion = panels.slice(
+    panels.indexOf('function _addAgent() {'),
+    panels.indexOf('function _submitAddAgent'),
+  );
+  const inputNames = [...formRegion.matchAll(/name="([a-z_]+)"/g)].map((m) => m[1]);
+
+  it('license_expiry is persisted on CREATE, not only on PATCH', () => {
+    const api = readFileSync(resolve(ROOT, 'app/api/crm/agents/route.ts'), 'utf8');
+    expect(api).toContain('license_expiry:');
+    expect(panels).toContain('license_expiry: raw.license_expiry');
+  });
+
+  it('the REBNY member id maps to the existing trestle_mls_id column', () => {
+    const api = readFileSync(resolve(ROOT, 'app/api/crm/agents/route.ts'), 'utf8');
+    expect(api).toContain('trestle_mls_id:');
+    expect(panels).toContain('trestle_mls_id: raw.rebny_member_id');
+  });
+
+  it('every input with no canonical Agent field is visibly disabled, not silently dropped', () => {
+    const unowned = [
+      'middle_name', 'secondary_phone', 'home_address', 'city', 'state', 'zip',
+      'license_status', 'nrds_id', 'fair_housing_completed', 'start_date', 'team',
+      'desk_fee', 'referral_fee_pct', 'contract_term', 'internal_notes',
+      'ce_hours_completed', 'ce_cycle_end_date',
+    ];
+    for (const f of unowned) {
+      const re = new RegExp('name="' + f + '"[^>]*disabled|disabled[^>]*name="' + f + '"');
+      expect(formRegion).toMatch(re);
+    }
+  });
+
+  it('every ENABLED input is either sent or owned by a separate writer', () => {
+    const sentOrOwned = [
+      'first_name', 'last_name', 'email', 'phone', 'license_number', 'license_type',
+      'license_expiry', 'rebny_member_id', 'agent_split', 'title', 'bio',
+      'languages', 'specialties', 'public_slug',
+      'agent_photo', 'ica_document', 'other_documents', // separate writers
+    ];
+    const enabled = inputNames.filter((n) => {
+      const re = new RegExp('name="' + n + '"[^>]*disabled|disabled[^>]*name="' + n + '"');
+      return !re.test(formRegion);
+    });
+    for (const n of new Set(enabled)) expect(sentOrOwned).toContain(n);
+  });
+});
+
+describe('Save Draft is gone, because it was never a draft', () => {
+  it('the control no longer exists', () => {
+    expect(panels).not.toContain("_submitAddAgent(\\'draft\\')");
+  });
+
+  it('only one submit path remains, and it always validates', () => {
+    // The calls sit inside a JS string literal, so the quotes are
+    // backslash-escaped in the source. Match the literal text.
+    const INVITE = "_submitAddAgent(\\'invite\\')";
+    const DRAFT = "_submitAddAgent(\\'draft\\')";
+    expect(panels).toContain(INVITE);
+    expect(panels).not.toContain(DRAFT);
+    expect(panels.split(INVITE).length - 1).toBe(1);
+    expect(panels).toContain('if (!form.checkValidity())');
+  });
+
+  it('the server still hardcodes an active account, which is why no draft is possible', () => {
+    const api = readFileSync(resolve(ROOT, 'app/api/crm/agents/route.ts'), 'utf8');
+    expect(api).toContain('status: "active"');
+  });
+});

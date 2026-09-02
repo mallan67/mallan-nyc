@@ -121,6 +121,12 @@ export async function POST(req: NextRequest) {
       phone: (body.phone as string) ?? null,
       license_no: (body.license_no as string) ?? null,
       license_type: (body.license_type as string) ?? null,
+      // Both columns already exist on Agent and PATCH writes them; create did
+      // not, so a licence expiry typed on the Add Agent form was collected and
+      // then dropped. GET even selects license_expiry, which made the loss
+      // invisible until you reopened the record.
+      license_expiry: body.license_expiry ? new Date(body.license_expiry as string) : null,
+      trestle_mls_id: (body.trestle_mls_id as string) ?? null,
       sale_split: body.sale_split != null ? Number(body.sale_split) : null,
       rental_split: body.rental_split != null ? Number(body.rental_split) : null,
       role: "AGENT",
