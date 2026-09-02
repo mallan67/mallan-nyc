@@ -1184,7 +1184,7 @@ var Panels = (function () {
               '<option value="Suspended">Suspended</option>' +
               '<option value="Revoked">Revoked</option>' +
             '</select></div>' +
-          '<div class="form-group"><label class="form-label">REBNY Member ID</label><input class="form-input" name="rebny_member_id" placeholder="REBNY Member ID"></div>' +
+          '<div class="form-group"><label class="form-label">MLS Member ID</label><input class="form-input" name="mls_member_id" placeholder="Cotality MemberMlsId, e.g. 39361"></div>' +
           '<div class="form-group"><label class="form-label">NRD/NRDS ID</label><input class="form-input" name="nrds_id" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved." placeholder="NRD/NRDS ID"></div>' +
         '</div>' +
         '<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-3">' +
@@ -1238,21 +1238,21 @@ var Panels = (function () {
         '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3 flex items-center gap-2"><i class="fas fa-file-upload text-gold"></i> Broker Document Upload</h3>' +
         '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">' +
           '<div>' +
-            '<label class="form-label">Signed ICA (Independent Contractor Agreement) *</label>' +
+            '<label class="form-label">Signed ICA (Independent Contractor Agreement) - upload not yet available</label>' +
             '<div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gold transition cursor-pointer" onclick="this.querySelector(\'input\').click()">' +
               '<i class="fas fa-cloud-upload-alt text-gray-400 text-2xl mb-2"></i>' +
               '<p class="text-sm text-gray-500">Click to upload or drag &amp; drop</p>' +
               '<p class="text-xs text-gray-400 mt-1">PDF, DOC, DOCX (max 10MB)</p>' +
-              '<input type="file" name="ica_document" accept=".pdf,.doc,.docx" class="hidden" onchange="var n=this.parentElement.querySelector(\'p\');if(this.files[0])n.textContent=this.files[0].name">' +
+              '<input type="file" name="ica_document" disabled data-no-canonical-owner="true" title="Not stored yet - the document writer cannot target a newly created agent, so nothing selected here is saved." accept=".pdf,.doc,.docx" class="hidden" onchange="var n=this.parentElement.querySelector(\'p\');if(this.files[0])n.textContent=this.files[0].name">' +
             '</div>' +
           '</div>' +
           '<div>' +
-            '<label class="form-label">Other Documents</label>' +
+            '<label class="form-label">Other Documents - upload not yet available</label>' +
             '<div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gold transition cursor-pointer" onclick="this.querySelector(\'input\').click()">' +
               '<i class="fas fa-cloud-upload-alt text-gray-400 text-2xl mb-2"></i>' +
               '<p class="text-sm text-gray-500">Click to upload or drag &amp; drop</p>' +
               '<p class="text-xs text-gray-400 mt-1">PDF, DOC, DOCX (max 10MB)</p>' +
-              '<input type="file" name="other_documents" accept=".pdf,.doc,.docx" multiple class="hidden" onchange="var n=this.parentElement.querySelector(\'p\');if(this.files.length)n.textContent=this.files.length+\' file(s) selected\'">' +
+              '<input type="file" name="other_documents" disabled data-no-canonical-owner="true" title="Not stored yet - the document writer cannot target a newly created agent, so nothing selected here is saved." accept=".pdf,.doc,.docx" multiple class="hidden" onchange="var n=this.parentElement.querySelector(\'p\');if(this.files.length)n.textContent=this.files.length+\' file(s) selected\'">' +
             '</div>' +
           '</div>' +
         '</div>' +
@@ -1297,7 +1297,7 @@ var Panels = (function () {
           // rather than renamed - a second button that silently does the same
           // thing as Send Invite is how the erroneous record got made twice.
 
-          '<button class="btn btn-gold" onclick="Panels._submitAddAgent(\'invite\')"><i class="fas fa-paper-plane mr-1"></i> Send Invite</button>' +
+          '<button class="btn btn-gold" onclick="Panels._submitAddAgent(\'create\')"><i class="fas fa-user-plus mr-1"></i> Create Agent Account</button>' +
         '</div>' +
       '</div>',
     });
@@ -1387,7 +1387,7 @@ var Panels = (function () {
       license_no: raw.license_number || raw.license_no || null,
       license_expiry: raw.license_expiry || null,
       // The schema comment for trestle_mls_id names it the REBNY MLS member ID.
-      trestle_mls_id: raw.rebny_member_id || null,
+      trestle_mls_id: raw.mls_member_id || null,
       license_type: designation.license_type,
       // The form field is `agent_split`; the API takes sale_split/rental_split.
       // Reading raw.sale_split meant the split was silently dropped every time.
@@ -1446,8 +1446,12 @@ var Panels = (function () {
       });
     }).then(function (out) {
       CRM.closeModal();
-      if (mode === 'invite' && out && out.tempPw) {
-        CRM.toast('Temporary password: ' + out.tempPw + ' - give this to the agent.', 'success');
+      if (mode === 'create' && out && out.tempPw) {
+        // NOT an invitation. Nothing is sent to anyone. The broker hands this
+        // password over out of band until real invitation delivery exists,
+        // with its own pending/sent/failed/accepted states.
+        CRM.toast('Account created. No invitation was sent. Temporary password: '
+          + out.tempPw + ' - give this to the agent directly.', 'success');
       }
       agentRoster();
     }).catch(function (err) {
@@ -1561,7 +1565,7 @@ var Panels = (function () {
                 '<option value="Suspended"' + (a.license_status === 'Suspended' ? ' selected' : '') + '>Suspended</option>' +
                 '<option value="Revoked"' + (a.license_status === 'Revoked' ? ' selected' : '') + '>Revoked</option>' +
               '</select></div>' +
-            '<div class="form-group"><label class="form-label">REBNY Member ID</label><input class="form-input" name="rebny_member_id" value="' + E(a.rebny_member_id || '') + '" placeholder="REBNY Member ID"></div>' +
+            '<div class="form-group"><label class="form-label">MLS Member ID</label><input class="form-input" name="mls_member_id" value="' + E(a.trestle_mls_id || '') + '" placeholder="Cotality MemberMlsId, e.g. 39361"></div>' +
             '<div class="form-group"><label class="form-label">NRD/NRDS ID</label><input class="form-input" name="nrds_id" value="' + E(a.nrds_id || '') + '" placeholder="NRD/NRDS ID"></div>' +
           '</div>' +
           '<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-3">' +
@@ -8216,7 +8220,7 @@ var Panels = (function () {
           else { rStatus = 'Active'; rColor = '#059669'; }
           html += '<tr class="border-b hover:bg-gray-50">' +
             '<td class="px-3 py-2 text-sm font-medium">' + E(a.full_name || a.name || a.email) + '</td>' +
-            '<td class="px-3 py-2 text-xs font-mono">' + E(a.rebnyMemberId || a.rebny_member_id || '-') + '</td>' +
+            '<td class="px-3 py-2 text-xs font-mono">' + E(a.trestle_mls_id || a.rebnyMemberId || '-') + '</td>' +
             '<td class="px-3 py-2 text-xs">' + E(a.rebnyMembershipType || a.rebny_membership_type || '-') + '</td>' +
             '<td class="px-3 py-2 text-xs">' + E(a.rebnyDues || a.rebny_dues || '-') + '</td>' +
             '<td class="px-3 py-2 text-xs">' + (a.rebnyLastPayment || a.rebny_last_payment ? D(a.rebnyLastPayment || a.rebny_last_payment) : '-') + '</td>' +

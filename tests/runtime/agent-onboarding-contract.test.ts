@@ -194,7 +194,7 @@ describe('visible-field census - nothing disappears silently', () => {
   it('the REBNY member id maps to the existing trestle_mls_id column', () => {
     const api = readFileSync(resolve(ROOT, 'app/api/crm/agents/route.ts'), 'utf8');
     expect(api).toContain('trestle_mls_id:');
-    expect(panels).toContain('trestle_mls_id: raw.rebny_member_id');
+    expect(panels).toContain('trestle_mls_id: raw.mls_member_id');
   });
 
   it('every input with no canonical Agent field is visibly disabled, not silently dropped', () => {
@@ -203,6 +203,8 @@ describe('visible-field census - nothing disappears silently', () => {
       'license_status', 'nrds_id', 'fair_housing_completed', 'start_date', 'team',
       'desk_fee', 'referral_fee_pct', 'contract_term', 'internal_notes',
       'ce_hours_completed', 'ce_cycle_end_date',
+      // no writer can target the NEW agent, so these are disabled too
+      'ica_document', 'other_documents',
     ];
     for (const f of unowned) {
       const re = new RegExp('name="' + f + '"[^>]*disabled|disabled[^>]*name="' + f + '"');
@@ -213,9 +215,9 @@ describe('visible-field census - nothing disappears silently', () => {
   it('every ENABLED input is either sent or owned by a separate writer', () => {
     const sentOrOwned = [
       'first_name', 'last_name', 'email', 'phone', 'license_number', 'license_type',
-      'license_expiry', 'rebny_member_id', 'agent_split', 'title', 'bio',
+      'license_expiry', 'mls_member_id', 'agent_split', 'title', 'bio',
       'languages', 'specialties', 'public_slug',
-      'agent_photo', 'ica_document', 'other_documents', // separate writers
+      'agent_photo', // separate writer: the photo route takes a target agent
     ];
     const enabled = inputNames.filter((n) => {
       const re = new RegExp('name="' + n + '"[^>]*disabled|disabled[^>]*name="' + n + '"');
@@ -233,16 +235,68 @@ describe('Save Draft is gone, because it was never a draft', () => {
   it('only one submit path remains, and it always validates', () => {
     // The calls sit inside a JS string literal, so the quotes are
     // backslash-escaped in the source. Match the literal text.
-    const INVITE = "_submitAddAgent(\\'invite\\')";
+    const CREATE = "_submitAddAgent(\\'create\\')";
     const DRAFT = "_submitAddAgent(\\'draft\\')";
-    expect(panels).toContain(INVITE);
+    expect(panels).toContain(CREATE);
     expect(panels).not.toContain(DRAFT);
-    expect(panels.split(INVITE).length - 1).toBe(1);
+    expect(panels.split(CREATE).length - 1).toBe(1);
     expect(panels).toContain('if (!form.checkValidity())');
   });
 
   it('the server still hardcodes an active account, which is why no draft is possible', () => {
     const api = readFileSync(resolve(ROOT, 'app/api/crm/agents/route.ts'), 'utf8');
     expect(api).toContain('status: "active"');
+  });
+});
+
+describe('no UI state claims something that did not happen', () => {
+  it('the button says what it does - it creates an account, it does not invite', () => {
+    expect(panels).toContain('Create Agent Account');
+    expect(panels).not.toContain('> Send Invite<');
+  });
+
+  it('the temp-password toast states plainly that nothing was sent', () => {
+    expect(panels).toContain('No invitation was sent');
+    expect(panels).toContain('give this to the agent directly');
+  });
+
+  it('document inputs are disabled, because no writer can target the new agent', () => {
+    // app/api/crm/documents/upload/route.ts hardcodes agent_id: auth.userId,
+    // so uploading here would file the new agent's ICA under the BROKER.
+    const upload = readFileSync(resolve(ROOT, 'app/api/crm/documents/upload/route.ts'), 'utf8');
+    expect(upload).toContain('agent_id: auth.userId');
+    for (const f of ['ica_document', 'other_documents']) {
+      expect(panels).toMatch(new RegExp('name="' + f + '"[^>]*disabled'));
+    }
+  });
+
+  it('the ICA label no longer marks a requirement the input never enforced', () => {
+    expect(panels).not.toContain('Independent Contractor Agreement) *');
+    expect(panels).toContain('upload not yet available');
+  });
+});
+
+describe('member identity is stored in its exact domain', () => {
+  it('the input names the identity it stores, not a business-facing synonym', () => {
+    // Cotality Member exposes MemberMlsId, MemberAORMlsId,
+    // MemberNationalAssociationId, MemberAlternateId, MemberKey,
+    // MemberStateLicense and UniqueLicenseeIdentifier as SEPARATE fields.
+    expect(panels).toContain('MLS Member ID');
+    expect(panels).toContain('Cotality MemberMlsId');
+    expect(panels).not.toContain('REBNY Member ID');
+  });
+
+  it('NRDS and the state licence remain separate facts, never merged', () => {
+    expect(panels).toContain('name="nrds_id"');
+    expect(panels).toContain('name="license_number"');
+    // nrds_id has no canonical Agent column, so it stays disabled rather than
+    // being folded into trestle_mls_id
+    expect(panels).toMatch(/name="nrds_id"[^>]*disabled/);
+    expect(panels).not.toContain('trestle_mls_id: raw.nrds_id');
+  });
+
+  it('the edit form binds the column the API actually returns', () => {
+    expect(panels).toContain("E(a.trestle_mls_id || '')");
+    expect(panels).not.toContain('a.rebny_member_id');
   });
 });
