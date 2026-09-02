@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
       license_no: true,
       license_type: true,
       license_expiry: true,
+      trestle_mls_id: true,
       sale_split: true,
       rental_split: true,
       role: true,

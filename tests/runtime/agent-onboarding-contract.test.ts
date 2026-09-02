@@ -191,7 +191,7 @@ describe('visible-field census - nothing disappears silently', () => {
     expect(panels).toContain('license_expiry: raw.license_expiry');
   });
 
-  it('the REBNY member id maps to the existing trestle_mls_id column', () => {
+  it('Cotality MemberMlsId is stored in the existing trestle_mls_id column', () => {
     const api = readFileSync(resolve(ROOT, 'app/api/crm/agents/route.ts'), 'utf8');
     expect(api).toContain('trestle_mls_id:');
     expect(panels).toContain('trestle_mls_id: raw.mls_member_id');
@@ -298,5 +298,138 @@ describe('member identity is stored in its exact domain', () => {
   it('the edit form binds the column the API actually returns', () => {
     expect(panels).toContain("E(a.trestle_mls_id || '')");
     expect(panels).not.toContain('a.rebny_member_id');
+  });
+});
+
+// ─── Behavioural: evaluate the real designation functions out of the bundle ──
+function evalDesignationFns() {
+  const grab = (needle: string) => {
+    const i = panels.indexOf(needle);
+    expect(i).toBeGreaterThan(-1);
+    const open = panels.indexOf('{', i);
+    let depth = 0;
+    for (let j = open; j < panels.length; j++) {
+      if (panels[j] === '{') depth++;
+      else if (panels[j] === '}') { depth--; if (depth === 0) return panels.slice(i, j + 1); }
+    }
+    throw new Error('unbalanced: ' + needle);
+  };
+  const src = [
+    grab('var LICENSE_DESIGNATIONS = {').replace(/^var /, 'const '),
+    grab('function _designationFor(selected)'),
+    grab('function _designationFromStored(licenseType, title)'),
+    'return { LICENSE_DESIGNATIONS, _designationFor, _designationFromStored };',
+  ].join('\n');
+  // eslint-disable-next-line no-new-func
+  return new Function(src)() as {
+    _designationFor: (d: string) => { license_type: string | null; title: string | null };
+    _designationFromStored: (lt: string | null, title: string | null) => string;
+  };
+}
+
+describe('designation round trip — one owner for CREATE and EDIT', () => {
+  const { _designationFor, _designationFromStored } = evalDesignationFns();
+
+  it('every designation survives designation -> stored -> designation', () => {
+    for (const d of ['Licensed Real Estate Salesperson', 'Licensed Associate Broker', 'Licensed Broker']) {
+      const stored = _designationFor(d);
+      expect(_designationFromStored(stored.license_type, stored.title)).toBe(d);
+    }
+  });
+
+  it('an Associate Broker reopens as Associate, not as principal Broker', () => {
+    // both are stored license_type "broker" - only the title separates them
+    expect(_designationFromStored('broker', 'Licensed Real Estate Associate Broker'))
+      .toBe('Licensed Associate Broker');
+    expect(_designationFromStored('broker', 'Licensed Real Estate Broker'))
+      .toBe('Licensed Broker');
+  });
+
+  it('stores canonical licence classes, never display strings', () => {
+    for (const d of ['Licensed Real Estate Salesperson', 'Licensed Associate Broker', 'Licensed Broker']) {
+      expect(['broker', 'salesperson']).toContain(_designationFor(d).license_type);
+    }
+  });
+
+  it('an unknown or unset licence forces an explicit choice rather than guessing', () => {
+    expect(_designationFromStored(null, null)).toBe('');
+    expect(_designationFromStored('Licensed Associate Broker', null)).toBe('');
+  });
+});
+
+describe('Edit Agent cannot recreate the licence corruption', () => {
+  const editSubmit = panels.slice(
+    panels.indexOf('function _submitEditAgent'),
+    panels.indexOf('function _submitEditAgent') + 3000,
+  );
+
+  it('resolves the designation instead of posting the raw select value', () => {
+    expect(editSubmit).not.toContain('data.license_type = raw.license_type;');
+    expect(editSubmit).toContain('_designationFor(raw.license_type)');
+    expect(editSubmit).toContain('data.license_type = editDesignation.license_type');
+  });
+
+  it('the edit select preselects from STORED values, not display-string equality', () => {
+    expect(panels).not.toContain("a.license_type === 'Licensed Associate Broker'");
+    expect(panels).toContain('_designationFromStored(a.license_type, a.title)');
+  });
+
+  it('every unowned edit control is disabled', () => {
+    const editForm = panels.slice(
+      panels.indexOf('function _editAgent(id) {'),
+      panels.indexOf('function _submitEditAgent'),
+    );
+    for (const f of ['middle_name', 'secondary_phone', 'home_address', 'city', 'state', 'zip',
+                     'license_status', 'nrds_id', 'ce_hours_completed', 'ce_cycle_end_date',
+                     'fair_housing_completed', 'start_date', 'team', 'desk_fee',
+                     'referral_fee_pct', 'contract_term', 'internal_notes']) {
+      expect(editForm).toMatch(new RegExp('name="' + f + '"[^>]*disabled'));
+    }
+  });
+
+  it('DOS licence status is never conflated with the CRM account status', () => {
+    const editForm = panels.slice(
+      panels.indexOf('function _editAgent(id) {'),
+      panels.indexOf('function _submitEditAgent'),
+    );
+    // license_status (DOS) is disabled; status (account) stays editable
+    expect(editForm).toMatch(/name="license_status"[^>]*disabled/);
+    expect(editSubmit).toContain('data.status = raw.status');
+    expect(editSubmit).not.toContain('data.status = raw.license_status');
+  });
+});
+
+describe('MemberMlsId survives the full round trip', () => {
+  const create = readFileSync(resolve(ROOT, 'app/api/crm/agents/route.ts'), 'utf8');
+  const detail = readFileSync(resolve(ROOT, 'app/api/crm/agents/[id]/route.ts'), 'utf8');
+
+  it('CREATE writes it', () => {
+    expect(create).toContain('trestle_mls_id: (body.trestle_mls_id as string) ?? null');
+  });
+
+  it('ROSTER GET selects it', () => {
+    expect(create).toContain('trestle_mls_id: true');
+  });
+
+  it('DETAIL GET returns it', () => {
+    expect(detail).toContain('trestle_mls_id: agent.trestle_mls_id');
+  });
+
+  it('PATCH accepts and writes it', () => {
+    expect(detail).toContain('update.trestle_mls_id = body.trestle_mls_id');
+  });
+
+  it('the edit form displays it and the edit submit sends it back', () => {
+    expect(panels).toContain("E(a.trestle_mls_id || '')");
+    expect(panels).toContain('data.trestle_mls_id = raw.mls_member_id');
+  });
+
+  it('is never merged with the other Cotality member identities', () => {
+    // Member.MemberMlsId and Member.MemberAORMlsId are separate String(25)
+    // nullable fields; NRDS is MemberNationalAssociationId; the state licence
+    // is MemberStateLicense. None may be folded into trestle_mls_id.
+    expect(panels).not.toContain('trestle_mls_id: raw.nrds_id');
+    expect(panels).not.toContain('trestle_mls_id: raw.license_number');
+    expect(detail).not.toContain('trestle_mls_id = body.nrds_id');
   });
 });

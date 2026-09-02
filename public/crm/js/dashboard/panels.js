@@ -1348,6 +1348,24 @@ var Panels = (function () {
     },
   };
 
+  /**
+   * REVERSE of the map: given what is STORED, pick the designation to preselect.
+   *
+   * license_type alone cannot distinguish a principal Broker from an Associate
+   * Broker - both are stored "broker". The professional title is what separates
+   * them, so the title is consulted second.
+   */
+  function _designationFromStored(licenseType, title) {
+    var lt = String(licenseType || '').trim().toLowerCase();
+    if (lt === 'broker') {
+      return /associate/i.test(String(title || ''))
+        ? 'Licensed Associate Broker'
+        : 'Licensed Broker';
+    }
+    if (lt === 'salesperson') return 'Licensed Real Estate Salesperson';
+    return '';   // unknown / never set - force an explicit choice
+  }
+
   function _designationFor(selected) {
     return LICENSE_DESIGNATIONS[selected] || { license_type: null, title: null };
   }
@@ -1469,6 +1487,10 @@ var Panels = (function () {
   function _editAgent(id) {
     MallanAPI._fetch('/api/crm/agents/' + encodeURIComponent(id)).then(function (data) {
       var a = data.agent || data || {};
+      // Resolve the STORED licence + title back to a designation. Comparing
+      // display strings to a.license_type never matched, because storage is
+      // 'broker' / 'salesperson'.
+      var _editDesignation = _designationFromStored(a.license_type, a.title);
       var nameParts = (a.full_name || '').split(' ').filter(Boolean);
       var firstName = a.first_name || (nameParts.length > 0 ? nameParts[0] : '');
       var middleName = nameParts.length === 3 ? nameParts[1] : '';
@@ -1504,7 +1526,7 @@ var Panels = (function () {
           '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Personal Information</h3>' +
           '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
             '<div class="form-group"><label class="form-label">First Name *</label><input class="form-input" name="first_name" value="' + E(firstName) + '" required></div>' +
-            '<div class="form-group"><label class="form-label">Middle Name</label><input class="form-input" name="middle_name" value="' + E(middleName) + '" placeholder="Middle name"></div>' +
+            '<div class="form-group"><label class="form-label">Middle Name</label><input class="form-input" name="middle_name" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved." value="' + E(middleName) + '" placeholder="Middle name"></div>' +
             '<div class="form-group"><label class="form-label">Last Name *</label><input class="form-input" name="last_name" value="' + E(lastName) + '" required></div>' +
           '</div>' +
           '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">' +
@@ -1520,13 +1542,13 @@ var Panels = (function () {
           '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">' +
             '<div class="form-group"><label class="form-label">Email</label><input class="form-input" type="email" name="email" value="' + E(a.email || '') + '" readonly class="bg-gray-50 text-gray-500 cursor-not-allowed"></div>' +
             '<div class="form-group"><label class="form-label">Phone</label><input class="form-input" type="tel" name="phone" value="' + E(a.phone || '') + '" placeholder="646-XXX-XXXX"></div>' +
-            '<div class="form-group"><label class="form-label">Secondary Phone</label><input class="form-input" type="tel" name="secondary_phone" placeholder="Optional"></div>' +
+            '<div class="form-group"><label class="form-label">Secondary Phone</label><input class="form-input" type="tel" name="secondary_phone" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved." placeholder="Optional"></div>' +
           '</div>' +
           '<div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mt-3">' +
-            '<div class="form-group"><label class="form-label">Home Address</label><input class="form-input" name="home_address" placeholder="Street address"></div>' +
-            '<div class="form-group"><label class="form-label">City</label><input class="form-input" name="city" placeholder="City"></div>' +
-            '<div class="form-group"><label class="form-label">State</label><input class="form-input" name="state" placeholder="State"></div>' +
-            '<div class="form-group"><label class="form-label">Zip</label><input class="form-input" name="zip" placeholder="10001"></div>' +
+            '<div class="form-group"><label class="form-label">Home Address</label><input class="form-input" name="home_address" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved." placeholder="Street address"></div>' +
+            '<div class="form-group"><label class="form-label">City</label><input class="form-input" name="city" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved." placeholder="City"></div>' +
+            '<div class="form-group"><label class="form-label">State</label><input class="form-input" name="state" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved." placeholder="State"></div>' +
+            '<div class="form-group"><label class="form-label">Zip</label><input class="form-input" name="zip" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved." placeholder="10001"></div>' +
           '</div>' +
           '<div class="mt-3">' +
             '<label class="form-label">Photo</label>' +
@@ -1549,16 +1571,16 @@ var Panels = (function () {
             '<div class="form-group"><label class="form-label">License Type</label>' +
               '<select class="form-input form-select" name="license_type">' +
                 '<option value="">Select...</option>' +
-                '<option value="Licensed Real Estate Salesperson"' + (a.license_type === 'Licensed Real Estate Salesperson' ? ' selected' : '') + '>Licensed Real Estate Salesperson</option>' +
-                '<option value="Licensed Associate Broker"' + (a.license_type === 'Licensed Associate Broker' ? ' selected' : '') + '>Licensed Associate Broker</option>' +
-                '<option value="Licensed Broker"' + (a.license_type === 'Licensed Broker' ? ' selected' : '') + '>Licensed Broker</option>' +
+                '<option value="Licensed Real Estate Salesperson"' + (_editDesignation === 'Licensed Real Estate Salesperson' ? ' selected' : '') + '>Licensed Real Estate Salesperson</option>' +
+                '<option value="Licensed Associate Broker"' + (_editDesignation === 'Licensed Associate Broker' ? ' selected' : '') + '>Licensed Associate Broker</option>' +
+                '<option value="Licensed Broker"' + (_editDesignation === 'Licensed Broker' ? ' selected' : '') + '>Licensed Broker</option>' +
               '</select></div>' +
             '<div class="form-group"><label class="form-label">NY DOS License #</label><input class="form-input" name="license_no" value="' + E(a.license_no || '') + '" placeholder="10XXXXXXXXX"></div>' +
             '<div class="form-group"><label class="form-label">License Expiration</label><input class="form-input" type="date" name="license_expiry" value="' + E(licExpiryStr) + '"></div>' +
           '</div>' +
           '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">' +
             '<div class="form-group"><label class="form-label">DOS License Status</label>' +
-              '<select class="form-input form-select" name="license_status">' +
+              '<select class="form-input form-select" name="license_status" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved.">' +
                 '<option value="Active"' + (a.license_status === 'Active' || (!a.license_status && a.status === 'active') ? ' selected' : '') + '>Active</option>' +
                 '<option value="Inactive"' + (a.license_status === 'Inactive' ? ' selected' : '') + '>Inactive</option>' +
                 '<option value="Expired"' + (a.license_status === 'Expired' ? ' selected' : '') + '>Expired</option>' +
@@ -1566,15 +1588,15 @@ var Panels = (function () {
                 '<option value="Revoked"' + (a.license_status === 'Revoked' ? ' selected' : '') + '>Revoked</option>' +
               '</select></div>' +
             '<div class="form-group"><label class="form-label">MLS Member ID</label><input class="form-input" name="mls_member_id" value="' + E(a.trestle_mls_id || '') + '" placeholder="Cotality MemberMlsId, e.g. 39361"></div>' +
-            '<div class="form-group"><label class="form-label">NRD/NRDS ID</label><input class="form-input" name="nrds_id" value="' + E(a.nrds_id || '') + '" placeholder="NRD/NRDS ID"></div>' +
+            '<div class="form-group"><label class="form-label">NRD/NRDS ID</label><input class="form-input" name="nrds_id" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved." value="' + E(a.nrds_id || '') + '" placeholder="NRD/NRDS ID"></div>' +
           '</div>' +
           '<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-3">' +
             '<h4 class="text-xs font-bold text-yellow-800 uppercase mb-2"><i class="fas fa-graduation-cap mr-1"></i> Continuing Education (CE) Hours</h4>' +
             '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
-              '<div class="form-group mb-0"><label class="form-label">CE Hours Completed</label><input class="form-input" type="number" name="ce_hours_completed" min="0" max="100" value="' + E(a.ce_hours_completed || '') + '" placeholder="0"></div>' +
-              '<div class="form-group mb-0"><label class="form-label">CE Cycle End Date</label><input class="form-input" type="date" name="ce_cycle_end_date" value="' + E(a.ce_cycle_end_date ? String(a.ce_cycle_end_date).substring(0, 10) : '') + '"></div>' +
+              '<div class="form-group mb-0"><label class="form-label">CE Hours Completed</label><input class="form-input" type="number" name="ce_hours_completed" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved." min="0" max="100" value="' + E(a.ce_hours_completed || '') + '" placeholder="0"></div>' +
+              '<div class="form-group mb-0"><label class="form-label">CE Cycle End Date</label><input class="form-input" type="date" name="ce_cycle_end_date" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved." value="' + E(a.ce_cycle_end_date ? String(a.ce_cycle_end_date).substring(0, 10) : '') + '"></div>' +
               '<div class="form-group mb-0"><label class="form-label">Fair Housing Completed</label>' +
-                '<select class="form-input form-select" name="fair_housing_completed">' +
+                '<select class="form-input form-select" name="fair_housing_completed" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved.">' +
                   '<option value="">Select...</option>' +
                   '<option value="Yes"' + (a.fair_housing_completed === 'Yes' ? ' selected' : '') + '>Yes</option>' +
                   '<option value="No"' + (a.fair_housing_completed === 'No' ? ' selected' : '') + '>No</option>' +
@@ -1595,13 +1617,13 @@ var Panels = (function () {
         '<div class="border-t pt-5">' +
           '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Brokerage &amp; Commission</h3>' +
           '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
-            '<div class="form-group"><label class="form-label">Start Date</label><input class="form-input" type="date" name="start_date" value="' + E(a.start_date ? String(a.start_date).substring(0, 10) : '') + '"></div>' +
+            '<div class="form-group"><label class="form-label">Start Date</label><input class="form-input" type="date" name="start_date" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved." value="' + E(a.start_date ? String(a.start_date).substring(0, 10) : '') + '"></div>' +
             '<div class="form-group"><label class="form-label">Agent Commission Split %</label>' +
               '<input class="form-input" type="number" name="sale_split" value="' + splitSale + '" min="0" max="100" oninput="var bk=document.getElementById(\'editBrokerageSideCalc\');if(bk)bk.textContent=(100-Number(this.value||0))+\'%\';">' +
               '<p class="text-xs text-gray-400 mt-1">Brokerage side: <span id="editBrokerageSideCalc" class="font-semibold text-gray-600">' + (100 - splitSale) + '%</span></p>' +
             '</div>' +
             '<div class="form-group"><label class="form-label">Team / Department</label>' +
-              '<select class="form-input form-select" name="team">' +
+              '<select class="form-input form-select" name="team" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved.">' +
                 '<option value="">No Team</option>' +
                 '<option value="Sales Team A"' + (a.team === 'Sales Team A' ? ' selected' : '') + '>Sales Team A</option>' +
                 '<option value="Rental Team"' + (a.team === 'Rental Team' ? ' selected' : '') + '>Rental Team</option>' +
@@ -1610,10 +1632,10 @@ var Panels = (function () {
               '</select></div>' +
           '</div>' +
           '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">' +
-            '<div class="form-group"><label class="form-label">Desk Fee (Monthly)</label><input class="form-input" type="number" name="desk_fee" min="0" value="' + E(a.desk_fee || '') + '" placeholder="$0.00"></div>' +
-            '<div class="form-group"><label class="form-label">Referral Fee %</label><input class="form-input" type="number" name="referral_fee_pct" min="0" max="100" value="' + E(a.referral_fee_pct || '') + '" placeholder="0"></div>' +
+            '<div class="form-group"><label class="form-label">Desk Fee (Monthly)</label><input class="form-input" type="number" name="desk_fee" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved." min="0" value="' + E(a.desk_fee || '') + '" placeholder="$0.00"></div>' +
+            '<div class="form-group"><label class="form-label">Referral Fee %</label><input class="form-input" type="number" name="referral_fee_pct" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved." min="0" max="100" value="' + E(a.referral_fee_pct || '') + '" placeholder="0"></div>' +
             '<div class="form-group"><label class="form-label">Contract Term</label>' +
-              '<select class="form-input form-select" name="contract_term">' +
+              '<select class="form-input form-select" name="contract_term" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved.">' +
                 '<option value="">Select...</option>' +
                 '<option value="1 Year"' + (a.contract_term === '1 Year' ? ' selected' : '') + '>1 Year</option>' +
                 '<option value="2 Years"' + (a.contract_term === '2 Years' ? ' selected' : '') + '>2 Years</option>' +
@@ -1650,7 +1672,7 @@ var Panels = (function () {
         // ── Section 5: Internal Notes ──
         '<div class="border-t pt-5">' +
           '<h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Internal Notes</h3>' +
-          '<div class="form-group mb-0"><textarea class="form-input" name="internal_notes" rows="3" placeholder="Internal notes about this agent (broker eyes only)...">' + E(a.internal_notes || '') + '</textarea></div>' +
+          '<div class="form-group mb-0"><textarea class="form-input" name="internal_notes" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved." rows="3" placeholder="Internal notes about this agent (broker eyes only)...">' + E(a.internal_notes || '') + '</textarea></div>' +
         '</div>' +
 
       '</form>';
@@ -1687,7 +1709,16 @@ var Panels = (function () {
     if (raw.last_name) data.last_name = raw.last_name;
     if (raw.phone) data.phone = raw.phone;
     if (raw.license_no) data.license_no = raw.license_no;
-    if (raw.license_type) data.license_type = raw.license_type;
+    // ONE owner for both CREATE and EDIT. Posting raw.license_type would put a
+    // designation display string into a column holding broker|salesperson -
+    // the exact defect this PR was opened to fix.
+    if (raw.license_type) {
+      var editDesignation = _designationFor(raw.license_type);
+      data.license_type = editDesignation.license_type;
+      // title follows the designation unless the broker typed an override
+      if (!raw.title) data.title = editDesignation.title;
+    }
+    if (raw.mls_member_id !== undefined) data.trestle_mls_id = raw.mls_member_id || null;
     if (raw.license_expiry) data.license_expiry = raw.license_expiry;
     if (raw.title) data.title = raw.title;
     if (raw.bio) data.bio = raw.bio;

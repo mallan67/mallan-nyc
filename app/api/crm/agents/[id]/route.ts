@@ -44,6 +44,9 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       email: agent.email,
       phone: agent.phone,
       license_no: agent.license_no,
+      // Cotality Member.MemberMlsId. Distinct from MemberAORMlsId,
+      // MemberNationalAssociationId (NRDS) and MemberStateLicense.
+      trestle_mls_id: agent.trestle_mls_id,
       license_type: agent.license_type,
       license_expiry: agent.license_expiry,
       sale_split: agent.sale_split?.toString() ?? null,
@@ -99,6 +102,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   if (body.phone !== undefined) update.phone = body.phone as string | null;
   if (body.license_no !== undefined) update.license_no = body.license_no as string | null;
   if (body.license_type !== undefined) update.license_type = body.license_type as string | null;
+  if (body.trestle_mls_id !== undefined) {
+    update.trestle_mls_id = body.trestle_mls_id as string | null;
+  }
   if (body.license_expiry !== undefined) {
     update.license_expiry = body.license_expiry
       ? new Date(body.license_expiry as string)
