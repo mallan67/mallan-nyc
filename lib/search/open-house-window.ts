@@ -166,3 +166,71 @@ export function resolveOpenHouseWindow(input: OpenHouseWindowInput): OpenHouseWi
       throw new OpenHouseWindowError(`Unknown open-house preset "${String(input.preset)}"`);
   }
 }
+
+/**
+ * The UTC instants that bound a New York calendar window.
+ *
+ * ---------------------------------------------------------------------------
+ * WHY THIS EXISTS
+ *
+ * `Showing.date` is a timestamp; the window is a New York CALENDAR range. The
+ * membership contract compares New York dates, which is correct - but if the
+ * database query is not bounded too, every Open House search reads the whole
+ * lifetime history of confirmed showings and throws most of it away in JS.
+ * That is unnecessary Neon compute on every request and it walks into its own
+ * row ceiling as history grows.
+ *
+ * The fix is NOT to go back to server-local midnight. It is to derive the
+ * exact UTC instants from the SAME New York authority, so the query bound and
+ * the membership check are the same truth expressed twice - once for the
+ * database and once as a defensive boundary in code.
+ *
+ * DST is why this cannot be arithmetic on a fixed offset: New York is UTC-4 in
+ * September and UTC-5 in December, and a window spanning the change has a
+ * different offset at each end.
+ */
+export interface UtcWindowBounds {
+  /** Inclusive start: the first instant of `window.from` in New York. */
+  readonly startUtc: Date;
+  /** EXCLUSIVE end: the first instant of the day AFTER `window.to`. */
+  readonly endUtcExclusive: Date | null;
+}
+
+/** New York's UTC offset in minutes at a given instant (-240 EDT, -300 EST). */
+function nyOffsetMinutes(instant: Date): number {
+  // Format the instant as New York wall-clock, read it back as if it were UTC,
+  // and the difference IS the offset. No table, no hard-coded DST rules.
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: NY,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+  }).formatToParts(instant);
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value);
+  const asUtc = Date.UTC(
+    get('year'), get('month') - 1, get('day'),
+    get('hour') % 24, get('minute'), get('second'),
+  );
+  return (asUtc - instant.getTime()) / 60_000;
+}
+
+/** The UTC instant of 00:00 New York on a `YYYY-MM-DD`. */
+function nyMidnightUtc(isoDate: string): Date {
+  const naive = Date.parse(isoDate + 'T00:00:00Z');
+  // First pass with the offset at the naive instant, then re-measure at the
+  // corrected one: a window that starts within hours of a DST change would
+  // otherwise be bounded with the wrong side's offset.
+  const first = new Date(naive - nyOffsetMinutes(new Date(naive)) * 60_000);
+  const second = new Date(naive - nyOffsetMinutes(first) * 60_000);
+  return second;
+}
+
+export function openHouseWindowUtcBounds(window: OpenHouseWindow): UtcWindowBounds {
+  return {
+    startUtc: nyMidnightUtc(window.from),
+    // EXCLUSIVE upper bound = midnight of the following day. Expressing the
+    // inclusive end as 23:59:59.999 would drop an event stamped in the last
+    // millisecond, and that is exactly the kind of boundary nobody notices.
+    endUtcExclusive: window.to ? nyMidnightUtc(addDays(window.to, 1)) : null,
+  };
+}

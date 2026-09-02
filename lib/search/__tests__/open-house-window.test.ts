@@ -9,7 +9,11 @@
  * show them Saturday's open houses and hide Friday's — the listings they can
  * still get to tonight. So every boundary is computed in America/New_York.
  */
-import { resolveOpenHouseWindow, OpenHouseWindowError } from '../open-house-window';
+import {
+  resolveOpenHouseWindow,
+  openHouseWindowUtcBounds,
+  OpenHouseWindowError,
+} from '../open-house-window';
 
 /** A real instant, expressed as UTC, so the NY conversion is what is tested. */
 const at = (iso: string) => new Date(iso);
@@ -123,5 +127,66 @@ describe('an unknown preset is refused, never silently widened', () => {
   it('throws instead of falling back to "all open houses"', () => {
     expect(() => resolveOpenHouseWindow({ preset: 'nextYear' as never }))
       .toThrow(OpenHouseWindowError);
+  });
+});
+
+describe('the New York window becomes exact UTC instants for the database', () => {
+  // The membership check compares New York dates. The QUERY has to be bounded
+  // too, or every Open House search reads the whole lifetime of confirmed
+  // showings and discards most of it in JS. Both bounds come from the same
+  // authority, so they cannot disagree.
+
+  it('EDT: midnight New York is 04:00 UTC', () => {
+    const b = openHouseWindowUtcBounds({ from: '2026-09-12', to: '2026-09-13' });
+    expect(b.startUtc.toISOString()).toBe('2026-09-12T04:00:00.000Z');
+    // EXCLUSIVE end = midnight of the following day, so an event stamped in
+    // the last millisecond of the 13th is still inside.
+    expect(b.endUtcExclusive?.toISOString()).toBe('2026-09-14T04:00:00.000Z');
+  });
+
+  it('EST: midnight New York is 05:00 UTC', () => {
+    const b = openHouseWindowUtcBounds({ from: '2026-12-05', to: '2026-12-06' });
+    expect(b.startUtc.toISOString()).toBe('2026-12-05T05:00:00.000Z');
+    expect(b.endUtcExclusive?.toISOString()).toBe('2026-12-07T05:00:00.000Z');
+  });
+
+  it('a window SPANNING the DST fall-back uses the right offset at EACH end', () => {
+    // US DST ends 2026-11-01. A fixed-offset calculation gets one end wrong,
+    // and the error is one hour - small enough to look like inventory.
+    const b = openHouseWindowUtcBounds({ from: '2026-10-30', to: '2026-11-02' });
+    expect(b.startUtc.toISOString()).toBe('2026-10-30T04:00:00.000Z'); // EDT
+    expect(b.endUtcExclusive?.toISOString()).toBe('2026-11-03T05:00:00.000Z'); // EST
+  });
+
+  it('a window SPANNING the spring-forward does the same in reverse', () => {
+    const b = openHouseWindowUtcBounds({ from: '2026-03-06', to: '2026-03-09' });
+    expect(b.startUtc.toISOString()).toBe('2026-03-06T05:00:00.000Z'); // EST
+    expect(b.endUtcExclusive?.toISOString()).toBe('2026-03-10T04:00:00.000Z'); // EDT
+  });
+
+  it('the DAY OF the change is bounded correctly', () => {
+    const fall = openHouseWindowUtcBounds({ from: '2026-11-01', to: '2026-11-01' });
+    expect(fall.startUtc.toISOString()).toBe('2026-11-01T04:00:00.000Z');
+    expect(fall.endUtcExclusive?.toISOString()).toBe('2026-11-02T05:00:00.000Z');
+  });
+
+  it('an open-ended window has no upper bound rather than a fabricated one', () => {
+    const b = openHouseWindowUtcBounds({ from: '2026-09-12', to: null });
+    expect(b.endUtcExclusive).toBeNull();
+  });
+
+  it('the bounds are computed the same way whatever the SERVER timezone is', () => {
+    const prev = process.env.TZ;
+    try {
+      const seen = new Set<string>();
+      for (const tz of ['UTC', 'Asia/Tokyo', 'America/Los_Angeles']) {
+        process.env.TZ = tz;
+        seen.add(openHouseWindowUtcBounds({ from: '2026-09-12', to: '2026-09-13' })
+          .startUtc.toISOString());
+      }
+      expect([...seen]).toEqual(['2026-09-12T04:00:00.000Z']);
+    } finally {
+      if (prev === undefined) delete process.env.TZ; else process.env.TZ = prev;
+    }
   });
 });

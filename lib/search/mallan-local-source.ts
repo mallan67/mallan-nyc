@@ -25,11 +25,16 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * THE SAME CRITERIA, OR NO SEARCH
  *
- * A local row may not skip a criterion because it came from Mallan storage. Any
- * criterion this source cannot express REFUSES the search by name. The
- * alternative — dropping it — is the worse failure and the invisible one: the
- * local half widens while the provider half stays narrow, so one search applies
- * two different rules and looks entirely normal.
+ * A local row may not skip a criterion because it came from Mallan storage.
+ * Silently dropping the criterion is the invisible failure: the local half
+ * widens while the provider half stays narrow, so one search applies two
+ * different rules and looks entirely normal.
+ *
+ * So a criterion this source cannot express EXCLUDES the Mallan half and says
+ * so by name. Refusing the whole search was the first design and was wrong: it
+ * would regress provider searches that work today and are perfectly
+ * answerable, turning a completed form into an error about inventory the
+ * broker was not asking about.
  *
  * `buildPublicListingDbSearch` is deliberately NOT reused: it carries
  * public-audience restrictions, and agent Search has full lifecycle
@@ -50,9 +55,10 @@ export class UnsupportedLocalCriterionError extends Error {
   readonly criterion: string;
   constructor(criterion: string) {
     super(
-      `"${criterion}" cannot be applied to Mallan-authored listings, so a mixed ` +
-        `search would filter the provider half and not the local half. Refused ` +
-        `rather than answered with two different sets of rules.`,
+      `"${criterion}" cannot be applied to Mallan-authored listings. Applying ` +
+        `it to the provider half only would answer one search with two sets of ` +
+        `rules, so Mallan-authored inventory is EXCLUDED from this result and ` +
+        `the response says so by name.`,
     );
     this.name = 'UnsupportedLocalCriterionError';
     this.criterion = criterion;
@@ -73,6 +79,18 @@ export const MALLAN_LOCAL_SUPPORTED_CRITERIA: ReadonlySet<string> = new Set([
   'minSqft', 'maxSqft',
   'type', 'status', 'borough', 'neighborhood', 'propertySubType',
   'listingId',
+  // MAPPED 2026-09-02 after a column-by-column coverage diff. Each of these
+  // has a real column on `Listing`, so refusing them would have excluded
+  // Mallan inventory from ordinary searches that Mallan can actually answer.
+  'address',            // Listing.address
+  'zip',                // Listing.postal_code
+  'contractDateFrom', 'contractDateTo',   // Listing.listing_contract_date
+  'dateFrom', 'dateTo', 'dateType',       // contract date OR modification_timestamp
+  'ownership',          // Listing.property_sub_type
+  // PROVIDER-DOMAIN, handled without refusing: a Mallan-authored listing has
+  // no ListingKey, so it simply cannot match. Contributing nothing is the
+  // correct answer; refusing the whole search would be wrong.
+  'listingKey',
 ]);
 
 /**
@@ -197,6 +215,61 @@ export function buildMallanLocalWhere(params: URLSearchParams): { where: MallanL
     const wanted = subType.split(',').map((s) => s.trim()).filter(Boolean);
     if (wanted.length) where.property_sub_type = { in: wanted };
   }
+
+  const address = params.get('address');
+  if (address && address.trim()) {
+    where.address = { contains: address.trim(), mode: 'insensitive' };
+  }
+
+  const zip = params.get('zip');
+  if (zip) {
+    const codes = zip.split(',').map((z) => z.trim()).filter(Boolean);
+    if (codes.length) where.postal_code = { in: codes };
+  }
+
+  // Ownership resolves through property_sub_type on Mallan storage. It is the
+  // same fact the provider expresses through its ownership vocabulary; the
+  // column is what Mallan actually has.
+  const ownership = params.get('ownership');
+  if (ownership) {
+    const wanted = ownership.split(',').map((o) => o.trim()).filter(Boolean);
+    if (wanted.length) where.property_sub_type = { in: wanted };
+  }
+
+  // CONTRACT DATE, and the activity-date basis.
+  //
+  // `dateType` names WHICH date the range means. Applying a range without its
+  // basis would silently answer a different question than the broker asked,
+  // so an unrecognised basis refuses rather than defaulting.
+  const contractFrom = params.get('contractDateFrom');
+  const contractTo = params.get('contractDateTo');
+  if (contractFrom || contractTo) {
+    where.listing_contract_date = {
+      ...(contractFrom ? { gte: new Date(contractFrom) } : {}),
+      ...(contractTo ? { lte: new Date(contractTo) } : {}),
+    };
+  }
+
+  const dateFrom = params.get('dateFrom');
+  const dateTo = params.get('dateTo');
+  if (dateFrom || dateTo) {
+    const basis = (params.get('dateType') || '').toLowerCase();
+    const column = basis === 'updated' || basis === 'modified'
+      ? 'modification_timestamp'
+      : basis === 'listed' || basis === '' 
+        ? 'listing_contract_date'
+        : null;
+    if (!column) throw new UnsupportedLocalCriterionError('dateType');
+    where[column] = {
+      ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
+      ...(dateTo ? { lte: new Date(dateTo) } : {}),
+    };
+  }
+
+  // A ListingKey can never match a Mallan-authored listing, which HAS no
+  // ListingKey. An impossible predicate is the honest expression of that: the
+  // local source contributes nothing to this search rather than refusing it.
+  if (params.get('listingKey')) where.id = { in: [] };
 
   // The MALLAN identity domain. `listingId` here means `Listing.listing_id`
   // (SL-/RL-). It is never a ListingKey and is never sent to the provider.

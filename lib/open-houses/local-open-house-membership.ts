@@ -56,7 +56,10 @@
  * provider or manufactured into one.
  */
 import { isMallanOwnedLocalListing } from '@/lib/open-houses/upcoming-open-houses';
-import type { OpenHouseWindow } from '@/lib/search/open-house-window';
+import {
+  openHouseWindowUtcBounds,
+  type OpenHouseWindow,
+} from '@/lib/search/open-house-window';
 
 /**
  * The only `Showing.status` that means "a broker can rely on this open house".
@@ -162,22 +165,39 @@ export function localOpenHouseMembershipFrom(
 }
 
 /**
- * The Prisma `where` for the rows this contract needs.
+ * The Prisma `where` for the rows this contract needs, BOUNDED BY THE WINDOW.
  *
- * Exported so the caller cannot invent its own predicate and drift from the
- * lifecycle decision above. The DATE bound is deliberately NOT expressed here:
- * `Showing.date` is a timestamp and the window is a New York calendar range, so
- * the boundary is settled in `localOpenHouseMembershipFrom` where the timezone
- * is explicit. A `gte: new Date(...)` here would reintroduce server-local
- * midnight as a second answer.
+ * Exported so a caller cannot invent its own predicate and drift from the
+ * lifecycle decision above.
+ *
+ * The date bound is derived from the SAME New York authority as the membership
+ * check, via `openHouseWindowUtcBounds`. An earlier version deliberately left
+ * the date out of the query and filtered in JS, reasoning that `Showing.date`
+ * is a timestamp and the window is a calendar range. The timezone reasoning
+ * was right and the execution was not: it made every Open House search read
+ * the entire lifetime of confirmed showings and discard most of it, which is
+ * needless Neon compute on every request and walks into the row ceiling as
+ * history grows.
+ *
+ * The pure NY-date check in `localOpenHouseMembershipFrom` is KEPT as a
+ * defensive boundary. The query narrows; the membership check decides. Two
+ * expressions of one truth, not two truths.
  */
-export function brokerSearchOpenHouseWhere(): {
+export function brokerSearchOpenHouseWhere(window: OpenHouseWindow): {
   type: { in: string[] };
   status: { in: string[] };
+  date?: { gte: Date; lt?: Date };
 } {
+  const bounds = openHouseWindowUtcBounds(window);
   return {
     type: { in: [...BROKER_SEARCH_OPEN_HOUSE_TYPES] },
     status: { in: [...BROKER_SEARCH_OPEN_HOUSE_STATUSES] },
+    date: {
+      gte: bounds.startUtc,
+      // EXCLUSIVE upper bound. `lte` on 23:59:59.999 would drop an event
+      // stamped in the final millisecond of the last day.
+      ...(bounds.endUtcExclusive ? { lt: bounds.endUtcExclusive } : {}),
+    },
   };
 }
 

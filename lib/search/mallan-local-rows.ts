@@ -120,7 +120,19 @@ export interface MallanLocalCandidateInput {
 export type MallanLocalCandidates =
   | { readonly state: 'resolved'; readonly rows: readonly MallanLocalRow[] }
   | { readonly state: 'unavailable'; readonly reason: string }
-  | { readonly state: 'refused'; readonly criterion: string; readonly reason: string };
+  /**
+   * A criterion the broker used that Mallan storage genuinely cannot answer.
+   *
+   * NOT a 400. Refusing the whole search would REGRESS provider searches that
+   * work today and are perfectly answerable — the broker fills in a form, hits
+   * search, and gets an error about inventory they were not asking about.
+   *
+   * The provider half is complete and correct on its own, so the search runs
+   * provider-only and the response SAYS the Mallan half was left out and which
+   * criterion caused it. That is a capability state the broker can see, rather
+   * than either a surprise failure or a silent omission.
+   */
+  | { readonly state: 'excluded'; readonly criterion: string; readonly reason: string };
 
 /**
  * The COMPLETE set of Mallan-authored candidates for this search.
@@ -140,7 +152,7 @@ export async function readMallanLocalCandidates(
     ({ where } = buildMallanLocalWhere(params));
   } catch (err) {
     if (err instanceof UnsupportedLocalCriterionError) {
-      return { state: 'refused', criterion: err.criterion, reason: err.message };
+      return { state: 'excluded', criterion: err.criterion, reason: err.message };
     }
     throw err;
   }
