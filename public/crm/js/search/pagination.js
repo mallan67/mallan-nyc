@@ -2307,16 +2307,38 @@
                 return;
             }
 
-            // Get listing objects for comparison
+            // A COMPARISON THAT QUIETLY DROPS A LISTING IS THE WRONG COMPARISON.
+            //
+            // Ids are resolved against the loaded catalogue, and anything not
+            // found was silently skipped: `if (l) compareListings.push(l)`. A
+            // broker who added five listings across several pages — the working
+            // set is durable, the loaded rows are not — could be shown a
+            // three-way comparison presented as their five-way one, and told
+            // nothing. The only message fired when FEWER THAN TWO survived, so
+            // every partial case above that was invisible.
+            //
+            // Comparison is a decision aid. Dropping a candidate without saying
+            // so changes the decision.
             var compareListings = [];
+            var unresolvedIds = [];
             set.forEach(function(id) {
                 var l = listings.find(function(li) { return String(li.id) === String(id); });
                 if (l) compareListings.push(l);
+                else unresolvedIds.push(id);
             });
 
             if (compareListings.length < 2) {
-                showToast('Need at least 2 listings loaded for comparison', 'warning');
+                showToast('Only ' + compareListings.length + ' of ' + set.length +
+                    ' listings in your set are currently loaded, so there is nothing to compare. ' +
+                    'Open the pages holding the others, or search again.', 'warning');
                 return;
+            }
+
+            if (unresolvedIds.length > 0) {
+                showToast('Comparing ' + compareListings.length + ' of ' + set.length +
+                    ' listings — ' + unresolvedIds.length + ' are not currently loaded and are not included.',
+                    'warning');
+                console.warn('[Compare] Not loaded, excluded from the comparison:', unresolvedIds);
             }
 
             // Build comparison modal

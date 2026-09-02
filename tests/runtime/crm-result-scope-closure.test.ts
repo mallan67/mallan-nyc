@@ -262,6 +262,47 @@ describe('selection is durable by identity, across pages and actions', () => {
   });
 });
 
+describe('output surfaces consume the snapshot without silently narrowing it', () => {
+  it('Compare reports listings it could not load instead of dropping them', () => {
+    // The working set is durable across pages; the LOADED rows are not. Ids
+    // that could not be resolved were skipped with `if (l) push(l)`, and the
+    // only message fired when fewer than two survived — so a five-way
+    // comparison silently became a three-way one.
+    const fn = PAGINATION.slice(
+      PAGINATION.indexOf('function addToCompareAndOpen'),
+      PAGINATION.indexOf('function addToCompareAndOpen') + 3000,
+    );
+    expect(fn).toContain('unresolvedIds');
+    expect(fn).toContain('are not currently loaded and are not included');
+    // The under-two message must state the shortfall, not just refuse.
+    expect(fn).toContain("' of ' + set.length");
+  });
+
+  it('the toolbar re-sort asks the server and refuses unsupported fields', () => {
+    // A second sort path exists beside toggleColumnSort. Both must agree, or
+    // one control orders the universe and the other orders the screen.
+    const TOOLBAR = read('public/crm/js/listing/toolbar-functions.js');
+    expect(TOOLBAR).toContain('price_desc');
+    expect(TOOLBAR).toContain('listed_desc');
+    expect(TOOLBAR).toContain('if (!sortKey) return;');
+    // And it must go through the ONE serializer, not hand-rebuild params.
+    expect(TOOLBAR).toContain('window.buildIdxSearchParams(');
+  });
+
+  it('both sort paths offer the SAME fields — no control sorts more than the server can', () => {
+    const TOOLBAR = read('public/crm/js/listing/toolbar-functions.js');
+    const toolbarMap = TOOLBAR.slice(TOOLBAR.indexOf('var sortKeyMap'), TOOLBAR.indexOf('var sortKey ='));
+    const columnMap = PAGINATION.slice(
+      PAGINATION.indexOf('var SERVER_SORTABLE_COLUMNS'),
+      PAGINATION.indexOf('};', PAGINATION.indexOf('var SERVER_SORTABLE_COLUMNS')),
+    );
+    for (const field of ['price', 'listedDate']) {
+      expect(toolbarMap).toContain(field);
+      expect(columnMap).toContain(field);
+    }
+  });
+});
+
 describe('a dead control is not left looking alive', () => {
   it('the unwired "Search in results" box is disabled', () => {
     expect(DEAD).toContain('#resultsSearchInput');
