@@ -675,6 +675,11 @@ var MallanAPI = (function () {
       if (params.propertySubType) qs.push('propertySubType=' + encodeURIComponent(params.propertySubType));
       if (params.address) qs.push('address=' + encodeURIComponent(params.address));
       if (params.listingId) qs.push('listingId=' + encodeURIComponent(params.listingId));
+      // ListingKey is a DIFFERENT provider field from ListingId, and the
+      // Search row id is the former. Forwarded as its own criterion so a
+      // caller holding Search ids cannot land them in the ListingId filter,
+      // which matches nothing and returns an empty set without an error.
+      if (params.listingKey) qs.push('listingKey=' + encodeURIComponent(params.listingKey));
       if (params.zip) qs.push('zip=' + encodeURIComponent(params.zip));
       if (params.minRooms) qs.push('minRooms=' + params.minRooms);
       if (params.maxRooms) qs.push('maxRooms=' + params.maxRooms);

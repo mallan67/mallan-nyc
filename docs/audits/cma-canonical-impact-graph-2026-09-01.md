@@ -55,14 +55,37 @@ Probed 2026-09-01 against `api.cotality.com`.
 
 ### What this establishes, and what it does not
 
-**Established.** `ClosePrice` and `CloseDate` are delivered and fully populated on
-closed sales AND closed leases. `ClosePrice` is a genuinely distinct fact from
-`ListPrice`, diverging with a distribution that looks like real transactions.
+**Established — population, on the rows read.** `ClosePrice` and `CloseDate` were
+populated on every row returned by the two exact queries below: 600/600 closed
+sales and 400/400 closed leases, on 2026-09-01. `ClosePrice` is not a copy of
+`ListPrice` in all cases — it differed on 67 sale rows and 24 lease rows.
 
-**Established.** `LeaseAmount` and `TotalActualRent` are declared in `$metadata`
-and **never delivered** — 0% on 400 closed leases. They may not be used for
-achieved rent. This is the same shape the bath contract found for
-`BathroomsPartial`: declared, never populated.
+That is the full extent of it. "Differs from ListPrice" establishes the two
+values are separately maintained on those rows; it does not establish what
+`ClosePrice` means, and this document does not claim it does. The sale-side use
+below rests on the Cotality contract for `ClosePrice` on a sale, with provenance
+retained — not on the divergence statistic.
+
+**Established — population only.** On the 400 closed-lease rows read by the exact
+query above, `LeaseAmount` and `TotalActualRent` were populated on 0. That is an
+observation about those rows on that date. It is sufficient to say they cannot
+be *relied on* as an achieved-rent source today; it is not proof that they are
+never delivered in principle.
+
+**NOT established — corrected 2026-09-01.** An earlier version of this document
+said achieved rent "rides in `ClosePrice`" for rentals. That was an inference
+from population and divergence, not a semantic proof, and it is withdrawn.
+
+The live metadata proves `ClosePrice` EXISTS on Property with type Decimal(14,2),
+nullable. It does not prove what that field MEANS for a `ResidentialLease` row.
+Populated, and differing from `ListPrice` on 6% of rows, is consistent with
+achieved rent and also consistent with other explanations this audit cannot
+distinguish.
+
+`FIELD_REGISTRY.achieved_rent` therefore stays **UNRESOLVED**, and no rental
+valuation may state an achieved amount until the semantics are independently
+established from the provider. Where a business decision needs the fact, it
+fails closed.
 
 **NOT established — an open question a professional CMA must not assume away.**
 88.8% of closed sales (94% of leases) report `ClosePrice` exactly equal to
@@ -72,6 +95,32 @@ be separated from the data above, and they have different consequences for a
 valuation. **UNVERIFIED** until probed directly.
 
 ---
+
+### Exact queries behind the tables above
+
+Recorded so a reader can re-run them rather than trust the numbers. Resource
+`Property` in every case; provider `api.cotality.com`; date 2026-09-01.
+
+```
+closed sales   $select=ListingKey,ClosePrice,CloseDate,ListPrice,PropertyType
+               $filter=StandardStatus eq 'Closed' and PropertyType ne 'ResidentialLease'
+               paged to 600 rows
+
+closed leases  $select=ListingKey,ClosePrice,LeaseAmount,TotalActualRent,ListPrice,CloseDate
+               $filter=StandardStatus eq 'Closed' and PropertyType eq 'ResidentialLease'
+               paged to 400 rows
+
+identity pair  $select=ListingKey,ListingId  $filter=StandardStatus eq 'Active'  $top=2
+               -> ListingKey 1189389648 / ListingId RLS20112214
+
+key filter     $filter=ListingKey eq '1189389648'                              -> @odata.count 1
+               $filter=(ListingKey eq '1189389648' or ListingKey eq '1189389647') -> @odata.count 2
+               $filter=ListingId  eq '1189389648'                              -> @odata.count 0
+```
+
+Each conclusion is bounded to what its own probe measured. Population does not
+establish semantics; filterability does not establish population; metadata
+establishes neither.
 
 ## 3. Where the fact is retained Mallan-side
 
@@ -140,8 +189,10 @@ Subject Property
   -> authoritative Search / Comparable market universe   (one universe, one identity)
   -> VERIFIED CLOSED transaction facts                   (ClosePrice + CloseDate)
        - sales:   ClosePrice
-       - rentals: ClosePrice is the achieved figure; LeaseAmount and
-                  TotalActualRent are never delivered and may not be used
+       - rentals: ACHIEVED RENT IS UNRESOLVED. ClosePrice exists and is
+                  populated, but its semantics for ResidentialLease are not
+                  proven; LeaseAmount and TotalActualRent were populated on 0
+                  of 400 rows probed. No achieved amount may be stated.
        - a Closed row WITHOUT a verified ClosePrice is context, never valuation
   -> Agent-selected final comps                          (the agent decides, not the engine)
   -> Context evidence, separately labelled               (Active / Pending / In Contract / Expired)

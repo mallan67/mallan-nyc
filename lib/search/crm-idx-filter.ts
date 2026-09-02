@@ -484,5 +484,40 @@ export function buildCrmIdxODataFilter(params: URLSearchParams): string {
     else if (clauses.length > 1) parts.push(`(${clauses.join(" or ")})`);
   }
 
+  // LISTINGKEY IS A DIFFERENT PROVIDER FIELD FROM LISTINGID, AND THE SEARCH ROW
+  // ID IS THE FORMER.
+  //
+  // Cotality declares both, separately. `crm-idx-mapper.ts:217` maps
+  // `id: listingKey`, and keeps ListingId beside it as `lid` /
+  // `providerListingId`. Their value spaces do not overlap — a live pair reads
+  // ListingKey "1189389648" against ListingId "RLS20112214" — so a Search row id
+  // sent through the `listingId` criterion above matches nothing.
+  //
+  // That is not hypothetical. Probed live 2026-09-01:
+  //
+  //   $filter=ListingKey eq '1189389648'                          -> count 1
+  //   $filter=(ListingKey eq '1189389648' or ListingKey eq '...') -> count 2
+  //   $filter=ListingId  eq '1189389648'                          -> count 0
+  //
+  // The third is what a caller gets for sending Search ids to the wrong
+  // criterion: an empty result and no error. Equality and OR-chaining on
+  // ListingKey are SUPPORTED — measured, not assumed from $metadata, which
+  // proves existence and type only.
+  //
+  // A Mallan-local identifier is refused by name rather than translated: an
+  // `SL-`/`RL-` listing has no provider key, and sending one here would ask
+  // Cotality about a listing it does not have.
+  const listingKey = params.get("listingKey");
+  if (listingKey) {
+    const keys = listingKey.split(",").map((s) => s.trim()).filter(Boolean);
+    const mallanDomain = keys.filter((k) => isMallanLocalIdentifier(k));
+    if (mallanDomain.length) {
+      throw new UnsupportedSearchCriterionError("listingKey", mallanDomain);
+    }
+    const clauses = keys.map((k) => `ListingKey eq '${escapeOData(k)}'`);
+    if (clauses.length === 1) parts.push(clauses[0]);
+    else if (clauses.length > 1) parts.push(`(${clauses.join(" or ")})`);
+  }
+
   return parts.join(" and ");
 }

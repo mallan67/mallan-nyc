@@ -78,6 +78,15 @@ const EXECUTED_FIELD_CONTRACT: Readonly<Record<string, { outcome: string; note: 
     NumberOfUnitsTotal: { outcome: 'FILTERABLE', note: '323,533 at ge 1' },
     BuildingName: { outcome: 'FILTERABLE', note: "contains() 3,451 for 'Plaza'" },
     ListingId: { outcome: 'FILTERABLE', note: 'exact match' },
+    // ListingKey is a SEPARATE provider field from ListingId, with a
+    // non-overlapping value space — a live pair reads ListingKey 1189389648
+    // against ListingId RLS20112214. Probed 2026-09-01:
+    //   ListingKey eq '1189389648'                              -> count 1
+    //   (ListingKey eq '1189389648' or ListingKey eq '1189389647') -> count 2
+    //   ListingId  eq '1189389648'                              -> count 0
+    // The last one is why this needed its own criterion: Search row ids are
+    // ListingKeys, and sending them to ListingId returns nothing, silently.
+    ListingKey: { outcome: 'FILTERABLE', note: "exact match + or-chain; count 1 and 2 on 2026-09-01" },
     PostalCode: { outcome: 'FILTERABLE', note: "24,535 for '10016'" },
     UnitNumber: { outcome: 'FILTERABLE', note: "5,230 for '4B'" },
     StreetNumber: { outcome: 'FILTERABLE', note: 'startswith() 3,562' },

@@ -289,7 +289,29 @@ describe('output surfaces consume the snapshot without silently narrowing it', (
     // pages to reconstitute a selection the system already holds.
     const fn = compareFn();
     expect(fn).toContain('MallanAPI.idx.search({');
-    expect(fn).toContain("listingId: unresolvedIds.join(',')");
+    // THE IDENTITY DOMAIN IS THE POINT, not merely that a fetch happens.
+    // The Search row id is a Cotality ListingKey; ListingId is a different
+    // provider field with a non-overlapping value space. The first version
+    // sent Search ids through `listingId`, which renders `ListingId eq ...`
+    // and — probed live — returns count 0. Hydration never ran, and an
+    // assertion on 'a search happens' passed anyway.
+    expect(fn).toContain("listingKey: providerKeys.join(',')");
+    expect(fn).not.toContain('listingId: unresolvedIds');
+  });
+
+  it('Compare does not send Mallan-local identifiers to the provider', () => {
+    // An SL-/RL- listing has no provider key. Asking Cotality about it is
+    // asking the wrong system; it stays unresolved and fails closed instead.
+    const fn = compareFn();
+    expect(fn).toContain('/^(SL-|RL-)/i');
+    expect(fn).toContain('providerKeys');
+  });
+
+  it('Compare proves the returned rows are the ones it asked for', () => {
+    // A non-empty response is not evidence that it answered THIS question.
+    const fn = compareFn();
+    expect(fn).toContain('not requested');
+    expect(fn).toContain('requested[String(row.id)]');
   });
 
   it('Compare FAILS CLOSED when the full comparison cannot be constructed', () => {

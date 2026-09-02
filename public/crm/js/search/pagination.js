@@ -2347,15 +2347,47 @@
             // If the fetch cannot produce them, this FAILS CLOSED: no partial
             // comparison is opened by default. Comparing the loaded subset stays
             // available, but only as a deliberate choice.
-            if (unresolvedIds.length > 0 && typeof MallanAPI !== 'undefined'
+            // HYDRATE IN THE RIGHT IDENTITY DOMAIN.
+            //
+            // The Search row id is a Cotality LISTINGKEY (crm-idx-mapper maps
+            // `id: listingKey`), and ListingKey is a DIFFERENT provider field
+            // from ListingId — Cotality declares both, and their value spaces do
+            // not overlap: a live pair reads ListingKey "1189389648" against
+            // ListingId "RLS20112214".
+            //
+            // The first version of this sent Search ids through the `listingId`
+            // criterion, which renders `ListingId eq ...`. Probed live: that
+            // returns count 0 — an empty result and no error — so hydration
+            // never worked and Compare simply refused every time. Using
+            // `listingKey`, equality and OR-chaining are SUPPORTED (count 1 and
+            // count 2 on the same probes).
+            //
+            // A Mallan-local SL-/RL- selection is NOT sent to Cotality at all: it
+            // has no provider key, and asking the provider about it would be
+            // asking the wrong system. Those stay unresolved here and fail closed
+            // below rather than being translated into a key they do not have.
+            var providerKeys = unresolvedIds.filter(function (id) {
+                return !/^(SL-|RL-)/i.test(String(id));
+            });
+            if (providerKeys.length > 0 && typeof MallanAPI !== 'undefined'
                 && MallanAPI.idx && typeof MallanAPI.idx.search === 'function') {
                 try {
                     var hydrated = await MallanAPI.idx.search({
-                        listingId: unresolvedIds.join(','),
-                        limit: Math.max(unresolvedIds.length, 10)
+                        listingKey: providerKeys.join(','),
+                        limit: Math.max(providerKeys.length, 10)
                     });
                     var fetched = (hydrated && hydrated.listings) || [];
+                    // PROVE THE ROWS ARE THE ONES ASKED FOR. A response that
+                    // came back non-empty is not evidence it answered THIS
+                    // question; only matching the returned identities against the
+                    // requested keys is.
+                    var requested = {};
+                    providerKeys.forEach(function (k) { requested[String(k)] = true; });
                     fetched.forEach(function (row) {
+                        if (!requested[String(row.id)]) {
+                            console.warn('[Compare] Ignoring a row that was not requested:', row.id);
+                            return;
+                        }
                         // Keep the loaded catalogue consistent with what the
                         // comparison uses, so a later view resolves the same row.
                         if (!listings.some(function (li) { return String(li.id) === String(row.id); })) {
@@ -2363,9 +2395,11 @@
                         }
                         compareListings.push(row);
                     });
-                    var fetchedIds = fetched.map(function (r) { return String(r.id); });
+                    var resolvedKeys = fetched
+                        .filter(function (r) { return requested[String(r.id)]; })
+                        .map(function (r) { return String(r.id); });
                     unresolvedIds = unresolvedIds.filter(function (id) {
-                        return fetchedIds.indexOf(String(id)) === -1;
+                        return resolvedKeys.indexOf(String(id)) === -1;
                     });
                 } catch (hydrateErr) {
                     console.error('[Compare] Could not resolve selected listings from the server:', hydrateErr);

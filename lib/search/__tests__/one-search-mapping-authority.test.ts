@@ -307,6 +307,19 @@ describe('mutation guards — the authority graph cannot be bypassed', () => {
       'list_price',
       'listing_contract_date',
       'listing_id_canonical',
+      // PROMOTED 2026-09-01 by probe, for a defect it was hiding. The Search
+      // row id is a Cotality ListingKey, and ListingKey is a SEPARATE provider
+      // field from ListingId with a non-overlapping value space (live pair:
+      // ListingKey 1189389648 / ListingId RLS20112214). Compare hydration sent
+      // Search ids through the ListingId criterion, which renders
+      // `ListingId eq ...` and returned nothing — silently, with no error.
+      //
+      // Probed live against api.cotality.com with the EXACT expressions the
+      // executor now emits:
+      //   ListingKey eq '1189389648'                              -> count 1
+      //   (ListingKey eq '1189389648' or ListingKey eq '1189389647') -> count 2
+      //   ListingId  eq '1189389648'                              -> count 0
+      'listing_key',
       'listing_universe',
       'living_area',
       'mallan_exclusive',
