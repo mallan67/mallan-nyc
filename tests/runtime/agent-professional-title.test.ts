@@ -169,3 +169,38 @@ describe('agent-inquiry route wiring', () => {
     expect(routeSrc).not.toContain('role: "BROKER"');
   });
 });
+
+describe('legacy license_type values are tolerated on READ', () => {
+  // The broken Add Agent path wrote the select's DISPLAY STRING into
+  // license_type. Real rows carry "Licensed Associate Broker". The write
+  // boundary now refuses these, but the read path must still interpret the ones
+  // already stored - otherwise a real licensee is published with a blank
+  // designation, or the "Salesperson" display default.
+  it('a row storing the Associate Broker designation string still reads as Associate Broker', () => {
+    expect(professionalTitle({ title: null, license_type: 'Licensed Associate Broker', role: 'AGENT' }))
+      .toBe('Licensed Real Estate Associate Broker');
+  });
+
+  it('the principal-broker and salesperson legacy strings resolve too', () => {
+    expect(professionalTitle({ title: null, license_type: 'Licensed Broker', role: 'BROKER' }))
+      .toBe('Licensed Real Estate Broker');
+    expect(professionalTitle({ title: null, license_type: 'Licensed Real Estate Salesperson', role: 'AGENT' }))
+      .toBe('Licensed Real Estate Salesperson');
+  });
+
+  it('role still separates the two broker designations for legacy rows', () => {
+    expect(professionalTitle({ title: null, license_type: 'Licensed Associate Broker', role: 'BROKER' }))
+      .toBe('Licensed Real Estate Broker');
+  });
+
+  it('tolerance is READ-only - the write boundary still refuses these values', () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { rejectNonCanonicalLicenseType } = require('../../lib/agents/license-designation');
+    expect(rejectNonCanonicalLicenseType('Licensed Associate Broker')).not.toBeNull();
+    expect(rejectNonCanonicalLicenseType('Licensed Broker')).not.toBeNull();
+  });
+
+  it('genuine nonsense still resolves to nothing', () => {
+    expect(professionalTitle({ title: null, license_type: 'garbage', role: 'AGENT' })).toBe('');
+  });
+});

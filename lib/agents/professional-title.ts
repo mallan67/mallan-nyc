@@ -25,6 +25,39 @@
  * for records that predate the field.
  */
 
+/**
+ * LEGACY TOLERANCE: designation display strings found in `license_type`.
+ *
+ * The broken Add Agent path posted the select's display string straight into
+ * `license_type`, a column whose canonical values are "broker" | "salesperson".
+ * Real rows exist carrying "Licensed Associate Broker" and friends.
+ *
+ * The WRITE boundary refuses these outright (rejectNonCanonicalLicenseType), so
+ * no new ones can appear. The READ path must still interpret the ones already
+ * stored, because the alternative is publishing a blank designation — or worse,
+ * the "Salesperson" display default — for a real licensee.
+ *
+ * Accept legacy on read, refuse it on write. This map is expected to become
+ * dead once the affected rows are corrected; it is not a licence to store them.
+ */
+const LEGACY_LICENSE_TYPE_VALUES: Record<string, 'broker' | 'salesperson'> = {
+  'licensed real estate salesperson': 'salesperson',
+  'licensed associate broker': 'broker',
+  'licensed real estate associate broker': 'broker',
+  'licensed broker': 'broker',
+  'licensed real estate broker': 'broker',
+};
+
+/**
+ * Normalise a stored `license_type` to its canonical class, tolerating the
+ * legacy designation strings above. Returns '' when it is neither.
+ */
+export function normaliseLicenseType(v: string | null | undefined): 'broker' | 'salesperson' | '' {
+  const raw = (v ?? '').trim().toLowerCase();
+  if (raw === 'broker' || raw === 'salesperson') return raw;
+  return LEGACY_LICENSE_TYPE_VALUES[raw] ?? '';
+}
+
 export const PRINCIPAL_BROKER_TITLE = 'Licensed Real Estate Broker';
 export const ASSOCIATE_BROKER_TITLE = 'Licensed Real Estate Associate Broker';
 export const SALESPERSON_TITLE = 'Licensed Real Estate Salesperson';
@@ -69,7 +102,10 @@ export function professionalTitle(agent: ProfessionalTitleSource | null | undefi
 
   // 1. DERIVE from licence class + authorisation role. This is the regulated
   //    designation and it outranks whatever text happens to be stored.
-  const licence = (agent.license_type ?? '').trim().toLowerCase();
+  //    normaliseLicenseType also rescues rows whose license_type holds a legacy
+  //    designation display string, so a real licensee is never published with a
+  //    blank or defaulted designation while those rows await correction.
+  const licence = normaliseLicenseType(agent.license_type);
   if (licence === 'broker') {
     return isPrincipalBrokerRole(agent.role) ? PRINCIPAL_BROKER_TITLE : ASSOCIATE_BROKER_TITLE;
   }
