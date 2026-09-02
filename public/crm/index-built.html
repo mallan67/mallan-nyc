@@ -13511,31 +13511,6 @@ var MallanAPI = (function () {
     },
 
     /**
-     * Read-only dependency preview for PERMANENT deletion. Safe to call freely
-     * - it writes nothing. Returns can_purge plus blocked_by, and the media and
-     * static-profile consequences of removing the account.
-     */
-    purgePreview: function (id) {
-      return _fetch('/api/crm/agents/' + encodeURIComponent(id) + '/purge-preview');
-    },
-
-    /**
-     * PERMANENT deletion - mistake rollback only, for an erroneous record that
-     * was never used. Distinct from deactivate(), which is normal offboarding
-     * and retains all history.
-     *
-     * The server re-checks every dependency inside its own transaction, so the
-     * preview above is advisory and never acts as authorization. confirmEmail
-     * must match the target agent's email exactly.
-     */
-    purge: function (id, confirmEmail) {
-      return _fetch('/api/crm/agents/' + encodeURIComponent(id) + '/purge', {
-        method: 'POST',
-        body: JSON.stringify({ confirm_email: confirmEmail }),
-      });
-    },
-
-    /**
      * PR-CRM.6 (2026-05-24) — start a server-side delegated impersonation
      * session for the given agent. Broker-only on the backend
      * (requireBroker); the server writes an AuditEvent ("impersonate_start"),

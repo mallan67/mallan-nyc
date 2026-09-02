@@ -756,7 +756,6 @@ var Panels = (function () {
               '<button onclick="CRM.doImpersonate(\'' + E(a.id) + '\')" class="px-3 py-1.5 bg-gray-800 text-white rounded-lg text-xs font-semibold hover:bg-gray-700 flex items-center gap-1.5"><i class="fas fa-user-secret"></i> Impersonate</button>' +
               '<button onclick="Panels._editAgent(\'' + E(a.id) + '\')" class="px-3 py-1.5 border border-gray-300 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 flex items-center gap-1.5"><i class="fas fa-edit"></i> Edit</button>' +
               '<button onclick="Panels._deactivateAgent(\'' + E(a.id) + '\',\'' + E(name) + '\')" class="px-3 py-1.5 border border-red-200 text-red-400 rounded-lg text-xs font-semibold hover:bg-red-50 hover:text-red-600 flex items-center gap-1.5"><i class="fas fa-ban"></i> Deactivate</button>' +
-              '<button onclick="Panels._purgeAgent(\'' + E(a.id) + '\',\'' + E(name) + '\')" class="px-3 py-1.5 border border-red-300 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-600 hover:text-white flex items-center gap-1.5"><i class="fas fa-trash"></i> Delete Permanently</button>' +
             '</div>' +
           '</div>' +
           // Tabs
@@ -1048,76 +1047,6 @@ var Panels = (function () {
       CRM.toast('Agent deactivated', 'success');
       agentRoster();
     }).catch(function (err) { CRM.toast('Error: ' + (err.message || 'Failed'), 'error'); });
-  }
-
-  var _purgeBusy = false;
-
-  /**
-   * PERMANENT deletion - mistake rollback only.
-   *
-   * Deliberately a two-step, high-friction flow, because it is irreversible:
-   *   1. ask the server for a READ-ONLY dependency preview and show exactly why
-   *      this agent can or cannot be permanently deleted;
-   *   2. require the broker to TYPE the agent email before the POST.
-   *
-   * The preview is advisory only - the server re-checks every dependency inside
-   * its own transaction, so a stale preview can never widen what is allowed. An
-   * agent with business history, login history, the BROKER role or blocking
-   * attribution is refused here AND on the server, and directed to Deactivate.
-   */
-  function _purgeAgent(id, name) {
-    if (_purgeBusy) return;
-    CRM.toast('Checking dependencies...', 'info');
-    MallanAPI.agents.purgePreview(id).then(function (p) {
-      var email = (p.agent && p.agent.email) || '';
-      var blockers = p.blocked_by || {};
-      var keys = Object.keys(blockers);
-
-      if (!p.can_purge) {
-        var detail = keys.map(function (k) {
-          return '  - ' + k.replace(/_/g, ' ') + ': ' + blockers[k];
-        }).join('\n');
-        alert(
-          'Cannot permanently delete "' + name + '".\n\n'
-          + (p.message || 'This agent cannot be permanently deleted.')
-          + (detail ? '\n\nBlocked by:\n' + detail : '')
-          + '\n\nUse Deactivate instead - it disables their login and removes them from '
-          + 'the public roster while preserving every record.'
-        );
-        return;
-      }
-
-      var wd = p.will_delete || {};
-      var media = p.orphaned_media || {};
-      var typed = prompt(
-        'PERMANENTLY DELETE "' + name + '"?\n\n'
-        + 'This cannot be undone.\n\n'
-        + 'Deleted: agent record, ' + (wd.sessions || 0) + ' session(s), '
-        + (wd.mfa_sessions || 0) + ' MFA session(s).\n'
-        + 'Kept: the full audit trail, including a record of this deletion.\n'
-        + (media.r2_key ? 'Kept: headshot ' + media.r2_key + ' - media is never deleted here.\n' : '')
-        + (p.public_profile_will_remain
-            ? '\nNOTE: this agent also has a static public profile, which REMAINS live after the account is deleted.\n'
-            : '')
-        + '\nType the agent email to confirm:\n' + email,
-        ''
-      );
-      if (typed === null) return;
-      if (typed.trim().toLowerCase() !== email.toLowerCase()) {
-        CRM.toast('Email did not match. Nothing was deleted.', 'warning');
-        return;
-      }
-
-      _purgeBusy = true;
-      MallanAPI.agents.purge(id, typed.trim()).then(function () {
-        CRM.toast('Agent permanently deleted', 'success');
-        agentRoster();
-      }).catch(function (err) {
-        CRM.toast('Not deleted: ' + (err.message || 'Failed'), 'error');
-      }).then(function () { _purgeBusy = false; });
-    }).catch(function (err) {
-      CRM.toast('Could not check dependencies: ' + (err.message || 'Failed'), 'error');
-    });
   }
 
   function _addAgent() {
@@ -13609,7 +13538,6 @@ var Panels = (function () {
     _agentTab: _agentTab,
     _filterRoster: _filterRoster,
     _deactivateAgent: _deactivateAgent,
-    _purgeAgent: _purgeAgent,
     _extractEmailContacts: _extractEmailContacts,
     _submitEmailImport: _submitEmailImport,
     _togglePartner: _togglePartner,

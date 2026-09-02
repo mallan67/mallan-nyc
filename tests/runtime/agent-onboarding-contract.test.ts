@@ -141,42 +141,20 @@ describe('idempotence and truthful states', () => {
   });
 });
 
-describe('Delete Permanently is wired and distinct from Deactivate', () => {
-  it('the API client exposes both the preview and the purge', () => {
-    expect(apiClient).toContain('purgePreview: function (id)');
-    expect(apiClient).toContain('purge: function (id, confirmEmail)');
-    expect(apiClient).toContain("'/purge-preview'");
-  });
-
-  it('the roster keeps Deactivate AND adds Delete Permanently', () => {
-    expect(panels).toContain('Panels._deactivateAgent(');
-    expect(panels).toContain('Panels._purgeAgent(');
-    expect(panels).toContain('Delete Permanently');
-  });
-
-  it('the purge asks for a preview first and requires a typed email', () => {
-    const start = panels.indexOf('function _purgeAgent');
-    const body = panels.slice(start, panels.indexOf('function _addAgent', start));
-    expect(body).toContain('MallanAPI.agents.purgePreview(id)');
-    expect(body).toContain('typed.trim().toLowerCase() !== email.toLowerCase()');
-    expect(body).toContain('if (_purgeBusy) return;');
-  });
-
-  it('a refusal directs the broker to Deactivate', () => {
-    const start = panels.indexOf('function _purgeAgent');
-    const body = panels.slice(start, panels.indexOf('function _addAgent', start));
-    expect(body).toContain('Use Deactivate instead');
-    expect(body).toContain('Blocked by:');
-  });
-
-  it('is served directly by dashboard.html, so no build step can drop it', () => {
+describe('the roster controls ship at all', () => {
+  it('panels.js is served directly by dashboard.html, so no build step can drop it', () => {
     // panels.js is NOT inlined into index-built.html - dashboard.html loads it
-    // with a plain <script src>. Verified so a future bundling change cannot
+    // with a plain <script src>. Pinned so a future bundling change cannot
     // silently stop shipping the roster controls.
     const dash = readFileSync(resolve(ROOT, 'public/crm/dashboard.html'), 'utf8');
     expect(dash).toContain('/crm/js/dashboard/panels.js');
   });
+
+  it('Deactivate remains the roster action', () => {
+    expect(panels).toContain('Panels._deactivateAgent(');
+  });
 });
+
 
 describe('visible-field census - nothing disappears silently', () => {
   const formRegion = panels.slice(
