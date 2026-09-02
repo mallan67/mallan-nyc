@@ -36533,16 +36533,16 @@ function emailCurrentCalc() {
             // AND update the DEAD test.
             var DEAD_CONTAINERS = [
                 // Transit panels — 4 search modes (sale/rent/building/advanced)
-                { selector: '#saleTransitExpand', reason: 'Transit search not supported — REBNY IDX feed does not provide listing coordinates.' },
-                { selector: '#rentalTransitExpand', reason: 'Transit search not supported — REBNY IDX feed does not provide listing coordinates.' },
-                { selector: '#buildingTransitExpand', reason: 'Transit search not supported — REBNY IDX feed does not provide listing coordinates.' },
-                { selector: '#advancedTransitExpand', reason: 'Transit search not supported — REBNY IDX feed does not provide listing coordinates.' },
+                { selector: '#saleTransitExpand', reason: 'Transit search blocked by the PROVIDER, verified live 2026-09-01: $filter on Latitude returns HTTP 400 "Results from RLS has been suppressed (provider Level) as field Latitude cannot be used", and selected Latitude/Longitude come back null. Not a Mallan gap.' },
+                { selector: '#rentalTransitExpand', reason: 'Transit search blocked by the PROVIDER, verified live 2026-09-01: $filter on Latitude returns HTTP 400 "Results from RLS has been suppressed (provider Level) as field Latitude cannot be used", and selected Latitude/Longitude come back null. Not a Mallan gap.' },
+                { selector: '#buildingTransitExpand', reason: 'Transit search blocked by the PROVIDER, verified live 2026-09-01: $filter on Latitude returns HTTP 400 "Results from RLS has been suppressed (provider Level) as field Latitude cannot be used", and selected Latitude/Longitude come back null. Not a Mallan gap.' },
+                { selector: '#advancedTransitExpand', reason: 'Transit search blocked by the PROVIDER, verified live 2026-09-01: $filter on Latitude returns HTTP 400 "Results from RLS has been suppressed (provider Level) as field Latitude cannot be used", and selected Latitude/Longitude come back null. Not a Mallan gap.' },
                 // Manhattan grid — locate the parent of the 4 grid selects
                 // and disable the whole panel. Each grid prefix has 4
                 // selects (north/south/east/west); we disable the immediate
                 // parent of the north select (which holds all 4).
-                { idAnchor: 'adv-grid-north', reason: 'Manhattan grid search not supported — REBNY IDX feed does not provide listing coordinates.' },
-                { idAnchor: 'bldg-grid-north', reason: 'Manhattan grid search not supported — REBNY IDX feed does not provide listing coordinates.' },
+                { idAnchor: 'adv-grid-north', reason: 'Manhattan grid blocked by the PROVIDER, verified live 2026-09-01: same Latitude suppression as transit search (HTTP 400, field cannot be used). Not a Mallan gap.' },
+                { idAnchor: 'bldg-grid-north', reason: 'Manhattan grid blocked by the PROVIDER, verified live 2026-09-01: same Latitude suppression as transit search (HTTP 400, field cannot be used). Not a Mallan gap.' },
                 // Open House DRP wrappers — backend has no OpenHouse expansion
                 // Open House preset buttons next to the DRP wrappers — they
                 // stamp values onto the wrapper that the builder ignores.
@@ -36577,8 +36577,8 @@ function emailCurrentCalc() {
                 // broker_input in the registry and is BLOCKED there pending live
                 // proof of Cotality filter/sort behaviour and UCBA handling, so the
                 // control is refused here rather than silently ignored.
-                { selector: '#adv-dom-min', reason: 'Days on Market not yet executable — Cotality filter/sort behaviour and UCBA handling unproven.' },
-                { selector: '#adv-dom-max', reason: 'Days on Market not yet executable — Cotality filter/sort behaviour and UCBA handling unproven.' },
+                { selector: '#adv-dom-min', reason: 'Days on Market blocked by the PROVIDER, verified live 2026-09-01: both $filter (DaysOnMarket le 30) and $orderby return HTTP 400 "field DaysOnMarket cannot be used". Previously recorded as unproven; now proven.' },
+                { selector: '#adv-dom-max', reason: 'Days on Market blocked by the PROVIDER, verified live 2026-09-01: both $filter (DaysOnMarket le 30) and $orderby return HTTP 400 "field DaysOnMarket cannot be used". Previously recorded as unproven; now proven.' },
 
                 // ── PARKING vs GARAGE ──
                 // Controls labelled "Parking" emit a data-criterion of garage /
