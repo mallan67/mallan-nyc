@@ -8,6 +8,12 @@
 // one agent at a time.
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import {
+  directoryFromDatabase,
+  directoryFromStatic,
+  type DbAgentDirectoryRow,
+  type StaticAgentEntry,
+} from '@/lib/agents/public-profile-authority';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +27,9 @@ export async function GET() {
         first_name: true,
         last_name: true,
         title: true,
+        // needed to DERIVE the professional designation
+        license_type: true,
+        role: true,
         photo: true,
         bio: true,
         specialties: true,
@@ -30,16 +39,13 @@ export async function GET() {
       orderBy: [{ featured: 'desc' }, { created_at: 'asc' }],
     });
 
-    const mapped = agents.map((a) => ({
-      id: a.public_slug || `${a.first_name}-${a.last_name}`.toLowerCase().replace(/\s+/g, '-'),
-      name: a.full_name || `${a.first_name} ${a.last_name}`,
-      title: a.title || 'Licensed Real Estate Salesperson',
-      photo: a.photo || '/images/agent-placeholder.svg',
-      bio: a.bio || '',
-      specialties: a.specialties,
-      languages: a.languages,
-      featured: a.featured,
-    }));
+    // Titles derived through the one authority. phone/email are dropped below -
+    // this endpoint deliberately never returns per-agent contact details.
+    // Contact columns are never selected, so they cannot be mapped out by
+    // mistake. Titles derived through the one authority.
+    const mapped = agents.map((a) =>
+      directoryFromDatabase(a as DbAgentDirectoryRow,
+        `${a.first_name}-${a.last_name}`.toLowerCase().replace(/\s+/g, '-')));
 
     return NextResponse.json(
       { agents: mapped },
@@ -50,11 +56,7 @@ export async function GET() {
     // Fallback to static JSON — strip phone/email here too
     const agentsData = await import('@/data/agents.json');
     const stripped = {
-      ...agentsData,
-      agents: (agentsData.agents || []).map((a: Record<string, unknown>) => {
-        const { phone: _phone, email: _email, ...rest } = a as { phone?: string; email?: string };
-        return rest;
-      }),
+      agents: ((agentsData.agents ?? []) as StaticAgentEntry[]).map(directoryFromStatic),
     };
     return NextResponse.json(stripped);
   }

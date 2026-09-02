@@ -4,6 +4,12 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import prisma from '@/lib/prisma';
 import agentsJson from '@/data/agents.json';
+import {
+  resolvePublicAgent,
+  type PublicAgentProfile,
+  type DbAgentRow,
+  type StaticAgentEntry,
+} from '@/lib/agents/public-profile-authority';
 import ActiveListingsTabs from './listings/ActiveListingsTabs';
 import PastDealsSection from './PastDealsSection';
 import { getPastDeals } from './past-deals-loader';
@@ -12,71 +18,48 @@ type Props = {
   params: Promise<{ name: string }>;
 };
 
-interface AgentProfile {
-  id: string;
-  name: string;
-  title: string;
-  photo: string;
-  phone: string;
-  email: string;
-  bio: string;
-  specialties: string[];
-  languages: string[];
-  featured: boolean;
-}
 
-async function getAgentBySlug(slug: string): Promise<AgentProfile | null> {
+/**
+ * The Agent record is the authority.
+ *
+ * This used to fall back to data/agents.json whenever it found no ACTIVE
+ * database agent - including when the database answered fine and simply had no
+ * such agent. A Git-tracked file could therefore RESURRECT a deactivated or
+ * permanently deleted agent, and OVERRIDE the canonical record with stale
+ * name/title/photo/contact data.
+ *
+ * Now: a database that replies is final, null included. Only an unreachable
+ * database permits the static roster, purely so an outage degrades the site
+ * instead of blanking every agent page.
+ */
+async function getAgentBySlug(slug: string): Promise<PublicAgentProfile | null> {
   const nameFromSlug = slug.replace(/-/g, ' ');
 
-  try {
-    const agent = await prisma.agent.findFirst({
-      where: {
-        OR: [
-          { public_slug: slug },
-          { full_name: { equals: nameFromSlug, mode: 'insensitive' } },
-        ],
-        status: 'active',
-      },
-      select: {
-        public_slug: true,
-        full_name: true,
-        first_name: true,
-        last_name: true,
-        title: true,
-        photo: true,
-        phone: true,
-        email: true,
-        bio: true,
-        specialties: true,
-        languages: true,
-        featured: true,
-      },
-    });
-    if (agent) {
-      return {
-        id: agent.public_slug || slug,
-        name: agent.full_name || `${agent.first_name} ${agent.last_name}`,
-        title: agent.title || 'Licensed Real Estate Salesperson',
-        photo: agent.photo || '/images/agent-placeholder.svg',
-        phone: agent.phone || '',
-        email: agent.email,
-        bio: agent.bio || '',
-        specialties: agent.specialties,
-        languages: agent.languages,
-        featured: agent.featured,
-      };
-    }
-  } catch {
-    // DB unavailable — fall through to static JSON
-  }
-
-  const staticAgent = agentsJson.agents.find(
-    (a) => a.id === slug || a.name.toLowerCase().replace(/\s+/g, '-') === slug
+  return resolvePublicAgent(
+    slug,
+    async () => {
+      const agent = await prisma.agent.findFirst({
+        where: {
+          OR: [
+            { public_slug: slug },
+            { full_name: { equals: nameFromSlug, mode: 'insensitive' } },
+          ],
+          status: 'active',
+        },
+        select: {
+          public_slug: true, full_name: true, first_name: true, last_name: true,
+          title: true, license_type: true, role: true, photo: true, phone: true,
+          email: true, bio: true, specialties: true, languages: true, featured: true,
+        },
+      });
+      return agent as DbAgentRow | null;
+    },
+    () => (agentsJson.agents as StaticAgentEntry[]).find(
+      (a) => a.id === slug || a.name.toLowerCase().replace(/\s+/g, '-') === slug,
+    ),
   );
-  return staticAgent || null;
 }
 
- 
 async function getAgentListings(slug: string): Promise<{
   activeSales: any[];
   activeRentals: any[];
