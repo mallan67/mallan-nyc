@@ -399,12 +399,16 @@ describe('Edit Agent cannot recreate the licence corruption', () => {
   });
 });
 
-describe('MemberMlsId survives the full round trip', () => {
+describe('MemberMlsId is readable end to end, and fails closed on write', () => {
   const create = readFileSync(resolve(ROOT, 'app/api/crm/agents/route.ts'), 'utf8');
   const detail = readFileSync(resolve(ROOT, 'app/api/crm/agents/[id]/route.ts'), 'utf8');
 
-  it('CREATE writes it', () => {
-    expect(create).toContain('trestle_mls_id: (body.trestle_mls_id as string) ?? null');
+  it('CREATE never writes a client-supplied value — it stores NULL', () => {
+    // P1-5: metadata proves the field exists; it does not prove a typed value
+    // belongs to this agent. Until a live Member resolver exists, the column
+    // stays NULL and a non-null client write is refused.
+    expect(create).toContain('trestle_mls_id: null');
+    expect(create).toContain('rejectUnverifiedMemberMlsId');
   });
 
   it('ROSTER GET selects it', () => {
@@ -415,13 +419,15 @@ describe('MemberMlsId survives the full round trip', () => {
     expect(detail).toContain('trestle_mls_id: agent.trestle_mls_id');
   });
 
-  it('PATCH accepts and writes it', () => {
-    expect(detail).toContain('update.trestle_mls_id = body.trestle_mls_id');
+  it('PATCH refuses a client-supplied value rather than writing it', () => {
+    expect(detail).toContain('rejectUnverifiedMemberMlsId');
+    expect(detail).not.toContain('update.trestle_mls_id = body.trestle_mls_id');
   });
 
-  it('the edit form displays it and the edit submit sends it back', () => {
+  it('the edit form can DISPLAY a verified value once one exists', () => {
     expect(panels).toContain("E(a.trestle_mls_id || '')");
-    expect(panels).toContain('data.trestle_mls_id = raw.mls_member_id');
+    // the input itself is disabled pending verification, so nothing is typed in
+    expect(panels).toMatch(/name="mls_member_id"[^>]*disabled/);
   });
 
   it('is never merged with the other Cotality member identities', () => {

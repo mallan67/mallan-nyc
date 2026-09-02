@@ -10,6 +10,12 @@ import {
   logAuditEvent,
 } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import {
+  rejectNonCanonicalLicenseType,
+  rejectIncoherentLicenceRole,
+  canonicalTitleFor,
+} from "@/lib/agents/license-designation";
+import { transitionAgentStatus, isAgentStatus, type AgentStatus } from "@/lib/agents/agent-lifecycle";
 
 /**
  * GET /api/crm/agents/me
@@ -101,10 +107,25 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
+  const licenseTypeError = rejectNonCanonicalLicenseType(body.license_type);
+  if (licenseTypeError) {
+    return NextResponse.json({ error: licenseTypeError }, { status: 400 });
+  }
+  const coherence = rejectIncoherentLicenceRole(
+    (body.license_type as string | undefined) ?? agent.license_type,
+    agent.role
+  );
+  if (coherence) {
+    return NextResponse.json({ error: coherence }, { status: 400 });
+  }
+
+  let statusTransition: AgentStatus | null = null;
   const update: Record<string, unknown> = {};
 
   // Fields agents CAN self-edit (public profile + phone)
-  if (body.title !== undefined) update.title = body.title as string | null;
+  // NOT self-editable. `title` is the regulated professional designation,
+  // derived from licence class + authorisation role - not a personal tagline.
+  // An agent could otherwise style themselves "Licensed Real Estate Broker".
   if (body.bio !== undefined) update.bio = body.bio as string | null;
   if (body.photo !== undefined) update.photo = body.photo as string | null;
   if (body.phone !== undefined) update.phone = body.phone as string | null;
@@ -127,25 +148,45 @@ export async function PATCH(req: NextRequest) {
       update.full_name = `${body.first_name ?? agent.first_name} ${body.last_name ?? agent.last_name}`;
     }
     if (body.license_no !== undefined) update.license_no = body.license_no as string | null;
-    if (body.license_type !== undefined) update.license_type = body.license_type as string | null;
+    if (body.license_type !== undefined) {
+      update.license_type = body.license_type as string | null;
+      // the title follows the licence, exactly as on the other writers
+      const derived = canonicalTitleFor(body.license_type as string, agent.role);
+      if (derived) update.title = derived;
+    }
     if (body.sale_split !== undefined) update.sale_split = body.sale_split != null ? Number(body.sale_split) : null;
     if (body.rental_split !== undefined) update.rental_split = body.rental_split != null ? Number(body.rental_split) : null;
     if (body.featured !== undefined) update.featured = Boolean(body.featured);
     if (body.public_slug !== undefined) update.public_slug = body.public_slug as string | null;
+    // Account state is NOT a generic field here either. Writing it directly
+    // bypassed session revocation, exactly as the Edit Agent path did.
     if (body.status !== undefined) {
-      const valid = ["active", "inactive", "suspended"];
-      if (valid.includes(body.status as string)) update.status = body.status as string;
+      if (!isAgentStatus(body.status)) {
+        return NextResponse.json(
+          { error: "status must be: active, inactive, or suspended" },
+          { status: 400 }
+        );
+      }
+      statusTransition = body.status;
     }
   }
 
-  if (Object.keys(update).length === 0) {
+  if (Object.keys(update).length === 0 && !statusTransition) {
     return NextResponse.json(
       { error: "No valid fields to update" },
       { status: 400 }
     );
   }
 
-  const updated = await prisma.agent.update({
+  if (statusTransition && statusTransition !== agent.status) {
+    await transitionAgentStatus(prisma, agent.id, statusTransition, auth, {
+      previous: agent.status,
+      ip: req.headers.get("x-forwarded-for"),
+      reason: "self_profile_status_change",
+    });
+  }
+
+  const updated = Object.keys(update).length === 0 ? agent : await prisma.agent.update({
     where: { id: agent.id },
     data: update,
   });

@@ -108,3 +108,31 @@ export async function applyAgentStatusTransition(
 
   return { status: next, sessions_revoked: sessions, mfa_sessions_revoked: mfa };
 }
+
+/** A client that can open an interactive transaction. */
+export interface TransactionalDb {
+  $transaction: <T>(fn: (tx: LifecycleDb) => Promise<T>) => Promise<T>;
+}
+
+/**
+ * ATOMIC transition - the form every route must use.
+ *
+ * `applyAgentStatusTransition` above performs four writes. Run against the
+ * plain client they are four independent statements, so a failure between them
+ * recreates the exact defect this module exists to close: Agent.status already
+ * inactive while the accepted Session row survives.
+ *
+ * Wrapping them in one interactive transaction means a failure anywhere rolls
+ * back all of it - the status stays as it was, the sessions stay as they were,
+ * and no lifecycle audit is committed for a transition that did not happen.
+ */
+export async function transitionAgentStatus(
+  db: TransactionalDb,
+  agentId: bigint,
+  next: AgentStatus,
+  actor: LifecycleActor,
+  opts: { previous?: string | null; ip?: string | null; reason?: string } = {},
+): Promise<TransitionResult> {
+  return db.$transaction((tx) =>
+    applyAgentStatusTransition(tx, agentId, next, actor, opts));
+}

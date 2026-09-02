@@ -8,8 +8,13 @@ import {
   logAuditEvent,
 } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
-import { rejectNonCanonicalLicenseType } from "@/lib/agents/license-designation";
-import { applyAgentStatusTransition, isAgentStatus, type AgentStatus } from "@/lib/agents/agent-lifecycle";
+import {
+  rejectNonCanonicalLicenseType,
+  rejectUnverifiedMemberMlsId,
+  rejectIncoherentLicenceRole,
+  canonicalTitleFor,
+} from "@/lib/agents/license-designation";
+import { transitionAgentStatus, isAgentStatus, type AgentStatus } from "@/lib/agents/agent-lifecycle";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -108,8 +113,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: licenseTypeError }, { status: 400 });
   }
   if (body.license_type !== undefined) update.license_type = body.license_type as string | null;
-  if (body.trestle_mls_id !== undefined) {
-    update.trestle_mls_id = body.trestle_mls_id as string | null;
+  const mlsIdError = rejectUnverifiedMemberMlsId(body.trestle_mls_id);
+  if (mlsIdError) {
+    return NextResponse.json({ error: mlsIdError }, { status: 400 });
   }
   if (body.license_expiry !== undefined) {
     update.license_expiry = body.license_expiry
@@ -143,7 +149,18 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     statusTransition = body.status;
   }
 
-  if (body.title !== undefined) update.title = body.title as string | null;
+  // The professional title is DERIVED from the resulting licence class and
+  // authorisation role. A client-chosen title let an Associate Broker
+  // (role AGENT) be styled "Licensed Real Estate Broker".
+  {
+    const nextLicence = (body.license_type as string | undefined) ?? agent.license_type;
+    const coherence = rejectIncoherentLicenceRole(nextLicence, agent.role);
+    if (coherence) {
+      return NextResponse.json({ error: coherence }, { status: 400 });
+    }
+    const derived = canonicalTitleFor(nextLicence, agent.role);
+    if (derived) update.title = derived;
+  }
   if (body.bio !== undefined) update.bio = body.bio as string | null;
   if (body.photo !== undefined) update.photo = body.photo as string | null;
   if (body.public_slug !== undefined) update.public_slug = body.public_slug as string | null;
@@ -173,7 +190,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // it revokes sessions and audits itself exactly as Deactivate does.
   let lifecycle = null;
   if (statusTransition && statusTransition !== agent.status) {
-    lifecycle = await applyAgentStatusTransition(
+    lifecycle = await transitionAgentStatus(
       prisma,
       agent.id,
       statusTransition,
@@ -222,7 +239,7 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
 
   // Soft delete: set status to inactive
   // Same authority as the PATCH path, so the two can never drift apart again.
-  const lifecycle = await applyAgentStatusTransition(
+  const lifecycle = await transitionAgentStatus(
     prisma,
     agent.id,
     "inactive",

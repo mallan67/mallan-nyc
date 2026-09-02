@@ -9,6 +9,10 @@ import {
   logAuditEvent,
 } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import {
+  rejectNonCanonicalLicenseType,
+  canonicalTitleFor,
+} from "@/lib/agents/license-designation";
 
 export async function POST(req: NextRequest) {
   const blocked = assertWriteAllowed();
@@ -28,6 +32,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Check for duplicate email
+    // Same licence contract as every other writer. This is the SECOND Agent
+    // creation path; until it is consolidated it must not be a way around the
+    // invariant the primary path enforces.
+    const licenseTypeError = rejectNonCanonicalLicenseType(licenseType);
+    if (licenseTypeError) {
+      return NextResponse.json({ error: licenseTypeError }, { status: 400 });
+    }
+
     const existing = await prisma.agent.findUnique({
       where: { email: email.trim().toLowerCase() },
     });
@@ -53,6 +65,8 @@ export async function POST(req: NextRequest) {
         phone: phone?.trim() || null,
         license_no: licenseNo?.trim() || null,
         license_type: licenseType || null,
+        // derived, never client-chosen
+        title: canonicalTitleFor(licenseType, "AGENT"),
         sale_split: saleSplit ?? null,
         rental_split: rentalSplit ?? null,
         role: "AGENT",

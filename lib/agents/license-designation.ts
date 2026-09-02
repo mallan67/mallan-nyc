@@ -118,3 +118,62 @@ export function rejectNonCanonicalLicenseType(v: unknown): string | null {
   }
   return `license_type must be one of ${LICENSE_TYPES.join(' | ')}, received "${String(v)}".`;
 }
+
+/**
+ * THE REGULATED PROFESSIONAL DESIGNATION, derived - never accepted from a client.
+ *
+ * `Agent.title` is what Mallan advertises a licensee as, and NY DOS 19 NYCRR
+ * 175.25 makes it a statement about their licence. It is therefore a FUNCTION of
+ * the two canonical axes, not free text:
+ *
+ *   salesperson  + any role   -> Licensed Real Estate Salesperson
+ *   broker       + role AGENT -> Licensed Real Estate Associate Broker
+ *   broker       + role BROKER-> Licensed Real Estate Broker
+ *
+ * Letting a client choose it independently produced contradictory identities:
+ * an Associate Broker (role AGENT) could be titled "Licensed Real Estate
+ * Broker", claiming a principal-broker designation she does not hold.
+ *
+ * Returns null when the licence class is unknown, so callers leave the stored
+ * title alone rather than inventing one.
+ */
+export function canonicalTitleFor(
+  licenseType: string | null | undefined,
+  role: string | null | undefined,
+): string | null {
+  const designation = designationFromStored(licenseType, role);
+  if (!designation) return null;
+  return DESIGNATION_MAP[designation].title;
+}
+
+/**
+ * A salesperson licence with principal-broker AUTHORISATION is incoherent: the
+ * principal broker of a NY brokerage holds a broker licence. Reported rather
+ * than silently normalised, because it means one of the two axes is wrong.
+ */
+export function rejectIncoherentLicenceRole(
+  licenseType: string | null | undefined,
+  role: string | null | undefined,
+): string | null {
+  const lt = (licenseType ?? '').trim().toLowerCase();
+  if (lt === 'salesperson' && isPrincipalBrokerRole(role)) {
+    return 'A salesperson licence cannot hold the BROKER authorisation role.';
+  }
+  return null;
+}
+
+/**
+ * MemberMlsId is provider identity evidence, matched elsewhere against Cotality
+ * ListAgentMlsId. Metadata proves the field exists; it does NOT prove a typed
+ * value belongs to a given agent, and no resolver against the live Member
+ * resource exists yet.
+ *
+ * So a non-null client write is refused and the column stays NULL. A DOS state
+ * licence number is a different fact and may never be substituted.
+ */
+export function rejectUnverifiedMemberMlsId(v: unknown): string | null {
+  if (v === undefined || v === null || v === '') return null;
+  return 'trestle_mls_id cannot be set from client input. A Cotality MemberMlsId '
+    + 'must be resolved and verified against the live Member resource before it is '
+    + 'stored; it is not a typed field, and a DOS licence number is a different fact.';
+}
