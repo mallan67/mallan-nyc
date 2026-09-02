@@ -48,14 +48,14 @@ describe('licence designation is mapped, not posted verbatim', () => {
   const map = licenseDesignations();
 
   it('an Associate Broker stores licence "broker" and the Associate Broker title', () => {
-    expect(map['Licensed Associate Broker']).toEqual({
+    expect(map['Licensed Associate Broker']).toMatchObject({
       license_type: 'broker',
       title: 'Licensed Real Estate Associate Broker',
     });
   });
 
   it('the principal broker designation is distinct from the associate one', () => {
-    expect(map['Licensed Broker']).toEqual({
+    expect(map['Licensed Broker']).toMatchObject({
       license_type: 'broker',
       title: 'Licensed Real Estate Broker',
     });
@@ -63,7 +63,7 @@ describe('licence designation is mapped, not posted verbatim', () => {
   });
 
   it('a salesperson stores licence "salesperson"', () => {
-    expect(map['Licensed Real Estate Salesperson']).toEqual({
+    expect(map['Licensed Real Estate Salesperson']).toMatchObject({
       license_type: 'salesperson',
       title: 'Licensed Real Estate Salesperson',
     });
@@ -317,7 +317,7 @@ function evalDesignationFns() {
   const src = [
     grab('var LICENSE_DESIGNATIONS = {').replace(/^var /, 'const '),
     grab('function _designationFor(selected)'),
-    grab('function _designationFromStored(licenseType, title)'),
+    grab('function _designationFromStored(licenseType, role)'),
     'return { LICENSE_DESIGNATIONS, _designationFor, _designationFromStored };',
   ].join('\n');
   // eslint-disable-next-line no-new-func
@@ -331,18 +331,18 @@ describe('designation round trip — one owner for CREATE and EDIT', () => {
   const { _designationFor, _designationFromStored } = evalDesignationFns();
 
   it('every designation survives designation -> stored -> designation', () => {
+    const roleFor = (d: string) => (d === 'Licensed Broker' ? 'BROKER' : 'AGENT');
     for (const d of ['Licensed Real Estate Salesperson', 'Licensed Associate Broker', 'Licensed Broker']) {
       const stored = _designationFor(d);
-      expect(_designationFromStored(stored.license_type, stored.title)).toBe(d);
+      expect(_designationFromStored(stored.license_type, roleFor(d))).toBe(d);
     }
   });
 
-  it('an Associate Broker reopens as Associate, not as principal Broker', () => {
-    // both are stored license_type "broker" - only the title separates them
-    expect(_designationFromStored('broker', 'Licensed Real Estate Associate Broker'))
-      .toBe('Licensed Associate Broker');
-    expect(_designationFromStored('broker', 'Licensed Real Estate Broker'))
-      .toBe('Licensed Broker');
+  it('an Associate Broker reopens as Associate, distinguished by ROLE not title', () => {
+    // both store license_type "broker"; role is the stable discriminator, and
+    // the title is broker-editable so it cannot carry a licence class
+    expect(_designationFromStored('broker', 'AGENT')).toBe('Licensed Associate Broker');
+    expect(_designationFromStored('broker', 'BROKER')).toBe('Licensed Broker');
   });
 
   it('stores canonical licence classes, never display strings', () => {
@@ -353,7 +353,7 @@ describe('designation round trip — one owner for CREATE and EDIT', () => {
 
   it('an unknown or unset licence forces an explicit choice rather than guessing', () => {
     expect(_designationFromStored(null, null)).toBe('');
-    expect(_designationFromStored('Licensed Associate Broker', null)).toBe('');
+    expect(_designationFromStored('Licensed Associate Broker', 'AGENT')).toBe('');
   });
 });
 
@@ -371,7 +371,7 @@ describe('Edit Agent cannot recreate the licence corruption', () => {
 
   it('the edit select preselects from STORED values, not display-string equality', () => {
     expect(panels).not.toContain("a.license_type === 'Licensed Associate Broker'");
-    expect(panels).toContain('_designationFromStored(a.license_type, a.title)');
+    expect(panels).toContain('_designationFromStored(a.license_type, a.role)');
   });
 
   it('every unowned edit control is disabled', () => {
@@ -431,5 +431,49 @@ describe('MemberMlsId survives the full round trip', () => {
     expect(panels).not.toContain('trestle_mls_id: raw.nrds_id');
     expect(panels).not.toContain('trestle_mls_id: raw.license_number');
     expect(detail).not.toContain('trestle_mls_id = body.nrds_id');
+  });
+});
+
+describe('the client table MIRRORS the server contract', () => {
+  const { _designationFor } = evalDesignationFns();
+
+  it('matches lib/agents/license-designation.ts exactly', () => {
+    // The browser cannot import the TS module, so the values are duplicated.
+    // The server is the authority and refuses non-canonical values at the API
+    // boundary; this proves the mirror has not drifted.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const server = require('../../lib/agents/license-designation') as {
+      DESIGNATION_MAP: Record<string, { license_type: string; title: string; requiresBrokerRole: boolean }>;
+    };
+    for (const [designation, expected] of Object.entries(server.DESIGNATION_MAP)) {
+      const client = _designationFor(designation) as unknown as Record<string, unknown>;
+      expect(client.license_type).toBe(expected.license_type);
+      expect(client.title).toBe(expected.title);
+      expect(client.requiresBrokerRole).toBe(expected.requiresBrokerRole);
+    }
+  });
+
+  it('Add Agent does not offer the principal-broker designation', () => {
+    // POST hardcodes role AGENT, so that option would mint a contradictory record
+    const createForm = panels.slice(
+      panels.indexOf('function _addAgent() {'),
+      panels.indexOf('function _submitAddAgent'),
+    );
+    expect(createForm).toContain('<option value="Licensed Associate Broker"');
+    expect(createForm).not.toContain('<option value="Licensed Broker"');
+  });
+
+  it('the public title is derived and read-only, never a free-form tagline', () => {
+    expect(panels).toContain('data-derived-from="license_type+role"');
+    expect(panels).not.toContain('Title / Tagline');
+    expect(panels).toContain('title: designation.title');
+    expect(panels).not.toContain('title: raw.title || designation.title');
+  });
+
+  it('MLS Member ID is disabled pending provider verification', () => {
+    // trestle_mls_id is real identity evidence elsewhere; a typed string is not
+    // a verified Cotality MemberMlsId.
+    expect(panels).toMatch(/name="mls_member_id"[^>]*disabled/);
+    expect(panels).toContain('data-requires-provider-verification');
   });
 });

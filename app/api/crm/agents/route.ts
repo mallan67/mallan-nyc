@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { hashPassword } from "@/lib/auth/password";
+import { rejectNonCanonicalLicenseType } from "@/lib/agents/license-designation";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
 export async function GET(req: NextRequest) {
@@ -93,6 +94,15 @@ export async function POST(req: NextRequest) {
       { error: "Invalid email format" },
       { status: 400 }
     );
+  }
+
+  // SERVER BOUNDARY INVARIANT. A stale browser, a malformed request or a
+  // direct API caller must not be able to put a designation display string -
+  // or any other text - into a column whose canonical values are
+  // broker | salesperson. Refuse BEFORE any write.
+  const licenseTypeError = rejectNonCanonicalLicenseType(body.license_type);
+  if (licenseTypeError) {
+    return NextResponse.json({ error: licenseTypeError }, { status: 400 });
   }
 
   const existing = await prisma.agent.findUnique({ where: { email } });

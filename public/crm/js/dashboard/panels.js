@@ -1165,10 +1165,14 @@ var Panels = (function () {
               '<option value="">Select...</option>' +
               '<option value="Licensed Real Estate Salesperson">Licensed Real Estate Salesperson</option>' +
               '<option value="Licensed Associate Broker">Licensed Associate Broker</option>' +
-              '<option value="Licensed Broker">Licensed Broker</option>' +
+              // "Licensed Broker" is deliberately NOT offered here: this path
+              // hardcodes role AGENT server-side, and the principal-broker
+              // designation requires role BROKER. Offering it would mint a
+              // contradictory record.
+
             '</select></div>' +
           '<div class="form-group"><label class="form-label">NY DOS License # *</label><input class="form-input" name="license_number" required placeholder="10XXXXXXXXX"></div>' +
-          '<div class="form-group sm:col-span-3"><label class="form-label">Public Title</label><input class="form-input" name="title" placeholder="Auto-filled from the licence designation above"><p class="text-xs text-gray-500 mt-1">Leave blank to use the standard title for the selected licence.</p></div>' +
+          '<div class="form-group sm:col-span-3"><label class="form-label">Public Title</label><input class="form-input bg-gray-100" name="title" readonly data-derived-from="license_type+role" placeholder="Set automatically by the licence designation above"><p class="text-xs text-gray-500 mt-1">This is the regulated professional designation, derived from the licence. It is not a free-form tagline.</p></div>' +
           '<div class="form-group sm:col-span-3"><label class="form-label">Public Biography</label><textarea class="form-input" name="bio" rows="4" placeholder="Shown on the public agent profile"></textarea></div>' +
           '<div class="form-group"><label class="form-label">Languages</label><input class="form-input" name="languages" placeholder="English, Spanish"></div>' +
           '<div class="form-group"><label class="form-label">Specialties</label><input class="form-input" name="specialties" placeholder="Co-op Board Approvals, Negotiation"></div>' +
@@ -1184,7 +1188,7 @@ var Panels = (function () {
               '<option value="Suspended">Suspended</option>' +
               '<option value="Revoked">Revoked</option>' +
             '</select></div>' +
-          '<div class="form-group"><label class="form-label">MLS Member ID</label><input class="form-input" name="mls_member_id" placeholder="Cotality MemberMlsId, e.g. 39361"></div>' +
+          '<div class="form-group"><label class="form-label">MLS Member ID</label><input class="form-input" name="mls_member_id" disabled data-requires-provider-verification="true" title="Not stored - a Cotality MemberMlsId must be resolved and verified against the live Member resource, not typed. Left NULL until then." placeholder="Cotality MemberMlsId, e.g. 39361"></div>' +
           '<div class="form-group"><label class="form-label">NRD/NRDS ID</label><input class="form-input" name="nrds_id" disabled data-no-canonical-owner="true" title="Not stored yet - this field has no approved canonical Agent field. Nothing typed here is saved." placeholder="NRD/NRDS ID"></div>' +
         '</div>' +
         '<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-3">' +
@@ -1314,60 +1318,65 @@ var Panels = (function () {
   }
 
   /**
-   * CANONICAL LICENCE DESIGNATION MAP - the single place the Add Agent form's
-   * licence choice becomes stored identity.
+   * MIRROR of lib/agents/license-designation.ts.
    *
-   * The select emits a human DESIGNATION. Two different columns come out of it:
+   * The browser cannot import the TypeScript module, so these values are
+   * duplicated here - but the server module is the AUTHORITY, the server
+   * refuses any non-canonical license_type at the API boundary, and a test
+   * asserts this table matches it exactly. This is a mirror, not a rival
+   * truth table.
    *
-   *   license_type  the NY licence class the database stores: "broker" or
-   *                 "salesperson". It is NOT free text. The form used to post
-   *                 the display string straight through, so an Associate Broker
-   *                 was stored as license_type "Licensed Associate Broker".
+   * Three independent axes, never derived from one another:
+   *   license_type  "broker" | "salesperson"   the NY licence class stored
+   *   role          "BROKER" | "AGENT"         the CRM authorisation grant
+   *   title         the advertised designation, owned by professional-title.ts
    *
-   *   title         what we ADVERTISE. It was never sent at all, so it landed
-   *                 NULL and the public profile fell through to its
-   *                 "Licensed Real Estate Salesperson" display default - which
-   *                 is how an Associate Broker ended up publicly mislabelled.
-   *
-   * `role` is a third axis entirely - the CRM authorisation grant - and is set
-   * server-side to "AGENT" always. An Associate Broker holds a broker licence
-   * and is NOT the principal broker, so she must never receive role BROKER.
+   * The principal broker alone holds role BROKER. An Associate Broker holds a
+   * broker licence and role AGENT.
    */
   var LICENSE_DESIGNATIONS = {
     'Licensed Real Estate Salesperson': {
       license_type: 'salesperson',
       title: 'Licensed Real Estate Salesperson',
+      requiresBrokerRole: false,
     },
     'Licensed Associate Broker': {
       license_type: 'broker',
       title: 'Licensed Real Estate Associate Broker',
+      requiresBrokerRole: false,
     },
     'Licensed Broker': {
       license_type: 'broker',
       title: 'Licensed Real Estate Broker',
+      requiresBrokerRole: true,
     },
   };
 
+  function _designationFor(selected) {
+    return LICENSE_DESIGNATIONS[selected]
+      || { license_type: null, title: null, requiresBrokerRole: false };
+  }
+
   /**
-   * REVERSE of the map: given what is STORED, pick the designation to preselect.
+   * REVERSE: given what is STORED, pick the designation to preselect.
    *
-   * license_type alone cannot distinguish a principal Broker from an Associate
-   * Broker - both are stored "broker". The professional title is what separates
-   * them, so the title is consulted second.
+   * Reads license_type and ROLE. It does NOT read the title.
+   *
+   * An earlier version distinguished Associate from principal Broker by looking
+   * for "associate" in the title. That was unstable, because the title field is
+   * broker-editable: an Associate Broker titled "Senior Broker" would have
+   * reopened as a principal Broker and, on save, been rewritten as one. `role`
+   * is the stable discriminator and is already the architecture's answer.
    */
-  function _designationFromStored(licenseType, title) {
+  function _designationFromStored(licenseType, role) {
     var lt = String(licenseType || '').trim().toLowerCase();
     if (lt === 'broker') {
-      return /associate/i.test(String(title || ''))
-        ? 'Licensed Associate Broker'
-        : 'Licensed Broker';
+      return String(role || '').trim().toUpperCase() === 'BROKER'
+        ? 'Licensed Broker'
+        : 'Licensed Associate Broker';
     }
     if (lt === 'salesperson') return 'Licensed Real Estate Salesperson';
     return '';   // unknown / never set - force an explicit choice
-  }
-
-  function _designationFor(selected) {
-    return LICENSE_DESIGNATIONS[selected] || { license_type: null, title: null };
   }
 
   var _addAgentBusy = false;
@@ -1412,7 +1421,8 @@ var Panels = (function () {
       sale_split: raw.agent_split ? Number(raw.agent_split) / 100 : null,
       rental_split: raw.agent_split ? Number(raw.agent_split) / 100 : null,
       // Public professional identity - part of the same governed record.
-      title: raw.title || designation.title,
+      // derived from the licence designation, never free text
+      title: designation.title,
       bio: raw.bio || null,
       public_slug: raw.public_slug
         || ((raw.first_name || '') + '-' + (raw.last_name || '')).toLowerCase().replace(/\s+/g, '-'),
@@ -1490,7 +1500,7 @@ var Panels = (function () {
       // Resolve the STORED licence + title back to a designation. Comparing
       // display strings to a.license_type never matched, because storage is
       // 'broker' / 'salesperson'.
-      var _editDesignation = _designationFromStored(a.license_type, a.title);
+      var _editDesignation = _designationFromStored(a.license_type, a.role);
       var nameParts = (a.full_name || '').split(' ').filter(Boolean);
       var firstName = a.first_name || (nameParts.length > 0 ? nameParts[0] : '');
       var middleName = nameParts.length === 3 ? nameParts[1] : '';
@@ -1530,7 +1540,7 @@ var Panels = (function () {
             '<div class="form-group"><label class="form-label">Last Name *</label><input class="form-input" name="last_name" value="' + E(lastName) + '" required></div>' +
           '</div>' +
           '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">' +
-            '<div class="form-group"><label class="form-label">Title / Tagline</label><input class="form-input" name="title" value="' + E(a.title || '') + '" placeholder="e.g. Senior Sales Associate"></div>' +
+            '<div class="form-group"><label class="form-label">Public Title (derived)</label><input class="form-input bg-gray-100" readonly data-derived-from="license_type+role" name="title" value="' + E(a.title || '') + '" placeholder="e.g. Senior Sales Associate"></div>' +
             '<div class="form-group"><label class="form-label">Status</label>' +
               '<select class="form-input form-select" name="status">' +
                 '<option value="active"' + (a.status === 'active' ? ' selected' : '') + '>Active</option>' +
@@ -1587,7 +1597,7 @@ var Panels = (function () {
                 '<option value="Suspended"' + (a.license_status === 'Suspended' ? ' selected' : '') + '>Suspended</option>' +
                 '<option value="Revoked"' + (a.license_status === 'Revoked' ? ' selected' : '') + '>Revoked</option>' +
               '</select></div>' +
-            '<div class="form-group"><label class="form-label">MLS Member ID</label><input class="form-input" name="mls_member_id" value="' + E(a.trestle_mls_id || '') + '" placeholder="Cotality MemberMlsId, e.g. 39361"></div>' +
+            '<div class="form-group"><label class="form-label">MLS Member ID</label><input class="form-input" name="mls_member_id" disabled data-requires-provider-verification="true" title="Not stored - a Cotality MemberMlsId must be resolved and verified against the live Member resource, not typed. Left NULL until then." value="' + E(a.trestle_mls_id || '') + '" placeholder="Cotality MemberMlsId, e.g. 39361"></div>' +
             '<div class="form-group"><label class="form-label">NRD/NRDS ID</label><input class="form-input" name="nrds_id" disabled data-no-canonical-owner="true" title="Not stored - no approved canonical Agent field. Nothing entered here is saved." value="' + E(a.nrds_id || '') + '" placeholder="NRD/NRDS ID"></div>' +
           '</div>' +
           '<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-3">' +
@@ -1715,12 +1725,16 @@ var Panels = (function () {
     if (raw.license_type) {
       var editDesignation = _designationFor(raw.license_type);
       data.license_type = editDesignation.license_type;
-      // title follows the designation unless the broker typed an override
-      if (!raw.title) data.title = editDesignation.title;
+      // The title is DERIVED, never an override - it is the regulated
+      // designation, and letting it drift is what made a title-based
+      // reverse resolver unsafe in the first place.
+      data.title = editDesignation.title;
     }
     if (raw.mls_member_id !== undefined) data.trestle_mls_id = raw.mls_member_id || null;
     if (raw.license_expiry) data.license_expiry = raw.license_expiry;
-    if (raw.title) data.title = raw.title;
+    // NOT here: title is derived from the licence designation above. A
+    // generic override would let a tagline overwrite the regulated
+    // professional designation.
     if (raw.bio) data.bio = raw.bio;
     if (raw.status) data.status = raw.status;
     if (raw.public_slug) data.public_slug = raw.public_slug;
@@ -12960,9 +12974,11 @@ var Panels = (function () {
             '</div>' +
           '</div>' +
 
-          // Title / Tagline
+          // Public Title - the regulated professional designation, derived
+          // from the licence. Read-only here for the same reason it is
+          // read-only in Add/Edit Agent.
           '<div class="form-group mb-4">' +
-            '<label class="form-label">Title / Tagline</label>' +
+            '<label class="form-label">Public Title (derived)</label>' +
             '<input class="form-input" name="title" value="' + E(title) + '" placeholder="e.g. Licensed Real Estate Broker" maxlength="100">' +
             '<p class="text-xs text-gray-400 mt-1">Appears below your name on your agent page.</p>' +
           '</div>' +

@@ -8,6 +8,8 @@ import {
   logAuditEvent,
 } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { rejectNonCanonicalLicenseType } from "@/lib/agents/license-designation";
+import { applyAgentStatusTransition, isAgentStatus, type AgentStatus } from "@/lib/agents/agent-lifecycle";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -101,6 +103,10 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   }
   if (body.phone !== undefined) update.phone = body.phone as string | null;
   if (body.license_no !== undefined) update.license_no = body.license_no as string | null;
+  const licenseTypeError = rejectNonCanonicalLicenseType(body.license_type);
+  if (licenseTypeError) {
+    return NextResponse.json({ error: licenseTypeError }, { status: 400 });
+  }
   if (body.license_type !== undefined) update.license_type = body.license_type as string | null;
   if (body.trestle_mls_id !== undefined) {
     update.trestle_mls_id = body.trestle_mls_id as string | null;
@@ -116,18 +122,27 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   if (body.rental_split !== undefined) {
     update.rental_split = body.rental_split != null ? Number(body.rental_split) : null;
   }
+  // ACCOUNT STATE IS NOT A GENERIC FIELD.
+  //
+  // This used to write Agent.status directly, which made PATCH a second state
+  // writer alongside DELETE - and unlike DELETE it revoked nothing. Because
+  // validateSession() reads only the Session row (and even extends it), an
+  // agent edited to "inactive" here kept a working, accepted CRM session.
+  //
+  // Status is therefore stripped out of the generic field update and applied
+  // through the single lifecycle authority AFTER it, so every transition
+  // revokes sessions and writes its own audit event.
+  let statusTransition: AgentStatus | null = null;
   if (body.status !== undefined) {
-    const validStatuses = ["active", "inactive", "suspended"];
-    if (!validStatuses.includes(body.status as string)) {
+    if (!isAgentStatus(body.status)) {
       return NextResponse.json(
         { error: "status must be: active, inactive, or suspended" },
         { status: 400 }
       );
     }
-    update.status = body.status as string;
+    statusTransition = body.status;
   }
 
-  // --- Public profile fields ---
   if (body.title !== undefined) update.title = body.title as string | null;
   if (body.bio !== undefined) update.bio = body.bio as string | null;
   if (body.photo !== undefined) update.photo = body.photo as string | null;
@@ -140,17 +155,36 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     update.languages = Array.isArray(body.languages) ? body.languages.map(String) : [];
   }
 
-  if (Object.keys(update).length === 0) {
+  // A status-only request is legitimate: status is deliberately NOT part of the
+  // generic field update any more, so it would otherwise look like an empty
+  // body here.
+  if (Object.keys(update).length === 0 && !statusTransition) {
     return NextResponse.json(
       { error: "No valid fields to update" },
       { status: 400 }
     );
   }
 
-  const updated = await prisma.agent.update({
-    where: { id: agent.id },
-    data: update,
-  });
+  const updated = Object.keys(update).length > 0
+    ? await prisma.agent.update({ where: { id: agent.id }, data: update })
+    : agent;
+
+  // Account state, if requested, goes through the ONE lifecycle authority so
+  // it revokes sessions and audits itself exactly as Deactivate does.
+  let lifecycle = null;
+  if (statusTransition && statusTransition !== agent.status) {
+    lifecycle = await applyAgentStatusTransition(
+      prisma,
+      agent.id,
+      statusTransition,
+      auth,
+      {
+        previous: agent.status,
+        ip: req.headers.get("x-forwarded-for"),
+        reason: "edit_agent_status_change",
+      }
+    );
+  }
 
   await logAuditEvent(
     "update",
@@ -162,6 +196,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   );
 
   return NextResponse.json({
+    lifecycle,
     id: updated.id.toString(),
     status: updated.status,
   });
@@ -186,18 +221,19 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
   }
 
   // Soft delete: set status to inactive
-  await prisma.agent.update({
-    where: { id: agent.id },
-    data: { status: "inactive" },
-  });
+  // Same authority as the PATCH path, so the two can never drift apart again.
+  const lifecycle = await applyAgentStatusTransition(
+    prisma,
+    agent.id,
+    "inactive",
+    auth,
+    {
+      previous: agent.status,
+      ip: req.headers.get("x-forwarded-for"),
+      reason: "deactivate_agent",
+    }
+  );
 
-  // Delete all active sessions for this agent
-  await prisma.session.deleteMany({
-    where: {
-      user_type: "agent",
-      user_id: agent.id,
-    },
-  });
 
   await logAuditEvent(
     "delete",
@@ -210,6 +246,8 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
 
   return NextResponse.json({
     id: agent.id.toString(),
-    status: "inactive",
+    status: lifecycle.status,
+    sessions_revoked: lifecycle.sessions_revoked,
+    mfa_sessions_revoked: lifecycle.mfa_sessions_revoked,
   });
 }
