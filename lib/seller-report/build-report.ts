@@ -28,7 +28,7 @@ export type TruthLevel = (typeof TRUTH_LEVELS)[keyof typeof TRUTH_LEVELS];
 export interface SellerReportListingInput {
   listing_id: string;
   address_display: string;
-  status: string;
+  status: string | null;
   listing_type: string;
   property_type: string | null;
   borough: string | null;
@@ -55,7 +55,7 @@ export interface SellerReportInquiryRow {
 
 export interface SellerReportShowingRow {
   type: string;
-  status: string;
+  status: string | null;
   date: Date;
 }
 

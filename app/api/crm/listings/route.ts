@@ -13,8 +13,10 @@ import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-ma
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { AGENT_TYPED_SELECT } from "@/lib/listings/agent-info-resolver";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
+import { assertLeadAccess } from "@/lib/crm/access";
 import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { buildPublishContract } from "@/lib/crm/listing-publish-contract";
+import { initialPublication, withPublication } from "@/lib/crm/publication-state";
 import { buildExclusiveAgentAssignment } from "@/lib/listings/exclusive-agent-assignment";
 import { composeDbPublicMedia } from "@/lib/media/db-media-composition";
 import type { Prisma } from "@prisma/client";
@@ -40,7 +42,11 @@ export async function GET(req: NextRequest) {
   // and (2) closed/terminal Trestle-synced deals. Active/Pending Trestle listings
   // are managed via REBNY RLS directly, not through the CRM.
   const TRESTLE_CLOSED = ["Closed", "Sold", "Leased", "Rented"];
-  const CRM_HIDDEN = ["Withdrawn", "Cancelled"];
+  // Both spellings of canceled. `Canceled` is the live Cotality value the
+  // Trestle sync writes raw; `Cancelled` is the value the CRM write path
+  // invented. This is a `notIn`, so a missing spelling means a hidden
+  // listing quietly reappears in My Listings.
+  const CRM_HIDDEN = ["Withdrawn", "Canceled", "Cancelled"];
   const crmCreated = { mls_id: null, listing_id: { startsWith: "SL-" }, status: { notIn: CRM_HIDDEN } };
   const crmCreatedRental = { mls_id: null, listing_id: { startsWith: "RL-" }, status: { notIn: CRM_HIDDEN } };
   const trestleClosed = { mls_id: { not: null }, status: { in: TRESTLE_CLOSED } };
@@ -55,7 +61,18 @@ export async function GET(req: NextRequest) {
   }
 
   if (type) where.listing_type = type;
-  if (status) where.status = status;
+  if (status) {
+    // A caller filtering for canceled listings means the STATUS, not one of its
+    // two spellings. `Canceled` (one L) is the live Cotality value the Trestle
+    // sync writes raw; `Cancelled` (two Ls) is the value the CRM write path
+    // invented. Real rows carry both and no backfill is in scope, so an exact
+    // match on either one returns half the listings and says nothing about the
+    // other half.
+    const CANCELED_SPELLINGS = ["Canceled", "Cancelled"];
+    where.status = CANCELED_SPELLINGS.includes(status)
+      ? { in: CANCELED_SPELLINGS }
+      : status;
+  }
 
   const [listings, total] = await Promise.all([
     prisma.listing.findMany({
@@ -67,6 +84,10 @@ export async function GET(req: NextRequest) {
         id: true,
         listing_id: true,
         mls_id: true,
+        // Ownership is a first-class CRM fact: the roster needs to show which
+        // listings have a seller/landlord attached, and which are still
+        // ownerless drafts that cannot be published.
+        owner_client_id: true,
         agent_id: true,
         status: true,
         listing_type: true,
@@ -173,6 +194,10 @@ export async function GET(req: NextRequest) {
       id: l.id.toString(),
       agent_id: l.agent_id?.toString() ?? null,
       assigned_agent_id: l.agent_id?.toString() ?? null,
+      // BigInt: unserializable raw. The detail route hit exactly this and 500'd
+      // once owners started being written; every BigInt selected here must be
+      // stringified at the same time it is added to the select.
+      owner_client_id: l.owner_client_id?.toString() ?? null,
       list_price: l.list_price.toString(),
       living_area: l.living_area?.toString() ?? null,
       media,
@@ -187,8 +212,19 @@ export async function GET(req: NextRequest) {
   });
 }
 
-// Valid listing statuses and their allowed transitions
-const STATUS_INITIAL = "Draft";
+/**
+ * THE MARKET STATUS A NEW MALLAN LISTING IS BORN WITH: NONE.
+ *
+ * This was `"Draft"` — a Mallan publication word written into the column that
+ * holds the COTALITY market fact (`Property.StandardStatus`). `Draft` is not a
+ * StandardStatus member, so the column meant one thing on provider-sourced rows
+ * and a different thing on Mallan-authored ones.
+ *
+ * A listing an agent has just created is not on the market. NULL says exactly
+ * that, and nothing else. The Mallan review/publication state the column used to
+ * carry lives in `Listing.compliance.mallan_publication`, written below.
+ */
+const STATUS_INITIAL: string | null = null;
 
 /**
  * Generate a unique listing_id: SL-XXXX for sales, RL-XXXX for rentals.
@@ -257,6 +293,39 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // MALLAN CANNOT MINT A PROVIDER IDENTIFIER.
+  //
+  // `mls_id` is a COTALITY fact — issued by the provider, arriving through the
+  // feed. This route used to write `mls_id: (normalized.mls_id as string) ?? null`,
+  // i.e. whatever the caller sent, straight into the provider-identity column.
+  //
+  // Beyond the authority violation, `mls_id === null` is this repo's shorthand
+  // for "Mallan authored this row", and it is load-bearing:
+  //   - the owner-required publication guard in [id]/status/route.ts is scoped
+  //     to `listing.mls_id === null`, so a fabricated value walks past it;
+  //   - `const isCrmCreated = !listing.mls_id` decides whether RLS enforcement
+  //     and content scanning run;
+  //   - the CRM list query splits crmCreated from trestleClosed on it;
+  //   - source classification reports provenance from it.
+  // One unvalidated body field chose which side of four boundaries a listing
+  // landed on.
+  //
+  // Refused, not silently nulled: dropping it quietly would hide a client bug
+  // and leave the caller believing the value took effect. Checked HERE, before
+  // any transaction or validator, so an unrelated earlier failure cannot mask
+  // it. A key sent with no value asserts nothing and is not an attempt.
+  if (typeof body.mls_id === "string" && body.mls_id.trim() !== "") {
+    return NextResponse.json(
+      {
+        error:
+          "mls_id is assigned by the provider and cannot be set on a Mallan-authored listing.",
+        code: "PROVIDER_IDENTITY_NOT_ASSIGNABLE",
+        field: "mls_id",
+      },
+      { status: 422 },
+    );
+  }
+
   // Classify RLS eligibility using UCBA mixed-use model (Art. I, Sec. 5(F))
   // Mixed-use in ≤5 unit buildings → RLS-eligible; >5 units or pure commercial → website-only
   // InHouse listings are website-only by definition — not on RLS.
@@ -272,6 +341,34 @@ export async function POST(req: NextRequest) {
   const rlsEligible = eligibility.rlsEligible;
 
   // Run REBNY RLS compliance validation (only for RLS-eligible listings)
+  // ── CANONICAL OWNER (Seller / Landlord) ──────────────────────────────
+  //
+  // Resolved and AUTHORISED before anything is written. The owner link is the
+  // only path by which a seller or landlord ever reaches their own listing —
+  // the portal queries Listing.owner_client_id and fails closed on null — so
+  // getting it wrong here silently hides a listing from its owner forever.
+  //
+  // No second ownership field is introduced: this is the same column
+  // crm/convert already writes, authorised with the same helper.
+  let ownerClientId: bigint | null = null;
+  const rawOwner = body.owner_client_id;
+  if (rawOwner !== undefined && rawOwner !== null && String(rawOwner).trim() !== "") {
+    let parsed: bigint;
+    try {
+      parsed = BigInt(String(rawOwner));
+    } catch {
+      return NextResponse.json(
+        { error: "owner_client_id must be a client id" },
+        { status: 422 },
+      );
+    }
+    // An agent may name only a lead they manage; a broker has brokerage
+    // scope. Returns a 403/404 response, or null when access is allowed.
+    const ownerAccess = await assertLeadAccess(auth, parsed);
+    if (ownerAccess) return ownerAccess;
+    ownerClientId = parsed;
+  }
+
   let validation: { valid: boolean; errors: string[]; warnings: string[]; suggestions: string[]; compliance: unknown } = {
     valid: true, errors: [], warnings: [], suggestions: [], compliance: {},
   };
@@ -316,7 +413,7 @@ export async function POST(req: NextRequest) {
       const priorComingSoon = await prisma.listing.findFirst({
         where: {
           postal_code: (body.PostalCode as string) || undefined,
-          status: { in: ["Active", "Withdrawn", "Expired", "Sold", "Rented", "Cancelled"] },
+          status: { in: ["Active", "Withdrawn", "Expired", "Sold", "Rented", "Canceled", "Cancelled"] },
           raw_data: {
             path: ["_wasComingSoon"],
             equals: true,
@@ -439,14 +536,38 @@ export async function POST(req: NextRequest) {
     const listing = await tx.listing.create({
       data: {
         listing_id: listingId,
-        mls_id: (normalized.mls_id as string) ?? null,
+        // Always null on a Mallan-authored row. A provider identifier is
+        // never assigned here — see the PROVIDER_IDENTITY_NOT_ASSIGNABLE
+        // guard above, which refuses the request outright rather than
+        // letting a caller-supplied value reach this column.
+        mls_id: null,
         agent_id: auth.userId,
+        // CANONICAL OWNER CONTINUITY.
+        //
+        // This route created listings with owner_client_id left null while
+        // crm/convert (promote_to_listing) set it — two truths for one
+        // invariant. The consequence is not cosmetic: the portal resolves an
+        // owner's listing THROUGH this column and fails closed when it is null,
+        // so a directly-created listing was permanently invisible to the very
+        // seller or landlord it belongs to.
+        //
+        // Authorised above with assertLeadAccess, the same helper convert uses:
+        // an agent may name only a lead they manage, a broker has brokerage
+        // scope. Null stays permitted, but only as an explicitly ownerless
+        // draft — see the publication guard, which refuses to activate one.
+        owner_client_id: ownerClientId,
         // H1 amend (2026-05-13): normalize the initial status through the
-        // canonical helper even though STATUS_INITIAL is a hardcoded literal
-        // today. Pattern-uniform with the body-driven writers; if a future
-        // refactor lets STATUS_INITIAL come from request input, the same
-        // case/whitespace/alias guard applies for free.
-        status: normalizeStandardStatus(STATUS_INITIAL),
+        // canonical helper if there ever is one. Pattern-uniform with the
+        // body-driven writers; if a future refactor lets STATUS_INITIAL come
+        // from request input, the same case/whitespace/alias guard applies for
+        // free.
+        //
+        // The null branch is deliberately NOT normalized. The normalizer answers
+        // "what is this status called"; there is no status to name, and routing
+        // null through it would produce its empty token — a third spelling of
+        // "no market status" that the column does not use.
+        status:
+          STATUS_INITIAL === null ? null : normalizeStandardStatus(STATUS_INITIAL),
         listing_type: listingType,
         // Top-level columns derived from persistenceMap
         property_type: (persistence.topLevel.property_type as string) ?? null,
@@ -504,6 +625,10 @@ export async function POST(req: NextRequest) {
         // normalizeStandardStatus.
         idx_display_yn:
           rlsEligible &&
+          // A listing with no market status is not on the market, so it is not
+          // IDX-displayable. The terminal check is a DENY-list, so without this
+          // null branch "no status yet" would read as displayable.
+          STATUS_INITIAL !== null &&
           !TERMINAL_STATUSES.has(normalizeStandardStatus(STATUS_INITIAL)) &&
           persistence.topLevel.idx_display_yn !== false,
         internet_entire_listing_display_yn: persistence.topLevel.internet_entire_listing_display_yn !== false,
@@ -515,7 +640,16 @@ export async function POST(req: NextRequest) {
         address: persistence.address as Prisma.InputJsonValue,
         features: persistence.features as Prisma.InputJsonValue,
         media: (body.media as Prisma.InputJsonValue) ?? [],
-        compliance: compliance as Prisma.InputJsonValue,
+        // WHERE MALLAN DRAFT ACTUALLY LIVES.
+        //
+        // `readPublication` already reads a row with no publication record as
+        // DRAFT / INTERNAL_ONLY, so this is not required for correctness — it is
+        // written so the initial state is a RECORDED FACT with a history array
+        // to append to, rather than an inference every reader has to repeat.
+        compliance: withPublication(
+          compliance,
+          initialPublication(),
+        ) as Prisma.InputJsonValue,
         // Phase C: agent_info JSON is no longer persisted. The assigned Mallan
         // listing-agent attribution is written ONLY to the 8 typed columns
         // (list_agent_full_name / list_office_name etc.), derived in-memory from
@@ -627,11 +761,11 @@ export async function POST(req: NextRequest) {
         internet_entire_listing_display_yn?: boolean | null;
         internet_address_display_yn?: boolean | null;
       })
-    : { publicUrl: null, realPlusUrl: null };
+    : { publicUrl: null, publicActiveUrl: null };
 
   // S-BE-006 — return the full URL + eligibility contract so the form and
   // dashboard can explain Featured / Exclusive availability after publish
-  // (not just publicUrl/realPlusUrl). A freshly created listing is a Mallan
+  // (not just publicUrl/publicActiveUrl). A freshly created listing is a Mallan
   // exclusive (CRM-created) but is created as Draft, so it is not yet
   // Featured-eligible until it is published Active.
   const publishContract = buildPublishContract({
@@ -646,7 +780,7 @@ export async function POST(req: NextRequest) {
       listing_id: result.listingId,
       status: STATUS_INITIAL,
       publicUrl: urls.publicUrl,
-      realPlusUrl: urls.realPlusUrl,
+      publicActiveUrl: urls.publicActiveUrl,
       featuredEligible: publishContract.featuredEligible,
       exclusiveEligible: publishContract.exclusiveEligible,
       eligibilityReason: publishContract.eligibilityReason,

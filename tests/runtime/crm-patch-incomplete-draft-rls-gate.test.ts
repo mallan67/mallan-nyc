@@ -58,7 +58,10 @@ jest.mock('@/lib/search/listing-search-projection', () => ({
 }));
 jest.mock('@/lib/crm/listing-urls', () => ({
   __esModule: true,
-  buildListingUrls: () => ({ publicUrl: '/listing/x', realPlusUrl: 'https://realplus/x' }),
+  // Mirrors the REAL return shape. This mock kept manufacturing a field the
+  // production helper no longer returns, so the route under test was handed a
+  // shape that cannot occur.
+  buildListingUrls: () => ({ publicUrl: '/listing/x', publicActiveUrl: '/listing/x' }),
 }));
 
 // An RLS-eligible (pure residential) listing that already exists on RLS

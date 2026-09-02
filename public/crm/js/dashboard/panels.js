@@ -785,11 +785,38 @@ var Panels = (function () {
     var filterStatus = (agentIdx !== undefined && _rosterListingFilter[agentIdx]) ? _rosterListingFilter[agentIdx] : '';
 
     // RLS-aligned status counts
+    // NO MARKET STATUS, IN BOTH SPELLINGS.
+    //
+    // `listings.status` holds the Cotality market fact and is nullable: NULL
+    // means "this listing has no market status yet". Rows created before that
+    // change carry the legacy Mallan word 'Draft' for the same state, and no
+    // production backfill is authorized — so every reader has to treat the two
+    // identically, forever. One predicate, used by the bucket count and the
+    // filter, is how that stays true.
+    function _hasNoMarketStatus(l) {
+      return !l.status || l.status === 'Draft';
+    }
+
     var statusDefs = [
       { key: '',                    label: 'All',                         count: listings.length },
+      // Draft, Sold and Rented are states a Mallan-local listing reaches through
+      // the CRM's OWN status route. They had no badge and no filter button here,
+      // so a broker could see those listings only inside "All" and could not
+      // filter to them. The list had been written against the PROVIDER
+      // vocabulary, which is why 'Closed' was present and 'Sold' was not. Locked
+      // by tests/runtime/crm-roster-status-conformance.test.ts.
+      //
+      // The Draft bucket matches BOTH spellings of "no market status": the NULL
+      // the column now stores, and the legacy 'Draft' string still on rows
+      // created before listings.status became nullable. No production backfill
+      // is authorized, so the two must land in the same bucket forever.
+      // `_hasNoMarketStatus` is the one predicate; the filter below reuses it.
+      { key: 'Draft',               label: 'Draft (Not On Market)',       count: listings.filter(_hasNoMarketStatus).length },
       { key: 'Active',              label: 'Active',                      count: listings.filter(function (l) { return l.status === 'Active'; }).length },
       { key: 'Pending',             label: 'Pending',                     count: listings.filter(function (l) { return l.status === 'Pending'; }).length },
       { key: 'ActiveUnderContract', label: 'In Contract',                 count: listings.filter(function (l) { return l.status === 'ActiveUnderContract'; }).length },
+      { key: 'Sold',                label: 'Sold',                        count: listings.filter(function (l) { return l.status === 'Sold'; }).length },
+      { key: 'Rented',              label: 'Rented',                      count: listings.filter(function (l) { return l.status === 'Rented'; }).length },
       { key: 'Closed',              label: 'Closed',                      count: listings.filter(function (l) { return l.status === 'Closed'; }).length },
       { key: 'ComingSoon',          label: 'Coming Soon',                 count: listings.filter(function (l) { return l.status === 'ComingSoon'; }).length },
       { key: 'Hold',                label: 'Hold (Temp Off Market)',      count: listings.filter(function (l) { return l.status === 'Hold'; }).length },
@@ -808,9 +835,13 @@ var Panels = (function () {
     });
     html += '</div>';
 
-    // Apply filter
+    // Apply filter. The Draft bucket is the one that cannot be a plain equality
+    // test: a listing with no market status stores NULL today and 'Draft' on
+    // legacy rows, and clicking one bucket must find both.
     var filtered = listings;
-    if (filterStatus) {
+    if (filterStatus === 'Draft') {
+      filtered = listings.filter(_hasNoMarketStatus);
+    } else if (filterStatus) {
       filtered = listings.filter(function (l) { return l.status === filterStatus; });
     }
 
@@ -837,7 +868,7 @@ var Panels = (function () {
           '<td class="px-3 py-2 text-xs hidden md:table-cell">' + E(neighborhood) + '</td>' +
           '<td class="px-3 py-2 text-xs">' + E(typeLabel) + (subType ? ' <span class="text-gray-400">· ' + E(subType) + '</span>' : '') + '</td>' +
           '<td class="px-3 py-2 text-sm font-bold">' + $(price) + '</td>' +
-          '<td class="px-3 py-2">' + UI.statusBadge(l.status || 'active') + '</td>' +
+          '<td class="px-3 py-2">' + UI.statusBadge(l.status) + '</td>' +
           '<td class="px-3 py-2 text-xs hidden sm:table-cell">' + (l.cumulative_dom || l.days_on_market || '-') + '</td>' +
           '<td class="px-3 py-2"><button class="text-gold hover:underline text-xs font-semibold" onclick="Router.navigate(\'/workspace/listing/' + E(l.id || l.listing_id) + '/overview\')">View</button></td>' +
         '</tr>';
@@ -5618,7 +5649,7 @@ var Panels = (function () {
           '<td class="px-3 py-2"><span class="text-sm font-medium cursor-pointer hover:text-gold" onclick="Router.navigate(\'/workspace/listing/' + lid + '/overview\')">' + E(addr) + '</span></td>' +
           '<td class="px-3 py-2"><span style="display:inline-block;padding:1px 6px;font-size:10px;font-weight:700;border-radius:4px;background:' + typeBg + '15;color:' + typeBg + '">' + E(l._typeBadge) + '</span></td>' +
           '<td class="px-3 py-2 text-sm font-bold">' + (price ? $(price) : '-') + '</td>' +
-          '<td class="px-3 py-2">' + UI.statusBadge(l.status || 'active') + '</td>' +
+          '<td class="px-3 py-2">' + UI.statusBadge(l.status) + '</td>' +
           '<td class="px-3 py-2 text-xs">' + E(l._agentName) + '</td>' +
           '<td class="px-3 py-2 text-center"><span class="text-sm ' + domClass + '">' + dom + '</span></td>' +
           '<td class="px-3 py-2 text-center"><span style="display:inline-block;padding:1px 6px;font-size:10px;font-weight:700;border-radius:4px;background:' + (syncBg[l._syncFreshness] || syncBg.outdated) + ';color:' + (syncColors[l._syncFreshness] || syncColors.outdated) + '">' + E(l._syncLabel) + '</span></td>' +
@@ -9384,7 +9415,9 @@ var Panels = (function () {
 
     // Status counts for this type
     var statusCounts = {};
-    var statuses = ['Draft', 'Active', 'Pending', 'ActiveUnderContract', 'Closed', 'ComingSoon', 'Hold', 'Withdrawn', 'Expired', 'Canceled'];
+    // Same vocabulary as the roster badges above — Sold and Rented are what a
+    // Mallan-local listing actually becomes; Closed is the provider's word.
+    var statuses = ['Draft', 'Active', 'Pending', 'ActiveUnderContract', 'Sold', 'Rented', 'Closed', 'ComingSoon', 'Hold', 'Withdrawn', 'Expired', 'Canceled'];
     statuses.forEach(function (s) { statusCounts[s] = typeListings.filter(function (l) { return l.status === s; }).length; });
     // Include localStorage browser drafts in Draft count — suppress if DB has the listing
     try {
@@ -9604,7 +9637,7 @@ var Panels = (function () {
           '<td class="px-3 py-2"><p class="text-sm font-medium text-gray-900">' + E(addr) + '</p></td>' +
           '<td class="px-3 py-2 text-xs text-gray-500">' + E(l._isRental ? 'Rental' : 'Sale') + '</td>' +
           '<td class="px-3 py-2 text-sm font-semibold">' + $(price) + '</td>' +
-          '<td class="px-3 py-2">' + UI.statusBadge(l.status || 'Active') + '</td>' +
+          '<td class="px-3 py-2">' + UI.statusBadge(l.status) + '</td>' +
           '<td class="px-3 py-2 text-xs text-gray-600">' + dom + '</td>' +
           '<td class="px-3 py-2">' + expiryHtml + '</td>' +
           '<td class="px-3 py-2">' + (function () {
@@ -12172,7 +12205,7 @@ var Panels = (function () {
               '<p class="text-sm font-medium truncate">' + E(addr) + '</p>' +
               '<div class="flex items-center gap-3 text-xs text-gray-500">' +
                 '<span class="font-bold text-gray-900">' + $(price) + '</span>' +
-                UI.statusBadge(l.status || 'Active') +
+                UI.statusBadge(l.status) +
                 '<span>' + dom + ' DOM</span>' +
                 (l._neighborhood ? '<span>' + E(l._neighborhood) + '</span>' : '') +
               '</div>' +

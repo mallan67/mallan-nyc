@@ -50,21 +50,32 @@ function buildRaw(overrides: Record<string, unknown>): Record<string, unknown> {
 }
 
 describe('C2 — TERMINAL_STATUSES constant', () => {
-  it('contains exactly the 7 statuses the cron also targets', () => {
-    expect(TERMINAL_STATUSES.size).toBe(7);
+  it('contains exactly the 8 statuses the cron also targets', () => {
+    // 8, not 7: BOTH spellings of canceled. `Canceled` (one L) is the live
+    // Cotality value the Trestle sync writes raw into listings.status;
+    // `Cancelled` (two Ls) is a value Mallan invented and the CRM write path
+    // stored. Real rows carry both and no backfill is in scope, so a terminal
+    // set that knows one spelling silently misses half the population.
+    expect(TERMINAL_STATUSES.size).toBe(8);
     expect(TERMINAL_STATUSES.has('Closed')).toBe(true);
     expect(TERMINAL_STATUSES.has('Sold')).toBe(true);
     expect(TERMINAL_STATUSES.has('Leased')).toBe(true);
     expect(TERMINAL_STATUSES.has('Rented')).toBe(true);
     expect(TERMINAL_STATUSES.has('Withdrawn')).toBe(true);
     expect(TERMINAL_STATUSES.has('Expired')).toBe(true);
+    expect(TERMINAL_STATUSES.has('Canceled')).toBe(true);
     expect(TERMINAL_STATUSES.has('Cancelled')).toBe(true);
     // Active variants must NOT be in the terminal set.
     expect(TERMINAL_STATUSES.has('Active')).toBe(false);
     expect(TERMINAL_STATUSES.has('ComingSoon')).toBe(false);
     expect(TERMINAL_STATUSES.has('ActiveUnderContract')).toBe(false);
-    // Common spelling variant kept distinct — Trestle / REBNY use double-L.
-    expect(TERMINAL_STATUSES.has('Canceled')).toBe(false);
+    // REMOVED: `expect(TERMINAL_STATUSES.has('Canceled')).toBe(false)`, under the
+    // comment "Common spelling variant kept distinct — Trestle / REBNY use
+    // double-L." That assertion was the defect written down as a test: it pinned
+    // the LIVE COTALITY VALUE as non-terminal. Cotality's
+    // Property.StandardStatus lookup has "Canceled" — one L — with
+    // standardValue "Canceled" and resoStandard true. There is no double-L
+    // member. Both spellings are asserted terminal above.
   });
 });
 
@@ -247,15 +258,23 @@ describe('C2 — DOM/typo robustness', () => {
     expect(mapped.idx_display_yn).toBe(true);
   });
 
-  it('missing StandardStatus → falls through to permission gates', () => {
+  it('missing StandardStatus → NOT displayable, even when the permission gates allow it', () => {
+    // CONTRACT CHANGED 2026-08-27. This asserted idx_display_yn === true: the
+    // mapper fabricated `Active` when the provider sent no status, and the gate
+    // is a DENY-list on terminal statuses, so a record Cotality said nothing
+    // about was published. The mapper now maps an absent status to NULL and the
+    // gate requires a real market status.
+    //
+    // The permission gates are still the reason this record is not blocked for
+    // any OTHER reason — what stops it now is the absence of a market status.
     const raw = buildRaw({
       InternetEntireListingDisplayYN: true,
       Permission: 'Public',
     });
     delete (raw as Record<string, unknown>).StandardStatus;
     const mapped = mapTrestleToPrisma(raw);
-    // Permission gates allow it; status is empty (not in terminal set).
-    expect(mapped.idx_display_yn).toBe(true);
+    expect(mapped.status).toBeNull();
+    expect(mapped.idx_display_yn).toBe(false);
   });
 
   it('case-insensitive — "closed" (lowercase) IS canonicalized + blocked under Phase A', () => {

@@ -30,6 +30,12 @@ const ARCHIVE_TERMINAL_STATUSES = [
   'Rented',
   'Withdrawn',
   'Expired',
+  // Both spellings — must stay identical to the cron's list and to
+  // lib/retention/archive-terminals.ts (a mirror test enforces set AND
+  // order). `Canceled` is the live Cotality value the Trestle sync writes
+  // raw; `Cancelled` is the value the CRM write path invented. Monitoring
+  // that knows one spelling reports a backlog smaller than the real one.
+  'Canceled',
   'Cancelled',
 ];
 

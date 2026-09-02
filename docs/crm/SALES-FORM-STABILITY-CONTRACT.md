@@ -99,7 +99,7 @@ If one of these files is touched, the rules below apply.
 - Visible agent filled while hidden validation agent field is empty.
 - Loading form controls from lossy RESO fields when CRM raw keys exist.
 - Returning success when status transition failed.
-- Returning /listing/{listing-id} as the public RealPlus URL for address-displayable listings.
+- Returning /listing/{listing-id} as the public listing URL for address-displayable listings.
 - Creating multiple public URLs for one listing.
 - Silently failing media order persistence.
 - Shipping field-specific patches without adding/adjusting tests.
@@ -165,7 +165,7 @@ Validate display gates.
 Save latest payload.
 Transition to canonical status.
 Verify final status.
-Return publicUrl/realPlusUrl only when eligible.
+Return publicUrl/publicActiveUrl only when eligible.
 ```
 
 Success means the final status transition actually succeeded.
@@ -314,7 +314,7 @@ Do not accept a candidate merely because it is the only listing with the same St
 
 ---
 
-# 6. Public URL / RealPlus URL contract
+# 6. Public URL contract (publicUrl / publicActiveUrl)
 
 Address-displayable listings use one canonical public route:
 
@@ -331,7 +331,7 @@ Placeholder example only:
 Rules:
 
 ```text
-- realPlusUrl must use the canonical route only.
+- publicActiveUrl must use the canonical route only.
 - Cards, FeaturedListings, copy buttons, sitemap, and share buttons must use the canonical route only.
 - /listing/{listing-id} must not be advertised as the public URL for address-displayable listings.
 - /listing/{listing-id} may resolve only by redirecting to canonical when address is displayable.
@@ -355,7 +355,7 @@ There are two layers:
 
 ```text
 CRM workflow status: broker-facing pipeline label.
-Canonical server/public status: controls public display, IDX, Featured, Exclusives, RealPlus URL.
+Canonical server/public status: controls public display, IDX, Featured, Exclusives, and the live-only public URL (publicActiveUrl).
 ```
 
 Rules:
@@ -483,7 +483,7 @@ Canonical address/id URL -> render.
 ID-only URL -> lookup, then 308 redirect to canonical when address displayable.
 Legacy hybrid URL -> 308 redirect to canonical.
 Suppressed-address listing -> id-only/generic route only if legally required.
-?key= debug lookup -> do not let this become public/RealPlus URL.
+?key= debug lookup -> do not let this become the public URL.
 ```
 
 Address lookup must not choose the wrong unit. If slug includes unit, match unit.
@@ -514,7 +514,7 @@ Any PR touching the sales form must prove:
 - Edit mode PATCHes existing listing only.
 - Submit success means final status succeeded.
 - Canonical URL is /listing/{address-slug}/{id}.
-- realPlusUrl is not /listing/{id}.
+- publicActiveUrl is not /listing/{id}.
 - Direction prefix E/W/N/S is preserved.
 - Unit is preserved and used in lookup.
 - Agent hidden fields are populated.
@@ -538,7 +538,7 @@ Before declaring a sales form fix complete, verify production:
 7. Confirm no phantom DRAFT (browser) row appears.
 8. Save Draft, reload, confirm values stick.
 9. Submit/Publish, confirm final status is Active.
-10. Confirm RealPlus URL panel shows canonical URL only.
+10. Confirm the public listing URL panel shows the canonical URL only.
 11. Visit canonical URL and confirm page renders.
 12. Visit id-only URL and confirm 308 redirect.
 13. Upload duplicate photo and confirm no duplicate row.

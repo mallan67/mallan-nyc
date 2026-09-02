@@ -100,6 +100,12 @@ const TERMINAL_STATUSES: ReadonlySet<string> = new Set([
   "Rented",
   "Withdrawn",
   "Expired",
+  // Both spellings: `Canceled` is the live Cotality value the Trestle sync
+  // writes raw, `Cancelled` is the value the CRM path invented. Omitting the
+  // provider spelling made a provider-canceled listing read as NON-terminal,
+  // i.e. still eligible. (Latent only — MALLAN_OFFICE_MLS_IDS=[] holds every
+  // row closed today.)
+  "Canceled",
   "Cancelled",
 ]);
 

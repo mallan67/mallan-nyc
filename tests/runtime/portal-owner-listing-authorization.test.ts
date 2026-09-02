@@ -35,6 +35,12 @@ jest.mock("@/lib/compliance/dto", () => ({
 jest.mock("@/lib/search/listing-access-decision", () => ({
   __esModule: true,
   isListingDisplayable: () => true,
+  // The comparables route builds its where from the canonical visibility layer
+  // (gates + Mallan RLS return-copy suppression). This test is about OWNERSHIP,
+  // not about display gating, so the real fragment is not needed — but the
+  // export has to exist or the route throws before any authorization runs, and
+  // an IDOR test that dies on a TypeError proves nothing.
+  publicListingVisibilityWhere: () => ({}),
 }));
 
 import { GET as priceHistoryGET } from "@/app/api/portal/price-history/route";

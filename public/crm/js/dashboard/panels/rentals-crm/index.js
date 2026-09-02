@@ -519,7 +519,7 @@ var RentalsCRM = (function () {
     if (cl.active_rental_listing_id) {
       h += '<div class="grid grid-cols-2 gap-3">';
       h += _f('Listing ID', cl.active_rental_listing_id);
-      h += _f('Status', cl.listing_status || 'Active');
+      h += _f('Status', cl.listing_status || 'No Listing');
       h += _f('Listed Rent', cl.rent_per_month ? $(Number(cl.rent_per_month)) + '/mo' : '-');
       h += _f('Days on Market', cl.dom || '0');
       h += '</div>';

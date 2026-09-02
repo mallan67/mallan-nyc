@@ -444,7 +444,36 @@ model Listing {
   owner_client    Lead?   @relation("ListingOwner", fields: [owner_client_id], references: [id])
 
   // --- Filter columns (indexed for queries) ---
-  status            String   @default("Active") // RESO StandardStatus
+  // CANONICAL MARKET STATUS — the provider's fact about this property, and
+  // nothing else.
+  //
+  // WAS: `String @default("Active")`. Non-null with a provider default forced
+  // every Mallan-authored unpublished listing to store SOME market status
+  // before one existed, and the value chosen was `Draft` — a Mallan
+  // publication/review word that is not a Cotality
+  // `Property.StandardStatus` member. That put Mallan workflow state inside the
+  // provider-status domain and made the column mean two different things
+  // depending on who wrote the row.
+  //
+  // NULL now means exactly one thing: THIS LISTING HAS NO MARKET STATUS YET.
+  // That is the truthful state of a Mallan-authored listing that has not been
+  // published. It is not `Draft`, not `Active`, and not Cotality `Incomplete` —
+  // `Incomplete` describes a Cotality record unfinished in the MLS, and a
+  // Mallan-local listing is not a Cotality record at all.
+  //
+  // Authority follows authorship:
+  //   Cotality-owned row  → Cotality authors this fact (exact StandardStatus)
+  //   Mallan-authored row → Mallan authors it, using the verified Cotality
+  //                         vocabulary once the listing actually reaches market
+  //
+  // Mallan publication/review state lives ONLY in
+  // `compliance.mallan_publication`. Null here fails closed publicly: every
+  // public read path is an allow-list of displayable statuses, so a row with no
+  // market status matches none of them.
+  //
+  // The default is removed deliberately. A default is how the old value got
+  // written without anyone deciding it.
+  status            String?  // Cotality Property.StandardStatus, or NULL when not on market
   listing_type      String   @map("listing_type") // "sale" | "rent"
   property_type     String?  @map("property_type") // RESO PropertyType
   property_sub_type String?  @map("property_sub_type")

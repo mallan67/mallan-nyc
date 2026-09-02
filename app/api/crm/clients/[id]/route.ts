@@ -3,6 +3,7 @@
 // PATCH: Update client fields.
 // Ownership enforced: agent sees only their clients.
 import { NextRequest, NextResponse } from "next/server";
+import { PORTAL_ROLE_VALUES, isPortalRole } from "@/lib/api/schemas/client";
 import prisma from "@/lib/prisma";
 import {
   requireAgentOrBroker,
@@ -234,7 +235,21 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   if (body.last_name !== undefined) update.last_name = String(body.last_name);
   if (body.phone !== undefined) update.phone = String(body.phone);
   if (body.status !== undefined) update.status = String(body.status);
-  if (body.portal_role !== undefined) update.portal_role = body.portal_role as string | null;
+  // DEFENCE IN DEPTH — same reason as the invite route. This took the value
+  // straight from the request body with no allow-list, and it is reachable by
+  // any agent on a client they manage.
+  if (body.portal_role !== undefined) {
+    if (body.portal_role !== null && !isPortalRole(body.portal_role)) {
+      return NextResponse.json(
+        {
+          error: "portal_role must be a client portal role",
+          allowed: PORTAL_ROLE_VALUES,
+        },
+        { status: 400 },
+      );
+    }
+    update.portal_role = body.portal_role as string | null;
+  }
   if (body.notes !== undefined) {
     const noteText = body.notes ? String(body.notes) : null;
     const fhViolations = scanTextForFairHousing(noteText, "notes");

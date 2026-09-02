@@ -61,7 +61,7 @@ export function composeAddressDisplay(address: unknown, fallback: string): strin
 export interface SellerReportListingRow {
   id: bigint;
   listing_id: string;
-  status: string;
+  status: string | null;
   listing_type: string;
   property_type: string | null;
   borough: string | null;

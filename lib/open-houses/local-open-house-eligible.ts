@@ -18,7 +18,7 @@ import { OPEN_HOUSE_ELIGIBLE_STATUSES, isMallanOwnedLocalListing } from './upcom
 
 export interface LocalOpenHouseListingGateInput {
   listing_id?: string | null;
-  status: string;
+  status: string | null;
   rls_eligible?: boolean | null;
   owner_opt_out?: boolean | null;
   participant_only?: boolean | null;
@@ -27,6 +27,9 @@ export interface LocalOpenHouseListingGateInput {
 }
 
 export function isLocalOpenHousePubliclyEligible(l: LocalOpenHouseListingGateInput): boolean {
+  // A listing with NO market status is not on the market, so it cannot hold a
+  // public open house. Checked before either branch so both fail closed.
+  if (l.status == null) return false;
   const gate =
     l.rls_eligible === false
       ? { displayable: OPEN_HOUSE_ELIGIBLE_STATUSES.includes(l.status) }

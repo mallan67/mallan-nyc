@@ -46,7 +46,11 @@ export async function GET(req: NextRequest) {
           select: { status: true, list_price: true, days_on_market: true },
         });
         if (listing) {
-          listing_status = listing.status;
+          // A Mallan-authored listing that is not on the market yet has NO
+          // market status. That is different from having no listing at all,
+          // and the roster must not collapse the two — the panel offers
+          // "Create Listing" on the no-listing sentinel.
+          listing_status = listing.status ?? "Not On Market";
           list_price = listing.list_price ? Number(listing.list_price) : null;
           dom = listing.days_on_market || 0;
         }

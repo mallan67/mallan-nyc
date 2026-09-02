@@ -67,7 +67,13 @@ describe('open-houses — Coming Soon never publicizes an open house (P2, UCBA A
     // OPEN_HOUSE_ELIGIBLE_STATUSES (ComingSoon-excluded) now lives in the resolver lib and is asserted
     // there; the route imports it and uses it for the website-only status gate.
     expect(ROUTE).toMatch(/import\s*\{[\s\S]*?OPEN_HOUSE_ELIGIBLE_STATUSES[\s\S]*?\}\s*from\s*['"]@\/lib\/open-houses\/upcoming-open-houses['"]/);
-    expect(ROUTE).toMatch(/displayable:\s*OPEN_HOUSE_ELIGIBLE_STATUSES\.includes\(l\.status\)/);
+    // The `l.status != null` guard is not decoration: `listings.status` is
+    // nullable, and `.includes(null)` on a string[] is a type error that a cast
+    // would have silenced into a false negative. A listing with no market
+    // status cannot hold a public open house.
+    expect(ROUTE).toMatch(
+      /displayable:\s*l\.status != null &&\s*OPEN_HOUSE_ELIGIBLE_STATUSES\.includes\(l\.status\)/,
+    );
     // the bypass must NOT reference the broad DISPLAYABLE_STATUSES.includes for status gating
     expect(ROUTE).not.toMatch(/displayable:\s*DISPLAYABLE_STATUSES\.includes\(l\.status\)/);
   });
@@ -141,7 +147,9 @@ describe('open-houses card — gold "Mallan Exclusive" badge (page is Mallan-onl
     expect(ROUTE).toMatch(/import\s*\{[\s\S]*?isMallanOwnedLocalListing[\s\S]*?\}\s*from\s*['"]@\/lib\/open-houses\/upcoming-open-houses['"]/);
     // Codex #472 r15: the local filter also requires an open-house-ELIGIBLE status so the
     // feed matches the RSVP-linkage predicate (no shown-but-unlinkable ComingSoon/Pending).
-    expect(ROUTE).toMatch(/gate\.displayable && OPEN_HOUSE_ELIGIBLE_STATUSES\.includes\(l\.status\) && isMallanOwnedLocalListing\(l\)/);
+    expect(ROUTE).toMatch(
+      /gate\.displayable && l\.status != null && OPEN_HOUSE_ELIGIBLE_STATUSES\.includes\(l\.status\) && isMallanOwnedLocalListing\(l\)/,
+    );
   });
 });
 

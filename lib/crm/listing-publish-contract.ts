@@ -2,8 +2,14 @@
 //
 // S-BE-006 — the success contract the CRM form/dashboard needs after a
 // create/update/publish so it can explain Featured / Exclusive availability
-// and surface the public + RealPlus URLs. Returned alongside listing_id,
-// status, publicUrl, realPlusUrl from the CRM listing write paths.
+// and surface Mallan's canonical public URLs. Returned alongside listing_id,
+// status, publicUrl and publicActiveUrl from the CRM listing write paths.
+//
+// There was a third-party-named URL field here, carrying the name of a legacy
+// upstream intermediary. It was Mallan's own publicUrl wearing a
+// foreign provider's name — Cotality is this architecture's only provider
+// authority — so the field is gone rather than renamed, because no verified
+// provider URL was ever represented by it.
 //
 // Semantics are grounded in the existing model:
 //   - Exclusive: a CRM-created listing is a Mallan Exclusive (the
@@ -30,13 +36,17 @@ export type ListingPublishContract = {
 };
 
 export function buildPublishContract(input: {
-  status: string;
+  /** NULL = the listing has no market status yet (never on the market). */
+  status: string | null;
   /** RLS-eligibility reason from classifyRlsEligibility(). */
   rlsReason: string;
   internetEntireListingDisplayYN?: boolean | null;
   internetAddressDisplayYN?: boolean | null;
 }): ListingPublishContract {
-  const status = normalizeStandardStatus(String(input.status || ""));
+  // No String() coercion: the normalizer already treats a non-string as
+  // "nothing given", and coercing null to the string "null" would make it an
+  // unknown-but-present status that the normalizer would preserve verbatim.
+  const status = normalizeStandardStatus(input.status);
   const isTerminal = TERMINAL_STATUSES.has(status);
   const isActive = status === "Active";
   // Display gates fail OPEN under the REBNY IDX Plus pre-filter: only an

@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { lookupNeighborhoodZips } from "@/lib/geo/neighborhood-zips";
+import { excludeMallanRlsReturnCopies } from "@/lib/listings/mallan-source-identity";
 import {
   buildSearchDisplayWhere,
   SEARCH_DISPLAY_GATE,
@@ -189,6 +190,26 @@ export function buildPublicListingDbSearch(params: URLSearchParams): PublicListi
       },
     ],
   };
+
+  // MALLAN RLS RETURN-COPY SUPPRESSION — CHARTER Section 1A.
+  //
+  // This builder takes `buildSearchDisplayWhere().status` — the status alone —
+  // and puts the gate columns inside one branch of the OR, because RLS-backed
+  // and website-only rows are gated differently. Taking only `.status` also
+  // dropped the suppression the canonical builder carries.
+  //
+  // It has to be here, not afterwards. This `where` feeds BOTH
+  // `prisma.listing.findMany` AND `prisma.listing.count` in
+  // app/api/listings/route.ts, so a twin missed here inflates `total` as well as
+  // leaking into results. `preferCrmExclusiveOverIdxDuplicate` runs at
+  // route.ts:466 — AFTER skip/take — so it collapses twins that land on the SAME
+  // page and cannot see a pair split across two.
+  //
+  // Fail-closed on suppression, not on display: the fragment explicitly
+  // re-admits Mallan-authored local rows (SL-/RL-, rls_eligible=false) and rows
+  // with unknown provenance (no list_office_mls_id), so it cannot hide
+  // legitimate inventory.
+  appendAnd(where, excludeMallanRlsReturnCopies());
 
   const listingType = params.get("type");
   if (listingType === "sale") where.listing_type = "sale";

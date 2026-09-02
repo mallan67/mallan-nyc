@@ -20,11 +20,14 @@ import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-pro
 import { buildingAndManifestInvalidationTags, listingCacheTag, safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
 import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { checkFeeDisclosure, isDisplayReadyStatus } from "@/lib/crm/fee-disclosure";
+import { isActiveDisplayStatus } from "@/lib/compliance/status";
 import { buildExclusiveAgentAssignment } from "@/lib/listings/exclusive-agent-assignment";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { resolveListingAgentInfo } from "@/lib/listings/agent-info-resolver";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import { listingCapabilities, CAPABILITY_DENIED } from "@/lib/auth/listing-capabilities";
+import { serializeBigInts } from "@/lib/api/serialize";
+import { assertLeadAccess } from "@/lib/crm/access";
 import type { Prisma } from "@prisma/client";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -67,14 +70,34 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json(CAPABILITY_DENIED.ACCESS, { status: 403 });
   }
 
-  // CRM sanitization: strips removed compensation fields, serializes BigInt
-  const sanitized = sanitizeForCRM({
-    ...listing,
-    id: listing.id.toString(),
-    agent_id: listing.agent_id?.toString() ?? null,
-    list_price: listing.list_price.toString(),
-    living_area: listing.living_area?.toString() ?? null,
-  });
+  // EVERY BigInt, not a hand-kept list of them.
+  //
+  // `findListing()` is a no-select `findUnique`, so every column on the row is
+  // present here. `Listing` has THREE BigInt columns - id, agent_id and
+  // owner_client_id - and this spread stringified only the first two. The third
+  // reached `NextResponse.json` raw, and `JSON.stringify` throws
+  // `TypeError: Do not know how to serialize a BigInt`, so the route 500'd for
+  // any listing that had an owner.
+  //
+  // It never fired while owner_client_id was null on every row. The create path
+  // began populating it (a2620927), which armed it.
+  //
+  // The comment that used to sit here claimed sanitizeForCRM "serializes
+  // BigInt". It does not - lib/compliance/dto.ts:498 only deletes keys - and
+  // that false claim is why the omission looked safe. `serializeBigInts` is the
+  // canonical recursive serializer (lib/api/serialize.ts) and it runs AFTER the
+  // explicit spread, so the four fields below keep their exact existing string
+  // contract while anything else BigInt-shaped is caught. A new BigInt column
+  // cannot re-arm this.
+  const sanitized = sanitizeForCRM(
+    serializeBigInts({
+      ...listing,
+      id: listing.id.toString(),
+      agent_id: listing.agent_id?.toString() ?? null,
+      list_price: listing.list_price.toString(),
+      living_area: listing.living_area?.toString() ?? null,
+    }),
+  );
 
   // Phase D step 3 safety net (Codex #429 P2): the reachable WITH-TOOLS viewers
   // (/crm/sale-view → SALE-FORM-WITH-TOOLS.html, /crm/rental-view → RENTAL-FORM-WITH-TOOLS.html)
@@ -225,10 +248,86 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // Re-validate merged data
   const validation = validateListing(merged);
 
-  // Build Prisma update data from known columns
-  const update: Prisma.ListingUpdateInput = {
+  // ── CANONICAL OWNER (Seller / Landlord) — REPAIR AND CHANGE ─────────────
+  //
+  // Create accepted `owner_client_id` and the status route refuses to publish a
+  // Mallan-local listing without one. This route contained the field ZERO
+  // times, so once a listing existed there was no supported way to set, change
+  // or repair its owner. Combined with the intake forms not sending it, every
+  // form-created listing was ownerless AND permanently unpublishable: the
+  // publication guard became a trap rather than a prompt.
+  //
+  // Same column, same authorisation helper as create and convert. No second
+  // ownership field, no free-text identity.
+  //
+  // Absent key = no change. That distinction matters: an unrelated field edit
+  // must never blank the owner.
+  let ownerUpdate: bigint | null | undefined;
+  if ("owner_client_id" in body) {
+    const raw = body.owner_client_id;
+    const blank = raw === null || raw === undefined || String(raw).trim() === "";
+
+    if (blank) {
+      // CLEARING. Legal on a draft — an ownerless draft is a real state, so
+      // un-assigning before publication is a legitimate correction. Refused
+      // while the listing is live, because publication REQUIRES an owner:
+      // allowing it here would reach the exact state the publication guard
+      // exists to prevent, only sideways, and would silently cut the seller off
+      // from their own listing (the portal resolves through this column).
+      // `isActiveDisplayStatus`, NOT `isDisplayReadyStatus`.
+      //
+      // The two look interchangeable and are not. `isDisplayReadyStatus`
+      // (lib/crm/fee-disclosure.ts) means "is BECOMING display-ready" for the
+      // FARE gate and covers Active | ComingSoon only. The question here is
+      // "is this listing PUBLICLY DISPLAYED RIGHT NOW", and the canonical
+      // answer is DISPLAYABLE_STATUSES = Active | ComingSoon |
+      // ActiveUnderContract.
+      //
+      // With the FARE predicate, an ActiveUnderContract listing — publicly
+      // visible, under contract — could have its owner cleared, which is the
+      // exact state this guard exists to prevent.
+      if (isActiveDisplayStatus(listing.status)) {
+        return NextResponse.json(
+          {
+            error:
+              "This listing is published. Assign a different owner instead of removing the current one.",
+            code: "OWNER_REQUIRED_WHILE_PUBLISHED",
+            status: listing.status,
+          },
+          { status: 409 },
+        );
+      }
+      ownerUpdate = null;
+    } else {
+      let parsed: bigint;
+      try {
+        parsed = BigInt(String(raw));
+      } catch {
+        return NextResponse.json(
+          { error: "owner_client_id must be a client id", field: "owner_client_id" },
+          { status: 422 },
+        );
+      }
+      const ownerAccess = await assertLeadAccess(auth, parsed);
+      if (ownerAccess) return ownerAccess;
+      ownerUpdate = parsed;
+    }
+  }
+
+  // Build Prisma update data from known columns.
+  //
+  // UNCHECKED variant: every field written here is a SCALAR column, including
+  // the `owner_client_id` foreign key below. The checked `ListingUpdateInput`
+  // would demand relation syntax (`owner_client: { connect: … }`) for that one
+  // field while every other assignment stays scalar, which is a worse shape to
+  // read and to assert on. Nothing in this handler uses relation syntax.
+  const update: Prisma.ListingUncheckedUpdateInput = {
     modification_timestamp: new Date(),
   };
+
+  if (ownerUpdate !== undefined) {
+    update.owner_client_id = ownerUpdate;
+  }
 
   // Update rls_eligible if classification changed (e.g., unit count or property type updated)
   if (effectiveRlsEligible !== listing.rls_eligible) {
@@ -482,8 +581,29 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   }
   // else: non-exclusive listing, no agent field changed → leave the typed columns untouched.
 
-  // Update compliance with latest validation + eligibility classification
+  // Update compliance with latest validation + eligibility classification.
+  //
+  // MERGE, NOT REPLACE. This used to assign a fresh five-key object with no
+  // spread of the loaded value, so every agent edit destroyed every other key
+  // under `compliance`. Not hypothetical: lib/syndication/eligibility.ts reads
+  // four authored sub-objects (syndication, mallan_control_verification,
+  // seller_advertising_authorization, media_rights) and
+  // app/api/crm/sales/listings/route.ts reads a `Permissions` key — all of
+  // which a single PATCH would erase.
+  //
+  // Every Cotality-driven update lane already preserves this column by omitting
+  // the key (`complianceUpdatePatch()` in lib/idx/sync.ts). The CRM write path
+  // was the one lane that clobbered it, and that made `compliance` unusable as
+  // durable storage for anything else.
+  //
+  // The column is Json, so a legacy row may hold a non-object; spread only what
+  // is actually a plain object.
+  const existingCompliance =
+    listing.compliance && typeof listing.compliance === "object" && !Array.isArray(listing.compliance)
+      ? (listing.compliance as Record<string, unknown>)
+      : {};
   update.compliance = {
+    ...existingCompliance,
     validation_result: validation.compliance,
     validated_at: new Date().toISOString(),
     warnings: validation.warnings,
@@ -556,7 +676,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
   const urls = buildListingUrls({
     listing_id: updated.listing_id,
-    status: updated.status,
+    // No market status = not live = no public URL. The empty string is in no
+    // displayable set, so this fails closed.
+    status: updated.status ?? "",
     address: updated.address as Record<string, unknown> | null,
     // Required by the canonical public-address decision: a prefix is not
     // permission, and a null IDX flag must fail closed on a DB row.
@@ -570,7 +692,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     listing_id: updated.listing_id,
     status: updated.status,
     publicUrl: urls.publicUrl,
-    realPlusUrl: urls.realPlusUrl,
+    publicActiveUrl: urls.publicActiveUrl,
     validation: {
       valid: validation.valid,
       errors: validation.errors,

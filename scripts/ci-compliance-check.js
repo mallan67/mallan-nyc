@@ -303,7 +303,13 @@ for (const { name, pattern } of failOpenPatterns) {
   }
 }
 
-const CANONICAL_GATE_PATTERN = /SEARCH_DISPLAY_GATE|buildSearchDisplayWhere|isListingDisplayable|filterDisplayableDbListings|dbListingToPublicDTO|sanitizeListingForPortal|checkDistributionGates|toPublicDTO/;
+// `publicListingVisibilityWhere` is the canonical visibility layer: the same
+// four gate columns as SEARCH_DISPLAY_GATE PLUS Mallan RLS return-copy
+// suppression. It is strictly stronger than SEARCH_DISPLAY_GATE, which is
+// already accepted here, so recognising it makes this check more accurate
+// rather than more permissive — a surface that switches to it is closing a
+// gap, not opening one.
+const CANONICAL_GATE_PATTERN = /SEARCH_DISPLAY_GATE|publicListingVisibilityWhere|buildSearchDisplayWhere|isListingDisplayable|filterDisplayableDbListings|dbListingToPublicDTO|sanitizeListingForPortal|checkDistributionGates|toPublicDTO/;
 const idxLiteralGateFiles = publicPortalFiles.filter((file) => {
   const content = fs.readFileSync(file, 'utf8');
   if (!/\bidx_display_yn\s*:\s*true\b/.test(content)) return false;

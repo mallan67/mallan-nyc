@@ -3,7 +3,7 @@
  *
  * Layer 1 — Canonical server/public status (RESO-safe):
  *   Controls DB status, public display, idx_display_yn, Internet display
- *   gates, Featured/Exclusives eligibility, RealPlus URL eligibility,
+ *   gates, Featured/Exclusives eligibility, public-URL eligibility,
  *   syndication/public surfaces.
  *
  * Layer 2 — Internal CRM workflow status:
@@ -24,7 +24,12 @@ export const CANONICAL_STATUSES = [
   'Withdrawn',
   'Expired',
   'Hold',
-  'Cancelled',
+  // The live Cotality spelling. `Cancelled` (two Ls) is NOT a Cotality
+  // StandardStatus value — Mallan invented it — so it is no longer what the
+  // CRM emits. Rows that already carry it keep gating correctly because
+  // every terminal set accepts both; see
+  // tests/runtime/status-vocabulary-cotality-binding.test.ts.
+  'Canceled',
 ] as const;
 
 export type CanonicalStatus = typeof CANONICAL_STATUSES[number];
@@ -85,7 +90,9 @@ const WORKFLOW_TO_CANONICAL: Record<CrmWorkflowStatus, CanonicalStatus> = {
   Withdrawn: 'Withdrawn',
   Expired: 'Expired',
   Hold: 'Hold',
-  Cancelled: 'Cancelled',
+  // The workflow status keeps Mallan's own label spelling; what it MAPS TO
+  // is the provider value.
+  Cancelled: 'Canceled',
 };
 
 /** Agent-facing display labels */
@@ -123,10 +130,16 @@ const PUBLIC_DISPLAY_STATUSES: Set<CanonicalStatus> = new Set([
   'ActiveUnderContract',
 ]);
 
-const TERMINAL_STATUSES: Set<CanonicalStatus> = new Set([
+// Typed as string, not CanonicalStatus, on purpose: `Cancelled` is no longer a
+// CanonicalStatus (it is not a Cotality value) but it is still what a large
+// number of existing rows carry, and no backfill is in scope. A terminal check
+// that only knows the new spelling would report a legacy canceled listing as
+// non-terminal — the exact silent-miss class this whole correction is about.
+const TERMINAL_STATUSES: ReadonlySet<string> = new Set<string>([
   'Sold',
   'Withdrawn',
   'Expired',
+  'Canceled',
   'Cancelled',
 ]);
 
@@ -167,7 +180,7 @@ export function isPublicDisplayStatus(status: string): boolean {
  * Whether a canonical status is terminal (no further transitions expected).
  */
 export function isTerminalStatus(status: string): boolean {
-  return TERMINAL_STATUSES.has(status as CanonicalStatus);
+  return TERMINAL_STATUSES.has(status);
 }
 
 /**

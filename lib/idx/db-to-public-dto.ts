@@ -24,6 +24,7 @@ import { composeDbPublicMedia } from '@/lib/media/db-media-composition';
 import { composeSlugStreetName, buildListingSlugFromDbRow } from '@/lib/listing-slug';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import { affirmPermission, isAddressDisplayable } from '@/lib/compliance/gates';
+import { isMallanLocalListing } from '@/lib/listings/mallan-source-identity';
 import {
   resolveDbListingMedia,
   toDtoMedia,
@@ -165,7 +166,13 @@ export interface DbListing {
   id: string | bigint;
   listing_id: string;
   mls_id?: string | null;
-  status: string;
+  /**
+   * Cotality market status, or NULL when the listing has none yet.
+   * A Mallan-authored listing that has not been published has no market
+   * status at all; null is that fact, and it fails closed in every
+   * displayable allow-list.
+   */
+  status: string | null;
   listing_type: string;
   property_type: string | null;
   property_sub_type: string | null;
@@ -295,13 +302,39 @@ export type DbListingProvenance =
  * consumer can reuse the same predicate.
  */
 export function classifyDbListing(listing: Pick<DbListing,
-  'agent_id' | 'owner_client_id' | 'rls_eligible'>): DbListingProvenance {
-  // Website-only check first: commercial rows opt out of RLS entirely and
-  // are tagged exclusive (Mallan-owned) by definition.
+  'listing_id' | 'rls_eligible'>): DbListingProvenance {
+  // Website-only check first: commercial rows are outside provider distribution
+  // entirely and are Mallan-owned by definition.
   if (listing.rls_eligible === false) return 'website-only';
-  if (listing.agent_id != null || listing.owner_client_id != null) {
-    return 'mallan-exclusive';
-  }
+
+  // AUTHORSHIP, NOT ASSOCIATION.
+  //
+  // This used to return 'mallan-exclusive' whenever `agent_id != null` (or
+  // `owner_client_id != null`). `agent_id` is not an ownership signal:
+  // `syncAgentHistory` stamps it onto provider-synced THIRD-PARTY rows whenever
+  // a Mallan agent appears on EITHER side of a deal, because
+  // `buildAgentHistoricalFilter` matches `ListAgentMlsId OR BuyerAgentMlsId`
+  // (lib/idx/fetch.ts:528). Representing the BUYER on another brokerage's
+  // listing is CRM history. It is not ownership.
+  //
+  // The consequence was not a mislabel, it was an advertising violation:
+  // 'mallan-exclusive' makes `buildDisplayCompliance` emit
+  // `requiresAttribution: false`, `disclaimerRequired: false` and a Mallan
+  // `_assignedAgent` — so another broker's listing appeared on mallan.nyc as
+  // Mallan's, with the real listing broker's attribution removed. UCBA
+  // Art. III §2(C) requires attribution to the ACTUAL listing broker; NY DOS
+  // 19 NYCRR §175.25 governs the advertisement.
+  //
+  // app/api/agents/[slug]/listings/route.ts:291 already knew this and defended
+  // itself by deliberately NOT SELECTING agent_id. Defending by omission
+  // protects one caller; app/api/listings/route.ts:381 — the main public
+  // listings API — selected it and passed the row straight through.
+  //
+  // Provenance now reads the canonical authorship signal only, which is also
+  // why the parameter no longer accepts those columns: a caller cannot
+  // reintroduce the defect by selecting them.
+  if (isMallanLocalListing(listing)) return 'mallan-exclusive';
+
   return 'third-party-idx';
 }
 
@@ -311,7 +344,13 @@ export function classifyDbListing(listing: Pick<DbListing,
  */
 export function filterDisplayableDbListings(listings: DbListing[]): DbListing[] {
   return listings.filter((l) => {
-    // Gate 1: Must be an active/displayable status
+    // Gate 1: Must be an active/displayable status.
+    //
+    // NULL means the listing has no market status yet — a Mallan-authored
+    // listing that has not reached the market. It is not displayable, and it is
+    // rejected EXPLICITLY here rather than relying on `includes(null)` being
+    // falsy: the reason a row is excluded should be legible.
+    if (l.status == null) return false;
     if (!DISPLAYABLE_STATUSES.includes(l.status)) return false;
     // Website-only listings (commercial, rls_eligible=false) bypass RLS gates.
     // `rls_eligible` is a real internal boolean, not a Trestle permission flag,
@@ -479,7 +518,11 @@ export function dbListingToPublicDTO(
     mlsId: listing.listing_id,
     slug,
     url: buildCanonicalListingPath({ slug, id: listing.listing_id }),
-    status: STATUS_DISPLAY[listing.status] || listing.status,
+    // A listing with no market status reports an empty string rather than the
+    // word "null" or a fabricated one. This DTO is only reachable for
+    // displayable rows anyway (see filterDisplayableDbListings), so this is a
+    // defensive shape, not an expected state.
+    status: listing.status ? STATUS_DISPLAY[listing.status] || listing.status : '',
     listingType: listing.listing_type as 'sale' | 'rent',
     address: suppressAddress
       ? {

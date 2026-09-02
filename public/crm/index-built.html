@@ -13348,6 +13348,38 @@ var MallanAPI = (function () {
 
   // ─── Listings ────────────────────────────────────────────────────────────
 
+  // ONE BOUNDARY FOR THE CANCELED SPELLING.
+  //
+  // `listings.status` holds two spellings of the same status. `Canceled` (one L)
+  // is the live Cotality value, written raw into the column by the Trestle sync.
+  // `Cancelled` (two Ls) is a value Mallan invented, and it is what the CRM write
+  // path stored for a long time. Real rows carry both and no backfill is in scope.
+  //
+  // Every screen that compares `l.status` to a literal - the agent-roster status
+  // badges and filter (dashboard/panels.js), the per-type status counts, the
+  // Perm Off Market label map (manage/manage-listings.js) - was written against
+  // ONE spelling, so each of them silently reported on half the listings.
+  //
+  // Fixing it at each comparison would mean four copies of the same rule, which
+  // is how the split happened in the first place. It is folded here instead, on
+  // the way in, so every screen downstream sees the provider spelling and nothing
+  // else has to know.
+  var LEGACY_STATUS_SPELLINGS = { Cancelled: 'Canceled' };
+
+  function _foldStatus(row) {
+    if (row && LEGACY_STATUS_SPELLINGS[row.status]) {
+      row.status = LEGACY_STATUS_SPELLINGS[row.status];
+    }
+    return row;
+  }
+
+  function _foldListingStatuses(res) {
+    if (res && Array.isArray(res.listings)) res.listings.forEach(_foldStatus);
+    else if (res && res.listing) _foldStatus(res.listing);
+    else _foldStatus(res);
+    return res;
+  }
+
   var listings = {
     list: function (params) {
       params = params || {};
@@ -13357,11 +13389,12 @@ var MallanAPI = (function () {
       if (params.limit) qs.push('limit=' + params.limit);
       if (params.offset) qs.push('offset=' + params.offset);
       var query = qs.length ? '?' + qs.join('&') : '';
-      return _fetch('/api/crm/listings' + query);
+      return _fetch('/api/crm/listings' + query).then(_foldListingStatuses);
     },
 
     get: function (id) {
-      return _fetch('/api/crm/listings/' + encodeURIComponent(id));
+      return _fetch('/api/crm/listings/' + encodeURIComponent(id))
+        .then(_foldListingStatuses);
     },
 
     create: function (data) {
@@ -13437,6 +13470,14 @@ var MallanAPI = (function () {
       params = params || {};
       var qs = [];
       if (params.status) qs.push('status=' + encodeURIComponent(params.status));
+      // `search` and `role` were dropped here even though the server has
+      // supported both for as long as the route has existed
+      // (lib/db/clients.ts findClients: `search` matches name/email/phone/entity,
+      // `clientRole` filters `roles has`). Callers that needed either had to
+      // hand-roll their own fetch, which is how four separate copy-pasted client
+      // pickers ended up in the CRM.
+      if (params.search) qs.push('search=' + encodeURIComponent(params.search));
+      if (params.role) qs.push('role=' + encodeURIComponent(params.role));
       if (params.limit) qs.push('limit=' + params.limit);
       if (params.offset) qs.push('offset=' + params.offset);
       var query = qs.length ? '?' + qs.join('&') : '';
@@ -14413,7 +14454,10 @@ function _mapApiListingToManage(api) {
         'Draft': 'Draft', 'Active': 'Active', 'ActiveUnderContract': 'Offer Out',
         'Pending': 'Contract Signed', 'ComingSoon': 'Coming Soon', 'Hold': 'Temp Off Market',
         'Withdrawn': 'Perm Off Market', 'Closed': isSale ? 'Sold' : 'Leased', 'Expired': 'Expired',
-        'Canceled': 'Perm Off Market', 'Delete': 'Perm Off Market'
+        // Both spellings — see the boundary fold in core/api-client.js. This map
+        // is also fed by paths that do not pass through it.
+        'Canceled': 'Perm Off Market', 'Cancelled': 'Perm Off Market',
+        'Delete': 'Perm Off Market'
     };
     var displayStatus = statusMap[api.status] || api.status || 'Draft';
 
@@ -19877,7 +19921,13 @@ function manageShowToast(msg) {
         // Add default permissions to all listings that don't have explicit permissions set
         listings.forEach(function(l) {
             if (!l.permissions) {
-                l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false, syndication: true };
+                // NOTE: no `syndication` member. Every other permission here is DERIVED from
+            // the row; `syndication: true` was a constant, and there is no syndicate
+            // field in the CRM listings DTO to derive it from. Since the compliance
+            // output phrases the negative as "listing will not be distributed to
+            // third-party portals", asserting true made the absence of that warning
+            // read as a promise of distribution the system does not perform.
+            l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false };
             }
         });
 
@@ -20131,7 +20181,8 @@ function manageShowToast(msg) {
                     participantOnly: apiListing.participant_only === true,
                     idxDisplay: apiListing.idx_display_yn !== false,
                     internetDisplay: apiListing.internet_entire_listing_display_yn !== false,
-                    syndication: true,
+                    // No `syndication` member — see the note above. It was a constant
+                    // with no source field, and syndication is held closed.
                 },
                 _apiId: apiListing.id,
                 _listingId: apiListing.listing_id,
@@ -20263,7 +20314,13 @@ function manageShowToast(msg) {
                 if (!l.listedDate) l.listedDate = '--';
                 if (!l.company) l.company = '';
                 if (!l.permissions) {
-                    l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false, syndication: true };
+                    // NOTE: no `syndication` member. Every other permission here is DERIVED from
+            // the row; `syndication: true` was a constant, and there is no syndicate
+            // field in the CRM listings DTO to derive it from. Since the compliance
+            // output phrases the negative as "listing will not be distributed to
+            // third-party portals", asserting true made the absence of that warning
+            // read as a promise of distribution the system does not perform.
+            l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false };
                 }
             });
             listings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
@@ -26525,7 +26582,7 @@ function openPrintableWindow(html, options) {
                 fs += '</div>';
                 fs += '<div style="text-align:right">' +
                     '<p style="font-size:20px;font-weight:700;color:#111;margin:0">' + fmtPrice(l) + '</p>' +
-                    '<p style="font-size:11px;color:#555;margin:2px 0 0">' + (l.status || 'Active') + ' / ' + ownerType + (mlsId ? ' / #' + mlsId : '') + '</p></div></div>';
+                    '<p style="font-size:11px;color:#555;margin:2px 0 0">' + (l.status || 'Draft') + ' / ' + ownerType + (mlsId ? ' / #' + mlsId : '') + '</p></div></div>';
                 fs += '<hr style="border:none;border-top:1px solid #bbb;margin:0 0 12px">';
 
                 // Body: photos + description + details table
@@ -29598,12 +29655,20 @@ function emailCurrentCalc() {
                                     </div>
                                     <!-- Col 3: Distribution -->
                                     <div class="space-y-2 text-sm">
+                                        <!-- Syndication is THREE states, not two. It used to render
+                                             \`permissions.syndication ? 'Yes' : 'No'\` over a value that
+                                             core/data-loader.js hardcoded to true, so every listing showed
+                                             "Syndication: Yes" — a literal claim of portal distribution the
+                                             system does not perform (no export route, no cron, and
+                                             MALLAN_OFFICE_MLS_IDS empty blocks every row at Layer 1). The
+                                             hardcode is gone, and absent now reads "Not configured" rather
+                                             than a bare "No" that would look like a per-listing setting. -->
                                         <div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold">Distribution</div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Owner Opt-Out</span><span class="font-semibold">${listing.permissions && listing.permissions.ownerOptOut ? 'Yes' : 'No'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Participant Only</span><span class="font-semibold">${listing.permissions && listing.permissions.participantOnly ? 'Yes' : 'No'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Internet Entire Listing</span><span class="font-semibold">${listing.internetDisplayYN !== false ? 'Yes' : 'No'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">IDX Display</span><span class="font-semibold">${listing.idxDisplayYN !== false ? 'Yes' : 'No'}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Syndication</span><span class="font-semibold">${listing.permissions && listing.permissions.syndication ? 'Yes' : 'No'}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Syndication</span><span class="font-semibold">${listing.permissions && listing.permissions.syndication === true ? 'Yes' : listing.permissions && listing.permissions.syndication === false ? 'No' : 'Not configured'}</span></div>
                                         <div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold mt-2">CoBroke</div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">CoBroke Agreement</span><span class="font-semibold">---</span></div>
                                     </div>
@@ -33083,7 +33148,7 @@ function emailCurrentCalc() {
         function _initListingTracker() {
             if (typeof MallanAPI === 'undefined') return;
             MallanAPI.onReady(function() {
-                // Fetch sale count — ALL statuses on RLS (matches RealPlus total ~14K+)
+                // Fetch sale count — ALL statuses on RLS (~14K+ total)
                 // status=* skips status filter entirely for accurate RLS total
                 MallanAPI.idx.search({ type: 'sale', limit: 1, status: '*' }).then(function(result) {
                     var count = 0;
