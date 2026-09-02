@@ -149,6 +149,43 @@ export interface AssembleOptions<T> {
    */
   readonly corpusFilter?: (record: T) => boolean;
 
+  /**
+   * A SECOND CANONICAL SOURCE, merged into the SAME universe.
+   *
+   * Mallan-authored listings are not provider rows and never will be: they
+   * have no ListingKey, and inventing one would put a fabricated provider
+   * identity into the search. They are read COMPLETELY by the caller and
+   * handed over here already filtered, so they can be merged in sort position
+   * BEFORE the count and BEFORE the page is cut.
+   *
+   * The rejected alternative is appending them to the finished page. That
+   * gives a count describing one universe and a page showing another - the
+   * exact defect Open House was just corrected for - and it makes a Mallan
+   * listing appear only when a particular filter is active, which is a second
+   * truth about what Mallan sells.
+   */
+  readonly mergeRows?: {
+    /** The COMPLETE set for this query. A partial set silently narrows. */
+    readonly rows: readonly T[];
+    /**
+     * Canonical order across BOTH sources.
+     *
+     * The provider tie-break is `ListingKey asc`, which a Mallan row cannot
+     * answer, so the comparator must fall back to something both sources have.
+     * It must reduce to the provider ordering when every row is a provider row,
+     * or a provider-only search would silently reorder.
+     */
+    readonly compare: (a: T, b: T) => number;
+    /**
+     * Does this local row SUPERSEDE that provider row?
+     *
+     * A Mallan listing may also exist in the feed as a return-copy. Both
+     * describe ONE property, and the Mallan record is the canonical editable
+     * one, so the provider twin is dropped rather than shown beside it.
+     */
+    readonly supersedesProviderRow?: (localRow: T, providerRow: T) => boolean;
+  };
+
   /** 1-based page of the FINAL universe. */
   readonly page: number;
   readonly pageSize: number;
@@ -356,6 +393,7 @@ export async function assembleFinalUniverse<T>(
     gate,
     providerRowKey,
     corpusFilter,
+    mergeRows,
     page,
     pageSize,
     providerBudget,
@@ -366,6 +404,21 @@ export async function assembleFinalUniverse<T>(
     startPhaseIndex = 0,
     startPredicate = null,
   } = options;
+
+  // A CONTINUATION CANNOT DESCRIBE A UNIVERSE IT ONLY HALF COVERS.
+  //
+  // The continuation token is a provider keyset over ListingKey. Mallan rows
+  // have no ListingKey and cannot be positioned in it, so a resumed
+  // mixed-source traversal would silently skip or repeat them. Refused rather
+  // than degraded quietly: calling a provider cursor a cursor over the
+  // combined universe is the kind of claim that reads as correct forever.
+  if (mergeRows && resume) {
+    throw new Error(
+      'Mixed-source search cannot resume from a provider continuation: the ' +
+      'keyset is over ListingKey and Mallan-authored rows have none. Re-run ' +
+      'the search from page 1, or drop the Mallan source for this request.',
+    );
+  }
 
   const survivorsConsumedBefore = resume?.survivorsConsumed ?? 0;
 
@@ -497,6 +550,39 @@ export async function assembleFinalUniverse<T>(
 
   // On a resumed traversal the survivors seen so far are only THIS segment, so
   // the running total has to include what earlier requests already emitted.
+  // ── MERGE THE SECOND CANONICAL SOURCE, BEFORE COUNT AND BEFORE THE PAGE ──
+  //
+  // Everything below this line - count, more-results, page cut, boundary row -
+  // reads `survivors`. Merging here is therefore the single point at which the
+  // universe becomes the whole universe, and nothing downstream needs to know
+  // there were ever two sources.
+  if (mergeRows && mergeRows.rows.length > 0) {
+    const { rows: localRows, compare, supersedesProviderRow } = mergeRows;
+
+    // ONE PROPERTY, ONE ROW. A Mallan listing may also exist in the feed as a
+    // return-copy; both describe the same property and the Mallan record is
+    // the canonical editable one, so the provider twin is dropped.
+    const kept = supersedesProviderRow
+      ? survivors.filter((p) => !localRows.some((l) => supersedesProviderRow(l, p)))
+      : survivors;
+
+    // Provider survivors are already in canonical order and the local set is
+    // sorted once, so this is a linear merge rather than a re-sort of the
+    // whole universe.
+    const localSorted = [...localRows].sort(compare);
+    const merged: T[] = [];
+    let i = 0;
+    let j = 0;
+    while (i < kept.length && j < localSorted.length) {
+      merged.push(compare(kept[i], localSorted[j]) <= 0 ? kept[i++] : localSorted[j++]);
+    }
+    while (i < kept.length) merged.push(kept[i++]);
+    while (j < localSorted.length) merged.push(localSorted[j++]);
+
+    survivors.length = 0;
+    survivors.push(...merged);
+  }
+
   const count = survivorsConsumedBefore + survivors.length;
   const countMeaning = exhausted ? CountMeaning.EXACT : CountMeaning.LOWER_BOUND;
 
