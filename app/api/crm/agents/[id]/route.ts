@@ -14,7 +14,12 @@ import {
   rejectIncoherentLicenceRole,
   canonicalTitleFor,
 } from "@/lib/agents/license-designation";
-import { transitionAgentStatus, isAgentStatus, type AgentStatus } from "@/lib/agents/agent-lifecycle";
+import {
+  applyAgentStatusTransition,
+  transitionAgentStatus,
+  isAgentStatus,
+  type AgentStatus,
+} from "@/lib/agents/agent-lifecycle";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -182,40 +187,37 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     );
   }
 
-  const updated = Object.keys(update).length > 0
-    ? await prisma.agent.update({ where: { id: agent.id }, data: update })
-    : agent;
+  // ONE OUTER TRANSACTION owns the COMPLETE requested mutation.
+  //
+  // Previously the generic field update committed first and the lifecycle
+  // transition ran in its own transaction afterwards, so a failing revoke left
+  // the profile fields already changed. Nesting a second transaction inside
+  // the first is not the fix either - it is the same split with extra steps.
+  // applyAgentStatusTransition takes the transaction client, so the whole
+  // action commits together or not at all.
+  const { updated, lifecycle } = await prisma.$transaction(async (tx) => {
+    const row = Object.keys(update).length > 0
+      ? await tx.agent.update({ where: { id: agent.id }, data: update })
+      : agent;
 
-  // Account state, if requested, goes through the ONE lifecycle authority so
-  // it revokes sessions and audits itself exactly as Deactivate does.
-  let lifecycle = null;
-  if (statusTransition && statusTransition !== agent.status) {
-    lifecycle = await transitionAgentStatus(
-      prisma,
-      agent.id,
-      statusTransition,
-      auth,
-      {
+    let life = null;
+    if (statusTransition && statusTransition !== agent.status) {
+      life = await applyAgentStatusTransition(tx, agent.id, statusTransition, auth, {
         previous: agent.status,
         ip: req.headers.get("x-forwarded-for"),
         reason: "edit_agent_status_change",
-      }
-    );
-  }
-
-  await logAuditEvent(
-    "update",
-    "agent",
-    agent.id.toString(),
-    auth,
-    { fields: Object.keys(update) },
-    req.headers.get("x-forwarded-for") ?? undefined
-  );
+      });
+    }
+    return { updated: row, lifecycle: life };
+  });
 
   return NextResponse.json({
     lifecycle,
+    // the COMMITTED status. `updated` is the row from the field update and
+    // predates the transition, so reading updated.status here reported the
+    // old value to the caller.
+    status: lifecycle ? lifecycle.status : updated.status,
     id: updated.id.toString(),
-    status: updated.status,
   });
 }
 

@@ -16,7 +16,11 @@
  *     display string into a column whose canonical values are
  *     broker | salesperson.
  */
+import { readFileSync } from 'fs';
+import { resolve, sep } from 'path';
 import { makeRequest } from './helpers';
+
+const ROOT = resolve(__dirname, '../..');
 import {
   rejectNonCanonicalLicenseType,
   designationFromStored,
@@ -314,14 +318,24 @@ describe('P0-2 every status and licence writer obeys the authority', () => {
     expect(dataArg.data.bio).toBe('x');
   });
 
-  it('the second creation path enforces the same licence contract', async () => {
-    const { POST } = await import('@/app/api/auth/agent/register/route');
-    const res = await POST(makeRequest({
-      url: 'http://test/api/auth/agent/register', method: 'POST',
-      body: { firstName: 'A', lastName: 'B', email: 'z@mallan.nyc', password: 'Passw0rd!x',
-              licenseType: 'Licensed Associate Broker' },
-    }));
-    expect(res.status).toBe(400);
+  it('the second Agent creation authority is RETIRED, not merely guarded', () => {
+    // /api/auth/agent/register created Agent rows independently and required
+    // only name + email, so an ACTIVE account could exist with no licence facts
+    // at all. It had no runtime caller, so it is removed rather than having the
+    // validation copied into it - a duplicate writer is the defect, and
+    // guarding it just makes the duplicate harder to notice.
+    const { existsSync } = require('fs') as typeof import('fs');
+    expect(existsSync(resolve(ROOT, 'app/api/auth/agent/register/route.ts'))).toBe(false);
+  });
+
+  it('POST /api/crm/agents is now the only Agent create authority', () => {
+    const { readdirSync } = require('fs') as typeof import('fs');
+    const files = readdirSync(resolve(ROOT, 'app/api'), { recursive: true } as never) as unknown as string[];
+    const creators = files
+      .map((f) => String(f).split(sep).join('/'))
+      .filter((f) => f.endsWith('route.ts'))
+      .filter((f) => readFileSync(resolve(ROOT, 'app/api', f), 'utf8').includes('prisma.agent.create'));
+    expect(creators).toEqual(['crm/agents/route.ts']);
   });
 });
 

@@ -46,24 +46,40 @@ export function isPrincipalBrokerRole(role: string | null | undefined): boolean 
 /**
  * Resolve the title to advertise for an agent.
  *
- * Returns '' when the agent cannot be resolved at all — callers must omit the
- * title line rather than assert a designation we cannot stand behind. Guessing
- * "Salesperson" for an unknown licensee is the exact defect this replaces.
+ * DERIVED from the two canonical axes. The stored `title` column does NOT win:
+ *
+ *   salesperson  + any role    -> Licensed Real Estate Salesperson
+ *   broker       + role AGENT  -> Licensed Real Estate Associate Broker
+ *   broker       + role BROKER -> Licensed Real Estate Broker
+ *
+ * An earlier version preferred the stored string ("the canonical stored title
+ * always wins"). That made this module and the writers disagree: the writers
+ * derive the column, so a stale or free-form value left behind by an older
+ * client would have overridden the regulated designation here — and this is
+ * what addresses outside brokers in agent-inquiry email, where a false
+ * designation is a false statement about a licensee (NY DOS 19 NYCRR 175.25).
+ *
+ * The stored string is consulted ONLY when the licence class is unknown, so a
+ * legacy record with a title but no licence still says something rather than
+ * nothing. Returns '' when neither is resolvable — callers omit the line rather
+ * than assert a designation nobody can stand behind.
  */
 export function professionalTitle(agent: ProfessionalTitleSource | null | undefined): string {
   if (!agent) return '';
 
-  // 1. The canonical stored title always wins.
-  const stored = (agent.title ?? '').trim();
-  if (stored) return stored;
-
-  // 2. Fall back to the LICENCE, never to the authorisation role alone.
+  // 1. DERIVE from licence class + authorisation role. This is the regulated
+  //    designation and it outranks whatever text happens to be stored.
   const licence = (agent.license_type ?? '').trim().toLowerCase();
   if (licence === 'broker') {
     return isPrincipalBrokerRole(agent.role) ? PRINCIPAL_BROKER_TITLE : ASSOCIATE_BROKER_TITLE;
   }
   if (licence === 'salesperson') return SALESPERSON_TITLE;
 
-  // 3. No title and no licence on record — assert nothing.
+  // 2. Licence unknown — fall back to whatever was stored, so a legacy record
+  //    is not silently blanked.
+  const stored = (agent.title ?? '').trim();
+  if (stored) return stored;
+
+  // 3. Nothing resolvable — assert nothing.
   return '';
 }

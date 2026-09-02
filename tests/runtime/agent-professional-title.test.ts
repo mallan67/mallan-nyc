@@ -84,9 +84,23 @@ describe('licence is not authorisation', () => {
     expect(professionalTitle({ license_type: 'salesperson', role: 'AGENT' })).toBe(SALESPERSON_TITLE);
   });
 
-  it('the stored canonical title always wins over any derivation', () => {
+  it('the DERIVED designation outranks stale stored text', () => {
+    // Inverted deliberately. The writers derive title from licence + role, so a
+    // stale or free-form stored value must not override the regulated
+    // designation here - this function is what addresses outside brokers in
+    // agent-inquiry email, where a wrong designation is a false statement
+    // about a licensee (NY DOS 19 NYCRR 175.25).
     expect(professionalTitle({ title: 'Licensed Real Estate Associate Broker', license_type: 'salesperson', role: 'AGENT' }))
+      .toBe('Licensed Real Estate Salesperson');
+    expect(professionalTitle({ title: 'Senior Broker', license_type: 'broker', role: 'AGENT' }))
       .toBe('Licensed Real Estate Associate Broker');
+  });
+
+  it('falls back to stored text ONLY when the licence class is unknown', () => {
+    // a legacy record with a title but no licence still says something
+    expect(professionalTitle({ title: 'Licensed Real Estate Associate Broker', license_type: null, role: 'AGENT' }))
+      .toBe('Licensed Real Estate Associate Broker');
+    expect(professionalTitle({ title: null, license_type: null, role: 'AGENT' })).toBe('');
   });
 
   it('asserts NOTHING when the agent cannot be resolved — never guesses Salesperson', () => {

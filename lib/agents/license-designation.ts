@@ -31,6 +31,7 @@ import {
   ASSOCIATE_BROKER_TITLE,
   SALESPERSON_TITLE,
   isPrincipalBrokerRole,
+  professionalTitle,
 } from './professional-title';
 
 /** The only values `Agent.license_type` may ever hold. */
@@ -141,9 +142,10 @@ export function canonicalTitleFor(
   licenseType: string | null | undefined,
   role: string | null | undefined,
 ): string | null {
-  const designation = designationFromStored(licenseType, role);
-  if (!designation) return null;
-  return DESIGNATION_MAP[designation].title;
+  // ONE authority. professionalTitle() owns the rule; this only adapts the
+  // signature and reports "unknown" as null so writers leave the column alone.
+  const derived = professionalTitle({ license_type: licenseType, role });
+  return derived || null;
 }
 
 /**

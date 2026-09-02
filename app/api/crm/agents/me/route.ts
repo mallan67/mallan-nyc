@@ -15,7 +15,7 @@ import {
   rejectIncoherentLicenceRole,
   canonicalTitleFor,
 } from "@/lib/agents/license-designation";
-import { transitionAgentStatus, isAgentStatus, type AgentStatus } from "@/lib/agents/agent-lifecycle";
+import { applyAgentStatusTransition, isAgentStatus, type AgentStatus } from "@/lib/agents/agent-lifecycle";
 
 /**
  * GET /api/crm/agents/me
@@ -178,17 +178,23 @@ export async function PATCH(req: NextRequest) {
     );
   }
 
-  if (statusTransition && statusTransition !== agent.status) {
-    await transitionAgentStatus(prisma, agent.id, statusTransition, auth, {
-      previous: agent.status,
-      ip: req.headers.get("x-forwarded-for"),
-      reason: "self_profile_status_change",
+  // ONE OUTER TRANSACTION, same as the broker Edit path. This route had the
+  // opposite split: the status transition committed FIRST, so a failing profile
+  // update left the sessions already revoked.
+  const { updated, lifecycle } = await prisma.$transaction(async (tx) => {
+    let life = null;
+    if (statusTransition && statusTransition !== agent.status) {
+      life = await applyAgentStatusTransition(tx, agent.id, statusTransition, auth, {
+        previous: agent.status,
+        ip: req.headers.get("x-forwarded-for"),
+        reason: "self_profile_status_change",
+      });
+    }
+    const row = Object.keys(update).length === 0 ? agent : await tx.agent.update({
+      where: { id: agent.id },
+      data: update,
     });
-  }
-
-  const updated = Object.keys(update).length === 0 ? agent : await prisma.agent.update({
-    where: { id: agent.id },
-    data: update,
+    return { updated: row, lifecycle: life };
   });
 
   await logAuditEvent(
