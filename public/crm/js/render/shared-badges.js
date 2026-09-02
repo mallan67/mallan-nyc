@@ -4,9 +4,13 @@
          *
          * The FARE Act disclosure rendered `'$' + (f.applicationFee || 0)`, so an
          * ABSENT application fee printed "App fee: $0" — telling a renter there
-         * is no application fee, inside the disclosure that exists to state fees
-         * truthfully. NYC LL 119/2024 carries $1,800-$2,000 per violation, and
-         * this is that surface.
+         * is no application fee, inside the very disclosure that exists to state
+         * fees truthfully.
+         *
+         * The FARE Act attaches penalties to fee-disclosure violations. The
+         * amounts are deliberately not quoted here: an uncited legal figure in a
+         * code comment gets read as established fact, and the behaviour below
+         * does not depend on knowing it.
          *
          * `||` also cannot tell the two apart in the other direction: a genuine
          * $0 fee is falsy and took the same branch, so "unknown" and "free" were

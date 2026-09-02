@@ -197,7 +197,8 @@ describe("Mallan's own workflow defaults are left alone", () => {
  *
  * `'$' + (f.applicationFee || 0)` printed "App fee: $0" for an ABSENT fee —
  * telling a renter no application fee exists, inside the disclosure that exists
- * to state fees truthfully. NYC LL 119/2024 carries $1,800-$2,000 per violation.
+ * to state fees truthfully. The FARE Act attaches penalties to fee-disclosure
+ * violations; the amounts are deliberately not restated here.
  *
  * `||` could not tell the two cases apart in either direction: a genuine $0 fee
  * is falsy and took the same branch, so "unknown" and "free" rendered
