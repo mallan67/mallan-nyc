@@ -24,6 +24,14 @@ import {
   nextContinuation,
 } from "@/lib/search/continuation";
 import {
+  readOpenHouseMembershipForWindow,
+} from "@/lib/search/open-house-provider";
+import {
+  resolveOpenHouseWindow,
+  OpenHouseWindowError,
+  type OpenHousePreset,
+} from "@/lib/search/open-house-window";
+import {
   assembleFinalUniverse,
   CountMeaning,
   MoreResults,
@@ -523,6 +531,63 @@ export async function GET(req: NextRequest) {
     // pulls the next survivor forward instead of leaving a hole in the page.
     // Property query only: media is loaded by the dedicated media path so this
     // request does not depend on an unverified $expand behavior.
+    // ── OPEN HOUSE MEMBERSHIP, SETTLED BEFORE COUNT AND PAGINATION ──
+    //
+    // This route previously had NO OpenHouse code, and the UI disabled Today /
+    // This Weekend / Next 7 / Next 30 / Custom saying the backend did not
+    // support it. The provider does: probed live 2026-09-01, the OpenHouse
+    // resource answers $count and accepts `OpenHouseDate ge X and le Y`, and
+    // OpenHouse.ListingKey reconciles to Property.ListingKey (count 1) and not
+    // to Property.ListingId (count 0).
+    //
+    // Membership is resolved HERE, as a corpus filter, so the count describes
+    // the open-house universe and page 4's open houses are reachable. The
+    // rejected alternative — cut the page, then intersect — answers only
+    // whether the current page happens to contain one.
+    const ohPreset = params.get("openHouse");
+    const ohFrom = params.get("openHouseDateFrom");
+    const ohTo = params.get("openHouseDateTo");
+    let openHouseKeys: ReadonlySet<string> | null = null;
+
+    if (ohPreset || ohFrom || ohTo) {
+      let window;
+      try {
+        window = resolveOpenHouseWindow({
+          preset: (ohPreset as OpenHousePreset) || "custom",
+          from: ohFrom,
+          to: ohTo,
+        });
+      } catch (e) {
+        // A window we cannot resolve is REFUSED BY NAME. Running the search
+        // without the criterion would silently widen it to every listing.
+        if (e instanceof OpenHouseWindowError) {
+          logger.complete("error", e.message);
+          return NextResponse.json(
+            { error: "Unsupported open-house range", criterion: "openHouse", detail: e.message },
+            { status: 400, headers: { "Cache-Control": "private, no-store" } },
+          );
+        }
+        throw e;
+      }
+
+      const membership = await readOpenHouseMembershipForWindow(window);
+      if (membership.state !== "resolved") {
+        // FAIL CLOSED. An unresolvable membership set may never become an
+        // empty one (which reads as "no open houses") nor be dropped (which
+        // returns the UNFILTERED population under an open-house request).
+        logger.complete("error", `open house membership unavailable: ${membership.reason}`);
+        return NextResponse.json(
+          {
+            error: "Open house availability could not be established, so no results are shown.",
+            criterion: "openHouse",
+            detail: membership.reason,
+          },
+          { status: 503, headers: { "Cache-Control": "private, no-store" } },
+        );
+      }
+      openHouseKeys = membership.listingKeys;
+    }
+
     const universe = await assembleFinalUniverse<Record<string, unknown>>({
       fetchPage: async (
         providerSkip: number,
@@ -590,6 +655,13 @@ export async function GET(req: NextRequest) {
       // Mallan canonical reconciliation, which is handled above by suppressing
       // Mallan-office return-copies at the provider boundary.
       providerRowKey: (record: Record<string, unknown>) => String(record.ListingKey ?? ""),
+      // Membership by the PROVIDER-VERIFIED identity. OpenHouse.ListingKey
+      // reconciles to Property.ListingKey; a listing holding both a Saturday
+      // and a Sunday open house is ONE member of the set, so this is a set
+      // test rather than a join and cannot duplicate the property.
+      corpusFilter: openHouseKeys
+        ? (record: Record<string, unknown>) => openHouseKeys.has(String(record.ListingKey ?? ""))
+        : undefined,
       page,
       pageSize: limit,
       // SCALED TO THE REQUESTED PAGE, not a flat ceiling.

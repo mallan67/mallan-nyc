@@ -120,7 +120,16 @@
           // 'UNKNOWN' is the mapper's deliberate, readable signal. Collapsing it
           // to '' discarded the one token that says "we do not know".
           status: l.status || 'UNKNOWN',
-          photo: (l.images && l.images[0] && l.images[0].url) || '',
+          // THE LAZY STRATEGY MEANS `images` IS EMPTY HERE.
+          //
+          // The search route sets mediaStrategy:'lazy' and returns no images,
+          // so reading l.images[0] resolved to '' for every pin and the map
+          // popup was permanently photo-less. The photo cache is what the
+          // lazy loader actually fills, keyed by the provider ListingKey.
+          photo: (l.images && l.images[0] && l.images[0].url)
+            || (typeof getCachedPhoto === 'function'
+                ? (getCachedPhoto(l.wid || l.id) || '')
+                : ''),
           neighborhood: l.neighborhood || '',
           listingCategory: l.listingCategory || '',
           approx: approx,

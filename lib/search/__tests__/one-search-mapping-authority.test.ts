@@ -89,6 +89,30 @@ function paramsRead(): string[] {
  */
 const WORKFLOW_SELECTORS = new Set(['type']);
 
+/**
+ * Params the executor reads to resolve a KNOWN identity, not to search for one.
+ *
+ * `listingKey` is a live Cotality field and it does filter - but a broker never
+ * types one. It has no control anywhere in `public/crm/html`, and the identity a
+ * broker actually knows (the RLS number) is already a criterion, owned by
+ * `listing_id_canonical` with `criterionRole: 'broker_input'`. `listingKey` is
+ * how Compare re-reads rows the broker already selected and then paged away
+ * from: the identity is supplied by a prior result, never by a search form.
+ *
+ * That is a different thing from a criterion, and the registry says so - these
+ * stay `non_search_fact`. Calling one `broker_input` to satisfy this guard would
+ * put "Provider Listing Key" into SaleCriteria, RentalCriteria, BuildingCriteria
+ * and ComparableCriteria, and Building Search returns BUILDINGS. The generated
+ * criterion vocabulary is a product surface; it must not grow to accommodate an
+ * internal resolver.
+ *
+ * This is NOT an escape hatch. Membership is checked below: each one must still
+ * be registry-owned, still `non_search_fact`, and still carry proven live
+ * provider filterability. Only the CRITERION claim is withheld.
+ */
+const IDENTITY_RESOLVERS = new Map([['listingKey', 'listing_key']]);
+
+
 function registryByParam(): Map<string, FieldSpec[]> {
   const byParam = new Map<string, FieldSpec[]>();
   for (const spec of FIELD_REGISTRY) {
@@ -139,6 +163,7 @@ describe('every criterion the executor can ask about is registry-backed', () => 
   it('no param the executor reads is outside the registry', () => {
     const orphans = paramsRead()
       .filter((p) => !WORKFLOW_SELECTORS.has(p))
+      .filter((p) => !IDENTITY_RESOLVERS.has(p))
       .filter((p) => !byParam.has(p));
     // Named individually so a failure says WHICH criterion escaped the
     // authority, not merely that one did.
@@ -960,5 +985,48 @@ describe('section 5 — every executable criterion has exactly one execution own
         executionReadiness(f, wired) === 'no_strategy',
     ).map((f) => `${f.canonicalKey} (vocabularyOwner=${f.vocabularyOwner ?? 'none'})`);
     expect(stray).toEqual([]);
+  });
+});
+
+/**
+ * The exemption above is the thing most likely to be abused later, so it is
+ * held to a HIGHER standard than a criterion, not a lower one. A criterion
+ * only has to exist in the registry. A resolver has to exist in the registry,
+ * decline criterion status, and carry live provider evidence that it filters.
+ */
+describe('an identity resolver is exempt from CRITERION status, not from authority', () => {
+  const bySpec = new Map(FIELD_REGISTRY.map((f) => [f.canonicalKey, f]));
+
+  it.each([...IDENTITY_RESOLVERS])('%s is owned by registry entry %s', (param, canonicalKey) => {
+    const spec = bySpec.get(canonicalKey);
+    expect(spec).toBeDefined();
+
+    // NOT a broker criterion — this is the whole point of the exemption.
+    expect((spec as FieldSpec).criterionRole).toBe('non_search_fact');
+
+    // And it may not be both: a searchParam would put it back in the
+    // criterion vocabulary through the generator's front door.
+    expect((spec as FieldSpec).searchParam).toBeNull();
+
+    // The executor really does send it to the provider, so provider
+    // filterability must be PROVEN, not assumed from the field's name.
+    expect((spec as FieldSpec).filterable).toBe('yes');
+    expect((spec as FieldSpec).liveEvidence?.source).toBeTruthy();
+  });
+
+  it('no identity resolver leaks into the generated criterion vocabulary', () => {
+    // CANONICAL_FILTER_KEYS is the product surface the generator publishes.
+    // A resolver appearing there would mean Sale/Rental/Building/Comparable
+    // had grown a "Provider Listing Key" input no broker asked for.
+    const vocabulary = new Set<string>(CANONICAL_FILTER_KEYS as readonly string[]);
+    const leaked = [...IDENTITY_RESOLVERS.keys()].filter((p) => vocabulary.has(p));
+    expect(leaked).toEqual([]);
+  });
+
+  it('the executor actually reads every param claimed as a resolver', () => {
+    // Prevents the set outliving the code it excuses.
+    const read = new Set(paramsRead());
+    const stale = [...IDENTITY_RESOLVERS.keys()].filter((p) => !read.has(p));
+    expect(stale).toEqual([]);
   });
 });

@@ -245,13 +245,9 @@
                 { idAnchor: 'adv-grid-north', reason: 'Manhattan grid search not supported — REBNY IDX feed does not provide listing coordinates.' },
                 { idAnchor: 'bldg-grid-north', reason: 'Manhattan grid search not supported — REBNY IDX feed does not provide listing coordinates.' },
                 // Open House DRP wrappers — backend has no OpenHouse expansion
-                { selector: '[data-drp="saleOpenHouse"]', reason: 'Open House date range not supported by the search backend.' },
-                { selector: '[data-drp="rentalOpenHouse"]', reason: 'Open House date range not supported by the search backend.' },
                 // Open House preset buttons next to the DRP wrappers — they
                 // stamp values onto the wrapper that the builder ignores.
                 // Use class selector for all four-per-side preset buttons.
-                { selector: '.oh-preset[data-oh="saleOpenHouse"]', reason: 'Open House date range not supported by the search backend.' },
-                { selector: '.oh-preset[data-oh="rentalOpenHouse"]', reason: 'Open House date range not supported by the search backend.' },
 
                 // ── BUILDING SEARCH: LISTING-LEVEL CRITERIA (Maya, 2026-08-30) ──
                 //

@@ -474,9 +474,10 @@
         };
 
         function _hasServerIgnoredCriteria(criteria) {
+            // Open House is EXECUTED now, so it is no longer listed here.
+            // Leaving it would keep degrading results to 'unauthoritative'
+            // on a criterion the server actually honours.
             return Boolean(criteria && (
-                criteria.openHouseDateFrom ||
-                criteria.openHouseDateTo ||
                 criteria._transitLines ||
                 criteria._transitBounds ||
                 criteria._gridBounds
@@ -578,21 +579,21 @@
             if (criteria.contractDateTo) params.contractDateTo = criteria.contractDateTo;
             if (criteria.soldDateFrom) params.closeDateFrom = criteria.soldDateFrom;
             if (criteria.soldDateTo) params.closeDateTo = criteria.soldDateTo;
-            // ── Codex Risk P0 fix: programmatic block of unsupported params ──
-            // Open House date range and (when reached via programmatic
-            // path) transit/grid bounds do not produce any backend OData
-            // clause — see lib/search/__tests__/crm-idx-filter.test.ts
-            // BATCH 2 dead-pattern tests. The UI controls are disabled
-            // by public/crm/js/init/init-disable-dead-controls.js, but
-            // criteria can still arrive via saved-search reload or a
-            // programmatic call. Strip the keys here and emit a console
-            // warning instead of silently submitting a request whose
-            // narrowing intent the backend will drop. The user-facing
-            // toast on multi-borough advisory at performSearch() also
-            // covers borough-multi; this block covers OH/transit/grid.
-            if (criteria.openHouseDateFrom || criteria.openHouseDateTo) {
-                console.warn('[CRM Search] Stripped unsupported openHouseDate criteria — backend has no OpenHouse handler. See init-disable-dead-controls.js.');
-            }
+            // ── OPEN HOUSE IS NOW EXECUTED, NOT STRIPPED ──
+            //
+            // These keys used to be dropped here with a console warning,
+            // because the backend genuinely had no OpenHouse handler and
+            // submitting them would have promised a narrowing that never
+            // happened. That handler now exists: the authenticated route
+            // resolves OpenHouse membership by ListingKey BEFORE the count
+            // and the page cut, and refuses the search outright if the
+            // provider cannot answer.
+            //
+            // The dates travel as an explicit inclusive range so the range
+            // the picker DISPLAYS is the range that executes. The server
+            // validates it and refuses a reversed or malformed one by name.
+            if (criteria.openHouseDateFrom) params.openHouseDateFrom = criteria.openHouseDateFrom;
+            if (criteria.openHouseDateTo) params.openHouseDateTo = criteria.openHouseDateTo;
             // Note: criteria._transitBounds / criteria._gridBounds are
             // SET by transit-search.js / manhattan-grid.js only when
             // the user interacts with those panels, which P1 disabled.

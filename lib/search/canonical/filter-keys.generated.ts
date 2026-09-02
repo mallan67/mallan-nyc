@@ -39,7 +39,6 @@ export const CANONICAL_FILTER_KEYS = [
   'list_price',
   'listing_contract_date',
   'listing_id_canonical',
-  'listing_key',
   'living_area',
   'maintenance_common_charge',
   'mallan_exclusive',
@@ -95,7 +94,6 @@ export const CRITERION_VALUE_SHAPE = {
   list_price: 'range_number',
   listing_contract_date: 'range_date',
   listing_id_canonical: 'text_set',
-  listing_key: 'text_set',
   living_area: 'range_number',
   maintenance_common_charge: 'range_number',
   mallan_exclusive: 'boolean',
@@ -188,8 +186,6 @@ export interface CanonicalCriteriaValues {
   listing_contract_date?: RangeValue<string>;
   /** Listing ID — string */
   listing_id_canonical?: SetValue;
-  /** Provider Listing Key — string */
-  listing_key?: SetValue;
   /** Square Feet — number */
   living_area?: RangeValue<number>;
   /** Maintenance / CC — money */
@@ -262,7 +258,6 @@ export const WORKFLOW_CRITERIA = {
     'list_price',
     'listing_contract_date',
     'listing_id_canonical',
-    'listing_key',
     'living_area',
     'maintenance_common_charge',
     'mallan_exclusive',
@@ -299,7 +294,6 @@ export const WORKFLOW_CRITERIA = {
     'furnished',
     'list_price',
     'listing_id_canonical',
-    'listing_key',
     'living_area',
     'mallan_exclusive',
     'management_company',
@@ -324,7 +318,6 @@ export const WORKFLOW_CRITERIA = {
   building: [
     'borough',
     'building_name',
-    'listing_key',
     'management_company',
     'max_financing_percent',
     'neighborhood',
@@ -344,7 +337,6 @@ export const WORKFLOW_CRITERIA = {
     'close_date',
     'days_on_market',
     'list_price',
-    'listing_key',
     'living_area',
     'market_status',
     'neighborhood',
@@ -373,7 +365,6 @@ export type SaleCriteria = Pick<
   | 'list_price'
   | 'listing_contract_date'
   | 'listing_id_canonical'
-  | 'listing_key'
   | 'living_area'
   | 'maintenance_common_charge'
   | 'mallan_exclusive'
@@ -419,7 +410,6 @@ export type RentalCriteria = Pick<
   | 'furnished'
   | 'list_price'
   | 'listing_id_canonical'
-  | 'listing_key'
   | 'living_area'
   | 'mallan_exclusive'
   | 'management_company'
@@ -453,7 +443,6 @@ export type BuildingCriteria = Pick<
   CanonicalCriteriaValues,
   | 'borough'
   | 'building_name'
-  | 'listing_key'
   | 'management_company'
   | 'max_financing_percent'
   | 'neighborhood'
@@ -482,7 +471,6 @@ export type ComparableCriteria = Pick<
   | 'close_date'
   | 'days_on_market'
   | 'list_price'
-  | 'listing_key'
   | 'living_area'
   | 'market_status'
   | 'neighborhood'

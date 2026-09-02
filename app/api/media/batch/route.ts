@@ -32,16 +32,46 @@ export async function GET(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
   if (isAuthError(auth)) return auth;
 
+  // TWO IDENTITY DOMAINS, NAMED SEPARATELY.
+  //
+  // `keys` are Cotality ListingKeys and match Media.ResourceRecordKey.
+  // `ids`  are Cotality ListingIds  and match Media.ResourceRecordID.
+  //
+  // Probed live 2026-09-01 on three listings (PhotosCount 30/23/8): each
+  // field matches its OWN domain exactly, and every cross-domain query
+  // returned count 0 - an empty HTTP 200 indistinguishable on screen from
+  // "this listing has no photos". So the caller states which domain it holds
+  // rather than the route inferring it.
+  //
+  // `keys` is the path Search uses, and it needs NO database round-trip: the
+  // search row already carries the provider key. The old single-parameter
+  // form had to look the key up in `prisma.listing`, which MISSES for every
+  // live-Cotality result that was never persisted locally.
+  const keysParam = req.nextUrl.searchParams.get("keys");
   const idsParam = req.nextUrl.searchParams.get("ids");
-  if (!idsParam) {
-    return NextResponse.json({ error: "Missing ids parameter" }, { status: 400 });
+  if (!keysParam && !idsParam) {
+    return NextResponse.json(
+      { error: "Missing keys or ids parameter" },
+      { status: 400 },
+    );
   }
 
+  // A provider key is supplied, so the domain is already known and the DB
+  // translation below is skipped entirely.
+  const skipDbResolution = Boolean(keysParam);
+
   // Parse and limit batch size
-  const ids = idsParam
+  const ids = (keysParam ?? idsParam ?? "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean)
+    // A MALLAN-LOCAL LISTING HAS NO PROVIDER KEY.
+    //
+    // SL-/RL- identities are Mallan-authored. Asking Cotality about one is
+    // asking the wrong system, and manufacturing a ListingKey for it would
+    // put a fabricated provider identity into the media path. Their media is
+    // Mallan canonical media, resolved elsewhere.
+    .filter((s) => !/^(SL-|RL-)/i.test(s))
     .slice(0, 50); // Max 50 per request
 
   if (ids.length === 0) {
@@ -58,7 +88,7 @@ export async function GET(req: NextRequest) {
 
   // Trestle guidance (2026-04-07): use ResourceRecordKey (always unique across MLOs),
   // NOT ResourceRecordID (can duplicate). Resolve mls_id (= ListingKey = ResourceRecordKey) from DB.
-  const dbListings = await prisma.listing.findMany({
+  const dbListings = skipDbResolution ? [] : await prisma.listing.findMany({
     where: { listing_id: { in: ids } },
     select: { listing_id: true, mls_id: true },
   });
@@ -69,7 +99,10 @@ export async function GET(req: NextRequest) {
     idToKey.set(l.listing_id, key);
     keyToId.set(key, l.listing_id);
   }
-  // For IDs not in DB, use the ID itself as fallback
+  // For IDs not in the DB, the identifier stands for itself.
+  //
+  // When `keys` was supplied this is the ONLY path taken, and it is exact
+  // rather than a fallback: the caller handed us the provider key.
   for (const id of ids) {
     if (!idToKey.has(id)) {
       idToKey.set(id, id);
@@ -100,7 +133,15 @@ export async function GET(req: NextRequest) {
         const filterParts = uncached.map((id) => {
           const key = idToKey.get(id) || id;
           const escaped = key.replace(/'/g, "''");
-          return key !== id ? `ResourceRecordKey eq '${escaped}'` : `ResourceRecordID eq '${escaped}'`;
+          // DOMAIN, NOT COINCIDENCE.
+          //
+          // This used to read `key !== id`, i.e. "did the DB lookup change the
+          // string?" - so an identifier the database did not know fell through
+          // to ResourceRecordID whatever domain it was actually in. A
+          // ListingKey sent that way matches nothing.
+          return skipDbResolution || key !== id
+            ? `ResourceRecordKey eq '${escaped}'`
+            : `ResourceRecordID eq '${escaped}'`;
         });
         // Fetch ALL media for detail view — photos, floorplans, videos, virtual tours, 3D.
         // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
@@ -187,7 +228,15 @@ export async function GET(req: NextRequest) {
       const filterParts = uncached.map((id) => {
         const key = idToKey.get(id) || id;
         const escaped = key.replace(/'/g, "''");
-        return key !== id ? `ResourceRecordKey eq '${escaped}'` : `ResourceRecordID eq '${escaped}'`;
+        // DOMAIN, NOT COINCIDENCE.
+        //
+        // This used to read `key !== id`, i.e. "did the DB lookup change the
+        // string?" - so an identifier the database did not know fell through
+        // to ResourceRecordID whatever domain it was actually in. A
+        // ListingKey sent that way matches nothing.
+        return skipDbResolution || key !== id
+          ? `ResourceRecordKey eq '${escaped}'`
+          : `ResourceRecordID eq '${escaped}'`;
       });
       // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
       const filter = `(${filterParts.join(" or ")}) and (MediaCategory eq 'Photo' or MediaCategory eq null) and MediaStatus ne 'Deleted'`;

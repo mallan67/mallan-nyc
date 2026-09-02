@@ -17052,9 +17052,10 @@ function manageShowToast(msg) {
         };
 
         function _hasServerIgnoredCriteria(criteria) {
+            // Open House is EXECUTED now, so it is no longer listed here.
+            // Leaving it would keep degrading results to 'unauthoritative'
+            // on a criterion the server actually honours.
             return Boolean(criteria && (
-                criteria.openHouseDateFrom ||
-                criteria.openHouseDateTo ||
                 criteria._transitLines ||
                 criteria._transitBounds ||
                 criteria._gridBounds
@@ -17156,21 +17157,21 @@ function manageShowToast(msg) {
             if (criteria.contractDateTo) params.contractDateTo = criteria.contractDateTo;
             if (criteria.soldDateFrom) params.closeDateFrom = criteria.soldDateFrom;
             if (criteria.soldDateTo) params.closeDateTo = criteria.soldDateTo;
-            // ── Codex Risk P0 fix: programmatic block of unsupported params ──
-            // Open House date range and (when reached via programmatic
-            // path) transit/grid bounds do not produce any backend OData
-            // clause — see lib/search/__tests__/crm-idx-filter.test.ts
-            // BATCH 2 dead-pattern tests. The UI controls are disabled
-            // by public/crm/js/init/init-disable-dead-controls.js, but
-            // criteria can still arrive via saved-search reload or a
-            // programmatic call. Strip the keys here and emit a console
-            // warning instead of silently submitting a request whose
-            // narrowing intent the backend will drop. The user-facing
-            // toast on multi-borough advisory at performSearch() also
-            // covers borough-multi; this block covers OH/transit/grid.
-            if (criteria.openHouseDateFrom || criteria.openHouseDateTo) {
-                console.warn('[CRM Search] Stripped unsupported openHouseDate criteria — backend has no OpenHouse handler. See init-disable-dead-controls.js.');
-            }
+            // ── OPEN HOUSE IS NOW EXECUTED, NOT STRIPPED ──
+            //
+            // These keys used to be dropped here with a console warning,
+            // because the backend genuinely had no OpenHouse handler and
+            // submitting them would have promised a narrowing that never
+            // happened. That handler now exists: the authenticated route
+            // resolves OpenHouse membership by ListingKey BEFORE the count
+            // and the page cut, and refuses the search outright if the
+            // provider cannot answer.
+            //
+            // The dates travel as an explicit inclusive range so the range
+            // the picker DISPLAYS is the range that executes. The server
+            // validates it and refuses a reversed or malformed one by name.
+            if (criteria.openHouseDateFrom) params.openHouseDateFrom = criteria.openHouseDateFrom;
+            if (criteria.openHouseDateTo) params.openHouseDateTo = criteria.openHouseDateTo;
             // Note: criteria._transitBounds / criteria._gridBounds are
             // SET by transit-search.js / manhattan-grid.js only when
             // the user interacts with those panels, which P1 disabled.
@@ -20936,24 +20937,36 @@ function manageShowToast(msg) {
             var from = new Date(today);
             var to = new Date(today);
 
+            // THESE BOUNDARIES MATCH lib/search/open-house-window.ts.
+            // The picker must display the range that actually executes;
+            // two different answers to "this weekend" is how a broker ends
+            // up trusting a result set that was never what they asked for.
             if (preset === 'today') {
                 // from = to = today (already set)
             } else if (preset === 'weekend') {
-                // Find next Saturday
-                var day = today.getDay();
-                var daysToSat = (6 - day + 7) % 7;
-                if (daysToSat === 0 && day === 0) daysToSat = 6; // Sunday → next Sat
-                if (day === 6) daysToSat = 0; // Already Saturday
-                from = new Date(today);
-                from.setDate(today.getDate() + daysToSat);
-                to = new Date(from);
-                to.setDate(from.getDate() + 1); // Sunday
+                var day = today.getDay(); // 0 = Sunday
+                if (day === 0) {
+                    // ON SUNDAY THE WEEKEND IS TODAY. The previous code sent
+                    // the broker to NEXT Saturday and hid the open houses
+                    // happening that afternoon.
+                    from = new Date(today);
+                    to = new Date(today);
+                } else if (day === 6) {
+                    from = new Date(today);
+                    to = new Date(today);
+                    to.setDate(today.getDate() + 1);
+                } else {
+                    from = new Date(today);
+                    from.setDate(today.getDate() + (6 - day));
+                    to = new Date(from);
+                    to.setDate(from.getDate() + 1);
+                }
             } else if (preset === '7days') {
-                to.setDate(today.getDate() + 7);
+                // Seven days INCLUSIVE of today: today plus six.
+                to.setDate(today.getDate() + 6);
             } else if (preset === '30days') {
-                to.setDate(today.getDate() + 30);
+                to.setDate(today.getDate() + 29);
             }
-
             // Store on wrapper
             var fromStr = formatDateMDY(from);
             var toStr = formatDateMDY(to);
@@ -23753,7 +23766,7 @@ function parseBudgetValue(td) {
                 var selected = searchResultsState.selectedListings.includes(listing.id);
                 var csGalleryBadge = listing.status === 'ComingSoon' ? '<div class="absolute bottom-3 left-3 px-2.5 py-1 bg-purple-600 text-white text-[11px] font-bold rounded-lg z-10" data-reso-field="MlsStatus" data-reso-value="ComingSoon" data-compliance="coming-soon-badge" title="UCBA D7: Coming Soon — max 14 days (D2). No showings or open houses.">Coming Soon' + (listing.comingSoonDate ? ' &mdash; No Showings Until <span' + resoData('comingSoonDate', listing.comingSoonDate) + '>' + escapeHtml(listing.comingSoonDate) + '</span>' : '') + '</div>' : '';
                 return `
-                <div class="listing-card gallery-card bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-reso-field="SourceSystemKey" data-reso-value="${escapeHtml(listing.wid || listing.lid || listing.id)}" data-listing-id="${listing.id}" data-listing-lid="${escapeHtml(listing.lid || '')}" data-source="REBNY-RLS">
+                <div class="listing-card gallery-card bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-reso-field="SourceSystemKey" data-reso-value="${escapeHtml(listing.wid || listing.lid || listing.id)}" data-listing-key="${escapeHtml(listing.wid || listing.id || '')}" data-listing-id="${listing.id}" data-listing-lid="${escapeHtml(listing.lid || '')}" data-source="REBNY-RLS">
                     <!-- Photo -->
                     <div class="relative cursor-pointer group" onclick="openListingInNewTab('${listing.id}'); if (typeof isResultsMapOpen === 'function' && isResultsMapOpen()) { if (typeof panToListing === 'function') panToListing('${listing.id}'); }">
                         <div class="cm-photo-wrap cm-card-photo">
@@ -23811,7 +23824,7 @@ function parseBudgetValue(td) {
                 var displayUnit = listing.addressDisplayYN === false ? '' : (listing.unit ? ', ' + escapeHtml(listing.unit) : '');
                 var statusLabel = listing.status === 'ComingSoon' ? 'COMING SOON' : listing.status;
                 return `
-                <div class="border-b hover:bg-gray-50 cursor-pointer ${searchResultsState.selectedListings.includes(listing.id) ? 'bg-blue-50' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" onclick="openListingInNewTab('${listing.id}'); if (typeof isResultsMapOpen === 'function' && isResultsMapOpen()) { if (typeof panToListing === 'function') panToListing('${listing.id}'); }">
+                <div class="border-b hover:bg-gray-50 cursor-pointer ${searchResultsState.selectedListings.includes(listing.id) ? 'bg-blue-50' : ''}" data-source="REBNY-RLS" data-listing-key="${escapeHtml(listing.wid || listing.id || '')}" data-listing-id="${listing.id}" onclick="openListingInNewTab('${listing.id}'); if (typeof isResultsMapOpen === 'function' && isResultsMapOpen()) { if (typeof panToListing === 'function') panToListing('${listing.id}'); }">
                     ${comingSoonBadge(listing)}
                     <div class="flex">
                     <!-- Photo (full height left) -->
@@ -23910,7 +23923,7 @@ function parseBudgetValue(td) {
                 var stB = listing.status === 'Active' ? '#dcfce7' : listing.status === 'Pending' ? '#fff7ed' : listing.status === 'ComingSoon' ? '#f5f3ff' : '#f3f4f6';
                 var selected = searchResultsState.selectedListings.includes(listing.id);
                 return `
-                <div class="listing-card mb-4 bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" data-listing-lid="${escapeHtml(listing.lid || '')}" style="box-shadow: 0 2px 12px rgba(0,0,0,0.04);">
+                <div class="listing-card mb-4 bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-source="REBNY-RLS" data-listing-key="${escapeHtml(listing.wid || listing.id || '')}" data-listing-id="${listing.id}" data-listing-lid="${escapeHtml(listing.lid || '')}" style="box-shadow: 0 2px 12px rgba(0,0,0,0.04);">
                     ${comingSoonBadge(listing)}
                     <div class="flex" style="min-height: 280px;">
                         <!-- Photo — large, proper aspect ratio -->
@@ -24020,7 +24033,7 @@ function parseBudgetValue(td) {
                 var selected = searchResultsState.selectedListings.includes(listing.id);
                 var selIdx = searchResultsState.selectedListings.indexOf(listing.id) + 1;
                 return `
-                <div class="p-2.5 border-b hover:bg-gray-50 cursor-pointer flex gap-2.5 ${selected ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" onclick="showListingInDetailPanel('${listing.id}'); if (typeof isResultsMapOpen === 'function' && isResultsMapOpen()) { if (typeof panToListing === 'function') panToListing('${listing.id}'); }">
+                <div class="p-2.5 border-b hover:bg-gray-50 cursor-pointer flex gap-2.5 ${selected ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}" data-source="REBNY-RLS" data-listing-key="${escapeHtml(listing.wid || listing.id || '')}" data-listing-id="${listing.id}" onclick="showListingInDetailPanel('${listing.id}'); if (typeof isResultsMapOpen === 'function' && isResultsMapOpen()) { if (typeof panToListing === 'function') panToListing('${listing.id}'); }">
                     <div class="relative flex-shrink-0">
                         <div class="w-[140px] h-[100px] rounded-lg cm-photo-wrap">
                             <img src="${getListingPhotoThumb(listing)}" alt="${displayAddress}" class="cm-photo rounded-lg" loading="lazy">
@@ -24286,7 +24299,14 @@ function parseBudgetValue(td) {
 
             var idsParam = batch.join(',');
 
-            fetch('/api/media/batch?ids=' + encodeURIComponent(idsParam), {
+            // ASK IN THE DOMAIN THE CARD CARRIES.
+            //
+            // These are Cotality ListingKeys, and the provider matches them on
+            // Media.ResourceRecordKey. Sending them as `ids` would have them
+            // matched against ResourceRecordID, whose value space does not
+            // overlap - probed live 2026-09-01: cross-domain returns count 0,
+            // an empty HTTP 200 that looks exactly like "no photos".
+            fetch('/api/media/batch?keys=' + encodeURIComponent(idsParam), {
                 credentials: 'same-origin'
             }).then(function(res) {
                 if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -24313,7 +24333,7 @@ function parseBudgetValue(td) {
         function _applyPhotoToCards(listingId, photoUrl) {
             if (!photoUrl) return;
             // Find all img elements inside cards for this listing
-            var cards = document.querySelectorAll('[data-listing-lid="' + listingId + '"] .cm-photo, [data-listing-lid="' + listingId + '"] .cm-photo-wrap img');
+            var cards = document.querySelectorAll('[data-listing-key="' + listingId + '"] .cm-photo, [data-listing-key="' + listingId + '"] .cm-photo-wrap img');
             cards.forEach(function(img) {
                 if (img.tagName === 'IMG') {
                     // Replace if: showing SVG placeholder, hidden from onerror, or empty src
@@ -24357,7 +24377,7 @@ function parseBudgetValue(td) {
                 entries.forEach(function(entry) {
                     if (entry.isIntersecting) {
                         var card = entry.target;
-                        var lid = card.getAttribute('data-listing-lid');
+                        var lid = card.getAttribute('data-listing-key');
                         if (lid) queuePhotoLoad(lid);
                         _photoObserver.unobserve(card);
                     }
@@ -24368,9 +24388,9 @@ function parseBudgetValue(td) {
             });
 
             // Observe all listing cards with an LID
-            var cards = document.querySelectorAll('[data-listing-lid]');
+            var cards = document.querySelectorAll('[data-listing-key]');
             cards.forEach(function(card) {
-                var lid = card.getAttribute('data-listing-lid');
+                var lid = card.getAttribute('data-listing-key');
                 // Only observe if this listing doesn't already have a real photo
                 if (lid && !_photoCache[lid]) {
                     _photoObserver.observe(card);
@@ -24379,9 +24399,9 @@ function parseBudgetValue(td) {
         }
 
         function _loadAllVisiblePhotos() {
-            var cards = document.querySelectorAll('[data-listing-lid]');
+            var cards = document.querySelectorAll('[data-listing-key]');
             cards.forEach(function(card) {
-                var lid = card.getAttribute('data-listing-lid');
+                var lid = card.getAttribute('data-listing-key');
                 if (lid) queuePhotoLoad(lid);
             });
         }
@@ -26688,7 +26708,16 @@ window._EMBEDDED_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feat
           // 'UNKNOWN' is the mapper's deliberate, readable signal. Collapsing it
           // to '' discarded the one token that says "we do not know".
           status: l.status || 'UNKNOWN',
-          photo: (l.images && l.images[0] && l.images[0].url) || '',
+          // THE LAZY STRATEGY MEANS `images` IS EMPTY HERE.
+          //
+          // The search route sets mediaStrategy:'lazy' and returns no images,
+          // so reading l.images[0] resolved to '' for every pin and the map
+          // popup was permanently photo-less. The photo cache is what the
+          // lazy loader actually fills, keyed by the provider ListingKey.
+          photo: (l.images && l.images[0] && l.images[0].url)
+            || (typeof getCachedPhoto === 'function'
+                ? (getCachedPhoto(l.wid || l.id) || '')
+                : ''),
           neighborhood: l.neighborhood || '',
           listingCategory: l.listingCategory || '',
           approx: approx,
@@ -36508,13 +36537,9 @@ function emailCurrentCalc() {
                 { idAnchor: 'adv-grid-north', reason: 'Manhattan grid search not supported — REBNY IDX feed does not provide listing coordinates.' },
                 { idAnchor: 'bldg-grid-north', reason: 'Manhattan grid search not supported — REBNY IDX feed does not provide listing coordinates.' },
                 // Open House DRP wrappers — backend has no OpenHouse expansion
-                { selector: '[data-drp="saleOpenHouse"]', reason: 'Open House date range not supported by the search backend.' },
-                { selector: '[data-drp="rentalOpenHouse"]', reason: 'Open House date range not supported by the search backend.' },
                 // Open House preset buttons next to the DRP wrappers — they
                 // stamp values onto the wrapper that the builder ignores.
                 // Use class selector for all four-per-side preset buttons.
-                { selector: '.oh-preset[data-oh="saleOpenHouse"]', reason: 'Open House date range not supported by the search backend.' },
-                { selector: '.oh-preset[data-oh="rentalOpenHouse"]', reason: 'Open House date range not supported by the search backend.' },
 
                 // ── BUILDING SEARCH: LISTING-LEVEL CRITERIA (Maya, 2026-08-30) ──
                 //

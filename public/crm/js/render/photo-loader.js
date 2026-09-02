@@ -48,7 +48,14 @@
 
             var idsParam = batch.join(',');
 
-            fetch('/api/media/batch?ids=' + encodeURIComponent(idsParam), {
+            // ASK IN THE DOMAIN THE CARD CARRIES.
+            //
+            // These are Cotality ListingKeys, and the provider matches them on
+            // Media.ResourceRecordKey. Sending them as `ids` would have them
+            // matched against ResourceRecordID, whose value space does not
+            // overlap - probed live 2026-09-01: cross-domain returns count 0,
+            // an empty HTTP 200 that looks exactly like "no photos".
+            fetch('/api/media/batch?keys=' + encodeURIComponent(idsParam), {
                 credentials: 'same-origin'
             }).then(function(res) {
                 if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -75,7 +82,7 @@
         function _applyPhotoToCards(listingId, photoUrl) {
             if (!photoUrl) return;
             // Find all img elements inside cards for this listing
-            var cards = document.querySelectorAll('[data-listing-lid="' + listingId + '"] .cm-photo, [data-listing-lid="' + listingId + '"] .cm-photo-wrap img');
+            var cards = document.querySelectorAll('[data-listing-key="' + listingId + '"] .cm-photo, [data-listing-key="' + listingId + '"] .cm-photo-wrap img');
             cards.forEach(function(img) {
                 if (img.tagName === 'IMG') {
                     // Replace if: showing SVG placeholder, hidden from onerror, or empty src
@@ -119,7 +126,7 @@
                 entries.forEach(function(entry) {
                     if (entry.isIntersecting) {
                         var card = entry.target;
-                        var lid = card.getAttribute('data-listing-lid');
+                        var lid = card.getAttribute('data-listing-key');
                         if (lid) queuePhotoLoad(lid);
                         _photoObserver.unobserve(card);
                     }
@@ -130,9 +137,9 @@
             });
 
             // Observe all listing cards with an LID
-            var cards = document.querySelectorAll('[data-listing-lid]');
+            var cards = document.querySelectorAll('[data-listing-key]');
             cards.forEach(function(card) {
-                var lid = card.getAttribute('data-listing-lid');
+                var lid = card.getAttribute('data-listing-key');
                 // Only observe if this listing doesn't already have a real photo
                 if (lid && !_photoCache[lid]) {
                     _photoObserver.observe(card);
@@ -141,9 +148,9 @@
         }
 
         function _loadAllVisiblePhotos() {
-            var cards = document.querySelectorAll('[data-listing-lid]');
+            var cards = document.querySelectorAll('[data-listing-key]');
             cards.forEach(function(card) {
-                var lid = card.getAttribute('data-listing-lid');
+                var lid = card.getAttribute('data-listing-key');
                 if (lid) queuePhotoLoad(lid);
             });
         }

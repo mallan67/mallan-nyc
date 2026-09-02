@@ -10,8 +10,9 @@ import { hashIp } from "@/lib/inquiries/create";
 // This file covers what can be proven without spinning up the route:
 //   1. pagination.js no longer renders an unaudited mailto: link to
 //      the listing-agent address (Fix #1)
-//   2. search-engine.js does not forward openHouseDateFrom/To (or
-//      transit/grid bounds) to the API params (Fix #4)
+//   2. search-engine.js does not forward transit/grid bounds to the API
+//      params, and DOES forward openHouseDateFrom/To now that the
+//      backend executes them (Fix #4, partly superseded 2026-09-01)
 //   3. hashIp produces a non-reversible 64-char hex digest, distinct
 //      from base64-of-raw-IP (Fix #6)
 //   4. contact / inquiries / cma route source no longer logs a raw
@@ -58,24 +59,39 @@ describe("Codex Risk P0 — static frontend source guards", () => {
   describe("Fix #4 — unsupported criteria not silently submitted", () => {
     const src = readFile("public/crm/js/search/search-engine.js");
 
-    it("buildIdxSearchParams does not forward openHouseDateFrom/To", () => {
-      // Old behavior: `params.openHouseDateFrom = criteria.openHouseDateFrom;`
-      // New behavior: the assignment is removed; if criteria contains
-      // these keys we emit a console.warn instead of submitting them.
-      expect(src).not.toMatch(/params\.openHouseDateFrom\s*=\s*criteria\.openHouseDateFrom/);
-      expect(src).not.toMatch(/params\.openHouseDateTo\s*=\s*criteria\.openHouseDateTo/);
+    // SUPERSEDED 2026-09-01 — and kept, inverted, rather than deleted.
+    //
+    // The original guard was correct for its time: the backend had no
+    // OpenHouse handler, so forwarding the criteria would have promised a
+    // narrowing that never happened. That is no longer true. The
+    // authenticated route now resolves OpenHouse membership by ListingKey
+    // BEFORE the count and the page cut, and fails closed if the provider
+    // cannot answer.
+    //
+    // Deleting these two tests would have left the codebase unable to tell
+    // "Open House is deliberately disabled" from "Open House regressed and
+    // nobody noticed". They now assert the OPPOSITE behaviour, which keeps
+    // that distinction enforceable.
+    it("buildIdxSearchParams DOES forward openHouseDateFrom/To", () => {
+      expect(src).toMatch(/params\.openHouseDateFrom\s*=\s*criteria\.openHouseDateFrom/);
+      expect(src).toMatch(/params\.openHouseDateTo\s*=\s*criteria\.openHouseDateTo/);
     });
 
-    it("buildIdxSearchParams emits a console.warn when stripping openHouseDate criteria", () => {
-      // Defensive trap: agents will know in dev/staging that the
-      // criteria they sent was dropped. Production users see the toast
-      // surface from performSearch() instead, but the warn is the
-      // operational signal for ops/QA.
-      expect(src).toMatch(
-        /Stripped unsupported openHouseDate/i,
-      );
+    it("the strip-and-warn for openHouseDate is GONE", () => {
+      // A warning saying the criteria were dropped, sitting next to code that
+      // forwards them, is worse than either one alone.
+      expect(src).not.toMatch(/Stripped unsupported openHouseDate/i);
     });
 
+    it("Open House is no longer treated as a server-ignored criterion", () => {
+      // _hasServerIgnoredCriteria downgrades results to "unauthoritative".
+      // Leaving Open House in that list would flag every open-house search as
+      // untrustworthy on a criterion the server genuinely honours.
+      const fn = src.slice(src.indexOf("function _hasServerIgnoredCriteria"));
+      const body = fn.slice(0, fn.indexOf("}"));
+      expect(body).not.toMatch(/openHouseDateFrom/);
+      expect(body).not.toMatch(/openHouseDateTo/);
+    });
     it("buildIdxSearchParams does not forward _transitBounds or _gridBounds (no Lat/Lng on REBNY feed)", () => {
       // The two old TransitSearch / ManhattanGrid blocks built a
       // gridFilter param from null Lat/Lng fields. They are now

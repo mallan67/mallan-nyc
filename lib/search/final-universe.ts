@@ -133,6 +133,22 @@ export interface AssembleOptions<T> {
    * provider boundary — see trestleExcludeMallanReturnCopiesClause.
    */
   readonly providerRowKey: (record: T) => string;
+  /**
+   * CORPUS MEMBERSHIP - who is in the universe at all.
+   *
+   * Applied BEFORE the count and BEFORE the page is cut, because a membership
+   * test applied afterwards answers a different question: not "which listings
+   * have an open house" but "does this page happen to contain one". That
+   * version reports the unfiltered count, shrinks pages unpredictably, and
+   * makes a qualifying listing on page 4 permanently unreachable.
+   *
+   * Membership must already be RESOLVED when this is called. A filter that
+   * cannot answer must NOT be passed as one that answers `false` - that is
+   * silent narrowing, indistinguishable on screen from a real empty result.
+   * The caller refuses the criterion instead.
+   */
+  readonly corpusFilter?: (record: T) => boolean;
+
   /** 1-based page of the FINAL universe. */
   readonly page: number;
   readonly pageSize: number;
@@ -339,6 +355,7 @@ export async function assembleFinalUniverse<T>(
     identity,
     gate,
     providerRowKey,
+    corpusFilter,
     page,
     pageSize,
     providerBudget,
@@ -447,6 +464,14 @@ export async function assembleFinalUniverse<T>(
       //    Mallan canonical reconciliation is a separate concern handled by
       //    office suppression at the provider boundary, and calling this step
       //    "canonical" would hide that distinction.
+      // 3. CORPUS MEMBERSHIP. A row that is not a member of the requested
+      //    universe never becomes a survivor, so it cannot be counted and
+      //    cannot occupy a slot on a page. Placed after the gates so a
+      //    non-member is not misattributed as a gate exclusion - "has no open
+      //    house" and "blocked from display" are different facts, and a
+      //    compliance reader treats the second as a permission problem.
+      if (corpusFilter && !corpusFilter(record)) continue;
+
       gatePassedBeforeDedupe += 1;
 
       const rowKey = providerRowKey(record);

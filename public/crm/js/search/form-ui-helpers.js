@@ -66,24 +66,36 @@
             var from = new Date(today);
             var to = new Date(today);
 
+            // THESE BOUNDARIES MATCH lib/search/open-house-window.ts.
+            // The picker must display the range that actually executes;
+            // two different answers to "this weekend" is how a broker ends
+            // up trusting a result set that was never what they asked for.
             if (preset === 'today') {
                 // from = to = today (already set)
             } else if (preset === 'weekend') {
-                // Find next Saturday
-                var day = today.getDay();
-                var daysToSat = (6 - day + 7) % 7;
-                if (daysToSat === 0 && day === 0) daysToSat = 6; // Sunday → next Sat
-                if (day === 6) daysToSat = 0; // Already Saturday
-                from = new Date(today);
-                from.setDate(today.getDate() + daysToSat);
-                to = new Date(from);
-                to.setDate(from.getDate() + 1); // Sunday
+                var day = today.getDay(); // 0 = Sunday
+                if (day === 0) {
+                    // ON SUNDAY THE WEEKEND IS TODAY. The previous code sent
+                    // the broker to NEXT Saturday and hid the open houses
+                    // happening that afternoon.
+                    from = new Date(today);
+                    to = new Date(today);
+                } else if (day === 6) {
+                    from = new Date(today);
+                    to = new Date(today);
+                    to.setDate(today.getDate() + 1);
+                } else {
+                    from = new Date(today);
+                    from.setDate(today.getDate() + (6 - day));
+                    to = new Date(from);
+                    to.setDate(from.getDate() + 1);
+                }
             } else if (preset === '7days') {
-                to.setDate(today.getDate() + 7);
+                // Seven days INCLUSIVE of today: today plus six.
+                to.setDate(today.getDate() + 6);
             } else if (preset === '30days') {
-                to.setDate(today.getDate() + 30);
+                to.setDate(today.getDate() + 29);
             }
-
             // Store on wrapper
             var fromStr = formatDateMDY(from);
             var toStr = formatDateMDY(to);

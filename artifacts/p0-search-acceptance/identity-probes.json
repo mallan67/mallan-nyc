@@ -1,0 +1,526 @@
+{
+  "probedAt": "2026-09-02T02:21:15.027Z",
+  "base": "https://api.cotality.com/trestle",
+  "results": [
+    {
+      "label": "seed: Property with PhotosCount gt 0",
+      "resource": "Property",
+      "params": {
+        "$select": "ListingKey,ListingId,PhotosCount,StandardStatus",
+        "$filter": "StandardStatus eq 'Active' and PhotosCount gt 0",
+        "$top": "3",
+        "$count": "true"
+      },
+      "at": "2026-09-02T02:21:06.166Z",
+      "httpStatus": 200,
+      "state": "SUPPORTED",
+      "odataCount": 7511,
+      "rowsReturned": 3,
+      "sample": [
+        {
+          "PhotosCount": 30,
+          "ListingId": "RLS20112217",
+          "StandardStatus": "Active",
+          "ListingKey": "1189393822"
+        },
+        {
+          "PhotosCount": 23,
+          "ListingId": "RLS20112216",
+          "StandardStatus": "Active",
+          "ListingKey": "1189391795"
+        },
+        {
+          "PhotosCount": 8,
+          "ListingId": "RLS20112215",
+          "StandardStatus": "Active",
+          "ListingKey": "1189391756"
+        }
+      ],
+      "hasNextLink": true
+    },
+    {
+      "label": "Media.ResourceRecordKey eq ListingKey(1189393822)",
+      "resource": "Media",
+      "params": {
+        "$filter": "ResourceRecordKey eq '1189393822'",
+        "$top": "2",
+        "$count": "true",
+        "$select": "ResourceRecordKey,ResourceRecordID,MediaURL,Order,MediaStatus"
+      },
+      "at": "2026-09-02T02:21:06.733Z",
+      "httpStatus": 200,
+      "state": "SUPPORTED",
+      "odataCount": 30,
+      "rowsReturned": 2,
+      "sample": [
+        {
+          "Order": 5,
+          "MediaURL": "https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/1189393822/5/NjA0My8xMTM3MS8yMA/MjAvMjE1MjYvMTc4ODMxNTY2OA/_shvWnGigDrvNgOS4g7NbXgskIqM8IjRuoKhqHEJ0N4",
+          "ResourceRecordKey": "1189393822",
+          "ResourceRecordID": "RLS20112217",
+          "MediaStatus": "Active",
+          "X_MediaStream": null
+        },
+        {
+          "Order": 14,
+          "MediaURL": "https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/1189393822/14/NjA0My8xMTM3MS8yMA/MjAvMjE1MjYvMTc4ODMxNTY2OA/nxkpsRfTaQkZqKtM8rp1BtuMRUp9x7cyUjOZXGwwn6E",
+          "ResourceRecordKey": "1189393822",
+          "ResourceRecordID": "RLS20112217",
+          "MediaStatus": "Active",
+          "X_MediaStream": null
+        }
+      ],
+      "hasNextLink": true
+    },
+    {
+      "label": "Media.ResourceRecordID eq ListingId(RLS20112217)",
+      "resource": "Media",
+      "params": {
+        "$filter": "ResourceRecordID eq 'RLS20112217'",
+        "$top": "2",
+        "$count": "true",
+        "$select": "ResourceRecordKey,ResourceRecordID,MediaURL,Order,MediaStatus"
+      },
+      "at": "2026-09-02T02:21:07.238Z",
+      "httpStatus": 200,
+      "state": "SUPPORTED",
+      "odataCount": 30,
+      "rowsReturned": 2,
+      "sample": [
+        {
+          "Order": 5,
+          "MediaURL": "https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/1189393822/5/NjA0My8xMTM3MS8yMA/MjAvMjE1MjYvMTc4ODMxNTY2OA/_shvWnGigDrvNgOS4g7NbXgskIqM8IjRuoKhqHEJ0N4",
+          "ResourceRecordKey": "1189393822",
+          "ResourceRecordID": "RLS20112217",
+          "MediaStatus": "Active",
+          "X_MediaStream": null
+        },
+        {
+          "Order": 14,
+          "MediaURL": "https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/1189393822/14/NjA0My8xMTM3MS8yMA/MjAvMjE1MjYvMTc4ODMxNTY2OA/nxkpsRfTaQkZqKtM8rp1BtuMRUp9x7cyUjOZXGwwn6E",
+          "ResourceRecordKey": "1189393822",
+          "ResourceRecordID": "RLS20112217",
+          "MediaStatus": "Active",
+          "X_MediaStream": null
+        }
+      ],
+      "hasNextLink": true
+    },
+    {
+      "label": "Media.ResourceRecordID eq ListingKey(1189393822)",
+      "resource": "Media",
+      "params": {
+        "$filter": "ResourceRecordID eq '1189393822'",
+        "$top": "2",
+        "$count": "true",
+        "$select": "ResourceRecordKey,ResourceRecordID"
+      },
+      "at": "2026-09-02T02:21:08.164Z",
+      "httpStatus": 200,
+      "state": "SUPPORTED",
+      "odataCount": 0,
+      "rowsReturned": 0,
+      "sample": [],
+      "hasNextLink": false
+    },
+    {
+      "label": "Media.ResourceRecordKey eq ListingId(RLS20112217)",
+      "resource": "Media",
+      "params": {
+        "$filter": "ResourceRecordKey eq 'RLS20112217'",
+        "$top": "2",
+        "$count": "true",
+        "$select": "ResourceRecordKey,ResourceRecordID"
+      },
+      "at": "2026-09-02T02:21:08.697Z",
+      "httpStatus": 200,
+      "state": "SUPPORTED",
+      "odataCount": 0,
+      "rowsReturned": 0,
+      "sample": [],
+      "hasNextLink": false
+    },
+    {
+      "label": "Media.ResourceRecordKey eq ListingKey(1189391795)",
+      "resource": "Media",
+      "params": {
+        "$filter": "ResourceRecordKey eq '1189391795'",
+        "$top": "2",
+        "$count": "true",
+        "$select": "ResourceRecordKey,ResourceRecordID,MediaURL,Order,MediaStatus"
+      },
+      "at": "2026-09-02T02:21:09.014Z",
+      "httpStatus": 200,
+      "state": "SUPPORTED",
+      "odataCount": 23,
+      "rowsReturned": 2,
+      "sample": [
+        {
+          "Order": 15,
+          "MediaURL": "https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/1189391795/15/NjA0My8xMTM3MS8yMA/MjAvMjE1MjYvMTc4ODMxNTY3MA/yXJbNmioiOSSBpdeLrE7CeuySg91Z1OoI_jr-UWjb8U",
+          "ResourceRecordKey": "1189391795",
+          "ResourceRecordID": "RLS20112216",
+          "MediaStatus": "Active",
+          "X_MediaStream": null
+        },
+        {
+          "Order": 1,
+          "MediaURL": "https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/1189391795/1/NjA0My8xMTM3MS8yMA/MjAvMjE1MjYvMTc4ODMxNTY3MA/QWw6bHhnatURmF0dZ9M9wFFroesZHH0xCw5u68PsCqQ",
+          "ResourceRecordKey": "1189391795",
+          "ResourceRecordID": "RLS20112216",
+          "MediaStatus": "Active",
+          "X_MediaStream": null
+        }
+      ],
+      "hasNextLink": true
+    },
+    {
+      "label": "Media.ResourceRecordID eq ListingId(RLS20112216)",
+      "resource": "Media",
+      "params": {
+        "$filter": "ResourceRecordID eq 'RLS20112216'",
+        "$top": "2",
+        "$count": "true",
+        "$select": "ResourceRecordKey,ResourceRecordID,MediaURL,Order,MediaStatus"
+      },
+      "at": "2026-09-02T02:21:09.368Z",
+      "httpStatus": 200,
+      "state": "SUPPORTED",
+      "odataCount": 23,
+      "rowsReturned": 2,
+      "sample": [
+        {
+          "Order": 15,
+          "MediaURL": "https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/1189391795/15/NjA0My8xMTM3MS8yMA/MjAvMjE1MjYvMTc4ODMxNTY3MA/yXJbNmioiOSSBpdeLrE7CeuySg91Z1OoI_jr-UWjb8U",
+          "ResourceRecordKey": "1189391795",
+          "ResourceRecordID": "RLS20112216",
+          "MediaStatus": "Active",
+          "X_MediaStream": null
+        },
+        {
+          "Order": 1,
+          "MediaURL": "https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/1189391795/1/NjA0My8xMTM3MS8yMA/MjAvMjE1MjYvMTc4ODMxNTY3MA/QWw6bHhnatURmF0dZ9M9wFFroesZHH0xCw5u68PsCqQ",
+          "ResourceRecordKey": "1189391795",
+          "ResourceRecordID": "RLS20112216",
+          "MediaStatus": "Active",
+          "X_MediaStream": null
+        }
+      ],
+      "hasNextLink": true
+    },
+    {
+      "label": "Media.ResourceRecordID eq ListingKey(1189391795)",
+      "resource": "Media",
+      "params": {
+        "$filter": "ResourceRecordID eq '1189391795'",
+        "$top": "2",
+        "$count": "true",
+        "$select": "ResourceRecordKey,ResourceRecordID"
+      },
+      "at": "2026-09-02T02:21:09.686Z",
+      "httpStatus": 200,
+      "state": "SUPPORTED",
+      "odataCount": 0,
+      "rowsReturned": 0,
+      "sample": [],
+      "hasNextLink": false
+    },
+    {
+      "label": "Media.ResourceRecordKey eq ListingId(RLS20112216)",
+      "resource": "Media",
+      "params": {
+        "$filter": "ResourceRecordKey eq 'RLS20112216'",
+        "$top": "2",
+        "$count": "true",
+        "$select": "ResourceRecordKey,ResourceRecordID"
+      },
+      "at": "2026-09-02T02:21:10.363Z",
+      "httpStatus": 200,
+      "state": "SUPPORTED",
+      "odataCount": 0,
+      "rowsReturned": 0,
+      "sample": [],
+      "hasNextLink": false
+    },
+    {
+      "label": "Media.ResourceRecordKey eq ListingKey(1189391756)",
+      "resource": "Media",
+      "params": {
+        "$filter": "ResourceRecordKey eq '1189391756'",
+        "$top": "2",
+        "$count": "true",
+        "$select": "ResourceRecordKey,ResourceRecordID,MediaURL,Order,MediaStatus"
+      },
+      "at": "2026-09-02T02:21:10.835Z",
+      "httpStatus": 200,
+      "state": "SUPPORTED",
+      "odataCount": 8,
+      "rowsReturned": 2,
+      "sample": [
+        {
+          "Order": 1,
+          "MediaURL": "https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/1189391756/1/NjA0My8xMTM3MS8yMA/MjAvMjE1MjYvMTc4ODMxNTY3Mg/VKk2g2vAUXbYTOEHsnheKdK7cd_3iqXPijmIF3SFXhc",
+          "ResourceRecordKey": "1189391756",
+          "ResourceRecordID": "RLS20112215",
+          "MediaStatus": "Active",
+          "X_MediaStream": null
+        },
+        {
+          "Order": 1,
+          "MediaURL": "https://api.cotality.com/trestle/Media/Property/DOCUMENT-Jpeg/1189391756/1/NjA0My8xMTM3MS8yMA/MjAvMjE1MjYvMTc4ODMxNTY3Mg/w7RSNRDtW0TZzPn1pxuYyQs05HeQHuoNMLzSXYj4IDM",
+          "ResourceRecordKey": "1189391756",
+          "ResourceRecordID": "RLS20112215",
+          "MediaStatus": "Active",
+          "X_MediaStream": null
+        }
+      ],
+      "hasNextLink": true
+    },
+    {
+      "label": "Media.ResourceRecordID eq ListingId(RLS20112215)",
+      "resource": "Media",
+      "params": {
+        "$filter": "ResourceRecordID eq 'RLS20112215'",
+        "$top": "2",
+        "$count": "true",
+        "$select": "ResourceRecordKey,ResourceRecordID,MediaURL,Order,MediaStatus"
+      },
+      "at": "2026-09-02T02:21:11.373Z",
+      "httpStatus": 200,
+      "state": "SUPPORTED",
+      "odataCount": 8,
+      "rowsReturned": 2,
+      "sample": [
+        {
+          "Order": 1,
+          "MediaURL": "https://api.cotality.com/trestle/Media/Property/PHOTO-Jpeg/1189391756/1/NjA0My8xMTM3MS8yMA/MjAvMjE1MjYvMTc4ODMxNTY3Mg/VKk2g2vAUXbYTOEHsnheKdK7cd_3iqXPijmIF3SFXhc",
+          "ResourceRecordKey": "1189391756",
+          "ResourceRecordID": "RLS20112215",
+          "MediaStatus": "Active",
+          "X_MediaStream": null
+        },
+        {
+          "Order": 1,
+          "MediaURL": "https://api.cotality.com/trestle/Media/Property/DOCUMENT-Jpeg/1189391756/1/NjA0My8xMTM3MS8yMA/MjAvMjE1MjYvMTc4ODMxNTY3Mg/w7RSNRDtW0TZzPn1pxuYyQs05HeQHuoNMLzSXYj4IDM",
+          "ResourceRecordKey": "1189391756",
+          "ResourceRecordID": "RLS20112215",
+          "MediaStatus": "Active",
+          "X_MediaStream": null
+        }
+      ],
+      "hasNextLink": true
+    },
+    {
+      "label": "Media.ResourceRecordID eq ListingKey(1189391756)",
+      "resource": "Media",
+      "params": {
+        "$filter": "ResourceRecordID eq '1189391756'",
+        "$top": "2",
+        "$count": "true",
+        "$select": "ResourceRecordKey,ResourceRecordID"
+      },
+      "at": "2026-09-02T02:21:11.809Z",
+      "httpStatus": 200,
+      "state": "SUPPORTED",
+      "odataCount": 0,
+      "rowsReturned": 0,
+      "sample": [],
+      "hasNextLink": false
+    },
+    {
+      "label": "Media.ResourceRecordKey eq ListingId(RLS20112215)",
+      "resource": "Media",
+      "params": {
+        "$filter": "ResourceRecordKey eq 'RLS20112215'",
+        "$top": "2",
+        "$count": "true",
+        "$select": "ResourceRecordKey,ResourceRecordID"
+      },
+      "at": "2026-09-02T02:21:12.058Z",
+      "httpStatus": 200,
+      "state": "SUPPORTED",
+      "odataCount": 0,
+      "rowsReturned": 0,
+      "sample": [],
+      "hasNextLink": false
+    },
+    {
+      "label": "OpenHouse shape",
+      "resource": "OpenHouse",
+      "params": {
+        "$select": "ListingKey,ListingId,OpenHouseDate,OpenHouseStartTime,OpenHouseEndTime,OpenHouseStatus,OpenHouseType,AppointmentRequiredYN",
+        "$top": "3",
+        "$count": "true"
+      },
+      "at": "2026-09-02T02:21:12.349Z",
+      "httpStatus": 200,
+      "state": "SUPPORTED",
+      "odataCount": 1993,
+      "rowsReturned": 3,
+      "sample": [
+        {
+          "AppointmentRequiredYN": false,
+          "OpenHouseStartTime": "2026-09-06T10:30:00.000-04:00",
+          "OpenHouseEndTime": "2026-09-06T18:30:00.000-04:00",
+          "ListingId": "RLS20112217",
+          "OpenHouseStatus": "Active",
+          "OpenHouseDate": "2026-09-06",
+          "ListingKey": "1189393822",
+          "OpenHouseType": "Public"
+        },
+        {
+          "AppointmentRequiredYN": false,
+          "OpenHouseStartTime": "2026-09-05T10:30:00.000-04:00",
+          "OpenHouseEndTime": "2026-09-05T18:30:00.000-04:00",
+          "ListingId": "RLS20112217",
+          "OpenHouseStatus": "Active",
+          "OpenHouseDate": "2026-09-05",
+          "ListingKey": "1189393822",
+          "OpenHouseType": "Public"
+        },
+        {
+          "AppointmentRequiredYN": true,
+          "OpenHouseStartTime": "2026-09-10T17:00:00.000-04:00",
+          "OpenHouseEndTime": "2026-09-10T19:00:00.000-04:00",
+          "ListingId": "RLS20102304",
+          "OpenHouseStatus": "Active",
+          "OpenHouseDate": "2026-09-10",
+          "ListingKey": "1176661765",
+          "OpenHouseType": null
+        }
+      ],
+      "hasNextLink": true
+    },
+    {
+      "label": "Property.ListingKey eq OpenHouse.ListingKey(1189393822)",
+      "resource": "Property",
+      "params": {
+        "$filter": "ListingKey eq '1189393822'",
+        "$select": "ListingKey,ListingId",
+        "$top": "2",
+        "$count": "true"
+      },
+      "at": "2026-09-02T02:21:12.736Z",
+      "httpStatus": 200,
+      "state": "SUPPORTED",
+      "odataCount": 1,
+      "rowsReturned": 1,
+      "sample": [
+        {
+          "ListingId": "RLS20112217",
+          "ListingKey": "1189393822"
+        }
+      ],
+      "hasNextLink": false
+    },
+    {
+      "label": "Property.ListingId eq OpenHouse.ListingKey(1189393822) [expect 0]",
+      "resource": "Property",
+      "params": {
+        "$filter": "ListingId eq '1189393822'",
+        "$select": "ListingKey,ListingId",
+        "$top": "2",
+        "$count": "true"
+      },
+      "at": "2026-09-02T02:21:13.183Z",
+      "httpStatus": 200,
+      "state": "SUPPORTED",
+      "odataCount": 0,
+      "rowsReturned": 0,
+      "sample": [],
+      "hasNextLink": false
+    },
+    {
+      "label": "OpenHouseDate range ge/le",
+      "resource": "OpenHouse",
+      "params": {
+        "$filter": "OpenHouseDate ge 2026-09-02 and OpenHouseDate le 2026-10-02",
+        "$select": "ListingKey,OpenHouseDate",
+        "$top": "3",
+        "$count": "true"
+      },
+      "at": "2026-09-02T02:21:13.817Z",
+      "httpStatus": 200,
+      "state": "SUPPORTED",
+      "odataCount": 1970,
+      "rowsReturned": 3,
+      "sample": [
+        {
+          "OpenHouseDate": "2026-09-06",
+          "ListingKey": "1189393822"
+        },
+        {
+          "OpenHouseDate": "2026-09-05",
+          "ListingKey": "1189393822"
+        },
+        {
+          "OpenHouseDate": "2026-09-10",
+          "ListingKey": "1176661765"
+        }
+      ],
+      "hasNextLink": true
+    },
+    {
+      "label": "OpenHouseDate range + OpenHouseStatus eq Active",
+      "resource": "OpenHouse",
+      "params": {
+        "$filter": "OpenHouseDate ge 2026-09-02 and OpenHouseDate le 2026-10-02 and OpenHouseStatus eq 'Active'",
+        "$select": "ListingKey,OpenHouseDate,OpenHouseStatus",
+        "$top": "3",
+        "$count": "true"
+      },
+      "at": "2026-09-02T02:21:14.112Z",
+      "httpStatus": 200,
+      "state": "SUPPORTED",
+      "odataCount": 1970,
+      "rowsReturned": 3,
+      "sample": [
+        {
+          "OpenHouseStatus": "Active",
+          "OpenHouseDate": "2026-09-06",
+          "ListingKey": "1189393822"
+        },
+        {
+          "OpenHouseStatus": "Active",
+          "OpenHouseDate": "2026-09-05",
+          "ListingKey": "1189393822"
+        },
+        {
+          "OpenHouseStatus": "Active",
+          "OpenHouseDate": "2026-09-10",
+          "ListingKey": "1176661765"
+        }
+      ],
+      "hasNextLink": true
+    },
+    {
+      "label": "OpenHouse $orderby OpenHouseDate asc",
+      "resource": "OpenHouse",
+      "params": {
+        "$orderby": "OpenHouseDate asc",
+        "$select": "ListingKey,OpenHouseDate",
+        "$top": "3"
+      },
+      "at": "2026-09-02T02:21:14.653Z",
+      "httpStatus": 200,
+      "state": "SUPPORTED",
+      "odataCount": null,
+      "rowsReturned": 3,
+      "sample": [
+        {
+          "OpenHouseDate": "2026-09-01",
+          "ListingKey": "1189369462"
+        },
+        {
+          "OpenHouseDate": "2026-09-02",
+          "ListingKey": "1175085219"
+        },
+        {
+          "OpenHouseDate": "2026-09-02",
+          "ListingKey": "1158031679"
+        }
+      ],
+      "hasNextLink": true
+    }
+  ]
+}
