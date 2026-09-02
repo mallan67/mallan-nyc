@@ -57,6 +57,14 @@ module.exports = {
     '<rootDir>/lib/seller-signals/jest.config.js',  //  3
     '<rootDir>/lib/buyer-intent/jest.config.js',    //  2
     '<rootDir>/lib/buyer-priorities/jest.config.js',//  2
+    // lib/open-houses (ts-jest) — the canonical local Open House membership
+    // contract shared by the public readers and authenticated Search.
+    // REGISTERED IN THE SAME COMMIT that creates the config, per the rule this
+    // file already learned the hard way above: an unregistered per-directory
+    // config is invisible to `npx jest --ci`, which is how 8 configs once held
+    // 415 tests that never ran. A membership rule that decides which listings a
+    // broker sees would be a bad place to repeat that.
+    '<rootDir>/lib/open-houses/jest.config.js',
     // tests/runtime — release-truth side-effect proof for high-risk routes
     // (validator framework Phase 3). Wired here so `npx jest --ci` picks
     // them up as a release gate, not just `npm run test:runtime`.
