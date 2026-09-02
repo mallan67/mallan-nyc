@@ -3,7 +3,11 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import prisma from '@/lib/prisma';
-import { resolvePublicAgent, type DbAgentRow } from '@/lib/agents/public-profile-authority';
+import {
+  resolvePublicAgent,
+  AgentDirectoryUnavailable,
+  type DbAgentRow,
+} from '@/lib/agents/public-profile-authority';
 
 /** Paragraph separator in stored biographies. */
 const PARAGRAPH_BREAK = String.fromCharCode(10, 10);
@@ -85,10 +89,37 @@ async function getAgentListings(slug: string): Promise<AgentListingsData> {
   }
 }
 
+/**
+ * Same three-state contract as the profile page. resolvePublicAgent throws on a
+ * database outage so a stale Git identity can never be substituted; both
+ * callers here were letting that escape as an unhandled server-component error.
+ */
+type ListingsResolution =
+  | { state: 'found'; agent: AgentProfile }
+  | { state: 'not_found' }
+  | { state: 'unavailable' };
+
+async function resolveAgent(slug: string): Promise<ListingsResolution> {
+  try {
+    const agent = await getAgentBySlug(slug);
+    return agent ? { state: 'found', agent } : { state: 'not_found' };
+  } catch (err) {
+    if (err instanceof AgentDirectoryUnavailable) return { state: 'unavailable' };
+    throw err;
+  }
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { name } = await params;
-  const agent = await getAgentBySlug(name);
-  if (!agent) return { title: 'Agent Not Found | Mallan Real Estate' };
+  const resolved = await resolveAgent(name);
+  if (resolved.state === 'unavailable') {
+    return {
+      title: 'Agent Listings Temporarily Unavailable | Mallan Real Estate',
+      robots: { index: false, follow: false },
+    };
+  }
+  if (resolved.state === 'not_found') return { title: 'Agent Not Found | Mallan Real Estate' };
+  const agent = resolved.agent;
   return {
     title: `${agent.name} — Listings | Mallan Real Estate`,
     description: `View active listings and past deals by ${agent.name}, ${agent.title} at Mallan Real Estate.`,
@@ -97,11 +128,33 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function AgentListingsPage({ params }: Props) {
   const { name } = await params;
-  const agent = await getAgentBySlug(name);
+  const resolved = await resolveAgent(name);
 
-  if (!agent) {
+  if (resolved.state === 'unavailable') {
+    return (
+      <div className="min-h-screen bg-[#FEFEFE] font-sans">
+        <main className="pt-20">
+          <section className="py-24">
+            <div className="max-w-2xl mx-auto px-4 text-center">
+              <h1 className="text-2xl font-light text-brand-dark mb-3">
+                Listings temporarily unavailable
+              </h1>
+              <p className="text-brand-dark/80">
+                Please try again shortly, or call{' '}
+                <a className="underline" href="tel:+16462584460">(646) 258-4460</a>.
+              </p>
+            </div>
+          </section>
+        </main>
+      </div>
+    );
+  }
+
+  if (resolved.state === 'not_found') {
     notFound();
   }
+
+  const agent = resolved.agent;
 
   const { activeSales, activeRentals } = await getAgentListings(name);
   const { sales: pastSales, rentals: pastRentals } = await getPastDeals(name);

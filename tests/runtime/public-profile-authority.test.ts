@@ -195,3 +195,38 @@ describe('the directory shape carries no contact data at all', () => {
     expect('email' in entry).toBe(false);
   });
 });
+
+describe('the individual profile handles all THREE database outcomes', () => {
+  const profilePage = readFileSync(resolve(ROOT, 'app/agents/[name]/page.tsx'), 'utf8');
+  const listingsPage = readFileSync(resolve(ROOT, 'app/agents/[name]/listings/page.tsx'), 'utf8');
+
+  // resolvePublicAgent deliberately THROWS on an outage so a stale Git identity
+  // is never substituted. Both callers on both pages were letting that escape
+  // as an unhandled server-component error - the policy was right, the
+  // presentation was missing.
+  for (const [label, src] of [['profile', profilePage], ['listings', listingsPage]] as const) {
+    it(`${label}: catches AgentDirectoryUnavailable rather than letting it escape`, () => {
+      expect(src).toContain('AgentDirectoryUnavailable');
+      expect(src).toContain("return { state: 'unavailable' }");
+    });
+
+    it(`${label}: distinguishes not_found (404) from unavailable`, () => {
+      expect(src).toContain("state: 'not_found'");
+      expect(src).toContain('notFound();');
+      expect(src).toContain('Temporarily Unavailable');
+    });
+
+    it(`${label}: an outage is never indexed as the agent's real page`, () => {
+      expect(src).toContain('robots: { index: false, follow: false }');
+    });
+
+    it(`${label}: every getAgentBySlug call goes through the guarded resolver`, () => {
+      // exactly one direct call, and it is inside the try/catch
+      expect(src.split('await getAgentBySlug(').length - 1).toBe(1);
+    });
+
+    it(`${label}: does NOT restore a static fallback to paper over the outage`, () => {
+      expect(src).not.toMatch(/import .*data\/agents\.json/);
+    });
+  }
+});
