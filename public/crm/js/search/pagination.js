@@ -2295,7 +2295,12 @@
         }
 
         // ── 3C. Compare ──────────────────────────────────────────────────────
-        function addToCompareAndOpen(listingId) {
+        // `async` because a selected listing that is not on the loaded page is
+        // resolved from the server by its canonical identity before the
+        // comparison opens. The single call site is an inline onclick, which
+        // ignores the returned promise — correct here, since every outcome is
+        // reported through the UI rather than to the caller.
+        async function addToCompareAndOpen(listingId) {
             // Add to working set if not already there
             if (!_isInWorkingSet(listingId)) {
                 toggleWorkingSet(listingId);
@@ -2327,18 +2332,59 @@
                 else unresolvedIds.push(id);
             });
 
-            if (compareListings.length < 2) {
-                showToast('Only ' + compareListings.length + ' of ' + set.length +
-                    ' listings in your set are currently loaded, so there is nothing to compare. ' +
-                    'Open the pages holding the others, or search again.', 'warning');
-                return;
+            // A MISSING ROW IS FETCHED, NOT WARNED ABOUT.
+            //
+            // Naming the omission was an improvement on dropping it silently, but
+            // it still handed the broker a different comparison than the one they
+            // asked for — five selected, three compared, with a toast. The
+            // decision set changed, and a warning does not un-change it.
+            //
+            // The selection is durable by listing identity, so anything not in
+            // the loaded page is RESOLVED FROM THE SERVER by that identity. The
+            // broker does not have to go and reopen pages to reconstitute a
+            // selection the system already holds.
+            //
+            // If the fetch cannot produce them, this FAILS CLOSED: no partial
+            // comparison is opened by default. Comparing the loaded subset stays
+            // available, but only as a deliberate choice.
+            if (unresolvedIds.length > 0 && typeof MallanAPI !== 'undefined'
+                && MallanAPI.idx && typeof MallanAPI.idx.search === 'function') {
+                try {
+                    var hydrated = await MallanAPI.idx.search({
+                        listingId: unresolvedIds.join(','),
+                        limit: Math.max(unresolvedIds.length, 10)
+                    });
+                    var fetched = (hydrated && hydrated.listings) || [];
+                    fetched.forEach(function (row) {
+                        // Keep the loaded catalogue consistent with what the
+                        // comparison uses, so a later view resolves the same row.
+                        if (!listings.some(function (li) { return String(li.id) === String(row.id); })) {
+                            listings.push(row);
+                        }
+                        compareListings.push(row);
+                    });
+                    var fetchedIds = fetched.map(function (r) { return String(r.id); });
+                    unresolvedIds = unresolvedIds.filter(function (id) {
+                        return fetchedIds.indexOf(String(id)) === -1;
+                    });
+                } catch (hydrateErr) {
+                    console.error('[Compare] Could not resolve selected listings from the server:', hydrateErr);
+                }
             }
 
             if (unresolvedIds.length > 0) {
-                showToast('Comparing ' + compareListings.length + ' of ' + set.length +
-                    ' listings — ' + unresolvedIds.length + ' are not currently loaded and are not included.',
-                    'warning');
-                console.warn('[Compare] Not loaded, excluded from the comparison:', unresolvedIds);
+                // FAIL CLOSED. The requested comparison cannot be constructed, so
+                // it is not silently replaced with a smaller one.
+                showToast('Cannot compare: ' + unresolvedIds.length + ' of ' + set.length +
+                    ' selected listings could not be loaded. Nothing has been compared — ' +
+                    'retry, or remove those listings from your set to compare the rest.', 'error');
+                console.error('[Compare] Unresolved selected listings, comparison refused:', unresolvedIds);
+                return;
+            }
+
+            if (compareListings.length < 2) {
+                showToast('Select at least 2 listings to compare.', 'warning');
+                return;
             }
 
             // Build comparison modal

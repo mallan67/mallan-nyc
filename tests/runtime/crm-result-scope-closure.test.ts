@@ -263,21 +263,53 @@ describe('selection is durable by identity, across pages and actions', () => {
 });
 
 describe('output surfaces consume the snapshot without silently narrowing it', () => {
-  it('Compare reports listings it could not load instead of dropping them', () => {
-    // The working set is durable across pages; the LOADED rows are not. Ids
-    // that could not be resolved were skipped with `if (l) push(l)`, and the
-    // only message fired when fewer than two survived — so a five-way
-    // comparison silently became a three-way one.
-    const fn = PAGINATION.slice(
-      PAGINATION.indexOf('function addToCompareAndOpen'),
-      PAGINATION.indexOf('function addToCompareAndOpen') + 3000,
-    );
-    expect(fn).toContain('unresolvedIds');
-    expect(fn).toContain('are not currently loaded and are not included');
-    // The under-two message must state the shortfall, not just refuse.
-    expect(fn).toContain("' of ' + set.length");
+  /**
+   * The whole compare function, anchored on DECLARATIONS.
+   *
+   * Fixed-width windows were used first and silently truncated the region
+   * before the refusal branch, so a guard reported the refusal missing when it
+   * was simply past the cut. A character count is a guess about code length.
+   */
+  const compareFn = () => {
+    const start = PAGINATION.indexOf('async function addToCompareAndOpen');
+    // Ends at the NEXT SECTION, not at the next `function ` token — the body
+    // is full of inline callbacks (`forEach(function (id) {`), and matching
+    // those cut the region off before the refusal branch.
+    const end = PAGINATION.indexOf('function runCmaFromDetail');
+    if (start < 0 || end <= start) throw new Error('anchor lost: addToCompareAndOpen');
+    return PAGINATION.slice(start, end);
+  };
+  it('Compare RESOLVES a selected listing from the server rather than warning about it', () => {
+    // Naming the omission beat dropping it silently, but it still handed the
+    // broker a different comparison than the one they asked for: five selected,
+    // three compared, with a toast. A warning does not un-change a decision set.
+    //
+    // Selection is durable by listing identity, so a row that is not on the
+    // loaded page is fetched BY that identity — the broker does not reopen
+    // pages to reconstitute a selection the system already holds.
+    const fn = compareFn();
+    expect(fn).toContain('MallanAPI.idx.search({');
+    expect(fn).toContain("listingId: unresolvedIds.join(',')");
   });
 
+  it('Compare FAILS CLOSED when the full comparison cannot be constructed', () => {
+    // No partial comparison opens by default. A smaller comparison is a
+    // different answer, not a degraded version of the same one.
+    const fn = compareFn();
+    expect(fn).toContain('Cannot compare:');
+    expect(fn).toContain('Nothing has been compared');
+    // The refusal must return BEFORE the comparison renders.
+    const refusalIdx = fn.indexOf('Cannot compare:');
+    const guardIdx = fn.indexOf('if (compareListings.length < 2)');
+    expect(refusalIdx).toBeLessThan(guardIdx);
+  });
+
+  it('a hydrated row joins the loaded catalogue so later views resolve it too', () => {
+    // Otherwise the same listing would need re-fetching on every surface, and
+    // could resolve differently in each.
+    const fn = compareFn();
+    expect(fn).toContain('listings.push(row)');
+  });
   it('the toolbar re-sort asks the server and refuses unsupported fields', () => {
     // A second sort path exists beside toggleColumnSort. Both must agree, or
     // one control orders the universe and the other orders the screen.
