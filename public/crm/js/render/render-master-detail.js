@@ -109,12 +109,19 @@
                 </div>
 
                 <!-- Photo — single large, full width -->
-                <div class="rounded-xl cm-photo-wrap mb-3" style="height:320px">
+                <!-- THE HERO CARRIES THE MEDIA IDENTITY.
+                     Without it the lazy loader never observed this pane, and
+                     because the search route runs expandMedia:false,
+                     listing.images is ALWAYS empty - so a permanent
+                     placeholder sat here while the caption below confidently
+                     announced "1 / <photoCount>" from the provider count. It
+                     asserted a photo it structurally could not show. -->
+                <div class="rounded-xl cm-photo-wrap mb-3" style="height:320px" data-listing-key="${escapeHtml(listing.wid || listing.id || '')}">
                     <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo rounded-xl" loading="lazy">
                     ${listing.priceChange === 'down' ? '<div class="absolute top-3 left-3 px-2 py-1 bg-red-500 text-white text-xs font-bold rounded"><i class="fas fa-arrow-down mr-1"></i>PRICE DROP!</div>' : ''}
                     <div class="cm-overlay rounded-b-xl px-3 py-2.5 flex items-center justify-between">
                         <button onclick="showListingDetail('${escapeHtml(listing.id)}')" class="px-3 py-1.5 bg-white/90 backdrop-blur rounded-lg text-xs shadow-sm flex items-center gap-2 text-gray-700 hover:bg-white"><i class="fas fa-th"></i> Floorplans</button>
-                        <span class="text-white/90 text-xs font-semibold"><i class="fas fa-camera mr-1"></i>1 / ${listing.photoCount}</span>
+                        <span class="text-white/90 text-xs font-semibold"><i class="fas fa-camera mr-1"></i>${listing.photoCount ? ('1 / ' + listing.photoCount) : '—'}</span>
                     </div>
                 </div>
 

@@ -102,7 +102,7 @@ export const CRITERION_VALUE_SHAPE = {
   max_financing_percent: 'range_number',
   neighborhood: 'text_set',
   new_development: 'boolean',
-  open_house: 'boolean',
+  open_house: 'range_date',
   ownership: 'enum_set',
   parking: 'enum_set',
   pets: 'enum_set',
@@ -203,7 +203,7 @@ export interface CanonicalCriteriaValues {
   /** New Development — boolean */
   new_development?: boolean;
   /** Open House — object */
-  open_house?: boolean;
+  open_house?: RangeValue<string>;
   /** Ownership — enum */
   ownership?: SetValue;
   /** Parking / Garage — multi_enum */

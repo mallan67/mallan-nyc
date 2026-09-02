@@ -14,7 +14,7 @@
                         <!-- Photo — large, proper aspect ratio -->
                         <div class="relative flex-shrink-0 cursor-pointer" style="width: 340px;" onclick="openListingInNewTab('${listing.id}'); if (typeof isResultsMapOpen === 'function' && isResultsMapOpen()) { if (typeof panToListing === 'function') panToListing('${listing.id}'); }">
                             <div class="cm-photo-wrap w-full h-full" style="min-height: 280px;">
-                                <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy" onerror="this.style.display='none'" data-photo-lid="${escapeHtml(listing.lid || '')}">
+                                <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy" onerror="this.style.display='none'" data-photo-key="${escapeHtml(listing.wid || listing.id || '')}">
                             </div>
                             <!-- Checkbox overlay -->
                             <div class="absolute top-3 left-3 z-10">

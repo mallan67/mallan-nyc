@@ -106,9 +106,14 @@ test.describe('§P0 broker acceptance — Open House and media', () => {
           await page.click('#searchButton, [data-action="search"]');
           await page.waitForTimeout(4000);
 
-          // THE CRITERION REACHED THE WIRE. Without this the next assertion
-          // could pass on a search that simply returned fewer rows by chance.
-          expect(requests.some((u) => /openHouseDateFrom=/.test(u))).toBe(true);
+          // THE CRITERION REACHED THE WIRE, AS A TOKEN. Without this the next
+          // assertion could pass on a search that simply returned fewer rows
+          // by chance.
+          expect(requests.some((u) => /[?&]openHouse=/.test(u))).toBe(true);
+          // And NOT as browser-computed dates: a preset that still sent
+          // openHouseDateFrom would mean the browser was deciding the window
+          // again, in whatever timezone the broker's laptop is set to.
+          expect(requests.filter((u) => /openHouseDateFrom=/.test(u))).toEqual([]);
 
           const filtered = (await page.textContent('#resultsCount')) ?? '';
           expect(filtered).toMatch(/\d[\d,]*\+? Results/);
@@ -184,6 +189,63 @@ test.describe('§P0 broker acceptance — Open House and media', () => {
         expect(withPhotos).toBeGreaterThan(0);
 
         // 4. And the proxy did not 404 its way there.
+        expect(proxyFailures).toEqual([]);
+      });
+
+      test('DETAIL GALLERY loads for a provider-only listing — the blind spot', async ({ page }) => {
+        // THE TEST THE PREVIOUS SUITE DID NOT HAVE.
+        //
+        // Card thumbnails and the detail gallery asked in DIFFERENT identity
+        // domains, so the card could show a photo while the gallery came back
+        // empty for the same listing. Asserting `data-listing-key` exists on
+        // each view proved nothing about whether the gallery actually loads.
+        await signIn(page);
+
+        const detailCalls: string[] = [];
+        const proxyFailures: string[] = [];
+        page.on('request', (r) => {
+          if (r.url().includes('/api/media/batch') && r.url().includes('detail=true')) {
+            detailCalls.push(r.url());
+          }
+        });
+        page.on('response', (r) => {
+          if (r.url().includes('/api/media/proxy') && r.status() >= 400) {
+            proxyFailures.push(`${r.status()} ${r.url().slice(0, 140)}`);
+          }
+        });
+
+        await runSaleSearch(page);
+
+        // Pick a card that CLAIMS more than one photo. A listing with none
+        // would make an empty gallery the correct answer.
+        const card = page.locator('[data-listing-key]').first();
+        await expect(card).toBeVisible();
+        const key = await card.getAttribute('data-listing-key');
+        expect(key).toBeTruthy();
+        // Provider keys are numeric; an RLS value would mean the card had
+        // reverted to the ListingId domain.
+        expect(key).not.toMatch(/^RLS/i);
+
+        await card.click();
+        await page.waitForTimeout(5000);
+
+        // 1. The detail request went out IN THE KEY DOMAIN.
+        expect(detailCalls.length).toBeGreaterThan(0);
+        expect(detailCalls.every((u) => u.includes('keys='))).toBe(true);
+        expect(detailCalls.some((u) => u.includes(encodeURIComponent(key as string)))).toBe(true);
+        // `ids=` here is the defect, by name.
+        expect(detailCalls.filter((u) => /[?&]ids=/.test(u))).toEqual([]);
+
+        // 2. REAL PIXELS, more than one. This is the assertion that fails when
+        //    the gallery resolves to an empty array under an HTTP 200.
+        const rendered = await page.$$eval('.cm-photo, [data-gallery-image] img, .gallery-image',
+          (imgs) => imgs.filter((i) => {
+            const el = i as HTMLImageElement;
+            return el.naturalWidth > 1 && !/placeholder|data:image\/svg/i.test(el.src);
+          }).length);
+        expect(rendered).toBeGreaterThan(0);
+
+        // 3. The proxy did not 404 its way there.
         expect(proxyFailures).toEqual([]);
       });
 

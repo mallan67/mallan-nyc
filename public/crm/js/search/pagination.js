@@ -265,8 +265,13 @@
             _updateDetailNavButtons();
 
             // Fetch full media (floor plans, videos, virtual tours) on demand
-            if (typeof fetchDetailMedia === 'function' && listing.lid) {
-                fetchDetailMedia(listing.lid, function() {
+            // `wid` is the Cotality ListingKey - the identity Media joins on.
+            // `lid` is the ListingId, a different provider field in a
+            // non-overlapping value space, and passing it here is what made the
+            // detail gallery ask the wrong question of the right provider.
+            var mediaKey = listing.wid || listing.id;
+            if (typeof fetchDetailMedia === 'function' && mediaKey) {
+                fetchDetailMedia(mediaKey, function() {
                     // Re-render media sections after data arrives
                     _refreshDetailMediaSections(listing);
                 });

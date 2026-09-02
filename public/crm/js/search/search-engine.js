@@ -592,8 +592,24 @@
             // The dates travel as an explicit inclusive range so the range
             // the picker DISPLAYS is the range that executes. The server
             // validates it and refuses a reversed or malformed one by name.
-            if (criteria.openHouseDateFrom) params.openHouseDateFrom = criteria.openHouseDateFrom;
-            if (criteria.openHouseDateTo) params.openHouseDateTo = criteria.openHouseDateTo;
+            // A PRESET TRAVELS AS A TOKEN, NOT AS DATES.
+            //
+            // The browser used to compute today/weekend/next7/next30 itself,
+            // with the USER'S clock and timezone, and send the resulting
+            // bounds. The server has its own America/New_York resolver, so
+            // there were two answers to "this weekend" and they agreed only
+            // while the broker's machine happened to be set to New York.
+            //
+            // Sending the token instead means exactly one implementation
+            // decides. from/to are then NOT sent - present, they would be a
+            // second opinion the server would have to choose between.
+            var _ohPreset = criteria.openHousePreset;
+            if (_ohPreset) {
+                params.openHouse = _ohPreset;
+            } else {
+                if (criteria.openHouseDateFrom) params.openHouseDateFrom = criteria.openHouseDateFrom;
+                if (criteria.openHouseDateTo) params.openHouseDateTo = criteria.openHouseDateTo;
+            }
             // Note: criteria._transitBounds / criteria._gridBounds are
             // SET by transit-search.js / manhattan-grid.js only when
             // the user interacts with those panels, which P1 disabled.
@@ -1728,6 +1744,16 @@
             close_date: { kind: 'dateRange', shape: 'range_date',
                 drp: { sale: 'saleSoldDate' },
                 ids: { sale: { basic: [], advanced: ['adv-sold-from', 'adv-sold-to'] } } },
+            // OPEN HOUSE. This adapter did not exist, so nothing ever read the
+            // Open House pickers into the criteria object - the controls were
+            // disabled, so no test noticed the criterion had no collector at
+            // all. Enabling the buttons without this would have produced a
+            // control that visibly does something and silently searches
+            // nothing, which is worse than the disabled state it replaced.
+            open_house: { kind: 'dateRange', shape: 'range_date',
+                drp: { sale: 'saleOpenHouse', rent: 'rentalOpenHouse' },
+                ids: { sale: { basic: [], advanced: [] },
+                       rent: { basic: [], advanced: [] } } },
             // ── GEOGRAPHY (tag widgets owned by neighborhood-autocomplete.js) ──
             neighborhood: { kind: 'tags', shape: 'text_set', selector: 'neighborhoods', workflows: ['sale', 'rent', 'building'] },
             borough:      { kind: 'tags', shape: 'enum_set', selector: 'boroughs', workflows: ['sale', 'rent', 'building'] }
@@ -1945,6 +1971,16 @@
                 if (from) dateValue.min = String(from);
                 if (to) dateValue.max = String(to);
                 if (adapter.shape === 'basis_range_date') dateValue.basis = basis;
+                // THE PRESET TRAVELS AS DATA, NOT AS A DOM LOOKUP LATER.
+                //
+                // Reading this at serialize time meant the serializer touched
+                // `document`, which it must not: it is a pure function of the
+                // criteria object, and four guards proved it by failing with
+                // `document is not defined`. The token belongs to the
+                // criterion, so it is collected with the criterion.
+                if (wrapper && wrapper.getAttribute('data-oh-preset')) {
+                    dateValue.preset = wrapper.getAttribute('data-oh-preset');
+                }
                 return dateValue;
             }
 
@@ -2176,6 +2212,7 @@
             activity_date:         { min: 'dateFrom', max: 'dateTo', basis: 'dateActivityType' },
             listing_contract_date: { min: 'contractDateFrom', max: 'contractDateTo' },
             close_date:            { min: 'soldDateFrom', max: 'soldDateTo' },
+            open_house:            { min: 'openHouseDateFrom', max: 'openHouseDateTo', preset: 'openHousePreset' },
             market_status:         { set: 'statuses' },
             ownership:             { set: 'ownership' },
             property_sub_type:     { csv: 'propertySubType' },
@@ -2215,6 +2252,7 @@
                 if (value.min != null && value.min !== '') criteria[map.min] = value.min;
                 if (map.max && value.max != null && value.max !== '') criteria[map.max] = value.max;
                 if (map.basis && value.basis) criteria[map.basis] = value.basis;
+                if (map.preset && value.preset) criteria[map.preset] = value.preset;
             });
 
             // feature_criteria is ALREADY field -> values, which is the shape

@@ -695,6 +695,10 @@ var MallanAPI = (function () {
       // dropped in transport - a narrowing the broker asked for that never
       // reaches the wire. tests/runtime/search-criterion-transport-invariant
       // is the guard that catches exactly this gap.
+      // The preset token. Without forwarding this the criterion would be
+      // built and then vanish in transport - the same gap the invariant
+      // guard caught for the explicit dates.
+      if (params.openHouse) qs.push('openHouse=' + encodeURIComponent(params.openHouse));
       if (params.openHouseDateFrom) qs.push('openHouseDateFrom=' + encodeURIComponent(params.openHouseDateFrom));
       if (params.openHouseDateTo) qs.push('openHouseDateTo=' + encodeURIComponent(params.openHouseDateTo));
       if (params.ownership) qs.push('ownership=' + encodeURIComponent(params.ownership));

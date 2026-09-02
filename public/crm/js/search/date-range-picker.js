@@ -361,12 +361,17 @@
                 textEl.textContent = formatDateMDY(drpFromDate) + ' - ' + formatDateMDY(drpToDate);
                 textEl.classList.add('has-value');
                 clearBtn.style.display = '';
+                // Picking dates by hand replaces any preset: the broker has
+                // stated an explicit window, so no token may keep overriding it.
+                activeDRP.removeAttribute('data-oh-preset');
                 activeDRP.setAttribute('data-from', formatDateMDY(drpFromDate));
                 activeDRP.setAttribute('data-to', formatDateMDY(drpToDate));
             } else if (drpFromDate) {
                 textEl.textContent = formatDateMDY(drpFromDate);
                 textEl.classList.add('has-value');
                 clearBtn.style.display = '';
+                // Same rule on the open-ended branch.
+                activeDRP.removeAttribute('data-oh-preset');
                 activeDRP.setAttribute('data-from', formatDateMDY(drpFromDate));
                 activeDRP.removeAttribute('data-to');
             }

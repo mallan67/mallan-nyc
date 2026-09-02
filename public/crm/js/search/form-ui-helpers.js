@@ -96,6 +96,23 @@
             } else if (preset === '30days') {
                 to.setDate(today.getDate() + 29);
             }
+            // THE TOKEN IS THE CRITERION. The dates below are only what the
+            // picker DISPLAYS; the server recomputes the window in
+            // America/New_York from this token, so a broker on a laptop set to
+            // another timezone still searches the New York day.
+            //
+            // One vocabulary: the HTML still calls this with the legacy '7days'
+            // and '30days' labels, normalised here in the single place that
+            // knows both, rather than translated again server-side.
+            var CANONICAL_OH_PRESET = {
+                today: 'today', weekend: 'weekend',
+                '7days': 'next7', next7: 'next7',
+                '30days': 'next30', next30: 'next30'
+            };
+            var token = CANONICAL_OH_PRESET[preset];
+            if (token) wrapper.setAttribute('data-oh-preset', token);
+            else wrapper.removeAttribute('data-oh-preset');
+
             // Store on wrapper
             var fromStr = formatDateMDY(from);
             var toStr = formatDateMDY(to);
@@ -123,6 +140,11 @@
         }
 
         function clearOpenHousePreset(drpId) {
+            // The token must go with the highlight. A stale token would keep
+            // executing a preset window the broker can no longer see selected.
+            var w = document.querySelector('.drp-wrapper[data-drp="' + drpId + '"]')
+                || document.querySelector('[data-drp="' + drpId + '"]');
+            if (w) w.removeAttribute('data-oh-preset');
             var allBtns = document.querySelectorAll('.oh-preset[data-oh="' + drpId + '"]');
             allBtns.forEach(function(b) {
                 b.classList.remove('bg-blue-100', 'border-blue-400', 'text-blue-700');

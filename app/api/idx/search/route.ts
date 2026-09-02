@@ -548,6 +548,7 @@ export async function GET(req: NextRequest) {
     const ohFrom = params.get("openHouseDateFrom");
     const ohTo = params.get("openHouseDateTo");
     let openHouseKeys: ReadonlySet<string> | null = null;
+    let executedOpenHouseWindow: { from: string; to: string | null; preset: string } | null = null;
 
     if (ohPreset || ohFrom || ohTo) {
       let window;
@@ -586,6 +587,13 @@ export async function GET(req: NextRequest) {
         );
       }
       openHouseKeys = membership.listingKeys;
+      // REPORT WHAT WAS ACTUALLY SEARCHED.
+      //
+      // The browser shows the broker a date range. The server computes the
+      // real one in America/New_York. Returning it means the two can be
+      // compared instead of assumed equal - and the UI can display the window
+      // that ran rather than the one it guessed.
+      executedOpenHouseWindow = { from: window.from, to: window.to, preset: ohPreset || 'custom' };
     }
 
     const universe = await assembleFinalUniverse<Record<string, unknown>>({
@@ -867,6 +875,9 @@ export async function GET(req: NextRequest) {
         // became trustworthy.
         providerMatchedIsPreFinalUniverse: true,
         mediaStrategy: "lazy" as const,
+        // Null unless an open-house criterion ran. A window here is a
+        // statement about what was searched, not about what was requested.
+        openHouseWindow: executedOpenHouseWindow,
       },
     };
 

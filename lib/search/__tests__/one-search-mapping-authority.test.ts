@@ -355,6 +355,25 @@ describe('mutation guards — the authority graph cannot be bypassed', () => {
       'media_status',
       'neighborhood',
       'new_development',
+      // PROMOTED 2026-09-01/02 by probe, from `needs_probe`. It had been
+      // blocked (2026-08-29, Maya) because the implementation applied it
+      // AFTER pagination - a wrong answer, not a missing one. That is fixed:
+      // membership is settled before count and page cut.
+      //
+      // Filterable ON THE OpenHouse RESOURCE, which is the nuance this entry
+      // must not lose - it is NOT a Property $filter clause. Probed live
+      // against api.cotality.com:
+      //   OpenHouse                                        $count 1993
+      //   OpenHouseDate ge <today> and le <+30d>           -> 1970
+      //   ... and OpenHouseStatus eq 'Active'              accepted
+      //   $orderby OpenHouseDate asc                       accepted
+      //   Property.ListingKey eq <OpenHouse.ListingKey>    -> 1
+      //   Property.ListingId  eq <OpenHouse.ListingKey>    -> 0
+      //
+      // The last pair is why membership reconciles on ListingKey only: the
+      // domains do not overlap, so the wrong one returns an empty 200 that
+      // reads exactly like "no listing has an open house".
+      'open_house',
       // RESTORED: ownership carries a genuine 2026-08-21 exhaustive Active census
       // (Condominium 3,722 / StockCooperative 2,509 / ... = 8,015 = ne null
       // exactly), now recorded as structured liveEvidence. I demoted it in the

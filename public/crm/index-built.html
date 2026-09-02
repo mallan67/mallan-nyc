@@ -13892,6 +13892,10 @@ var MallanAPI = (function () {
       // dropped in transport - a narrowing the broker asked for that never
       // reaches the wire. tests/runtime/search-criterion-transport-invariant
       // is the guard that catches exactly this gap.
+      // The preset token. Without forwarding this the criterion would be
+      // built and then vanish in transport - the same gap the invariant
+      // guard caught for the explicit dates.
+      if (params.openHouse) qs.push('openHouse=' + encodeURIComponent(params.openHouse));
       if (params.openHouseDateFrom) qs.push('openHouseDateFrom=' + encodeURIComponent(params.openHouseDateFrom));
       if (params.openHouseDateTo) qs.push('openHouseDateTo=' + encodeURIComponent(params.openHouseDateTo));
       if (params.ownership) qs.push('ownership=' + encodeURIComponent(params.ownership));
@@ -16397,12 +16401,17 @@ function manageShowToast(msg) {
                 textEl.textContent = formatDateMDY(drpFromDate) + ' - ' + formatDateMDY(drpToDate);
                 textEl.classList.add('has-value');
                 clearBtn.style.display = '';
+                // Picking dates by hand replaces any preset: the broker has
+                // stated an explicit window, so no token may keep overriding it.
+                activeDRP.removeAttribute('data-oh-preset');
                 activeDRP.setAttribute('data-from', formatDateMDY(drpFromDate));
                 activeDRP.setAttribute('data-to', formatDateMDY(drpToDate));
             } else if (drpFromDate) {
                 textEl.textContent = formatDateMDY(drpFromDate);
                 textEl.classList.add('has-value');
                 clearBtn.style.display = '';
+                // Same rule on the open-ended branch.
+                activeDRP.removeAttribute('data-oh-preset');
                 activeDRP.setAttribute('data-from', formatDateMDY(drpFromDate));
                 activeDRP.removeAttribute('data-to');
             }
@@ -17177,8 +17186,24 @@ function manageShowToast(msg) {
             // The dates travel as an explicit inclusive range so the range
             // the picker DISPLAYS is the range that executes. The server
             // validates it and refuses a reversed or malformed one by name.
-            if (criteria.openHouseDateFrom) params.openHouseDateFrom = criteria.openHouseDateFrom;
-            if (criteria.openHouseDateTo) params.openHouseDateTo = criteria.openHouseDateTo;
+            // A PRESET TRAVELS AS A TOKEN, NOT AS DATES.
+            //
+            // The browser used to compute today/weekend/next7/next30 itself,
+            // with the USER'S clock and timezone, and send the resulting
+            // bounds. The server has its own America/New_York resolver, so
+            // there were two answers to "this weekend" and they agreed only
+            // while the broker's machine happened to be set to New York.
+            //
+            // Sending the token instead means exactly one implementation
+            // decides. from/to are then NOT sent - present, they would be a
+            // second opinion the server would have to choose between.
+            var _ohPreset = criteria.openHousePreset;
+            if (_ohPreset) {
+                params.openHouse = _ohPreset;
+            } else {
+                if (criteria.openHouseDateFrom) params.openHouseDateFrom = criteria.openHouseDateFrom;
+                if (criteria.openHouseDateTo) params.openHouseDateTo = criteria.openHouseDateTo;
+            }
             // Note: criteria._transitBounds / criteria._gridBounds are
             // SET by transit-search.js / manhattan-grid.js only when
             // the user interacts with those panels, which P1 disabled.
@@ -18313,6 +18338,16 @@ function manageShowToast(msg) {
             close_date: { kind: 'dateRange', shape: 'range_date',
                 drp: { sale: 'saleSoldDate' },
                 ids: { sale: { basic: [], advanced: ['adv-sold-from', 'adv-sold-to'] } } },
+            // OPEN HOUSE. This adapter did not exist, so nothing ever read the
+            // Open House pickers into the criteria object - the controls were
+            // disabled, so no test noticed the criterion had no collector at
+            // all. Enabling the buttons without this would have produced a
+            // control that visibly does something and silently searches
+            // nothing, which is worse than the disabled state it replaced.
+            open_house: { kind: 'dateRange', shape: 'range_date',
+                drp: { sale: 'saleOpenHouse', rent: 'rentalOpenHouse' },
+                ids: { sale: { basic: [], advanced: [] },
+                       rent: { basic: [], advanced: [] } } },
             // ── GEOGRAPHY (tag widgets owned by neighborhood-autocomplete.js) ──
             neighborhood: { kind: 'tags', shape: 'text_set', selector: 'neighborhoods', workflows: ['sale', 'rent', 'building'] },
             borough:      { kind: 'tags', shape: 'enum_set', selector: 'boroughs', workflows: ['sale', 'rent', 'building'] }
@@ -18530,6 +18565,16 @@ function manageShowToast(msg) {
                 if (from) dateValue.min = String(from);
                 if (to) dateValue.max = String(to);
                 if (adapter.shape === 'basis_range_date') dateValue.basis = basis;
+                // THE PRESET TRAVELS AS DATA, NOT AS A DOM LOOKUP LATER.
+                //
+                // Reading this at serialize time meant the serializer touched
+                // `document`, which it must not: it is a pure function of the
+                // criteria object, and four guards proved it by failing with
+                // `document is not defined`. The token belongs to the
+                // criterion, so it is collected with the criterion.
+                if (wrapper && wrapper.getAttribute('data-oh-preset')) {
+                    dateValue.preset = wrapper.getAttribute('data-oh-preset');
+                }
                 return dateValue;
             }
 
@@ -18761,6 +18806,7 @@ function manageShowToast(msg) {
             activity_date:         { min: 'dateFrom', max: 'dateTo', basis: 'dateActivityType' },
             listing_contract_date: { min: 'contractDateFrom', max: 'contractDateTo' },
             close_date:            { min: 'soldDateFrom', max: 'soldDateTo' },
+            open_house:            { min: 'openHouseDateFrom', max: 'openHouseDateTo', preset: 'openHousePreset' },
             market_status:         { set: 'statuses' },
             ownership:             { set: 'ownership' },
             property_sub_type:     { csv: 'propertySubType' },
@@ -18800,6 +18846,7 @@ function manageShowToast(msg) {
                 if (value.min != null && value.min !== '') criteria[map.min] = value.min;
                 if (map.max && value.max != null && value.max !== '') criteria[map.max] = value.max;
                 if (map.basis && value.basis) criteria[map.basis] = value.basis;
+                if (map.preset && value.preset) criteria[map.preset] = value.preset;
             });
 
             // feature_criteria is ALREADY field -> values, which is the shape
@@ -20974,6 +21021,23 @@ function manageShowToast(msg) {
             } else if (preset === '30days') {
                 to.setDate(today.getDate() + 29);
             }
+            // THE TOKEN IS THE CRITERION. The dates below are only what the
+            // picker DISPLAYS; the server recomputes the window in
+            // America/New_York from this token, so a broker on a laptop set to
+            // another timezone still searches the New York day.
+            //
+            // One vocabulary: the HTML still calls this with the legacy '7days'
+            // and '30days' labels, normalised here in the single place that
+            // knows both, rather than translated again server-side.
+            var CANONICAL_OH_PRESET = {
+                today: 'today', weekend: 'weekend',
+                '7days': 'next7', next7: 'next7',
+                '30days': 'next30', next30: 'next30'
+            };
+            var token = CANONICAL_OH_PRESET[preset];
+            if (token) wrapper.setAttribute('data-oh-preset', token);
+            else wrapper.removeAttribute('data-oh-preset');
+
             // Store on wrapper
             var fromStr = formatDateMDY(from);
             var toStr = formatDateMDY(to);
@@ -21001,6 +21065,11 @@ function manageShowToast(msg) {
         }
 
         function clearOpenHousePreset(drpId) {
+            // The token must go with the highlight. A stale token would keep
+            // executing a preset window the broker can no longer see selected.
+            var w = document.querySelector('.drp-wrapper[data-drp="' + drpId + '"]')
+                || document.querySelector('[data-drp="' + drpId + '"]');
+            if (w) w.removeAttribute('data-oh-preset');
             var allBtns = document.querySelectorAll('.oh-preset[data-oh="' + drpId + '"]');
             allBtns.forEach(function(b) {
                 b.classList.remove('bg-blue-100', 'border-blue-400', 'text-blue-700');
@@ -23777,7 +23846,7 @@ function parseBudgetValue(td) {
                     <!-- Photo -->
                     <div class="relative cursor-pointer group" onclick="openListingInNewTab('${listing.id}'); if (typeof isResultsMapOpen === 'function' && isResultsMapOpen()) { if (typeof panToListing === 'function') panToListing('${listing.id}'); }">
                         <div class="cm-photo-wrap cm-card-photo">
-                            <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy" onerror="this.style.display='none'" data-photo-lid="${escapeHtml(listing.lid || '')}">
+                            <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy" onerror="this.style.display='none'" data-photo-key="${escapeHtml(listing.wid || listing.id || '')}">
                         </div>
                         <!-- Checkbox -->
                         <div class="absolute top-3 left-3 z-10">
@@ -23936,7 +24005,7 @@ function parseBudgetValue(td) {
                         <!-- Photo — large, proper aspect ratio -->
                         <div class="relative flex-shrink-0 cursor-pointer" style="width: 340px;" onclick="openListingInNewTab('${listing.id}'); if (typeof isResultsMapOpen === 'function' && isResultsMapOpen()) { if (typeof panToListing === 'function') panToListing('${listing.id}'); }">
                             <div class="cm-photo-wrap w-full h-full" style="min-height: 280px;">
-                                <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy" onerror="this.style.display='none'" data-photo-lid="${escapeHtml(listing.lid || '')}">
+                                <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo" loading="lazy" onerror="this.style.display='none'" data-photo-key="${escapeHtml(listing.wid || listing.id || '')}">
                             </div>
                             <!-- Checkbox overlay -->
                             <div class="absolute top-3 left-3 z-10">
@@ -24144,12 +24213,19 @@ function parseBudgetValue(td) {
                 </div>
 
                 <!-- Photo — single large, full width -->
-                <div class="rounded-xl cm-photo-wrap mb-3" style="height:320px">
+                <!-- THE HERO CARRIES THE MEDIA IDENTITY.
+                     Without it the lazy loader never observed this pane, and
+                     because the search route runs expandMedia:false,
+                     listing.images is ALWAYS empty - so a permanent
+                     placeholder sat here while the caption below confidently
+                     announced "1 / <photoCount>" from the provider count. It
+                     asserted a photo it structurally could not show. -->
+                <div class="rounded-xl cm-photo-wrap mb-3" style="height:320px" data-listing-key="${escapeHtml(listing.wid || listing.id || '')}">
                     <img src="${getListingPhoto(listing)}" alt="${displayAddress}" class="cm-photo rounded-xl" loading="lazy">
                     ${listing.priceChange === 'down' ? '<div class="absolute top-3 left-3 px-2 py-1 bg-red-500 text-white text-xs font-bold rounded"><i class="fas fa-arrow-down mr-1"></i>PRICE DROP!</div>' : ''}
                     <div class="cm-overlay rounded-b-xl px-3 py-2.5 flex items-center justify-between">
                         <button onclick="showListingDetail('${escapeHtml(listing.id)}')" class="px-3 py-1.5 bg-white/90 backdrop-blur rounded-lg text-xs shadow-sm flex items-center gap-2 text-gray-700 hover:bg-white"><i class="fas fa-th"></i> Floorplans</button>
-                        <span class="text-white/90 text-xs font-semibold"><i class="fas fa-camera mr-1"></i>1 / ${listing.photoCount}</span>
+                        <span class="text-white/90 text-xs font-semibold"><i class="fas fa-camera mr-1"></i>${listing.photoCount ? ('1 / ' + listing.photoCount) : '—'}</span>
                     </div>
                 </div>
 
@@ -24354,7 +24430,12 @@ function parseBudgetValue(td) {
                 }
             });
             // Also try by data-photo-lid attribute (set by renderers)
-            var imgs = document.querySelectorAll('img[data-photo-lid="' + listingId + '"]');
+            // SAME DOMAIN AS THE REQUEST. This selected on data-photo-lid,
+            // which holds the ListingId, using a listingId that is now a
+            // ListingKey - so it matched nothing and the fetched photo was
+            // never applied to these images. The identity moved; the selector
+            // had not.
+            var imgs = document.querySelectorAll('img[data-photo-key="' + listingId + '"]');
             imgs.forEach(function(img) {
                 var isSvg = img.src && img.src.indexOf('data:image/svg') !== -1;
                 var isHidden = img.style.display === 'none';
@@ -24442,7 +24523,15 @@ function parseBudgetValue(td) {
                 return;
             }
 
-            fetch('/api/media/batch?ids=' + encodeURIComponent(lid) + '&detail=true', {
+            // THE DETAIL PATH ASKS IN THE SAME DOMAIN AS THE CARD.
+            //
+            // This sent `ids=<ListingId>` while the card beside it sent
+            // `keys=<ListingKey>`. The provider answers both, but the route
+            // grouped the reply by ResourceRecordKey regardless of what was
+            // asked, then looked it up by the RLS id - so a provider-only
+            // listing showed its thumbnail and then opened an EMPTY gallery.
+            // One listing, one provider, two answers.
+            fetch('/api/media/batch?keys=' + encodeURIComponent(lid) + '&detail=true', {
                 credentials: 'same-origin'
             }).then(function(res) {
                 if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -27913,7 +28002,10 @@ function openPrintableWindow(html, options) {
             // Batch in groups of 25 (API detail mode limit) to handle larger reports
             var needPhotos = listings.filter(function(l) { return !l.images || l.images.length === 0; });
             if (needPhotos.length > 0 && typeof fetch !== 'undefined') {
-                var allIds = needPhotos.map(function(l) { return l.lid || l.id; }).filter(Boolean);
+                // ONE DOMAIN PER BATCH. `l.lid || l.id` mixed RLS ListingIds
+                // and numeric ListingKeys into a single request, so one batch
+                // spanned two identity domains and only one could ever resolve.
+                var allIds = needPhotos.map(function(l) { return l.wid || l.id; }).filter(Boolean);
                 var BATCH_SIZE = 25;
                 var batches = [];
                 for (var bi = 0; bi < allIds.length; bi += BATCH_SIZE) {
@@ -27926,7 +28018,7 @@ function openPrintableWindow(html, options) {
                     var media = data.media || {};
                     needPhotos.forEach(function(l) {
                         if (l.images && l.images.length > 0) return; // already populated by earlier batch
-                        var lid = l.lid || l.id;
+                        var lid = l.wid || l.id;
                         if (media[lid] && media[lid].length > 0) {
                             l.images = media[lid].map(function(m) {
                                 return {
@@ -27949,7 +28041,7 @@ function openPrintableWindow(html, options) {
                     }
                 }
                 batches.forEach(function(batchIds) {
-                    fetch('/api/media/batch?ids=' + encodeURIComponent(batchIds.join(',')) + '&detail=true', { credentials: 'same-origin' })
+                    fetch('/api/media/batch?keys=' + encodeURIComponent(batchIds.join(',')) + '&detail=true', { credentials: 'same-origin' })
                         .then(function(r) { return r.ok ? r.json() : null; })
                         .then(applyMediaToListings)
                         .catch(function() { completedBatches++; });
@@ -31695,8 +31787,13 @@ function emailCurrentCalc() {
             _updateDetailNavButtons();
 
             // Fetch full media (floor plans, videos, virtual tours) on demand
-            if (typeof fetchDetailMedia === 'function' && listing.lid) {
-                fetchDetailMedia(listing.lid, function() {
+            // `wid` is the Cotality ListingKey - the identity Media joins on.
+            // `lid` is the ListingId, a different provider field in a
+            // non-overlapping value space, and passing it here is what made the
+            // detail gallery ask the wrong question of the right provider.
+            var mediaKey = listing.wid || listing.id;
+            if (typeof fetchDetailMedia === 'function' && mediaKey) {
+                fetchDetailMedia(mediaKey, function() {
                     // Re-render media sections after data arrives
                     _refreshDetailMediaSections(listing);
                 });

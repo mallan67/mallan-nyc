@@ -96,7 +96,12 @@
                 }
             });
             // Also try by data-photo-lid attribute (set by renderers)
-            var imgs = document.querySelectorAll('img[data-photo-lid="' + listingId + '"]');
+            // SAME DOMAIN AS THE REQUEST. This selected on data-photo-lid,
+            // which holds the ListingId, using a listingId that is now a
+            // ListingKey - so it matched nothing and the fetched photo was
+            // never applied to these images. The identity moved; the selector
+            // had not.
+            var imgs = document.querySelectorAll('img[data-photo-key="' + listingId + '"]');
             imgs.forEach(function(img) {
                 var isSvg = img.src && img.src.indexOf('data:image/svg') !== -1;
                 var isHidden = img.style.display === 'none';
@@ -184,7 +189,15 @@
                 return;
             }
 
-            fetch('/api/media/batch?ids=' + encodeURIComponent(lid) + '&detail=true', {
+            // THE DETAIL PATH ASKS IN THE SAME DOMAIN AS THE CARD.
+            //
+            // This sent `ids=<ListingId>` while the card beside it sent
+            // `keys=<ListingKey>`. The provider answers both, but the route
+            // grouped the reply by ResourceRecordKey regardless of what was
+            // asked, then looked it up by the RLS id - so a provider-only
+            // listing showed its thumbnail and then opened an EMPTY gallery.
+            // One listing, one provider, two answers.
+            fetch('/api/media/batch?keys=' + encodeURIComponent(lid) + '&detail=true', {
                 credentials: 'same-origin'
             }).then(function(res) {
                 if (!res.ok) throw new Error('HTTP ' + res.status);

@@ -539,7 +539,10 @@
             // Batch in groups of 25 (API detail mode limit) to handle larger reports
             var needPhotos = listings.filter(function(l) { return !l.images || l.images.length === 0; });
             if (needPhotos.length > 0 && typeof fetch !== 'undefined') {
-                var allIds = needPhotos.map(function(l) { return l.lid || l.id; }).filter(Boolean);
+                // ONE DOMAIN PER BATCH. `l.lid || l.id` mixed RLS ListingIds
+                // and numeric ListingKeys into a single request, so one batch
+                // spanned two identity domains and only one could ever resolve.
+                var allIds = needPhotos.map(function(l) { return l.wid || l.id; }).filter(Boolean);
                 var BATCH_SIZE = 25;
                 var batches = [];
                 for (var bi = 0; bi < allIds.length; bi += BATCH_SIZE) {
@@ -552,7 +555,7 @@
                     var media = data.media || {};
                     needPhotos.forEach(function(l) {
                         if (l.images && l.images.length > 0) return; // already populated by earlier batch
-                        var lid = l.lid || l.id;
+                        var lid = l.wid || l.id;
                         if (media[lid] && media[lid].length > 0) {
                             l.images = media[lid].map(function(m) {
                                 return {
@@ -575,7 +578,7 @@
                     }
                 }
                 batches.forEach(function(batchIds) {
-                    fetch('/api/media/batch?ids=' + encodeURIComponent(batchIds.join(',')) + '&detail=true', { credentials: 'same-origin' })
+                    fetch('/api/media/batch?keys=' + encodeURIComponent(batchIds.join(',')) + '&detail=true', { credentials: 'same-origin' })
                         .then(function(r) { return r.ok ? r.json() : null; })
                         .then(applyMediaToListings)
                         .catch(function() { completedBatches++; });

@@ -97,8 +97,28 @@ describe('the endpoint resolves a provider key WITHOUT a database round-trip', (
     expect(src).toMatch(/searchParams\.get\(\s*["']keys["']\s*\)/);
   });
 
-  it('queries ResourceRecordKey for keys, in the matching domain', () => {
-    expect(src).toMatch(/ResourceRecordKey eq/);
+  it('derives filter AND grouping from ONE declared domain', () => {
+    // Stronger than looking for the literal field name. The defect was never
+    // a wrong field - it was that the FILTER field and the GROUPING field
+    // were chosen independently and drifted apart. Both now come from
+    // `requestDomain` through the shared contract, so they cannot.
+    expect(src).toMatch(/const requestDomain = /);
+    expect(src).toMatch(/mediaFilterForDomain\(uncached, requestDomain\)/);
+    expect(src).toMatch(/groupMediaByRequestedDomain\(/);
+  });
+
+  it('never re-keys the lookup away from the identifier the caller sent', () => {
+    // `const key = idToKey.get(id) || id` was the translation that let a
+    // ListingId request be looked up in a ListingKey-indexed map.
+    expect(src).not.toMatch(/idToKey/);
+  });
+
+  it('a provider failure is reported, not cached as "no photo"', () => {
+    // photoCache.set(id, { url: null, ... }) on a non-OK response made one
+    // bad provider minute into a minute of listings asserting they have no
+    // photo - indistinguishable, on a card, from a listing that has none.
+    expect(src).toMatch(/unavailable/);
+    expect(src).not.toMatch(/photoCache\.set\([^)]*url: null[^)]*60_000/);
   });
 
   it('does not need prisma to answer a keys request', () => {
