@@ -3,12 +3,10 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import prisma from '@/lib/prisma';
-import agentsJson from '@/data/agents.json';
 import {
   resolvePublicAgent,
   type PublicAgentProfile,
   type DbAgentRow,
-  type StaticAgentEntry,
 } from '@/lib/agents/public-profile-authority';
 import ActiveListingsTabs from './listings/ActiveListingsTabs';
 import PastDealsSection from './PastDealsSection';
@@ -28,9 +26,10 @@ type Props = {
  * permanently deleted agent, and OVERRIDE the canonical record with stale
  * name/title/photo/contact data.
  *
- * Now: a database that replies is final, null included. Only an unreachable
- * database permits the static roster, purely so an outage degrades the site
- * instead of blanking every agent page.
+ * Now: a database that replies is final, null included. An unreachable database
+ * makes the profile TEMPORARILY UNAVAILABLE — it does not fall back to the
+ * static roster, because that would republish a withdrawn licensee's employment
+ * and licence status for the duration of any outage.
  */
 async function getAgentBySlug(slug: string): Promise<PublicAgentProfile | null> {
   const nameFromSlug = slug.replace(/-/g, ' ');
@@ -54,9 +53,6 @@ async function getAgentBySlug(slug: string): Promise<PublicAgentProfile | null> 
       });
       return agent as DbAgentRow | null;
     },
-    () => (agentsJson.agents as StaticAgentEntry[]).find(
-      (a) => a.id === slug || a.name.toLowerCase().replace(/\s+/g, '-') === slug,
-    ),
   );
 }
 

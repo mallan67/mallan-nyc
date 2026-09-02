@@ -20,6 +20,7 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import {
   resolvePublicAgent,
+  AgentDirectoryUnavailable,
   fromDatabase,
   fromStatic,
   directoryFromDatabase,
@@ -68,14 +69,14 @@ const staticNone = () => undefined;
 
 describe('a database that replies is final', () => {
   it('serves the canonical record when the agent exists', async () => {
-    const p = await resolvePublicAgent('claudia-milkowski', dbHit, staticHas);
+    const p = await resolvePublicAgent('claudia-milkowski', dbHit);
     expect(p!.source).toBe('database');
     expect(p!.email).toBe('cmilkowski@mallan.nyc');
     expect(p!.photo).toBe('/images/agents/claudia-milkowski.jpg');
   });
 
   it('the static roster CANNOT override a canonical record', async () => {
-    const p = await resolvePublicAgent('claudia-milkowski', dbHit, staticHas);
+    const p = await resolvePublicAgent('claudia-milkowski', dbHit);
     // every stale value is absent
     expect(p!.title).not.toBe(STALE_STATIC.title);
     expect(p!.phone).not.toBe(STALE_STATIC.phone);
@@ -85,24 +86,42 @@ describe('a database that replies is final', () => {
 
   it('the static roster CANNOT resurrect a deactivated or deleted agent', async () => {
     // the database replied and holds no ACTIVE agent -> 404, not a static page
-    const p = await resolvePublicAgent('claudia-milkowski', dbMiss, staticHas);
+    const p = await resolvePublicAgent('claudia-milkowski', dbMiss);
     expect(p).toBeNull();
   });
 });
 
-describe('the static roster is an OUTAGE fallback only', () => {
-  it('answers when the database is unreachable, so a page still renders', async () => {
+describe('an outage FAILS CLOSED - it never publishes a stale identity', () => {
+  it('throws AgentDirectoryUnavailable instead of serving the static roster', async () => {
     const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    const p = await resolvePublicAgent('claudia-milkowski', dbDown, staticHas);
-    expect(p!.source).toBe('static');
-    expect(errSpy).toHaveBeenCalled();  // degradation is loud, not silent
+    await expect(resolvePublicAgent('claudia-milkowski', dbDown))
+      .rejects.toBeInstanceOf(AgentDirectoryUnavailable);
+    expect(errSpy).toHaveBeenCalled();   // loud, not silent
     errSpy.mockRestore();
   });
 
-  it('returns null when the database is down and there is no static entry', async () => {
+  it('a deactivated agent cannot reappear during an outage', async () => {
+    // The earlier revision fell back to Git here, so a withdrawn licensee's
+    // employment and licence status was republished for the whole outage.
+    // Being briefly unavailable is safer than being briefly wrong.
     const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    expect(await resolvePublicAgent('nobody', dbDown, staticNone)).toBeNull();
+    await expect(resolvePublicAgent('claudia-milkowski', dbDown)).rejects.toThrow();
     errSpy.mockRestore();
+  });
+
+  it('no public surface reads the static roster at runtime', () => {
+    const profilePage = readFileSync(resolve(ROOT, 'app/agents/[name]/page.tsx'), 'utf8');
+    const rosterPage = readFileSync(resolve(ROOT, 'app/agents/page.tsx'), 'utf8');
+    const publicApi = readFileSync(resolve(ROOT, 'app/api/agents/public/route.ts'), 'utf8');
+    const listingsPage = readFileSync(resolve(ROOT, 'app/agents/[name]/listings/page.tsx'), 'utf8');
+    for (const src of [profilePage, rosterPage, publicApi, listingsPage]) {
+      // an IMPORT is a runtime source; a comment mentioning the old behaviour is not
+      expect(src).not.toMatch(/import .*data\/agents\.json/);
+      expect(src).not.toContain('agentsJson.agents');
+    }
+    // the API says unavailable rather than substituting
+    expect(publicApi).toContain('agent_directory_unavailable');
+    expect(publicApi).toContain('503');
   });
 });
 
@@ -142,10 +161,12 @@ describe('the pages actually use the authority', () => {
   });
 
   it('every public surface derives the title through the authority', () => {
+    // the static helpers are no longer runtime paths, so only the DB shapes
+    // should appear on a public surface
     expect(rosterPage).toContain('fromDatabase');
-    expect(rosterPage).toContain('fromStatic');
     expect(publicApi).toContain('directoryFromDatabase');
-    expect(publicApi).toContain('directoryFromStatic');
+    expect(rosterPage).not.toContain('fromStatic');
+    expect(publicApi).not.toContain('directoryFromStatic');
   });
 
   it('the public API never SELECTS contact columns, not merely strips them', () => {

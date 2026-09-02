@@ -10,9 +10,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import {
   directoryFromDatabase,
-  directoryFromStatic,
   type DbAgentDirectoryRow,
-  type StaticAgentEntry,
 } from '@/lib/agents/public-profile-authority';
 
 export const dynamic = 'force-dynamic';
@@ -54,10 +52,10 @@ export async function GET() {
   } catch (error) {
     console.error('[/api/agents/public] DB error:', error instanceof Error ? error.message : error);
     // Fallback to static JSON — strip phone/email here too
-    const agentsData = await import('@/data/agents.json');
-    const stripped = {
-      agents: ((agentsData.agents ?? []) as StaticAgentEntry[]).map(directoryFromStatic),
-    };
-    return NextResponse.json(stripped);
+    // 503, not a stale roster. See lib/agents/public-profile-authority.
+    return NextResponse.json(
+      { error: 'agent_directory_unavailable' },
+      { status: 503, headers: { 'Cache-Control': 'no-store' } }
+    );
   }
 }

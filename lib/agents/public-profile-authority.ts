@@ -18,15 +18,25 @@
  *              live individual profile.
  *
  * ── The rule ──────────────────────────────────────────────────────────────
- * The Agent record is the authority. When the database CAN answer, its answer
- * is final — including "no active agent", which must produce a 404.
+ * The Agent record is the AUTHORITY, full stop. Not "the Agent record normally,
+ * and the Git roster during a failure" — that is still two identity authorities,
+ * just with a trigger condition.
  *
- * The static roster is an OUTAGE fallback only: it is consulted when the
- * database is unreachable, so a database incident degrades the site rather than
- * blanking every agent page. It can never contradict a database that replied.
+ * When the database answers, its answer is final, including "no active agent",
+ * which produces a 404.
  *
- * Both paths run the professional title through the one title authority, so
- * neither can advertise a designation that disagrees with the licence.
+ * When the database is UNREACHABLE the profile is TEMPORARILY UNAVAILABLE. It
+ * does not fall back to `data/agents.json`.
+ *
+ * An earlier revision of this module did fall back, and claimed that fixed the
+ * resurrection problem. It did not: a deactivated or permanently deleted agent
+ * whose static entry still sat in Git would reappear for the duration of any
+ * database outage — publishing employment and licence status that Mallan had
+ * already withdrawn. For a regulated professional identity, being briefly
+ * unavailable is safer than being briefly wrong.
+ *
+ * `data/agents.json` remains the SEED source for prisma/seed.ts. It is no
+ * longer a runtime identity source.
  */
 import { professionalTitle } from './professional-title';
 
@@ -102,10 +112,11 @@ export function fromDatabase(a: DbAgentRow, fallbackSlug: string): PublicAgentPr
 }
 
 /**
- * Normalise a static entry, used ONLY when the database is unreachable.
+ * Normalise a static entry.
  *
- * The static file has no licence or role, so `professionalTitle` falls through
- * to its stored title rather than inventing a designation.
+ * RETAINED FOR THE SEED PATH AND ITS TESTS ONLY. It is no longer reachable from
+ * any public surface — see the module note on why an outage must not publish a
+ * stale professional identity.
  */
 export function fromStatic(e: StaticAgentEntry): PublicAgentProfile {
   return {
@@ -124,30 +135,40 @@ export function fromStatic(e: StaticAgentEntry): PublicAgentProfile {
 }
 
 /**
+ * Raised when the database cannot answer. Callers render "temporarily
+ * unavailable" rather than substituting a stale identity.
+ */
+export class AgentDirectoryUnavailable extends Error {
+  constructor(cause: unknown) {
+    super('Agent directory temporarily unavailable');
+    this.name = 'AgentDirectoryUnavailable';
+    this.cause = cause;
+  }
+}
+
+/**
  * Resolve one public profile under the authority rule.
  *
- * `readDb` MUST throw when the database is unreachable and resolve to null when
- * the database replied and holds no matching ACTIVE agent. That distinction is
- * the whole rule: a null is authoritative and produces a 404; only a throw
- * permits the static fallback.
+ * Returns null when the database replied and holds no matching ACTIVE agent —
+ * authoritative, and a 404.
+ *
+ * THROWS AgentDirectoryUnavailable when the database could not answer. There is
+ * deliberately no second source: a stale roster answering for a withdrawn
+ * licensee is the failure mode this module exists to prevent.
  */
 export async function resolvePublicAgent(
   slug: string,
   readDb: () => Promise<DbAgentRow | null>,
-  readStatic: () => StaticAgentEntry | undefined,
 ): Promise<PublicAgentProfile | null> {
   try {
     const row = await readDb();
-    // AUTHORITATIVE, including the negative. The static roster does not get a
-    // second opinion — that is how a deleted agent stayed live.
     return row ? fromDatabase(row, slug) : null;
   } catch (err) {
     console.error(
-      '[public-profile] database unreachable; serving the static roster for continuity:',
+      '[public-profile] database unreachable; refusing to serve a stale identity:',
       err instanceof Error ? err.message : err,
     );
-    const entry = readStatic();
-    return entry ? fromStatic(entry) : null;
+    throw new AgentDirectoryUnavailable(err);
   }
 }
 
@@ -178,7 +199,7 @@ export function directoryFromDatabase(
   };
 }
 
-/** Static outage fallback for the directory, contact fields dropped. */
+/** Seed-path shape for the directory, contact fields dropped. Not a runtime source. */
 export function directoryFromStatic(e: StaticAgentEntry): PublicAgentDirectoryEntry {
   const { phone: _p, email: _e, source: _s, ...rest } = fromStatic(e);
   return rest;

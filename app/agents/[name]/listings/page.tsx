@@ -3,7 +3,10 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import prisma from '@/lib/prisma';
-import agentsJson from '@/data/agents.json';
+import { resolvePublicAgent, type DbAgentRow } from '@/lib/agents/public-profile-authority';
+
+/** Paragraph separator in stored biographies. */
+const PARAGRAPH_BREAK = String.fromCharCode(10, 10);
 import ActiveListingsTabs from './ActiveListingsTabs';
 import PastDealsSection from '../PastDealsSection';
 import { getPastDeals } from '../past-deals-loader';
@@ -29,7 +32,12 @@ interface AgentProfile {
 async function getAgentBySlug(slug: string): Promise<AgentProfile | null> {
   const nameFromSlug = slug.replace(/-/g, ' ');
 
-  try {
+  // Same authority as the profile page: the Agent record answers, a null is
+  // authoritative, and an unreachable database fails closed rather than
+  // republishing a withdrawn licensee from Git. This surface also used to
+  // hardcode 'Licensed Real Estate Salesperson' as its title default, which is
+  // exactly how an Associate Broker was publicly mislabelled.
+  const profile = await resolvePublicAgent(slug, async () => {
     const agent = await prisma.agent.findFirst({
       where: {
         OR: [
@@ -39,48 +47,19 @@ async function getAgentBySlug(slug: string): Promise<AgentProfile | null> {
         status: 'active',
       },
       select: {
-        public_slug: true,
-        full_name: true,
-        first_name: true,
-        last_name: true,
-        title: true,
-        photo: true,
-        phone: true,
-        email: true,
-        bio: true,
-        specialties: true,
-        languages: true,
-        featured: true,
+        public_slug: true, full_name: true, first_name: true, last_name: true,
+        title: true, license_type: true, role: true, photo: true, phone: true,
+        email: true, bio: true, specialties: true, languages: true, featured: true,
       },
     });
-    if (agent) {
-      const fullBio = agent.bio || '';
-      return {
-        id: agent.public_slug || slug,
-        name: agent.full_name || `${agent.first_name} ${agent.last_name}`,
-        title: agent.title || 'Licensed Real Estate Salesperson',
-        photo: agent.photo || '/images/agent-placeholder.svg',
-        phone: agent.phone || '',
-        email: agent.email,
-        bio: fullBio,
-        shortBio: fullBio.split('\n\n')[0] || fullBio.substring(0, 300),
-        specialties: agent.specialties,
-        languages: agent.languages,
-        featured: agent.featured,
-      };
-    }
-  } catch {
-    // DB unavailable — fall through
-  }
+    return agent as DbAgentRow | null;
+  });
 
-  const staticAgent = agentsJson.agents.find(
-    (a) => a.id === slug || a.name.toLowerCase().replace(/\s+/g, '-') === slug
-  );
-  if (!staticAgent) return null;
-  const fullBio = staticAgent.bio || '';
+  if (!profile) return null;
+  const fullBio = profile.bio || '';
   return {
-    ...staticAgent,
-    shortBio: fullBio.split('\n\n')[0] || fullBio.substring(0, 300),
+    ...profile,
+    shortBio: fullBio.split(PARAGRAPH_BREAK)[0] || fullBio.substring(0, 300),
   };
 }
 
