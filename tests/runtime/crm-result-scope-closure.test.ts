@@ -303,6 +303,43 @@ describe('output surfaces consume the snapshot without silently narrowing it', (
   });
 });
 
+describe('a report that was never sent does not look sent', () => {
+  it('the simulated outcome is not drawn as a success', () => {
+    // Both outcomes drew the same green tick and green text, differing only by
+    // the parenthetical '(simulated)'. A caveat inside a success state reads as
+    // a footnote on a success: a broker seeing a green check and '3 listings
+    // sent to Jane' has every reason to believe the client received it.
+    const sendBlock = REPORTS.slice(
+      REPORTS.indexOf('// A SIMULATED SEND IS NOT A SUCCESS'),
+      REPORTS.indexOf('Configure real email delivery'),
+    );
+    expect(sendBlock.length).toBeGreaterThan(0);
+    expect(sendBlock).toContain('NOT SENT');
+    // The success tick must be conditional on a REAL send.
+    expect(sendBlock).toContain('realSend');
+    expect(sendBlock).toContain('Nothing was delivered');
+  });
+
+  it('the recipient is still named, so the broker knows who it would have reached', () => {
+    // Truthfulness is not achieved by withholding useful detail.
+    const sendBlock = REPORTS.slice(
+      REPORTS.indexOf('// A SIMULATED SEND IS NOT A SUCCESS'),
+      REPORTS.indexOf('Configure real email delivery'),
+    );
+    expect(sendBlock).toContain('would have gone to');
+  });
+
+  it('a real send still reads as delivered', () => {
+    // Over-correcting into permanent doubt would be its own defect.
+    const sendBlock = REPORTS.slice(
+      REPORTS.indexOf('// A SIMULATED SEND IS NOT A SUCCESS'),
+      REPORTS.indexOf('Configure real email delivery'),
+    );
+    expect(sendBlock).toContain('Email delivered!');
+    expect(sendBlock).toContain('#059669');
+  });
+});
+
 describe('a dead control is not left looking alive', () => {
   it('the unwired "Search in results" box is disabled', () => {
     expect(DEAD).toContain('#resultsSearchInput');

@@ -29294,11 +29294,41 @@ function openPrintableWindow(html, options) {
                     }
                     setTimeout(function() { var ov = document.getElementById('emailSendingOverlay'); if (ov) ov.remove(); }, 6000);
                 } else {
-                    // Success state
-                    if (icon) { icon.style.display = 'block'; icon.innerHTML = '<div style="width:48px;height:48px;background:#059669;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto;"><span style="color:#fff;font-size:24px;font-weight:bold;">&#10003;</span></div>'; }
-                    if (msg) { msg.style.color = '#059669'; msg.textContent = realSend ? 'Email delivered!' : 'Email sent (simulated)'; }
+                    // A SIMULATED SEND IS NOT A SUCCESS, AND MUST NOT LOOK LIKE ONE.
+                    //
+                    // Both outcomes drew the same green tick and the same green
+                    // text, differing only by the parenthetical "(simulated)".
+                    // The visual language said delivered; a broker glancing at a
+                    // green check and "3 listings sent to Jane (jane@...)" has
+                    // every reason to believe their client received the report.
+                    // Nothing was sent.
+                    //
+                    // The word was present and the meaning still did not land,
+                    // which is the point: a caveat inside a success state reads
+                    // as a footnote on a success. Simulation now gets its own
+                    // amber, non-tick treatment and says plainly that nothing
+                    // was delivered.
+                    if (icon) {
+                        icon.style.display = 'block';
+                        icon.innerHTML = realSend
+                            ? '<div style="width:48px;height:48px;background:#059669;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto;"><span style="color:#fff;font-size:24px;font-weight:bold;">&#10003;</span></div>'
+                            : '<div style="width:48px;height:48px;background:#d97706;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto;"><span style="color:#fff;font-size:26px;font-weight:bold;">!</span></div>';
+                    }
+                    if (msg) {
+                        msg.style.color = realSend ? '#059669' : '#92400e';
+                        msg.textContent = realSend
+                            ? 'Email delivered!'
+                            : 'NOT SENT — preview only';
+                    }
                     if (detail) {
-                        var html = count + ' listing' + (count !== 1 ? 's' : '') + ' sent to ' + toName + (to ? ' (' + to + ')' : '');
+                        // "sent to Jane" is the sentence that does the damage when
+                        // nothing was sent. The recipient is still named — the
+                        // broker needs to know who it WOULD have gone to — but the
+                        // verb tells the truth.
+                        var html = realSend
+                            ? count + ' listing' + (count !== 1 ? 's' : '') + ' sent to ' + toName + (to ? ' (' + to + ')' : '')
+                            : 'Nothing was delivered. ' + count + ' listing' + (count !== 1 ? 's' : '') +
+                              ' would have gone to ' + toName + (to ? ' (' + to + ')' : '') + '.';
                         html += '<br><a href="/crm/dashboard" target="_blank" style="color:#C4A052;font-weight:600;font-size:12px;text-decoration:underline;margin-top:8px;display:inline-block;">View in Dashboard</a>';
                         if (!realSend) {
                             html += '<br><a href="#" onclick="openEmailSettings();var ov=document.getElementById(\'emailSendingOverlay\');if(ov)ov.remove();return false;" style="color:#6b7280;font-size:11px;text-decoration:underline;margin-top:4px;display:inline-block;">Configure real email delivery &rarr;</a>';
