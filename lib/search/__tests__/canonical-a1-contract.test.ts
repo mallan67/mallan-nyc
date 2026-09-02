@@ -362,6 +362,13 @@ describe('A1 · only authorised readers import the canonical package', () => {
     // point for amenity keys and feature flags; everything downstream reads the
     // DERIVED columns rather than re-deriving from provider payloads.
     const AUTHORISED = new Set([
+      // MALLAN-LOCAL SEARCH SOURCE. It applies the broker's criteria to
+      // Mallan-authored listings, and must answer bath ranges the SAME way
+      // the provider half does — half-baths are exactly where a second
+      // interpretation makes 1.5 baths mean two things inside one result
+      // set. It reuses `canonical/bath-contract` rather than re-deriving,
+      // which is the reuse this guard is meant to permit deliberately.
+      'lib/search/mallan-local-source.ts',
       // Single derivation point for amenity_keys / feature_flags.
       'lib/search/listing-search-projection.ts',
       // Saved Search PERSISTENCE boundary. Execution became canonical in
