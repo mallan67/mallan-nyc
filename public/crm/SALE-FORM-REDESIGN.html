@@ -1067,6 +1067,23 @@ body { font-family: Manrope, sans-serif; }
                     <label class="field-label">Withdrawn Date</label>
                     <div class="relative"><input type="date" id="saleWithdrawnDate" class="field-input" data-rls-field="WithdrawnDate"><i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i></div>
                 </div>
+                <!-- Cancellation Date — REBNY conditional rule CANCELLED-001 (BLOCKER).
+                     A cancel-class MlsStatus ('Cancelled', this CRM's canonical spelling, and
+                     'Canceled', the live Cotality member — ONE equivalence class, declared in
+                     lib/compliance/listing-status-vocabulary.ts) requires a non-empty
+                     CancellationDate. The gate is server-side: assertRlsCompliantPayload
+                     (lib/compliance/rls-enforcement.ts §8) reads the rule's appliesWhen against
+                     the POSTed MlsStatus. Until this input existed the form could emit the
+                     cancel status but never the date, so the write 422'd on CF-CANCELLED-001
+                     with no field for the agent to fill.
+                     Modelled link-for-link on saleOffMarketDate. Persistence is raw-only —
+                     rebny-field-tables persistenceMap declares `CancellationDate: { raw: true }`
+                     — so the value round-trips through listings.raw_data with NO migration. -->
+                <div id="saleCancellationDateField" style="display:none;">
+                    <label class="field-label">Cancellation Date <span class="text-red-500">*</span></label>
+                    <div class="relative"><input type="date" id="saleCancellationDate" class="field-input" required data-rls-field="CancellationDate"><i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i></div>
+                    <p class="text-[10px] text-gray-400">RLS: CancellationDate — required by REBNY whenever the listing is Cancelled.</p>
+                </div>
                 <div id="saleContractSignedDateField" style="display:none;">
                     <label class="field-label">Contract Signed Date <span class="text-red-500">*</span></label>
                     <div class="relative"><input type="date" id="saleContractSignedDate" class="field-input" required data-rls-field="PurchaseContractDate"><i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i></div>
@@ -5881,6 +5898,7 @@ function updateSaleStatusFields() {
     const row = document.getElementById('saleStatusDatesRow');
     const offMarket = document.getElementById('saleOffMarketDateField');
     const withdrawn = document.getElementById('saleWithdrawnDateField');
+    const cancellation = document.getElementById('saleCancellationDateField');
     const contract = document.getElementById('saleContractSignedDateField');
     const soldDate = document.getElementById('saleSoldDateField');
     const soldPrice = document.getElementById('saleSoldPriceField');
@@ -5891,6 +5909,7 @@ function updateSaleStatusFields() {
     if (row) row.style.display = 'none';
     if (offMarket) offMarket.style.display = 'none';
     if (withdrawn) withdrawn.style.display = 'none';
+    if (cancellation) cancellation.style.display = 'none';
     if (contract) contract.style.display = 'none';
     if (soldDate) soldDate.style.display = 'none';
     if (soldPrice) soldPrice.style.display = 'none';
@@ -5900,6 +5919,18 @@ function updateSaleStatusFields() {
         if (row) row.style.display = '';
         if (offMarket) offMarket.style.display = '';
         if (['Withdrawn', 'Cancelled'].includes(status) && withdrawn) withdrawn.style.display = '';
+    }
+    // CANCELLED-001 (BLOCKER) — the cancel workflow status is the ONLY status
+    // that requires CancellationDate, so the input is revealed for exactly that
+    // token. 'Cancelled' is this form's own CRM_TO_RESO_STATUS key and the value
+    // getResoMlsStatus() emits as MlsStatus, so the field appears precisely when
+    // the server-side gate will demand it. Kept as its own branch rather than
+    // folded into the off-market list above: PermOffMarket / TempOffMarket /
+    // Expired / Withdrawn are NOT cancel-class and must not be asked for a
+    // cancellation date they have no rule for.
+    if (['Cancelled'].includes(status)) {
+        if (row) row.style.display = '';
+        if (cancellation) cancellation.style.display = '';
     }
     if (['ContractSigned', 'ContractSignedThruUs', 'BoardApproved', 'Sold', 'SoldThruUs'].includes(status)) {
         if (row) row.style.display = '';
@@ -7205,7 +7236,14 @@ const STATUS_REQUIRED_FIELDS = {
     'SoldThruUs': ['saleSoldDate', 'saleSoldPrice'],
     'PermOffMarket': ['saleOffMarketDate'],
     'TempOffMarket': ['saleOffMarketDate'],
-    'Expired': ['saleOffMarketDate']
+    'Expired': ['saleOffMarketDate'],
+    // Cancelled must list BOTH dates. The server runs two independent BLOCKERs
+    // against a cancel-class MlsStatus — CF-CANCELLED-001 (CancellationDate) and
+    // CF-OFFMARKET-001 (OffMarketDate, whose status list includes the cancel
+    // class). Prompting for only one of them still 422s the agent on the other,
+    // so the client-side required set has to cover both or the cancellation is
+    // not completable. See lib/compliance/rebny-field-tables.ts conditionalRules.
+    'Cancelled': ['saleCancellationDate', 'saleOffMarketDate']
 };
 
 function applySalesFieldRules() {
@@ -7792,6 +7830,15 @@ function collectSaleFormData() {
     // Date fields
     data.OffMarketDate = data.saleOffMarketDate || '';
     data.WithdrawnDate = data.saleWithdrawnDate || '';
+    // CancellationDate — canonical Cotality field, declared raw-only in
+    // rebny-field-tables persistenceMap, so it lands verbatim in
+    // listings.raw_data with no typed column and no migration. Emitted
+    // UNCONDITIONALLY (same as its OffMarketDate/WithdrawnDate siblings): the
+    // '' fallback keeps the CF-CANCELLED-001 BLOCKER fail-closed — a blank input
+    // is an EMPTY STRING, which rls-enforcement §8 treats as missing, not as
+    // satisfied. Never gate this emit on the status; that would let a payload
+    // reach the server with the field silently absent.
+    data.CancellationDate = data.saleCancellationDate || '';
     data.PurchaseContractDate = data.saleContractSignedDate || '';
     data.CloseDate = data.saleSoldDate || '';
     // Cotality `Possession` is a Multi.Possession ENUM, NOT a date — so the
@@ -8390,7 +8437,13 @@ const SALE_REQUIRED_FIELDS = [
     { id: 'saleExclusiveStart', label: 'Exclusive Start Date', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
     { id: 'saleExclusiveExpires', label: 'Exclusive Expires', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
     { id: 'saleFirstCoBroke', label: 'First Date To Co-Broke', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
-    { id: 'saleOffMarketDate', label: 'Off Market Date', type: 'input', tab: 1, section: 'Listing Information/Essentials', statusOnly: ['PermOffMarket','TempOffMarket','Expired','Withdrawn'] },
+    // 'Cancelled' added to the OffMarketDate closure: CF-OFFMARKET-001's status
+    // list includes the cancel class, so a Cancelled listing needs this date too
+    // and the registry has to say so or validateREBNYRequired reports "nothing
+    // missing" on a payload the server will reject.
+    { id: 'saleOffMarketDate', label: 'Off Market Date', type: 'input', tab: 1, section: 'Listing Information/Essentials', statusOnly: ['PermOffMarket','TempOffMarket','Expired','Withdrawn','Cancelled'] },
+    // CF-CANCELLED-001 (BLOCKER) — cancel status only.
+    { id: 'saleCancellationDate', label: 'Cancellation Date', type: 'input', tab: 1, section: 'Listing Information/Essentials', statusOnly: ['Cancelled'] },
     { id: 'saleContractSignedDate', label: 'Contract Signed Date', type: 'input', tab: 1, section: 'Listing Information/Essentials', statusOnly: ['ContractSigned','ContractSignedThruUs','Sold','SoldThruUs'] },
     { id: 'salePrice', label: 'Price', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
     { id: 'saleMaintCC', label: 'Maint/CC', type: 'input', tab: 1, section: 'Listing Information/Essentials', conditional: ['COOP','CONDO','CONDOP','COMMERCIAL_CONDO','COMMERCIAL_COOP'] },
@@ -8545,28 +8598,46 @@ function validateREBNYRequired(formType) {
 // STATUS STATE MACHINE (Valid Transitions)
 // ═══════════════════════════════════════════════════════════
 
+// ── CANCELLATION REACHABILITY (added 2026-08-20) ───────────────────────────
+// These are Mallan's CRM WORKFLOW statuses — a different vocabulary from the
+// RESO-shaped server map in app/api/crm/listings/[id]/status/route.ts, which is
+// reached via CRM_TO_RESO_STATUS. They are NOT copies of each other, but they
+// carried the SAME hole: 'Cancelled' was a key with no state listing it as an
+// allowed next value, so an agent could never cancel a listing from any state.
+//
+// A cancel edge is added wherever a listing agreement exists and can be ended.
+// Deliberately NOT added: 'Draft'/'Future' (pre-publication — nothing filed to
+// cancel), 'Sold'/'SoldThruUs' (completed transactions), 'PermOffMarket'
+// (already terminal), and the executed-contract states 'ContractSigned',
+// 'ContractSignedThruUs' and 'BoardApproved' — a collapsed deal goes
+// 'BackOnMarket' first, from which cancellation IS reachable.
+//
+// 'Cancelled' is also corrected to TERMINAL. It previously listed ['Draft'],
+// which disagreed with the authoritative server map (terminal, no outbound
+// edges); the client would have let an agent attempt a transition the server
+// answers with HTTP 422.
 const STATUS_TRANSITIONS = {
     'Draft':         ['Future', 'Active', 'ComingSoon'],
     'Future':        ['Active', 'ComingSoon', 'Draft'],
-    'ComingSoon':    ['Active', 'Withdrawn', 'Expired'],
-    'Active':        ['OfferOut', 'OfferThruUs', 'BackOnMarket', 'ContractOut', 'COThruUs', 'TempOffMarket', 'Withdrawn', 'Expired'],
-    'BackOnMarket':  ['OfferOut', 'OfferThruUs', 'ContractOut', 'COThruUs', 'TempOffMarket', 'Withdrawn', 'Expired'],
-    'OfferOut':      ['Active', 'OfferAccepted', 'OAThruUs', 'BackOnMarket'],
-    'OfferThruUs':   ['Active', 'OfferAccepted', 'OAThruUs', 'BackOnMarket'],
-    'OfferAccepted': ['ContractOut', 'COThruUs', 'Active', 'BackOnMarket'],
-    'OAThruUs':      ['ContractOut', 'COThruUs', 'Active', 'BackOnMarket'],
-    'ContractOut':   ['ContractSigned', 'ContractSignedThruUs', 'Active', 'BackOnMarket'],
-    'COThruUs':      ['ContractSigned', 'ContractSignedThruUs', 'Active', 'BackOnMarket'],
+    'ComingSoon':    ['Active', 'Withdrawn', 'Expired', 'Cancelled'],
+    'Active':        ['OfferOut', 'OfferThruUs', 'BackOnMarket', 'ContractOut', 'COThruUs', 'TempOffMarket', 'Withdrawn', 'Expired', 'Cancelled'],
+    'BackOnMarket':  ['OfferOut', 'OfferThruUs', 'ContractOut', 'COThruUs', 'TempOffMarket', 'Withdrawn', 'Expired', 'Cancelled'],
+    'OfferOut':      ['Active', 'OfferAccepted', 'OAThruUs', 'BackOnMarket', 'Cancelled'],
+    'OfferThruUs':   ['Active', 'OfferAccepted', 'OAThruUs', 'BackOnMarket', 'Cancelled'],
+    'OfferAccepted': ['ContractOut', 'COThruUs', 'Active', 'BackOnMarket', 'Cancelled'],
+    'OAThruUs':      ['ContractOut', 'COThruUs', 'Active', 'BackOnMarket', 'Cancelled'],
+    'ContractOut':   ['ContractSigned', 'ContractSignedThruUs', 'Active', 'BackOnMarket', 'Cancelled'],
+    'COThruUs':      ['ContractSigned', 'ContractSignedThruUs', 'Active', 'BackOnMarket', 'Cancelled'],
     'ContractSigned':['BoardApproved', 'Sold', 'SoldThruUs', 'Active', 'BackOnMarket'],
     'ContractSignedThruUs': ['BoardApproved', 'Sold', 'SoldThruUs', 'Active', 'BackOnMarket'],
     'BoardApproved': ['Sold', 'SoldThruUs', 'Active', 'BackOnMarket'],
     'Sold':          [],
     'SoldThruUs':    [],
-    'Withdrawn':     ['Active', 'Draft'],
-    'Cancelled':     ['Draft'],
+    'Withdrawn':     ['Active', 'Draft', 'Cancelled'],
+    'Cancelled':     [],
     'PermOffMarket': [],
-    'TempOffMarket': ['Active', 'BackOnMarket'],
-    'Expired':       ['Active', 'Draft'],
+    'TempOffMarket': ['Active', 'BackOnMarket', 'Cancelled'],
+    'Expired':       ['Active', 'Draft', 'Cancelled'],
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -9221,6 +9292,11 @@ var SALE_FIELD_MAP = [
   { rls: 'ActivationDate', form: 'saleFirstShowingDate', type: 'date', src: 'raw', fallbackRls: 'FirstShowingDate' },
   { rls: 'OffMarketDate', form: 'saleOffMarketDate', type: 'date', src: 'raw' },
   { rls: 'WithdrawnDate', form: 'saleWithdrawnDate', type: 'date', src: 'raw' },
+  // src:'raw' is the whole point — CancellationDate has NO typed column and no
+  // structured bucket (persistenceMap: `{ raw: true }`), so buildPersistenceRecord
+  // writes it into listings.raw_data verbatim and this entry reads that exact key
+  // back on edit-load. No migration is involved on either leg.
+  { rls: 'CancellationDate', form: 'saleCancellationDate', type: 'date', src: 'raw' },
   { rls: 'PurchaseContractDate', form: 'saleContractSignedDate', type: 'date', src: 'raw' },
   { rls: 'CloseDate', form: 'saleSoldDate', type: 'date', src: 'raw' },
   { rls: 'Possession', form: 'saleAvailableOccupancy', type: 'date', src: 'raw', fallbackRls: 'PossessionDate' },

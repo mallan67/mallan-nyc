@@ -32,6 +32,7 @@ import {
   importJsonMediaToRows,
 } from "@/lib/media/crm-media";
 import { listingCapabilities, CAPABILITY_DENIED } from "@/lib/auth/listing-capabilities";
+import { closeMediaWrite } from "@/lib/media/post-media-write-closure";
 
 function hasR2Config(): boolean {
   return Boolean(
@@ -311,6 +312,11 @@ export async function POST(
   const totalPhotos = await prisma.listingMedia.count({
     where: { listing_id: listing.listing_id, status: "active", media_type: "Photo" },
   });
+
+  // ONE CANONICAL POST-MEDIA-WRITE CLOSURE. Covers BOTH the fresh upload and the
+  // restore-of-a-soft-deleted-row path: each adds a row to the authorized public
+  // gallery, and either can become hero.
+  await closeMediaWrite(listing.listing_id, { galleryMutated: true });
 
   return NextResponse.json({
     listing_id: listing.listing_id,

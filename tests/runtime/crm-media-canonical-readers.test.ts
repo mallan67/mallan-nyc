@@ -468,12 +468,34 @@ describe('/api/crm/listings — the grid media array reads the canonical composi
     expect(Array.isArray(row.media)).toBe(true);
   });
 
-  it('ownership enforcement still scopes a non-broker to their own listings', async () => {
+  it('ownership enforcement scopes the caller to their PROVEN participation', async () => {
+    // CONTRACT MOVED (P0 incident, 2026-08-17). Ownership used to be a
+    // top-level `where.agent_id`, which was applied ONLY to non-brokers — so the
+    // principal broker received every Cotality terminal row in the database
+    // (522 rows, 387 distinct list agents). It now comes from the single
+    // `participationWhere` owner and is an OR of proven participation arms.
     listingFindMany.mockResolvedValueOnce([]);
     listingCount.mockResolvedValueOnce(0);
     await crmListingsGET(gridRequest());
     const where = listingFindMany.mock.calls[0][0].where as Record<string, unknown>;
-    expect(where.agent_id).toBe(BigInt(42));
+
+    const arms = where.OR as Array<Record<string, unknown>>;
+    expect(Array.isArray(arms)).toBe(true);
+    expect(arms.length).toBeGreaterThan(0);
+
+    // The Mallan-authored arm must bind THIS agent — being Mallan-authored is
+    // not by itself ownership.
+    const flat = JSON.stringify(where, (_k, v) => (typeof v === 'bigint' ? `${v}n` : v));
+    expect(flat).toContain('"agent_id":"42n"');
+
+    // And no arm may admit provider rows without a participation test: the
+    // defect was an arm of the form { mls_id: { not: null }, status: {...} }.
+    for (const arm of arms) {
+      const keys = Object.keys(arm);
+      const isUnscopedProviderArm =
+        keys.includes('mls_id') && !keys.some((k) => k.includes('agent'));
+      expect(isUnscopedProviderArm).toBe(false);
+    }
   });
 
   it('the widened select fetches active-only rows PLUS the all-status _count', async () => {

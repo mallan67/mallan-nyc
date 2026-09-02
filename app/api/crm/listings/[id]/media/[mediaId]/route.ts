@@ -22,6 +22,7 @@ import {
   CAPABILITY_LISTING_SELECT,
 } from "@/lib/auth/listing-capabilities";
 import type { SessionUser } from "@/lib/auth/session";
+import { closeMediaWrite } from "@/lib/media/post-media-write-closure";
 
 async function resolveOwnedListing(
   id: string,
@@ -113,6 +114,12 @@ export async function DELETE(
     { action: "media_soft_deleted", media_key: mediaKey },
     req.headers.get("x-forwarded-for") ?? undefined,
   );
+
+  // ONE CANONICAL POST-MEDIA-WRITE CLOSURE. A delete removes a row from the
+  // authorized public gallery, so the summary must be recomputed and the exact
+  // affected public surfaces invalidated. Without this the public gallery stayed
+  // stale INDEFINITELY (listing detail is `revalidate = false`).
+  await closeMediaWrite(listing.listing_id, { galleryMutated: true });
 
   return NextResponse.json({ listing_id: listing.listing_id, media_key: mediaKey, deleted: true });
 }
@@ -221,6 +228,12 @@ export async function PATCH(
     { action: "media_set_as_main", media_key: mediaKey },
     req.headers.get("x-forwarded-for") ?? undefined,
   );
+
+  // ONE CANONICAL POST-MEDIA-WRITE CLOSURE. Set-main changes HERO selection, so
+  // the recomputed summary will classify this as a hero change and expire the
+  // listing, its building payload and the manifest shard — all of which carry
+  // `primary_photo_url`. Previously this route emitted nothing at all.
+  await closeMediaWrite(listing.listing_id, { galleryMutated: true });
 
   return NextResponse.json({ listing_id: listing.listing_id, media_key: mediaKey, preferred_photo_yn: true });
 }

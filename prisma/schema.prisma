@@ -522,6 +522,7 @@ model Listing {
   co_list_office_mls_id   String? @map("co_list_office_mls_id")
   co_list_agent_mls_id    String? @map("co_list_agent_mls_id")
 
+
   // --- Auction listing fields (UCBA Art. I exception path — Workstream C3) ---
   // Closes C15 [low] in compliance/rules/ucba-audit-checklist.json:
   //   "Auction Listing Requirements — Must include: minimum bid, date/time/
@@ -592,6 +593,11 @@ model Listing {
   @@index([modification_timestamp])
   @@index([agent_id])
   @@index([owner_client_id])
+  // DATAMODEL RECONCILIATION (2026-08-19): this index is created by the applied baseline migration
+  // (prisma/migrations/20260301073253_baseline/migration.sql:247) and exists in production with
+  // 42,645 scans, but was missing from this datamodel — so `migrate diff` proposed DROPping it.
+  // Declaring it produces no SQL; it reconciles the model with migration history and production.
+  @@index([idx_display_yn, owner_opt_out], map: "listings_idx_display_yn_owner_opt_out_idx")
   // P1 search-index pack (#415 Neon/Search Foundation). Additive only.
   // Neighborhood search resolves to `postal_code IN(...)` (public-listing-db.ts) — read-only
   // EXPLAIN (2026-06-24) proved postal_code was an unindexed post-bitmap Filter (~6062 cost).
@@ -696,9 +702,9 @@ model SyncError {
 }
 
 // ═══════════════════════════════════════════════════════════
-// LISTINGS ARCHIVE — Minimal past-sales / historical data
-// Populated by Phase 4 lifecycle cron for terminal listings >180d.
-// Kept for 6 years per NY DOS recordkeeping requirements.
+// LISTINGS ARCHIVE — Minimal past-sales / historical data. Populated by the Phase 4 lifecycle cron for terminal listings >180d.
+// CORRECTED 2026-08-20: this box previously read “Kept for 6 years per NY DOS recordkeeping requirements.” That is withdrawn. The NY DOS broker recordkeeping rule is 19 NYCRR 175.23 and its operative term is THREE years — “each licensed broker shall keep and maintain for a period of three years” — and it enumerates Article 12-A transaction records (contract/price+deposit, commission paid, gross profit on resale, the listing / commission / buyer-broker agreement). It says nothing about a cached copy of a third-party MLS listing row, and nothing about photographs or any binary media.
+// This table's justification is FK integrity (PriceHistory / MarketingActivity / Showing / Offer) plus a durable Mallan-side summary for reconciliation and comps — NOT a statutory floor. Any retention floor added here later must cite its own dated authority rather than inherit this comment. Evidence: `.cache/closure3/r2-final/legal/19-NYCRR-175.23-VERBATIM.md` (sha256 31ac0e51…, two independent sources).
 // ═══════════════════════════════════════════════════════════
 model ListingsArchive {
   id                   BigInt    @id @default(autoincrement())
@@ -2442,6 +2448,19 @@ model ListingMedia {
   status                    String    @default("active")
   created_at                DateTime  @default(now()) @map("created_at")
   updated_at                DateTime  @updatedAt @map("updated_at")
+
+  /// STEP 1 of the content-check state machine (authorized 2026-08-19).
+  /// Last time a content check was ATTEMPTED AND CONCLUDED for this MediaKey, whatever the
+  /// outcome. Interpretation is qualified by content_check_state — which is why one timestamp
+  /// alone cannot carry this. NULL = never checked.
+  content_check_at          DateTime? @map("content_check_at")
+
+  /// STEP 2 of the content-check state machine (authorized 2026-08-19).
+  /// NULL | 'VERIFIED' | 'MISMATCH' | 'INDETERMINATE'. Constrained by the APPLICATION contract
+  /// (lib/media/content-verification.ts), deliberately NOT a database enum — the repo already models
+  /// controlled state as String (see ListingMedia.status), and an enum would make future value
+  /// additions a migration.
+  content_check_state       String?   @map("content_check_state")
 
   @@index([listing_id])
   @@index([resource_record_key])

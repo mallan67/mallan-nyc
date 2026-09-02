@@ -194,6 +194,13 @@ function backlogRow(listingId: string, over: Record<string, unknown> = {}) {
 function isMainBacklogCall(call: unknown[]): boolean {
   const args = call[0] as { where?: { status?: string; OR?: unknown[]; r2_attempts?: unknown }; select?: Record<string, unknown> };
   return (
+    // PHASE 3.5 CONTENT VERIFICATION is NOT backlog work and must never be counted as a
+    // selection query. Its where-shape is otherwise identical to the backlog universe
+    // (status active + OR + no r2_attempts + non-id select), so shape alone cannot tell them
+    // apart — it is identified by its content_check_* predicate, which the backlog universe
+    // never carries. Semantically the two are disjoint: verification asserts delivery
+    // PRESENT (r2_key not null); the backlog asserts delivery MISSING.
+    !JSON.stringify(args?.where ?? {}).includes("content_check") &&
     args?.where?.status === "active" &&
     Array.isArray(args.where.OR) &&
     args.where.r2_attempts === undefined &&

@@ -348,7 +348,7 @@ The data flow has three distinct layers. Conflating them is how compliance bugs 
 | Compliance DTO sanitizer | `lib/compliance/dto.ts` | Public/portal/CRM tier sanitizer |
 | RLS field CSV | `data/rebny-rls-property-fields.csv` | 902+ REBNY IDX Plus fields. Replaced 2026-03-19. |
 | RLS lookup CSV | `data/rebny-rls-property-lookup.csv` | 2,066+ picklist values |
-| RLS field registry doc | `data/RLS-FIELD-REGISTRY.md` | Human-readable registry |
+| RLS field registry doc | `data/RLS-FIELD-REGISTRY.md` | **DEPRECATED / HISTORICAL (2026-03-20). NOT field authority** — verify live against Cotality |
 | UCBA rules | `data/UCBA-2026-Requirements.md` | Extracted from PDF |
 | Trestle metadata snapshot | `artifacts/metadata.xml` | Full Trestle OData metadata |
 
@@ -483,7 +483,7 @@ If you are an AI/Codex/Claude session reading this charter:
 | `CLAUDE.md` (top of repo) | Per-session AI rules. Points here at the top. |
 | `NEON.md` (top of repo) | DB / Prisma / migration discipline. Read before any schema change. |
 | `MASTER-PROJECT-TREE-v3.3.md` | Codebase reference. Larger and older than this charter; treat as background context, not authoritative. |
-| `data/RLS-FIELD-REGISTRY.md` | Trestle field registry. Authoritative for field names. |
+| `data/RLS-FIELD-REGISTRY.md` | **DEPRECATED / HISTORICAL SNAPSHOT (verified 2026-03-20). NOT authoritative for field names or anything else.** Field truth comes from a LIVE Cotality pull only. |
 | `data/UCBA-2026-Requirements.md` | UCBA rules. Authoritative for compliance. |
 | `.claude/skills/rebny-compliance/SKILL.md` | REBNY compliance gate. Read at session start. |
 

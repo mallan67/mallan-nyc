@@ -219,7 +219,7 @@ const FREE_SERVICE_PATTERNS = REBNY_FIELD_TABLES.contentRules.freeService.map(
 
 // ─── Status Transition Rules ──────────────────────────────────────────────
 
-import { DOM_RESET_DAYS } from "./dom-tracker";
+import { DOM_RESET_DAYS, DOM_RESET_ELIGIBLE_STATUSES } from "./dom-tracker";
 
 const TERMINAL_STATUSES = new Set(["Closed"]);
 
@@ -535,10 +535,24 @@ export function assertRlsCompliantPayload(
     }
   }
 
-  // DOM reset info (30 days per UCBA 2026)
+  // DOM reset info (30 days per UCBA 2026) — ST-002 warning.
+  //
+  // Was a chain of `===` comparisons against "Withdrawn" / "Cancelled" /
+  // "TemporarilyOffMarket". The double-L "Cancelled" matched only CRM-authored
+  // rows; a listing the PROVIDER cancelled carries the live Cotality spelling
+  // "Canceled" (single L, stored verbatim by mapTrestleToPrisma), so the agent
+  // was shown NO ST-002 DOM warning when reactivating exactly the rows whose DOM
+  // was about to reset. The shared DOM_RESET_ELIGIBLE_STATUSES set is the same
+  // object `shouldResetDom` uses, so the warning and the actual reset can no
+  // longer disagree about which rows are in scope.
+  //
+  // "TemporarilyOffMarket" is kept as an explicit extra: it is a legacy
+  // Mallan-only value (provider answers HTTP 400) that this warning has always
+  // covered, and it is deliberately NOT in the shared DOM set — see the
+  // `Hold` note there.
   if (
-    ctx.previousStatus === "Withdrawn" ||
-    ctx.previousStatus === "Cancelled" ||
+    (typeof ctx.previousStatus === "string" &&
+      DOM_RESET_ELIGIBLE_STATUSES.has(ctx.previousStatus)) ||
     ctx.previousStatus === "TemporarilyOffMarket"
   ) {
     if (ctx.statusChangedAt) {

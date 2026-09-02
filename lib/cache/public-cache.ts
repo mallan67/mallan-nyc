@@ -42,6 +42,107 @@ import { unstable_cache, revalidateTag } from "next/cache";
  */
 export const SYNC_CADENCE_SECONDS = 10 * 60;
 
+/**
+ * ── PUBLIC CACHE CLASSIFICATION (2026-08-16) ────────────────────────────────
+ *
+ * Every `cachedPublicRead` entry is classified EVENT_DRIVEN_SAFE (may drop its
+ * TTL and rely purely on writer-driven tag invalidation) or
+ * EXPLICIT_TTL_REQUIRED (must retain a finite TTL).
+ *
+ * CURRENT STATE: **every entry is EXPLICIT_TTL_REQUIRED.** That is a status,
+ * not a verdict — each has a NAMED condition that would move it. Three
+ * distinct reasons, and they need different fixes:
+ *
+ * 1. INVALIDATION COVERAGE — incomplete, and one gap is LIVE IN PRODUCTION.
+ *    A tag that no writer emits can never expire an entry that has no TTL.
+ *
+ *    RESOLVED so far, stated from the CURRENT code (an earlier revision of
+ *    this block described a different, since-reverted state):
+ *      - app/api/crm/convert — creates status Draft, which the canonical
+ *        active-display set excludes, so its rows are NOT members of any
+ *        cached public collection. It correctly emits NOTHING. (An earlier
+ *        change added an invalidation here reasoning from `!TERMINAL_STATUSES`;
+ *        that was wrong and was reverted.)
+ *      - app/api/idx/ensure-listing — emits, but ONLY when
+ *        `isActiveDisplayStatus(status)` holds, i.e. on real public membership.
+ *      - app/api/cron/dom-reset — correctly emits NOTHING. It mutates only
+ *        Withdrawn/Cancelled rows, which the active market cache never admits;
+ *        invalidating there would evict correct entries and force an avoidable
+ *        Neon refill. (Also added then reverted.)
+ *
+ *    OPEN, and NOT merely theoretical — listing detail is already
+ *    `revalidate:false`, so these leave public pages stale INDEFINITELY rather
+ *    than for one TTL window:
+ *      - app/api/crm/listings/[id]/media/upload      (no invalidation)
+ *      - app/api/crm/listings/[id]/media/[mediaId]   (delete; none)
+ *      - app/api/crm/listings/[id]/media-order       (reorder; none)
+ *      - app/api/crm/listings/reset-sync             (deleteMany on the whole
+ *        Listing table, then repopulates; none)
+ *      - app/api/crm/sales/comps                     (not yet traced)
+ *
+ *    These belong to the canonical post-media-write closure being built, not
+ *    to ad-hoc patches. Until the writer inventory is complete and proven
+ *    exhaustive, NO entry can be certified EVENT_DRIVEN_SAFE.
+ *
+ * 2. TIME DEPENDENCE INSIDE THE CACHED FUNCTION — genuinely TTL-requiring.
+ *    These are correct as EXPLICIT_TTL_REQUIRED permanently, unless the
+ *    time-dependence is lifted out of the cached body:
+ *      - app/api/market: `periodStart` is derived from `new Date()` INSIDE the
+ *        cached predicates and the key carries only the period LABEL
+ *        ('30d'/'90d'/'1y'). Without a TTL the rolling window freezes at the
+ *        date of first assembly. Fixable only by keying on the RESOLVED
+ *        boundary date, which changes the cache key contract.
+ *      - lib/buildings/public-building-data `_compliance.attribution` embeds
+ *        a formatted current date inside the cached payload, so the
+ *        user-facing "data last updated" string freezes with the entry.
+ *
+ * 3. STRUCTURAL — disjoint building/manifest tag sets.
+ *    CORRECTED 2026-08-20. This paragraph previously stated that the building
+ *    payload is "cached under the building tag while internally awaiting
+ *    `getBuildingManifestShard`", that "only the outer TTL reconciles the
+ *    layers", and that the fix is "having the outer entry carry the shard tag".
+ *    All three statements were wrong, and the last one is actively harmful.
+ *
+ *    (a) There is no longer an INTERNAL await. Nesting one `unstable_cache`
+ *        inside another does not layer two caches: the installed Next 16.2.4
+ *        SKIPS the nested read (dist unstable-cache.js:132-134 sets
+ *        `isNestedUnstableCache`, :144-146 skips `incrementalCache.get`) while
+ *        still running the callback (:206) and still writing (:214). The nested
+ *        manifest entry was write-only, so every cold building payload re-walked
+ *        its whole shard against Neon — measured at 144 `findMany` calls for a
+ *        100-building crawl the design bounds at 13. The shard walk is now
+ *        resolved OUTSIDE the per-building entry
+ *        (`makeManifestShardResolver` in lib/buildings/public-building-data.ts).
+ *
+ *    (b) The TTL never reconciled the layers, and no reconciliation is needed.
+ *        `publicListingChangeTags` derives the building tag(s) AND the manifest
+ *        shard tag(s) from the SAME address(es) (previous + next), so a shard is
+ *        never expired without the exact building tag of every changed address
+ *        being expired in the same call. A building whose payload survives a
+ *        shard invalidation is precisely a building none of whose rows changed.
+ *        `public-listing-change-tags.test.ts` pins that pairing.
+ *
+ *    (c) Adding the shard tag to the per-building entry would be a REGRESSION,
+ *        not a fix: a shard is the first character of the street number, so one
+ *        listing change would expire roughly a tenth of every building payload
+ *        on the site. See the rationale block at
+ *        lib/buildings/public-building-data.ts:1314-1334, which this comment
+ *        used to contradict.
+ *
+ *    The building payload's remaining reason to hold a TTL is (2) above — its
+ *    `_compliance.attribution` embeds a formatted current date.
+ *
+ * SPECIAL CASE — lib/geo/geocode.ts: `GEOCODE_MANIFEST_TAG` has ZERO
+ * production writers (verified: it appears only at its own definition and its
+ * own reader). Meanwhile the data-retention cron deletes geocode_cache rows
+ * and scripts/batch-geocode.js upserts them, neither revalidating anything.
+ * This entry is EXPLICIT_TTL_REQUIRED with no event-driven path at all until a
+ * writer emits that tag.
+ *
+ * DO NOT convert any entry to `revalidate: false` on the strength of this
+ * comment. Conversion requires the complete writer inventory from reason 1.
+ */
+
 /** Coarse tag bumped once per sync run when ANYTHING changed — covers search/
  *  browse/collection surfaces (home, /search, borough + neighborhood pages). */
 export const SEARCH_CACHE_TAG = "search";

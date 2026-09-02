@@ -8,9 +8,26 @@ import {
   type ReconcileClass,
 } from '@/lib/idx/reconcile-decision';
 import { normalizeStandardStatus, TERMINAL_STATUSES } from '@/lib/idx/trestle-mapper';
+import { canonicalProviderSpelling } from '@/lib/compliance/listing-status-vocabulary';
+
+/** The status the decision engine must target for a given live status. */
+const providerTarget = (s: string) => canonicalProviderSpelling(normalizeStandardStatus(s));
 
 const ON_MARKET = ['Active', 'ActiveUnderContract', 'ComingSoon', 'Pending'];
-const TERMINALS = ['Closed', 'Sold', 'Leased', 'Rented', 'Withdrawn', 'Expired', 'Cancelled'];
+
+// TERMINALS is DERIVED from the canonical set, not hand-listed.
+//
+// It used to be the 7-element literal
+//   ['Closed','Sold','Leased','Rented','Withdrawn','Expired','Cancelled']
+// which silently diverged when the live provider member 'Canceled' (single L)
+// was added to TERMINAL_STATUSES on 2026-08-19. The exhaustive db × live matrix
+// below therefore never exercised a single provider-cancelled row — the test
+// that exists to be exhaustive had a hole in it, and the hole was invisible
+// because the literal looked complete.
+//
+// Deriving it means the matrix automatically covers any member added to the
+// canonical set, and the two can no longer drift together.
+const TERMINALS = [...TERMINAL_STATUSES].sort();
 const OFF_MARKET = ['Hold', 'Incomplete', 'Draft']; // non-terminal, non-on-market
 const ALL_DB = [...ON_MARKET, ...TERMINALS, ...OFF_MARKET];
 
@@ -39,19 +56,30 @@ describe('reconcileStatusDecision — EXHAUSTIVE matrix (every dbStatus × liveT
           const dbN = normalizeStandardStatus(db);
           expect(VALID_CLASSES).toContain(d.className);
 
+          // The TARGET is the live status folded to the spelling the provider
+          // accepts; the STORED status is compared verbatim. See
+          // `providerTargetStatus` in lib/idx/reconcile-decision.ts for why the
+          // fold is one-directional. Before 2026-08-20 this invariant used a
+          // bare `normalizeStandardStatus(live.status)`, which was equivalent
+          // only because the normalizer used to collapse 'Canceled' into
+          // 'Cancelled' — an alias that itself was the defect.
           if (live.kind === 'onmarket') {
-            const tgt = normalizeStandardStatus(live.status);
+            const tgt = providerTarget(live.status);
             // SAFETY: a live on-market listing is NEVER made terminal, target is on-market
             expect(d.targetIsTerminal).toBe(false);
             expect(ON_MARKET_STATUSES.has(d.targetStatus)).toBe(true);
             expect(d.targetStatus).toBe(tgt);
             expect(d.action).toBe(dbN === tgt ? 'none' : 'update');
           } else if (live.kind === 'terminal') {
-            const tgt = normalizeStandardStatus(live.status);
+            const tgt = providerTarget(live.status);
             expect(d.targetIsTerminal).toBe(true);
             expect(TERMINAL_STATUSES.has(d.targetStatus)).toBe(true);
             expect(d.targetStatus).toBe(tgt);
             expect(d.action).toBe(dbN === tgt ? 'none' : 'update');
+            // A target may NEVER be a string the provider rejects when the class
+            // has a provider spelling — that would write back a value the feed
+            // can never confirm.
+            expect(d.targetStatus).toBe(canonicalProviderSpelling(d.targetStatus));
           } else {
             // absent
             if (TERMINAL_STATUSES.has(dbN)) {
@@ -134,6 +162,58 @@ describe('reconcileStatusDecision — EXHAUSTIVE matrix (every dbStatus × liveT
   it('treats a terminal (Canceled/Cancelled) + absent as a no-op either spelling', () => {
     expect(reconcileStatusDecision('Canceled', absent).action).toBe('none');
     expect(reconcileStatusDecision('Cancelled', absent).action).toBe('none');
+  });
+
+  // ── PINNED: the cancel-spelling cells (decided 2026-08-20) ────────────────
+  //
+  // These four assertions exist because the behaviour of this pair CHANGED when
+  // 'Canceled' stopped being folded to 'Cancelled' by the normalizer, and the
+  // change went unexamined. The decision is recorded here, not left implicit.
+  //
+  // RULE: the TARGET status is folded to the spelling the live provider
+  // accepts; the STORED status is compared verbatim. Consequences:
+  //
+  //  - A stored Mallan-local 'Cancelled' meeting a provider 'Canceled' is a
+  //    terminal_realign UPDATE, not a departed_noop. The provider has actually
+  //    asserted a status for this row, and a real assertion outranks the local
+  //    derivation that 'Cancelled' represents on a feed row
+  //    (lib/compliance/status-provenance.ts). This is also how any legacy
+  //    double-L row migrates onto the provider spelling with no backfill.
+  //
+  //  - The reverse can never rewrite a provider value into a provider-rejected
+  //    one. 'Cancelled' is HTTP 400 at the provider, so it must never be
+  //    WRITTEN as a target even if a caller hands it in as live truth.
+  //
+  //  - Neither cell changes the display outcome: targetIsTerminal is true both
+  //    ways, so resolveIdxDisplay forces idx_display_yn=false regardless.
+  it('realigns a stored Mallan-local Cancelled onto the provider spelling Canceled', () => {
+    expect(reconcileStatusDecision('Cancelled', terminal('Canceled'))).toMatchObject({
+      action: 'update',
+      targetStatus: 'Canceled',
+      targetIsTerminal: true,
+      className: 'terminal_realign',
+    });
+  });
+  it('NEVER rewrites a provider Canceled into the provider-rejected Cancelled', () => {
+    expect(reconcileStatusDecision('Canceled', terminal('Cancelled'))).toMatchObject({
+      action: 'none',
+      targetStatus: 'Canceled',
+      targetIsTerminal: true,
+      className: 'departed_noop',
+    });
+  });
+  it('the realign settles in ONE step (idempotent, no write loop)', () => {
+    const first = reconcileStatusDecision('Cancelled', terminal('Canceled'));
+    const second = reconcileStatusDecision(first.targetStatus, terminal('Canceled'));
+    expect(second.action).toBe('none');
+    expect(second.targetStatus).toBe(first.targetStatus);
+  });
+  it('both cancel spellings are equally undisplayable regardless of class', () => {
+    for (const stored of ['Cancelled', 'Canceled']) {
+      const d = reconcileStatusDecision(stored, terminal('Canceled'));
+      expect(d.targetIsTerminal).toBe(true);
+      expect(resolveIdxDisplay(d, true)).toBe(false);
+    }
   });
 });
 

@@ -51,15 +51,11 @@ describe('normalizeStandardStatus — empty / non-string fallback', () => {
 });
 
 describe('normalizeStandardStatus — exact-case canonical pass-through', () => {
-  it.each([
-    'Closed',
-    'Sold',
-    'Leased',
-    'Rented',
-    'Withdrawn',
-    'Expired',
-    'Cancelled',
-  ])('terminal canonical %s passes through unchanged', (status) => {
+  // DERIVED from the canonical set, not hand-listed. The 7-element literal this
+  // replaces omitted 'Canceled' once it joined TERMINAL_STATUSES, so the ONE
+  // pass-through case that actually mattered — the provider's own spelling
+  // surviving the normalizer verbatim — was never asserted here.
+  it.each([...TERMINAL_STATUSES])('terminal canonical %s passes through unchanged', (status) => {
     expect(normalizeStandardStatus(status)).toBe(status);
   });
 
@@ -112,17 +108,49 @@ describe('normalizeStandardStatus — case-fold + trim variants', () => {
   });
 });
 
-describe('normalizeStandardStatus — known alias mapping', () => {
-  it('"Canceled" (US single-L) → "Cancelled" (RESO canonical double-L)', () => {
-    expect(normalizeStandardStatus('Canceled')).toBe('Cancelled');
-    // And the canonical form IS in TERMINAL_STATUSES, so the guard binds.
+describe('normalizeStandardStatus — Canceled / Cancelled, corrected 2026-08-19', () => {
+  // WHAT CHANGED AND WHY.
+  //
+  // This block used to assert `normalizeStandardStatus('Canceled') === 'Cancelled'`
+  // and described single-L 'Canceled' as a "US English" spelling of a "RESO
+  // canonical double-L". That was backwards, and the assertion pinned a defect.
+  //
+  // LIVE PROBE, api.cotality.com/trestle, 2026-08-19 (raw + sha256 in
+  // .cache/cotality-authority-m2/raw/, index in PROBE-STATUS.json):
+  //   GET /odata/Property/$count?$filter=StandardStatus eq 'Canceled'
+  //     -> HTTP 200, @odata.count 0        (a real enumeration member)
+  //   GET /odata/Property/$count?$filter=StandardStatus eq 'Cancelled'
+  //     -> HTTP 400, "The string 'Cancelled' is not a valid enumeration type
+  //        constant."                       (NOT a provider value at all)
+  //
+  // So single-L IS the provider spelling and double-L is Mallan-internal. The
+  // old behaviour rewrote a real provider value into a string the provider
+  // rejects, and `mapTrestleToPrisma` stores `raw.StandardStatus` verbatim, so
+  // the two write paths disagreed about how a Canceled row is spelled in
+  // `listings.status`.
+  //
+  // CORRECTED CONTRACT — provider provenance in, CRM canonical out:
+  //   exact-case 'Canceled'  (what the feed sends)  -> preserved verbatim
+  //   lower/upper 'canceled' (what a CRM form sends) -> folded to 'Cancelled',
+  //                                                    the CRM canonical value
+  //                                                    (lib/crm/status-mapping.ts)
+  // Both spellings are members of TERMINAL_STATUSES, so no route the value
+  // takes can slip past a display or retention gate.
+  it("'Canceled' (the LIVE provider member) is preserved verbatim", () => {
+    expect(normalizeStandardStatus('Canceled')).toBe('Canceled');
+    // ...and it still binds the terminal guard, which is the point.
     expect(TERMINAL_STATUSES.has(normalizeStandardStatus('Canceled'))).toBe(true);
   });
-  it('"canceled" (US single-L, lowercase) → "Cancelled"', () => {
+  it("'canceled' (lower-case CRM input) folds to the CRM canonical 'Cancelled'", () => {
     expect(normalizeStandardStatus('canceled')).toBe('Cancelled');
+    expect(TERMINAL_STATUSES.has('Cancelled')).toBe(true);
   });
-  it('"CANCELED" (US single-L, uppercase) → "Cancelled"', () => {
+  it("'CANCELED' (upper-case CRM input) folds to the CRM canonical 'Cancelled'", () => {
     expect(normalizeStandardStatus('CANCELED')).toBe('Cancelled');
+  });
+  it('BOTH spellings are terminal — neither can slip past a gate', () => {
+    expect(TERMINAL_STATUSES.has('Canceled')).toBe(true);
+    expect(TERMINAL_STATUSES.has('Cancelled')).toBe(true);
   });
 });
 
@@ -242,8 +270,18 @@ describe('integration — normalize + guard combination (the actual writer path)
     });
   });
 
-  it('body.status = "Canceled" (US) → row stored as Cancelled, idx_display_yn=false', () => {
+  it('body.status = "Canceled" (the live provider spelling) → stored VERBATIM, idx_display_yn=false', () => {
+    // Corrected 2026-08-19 — see the "Canceled / Cancelled" describe block
+    // above. The provider's own spelling must reach the DB unaltered; what
+    // matters for compliance is that the guard still fires, and it does.
     expect(writerPipeline('Canceled')).toEqual({
+      status: 'Canceled',
+      idx_display_yn: false,
+    });
+  });
+
+  it('body.status = "canceled" (lower-case CRM input) → stored as the CRM canonical, idx_display_yn=false', () => {
+    expect(writerPipeline('canceled')).toEqual({
       status: 'Cancelled',
       idx_display_yn: false,
     });

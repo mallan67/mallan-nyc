@@ -11,10 +11,10 @@
 | Data Category | Retention Period | Regulatory Basis | Storage Tier |
 |---------------|-----------------|------------------|--------------|
 | Listing data (active) | Duration of listing + 3 years | UCBA Art. III Sec. 2 | Hot (DB) |
-| Listing data (closed) | 7 years from closing | NY DOS 19 NYCRR 175.23 | Hot → Warm (1yr) |
-| Transaction records & commissions | 7 years | IRS 26 USC 6001, NY DOS | Hot (DB) |
-| Financial ledger entries | 7 years (immutable) | IRS, NY DOS | Hot (DB, never deleted) |
-| Listing agreements | 6 years | NY DOS record retention | Document Vault |
+| Listing data (closed) | 3 years from closing | NY DOS 19 NYCRR 175.23 — note ¹ | Hot → Warm (1yr) |
+| Transaction records & commissions | 7 years | IRS 26 USC 6001 — note ¹ | Hot (DB) |
+| Financial ledger entries | 7 years (immutable) | IRS 26 USC 6001 — note ¹ | Hot (DB, never deleted) |
+| Listing agreements | 3 years | NY DOS 19 NYCRR 175.23(a)(6) — note ¹ | Document Vault |
 | Audit event logs | 2 years | REBNY RLS compliance | Hot → Cold (90d) |
 | Trestle/IDX access logs | 12 months | REBNY RLS data license | Hot (DB) |
 | Owner Opt-Out evidence | 3 years | REBNY Gate 1 | Hot (DB) |
@@ -26,6 +26,25 @@
 | Portal invite tokens | 72 hours | Security policy | Hot (DB, auto-expire) |
 | Read notifications | 90 days | Operational | Hot (DB, auto-purge) |
 | Geocode cache | 1 year | Operational | Hot (DB, auto-purge) |
+
+> **¹ NY DOS RETENTION — CORRECTED 2026-08-20.** Four rows above previously credited the New York
+> Department of State with windows it does not grant: “Listing data (closed) … 7 years from
+> closing … NY DOS 19 NYCRR 175.23”, “Transaction records & commissions … 7 years … IRS 26 USC 6001,
+> NY DOS”, “Financial ledger entries … 7 years … IRS, NY DOS” and “Listing agreements … 6 years … NY DOS
+> record retention”. **19 NYCRR 175.23 is three years.** Verbatim: “*Each licensed broker shall keep and
+> maintain for a period of three years*” paper and/or electronic records of each transaction concerning the
+> sale of residential 1–4 family / condominium / cooperative property. Subdivision (a) enumerates the
+> Article 12-A transaction records it covers — seller and buyer names+addresses, the purchase contract or
+> the price + deposit, commission paid, gross profit on resale, any document required under RPL Article
+> 12-A, and the listing / commission / buyer-broker agreement. It does **not** mention photographs, listing
+> images or any binary media, so it imposes no retention duty on mirrored MLS photo bytes.
+>
+> The two seven-year rows are **kept at seven years on IRS 26 USC 6001 alone** — that is a genuine
+> independent authority for financial records and is unaffected by this correction. What is removed is the
+> borrowed “NY DOS” credit beside it: a longer window must cite the authority that actually grants it.
+> Evidence: `.cache/closure3/r2-final/legal/19-NYCRR-175.23-VERBATIM.md` (sha256 31ac0e51…), captured from
+> two independent sources. Operative schedule for this area: `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md`
+> §14 Fail-closed row.
 
 ---
 
@@ -68,7 +87,7 @@
 ### Manual Review Required
 - Lead PII deletion requests (right to deletion)
 - Audit log archival (after 2-year hot retention)
-- Closed listing data archival (after 7 years)
+- Closed listing data archival (after 3 years — note ¹)
 
 ---
 

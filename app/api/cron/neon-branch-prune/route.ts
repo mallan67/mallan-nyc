@@ -123,16 +123,31 @@ export async function GET(req: NextRequest) {
       retentionHours: 24,
       execute: true,
     });
+    // Production-safety guard refusals from lib/neon/branches.ts (unverifiable
+    // identity, production branch id, protected branch name, missing
+    // `preview/` prefix, default branch, invalid retention). Read defensively
+    // so a PruneResult shaped before these fields existed cannot crash the cron.
+    const guardRefusedCount = result.guard_refused_count ?? 0;
+    const guardRefused = (result.guard_refused ?? []).map((r) => ({
+      name: r.name,
+      code: r.code,
+    }));
+    const kept = {
+      primary: result.primary_count,
+      protected: result.protected_count,
+      within_retention: result.too_recent_count,
+      // Non-zero is the guard working, not a failure. Surfaced so that drift
+      // in the Neon branch-naming convention — which would silently stop all
+      // pruning — is visible instead of looking like "nothing was idle".
+      guard_refused: guardRefusedCount,
+    };
     const body = {
       ok: result.errors.length === 0,
       examined: result.examined,
       pruned: result.pruned.length,
       pruned_branches: result.pruned.map((b) => b.name),
-      kept: {
-        primary: result.primary_count,
-        protected: result.protected_count,
-        within_retention: result.too_recent_count,
-      },
+      kept,
+      guard_refused_branches: guardRefused,
       errors: result.errors,
       ts: new Date().toISOString(),
     };
@@ -141,11 +156,9 @@ export async function GET(req: NextRequest) {
       examined: result.examined,
       pruned_count: result.pruned.length,
       pruned_branches: result.pruned.map((b) => b.name),
-      kept: {
-        primary: result.primary_count,
-        protected: result.protected_count,
-        within_retention: result.too_recent_count,
-      },
+      kept,
+      guard_refused_count: guardRefusedCount,
+      guard_refused_branches: guardRefused,
       errors_count: result.errors.length,
     });
     if (result.errors.length > 0) {

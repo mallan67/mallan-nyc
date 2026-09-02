@@ -15,6 +15,44 @@
  * (single source of truth) using the returned `targetStatus`.
  */
 import { TERMINAL_STATUSES, normalizeStandardStatus } from '@/lib/idx/trestle-mapper';
+import { canonicalProviderSpelling } from '@/lib/compliance/listing-status-vocabulary';
+
+/**
+ * The status this row must END UP carrying, given what the provider just said.
+ *
+ * ── WHY THE TARGET IS FOLDED TO THE PROVIDER'S OWN SPELLING (2026-08-20) ───
+ * `listings.status` carries two spellings of cancellation: the live Cotality
+ * member `Canceled` (single L) and the Mallan CRM canonical `Cancelled`
+ * (double L, which the provider answers HTTP 400 for). `normalizeStandardStatus`
+ * preserves each verbatim — provider provenance in, provider provenance out —
+ * so the two do NOT collapse, and the raw comparison `db === target` therefore
+ * distinguishes them.
+ *
+ * That is correct for the DB side and wrong for the TARGET side. This module's
+ * whole purpose is to make the row match LIVE TRUTH, and `live.kind` values are
+ * provider observations. Folding the target — and ONLY the target — to the
+ * provider spelling gives the two cells the right answers:
+ *
+ *   db 'Cancelled' × live terminal 'Canceled'  → target 'Canceled',
+ *                                                terminal_realign, action UPDATE
+ *   db 'Canceled'  × live terminal 'Cancelled' → target 'Canceled',
+ *                                                departed_noop,   action NONE
+ *
+ * The first is a stored Mallan-local derivation being replaced by an actual
+ * provider assertion — exactly what `lib/compliance/status-provenance.ts`
+ * classifies as the upgrade from MALLAN_LOCAL_DERIVATION to a provider-sourced
+ * value, and the mechanism by which any legacy double-L row self-heals onto the
+ * provider spelling with no backfill. The second is the guard that matters more:
+ * a provider-spelled row is NEVER rewritten into a string the provider rejects,
+ * no matter what a caller passes as `live.status`.
+ *
+ * `targetIsTerminal` is `true` in both cells, so `resolveIdxDisplay` forces
+ * `idx_display_yn=false` either way — this decision changes the stored spelling
+ * and the audit class, never the display outcome.
+ */
+function providerTargetStatus(liveStatus: string): string {
+  return canonicalProviderSpelling(normalizeStandardStatus(liveStatus));
+}
 
 /** StandardStatus values that mean a listing is currently on the market. */
 export const ON_MARKET_STATUSES: ReadonlySet<string> = new Set([
@@ -56,7 +94,23 @@ export interface ReconcileDecision {
   reason: string;
 }
 
-/** Local status for "left the licensed live feed entirely" (Cotality has no such StandardStatus). */
+/**
+ * The status Mallan writes for "left the licensed live feed entirely".
+ *
+ * CORRECTED 2026-08-19. The previous comment said "Cotality has no such
+ * StandardStatus", which is false: `Withdrawn` IS a valid member — live probe
+ * `StandardStatus eq 'Withdrawn'` returned HTTP 200 with `@odata.count` 0, and
+ * `$metadata` declares it in EnumType StandardStatus. What is true, and what the
+ * comment was reaching for, is that Cotality has no member MEANING "departed the
+ * feed", and this REBNY IDX Plus feed currently carries zero Withdrawn rows.
+ *
+ * That distinction matters because it is exactly why this value needs a
+ * provenance label: it is spelled like a provider member but is chosen by
+ * Mallan, so nothing about the stored string distinguishes the two. Writers
+ * MUST record `STATUS_ORIGIN.MALLAN_LOCAL_DERIVATION` alongside it — see
+ * `lib/compliance/status-provenance.ts` and the ghost transition in
+ * `app/api/cron/feed-reconcile/route.ts`.
+ */
 export const DEPARTED_STATUS = 'Withdrawn';
 
 /**
@@ -71,7 +125,7 @@ export function reconcileStatusDecision(
   const dbTerminal = TERMINAL_STATUSES.has(db);
 
   if (live.kind === 'onmarket') {
-    const target = normalizeStandardStatus(live.status);
+    const target = providerTargetStatus(live.status);
     if (db === target) {
       return { action: 'none', targetStatus: target, targetIsTerminal: false, className: 'ok', reason: 'db matches live on-market' };
     }
@@ -90,7 +144,7 @@ export function reconcileStatusDecision(
   }
 
   if (live.kind === 'terminal') {
-    const target = normalizeStandardStatus(live.status);
+    const target = providerTargetStatus(live.status);
     if (db === target) {
       return { action: 'none', targetStatus: target, targetIsTerminal: true, className: 'departed_noop', reason: `db already '${target}'` };
     }

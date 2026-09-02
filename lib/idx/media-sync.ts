@@ -43,7 +43,10 @@ import {
 // Re-exported for existing importers and their tests: one definition, two import
 // paths, no copy.
 export { R2_RETRY_EXHAUSTED_THRESHOLD, R2_POLICY_PARKED_ATTEMPTS };
-import { publicListingChangeTags } from "@/lib/cache/public-listing-change-tags";
+import {
+  publicListingChangeTags,
+  type PublicListingChangeScope,
+} from "@/lib/cache/public-listing-change-tags";
 import {
   SEARCH_CACHE_TAG,
   listingCacheTag,
@@ -61,6 +64,28 @@ import {
   uploadToR2 as defaultUploadToR2,
 } from "@/lib/images/r2";
 import { getAccessToken as defaultGetAccessToken } from "./auth";
+// Recurrence verification — bounded, runs INSIDE this media member only. Deliberately NOT part of
+// the R2 backlog universe: see PHASE 3.5 for the five invariants.
+import {
+  buildContentVerificationWhere,
+  verifyRow,
+  MAX_VERIFICATION_ROWS_PER_CYCLE,
+  VERIFICATION_UNIVERSE_MEASURED,
+  VERIFICATION_GUARANTEED_CYCLES_PER_DAY,
+  VERIFICATION_UTILIZATION_TARGET,
+  requiredVerificationIntervalMs,
+  maxVerificationSweepDurationMs,
+  verificationSweepGapMs,
+  verificationCapacityShortfallMs,
+  parseSweepState,
+  serializeSweepState,
+  shouldRunVerificationCycle,
+  sweepStartFor,
+  advanceSweepState,
+  describeSweepHealth,
+  isDueInSweep,
+  type VerifiableRow,
+} from "@/lib/media/content-verification";
 import { CRM_MEDIA_KEY_PREFIX, isCrmMediaKey } from "@/lib/media/crm-media";
 // R2-1 mirror-admission policy — canonical helpers ONLY (no local re-derivation):
 //   - Ownership: `isMallanExclusiveListing` (SL-/RL- listing_id prefix OR
@@ -81,6 +106,71 @@ import {
 
 /** Resource-key constant for the media-sync state row. */
 export const RESOURCE_MEDIA = "Media" as const;
+
+/**
+ * Resource key for the content-verification SWEEP state row (D3).
+ *
+ * `media_sync_state` is defined as a per-RESOURCE cursor table with `resource` UNIQUE
+ * (schema.prisma:2484-2503), and every access in the repo is a `findUnique` on that key
+ * (media-sync.ts:141/373, watermark.ts:59-64, scripts/ops-health.js:411) — nothing counts or
+ * enumerates rows — so a second resource key adds no reader and breaks no consumer.
+ *
+ * COLUMN REUSE, STATED PLAINLY. On THIS row `last_listing_key` (TEXT) carries the whole
+ * sweep state as one opaque JSON document, not a listing key. That is a deliberate
+ * no-migration choice: schema migrations are HELD (CLAUDE.md §C) and one opaque column is
+ * far easier to reason about — and later migrate — than four columns each given a second,
+ * silent meaning. The properly-named columns
+ *   ALTER TABLE "media_sync_state"
+ *     ADD COLUMN "verification_cursor"        TEXT,
+ *     ADD COLUMN "verification_sweep_started_at"   TIMESTAMP(3),
+ *     ADD COLUMN "verification_next_eligible_at"   TIMESTAMP(3);
+ * are part of the authorization request carried in `content-verification.ts`. Nothing here
+ * is applied.
+ */
+export const RESOURCE_MEDIA_CONTENT_VERIFICATION = "MediaContentVerification" as const;
+
+/**
+ * Read the verification sweep state. Total: any read failure or unreadable payload degrades
+ * to the empty state, which STARTS a sweep — an unreadable cursor must never be able to
+ * silence verification.
+ */
+export async function getContentVerificationSweepState() {
+  try {
+    const row = await prisma.mediaSyncState.findUnique({
+      where: { resource: RESOURCE_MEDIA_CONTENT_VERIFICATION },
+      select: { last_listing_key: true },
+    });
+    return parseSweepState(row?.last_listing_key ?? null);
+  } catch {
+    return parseSweepState(null);
+  }
+}
+
+/**
+ * Persist the verification sweep state. Non-fatal by design: a failed write means the sweep
+ * repeats a window next cycle (idempotent — verification has no side effect beyond
+ * `content_check_*`), which is strictly safer than failing the media run.
+ */
+export async function putContentVerificationSweepState(
+  state: ReturnType<typeof parseSweepState>,
+  now: Date,
+): Promise<void> {
+  const payload = serializeSweepState(state);
+  try {
+    await prisma.mediaSyncState.upsert({
+      where: { resource: RESOURCE_MEDIA_CONTENT_VERIFICATION },
+      create: {
+        resource: RESOURCE_MEDIA_CONTENT_VERIFICATION,
+        last_listing_key: payload,
+        last_run_at: now,
+        last_run_status: "ok",
+      },
+      update: { last_listing_key: payload, last_run_at: now, last_run_status: "ok" },
+    });
+  } catch {
+    /* observability only — never fails the media run */
+  }
+}
 
 /**
  * Two-tier cursor for the incremental media-sync cron.
@@ -502,12 +592,44 @@ export interface UpsertListingMediaInput {
    */
   MediaStatus?: string | null;
   /**
-   * REBNY/Cotality permission scope on the row. Trestle's IDX Plus license
-   * pre-filters non-Public rows at the edge, but we defensively skip any row
-   * whose `Permission` is set and not `'Public'` so a future feed-policy
-   * change cannot leak restricted media into our cache.
+   * REBNY/Cotality permission scope on the row.
+   *
+   * LIVE CONTRACT (read-only probe of api.cotality.com/trestle, 2026-08-17):
+   * `Media.Permission` is populated on **0 of 5,000** sampled rows and returns
+   * HTTP 400 when filtered — it is NOT delivered on this feed. The populated
+   * field is `Media.ListingPermission` (4,610/5,000), which is COMMA-MULTI-VALUE
+   * (`"IDX"`, `"IDX,OfficeInactive"`, `"IDX,SyndicateOptOut,OfficeInactive"`,
+   * `"IDX,Private"` all observed).
+   *
+   * So the guard below is currently INERT. It is retained as defence-in-depth,
+   * but note the vocabulary hazard: the live `Permission` enum's ordinary value
+   * is `IDX`, **not** `Public`. If Cotality ever begins populating this field,
+   * a `!== 'Public'` test would start skipping essentially EVERY row. Any change
+   * here must be driven by a fresh live probe, not by the field's name.
    */
   Permission?: string | null;
+  /**
+   * PROVIDER DISPLAY AUTHORIZATION for this media row — raw Cotality Boolean,
+   * carried through unmapped.
+   *
+   * LIVE CONTRACT (2026-08-17): `Edm.Boolean`, populated on 5,000/5,000 sampled
+   * rows, filterable and sortable. Feed-wide: 278,927 `false` / 1,690,254 `true`
+   * / 62 `null`.
+   *
+   * SEMANTICS ESTABLISHED BY BEHAVIOUR, NOT BY THE FIELD NAME. Across 4,132
+   * listings, ZERO carried a mix of `true` and `false` media (4,066 uniformly
+   * true, 35 uniformly false) — so this is a LISTING-level display flag
+   * denormalised onto every media row, not a per-photo permission. Separately,
+   * 55/55 sampled listings whose media is `false` were ABSENT from the Property
+   * feed entirely, so under normal sync these rows are unreachable: every Mallan
+   * media fetch is keyed on a listing already obtained from Property.
+   *
+   * WHY WE STILL ENFORCE IT. A listing can be delivered by Property at sync time
+   * and later withdrawn from that feed while its Media rows persist carrying
+   * `false`. Nothing else in the pipeline can observe that transition, because
+   * no fetch path requested this field before this change.
+   */
+  InternetEntireListingDisplayYN?: boolean | null;
   Order?: number | string | null;
   PreferredPhotoYN?: boolean | string | null;
   ModificationTimestamp?: Date | string | null;
@@ -543,7 +665,8 @@ export interface UpsertListingMediaOptions {
  * Input ledger (every incoming `mediaRows` row lands in exactly one bucket) —
  * for a fully-successful listing:
  *   `mediaRows.length` = inserted + updatedChanged + skippedUnchanged
- *                        + skippedInvalid + deleteSignalsReceived
+ *                        + skippedInvalid + skippedUnauthorizedDisplay
+ *                        + deleteSignalsReceived
  *
  * Physical DB-row writes:
  *   physical_writes = inserted + updatedChanged + tombstonedExplicit
@@ -566,6 +689,14 @@ export interface UpsertListingMediaResult {
   skippedUnchanged: number;
   /** Input rows rejected before any DB work (no MediaKey, non-Public Permission, no MediaURL). */
   skippedInvalid: number;
+  /**
+   * E-0 — input rows rejected because Cotality marked them NOT for internet
+   * display (`Media.InternetEntireListingDisplayYN === false`). Counted
+   * separately from `skippedInvalid` because this is a PROVIDER AUTHORIZATION
+   * refusal, not a malformed row, and the two must never be conflated in
+   * telemetry. Bounded aggregate only — no per-row URL, key or address.
+   */
+  skippedUnauthorizedDisplay: number;
   /** Incoming rows carrying `MediaStatus='Deleted'` — counted per INPUT row (duplicates included; not yet a write). */
   deleteSignalsReceived: number;
   /** DB rows actually flipped to `deleted` by the explicit-delete `updateMany` (deduped media_keys; unmatched signals flip zero). */
@@ -852,6 +983,79 @@ export function mediaRowDelivered(existing: {
   );
 }
 
+/**
+ * D1 — is this stored row about to be RESURRECTED?
+ *
+ * The material-write branch re-asserts `status: "active"` unconditionally, so ANY stored
+ * row that is not already active is being brought back from a tombstone ('deleted') or a
+ * replacement ('replaced'). Fail-safe on an absent/unknown status: `undefined` means the
+ * caller did not project the column, and treating an unknown state as a resurrection only
+ * costs one re-mirror — treating it as "already active" would keep a possibly-dead pointer.
+ */
+export function mediaRowIsResurrecting(existing: { status?: string | null }): boolean {
+  return existing.status !== "active";
+}
+
+/**
+ * D1 — the delivery state a RESURRECTED row must be returned to.
+ *
+ * WHY THE POINTERS CANNOT SURVIVE A RESURRECTION.
+ * A tombstoned row keeps `r2_key` / `media_url_cached` until
+ * `compactExpiredMediaTombstones` (lib/retention/media-tombstone-compaction.ts:78-83)
+ * nulls them 30 days later. Inside that window the object those pointers name is a
+ * legitimate delete candidate for R2 retirement. If the row then reappears in the Cotality
+ * media set, the old code re-activated it with BOTH pointers intact, which is terminal:
+ *   * `buildR2MirrorableBacklogUniverseWhere` requires `r2_key IS NULL OR
+ *     media_url_cached IS NULL`, so the mirror can never re-fetch the row;
+ *   * `decideMediaRowPersistence` sees `mediaRowDelivered() === true` and suppresses even
+ *     the locator refresh, so `media_url_original` goes stale as well;
+ *   * content verification DETECTS the divergence but is forbidden to repair
+ *     (lib/media/content-verification.ts:134, :167-169);
+ *   * `pickFullSizeUrl(cached, original)` is cached-first, so the public gallery serves the
+ *     dead R2 URL indefinitely.
+ * That is the mechanism that made R2 TIER 4 a NO-GO.
+ *
+ * WHY CLEARING IS CHEAP AND CANNOT ORPHAN ANYTHING.
+ * `buildMediaR2Key(listing_id, mediaType, media_key)` is deterministic, so the re-mirror
+ * recomputes the SAME key. If the object still exists the existence-reuse path
+ * (:3169-3187) re-adopts it with one HEAD and one narrow UPDATE — no re-upload, no second
+ * object. If it was deleted, the row is re-fetched, which is exactly the repair required.
+ * In the gap between this write and the re-mirror the gallery falls back to
+ * `media_url_original`, which this same statement rewrites with the locator just received
+ * from Cotality (a row cannot reach the material-write branch without a non-null MediaURL —
+ * see the `if (!url) { skippedInvalid++; continue; }` guard at :1249-1252), so there is no
+ * blank-image window.
+ *
+ * WHY THE CONTENT-CHECK VERDICT GOES WITH THEM.
+ * `content_check_state` is a statement about the bytes at `r2_key`. Once that pointer is
+ * cleared the verdict describes nothing. Keeping it would be actively harmful: a stale
+ * 'VERIFIED' suppresses re-checking for a whole interval after the re-mirror, and a stale
+ * 'MISMATCH' is NEVER verifier work again (content-verification.ts:99), so the row would
+ * leave the verification universe permanently.
+ *
+ * WHAT IS DELIBERATELY NOT RESET. `r2_attempts`, `r2_last_attempt_at` and
+ * `r2_policy_excluded_at` are left exactly as they stand. They record real failure history
+ * and a real policy decision; a reappearance in the feed is not evidence that either has
+ * changed. A row tombstoned by the permanent-4xx path carries `r2_attempts >= 3`
+ * (R2_TOMBSTONE_4XX_THRESHOLD), still below the exhaustion threshold of 8, so it re-enters
+ * the backlog normally. A policy-excluded or attempts-exhausted row does not re-enter the
+ * backlog — but it is then UN-delivered, so `decideMediaRowPersistence` keeps refreshing its
+ * locator and it serves live Cotality bytes. In no branch can a dead URL be emitted.
+ */
+export function resurrectionDeliveryReset(): {
+  r2_key: null;
+  media_url_cached: null;
+  content_check_at: null;
+  content_check_state: null;
+} {
+  return {
+    r2_key: null,
+    media_url_cached: null,
+    content_check_at: null,
+    content_check_state: null,
+  };
+}
+
 /** Date equality that treats null==null and compares by instant otherwise. */
 function sameInstant(a: Date | null | undefined, b: Date | null | undefined): boolean {
   // Total & non-throwing: null and undefined are both "empty" and equal to each
@@ -922,6 +1126,33 @@ export function listingMediaRowUnchanged(
  *       (`isRotatingFeedSummaryUrl`) — stable/non-feed URLs are always
  *       compared byte-exact because their query may be a real version or
  *       resource id. */
+/**
+ * Number of trailing PATH segments a Cotality media locator rotates.
+ *
+ * Live-proven shape (read-only probe, 2026-08-17):
+ *   /trestle/Media/Property/DOCUMENT-Jpeg/<ResourceRecordKey>/<n>/<b64>/<b64>/<hmac>
+ *                                                                     ^^^^^  ^^^^^^
+ * The second-to-last segment base64-decodes to `.../<unix-epoch>` and the last
+ * is a signature over it. Same MediaKey, three reads:
+ *   #1 .../MTc4Njk4NjUwOA/hmaorq5o…   -> decodes 20/21526/1786986508
+ *   #2 .../MTc4Njk4NjUxMg/0cyqL-Ih…   -> decodes 20/21526/1786986512  (+3s later)
+ *   #3 identical to #2 under a DIFFERENT token
+ * while ModificationTimestamp, MediaModificationTimestamp, RecordSignature and
+ * MediaObjectID were all unchanged.
+ */
+const COTALITY_ROTATING_TRAILING_SEGMENTS = 2;
+
+/**
+ * STORAGE-level locator identity: origin + full pathname.
+ *
+ * DELIBERATELY UNCHANGED. It is the input to the per-row persistence decision
+ * (`listingMediaRowUnchanged` -> `decideMediaRowPersistence`), and that decision
+ * must keep REFRESHING the stored locator for rows that are not yet durably
+ * mirrored to R2 — because those rows are served from the Cotality locator
+ * itself. Locator longevity is proven only to ~25 minutes with NO established
+ * upper bound, so suppressing that refresh would be betting public delivery on
+ * an unproven lifetime.
+ */
 function mediaUrlIdentity(url: string | null | undefined): string {
   const raw = (url ?? "").trim();
   if (!raw) return "";
@@ -931,6 +1162,83 @@ function mediaUrlIdentity(url: string | null | undefined): string {
   } catch {
     return raw; // deterministic fallback — degrade to a raw string compare
   }
+}
+
+/**
+ * ROTATION-SUPPRESSION HEURISTIC — **NOT** AN IDENTITY CONTRACT.
+ *
+ * ── READ THIS BEFORE RELYING ON IT ─────────────────────────────────────────
+ * This derives a key by DROPPING the last two path segments of a Cotality
+ * `MediaURL`. That shape was OBSERVED live (32 distinct MediaKeys across four
+ * type/category cohorts: the differing segments were `-2,-1` on 32/32, 0/32
+ * unchanged, 0 structured fields moved). An observation is not a contract.
+ * Cotality's authorized documentation does not define the URL's internal
+ * structure, so this codebase MUST NOT treat it as canonical asset identity.
+ *
+ * THE THREE ROLES ARE DISTINCT AND MUST NOT BE COLLAPSED:
+ *
+ *   IDENTITY          `MediaKey`   — 5,000/5,000 populated and distinct live.
+ *                                    This alone answers "is it the same row?".
+ *   CHANGE / VERSION  `RecordSignature`, `MediaModificationTimestamp`, and other
+ *                     EVIDENCE       verified structured fields. These say the row
+ *                                    was REVISED. A new signature or timestamp on
+ *                                    the SAME `MediaKey` is still the same asset
+ *                                    identity — it is a new version of it.
+ *   DELIVERY LOCATOR  `MediaURL`   — where to fetch it right now. Rotates.
+ *
+ * Calling the change-evidence fields "identity" would mean every re-signed row
+ * looked like a different asset. Rows are matched on `media_key`; nothing in
+ * this heuristic participates in identity at all.
+ *
+ * ── WHY IT EXISTS AT ALL, AND THE SAFETY DIRECTION ─────────────────────────
+ * The stored media SUMMARY holds only `primary_photo_url` — a rotating locator
+ * — so a URL comparison is the only signal available at that layer today. Used
+ * naively it produces a spurious hero change on EVERY sync, because rotation is
+ * universal.
+ *
+ * It is therefore used in ONE direction only: to SUPPRESS a public invalidation,
+ * never to cause one, and only when structured evidence AGREES nothing changed
+ * (see `decideListingMediaSummaryChange`). If the URL shape ever changes, the
+ * heuristic stops matching and the system falls back to invalidating — the safe
+ * failure. It can never mask a change that a structured signal reported.
+ *
+ * ── THE DURABLE FIX (schema-gated, not done here) ──────────────────────────
+ * Persist the hero's `media_key` alongside the summary. The public hero decision
+ * then compares provider row identity directly and this heuristic can be deleted
+ * outright. That is a schema change and sits behind the standing authorization
+ * hold.
+ *
+ * Applied ONLY to known rotating provider hosts; stable URLs (R2, CRM uploads)
+ * fall through to exact comparison so a real delivery switch is never masked.
+ */
+export function locatorRotationHeuristicKey(url: string | null | undefined): string {
+  const raw = (url ?? "").trim();
+  if (!raw) return "";
+  try {
+    const u = new URL(raw);
+    const origin = u.origin.toLowerCase();
+    if (!isRotatingFeedSummaryUrl(raw)) return origin + u.pathname;
+
+    const segments = u.pathname.split("/").filter(Boolean);
+    // Too short to carry the rotating pair — fail closed to the full path
+    // rather than over-trim and merge two genuinely different assets.
+    if (segments.length <= COTALITY_ROTATING_TRAILING_SEGMENTS) {
+      return origin + u.pathname;
+    }
+    return origin + "/" + segments.slice(0, -COTALITY_ROTATING_TRAILING_SEGMENTS).join("/");
+  } catch {
+    return raw;
+  }
+}
+
+/**
+ * Same DELIVERY LOCATOR, ignoring per-read rotation? null == null only.
+ * Deliberately not phrased as "same asset": see
+ * `locatorRotationHeuristicKey` — the locator is not a content identity.
+ */
+function looksLikeSameLocatorAfterRotation(a: string | null, b: string | null): boolean {
+  if (a === null || b === null) return a === null && b === null;
+  return locatorRotationHeuristicKey(a) === locatorRotationHeuristicKey(b);
 }
 
 /** Which of the comparator's 12 base fields differ for one existing row, plus
@@ -1039,6 +1347,7 @@ export async function upsertListingMedia(
   const photosChangeTsSnapshot = parseDate(options.photosChangeTsSnapshot ?? null);
 
   let skippedInvalid = 0;
+  let skippedUnauthorizedDisplay = 0;
   let deleteSignalsReceived = 0;
   const explicitDeleteKeys = new Set<string>();
   const mapped: MappedMediaRow[] = [];
@@ -1058,6 +1367,33 @@ export async function upsertListingMedia(
 
     if (raw.Permission != null && String(raw.Permission) !== "Public") {
       skippedInvalid++;
+      continue;
+    }
+
+    // E-0 — PROVIDER MEDIA DISPLAY AUTHORIZATION.
+    //
+    // Only an EXPLICIT `false` blocks. `null`/absent means "not suppressed",
+    // matching the IDX Plus pre-filter rule this repo already applies to the
+    // Property-side gates in `computeGateColumns` — and matching the live shape,
+    // where only 62 rows feed-wide are null.
+    //
+    // Enforced PER ROW rather than per set. Live evidence says the flag is
+    // listing-level (0 of 4,132 listings mixed), so in practice this rejects
+    // whole sets; the per-row form is the fail-closed generalisation, and if a
+    // mixed listing ever appears it degrades to the conservative reading for
+    // each row instead of over-blocking authorised photos.
+    //
+    // This runs BEFORE `mapped.push`, so an unauthorised row never reaches the
+    // gallery, photo count, hero selection, media summary, or any public cache
+    // tag derived from them. Authorisation precedes classification: E cannot
+    // decide whether a "public media change" occurred until the authorised
+    // population is correct.
+    //
+    // NOT persisted as a column — that would need a schema migration, which is
+    // outside this PR's authorisation. The rejection is surfaced as a bounded
+    // aggregate counter instead (`skippedUnauthorizedDisplay`).
+    if (raw.InternetEntireListingDisplayYN === false) {
+      skippedUnauthorizedDisplay++;
       continue;
     }
 
@@ -1189,6 +1525,12 @@ export async function upsertListingMedia(
       // repeated every cycle, forever. Exactly 8 stays reachable (recovery)
       // and keeps refreshing.
       const materialUnchanged = listingMediaRowUnchanged(existing, row, listingId);
+      // D1 — R2 RETIREMENT SAFETY. A row whose stored status is not 'active' is
+      // about to be RESURRECTED by the `status: "active"` re-assertion below.
+      // Its delivery pointers describe an object from its previous life which a
+      // retirement sweep may already have deleted, so they must NOT survive the
+      // resurrection. See `resurrectionDeliveryReset` for the full argument.
+      const resurrecting = mediaRowIsResurrecting(existing);
       const mirrorUnreachable = mediaRowMirrorUnreachable(existing);
       // (1) THE MISSING NO-OP GATE. The material comparator deliberately
       // EXCLUDES the URL, so "material unchanged" says nothing about the
@@ -1265,6 +1607,7 @@ export async function upsertListingMedia(
             modification_ts: row.modificationTs,
             photos_change_ts_snapshot: row.photosChangeTsSnapshot,
             status: "active",
+            ...(resurrecting ? resurrectionDeliveryReset() : {}),
           },
         });
         // Reaching here means `decision.kind === 'material-write'`; the
@@ -1364,6 +1707,7 @@ export async function upsertListingMedia(
     updatedChanged,
     skippedUnchanged,
     skippedInvalid,
+    skippedUnauthorizedDisplay,
     deleteSignalsReceived,
     tombstonedExplicit,
     tombstonedVanished,
@@ -1417,6 +1761,14 @@ export interface ListingMediaSummary {
   photo_count: number;
   /** Max `media_modification_ts` across all active rows for the listing. null if none. */
   photos_change_timestamp: Date | null;
+  /**
+   * PROVIDER ROW IDENTITY of the hero (`listing_media.media_key`).
+   *
+   * NOT persisted — derived per call from rows the summary already reads. It is
+   * the structured basis for "did the hero change?", and takes precedence over
+   * any inference from the rotating `MediaURL`.
+   */
+  primary_photo_media_key: string | null;
 }
 
 /** Per-row shape `computeListingMediaSummary()` needs. */
@@ -1608,6 +1960,12 @@ export function computeListingMediaSummary(
     primary_photo_r2_key: hero?.r2_key ?? null,
     photo_count: photos.length,
     photos_change_timestamp: pct,
+    // STRUCTURED HERO IDENTITY — the provider row identity of the hero.
+    //
+    // Derived from `media_key`, which the row read above ALREADY selects, so this
+    // costs no schema column and no extra query. It is the correct basis for
+    // "did the hero change?", replacing any inference from the rotating locator.
+    primary_photo_media_key: hero?.media_key ?? null,
   };
 }
 
@@ -1625,6 +1983,17 @@ export interface SummaryWriteCounters {
   rows_inserted: number;
   rows_updated: number;
   rows_failed: number;
+  /**
+   * Rows whose STORAGE advanced (source cursor / provenance) while the public
+   * output stayed byte-identical, so ZERO public cache tags were emitted.
+   * This is the counter the production burn-in reads to prove the causal
+   * chain: source trigger moved, storage moved, public cache did NOT.
+   */
+  rows_provenance_only_no_invalidation: number;
+  /** Rows whose public GALLERY changed with an unchanged hero -> listing tag only. */
+  rows_public_gallery_change: number;
+  /** Rows whose HERO output changed -> listing + building + manifest shard. */
+  rows_public_hero_change: number;
 }
 
 export function newSummaryWriteCounters(): SummaryWriteCounters {
@@ -1635,6 +2004,9 @@ export function newSummaryWriteCounters(): SummaryWriteCounters {
     rows_inserted: 0,
     rows_updated: 0,
     rows_failed: 0,
+    rows_provenance_only_no_invalidation: 0,
+    rows_public_gallery_change: 0,
+    rows_public_hero_change: 0,
   };
 }
 
@@ -1739,6 +2111,154 @@ export function listingMediaSummaryUnchanged(
 }
 
 /**
+ * How a media reconciliation altered the AUTHORIZED public media set.
+ *
+ * Supplied by the reconciliation (`upsertListingMedia`), not inferred from the
+ * summary columns — a non-hero reorder, reclassification, insert or tombstone
+ * can change the public gallery while hero AND count stay byte-identical, and
+ * no comparison of the four summary columns can see that.
+ */
+export interface AuthorizedMediaChangeEvidence {
+  /** Authorized rows inserted, materially updated, or tombstoned this cycle. */
+  galleryMutated: boolean;
+  /**
+   * `media_key` of the hero BEFORE this reconciliation, when the caller knows it.
+   *
+   * When supplied, hero change is decided by STRUCTURED PROVIDER IDENTITY —
+   * `previousHeroMediaKey !== summary.primary_photo_media_key` — and the
+   * locator heuristic is not consulted at all. This is the correct comparison:
+   * a row may gain a new `RecordSignature` or `MediaModificationTimestamp`
+   * (change evidence) while keeping the same `MediaKey` (identity), and that is
+   * a new VERSION of the same hero, not a different hero.
+   *
+   * `undefined` means "not known", NOT "unchanged": the classifier then falls
+   * back to the conservative locator heuristic.
+   */
+  previousHeroMediaKey?: string | null;
+}
+
+export type PublicMediaChangeClass =
+  /** Nothing moved at all. No storage write, no tags. */
+  | 'none'
+  /** Provider provenance advanced; public output byte-identical. Storage writes, ZERO tags. */
+  | 'provenance-only'
+  /** Public gallery changed, hero output identical. Listing tag ONLY. */
+  | 'public-gallery'
+  /** Hero output changed. Listing + building + manifest shard. */
+  | 'public-hero';
+
+export interface ListingMediaSummaryDecision {
+  /** Must the Listing summary row be written? (storage equality) */
+  storageChanged: boolean;
+  /** What, if anything, the PUBLIC surface must be told. (material equality) */
+  publicChange: PublicMediaChangeClass;
+}
+
+/**
+ * SEPARATE STORAGE EQUALITY FROM PUBLIC-MATERIAL EQUALITY.
+ *
+ * These are two different questions and the old code answered only one. Any
+ * difference across the four summary columns caused BOTH a `Listing.update()`
+ * AND a full listing+building+manifest invalidation — so pure provider
+ * provenance movement produced public cache churn.
+ *
+ * ── WHY `photos_change_timestamp` IS NOT PUBLIC EVIDENCE (live-proven) ──────
+ * `Property.PhotosChangeTimestamp` moves in PROVIDER BATCHES, not per listing.
+ * Read-only probe, 2026-08-17:
+ *
+ *   RLS20109728  PhotosCount=15  PhotosChangeTimestamp=17:08:55.193
+ *   RLS20109727  PhotosCount=15  PhotosChangeTimestamp=17:08:55.193
+ *   RLS20109725  PhotosCount=18  PhotosChangeTimestamp=16:51:53.583
+ *   RLS20109724  PhotosCount= 8  PhotosChangeTimestamp=16:51:53.583
+ *
+ * Different listings with different photo counts carry a byte-identical stamp.
+ * It is a provider-side processing clock, so it identifies WHAT TO INSPECT — it
+ * is never itself proof that a consumer-visible listing changed. No public
+ * reader reads this column.
+ *
+ * It still must be PERSISTED: it is the incremental sync cursor. Hence
+ * `storageChanged: true` with `publicChange: 'provenance-only'` — the exact
+ * state the old boolean could not express.
+ *
+ * ── HERO vs GALLERY ────────────────────────────────────────────────────────
+ * The manifest projection selects ONLY `primary_photo_url` /
+ * `primary_photo_r2_key`. So:
+ *   hero url identity or r2 delivery key moved  -> 'public-hero'   (all three layers)
+ *   count moved, or reconciliation reports a
+ *   gallery mutation, hero unchanged            -> 'public-gallery' (listing only)
+ *
+ * `summaryHeroUrlEqual` already ignores rotation between two known feed URLs,
+ * which matters because `MediaURL` is LIVE-PROVEN to rotate on every read
+ * (wall-clock epoch inside the URL PATH — there is no query string) while the
+ * underlying record is unchanged. A rotated locator is never a hero change.
+ *
+ * Fail-closed: no stored row means we cannot prove the public output is
+ * unchanged, so the widest scope is used.
+ */
+export function decideListingMediaSummaryChange(
+  stored: StoredListingMediaSummary | null,
+  summary: ListingMediaSummary,
+  evidence?: AuthorizedMediaChangeEvidence,
+): ListingMediaSummaryDecision {
+  if (!stored) {
+    return { storageChanged: true, publicChange: 'public-hero' };
+  }
+
+  // STORAGE equality — unchanged semantics. A rotated locator still writes, so
+  // an unmirrored row never keeps a locator we cannot vouch for.
+  const heroUrlMoved = !summaryHeroUrlEqual(stored.primary_photo_url, summary.primary_photo_url);
+  const heroKeyMoved = (stored.primary_photo_r2_key ?? null) !== (summary.primary_photo_r2_key ?? null);
+  const countMoved = stored.photo_count === null || stored.photo_count !== summary.photo_count;
+  const provenanceMoved = !sameInstant(stored.photos_change_timestamp, summary.photos_change_timestamp);
+  const galleryMutated = evidence?.galleryMutated === true;
+
+  const storageChanged = heroUrlMoved || heroKeyMoved || countMoved || provenanceMoved;
+
+  // PUBLIC materiality — a rotated locator for the SAME locator is not a hero
+  // change, even though it IS a storage change. This is the split that turns
+  // per-read URL rotation from cache churn into a silent storage refresh.
+  // The stored hero URL differs byte-for-byte on essentially every sync, because
+  // rotation is universal (0/32 sampled reads returned an unchanged URL). An
+  // exact compare is therefore useless at this layer.
+  //
+  // SAFETY ARGUMENT FOR USING A HEURISTIC HERE. Its only possible harm is a
+  // FALSE SUPPRESSION — concluding "same asset" when the asset actually changed.
+  // That can only take effect in the `provenance-only` branch below, which is
+  // reached ONLY after `heroKeyMoved`, `countMoved` and `galleryMutated` have all
+  // been shown false. So a structured signal always wins; the heuristic decides
+  // nothing on its own, and it can never mask a change the reconciliation
+  // reported. If the URL shape ever changes the keys stop matching and the
+  // system falls back to invalidating — the safe direction.
+  // STRUCTURED IDENTITY WINS WHENEVER IT IS AVAILABLE.
+  //
+  // `MediaKey` is provider ROW IDENTITY; comparing it answers "is the hero the
+  // same row?" exactly. Only when the caller cannot supply the pre-reconciliation
+  // hero identity do we fall back to the locator heuristic — and that fallback
+  // is conservative (see `locatorRotationHeuristicKey`).
+  const heroIdentityKnown = evidence?.previousHeroMediaKey !== undefined;
+  const heroIdentityMoved =
+    heroIdentityKnown &&
+    (evidence?.previousHeroMediaKey ?? null) !== (summary.primary_photo_media_key ?? null);
+
+  const heroLocatorMoved = heroIdentityKnown
+    ? heroIdentityMoved
+    : !looksLikeSameLocatorAfterRotation(stored.primary_photo_url, summary.primary_photo_url);
+
+  if (heroLocatorMoved || heroKeyMoved) {
+    return { storageChanged: true, publicChange: 'public-hero' };
+  }
+  if (countMoved || galleryMutated) {
+    return { storageChanged: storageChanged || galleryMutated, publicChange: 'public-gallery' };
+  }
+  // Source clock advanced and/or the locator rotated, with a byte-identical
+  // public output: PERSIST, but emit ZERO public cache tags.
+  if (storageChanged) {
+    return { storageChanged: true, publicChange: 'provenance-only' };
+  }
+  return { storageChanged: false, publicChange: 'none' };
+}
+
+/**
  * Re-derive and persist the 4 Listing summary columns from the current
  * `listing_media` rows for `listingId`.
  *
@@ -1763,6 +2283,15 @@ export async function updateListingMediaSummary(
     counters?: SummaryWriteCounters;
     /** One Cycle W1: revalidation accounting sink (bounded aggregates). */
     revalidation?: { pages_revalidated: number; revalidation_failures: number };
+    /**
+     * Explicit public-change evidence from the media reconciliation.
+     *
+     * REQUIRED to detect a gallery mutation that leaves hero AND count
+     * identical (a non-hero reorder, reclassification, or a delete balanced by
+     * an insert). No comparison of the four summary columns can see that, so
+     * without this the classifier has a genuine false-negative surface.
+     */
+    mediaChangeEvidence?: AuthorizedMediaChangeEvidence;
   },
 ): Promise<ListingMediaSummary> {
   const counters = options?.counters;
@@ -1817,7 +2346,12 @@ export async function updateListingMediaSummary(
     stored = null; // fail-closed -> write proceeds
   }
 
-  if (listingMediaSummaryUnchanged(stored, summary)) {
+  // TWO DECISIONS, NOT ONE. `storageChanged` answers "must the row be written?";
+  // `publicChange` answers "what must the public cache be told?". Collapsing
+  // them is what made provider provenance movement invalidate public caches.
+  const decision = decideListingMediaSummaryChange(stored, summary, options?.mediaChangeEvidence);
+
+  if (!decision.storageChanged) {
     if (counters) counters.rows_suppressed_unchanged++;
     return summary;
   }
@@ -1835,15 +2369,32 @@ export async function updateListingMediaSummary(
     counters.rows_materially_changed++;
     counters.rows_updated++;
   }
-  // One Cycle W1: the summary (hero/count/photo-revision) materially changed
-  // → refresh this listing's cached public page. Never throws; a suppressed
-  // (unchanged) summary above performs NO revalidation.
-  // Same canonical tag set the listing/legacy-media writers use, so the three
-  // writers cannot hold three opinions about what a public media change
-  // expires. A summary change never moves a listing between buildings, so the
-  // current address is both sides — no query to invent a transition.
+
+  // PROVENANCE-ONLY: the source cursor advanced and the row was persisted, but
+  // the public output is byte-identical. ZERO public cache tags — this is the
+  // write-amplification fix, and the reason the two decisions were separated.
+  if (decision.publicChange === 'provenance-only') {
+    if (counters) counters.rows_provenance_only_no_invalidation++;
+    return summary;
+  }
+
+  // A media change never moves a listing between buildings, so the current
+  // address is passed as both sides — no query to invent a transition that
+  // cannot happen.
+  //
+  // SCOPE follows the proven reader dependency: the manifest projection reads
+  // ONLY hero state, so a gallery change with an unchanged hero expires the
+  // listing alone. One tag owner, narrowed — not a parallel system.
+  const scope: PublicListingChangeScope =
+    decision.publicChange === 'public-hero' ? 'listing-building-manifest' : 'listing-only';
+
+  if (counters) {
+    if (decision.publicChange === 'public-hero') counters.rows_public_hero_change++;
+    else counters.rows_public_gallery_change++;
+  }
+
   safeRevalidateTags(
-    publicListingChangeTags(listingId, stored?.address, stored?.address).tags,
+    publicListingChangeTags(listingId, stored?.address, stored?.address, scope).tags,
     options?.revalidation,
   );
 
@@ -2588,6 +3139,7 @@ export async function mirrorMediaToR2(
   if (!existingKey && !stableMediaKey) {
     return { status: "skipped", reason: "no_media_key" };
   }
+
   const key =
     existingKey ?? buildMediaR2Key(row.listing_id, row.media_type, stableMediaKey);
 
@@ -3031,6 +3583,13 @@ export interface RunMediaSyncResult {
   rows_updated_changed: number;
   rows_skipped_unchanged: number;
   rows_skipped_invalid: number;
+  /**
+   * E-0 — rows refused because Cotality marked them not for internet display
+   * (`Media.InternetEntireListingDisplayYN === false`). Bounded aggregate only.
+   * Counted apart from `rows_skipped_invalid` so a provider AUTHORIZATION
+   * change can never be misread as malformed input during the burn-in.
+   */
+  rows_skipped_unauthorized_display: number;
   delete_signals_received: number;
   tombstoned_explicit: number;
   tombstoned_vanished: number;
@@ -3210,6 +3769,75 @@ export const DEFAULT_FALLBACK_WINDOW_DAYS = 30;
  *   - DEFAULT_PHASE2_RESERVE_MS = 12s  → Phase 3 runs at most ~43s; Phase 4 has 12s
  */
 export const DEFAULT_BUDGET_MS = 100_000;
+
+/**
+ * How long a VERIFIED row stays clean before it is due again — DERIVED FROM MEASURED
+ * CAPACITY, never asserted.
+ *
+ * The previous hand-written `30 * DAY` was arithmetically impossible. The eligible universe
+ * measured 280,543 rows (frozen census 2026-08-18; 280,502 once the 41 Mallan-local `crm:`
+ * rows are excluded) and the cap is 60 rows/cycle, so ONE full pass is 4,676 cycles: 32.5
+ * days at the 144-poll/day ceiling and 194.8 days at the guaranteed 24-cycle/day floor (the
+ * hourly One Cycle freshness heartbeat). Steady-state demand at the ceiling was 64.9
+ * rows/cycle against a hard cap of 60 — a permanent 100% duty cycle that never completed a
+ * single pass. Deriving the interval makes that class of drift impossible rather than fixed
+ * once; `content-verification-scope-pacing-ordering.test.ts` fails if the two ever disagree.
+ *
+ * It is derived at the FLOOR because the failure modes are asymmetric: too SHORT is
+ * permanent over-subscription, too LONG is idle time. See `requiredVerificationIntervalMs`
+ * for the authorization requests (per-cycle concurrency) that would bring this number down.
+ *
+ * THIS IS THE BOUND, NOT THE SCHEDULE. It states the worst age any row may reach. The
+ * schedule that HONOURS it is `CONTENT_VERIFICATION_SWEEP_GAP_MS` below.
+ */
+export const CONTENT_VERIFICATION_INTERVAL_MS = requiredVerificationIntervalMs(
+  VERIFICATION_UNIVERSE_MEASURED,
+  MAX_VERIFICATION_ROWS_PER_CYCLE,
+  VERIFICATION_GUARANTEED_CYCLES_PER_DAY,
+  VERIFICATION_UTILIZATION_TARGET,
+);
+/**
+ * The longest a full sweep can take: the whole universe at the cap, at the GUARANTEED FLOOR
+ * cadence. 4,676 cycles / 24 per day = 194.8 -> 195 days. A faster cadence can only shorten it.
+ */
+export const CONTENT_VERIFICATION_MAX_SWEEP_MS = maxVerificationSweepDurationMs(
+  VERIFICATION_UNIVERSE_MEASURED,
+  MAX_VERIFICATION_ROWS_PER_CYCLE,
+  VERIFICATION_GUARANTEED_CYCLES_PER_DAY,
+);
+/**
+ * Gap between one sweep ENDING and the next STARTING: 244 - 195 = 49 days.
+ *
+ * A row at fraction f of the key space is visited at S + f*D_N and again at
+ * S + D_N + G + f*D_{N+1}, so its age is D_N*(1-f) + D_{N+1}*f + G and the worst case over
+ * every row and every f is `max(D_N, D_{N+1}) + G <= Dmax + G = interval`. That inequality is
+ * the whole point of deriving G rather than reusing the interval: the previous revision armed
+ * the gate at `sweepStartedAt + interval`, which leaves the worst case at
+ * `interval + (D_slow - D_fast)` — up to 407 days when the cadence swings between the floor
+ * and the ceiling across two consecutive passes.
+ */
+export const CONTENT_VERIFICATION_SWEEP_GAP_MS = verificationSweepGapMs(
+  CONTENT_VERIFICATION_INTERVAL_MS,
+  CONTENT_VERIFICATION_MAX_SWEEP_MS,
+);
+/**
+ * Zero while capacity can honour the interval. Turns positive only if the universe outgrows
+ * the cap at the floor cadence, at which point the verifier sweeps continuously and the
+ * shortfall is REPORTED rather than silently absorbed into a shorter gap.
+ */
+export const CONTENT_VERIFICATION_CAPACITY_SHORTFALL_MS = verificationCapacityShortfallMs(
+  CONTENT_VERIFICATION_INTERVAL_MS,
+  CONTENT_VERIFICATION_MAX_SWEEP_MS,
+);
+/**
+ * A FLOOR on re-checking an INDETERMINATE row — no longer a driver.
+ *
+ * It used to be the pacing rule for INDETERMINATE rows, 30x tighter than the verification
+ * clock, which let transient failures re-appear in the selector 30x more often than
+ * never-checked rows and starve them. The keyset sweep now gives every row exactly ONE visit
+ * per pass whatever its state, so this only matters if a sweep ever wraps in under a day.
+ */
+export const CONTENT_VERIFICATION_RETRY_MS = 24 * 60 * 60 * 1000; // 24h
 export const DEFAULT_PHASE1_RESERVE_MS = 55_000;
 export const DEFAULT_PHASE2_RESERVE_MS = 12_000;
 /**
@@ -3349,7 +3977,11 @@ async function defaultFetchMedia(resourceRecordKey: string): Promise<UpsertListi
   params.set("$filter", `ResourceRecordKey eq '${escaped}'`);
   params.set(
     "$select",
-    "MediaKey,ResourceRecordKey,ResourceRecordID,MediaURL,MediaCategory,MediaClassification,MediaStatus,Permission,Order,PreferredPhotoYN,ModificationTimestamp,MediaModificationTimestamp",
+    // `InternetEntireListingDisplayYN` is REQUIRED here (E-0): it is the only
+    // provider signal that a listing's media is not for internet display, it is
+    // populated 5,000/5,000 live, and without requesting it the authorization
+    // check in `upsertListingMedia` can never see a `false`.
+    "MediaKey,ResourceRecordKey,ResourceRecordID,MediaURL,MediaCategory,MediaClassification,MediaStatus,Permission,InternetEntireListingDisplayYN,Order,PreferredPhotoYN,ModificationTimestamp,MediaModificationTimestamp",
   );
   params.set("$orderby", "Order asc");
   // Per-page size; the rest of a high-photo listing is followed via @odata.nextLink.
@@ -3525,6 +4157,9 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   let rowsUpdatedChanged = 0;
   let rowsSkippedUnchanged = 0;
   let rowsSkippedInvalid = 0;
+  // E-0 telemetry: provider display-authorization refusals, counted apart from
+  // malformed rows so an authorization change is never mistaken for bad data.
+  let rowsSkippedUnauthorizedDisplay = 0;
   let deleteSignalsReceived = 0;
   let tombstonedExplicit = 0;
   let tombstonedVanished = 0;
@@ -3620,6 +4255,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       rows_updated_changed: 0,
       rows_skipped_unchanged: 0,
       rows_skipped_invalid: 0,
+      rows_skipped_unauthorized_display: 0,
       delete_signals_received: 0,
       tombstoned_explicit: 0,
       tombstoned_vanished: 0,
@@ -3755,6 +4391,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       rowsUpdatedChanged += upsertResult.updatedChanged;
       rowsSkippedUnchanged += upsertResult.skippedUnchanged;
       rowsSkippedInvalid += upsertResult.skippedInvalid;
+      rowsSkippedUnauthorizedDisplay += upsertResult.skippedUnauthorizedDisplay;
       deleteSignalsReceived += upsertResult.deleteSignalsReceived;
       tombstonedExplicit += upsertResult.tombstonedExplicit;
       tombstonedVanished += upsertResult.tombstonedVanished;
@@ -3798,8 +4435,29 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
       // Phase 3 (surface C): the summary write is suppressed inside when the
       // stored 4 columns are already identical; counters record the outcome,
       // and a failure is attributed to the summary path before re-throwing.
+      // EXPLICIT PUBLIC-CHANGE EVIDENCE from the reconciliation, not a guess.
+      //
+      // `deliveryUrlRefreshed` is DELIBERATELY EXCLUDED. Those rows were proven
+      // material-unchanged and were written only to refresh a rotating locator —
+      // counting them here would re-fire public invalidation on the very
+      // per-read rotation this work exists to stop, on 100% of rows every cycle.
+      //
+      // The included buckets are the ones that genuinely alter the authorized
+      // public gallery: a row appeared, a row materially changed, or a row was
+      // tombstoned (explicitly or by vanishing from a COMPLETE set). Together
+      // they cover the reorder / reclassification / delete-balanced-by-insert
+      // cases that hero+count comparison cannot see.
+      const galleryMutated =
+        upsertResult.inserted > 0 ||
+        upsertResult.updatedChanged > 0 ||
+        upsertResult.tombstoned > 0;
+
       try {
-        await updateListingMediaSummary(listingId, { counters: summaryWrites, revalidation });
+        await updateListingMediaSummary(listingId, {
+          counters: summaryWrites,
+          revalidation,
+          mediaChangeEvidence: { galleryMutated },
+        });
       } catch (summaryErr) {
         summaryWrites.rows_failed++;
         throw summaryErr;
@@ -4320,7 +4978,16 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
   // remainder is reported rather than silently dropped.
   const summaryPropagation = await propagateMirroredHeroSummaries(mirroredListingIds, {
     updateSummary: (listingId) =>
-      updateListingMediaSummary(listingId, { counters: summaryWrites, revalidation }),
+      updateListingMediaSummary(listingId, {
+        counters: summaryWrites,
+        revalidation,
+        // R2 hero propagation changes DELIVERY state, never gallery membership
+        // or order — the drain wrote `listing_media.r2_key` and nothing else.
+        // A genuine hero move is still caught by the r2-key term in the
+        // classifier, which reports `public-hero`; asserting a gallery mutation
+        // here would only widen the scope for no reason.
+        mediaChangeEvidence: { galleryMutated: false },
+      }),
     remainingMs,
     reserveMs: phase2ReserveMs,
   });
@@ -4363,6 +5030,228 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     } catch {
       // Non-fatal: on a failed flush the rows simply re-surface next firing
       // and are re-parked then (the write is idempotent). Never fails the run.
+    }
+  }
+
+  // ── PHASE 3.5: BOUNDED CONTENT VERIFICATION (recurrence detection) ───
+  //
+  // WHY IT LIVES HERE AND NOWHERE ELSE. Item 4 closed as OUTCOME B: a repaired
+  // row ends with BOTH delivery pointers populated, so
+  // `buildR2MirrorableBacklogUniverseWhere` (:2618) excludes it and the
+  // existence-only reuse (:3148-3177) self-certifies it. Repair RELOCATES the
+  // staleness defect to a new address rather than closing it. Only a durable
+  // per-row content-check clock closes it.
+  //
+  // FIVE INVARIANTS, ALL LOAD-BEARING:
+  //  1. Its selector is `buildContentVerificationWhere` — which asserts delivery
+  //     PRESENT (`r2_key not null`). The backlog universe asserts delivery
+  //     MISSING. The two are disjoint by construction, so verification can never
+  //     be mistaken for outstanding mirror work.
+  //  2. It NEVER contributes to `backlogRemaining` / `backlogPending`. It runs
+  //     BEFORE the Phase-4 probe and writes nothing the probe reads.
+  //  3. It can NEVER set `forceRun`: it does not touch `rowsFailed`, `r2Failed`
+  //     or `exitReason`, which are the only inputs to `finalStatus`.
+  //  4. It is BOUNDED at MAX_VERIFICATION_ROWS_PER_CYCLE and runs only if the
+  //     drain left budget. If it did not, verification simply waits for the next
+  //     ALREADY-SCHEDULED cycle — it never schedules one.
+  //  5. It writes ONLY `content_check_at` / `content_check_state`. It performs
+  //     no repair; a MISMATCH is handed to the human-gated targeted-remediation
+  //     path, never auto-repaired here.
+  //  6. (D3) SELECTION IS A KEYSET WINDOW, NOT A RE-SCAN AND NOT A DUE-SET. The cursor is
+  //     persisted in `media_sync_state` under RESOURCE_MEDIA_CONTENT_VERIFICATION, so each
+  //     cycle is a forward RANGE on the `media_key` UNIQUE btree. Before the cursor, every
+  //     cycle re-scanned the whole already-verified prefix — growing toward 280K heap visits
+  //     on each of up to 144 cycles a day. Between sweeps the query is not issued AT ALL.
+  //  7. (D2) MALLAN-LOCAL `crm:` ROWS ARE OUT OF SCOPE. Cotality cannot hold a MediaKey it
+  //     never issued; asking recorded INDETERMINATE and re-armed them every 24h forever.
+  //  8. (D3-fix) THE WINDOW CARRIES NO TIME PREDICATE. Range exhaustion and due-ness are two
+  //     different questions and the previous revision answered both with one short page: from
+  //     pass two on a short page meant "nothing is due YET", the code read it as "the key
+  //     range is exhausted", reset the cursor and shut the gate for a whole interval after
+  //     visiting as few as 30 of 1,207 rows. The window now returns the next `cap` rows BY
+  //     KEY — so a short page can only mean exhaustion — and `isDueInSweep` decides in memory
+  //     which of them to fetch from the provider. A not-due row is still EXAMINED, so the
+  //     cursor always moves and the sweep always terminates.
+  let contentChecked = 0;
+  let contentVerified = 0;
+  let contentMismatch = 0;
+  let contentIndeterminate = 0;
+  let contentSkippedLocal = 0;
+  let contentNotDue = 0;
+  if (remainingMs() > phase2ReserveMs) {
+    try {
+      const verifyNow = new Date(now());
+      const sweep = await getContentVerificationSweepState();
+      const sweepHealth = describeSweepHealth(sweep, verifyNow);
+      // The idle gate. Between sweeps the window is not issued at all.
+      const queried = shouldRunVerificationCycle(sweep, verifyNow);
+      // The instant THIS sweep began — the watermark `isDueInSweep` compares against. Taken
+      // from the same helper the state machine uses, so the two can never disagree about
+      // which sweep a cycle belongs to.
+      const sweepStartedAt = sweepStartFor(sweep, verifyNow);
+      const scannedRaw = queried
+        ? await prisma.listingMedia.findMany({
+            where: buildContentVerificationWhere(sweep.cursor) as Prisma.ListingMediaWhereInput,
+            select: {
+              media_key: true, listing_id: true, r2_key: true,
+              media_url_original: true, content_check_at: true, content_check_state: true,
+            },
+            take: MAX_VERIFICATION_ROWS_PER_CYCLE,
+            // Must stay in lock-step with the keyset predicate: the cursor is only a valid
+            // resume point while the scan order is media_key ASC.
+            orderBy: { media_key: "asc" },
+          })
+        : [];
+      // ONE source of truth for the page. `media_key` is nullable in the schema and the WHERE
+      // already excludes nulls, so this filter is a no-op — but keeping the rows and the keys
+      // the same length by CONSTRUCTION is what stops a hypothetical null from shortening the
+      // page and being read as range exhaustion.
+      const scanned = scannedRaw.filter(
+        (r): r is (typeof scannedRaw)[number] & { media_key: string } => typeof r.media_key === "string",
+      );
+      // Rows this cycle EXAMINED — checked, or deliberately declined. Only these may advance
+      // the cursor: a budget break must not skip the rows it did not reach.
+      const processedKeys: string[] = [];
+
+      if (scanned.length > 0) {
+        const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
+        // Lazily acquired: a window can legitimately contain no due row at all (every row
+        // already concluded in this sweep), and that must not cost an OAuth round trip.
+        let cachedToken: string | null = null;
+        const token = async () => (cachedToken ??= await defaultGetAccessToken());
+        for (const row of scanned) {
+          // Budget is re-checked EVERY row: an overrun would convert "slower"
+          // into "more wakes" via timed_out -> forceRun.
+          if (remainingMs() <= phase2ReserveMs) break;
+          // DUE-NESS, IN MEMORY, AFTER THE WINDOW. A declined row is still examined, so the
+          // cursor moves past it and the sweep can reach its end.
+          if (!isDueInSweep(row as unknown as VerifiableRow, sweepStartedAt, verifyNow, {
+            verificationIntervalMs: CONTENT_VERIFICATION_INTERVAL_MS,
+            retryIntervalMs: CONTENT_VERIFICATION_RETRY_MS,
+          })) {
+            processedKeys.push(row.media_key);
+            if (isCrmMediaKey(row.media_key)) contentSkippedLocal++;
+            else contentNotDue++;
+            continue;
+          }
+          const outcome = await verifyRow(
+            row as unknown as VerifiableRow,
+            {
+              async resolveFreshLocator(mediaKey) {
+                const url =
+                  `${TRESTLE_API}/odata/Media?$filter=` +
+                  encodeURIComponent(`MediaKey eq '${String(mediaKey).replace(/'/g, "''")}'`) +
+                  // E-0: every live Cotality media fetch path must request the display
+                  // authorization field. The verifier only compares bytes, but the guard is
+                  // deliberately blunt — a media path that does not ask for authorization is a
+                  // media path that could later be made to display unauthorized bytes.
+                  `&$select=${encodeURIComponent("MediaKey,MediaURL,InternetEntireListingDisplayYN")}&$top=1`;
+                const r = await fetch(url, {
+                  headers: { Authorization: `Bearer ${await token()}`, Accept: "application/json" },
+                });
+                if (!r.ok) throw new Error(`provider HTTP ${r.status}`);
+                const j = (await r.json()) as { value?: Array<{ MediaURL?: string }> };
+                return j.value?.[0]?.MediaURL ?? null;
+              },
+              async fetchProviderBytes(url) {
+                const r = await fetch(url, {
+                  headers: { Authorization: `Bearer ${await token()}`, Accept: "image/*" },
+                });
+                if (!r.ok) throw new Error(`provider HTTP ${r.status}`);
+                return Buffer.from(await r.arrayBuffer());
+              },
+              async readR2Bytes(key) {
+                const r = await fetch(defaultGetR2PublicUrl(key));
+                if (!r.ok) throw new Error(`r2 HTTP ${r.status}`);
+                return Buffer.from(await r.arrayBuffer());
+              },
+              async recordCheck(mediaKey, at, state) {
+                await prisma.listingMedia.update({
+                  where: { media_key: mediaKey },
+                  data: { content_check_at: at, content_check_state: state },
+                });
+              },
+            },
+            verifyNow,
+          );
+          processedKeys.push(row.media_key);
+          // `state === null` means NO CHECK WAS APPLICABLE and nothing was written (a
+          // Mallan-local row). Counting it as INDETERMINATE would reproduce D2 in the
+          // telemetry after fixing it in the database.
+          if (outcome.state === null) {
+            contentSkippedLocal++;
+            continue;
+          }
+          contentChecked++;
+          if (outcome.state === "VERIFIED") contentVerified++;
+          else if (outcome.state === "MISMATCH") contentMismatch++;
+          else contentIndeterminate++;
+        }
+      }
+
+      // NO-OP GUARD. An idle cycle (and a cycle that could not move) leaves the sweep state
+      // byte-identical; writing it anyway would be a pure `@updatedAt` churn write on every
+      // one of up to 144 cycles a day for the whole idle window — the same
+      // write-amplification class the #530/#541 media guards exist to remove.
+      const nextSweep = advanceSweepState(sweep, verifyNow, {
+        queried,
+        scannedKeys: scanned.map((r) => r.media_key),
+        processedKeys,
+        cap: MAX_VERIFICATION_ROWS_PER_CYCLE,
+        gapMs: CONTENT_VERIFICATION_SWEEP_GAP_MS,
+      });
+      if (serializeSweepState(nextSweep) !== serializeSweepState(sweep)) {
+        await putContentVerificationSweepState(nextSweep, verifyNow);
+      }
+
+      // OBSERVABILITY. These counters were computed and then DROPPED — nothing read them, so
+      // the verifier was invisible in production: no way to see whether a sweep advances, how
+      // many MISMATCHes exist, or whether pacing converges. That is not a cosmetic gap when
+      // the whole point of D3 is a convergence claim.
+      //
+      // `sweep_phase` IS THE WATCHDOG. The previous revision emitted `sweep_idle`, and a
+      // terminally stalled sweep — cursor pinned, window empty, idle gate defeated because
+      // `cursor !== null` — produced EXACTLY the telemetry of a healthy idle one: selected 0,
+      // cursor_advanced false, complete false, idle false. No alarm, and no recovery short of
+      // a manual reset. `phase` separates them by construction (`stalled` is reachable only
+      // while a sweep is in flight and has not moved for `verificationSweepStallAfterMs()`),
+      // and `sweep_recovered` marks the cycle on which the state machine reset itself.
+      //
+      // Emitted through the EXISTING log-only channel: console.log, no DB writer, nothing
+      // the Phase-4 probe or the One Cycle control plane can read. It therefore cannot
+      // contribute to backlog_remaining, backlogPending or forceRun (invariants 2 and 3).
+      // Deliberately NOT added to RunMediaSyncResult — that shape is enumerated field by
+      // field in lib/idx/media-sync-member.ts:63-120, which this change does not own.
+      emitCursorTelemetry("content_verification", runId, {
+        selected: scanned.length,
+        checked: contentChecked,
+        verified: contentVerified,
+        mismatch: contentMismatch,
+        indeterminate: contentIndeterminate,
+        skipped_mallan_local: contentSkippedLocal,
+        skipped_not_due: contentNotDue,
+        examined: processedKeys.length,
+        sweep_phase: sweepHealth.phase,
+        sweep_stalled: sweepHealth.stalled,
+        sweep_since_progress_ms: sweepHealth.sinceProgressMs,
+        sweep_cursor_advanced: nextSweep.cursor !== sweep.cursor,
+        // RANGE EXHAUSTION — asked of the KEYS only, never of the clocks.
+        sweep_range_exhausted: queried && scanned.length < MAX_VERIFICATION_ROWS_PER_CYCLE,
+        // Completion is the ONLY transition that arms the gate, so read it off the state
+        // rather than recomputing the predicate and letting the two drift apart. The
+        // watchdog reset also clears the cursor but leaves the gate null, so it cannot be
+        // mistaken for a completed sweep.
+        sweep_complete: queried && nextSweep.cursor === null && nextSweep.nextSweepEligibleAt !== null,
+        sweep_no_progress: queried && processedKeys.length === 0,
+        sweep_recovered: sweepHealth.stalled && nextSweep.sweepStartedAt === null,
+        sweep_idle: !queried,
+        capacity_shortfall_ms: CONTENT_VERIFICATION_CAPACITY_SHORTFALL_MS,
+      });
+    } catch {
+      // Non-fatal BY DESIGN. A verification failure must never degrade the media
+      // run: it cannot fail the cycle, cannot set exit_reason, and cannot wake
+      // Neon again. Rows simply stay due for the next already-scheduled cycle.
+      // The cursor is simply not advanced, so the same window is re-attempted.
     }
   }
 
@@ -4423,6 +5312,7 @@ export async function runMediaSync(options: RunMediaSyncOptions = {}): Promise<R
     rows_updated_changed: rowsUpdatedChanged,
     rows_skipped_unchanged: rowsSkippedUnchanged,
     rows_skipped_invalid: rowsSkippedInvalid,
+    rows_skipped_unauthorized_display: rowsSkippedUnauthorizedDisplay,
     delete_signals_received: deleteSignalsReceived,
     tombstoned_explicit: tombstonedExplicit,
     tombstoned_vanished: tombstonedVanished,

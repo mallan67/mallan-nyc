@@ -26,7 +26,23 @@ export const maxDuration = 60;
 const T30_BATCH_CAP = 1000;
 const T180_BATCH_CAP = 500;
 
-const TERMINAL_STATUSES = ["Closed", "Sold", "Leased", "Rented", "Withdrawn", "Expired", "Cancelled"] as const;
+// Terminal statuses, in the EXACT CASE the DB stores. Two vocabularies, both required:
+//   PROVIDER members (live-probed 2026-08-19 against api.cotality.com/trestle, HTTP 200):
+//     "Closed", "Expired", "Withdrawn", "Canceled" (single-L).
+//   MALLAN-INTERNAL canonical values the provider REJECTS with HTTP 400:
+//     "Sold", "Rented", "Leased", "Cancelled" (double-L) — used by Mallan-authored
+//     inventory and the CRM vocabulary (lib/crm/status-mapping.ts).
+//
+// "Canceled" ADDED 2026-08-19. lib/idx/trestle-mapper.ts `mapTrestleToPrisma` stores
+// `raw.StandardStatus` VERBATIM, so a provider Canceled row lands in `listings.status`
+// spelled "Canceled" — which this exact-case `in` list did not contain. Such a row was
+// therefore invisible to ALL THREE steps below: the T+24h REBNY RLS §2.05 removal, the
+// T+30d media-null, and the T+180 archive. Its media JSON + raw_data would be retained
+// indefinitely. Both spellings stay; neither is redundant.
+// Kept in sync with lib/idx/trestle-mapper.ts TERMINAL_STATUSES,
+// lib/retention/archive-terminals.ts ARCHIVE_TERMINAL_STATUSES and
+// scripts/archive-backlog-predicate.js (pinned by tests/runtime/ops-health-archive-backlog.test.ts).
+const TERMINAL_STATUSES = ["Closed", "Sold", "Leased", "Rented", "Withdrawn", "Expired", "Cancelled", "Canceled"] as const;
 
 // (T+180 archive summary/strip helpers moved to lib/retention/archive-terminals.ts — Gate 6,
 // shared with the controlled operator drain so the two paths cannot drift.)
@@ -142,7 +158,7 @@ export async function GET(req: NextRequest) {
   const closedCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const staleClosedListings = await prisma.listing.findMany({
     where: {
-      status: { in: ["Closed", "Sold", "Leased", "Rented", "Withdrawn", "Expired", "Cancelled"] },
+      status: { in: [...TERMINAL_STATUSES] },
       status_changed_at: { lt: closedCutoff },
       idx_display_yn: true, // still marked for IDX display
     },
@@ -253,7 +269,34 @@ export async function GET(req: NextRequest) {
   // source listing and mark sync_status='archived'. We do NOT delete the row —
   // several FKs (PriceHistory, MarketingActivity, Showing, etc.) reference it
   // and preserving referential integrity matters more than the row overhead.
-  // The archive table satisfies NY DOS 6-year recordkeeping requirements.
+  //
+  // ── CORRECTED 2026-08-19: THERE IS NO "NY DOS 6-YEAR" REQUIREMENT ─────────
+  // This comment previously read "The archive table satisfies NY DOS 6-year
+  // recordkeeping requirements." That premise was false and is withdrawn.
+  //
+  //   * The NY DOS broker recordkeeping rule is 19 NYCRR 175.23, and it is
+  //     THREE years — not six, and not seven.
+  //   * 175.23 enumerates ARTICLE 12-A TRANSACTION RECORDS (the broker's own
+  //     records of the transactions it brokered). It says nothing about, and
+  //     imposes no retention duty on, MIRRORED COTALITY LISTING-PHOTO BYTES or
+  //     a cached copy of a third-party MLS listing row. A Cotality-sourced
+  //     `listings` row that Mallan never transacted on is not a 175.23 record.
+  //
+  // WAS ANY WINDOW DERIVED FROM THE WRONG FIGURE? NO — checked, and this is a
+  // false PREMISE, not a live constant defect. Every retention window in this
+  // route is defined independently and none is 6 (or 3) years:
+  //   session 24h (:70) · MFA 1h (:77) · auditEvent 2y (:94, the REBNY RLS
+  //   audit floor) · diagnostics 30d (:140) · §2.05 removal T+24h (:158) ·
+  //   media-null T+30d (:243) · archive T+180d (:307) · portal token 72h
+  //   (:362) · read notifications 90d (:377) · geocode cache 1y (:388).
+  // Nothing multiplies or derives from a six-year figure, so correcting the
+  // premise changes no behaviour here.
+  //
+  // WHAT THE ARCHIVE TABLE ACTUALLY BUYS: FK integrity for PriceHistory /
+  // MarketingActivity / Showing / Offer, plus a durable Mallan-side summary for
+  // reconciliation and comps. Those are the real justifications. If a genuine
+  // statutory retention floor is ever needed, it must be sourced and dated, not
+  // inherited from this comment.
   //
   // OPS-009 (Maya decision 2026-07-02): the whole loop is gated under ARCHIVE_ENABLED
   // (fail-closed OFF). OFF → skip entirely, report archive_skipped_reason, and still

@@ -1064,6 +1064,19 @@ body { font-family: Manrope, sans-serif; }
                         <i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
                     </div>
                 </div>
+                <!-- CancellationDate — REBNY CF-CANCELLED-001 is a BLOCKER on a cancel-class
+                     status, and this form maps 'Cancelled' -> 'Canceled' (the live Cotality
+                     member) at CRM_TO_RESO_STATUS, so it has been tripping that rule with no
+                     input for the agent to fill. Persists via raw_data only (rebny-field-tables
+                     declares CancellationDate: { raw: true }) — no schema column, no migration. -->
+                <div id="rentalCancellationDateField" style="display:none;">
+                    <label class="field-label">Cancellation Date <span class="text-red-500">*</span></label>
+                    <div class="relative">
+                        <input type="date" id="rentalCancellationDate" class="field-input" data-rls-field="CancellationDate">
+                        <i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
+                    </div>
+                    <p class="text-[10px] text-gray-400">RLS: CancellationDate — required when the listing is Cancelled.</p>
+                </div>
                 <div id="rentalRentedDateField" style="display:none;">
                     <label class="field-label">Rented Date <span class="text-red-500">*</span></label>
                     <div class="relative">
@@ -4610,15 +4623,23 @@ function handleRentalListingTypeChange(value) {
 function updateRentalStatusFields() {
     const status = (document.getElementById('rentalStatus') || {}).value || '';
     const offMarket = document.getElementById('rentalOffMarketDateField');
+    const cancellation = document.getElementById('rentalCancellationDateField');
     const rentedDate = document.getElementById('rentalRentedDateField');
     const rentedPrice = document.getElementById('rentalRentedPriceField');
 
     if (offMarket) offMarket.style.display = 'none';
+    if (cancellation) cancellation.style.display = 'none';
     if (rentedDate) rentedDate.style.display = 'none';
     if (rentedPrice) rentedPrice.style.display = 'none';
 
     if (['PermOffMarket', 'TempOffMarket', 'Expired', 'Withdrawn', 'Cancelled'].includes(status)) {
         if (offMarket) offMarket.style.display = '';
+    }
+    // Cancellation gets its OWN branch, not folded into the off-market list:
+    // CF-CANCELLED-001 applies to the cancel class alone, while PermOffMarket /
+    // TempOffMarket / Expired / Withdrawn carry no such rule.
+    if (['Cancelled'].includes(status)) {
+        if (cancellation) cancellation.style.display = '';
     }
     if (['Rented', 'RentedThruUs'].includes(status)) {
         if (rentedDate) rentedDate.style.display = '';
@@ -5289,6 +5310,7 @@ function _collectRentalFormDataLegacy() {
         exclusiveExpires: val('rentalExclusiveExpires'),
         firstCoBroke: val('rentalFirstCoBroke'),
         offMarketDate: val('rentalOffMarketDate'),
+        cancellationDate: val('rentalCancellationDate'),
         rentedDate: val('rentalRentedDate'),
 
         // Concessions
@@ -5809,6 +5831,10 @@ function collectRentalFormData() {
 
     // Date fields
     data.OffMarketDate = data.rentalOffMarketDate || '';
+    // Emitted UNCONDITIONALLY so a blank input arrives as '' — which
+    // rls-enforcement treats as missing, keeping CF-CANCELLED-001 fail-closed —
+    // rather than being silently omitted from the payload.
+    data.CancellationDate = data.rentalCancellationDate || '';
     // WithdrawnDate is derived server-side from MlsStatus transitions;
     // the rental UI does not capture it directly. Literal default —
     // the previous element reference was to an ID that never existed

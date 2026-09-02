@@ -103,7 +103,7 @@
 | Data Type | Retention Period | Reason |
 |-----------|-----------------|--------|
 | Listing data (active) | Duration of listing + 3 years | UCBA compliance, statute of limitations |
-| Listing data (closed) | 7 years from close date | NY DOS record retention |
+| Listing data (closed) | 3 years from close date | NY DOS 19 NYCRR 175.23 — CORRECTED 2026-08-20; this row read “7 years from close date … NY DOS record retention”. 19 NYCRR 175.23 is three years, and it enumerates Article 12-A transaction records — it does not reach a mirrored third-party MLS row, or any photo bytes. Evidence: `.cache/closure3/r2-final/legal/19-NYCRR-175.23-VERBATIM.md`. Operative schedule: `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` §14 Fail-closed row. |
 | Listing agreements | 3 years from expiration | UCBA Art. IV (48hr inspection) |
 | Buyer rep agreements | 3 years from expiration | UCBA Art. IV |
 | Owner Opt-Out forms | 3 years from listing expiration | Gate 1 evidence |

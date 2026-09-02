@@ -10,6 +10,7 @@
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { DOM_RESET_ELIGIBLE_STATUSES } from "@/lib/compliance/listing-status-vocabulary";
 
 const ROOT = path.resolve(__dirname, "../..");
 const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), "utf8");
@@ -52,27 +53,32 @@ describe("thin pure-read building route + direct page accessor", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("warm clustering is wired: sync warms ONLY the affected shards, only on a fully successful run, after the SyncState upsert", () => {
+  it("the scheduled sync performs NO manifest warm and NO persistence probe", () => {
+    // TASK 2 (2026-08-16) — CONTRACT REVERSED. This assertion used to require
+    // the warm and the canary to be wired INTO the scheduled sync. Both are now
+    // removed: they were Neon reads taken on the cron's behalf, and the warm
+    // re-read exactly the shard pages the same request had just invalidated.
+    //
+    // Kept as a source-level guard, deliberately, because this is an
+    // ABSENCE contract. The behavioural proof that the scheduled path no longer
+    // warms or probes lives in sync-change-attribution-behavior.test.ts, which
+    // mocks both functions and asserts they are never invoked. This test exists
+    // to stop the call sites being reintroduced textually — including via the
+    // all-shard default form, which was the original regression risk.
     const sync = read("lib/idx/sync.ts");
-    // Scope B (2026-07-24): the warm call passes the affected-shard set —
-    // a bare warmBuildingManifestShards() (all-shard default) must NOT
-    // reappear in sync.
+    expect(sync).not.toContain("await warmBuildingManifestShards(");
     expect(sync).not.toContain("warmBuildingManifestShards()");
-    const warmIdx = sync.indexOf("warmBuildingManifestShards(sortedAffectedShards)");
-    const upsertIdx = sync.indexOf("prisma.syncState.upsert");
-    expect(warmIdx).toBeGreaterThan(-1);
-    expect(upsertIdx).toBeGreaterThan(-1);
-    expect(warmIdx).toBeGreaterThan(upsertIdx); // after feed state is committed
-    const guardIdx = sync.lastIndexOf("if (errors === 0 && sortedAffectedShards.length > 0)", warmIdx);
-    expect(guardIdx).toBeGreaterThan(upsertIdx); // full success + shards actually affected
-    // Scope A: the persistence canary runs at run START — before the fetch
-    // and before any tag revalidation in the request — and probes ONLY the
-    // previously-warmed shard set (never the all-shard default).
-    expect(sync).not.toContain("await probeManifestPersistence()");
-    const canaryIdx = sync.indexOf("await probeManifestPersistence(prevWarmedShards)");
-    const fetchIdx = sync.indexOf("await fetchFromTrestle(");
-    expect(canaryIdx).toBeGreaterThan(-1);
-    expect(canaryIdx).toBeLessThan(fetchIdx);
+    expect(sync).not.toContain("await probeManifestPersistence(");
+    expect(sync).not.toContain("probeManifestPersistence()");
+  });
+
+  it("keeps the affected-shard attribution that drives invalidation", () => {
+    // Removing the warm must NOT remove the shard attribution: it is what
+    // decides which manifest tags get invalidated, and therefore what the next
+    // real reader refills. Losing this would leave stale building pages.
+    const sync = read("lib/idx/sync.ts");
+    expect(sync).toContain("affectedManifestShards");
+    expect(sync).toContain("sortedAffectedShards");
   });
 });
 
@@ -168,5 +174,85 @@ describe("writer invalidation contract — every building-visible writer names i
     expect(buildingInvalidationTags(undefined, b)).toHaveLength(1);
     // masked address contributes nothing
     expect(buildingInvalidationTags({ StreetNumber: "", StreetName: "Address Undisclosed" }, undefined)).toHaveLength(0);
+  });
+});
+
+// ─── Writers found MISSING invalidation (review finding, 2026-08-16) ───────
+// A cache-invalidation census turned these up: each mutates publicly-visible
+// listing state and emitted NO cache tag at all. Every one was confirmed by
+// reading the route, not by trusting the census — the census itself was
+// refuted on completeness, so nothing in it was taken on faith.
+//
+// These are DEFECTS in their own right: they leave the public surface stale
+// for up to the 600s cachedPublicRead TTL today. They are also the reason no
+// cache could be converted to revalidate:false — a tag that is never emitted
+// can never expire an entry that has no TTL.
+describe("writer invalidation contract — the gaps found by the census", () => {
+  it("NEGATIVE — crm/convert creates a Draft, so it must NOT invalidate", () => {
+    // CORRECTED (review round 3). This assertion previously REQUIRED an
+    // invalidation, reasoning that `!TERMINAL_STATUSES.has(status)` meant the
+    // row was publicly displayable. That is not public RESULT MEMBERSHIP: the
+    // route hardcodes `Draft`, which the canonical active-display set excludes,
+    // so the row cannot appear in any cached public collection and expiring
+    // them would be pure churn. Full reasoning + the escalated detail-page gap
+    // live in draft-publication-boundary.test.ts.
+    const src = read("app/api/crm/convert/route.ts");
+    expect(src).toContain('normalizeStandardStatus("Draft")');
+    expect(src).not.toContain("safeRevalidateTags");
+  });
+
+  it("idx/ensure-listing invalidates ONLY when the created row is publicly a member", () => {
+    const src = read("app/api/idx/ensure-listing/route.ts");
+    // Gated on the canonical helper rather than on non-terminality, so it
+    // cannot drift from the predicates the public readers use.
+    expect(src).toContain("isActiveDisplayStatus(canonicalStatus)");
+    expect(src).toContain("safeRevalidateTags");
+    expect(src).toContain("buildingAndManifestInvalidationTags");
+    expect(src).toContain("SEARCH_CACHE_TAG");
+  });
+
+  it("NEGATIVE — cron/dom-reset must NOT invalidate: its rows cannot be in the cached result", () => {
+    // REVIEW FINDING (round 3), and a correction to this file's own previous
+    // assertion, which REQUIRED an invalidation here.
+    //
+    // The earlier reasoning was that `days_on_market` and `first_active_date`
+    // appear in the cached api-market-active SELECT. That is the wrong test:
+    // membership in the SELECT list does not make a row part of the RESULT.
+    // What matters is the WHERE predicate.
+    //
+    // dom-reset mutates only DOM-reset-eligible (voluntarily off-market) rows;
+    // the cached active read admits only Active/ComingSoon/ActiveUnderContract.
+    // The sets are DISJOINT, so no row dom-reset touches can appear in that
+    // cached result, and invalidating it would evict a still-correct entry and
+    // force an avoidable Neon refill — the exact opposite of this branch's purpose.
+    const domReset = read("app/api/cron/dom-reset/route.ts");
+    const market = read("app/api/market/route.ts");
+
+    // Pin the disjointness the argument rests on, so this test fails if either
+    // predicate ever widens and the conclusion stops holding.
+    //
+    // UPDATED 2026-08-20. This used to pin the literal source text
+    // `status: { in: ["Withdrawn", "Cancelled"] }`. That literal was itself a
+    // defect: it omitted the provider spelling `Canceled`, so the daily cron
+    // never reset DOM on provider-cancelled rows (UCBA 2026 Art. I §11). The
+    // cron now spreads the shared DOM_RESET_ELIGIBLE_STATUSES set, so pinning
+    // the old source text would both fail here AND push a future author back
+    // toward the hand-written literal that caused the bug.
+    //
+    // Disjointness is now asserted against the REAL sets, which is strictly
+    // stronger than a string match: it keeps holding however either predicate is
+    // spelled, and it fails the moment they actually overlap.
+    expect(domReset).toContain("status: { in: [...DOM_RESET_ELIGIBLE_STATUSES] }");
+    expect(market).toContain("status: { in: ['Active', 'ComingSoon', 'ActiveUnderContract'] }");
+
+    const CACHED_ACTIVE = ["Active", "ComingSoon", "ActiveUnderContract"];
+    const overlap = [...DOM_RESET_ELIGIBLE_STATUSES].filter((s) => CACHED_ACTIVE.includes(s));
+    expect({ overlap }).toEqual({ overlap: [] });
+    // Non-empty, or "disjoint" would be vacuously true.
+    expect(DOM_RESET_ELIGIBLE_STATUSES.size).toBeGreaterThan(0);
+
+    // Therefore: no public cache invalidation from this cron.
+    expect(domReset).not.toContain("safeRevalidateTags");
+    expect(domReset).not.toContain("SEARCH_CACHE_TAG");
   });
 });

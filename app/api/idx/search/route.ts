@@ -246,7 +246,9 @@ export async function GET(req: NextRequest) {
           const mediaFilter = `(${filterParts.join(" or ")}) and (MediaCategory eq 'Photo' or MediaCategory eq null) and MediaStatus ne 'Deleted'`;
           const mediaParams = new URLSearchParams();
           mediaParams.set("$filter", mediaFilter);
-          mediaParams.set("$select", "ResourceRecordKey,ResourceRecordID,MediaURL,Order,PreferredPhotoYN,MediaStatus");
+          // E-0: request the provider's media display authorization so suppressed
+          // rows can be refused before becoming a search-card image.
+          mediaParams.set("$select", "ResourceRecordKey,ResourceRecordID,MediaURL,Order,PreferredPhotoYN,MediaStatus,InternetEntireListingDisplayYN");
           mediaParams.set("$orderby", "Order asc");
           mediaParams.set("$top", String(filterParts.length * 2));
 
@@ -266,6 +268,9 @@ export async function GET(req: NextRequest) {
             // Group by ResourceRecordKey — take first photo per listing
             const photoByKey = new Map<string, string>();
             for (const m of (mediaData.value || [])) {
+              // E-0: refuse provider-suppressed media before it can become the
+              // card image. Explicit `false` only; null is "not suppressed".
+              if (m.InternetEntireListingDisplayYN === false) continue;
               // Prefer ResourceRecordKey (unique), fall back to ResourceRecordID
               const mkey = String(m.ResourceRecordKey || m.ResourceRecordID || "");
               if (mkey && !photoByKey.has(mkey) && m.MediaURL) {

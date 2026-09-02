@@ -162,7 +162,16 @@ describe('completion follow-up', () => {
   it('persists only after a finalizable completed cycle', async () => {
     redisSet.mockResolvedValue('OK');
     await preflight.finalizeOneCyclePreflight(
-      { shouldRun: true, reason: 'source_changed', snapshot, snapshotTrusted: true, priorState: state },
+      {
+        shouldRun: true,
+        reason: 'source_changed',
+        snapshot,
+        snapshotTrusted: true,
+        priorState: state,
+        executionPlan: 'idx_then_media',
+        headDelta: { modification: true, photos: true },
+        planReasons: ['modification_head_moved', 'photos_head_moved'],
+      },
       completed({ total_fetched: 0 }),
       PREFLIGHT_NOW,
     );

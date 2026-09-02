@@ -339,9 +339,11 @@ describe("real change — exact tags + coarse search bump + targeted warm", () =
     expect(revalidated).toContain("listing:RLS100001");
     expect(revalidated).toContain("search");
     expect(revalidated.some((t) => t.startsWith("building:"))).toBe(true);
-    // Scope B: exactly the shard of StreetNumber "400".
-    expect(mockWarm).toHaveBeenCalledTimes(1);
-    expect(mockWarm.mock.calls[0][0]).toEqual(["4"]);
+    // The shard is still ATTRIBUTED and its tag still invalidated — that is
+    // what makes the entry refill on the next real read. What no longer
+    // happens is the scheduled warm: the sync does not read the shard back
+    // out of Neon on the cron's behalf.
+    expect(mockWarm).not.toHaveBeenCalled();
     expect(result.write_paths.affected_manifest_shards).toEqual(["4"]);
     expect(result.write_paths.listing_change_reasons).toMatchObject({
       price: 1,
@@ -395,9 +397,10 @@ describe("real change — exact tags + coarse search bump + targeted warm", () =
     // This is the discriminating case: the fix must not suppress real changes.
     expect(mockUpsert).toHaveBeenCalledTimes(1);
     expect(result.write_paths.listings.rows_suppressed_provenance_only).toBe(1);
-    // …and only ONE shard warms: shard 9 never appears.
-    expect(mockWarm).toHaveBeenCalledTimes(1);
-    expect(mockWarm.mock.calls[0][0]).toEqual(["4"]);
+    // …and only ONE shard is attributed: shard 9 never appears. Attribution
+    // still matters after the warm removal because it drives which tags are
+    // invalidated; it just no longer drives a scheduled read.
+    expect(mockWarm).not.toHaveBeenCalled();
     expect(result.write_paths.affected_manifest_shards).toEqual(["4"]);
     const revalidated = mockRevalidateTag.mock.calls.map((c) => c[0] as string);
     expect(revalidated).not.toContain("listing:RLS100002");
@@ -407,7 +410,7 @@ describe("real change — exact tags + coarse search bump + targeted warm", () =
     });
   });
 
-  it("a brand-new listing (insert) always invalidates and warms its shard", async () => {
+  it("a brand-new listing (insert) always invalidates its shard tag", async () => {
     const state: StoredState = { listings: new Map(), projections: new Map() };
     wireMocks(state);
     mockFetchFromTrestle.mockResolvedValue({ records: [rawRecord()], totalFetched: 1 });
@@ -415,8 +418,8 @@ describe("real change — exact tags + coarse search bump + targeted warm", () =
     const result = await syncListings({ fullSync: true, maxRecords: 10 });
 
     expect(result.errors).toBe(0);
-    expect(mockWarm).toHaveBeenCalledTimes(1);
-    expect(mockWarm.mock.calls[0][0]).toEqual(["4"]);
+    expect(mockWarm).not.toHaveBeenCalled();
+    expect(result.write_paths.affected_manifest_shards).toEqual(["4"]);
     const revalidated = mockRevalidateTag.mock.calls.map((c) => c[0] as string);
     expect(revalidated).toContain("listing:RLS100001");
     // Inserts are not classified (no prior row to attribute against).
@@ -427,7 +430,7 @@ describe("real change — exact tags + coarse search bump + targeted warm", () =
 });
 
 describe("durable idx_sync audit — written AFTER the warm, carrying the full accounting", () => {
-  it("audit changes include building_manifest_warm, manifest_canary, and both reason counter sets", async () => {
+  it("audit changes keep the warm/canary fields (now null) and both reason counter sets", async () => {
     const raw = rawRecord();
     const state: StoredState = {
       listings: new Map([["RLS100001", dbRowFromRaw(raw)]]),
@@ -443,101 +446,66 @@ describe("durable idx_sync audit — written AFTER the warm, carrying the full a
 
     const changes = idxSyncAuditChanges();
     const writePaths = changes.write_paths as Record<string, unknown>;
-    expect(writePaths.building_manifest_warm).toEqual({
-      shards_requested: 1,
-      shards_warmed: 1,
-      shards_failed: 0,
-      pages_filled: 1,
-      cache_hit_existing: 0,
-      duration_ms: 5,
-    });
-    // No previous warm recorded in this fixture → the scoped canary probed
-    // nothing (never the all-shard default).
-    expect(changes.manifest_canary).toEqual({
-      shards_probed: 0,
-      cache_hits: 0,
-      live_fills: 0,
-      failed: 0,
-      duration_ms: 2,
-    });
+    // TASK 2: both fields are RETAINED in the audit payload so its shape and
+    // every consumer are unchanged, but the scheduled warm and canary no longer
+    // run, so both are null. Asserting null explicitly (rather than deleting
+    // the assertions) keeps the payload contract pinned — a future change that
+    // silently reintroduces scheduled manifest reads fails here.
+    expect(writePaths.building_manifest_warm).toBeNull();
+    expect(changes.manifest_canary).toBeNull();
     expect(changes.listing_change_reasons).toMatchObject({ price: 1 });
     expect(changes.projection_change_reasons).toEqual({
       source_timestamp_only: 0,
       search_visible_fields: 1,
     });
     expect(changes.affected_manifest_shards).toEqual(["4"]);
-    // ORDER: the audit write happens AFTER the warm (the pre-fix audit ran
-    // before the warm, which is why building_manifest_warm never landed).
-    const auditOrder = mockAuditCreate.mock.invocationCallOrder[
-      mockAuditCreate.mock.calls.findIndex(
-        (c) => (c[0] as { data: { action: string } }).data.action === "idx_sync",
-      )
-    ];
-    expect(auditOrder).toBeGreaterThan(mockWarm.mock.invocationCallOrder[0]);
+    // The audit still carries shard attribution. The previous assertion here
+    // pinned "the audit write happens AFTER the warm"; with no scheduled warm
+    // there is no such ordering left to assert, and the surviving guarantee is
+    // that attribution reaches the durable audit at all.
+    const auditCall = mockAuditCreate.mock.calls.find(
+      (c) => (c[0] as { data: { action: string } }).data.action === "idx_sync",
+    );
+    expect(auditCall).toBeDefined();
   });
 
-  it("the persistence canary runs exactly once, at run start (before the Trestle fetch)", async () => {
+  it("performs NO manifest warm and NO persistence probe on the scheduled path", async () => {
     const state: StoredState = { listings: new Map(), projections: new Map() };
     wireMocks(state);
     mockFetchFromTrestle.mockResolvedValue({ records: [], totalFetched: 0 });
 
     const result = await syncListings({ fullSync: true, maxRecords: 10 });
 
-    expect(mockProbe).toHaveBeenCalledTimes(1);
-    expect(mockProbe.mock.invocationCallOrder[0]).toBeLessThan(
-      mockFetchFromTrestle.mock.invocationCallOrder[0],
-    );
-    expect(result.write_paths.manifest_canary).toEqual({
-      shards_probed: 0,
-      cache_hits: 0,
-      live_fills: 0,
-      failed: 0,
-      duration_ms: 2,
-    });
-    // Empty run: nothing changed → no warm, no revalidation.
+    // TASK 2. The scheduled sync used to do BOTH of these on every run:
+    //   - probe previously-warmed manifest shards at run start (a read);
+    //   - warm every affected shard at run end (a full re-read of that shard's
+    //     gated population, right after invalidating its tag in the same run).
+    // Both were Neon reads performed on the cron's behalf rather than for any
+    // actual reader, and the warm re-read exactly what had just been expired.
+    expect(mockProbe).not.toHaveBeenCalled();
     expect(mockWarm).not.toHaveBeenCalled();
+    expect(result.write_paths.manifest_canary).toBeNull();
+    expect(result.write_paths.building_manifest_warm).toBeNull();
+    // Empty run changed nothing, so nothing is invalidated either.
     expect(mockRevalidateTag).not.toHaveBeenCalled();
   });
-});
 
-describe("canary scope (Maya #561 review) — probe ONLY the previously warmed shards", () => {
-  it("with no recorded previous warm, the canary probes NOTHING (never the all-shard default)", async () => {
+  it("still records the affected shards so invalidation stays correct", async () => {
     const state: StoredState = { listings: new Map(), projections: new Map() };
     wireMocks(state);
-    mockSyncStateFindUnique.mockResolvedValue({ notes: null });
-    mockFetchFromTrestle.mockResolvedValue({ records: [], totalFetched: 0 });
+    mockFetchFromTrestle.mockResolvedValue({ records: [rawRecord()], totalFetched: 1 });
 
-    await syncListings({ fullSync: true, maxRecords: 10 });
+    const result = await syncListings({ fullSync: true, maxRecords: 10 });
 
-    expect(mockProbe).toHaveBeenCalledTimes(1);
-    expect(mockProbe.mock.calls[0][0]).toEqual([]);
+    // Removing the warm must NOT remove attribution or invalidation — those
+    // are what let the next real reader refill a correct entry.
+    expect(result.write_paths.affected_manifest_shards).toEqual(["4"]);
+    const revalidated = mockRevalidateTag.mock.calls.map((c) => c[0] as string);
+    expect(revalidated).toContain("building-manifest-shard:4");
+    expect(mockWarm).not.toHaveBeenCalled();
   });
 
-  it("probes exactly the shard set recorded by the previous run's SyncState notes", async () => {
-    const state: StoredState = { listings: new Map(), projections: new Map() };
-    wireMocks(state);
-    mockSyncStateFindUnique.mockResolvedValue({
-      notes: JSON.stringify({ manifest_warmed_shards: ["4"] }),
-    });
-    mockFetchFromTrestle.mockResolvedValue({ records: [], totalFetched: 0 });
-
-    await syncListings({ fullSync: true, maxRecords: 10 });
-
-    expect(mockProbe.mock.calls[0][0]).toEqual(["4"]);
-  });
-
-  it("malformed/legacy notes fail quiet to an empty probe set", async () => {
-    const state: StoredState = { listings: new Map(), projections: new Map() };
-    wireMocks(state);
-    mockSyncStateFindUnique.mockResolvedValue({ notes: "not json at all" });
-    mockFetchFromTrestle.mockResolvedValue({ records: [], totalFetched: 0 });
-
-    await syncListings({ fullSync: true, maxRecords: 10 });
-
-    expect(mockProbe.mock.calls[0][0]).toEqual([]);
-  });
-
-  it("records THIS run's warmed shards in SyncState notes for the next run's canary", async () => {
+  it("writes no obsolete 'warmed shards' claim into SyncState notes", async () => {
     const raw = rawRecord();
     const state: StoredState = {
       listings: new Map([["RLS100001", dbRowFromRaw(raw)]]),
@@ -552,11 +520,30 @@ describe("canary scope (Maya #561 review) — probe ONLY the previously warmed s
     await syncListings({ fullSync: true, maxRecords: 10 });
 
     const upsertArg = mockSyncStateUpsert.mock.calls[0][0] as {
-      update: { notes?: string };
-      create: { notes?: string };
+      update: { notes?: string | null };
+      create: { notes?: string | null };
     };
-    expect(JSON.parse(upsertArg.update.notes!)).toEqual({ manifest_warmed_shards: ["4"] });
-    expect(JSON.parse(upsertArg.create.notes!)).toEqual({ manifest_warmed_shards: ["4"] });
+
+    // REVIEW FINDING (2026-08-16). `notes` used to persist
+    // `{"manifest_warmed_shards":[...]}` so the NEXT run's canary knew what to
+    // probe. With the scheduled warm and canary removed, that key asserts
+    // something that never happened — shards were INVALIDATED, not warmed.
+    //
+    // The write is dropped rather than renamed: a census found exactly one
+    // writer of this field and ZERO production readers of its content, and the
+    // shard attribution is already durable in the idx_sync audit event
+    // (`affected_manifest_shards`), so the copy was redundant as well as false.
+    //
+    // Written as null rather than omitted so the stale claim does not survive
+    // in rows already carrying it.
+    expect(upsertArg.update.notes).toBeNull();
+    expect(upsertArg.create.notes).toBeNull();
+
+    // The attribution itself must still exist — in the audit, where it is true.
+    const auditCall = mockAuditCreate.mock.calls.find(
+      (c) => (c[0] as { data: { action: string } }).data.action === "idx_sync",
+    );
+    expect(auditCall).toBeDefined();
   });
 });
 
@@ -648,7 +635,7 @@ describe("per-shard manifest invalidation + PCT fail-closed (Maya #561 review)",
     expect(revalidated).toContain("listing:RLS100001");
     expect(revalidated).toContain("building-manifest-shard:4");
     expect(revalidated).toContain("search");
-    expect(mockWarm).toHaveBeenCalledTimes(1);
+    expect(mockWarm).not.toHaveBeenCalled();
   });
 
   it("CRITICAL (zero-media hole, part 2): a COMPLETE zero-row result now CLEARS the stored media", async () => {

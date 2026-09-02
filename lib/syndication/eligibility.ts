@@ -25,6 +25,8 @@
 //       by the audit script (which is read-only / dry-run only).
 //  I.8  Ambiguity = block.
 
+import { TERMINAL_STATUSES } from "@/lib/compliance/listing-status-vocabulary";
+
 /**
  * Structural shape of a listing as the gate cares about it. Avoids a
  * hard dependency on the Prisma type so the function can be tested
@@ -89,19 +91,31 @@ export interface MallanSyndicationEligibility {
   computed_at: string;
 }
 
-// Status set drawn from lib/idx/trestle-mapper.ts but DUPLICATED here
-// (not imported) to maintain the no-cross-import structural defense.
-// If REBNY adds a status, this list must be updated alongside the
-// mapper. Source-regex test enforces no `lib/idx` import.
-const TERMINAL_STATUSES: ReadonlySet<string> = new Set([
-  "Closed",
-  "Sold",
-  "Leased",
-  "Rented",
-  "Withdrawn",
-  "Expired",
-  "Cancelled",
-]);
+// TERMINAL_STATUSES is IMPORTED from the shared compliance vocabulary
+// (lib/compliance/listing-status-vocabulary.ts) — see the import at the top of
+// this file.
+//
+// It used to be a hand-copied duplicate of the mapper's set, justified by the
+// no-cross-import structural defense (tests/runtime/syndication-no-idx-imports.test.ts).
+// That justification only ever ruled out importing from `lib/idx/**`; it never
+// required a COPY. The copy then drifted: when the live provider member
+// `Canceled` (single L) was added to the mapper's set on 2026-08-19, this
+// duplicate kept only the Mallan-internal `Cancelled` (double L).
+//
+// MEASURED EFFECT — this was a MISCLASSIFICATION, not a fail-open. Probed by
+// execution on the pre-fix tree with an otherwise-eligible Mallan row:
+//   status 'Cancelled' -> eligible:false, reason "status_terminal (Cancelled)"
+//   status 'Canceled'  -> eligible:false, reason "status_not_distributable (Canceled)"
+// The `else if (status !== "Active" && status !== "ComingSoon")` arm below
+// caught the provider spelling, so no terminal listing was ever syndicated. What
+// broke was the AUDIT TRAIL: a provider-cancelled row was reported under the
+// generic "not distributable" code instead of the terminal code, so any
+// report or alert keyed on `status_terminal` under-counted provider
+// cancellations by 100%.
+//
+// The shared vocabulary module imports nothing from lib/idx/**, lib/search/** or
+// app/api/listings, so this import keeps the syndication lane decoupled exactly
+// as the pin requires while removing the duplicate that caused the drift.
 
 function asRecord(v: unknown): Record<string, unknown> {
   return v && typeof v === "object" && !Array.isArray(v)

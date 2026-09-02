@@ -667,7 +667,7 @@ Per spec self-review requirements (user-specified 2026-04-30):
 - **Address normalization library scope.** Should `lib/external-inventory/normalize.ts` be promoted to `lib/listings/address-normalize.ts` for shared use with the eventual RLS dedup story? Defer to implementation review.
 - **Phase 3 ToS legal review.** Required before Phase 3 starts. Not a blocker for Phase 1.
 - **Disclaimer language v1.** §6.1 text is a draft. Legal-review pass before ship; expected to be approved with minor edits.
-- **PII retention.** External-inventory PII (`owner_*` fields) follows the existing data-retention policy: rows soft-deleted at status `closed` retain PII for 6 years per NY DOS. Hard-purge after 6 years via the existing `data-retention` cron, extended to cover this table.
+- **PII retention.** External-inventory PII (`owner_*` fields) follows the existing data-retention policy: rows soft-deleted at status `closed` retain PII for 3 years, then hard-purge via the existing `data-retention` cron, extended to cover this table. **CORRECTED 2026-08-20:** this bullet read “retain PII for 6 years per NY DOS. Hard-purge after 6 years”. 19 NYCRR 175.23 is three years, and it enumerates Article 12-A transaction records — it does not reach a mirrored third-party MLS row, or any photo bytes. Evidence: `.cache/closure3/r2-final/legal/19-NYCRR-175.23-VERBATIM.md`. Operative schedule: `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` §14 Fail-closed row. Lead/owner PII is separately bounded by NY SHIELD at 3 years inactive, so the shorter window is also the privacy-correct one; a longer window here would need its own authority. This spec is HELD (CLAUDE.md §C) and nothing implements it yet.
 
 ## 16. Cross-references
 

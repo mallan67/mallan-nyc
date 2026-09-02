@@ -52,10 +52,22 @@ describe("writer rule wired into every terminal-status writer", () => {
     expect(s).toMatch(/computeTerminalSincePatch/);
     expect(s).toMatch(/expirationDateFallback:\s*listing\.expiration_date/);
   });
-  it("feed-reconcile sets terminal_since on create + ghost→Withdrawn", () => {
+  it("feed-reconcile sets terminal_since via the shared writer rule on create AND on the ghost transition", () => {
     const s = read("app/api/cron/feed-reconcile/route.ts");
     expect(s).toMatch(/computeTerminalSincePatch/);
-    expect(s).toMatch(/terminal_since:\s*now/);
+    // UPDATED 2026-08-19 (status-truth fix). The ghost transition used to
+    // hardcode `terminal_since: now`; this assertion pinned that literal, which
+    // meant a listing the PROVIDER says closed in January had its 180-day
+    // archive clock restarted on the day the reconcile pass noticed. The
+    // transition now spreads `computeTerminalSincePatch` — the same shared
+    // writer rule every other terminal writer uses — which prefers the
+    // provider's stable CloseDate/OffMarketDate and falls back to `now` only
+    // when there is none. The INTENT of the original assertion (the ghost
+    // transition must set the stable clock) is preserved and strengthened.
+    expect(s).toMatch(/\.\.\.terminalSincePatch/);
+    expect(s).toMatch(/const terminalSincePatch = computeTerminalSincePatch\(/);
+    // The orphan-create path still sets it directly from its own patch.
+    expect(s).toMatch(/terminalSinceCreate/);
   });
   it("listing-expiration seeds terminal_since from the actual expiration_date (not cron run time)", () => {
     expect(read("app/api/cron/listing-expiration/route.ts")).toMatch(/terminal_since:\s*listing\.expiration_date/);

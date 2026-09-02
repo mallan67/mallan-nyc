@@ -20,6 +20,21 @@ import type {
   TrestleProperty,
   UpsertListingMediaInput,
 } from "../media-sync";
+
+/**
+ * Phase 3.5 persists the content-verification SWEEP state on the SAME `media_sync_state`
+ * table under its own resource key (`MediaContentVerification`), so a raw call count over
+ * `mediaSyncState.upsert` no longer means "the media cursor was written once" — and the sweep
+ * write lands FIRST, because Phase 3.5 runs before the Phase 4 finalize. Every assertion below
+ * is about the MEDIA CURSOR row, so it is scoped to that resource rather than to the mock.
+ * (Before the sweep could END on an empty window, an empty window wrote nothing at all, which
+ * is exactly the terminal stall these assertions were silently depending on.)
+ */
+const mediaCursorUpserts = () =>
+  mockMediaSyncUpsert.mock.calls.filter(
+    (c) => (c[0] as { where?: { resource?: string } })?.where?.resource === RESOURCE_MEDIA,
+  );
+
 import { createRawUpdateStore, type RawRowState } from "./raw-failure-write-store";
 
 // ─── Mock Prisma ──────────────────────────────────────────────────────────
@@ -306,8 +321,8 @@ describe("runMediaSync — empty page", () => {
     expect(result.status).toBe("ok");
     expect(result.listings_processed).toBe(0);
     // Cursor advance is called (heartbeat); empty records ⟹ watermark unchanged.
-    expect(mockMediaSyncUpsert).toHaveBeenCalledTimes(1);
-    const upsertArgs = mockMediaSyncUpsert.mock.calls[0][0] as {
+    expect(mediaCursorUpserts()).toHaveLength(1);
+    const upsertArgs = mediaCursorUpserts()[0][0] as {
       where: { resource: string };
       update: { rows_checked: number; rows_updated: number; rows_failed: number; last_run_status: string };
     };
@@ -467,7 +482,7 @@ describe("runMediaSync — defensive compliance gates", () => {
 
     // Cursor must NOT have advanced to K-GOOD — it halts at the malformed row,
     // so last_listing_key stays null (prior). (Pre-fix it advanced to "K-GOOD".)
-    const upsertArgs = mockMediaSyncUpsert.mock.calls[0][0] as { update: { last_listing_key: string | null } };
+    const upsertArgs = mediaCursorUpserts()[0][0] as { update: { last_listing_key: string | null } };
     expect(upsertArgs.update.last_listing_key).toBeNull();
     expect(upsertArgs.update.last_listing_key).not.toBe("K-GOOD");
   });
@@ -502,7 +517,7 @@ describe("runMediaSync — per-listing failure isolation", () => {
     expect(result.status).toBe("partial");
 
     // Cursor advance with only A and C records — NOT B.
-    const upsertArgs = mockMediaSyncUpsert.mock.calls[0][0] as { update: { rows_failed: number; last_run_status: string } };
+    const upsertArgs = mediaCursorUpserts()[0][0] as { update: { rows_failed: number; last_run_status: string } };
     expect(upsertArgs.update.last_run_status).toBe("partial");
     expect(upsertArgs.update.rows_failed).toBe(1);
   });
@@ -559,7 +574,7 @@ describe("runMediaSync — per-listing failure isolation", () => {
     // Final status is partial because of Phase 3 R2 failure.
     expect(result.status).toBe("partial");
     // Phase 2 advanced cursor (with the listing in records).
-    expect(mockMediaSyncUpsert).toHaveBeenCalled();
+    expect(mediaCursorUpserts().length).toBeGreaterThan(0);
   });
 });
 
@@ -774,7 +789,7 @@ describe("runMediaSync — tombstoneVanished is TRUE on a complete paginated fet
     expect(mockListingMediaUpdateMany).not.toHaveBeenCalled();
     // Cursor checkpoint ran but did NOT advance the tie-breaker past the failure
     // (null watermark ⇒ last_listing_key preserved as prior null).
-    const upsertArgs = mockMediaSyncUpsert.mock.calls[0][0] as { update: { last_listing_key: string | null } };
+    const upsertArgs = mediaCursorUpserts()[0][0] as { update: { last_listing_key: string | null } };
     expect(upsertArgs.update.last_listing_key).toBeNull();
   });
 
@@ -1028,8 +1043,8 @@ describe("runMediaSync — Phase 2 cursor advances independently of Phase 3 R2",
     expect(result.exit_reason).toBe("completed");
     expect(result.listings_processed).toBe(3);
     // Phase 2: cursor advance happened with all 3 records.
-    expect(mockMediaSyncUpsert).toHaveBeenCalledTimes(1);
-    const upsertArg = mockMediaSyncUpsert.mock.calls[0][0] as {
+    expect(mediaCursorUpserts()).toHaveLength(1);
+    const upsertArg = mediaCursorUpserts()[0][0] as {
       where: { resource: string };
       update: { rows_checked: number; last_run_status: string };
     };
@@ -1073,7 +1088,7 @@ describe("runMediaSync — Phase 2 cursor advances independently of Phase 3 R2",
     expect(result.listings_processed).toBe(0);
     expect(result.status).toBe("partial");
     // Phase 2 still ran with empty cursorRecords (just the heartbeat update).
-    expect(mockMediaSyncUpsert).toHaveBeenCalledTimes(1);
+    expect(mediaCursorUpserts()).toHaveLength(1);
   });
 });
 
@@ -1091,7 +1106,14 @@ describe("runMediaSync — Phase 3 R2 enrichment (parallel, concurrency=5)", () 
       const args = call[0] as {
         where?: { status?: string; OR?: Array<{ r2_key?: null; media_url_cached?: null }> };
       };
-      return args?.where?.status === "active" && Array.isArray(args.where.OR);
+      // PHASE 3.5 CONTENT VERIFICATION is NOT backlog work. Its where-shape is otherwise
+      // identical to the backlog universe, so it is excluded by its content_check_* predicate,
+      // which the backlog universe never carries.
+      return (
+        !JSON.stringify(args?.where ?? {}).includes("content_check") &&
+        args?.where?.status === "active" &&
+        Array.isArray(args.where.OR)
+      );
     });
     expect(backlogCall).toBeDefined();
     const args = backlogCall![0] as {
@@ -1237,7 +1259,7 @@ describe("runMediaSync — time-budget exits", () => {
     expect(result.listings_processed).toBeGreaterThanOrEqual(1);
     expect(result.listings_processed).toBeLessThan(3);
     // Phase 2 still advanced cursor for whatever ingested.
-    expect(mockMediaSyncUpsert).toHaveBeenCalled();
+    expect(mediaCursorUpserts().length).toBeGreaterThan(0);
   });
 
   it("Phase 3 stops between CHUNKS when remaining time < phase2ReserveMs and reports exit_reason='budget_phase2'", async () => {
@@ -1358,8 +1380,12 @@ describe("runMediaSync — Phase 3 failed-row isolation (Phase 4 bounded drain)"
     // The parked-recovery selection carries a top-level r2_attempts predicate
     // (exact-match number since the #534-sentinel fix); the main backlog
     // selection never does. W3: the ids-only backlog_remaining PROBE is
-    // excluded too.
+    // excluded too. PHASE 3.5 CONTENT VERIFICATION is excluded by its
+    // content_check_* predicate — its where-shape is otherwise identical to the
+    // backlog universe, but semantically the two are disjoint: verification
+    // asserts delivery PRESENT (r2_key not null), the backlog asserts MISSING.
     return (
+      !JSON.stringify(args?.where ?? {}).includes("content_check") &&
       args?.where?.status === "active" &&
       Array.isArray(args.where.OR) &&
       args.where.r2_attempts === undefined &&
@@ -1721,8 +1747,8 @@ describe("runMediaSync — observability read-back is non-fatal", () => {
     expect(probeRan).toBe(true);
     // (c) the cursor write is UNALTERED — the advance upsert wrote the advanced
     //     keyset cursor exactly as it would without the read-back failure.
-    expect(mockMediaSyncUpsert).toHaveBeenCalledTimes(1);
-    const upsertArgs = mockMediaSyncUpsert.mock.calls[0][0] as {
+    expect(mediaCursorUpserts()).toHaveLength(1);
+    const upsertArgs = mediaCursorUpserts()[0][0] as {
       update: { last_listing_key: string | null; last_photos_change: Date | null };
     };
     expect(upsertArgs.update.last_listing_key).toBe("K-A");
@@ -1936,7 +1962,7 @@ describe("runMediaSync — fail-closed on a per-row media write failure", () => 
     expect(mockListingMediaUpdateMany).not.toHaveBeenCalled(); // NO tombstone on a partial listing
     expect(mockListingUpdate).not.toHaveBeenCalled(); // NO summary write
     // Cursor did NOT advance past the failed listing (null keyset watermark).
-    const upsertArgs = mockMediaSyncUpsert.mock.calls[0][0] as { update: { last_listing_key: string | null } };
+    const upsertArgs = mediaCursorUpserts()[0][0] as { update: { last_listing_key: string | null } };
     expect(upsertArgs.update.last_listing_key).toBeNull();
   });
 });
@@ -1989,7 +2015,7 @@ describe("runMediaSync — production-shape suppression (50 listings × 15 deliv
     expect(result.rows_tombstoned).toBe(0);
     expect(mockListingMediaUpdate).not.toHaveBeenCalled();
     expect(mockListingMediaCreate).not.toHaveBeenCalled();
-    const upsertArgs = mockMediaSyncUpsert.mock.calls[0][0] as { update: { last_listing_key: string | null } };
+    const upsertArgs = mediaCursorUpserts()[0][0] as { update: { last_listing_key: string | null } };
     expect(upsertArgs.update.last_listing_key).not.toBeNull();
     // REPORTED: listing-summary writes STILL occur — one Listing.update per listing.
     expect(mockListingUpdate).toHaveBeenCalledTimes(LISTINGS);

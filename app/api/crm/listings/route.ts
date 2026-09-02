@@ -4,6 +4,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
+import {
+  participationWhere,
+  isMallanAuthoredRow,
+  type ParticipationScope,
+} from "@/lib/crm/personal-participation";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { validateListing } from "@/lib/compliance/rebny-validator";
 import { assertRlsCompliantPayload, scanRecordForFairHousing } from "@/lib/compliance/rls-enforcement";
@@ -17,6 +22,10 @@ import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { buildPublishContract } from "@/lib/crm/listing-publish-contract";
 import { buildExclusiveAgentAssignment } from "@/lib/listings/exclusive-agent-assignment";
 import { composeDbPublicMedia } from "@/lib/media/db-media-composition";
+import {
+  COMING_SOON_PRIOR_USE_STATUSES,
+  CRM_HIDDEN_STATUSES,
+} from "@/lib/compliance/listing-status-vocabulary";
 import type { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
@@ -35,24 +44,69 @@ export async function GET(req: NextRequest) {
   const limit = Math.min(Math.max(parseInt(searchParams.get("limit") || "50") || 50, 1), 200);
   const offset = parseInt(searchParams.get("offset") || "0");
 
-  // Build where clause with ownership enforcement.
-  // CRM My Listings shows: (1) CRM-created listings (no mls_id — SL-/RL- prefix),
-  // and (2) closed/terminal Trestle-synced deals. Active/Pending Trestle listings
-  // are managed via REBNY RLS directly, not through the CRM.
-  const TRESTLE_CLOSED = ["Closed", "Sold", "Leased", "Rented"];
-  const CRM_HIDDEN = ["Withdrawn", "Cancelled"];
-  const crmCreated = { mls_id: null, listing_id: { startsWith: "SL-" }, status: { notIn: CRM_HIDDEN } };
-  const crmCreatedRental = { mls_id: null, listing_id: { startsWith: "RL-" }, status: { notIn: CRM_HIDDEN } };
-  const trestleClosed = { mls_id: { not: null }, status: { in: TRESTLE_CLOSED } };
+  // ── OWNERSHIP: PROVEN PARTICIPATION, NOT MERE EXISTENCE ─────────────────
+  //
+  // P0 INCIDENT (2026-08-17). This block previously read:
+  //
+  //   const trestleClosed = { mls_id: { not: null }, status: { in: TRESTLE_CLOSED } };
+  //   const where = { OR: [crmCreated, crmCreatedRental, trestleClosed] };
+  //   if (auth.role !== "BROKER") { where.agent_id = auth.userId; }
+  //
+  // `trestleClosed` carried NO participation test, so it matched EVERY Cotality
+  // terminal row in the database (522 rows, 387 distinct list agents, 65
+  // offices). And the broker branch SKIPPED the only ownership constraint, so
+  // for the principal broker there was no scoping whatsoever.
+  //
+  // Reproduced exactly against production: 200 rows returned, 200 Closed, ZERO
+  // belonging to the caller, ZERO Mallan SL-. Verified against LIVE Cotality —
+  // the caller participated in 0 of 12 sampled rows.
+  //
+  // Ownership now comes from ONE owner, `participationWhere`, which resolves
+  // from proven participation:
+  //   - Mallan-authored SL-/RL- owned by this agent (locally editable, §4.2);
+  //   - Cotality listing-side participation via the LIVE-VERIFIED identity
+  //     field `ListAgentMlsId` -> `list_agent_mls_id` (+ co-list).
+  //
+  // SCOPE IS EXPLICIT AND NEVER DERIVED FROM ROLE. A broker's personal screen
+  // is still their personal participation; brokerage-wide supervision is a
+  // separate scope requested deliberately via `?scope=brokerage`. Conflating
+  // them is the exact defect above.
+  const scope: ParticipationScope =
+    searchParams.get("scope") === "brokerage" && auth.role === "BROKER"
+      ? "brokerage"
+      : "personal";
+
+  // The caller's provider identity. `trestle_mls_id` may be null (an agent with
+  // no RLS membership) — that is not an error, and must NOT fail open: they
+  // simply have no provider-side participation.
+  const me = await prisma.agent.findUnique({
+    where: { id: auth.userId },
+    select: { id: true, trestle_mls_id: true },
+  });
 
   const where: Record<string, unknown> = {
-    OR: [crmCreated, crmCreatedRental, trestleClosed],
+    ...participationWhere(
+      { agentId: String(auth.userId), trestleMlsId: me?.trestle_mls_id ?? null },
+      scope,
+    ),
   };
 
-  // Ownership: agent sees only their own, broker sees all
-  if (auth.role !== "BROKER") {
-    where.agent_id = auth.userId;
-  }
+  // CRM DISPLAY POLICY — deliberately separate from OWNERSHIP above.
+  //
+  // The previous code folded this into the ownership predicate as a
+  // `status: { notIn: [...] }` clause on the CRM-created arm. It is a
+  // grid-presentation choice, not a statement about who owns the listing, and
+  // mixing the two is what let an ownership bug hide behind a status filter.
+  // Behaviour preserved exactly: withdrawn/cancelled Mallan rows stay out of the
+  // default grid, but an explicit `?status=Withdrawn` still reaches them.
+  //
+  // The list is IMPORTED (2026-08-20) rather than written inline. As the inline
+  // literal `["Withdrawn", "Cancelled"]` it matched only the Mallan CRM spelling
+  // of cancellation; a row the PROVIDER cancelled carries the live Cotality
+  // spelling `Canceled` (single L, stored verbatim by mapTrestleToPrisma) and
+  // stayed VISIBLE in the default grid while its CRM-authored twin was hidden —
+  // an inconsistency an agent would read as data loss.
+  if (!status) where.status = { notIn: [...CRM_HIDDEN_STATUSES] };
 
   if (type) where.listing_type = type;
   if (status) where.status = status;
@@ -60,7 +114,22 @@ export async function GET(req: NextRequest) {
   const [listings, total] = await Promise.all([
     prisma.listing.findMany({
       where,
-      orderBy: { updated_at: "desc" },
+      // ANTI-CROWD-OUT ORDERING.
+      //
+      // The incident's third defect: a single `updated_at desc` sort let 426
+      // continuously-resynced provider rows push the caller's own Mallan-authored
+      // listings past the 200-row cap, so they vanished from the CRM entirely
+      // while still existing in the database.
+      //
+      // Mallan-authored rows are the ones a user CREATED and expects to edit;
+      // they are also the rarest and the least frequently re-synced, so they are
+      // structurally the first casualties of a recency sort. Sorting them first
+      // makes that class un-croppable by provider churn, independent of how large
+      // the provider population grows.
+      //
+      // `rls_eligible` ascending puts `false` (Mallan website-only) first;
+      // recency still orders within each class.
+      orderBy: [{ rls_eligible: "asc" }, { updated_at: "desc" }],
       take: limit,
       skip: offset,
       select: {
@@ -312,11 +381,40 @@ export async function POST(req: NextRequest) {
     }
 
     // D9: Coming Soon is one-time per address — cannot re-use for same property
+    //
+    // The status leg is IMPORTED (2026-08-20), not written inline. As the inline
+    // literal ["Active","Withdrawn","Expired","Sold","Rented","Cancelled"] it
+    // enumerated only the MALLAN CRM vocabulary.
+    //
+    // WHAT THAT ACTUALLY COST — the tight bound, not the flattering one. The
+    // `_wasComingSoon` leg below has exactly one writer (listings/[id]/status),
+    // gated on `mayManageMallanLocalListing`, so the reachable population is
+    // Mallan-local listings, not the whole corpus. Closing over STATUS_TRANSITIONS
+    // from ComingSoon gives the states such a listing can actually sit in; the old
+    // literal missed five of them — ActiveUnderContract, ComingSoon, Draft, Hold,
+    // Pending. Every one is an ordinary path (ComingSoon → Active → Pending is the
+    // common case; Withdrawn → Draft → ComingSoon puts a listing BACK in ComingSoon
+    // while D9 reports the address unused), and on each one D9 answered "no prior
+    // Coming Soon" and let a SECOND one be created for the same address — a false
+    // negative on a fail-closed UCBA gate.
+    //
+    // For scale on the status leg alone: it matched 14,422 of the 25,239 rows in
+    // the frozen production census (.cache/r2-census/DB-2026-08-18T13-20-59-918Z
+    // .ndjson), missing Pending (6,207), Closed (4,609) and ComingSoon (1); and 8
+    // of the 11 live Cotality StandardStatus members (ActiveUnderContract,
+    // Canceled, Closed, ComingSoon, Delete, Hold, Incomplete, Pending — re-probed
+    // 2026-08-20). Both facts are asserted in
+    // lib/compliance/__tests__/d9-coming-soon-status-closure.test.ts.
+    //
+    // COMING_SOON_PRIOR_USE_STATUSES is deliberately exhaustive — nothing
+    // un-consumes a prior Coming Soon, so this leg must never narrow. It is
+    // derived from the spelling classes, so a future status enrolls here with no
+    // edit at this call site. See lib/compliance/listing-status-vocabulary.ts.
     if (body.MlsStatus === "ComingSoon" && body.StreetName) {
       const priorComingSoon = await prisma.listing.findFirst({
         where: {
           postal_code: (body.PostalCode as string) || undefined,
-          status: { in: ["Active", "Withdrawn", "Expired", "Sold", "Rented", "Cancelled"] },
+          status: { in: [...COMING_SOON_PRIOR_USE_STATUSES] },
           raw_data: {
             path: ["_wasComingSoon"],
             equals: true,

@@ -5,6 +5,14 @@ import { claimMachine } from '@/lib/idx/machine-claim';
 import { runIdxSyncMember } from '@/lib/idx/idx-sync-member';
 import type { MemberOutcome, MemberRunResult } from '@/lib/idx/idx-sync-member';
 import { runMediaSyncMember } from '@/lib/idx/media-sync-member';
+import {
+  ONE_CYCLE_MEMBERS,
+  ONE_CYCLE_MEMBER_IDX,
+  ONE_CYCLE_MEMBER_MEDIA,
+  requiredMembersForPlan,
+  type OneCycleMember,
+} from '@/lib/idx/one-cycle-preflight';
+import { currentExecutionPlan } from '@/lib/idx/one-cycle-plan-channel';
 
 // ─── One Cycle W2 — the coordinated feed/media spine (Maya-approved 10-minute
 // cadence, 2026-07-24) ───────────────────────────────────────────────────────
@@ -62,13 +70,24 @@ export const maxDuration = 300;
  */
 export const CYCLE_INTERVAL_MS = 600_000;
 
-/** Ordered required members (authority hierarchy: listings first, media second). */
-const MEMBER_NAMES = ['idx-sync', 'media-sync'] as const;
+// The ordered member list is owned by lib/idx/one-cycle-preflight.ts
+// (ONE_CYCLE_MEMBERS) and imported here. It was previously re-declared locally
+// as MEMBER_NAMES, so planning and budget validation each carried their own
+// copy of the same two names — a second truth that could drift from the one the
+// planner selects against. Budget validation, execution ordering and planning
+// now all read the SAME constant, and adding a member is a one-line change in
+// one file rather than a change that silently half-lands.
 
-/** Per-member soft wall-clock budgets (ms). Sum + headroom < maxDuration. */
-const MEMBER_BUDGETS_MS: Record<string, number> = {
-  'idx-sync': 120_000,
-  'media-sync': 150_000,
+/**
+ * Per-member soft wall-clock budgets (ms). Sum + headroom < maxDuration.
+ *
+ * Keyed by the canonical identities and typed as a total Record, so adding a
+ * member to ONE_CYCLE_MEMBERS without giving it a budget is a BUILD failure
+ * rather than a silent fallback to the 60s default.
+ */
+const MEMBER_BUDGETS_MS: Record<OneCycleMember, number> = {
+  [ONE_CYCLE_MEMBER_IDX]: 120_000,
+  [ONE_CYCLE_MEMBER_MEDIA]: 150_000,
 };
 const CYCLE_HEADROOM_MS = 20_000;
 /** No single member may be budgeted longer than this (must leave room for others). */
@@ -88,7 +107,7 @@ function resolveBudgets():
   | { ok: false; error: string } {
   const budgets: Record<string, number> = {};
   let total = 0;
-  for (const name of MEMBER_NAMES) {
+  for (const name of ONE_CYCLE_MEMBERS) {
     const raw = process.env[`ONE_CYCLE_BUDGET_MS_${name.replace(/-/g, '_').toUpperCase()}`];
     let b: number;
     if (raw === undefined) {
@@ -300,6 +319,12 @@ export async function GET(req: NextRequest) {
 
   const runId = randomUUID();
 
+  // WHICH members this cycle is responsible for. Read from the INTERNAL plan
+  // channel, never from the request — see lib/idx/one-cycle-plan-channel.ts.
+  // Any caller outside the preflight's scope gets `full_safety`, so a direct
+  // HTTP request can never narrow the cycle or suppress a member.
+  const executionPlan = currentExecutionPlan();
+
   // Budget config validation — FAIL CLOSED before taking a claim or starting any
   // member. An invalid ONE_CYCLE_BUDGET_MS_* override must never silently force
   // timeouts or defeat the budget design.
@@ -357,10 +382,32 @@ export async function GET(req: NextRequest) {
   // is reachable ONLY via this direct import, never over HTTP (the public GET
   // routes always claim). One Cycle drives INCREMENTAL idx-sync (forceFull:false);
   // a full backlog drain is a deliberate manual `?full=true` GET, which claims.
-  const memberDefs: Array<[string, MemberFn]> = [
-    ['idx-sync', ({ oneCycleRunId }) => runIdxSyncMember({ oneCycleRunId, forceFull: false })],
-    ['media-sync', ({ oneCycleRunId }) => runMediaSyncMember({ oneCycleRunId })],
-  ];
+  // Runner FUNCTIONS live here, at the execution layer — but member NAMES and
+  // ORDER do not. This is a Record keyed by the canonical identities, so TypeScript
+  // FAILS THE BUILD if a member is added to ONE_CYCLE_MEMBERS without a runner,
+  // or if a runner is declared for a name that is not a member. The previous
+  // array re-typed both names, giving the executor its own copy of the identity
+  // list that could silently drift from the planner's.
+  const memberRunners: Record<OneCycleMember, MemberFn> = {
+    [ONE_CYCLE_MEMBER_IDX]: ({ oneCycleRunId }) => runIdxSyncMember({ oneCycleRunId, forceFull: false }),
+    [ONE_CYCLE_MEMBER_MEDIA]: ({ oneCycleRunId }) => runMediaSyncMember({ oneCycleRunId }),
+  };
+  // Order comes from the canonical list, never from the literal order above.
+  const allMemberDefs: Array<[OneCycleMember, MemberFn]> =
+    ONE_CYCLE_MEMBERS.map((name) => [name, memberRunners[name]]);
+
+  // Members are SELECTED BY PLAN, and completion is judged against that
+  // selection. Previously both were a constant, which meant an intentionally
+  // IDX-free cycle was scored against a member it was never asked to run:
+  // `complete` would be false, `outcome` would be 'incomplete', `forceRun`
+  // would be set, and every later poll would fail open — so the machine would
+  // never skip again.
+  //
+  // Filtering `allMemberDefs` (rather than mapping the plan to functions)
+  // preserves the authority hierarchy structurally: IDX cannot be reordered
+  // after media, whatever the plan says.
+  const planned = new Set<OneCycleMember>(requiredMembersForPlan(executionPlan));
+  const memberDefs = allMemberDefs.filter(([name]) => planned.has(name));
   const requiredMembers = memberDefs.map(([n]) => n);
 
   const members: MemberResult[] = [];
@@ -445,6 +492,12 @@ export async function GET(req: NextRequest) {
     run_id: runId,
     execution_type: 'one-cycle',
     outcome: success ? 'success' : complete ? 'partial' : 'incomplete',
+    // Which members this cycle was responsible for, and therefore what
+    // `complete`/`success` above were actually judged against. Without this a
+    // reader cannot tell a healthy media_only cycle from a full cycle that lost
+    // IDX, because both report exactly one settled member.
+    execution_plan: executionPlan,
+    required_members: requiredMembers,
     cadence: '10m',
     cadence_ms: CYCLE_INTERVAL_MS,
     orchestration_settled,

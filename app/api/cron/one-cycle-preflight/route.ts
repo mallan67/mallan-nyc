@@ -5,6 +5,7 @@ import {
   finalizeOneCyclePreflight,
   type OneCycleCompletionInput,
 } from '@/lib/idx/one-cycle-preflight';
+import { runWithExecutionPlan } from '@/lib/idx/one-cycle-plan-channel';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -77,6 +78,8 @@ export async function GET(req: NextRequest) {
       skipped: true,
       neon_touched: false,
       reason: decision.reason,
+      execution_plan: decision.executionPlan,
+      plan_reasons: decision.planReasons,
       polled_at: polledAt.toISOString(),
       source_captured_at: decision.snapshot?.capturedAt ?? null,
     };
@@ -88,16 +91,38 @@ export async function GET(req: NextRequest) {
     tag: 'one_cycle_preflight',
     event: 'run_neon_cycle',
     reason: decision.reason,
+    // WHICH members this poll selected, and why. `reason` alone cannot express
+    // it: 'source_changed' now covers idx_only, media_only and idx_then_media.
+    execution_plan: decision.executionPlan,
+    plan_reasons: decision.planReasons,
+    head_delta: decision.headDelta,
     polled_at: polledAt.toISOString(),
     snapshot_trusted: decision.snapshotTrusted,
   }));
 
   // Dynamic by design: the skip path must not evaluate the Prisma-backed route.
   const { GET: runOneCycle } = await import('@/app/api/cron/one-cycle/route');
-  const response = await runOneCycle(req);
+
+  // The plan travels through an INTERNAL async-context channel, never on the
+  // request. It was previously a `?plan=` query parameter, which made member
+  // selection caller-supplied — anything reaching One Cycle could have asked it
+  // to skip a member. Outside this scope One Cycle reads `full_safety`.
+  const response = await runWithExecutionPlan(decision.executionPlan, () => runOneCycle(req));
   try {
     const body = await response.clone().json();
     const completion = completionFromBody(body);
+    // THE NEON-WAKE COST OF THIS POLL, in the runtime log.
+    //
+    // A poll that runs holds the Neon endpoint active for (cycle wall clock +
+    // the autosuspend delay). The autosuspend delay is readable from the Neon
+    // control plane; the cycle wall clock was NOT readable anywhere except the
+    // `one_cycle_run` audit row, which needs production SQL. It was therefore
+    // the one ESTIMATED term in every compute figure written about this cron
+    // (previous work carried it as "12-35 s inferred"). One Cycle already
+    // returns it in its response body; echoing it here makes it measurable from
+    // Vercel runtime logs alone. Instrumentation only — nothing reads it.
+    const cycleDurationMs =
+      isRecord(body) && typeof body.duration_ms === 'number' ? body.duration_ms : null;
     if (completion) {
       // The finalize outcome is the ONLY signal that distinguishes "the machine
       // is healthy and had nothing to skip" from "the completion state never
@@ -111,6 +136,7 @@ export async function GET(req: NextRequest) {
         event: 'external_state_finalize',
         outcome,
         decision_reason: decision.reason,
+        cycle_duration_ms: cycleDurationMs,
       }));
     } else {
       console.log(JSON.stringify({
@@ -118,6 +144,7 @@ export async function GET(req: NextRequest) {
         event: 'external_state_finalize',
         outcome: 'not_finalizable',
         decision_reason: decision.reason,
+        cycle_duration_ms: cycleDurationMs,
       }));
     }
   } catch (err) {

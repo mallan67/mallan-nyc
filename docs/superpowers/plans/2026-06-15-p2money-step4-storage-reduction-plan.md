@@ -185,7 +185,9 @@ window:**
    The data-retention archiver derives **`close_price`, `close_date`, `original_list_price` ONLY
    from `raw_data`** when it upserts `listings_archive` (`data-retention/route.ts:225-228`). If the
    bulk `raw_data = NULL` strip runs on a terminal row that has NOT yet been archived, that row's
-   sale terms are lost forever from the NY-DOS 6-year archive record. Since the archive-bug fix
+   sale terms are lost forever from the archive record (CORRECTED 2026-08-20: this line read “the NY-DOS
+   6-year archive record” — 19 NYCRR 175.23 is three years, and it enumerates Article 12-A transaction records — it does not reach a mirrored third-party MLS row, or any photo bytes. Evidence: `.cache/closure3/r2-final/legal/19-NYCRR-175.23-VERBATIM.md`. Operative schedule: `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` §14 Fail-closed row. The archive's justification is FK
+   integrity plus a Mallan-side comps summary, not a DOS floor). Since the archive-bug fix
    leaves a ~91K-row backlog draining at the 500/run cap, the strip MUST NOT null `raw_data` on any
    row a future archive could need. **`raw_data` is NOT bulk-strippable in this program at all
    (Codex #404, blocking):**

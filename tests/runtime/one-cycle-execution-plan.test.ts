@@ -1,0 +1,403 @@
+/// <reference types="jest" />
+/**
+ * TASK 1 — One Cycle must emit a real EXECUTION PLAN, not a boolean wake.
+ *
+ * The preflight already probes two Cotality Property heads separately:
+ *   - ModificationTimestamp  — the listing record changed
+ *   - PhotosChangeTimestamp  — the photo set changed
+ *
+ * `sourceSnapshotChanged()` collapsed both into one boolean and then launched
+ * the ENTIRE Neon-backed machine (idx-sync AND media-sync) for either signal.
+ *
+ * The member mapping is authorized by the canonical compliance index, not by
+ * inference from field naming:
+ *   docs/compliance/COMPLIANCE-CANONICAL-INDEX.md:118 (§8 Fail-closed row)
+ *   "Two-tier timestamp sync: Property.PhotosChangeTimestamp (high-level
+ *    trigger) -> Media.ModificationTimestamp (per-row)."
+ * PhotosChangeTimestamp is therefore the photo/media trigger, and
+ * ModificationTimestamp is the listing-record trigger.
+ *
+ * Residual risk is bounded by the existing hourly freshness heartbeat: a media
+ * change that somehow does not move PhotosChangeTimestamp is still swept by the
+ * next `full_safety` cycle within ONE_CYCLE_HEARTBEAT_INTERVAL_SECONDS.
+ *
+ * Every uncertainty (no Redis, unreadable state, failed source probe, forced
+ * retry) must still fail OPEN to the full machine.
+ */
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import type {
+  OneCyclePreflightState,
+  SourceSnapshot,
+} from '@/lib/idx/one-cycle-preflight';
+
+const redisGet = jest.fn();
+const redisSet = jest.fn();
+const fetchFromTrestle = jest.fn();
+
+jest.mock('@/lib/redis', () => ({
+  redis: { get: (...args: unknown[]) => redisGet(...args), set: (...args: unknown[]) => redisSet(...args) },
+  default: { get: (...args: unknown[]) => redisGet(...args), set: (...args: unknown[]) => redisSet(...args) },
+}));
+jest.mock('@/lib/idx/fetch', () => ({
+  fetchFromTrestle: (...args: unknown[]) => fetchFromTrestle(...args),
+}));
+
+const preflight = require('@/lib/idx/one-cycle-preflight') as typeof import('@/lib/idx/one-cycle-preflight');
+
+const NOW = new Date('2026-08-02T07:00:00.000Z');
+
+const MOD_HEAD = { timestamp: '2026-08-02T06:55:00.000Z', listingKey: 'M-2', populationAtHead: 2 };
+const PHOTO_HEAD = { timestamp: '2026-08-02T06:50:00.000Z', listingKey: 'P-1', populationAtHead: 1 };
+
+const snapshot: SourceSnapshot = {
+  modification: MOD_HEAD,
+  photos: PHOTO_HEAD,
+  capturedAt: '2026-08-02T06:56:00.000Z',
+};
+
+/** Healthy prior state: nothing forced, no backlog, heartbeat fresh. */
+const state: OneCyclePreflightState = {
+  version: 1,
+  snapshot,
+  forceRun: false,
+  backlogPending: false,
+  nextBacklogRunAt: null,
+  lastCompletedAt: '2026-08-02T06:56:30.000Z',
+  lastSuccessfulFullCycleAt: '2026-08-02T06:56:30.000Z',
+  lastOutcome: 'success',
+};
+
+type Head = { timestamp: string; listingKey: string; populationAtHead: number };
+
+/**
+ * Drive both head probes independently. queryHead() may issue a second
+ * `eq`-filtered request when a head moves; returning the same shape for both
+ * calls satisfies either path.
+ */
+function mockHeads(mod: Head, photo: Head) {
+  fetchFromTrestle.mockImplementation(async (options: { select?: string[] }) => {
+    const field = options.select?.[1];
+    const head = field === 'ModificationTimestamp' ? mod : photo;
+    return {
+      records: [{ ListingKey: head.listingKey, [field as string]: head.timestamp }],
+      totalFetched: 1,
+      hasMore: false,
+      odataCount: head.populationAtHead,
+    };
+  });
+}
+
+const advanced = (head: Head, iso: string): Head => ({ ...head, timestamp: iso });
+
+beforeEach(() => {
+  redisGet.mockReset();
+  redisSet.mockReset();
+  fetchFromTrestle.mockReset();
+  delete process.env.ONE_CYCLE_BACKLOG_INTERVAL_SECONDS;
+});
+
+describe('One Cycle execution plan — source-change matrix', () => {
+  it('runs IDX only when the listing head moved and the photo head did not', async () => {
+    redisGet.mockResolvedValue(state);
+    mockHeads(advanced(MOD_HEAD, '2026-08-02T06:59:00.000Z'), PHOTO_HEAD);
+
+    const decision = await preflight.decideOneCyclePreflight(NOW);
+
+    expect(decision.executionPlan).toBe('idx_only');
+    expect(decision.shouldRun).toBe(true);
+    expect(decision.reason).toBe('source_changed');
+  });
+
+  it('runs Media only when the photo head moved and the listing head did not', async () => {
+    redisGet.mockResolvedValue(state);
+    mockHeads(MOD_HEAD, advanced(PHOTO_HEAD, '2026-08-02T06:59:00.000Z'));
+
+    const decision = await preflight.decideOneCyclePreflight(NOW);
+
+    expect(decision.executionPlan).toBe('media_only');
+    expect(decision.shouldRun).toBe(true);
+  });
+
+  it('runs IDX then Media when both heads moved', async () => {
+    redisGet.mockResolvedValue(state);
+    mockHeads(
+      advanced(MOD_HEAD, '2026-08-02T06:59:00.000Z'),
+      advanced(PHOTO_HEAD, '2026-08-02T06:59:30.000Z'),
+    );
+
+    const decision = await preflight.decideOneCyclePreflight(NOW);
+
+    expect(decision.executionPlan).toBe('idx_then_media');
+  });
+
+  it('detects a same-timestamp population change on the photo head alone', async () => {
+    redisGet.mockResolvedValue(state);
+    mockHeads(MOD_HEAD, { ...PHOTO_HEAD, populationAtHead: 5 });
+
+    const decision = await preflight.decideOneCyclePreflight(NOW);
+
+    expect(decision.executionPlan).toBe('media_only');
+  });
+
+  it('skips Neon entirely when neither head moved and nothing else is due', async () => {
+    redisGet.mockResolvedValue(state);
+    mockHeads(MOD_HEAD, PHOTO_HEAD);
+
+    const decision = await preflight.decideOneCyclePreflight(NOW);
+
+    expect(decision.executionPlan).toBe('skip');
+    expect(decision.shouldRun).toBe(false);
+    expect(decision.reason).toBe('source_unchanged_no_backlog_due');
+  });
+
+  it('drains the media backlog without waking IDX', async () => {
+    redisGet.mockResolvedValue({
+      ...state,
+      backlogPending: true,
+      nextBacklogRunAt: '2026-08-02T06:00:00.000Z',
+    });
+    mockHeads(MOD_HEAD, PHOTO_HEAD);
+
+    const decision = await preflight.decideOneCyclePreflight(NOW);
+
+    expect(decision.executionPlan).toBe('media_only');
+    expect(decision.reason).toBe('backlog_due');
+  });
+});
+
+describe('One Cycle execution plan — fail-open safety', () => {
+  it('runs the full machine when the freshness heartbeat expires', async () => {
+    redisGet.mockResolvedValue({
+      ...state,
+      lastSuccessfulFullCycleAt: '2026-08-02T05:00:00.000Z',
+    });
+    mockHeads(MOD_HEAD, PHOTO_HEAD);
+
+    const decision = await preflight.decideOneCyclePreflight(NOW);
+
+    expect(decision.executionPlan).toBe('full_safety');
+    expect(decision.reason).toBe('freshness_heartbeat_due');
+  });
+
+  it('runs the full machine on a forced retry', async () => {
+    redisGet.mockResolvedValue({ ...state, forceRun: true });
+    mockHeads(MOD_HEAD, PHOTO_HEAD);
+
+    const decision = await preflight.decideOneCyclePreflight(NOW);
+
+    expect(decision.executionPlan).toBe('full_safety');
+    expect(decision.reason).toBe('forced_retry');
+  });
+
+  it('runs the full machine when external state is missing or unreadable', async () => {
+    redisGet.mockResolvedValue(null);
+    mockHeads(MOD_HEAD, PHOTO_HEAD);
+
+    const missing = await preflight.decideOneCyclePreflight(NOW);
+    expect(missing.executionPlan).toBe('full_safety');
+    expect(missing.reason).toBe('state_missing_or_invalid');
+
+    redisGet.mockRejectedValue(new Error('redis down'));
+    const failed = await preflight.decideOneCyclePreflight(NOW);
+    expect(failed.executionPlan).toBe('full_safety');
+    expect(failed.reason).toBe('redis_read_failed');
+  });
+
+  it('runs the full machine when the Cotality source probe fails', async () => {
+    redisGet.mockResolvedValue(state);
+    fetchFromTrestle.mockRejectedValue(new Error('cotality unreachable'));
+
+    const decision = await preflight.decideOneCyclePreflight(NOW);
+
+    expect(decision.executionPlan).toBe('full_safety');
+    expect(decision.reason).toBe('source_probe_failed');
+    expect(decision.snapshotTrusted).toBe(false);
+  });
+});
+
+describe('a plan that did not run media must not erase the media backlog', () => {
+  /**
+   * REVIEW FINDING (round 3). `deriveOneCycleFollowup` derived `backlogPending`
+   * ONLY from a media-sync member in the CURRENT completion. Before the
+   * execution plan existed that was safe, because every cycle ran media, so the
+   * member was always present.
+   *
+   * With partial plans it is a data-loss bug: prior state can carry
+   * backlogPending=true with nextBacklogRunAt an hour out (the default backlog
+   * interval), the modification head can move inside that hour, the planner
+   * correctly selects idx_only, and the completion then contains NO media
+   * member — so `mediaBacklog` computes false and finalize overwrites a real
+   * pending backlog with false/null. The backlog is silently dropped and the
+   * queued media work never runs.
+   */
+  const priorWithBacklog: OneCyclePreflightState = {
+    ...state,
+    backlogPending: true,
+    nextBacklogRunAt: '2026-08-02T07:45:00.000Z', // still in the future at NOW
+  };
+
+  const idxOnlyCompletion = {
+    success: true,
+    complete: true,
+    outcome: 'success' as const,
+    members: [{ member: 'idx-sync', status: 'ok', summary: { total_fetched: 3 } }],
+  };
+
+  it('preserves a pending-but-not-yet-due backlog across an idx_only cycle', () => {
+    const followup = preflight.deriveOneCycleFollowup(
+      idxOnlyCompletion,
+      true,
+      NOW,
+      { executionPlan: 'idx_only', priorState: priorWithBacklog },
+    );
+
+    expect(followup.backlogPending).toBe(true);
+    // The ORIGINAL deadline survives — it must not be pushed out by a cycle
+    // that did no media work, or the backlog could be deferred indefinitely.
+    expect(followup.nextBacklogRunAt).toBe('2026-08-02T07:45:00.000Z');
+    expect(followup.forceRun).toBe(false);
+  });
+
+  it('recalculates the backlog when media-sync actually ran and cleared it', () => {
+    const followup = preflight.deriveOneCycleFollowup(
+      {
+        success: true,
+        complete: true,
+        outcome: 'success',
+        members: [
+          { member: 'idx-sync', status: 'ok', summary: { total_fetched: 3 } },
+          { member: 'media-sync', status: 'ok', summary: { backlog_remaining: 0 } },
+        ],
+      },
+      true,
+      NOW,
+      { executionPlan: 'idx_then_media', priorState: priorWithBacklog },
+    );
+
+    expect(followup.backlogPending).toBe(false);
+    expect(followup.nextBacklogRunAt).toBeNull();
+  });
+
+  it('preserves the prior backlog when media was selected but never started', () => {
+    // Budget exhaustion skips the member without running it. That is not
+    // evidence the backlog drained, so the prior state must survive.
+    const followup = preflight.deriveOneCycleFollowup(
+      {
+        success: false,
+        complete: false,
+        outcome: 'incomplete',
+        members: [
+          { member: 'idx-sync', status: 'ok', summary: { total_fetched: 3 } },
+          { member: 'media-sync', status: 'budget_skipped', summary: { skip_reason: 'insufficient_budget' } },
+        ],
+      },
+      true,
+      NOW,
+      { executionPlan: 'idx_then_media', priorState: priorWithBacklog },
+    );
+
+    expect(followup.backlogPending).toBe(true);
+    expect(followup.nextBacklogRunAt).toBe('2026-08-02T07:45:00.000Z');
+  });
+
+  it('still reports no backlog when there was none and media did not run', () => {
+    const followup = preflight.deriveOneCycleFollowup(
+      idxOnlyCompletion,
+      true,
+      NOW,
+      { executionPlan: 'idx_only', priorState: state },
+    );
+
+    expect(followup.backlogPending).toBe(false);
+    expect(followup.nextBacklogRunAt).toBeNull();
+  });
+});
+
+describe('member identity is single-authority — planner and executor cannot disagree', () => {
+  /**
+   * REVIEW FINDING (round 4). `ONE_CYCLE_MEMBERS` existed, but
+   * `requiredMembersForPlan` still re-typed 'idx-sync'/'media-sync' in every
+   * switch branch and the route re-typed them again in its runner table. Three
+   * independent copies of the same identity list — so "adding a member is a
+   * one-line change" was false, and planner and executor could drift.
+   *
+   * The identities are now declared exactly once and everything derives from
+   * them. These tests pin that, and the route's Record<OneCycleMember, ...>
+   * types make a missing runner or budget a BUILD failure rather than a
+   * runtime surprise.
+   */
+  it('every plan selects only canonical members, in canonical order', () => {
+    const plans = ['skip', 'idx_only', 'media_only', 'idx_then_media', 'full_safety'] as const;
+
+    for (const plan of plans) {
+      const selected = preflight.requiredMembersForPlan(plan);
+
+      // No plan may invent a member outside the canonical list.
+      for (const m of selected) {
+        expect(preflight.ONE_CYCLE_MEMBERS).toContain(m);
+      }
+      // Selection must be a SUBSEQUENCE of the canonical order, never a
+      // reordering — media can never be scheduled before idx.
+      const canonicalOrder = preflight.ONE_CYCLE_MEMBERS.filter((m) => selected.includes(m));
+      expect(selected).toEqual(canonicalOrder);
+    }
+  });
+
+  it('the canonical identities are the ones the members actually report', () => {
+    expect(preflight.ONE_CYCLE_MEMBERS).toEqual([
+      preflight.ONE_CYCLE_MEMBER_IDX,
+      preflight.ONE_CYCLE_MEMBER_MEDIA,
+    ]);
+    // The full plan covers every canonical member — no member can be
+    // unreachable by any plan.
+    expect(preflight.requiredMembersForPlan('full_safety')).toEqual([...preflight.ONE_CYCLE_MEMBERS]);
+  });
+
+  it('the route derives its runner map and order from the canonical list', () => {
+    // Source-level, because the route cannot be imported without Prisma. The
+    // behavioural half is the type system: Record<OneCycleMember, MemberFn>
+    // and Record<OneCycleMember, number> fail the build on any mismatch.
+    const route = fs.readFileSync(
+      path.join(__dirname, '../../app/api/cron/one-cycle/route.ts'),
+      'utf8',
+    );
+    expect(route).toContain('Record<OneCycleMember, MemberFn>');
+    expect(route).toContain('Record<OneCycleMember, number>');
+    expect(route).toContain('ONE_CYCLE_MEMBERS.map((name) => [name, memberRunners[name]])');
+    // And it must not re-type the identities.
+    expect(route).not.toContain("'idx-sync'");
+    expect(route).not.toContain("'media-sync'");
+  });
+});
+
+describe('requiredMembersForPlan — completion must follow the plan, not a constant', () => {
+  it('requires only the members the plan actually selected', () => {
+    expect(preflight.requiredMembersForPlan('skip')).toEqual([]);
+    expect(preflight.requiredMembersForPlan('idx_only')).toEqual(['idx-sync']);
+    expect(preflight.requiredMembersForPlan('media_only')).toEqual(['media-sync']);
+  });
+
+  it('keeps IDX strictly before Media whenever both are selected', () => {
+    expect(preflight.requiredMembersForPlan('idx_then_media')).toEqual(['idx-sync', 'media-sync']);
+    expect(preflight.requiredMembersForPlan('full_safety')).toEqual(['idx-sync', 'media-sync']);
+  });
+
+  it('does not mark a deliberate media-only cycle incomplete', () => {
+    // The trap this guards: a constant required-member list makes an
+    // intentionally IDX-free cycle look incomplete, which sets forceRun and
+    // permanently prevents any future skip.
+    const followup = preflight.deriveOneCycleFollowup(
+      {
+        success: true,
+        complete: true,
+        outcome: 'success',
+        members: [{ member: 'media-sync', status: 'ok', summary: {} }],
+      },
+      true,
+      NOW,
+    );
+
+    expect(followup.forceRun).toBe(false);
+  });
+});

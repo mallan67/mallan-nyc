@@ -6,12 +6,27 @@
 // If not, creates a minimal record from the IDX search data provided in the body.
 //
 // Auth: agent or broker session required.
-// The listing is marked rls_eligible=false (external IDX listing, not our exclusive).
+//
+// SOURCE IDENTITY: the row is marked `rls_eligible = true`, because it IS an
+// RLS/Trestle-sourced listing. This header previously said `false` and the code
+// wrote `false`; both were wrong. Under the canonical contract
+// (lib/listings/mallan-source-identity.ts) `rls_eligible === false` marks a
+// MALLAN-AUTHORED local row and feeds `isMallanExclusiveListing`, which governs
+// data/media authority — so the old value made an external stub claim Mallan
+// provenance and take the unconditional "all_active" R2 mirror branch. See the
+// full impact note at the `rls_eligible` write below.
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
+import { isActiveDisplayStatus } from "@/lib/compliance/status";
+import {
+  buildingAndManifestInvalidationTags,
+  listingCacheTag,
+  safeRevalidateTags,
+  SEARCH_CACHE_TAG,
+} from "@/lib/cache/public-cache";
 import type { Prisma } from "@prisma/client";
 import { affirmPermission } from "@/lib/compliance/gates";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
@@ -120,7 +135,27 @@ export async function POST(req: NextRequest) {
         postal_code: (body.zip as string) || null,
         property_type: (body.property_type as string) || null,
         property_sub_type: (body.property_sub_type as string) || null,
-        rls_eligible: false, // External IDX listing, not our exclusive
+        // SOURCE IDENTITY — corrected 2026-08-17. This was `false` with the
+        // comment "External IDX listing, not our exclusive", which INVERTED the
+        // canonical contract and made the stub claim Mallan provenance.
+        //
+        // lib/listings/mallan-source-identity.ts: "Mallan-authored local rows
+        // are `false`; feed rows are true/null", and `isMallanExclusiveListing`
+        // is `SL-/RL- prefix OR rls_eligible === false` — the module's own
+        // header says it governs DATA/MEDIA AUTHORITY.
+        //
+        // So `false` on a Trestle-sourced row meant: R2 mirror admission jumped
+        // to the unconditional "all_active" Mallan branch
+        // (lib/idx/media-sync.ts), the media resolver took the Mallan
+        // ownership/legacy-fallback branch, the public DTO reported
+        // isMallanExclusive: true, the row became eligible for exclusive agent
+        // assignment, and listing_search_projection.is_exclusive was set.
+        //
+        // `true` is the correct value: this row IS an RLS/Trestle listing. It
+        // also means a later real Cotality sync of the same listing_id does not
+        // FLIP the identity, so media authority cannot move underneath rows
+        // that already exist.
+        rls_eligible: true,
         // H1 fix (2026-05-13): close the secondary-writer §2.05 gap.
         // `canonicalStatus` is the normalized form of body.status (see the
         // declaration above). Using the SAME canonical value for both the
@@ -179,6 +214,30 @@ export async function POST(req: NextRequest) {
         sync_status: "pending",
       },
     });
+
+    // MISSING INVALIDATION, fixed 2026-08-16; NARROWED 2026-08-17 after review.
+    //
+    // The first version invalidated whenever the status was merely
+    // non-terminal. That is not public RESULT MEMBERSHIP: the cached public
+    // collections admit only ACTIVE_DISPLAY_STATUSES (Active,
+    // ActiveUnderContract, ComingSoon), so a create in any other status —
+    // Draft, Pending, Withdrawn — cannot appear in them, and expiring those
+    // entries would evict correct data and force an avoidable Neon refill.
+    //
+    // Gated on the canonical helper rather than a local status list, so this
+    // cannot drift from the predicates the readers actually use.
+    //
+    // Insert, so there is no previous address: the helper is null-safe on the
+    // missing side and yields one building tag plus that address's manifest
+    // shard. `safeRevalidateTags` never throws, so it cannot fail a create that
+    // has already committed.
+    if (isActiveDisplayStatus(canonicalStatus) && affirmPermission(body.internet_display_yn)) {
+      safeRevalidateTags([
+        listingCacheTag(trimmedId),
+        ...buildingAndManifestInvalidationTags(addressJson),
+        SEARCH_CACHE_TAG,
+      ]);
+    }
 
     await logAuditEvent(
       "create",

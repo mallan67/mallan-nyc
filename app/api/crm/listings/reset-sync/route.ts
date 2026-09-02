@@ -17,7 +17,64 @@ import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import type { Prisma } from "@prisma/client";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 
+/**
+ * EXECUTABLE ACCESS IS DISABLED (PR #618).
+ *
+ * ── WHY ────────────────────────────────────────────────────────────────────
+ * This route is the ONLY `deleteMany({})` in the repository. It wipes the whole
+ * `Listing` table plus six dependent tables (clientListingAction, showing,
+ * comment, priceHistory, marketingActivity, protectedPeriod) and then
+ * repopulates only a BOUNDED Cotality set scoped to the calling broker's own
+ * MLS id / state licence — so it is not merely destructive, it is lossy: a
+ * listing outside that bounded set does not come back.
+ *
+ * It also emits NO cache invalidation whatsoever. Under the event-driven
+ * contract this branch establishes — listing detail is `revalidate = false`
+ * with a persistent, deployment-surviving data entry keyed by listing id — a
+ * run would leave PERMANENT cache ghosts: pages and payloads for listings that
+ * no longer exist, with nothing left to expire them, because the tag is only
+ * ever emitted by a writer touching that listing.
+ *
+ * ── WHY DISABLED RATHER THAN DELETED ───────────────────────────────────────
+ * A repo-wide search found ZERO runtime callers: every reference is a doc, a
+ * comment, a test, or the generated route catalog. The file is retained because
+ * a dozen tests read its SOURCE as the canonical example of the listing-writer
+ * contract (dual-write, terminal-since, typed agent columns, raw_data shed);
+ * deleting it would delete those guards too. Blocking execution achieves the
+ * safety goal without that collateral loss.
+ *
+ * ── WHAT RE-ENABLING WOULD REQUIRE ─────────────────────────────────────────
+ * Not just flipping the env var. Before this may run again it needs a bounded
+ * WHOLE-PUBLIC-CACHE reconciliation contract: enumerate every listing id it is
+ * about to destroy, and emit that listing's tag set for each, plus the building
+ * and manifest-shard tags for every address involved. Without that the ghosts
+ * above are unavoidable.
+ *
+ * Fail-closed: the env var is deliberately NOT set in any environment, and env
+ * changes are a standing authorization hold.
+ */
+// Read at REQUEST time, not module-load time: a module-scope constant is
+// captured once when the route is first imported, which makes the guard
+// untestable and — worse — means a deploy-time env value is baked in rather
+// than evaluated per invocation.
+function resetSyncExecutionEnabled(): boolean {
+  return process.env.RESET_SYNC_ENABLED === "true";
+}
+
 export async function POST(req: NextRequest) {
+  if (!resetSyncExecutionEnabled()) {
+    return NextResponse.json(
+      {
+        error: "reset-sync is permanently disabled",
+        reason:
+          "Whole-table destructive re-sync with no public cache reconciliation. " +
+          "Re-enabling requires a bounded whole-public-cache invalidation contract " +
+          "and explicit authorization.",
+      },
+      { status: 410 },
+    );
+  }
+
   const blocked = assertWriteAllowed();
   if (blocked) return blocked;
   const auth = await requireBroker(req);

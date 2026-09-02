@@ -222,7 +222,7 @@ async function run() {
 
   const idxViolation = await prisma.listing.count({
     where: {
-      status: { in: ['Closed', 'Sold', 'Leased', 'Rented', 'Withdrawn', 'Expired', 'Cancelled'] },
+      status: { in: ['Closed', 'Sold', 'Leased', 'Rented', 'Withdrawn', 'Expired', 'Cancelled', 'Canceled'] },
       status_changed_at: { lt: new Date(Date.now() - 86400000) },
       idx_display_yn: true,
     },
@@ -240,7 +240,7 @@ async function run() {
   // the 24h window can't be evaluated, so these represent a tracking gap.
   const terminalUnknownAge = await prisma.listing.count({
     where: {
-      status: { in: ['Closed', 'Sold', 'Leased', 'Rented', 'Withdrawn', 'Expired', 'Cancelled'] },
+      status: { in: ['Closed', 'Sold', 'Leased', 'Rented', 'Withdrawn', 'Expired', 'Cancelled', 'Canceled'] },
       status_changed_at: null,
       idx_display_yn: true,
     },
@@ -293,7 +293,7 @@ async function run() {
   // Do NOT make this gauge alias-aware here (it would over-report rows the cron can't drain).
   const terminalMissingClock = await prisma.listing.count({
     where: {
-      status: { in: ['Closed', 'Sold', 'Leased', 'Rented', 'Withdrawn', 'Expired', 'Cancelled'] },
+      status: { in: ['Closed', 'Sold', 'Leased', 'Rented', 'Withdrawn', 'Expired', 'Cancelled', 'Canceled'] },
       sync_status: { not: 'archived' },
       terminal_since: null,
     },

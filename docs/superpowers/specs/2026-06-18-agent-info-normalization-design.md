@@ -241,7 +241,7 @@ D is recoverable.
   (empty → block). Syndication is HELD (CLAUDE.md §C) but the code is live.
 - **Archive fields** — `data-retention/route.ts:261-262` writes `list_agent_full_name`/`list_office_name`
   into `listings_archive`; after Phase B it reads them via the resolver (typed columns), preserving the
-  6-year NY-DOS archive record.
+  archive record (CORRECTED 2026-08-20: this line read “the 6-year NY-DOS archive record” — 19 NYCRR 175.23 is three years, and it enumerates Article 12-A transaction records — it does not reach a mirrored third-party MLS row, or any photo bytes. Evidence: `.cache/closure3/r2-final/legal/19-NYCRR-175.23-VERBATIM.md`. Operative schedule: `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` §14 Fail-closed row.).
 
 ---
 

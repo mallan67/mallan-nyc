@@ -54,7 +54,7 @@ import TrackListingSend from '@/app/components/TrackListingSend';
 import prisma from '@/lib/prisma';
 import { attachListingCacheTags, listingCacheTag } from '@/lib/cache/public-cache';
 import { unstable_cache } from 'next/cache';
-import { canDisplayListingAddress, isListingDisplayable } from '@/lib/search/listing-access-decision';
+import { canDisplayListingAddress, decidePublicDetailAccess } from '@/lib/search/listing-access-decision';
 // `classifyMediaItem`, `resolveDbListingMedia` and `toDtoMedia` are deliberately
 // NOT imported here any more. Composing media — resolving, proxying, classifying,
 // ordering, hero selection, dedupe and photo counting — is owned solely by
@@ -433,12 +433,48 @@ async function fetchFromDB(slug: string, keyOverride?: string): Promise<ListingF
 
     if (!dbListing) return null;
 
-    // Website-only listings (commercial, rls_eligible=false) bypass RLS gates.
-    // RLS-backed detail pages fail closed on missing display permissions.
-    const isRlsBacked = dbListing.rls_eligible !== false;
-    if (isRlsBacked && !isListingDisplayable(dbListing)) {
+    // ── ONE PUBLICATION DECISION, SHARED BY EVERY CONSUMER OF THIS FETCH ──
+    //
+    // Publication eligibility is decided HERE — inside the shared resolution
+    // path, on the RAW DB row, BEFORE any PublicListingDTO is built, returned
+    // or written to the persistent Data Cache. `generateMetadata`, the page
+    // component and the Full Route Cache all consume this one result, so they
+    // cannot disagree about whether a listing is public.
+    //
+    // WHY IT MOVED OFF THE PAGE COMPONENT. The page used to apply the status
+    // half by itself, after this function had already returned a complete DTO.
+    // `generateMetadata` calls the SAME memoized resolver and runs FIRST, so a
+    // Draft still produced a title, description, price, street address, public
+    // remarks, canonical URL and OpenGraph/Twitter cards before the page ever
+    // reached its own `notFound()`. A visibility rule enforced in one of two
+    // consumers is not a rule, it is a race — and under `revalidate = false`
+    // the leaked metadata was cacheable.
+    //
+    // WHY IT COULD NOT STAY SPLIT, EVEN IN PRINCIPLE. The page only holds the
+    // DTO, whose `status` is a DISPLAY LABEL (`db-to-public-dto` maps
+    // `ActiveUnderContract` → `'Active Under Contract'`). Gating on it meant
+    // round-tripping a label back through `normalizeStatus` and depending on
+    // that map staying reversible — adding e.g. `Pending: 'In Contract'` would
+    // silently 404 every Pending listing. Here the raw `dbListing.status` and
+    // every gate column are in hand, so the decision is made on the real values.
+    //
+    // SOURCE-CLASS AWARE, because the two classes have different contracts:
+    // RLS-backed rows must satisfy the REBNY/RLS distribution gates, while
+    // website-only rows carry `idx_display_yn: false` BY CONSTRUCTION
+    // (`computeGateColumns`: `idx_display_yn = rls_eligible && …`) and are
+    // therefore governed by Mallan's own publication contract, which is
+    // status-borne. See `decidePublicDetailAccess`.
+    //
+    // Placed at exactly the point the previous distribution-gate check
+    // occupied — before return-copy canonicalization — so a row that may not be
+    // served publicly does not even confirm its existence via a redirect. For
+    // return-copies this is behaviour-identical: they are Cotality rows, so the
+    // RLS gate already decided them here.
+    const access = decidePublicDetailAccess(dbListing);
+    if (!access.retrievable) {
       return null;
     }
+    const isRlsBacked = access.sourceClass === 'rls-backed';
 
     // MALLAN RLS RETURN-COPY CANONICALIZATION (CHARTER Section 1A).
     //
@@ -745,6 +781,7 @@ const fetchListing = cache(async function fetchListing(slug: string, keyOverride
         { tags: [listingCacheTag(dataCacheId)], revalidate: false },
       )()
     : await fetchFromDB(slug, keyOverride);
+
   // One Cycle W1 (Codex P2 fix): attach this listing's cache tags to the
   // CURRENT render, so the sync's revalidateTag('listing:{id}') evicts this
   // page's ISR HTML — for every URL variant that funnels through this seam
@@ -794,7 +831,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const result = await resolveListingResult(() => fetchListing(id));
 
   if (!result) {
-    return { title: 'Listing Not Found | Mallan Real Estate' };
+    // Covers BOTH a genuine miss and a row that is not publication-eligible —
+    // `fetchListing` cannot tell them apart by design, because a non-public
+    // listing must be indistinguishable from a non-existent one. No title,
+    // address, price, remarks, image or canonical URL is derived from the row.
+    //
+    // `noindex` is deliberate rather than redundant: the page 404s, but a Draft
+    // that was publicly retrievable before this fix may already be IN the index,
+    // and an explicit directive de-indexes it faster than a bare 404.
+    return {
+      title: 'Listing Not Found | Mallan Real Estate',
+      robots: { index: false, follow: false },
+    };
   }
 
   // NARROW BEFORE DEREFERENCING. A return-copy resolves to a redirect outcome
@@ -913,6 +961,17 @@ export default async function ListingPage({ params }: Props) {
   }
 
   const listing = result.listing;
+
+  // PUBLICATION ELIGIBILITY is NOT re-decided here.
+  //
+  // It is owned by `decidePublicDetailAccess`, called inside `fetchFromDB` on
+  // the raw DB row before any DTO is built or cached. By the time a `listing`
+  // exists at this point it is already publication-eligible, so a second check
+  // here could only ever drift from the first — and the version that used to
+  // live here was drifted by construction: it re-derived the answer from
+  // `listing.status`, which is a DISPLAY LABEL, and it ran AFTER
+  // `generateMetadata` had already published the listing's address, price,
+  // remarks, canonical URL and OpenGraph/Twitter cards.
 
   // Twin-safe open-house key (street+unit+ZIP), non-empty ONLY for Mallan-owned LOCAL exclusives
   // (SL-/RL-): lets ListingOpenHouseRSVP match a Cotality RLS-twin open house that /api/open-houses

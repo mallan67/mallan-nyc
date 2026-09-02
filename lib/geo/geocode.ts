@@ -36,7 +36,7 @@
  *             unchanged from before): the public payload itself does not
  *             label which coordinates are verified vs approximate.
  *   After a run, the manifest picks up new rows within one revalidation
- *   window (30 min), or immediately if the GEOCODE_MANIFEST_TAG is
+ *   window (10 min), or immediately if the GEOCODE_MANIFEST_TAG is
  *   revalidated by an approved pathway.
  *
  * COMPLIANCE: Geocoding runs server-side only.
@@ -60,7 +60,7 @@ const memCache = new Map<string, [number, number]>();
  * geocode_cache table (13.5k slim rows ≈ 0.7 MB) through the shared data
  * cache instead: at most ONE bounded Neon read per revalidation window
  * across ALL anonymous traffic, then zero. geocode_cache rows are permanent
- * (an address's coordinates don't change), so the 30-min fallback loses
+ * (an address's coordinates don't change), so the 10-min fallback loses
  * nothing; the tag allows explicit invalidation after a batch-geocode run.
  */
 export const GEOCODE_MANIFEST_TAG = 'geocode-manifest';

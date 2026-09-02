@@ -127,6 +127,13 @@ function makeOptions(over: Partial<RunMediaSyncOptions> = {}): RunMediaSyncOptio
 function isMainBacklogCall(call: unknown[]): boolean {
   const a = call[0] as { where?: { status?: string; OR?: unknown[]; r2_attempts?: unknown }; take?: number };
   return (
+    // PHASE 3.5 CONTENT VERIFICATION is NOT backlog work and must never be counted as a
+    // selection query. Its where-shape is otherwise identical to the backlog universe
+    // (status active + OR + no r2_attempts), so shape alone cannot tell them apart — it is
+    // identified by its content_check_* predicate, which the backlog universe never carries.
+    // Semantically the two are disjoint: verification asserts delivery PRESENT (r2_key not
+    // null); the backlog asserts delivery MISSING.
+    !JSON.stringify(a?.where ?? {}).includes("content_check") &&
     a?.where?.status === "active" &&
     Array.isArray(a.where.OR) &&
     a.where.r2_attempts === undefined &&

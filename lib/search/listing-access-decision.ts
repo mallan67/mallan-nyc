@@ -1,3 +1,7 @@
+import {
+  isCanonicalStatus,
+  isMallanPublicationEligibleStatus,
+} from '@/lib/compliance/status';
 import type { Prisma } from "@prisma/client";
 import { excludeMallanRlsReturnCopies } from "@/lib/listings/mallan-source-identity";
 import {
@@ -153,4 +157,115 @@ export function isListingDisplayable(input: PermissionInput): boolean {
 
 export function canDisplayListingAddress(input: PermissionInput): boolean {
   return isAddressDisplayable(input);
+}
+
+/**
+ * Which publication contract binds this row.
+ *
+ * `rls_eligible` is `Boolean @default(true)` (NON-NULL) in the Prisma schema,
+ * so these two branches are exhaustive.
+ */
+export type PublicDetailSourceClass = 'rls-backed' | 'mallan-website-only';
+
+export type PublicDetailRefusal =
+  /** Status is not publication-eligible (Draft/Incomplete/unknown, or terminal). */
+  | 'status-not-publication-eligible'
+  /** RLS distribution gate refused: idx_display_yn / opt-out / participant-only. */
+  | 'distribution-gate';
+
+export type PublicDetailAccess =
+  | { retrievable: true; sourceClass: PublicDetailSourceClass }
+  | { retrievable: false; sourceClass: PublicDetailSourceClass; reason: PublicDetailRefusal };
+
+export function publicDetailSourceClass(input: { rls_eligible?: unknown }): PublicDetailSourceClass {
+  return input.rls_eligible === false ? 'mallan-website-only' : 'rls-backed';
+}
+
+export interface PublicDetailAccessInput extends PermissionInput {
+  rls_eligible?: unknown;
+}
+
+/**
+ * Read the status the way `gates.ts` does, so a Trestle-shaped record and a DB
+ * row cannot get different answers out of the same decision.
+ */
+function readAccessStatus(input: PublicDetailAccessInput): unknown {
+  for (const key of ['status', 'StandardStatus', 'standardStatus', 'MlsStatus'] as const) {
+    const value = (input as Record<string, unknown>)[key];
+    if (value !== undefined) return value;
+  }
+  return undefined;
+}
+
+/**
+ * THE canonical answer to "may this row be served at its PUBLIC DETAIL URL?".
+ *
+ * ONE decision, SOURCE-CLASS AWARE, called from the SHARED listing-resolution
+ * path — before a `PublicListingDTO` is built, returned or cached. That
+ * placement is the point: `generateMetadata`, the page component and the Full
+ * Route Cache all consume the same resolver, so a decision made in only one of
+ * them is not a visibility rule, it is a race. A Draft that was refused by the
+ * page but not by the resolver still had its address, price, remarks, canonical
+ * URL and OpenGraph/Twitter cards built from it.
+ *
+ * The two conditions do NOT bind the two source classes equally:
+ *
+ *   1. PUBLICATION STATUS — binds BOTH classes. Canonical and non-terminal
+ *      (see `isPubliclyRetrievableStatus`). Keeps Mallan `Draft`/`Incomplete`
+ *      private — creation is not publication (MALLAN-PLATFORM-MASTER-PLAN
+ *      §4.1/§4.2/§5.1) — and stops a terminal row in EITHER class from keeping
+ *      a public page. Deliberately NOT `isActiveDisplayStatus`: that is public
+ *      SEARCH membership and would 404 `Pending`, which detail intentionally
+ *      serves.
+ *
+ *   2. THE REBNY/RLS DISTRIBUTION GATES — bind ONLY RLS-backed rows. They must
+ *      not be applied to website-only inventory: `computeGateColumns` computes
+ *      `idx_display_yn = rls_eligible && …`, so EVERY `rls_eligible === false`
+ *      row carries `idx_display_yn: false` by construction. Requiring the RLS
+ *      gate of them would 404 all Mallan website-only inventory. Their
+ *      publication contract is Mallan's own, and it is carried by status —
+ *      exactly as `lib/crm/listing-publish-contract.ts` already models it
+ *      (`exclusiveEligible = !isTerminal`).
+ *
+ * Returns a REASON rather than a bare boolean so the caller can distinguish a
+ * pre-publication refusal from a permission refusal without re-deriving either.
+ *
+ * `isListingDisplayable` is unchanged: it answers the gate question for the
+ * portal and other authenticated consumers, which legitimately see
+ * pre-publication and off-market rows.
+ */
+export function decidePublicDetailAccess(input: PublicDetailAccessInput): PublicDetailAccess {
+  const sourceClass = publicDetailSourceClass(input);
+  const status = readAccessStatus(input);
+
+  // 1. VOCABULARY — binds BOTH classes.
+  //    Kills the Mallan pre-publication values (`Draft`, `Incomplete`), the
+  //    live-but-unmodelled provider values (`Delete`), and anything unknown.
+  //    This is the half that closes the Draft leak.
+  if (!isCanonicalStatus(status)) {
+    return { retrievable: false, sourceClass, reason: 'status-not-publication-eligible' };
+  }
+
+  // 2. THE SOURCE-CLASS CONTRACT — deliberately NOT the same test twice.
+  if (sourceClass === 'rls-backed') {
+    // The REBNY/RLS gate is the SINGLE OWNER of terminality for RLS inventory,
+    // and it is more precise than a flat status set: it keeps a just-Closed
+    // listing servable for 24h after CloseDate per UCBA Art. I §6 ("removed OR
+    // MARKED CLOSED within 24hrs"). Re-testing terminal here would delete that.
+    if (!isListingDisplayable(input)) {
+      return { retrievable: false, sourceClass, reason: 'distribution-gate' };
+    }
+    return { retrievable: true, sourceClass };
+  }
+
+  // Website-only (`rls_eligible === false`): no REBNY gate governs this row —
+  // and none CAN, because `computeGateColumns` computes
+  // `idx_display_yn = rls_eligible && …`, so the column is false by
+  // construction and carries zero publication information here. Mallan's own
+  // contract applies, and it ends at terminal.
+  if (!isMallanPublicationEligibleStatus(status)) {
+    return { retrievable: false, sourceClass, reason: 'status-not-publication-eligible' };
+  }
+
+  return { retrievable: true, sourceClass };
 }

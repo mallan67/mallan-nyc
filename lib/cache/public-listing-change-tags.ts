@@ -31,6 +31,20 @@ import {
   manifestShardTag,
 } from '@/lib/cache/public-cache';
 
+/**
+ * How much of the public surface a change actually reaches.
+ *
+ * `listing-only`                  the listing's own page changed; building and
+ *                                 manifest payloads are provably unaffected.
+ * `listing-building-manifest`     the listing's HERO output changed, which the
+ *                                 building payload and manifest shard both
+ *                                 carry — all three must expire.
+ *
+ * There is deliberately no "manifest-only" or "building-only": every change
+ * that reaches those layers reaches the listing page too.
+ */
+export type PublicListingChangeScope = 'listing-only' | 'listing-building-manifest';
+
 export interface PublicListingChangeTags {
   /** Cache tags to expire. */
   tags: string[];
@@ -52,9 +66,25 @@ export function publicListingChangeTags(
   listingId: string,
   previousAddress: unknown,
   nextAddress: unknown,
+  scope: PublicListingChangeScope = 'listing-building-manifest',
 ): PublicListingChangeTags {
   const tags: string[] = [listingCacheTag(listingId)];
   const shards: string[] = [];
+
+  // LISTING-ONLY — the change alters the listing's own public page but NOT the
+  // payloads the building and manifest layers actually read.
+  //
+  // Proven by the manifest projection itself: it selects ONLY the listing's
+  // hero state (`primary_photo_url`, `primary_photo_r2_key`). It does not read
+  // gallery order, photo count, floorplans or videos. So a gallery mutation
+  // that leaves the hero output identical cannot change a building or manifest
+  // payload, and expiring them would be pure cache churn — the exact churn this
+  // work exists to remove.
+  //
+  // Hero changes must NOT use this scope.
+  if (scope === 'listing-only') {
+    return { tags, shards };
+  }
 
   for (const bTag of buildingInvalidationTags(previousAddress, nextAddress)) {
     tags.push(bTag);

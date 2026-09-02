@@ -128,7 +128,19 @@ export async function fetchFromTrestle(
       // Caller has explicitly opted in despite Trestle's known rejection
       // pattern. If a 400 fires here, fall back to `fetchListingMedia()`
       // rather than re-enabling this by default.
-      expandParts.push("Media($select=MediaURL,MediaCategory,Order,PreferredPhotoYN,ShortDescription,ModificationTimestamp,ResourceRecordKey,MediaStatus;$filter=MediaStatus ne 'Deleted';$top=8;$orderby=Order)");
+      // E-0: the inner `$filter` also refuses provider-suppressed media.
+      //
+      // `InternetEntireListingDisplayYN ne false` is applied SERVER-side here
+      // because the expanded rows are consumed inline. Null-safety is LIVE
+      // VERIFIED, not assumed: `ne false` = 1,690,414 = `eq true` (1,690,352) +
+      // `eq null` (62), so OData's three-valued logic keeps null rows — which is
+      // required, since null means "not suppressed" under the IDX Plus rule.
+      //
+      // NOTE `MediaStatus ne 'Deleted'` is retained but is currently a NO-OP:
+      // across the whole live feed there are 0 rows with a non-`Active`
+      // MediaStatus (1,969,243 Active). Deletion is detected by disappearance
+      // from a complete set, not by this value. Kept as defensive only.
+      expandParts.push("Media($select=MediaURL,MediaCategory,Order,PreferredPhotoYN,ShortDescription,ModificationTimestamp,ResourceRecordKey,MediaStatus,InternetEntireListingDisplayYN;$filter=MediaStatus ne 'Deleted' and InternetEntireListingDisplayYN ne false;$top=8;$orderby=Order)");
     }
     if (options.expandCustomProperty === true) {
       // Bare expand only — the previous inner `$select` (with
@@ -606,7 +618,10 @@ export async function fetchListingMedia(
     params.set("$filter", `${keyFilter} and MediaStatus ne 'Deleted'`);
     // MediaKey is selected so callers have a stable logical identity per asset
     // (duplicate detection cannot rely on a signed/ordered MediaURL).
-    params.set("$select", "MediaKey,MediaURL,MediaType,MediaCategory,Order,ShortDescription,PreferredPhotoYN,MediaStatus");
+    // E-0: `InternetEntireListingDisplayYN` is the provider's media display
+    // authorization (live: populated 5,000/5,000, 278,927 `false` feed-wide).
+    // Requested here so `fetchListingMedia` consumers can refuse suppressed rows.
+    params.set("$select", "MediaKey,MediaURL,MediaType,MediaCategory,Order,ShortDescription,PreferredPhotoYN,MediaStatus,InternetEntireListingDisplayYN");
     params.set("$orderby", "Order asc");
     // PER-PAGE size only — the rest is followed via @odata.nextLink below.
     params.set("$top", "50");
@@ -656,6 +671,33 @@ export async function fetchListingMedia(
   if (records.length === 0) {
     return [];
   }
+
+  // ── E-0: PROVIDER MEDIA DISPLAY AUTHORIZATION ───────────────────────────
+  //
+  // Refuse rows Cotality marked NOT for internet display, BEFORE any of them can
+  // become a gallery entry, a photo count, a card image or a hero. This path
+  // serves public consumers directly (search cards, similar listings, open
+  // houses, /api/listings/[id]), so authorization must precede classification.
+  //
+  // Only an EXPLICIT `false` blocks — `null`/absent is "not suppressed", the
+  // same IDX Plus pre-filter rule the Property-side gates use, and live only 62
+  // rows feed-wide are null.
+  //
+  // The flag is LISTING-level per live evidence (0 of 4,132 listings carried a
+  // mix), so this normally rejects a whole set; the per-row form is the
+  // fail-closed generalisation.
+  const authorized = records.filter((m) => m.InternetEntireListingDisplayYN !== false);
+  if (authorized.length !== records.length) {
+    // Bounded aggregate only — no URL, key or address.
+    console.warn(
+      `[IDX Fetch] media display authorization refused ${records.length - authorized.length}/${records.length} row(s) for ${listingKey}`,
+    );
+  }
+  if (authorized.length === 0) {
+    return [];
+  }
+  records = authorized;
+
   return records.map((m: Record<string, unknown>, i: number) => {
     // RESO DD: MediaCategory = content type (Photo, Floor Plan, Video, Virtual Tour)
     //          MediaType = file format (jpeg, png) — NOT content type

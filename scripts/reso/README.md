@@ -206,6 +206,6 @@ seed for:
   - `scripts/investigate-listing-gap.js` — narrower probe used to
     triage the 10,428 vs 5,169 gap during the migration.
 - Cached Trestle metadata: `artifacts/metadata.xml`.
-- Field registry: `data/RLS-FIELD-REGISTRY.md`.
+- Field registry: `data/RLS-FIELD-REGISTRY.md` — **DEPRECATED / HISTORICAL SNAPSHOT (2026-03-20), NOT field authority. Verify live against Cotality.**
 - Authoritative field list: `data/rebny-rls-property-fields.csv`.
 - Lookup values: `data/rebny-rls-property-lookup.csv`.
