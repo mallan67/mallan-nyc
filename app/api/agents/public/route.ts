@@ -25,9 +25,9 @@ export async function GET() {
         first_name: true,
         last_name: true,
         title: true,
-        // needed to DERIVE the professional designation
+        // the LICENCE CLASS alone DERIVES the professional designation.
+        // `role` is an authorisation grant and is deliberately NOT selected.
         license_type: true,
-        role: true,
         photo: true,
         bio: true,
         specialties: true,

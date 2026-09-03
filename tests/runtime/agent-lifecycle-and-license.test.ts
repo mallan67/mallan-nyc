@@ -14,7 +14,13 @@
  *     Fixing the browser mapping is insufficient. A stale client, a malformed
  *     request or a direct API caller must not be able to put a designation
  *     display string into a column whose canonical values are
- *     broker | salesperson.
+ *     salesperson | associate_broker | broker.
+ *
+ *  3. THE LICENCE CLASS IS NOT DERIVED FROM AUTHORISATION.
+ *     `associate_broker` is its own stored class. The retired design inferred
+ *     it from `broker` + role AGENT, manufacturing a NY licence class out of a
+ *     Mallan software permission. Nothing on the write path reads `role` to
+ *     decide a class or a title any more.
  */
 import { readFileSync } from 'fs';
 import { resolve, sep } from 'path';
@@ -105,26 +111,35 @@ const patch = (body: unknown) =>
 
 // ═══════════════════════════════════════════════════════════════════════════
 describe('licence designation contract (pure)', () => {
-  it('only broker and salesperson are canonical', () => {
-    expect([...LICENSE_TYPES]).toEqual(['broker', 'salesperson']);
+  it('three licence classes are canonical, associate_broker among them', () => {
+    expect([...LICENSE_TYPES]).toEqual(['salesperson', 'associate_broker', 'broker']);
   });
 
   it('every designation resolves to a canonical licence class', () => {
     for (const d of Object.values(DESIGNATIONS)) {
       expect(LICENSE_TYPES).toContain(resolveDesignation(d)!.license_type);
     }
+    expect(resolveDesignation(DESIGNATIONS.ASSOCIATE_BROKER)!.license_type).toBe('associate_broker');
+    expect(resolveDesignation(DESIGNATIONS.PRINCIPAL_BROKER)!.license_type).toBe('broker');
+    expect(resolveDesignation(DESIGNATIONS.SALESPERSON)!.license_type).toBe('salesperson');
   });
 
-  it('reverse resolution uses ROLE, never the broker-editable title', () => {
-    // both store license_type "broker" - role is what separates them
-    expect(designationFromStored('broker', 'BROKER')).toBe(DESIGNATIONS.PRINCIPAL_BROKER);
-    expect(designationFromStored('broker', 'AGENT')).toBe(DESIGNATIONS.ASSOCIATE_BROKER);
-    expect(designationFromStored('salesperson', 'AGENT')).toBe(DESIGNATIONS.SALESPERSON);
+  it('reverse resolution reads the LICENCE CLASS, never the authorisation role', () => {
+    // The class carries the fact now; there is no role argument to pass.
+    expect(designationFromStored('associate_broker')).toBe(DESIGNATIONS.ASSOCIATE_BROKER);
+    expect(designationFromStored('broker')).toBe(DESIGNATIONS.PRINCIPAL_BROKER);
+    expect(designationFromStored('salesperson')).toBe(DESIGNATIONS.SALESPERSON);
   });
 
-  it('an Associate Broker with an off-pattern title still reopens as Associate', () => {
-    // the old title-text heuristic returned "Licensed Broker" here
-    expect(designationFromStored('broker', 'AGENT')).toBe(DESIGNATIONS.ASSOCIATE_BROKER);
+  it('a legacy bare "broker" row is not ESCALATED when its own title says associate', () => {
+    // The second argument is the STORED TITLE - a designation string, which is
+    // evidence about the licence. It is never the role.
+    expect(designationFromStored('broker', 'Licensed Real Estate Associate Broker'))
+      .toBe(DESIGNATIONS.ASSOCIATE_BROKER);
+    expect(designationFromStored('broker', 'Licensed Associate Real Estate Broker'))
+      .toBe(DESIGNATIONS.ASSOCIATE_BROKER);
+    expect(designationFromStored('broker', 'Licensed Real Estate Broker'))
+      .toBe(DESIGNATIONS.PRINCIPAL_BROKER);
   });
 
   it('an unknown licence forces an explicit choice rather than guessing', () => {
@@ -135,16 +150,19 @@ describe('licence designation contract (pure)', () => {
   it('rejects designation display strings, and says what to send instead', () => {
     const err = rejectNonCanonicalLicenseType('Licensed Associate Broker');
     expect(err).toContain('is a designation, not a licence class');
-    expect(err).toContain('"broker"');
+    expect(err).toContain('"associate_broker"');
     expect(rejectNonCanonicalLicenseType('garbage')).toContain('must be one of');
     expect(rejectNonCanonicalLicenseType('broker')).toBeNull();
+    expect(rejectNonCanonicalLicenseType('associate_broker')).toBeNull();
     expect(rejectNonCanonicalLicenseType(undefined)).toBeNull();
   });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
 describe('server boundary refuses non-canonical license_type', () => {
-  for (const bad of ['Licensed Associate Broker', 'Licensed Broker', 'garbage', 'BROKER']) {
+  for (const bad of ['Licensed Associate Broker', 'Licensed Associate Real Estate Broker',
+                     'Licensed Real Estate Associate Broker', 'Licensed Broker',
+                     'Associate Broker', 'garbage', 'BROKER', 'associate-broker']) {
     it(`CREATE rejects ${JSON.stringify(bad)} with 400 and zero mutation`, async () => {
       const { POST } = await import('@/app/api/crm/agents/route');
       const res = await POST(makeRequest({
@@ -167,7 +185,7 @@ describe('server boundary refuses non-canonical license_type', () => {
 
   it('accepts the canonical values', async () => {
     const { PATCH } = await import('@/app/api/crm/agents/[id]/route');
-    for (const good of ['broker', 'salesperson']) {
+    for (const good of ['broker', 'salesperson', 'associate_broker']) {
       jest.clearAllMocks();
       requireBrokerMock.mockResolvedValue(BROKER);
       agentFindUnique.mockResolvedValue({ ...TARGET });
@@ -340,20 +358,50 @@ describe('P0-2 every status and licence writer obeys the authority', () => {
 });
 
 describe('P0-3/P0-4 role, licence and title stay congruent', () => {
-  it('derives the title from licence class and authorisation role', () => {
-    expect(canonicalTitleFor('broker', 'AGENT')).toBe('Licensed Real Estate Associate Broker');
-    expect(canonicalTitleFor('broker', 'BROKER')).toBe('Licensed Real Estate Broker');
-    expect(canonicalTitleFor('salesperson', 'AGENT')).toBe('Licensed Real Estate Salesperson');
-    expect(canonicalTitleFor(null, 'AGENT')).toBeNull();
+  it('derives the title from the LICENCE CLASS alone - there is no role argument', () => {
+    expect(canonicalTitleFor('associate_broker')).toBe('Licensed Associate Real Estate Broker');
+    expect(canonicalTitleFor('broker')).toBe('Licensed Real Estate Broker');
+    expect(canonicalTitleFor('salesperson')).toBe('Licensed Real Estate Salesperson');
+    expect(canonicalTitleFor(null)).toBeNull();
+    // Passing an authorisation grant is a COMPILE error, which is the point.
+    expect(canonicalTitleFor.length).toBe(1);
   });
 
-  it('an AGENT-role record cannot be styled principal Broker, whatever is posted', async () => {
+  it('the posted title is ignored - the stored title follows the posted licence class', async () => {
     const { PATCH } = await import('@/app/api/crm/agents/[id]/route');
-    await PATCH(patch({ license_type: 'broker', title: 'Licensed Real Estate Broker' }),
+    await PATCH(patch({ license_type: 'associate_broker', title: 'Licensed Real Estate Broker' }),
       { params: Promise.resolve({ id: '6' }) });
     const dataArg = (agentUpdate.mock.calls as unknown as Array<[{ data: Record<string, unknown> }]>)[0][0];
-    // role on the stored record is AGENT, so the derived title is Associate
-    expect(dataArg.data.title).toBe('Licensed Real Estate Associate Broker');
+    expect(dataArg.data.title).toBe('Licensed Associate Real Estate Broker');
+  });
+
+  it('a posted principal-broker class derives the principal designation, whatever the stored role', async () => {
+    // The stored record carries role AGENT. Under the retired design that
+    // silently rewrote this to the Associate Broker title.
+    jest.clearAllMocks();
+    requireBrokerMock.mockResolvedValue(BROKER);
+    agentFindUnique.mockResolvedValue({ ...TARGET, role: 'AGENT' });
+    agentUpdate.mockResolvedValue({ ...TARGET });
+    const { PATCH } = await import('@/app/api/crm/agents/[id]/route');
+    await PATCH(patch({ license_type: 'broker' }), { params: Promise.resolve({ id: '6' }) });
+    const dataArg = (agentUpdate.mock.calls as unknown as Array<[{ data: Record<string, unknown> }]>)[0][0];
+    expect(dataArg.data.title).toBe('Licensed Real Estate Broker');
+  });
+
+  it('an unrelated PATCH never rewrites the designation of a legacy row', async () => {
+    // The title is recomputed only when the licence class is actually written.
+    // Otherwise editing a phone number would ESCALATE a legacy "broker" row.
+    jest.clearAllMocks();
+    requireBrokerMock.mockResolvedValue(BROKER);
+    agentFindUnique.mockResolvedValue({
+      ...TARGET, license_type: 'broker', role: 'AGENT',
+      title: 'Licensed Real Estate Associate Broker',
+    });
+    agentUpdate.mockResolvedValue({ ...TARGET });
+    const { PATCH } = await import('@/app/api/crm/agents/[id]/route');
+    await PATCH(patch({ phone: '646-555-0100' }), { params: Promise.resolve({ id: '6' }) });
+    const dataArg = (agentUpdate.mock.calls as unknown as Array<[{ data: Record<string, unknown> }]>)[0][0];
+    expect(dataArg.data.title).toBeUndefined();
   });
 
   it('a salesperson licence cannot hold BROKER authorisation', () => {

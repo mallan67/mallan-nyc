@@ -116,7 +116,7 @@ const getAgents = cache(async () => {
       where: { status: 'active' },
       select: {
         public_slug: true, full_name: true, first_name: true, last_name: true,
-        title: true, license_type: true, role: true, photo: true, phone: true,
+        title: true, license_type: true, photo: true, phone: true,
         email: true, bio: true, specialties: true, languages: true, featured: true,
       },
       orderBy: [{ featured: 'desc' }, { created_at: 'asc' }],

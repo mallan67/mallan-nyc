@@ -36,9 +36,8 @@ const CLAUDIA_DB: DbAgentRow = {
   full_name: 'Claudia Milkowski',
   first_name: 'Claudia',
   last_name: 'Milkowski',
-  title: 'Licensed Real Estate Associate Broker',
-  license_type: 'broker',
-  role: 'AGENT',
+  title: 'Licensed Associate Real Estate Broker',
+  license_type: 'associate_broker',
   photo: '/images/agents/claudia-milkowski.jpg',
   phone: '(646) 418-8388',
   email: 'cmilkowski@mallan.nyc',
@@ -126,17 +125,36 @@ describe('an outage FAILS CLOSED - it never publishes a stale identity', () => {
 });
 
 describe('neither source can mislabel a licensee', () => {
-  it('derives the designation from licence + role, not the stored column', () => {
-    // a stale title column says Salesperson; licence + role say Associate Broker
+  it('derives the designation from the LICENCE CLASS, not the stored column', () => {
+    // a stale title column says Salesperson; the licence class says associate
     const p = fromDatabase({ ...CLAUDIA_DB, title: 'Licensed Real Estate Salesperson' }, 'x');
-    expect(p.title).toBe('Licensed Real Estate Associate Broker');
+    expect(p.title).toBe('Licensed Associate Real Estate Broker');
   });
 
-  it('a principal broker and an associate broker are distinguished by role', () => {
-    expect(fromDatabase({ ...CLAUDIA_DB, role: 'BROKER' }, 'x').title)
+  it('a principal broker and an associate broker are distinguished by LICENCE CLASS', () => {
+    expect(fromDatabase({ ...CLAUDIA_DB, license_type: 'broker', title: null }, 'x').title)
       .toBe('Licensed Real Estate Broker');
-    expect(fromDatabase({ ...CLAUDIA_DB, role: 'AGENT' }, 'x').title)
-      .toBe('Licensed Real Estate Associate Broker');
+    expect(fromDatabase({ ...CLAUDIA_DB, license_type: 'associate_broker' }, 'x').title)
+      .toBe('Licensed Associate Real Estate Broker');
+  });
+
+  it('LEGACY AMBIGUITY GUARD: a bare "broker" row is not ESCALATED when its title says associate', () => {
+    // Rows written under the retired two-class design stored an associate as
+    // "broker". Their own stored designation string is evidence about the
+    // licence, so it holds. `role` is never consulted - it is not on the shape.
+    expect(fromDatabase({ ...CLAUDIA_DB, license_type: 'broker' }, 'x').title)
+      .toBe('Licensed Associate Real Estate Broker');
+  });
+
+  it('the public shape carries NO authorisation grant at all', () => {
+    // `role` is not on DbAgentRow, so the public identity path cannot read it
+    // even by accident. Adding it back is a compile error.
+    expect(Object.keys(CLAUDIA_DB)).not.toContain('role');
+    const src = require('fs').readFileSync(
+      require('path').resolve(__dirname, '../../lib/agents/public-profile-authority.ts'), 'utf8',
+    ) as string;
+    expect(src).not.toContain('role: a.role');
+    expect(src).not.toContain('role: string | null;');
   });
 
   it('a salesperson licence renders the salesperson designation', () => {
@@ -186,7 +204,7 @@ describe('the directory shape carries no contact data at all', () => {
       { ...CLAUDIA_DB, phone: undefined, email: undefined } as never, 'x');
     expect('phone' in entry).toBe(false);
     expect('email' in entry).toBe(false);
-    expect(entry.title).toBe('Licensed Real Estate Associate Broker');
+    expect(entry.title).toBe('Licensed Associate Real Estate Broker');
   });
 
   it('directoryFromStatic drops them too', () => {

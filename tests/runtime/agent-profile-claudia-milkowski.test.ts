@@ -15,6 +15,10 @@
 import { readFileSync } from 'fs';
 import { existsSync } from 'fs';
 import { resolve } from 'path';
+import {
+  normaliseLicenseType,
+  PROFESSIONAL_DESIGNATIONS,
+} from '../../lib/agents/professional-title';
 
 const ROOT = resolve(__dirname, '../..');
 const roster = JSON.parse(readFileSync(resolve(ROOT, 'data/agents.json'), 'utf8')) as {
@@ -35,7 +39,11 @@ describe('canonical roster record', () => {
 
   it('carries the supplied identity verbatim', () => {
     expect(claudia.name).toBe('Claudia Milkowski');
-    expect(claudia.title).toBe('Licensed Real Estate Associate Broker');
+    // Asserted through the ONE constant set, so a NY DOS wording correction is
+    // a single edit there rather than a sweep through the tests.
+    expect(claudia.title).toBe(PROFESSIONAL_DESIGNATIONS.associate_broker);
+    expect(claudia.title).toBe('Licensed Associate Real Estate Broker');
+    expect(normaliseLicenseType(String(claudia.title))).toBe('associate_broker');
     expect(claudia.email).toBe('cmilkowski@mallan.nyc');
     expect(claudia.phone).toBe('(646) 418-8388');
     expect(claudia.languages).toEqual(['English', 'Spanish']);
@@ -90,7 +98,7 @@ describe('no duplicate identity', () => {
       SLUG,
     ]);
     const maya = roster.agents.find((a) => a.id === 'maya-allan')!;
-    expect(maya.title).toBe('Licensed Real Estate Broker');
+    expect(maya.title).toBe(PROFESSIONAL_DESIGNATIONS.broker);
     expect(maya.featured).toBe(true);
   });
 });
@@ -112,7 +120,11 @@ describe('prisma seed agrees with the roster record', () => {
     expect(seedSrc).toContain('public_slug: "claudia-milkowski"');
     expect(seedSrc).toContain('email: "cmilkowski@mallan.nyc"');
     expect(seedSrc).toContain('photo: "/images/agents/claudia-milkowski.jpg"');
-    expect(seedSrc).toContain('title: "Licensed Real Estate Associate Broker"');
+    // The seed takes the designation from the ONE constant set - it must not
+    // carry its own literal, or a wording correction would silently miss it.
+    expect(seedSrc).toContain('title: PROFESSIONAL_DESIGNATIONS.associate_broker');
+    expect(seedSrc).toContain("from \"../lib/agents/professional-title\"");
+    expect(seedSrc).not.toContain('title: "Licensed Real Estate Associate Broker"');
     expect(seedSrc).toContain('license_no: "10301200574"');
   });
 
@@ -125,37 +137,95 @@ describe('prisma seed agrees with the roster record', () => {
     expect(JSON.parse(line!.trim().slice(5, -1))).toBe(claudia.bio);
   });
 
-  it('records the Associate Broker LICENCE without granting the BROKER CRM ROLE', () => {
+  it('records the ASSOCIATE BROKER LICENCE CLASS in its own right', () => {
     const block = seedSrc.slice(seedSrc.indexOf('const claudia ='));
     const upsert = block.slice(0, block.indexOf('console.log'));
-    expect(upsert).toContain('license_type: "broker"');
-    expect(upsert).toContain('role: "AGENT"');
+    // THE PROOF CASE. She is not "broker narrowed by an authorisation grant".
+    expect(upsert).toContain('license_type: "associate_broker"');
+    expect(upsert).not.toContain('license_type: "broker"');
+  });
+
+  it('records her BROKERAGE ROLE, and does not grant principal-broker authority', () => {
+    const block = seedSrc.slice(seedSrc.indexOf('const claudia ='));
+    const upsert = block.slice(0, block.indexOf('console.log'));
+    // She IS an associate broker in the firm - the role names that, rather
+    // than the retired "AGENT", which only meant "not the principal broker".
+    expect(upsert).toContain('role: "ASSOCIATE_BROKER"');
+    expect(upsert).not.toContain('role: "AGENT"');
+    // and principal-broker authority still belongs to BROKER alone
     expect(upsert).not.toContain('role: "BROKER"');
+  });
+
+  it('seeds all four canonical identities with the right licence class', () => {
+    const blockFor = (name: string) => {
+      const b = seedSrc.slice(seedSrc.indexOf('const ' + name + ' ='));
+      return b.slice(0, b.indexOf('console.log'));
+    };
+    expect(blockFor('maya')).toContain('license_type: "broker"');
+    expect(blockFor('maya')).toContain('role: "BROKER"');
+    expect(blockFor('leda')).toContain('license_type: "salesperson"');
+    expect(blockFor('julia')).toContain('license_type: "salesperson"');
+    expect(blockFor('leda')).toContain('role: "SALESPERSON"');
+    expect(blockFor('julia')).toContain('role: "SALESPERSON"');
+    // Leda and Julia must not shift, and Maya must remain principal.
+    expect(blockFor('leda')).toContain('title: PROFESSIONAL_DESIGNATIONS.salesperson');
+    expect(blockFor('julia')).toContain('title: PROFESSIONAL_DESIGNATIONS.salesperson');
+    expect(blockFor('maya')).toContain('title: PROFESSIONAL_DESIGNATIONS.broker');
   });
 });
 
-describe('seed-agents.ts role derivation', () => {
-  it('no longer derives the BROKER admin role from any title containing "broker"', () => {
-    // Regression guard: the old rule was
+describe('seed-agents.ts licence-class derivation', () => {
+  it('no longer string-sniffs the title for the substring "broker"', () => {
+    // Regression guard: the old rules were
     //   role: agent.title.toLowerCase().includes('broker') ? 'BROKER' : 'AGENT'
-    // which would have given an Associate Broker full CRM admin.
+    //   license_type: isLicensedBroker ? 'broker' : 'salesperson'
+    // The first computed a role from a title; the second collapsed an
+    // Associate Broker into the principal-broker licence class.
     expect(seedAgentsSrc).not.toContain("includes('broker') ? 'BROKER'");
-    expect(seedAgentsSrc).toContain("!titleLc.includes('associate')");
-    expect(seedAgentsSrc).toContain("role: isPrincipalBroker ? 'BROKER' : 'AGENT'");
+    expect(seedAgentsSrc).not.toContain("isLicensedBroker ? 'broker' : 'salesperson'");
+    expect(seedAgentsSrc).not.toContain("titleLc.includes('associate')");
+    // the LICENCE CLASS goes through the one authority
+    expect(seedAgentsSrc).toContain("normaliseLicenseType(agent.title)");
+    expect(seedAgentsSrc).toContain("titleForLicenseClass(licenceClass)");
   });
 
-  it('the guard classifies every roster title correctly', () => {
-    const classify = (title: string) => {
-      const t = title.toLowerCase();
-      const licensed = t.includes('broker');
-      return {
-        license_type: licensed ? 'broker' : 'salesperson',
-        role: licensed && !t.includes('associate') ? 'BROKER' : 'AGENT',
-      };
+  it('READS the brokerage role from the roster instead of computing it', () => {
+    // Correlation is not derivation: the role is recorded on the roster and
+    // validated, never inferred from the licence class beside it.
+    expect(seedAgentsSrc).toContain('isCanonicalBrokerageRole(brokerageRole)');
+    expect(seedAgentsSrc).not.toContain("isPrincipalBroker ? 'BROKER' : 'AGENT'");
+    expect(seedAgentsSrc).not.toMatch(/role:\s*licenceClass/);
+  });
+
+  it('the roster records BOTH facts for every agent, independently', () => {
+    const EXPECTED: Record<string, { license: string; role: string }> = {
+      'maya-allan':        { license: 'broker',           role: 'BROKER' },
+      'claudia-milkowski': { license: 'associate_broker', role: 'ASSOCIATE_BROKER' },
+      'leda-gorgone':      { license: 'salesperson',      role: 'SALESPERSON' },
+      'julia-djaafar':     { license: 'salesperson',      role: 'SALESPERSON' },
     };
-    expect(classify('Licensed Real Estate Broker')).toEqual({ license_type: 'broker', role: 'BROKER' });
-    expect(classify('Licensed Real Estate Associate Broker')).toEqual({ license_type: 'broker', role: 'AGENT' });
-    expect(classify('Licensed Real Estate Salesperson')).toEqual({ license_type: 'salesperson', role: 'AGENT' });
+    for (const a of roster.agents) {
+      const want = EXPECTED[String(a.id)];
+      expect(want).toBeDefined();
+      // the licence class is evidenced by the recorded designation...
+      expect(normaliseLicenseType(String(a.title))).toBe(want.license);
+      // ...and the brokerage role is its own recorded value
+      expect(a.role).toBe(want.role);
+    }
+  });
+
+  it('the one authority classifies every roster title correctly', () => {
+    expect(normaliseLicenseType('Licensed Real Estate Broker')).toBe('broker');
+    expect(normaliseLicenseType('Licensed Associate Real Estate Broker')).toBe('associate_broker');
+    // retired word order still readable, for rows already stored
+    expect(normaliseLicenseType('Licensed Real Estate Associate Broker')).toBe('associate_broker');
+    expect(normaliseLicenseType('Licensed Real Estate Salesperson')).toBe('salesperson');
+  });
+
+  it('every roster title resolves to a licence class - none falls through', () => {
+    for (const a of roster.agents) {
+      expect(normaliseLicenseType(String(a.title))).not.toBe('');
+    }
   });
 });
 
@@ -191,5 +261,38 @@ describe('Julia Djaafar languages', () => {
     expect(langs['maya-allan']).toEqual(['English', 'Hebrew', 'Georgian']);
     expect(langs['leda-gorgone']).toEqual(['English', 'Portuguese']);
     expect(langs['claudia-milkowski']).toEqual(['English', 'Spanish']);
+  });
+});
+
+describe('languages are visually distinguishable from specialties on the public profile', () => {
+  // They rendered as one more identical chip, so
+  //   Co-op Board Approvals · Negotiation · ... · English · Spanish
+  // read as a single undifferentiated list and the languages looked missing.
+  it('carries its own labelled block, not another specialty pill', () => {
+    const block = profilePageSrc.slice(
+      profilePageSrc.indexOf('{/* Specialties */}'),
+      profilePageSrc.indexOf('{/* Section Navigation */}'),
+    );
+    expect(block).toContain('Languages');
+    // the specialty chip class must not be what renders the languages
+    const langBlock = block.slice(block.indexOf('agent.languages.length'));
+    expect(langBlock).not.toContain('rounded-full');
+  });
+
+  it('renders for ANY agent with at least one language, not just multilingual ones', () => {
+    // was `agent.languages.length > 1`, so a single language showed nothing
+    expect(profilePageSrc).toContain('agent.languages.length > 0');
+    expect(profilePageSrc).not.toContain('agent.languages.length > 1');
+  });
+
+  it('is generic - no agent is named in the languages markup', () => {
+    const block = profilePageSrc.slice(
+      profilePageSrc.indexOf('{/* Specialties */}'),
+      profilePageSrc.indexOf('{/* Section Navigation */}'),
+    );
+    for (const a of roster.agents) {
+      expect(block).not.toContain(String(a.name));
+      for (const l of (a.languages as string[])) expect(block).not.toContain('"' + l + '"');
+    }
   });
 });

@@ -6,9 +6,9 @@
  * created, the headshot uploaded, and the UI reported an error — so the broker
  * retried ten times. What actually happened, and what this pins:
  *
- *  1. The licence select emits a human DESIGNATION ("Licensed Associate
- *     Broker"). It was posted verbatim into `license_type`, a column that holds
- *     "broker" | "salesperson".
+ *  1. The licence select emits a human DESIGNATION ("Licensed Associate Real
+ *     Estate Broker"). It was posted verbatim into `license_type`, a column
+ *     that holds "salesperson" | "associate_broker" | "broker".
  *  2. `title` was never sent at all, so it landed NULL and the public profile
  *     fell through to its "Licensed Real Estate Salesperson" display default —
  *     publicly advertising an Associate Broker as a salesperson
@@ -47,19 +47,24 @@ function licenseDesignations(): Record<string, { license_type: string; title: st
 describe('licence designation is mapped, not posted verbatim', () => {
   const map = licenseDesignations();
 
-  it('an Associate Broker stores licence "broker" and the Associate Broker title', () => {
-    expect(map['Licensed Associate Broker']).toMatchObject({
-      license_type: 'broker',
-      title: 'Licensed Real Estate Associate Broker',
+  it('an Associate Broker stores its OWN licence class, not "broker"', () => {
+    expect(map['Licensed Associate Real Estate Broker']).toMatchObject({
+      license_type: 'associate_broker',
+      title: 'Licensed Associate Real Estate Broker',
     });
+    // the retired collapse: associate stored as the broker class
+    expect(map['Licensed Associate Real Estate Broker'].license_type).not.toBe('broker');
   });
 
-  it('the principal broker designation is distinct from the associate one', () => {
-    expect(map['Licensed Broker']).toMatchObject({
+  it('the principal broker designation is a DIFFERENT class from the associate one', () => {
+    expect(map['Licensed Real Estate Broker']).toMatchObject({
       license_type: 'broker',
       title: 'Licensed Real Estate Broker',
     });
-    expect(map['Licensed Broker'].title).not.toBe(map['Licensed Associate Broker'].title);
+    expect(map['Licensed Real Estate Broker'].license_type)
+      .not.toBe(map['Licensed Associate Real Estate Broker'].license_type);
+    expect(map['Licensed Real Estate Broker'].title)
+      .not.toBe(map['Licensed Associate Real Estate Broker'].title);
   });
 
   it('a salesperson stores licence "salesperson"', () => {
@@ -75,10 +80,11 @@ describe('licence designation is mapped, not posted verbatim', () => {
     for (const o of new Set(offered)) expect(Object.keys(map)).toContain(o);
   });
 
-  it('license_type only ever holds the two values the column documents', () => {
+  it('license_type only ever holds the three canonical licence classes', () => {
     for (const v of Object.values(map)) {
-      expect(['broker', 'salesperson']).toContain(v.license_type);
+      expect(['salesperson', 'associate_broker', 'broker']).toContain(v.license_type);
     }
+    expect(Object.keys(map)).toHaveLength(3);
   });
 
   it('no designation string is ever stored as a license_type', () => {
@@ -107,10 +113,32 @@ describe('field ownership — what the form collects, it sends', () => {
     expect(panels).not.toContain('raw.sale_split ?');
   });
 
-  it('never sends `role` — authorisation is server-side and hardcoded AGENT', () => {
+  it('sends the BROKERAGE ROLE as its own recorded fact, never computed from the designation', () => {
+    // It used to be omitted entirely and hardcoded "AGENT" server-side, back
+    // when the column meant "not the principal broker" rather than naming a
+    // profession. It is now collected and posted - but it is READ from its own
+    // field, not derived from the licence designation beside it. They normally
+    // agree; they agree because both are known, not because either implies the
+    // other, and a future licensee may break the symmetry.
     const start = panels.indexOf('function _submitAddAgent');
     const body = panels.slice(start, panels.indexOf('function _editAgent', start));
-    expect(body).not.toMatch(/\brole:/);
+    expect(body).toContain('role: raw.role');
+    expect(body).not.toContain('role: designation');
+    expect(body).not.toMatch(/role:\s*(raw\.)?license_type/);
+  });
+
+  it('the roster form offers only the two roles it may create, never the principal broker', () => {
+    const createForm = panels.slice(
+      panels.indexOf('function _addAgent() {'),
+      panels.indexOf('function _submitAddAgent'),
+    );
+    expect(createForm).toContain('<option value="SALESPERSON"');
+    expect(createForm).toContain('<option value="ASSOCIATE_BROKER"');
+    expect(createForm).not.toContain('<option value="BROKER"');
+    // and the server refuses it too, so a stale browser cannot mint one
+    const api = readFileSync(resolve(ROOT, 'app/api/crm/agents/route.ts'), 'utf8');
+    expect(api).toContain('rejectNonCanonicalBrokerageRole');
+    expect(api).toContain('cannot be assigned through the roster form');
   });
 });
 
@@ -194,7 +222,7 @@ describe('visible-field census - nothing disappears silently', () => {
     const sentOrOwned = [
       'first_name', 'last_name', 'email', 'phone', 'license_number', 'license_type',
       'license_expiry', 'mls_member_id', 'agent_split', 'title', 'bio',
-      'languages', 'specialties', 'public_slug',
+      'languages', 'specialties', 'public_slug', 'role',
       'agent_photo', // separate writer: the photo route takes a target agent
     ];
     const enabled = inputNames.filter((n) => {
@@ -295,37 +323,54 @@ function evalDesignationFns() {
   const src = [
     grab('var LICENSE_DESIGNATIONS = {').replace(/^var /, 'const '),
     grab('function _designationFor(selected)'),
-    grab('function _designationFromStored(licenseType, role)'),
+    grab('function _designationFromStored(licenseType, storedTitle)'),
     'return { LICENSE_DESIGNATIONS, _designationFor, _designationFromStored };',
   ].join('\n');
   // eslint-disable-next-line no-new-func
   return new Function(src)() as {
     _designationFor: (d: string) => { license_type: string | null; title: string | null };
-    _designationFromStored: (lt: string | null, title: string | null) => string;
+    _designationFromStored: (lt: string | null, storedTitle?: string | null) => string;
   };
 }
 
 describe('designation round trip — one owner for CREATE and EDIT', () => {
   const { _designationFor, _designationFromStored } = evalDesignationFns();
 
+  const ALL_DESIGNATIONS = [
+    'Licensed Real Estate Salesperson',
+    'Licensed Associate Real Estate Broker',
+    'Licensed Real Estate Broker',
+  ];
+
   it('every designation survives designation -> stored -> designation', () => {
-    const roleFor = (d: string) => (d === 'Licensed Broker' ? 'BROKER' : 'AGENT');
-    for (const d of ['Licensed Real Estate Salesperson', 'Licensed Associate Broker', 'Licensed Broker']) {
+    for (const d of ALL_DESIGNATIONS) {
       const stored = _designationFor(d);
-      expect(_designationFromStored(stored.license_type, roleFor(d))).toBe(d);
+      // NO role is passed. The licence class round-trips on its own.
+      expect(_designationFromStored(stored.license_type)).toBe(d);
     }
   });
 
-  it('an Associate Broker reopens as Associate, distinguished by ROLE not title', () => {
-    // both store license_type "broker"; role is the stable discriminator, and
-    // the title is broker-editable so it cannot carry a licence class
-    expect(_designationFromStored('broker', 'AGENT')).toBe('Licensed Associate Broker');
-    expect(_designationFromStored('broker', 'BROKER')).toBe('Licensed Broker');
+  it('an Associate Broker reopens as Associate from her CLASS, with no role in sight', () => {
+    expect(_designationFromStored('associate_broker')).toBe('Licensed Associate Real Estate Broker');
+    expect(_designationFromStored('broker')).toBe('Licensed Real Estate Broker');
+    // the retired inference: role must not be able to change the answer
+    expect(_designationFromStored('associate_broker', 'BROKER'))
+      .toBe('Licensed Associate Real Estate Broker');
+  });
+
+  it('a legacy bare "broker" row is not ESCALATED when its stored TITLE says associate', () => {
+    expect(_designationFromStored('broker', 'Licensed Real Estate Associate Broker'))
+      .toBe('Licensed Associate Real Estate Broker');
+    expect(_designationFromStored('broker', 'Licensed Associate Real Estate Broker'))
+      .toBe('Licensed Associate Real Estate Broker');
+    expect(_designationFromStored('broker', 'Licensed Real Estate Broker'))
+      .toBe('Licensed Real Estate Broker');
   });
 
   it('stores canonical licence classes, never display strings', () => {
-    for (const d of ['Licensed Real Estate Salesperson', 'Licensed Associate Broker', 'Licensed Broker']) {
-      expect(['broker', 'salesperson']).toContain(_designationFor(d).license_type);
+    for (const d of ALL_DESIGNATIONS) {
+      expect(['salesperson', 'associate_broker', 'broker'])
+        .toContain(_designationFor(d).license_type);
     }
   });
 
@@ -349,7 +394,9 @@ describe('Edit Agent cannot recreate the licence corruption', () => {
 
   it('the edit select preselects from STORED values, not display-string equality', () => {
     expect(panels).not.toContain("a.license_type === 'Licensed Associate Broker'");
-    expect(panels).toContain('_designationFromStored(a.license_type, a.role)');
+    // the stored TITLE is the legacy-ambiguity evidence; the ROLE is not read
+    expect(panels).toContain('_designationFromStored(a.license_type, a.title)');
+    expect(panels).not.toContain('_designationFromStored(a.license_type, a.role)');
   });
 
   it('every unowned edit control is disabled', () => {
@@ -438,17 +485,19 @@ describe('the client table MIRRORS the server contract', () => {
   });
 
   it('Add Agent does not offer the principal-broker designation', () => {
-    // POST hardcodes role AGENT, so that option would mint a contradictory record
+    // POST hardcodes the AGENT authorisation, so that option would mint a
+    // contradictory record.
     const createForm = panels.slice(
       panels.indexOf('function _addAgent() {'),
       panels.indexOf('function _submitAddAgent'),
     );
-    expect(createForm).toContain('<option value="Licensed Associate Broker"');
-    expect(createForm).not.toContain('<option value="Licensed Broker"');
+    expect(createForm).toContain('<option value="Licensed Associate Real Estate Broker"');
+    expect(createForm).not.toContain('<option value="Licensed Real Estate Broker"');
   });
 
-  it('the public title is derived and read-only, never a free-form tagline', () => {
-    expect(panels).toContain('data-derived-from="license_type+role"');
+  it('the public title is derived from the LICENCE CLASS alone, and read-only', () => {
+    expect(panels).toContain('data-derived-from="license_type"');
+    expect(panels).not.toContain('data-derived-from="license_type+role"');
     expect(panels).not.toContain('Title / Tagline');
     expect(panels).toContain('title: designation.title');
     expect(panels).not.toContain('title: raw.title || designation.title');

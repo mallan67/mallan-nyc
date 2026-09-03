@@ -236,10 +236,10 @@ export async function GET(request: Request) {
           first_name: true,
           last_name: true,
           title: true,
-          // Needed to DERIVE the designation. Without these the route had to
-          // guess, and its guess was 'Licensed Real Estate Salesperson'.
+          // The LICENCE CLASS alone DERIVES the designation. Without it the
+          // route had to guess, and its guess was the salesperson default.
+          // `role` is an authorisation grant and is NOT an identity input.
           license_type: true,
-          role: true,
         },
         take: 2,
       });

@@ -62,8 +62,14 @@ export interface DbAgentRow {
   first_name: string;
   last_name: string;
   title: string | null;
+  /**
+   * The NY LICENCE CLASS. It alone determines the advertised designation.
+   *
+   * `role` is deliberately ABSENT from this shape: it is the Mallan
+   * authorisation grant, and reading it here is what used to manufacture a
+   * licence class out of a permission.
+   */
   license_type: string | null;
-  role: string | null;
   photo: string | null;
   phone: string | null;
   email: string;
@@ -92,14 +98,15 @@ const PLACEHOLDER_PHOTO = '/images/agent-placeholder.svg';
 /**
  * Normalise a canonical Agent row for public display.
  *
- * The title is DERIVED from licence class + authorisation role, so a stale
- * `title` column cannot advertise a designation the licence does not support.
+ * The title is DERIVED from the LICENCE CLASS, so neither a stale `title`
+ * column nor an authorisation grant can advertise a designation the licence
+ * does not support.
  */
 export function fromDatabase(a: DbAgentRow, fallbackSlug: string): PublicAgentProfile {
   return {
     id: a.public_slug || fallbackSlug,
     name: a.full_name || `${a.first_name} ${a.last_name}`,
-    title: professionalTitle({ title: a.title, license_type: a.license_type, role: a.role }),
+    title: professionalTitle({ title: a.title, license_type: a.license_type }),
     photo: a.photo || PLACEHOLDER_PHOTO,
     phone: a.phone || '',
     email: a.email,
@@ -122,7 +129,7 @@ export function fromStatic(e: StaticAgentEntry): PublicAgentProfile {
   return {
     id: e.id,
     name: e.name,
-    title: professionalTitle({ title: e.title, license_type: null, role: null }),
+    title: professionalTitle({ title: e.title, license_type: null }),
     photo: e.photo || PLACEHOLDER_PHOTO,
     phone: e.phone || '',
     email: e.email,
@@ -190,7 +197,7 @@ export function directoryFromDatabase(
   return {
     id: a.public_slug || fallbackSlug,
     name: a.full_name || `${a.first_name} ${a.last_name}`,
-    title: professionalTitle({ title: a.title, license_type: a.license_type, role: a.role }),
+    title: professionalTitle({ title: a.title, license_type: a.license_type }),
     photo: a.photo || PLACEHOLDER_PHOTO,
     bio: a.bio || '',
     specialties: a.specialties,

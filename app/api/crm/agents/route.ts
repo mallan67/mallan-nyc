@@ -9,6 +9,7 @@ import {
   rejectUnverifiedMemberMlsId,
   canonicalTitleFor,
 } from "@/lib/agents/license-designation";
+import { rejectNonCanonicalBrokerageRole } from "@/lib/agents/brokerage-role";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
 export async function GET(req: NextRequest) {
@@ -109,6 +110,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: licenseTypeError }, { status: 400 });
   }
 
+  // THE BROKERAGE PROFESSIONAL ROLE IS RECORDED, NOT COMPUTED.
+  //
+  // It correlates with the licence class but is not derived from it: they agree
+  // because both are set from known facts, and a future licensee may break the
+  // symmetry. This path never mints BROKER - the principal broker of the
+  // brokerage is not created through the roster form.
+  const roleError = rejectNonCanonicalBrokerageRole(body.role);
+  if (roleError) {
+    return NextResponse.json({ error: roleError }, { status: 400 });
+  }
+  if (typeof body.role === "string" && body.role.trim().toUpperCase() === "BROKER") {
+    return NextResponse.json(
+      { error: "The principal-broker role cannot be assigned through the roster form." },
+      { status: 400 }
+    );
+  }
+
   // ONBOARDING CONTRACT. The form marks the licence designation, the NY DOS
   // licence number and the expiry as required; the server enforced none of
   // them, so an active brokerage account could be created with no licence
@@ -171,12 +189,15 @@ export async function POST(req: NextRequest) {
       trestle_mls_id: null,
       sale_split: body.sale_split != null ? Number(body.sale_split) : null,
       rental_split: body.rental_split != null ? Number(body.rental_split) : null,
-      role: "AGENT",
+      // Recorded from the form. Legacy "AGENT" remains the default only while
+      // un-migrated rows and sessions still carry it; it states no profession.
+      role: (body.role as string | undefined)?.trim().toUpperCase() ?? "AGENT",
       status: "active",
       // Public profile fields
-      // DERIVED from licence class + authorisation role. Never client input:
-      // the title is a regulated statement about the licence.
-      title: canonicalTitleFor(body.license_type as string, "AGENT"),
+      // DERIVED from the LICENCE CLASS alone. Never client input: the title
+      // is a regulated statement about the licence (NY DOS 19 NYCRR 175.25),
+      // and `role` is an authorisation grant that cannot manufacture one.
+      title: canonicalTitleFor(body.license_type as string),
       bio: (body.bio as string) ?? null,
       photo: (body.photo as string) ?? null,
       public_slug: slug,

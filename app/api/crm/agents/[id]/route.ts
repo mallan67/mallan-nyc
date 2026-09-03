@@ -154,17 +154,25 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     statusTransition = body.status;
   }
 
-  // The professional title is DERIVED from the resulting licence class and
-  // authorisation role. A client-chosen title let an Associate Broker
-  // (role AGENT) be styled "Licensed Real Estate Broker".
+  // The professional title is DERIVED from the LICENCE CLASS alone. A
+  // client-chosen title let an agent be styled "Licensed Real Estate Broker";
+  // a role-derived one manufactured a licence class out of an authorisation
+  // grant. Neither is permitted.
   {
     const nextLicence = (body.license_type as string | undefined) ?? agent.license_type;
     const coherence = rejectIncoherentLicenceRole(nextLicence, agent.role);
     if (coherence) {
       return NextResponse.json({ error: coherence }, { status: 400 });
     }
-    const derived = canonicalTitleFor(nextLicence, agent.role);
-    if (derived) update.title = derived;
+    // ONLY when the licence class is actually being written. Recomputing on
+    // every PATCH would let an unrelated edit (a phone number) rewrite the
+    // designation of a legacy row whose stored class is ambiguous - silently
+    // ESCALATING an Associate Broker to principal broker. The title follows the
+    // licence, so it is recomputed exactly when the licence is set.
+    if (body.license_type !== undefined) {
+      const derived = canonicalTitleFor(body.license_type as string);
+      if (derived) update.title = derived;
+    }
   }
   if (body.bio !== undefined) update.bio = body.bio as string | null;
   if (body.photo !== undefined) update.photo = body.photo as string | null;

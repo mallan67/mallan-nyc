@@ -49,7 +49,7 @@ async function getAgentBySlug(slug: string): Promise<PublicAgentProfile | null> 
         },
         select: {
           public_slug: true, full_name: true, first_name: true, last_name: true,
-          title: true, license_type: true, role: true, photo: true, phone: true,
+          title: true, license_type: true, photo: true, phone: true,
           email: true, bio: true, specialties: true, languages: true, featured: true,
         },
       });
@@ -311,7 +311,7 @@ export default async function AgentPage({ params }: Props) {
                   {agent.bio}
                 </div>
 
-                {/* Specialties & Languages */}
+                {/* Specialties */}
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
                   {agent.specialties.map((specialty, idx) => (
                     <span
@@ -321,12 +321,24 @@ export default async function AgentPage({ params }: Props) {
                       {specialty}
                     </span>
                   ))}
-                  {agent.languages.length > 1 && (
-                    <span className="px-2.5 py-1 ring-1 ring-black/5 text-xs text-brand-dark/90 rounded-full">
-                      {agent.languages.join(' · ')}
-                    </span>
-                  )}
                 </div>
+
+                {/*
+                  Languages — LABELLED and visually distinct from the specialty
+                  chips above. They used to render as one more identical pill,
+                  so "Buyer Representation" and "English · Spanish" read as a
+                  single undifferentiated list and the languages looked missing.
+                  Also gated on `> 1` before, so an agent with one language
+                  showed none at all. Applies to every agent who has languages.
+                */}
+                {agent.languages.length > 0 && (
+                  <p className="mt-3 text-xs text-brand-dark/85 text-center md:text-left">
+                    <span className="uppercase tracking-wide text-brand-dark/55 mr-1.5">
+                      Languages
+                    </span>
+                    {agent.languages.join(', ')}
+                  </p>
+                )}
               </div>
             </div>
           </div>

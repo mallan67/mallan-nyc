@@ -10,15 +10,17 @@
  *     if (type === "broker") return "Licensed Real Estate Broker";
  *     return "Licensed Real Estate Salesperson";
  *
- * That mapping reads `license_type` ALONE. It never consults `role`, and
- * `license_type` cannot distinguish the two people who both hold a NY broker
- * licence:
+ * That mapping read `license_type` ALONE, at a time when the column could not
+ * distinguish the two people who both hold a NY broker licence. The answer is
+ * NOT to consult `role` — an authorisation grant cannot state a licence class.
+ * The column now carries three classes and answers on its own:
  *
- *     principal broker   license_type "broker" + role BROKER
- *     associate broker   license_type "broker" + role AGENT
+ *     principal broker   license_type "broker"
+ *     associate broker   license_type "associate_broker"
  *
- * So every Associate Broker signing in was handed the PRINCIPAL broker
- * designation. That is not a cosmetic label: `/api/auth/me` populates
+ * Under the old mapping every Associate Broker signing in was handed the
+ * PRINCIPAL broker designation. That is not a cosmetic label: `/api/auth/me`
+ * populates
  * `LOGGED_IN_AGENT.licenseTitle` and `AGENT_PROFILE.licenseTitle` /
  * `AGENT_PROFILE.title` in `public/crm/js/core/agent-context.js`, which are
  * printed on CMA reports, print headers and footers, and outbound email
@@ -79,8 +81,8 @@ function agentRow(over: Record<string, unknown> = {}) {
     email: 'cmilkowski@mallan.nyc',
     role: 'AGENT',
     license_no: '10301200574',
-    license_type: 'broker',
-    title: 'Licensed Real Estate Associate Broker',
+    license_type: 'associate_broker',
+    title: 'Licensed Associate Real Estate Broker',
     trestle_mls_id: null,
     phone: '(646) 418-8388',
     ...over,
@@ -100,13 +102,21 @@ beforeEach(() => {
 });
 
 describe('/api/auth/me derives the designation through the ONE authority', () => {
-  it('an ASSOCIATE broker (broker licence, role AGENT) is not styled a principal broker', async () => {
+  it('an ASSOCIATE broker (license_type associate_broker) is not styled a principal broker', async () => {
     const body = await licenseTitleFor();
     expect(body.authenticated).toBe(true);
     expect(body.user.licenseTitle).toBe(ASSOCIATE_BROKER_TITLE);
-    expect(body.user.licenseTitle).toBe('Licensed Real Estate Associate Broker');
+    expect(body.user.licenseTitle).toBe('Licensed Associate Real Estate Broker');
     // The precise regression: license_type "broker" alone used to yield this.
     expect(body.user.licenseTitle).not.toBe(PRINCIPAL_BROKER_TITLE);
+  });
+
+  it('the sign-in designation ignores the authorisation grant entirely', async () => {
+    // Same licence class, opposite authorisation: identical designation.
+    const asAgent = await licenseTitleFor({ role: 'AGENT' });
+    const asBroker = await licenseTitleFor({ role: 'BROKER' });
+    expect(asAgent.user.licenseTitle).toBe(ASSOCIATE_BROKER_TITLE);
+    expect(asBroker.user.licenseTitle).toBe(ASSOCIATE_BROKER_TITLE);
   });
 
   it('the principal broker (broker licence, role BROKER) keeps the principal designation', async () => {
@@ -135,6 +145,15 @@ describe('/api/auth/me derives the designation through the ONE authority', () =>
     expect(body.user.licenseTitle).toBe(SALESPERSON_TITLE);
   });
 
+  it('still returns `role` as the AUTHORISATION contract, unchanged', async () => {
+    // The designation stopped reading role; the response did not stop
+    // REPORTING it. Every CRM access gate depends on this field.
+    const body = await licenseTitleFor({ role: 'AGENT' });
+    expect(body.role).toBe('AGENT');
+    const asBroker = await licenseTitleFor({ role: 'BROKER' });
+    expect(asBroker.role).toBe('BROKER');
+  });
+
   it('a legacy designation string stored in license_type is interpreted, not published blank', async () => {
     const body = await licenseTitleFor({ license_type: 'Licensed Associate Broker', title: null });
     expect(body.user.licenseTitle).toBe(ASSOCIATE_BROKER_TITLE);
@@ -154,14 +173,15 @@ describe('/api/auth/me derives the designation through the ONE authority', () =>
     expect(body.user.licenseTitle).not.toBe(PRINCIPAL_BROKER_TITLE);
   });
 
-  it('selects role AND title, not license_type alone', async () => {
+  it('selects the licence class and the stored title', async () => {
     await licenseTitleFor();
     const select = agentFindUniqueMock.mock.calls[0][0].select;
-    // license_type cannot answer the question on its own; both other axes must
-    // be fetched or the derivation silently degrades.
+    // license_type answers the designation question on its own now. `role` is
+    // still selected, but ONLY because the response reports it as the
+    // authorisation contract - never as an identity input.
     expect(select.license_type).toBe(true);
-    expect(select.role).toBe(true);
     expect(select.title).toBe(true);
+    expect(select.role).toBe(true);
   });
 });
 

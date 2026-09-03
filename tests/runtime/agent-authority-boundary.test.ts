@@ -70,9 +70,8 @@ const HEALTHY_ROW = {
   full_name: 'Claudia Milkowski',
   first_name: 'Claudia',
   last_name: 'Milkowski',
-  title: 'Licensed Real Estate Associate Broker',
-  license_type: 'broker',
-  role: 'AGENT',
+  title: 'Licensed Associate Real Estate Broker',
+  license_type: 'associate_broker',
   photo: '/images/agents/claudia.jpg',
   phone: '(646) 418-8388',
   email: 'cmilkowski@mallan.nyc',
@@ -308,10 +307,11 @@ describe('no other public surface hard-codes an individual professional identity
     expect(code).not.toContain("a.title || 'Licensed Real Estate Salesperson'");
     expect(code).toContain("from '@/lib/agents/professional-title'");
     expect(code).toContain('professionalTitle(a)');
-    // and it must SELECT the two axes the derivation needs
+    // and it must SELECT the LICENCE CLASS the derivation needs - and NOT the
+    // authorisation grant, which is not an identity input.
     const select = code.slice(code.indexOf('const agents = await prisma.agent.findMany'));
     expect(select.slice(0, 600)).toContain('license_type: true');
-    expect(select.slice(0, 600)).toContain('role: true');
+    expect(select.slice(0, 600)).not.toContain('role: true');
   });
 
   it('the international brokerage schema carries no individual licence', () => {

@@ -150,8 +150,8 @@ export async function PATCH(req: NextRequest) {
     if (body.license_no !== undefined) update.license_no = body.license_no as string | null;
     if (body.license_type !== undefined) {
       update.license_type = body.license_type as string | null;
-      // the title follows the licence, exactly as on the other writers
-      const derived = canonicalTitleFor(body.license_type as string, agent.role);
+      // the title follows the LICENCE CLASS, exactly as on the other writers
+      const derived = canonicalTitleFor(body.license_type as string);
       if (derived) update.title = derived;
     }
     if (body.sale_split !== undefined) update.sale_split = body.sale_split != null ? Number(body.sale_split) : null;
