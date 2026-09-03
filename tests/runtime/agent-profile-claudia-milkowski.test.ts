@@ -2,12 +2,15 @@
 /**
  * Claudia Milkowski — canonical Mallan agent identity.
  *
- * Mallan agent profiles are two-tier: the Prisma `agents` table is canonical at
- * runtime (every consumer — /agents, /agents/[name], /api/agents/public,
- * /api/agents/[slug]/listings, sitemap — reads the DB first) and
- * `data/agents.json` is BOTH the static fallback those consumers degrade to and
- * the seed source for scripts/seed-agents.ts. A new agent is therefore only
- * fully canonical when the JSON record and the prisma/seed.ts block agree.
+ * The Prisma `agents` table is the ONLY runtime identity authority — every
+ * consumer (/agents, /agents/[name], /api/agents/public,
+ * /api/agents/[slug]/listings, sitemap) reads it and does NOT fall back to Git.
+ *
+ * `data/agents.json` is never a public identity READ authority. It is used by
+ * seed tooling and by one explicit broker-only admin profile import
+ * (POST /api/crm/agents/sync-profiles), which is limited to non-regulated
+ * fields. A new agent is therefore only fully canonical when the JSON record
+ * and the prisma/seed.ts block agree.
  *
  * This test pins that agreement, and pins the one thing an "Associate Broker"
  * title must NOT do: escalate her CRM `role` to "BROKER".

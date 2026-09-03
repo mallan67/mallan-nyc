@@ -35,8 +35,10 @@
  * already withdrawn. For a regulated professional identity, being briefly
  * unavailable is safer than being briefly wrong.
  *
- * `data/agents.json` remains the SEED source for prisma/seed.ts. It is no
- * longer a runtime identity source.
+ * `data/agents.json` is NEVER a public identity READ authority. It is used by
+ * seed tooling and by ONE explicit broker-only admin profile import
+ * (POST /api/crm/agents/sync-profiles), which is limited to non-regulated
+ * fields — it may not write `title`, `license_type` or `role`.
  */
 import { professionalTitle } from './professional-title';
 
@@ -82,9 +84,10 @@ export interface DbAgentRow {
 /**
  * The shape `data/agents.json` carries.
  *
- * The roster records a `role` per agent as seed input, but it is deliberately
- * NOT carried into this shape: nothing on a public identity path may read it.
- * The roster has no licence-class column at all — its `title` is the evidence.
+ * The roster records a `role` per agent for the seed path, but it is
+ * deliberately NOT carried into this shape: nothing on a public identity path
+ * may read it. The roster has no licence-class column at all — its `title` is
+ * evidence consumed by seed tooling, never a designation this shape asserts.
  */
 export interface StaticAgentEntry {
   id: string;
@@ -127,9 +130,9 @@ export function fromDatabase(a: DbAgentRow, fallbackSlug: string): PublicAgentPr
 /**
  * Normalise a static entry.
  *
- * RETAINED FOR THE SEED PATH AND ITS TESTS ONLY. It is no longer reachable from
- * any public surface — see the module note on why an outage must not publish a
- * stale professional identity.
+ * NOT REACHABLE FROM ANY PUBLIC IDENTITY SURFACE — see the module note on why
+ * an outage must not publish a stale professional identity. Retained for the
+ * seed path and its tests.
  */
 export function fromStatic(e: StaticAgentEntry): PublicAgentProfile {
   return {
