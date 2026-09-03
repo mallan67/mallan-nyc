@@ -333,3 +333,51 @@ describe('no other public surface hard-codes an individual professional identity
     }
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────
+// The root layout must not argue with itself about indexation
+// ─────────────────────────────────────────────────────────────────────────
+describe('exactly one robots directive, never two that disagree', () => {
+  const layoutSrc = require('fs').readFileSync(
+    require('path').resolve(__dirname, '../../app/layout.tsx'),
+    'utf8',
+  ) as string;
+
+  /** The metadata literal, comments stripped so prose cannot satisfy a check. */
+  const code = layoutSrc
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n')
+    .filter((l) => !/^\s*\/\//.test(l))
+    .join('\n');
+
+  const robotsBlock = (() => {
+    const start = code.indexOf('robots: {');
+    return code.slice(start, code.indexOf('\n  },', start));
+  })();
+
+  it('asserts no blanket index/follow at the root', () => {
+    // Root metadata is inherited by EVERY render including error renders, so
+    // `index: true` here put "index, follow" on the 404 page beside Next's
+    // automatic "noindex". Absent a robots meta a page is indexable anyway, so
+    // this asserted nothing except on the pages where it was wrong.
+    expect(robotsBlock).not.toMatch(/index:\s*true/);
+    expect(robotsBlock).not.toMatch(/follow:\s*true/);
+  });
+
+  it('KEEPS the rich-result preview directives, which are real instructions', () => {
+    // These are not defaults, and they sit on the googlebot meta — a different
+    // directive class that does not contradict a noindex.
+    expect(robotsBlock).toContain("'max-image-preview': 'large'");
+    expect(robotsBlock).toContain("'max-video-preview': -1");
+    expect(robotsBlock).toContain("'max-snippet': -1");
+  });
+
+  it('leaves the temporarily-unavailable noindex untouched', async () => {
+    // Page-level robots REPLACES the root object rather than merging, so the
+    // outage branches keep emitting noindex, nofollow. Verified by behaviour,
+    // not by reading the source.
+    authorityUnreachable();
+    const meta = await rosterPage.generateMetadata();
+    expect(meta.robots).toEqual({ index: false, follow: false });
+  });
+});

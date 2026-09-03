@@ -69,12 +69,38 @@ export const metadata: Metadata = {
       'Full-service NYC real estate brokerage specializing in residential sales and rentals across Manhattan and Brooklyn.',
     images: [`${BASE_URL}/images/og-default.png`],
   },
+  // Rich-result directives only. NO blanket index/follow - deliberately.
+  //
+  // This used to assert `index: true, follow: true` at the top level and again
+  // under googleBot. Root metadata is inherited by EVERY render, including
+  // error renders, so the "Agent Not Found" page emitted two contradictory
+  // directives at once:
+  //
+  //     <meta name="robots" content="noindex"/>          <- Next, for status 404
+  //     <meta name="robots" content="index, follow"/>    <- inherited from here
+  //
+  // Crawlers resolve to the most restrictive, so the effective state was safe,
+  // but a page telling a crawler both things is not release truth. It is also
+  // not fixable from the page: when notFound() is thrown, the page's own
+  // generateMetadata result is discarded and the ROOT metadata is what renders
+  // - measured on Next.js 16.2.4, setting robots on the not-found branch of
+  // generateMetadata changed nothing at all.
+  //
+  // Dropping index/follow costs nothing. Absent a robots meta, a page is
+  // indexable and followable by default, so healthy pages behave exactly as
+  // before; they simply stop restating the default. The 404 now emits Next's
+  // single automatic `noindex` and nothing that argues with it.
+  //
+  // The max-* preview directives are real instructions, not defaults, so they
+  // stay. They sit on the `googlebot` meta, which is a different directive
+  // class and does not contradict a noindex.
+  //
+  // VERIFIED (build + serve, Next 16.2.4): a page that sets its own
+  // `robots: { index: false, follow: false }` - the /agents temporarily-
+  // unavailable branches - still emits `noindex, nofollow` intact. Page-level
+  // robots replaces this object rather than merging with it.
   robots: {
-    index: true,
-    follow: true,
     googleBot: {
-      index: true,
-      follow: true,
       'max-video-preview': -1,
       'max-image-preview': 'large',
       'max-snippet': -1,

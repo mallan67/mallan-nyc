@@ -279,3 +279,53 @@ describe('the home page publishes no individual professional designation', () =>
     );
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────
+// The REAL HTTP 404 — a Route Handler, not a rendered not-found page
+// ─────────────────────────────────────────────────────────────────────────
+describe('/agents/sitemap.xml answers with a real HTTP 404', () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const sitemapRoute = require('@/app/agents/sitemap.xml/route');
+
+  it('returns status 404 on the Response itself, not inside a rendered body', async () => {
+    // The guard above makes the segment stop being an Agent identity question.
+    // This makes the STATUS LINE unambiguous: a page reaches 404 through
+    // notFound(), which cannot set a status once headers have been flushed. A
+    // Route Handler returns an explicit Response before rendering begins.
+    const res = await sitemapRoute.GET();
+    expect(res.status).toBe(404);
+  });
+
+  it('marks itself unindexable', async () => {
+    const res = await sitemapRoute.GET();
+    expect(res.headers.get('x-robots-tag')).toBe('noindex, nofollow');
+  });
+
+  it('lives at the static segment that outranks [name]', () => {
+    // Route precedence is positional. If this file moves, the dynamic segment
+    // silently takes the URL back and the status regresses to a rendered 404.
+    const p = require('path').resolve(__dirname, '../../app/agents/sitemap.xml/route.ts');
+    expect(require('fs').existsSync(p)).toBe(true);
+  });
+
+  it('reaches its answer without Prisma, proxy, middleware or the Agent authority', () => {
+    // The whole point: its correctness cannot depend on database availability,
+    // because it never asks anything.
+    const src = require('fs').readFileSync(
+      require('path').resolve(__dirname, '../../app/agents/sitemap.xml/route.ts'),
+      'utf8',
+    ) as string;
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(code).not.toMatch(/\bimport\b/);
+    expect(code).not.toContain('prisma');
+    expect(code).not.toContain('public-profile-authority');
+    expect(code).not.toContain('reserved-slug');
+  });
+
+  it('did not consult the database to answer', async () => {
+    jest.clearAllMocks();
+    await sitemapRoute.GET();
+    expect(findFirst).not.toHaveBeenCalled();
+    expect(findMany).not.toHaveBeenCalled();
+  });
+});
