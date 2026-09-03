@@ -3925,6 +3925,126 @@ The Production recovery is complete only when brokerage-critical capabilities ar
 
 The recovery must continuously produce usable checkpoints while preserving this single-system finish line.
 
+## 27.14 Permanent independent verification structure
+
+The team model in `27.5` is **not a temporary recovery measure and is not specific to any
+one PR**. It is a standing Mallan engineering control. It survives the closure of #627 and
+carries forward into Rental canonical persistence, Sale/Rental Search convergence, Golden
+Thread work, Media / Open House / Map / Compare / Saved Search / Reports / CMA, CRM,
+authorization, compliance and Neon/R2 closure.
+
+**Do not dismantle it when a packet closes.** Every workstream keeps a Builder, an
+independent Verifier, and the Validators appropriate to its evidence.
+
+Its purpose is singular: to prevent Mallan returning to *"Builder changed code → Builder
+tests green → declared done."* **No capability is done until independent evidence reaches
+the actual consumer.**
+
+### 27.14.1 Permanent Validators
+
+The roles in `27.5` stand as written. They are extended with standing Validators, which
+exist because a black-box Verifier cannot safely establish every class of evidence.
+Validators supplement the Independent Verifier; they never replace it, and additional
+specialists may be **added** but may not **merge it away**.
+
+**Contract / Data Validator**
+
+- verifies canonical object ownership, exact stored fields, mappings and identity;
+- keeps apart: raw contract → observed population → verified mapping → Mallan storage;
+- may inspect database or source where explicitly authorized;
+- its evidence is labelled **DATA / STRUCTURAL**, never black-box runtime.
+
+**Runtime / Integration Validator**
+
+- verifies, at the exact head: API → UI → persistence → reload → downstream consumers;
+- exercises `create → save → reload → edit → save → reload`;
+- exercises negative cases and downstream effects.
+
+**Security / Compliance Validator**
+
+- verifies authorization boundaries, privacy, REBNY / RLS / UCBA / Fair Housing rules,
+  public publication and fail-closed behaviour;
+- does not expand scope through unauthorized Production probing.
+
+**A Validator may not become a second Builder.** It reports; it does not implement.
+
+### 27.14.2 Evidence separation is mandatory
+
+Evidence classes may **never** be combined to manufacture a `PASS`. Three distinct classes,
+each labelled at the point of record:
+
+| Class | Example |
+|---|---|
+| **Black-box runtime** | a rendered designation observed over HTTP by the Independent Verifier |
+| **Data / structural** | `license_type` read directly from the database by Coordinator or Contract/Data Validator |
+| **Builder structural test** | a unit test proving a write payload excludes a regulated field |
+
+These may **jointly** support a release judgment. They are **not interchangeable**. The
+Coordinator owns evidence classification and may not silently convert one class into
+another — including by tallying a data-derived fact inside a black-box result.
+
+### 27.14.3 Exact-head freeze
+
+Once independent verification begins, the following are frozen:
+
+1. the exact Git SHA;
+2. the deployment / Preview identifier;
+3. the acceptance matrix;
+4. relevant QA state — except an explicitly authorized and **documented** discriminating
+   test setup.
+
+Any **functional** change afterwards means a new exact SHA, and the affected acceptance
+must be re-run. Comment or PR-body cleanup must not casually invalidate a verified
+functional SHA: record nonfunctional debt separately unless it materially misstates
+runtime behaviour or release truth.
+
+An acceptance result is bound to the head **and** the environment state in which it was
+measured. If either changes, the result does not carry forward. A superseded result is
+marked superseded — never edited in place, and never left standing beside the corrected
+one.
+
+### 27.14.4 Defect handling loop
+
+```text
+Verifier / Validator finds defect
+  → Coordinator confirms root cause and scope
+  → Builder receives ONLY a bounded correction
+  → new exact SHA
+  → affected validation
+  → independent verification
+```
+
+A found defect never authorizes a broader rewrite than the defect requires.
+
+### 27.14.5 Closure standard
+
+```text
+proven defect → root cause → ALL affected writers/readers/publishers → correction
+  → direct + negative tests → integration → downstream → compliance/security
+  → exact Preview proof → independent verification → Maya UAT → Production proof
+```
+
+`BLOCKED` stays `BLOCKED`. `FAIL` stays `FAIL`. A frozen case is never weakened,
+reworded, re-scoped or removed because an implementation behaves differently. A condition
+is never manufactured to turn a case green.
+
+### 27.14.6 Census writers AND publishers
+
+Every regulated or canonical fact must census **both**:
+
+1. who can **WRITE** or change it;
+2. who can **READ, PUBLISH or PRESENT** an independent version of it.
+
+A census scoped to persistence code is incomplete. The #627 structured-data defect proved
+that a competing **publisher** can violate canonical identity on every page without ever
+writing a database row — it was sourced from a tracked file and surfaced only from
+black-box observation of rendered output, not from tracing writes.
+
+Regulated designations, licence classes, brokerage roles, disclosures and attributions all
+require the two-sided census.
+
+---
+
 # CURRENT HANDOFF
 
 - This file is the intended single canonical product/system authority on draft PR #595 and remains unmerged until explicitly approved.

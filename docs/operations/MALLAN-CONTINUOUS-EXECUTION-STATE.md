@@ -18,14 +18,34 @@ with it, Section 27 wins and the older text is stale status, not instruction.
   observable structural coherence **46/100**, exercised functional Production
   **42/100**, **0 of 13** brokerage-critical capabilities fully proven. These are
   regression signals, not a definition of done.
-- **Execution model: Coordinator + Builder + independent black-box Verifier.**
-  Maximum three agents. The Verifier is read-only and does not read the
-  Builder's implementation, PR narrative or test claims before acceptance.
-  A release may not be self-certified by whoever built it.
+- **Execution model is PERMANENT, not a #627 measure:** Coordinator + Builder +
+  independent black-box Verifier + standing **Contract/Data**,
+  **Runtime/Integration** and **Security/Compliance** Validators. Normative
+  detail: Master Plan `27.14 Permanent independent verification structure`.
+  The Verifier is read-only and does not read the Builder's implementation,
+  diff, PR narrative or test claims before acceptance. Validators supplement
+  it and never replace it; a Validator may not become a second Builder.
+  **Evidence classes — black-box runtime, data/structural, Builder structural
+  test — are labelled separately and may NEVER be combined to manufacture a
+  `PASS`.** A release may not be self-certified by whoever built it.
+  **This structure survives #627** and carries into Rental, Sale/Rental Search,
+  Golden Thread, Media/OH/Map/Compare/Saved Search/Reports/CMA, CRM,
+  authorization, compliance and Neon/R2 closure.
 - **One branch = one writer.** No other session pushes to a branch that already
   has an owner.
 - **#627 is the ONLY active implementation packet** — the first bounded
-  release-process proof, at `99543f128fbba8b923eb2c088a039a1753da1600`.
+  release-process proof. Exact verified head
+  `d84654634a0dface3fc04fc82a0540a62cc595f7` (open, draft, unmerged).
+  Independent acceptance at that head: **21 PASS / 0 FAIL / 4 BLOCKED**
+  (cases 13, 21, 21A, 25 — none is claimed as a pass; case 25 is
+  Builder/structural evidence only). Next: Maya UAT on Preview
+  `dpl_82KGQZYKKGD9R55uvE2x2PWgqPL4`, then a READ-ONLY Production preflight.
+  **Claudia's live Production row is a NY DOS §175.25 licence-class
+  misrepresentation** — live slug `caludia-milkowski`, advertised
+  `Licensed Real Estate Salesperson` for an associate real estate broker.
+  It must be corrected ONLY AFTER the #627 code is live: pre-#627
+  `requireAgentOrBroker()` accepts only `AGENT | BROKER`, so writing
+  `role = ASSOCIATE_BROKER` first would 403 her out of ~146 licensee routes.
 - **#618 feature expansion is FROZEN at `d19c03cdd3c12826d02f04d6462e2edbcc8186ef`.**
   It is preservation/convergence work. The 229-commit / 310-file branch is NOT a
   wholesale deployment candidate and is not to be rewritten from zero either.
