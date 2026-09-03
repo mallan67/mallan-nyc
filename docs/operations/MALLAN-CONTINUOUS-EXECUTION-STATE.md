@@ -2,9 +2,44 @@
 
 > **STATUS ONLY.** This file does not define product architecture or requirements. The sole product/system authority is `MALLAN-PLATFORM-MASTER-PLAN.md`. `docs/claude-instructions/CURRENT.md` is the active continuation directive. This file records what is closed, active, open and held so a new session does not restart the program or repeat already-proven work.
 
-**Checkpoint date:** 2026-09-01  
+**Checkpoint date:** 2026-09-03  
 **Repository:** `mallan67/mallan-nyc` only  
 **Authorized local checkout:** `C:\Users\MayaAllan\Desktop\mallan-nyc`
+
+
+## SECTION 27 IS IN FORCE — READ THIS BEFORE ANYTHING BELOW
+
+**`# 27. PRODUCTION RECOVERY AND EXECUTION CONTROL` is now present in
+`MALLAN-PLATFORM-MASTER-PLAN.md` at `4edfc300e6a417224a4ba10c9e04c23c3c03111c`
+(PR #595).** It is normative. Where anything further down this file disagrees
+with it, Section 27 wins and the older text is stale status, not instruction.
+
+- **Baseline A (2026-09-02) is the frozen Production recovery baseline:**
+  observable structural coherence **46/100**, exercised functional Production
+  **42/100**, **0 of 13** brokerage-critical capabilities fully proven. These are
+  regression signals, not a definition of done.
+- **Execution model: Coordinator + Builder + independent black-box Verifier.**
+  Maximum three agents. The Verifier is read-only and does not read the
+  Builder's implementation, PR narrative or test claims before acceptance.
+  A release may not be self-certified by whoever built it.
+- **One branch = one writer.** No other session pushes to a branch that already
+  has an owner.
+- **#627 is the ONLY active implementation packet** — the first bounded
+  release-process proof, at `99543f128fbba8b923eb2c088a039a1753da1600`.
+- **#618 feature expansion is FROZEN at `d19c03cdd3c12826d02f04d6462e2edbcc8186ef`.**
+  It is preservation/convergence work. The 229-commit / 310-file branch is NOT a
+  wholesale deployment candidate and is not to be rewritten from zero either.
+- **#620 is preservation/convergence work, not a generic Neon restart.** Prior
+  forensics are reused; residual work begins from the measured delta only.
+- **Rental intake is the immediate canonical Listing writer checkpoint**, after
+  or alongside Agent runtime closure: `create -> save -> reload -> edit -> save
+  -> reload` with no silent field loss, third-party Cotality read-only.
+- **No Production, schema, migration, Neon, R2 or environment mutation is
+  authorized by any documentation change.** That authorization is Maya's alone
+  and is given per operation.
+
+Everything below this block predates 2026-09-02 and is retained as history.
+Do not treat an older "ACTIVE" or "next action" line as current instruction.
 
 ## 0. Hard start rule
 
