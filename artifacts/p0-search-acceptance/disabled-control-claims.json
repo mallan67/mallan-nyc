@@ -1,0 +1,149 @@
+{
+  "probedAt": "2026-09-02T02:57:39.485Z",
+  "base": "https://api.cotality.com/trestle",
+  "results": [
+    {
+      "claim": "no_coordinates",
+      "label": "Property: Latitude/Longitude present at all",
+      "resource": "Property",
+      "params": {
+        "$select": "ListingKey,Latitude,Longitude",
+        "$filter": "StandardStatus eq 'Active'",
+        "$top": "5",
+        "$count": "true"
+      },
+      "at": "2026-09-02T02:57:37.178Z",
+      "httpStatus": 200,
+      "state": "SUPPORTED",
+      "odataCount": 7657,
+      "rowsReturned": 5,
+      "sample": [
+        {
+          "Latitude": null,
+          "Longitude": null,
+          "ListingKey": "1189393822"
+        },
+        {
+          "Latitude": null,
+          "Longitude": null,
+          "ListingKey": "1189391795"
+        }
+      ]
+    },
+    {
+      "claim": "no_coordinates",
+      "label": "Property: Latitude ne null (populated count)",
+      "resource": "Property",
+      "params": {
+        "$select": "ListingKey,Latitude,Longitude",
+        "$filter": "StandardStatus eq 'Active' and Latitude ne null",
+        "$top": "3",
+        "$count": "true"
+      },
+      "at": "2026-09-02T02:57:37.837Z",
+      "httpStatus": 400,
+      "state": "PROVIDER_REJECTED",
+      "body": "{\"error\":{\"code\":\"BadRequest[400]. TraceId: 9f23d760-28ae-409d-9670-47dca38b1f8b\",\"message\":\"Results from 'RLS' has been suppressed (provider Level) as field Latitude' cannot be used for filtering or ordering queries. No OriginatingSystemNames available for querying given request! This is an indication that you do not have access to the defined Data Provider or fields in the filtering or ordering "
+    },
+    {
+      "claim": "no_coordinates",
+      "label": "Property: Latitude range filter (a real map query)",
+      "resource": "Property",
+      "params": {
+        "$select": "ListingKey,Latitude,Longitude",
+        "$filter": "StandardStatus eq 'Active' and Latitude ge 40.70 and Latitude le 40.80",
+        "$top": "3",
+        "$count": "true"
+      },
+      "at": "2026-09-02T02:57:38.106Z",
+      "httpStatus": 400,
+      "state": "PROVIDER_REJECTED",
+      "body": "{\"error\":{\"code\":\"BadRequest[400]. TraceId: 29ccae97-02be-47b0-ae5d-8c29a0621cb9\",\"message\":\"Results from 'RLS' has been suppressed (provider Level) as field Latitude' cannot be used for filtering or ordering queries. No OriginatingSystemNames available for querying given request! This is an indication that you do not have access to the defined Data Provider or fields in the filtering or ordering "
+    },
+    {
+      "claim": "dom_unproven",
+      "label": "DaysOnMarket range filter",
+      "resource": "Property",
+      "params": {
+        "$select": "ListingKey,DaysOnMarket",
+        "$filter": "StandardStatus eq 'Active' and DaysOnMarket le 30",
+        "$top": "3",
+        "$count": "true"
+      },
+      "at": "2026-09-02T02:57:38.287Z",
+      "httpStatus": 400,
+      "state": "PROVIDER_REJECTED",
+      "body": "{\"error\":{\"code\":\"BadRequest[400]. TraceId: 3346f4bb-edc7-471f-bdee-56c945f1347d\",\"message\":\"Results from 'RLS' has been suppressed (provider Level) as field DaysOnMarket' cannot be used for filtering or ordering queries. No OriginatingSystemNames available for querying given request! This is an indication that you do not have access to the defined Data Provider or fields in the filtering or order"
+    },
+    {
+      "claim": "dom_unproven",
+      "label": "DaysOnMarket $orderby",
+      "resource": "Property",
+      "params": {
+        "$select": "ListingKey,DaysOnMarket",
+        "$filter": "StandardStatus eq 'Active'",
+        "$orderby": "DaysOnMarket desc",
+        "$top": "3"
+      },
+      "at": "2026-09-02T02:57:38.507Z",
+      "httpStatus": 400,
+      "state": "PROVIDER_REJECTED",
+      "body": "{\"error\":{\"code\":\"BadRequest[400]. TraceId: 4bc7416d-6e31-44db-929a-c57e3c125d6f\",\"message\":\"Results from 'RLS' has been suppressed (provider Level) as field DaysOnMarket' cannot be used for filtering or ordering queries. No OriginatingSystemNames available for querying given request! This is an indication that you do not have access to the defined Data Provider or fields in the filtering or order"
+    },
+    {
+      "claim": "carrying_cost",
+      "label": "AssociationFee range filter",
+      "resource": "Property",
+      "params": {
+        "$select": "ListingKey,AssociationFee,AssociationFeeFrequency",
+        "$filter": "StandardStatus eq 'Active' and AssociationFee ge 500 and AssociationFee le 2000",
+        "$top": "3",
+        "$count": "true"
+      },
+      "at": "2026-09-02T02:57:38.670Z",
+      "httpStatus": 200,
+      "state": "SUPPORTED",
+      "odataCount": 3229,
+      "rowsReturned": 3,
+      "sample": [
+        {
+          "AssociationFeeFrequency": "Monthly",
+          "AssociationFee": 1689,
+          "ListingKey": "1189391756"
+        },
+        {
+          "AssociationFeeFrequency": "Monthly",
+          "AssociationFee": 847,
+          "ListingKey": "1189378981"
+        }
+      ]
+    },
+    {
+      "claim": "carrying_cost",
+      "label": "AssociationFeeFrequency vocabulary sample",
+      "resource": "Property",
+      "params": {
+        "$select": "ListingKey,AssociationFee,AssociationFeeFrequency",
+        "$filter": "StandardStatus eq 'Active' and AssociationFee ne null",
+        "$top": "5"
+      },
+      "at": "2026-09-02T02:57:39.134Z",
+      "httpStatus": 200,
+      "state": "SUPPORTED",
+      "odataCount": null,
+      "rowsReturned": 5,
+      "sample": [
+        {
+          "AssociationFeeFrequency": "Monthly",
+          "AssociationFee": 0,
+          "ListingKey": "1189393822"
+        },
+        {
+          "AssociationFeeFrequency": null,
+          "AssociationFee": 0,
+          "ListingKey": "1189391795"
+        }
+      ]
+    }
+  ]
+}

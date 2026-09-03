@@ -73,6 +73,7 @@
 const fs = require('fs');
 const path = require('path');
 const { parse } = require('csv-parse/sync');
+const { findSecretCandidates, isSecretScanExempt } = require('./lib/secret-heuristics.js');
 
 const ROOT = path.resolve(__dirname, '..');
 const args = process.argv.slice(2);
@@ -741,7 +742,12 @@ function section13() {
   const s = startSection(13, 'Secrets & Supply-Chain Security', 'Auth & Security');
   // Check for hardcoded secrets in source
   const secretPatterns = [
-    { rx: /['"][A-Za-z0-9+/=]{40,}['"]/, name: 'Potential hardcoded API key (40+ char base64)' },
+    // The 40+ char base64 rule moved OUT of this list — see the candidate/
+    // discriminate pass below. As a bare regex it matched slash-delimited
+    // Cotality field-name lists, because '/' is in the base64 alphabet, and
+    // idx:validate exited 1 on a critical containing no secret. The narrowed
+    // version lives in scripts/lib/secret-heuristics.js with its reasoning and
+    // its adversarial tests. The patterns kept here are unchanged.
     { rx: /sk[-_]live[-_][A-Za-z0-9]{20,}/, name: 'Stripe live secret key' },
     { rx: /ghp_[A-Za-z0-9]{36}/, name: 'GitHub personal access token' },
     { rx: /xox[bpors]-[A-Za-z0-9-]{10,}/, name: 'Slack token' },
@@ -753,11 +759,30 @@ function section13() {
   for (const file of srcFiles) {
     const content = readFile(file);
     if (!content) continue;
+    // A file is exempt only if it SAYS so. The rule here used to be
+    // `file.includes('test')`, which made a real credential in an ordinary test
+    // file undetectable and also swallowed non-test files whose name merely
+    // contained "test" (lib/compliance/test-validation.ts among them).
+    if (isSecretScanExempt(file, content)) continue;
+
+    // 40+ char base64-alphabet candidates, minus human-written identifier
+    // lists. The finding now names the STRING it matched: the previous message
+    // gave only the file and the rule, which is why a false positive could sit
+    // unresolved — nobody could see what had actually tripped it.
+    {
+      for (const candidate of findSecretCandidates(content)) {
+        const shown = candidate.length > 48 ? candidate.slice(0, 48) + '…' : candidate;
+        critical(
+          s,
+          `${file}: Potential hardcoded API key (40+ char base64) — ${shown}`,
+          'Remove hardcoded secret, use env var',
+        );
+        secretsFound++;
+      }
+    }
+
     for (const { rx, name } of secretPatterns) {
       if (rx.test(content)) {
-        // Skip Sentry DSN (public), test files
-        if (file.includes('sentry') && name.includes('base64')) continue;
-        if (file.includes('test') || file.includes('__tests__')) continue;
         critical(s, `${file}: ${name}`, 'Remove hardcoded secret, use env var');
         secretsFound++;
       }

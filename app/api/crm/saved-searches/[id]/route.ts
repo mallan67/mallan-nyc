@@ -12,6 +12,7 @@ import type { Prisma } from "@prisma/client";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { assertLeadIdStringAccess } from "@/lib/crm/access";
 import { canEnableAlertForCriteria } from "@/lib/search/criteria-to-prisma";
+import { normalizeSavedSearchCriteria, savedSearchDisposition } from "@/lib/search/canonical/saved-search-normalizer";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -38,7 +39,12 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
     return NextResponse.json({
       id: search.id.toString(),
       name: search.name,
-      criteria: search.criteria,
+      // Legacy rows normalized IN MEMORY. No rewrite, no backfill.
+      criteria: normalizeSavedSearchCriteria(search.criteria).criteria,
+      // The disposition travels WITH the record. Returning only normalized
+      // criteria threw away the unresolved state, and the client then
+      // auto-executed a record whose meaning could not be fully represented.
+      ...savedSearchDisposition(search.criteria),
       last_run: search.last_run,
       result_count: search.result_count,
       agent_id: search.agent_id?.toString() ?? null,
@@ -107,7 +113,8 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
           { status: 400 },
         );
       }
-      updates.criteria = body.criteria as Prisma.InputJsonValue;
+      // Persist the CANONICAL form, so storage and execution stay one truth.
+      updates.criteria = normalizeSavedSearchCriteria(body.criteria).criteria as Prisma.InputJsonValue;
     }
 
     if (body.alert_frequency !== undefined) {
@@ -137,8 +144,40 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
     // before deciding. If the post-patch row would have alerts enabled
     // AND criteria is unsupported, refuse the change. Untouched fields
     // fall back to their existing values.
-    const effectiveCriteria =
-      body.criteria !== undefined ? (body.criteria as Record<string, unknown>) : (existing.criteria as Record<string, unknown>);
+    // BOTH SIDES THROUGH THE SAME NORMALIZER.
+    //
+    // This previously chose raw `body.criteria` OR raw `existing.criteria`, so
+    // the alert gate could be handed two different vocabularies depending on
+    // whether the caller happened to send criteria — an incoming canonical
+    // patch judged against a legacy stored row, or the reverse. Normalising
+    // both makes the gate's decision independent of which branch was taken.
+    const effectiveNormalized = normalizeSavedSearchCriteria(
+      body.criteria !== undefined ? body.criteria : existing.criteria,
+    );
+    const effectiveCriteria = effectiveNormalized.criteria;
+
+    // FAIL CLOSED ON A CRITERION WE CANNOT REPRESENT.
+    //
+    // The normalizer reports malformed/unknown/unavailable criteria; earlier
+    // this route ignored that and persisted anyway, so a saved search whose
+    // meaning could not be represented was stored as a BROADER search. A new
+    // Saved Search must not be accepted if its meaning cannot be carried.
+    if (effectiveNormalized.hasUnresolved) {
+      const cb = effectiveNormalized.checkboxes;
+      return NextResponse.json(
+        {
+          error: "Saved Search contains criteria that cannot be represented.",
+          code: "UNSUPPORTED_CRITERION",
+          criterion: "checkbox_filters",
+          unsupportedValues: [...cb.malformed, ...cb.unknown, ...cb.unavailable],
+          malformed: cb.malformed,
+          unknown: cb.unknown,
+          unavailable: cb.unavailable,
+        },
+        { status: 400 },
+      );
+    }
+
     const effectiveAlertFrequency =
       body.alert_frequency !== undefined ? (body.alert_frequency as string | null) : existing.alert_frequency ?? null;
     const effectiveAlertEnabled =
@@ -168,7 +207,7 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
     return NextResponse.json({
       id: updated.id.toString(),
       name: updated.name,
-      criteria: updated.criteria,
+      criteria: normalizeSavedSearchCriteria(updated.criteria).criteria,
       updated_at: updated.updated_at,
     });
   } catch (err) {

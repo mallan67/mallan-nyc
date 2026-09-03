@@ -1,15 +1,37 @@
         function initializeSearchResults() {
-            // Clean stale selectedListings — remove IDs that don't exist in current results
             try {
-                var currentIds = (searchResultsState.filteredListings || listings).map(function(l) { return l.id; });
-                searchResultsState.selectedListings = searchResultsState.selectedListings.filter(function(id) {
-                    return currentIds.indexOf(id) !== -1;
-                });
-                localStorage.setItem('selectedListings', JSON.stringify(searchResultsState.selectedListings));
-                // Also filter out previously-removed listings from this session
+                // SELECTION IS DURABLE BY LISTING IDENTITY, NOT BY WHAT IS ON SCREEN.
+                //
+                // This pruned selectedListings to the ids present in
+                // `filteredListings` and PERSISTED the result. On the
+                // authoritative path those rows are ONE SERVER PAGE, so paging
+                // from 1 to 2 deleted every listing the broker had picked on
+                // page 1 — permanently, to localStorage — while the server
+                // response promises `selectionsAreDurableBy: "ListingKey"`.
+                //
+                // "Not on this page" is not "stale". The cleanup is only sound
+                // when the rows in memory ARE the whole result set, so it now
+                // runs only then, and the durable set is otherwise left alone.
+                var scope = window.getResultScope();
+                if (scope.isCompleteUniverse) {
+                    var currentIds = (searchResultsState.filteredListings || listings).map(function(l) { return l.id; });
+                    searchResultsState.selectedListings = searchResultsState.selectedListings.filter(function(id) {
+                        return currentIds.indexOf(id) !== -1;
+                    });
+                    localStorage.setItem('selectedListings', JSON.stringify(searchResultsState.selectedListings));
+                }
+
+                // A SESSION SUPPRESSION MAY NOT SILENTLY RESIZE A COUNTED PAGE.
+                //
+                // Removing rows from a server page leaves a hole: the page
+                // renders short, the count still describes the universe those
+                // rows came from, and the next page begins where the server
+                // said — so the suppressed rows are not pulled forward, they are
+                // simply missing. Applied to a locally-held catalogue it is
+                // sound, because there the rows and the count are the same set.
                 var removedKey = 'removedListings_' + LOGGED_IN_AGENT.id;
                 var removed = JSON.parse(localStorage.getItem(removedKey)) || [];
-                if (removed.length > 0) {
+                if (removed.length > 0 && scope.isCompleteUniverse) {
                     var removedSet = {};
                     removed.forEach(function(id) { removedSet[id] = true; });
                     var source = searchResultsState.filteredListings || listings.slice();
@@ -106,6 +128,19 @@
             //       Ref: REBNY "word and phrase list" per Fair Housing Act + NYS + NYC HRL.
             // Display context: IDX (public), VOW (authenticated client), CRM (agent/broker)
             var renderContext = (typeof searchDisplayContext !== 'undefined') ? searchDisplayContext : 'idx';
+            // COMPLIANCE STILL WINS — BUT IT NO LONGER DOES IT SILENTLY.
+            //
+            // The server already applies these gates inside the final-universe
+            // assembly, so on an authoritative page this filter should remove
+            // NOTHING. If it removes something, server and client disagree about
+            // a distribution gate, which is a defect to surface, not a routine
+            // filter to absorb: the page renders short while the count still
+            // describes the universe those rows were cut from.
+            //
+            // The rows are still removed. A non-displayable listing must never
+            // reach a screen, and that is not negotiable for a telemetry gap.
+            // What changes is that the gap stops being invisible.
+            var _beforeGates = listings.length;
             listings = listings.filter(function(l) {
                 var p = l.permissions || {};
                 // Gate 1: Owner Opt-Out — NEVER display in ANY context
@@ -123,7 +158,7 @@
                 }
                 // CRM: no Gate 3 filtering
                 // Gate 6: Closed >24h — suppress (UCBA Art. I Sec. 6-7)
-                if (l.status === 'CLOSED') {
+                if (l.status === 'Closed') {
                     var closedTs = l.updatedDate ? new Date(l.updatedDate) : null;
                     if (closedTs && !isNaN(closedTs.getTime())) {
                         var hoursSinceClosed = (Date.now() - closedTs.getTime()) / (1000 * 60 * 60);
@@ -132,12 +167,38 @@
                 }
                 return true;
             });
-            // Apply status flag filters (picked, liked, shown, etc.)
+
+            var _scope = (typeof window.getResultScope === 'function')
+                ? window.getResultScope()
+                : { isCompleteUniverse: true };
+            var _gateRemovals = _beforeGates - listings.length;
+            searchResultsState.clientGateRemovals = _gateRemovals;
+            if (_gateRemovals > 0 && !_scope.isCompleteUniverse) {
+                console.error(
+                    '[Search] INTEGRITY: ' + _gateRemovals + ' row(s) on an authoritative page failed the ' +
+                    'browser distribution gates. The server applies the same gates before counting, so this ' +
+                    'is a server/client disagreement, not routine filtering. The page renders short while ' +
+                    'the count still describes the universe those rows came from.'
+                );
+            }
+
+            // A FLAG FILTER OVER ONE PAGE ANSWERS A SMALLER QUESTION.
+            //
+            // picked/liked/shown are the agent's own local annotations; the
+            // server has no counterpart, so on a paged result this can only ever
+            // filter the rows in memory. "Show me my picked listings" then
+            // answers from fifty rows of several thousand.
+            //
+            // Recorded so the count and the note beside it can say which
+            // population they describe, rather than leaving a filtered page
+            // under a total that describes the whole search.
             if (typeof filterState !== 'undefined' && typeof listingFlags !== 'undefined') {
                 var activeFlags = [];
                 for (var fk in filterState.statusFilters) {
                     if (filterState.statusFilters[fk]) activeFlags.push(fk);
                 }
+                searchResultsState.flagFilterIsPageLocal =
+                    activeFlags.length > 0 && !_scope.isCompleteUniverse;
                 if (activeFlags.length > 0) {
                     listings = listings.filter(function(l) {
                         return activeFlags.some(function(flag) {
@@ -164,8 +225,21 @@
                     return 0;
                 });
             }
-            // Apply pagination unless explicitly skipped (e.g., for total count)
-            if (!skipPagination) {
+            // PAGINATE LOCALLY ONLY WHEN THE ROWS ARE NOT ALREADY A PAGE.
+            //
+            // An AUTHORITATIVE set is now ONE SERVER PAGE: the server cut it
+            // from the final universe and filteredListings holds exactly those
+            // rows. Slicing it again by currentPage would paginate a page —
+            // page 3 would take rows 41-60 of a 20-row array and render nothing
+            // at all, so every page after the first would look like an empty
+            // search.
+            //
+            // A PROVISIONAL set is different and still needs this: it is a local
+            // re-filter of the whole loaded catalogue, so it holds every
+            // matching row and the slice is what turns it into a page.
+            var serverPaged = searchResultsState.resultProvenance === 'authoritative'
+                && !!searchResultsState.serverCount;
+            if (!skipPagination && !serverPaged) {
                 var perPage = searchResultsState.perPage || 50;
                 var page = searchResultsState.currentPage || 1;
                 var start = (page - 1) * perPage;

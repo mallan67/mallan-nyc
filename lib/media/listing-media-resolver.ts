@@ -158,7 +158,22 @@ export function classifyMediaItem(raw: unknown): MediaClass {
   if (cat === 'virtualtour' || cat.includes('virtual tour') || cat === 'virtual tour') {
     return 'virtualTour';
   }
-  if (cat === 'photo' || cat === 'image' || cat === '' /* default Trestle Media is Photo */) {
+  // STEP 1, DELIBERATELY UNCHANGED BEHAVIOUR — and now labelled honestly.
+  //
+  // An absent category still DISPLAYS as a photo. This is a fail-safe display
+  // fallback, NOT a verified Cotality semantic. It stays because `resolvePhotos`
+  // (below) keeps only `class === 'photo'`: reclassifying here would drop real
+  // media out of galleries on an assumption exactly as unverified as the one
+  // Step 1 removed from the writer, and tell the broker a listing has no photos.
+  // That is the 2026-04-30 failure shape approached from the other side.
+  //
+  // 'unclassified' is the value the sync now writes into media_type in place of
+  // a fabricated 'Photo'. It must resolve identically to the empty case or every
+  // such row would silently vanish from the gallery on the next sync.
+  //
+  // What an empty MediaCategory actually MEANS is an open question for Step 2,
+  // to be answered against the live Cotality Media contract — not here.
+  if (cat === 'photo' || cat === 'image' || cat === '' || cat === 'unclassified') {
     return 'photo';
   }
   return 'unknown';

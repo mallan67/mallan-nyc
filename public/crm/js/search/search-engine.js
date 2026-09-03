@@ -1,52 +1,24 @@
         // Active search criteria — shared across search-engine, refine panel, and reports
         var activeSearchCriteria = null;
 
-        // ── Neighborhood alias map: canonical polygon name → RLS variants ──
-        // Alias values can be: string (single polygon), array (multi-polygon), or null (no polygon)
-        var _neighborhoodAliases = null;
-        var _aliasReverseMap = {};       // canonical → [variant1, variant2, ...]
-
-        (function loadNeighborhoodAliases() {
-            var base = window.location.pathname.replace(/\/[^/]*$/, '');
-            var url = (base.endsWith('/crm') ? '/geo/' : '../geo/') + 'neighborhood-aliases.json';
-            fetch(url)
-                .then(function(r) { return r.ok ? r.json() : null; })
-                .then(function(data) {
-                    if (data && data.aliases) {
-                        _neighborhoodAliases = data.aliases;
-                        _aliasReverseMap = {};
-                        Object.keys(data.aliases).forEach(function(variant) {
-                            var val = data.aliases[variant];
-                            if (!val) return; // null = distinct, no polygon
-                            // val can be string or array
-                            var canonicals = Array.isArray(val) ? val : [val];
-                            canonicals.forEach(function(canonical) {
-                                if (!_aliasReverseMap[canonical]) _aliasReverseMap[canonical] = [];
-                                _aliasReverseMap[canonical].push(variant);
-                            });
-                        });
-                    }
-                })
-                .catch(function() { /* non-fatal */ });
-        })();
-
-        /**
-         * Expand canonical names to include all RLS SubdivisionName variants.
-         * Used by the search query builder so the filter matches any listing
-         * regardless of which variant was used in the RLS data.
-         */
-        // DEPRECATED: Neighborhood variant expansion handled server-side. Kept for potential future use.
-        function expandCanonicalToVariants(canonicalNames) {
-            if (!_aliasReverseMap || !canonicalNames) return canonicalNames;
-            var expanded = [];
-            canonicalNames.forEach(function(name) {
-                expanded.push(name);
-                if (_aliasReverseMap[name]) {
-                    _aliasReverseMap[name].forEach(function(v) { expanded.push(v); });
-                }
-            });
-            return expanded;
-        }
+        // ── THE RLS ALIAS REVERSAL IS GONE (Section 5, 2026-08-31) ───────────────
+        //
+        // This fetched data/rls/geo/neighborhood-aliases.json and built
+        // `_aliasReverseMap`, canonical -> RLS variants, to expand a selection
+        // before searching. The expansion function was already marked deprecated
+        // and called from nowhere, but the file was still fetched and reversed on
+        // every page load, leaving a second neighbourhood authority sitting in the
+        // browser waiting to be picked up again.
+        //
+        // It should not be picked up again. Measured live, that reversal did not add
+        // spellings of one neighbourhood — it added OTHER NEIGHBOURHOODS, because the
+        // file maps names onto POLYGON SHAPES for map rendering. Williamsburg gained
+        // Bushwick and Ridgewood, which is in Queens.
+        //
+        // Neighbourhood values now come from the generated live Cotality vocabulary,
+        // shared with the server. Polygon names stay a SEPARATE vocabulary owned by
+        // the map layer, which still loads the alias file for the job it was built
+        // for: drawing shapes.
 
         /**
          * openNeighborhoodMapForSearch() — bridge between map modal and search form.
@@ -74,16 +46,80 @@
             openNeighborhoodMap(function(result) {
                 if (!result.selectedNeighborhoods || result.selectedNeighborhoods.length === 0) return;
 
-                var canonicals = result.selectedNeighborhoods;
+                // ── THE MAP BRIDGE ───────────────────────────────────────────────
+                //
+                // Polygon names are PRESENTATION GEOMETRY and may not become provider
+                // Search truth. They came from the map's own geojson and were written
+                // straight into the neighbourhood tags, then auto-searched 200ms later
+                // — so a shape whose name the provider does not carry produced an
+                // error and no results from something the map invited the broker to
+                // click, while an adjacent shape worked.
+                //
+                // Each name is now resolved through the live Cotality identity
+                // contract, the same evidence the server executes against. What
+                // resolves is searched under its CANONICAL LABEL rather than the
+                // polygon's spelling. What does not resolve is named to the broker and
+                // dropped — never sent.
+                var raw = result.selectedNeighborhoods;
+                var vocab = window.MallanNeighborhoods;
+                var canonicals = [];
+                var unavailable = [];
+                var ambiguous = [];
+                var contradictory = [];
+
+                for (var i = 0; i < raw.length; i++) {
+                    // UNKNOWN AND AMBIGUOUS ARE DIFFERENT PROBLEMS. A polygon named
+                    // simply `Bay Terrace` matches two real places — Queens and
+                    // Staten Island — and picking one is a wrong answer, not a
+                    // convenience. The previous resolver returned the first match.
+                    var r = vocab ? vocab.resolveState(raw[i]) : { state: 'unknown', identity: null, candidates: [] };
+                    if (r.state === 'ok') {
+                        if (canonicals.indexOf(r.identity.label) === -1) canonicals.push(r.identity.label);
+                    } else if (r.state === 'impossible_qualifier') {
+                        // The place exists and is not in the borough named.
+                        contradictory.push({ name: raw[i], options: r.candidates.map(function (c) { return c.label; }) });
+                    } else if (r.state === 'ambiguous') {
+                        ambiguous.push({ name: raw[i], options: r.candidates.map(function (c) { return c.label; }) });
+                    } else {
+                        unavailable.push(raw[i]);
+                    }
+                }
+
+                if (unavailable.length > 0 && typeof showToast === 'function') {
+                    showToast(
+                        unavailable.join(', ') +
+                        (unavailable.length === 1 ? ' is' : ' are') +
+                        ' not available to search — no Cotality listings use that name.',
+                        'warning'
+                    );
+                }
+                if (ambiguous.length > 0 && typeof showToast === 'function') {
+                    // Name the choices so the agent can make it, rather than having
+                    // one made for them silently.
+                    showToast(
+                        ambiguous.map(function (a) {
+                            return '"' + a.name + '" could be ' + a.options.join(' or ') +
+                                   ' — pick one from the neighbourhood box.';
+                        }).join(' '),
+                        'warning'
+                    );
+                }
+                if (contradictory.length > 0 && typeof showToast === 'function') {
+                    showToast(
+                        contradictory.map(function (c) {
+                            return '"' + c.name + '" is not in that borough — it is ' + c.options.join(' or ') + '.';
+                        }).join(' '),
+                        'warning'
+                    );
+                }
+                if (canonicals.length === 0) return;
 
                 // Determine which tags container is active based on current search mode/tab
                 var tagsId = _resolveActiveNeighborhoodTagsId();
 
-                // Add each selected neighborhood as a tag (skip duplicates)
                 if (typeof selectNeighborhood === 'function') {
-                    for (var i = 0; i < canonicals.length; i++) {
-                        var name = canonicals[i];
-                        // Find the borough for this neighborhood from the autocomplete data
+                    for (var j = 0; j < canonicals.length; j++) {
+                        var name = canonicals[j];
                         var borough = _findBoroughForNeighborhood(name);
                         selectNeighborhood(name, borough, !borough, '', tagsId);
                     }
@@ -128,18 +164,60 @@
         /**
          * Look up borough name for a neighborhood from the autocomplete's known data.
          */
-        function _findBoroughForNeighborhood(name) {
-            var boroughs = {
-                'Bronx': ['Allerton','Baychester','Bedford Park','Belmont','City Island','Co-op City','Fordham','Kingsbridge','Morris Park','Pelham Bay','Central Riverdale','Fieldston','North Riverdale','Spuyten Duyvil','Throgs Neck','Woodlawn'],
-                'Brooklyn': ['Bath Beach','Bay Ridge','Fort Hamilton','Bedford - Stuyvesant','Ocean Hill','Stuyvesant Heights','Bensonhurst','Boerum Hill','Borough Park','Brighton Beach','Brooklyn Heights','Bushwick','Carroll Gardens','Cobble Hill','Coney Island','Crown Heights','Ditmas Park','Downtown Brooklyn','Dumbo','DUMBO','Dyker Heights','Flatbush','Fort Greene','Gowanus','Greenpoint','Park Slope','Prospect Heights','Red Hook','Sheepshead Bay','Sunset Park','Williamsburg','Windsor Terrace','South Slope'],
-                'Manhattan': ['Battery Park City','Carnegie Hill','Central Harlem','Chelsea','Chinatown','Civic Center','East Harlem','East Village','Financial District','Flatiron','Gramercy Park','Gramercy','Greenwich Village','Hamilton Heights','Harlem','Hell\'s Kitchen','Hudson Square','Hudson Yards','Inwood','Kips Bay','Lenox Hill','Lincoln Square','Little Italy','Lower East Side','Manhattan Valley','Manhattanville','Marble Hill','Meatpacking District','Midtown','Midtown East','Midtown West','Morningside Heights','Mott Haven','Murray Hill','NoHo','NoMad','Nolita','Peter Cooper Village','Roosevelt Island','SoHo','Stuyvesant Town','Sugar Hill','Sutton Place','Times Square','Tribeca','Tudor City','Turtle Bay','Two Bridges','Union Square','Upper East Side','Upper West Side','Washington Heights','West Harlem','West Village','Yorkville'],
-                'Queens': ['Astoria','Bayside','Corona','Elmhurst','Flushing','Forest Hills','Hunters Point','Jackson Heights','Jamaica','Kew Gardens','Long Island City','Long Island City (LIC)','Rego Park','Ridgewood','Sunnyside','Whitestone','Woodside'],
-                'Staten Island': ['Annadale','Arden Heights','Dongan Hills','Great Kills','New Dorp','New Brighton','South Beach','St. George','Stapleton','Todt Hill']
-            };
-            for (var b in boroughs) {
-                if (boroughs[b].indexOf(name) !== -1) return b;
+        /**
+         * The building-fact control ids for a given tab/mode.
+         *
+         * ONE resolver, used by BOTH collectSearchCriteria() and Saved Search
+         * restore. They previously disagreed: the collector read per-tab ids
+         * while restore wrote every saved year/floor/unit value into the
+         * BUILDING tab's controls, so a Sale search saved with a year range
+         * reloaded with those controls empty and silently executed without it.
+         * Save -> reload -> execute returned a DIFFERENT search.
+         *
+         * Duplicating the table is what allowed them to drift, so the table now
+         * exists once.
+         */
+        window._resolveBuildingFieldIds = function(tab, isAdvanced) {
+            if (isAdvanced) {
+                return {
+                    yearMin: 'adv-year-built-from', yearMax: 'adv-year-built-to',
+                    unitsMin: 'adv-bldg-units-min', unitsMax: 'adv-bldg-units-max',
+                    floorsMin: 'adv-floors-min',    floorsMax: 'adv-floors-max'
+                };
             }
-            return '';
+            if (tab === 'building') {
+                return {
+                    yearMin: 'buildingMinYear', yearMax: 'buildingMaxYear',
+                    unitsMin: 'buildingMinUnits', unitsMax: 'buildingMaxUnits',
+                    floorsMin: 'buildingMinFloors', floorsMax: 'buildingMaxFloors'
+                };
+            }
+            var p = (tab === 'rent') ? 'rentalBuilding' : 'saleBuilding';
+            return {
+                yearMin: p + 'MinYear', yearMax: p + 'MaxYear',
+                unitsMin: p + 'MinUnits', unitsMax: p + 'MaxUnits',
+                floorsMin: p + 'MinFloors', floorsMax: p + 'MaxFloors'
+            };
+        };
+
+        // ── THE HARD-CODED BOROUGH TABLE IS GONE (Section 5, 2026-08-31) ─────────
+        //
+        // A literal neighbourhood->borough map lived here and saved-searches.js
+        // called into it, so 'four vocabularies became one' was false: this was a
+        // second geography authority, and it was WRONG. It placed MOTT HAVEN UNDER
+        // MANHATTAN, while the live Cotality feed puts it in the Bronx on 574 of
+        // 575 rows — so a broker filtering the Bronx lost it and one filtering
+        // Manhattan was handed a Bronx neighbourhood.
+        //
+        // Borough association now comes from the generated live Cotality contract
+        // via window.MallanNeighborhoods, which is the same evidence the server
+        // executes against.
+        function _findBoroughForNeighborhood(name) {
+            if (!window.MallanNeighborhoods) return '';
+            var provider = window.MallanNeighborhoods.boroughFor(name);
+            // The BROKER label, because this feeds tag display. The provider value
+            // (StatenIsland) must never be shown or re-sent as a label.
+            return provider ? window.MallanNeighborhoods.boroughLabel(provider) : '';
         }
 
         function normalizeAddress(str) {
@@ -158,8 +236,53 @@
                 .replace(/\s+/g, ' ').trim();
         }
 
+        /**
+         * Criteria the agent has entered that Mallan cannot honour as written.
+         *
+         * Returns a list of human-readable problems. Search STOPS on any of them.
+         *
+         * WHY THIS EXISTS. Dropping an unanswerable criterion from canonical state
+         * is not a refusal — it is silent widening with extra steps. An activity
+         * date range with no Listed/Updated basis was being deleted on read, so
+         * the agent still saw their date range on screen, pressed Search, and got
+         * results that ignored it. Refusal has to be VISIBLE to be a refusal.
+         */
+        function canonicalCriteriaProblems(tab) {
+            var problems = [];
+            var view = activeViewName();
+
+            // An activity range with no basis: the dates are on screen, but
+            // "Listed date or Updated date?" is unanswered, and the two are
+            // different questions.
+            var adapter = CRITERION_ADAPTERS.activity_date;
+            if (adapter && _adapterAppliesTo(adapter, tab)) {
+                var drpId = (adapter.drp || {})[tab];
+                var range = (drpId && typeof window.getDateRangeISO === 'function')
+                    ? window.getDateRangeISO(drpId) : null;
+                var advIds = _adapterIds(adapter, tab, view);
+                var advFrom = advIds[0] ? document.getElementById(advIds[0]) : null;
+                var advTo = advIds[1] ? document.getElementById(advIds[1]) : null;
+                var hasDates = !!((range && (range.from || range.to)) ||
+                    (advFrom && advFrom.value) || (advTo && advTo.value));
+                var basisEl = (adapter.basisIds || {})[tab]
+                    ? document.getElementById(adapter.basisIds[tab]) : null;
+                if (hasDates && basisEl && !basisEl.value) {
+                    problems.push('Choose Listed or Updated for the listing activity date range — the same dates mean different things for each.');
+                }
+            }
+            return problems;
+        }
+
         function performSearch() {
             try {
+                // REFUSE LOUDLY, BEFORE EXECUTING. A criterion Mallan cannot
+                // honour must stop the search, not vanish from it.
+                var problems = canonicalCriteriaProblems(currentSearchTab);
+                if (problems.length) {
+                    showToast(problems[0], 'error');
+                    return;
+                }
+
                 // Collect search criteria from the active form
                 activeSearchCriteria = collectSearchCriteria();
 
@@ -187,11 +310,11 @@
                         ? getSelectedBoroughs(_activeTagsId)
                         : [];
                     if (_selectedBoroughs.length > 1) {
-                        showToast(
-                            'Multi-borough filter is not supported — borough constraint dropped. ' +
-                            'For precise results, pick neighborhoods in each borough instead.',
-                            'warning'
-                        );
+                    // The multi-borough advisory was REMOVED 2026-08-26. It told the agent
+                    // the borough constraint had been dropped, which is now false:
+                    // collectSearchCriteria sends every selected borough comma-separated
+                    // and the server renders one CityRegion disjunction. A warning that
+                    // states a disproven fact is worse than no warning.
                     }
                 } catch (_advErr) {
                     // Non-fatal — advisory failure must not block the search.
@@ -207,9 +330,11 @@
                     ? filterListings(listings, activeSearchCriteria)
                     : [];
 
-                // Show results section (with local results or empty while server loads)
+                // Show results section (with local results or empty while server loads).
+                // PROVISIONAL: rendered for responsiveness, not an answer yet.
                 searchResultsState.filteredListings = localResults;
                 searchResultsState.currentPage = 1;
+                _setResultProvenance('provisional');
                 _showSearchResults();
 
                 // Always also query the server for fresh results
@@ -221,10 +346,138 @@
             }
         }
 
+        // ══════════════════════════════════════════════════════════════════
+        // RESULT PROVENANCE — is what is on screen an ANSWER, or a preview?
+        //
+        //   'none'          no result universe. Nothing has been answered.
+        //   'provisional'   a local preview, rendered for responsiveness while
+        //                   the authoritative request is in flight.
+        //   'authoritative' the server answered. THIS is a Search result.
+        //
+        // WHY THIS EXISTS. `performSearch` renders a local pre-render into
+        // `searchResultsState.filteredListings` before the server replies. Until
+        // 2026-08-21 a server FAILURE left those rows in place and showed an
+        // error only when there were none — so a failed search terminated
+        // looking like a successful one.
+        //
+        // AND THOSE ROWS ARE NOT WHAT THEIR OLD COMMENTS CLAIMED. `listings` is
+        // not a fixture and not "canonical local Mallan inventory": it is loaded
+        // once at page load by `_loadFromIDX()` as the first 200 rows of an
+        // UNFILTERED search (ModificationTimestamp desc), falling back to a
+        // 200-row local-DB page. Capped, stale, and unrelated to the broker's
+        // criteria — while looking exactly like real inventory.
+        //
+        // The pre-render is a latency optimisation. It is not a second search
+        // engine and it may never become the final answer.
+        // ══════════════════════════════════════════════════════════════════
+
+        /** True only when the CURRENT rows came from a successful server search. */
+        function hasAuthoritativeSearchResults() {
+            return Boolean(
+                typeof searchResultsState !== 'undefined' &&
+                searchResultsState &&
+                searchResultsState.resultProvenance === 'authoritative'
+            );
+        }
+
+        /**
+         * Gate for any broker action that consumes the result set — Compare,
+         * Reports/CMA, Save Search result counts, client email/share, export.
+         * Returns false and explains, rather than operating on preview rows.
+         *
+         * Fail-closed: an ABSENT marker is not authoritative.
+         */
+        function requireAuthoritativeSearchResults(actionLabel) {
+            if (hasAuthoritativeSearchResults()) return true;
+            var what = actionLabel || 'This action';
+            showToast(
+                what + ' needs a completed search. These rows are a preview, not verified ' +
+                'search results — run the search again.',
+                'error'
+            );
+            return false;
+        }
+
+        /**
+         * A search WAS attempted and did not leave an authoritative universe —
+         * it is still previewing, or it failed.
+         *
+         * Distinct from `!hasAuthoritativeSearchResults()`, which is also true
+         * before any search has run at all. Downstream surfaces that may
+         * legitimately operate on the loaded catalogue BEFORE a search (Reports
+         * over "all results", for one) must refuse on THIS condition only —
+         * refusing on the absent marker too would change untouched pre-search
+         * behaviour rather than fixing the defect.
+         */
+        function searchResultsAreStale() {
+            if (typeof searchResultsState === 'undefined' || !searchResultsState) return false;
+            var provenance = searchResultsState.resultProvenance;
+            // 'incomplete' belongs here too: a traversal that stopped at the
+            // read budget without reaching a surviving row established nothing.
+            // Letting Reports or Compare treat that as "all results" would hand
+            // a broker an unproven empty set as though it were the answer.
+            return provenance === 'provisional'
+                || provenance === 'none'
+                || provenance === 'incomplete';
+        }
+
+        window.searchResultsAreStale = searchResultsAreStale;
+
+        function _setResultProvenance(provenance) {
+            if (typeof searchResultsState === 'undefined' || !searchResultsState) return;
+            searchResultsState.resultProvenance = provenance;
+            // A DECLARED COUNT BELONGS TO ONE RESULT SET.
+            //
+            // Leaving it behind when the set stops being authoritative is how a
+            // stale "4,622 Results" ends up over a local preview of the loaded
+            // catalogue. The count is cleared here and re-set by whichever path
+            // actually received it, so it can never outlive its own answer.
+            if (provenance !== 'authoritative') {
+                searchResultsState.serverCount = null;
+                searchResultsState.serverTotalPages = null;
+                searchResultsState.serverHasMore = false;
+                searchResultsState.serverContinuation = null;
+                // The map universe belongs to one set of criteria too. Leaving
+                // it behind would draw the previous search's pins over a preview
+                // or a failed search.
+                searchResultsState.mapListings = null;
+            }
+        }
+
+        window.hasAuthoritativeSearchResults = hasAuthoritativeSearchResults;
+        window.requireAuthoritativeSearchResults = requireAuthoritativeSearchResults;
+
+        /**
+         * Downgrade to a preview. Exposed for any surface OUTSIDE this file that
+         * writes `filteredListings` from a LOCAL filter rather than a server
+         * answer — `_replaceListings` in data-loader.js does exactly that on a
+         * background reload while the results view is open.
+         *
+         * Anything that writes the result set without a server round-trip must
+         * call this, or the rows inherit the previous run's authority.
+         */
+        window.markSearchResultsProvisional = function() {
+            _setResultProvenance('provisional');
+        };
+
+        /**
+         * Restore authority after a COMPLETED server round-trip for the current
+         * criteria — the sort re-fetch in toolbar-functions.js is the one caller.
+         *
+         * Only ever call this when the server has actually answered for the
+         * criteria on screen. It exists because the re-sort path legitimately
+         * re-queries and would otherwise be left permanently provisional by the
+         * `_replaceListings` downgrade it triggers on the way through.
+         */
+        window.markSearchResultsAuthoritative = function() {
+            _setResultProvenance('authoritative');
+        };
+
         function _hasServerIgnoredCriteria(criteria) {
+            // Open House is EXECUTED now, so it is no longer listed here.
+            // Leaving it would keep degrading results to 'unauthoritative'
+            // on a criterion the server actually honours.
             return Boolean(criteria && (
-                criteria.openHouseDateFrom ||
-                criteria.openHouseDateTo ||
                 criteria._transitLines ||
                 criteria._transitBounds ||
                 criteria._gridBounds
@@ -292,7 +545,21 @@
             if (criteria.bathsMin) params.minBaths = criteria.bathsMin;
             if (criteria.bathsMax) params.maxBaths = criteria.bathsMax;
             if (criteria.neighborhoods && criteria.neighborhoods.length > 0) {
-                params.neighborhood = criteria.neighborhoods.join(',');
+                // A LIST, NOT A COMMA-JOINED STRING.
+                //
+                // This was `.join(',')` and the server answered with `.split(',')`,
+                // which silently corrupts any provider value that itself contains a
+                // comma. The accepted Cotality vocabulary carries two:
+                // `Williamsburg,North` and `Williamsburg,South`. Selecting one sent
+                // `neighborhood=Williamsburg,North` and the executor read it as TWO
+                // neighbourhoods — `Williamsburg` and `North` — so the broker's
+                // criterion changed before it reached the authority.
+                //
+                // Provider data must never be interpretable as transport syntax.
+                // The list travels as repeated query parameters, which cannot
+                // collide with any character a value may contain, and the provider
+                // spelling is passed through untouched.
+                params.neighborhood = criteria.neighborhoods.slice();
             }
             if (criteria.borough) params.borough = criteria.borough;
             if (criteria.propertySubType) params.propertySubType = criteria.propertySubType;
@@ -312,20 +579,36 @@
             if (criteria.contractDateTo) params.contractDateTo = criteria.contractDateTo;
             if (criteria.soldDateFrom) params.closeDateFrom = criteria.soldDateFrom;
             if (criteria.soldDateTo) params.closeDateTo = criteria.soldDateTo;
-            // ── Codex Risk P0 fix: programmatic block of unsupported params ──
-            // Open House date range and (when reached via programmatic
-            // path) transit/grid bounds do not produce any backend OData
-            // clause — see lib/search/__tests__/crm-idx-filter.test.ts
-            // BATCH 2 dead-pattern tests. The UI controls are disabled
-            // by public/crm/js/init/init-disable-dead-controls.js, but
-            // criteria can still arrive via saved-search reload or a
-            // programmatic call. Strip the keys here and emit a console
-            // warning instead of silently submitting a request whose
-            // narrowing intent the backend will drop. The user-facing
-            // toast on multi-borough advisory at performSearch() also
-            // covers borough-multi; this block covers OH/transit/grid.
-            if (criteria.openHouseDateFrom || criteria.openHouseDateTo) {
-                console.warn('[CRM Search] Stripped unsupported openHouseDate criteria — backend has no OpenHouse handler. See init-disable-dead-controls.js.');
+            // ── OPEN HOUSE IS NOW EXECUTED, NOT STRIPPED ──
+            //
+            // These keys used to be dropped here with a console warning,
+            // because the backend genuinely had no OpenHouse handler and
+            // submitting them would have promised a narrowing that never
+            // happened. That handler now exists: the authenticated route
+            // resolves OpenHouse membership by ListingKey BEFORE the count
+            // and the page cut, and refuses the search outright if the
+            // provider cannot answer.
+            //
+            // The dates travel as an explicit inclusive range so the range
+            // the picker DISPLAYS is the range that executes. The server
+            // validates it and refuses a reversed or malformed one by name.
+            // A PRESET TRAVELS AS A TOKEN, NOT AS DATES.
+            //
+            // The browser used to compute today/weekend/next7/next30 itself,
+            // with the USER'S clock and timezone, and send the resulting
+            // bounds. The server has its own America/New_York resolver, so
+            // there were two answers to "this weekend" and they agreed only
+            // while the broker's machine happened to be set to New York.
+            //
+            // Sending the token instead means exactly one implementation
+            // decides. from/to are then NOT sent - present, they would be a
+            // second opinion the server would have to choose between.
+            var _ohPreset = criteria.openHousePreset;
+            if (_ohPreset) {
+                params.openHouse = _ohPreset;
+            } else {
+                if (criteria.openHouseDateFrom) params.openHouseDateFrom = criteria.openHouseDateFrom;
+                if (criteria.openHouseDateTo) params.openHouseDateTo = criteria.openHouseDateTo;
             }
             // Note: criteria._transitBounds / criteria._gridBounds are
             // SET by transit-search.js / manhattan-grid.js only when
@@ -349,11 +632,77 @@
             if (criteria.unitsMin) params.minUnits = criteria.unitsMin;
             if (criteria.unitsMax) params.maxUnits = criteria.unitsMax;
             if (criteria.buildingName) params.buildingName = criteria.buildingName;
-            // Status: CRM uppercase -> RESO PascalCase
+            // Maximum financing, BOTH bounds.
+            //
+            // The canonical serializer produced these and this function never read
+            // them, so they died one hop after being built — the criterion never
+            // reached the request at all. `!= null` rather than truthiness so a
+            // legitimate 0 bound is not dropped as though it were absent.
+            //
+            // The server refuses financing by name until Mallan-side execution
+            // exists (Section 6). Emitting it is what makes that refusal
+            // REACHABLE; without it the filter simply vanished and the broker got
+            // a wider result set with an HTTP 200 and nothing saying so.
+            if (criteria.financingMin != null) params.financingMin = criteria.financingMin;
+            if (criteria.financingMax != null) params.financingMax = criteria.financingMax;
+            // Status: CRM uppercase -> the live StandardStatus member.
+            //
+            // STEP 2 CORRECTION 2026-08-22. 'PENDING' used to map to
+            // 'ActiveUnderContract'. Cotality declares Pending and
+            // ActiveUnderContract as SEPARATE StandardStatus members, and on the
+            // live feed ActiveUnderContract has ZERO rows while Pending is
+            // populated - so a broker ticking "Pending" asked for an empty
+            // member and concluded there was no pending inventory.
+            //
+            // The mapper performed the exact inverse collapse
+            // (ActiveUnderContract -> PENDING), so a round trip appeared to
+            // preserve the value. It did not preserve it; it laundered it, which
+            // is why neither end looked wrong on its own.
+            //
+            // CONTRACT and UNDER_CONTRACT still map to ActiveUnderContract -
+            // that is the genuine contract state, and it stays DISTINCT from
+            // Pending. Selecting both now yields two criteria, not one.
             if (criteria.statuses && criteria.statuses.length > 0) {
-                var statusMap = { 'ACTIVE': 'Active', 'COMING_SOON': 'ComingSoon', 'PENDING': 'ActiveUnderContract', 'CONTRACT': 'ActiveUnderContract', 'UNDER_CONTRACT': 'ActiveUnderContract', 'CLOSED': 'Closed', 'WITHDRAWN': 'Withdrawn', 'CANCELED': 'Canceled', 'CANCELLED': 'Canceled', 'EXPIRED': 'Expired', 'HOLD': 'Hold', 'FUTURE': 'Incomplete', 'INCOMPLETE': 'Incomplete' };
-                var resoStatuses = criteria.statuses.map(function(s) { return statusMap[s] || s; }).filter(function(s, i, arr) { return arr.indexOf(s) === i; });
-                params.status = resoStatuses.join(',');
+                // The browser sends EXACT COTALITY StandardStatus MEMBERS. It no
+                // longer keeps a status table at all.
+                //
+                // There used to be a JS map here translating tokens to RESO
+                // PascalCase, maintained by hand in parallel with the server's
+                // contract. Two authorities for one mapping is how 'PENDING'
+                // came to mean ActiveUnderContract on one side and Pending on
+                // the other. It also carried FUTURE -> Incomplete: Cotality
+                // declares Incomplete and does not declare Future, and one
+                // existing establishes nothing about the other's meaning.
+                //
+                // lib/search/canonical/status-token-contract.ts is now the only
+                // mapping, and it FAILS CLOSED - a token with no provider member
+                // returns HTTP 400 UNSUPPORTED_CRITERION rather than being
+                // dropped, which would widen the search instead of narrowing it.
+                var resoStatuses = criteria.statuses.filter(function(s, i, arr) { return arr.indexOf(s) === i; });
+
+                // ASSIGNED. This line was missing, and its absence is the worst
+                // shape a Search defect can take.
+                //
+                // The value was computed, deduped — and dropped. The server
+                // treats an ABSENT `status` as a default, not as an error:
+                //   (StandardStatus eq 'Active' or 'ComingSoon' or
+                //    'ActiveUnderContract')
+                // so a broker ticking Closed or Pending saw no error and no
+                // empty grid. They saw ACTIVE inventory, presented as the answer
+                // to a question they never asked. A visible failure would have
+                // been better; this one is indistinguishable from a correct
+                // search.
+                //
+                // The wire forwarder and the server have always been ready for
+                // it — api-client.js pushes `status=` and crm-idx-filter.ts
+                // reads it. Only this assignment was absent.
+                //
+                // Locked by tests/runtime/search-criterion-transport-invariant.ts,
+                // which now also fails on the general shape: a criterion that is
+                // READ by the serializer and emits NO param satisfied both of
+                // that file's original boundary checks and was caught by
+                // neither.
+                if (resoStatuses.length > 0) params.status = resoStatuses.join(',');
             }
             // Bug A11 — SponsorUnit lives inside CustomProperty.CustomFields
             // (REBNY-specific JSON-string field), NOT a top-level OData
@@ -363,17 +712,35 @@
             // Pull it out into a dedicated `sponsorUnit` param so the
             // route handler can apply a post-fetch filter against the
             // mapper's parsed listing.sponsorUnit field.
-            if (criteria.checkboxFilters && criteria.checkboxFilters.SponsorUnit) {
-                var _sp = criteria.checkboxFilters.SponsorUnit;
+            //
+            // LIFTED ON A COPY, NEVER DELETED FROM THE CALLER.
+            //
+            // This used to `delete criteria.checkboxFilters.SponsorUnit`. The
+            // goal was right — SponsorUnit must not travel in the generic
+            // checkbox JSON — but the object being edited is the module-level
+            // `activeSearchCriteria` that _serverSearch is handed, so the delete
+            // was permanent and everything downstream saw a search the broker
+            // never described. Ticking Sponsor Unit, searching, then saving
+            // produced a saved search with NO sponsor constraint: the checkbox
+            // had been deleted, and `sponsor_unit: c.sponsorUnit` reads a key
+            // nothing ever sets (the serializer sets params.sponsorUnit, a
+            // different object). Both carriers empty, criterion silently gone,
+            // reloads BROADER than what was saved.
+            //
+            // The wire payload is built from a shallow copy instead, so the
+            // backend still never receives SponsorUnit and the broker's own
+            // criteria object still describes their search.
+            var _cbForWire = criteria.checkboxFilters;
+            if (_cbForWire && _cbForWire.SponsorUnit) {
+                var _sp = _cbForWire.SponsorUnit;
                 if (Array.isArray(_sp) && (_sp.indexOf('true') !== -1 || _sp.indexOf('Yes') !== -1)) {
                     params.sponsorUnit = 'true';
                 }
-                // Remove from the JSON payload so the backend doesn't try to
-                // OData-filter on it.
-                delete criteria.checkboxFilters.SponsorUnit;
+                _cbForWire = Object.assign({}, _cbForWire);
+                delete _cbForWire.SponsorUnit;
             }
-            if (criteria.checkboxFilters) {
-                var _cbJson = JSON.stringify(criteria.checkboxFilters);
+            if (_cbForWire) {
+                var _cbJson = JSON.stringify(_cbForWire);
                 if (_cbJson !== '{}') params.checkboxFilters = _cbJson;
             }
             // ── Codex Risk P0 fix: transit/grid panels are disabled at
@@ -388,33 +755,384 @@
             //    plan PR 5), restore both blocks AND remove the
             //    transit/grid entries from DEAD_CONTAINERS in
             //    init-disable-dead-controls.js. Both must move together.
+            // ── SALE AND RENTAL ARE SEPARATE WORKFLOWS ──
+            //
+            // The field registry DECLARES workflow membership and NOTHING
+            // enforces it: crm-idx-filter.ts applies `contractDateFrom`
+            // unconditionally, with no idea which workflow asked. The per-tab
+            // canonical store keeps the two UIs apart, but any caller handing
+            // this serializer a criteria object — a restored Saved Search, the
+            // match tracker, a refine — could still put a Sale criterion on a
+            // Rental query, and the executor would honour it.
+            //
+            // Proven before it was fixed: a rental search carrying
+            // `contractDateFrom` emitted it on the wire.
+            //
+            // Declared as a MAP rather than hand-checked at each emit site, so
+            // a criterion added to one workflow forces a decision here instead
+            // of silently becoming available to both.
+            var WORKFLOW_SCOPED_PARAMS = {
+                contractDateFrom: ['sale'],
+                contractDateTo: ['sale'],
+                sponsorUnit: ['sale'],
+                maintenanceMax: ['sale'],
+                maintenanceMin: ['sale'],
+                furnished: ['rental']
+            };
+            var _activeWorkflow = params.type === 'rental' ? 'rental'
+                : params.type === 'sale' ? 'sale' : null;
+            if (_activeWorkflow) {
+                Object.keys(WORKFLOW_SCOPED_PARAMS).forEach(function (key) {
+                    if (params[key] === undefined) return;
+                    if (WORKFLOW_SCOPED_PARAMS[key].indexOf(_activeWorkflow) !== -1) return;
+                    console.warn('[Search] Dropping "' + key + '": it belongs to the ' +
+                        WORKFLOW_SCOPED_PARAMS[key].join('/') + ' workflow, not ' + _activeWorkflow + '.');
+                    delete params[key];
+                });
+            }
+
             return params;
         };
 
-        // Server-side search: query Trestle API with criteria — this is the PRIMARY data source
+        /**
+         * A BOUNDED READ FOR THE MAP, separate from the grid's page.
+         *
+         * The map answers "where is this inventory" and the grid answers "which
+         * rows am I reading now". They are different questions over the same
+         * criteria, so the map keeps its own bounded window instead of
+         * inheriting whatever page happens to be open. Without this, making
+         * pagination real would have silently cut the map from ~200 pins to one
+         * page's worth — a regression in the area-scanning workflow, paid for a
+         * fix it had nothing to do with.
+         *
+         * ⚠ THIS IS A BOUNDED HEAD SAMPLE, NOT THE MAP UNIVERSE.
+         *
+         * Stated plainly because an earlier version of this comment claimed
+         * pins beyond 500 "add nothing a broker can read". That was an
+         * assertion, not a finding, and it is wrong for a 4,622-result search:
+         * the first 500 rows in PRICE order are not the geography of the
+         * result set. A broker scanning an area is asking a question this read
+         * cannot answer.
+         *
+         * WHY IT IS STILL A HEAD SAMPLE, verified live 2026-08-26 rather than
+         * assumed: Cotality returns Latitude and Longitude as NULL on live
+         * Active rows, and both are PROVIDER-SUPPRESSED for filtering
+         * ("cannot be used"). So Mallan cannot ask the provider "which listings
+         * are in this viewport" at all. A spatial provider query does not exist
+         * on this subscription.
+         *
+         * THE REAL MAP CONTRACT therefore has to express geography in the
+         * provider's OWN vocabulary and resolve coordinates on Mallan's side:
+         *
+         *     viewport / polygon
+         *   -> the neighbourhoods and boroughs it covers
+         *   -> CityRegion / SubdivisionName / PostalCode criteria (all proven
+         *      filterable)
+         *   -> the final universe for that geography
+         *   -> pins from the existing Census-backed GeocodeCache
+         *      (address_key -> lat/lng), never from provider coordinates
+         *
+         * That is a build, not a constant change, and it is NOT claimed here.
+         * Until it lands, this read stays deliberately bounded and the UI must
+         * not present it as a complete geographic answer.
+         */
+        function _loadMapUniverse(pageParams) {
+            if (typeof MallanAPI === 'undefined') return;
+            if (typeof refreshResultsMap !== 'function') return;
+            var mapParams = Object.assign({}, pageParams);
+            mapParams.page = 1;
+            mapParams.limit = 500;
+            MallanAPI.idx.search(mapParams).then(function(mapResult) {
+                if (!mapResult || !mapResult.listings) return;
+                searchResultsState.mapListings = mapResult.listings;
+                // Records that the pins are a sample of a larger universe, so a
+                // renderer can say so instead of implying completeness.
+                // PARTIAL IS DECIDED BY THE SERVER'S TRUTH, NOT BY COMPARING
+                // TWO NUMBERS.
+                //
+                // This was `count.value > listings.length`, which reports NOT
+                // partial whenever the two happen to be equal — including when
+                // the traversal never proved the provider was exhausted. A map
+                // is partial whenever the count is a lower bound OR the universe
+                // was not exhausted, regardless of how the arithmetic lands.
+                var _mc = mapResult.count;
+                searchResultsState.mapIsPartial = !!(
+                    (_mc && _mc.isExact === false)
+                    || (mapResult.more && mapResult.more !== 'PROVIDER_EXHAUSTED')
+                );
+                try { refreshResultsMap(); } catch (e) { console.error('[Search] Map refresh failed:', e); }
+            }).catch(function(e) {
+                // Non-fatal. The grid is the answer; the map is support, and a
+                // failed map read must never take the result set down with it.
+                console.warn('[Search] Map universe unavailable:', e && e.message);
+            });
+        }
+
+        /**
+         * How many extra segments one page may take before Mallan stops and
+         * shows what it has.
+         *
+         * Bounded on purpose: a pathological search where almost everything is
+         * gated could otherwise spend an unbounded number of round trips
+         * assembling a single page. When the bound bites, the page is rendered
+         * with its INCOMPLETE state intact rather than silently presented as
+         * finished.
+         */
+        var _MAX_PAGE_FILL_SEGMENTS = 6;
+        var _fillAttempts = 0;
+        var _pendingPageRows = null;
+
+        /** Ask for the REMAINDER of the page currently being assembled. */
+        function _continuePage(targetPage, previous) {
+            var params = window.buildIdxSearchParams(
+                (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria)
+                    ? activeSearchCriteria
+                    : {}
+            );
+            params.page = 1;
+            // Only what the page is still owed — asking for a full page again
+            // would overshoot and the extra rows would belong to page 2.
+            var owed = (searchResultsState.perPage || 50) - (_pendingPageRows || []).length;
+            params.limit = Math.max(1, owed);
+            if (searchResultsState.sortKey) params.sort = searchResultsState.sortKey;
+            params.continuation = previous.continuation;
+
+            MallanAPI.idx.search(params).then(function(result) {
+                _handlePageResult(result, targetPage);
+            }).catch(function(err) {
+                _fillAttempts = 0;
+                _pendingPageRows = null;
+                _pageRequestFailed(err, targetPage);
+            });
+        }
+
+        /**
+         * FETCH ONE PAGE OF THE FINAL UNIVERSE FROM THE SERVER.
+         *
+         * Authoritative pagination is a SERVER round trip, never a local slice.
+         * Slicing filteredListings would page correctly through whatever window
+         * happened to be loaded and call it the answer — the same page-local
+         * defect this workstream removed everywhere else, arriving at the last
+         * hop.
+         *
+         * One page transition carries the whole request identity:
+         *
+         *     current canonical criteria   (via the ONE serializer)
+         *   + canonical sort key
+         *   + requested final-universe page
+         *   -> server
+         *   -> authoritative rows + count disposition
+         *
+         * SELECTION IS NOT TOUCHED. `selectedListings` lives on
+         * searchResultsState and is persisted independently of
+         * filteredListings, so swapping the rows on screen cannot silently
+         * discard listings the broker picked on an earlier page.
+         */
+        function _requestResultPage(targetPage) {
+            if (typeof searchResultsState === 'undefined' || !searchResultsState) return;
+
+            // A PROVISIONAL set is a local re-filter of whatever catalogue is
+            // loaded. There is no server universe behind it to page, so it
+            // keeps paging locally rather than pretending otherwise.
+            if (searchResultsState.resultProvenance !== 'authoritative'
+                || typeof MallanAPI === 'undefined'
+                || typeof window.buildIdxSearchParams !== 'function') {
+                searchResultsState.currentPage = targetPage;
+                if (typeof renderSearchResults === 'function') renderSearchResults();
+                return;
+            }
+
+            var params = window.buildIdxSearchParams(
+                (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria)
+                    ? activeSearchCriteria
+                    : {}
+            );
+            params.page = targetPage;
+            params.limit = searchResultsState.perPage || 50;
+            if (searchResultsState.sortKey) params.sort = searchResultsState.sortKey;
+
+            // SEQUENTIAL NEXT RESUMES; A JUMP RESCANS.
+            //
+            // Moving to the immediately following page carries the server's
+            // continuation, so the traversal picks up where it stopped instead
+            // of re-walking the prefix and hitting the read ceiling again. Any
+            // other move — First, Last, a page-size change, a jump — has no
+            // position to resume from and takes a bounded rescan, which is
+            // correct but costs the prefix.
+            //
+            // The two behaviours are deliberately distinct rather than blurred:
+            // sending a continuation for a non-sequential move would return the
+            // wrong page while looking like it worked.
+            var _isSequentialNext = targetPage === (searchResultsState.currentPage || 1) + 1;
+            if (_isSequentialNext && searchResultsState.serverContinuation) {
+                params.continuation = searchResultsState.serverContinuation;
+            }
+
+            if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = true;
+            MallanAPI.idx.search(params).then(function(result) {
+                _handlePageResult(result, targetPage);
+            }).catch(function(err) {
+                _fillAttempts = 0;
+                _pendingPageRows = null;
+                _pageRequestFailed(err, targetPage);
+            });
+        }
+        window._requestResultPage = _requestResultPage;
+
+        /** Adopt one page result, finishing the page first if it is unfinished. */
+        function _handlePageResult(result, targetPage) {
+                if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = false;
+                if (!result || !result.listings) return;
+
+                // AN UNFINISHED PAGE IS FINISHED, NOT ADVANCED PAST.
+                //
+                // If the read budget ended mid-page the server says
+                // PAGE_INCOMPLETE_BUDGET. Rendering those rows and letting the
+                // broker press Next would make the page boundaries a fiction:
+                // page 1 = rows 1-20, page 2 = rows 21-70. Nothing is lost, but
+                // "page 1" then means "however far we got", which is not a page.
+                //
+                // So the same page keeps assembling, bounded, before any
+                // normal Next-page semantics apply.
+                var _incomplete = result.pageCompleteness === 'PAGE_INCOMPLETE_BUDGET';
+                if (_incomplete && result.continuation && _fillAttempts < _MAX_PAGE_FILL_SEGMENTS) {
+                    _fillAttempts += 1;
+                    _pendingPageRows = (_pendingPageRows || []).concat(result.listings || []);
+                    _continuePage(targetPage, result);
+                    return;
+                }
+
+                var _assembled = (_pendingPageRows || []).concat(result.listings || []);
+                _pendingPageRows = null;
+                _fillAttempts = 0;
+
+                searchResultsState.filteredListings = _assembled;
+                searchResultsState.currentPage = result.page || targetPage;
+                searchResultsState.pageCompleteness = result.pageCompleteness || null;
+                searchResultsState.serverCount = result.count || null;
+                searchResultsState.serverTotalPages =
+                    (typeof result.totalPages === 'number') ? result.totalPages : null;
+                searchResultsState.serverHasMore = !!result.hasMore;
+                searchResultsState.serverContinuation = result.continuation || null;
+                // The map universe belongs to the CRITERIA, not the page, so it
+                // is deliberately left alone here: paging must not re-fetch 500
+                // rows, and the pins are still answering the same question.
+                _setResultProvenance('authoritative');
+
+                try {
+                    if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                    if (typeof updateResultsCount === 'function') updateResultsCount();
+                    if (typeof refreshResultsMap === 'function') refreshResultsMap();
+                } catch (renderErr) {
+                    console.error('[Search] Render after page request failed:', renderErr);
+                }
+                _saveSearchState();
+        }
+
+        /** A page request failed: fail closed rather than mislabel stale rows. */
+        function _pageRequestFailed(err, targetPage) {
+                if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = false;
+                console.error('[Search] Page request failed:', err);
+                // FAIL CLOSED, exactly like a failed search: the rows on screen
+                // belong to the PREVIOUS page, so leaving them up while the page
+                // number moves would show one page's rows under another page's
+                // heading.
+                searchResultsState.filteredListings = [];
+                _setResultProvenance('none');
+                try {
+                    if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                    if (typeof updateResultsCount === 'function') updateResultsCount();
+                } catch (renderErr) {
+                    console.error('[Search] Render after failed page request:', renderErr);
+                }
+                if (err && err.code === 'UNSUPPORTED_CRITERION' && err.criterion) {
+                    showToast('Search refused: “' + err.criterion + '” is not a supported search criterion.', 'error');
+                } else {
+                    showToast('Could not load page ' + targetPage + '.', 'error');
+                }
+        }
+
+        // Server-side search: query the Cotality API with criteria — this is the PRIMARY data source
         function _serverSearch(criteria, localResults) {
             var params = window.buildIdxSearchParams(criteria);
 
-            // ≤200: server sends inline photos via $expand=Media (fast, one request)
-            // >200: server sends listings without photos, photo-loader.js lazy-loads
-            //       via /api/media/batch + IntersectionObserver
-            params.limit = 200;
+            // PAGE 1 OF THE FINAL UNIVERSE, at the broker's page size.
+            //
+            // This used to ask for a flat 200 rows and let the browser page
+            // inside them. That made "page" mean a slice of a window, so no
+            // amount of navigation reached result 201 of a 4,622-match search.
+            // The grid now asks the server for a real page and the controls ask
+            // for the next one.
+            //
+            // The old comment here claimed <=200 got inline photos via
+            // $expand=Media. That is stale: the route passes expandMedia:false
+            // unconditionally and media is lazy-loaded through /api/media/batch,
+            // so page size has not driven media for some time.
+            params.page = 1;
+            params.limit = searchResultsState.perPage || 50;
 
-            console.log('[Search] Querying Trestle API:', JSON.stringify(params));
+            console.log('[Search] Querying Cotality API:', JSON.stringify(params));
             if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = true;
             MallanAPI.idx.search(params).then(function(result) {
                 if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = false;
-                console.log('[Search] Trestle returned:', result ? (result.listings ? result.listings.length + ' listings' : 'no listings array') : 'null');
-                if (!result || !result.listings || result.listings.length === 0) {
-                    // Server returned 0. Trestle is the source of truth for IDX
-                    // search — DO NOT keep the pre-display local fixture
-                    // results visible, because they include cross-borough
-                    // fixture rows that don't match the actual IDX query
-                    // (e.g. Manhattan + 1 bed search briefly showing Bronx/
-                    // Queens fixtures while server loads). Clear the display
-                    // so the empty-state + toast surfaces honestly.
+                console.log('[Search] Cotality returned:', result ? (result.listings ? result.listings.length + ' listings' : 'no listings array') : 'null');
+                // A BOUNDED TRAVERSAL THAT FOUND NOTHING IS NOT AN EMPTY
+                // UNIVERSE.
+                //
+                // Zero rows used to mean "no listings found", authoritatively.
+                // That is only true when the provider was EXHAUSTED. If the read
+                // budget stopped the traversal first, the server says
+                // BUDGET_EXHAUSTED_UNRESOLVED, and hundreds of thousands of
+                // provider rows may still be unread. Telling a broker their
+                // inventory does not exist because Mallan chose not to read
+                // farther is the worst version of the false-universe defect this
+                // whole workstream removes.
+                var _more = result && result.more;
+                var _zeroRows = !result || !result.listings || result.listings.length === 0;
+                if (_zeroRows && _more === 'BUDGET_EXHAUSTED_UNRESOLVED') {
                     searchResultsState.filteredListings = [];
                     searchResultsState.currentPage = 1;
+                    searchResultsState.serverCount = (result && result.count) || null;
+                    searchResultsState.serverTotalPages = null;
+                    searchResultsState.serverHasMore = true;
+                    // NOT authoritative: nothing was established, so every
+                    // downstream broker action stays closed rather than acting
+                    // on an unproven empty set.
+                    _setResultProvenance('incomplete');
+                    try {
+                        if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                        if (typeof updateResultsCount === 'function') updateResultsCount();
+                    } catch (renderErr) {
+                        console.error('[Search] Render after incomplete search failed:', renderErr);
+                    }
+                    showToast(
+                        'Search incomplete — Mallan stopped reading before the provider ran out of listings. '
+                        + 'Narrow the criteria, or open the next page to keep looking.',
+                        'warning'
+                    );
+                    return;
+                }
+
+                if (_zeroRows) {
+                    // Server returned 0. The server is the source of truth for
+                    // this search — DO NOT keep the pre-render rows visible.
+                    //
+                    // (Comment corrected 2026-08-21: these were called "local
+                    // fixture rows". They are not fixtures. `listings` is the
+                    // 200-row UNFILTERED page loaded at startup by
+                    // `_loadFromIDX()`, so the rows are real listings that
+                    // simply do not answer this query — which is precisely why
+                    // leaving them up would read as a result set.)
+                    //
+                    // Clear the display so the empty-state + toast surface honestly.
+                    searchResultsState.filteredListings = [];
+                    searchResultsState.currentPage = 1;
+                    // A genuinely empty universe IS an answer, and reaching this
+                    // line now means the provider was EXHAUSTED — the
+                    // unresolved case returned above. `Townhouse` is a valid
+                    // live member with zero rows; nothing failed, so this stays
+                    // authoritative and downstream actions stay open.
+                    _setResultProvenance('authoritative');
                     try {
                         if (typeof initializeSearchResults === 'function') initializeSearchResults();
                         if (typeof updateResultsCount === 'function') updateResultsCount();
@@ -432,21 +1150,20 @@
 
                 // Apply neighborhood resolution and defaults
                 serverListings.forEach(function(l) {
-                    if (l.price == null) l.price = 0;
-                    if (l.totalMonthly == null) l.totalMonthly = 0;
-                    if (l.maintCC == null) l.maintCC = 0;
-                    if (l.reTaxes == null) l.reTaxes = 0;
-                    if (l.beds == null) l.beds = 0;
-                    if (l.baths == null) l.baths = 0;
-                    if (l.rooms == null) l.rooms = 0;
-                    if (l.dom == null) l.dom = 0;
-                    if (l.photoCount == null) l.photoCount = (l.images && l.images.length) || 0;
-                    if (!l.status) l.status = 'ACTIVE';
+                    // STEP 1 — the unknown-to-value defaults are REMOVED.
+                    // These re-invented, after the server had answered, exactly what
+                    // crm-idx-mapper.ts refuses to invent: an unknown fee became $0,
+                    // an unknown status became ACTIVE, an unknown borough became
+                    // Manhattan. Renderers must show unknown as unavailable.
+                    // A photo count is still derived from media ACTUALLY PRESENT —
+                    // that is evidence, not a default. Absent both, it stays unknown.
+                    if (l.photoCount == null && l.images && l.images.length > 0) l.photoCount = l.images.length;
                     if (!l.address) l.address = 'Address Unavailable';
                     if (!l.unit) l.unit = '';
                     if (!l.neighborhood) l.neighborhood = '';
                     if (!l.zip) l.zip = '';
-                    if (!l.borough) l.borough = 'Manhattan';
+                    // borough is NOT defaulted — a Brooklyn listing read as Manhattan is wrong on
+                    // the card, the map, the report and every saved search.
                     if (!l.listedDate) l.listedDate = '--';
                     if (!l.company) l.company = '';
                     if (!l.permissions) l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: true, internetDisplay: true, syndication: true };
@@ -470,20 +1187,54 @@
                     }
                 });
 
-                // REPLACE the pre-display local fixture results with the
-                // authoritative Trestle server results. Previously this
-                // merged `localResults` (fixture-side filter output) with
-                // `serverListings`, which polluted IDX search results with
-                // cross-borough fixtures — e.g. Manhattan+1bed search would
-                // render Bronx/Queens fixture rows above the actual Manhattan
-                // listings because filterListings(listings, criteria) on the
-                // ~126-row local fixture set is not borough/neighborhood-
-                // strict and IDX search is server-authoritative anyway.
+                // REPLACE the provisional pre-render with the AUTHORITATIVE
+                // server universe. Previously this MERGED `localResults` with
+                // `serverListings`, so rows that answered no part of the query
+                // rendered above the ones that did.
+                //
+                // (Comment corrected 2026-08-21. It described `listings` as a
+                // "~126-row local fixture set". It is not a fixture set — that
+                // number belongs to the TEST fixtures in scripts/crm-tests/.
+                // At runtime `listings` is whatever `_loadFromIDX()` fetched at
+                // page load: 200 unfiltered rows ordered by
+                // ModificationTimestamp desc, or a 200-row local-DB page on
+                // fallback. Capped, stale and criteria-independent — real rows
+                // that are not an answer, which is the harder case to spot.)
+                //
                 // serverListings has been merged into the global `listings`
                 // array above so existing-by-id lookups still work; we just
                 // stop polluting the rendered list.
                 searchResultsState.filteredListings = serverListings;
                 searchResultsState.currentPage = 1;
+
+                // THE SERVER'S DECLARED COUNT, CARRIED WITH ITS MEANING.
+                //
+                // updateResultsCount used to print filteredListings.length as
+                // "N Results". That is the size of what was FETCHED, not the
+                // size of the result universe: a live Manhattan Active search
+                // matches 4,622 listings and the browser asks for one window of
+                // them. Printing the window as the total reads to a broker as
+                // "this inventory does not exist".
+                //
+                // `count.meaning` says whether the number is EXACT or a declared
+                // LOWER BOUND, and the renderer must not flatten that back into a
+                // bare number.
+                searchResultsState.serverCount = (result && result.count) || null;
+                searchResultsState.serverTotalPages =
+                    (result && typeof result.totalPages === 'number') ? result.totalPages : null;
+                searchResultsState.serverHasMore = !!(result && result.hasMore);
+                searchResultsState.serverContinuation = (result && result.continuation) || null;
+
+                // THE MAP IS A DIFFERENT QUESTION FROM THE GRID.
+                //
+                // Pins answer "where is this inventory", which is not the same
+                // as "which twenty rows am I reading". Feeding the map the
+                // current page would have cut it from ~200 pins to one page's
+                // worth the moment paging became real, so it gets its own
+                // bounded read of the SAME criteria and sort.
+                _loadMapUniverse(params);
+
+                _setResultProvenance('authoritative');
                 try {
                     if (typeof initializeSearchResults === 'function') initializeSearchResults();
                     if (typeof updateResultsCount === 'function') updateResultsCount();
@@ -492,14 +1243,64 @@
                     console.error('[Search] Render after server search failed:', renderErr);
                 }
                 _saveSearchState();
-                console.log('[Search] Rendered ' + serverListings.length + ' listings from Trestle');
+                console.log('[Search] Rendered ' + serverListings.length + ' listings from Cotality');
             }).catch(function(err) {
                 if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = false;
-                console.error('[Search] Trestle search failed:', err);
-                // Keep local results visible — they're already rendered
-                if (localResults.length === 0) {
-                    showToast('Search temporarily unavailable. Please try again.', 'error');
+                console.error('[Search] Search failed:', err);
+
+                // FAIL CLOSED. This used to keep the local pre-render visible and
+                // show an error ONLY when `localResults.length === 0` — so a
+                // failed search with rows on screen was indistinguishable from a
+                // successful one. Those rows are a stale, criteria-independent
+                // 200-row page from page load, and they are not an answer.
+                //
+                // A failed search yields NO result universe:
+                //   - the rows are cleared,
+                //   - the provenance drops to 'none' so every downstream broker
+                //     action (Compare / Reports / client send / saved counts) is
+                //     refused by requireAuthoritativeSearchResults(),
+                //   - the persisted state is discarded so a refresh cannot
+                //     resurrect the preview as a completed search,
+                //   - and the failure is ALWAYS surfaced, whatever was on screen.
+                void localResults;
+                searchResultsState.filteredListings = [];
+                searchResultsState.currentPage = 1;
+                _setResultProvenance('none');
+
+                try { sessionStorage.removeItem('_searchState'); } catch (storageErr) { void storageErr; }
+
+                try {
+                    if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                    if (typeof updateResultsCount === 'function') updateResultsCount();
+                    if (typeof refreshResultsMap === 'function') refreshResultsMap();
+                } catch (renderErr) {
+                    console.error('[Search] Render after failed search failed:', renderErr);
                 }
+
+                // A REFUSED CRITERION IS NOT A TRANSIENT FAILURE.
+                //
+                // The server refuses a criterion BY NAME rather than substitute
+                // a near-neighbour provider field or silently drop it. That
+                // refusal is correct and it is the whole point of the criterion
+                // register. But it used to arrive here as the same generic
+                // "please try again" as a timeout — and retrying a refused
+                // criterion fails identically, every time, forever. The one
+                // instruction the broker got was the one that could not work.
+                //
+                // Name it instead, so the fix is obvious: remove that field.
+                if (err && err.code === 'UNSUPPORTED_CRITERION' && err.criterion) {
+                    var _vals = (err.unsupportedValues && err.unsupportedValues.length)
+                        ? ' (' + err.unsupportedValues.join(', ') + ')'
+                        : '';
+                    showToast(
+                        'Search refused: “' + err.criterion + '”' + _vals +
+                        ' is not a supported search criterion. Clear it and search again.',
+                        'error'
+                    );
+                    return;
+                }
+
+                showToast('Search failed — no results to show. Please try again.', 'error');
             });
         }
 
@@ -589,7 +1390,7 @@
                             address: listing.address,
                             name: listing.buildingName || '',
                             neighborhood: listing.neighborhood,
-                            borough: listing.borough || 'Manhattan',
+                            borough: listing.borough || null,
                             zip: listing.zip,
                             type: ownershipLabel(listing.ownership) || '',
                             yearBuilt: ''
@@ -638,7 +1439,7 @@
             resultsDiv.classList.remove('hidden');
         }
 
-        // Server-side address search via Trestle API
+        // Server-side address search via the Cotality API
         function _serverAddressSearch(query, resultsDivId, localMatches) {
             var resultsDiv = document.getElementById(resultsDivId);
             if (!resultsDiv) return;
@@ -655,7 +1456,7 @@
                         address: l.address,
                         name: l.buildingName || '',
                         neighborhood: l.neighborhood || '',
-                        borough: l.borough || 'Manhattan',
+                        borough: l.borough || null,
                         zip: l.zip || '',
                         type: ownershipLabel(l.ownership) || '',
                         yearBuilt: ''
@@ -700,467 +1501,826 @@
             return parts[2] + '-' + parts[0].padStart(2, '0') + '-' + parts[1].padStart(2, '0');
         }
 
+        // ─── ACTIVE SEARCH SURFACE ──────────────────────────────────────────
+        //
+        // ONE resolver for "which Basic form is the agent actually using".
+        //
+        // THE DEFECT THIS REPLACES. Three Basic surfaces exist in the markup —
+        // #searchBasicMode (Sale), #searchBasicModeRental and
+        // #searchBasicModeBuilding — but toggleSearchTab() only ever set
+        // .style.display on the Sale one, and the rental and building containers
+        // carry an inline display:none that nothing cleared. Comments here and in
+        // toggleSearchTab claimed "data-show-on handles visibility"; that string
+        // appeared nowhere in this repository except those comments. It was never
+        // an attribute.
+        //
+        // So every tab rendered the SALE layout, while the collector read the
+        // per-tab element ids — #rentalMinRent, #rentalMinBeds — that live inside
+        // a permanently hidden container. An agent on the Rentals tab typed a
+        // price into the visible Sale control, that value was never read, and the
+        // search executed the DEFAULTS of fields they could not see. Not a
+        // dropped criterion: a substituted one, returning a confident result set
+        // for a question nobody asked.
+        //
+        // Six places independently hard-coded getElementById('searchBasicMode')
+        // to mean "the basic form" — the collector's scope, the filter counter,
+        // three visibility paths, and three Saved Search restore scopes. That is
+        // the same one-concept-many-owners split being removed elsewhere, so all
+        // of them now resolve through here.
+        //
+        // NOT SOLVED BY COPYING. Values are never moved between the Sale, Rental
+        // and Building controls, nor between Basic and Advanced. Basic and
+        // Advanced are two VIEWS; the active surface is resolved, read and
+        // written in place, so a hidden container cannot contribute a default and
+        // no view can overwrite what the agent typed in another.
+        var BASIC_SURFACE_BY_TAB = {
+            sale: 'searchBasicMode',
+            rent: 'searchBasicModeRental',
+            building: 'searchBasicModeBuilding'
+        };
+
+        /** The id of the Basic surface belonging to a tab. Sale is the fallback. */
+        function basicSurfaceIdForTab(tab) {
+            return BASIC_SURFACE_BY_TAB[tab] || BASIC_SURFACE_BY_TAB.sale;
+        }
+
+        /** The Basic surface element for the CURRENT tab. */
+        function activeBasicSurface() {
+            return document.getElementById(basicSurfaceIdForTab(currentSearchTab));
+        }
+
+        /** True when Advanced is the visible view. */
+        function isAdvancedViewVisible() {
+            var adv = document.getElementById('searchAdvancedMode');
+            return !!adv && adv.style.display !== 'none' && !adv.classList.contains('hidden');
+        }
+
+        /**
+         * The form the agent is actually looking at — Advanced when it is open,
+         * otherwise the Basic surface for the active tab.
+         */
+        function activeSearchSurface() {
+            return isAdvancedViewVisible()
+                ? document.getElementById('searchAdvancedMode')
+                : activeBasicSurface();
+        }
+
+        /**
+         * Show EXACTLY ONE search surface.
+         *
+         * Every other surface is hidden, so no container that is not on screen
+         * can hold a value the collector might read.
+         */
+        function applySearchSurfaceVisibility(tab, isBasicMode) {
+            // Capture the outgoing view before it is hidden.
+            syncActiveViewToCanonical(currentSearchTab, activeViewName());
+            var activeId = basicSurfaceIdForTab(tab);
+            Object.keys(BASIC_SURFACE_BY_TAB).forEach(function (t) {
+                var el = document.getElementById(BASIC_SURFACE_BY_TAB[t]);
+                if (!el) return;
+                el.style.display = (isBasicMode && BASIC_SURFACE_BY_TAB[t] === activeId) ? 'block' : 'none';
+            });
+            var advanced = document.getElementById('searchAdvancedMode');
+            if (advanced) advanced.style.display = isBasicMode ? 'none' : 'block';
+            // Render the view now on screen. Basic and Advanced show the same
+            // criteria because they read the same object, not because anything
+            // was copied between them.
+            renderCanonicalToActiveView(tab, isBasicMode ? 'basic' : 'advanced');
+        }
+
+        // ─── CANONICAL CRITERIA STATE ───────────────────────────────────────
+        //
+        // ONE typed criteria object per workflow, keyed by CANONICAL criterion
+        // names and holding CANONICAL VALUE SHAPES. Basic and Advanced are two
+        // views of it; neither is the authority, and the DOM is a projection.
+        //
+        // WHAT THIS REPLACES. The first version stored raw DOM strings —
+        // list_price as ['3000','7000'] — for three criteria. That was a DOM
+        // synchronisation cache wearing a canonical name: it carried the shape of
+        // the control rather than the shape of the fact, and everything it did
+        // not list stayed view-local. Status, geography, address, keyword,
+        // ownership, property type, pets, furnished, features, dates and
+        // management company were all still lost when the agent switched view.
+        //
+        // Values are now stored the way the canonical contract defines them:
+        //
+        //   range_number   { min?: number, max?: number }
+        //   range_date     { min?: 'YYYY-MM-DD', max?: 'YYYY-MM-DD' }
+        //   enum_set       ['Active', 'Pending']
+        //   text_set       ['RLS123', 'RLS456']
+        //   feature_map    { view: ['City'], laundry: ['InUnit'] }
+        //   text           '17C'
+        //   boolean        true
+        //
+        // An adapter converts DOM -> canonical on the way in and canonical -> DOM
+        // on the way out. Nothing is ever copied control-to-control: the traffic
+        // is always DOM -> canonical -> DOM, which is what makes Basic and
+        // Advanced views rather than stores.
+        var CRITERION_ADAPTERS = {
+            // ── RANGES ──────────────────────────────────────────────────────
+            list_price: { kind: 'range', shape: 'range_number', ids: {
+                sale:     { basic: ['saleMinPrice', 'saleMaxPrice'], advanced: ['advSaleMinPrice', 'advSaleMaxPrice'] },
+                rent:     { basic: ['rentalMinRent', 'rentalMaxRent'], advanced: ['advRentalMinRent', 'advRentalMaxRent'] } } },
+            bedrooms: { kind: 'range', shape: 'range_number', ids: {
+                sale:     { basic: ['saleMinBeds', 'saleMaxBeds'], advanced: ['adv-min-beds', 'adv-max-beds'] },
+                rent:     { basic: ['rentalMinBeds', 'rentalMaxBeds'], advanced: ['adv-min-beds', 'adv-max-beds'] } } },
+            bathrooms: { kind: 'range', shape: 'range_number', ids: {
+                sale:     { basic: ['saleMinBaths', 'saleMaxBaths'], advanced: ['adv-min-baths', 'adv-max-baths'] },
+                rent:     { basic: ['rentalMinBaths', 'rentalMaxBaths'], advanced: ['adv-min-baths', 'adv-max-baths'] } } },
+            rooms_total: { kind: 'range', shape: 'range_number', ids: {
+                sale:     { basic: ['saleMinRooms', 'saleMaxRooms'], advanced: ['adv-min-rooms', 'adv-max-rooms'] },
+                rent:     { basic: ['rentalMinRooms', 'rentalMaxRooms'], advanced: ['adv-min-rooms', 'adv-max-rooms'] } } },
+            living_area: { kind: 'range', shape: 'range_number', ids: {
+                sale:     { basic: ['saleMinSqft', 'saleMaxSqft'], advanced: ['adv-min-sqft', 'adv-max-sqft'] },
+                rent:     { basic: ['rentalMinSqft', 'rentalMaxSqft'], advanced: ['adv-min-sqft', 'adv-max-sqft'] } } },
+            year_built: { kind: 'range', shape: 'range_number', buildingFact: ['yearMin', 'yearMax'], workflows: ['sale', 'rent', 'building'] },
+            units_total: { kind: 'range', shape: 'range_number', buildingFact: ['unitsMin', 'unitsMax'], workflows: ['sale', 'rent', 'building'] },
+            stories_total: { kind: 'range', shape: 'range_number', buildingFact: ['floorsMin', 'floorsMax'], workflows: ['sale', 'rent', 'building'] },
+            max_financing_percent: { kind: 'range', shape: 'range_number', ids: {
+                sale:     { basic: ['saleBuildingFinancingMin', 'saleBuildingFinancingMax'], advanced: ['adv-financing', null] },
+                // BUILDING owns this too, as of 2026-08-30. Maximum Financing Allowed
+                // is something an agent researches ABOUT A BUILDING, and the
+                // contract now offers it to sale + building. Rental is deliberately
+                // absent: financing is not a rental-selection criterion, and the
+                // rental controls stay refused rather than wired.
+                building: { basic: ['buildingFinancingMin', 'buildingFinancingMax'], advanced: ['adv-financing', null] } } },
+
+            // ── CLOSED-VOCABULARY SETS (checkbox groups, read by data-field) ──
+            // Scope-based rather than id-based: the same data-field markup appears
+            // in each surface, so the adapter asks the ACTIVE scope.
+            market_status:     { kind: 'checkboxSet', shape: 'enum_set', field: 'MlsStatus', scope: 'status', workflows: ['sale', 'rent'] },
+            ownership:         { kind: 'checkboxSet', shape: 'enum_set', field: 'CommonInterest', workflows: ['sale', 'rent', 'building'] },
+            property_sub_type: { kind: 'checkboxSet', shape: 'enum_set', field: 'PropertySubType', workflows: ['sale', 'rent'] },
+            pets:              { kind: 'checkboxSet', shape: 'enum_set', field: 'PetsAllowed', workflows: ['sale', 'rent'] },
+            furnished:         { kind: 'checkboxSet', shape: 'enum_set', field: 'Furnished', workflows: ['rent'] },
+            structure_type:    { kind: 'checkboxSet', shape: 'enum_set', field: 'StructureType', workflows: ['sale', 'rent', 'building'] },
+            // Booleans with their own canonical identity. The UI writes them as
+            // ordinary data-field checkboxes, so without an adapter the generic
+            // feature scan absorbed them into feature_criteria.new_construction —
+            // two identities for one business question, and the wrong nested
+            // shape for anything that later persisted it.
+            // `workflows` is REQUIRED on field-scanned adapters. They have no
+            // `ids` map, so the workflow guard — which walked `adapter.ids` —
+            // skipped them entirely while `syncActiveViewToCanonical` happily ran
+            // them against whatever tab was active. The Building form renders
+            // NewConstructionYN, so Building was acquiring a criterion its
+            // contract does not offer: the same back-door widening closed for the
+            // Quick Search controls.
+            // TWO SPELLINGS, ONE CRITERION. Sale and Rental Basic render
+            // data-field="NewConstruction"; Building Basic and Advanced render
+            // "NewConstructionYN". Reading only the YN spelling meant the Sale and
+            // Rental Basic controls were invisible to canonical state — and
+            // because the feature adapter deliberately excludes new_construction
+            // from generic features, they did not fall back there either. The
+            // control did nothing at all.
+            //
+            // The legacy spelling is READ here and never written: canonical state
+            // holds one identity, and `CANONICAL_BY_LEGACY` already maps the same
+            // alias server-side.
+            new_development:   { kind: 'checkboxBool', shape: 'boolean', field: 'NewConstructionYN', legacyFields: ['NewConstruction'], workflows: ['sale', 'rent'] },
+            sponsor_unit:      { kind: 'checkboxBool', shape: 'boolean', field: 'SponsorUnit', workflows: ['sale'] },
+
+            // ── STRUCTURED FEATURE SELECTION ────────────────────────────────
+            // field -> values across every remaining data-field family. Already
+            // the canonical feature_map shape, so it is stored as-is.
+            feature_criteria: { kind: 'featureMap', shape: 'feature_map', workflows: ['sale', 'rent'] },
+
+            // ── SCALAR TEXT ─────────────────────────────────────────────────
+            street_address: { kind: 'text', shape: 'text', ids: {
+                sale:     { basic: ['saleSearchAddress'], advanced: ['advancedSearchAddress'] },
+                rent:     { basic: ['rentalSearchAddress'], advanced: ['advancedSearchAddress'] },
+                building: { basic: ['buildingSearchAddress'], advanced: ['advancedSearchAddress'] } } },
+            public_remarks_keyword: { kind: 'text', shape: 'text', ids: {
+                sale:     { basic: ['saleKeywordSearch'], advanced: ['adv-keyword'] },
+                rent:     { basic: ['rentalKeywordSearch'], advanced: ['adv-keyword'] } } },
+            management_company: { kind: 'text', shape: 'text', ids: {
+                sale:     { basic: ['saleManagementCompany'], advanced: ['adv-management'] },
+                rent:     { basic: ['rentalManagementCompany'], advanced: ['adv-management'] },
+                building: { basic: ['buildingManagementCompany'], advanced: ['adv-management'] } } },
+            // Advanced-only: the Basic surfaces render no building-name control,
+            // so there is no basic id to invent one for.
+            building_name: { kind: 'text', shape: 'text', ids: {
+                sale:     { basic: [], advanced: ['adv-building-name'] },
+                rent:     { basic: [], advanced: ['adv-building-name'] },
+                building: { basic: [], advanced: ['adv-building-name'] } } },
+            postal_code: { kind: 'text', shape: 'text', ids: {
+                sale:     { basic: ['saleQuickZip'], advanced: ['adv-zip'] },
+                rent:     { basic: ['rentalQuickZip'], advanced: ['adv-zip'] },
+                building: { basic: ['buildingQuickZip'], advanced: ['adv-zip'] } } },
+            // Basic-only: Advanced renders no unit control, so this criterion has
+            // no second view to be carried into.
+            unit: { kind: 'text', shape: 'text', ids: {
+                sale:     { basic: ['saleQuickUnit'], advanced: [] },
+                rent:     { basic: ['rentalQuickUnit'], advanced: [] } } },
+            // text_set, NOT text. The canonical contract declares
+            // `listing_id_canonical: 'text_set'`, the control accepts a
+            // comma-separated list, and the executor splits on commas to build a
+            // disjunction. Storing "ID1,ID2" as one scalar string would have made
+            // the canonical state disagree with its own generated contract.
+            listing_id_canonical: { kind: 'textSet', shape: 'text_set', ids: {
+                sale:     { basic: ['saleQuickRls'], advanced: ['adv-rls-id'] },
+                rent:     { basic: ['rentalQuickRls'], advanced: ['adv-rls-id'] } } },
+
+
+            // ── DATES ───────────────────────────────────────────────────────
+            // Basic uses a date-range-picker WRAPPER carrying data-from/data-to;
+            // Advanced uses two plain inputs. Different idioms, one criterion.
+            //
+            // `activity_date` is a COMPOSITE: the same from/to pair means
+            // ListingContractDate or ModificationTimestamp depending on the basis,
+            // so the basis select is part of the value. The canonical contract
+            // requires it explicitly — a stored range that does not say which date
+            // it means silently re-answers a different question whenever the
+            // default changes.
+            activity_date: { kind: 'dateRange', shape: 'basis_range_date',
+                basisIds: { sale: 'saleListingActivityType', rent: 'rentalListingActivityType' },
+                drp: { sale: 'saleListedUpdated', rent: 'rentalListedUpdated' },
+                ids: {
+                    sale: { basic: [], advanced: ['adv-listed-from', 'adv-listed-to'] },
+                    rent: { basic: [], advanced: ['adv-listed-from', 'adv-listed-to'] } } },
+            listing_contract_date: { kind: 'dateRange', shape: 'range_date',
+                drp: { sale: 'saleContractSigned' },
+                ids: { sale: { basic: [], advanced: ['adv-contract-from', 'adv-contract-to'] } } },
+            close_date: { kind: 'dateRange', shape: 'range_date',
+                drp: { sale: 'saleSoldDate' },
+                ids: { sale: { basic: [], advanced: ['adv-sold-from', 'adv-sold-to'] } } },
+            // OPEN HOUSE. This adapter did not exist, so nothing ever read the
+            // Open House pickers into the criteria object - the controls were
+            // disabled, so no test noticed the criterion had no collector at
+            // all. Enabling the buttons without this would have produced a
+            // control that visibly does something and silently searches
+            // nothing, which is worse than the disabled state it replaced.
+            open_house: { kind: 'dateRange', shape: 'range_date',
+                drp: { sale: 'saleOpenHouse', rent: 'rentalOpenHouse' },
+                ids: { sale: { basic: [], advanced: [] },
+                       rent: { basic: [], advanced: [] } } },
+            // ── GEOGRAPHY (tag widgets owned by neighborhood-autocomplete.js) ──
+            neighborhood: { kind: 'tags', shape: 'text_set', selector: 'neighborhoods', workflows: ['sale', 'rent', 'building'] },
+            borough:      { kind: 'tags', shape: 'enum_set', selector: 'boroughs', workflows: ['sale', 'rent', 'building'] }
+        };
+
+        /**
+         * Per-workflow canonical criteria, in CANONICAL VALUE SHAPES.
+         * Separate objects, so one workflow's criteria cannot leak into another.
+         */
+        var _canonicalCriteria = { sale: {}, rent: {}, building: {} };
+
+        /**
+         * Does this adapter apply to this workflow?
+         *
+         * Id-mapped adapters answer through their `ids` table; field-scanned ones
+         * declare `workflows` explicitly. Without this, a scope-scanned adapter
+         * ran against every tab regardless of the contract.
+         */
+        function _adapterAppliesTo(adapter, tab) {
+            if (adapter.workflows) return adapter.workflows.indexOf(tab) !== -1;
+            return !!(adapter.ids && adapter.ids[tab]);
+        }
+
+        /** Which view is on screen, for adapter lookup. */
+        function activeViewName() {
+            return isAdvancedViewVisible() ? 'advanced' : 'basic';
+        }
+
+        /** Every data-field spelling an adapter answers to. Canonical first. */
+        function _adapterFields(adapter) {
+            return [adapter.field].concat(adapter.legacyFields || []);
+        }
+
+        /** A selector matching any of an adapter's field spellings. */
+        function _fieldSelector(adapter, suffix) {
+            return _adapterFields(adapter)
+                .map(function (f) { return '[data-field="' + f + '"]' + (suffix || ''); })
+                .join(', ');
+        }
+
+        /** The element scope an adapter reads within. */
+        /**
+         * The control ids an adapter reads for a (tab, view).
+         *
+         * Building facts DELEGATE to `_resolveBuildingFieldIds`, which is their
+         * single owner — that resolver exists precisely because the collector and
+         * Saved Search restore had already drifted apart over these ids once.
+         * Copying them into the adapter table recreated the split, so the adapters
+         * ask the owner instead of restating it.
+         */
+        function _adapterIds(adapter, tab, view) {
+            if (adapter.buildingFact && typeof window._resolveBuildingFieldIds === 'function') {
+                var resolved = window._resolveBuildingFieldIds(tab, view === 'advanced');
+                return adapter.buildingFact.map(function (slot) { return resolved[slot]; });
+            }
+            return ((adapter.ids || {})[tab] || {})[view] || [];
+        }
+
+        function _adapterScope(adapter) {
+            if (adapter.scope === 'status' && isAdvancedViewVisible()) {
+                // Advanced keeps sale/rental status options in separate divs and
+                // shows one; the generic active-surface scope would collect both.
+                var rentalOpts = document.getElementById('rentalStatusOptions');
+                var saleOpts = document.getElementById('saleStatusOptions');
+                if (rentalOpts && rentalOpts.style.display !== 'none') return rentalOpts;
+                if (saleOpts && saleOpts.style.display !== 'none') return saleOpts;
+                return saleOpts || activeSearchSurface();
+            }
+            return activeSearchSurface();
+        }
+
+        /**
+         * One bound of a range, resolving the "Custom" companion input.
+         *
+         * The selects offer a `custom` option whose real number lives in a
+         * sibling input — `saleMinPrice` = 'custom', value in
+         * `saleMinPriceCustom`. Parsing the select alone yielded undefined, so a
+         * custom price never reached canonical state while the legacy collector
+         * still read the companion and executed it. Search executed a price the
+         * canonical object did not contain, and a Saved Search built on that state
+         * would have persisted a DIFFERENT question from the one that ran.
+         */
+        function _rangeBound(el, id) {
+            if (!el) return undefined;
+            if (String(el.value) !== 'custom') return _numOrUndefined(el.value);
+            var companion = id ? document.getElementById(id + 'Custom') : null;
+            return companion ? _numOrUndefined(companion.value) : undefined;
+        }
+
+        function _numOrUndefined(raw) {
+            if (raw == null || String(raw).trim() === '') return undefined;
+            var n = parseFloat(String(raw).replace(/,/g, ''));
+            return isNaN(n) ? undefined : n;
+        }
+
+        /** DOM -> canonical value, or undefined when this view cannot answer. */
+        function _readAdapter(key, adapter, tab, view) {
+            if (adapter.kind === 'range' || adapter.kind === 'text' || adapter.kind === 'textSet') {
+                var ids = _adapterIds(adapter, tab, view);
+                var els = ids.map(function (id) { return id ? document.getElementById(id) : null; });
+                // A view with NO control for this criterion cannot speak for it.
+                // That is the ONLY silence; a control that is present and empty is
+                // a deliberate removal.
+                if (!els.some(function (el) { return !!el; })) return undefined;
+                if (adapter.kind === 'text') {
+                    var t = els[0] && els[0].value != null ? String(els[0].value).trim() : '';
+                    return t === '' ? null : t;
+                }
+                if (adapter.kind === 'textSet') {
+                    var rawList = els[0] && els[0].value != null ? String(els[0].value) : '';
+                    var members = rawList.split(',').map(function (m) { return m.trim(); })
+                        .filter(function (m) { return m !== ''; });
+                    return members.length ? members : null;
+                }
+                var min = _rangeBound(els[0], ids[0]);
+                var max = _rangeBound(els[1], ids[1]);
+                if (min === undefined && max === undefined) return null;
+                var range = {};
+                if (min !== undefined) range.min = min;
+                if (max !== undefined) range.max = max;
+                return range;
+            }
+
+            if (adapter.kind === 'checkboxSet') {
+                var scope = _adapterScope(adapter);
+                if (!scope) return undefined;
+                var boxes = scope.querySelectorAll(_fieldSelector(adapter));
+                if (!boxes.length) return undefined;
+                var picked = [];
+                scope.querySelectorAll(_fieldSelector(adapter, ':checked')).forEach(function (cb) {
+                    var v = cb.getAttribute('data-sub-status') || cb.getAttribute('data-value') || cb.value;
+                    if (v && picked.indexOf(v) === -1) picked.push(v);
+                });
+                return picked.length ? picked : null;
+            }
+
+            if (adapter.kind === 'checkboxBool') {
+                var bScope = activeSearchSurface();
+                if (!bScope) return undefined;
+                var bBoxes = bScope.querySelectorAll(_fieldSelector(adapter));
+                if (!bBoxes.length) return undefined;
+
+                // EACH CONTROL'S OWN data-value DECIDES. The form renders
+                // NewConstructionYN twice — "Resale Building" carries
+                // data-value="false" and "New Development" carries "true". Reading
+                // "any box checked" as `true` made selecting RESALE ask for new
+                // construction: the exact opposite of the agent's question.
+                var picked = [];
+                bScope.querySelectorAll(_fieldSelector(adapter, ':checked')).forEach(function (cb) {
+                    var v = String(cb.getAttribute('data-value') || cb.value || '').toLowerCase();
+                    if (v === 'true' || v === 'false') {
+                        var asBool = v === 'true';
+                        if (picked.indexOf(asBool) === -1) picked.push(asBool);
+                    }
+                });
+                // BOTH checked is not a filter — it is "either", which is the same
+                // question as asking nothing. Refusing to store it keeps the
+                // canonical object from carrying a criterion that excludes nothing.
+                if (picked.length !== 1) return null;
+                return picked[0];
+            }
+
+            if (adapter.kind === 'featureMap') {
+                var fmScope = activeSearchSurface();
+                if (!fmScope) return undefined;
+                var map = {};
+                fmScope.querySelectorAll('input[data-field]:checked').forEach(function (cb) {
+                    var f = cb.getAttribute('data-criterion') || cb.getAttribute('data-field');
+                    var v = cb.getAttribute('data-value') || cb.value;
+                    // Criteria with a first-class identity are NOT features.
+                    if (!f || !v || _FIRST_CLASS_FIELDS.indexOf(f) !== -1) return;
+                    if (!map[f]) map[f] = [];
+                    if (map[f].indexOf(v) === -1) map[f].push(v);
+                });
+                return Object.keys(map).length ? map : null;
+            }
+
+            if (adapter.kind === 'dateRange') {
+                var drpId = (adapter.drp || {})[tab];
+                var wrapper = drpId ? document.querySelector('[data-drp="' + drpId + '"]') : null;
+                var advIds = _adapterIds(adapter, tab, view);
+                var advFrom = advIds[0] ? document.getElementById(advIds[0]) : null;
+                var advTo = advIds[1] ? document.getElementById(advIds[1]) : null;
+                if (!wrapper && !advFrom && !advTo) return undefined;
+
+                // Basic reads through the picker's ISO boundary, because the
+                // wrapper stores MM/DD/YYYY while canonical state is ISO. Reading
+                // the attribute directly is what let two notations mix.
+                var basicRange = (drpId && typeof window.getDateRangeISO === 'function')
+                    ? window.getDateRangeISO(drpId) : null;
+                var from = view === 'advanced' && advFrom ? advFrom.value
+                    : (basicRange ? basicRange.from : '');
+                var to = view === 'advanced' && advTo ? advTo.value
+                    : (basicRange ? basicRange.to : '');
+                var basisEl = (adapter.basisIds || {})[tab]
+                    ? document.getElementById(adapter.basisIds[tab]) : null;
+                var basis = basisEl && basisEl.value ? String(basisEl.value) : '';
+
+                if (!from && !to) return null;
+
+                // A COMPOSITE range may not be stored without its basis.
+                //
+                // The shipped select defaults to "Select Activity" with value "",
+                // so a range could be entered without answering "Listed date or
+                // Updated date?". Storing that produced a canonical
+                // basis_range_date with no basis — the ambiguity the contract
+                // exists to forbid, because the meaning then depends on whatever
+                // default the wire boundary happens to apply.
+                //
+                // Refused rather than defaulted: the criterion does not become
+                // canonical until the agent answers.
+                if (adapter.shape === 'basis_range_date' && !basis) return null;
+
+                var dateValue = {};
+                if (from) dateValue.min = String(from);
+                if (to) dateValue.max = String(to);
+                if (adapter.shape === 'basis_range_date') dateValue.basis = basis;
+                // THE PRESET TRAVELS AS DATA, NOT AS A DOM LOOKUP LATER.
+                //
+                // Reading this at serialize time meant the serializer touched
+                // `document`, which it must not: it is a pure function of the
+                // criteria object, and four guards proved it by failing with
+                // `document is not defined`. The token belongs to the
+                // criterion, so it is collected with the criterion.
+                if (wrapper && wrapper.getAttribute('data-oh-preset')) {
+                    dateValue.preset = wrapper.getAttribute('data-oh-preset');
+                }
+                return dateValue;
+            }
+
+            if (adapter.kind === 'tags') {
+                var fn = adapter.selector === 'boroughs' ? window.getSelectedBoroughs : window.getSelectedNeighborhoods;
+                if (typeof fn !== 'function') return undefined;
+                var tagsId = typeof _resolveActiveNeighborhoodTagsId === 'function'
+                    ? _resolveActiveNeighborhoodTagsId() : undefined;
+                var picked2 = fn(tagsId) || [];
+                return picked2.length ? picked2.slice() : null;
+            }
+
+            return undefined;
+        }
+
+        /** Canonical value -> DOM. */
+        function _writeAdapter(key, adapter, tab, view, value) {
+            if (adapter.kind === 'range' || adapter.kind === 'text' || adapter.kind === 'textSet') {
+                var ids = _adapterIds(adapter, tab, view);
+                var vals;
+                if (adapter.kind === 'text') vals = [value == null ? '' : String(value)];
+                else if (adapter.kind === 'textSet') vals = [Array.isArray(value) ? value.join(',') : ''];
+                else vals = [value && value.min != null ? String(value.min) : '',
+                             value && value.max != null ? String(value.max) : ''];
+                ids.forEach(function (id, i) {
+                    if (!id) return;
+                    var el = document.getElementById(id);
+                    if (!el) return;
+                    var next = vals[i] != null ? vals[i] : '';
+                    // A <select> cannot hold an arbitrary number. When the value is
+                    // not one of its options, drive the Custom companion instead —
+                    // otherwise rendering a custom price silently blanks the
+                    // control and the criterion disappears on the next read.
+                    if (el.tagName === 'SELECT' && next !== '' && !el.querySelector('option[value="' + next + '"]')) {
+                        // PRICE keeps its static companion input beside the select.
+                        var companion = document.getElementById(id + 'Custom');
+                        if (companion) {
+                            el.value = 'custom';
+                            companion.value = next;
+                            return;
+                        }
+                        // EVERYTHING ELSE — beds, rooms, sqft, year, units,
+                        // floors — has no companion: the select itself becomes a
+                        // numeric input. Without this the value silently vanished,
+                        // because assigning an unlisted value to a <select> is a
+                        // no-op and the control simply showed nothing.
+                        if (typeof window.convertSelectToCustomInput === 'function') {
+                            var converted = window.convertSelectToCustomInput(el);
+                            if (converted) {
+                                converted.value = next;
+                                return;
+                            }
+                        }
+                    }
+                    if (el.value !== next) el.value = next;
+                    if (next === '') {
+                        var blankCompanion = document.getElementById(id + 'Custom');
+                        if (blankCompanion) blankCompanion.value = '';
+                    }
+                });
+                return;
+            }
+
+            if (adapter.kind === 'checkboxSet') {
+                var scope = _adapterScope(adapter);
+                if (!scope) return;
+                var wanted = value || [];
+                scope.querySelectorAll(_fieldSelector(adapter)).forEach(function (cb) {
+                    var v = cb.getAttribute('data-sub-status') || cb.getAttribute('data-value') || cb.value;
+                    cb.checked = wanted.indexOf(v) !== -1;
+                });
+                return;
+            }
+
+            if (adapter.kind === 'checkboxBool') {
+                var bScope2 = activeSearchSurface();
+                if (!bScope2) return;
+                // Check only the box whose OWN value matches. Setting every box in
+                // the family checked both "Resale" and "New Development".
+                bScope2.querySelectorAll(_fieldSelector(adapter)).forEach(function (cb) {
+                    var v = String(cb.getAttribute('data-value') || cb.value || '').toLowerCase();
+                    cb.checked = (value === true && v === 'true') || (value === false && v === 'false');
+                });
+                return;
+            }
+
+            if (adapter.kind === 'featureMap') {
+                var fmScope = activeSearchSurface();
+                if (!fmScope) return;
+                var map = value || {};
+                fmScope.querySelectorAll('input[data-field]').forEach(function (cb) {
+                    var f = cb.getAttribute('data-criterion') || cb.getAttribute('data-field');
+                    var v = cb.getAttribute('data-value') || cb.value;
+                    if (!f || _FIRST_CLASS_FIELDS.indexOf(f) !== -1) return;
+                    cb.checked = !!(map[f] && map[f].indexOf(v) !== -1);
+                });
+                return;
+            }
+            if (adapter.kind === 'dateRange') {
+                var drpId2 = (adapter.drp || {})[tab];
+                var wrapper2 = drpId2 ? document.querySelector('[data-drp="' + drpId2 + '"]') : null;
+                var advIds2 = _adapterIds(adapter, tab, view);
+                var min = value && value.min != null ? String(value.min) : '';
+                var max = value && value.max != null ? String(value.max) : '';
+                if (view === 'advanced') {
+                    // Native <input type="date"> takes ISO directly.
+                    var f = advIds2[0] ? document.getElementById(advIds2[0]) : null;
+                    var t = advIds2[1] ? document.getElementById(advIds2[1]) : null;
+                    if (f) f.value = min;
+                    if (t) t.value = max;
+                } else if (drpId2 && typeof window.setDateRangeISO === 'function') {
+                    // The picker converts ISO back to its own MM/DD/YYYY notation
+                    // and refreshes the visible label with it.
+                    window.setDateRangeISO(drpId2, min, max);
+                }
+                var basisEl2 = (adapter.basisIds || {})[tab]
+                    ? document.getElementById(adapter.basisIds[tab]) : null;
+                if (basisEl2 && value && value.basis) basisEl2.value = value.basis;
+                return;
+            }
+
+            if (adapter.kind === 'tags') {
+                // The widget OWNS its selection state, so the canonical value is
+                // handed back to it rather than written into its DOM directly.
+                // `setNeighborhoodSelection` resolves each name to its borough
+                // from the widget's own list, keeping that knowledge in one place.
+                if (typeof window.setNeighborhoodSelection !== 'function') return;
+                var tagsId2 = typeof _resolveActiveNeighborhoodTagsId === 'function'
+                    ? _resolveActiveNeighborhoodTagsId() : undefined;
+                var store2 = _canonicalCriteria[tab] || {};
+                window.setNeighborhoodSelection(
+                    tagsId2,
+                    store2.neighborhood || [],
+                    store2.borough || []
+                );
+                return;
+            }
+        }
+
+        /**
+         * data-fields that are first-class canonical criteria in their own right,
+         * so they must not ALSO be collected as generic features. One concept,
+         * one path — the same rule enforced server-side in checkbox-criteria.ts.
+         */
+        var _FIRST_CLASS_FIELDS = [
+            'MlsStatus', 'CommonInterest', 'PropertySubType', 'PetsAllowed',
+            'Furnished', 'StructureType',
+            // Added 2026-08-30. These have top-level canonical identities, and the
+            // markup ALSO carries a data-criterion of new_construction, so both
+            // spellings must be excluded or the feature scan recreates the
+            // duplicate under the canonical family name.
+            'NewConstructionYN', 'NewConstruction', 'new_construction',
+            'SponsorUnit', 'sponsor_unit'
+        ];
+
+        /** Read the view the agent has been editing INTO the canonical object. */
+        function syncActiveViewToCanonical(tab, view) {
+            tab = tab || currentSearchTab;
+            view = view || activeViewName();
+            var store = _canonicalCriteria[tab];
+            if (!store) return;
+            Object.keys(CRITERION_ADAPTERS).forEach(function (key) {
+                if (!_adapterAppliesTo(CRITERION_ADAPTERS[key], tab)) return;
+                var value = _readAdapter(key, CRITERION_ADAPTERS[key], tab, view);
+                // undefined  -> this view has no control for it; stay silent.
+                // null       -> present and deliberately empty; REMOVE.
+                if (value === undefined) return;
+                if (value === null) delete store[key];
+                else store[key] = value;
+            });
+        }
+
+        /** Render the canonical object INTO the view being entered. */
+        function renderCanonicalToActiveView(tab, view) {
+            tab = tab || currentSearchTab;
+            view = view || activeViewName();
+            var store = _canonicalCriteria[tab];
+            if (!store) return;
+            Object.keys(CRITERION_ADAPTERS).forEach(function (key) {
+                if (!_adapterAppliesTo(CRITERION_ADAPTERS[key], tab)) return;
+                _writeAdapter(key, CRITERION_ADAPTERS[key], tab, view, store[key]);
+            });
+        }
+
+        /** Forget the active workflow's criteria — a reset, not a view change. */
+        function clearCanonicalCriteria(tab) {
+            _canonicalCriteria[tab || currentSearchTab] = {};
+        }
+
+        /** Read-only view of the canonical state, for tests and diagnostics. */
+        function canonicalCriteriaFor(tab) {
+            return _canonicalCriteria[tab || currentSearchTab];
+        }
+
+
+        // ─── CANONICAL -> TRANSPORT ─────────────────────────────────────────
+        //
+        // ONE serializer. The canonical workflow object is the business question;
+        // this turns it into the wire object Search executes.
+        //
+        // WHAT THIS REPLACES. `collectSearchCriteria` synced the view into
+        // canonical state, rendered it back, and then started over with
+        // `var criteria = {}` and rebuilt the business question by re-reading the
+        // DOM. That left Mallan with TWO representations — canonical workflow
+        // state and legacy executed criteria — and nothing forcing them to agree.
+        // Saved Search could then persist one object while Search executed
+        // another, which is the failure the whole state model exists to prevent.
+        //
+        // The rendered DOM is PRESENTATION. Search reads canonical state.
+        //
+        // Legacy blocks further down now only fill keys this did not set, so
+        // canonical state always wins where it has an owner; the reverse-coverage
+        // guard proves nothing enabled is left unowned and unrefused.
+        var CANONICAL_TO_WIRE = {
+            list_price:            { min: 'priceMin', max: 'priceMax' },
+            bedrooms:              { min: 'bedsMin', max: 'bedsMax' },
+            bathrooms:             { min: 'bathsMin', max: 'bathsMax' },
+            rooms_total:           { min: 'roomsMin', max: 'roomsMax' },
+            living_area:           { min: 'sqftMin', max: 'sqftMax' },
+            year_built:            { min: 'yearMin', max: 'yearMax' },
+            units_total:           { min: 'unitsMin', max: 'unitsMax' },
+            stories_total:         { min: 'floorsMin', max: 'floorsMax' },
+            // BOTH bounds. Only `min` was mapped, so a broker's MAXIMUM
+            // financing constraint vanished between the canonical object and the
+            // wire — the canonical contract carries a range and half of it was
+            // being dropped in transit. Silent criterion loss, in the serializer
+            // that exists to prevent exactly that.
+            max_financing_percent: { min: 'financingMin', max: 'financingMax' },
+            activity_date:         { min: 'dateFrom', max: 'dateTo', basis: 'dateActivityType' },
+            listing_contract_date: { min: 'contractDateFrom', max: 'contractDateTo' },
+            close_date:            { min: 'soldDateFrom', max: 'soldDateTo' },
+            open_house:            { min: 'openHouseDateFrom', max: 'openHouseDateTo', preset: 'openHousePreset' },
+            market_status:         { set: 'statuses' },
+            ownership:             { set: 'ownership' },
+            property_sub_type:     { csv: 'propertySubType' },
+            neighborhood:          { set: 'neighborhoods' },
+            borough:               { csv: 'borough' },
+            street_address:        { text: 'address' },
+            public_remarks_keyword:{ text: 'keyword' },
+            management_company:    { text: 'managementCompany' },
+            building_name:         { text: 'buildingName' },
+            postal_code:           { text: 'zip' },
+            unit:                  { text: 'unit' },
+            listing_id_canonical:  { csv: 'rlsId' }
+        };
+
+        /** Criteria that travel inside `checkboxFilters`, keyed by provider field. */
+        var CANONICAL_TO_CHECKBOX_FIELD = {
+            pets: 'PetsAllowed',
+            furnished: 'Furnished',
+            structure_type: 'StructureType',
+            new_development: 'NewConstructionYN',
+            sponsor_unit: 'SponsorUnit'
+        };
+
+        function serializeCanonicalToWire(tab, criteria) {
+            var store = _canonicalCriteria[tab] || {};
+
+            Object.keys(CANONICAL_TO_WIRE).forEach(function (key) {
+                var value = store[key];
+                if (value == null) return;
+                var map = CANONICAL_TO_WIRE[key];
+
+                if (map.set) { if (value.length) criteria[map.set] = value.slice(); return; }
+                if (map.csv) { if (value.length) criteria[map.csv] = value.join(','); return; }
+                if (map.text) { if (String(value).trim()) criteria[map.text] = String(value).trim(); return; }
+
+                // Ranges and basis ranges.
+                if (value.min != null && value.min !== '') criteria[map.min] = value.min;
+                if (map.max && value.max != null && value.max !== '') criteria[map.max] = value.max;
+                if (map.basis && value.basis) criteria[map.basis] = value.basis;
+                if (map.preset && value.preset) criteria[map.preset] = value.preset;
+            });
+
+            // feature_criteria is ALREADY field -> values, which is the shape
+            // `checkboxFilters` travels in.
+            if (store.feature_criteria && Object.keys(store.feature_criteria).length) {
+                criteria.checkboxFilters = criteria.checkboxFilters || {};
+                Object.keys(store.feature_criteria).forEach(function (field) {
+                    criteria.checkboxFilters[field] = store.feature_criteria[field].slice();
+                });
+            }
+
+            // First-class criteria that still travel as checkbox fields. They keep
+            // ONE canonical identity in state and are only flattened here, at the
+            // transport boundary — the UI never offers them twice.
+            Object.keys(CANONICAL_TO_CHECKBOX_FIELD).forEach(function (key) {
+                var value = store[key];
+                if (value == null) return;
+                var field = CANONICAL_TO_CHECKBOX_FIELD[key];
+                criteria.checkboxFilters = criteria.checkboxFilters || {};
+                // FALSE is a real answer. Writing only `true` meant "Resale
+                // Building" — NewConstructionYN=false — had no transport at all, so
+                // a stored canonical false silently executed as no filter.
+                if (value === true) criteria.checkboxFilters[field] = ['true'];
+                else if (value === false) criteria.checkboxFilters[field] = ['false'];
+                else if (Array.isArray(value) && value.length) criteria.checkboxFilters[field] = value.slice();
+            });
+
+            return criteria;
+        }
+
+        /** Fields the legacy scanner saw that canonical state does not own. */
+        var _unownedCheckboxFields = [];
+
         function collectSearchCriteria() {
+            // The view on screen may hold edits the canonical object has not
+            // seen yet. Sync, then render, so the controls the reads below use
+            // carry the workflow's full criteria — including anything entered in
+            // the OTHER view before switching.
+            syncActiveViewToCanonical();
+            renderCanonicalToActiveView();
+
             var criteria = {};
             criteria.searchTab = currentSearchTab; // 'sale', 'rent', or 'building'
 
-            // Unified basic form (all tabs share one form, data-show-on handles visibility)
-            var activeBasicForm = document.getElementById('searchBasicMode');
+            // CANONICAL STATE IS THE BUSINESS QUESTION. Everything the adapters
+            // own is serialized here; the legacy blocks below only fill keys this
+            // did not set, so the rendered DOM cannot contradict canonical state.
+            serializeCanonicalToWire(currentSearchTab, criteria);
 
-            // Price range — use the correct IDs based on search tab and mode (basic vs advanced)
-            var _advMode = document.getElementById('searchAdvancedMode');
-            var _isAdvanced = _advMode && _advMode.style.display !== 'none' && !_advMode.classList.contains('hidden');
-            var priceMin, priceMax, customMinId, customMaxId;
-            if (_isAdvanced) {
-                if (currentSearchTab === 'rent') {
-                    priceMin = document.getElementById('advRentalMinRent');
-                    priceMax = document.getElementById('advRentalMaxRent');
-                    customMinId = 'advRentalMinRentCustom';
-                    customMaxId = 'advRentalMaxRentCustom';
-                } else {
-                    priceMin = document.getElementById('advSaleMinPrice');
-                    priceMax = document.getElementById('advSaleMaxPrice');
-                    customMinId = 'advSaleMinPriceCustom';
-                    customMaxId = 'advSaleMaxPriceCustom';
-                }
-            } else {
-                if (currentSearchTab === 'rent') {
-                    priceMin = document.getElementById('rentalMinRent');
-                    priceMax = document.getElementById('rentalMaxRent');
-                    customMinId = 'rentalMinRentCustom';
-                    customMaxId = 'rentalMaxRentCustom';
-                } else {
-                    priceMin = document.getElementById('saleMinPrice');
-                    priceMax = document.getElementById('saleMaxPrice');
-                    customMinId = 'saleMinPriceCustom';
-                    customMaxId = 'saleMaxPriceCustom';
-                }
-            }
-            if (priceMin && priceMin.value && priceMin.value !== '') {
-                if (priceMin.value === 'custom') {
-                    // Read from companion custom input
-                    var customMinEl = document.getElementById(customMinId);
-                    if (customMinEl && customMinEl.value) {
-                        var pMin = parseInt(customMinEl.value);
-                        if (!isNaN(pMin) && pMin > 0) criteria.priceMin = pMin;
-                    }
-                } else {
-                    var pMin = parseInt(priceMin.value);
-                    if (!isNaN(pMin)) criteria.priceMin = pMin;
-                }
-            }
-            if (priceMax && priceMax.value && priceMax.value !== '') {
-                if (priceMax.value === 'custom') {
-                    // Read from companion custom input
-                    var customMaxEl = document.getElementById(customMaxId);
-                    if (customMaxEl && customMaxEl.value) {
-                        var pMax = parseInt(customMaxEl.value);
-                        if (!isNaN(pMax) && pMax > 0) criteria.priceMax = pMax;
-                    }
-                } else {
-                    var pMax = parseInt(priceMax.value);
-                    if (!isNaN(pMax)) criteria.priceMax = pMax;
-                }
-            }
-
-            // Bedrooms — use the correct IDs based on search tab and mode
-            var bedsMin, bedsMax;
-            if (_isAdvanced) {
-                bedsMin = document.getElementById('adv-min-beds');
-                bedsMax = document.getElementById('adv-max-beds');
-            } else if (currentSearchTab === 'rent') {
-                bedsMin = document.getElementById('rentalMinBeds');
-                bedsMax = document.getElementById('rentalMaxBeds');
-            } else {
-                bedsMin = document.getElementById('saleMinBeds');
-                bedsMax = document.getElementById('saleMaxBeds');
-            }
-            if (bedsMin && bedsMin.value !== '' && bedsMin.value !== 'custom') {
-                criteria.bedsMin = parseInt(bedsMin.value);
-                if (isNaN(criteria.bedsMin)) delete criteria.bedsMin;
-            }
-            if (bedsMax && bedsMax.value !== '' && bedsMax.value !== 'custom') {
-                criteria.bedsMax = parseInt(bedsMax.value);
-                if (isNaN(criteria.bedsMax)) delete criteria.bedsMax;
-            }
-
-            // Bathrooms — use correct IDs per tab and mode, parseFloat for half-baths (1.5, 2.5)
-            var bathsMin, bathsMax;
-            if (_isAdvanced) {
-                bathsMin = document.getElementById('adv-min-baths');
-                bathsMax = document.getElementById('adv-max-baths');
-            } else if (currentSearchTab === 'rent') {
-                bathsMin = document.getElementById('rentalMinBaths');
-                bathsMax = document.getElementById('rentalMaxBaths');
-            } else {
-                bathsMin = document.getElementById('saleMinBaths');
-                bathsMax = document.getElementById('saleMaxBaths');
-            }
-            if (bathsMin && bathsMin.value !== '' && bathsMin.value !== 'custom') {
-                criteria.bathsMin = parseFloat(bathsMin.value);
-                if (isNaN(criteria.bathsMin)) delete criteria.bathsMin;
-            }
-            if (bathsMax && bathsMax.value !== '' && bathsMax.value !== 'custom') {
-                criteria.bathsMax = parseFloat(bathsMax.value);
-                if (isNaN(criteria.bathsMax)) delete criteria.bathsMax;
-            }
-
-            // Rooms — use correct IDs per tab and mode
-            var roomsMin, roomsMax;
-            if (_isAdvanced) {
-                roomsMin = document.getElementById('adv-min-rooms');
-                roomsMax = document.getElementById('adv-max-rooms');
-            } else if (currentSearchTab === 'rent') {
-                roomsMin = document.getElementById('rentalMinRooms');
-                roomsMax = document.getElementById('rentalMaxRooms');
-            } else {
-                roomsMin = document.getElementById('saleMinRooms');
-                roomsMax = document.getElementById('saleMaxRooms');
-            }
-            if (roomsMin && roomsMin.value && roomsMin.value !== '' && roomsMin.value !== 'custom') {
-                criteria.roomsMin = parseInt(roomsMin.value);
-                if (isNaN(criteria.roomsMin)) delete criteria.roomsMin;
-            }
-            if (roomsMax && roomsMax.value && roomsMax.value !== '' && roomsMax.value !== 'custom') {
-                criteria.roomsMax = parseInt(roomsMax.value);
-                if (isNaN(criteria.roomsMax)) delete criteria.roomsMax;
-            }
-
-            // Square footage — use correct IDs per tab and mode
-            var sqftMin, sqftMax;
-            if (_isAdvanced) {
-                sqftMin = document.getElementById('adv-min-sqft');
-                sqftMax = document.getElementById('adv-max-sqft');
-            } else if (currentSearchTab === 'rent') {
-                sqftMin = document.getElementById('rentalMinSqft');
-                sqftMax = document.getElementById('rentalMaxSqft');
-            } else {
-                sqftMin = document.getElementById('saleMinSqft');
-                sqftMax = document.getElementById('saleMaxSqft');
-            }
-            if (sqftMin && sqftMin.value && sqftMin.value !== '' && sqftMin.value !== 'custom') {
-                criteria.sqftMin = parseInt(sqftMin.value);
-                if (isNaN(criteria.sqftMin)) delete criteria.sqftMin;
-            }
-            if (sqftMax && sqftMax.value && sqftMax.value !== '' && sqftMax.value !== 'custom') {
-                criteria.sqftMax = parseInt(sqftMax.value);
-                if (isNaN(criteria.sqftMax)) delete criteria.sqftMax;
-            }
-
-            // Ownership type (CommonInterest checkboxes)
-            if (activeBasicForm) {
-                var ownershipChecks = activeBasicForm.querySelectorAll('[data-field="CommonInterest"]:checked');
-                if (ownershipChecks.length > 0) {
-                    criteria.ownership = Array.from(ownershipChecks).map(function(cb) { return cb.getAttribute('data-value') || cb.value; });
-                }
-            }
-
-            // PropertySubType checkboxes (Townhouse, Conversion, Single Family, etc.)
-            var propertySubTypeChecked = [];
-            var advModeEl = document.getElementById('searchAdvancedMode');
-            var pstIsAdvanced = advModeEl && advModeEl.style.display !== 'none' && !advModeEl.classList.contains('hidden');
-            var pstSelector = pstIsAdvanced
-                ? '#searchAdvancedMode input[data-field="PropertySubType"]:checked'
-                : (activeBasicForm ? '#' + activeBasicForm.id + ' input[data-field="PropertySubType"]:checked' : 'input[data-field="PropertySubType"]:checked');
-            document.querySelectorAll(pstSelector).forEach(function(cb) {
-                propertySubTypeChecked.push(cb.getAttribute('data-value') || cb.value);
-            });
-            if (propertySubTypeChecked.length > 0) {
-                criteria.propertySubType = propertySubTypeChecked.join(',');
-            }
-
-            // Status checkboxes (MlsStatus) — collect all checked statuses
-            // Determine which container has the status checkboxes
-            var statusContainer = activeBasicForm;
-            var advancedMode = document.getElementById('searchAdvancedMode');
-            if (advancedMode && advancedMode.style.display !== 'none') {
-                // In advanced mode, use the visible status options div
-                var saleOpts = document.getElementById('saleStatusOptions');
-                var rentalOpts = document.getElementById('rentalStatusOptions');
-                if (rentalOpts && rentalOpts.style.display !== 'none') {
-                    statusContainer = rentalOpts;
-                } else if (saleOpts && saleOpts.style.display !== 'none') {
-                    statusContainer = saleOpts;
-                } else {
-                    statusContainer = saleOpts; // default to sale
-                }
-            }
-            if (statusContainer) {
-                var statusChecks = statusContainer.querySelectorAll('[data-field="MlsStatus"]:checked');
-                if (statusChecks.length > 0) {
-                    criteria.statuses = [];
-                    statusChecks.forEach(function(cb) {
-                        var val = cb.getAttribute('data-value');
-                        var sub = cb.getAttribute('data-sub-status');
-                        if (sub) {
-                            // Sub-status checkbox (e.g., "Offer Accepted", "Contract Out")
-                            criteria.statuses.push(sub);
-                        } else if (val) {
-                            // Handle comma-separated values (e.g., "Withdrawn,Canceled,Expired,Hold")
-                            var parts = val.split(',');
-                            parts.forEach(function(part) {
-                                var s = part.trim();
-                                // Map to uppercase
-                                if (s === 'Active' || s === 'BackOnMarket') criteria.statuses.push('ACTIVE');
-                                else if (s === 'ComingSoon') criteria.statuses.push('COMING_SOON');
-                                else if (s === 'Future') criteria.statuses.push('FUTURE');
-                                else if (s === 'Pending') criteria.statuses.push('PENDING');
-                                else if (s === 'Closed') criteria.statuses.push('CLOSED');
-                                else if (s === 'Withdrawn') criteria.statuses.push('WITHDRAWN');
-                                else if (s === 'Canceled') criteria.statuses.push('CANCELED');
-                                else if (s === 'Expired') criteria.statuses.push('EXPIRED');
-                                else if (s === 'Hold') criteria.statuses.push('HOLD');
-                                else if (s === 'Incomplete') criteria.statuses.push('INCOMPLETE');
-                                else criteria.statuses.push(s.toUpperCase());
-                            });
-                        }
-                    });
-                }
-            }
-
-            // Address / building name — collect from whichever form is active
-            var addressInputId = currentSearchTab === 'rent' ? 'rentalSearchAddress' :
-                                 currentSearchTab === 'building' ? 'buildingSearchAddress' : 'saleSearchAddress';
-            var addressInput = document.getElementById(addressInputId);
-            // Also check advanced mode address
-            var advAddr = document.getElementById('advancedSearchAddress');
-            var advancedMode2 = document.getElementById('searchAdvancedMode');
-            if (advancedMode2 && advancedMode2.style.display !== 'none' && advAddr && advAddr.value.trim()) {
-                addressInput = advAddr;
-            }
-            if (addressInput && addressInput.value.trim()) {
-                criteria.address = addressInput.value.trim();
-            }
-
-            // Neighborhood autocomplete tags — read from active tags container.
-            // The autocomplete dropdown lists every NYC neighborhood AND each
-            // borough as a top-level "Borough" chip. We must split the two so
-            // borough chips drive `criteria.borough` (-> OData CityRegion) and
-            // neighborhood chips drive `criteria.neighborhoods` (-> OData
-            // SubdivisionName). The split happens in
-            // neighborhood-autocomplete.js getSelectedNeighborhoods /
-            // getSelectedBoroughs so the consumer here is unambiguous.
-            if (typeof getSelectedNeighborhoods === 'function') {
-                var tagsId = _resolveActiveNeighborhoodTagsId();
-                var selectedNeighborhoods = getSelectedNeighborhoods(tagsId);
-                if (selectedNeighborhoods.length > 0) {
-                    criteria.neighborhoods = selectedNeighborhoods;
-                }
-
-                var selectedBoroughs = (typeof getSelectedBoroughs === 'function')
-                    ? getSelectedBoroughs(tagsId)
-                    : [];
-
-                // Borough resolution — explicit borough chip wins; otherwise
-                // derive from neighborhoods only when all are in one borough.
-                if (selectedBoroughs.length === 1) {
-                    criteria.borough = selectedBoroughs[0];
-                } else if (selectedNeighborhoods.length > 0) {
-                    var boroughs = selectedNeighborhoods.map(function(n) { return _findBoroughForNeighborhood(n); }).filter(Boolean);
-                    var uniqueBoroughs = boroughs.filter(function(b, i, arr) { return arr.indexOf(b) === i; });
-                    if (uniqueBoroughs.length === 1) {
-                        criteria.borough = uniqueBoroughs[0];
-                    }
-                }
-                // selectedBoroughs.length > 1 (multi-borough): leave
-                // criteria.borough unset — backend cannot OR multiple
-                // CityRegion values via a single param. User intent is
-                // clearer if they pick neighborhoods in each borough instead.
-            }
-
-            // Quick Search fields — RLS ID, Zip, Unit (advanced mode has its own IDs)
-            var rlsInputId, zipInputId, unitInputId;
-            if (_isAdvanced) {
-                rlsInputId = 'adv-rls-id';
-                zipInputId = 'adv-zip';
-                unitInputId = 'searchQuickUnit';
-            } else {
-                rlsInputId = 'searchQuickRls';
-                zipInputId = 'searchQuickZip';
-                unitInputId = 'searchQuickUnit';
-            }
-            var rlsInput = document.getElementById(rlsInputId);
-            var zipInput = document.getElementById(zipInputId);
-            var unitInput = document.getElementById(unitInputId);
-            if (rlsInput && rlsInput.value.trim()) criteria.rlsId = rlsInput.value.trim();
-            if (zipInput && zipInput.value.trim()) criteria.zip = zipInput.value.trim();
-            if (unitInput && unitInput.value.trim()) criteria.unit = unitInput.value.trim();
-
-            // Keyword search (PublicRemarks contains)
-            var keywordId = _isAdvanced ? 'adv-keyword' : 'searchKeyword';
-            var keywordEl = document.getElementById(keywordId);
-            if (keywordEl && keywordEl.value.trim()) {
-                criteria.keyword = keywordEl.value.trim();
-            }
-
-            // Management Company (search against ListOfficeName — Trestle's closest field)
-            var mgmtId = _isAdvanced ? 'adv-management' : 'searchManagementCompany';
-            var mgmtEl = document.getElementById(mgmtId);
-            if (mgmtEl && mgmtEl.value.trim()) {
-                criteria.managementCompany = mgmtEl.value.trim();
-            }
-
-            // Building Financing % (MaximumFinancingPercent on CRM, BuyerFinancing on Trestle)
-            var finMinId = currentSearchTab === 'rent' ? 'rentalBuildingFinancingMin' :
-                           currentSearchTab === 'building' ? 'buildingFinancingMin' : 'saleBuildingFinancingMin';
-            var finMinEl = document.getElementById(finMinId);
-            if (finMinEl && finMinEl.value) {
-                var fv = parseInt(finMinEl.value);
-                if (!isNaN(fv) && fv > 0) criteria.financingMin = fv;
-            }
-
-            // Date range filters — read from .drp-wrapper[data-from]/[data-to] attributes
-            // Dates stored as MM/DD/YYYY, convert to YYYY-MM-DD (ISO) for OData API
-            var drpPrefix = currentSearchTab === 'rent' ? 'rental' : 'sale';
-
-            // Listed/Updated date range
-            var activityTypeEl = document.getElementById(drpPrefix === 'rental' ? 'rentalListingActivityType' : 'saleListingActivityType');
-            var activityType = activityTypeEl ? activityTypeEl.value : '';
-            var listedDrp = document.querySelector('[data-drp="' + drpPrefix + 'ListedUpdated"]');
-            if (listedDrp && activityType) {
-                var fromStr = listedDrp.getAttribute('data-from');
-                var toStr = listedDrp.getAttribute('data-to');
-                if (fromStr) {
-                    criteria.dateActivityType = activityType; // 'Listed', 'Updated', or 'ListedAndUpdated'
-                    criteria.dateFrom = _mdyToISO(fromStr);
-                    criteria.dateTo = _mdyToISO(toStr) || _mdyToISO(fromStr);
-                }
-            }
-
-            // Contract/Lease Signed date range
-            var signedDrp = document.querySelector('[data-drp="' + drpPrefix + (drpPrefix === 'rental' ? 'LeaseSigned' : 'ContractSigned') + '"]');
-            if (signedDrp) {
-                var sFrom = signedDrp.getAttribute('data-from');
-                var sTo = signedDrp.getAttribute('data-to');
-                if (sFrom) {
-                    criteria.contractDateFrom = _mdyToISO(sFrom);
-                    criteria.contractDateTo = _mdyToISO(sTo) || _mdyToISO(sFrom);
-                }
-            }
-
-            // Sold/Rented date range
-            var soldDrp = document.querySelector('[data-drp="' + drpPrefix + (drpPrefix === 'rental' ? 'RentedDate' : 'SoldDate') + '"]');
-            if (soldDrp) {
-                var sdFrom = soldDrp.getAttribute('data-from');
-                var sdTo = soldDrp.getAttribute('data-to');
-                if (sdFrom) {
-                    criteria.soldDateFrom = _mdyToISO(sdFrom);
-                    criteria.soldDateTo = _mdyToISO(sdTo) || _mdyToISO(sdFrom);
-                }
-            }
-
-            // Building-specific filters (OData: YearBuilt, StoriesTotal, NumberOfUnitsTotal)
-            var yearMinEl, yearMaxEl, unitsMinEl, unitsMaxEl, floorsMinEl, floorsMaxEl;
-            if (_isAdvanced) {
-                yearMinEl = document.getElementById('adv-year-built-from');
-                yearMaxEl = document.getElementById('adv-year-built-to');
-                unitsMinEl = document.getElementById('adv-bldg-units-min');
-                unitsMaxEl = document.getElementById('adv-bldg-units-max');
-                floorsMinEl = document.getElementById('adv-floors-min');
-                floorsMaxEl = document.getElementById('adv-floors-max');
-            } else if (currentSearchTab === 'building') {
-                yearMinEl = document.getElementById('buildingMinYear');
-                yearMaxEl = document.getElementById('buildingMaxYear');
-                unitsMinEl = document.getElementById('buildingMinUnits');
-                unitsMaxEl = document.getElementById('buildingMaxUnits');
-                floorsMinEl = document.getElementById('buildingMinFloors');
-                floorsMaxEl = document.getElementById('buildingMaxFloors');
-            } else if (currentSearchTab === 'sale') {
-                yearMinEl = document.getElementById('saleBuildingMinYear');
-                yearMaxEl = document.getElementById('saleBuildingMaxYear');
-                unitsMinEl = document.getElementById('saleBuildingMinUnits');
-                unitsMaxEl = document.getElementById('saleBuildingMaxUnits');
-                floorsMinEl = document.getElementById('saleBuildingMinFloors');
-                floorsMaxEl = document.getElementById('saleBuildingMaxFloors');
-            } else {
-                yearMinEl = document.getElementById('rentalBuildingMinYear');
-                yearMaxEl = document.getElementById('rentalBuildingMaxYear');
-                unitsMinEl = document.getElementById('rentalBuildingMinUnits');
-                unitsMaxEl = document.getElementById('rentalBuildingMaxUnits');
-                floorsMinEl = document.getElementById('rentalBuildingMinFloors');
-                floorsMaxEl = document.getElementById('rentalBuildingMaxFloors');
-            }
-            if (yearMinEl && yearMinEl.value && yearMinEl.value !== '') {
-                var ym = parseInt(yearMinEl.value);
-                if (!isNaN(ym)) criteria.yearMin = ym;
-            }
-            if (yearMaxEl && yearMaxEl.value && yearMaxEl.value !== '') {
-                var ymx = parseInt(yearMaxEl.value);
-                if (!isNaN(ymx)) criteria.yearMax = ymx;
-            }
-            if (unitsMinEl && unitsMinEl.value && unitsMinEl.value !== '') {
-                var um = parseInt(unitsMinEl.value);
-                if (!isNaN(um)) criteria.unitsMin = um;
-            }
-            if (unitsMaxEl && unitsMaxEl.value && unitsMaxEl.value !== '') {
-                var umx = parseInt(unitsMaxEl.value);
-                if (!isNaN(umx)) criteria.unitsMax = umx;
-            }
-            if (floorsMinEl && floorsMinEl.value && floorsMinEl.value !== '') {
-                var fm = parseInt(floorsMinEl.value);
-                if (!isNaN(fm)) criteria.floorsMin = fm;
-            }
-            if (floorsMaxEl && floorsMaxEl.value && floorsMaxEl.value !== '') {
-                var fmx = parseInt(floorsMaxEl.value);
-                if (!isNaN(fmx)) criteria.floorsMax = fmx;
-            }
-
-            // Building name search
-            var buildingNameEl = document.getElementById('buildingSearchAddress') || document.getElementById('buildingNameSearch');
-            if (buildingNameEl && buildingNameEl.value.trim() && currentSearchTab === 'building') {
-                criteria.buildingName = buildingNameEl.value.trim();
-            }
-
-            // Transit — subway line proximity search via station coordinates
-
-            // Manhattan Grid — bounding box search via lat/lng
-
-            // ═══════════════════════════════════════════════════════════
-            // GENERIC data-field CHECKBOX SCANNER
-            // Collects ALL checked checkboxes with data-field/data-value
-            // that aren't already handled above.
-            // ═══════════════════════════════════════════════════════════
-            var _handledFields = { 'MlsStatus': 1, 'CommonInterest': 1, 'PropertySubType': 1 };
-
-            // Determine container: advanced mode if visible, else active basic form
-            var _scanContainer = activeBasicForm;
-            var _advMode = document.getElementById('searchAdvancedMode');
-            if (_advMode && _advMode.style.display !== 'none' && !_advMode.classList.contains('hidden')) {
-                _scanContainer = _advMode;
-            }
-
-            if (_scanContainer) {
-                var _allChecked = _scanContainer.querySelectorAll('input[data-field]:checked');
-                var _checkboxFilters = {};
-                for (var _ci = 0; _ci < _allChecked.length; _ci++) {
-                    var _cb = _allChecked[_ci];
-                    var _field = _cb.getAttribute('data-field');
-                    if (_handledFields[_field]) continue;
-                    var _val = _cb.getAttribute('data-value') || _cb.value;
-                    if (!_val) continue;
-                    if (!_checkboxFilters[_field]) _checkboxFilters[_field] = [];
-                    if (_checkboxFilters[_field].indexOf(_val) === -1) {
-                        _checkboxFilters[_field].push(_val);
-                    }
-                }
-                // Scan <select> elements with data-field
-                _scanContainer.querySelectorAll('select[data-field]').forEach(function(sel) {
-                    if (sel.selectedIndex <= 0) return;
-                    var _field = sel.getAttribute('data-field');
-                    if (_handledFields[_field]) return;
-                    var _val = sel.value;
-                    if (_field && _val) {
-                        if (!_checkboxFilters[_field]) _checkboxFilters[_field] = [];
-                        if (_checkboxFilters[_field].indexOf(_val) === -1) {
-                            _checkboxFilters[_field].push(_val);
-                        }
-                    }
-                });
-
-                if (Object.keys(_checkboxFilters).length > 0) {
-                    criteria.checkboxFilters = _checkboxFilters;
-                }
-            }
+            // THE LEGACY DOM RECONSTRUCTION IS GONE.
+            //
+            // 488 lines used to re-read the DOM here and rebuild the business
+            // question a second time, after canonical serialization had already
+            // produced it. Every key it wrote — price, beds, baths, rooms, sqft,
+            // year, units, floors, financing, dates, status, ownership, subtype,
+            // geography, address, keyword, management, building name, zip, unit,
+            // listing id and checkboxFilters — is canonical-owned, so the second
+            // pass could only ever agree or DISAGREE, and nothing forced agreement.
+            //
+            // Its generic checkbox scanner was the worst of it: it went around
+            // _adapterAppliesTo entirely, so Building could select New Development,
+            // the canonical contract would refuse it, and the scanner would put it
+            // into the executed criteria anyway — but only when some unrelated
+            // canonical checkbox had not already created the key. A split truth
+            // that changed with the rest of the form.
+            //
+            // The chain is now exactly: DOM edit adapter -> canonical workflow
+            // object -> ONE serializer -> execution.
 
             return criteria;
         }
@@ -1176,8 +2336,17 @@
         }
 
         function clearSearchForm() {
-            // Reset all select elements in basic form (unified — one form for all tabs)
-            var forms = ['searchBasicMode'];
+            // Reset the canonical criteria for this workflow FIRST — clearing the
+            // DOM alone would leave the canonical object holding the old values,
+            // and the next view change would render them straight back.
+            clearCanonicalCriteria(currentSearchTab);
+
+            // Every Basic surface, not just Sale. This listed 'searchBasicMode'
+            // alone, so Clear on the Rentals or Buildings tab reset a form the
+            // agent was not looking at and left theirs populated. It survived the
+            // surface-resolver pass because it is a STRING IN AN ARRAY, which the
+            // guard scanning for getElementById('searchBasicMode') never saw.
+            var forms = ['searchBasicMode', 'searchBasicModeRental', 'searchBasicModeBuilding'];
             forms.forEach(function(formId) {
                 var form = document.getElementById(formId);
                 if (!form) return;
@@ -1264,9 +2433,10 @@
         // ── Filter count for sticky search bar ──
         function updateFilterCount() {
             var count = 0;
-            var advForm = document.getElementById('searchAdvancedMode');
-            var form = (advForm && advForm.style.display !== 'none' && !advForm.classList.contains('hidden'))
-                ? advForm : document.getElementById('searchBasicMode');
+            // Counts the surface the agent is looking at. It counted the Sale
+            // form on every tab, so the badge described criteria that were not
+            // the ones about to execute.
+            var form = activeSearchSurface();
             if (!form) return;
             form.querySelectorAll('select').forEach(function(s) { if (s.selectedIndex > 0) count++; });
             form.querySelectorAll('input[type="text"], input[type="number"]').forEach(function(i) { if (i.value.trim()) count++; });
@@ -1475,7 +2645,7 @@
                 // No filtering here — Coming Soon listings are visible in IDX search.
 
                 // Gate 6: Closed Status — suppress listings closed > 24 hours
-                if (listing.status === 'CLOSED' && listing.closedDate) {
+                if (listing.status === 'Closed' && listing.closedDate) {
                     var closedTime = new Date(listing.closedDate).getTime();
                     var now = Date.now();
                     var hoursSinceClosed = (now - closedTime) / (1000 * 60 * 60);
@@ -1524,12 +2694,26 @@
                     if (!match) return false;
                 }
 
-                // PropertySubType filter
+                // PropertySubType filter — EXACT scalar-enum match.
+                //
+                // Was `sub.indexOf(v) !== -1` on both sides lower-cased: a
+                // case-folded SUBSTRING test. `Family` swept in MultiFamily AND
+                // SingleFamilyResidence; `Apart` matched Apartment.
+                //
+                // Cotality declares PropertySubType a SCALAR Enum (probed live
+                // 2026-08-21, 75 members) where `eq` is SUPPORTED and
+                // `contains()` is HTTP 400. Case is significant: `eq 'apartment'`
+                // returns 200 with ZERO rows. This local predicate must mean
+                // exactly what the canonical criterion means on the server —
+                // exact member, case-sensitive, OR across the selected values —
+                // or the preview describes a different universe than the search.
                 if (criteria.propertySubType) {
-                    var pstValues = criteria.propertySubType.split(',').map(function(v) { return v.toLowerCase(); });
-                    var sub = (listing.propertySubType || '').toLowerCase();
-                    var pstMatch = pstValues.some(function(v) { return sub.indexOf(v) !== -1; });
-                    if (!pstMatch) return false;
+                    var pstValues = String(criteria.propertySubType)
+                        .split(',')
+                        .map(function(v) { return v.trim(); })
+                        .filter(Boolean);
+                    var sub = listing.propertySubType || '';
+                    if (pstValues.indexOf(sub) === -1) return false;
                 }
 
                 // Address / building name filter — partial match
@@ -1591,11 +2775,29 @@
                 // Unit filter
                 if (criteria.unit && listing.unit && listing.unit.toLowerCase() !== criteria.unit.toLowerCase()) return false;
 
-                // Management Company filter — matches against ListOfficeName
-                if (criteria.managementCompany) {
-                    var mc = criteria.managementCompany.toLowerCase();
-                    if (!listing.company || listing.company.toLowerCase().indexOf(mc) === -1) return false;
-                }
+                // Management Company is NOT filtered here.
+                //
+                // This block previously matched criteria.managementCompany
+                // against listing.company — which is ListOfficeName. Listing
+                // office is a different fact from management company, and the
+                // server explicitly refuses that substitution. Because the
+                // criterion is also never forwarded to the server, this
+                // client-side match was the ONLY thing that ran: a broker
+                // searching a management company silently received a listing
+                // OFFICE match over the already-fetched page.
+                //
+                // Removing it stops this side answering a different question.
+                //
+                // CORRECTION (2026-08-26): the line above used to read "the
+                // criterion is also never forwarded to the server". That was
+                // wrong. buildIdxSearchParams DOES forward it, and the server
+                // refuses it by name, so the criterion is not inert — typing a
+                // management company refuses the whole search. That refusal is
+                // the correct outcome (Mallan will not substitute ListOfficeName
+                // for a management company) and it is now surfaced by name in
+                // the failure handler below, instead of arriving as a generic
+                // "please try again". Restoring the criterion for real still
+                // requires a verified provider fact, not a near-neighbour field.
 
                 // Keyword filter — search in description (PublicRemarks)
                 if (criteria.keyword) {
@@ -1738,24 +2940,85 @@
 
         function updateResultsCount() {
             var filtered = searchResultsState.filteredListings || listings;
-            var count = filtered.length;
             var perPage = searchResultsState.perPage || 50;
-            var totalPages = Math.max(1, Math.ceil(count / perPage));
+
+            // PREFER THE SERVER'S DECLARED COUNT.
+            //
+            // filteredListings holds what is on screen. The server knows how big
+            // the final universe is and whether that number is exact. Only an
+            // AUTHORITATIVE set may use it: a provisional preview is a local
+            // re-filter of whatever catalogue happens to be loaded, and pairing
+            // it with a server total would describe two different sets in one
+            // sentence.
+            var sc = searchResultsState.serverCount;
+            var isAuthoritative = searchResultsState.resultProvenance === 'authoritative';
+            var useServer = !!(sc && typeof sc.value === 'number' && isAuthoritative);
+
+            var count = useServer ? sc.value : filtered.length;
+
+            // A LOWER BOUND CANNOT NAME THE LAST PAGE.
+            //
+            // These two claims contradict each other:
+            //
+            //     1000+ Results
+            //     Page 1 of 5
+            //
+            // The `+` says more inventory may exist; `of 5` says page 5 is the
+            // end. The server sends totalPages: null whenever the traversal
+            // stopped early, and deriving one locally from the lower-bound count
+            // would re-fabricate exactly the number it withheld. Navigation
+            // stays open-ended until an exhausted traversal proves the final
+            // page.
+            var totalPages;
+            if (useServer) {
+                totalPages = (typeof searchResultsState.serverTotalPages === 'number')
+                    ? searchResultsState.serverTotalPages
+                    : null;
+            } else {
+                totalPages = Math.max(1, Math.ceil(count / perPage));
+            }
+
+            // A LOWER BOUND MUST NOT BE PRINTED AS A TOTAL. "200 Results" and
+            // "200+ Results" are different claims, and the second one is the
+            // true one when the traversal stopped early.
+            var countText = useServer && sc.isExact === false
+                ? count + '+ Results'
+                : count + ' Results';
 
             // Update all results count elements (top + bottom)
             var countEls = document.querySelectorAll('#resultsCount, #resultsCount2');
-            countEls.forEach(function(el) { el.textContent = count + ' Results'; });
+            countEls.forEach(function(el) { el.textContent = countText; });
+
+            // A FILTERED PAGE MUST NOT SIT UNDER A WHOLE-SEARCH TOTAL.
+            //
+            // The picked/liked/shown filters are the agent's own annotations and
+            // have no server counterpart, so on a paged result they narrow only
+            // the rows in memory. Left unsaid, the screen shows a handful of
+            // rows beneath "3,674 Results" and reads as though the search found
+            // three thousand picked listings.
+            var scopeNoteEl = document.getElementById('resultsScopeNote');
+            if (scopeNoteEl) {
+                if (searchResultsState.flagFilterIsPageLocal) {
+                    scopeNoteEl.textContent =
+                        'Picked/liked filters apply to the ' + filtered.length +
+                        ' listings loaded on this page, not to all ' + countText.replace(' Results', '') + ' results.';
+                } else {
+                    scopeNoteEl.textContent = '';
+                }
+            }
 
             // Update top pagination
+            // '—' rather than a number the server declined to claim.
+            var totalPagesText = totalPages === null ? '—' : totalPages;
             var totalPagesEl = document.getElementById('totalPages');
-            if (totalPagesEl) totalPagesEl.textContent = totalPages;
+            if (totalPagesEl) totalPagesEl.textContent = totalPagesText;
 
             var currentPageEl = document.getElementById('currentPage');
             if (currentPageEl) currentPageEl.textContent = searchResultsState.currentPage;
 
             // Update bottom pagination
             var bottomTotalPagesEl = document.getElementById('bottomTotalPages');
-            if (bottomTotalPagesEl) bottomTotalPagesEl.textContent = totalPages;
+            if (bottomTotalPagesEl) bottomTotalPagesEl.textContent = totalPagesText;
 
             var bottomCurrentPageEl = document.getElementById('bottomCurrentPage');
             if (bottomCurrentPageEl) bottomCurrentPageEl.textContent = searchResultsState.currentPage;
@@ -1776,17 +3039,7 @@
             try { _sm = sessionStorage.getItem('searchMode'); } catch(e) {}
             var isBasicMode = _sm !== 'advanced';
 
-            var basicMode = document.getElementById('searchBasicMode');
-            var advancedMode = document.getElementById('searchAdvancedMode');
-
-            // Toggle between basic (unified) and advanced mode
-            if (isBasicMode) {
-                if (basicMode) basicMode.style.display = 'block';
-                if (advancedMode) advancedMode.style.display = 'none';
-            } else {
-                if (basicMode) basicMode.style.display = 'none';
-                if (advancedMode) advancedMode.style.display = 'block';
-            }
+            applySearchSurfaceVisibility(currentSearchTab, isBasicMode);
 
             // Hide search results section
             var searchResultsSection = document.getElementById('searchResultsSection');
@@ -1854,15 +3107,15 @@
             var statuses = c.statuses || ['ACTIVE'];
             var el;
             el = document.getElementById('refineStatusActive');
-            if (el) el.checked = statuses.indexOf('ACTIVE') !== -1;
+            if (el) el.checked = statuses.indexOf('Active') !== -1;
             el = document.getElementById('refineStatusComingSoon');
-            if (el) el.checked = statuses.indexOf('COMING_SOON') !== -1;
+            if (el) el.checked = statuses.indexOf('ComingSoon') !== -1;
             el = document.getElementById('refineStatusPending');
-            if (el) el.checked = statuses.indexOf('PENDING') !== -1;
+            if (el) el.checked = statuses.indexOf('Pending') !== -1;
             el = document.getElementById('refineStatusContract');
-            if (el) el.checked = statuses.indexOf('CONTRACT') !== -1 || statuses.indexOf('UNDER_CONTRACT') !== -1;
+            if (el) el.checked = statuses.indexOf('ActiveUnderContract') !== -1;
             el = document.getElementById('refineStatusClosed');
-            if (el) el.checked = statuses.indexOf('CLOSED') !== -1;
+            if (el) el.checked = statuses.indexOf('Closed') !== -1;
 
             // Build applied filters pills
             buildRefineFilterPills(c);
@@ -1975,11 +3228,17 @@
 
             // Statuses
             var statuses = [];
-            if (document.getElementById('refineStatusActive') && document.getElementById('refineStatusActive').checked) statuses.push('ACTIVE');
-            if (document.getElementById('refineStatusComingSoon') && document.getElementById('refineStatusComingSoon').checked) statuses.push('COMING_SOON');
-            if (document.getElementById('refineStatusPending') && document.getElementById('refineStatusPending').checked) statuses.push('PENDING');
-            if (document.getElementById('refineStatusContract') && document.getElementById('refineStatusContract').checked) { statuses.push('CONTRACT'); statuses.push('UNDER_CONTRACT'); }
-            if (document.getElementById('refineStatusClosed') && document.getElementById('refineStatusClosed').checked) statuses.push('CLOSED');
+            if (document.getElementById('refineStatusActive') && document.getElementById('refineStatusActive').checked) statuses.push('Active');
+            if (document.getElementById('refineStatusComingSoon') && document.getElementById('refineStatusComingSoon').checked) statuses.push('ComingSoon');
+            if (document.getElementById('refineStatusPending') && document.getElementById('refineStatusPending').checked) statuses.push('Pending');
+            // Pushed ActiveUnderContract TWICE. Harmless in effect — the
+            // serializer dedupes before the wire — but it is a copy-paste
+            // artefact, and the second push was plainly meant to be a different
+            // status. Which one is not recoverable from the code, and inventing
+            // one would add a status the broker never asked for, so the
+            // duplicate is simply removed and the question left visible.
+            if (document.getElementById('refineStatusContract') && document.getElementById('refineStatusContract').checked) { statuses.push('ActiveUnderContract'); }
+            if (document.getElementById('refineStatusClosed') && document.getElementById('refineStatusClosed').checked) statuses.push('Closed');
             if (statuses.length > 0) c.statuses = statuses; else delete c.statuses;
 
             // Update activeSearchCriteria
@@ -2206,11 +3465,20 @@
                     }
                 }
 
-                // Rebuild filteredListings from saved IDs
+                // Rebuild filteredListings from saved IDs.
+                //
+                // This is a LOCAL reconstruction: the ids are intersected with
+                // whatever `listings` holds right now, so any row that is no
+                // longer in that array is silently dropped and the restored set
+                // can be an unannounced subset of what the search returned. It
+                // has not been re-asked of the server, so it is a preview —
+                // which also keeps report delivery closed until a real search
+                // runs, rather than letting a refresh re-open it.
                 var idSet = {};
                 state.filteredIds.forEach(function(id) { idSet[id] = true; });
                 searchResultsState.filteredListings = listings.filter(function(l) { return idSet[l.id]; });
                 searchResultsState.currentPage = state.page || 1;
+                _setResultProvenance('provisional');
 
                 return true;
             } catch (e) { return false; }
@@ -2221,15 +3489,16 @@
 
         // New unified function for switching between Sales, Rentals, and Buildings tabs
         function toggleSearchTab(tab) {
+            // BEFORE the reassignment: whatever the agent typed belongs to the
+            // tab they are leaving, not the one they are opening.
+            syncActiveViewToCanonical(currentSearchTab, activeViewName());
             currentSearchTab = tab;
             try { sessionStorage.setItem('searchTab', tab); } catch(e) {}
             var btnSale = document.getElementById('btnSale');
             var btnRent = document.getElementById('btnRent');
             var btnBuilding = document.getElementById('btnBuilding');
 
-            // Unified basic form (data-show-on handles section visibility per tab)
-            var basicMode = document.getElementById('searchBasicMode');
-            var advancedMode = document.getElementById('searchAdvancedMode');
+            // Exactly one Basic surface renders — resolved from the tab.
 
             var _storedMode;
             try { _storedMode = sessionStorage.getItem('searchMode'); } catch(e) {}
@@ -2243,14 +3512,7 @@
                 }
             });
 
-            // Show unified basic form or advanced mode
-            if (isBasicMode) {
-                if (basicMode) basicMode.style.display = 'block';
-                if (advancedMode) advancedMode.style.display = 'none';
-            } else {
-                if (basicMode) basicMode.style.display = 'none';
-                if (advancedMode) advancedMode.style.display = 'block';
-            }
+            applySearchSurfaceVisibility(tab, isBasicMode);
 
             // Activate selected tab button
             var activeBtn = tab === 'rent' ? btnRent : tab === 'building' ? btnBuilding : btnSale;
@@ -2399,8 +3661,6 @@
         function toggleSearchMode(mode) {
             var btnBasic = document.getElementById('btnSearchBasic');
             var btnAdvanced = document.getElementById('btnSearchAdvanced');
-            var basicMode = document.getElementById('searchBasicMode');
-            var advancedMode = document.getElementById('searchAdvancedMode');
             var expandControls = document.getElementById('expandCollapseControls');
 
             try { sessionStorage.setItem('searchMode', mode); } catch(e) {}
@@ -2411,16 +3671,15 @@
                 btnAdvanced.classList.remove('bg-gray-900', 'text-white');
                 btnAdvanced.classList.add('text-gray-500');
                 if (expandControls) expandControls.classList.add('hidden');
-                if (basicMode) basicMode.style.display = 'block';
-                if (advancedMode) advancedMode.style.display = 'none';
+                // Returns to the ACTIVE tab's Basic surface, not always Sale.
+                applySearchSurfaceVisibility(currentSearchTab, true);
             } else {
                 btnAdvanced.classList.remove('text-gray-500');
                 btnAdvanced.classList.add('bg-gray-900', 'text-white');
                 btnBasic.classList.remove('bg-gray-900', 'text-white');
                 btnBasic.classList.add('text-gray-500');
                 if (expandControls) { expandControls.classList.remove('hidden'); expandControls.classList.add('flex'); }
-                if (advancedMode) advancedMode.style.display = 'block';
-                if (basicMode) basicMode.style.display = 'none';
+                applySearchSurfaceVisibility(currentSearchTab, false);
             }
             if (typeof updateFilterCount === 'function') updateFilterCount();
         }
@@ -2835,6 +4094,68 @@
             return true; // handled
         }
 
+        /**
+         * Convert a range <select> into its Custom numeric input, in place.
+         *
+         * ONE OWNER for the conversion. It lived inline inside a change handler,
+         * so it could only ever run when a HUMAN picked "Custom". Canonical state
+         * needs the same conversion when it RENDERS an arbitrary number into a
+         * view the agent has not touched yet — otherwise switching Basic to
+         * Advanced with a custom bedroom count silently blanks the control,
+         * because a <select> cannot hold a value none of its options carry.
+         *
+         * Price is the exception and keeps its own path: those selects have
+         * STATIC `<id>Custom` companion inputs beside them, so nothing is
+         * replaced. Beds, rooms, sqft, year, units and floors have no companion —
+         * the select itself becomes the input, carrying the same id.
+         *
+         * Returns the input, or null when the element is not convertible.
+         */
+        window.convertSelectToCustomInput = function (sel) {
+            if (!sel || sel.tagName !== 'SELECT') return null;
+
+            var id = sel.id || '';
+            var lower = id.toLowerCase();
+            var isPrice = lower.indexOf('price') !== -1 || lower.indexOf('rent') !== -1;
+            var isSqft = lower.indexOf('sqft') !== -1;
+            var placeholder = isPrice ? 'Enter price (e.g. 1500000)' : isSqft ? 'Enter sqft' : 'Enter value';
+
+            var input = document.createElement('input');
+            input.type = 'number';
+            input.id = sel.id;
+            input.className = sel.className;
+            input.placeholder = placeholder;
+            input.style.cssText = sel.style.cssText;
+            input.setAttribute('data-was-select', 'true');
+            // The options are kept so the control can become a dropdown again.
+            input.setAttribute('data-original-options', sel.innerHTML);
+
+            var wrapper = document.createElement('div');
+            wrapper.className = 'flex items-center gap-1 flex-1 min-w-0';
+            var clearBtn = document.createElement('button');
+            clearBtn.type = 'button';
+            clearBtn.className = 'text-red-400 hover:text-red-600 text-xs flex-shrink-0';
+            clearBtn.innerHTML = '<i class="fas fa-times"></i>';
+            clearBtn.title = 'Back to dropdown';
+            clearBtn.onclick = function () {
+                var restoredSelect = document.createElement('select');
+                restoredSelect.id = input.id;
+                restoredSelect.className = input.className;
+                restoredSelect.innerHTML = input.getAttribute('data-original-options');
+                wrapper.parentNode.replaceChild(restoredSelect, wrapper);
+                if (typeof updateTrackerMatchEstimate === 'function') updateTrackerMatchEstimate();
+            };
+
+            sel.parentNode.replaceChild(wrapper, sel);
+            wrapper.appendChild(input);
+            wrapper.appendChild(clearBtn);
+
+            input.addEventListener('input', function () {
+                if (typeof updateTrackerMatchEstimate === 'function') updateTrackerMatchEstimate();
+            });
+            return input;
+        };
+
         (function() {
             document.addEventListener('change', function(e) {
                 var sel = e.target;
@@ -2853,54 +4174,8 @@
 
                 if (sel.value !== 'custom') return;
 
-                // Determine what kind of field this is (for placeholder and formatting)
-                var id = sel.id || '';
-                var isPrice = id.toLowerCase().indexOf('price') !== -1 || id.toLowerCase().indexOf('rent') !== -1;
-                var isSqft = id.toLowerCase().indexOf('sqft') !== -1;
-                var placeholder = isPrice ? 'Enter price (e.g. 1500000)' : isSqft ? 'Enter sqft' : 'Enter value';
-
-                // Create text input to replace the select
-                var input = document.createElement('input');
-                input.type = 'number';
-                input.id = sel.id;
-                input.className = sel.className;
-                input.placeholder = placeholder;
-                input.style.cssText = sel.style.cssText;
-                input.setAttribute('data-was-select', 'true');
-
-                // Store the original select's options for restoration
-                var optionsHTML = sel.innerHTML;
-                input.setAttribute('data-original-options', optionsHTML);
-
-                // Add a clear/restore button
-                var wrapper = document.createElement('div');
-                wrapper.className = 'flex items-center gap-1 flex-1 min-w-0';
-                wrapper.innerHTML = '';
-                var clearBtn = document.createElement('button');
-                clearBtn.type = 'button';
-                clearBtn.className = 'text-red-400 hover:text-red-600 text-xs flex-shrink-0';
-                clearBtn.innerHTML = '<i class="fas fa-times"></i>';
-                clearBtn.title = 'Back to dropdown';
-                clearBtn.onclick = function() {
-                    // Restore the original select
-                    var restoredSelect = document.createElement('select');
-                    restoredSelect.id = input.id;
-                    restoredSelect.className = input.className;
-                    restoredSelect.innerHTML = input.getAttribute('data-original-options');
-                    wrapper.parentNode.replaceChild(restoredSelect, wrapper);
-                    // Trigger tracker update
-                    if (typeof updateTrackerMatchEstimate === 'function') updateTrackerMatchEstimate();
-                };
-
-                sel.parentNode.replaceChild(wrapper, sel);
-                wrapper.appendChild(input);
-                wrapper.appendChild(clearBtn);
-                input.focus();
-
-                // Trigger tracker update on input
-                input.addEventListener('input', function() {
-                    if (typeof updateTrackerMatchEstimate === 'function') updateTrackerMatchEstimate();
-                });
+                var input = window.convertSelectToCustomInput(sel);
+                if (input) input.focus();
             });
         })();
 

@@ -62,44 +62,98 @@
             var field = searchResultsState.sortField;
             var order = searchResultsState.sortOrder;
             if ((field === 'price' || field === 'listedDate' || field === 'dom') && typeof MallanAPI !== 'undefined') {
-                var fieldMap = { 'price': 'ListPrice', 'listedDate': 'ModificationTimestamp', 'dom': 'DaysOnMarket' };
-                var trestleField = fieldMap[field] || 'ListPrice';
-                var trestleOrder = order === 'desc' ? trestleField + ' desc' : trestleField + ' asc';
+                // CANONICAL MALLAN SORT KEYS, not provider fragments.
+                //
+                // This built `<field> <dir>` from a local fieldMap and sent it as
+                // raw $orderby. Two of the three mappings were wrong:
+                // 'listedDate' pointed at ModificationTimestamp (when the record
+                // was last TOUCHED, not when it was LISTED), and 'dom' pointed at
+                // DaysOnMarket, which the provider suppresses for ordering — so
+                // sorting by DOM did not sort badly, it 400'd the whole search.
+                // The server now owns the vocabulary and refuses by name.
+                var sortKeyMap = {
+                    'price': order === 'desc' ? 'price_desc' : 'price_asc',
+                    'listedDate': order === 'desc' ? 'listed_desc' : 'listed_asc'
+                };
+                var sortKey = sortKeyMap[field];
+                if (!sortKey) return;
 
-                var savedTab;
-                try { savedTab = sessionStorage.getItem('searchTab'); } catch(e) {}
-                var searchType = savedTab === 'rent' ? 'rental' : 'sale';
-
-                // Build search params with current criteria
-                var params = { limit: 200, type: searchType };
-                if (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) {
-                    if (activeSearchCriteria.priceMin) params.minPrice = activeSearchCriteria.priceMin;
-                    if (activeSearchCriteria.priceMax) params.maxPrice = activeSearchCriteria.priceMax;
-                    if (activeSearchCriteria.bedsMin) params.minBeds = activeSearchCriteria.bedsMin;
-                    if (activeSearchCriteria.bathsMin) params.minBaths = activeSearchCriteria.bathsMin;
-                    if (activeSearchCriteria.neighborhoods && activeSearchCriteria.neighborhoods.length === 1) {
-                        params.neighborhood = activeSearchCriteria.neighborhoods[0];
-                    }
-                }
-                // Add sort param for the API
-                params.sort = trestleOrder;
+                // THE WHOLE CRITERIA SET, THROUGH THE ONE SERIALIZER.
+                //
+                // This used to hand-rebuild params and forward FIVE criteria out
+                // of roughly thirty-five — price, beds, baths, and a neighborhood
+                // only when there happened to be exactly one. Status, checkboxes,
+                // sqft, rooms, year, dates, zip, unit, address, listing id,
+                // ownership, subtype, borough and every additional neighborhood
+                // were dropped, so changing the sort order silently widened the
+                // search to a nearly unfiltered set. A client-side re-filter used
+                // to hide that; it is gone, because hiding it was the other half
+                // of the same defect.
+                //
+                // buildIdxSearchParams is the single serializer. A re-sort must
+                // ask the same question in a different order, not a different
+                // question.
+                var params = window.buildIdxSearchParams(
+                    (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria)
+                        ? activeSearchCriteria
+                        : {}
+                );
+                params.limit = 200;
+                params.sort = sortKey;
 
                 _serverSearchActive = true;
                 MallanAPI.idx.search(params).then(function(result) {
                     _serverSearchActive = false;
                     if (result.listings && result.listings.length > 0) {
                         _replaceListings(result.listings, 'IDX/Trestle (re-sort)');
-                        // Re-filter and render
-                        var criteria = (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) ? activeSearchCriteria : { searchTab: searchType === 'rental' ? 'rent' : 'sale' };
-                        searchResultsState.filteredListings = typeof filterListings === 'function'
-                            ? filterListings(listings, criteria) : listings.slice();
+                        // RENDER THE SERVER ANSWER, DO NOT NARROW IT.
+                        //
+                        // This used to run filterListings(listings, criteria)
+                        // over the rows the server had just returned, and then
+                        // call markSearchResultsAuthoritative() on whatever
+                        // survived. Re-filtering can only REMOVE rows, so any
+                        // disagreement between the client's idea of a criterion
+                        // and the server's silently shrank an authoritative
+                        // result set — and a re-sort is not supposed to change
+                        // WHICH listings match, only their order.
+                        //
+                        // The disagreement is real, not theoretical: the mapper
+                        // deliberately leaves unknown values unknown (an unknown
+                        // borough must not become Manhattan), while the client
+                        // post-filter compares those same fields with plain
+                        // equality, so an honestly-blank row fails the
+                        // comparison and disappears. The server counted it; the
+                        // client dropped it; the header reported the smaller
+                        // number.
+                        //
+                        // The criteria were already applied, by the layer that
+                        // owns them. `listings` is exactly result.listings here
+                        // — _replaceListings replaced the catalogue wholesale.
+                        searchResultsState.filteredListings = listings.slice();
+                        // The re-sort answer carries its own declared count. Without
+                        // this the header would keep whatever the previous search
+                        // reported, over a different set of rows.
+                        searchResultsState.serverCount = (result && result.count) || null;
+                        searchResultsState.serverTotalPages = (result && result.totalPages) || null;
                         searchResultsState.currentPage = 1;
+                        // The server answered for the current criteria, so this
+                        // set is authoritative again. `_replaceListings` above
+                        // downgraded it to a preview on the way through, which is
+                        // right for a background reload but wrong here.
+                        if (typeof markSearchResultsAuthoritative === 'function') markSearchResultsAuthoritative();
                         if (typeof initializeSearchResults === 'function') initializeSearchResults();
                         if (typeof updateResultsCount === 'function') updateResultsCount();
                     }
                 }).catch(function(err) {
                     _serverSearchActive = false;
-                    console.warn('[Sort] Server re-fetch failed, using local sort:', err.message);
+                    console.warn('[Sort] Server re-fetch failed:', err.message);
+                    // Was: silently `renderSearchResults()` — a client-side sort
+                    // of whatever was already there, with no signal. The rows on
+                    // screen are no longer a completed answer for these criteria,
+                    // so say so and drop them out of authoritative state rather
+                    // than presenting a re-ordered stale set as the result.
+                    if (typeof markSearchResultsProvisional === 'function') markSearchResultsProvisional();
+                    showToast('Could not re-sort — the search did not complete. Showing the previous order.', 'error');
                     renderSearchResults();
                 });
                 return;

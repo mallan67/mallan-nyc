@@ -479,7 +479,12 @@ export function dbListingToPublicDTO(
     mlsId: listing.listing_id,
     slug,
     url: buildCanonicalListingPath({ slug, id: listing.listing_id }),
-    status: STATUS_DISPLAY[listing.status] || listing.status,
+    // THE EXACT COTALITY MEMBER. This applied STATUS_DISPLAY here, turning the
+    // stored member into a human string ('ComingSoon' -> 'Coming Soon') inside
+    // the DATA layer. Labels belong at render time; a display string in the DTO
+    // is what produced a four-vocabulary chain and broke the UCBA Coming Soon
+    // badge. STATUS_DISPLAY is retained below for renderers that want a label.
+    status: listing.status,
     listingType: listing.listing_type as 'sale' | 'rent',
     address: suppressAddress
       ? {

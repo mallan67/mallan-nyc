@@ -40,7 +40,12 @@ describe('buildIncrementalFilter — ModificationTimestamp-only cursor', () => {
   it('preserves the sale type filter', () => {
     const filter = buildIncrementalFilter(since, 'sale');
     expect(filter).toContain(`(ModificationTimestamp ge ${ts})`);
-    expect(filter).toContain("PropertyType ne 'ResidentialLease'");
+    // CHANGED 2026-08-22: this asserted `PropertyType ne 'ResidentialLease'`.
+    // Sale is now positive membership from the canonical universe contract —
+    // the negation silently absorbed every unpopulated PropertyType member into
+    // residential sale inventory. See property-type-universe.ts.
+    expect(filter).toContain("PropertyType eq 'Residential'");
+    expect(filter).not.toContain("ne 'ResidentialLease'");
   });
 
   it('preserves the rent type filter', () => {

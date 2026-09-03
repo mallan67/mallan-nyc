@@ -21,7 +21,7 @@ export const INVENTORY_SCOPES = Object.freeze([
   'public_inventory',
   'client_inventory',
   'agent_complete_inventory',
-  'cotality_rebny_only',
+  'cotality_only',
   'mallan_exclusive',
   'supplemental_only',
   'missing_from_cotality',
@@ -44,7 +44,7 @@ export function isInventoryScope(v: unknown): v is InventoryScope {
 const SCOPE_IS_PRIVATE: Readonly<Record<InventoryScope, boolean>> = Object.freeze({
   public_inventory: false,
   client_inventory: false,
-  cotality_rebny_only: false,
+  cotality_only: false,
   mallan_exclusive: false,
   agent_complete_inventory: true,
   supplemental_only: true,
@@ -78,7 +78,7 @@ const AUDIENCE_SCOPE_ACCESS: Readonly<
   Record<InventoryScope, Readonly<Record<Audience, boolean>>>
 > = Object.freeze({
   public_inventory: Object.freeze({ public: true, client: true, agent: true, internal_report: true }),
-  cotality_rebny_only: Object.freeze({ public: true, client: true, agent: true, internal_report: true }),
+  cotality_only: Object.freeze({ public: true, client: true, agent: true, internal_report: true }),
   mallan_exclusive: Object.freeze({ public: true, client: true, agent: true, internal_report: true }),
   client_inventory: Object.freeze({ public: false, client: true, agent: true, internal_report: true }),
   agent_complete_inventory: Object.freeze({ public: false, client: false, agent: true, internal_report: true }),

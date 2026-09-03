@@ -85,7 +85,10 @@
             }
 
             function _statusColor(s) {
-                s = (s || 'Active').toUpperCase();
+                // An unknown status must not print as ACTIVE in a report a
+                // broker sends to a client. A closed or expired listing
+                // presented as Active is a misstatement in an advertisement.
+                s = (s || 'UNKNOWN').toUpperCase();
                 var m = {
                     'ACTIVE': { bg: '#dcfce7', color: '#15803d' },
                     'OFFER IN': { bg: '#ffedd5', color: '#c2410c' },
@@ -95,19 +98,19 @@
                     'WITHDRAWN': { bg: '#f3f4f6', color: '#6b7280' },
                     'HOLD': { bg: '#f3f4f6', color: '#6b7280' },
                     'CANCELED': { bg: '#f3f4f6', color: '#6b7280' },
-                    'COMING_SOON': { bg: '#f5f3ff', color: '#7c3aed' }
+                    'ComingSoon': { bg: '#f5f3ff', color: '#7c3aed' }
                 };
                 return m[s] || { bg: '#f3f4f6', color: '#4b5563' };
             }
 
             function _statusBadge(s, listing) {
-                s = (s || 'Active').toUpperCase();
+                s = (s || 'UNKNOWN').toUpperCase();
                 var sc = _statusColor(s);
                 var label = s.replace(/_/g, ' ');
                 // UCBA Art. I Sec. 16: Coming Soon badge must include showing restriction text
-                if (s === 'COMING_SOON' && listing && listing.firstShowingDate) {
+                if (s === 'ComingSoon' && listing && listing.firstShowingDate) {
                     label = 'Coming Soon \u2014 No Showings or Open House until ' + listing.firstShowingDate;
-                } else if (s === 'COMING_SOON') {
+                } else if (s === 'ComingSoon') {
                     label = 'Coming Soon \u2014 No Showings or Open House until Scheduled Date';
                 }
                 return '<span style="display:inline-block;padding:2px 10px;background:' + sc.bg + ';color:' + sc.color + ';font-size:11px;border-radius:9999px;font-weight:600;font-family:' + B.fontBody + ';letter-spacing:0.02em">' + label + '</span>';
@@ -570,7 +573,6 @@
                     linkHtml += '<p style="margin:4px 0;font-size:12px;font-family:' + B.fontBody + '"><i class="fas fa-link" style="color:' + B.gold + ';margin-right:6px;width:14px;text-align:center"></i><a href="#" style="color:' + B.goldDeep + ';text-decoration:none">View on mallan.nyc</a></p>';
                     if (l.virtualTourUrl) linkHtml += '<p style="margin:4px 0;font-size:12px;font-family:' + B.fontBody + '"><i class="fas fa-vr-cardboard" style="color:' + B.gold + ';margin-right:6px;width:14px;text-align:center"></i><a href="' + l.virtualTourUrl + '" style="color:' + B.goldDeep + ';text-decoration:none">3D Virtual Tour</a></p>';
                     if (l.videoTourUrl) linkHtml += '<p style="margin:4px 0;font-size:12px;font-family:' + B.fontBody + '"><i class="fas fa-video" style="color:' + B.gold + ';margin-right:6px;width:14px;text-align:center"></i><a href="' + l.videoTourUrl + '" style="color:' + B.goldDeep + ';text-decoration:none">Video Tour</a></p>';
-                    linkHtml += '<p style="margin:4px 0;font-size:12px;font-family:' + B.fontBody + '"><i class="fas fa-map-marker-alt" style="color:' + B.gold + ';margin-right:6px;width:14px;text-align:center"></i><a href="https://maps.google.com/?q=' + encodeURIComponent(_displayAddr(l) + ' New York NY') + '" style="color:' + B.goldDeep + ';text-decoration:none">Google Map</a></p>';
                     h += '<div style="border:1px solid ' + B.line + ';border-radius:12px;padding:16px;margin-bottom:24px">' +
                         '<h3 style="font-weight:700;color:' + B.text + ';margin:0 0 12px;font-size:14px;font-family:' + B.fontDisplay + '"><i class="fas fa-external-link-alt" style="color:' + B.gold + ';margin-right:8px"></i>Links</h3>' + linkHtml + '</div>';
 
@@ -763,7 +765,6 @@
                     var fsLinks = '';
                     fsLinks += '<p style="margin:4px 0;font-size:11px;font-family:' + B.fontBody + '"><i class="fas fa-link" style="color:' + B.gold + ';margin-right:6px;width:14px;text-align:center"></i><a href="#" style="color:' + B.goldDeep + ';text-decoration:none">View on mallan.nyc</a></p>';
                     if (l.virtualTourUrl) fsLinks += '<p style="margin:4px 0;font-size:11px;font-family:' + B.fontBody + '"><i class="fas fa-video" style="color:' + B.gold + ';margin-right:6px;width:14px;text-align:center"></i><a href="' + l.virtualTourUrl + '" style="color:' + B.goldDeep + ';text-decoration:none">Virtual Tour</a></p>';
-                    fsLinks += '<p style="margin:4px 0;font-size:11px;font-family:' + B.fontBody + '"><i class="fas fa-map-marker-alt" style="color:' + B.gold + ';margin-right:6px;width:14px;text-align:center"></i><a href="https://maps.google.com/?q=' + encodeURIComponent(_displayAddr(l) + ' New York NY') + '" style="color:' + B.goldDeep + ';text-decoration:none">Google Map</a></p>';
                     h += '<div style="border:1px solid ' + B.line + ';border-radius:12px;padding:16px;margin-bottom:20px">' +
                         '<h3 style="font-weight:700;color:' + B.text + ';margin:0 0 10px;font-size:13px;font-family:' + B.fontDisplay + '"><i class="fas fa-external-link-alt" style="color:' + B.gold + ';margin-right:6px"></i>Links</h3>' + fsLinks + '</div>';
 
@@ -931,9 +932,19 @@
                 }
 
                 // Links
+                    // STEP 1 — the Google Map link that stood here is gone. It sent the
+                    // property address in the query string of a third party's URL,
+                    // out of an authenticated broker report. Two of the three sites
+                    // emitted it regardless of the "Google Map Link" option, so a
+                    // broker who left that box unchecked sent it anyway.
+                    //
+                    // Nothing replaces it: swapping Google for another outside
+                    // location authority is the same dependency renamed. Mallan's
+                    // map capability stays where it already lives — the
+                    // MapLibre/OpenFreeMap panels in js/render/results-map.js and
+                    // js/render/neighborhood-map.js. The report keeps the address.
                 var ohLinks = '';
                 ohLinks += '<span style="margin-right:16px;font-size:12px;font-family:' + B.fontBody + '"><i class="fas fa-link" style="color:' + B.gold + ';margin-right:4px"></i><a href="#" style="color:' + B.goldDeep + ';text-decoration:none">View on mallan.nyc</a></span>';
-                ohLinks += '<span style="margin-right:16px;font-size:12px;font-family:' + B.fontBody + '"><i class="fas fa-map-marker-alt" style="color:' + B.gold + ';margin-right:4px"></i><a href="https://maps.google.com/?q=' + encodeURIComponent(_displayAddr(l) + ' New York NY') + '" style="color:' + B.goldDeep + ';text-decoration:none">Google Map</a></span>';
                 if (l.virtualTourUrl) ohLinks += '<span style="font-size:12px;font-family:' + B.fontBody + '"><i class="fas fa-video" style="color:' + B.gold + ';margin-right:4px"></i><a href="' + l.virtualTourUrl + '" style="color:' + B.goldDeep + ';text-decoration:none">Virtual Tour</a></span>';
                 h += '<div style="margin-bottom:24px">' + ohLinks + '</div>';
 
@@ -974,13 +985,14 @@
 
                     // Photo grid
                     h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
-                    var pCount = l.photoCount || _getListingPhotos(l).length || 0;
-                    var imgArr = _getListingPhotos(l);
-                    var showCount = Math.min(pCount || 6, 9);
-                    for (var pi = 0; pi < showCount; pi++) {
+                    // Same rule as reports.js, from the same shared helper. This file
+                    // is not referenced by any HTML page today, so it does not execute —
+                    // fixed anyway so the defect cannot arrive with a future wire-up.
+                    var imgArr = typeof reportPhotoTiles === 'function' ? reportPhotoTiles(l) : _getListingPhotos(l).slice(0, 9);
+                    for (var pi = 0; pi < imgArr.length; pi++) {
                         var span = pi === 0 ? 'grid-column:span 2;grid-row:span 2;' : '';
                         var imgHgt = pi === 0 ? '240px' : '112px';
-                        var imgUrl = imgArr[pi % Math.max(imgArr.length,1)] ? imgArr[pi % imgArr.length].url : _getPhoto(l);
+                        var imgUrl = imgArr[pi].url;
                         if (imgUrl) {
                             h += '<div style="' + span + 'height:' + imgHgt + ';border-radius:8px;overflow:hidden;position:relative;background:#f1f5f9">' +
                                 '<img src="' + imgUrl + '" alt="" style="width:100%;height:100%;object-fit:cover" onerror="' + _imgErr + '">' +

@@ -18,11 +18,111 @@
 
         function parseDateMDY(str) {
             if (!str) return null;
-            var parts = str.split('/');
+            var parts = String(str).split('/');
             if (parts.length !== 3) return null;
-            var d = new Date(parseInt(parts[2]), parseInt(parts[0]) - 1, parseInt(parts[1]));
-            return isNaN(d.getTime()) ? null : d;
+            var mm = parseInt(parts[0], 10);
+            var dd = parseInt(parts[1], 10);
+            var yyyy = parseInt(parts[2], 10);
+            if (isNaN(mm) || isNaN(dd) || isNaN(yyyy)) return null;
+
+            var d = new Date(yyyy, mm - 1, dd);
+            if (isNaN(d.getTime())) return null;
+
+            // STRICT: an impossible date is REFUSED, never repaired.
+            //
+            // `new Date(2026, 1, 31)` does not fail — JavaScript rolls 02/31/2026
+            // forward into March. The old check only tested isNaN, so a broker's
+            // impossible date became a DIFFERENT valid date, and `isoFromMDY` then
+            // handed that silently-corrected value to canonical state. Silent
+            // repair is exactly what the value contract forbids: the search would
+            // answer a question the broker did not ask, and look right doing it.
+            if (d.getFullYear() !== yyyy || d.getMonth() !== mm - 1 || d.getDate() !== dd) {
+                return null;
+            }
+            return d;
         }
+
+        // ─── CANONICAL ISO BOUNDARY ─────────────────────────────────────────
+        //
+        // This picker PRESENTS dates as MM/DD/YYYY and stores that spelling in
+        // data-from / data-to. Advanced Search uses native <input type="date">,
+        // which requires YYYY-MM-DD. Those are two different notations for the
+        // same fact, and canonical state holds exactly one of them: ISO, as the
+        // value contract requires (`range_date` is 'YYYY-MM-DD').
+        //
+        // WHAT THIS PREVENTS. Canonical state briefly copied the two
+        // representations straight into each other. '08/30/2026' written into a
+        // native date input is rejected outright and silently blanks the control;
+        // '2026-08-30' written back into this wrapper is then read by
+        // parseDateMDY, which splits on '/' and returns null — so the range
+        // disappears. A date criterion that vanishes on a view change is the
+        // silent-loss failure this whole state model exists to end.
+        //
+        // The conversion lives HERE, with the module that owns the MDY notation,
+        // exactly as `setNeighborhoodSelection` lives with the widget that owns
+        // the tag state. Callers deal only in canonical ISO.
+        function isoFromMDY(str) {
+            var d = parseDateMDY(str);
+            if (!d) return '';
+            var mm = String(d.getMonth() + 1).padStart(2, '0');
+            var dd = String(d.getDate()).padStart(2, '0');
+            return d.getFullYear() + '-' + mm + '-' + dd;
+        }
+
+        function mdyFromISO(str) {
+            if (!str) return '';
+            var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(str).trim());
+            if (!m) return '';
+            return m[2] + '/' + m[3] + '/' + m[1];
+        }
+
+        /** The stored range for a picker, in CANONICAL ISO. */
+        window.getDateRangeISO = function (drpId) {
+            var wrapper = document.querySelector('[data-drp="' + drpId + '"]');
+            if (!wrapper) return null;
+            return {
+                from: isoFromMDY(wrapper.getAttribute('data-from')),
+                to: isoFromMDY(wrapper.getAttribute('data-to'))
+            };
+        };
+
+        /**
+         * Set a picker's range from CANONICAL ISO, updating both the stored
+         * attributes and the visible trigger text — otherwise the agent sees a
+         * stale label over a changed value.
+         */
+        window.setDateRangeISO = function (drpId, fromISO, toISO) {
+            var wrapper = document.querySelector('[data-drp="' + drpId + '"]');
+            if (!wrapper) return;
+            var from = mdyFromISO(fromISO);
+            var to = mdyFromISO(toISO);
+
+            if (from) wrapper.setAttribute('data-from', from);
+            else wrapper.removeAttribute('data-from');
+            if (to) wrapper.setAttribute('data-to', to);
+            else wrapper.removeAttribute('data-to');
+
+            // EITHER BOUND MAY BE OMITTED — the canonical `range_date` contract
+            // permits an open-ended range, and "sold since January" is as real a
+            // search as "sold between January and June".
+            //
+            // Label, has-value and the Clear button were all decided from `from`
+            // alone, so a canonical value carrying only `max` was stored correctly
+            // and then displayed as EMPTY. The agent would see no filter, and
+            // clearing what looks like nothing is how a real criterion gets lost.
+            var hasValue = !!(from || to);
+            var trigger = wrapper.querySelector('.drp-trigger');
+            var textEl = trigger ? trigger.querySelector('.drp-text') : null;
+            var clearBtn = trigger ? trigger.querySelector('.drp-clear') : null;
+            if (textEl) {
+                if (from && to) textEl.textContent = from + ' - ' + to;
+                else if (from) textEl.textContent = 'From ' + from;
+                else if (to) textEl.textContent = 'Until ' + to;
+                else textEl.textContent = textEl.getAttribute('data-placeholder') || 'Select Date Range';
+                textEl.classList.toggle('has-value', hasValue);
+            }
+            if (clearBtn) clearBtn.style.display = hasValue ? '' : 'none';
+        };
 
         function sameDay(a, b) {
             if (!a || !b) return false;
@@ -261,12 +361,17 @@
                 textEl.textContent = formatDateMDY(drpFromDate) + ' - ' + formatDateMDY(drpToDate);
                 textEl.classList.add('has-value');
                 clearBtn.style.display = '';
+                // Picking dates by hand replaces any preset: the broker has
+                // stated an explicit window, so no token may keep overriding it.
+                activeDRP.removeAttribute('data-oh-preset');
                 activeDRP.setAttribute('data-from', formatDateMDY(drpFromDate));
                 activeDRP.setAttribute('data-to', formatDateMDY(drpToDate));
             } else if (drpFromDate) {
                 textEl.textContent = formatDateMDY(drpFromDate);
                 textEl.classList.add('has-value');
                 clearBtn.style.display = '';
+                // Same rule on the open-ended branch.
+                activeDRP.removeAttribute('data-oh-preset');
                 activeDRP.setAttribute('data-from', formatDateMDY(drpFromDate));
                 activeDRP.removeAttribute('data-to');
             }

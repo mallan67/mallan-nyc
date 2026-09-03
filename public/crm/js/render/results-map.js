@@ -55,6 +55,7 @@
   // with random offset spread across the neighborhood area so pins don't stack.
   function buildGeoJSON(listings) {
     var features = [];
+    var _unplaceable = 0;
     // Track how many listings per neighborhood centroid to spiral-spread them
     var centroidCounts = {};
 
@@ -82,44 +83,135 @@
           approx = true;
         }
       }
-      if (!lat || !lng) continue;
+      // A LISTING THE MAP CANNOT PLACE IS COUNTED, NOT JUST SKIPPED.
+      //
+      // A listing with no coordinates and no resolvable neighbourhood centroid
+      // is dropped here — correctly, because inventing a position for it would
+      // be worse. But dropping it silently means the map shows fewer pins than
+      // the search found and says nothing, so a broker reading the map as the
+      // geography of their results is reading an incomplete picture presented
+      // as a complete one.
+      //
+      // The count is recorded so the surface can state it. Placement is still
+      // refused; only the silence is.
+      if (!lat || !lng) { _unplaceable++; continue; }
       features.push({
         type: 'Feature',
         geometry: { type: 'Point', coordinates: [lng, lat] },
         properties: {
           id: l.id,
           address: l.address + (l.unit ? ', ' + l.unit : ''),
-          price: l.price || l.listPrice || 0,
-          beds: l.beds || l.bedroomsTotal || 0,
-          baths: l.baths || l.bathroomsFull || 0,
-          status: l.status || '',
-          photo: (l.images && l.images[0] && l.images[0].url) || '',
+          // UNKNOWN IS PRESERVED, NOT ZEROED.
+          //
+          // These read `l.price || l.listPrice || 0` and friends. The mapper
+          // deliberately returns null for an absent price, bed or bath count —
+          // "Absent/unparsable is never silently zero" — and this turned every
+          // one of those nulls straight back into 0, so an unknown listing
+          // rendered as "$0" and "0 bd · 0 ba" on the map. That is the exact
+          // defect removed from the grid and the dashboard, still live here.
+          //
+          // `||` is also the wrong operator even for values that ARE present: a
+          // real 0-bedroom studio is falsy and fell through to the next branch.
+          // The middle keys were dead regardless — no mapper in this repo emits
+          // listPrice, bedroomsTotal or bathroomsFull.
+          price: l.price != null ? l.price : null,
+          beds: l.beds != null ? l.beds : null,
+          baths: l.baths != null ? l.baths : null,
+          // 'UNKNOWN' is the mapper's deliberate, readable signal. Collapsing it
+          // to '' discarded the one token that says "we do not know".
+          status: l.status || 'UNKNOWN',
+          // THE LAZY STRATEGY MEANS `images` IS EMPTY HERE.
+          //
+          // The search route sets mediaStrategy:'lazy' and returns no images,
+          // so reading l.images[0] resolved to '' for every pin and the map
+          // popup was permanently photo-less. The photo cache is what the
+          // lazy loader actually fills, keyed by the provider ListingKey.
+          photo: (l.images && l.images[0] && l.images[0].url)
+            || (typeof getCachedPhoto === 'function'
+                ? (getCachedPhoto(l.wid || l.id) || '')
+                : ''),
           neighborhood: l.neighborhood || '',
           listingCategory: l.listingCategory || '',
           approx: approx,
         },
       });
     }
+    // Published so the map surface can say how many results it could not place.
+    if (typeof searchResultsState !== 'undefined' && searchResultsState) {
+      searchResultsState.mapUnplaceableCount = _unplaceable;
+    }
+    // Stated on the map itself, not only in the console: a broker reading the
+    // map is the person who needs to know it is missing pins.
+    var _coverageEl = (typeof document !== 'undefined')
+      ? document.getElementById('resultsMapCoverageNote') : null;
+    if (_coverageEl) {
+      if (_unplaceable > 0) {
+        _coverageEl.textContent = _unplaceable + ' of ' + listings.length +
+          ' listings could not be placed on the map and are not shown as pins.';
+        _coverageEl.style.display = '';
+      } else {
+        _coverageEl.textContent = '';
+        _coverageEl.style.display = 'none';
+      }
+    }
+    if (_unplaceable > 0) {
+      console.warn('[Map] ' + _unplaceable + ' listing(s) could not be placed: no coordinates and no resolvable neighbourhood centroid. The map is showing fewer pins than the search returned.');
+    }
     return { type: 'FeatureCollection', features: features };
   }
 
   // ── Format price ──
   function fmtPrice(p) {
-    if (!p) return '$0';
+    // `!p` was true for null, undefined, NaN, '' AND a real 0 — all five became
+    // "$0". Unknown and free are opposite facts; a real $0 is still a real fact.
+    if (p === null || p === undefined || p === '') return '—';
+    var _n = Number(p);
+    if (isNaN(_n)) return '—';
+    if (_n === 0) return '$0';
     if (p >= 1000000) return '$' + (p / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
     if (p >= 1000) return '$' + Math.round(p / 1000) + 'K';
     return '$' + p.toLocaleString();
   }
 
   // ── Create price marker element ──
-  function createMarkerEl(price, status) {
+  /**
+   * A count, or an em dash when it is unknown.
+   *
+   * A real 0 survives — a studio genuinely has 0 bedrooms — while an absent
+   * count reads as unavailable rather than as zero.
+   */
+  function fmtCount(v) {
+    if (v === null || v === undefined || v === '') return '—';
+    var n = Number(v);
+    return isNaN(n) ? '—' : String(n);
+  }
+
+  function createMarkerEl(price, status, approx) {
     var el = document.createElement('div');
     el.className = 'results-map-pin';
     var bg = '#1a1a1a';
-    if (status === 'COMING_SOON') bg = '#d97706';
-    else if (status === 'ACTIVE_UNDER_CONTRACT') bg = '#7c3aed';
+    if (status === 'ComingSoon') bg = '#d97706';
+    // THE EXACT COTALITY StandardStatus MEMBER. This read
+    // 'ACTIVE_UNDER_CONTRACT', which is not a member and therefore never
+    // matched — a dead branch, so every status except ComingSoon rendered in the
+    // same default colour, Closed and Withdrawn and Expired included.
+    //
+    // "RESO spelling" was the wrong way to put it: the authority here is what
+    // the live Cotality feed actually emits, not a standards document.
+    else if (status === 'ActiveUnderContract') bg = '#7c3aed';
     el.style.cssText = 'background:' + bg + ';color:#fff;font-size:11px;font-weight:700;padding:4px 8px;border-radius:6px;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25);border:2px solid #fff;';
     el.textContent = fmtPrice(price);
+    // AN APPROXIMATE POSITION SAYS SO ON THE PIN.
+    //
+    // `approx` was computed in buildGeoJSON and then never passed here, so a
+    // listing placed at a neighbourhood centroid looked exactly like one placed
+    // at its real address. Provider Latitude/Longitude are null on every live
+    // row, so in practice this is most of them — a dashed border and a title are
+    // the difference between "here" and "somewhere in this neighbourhood".
+    if (approx) {
+        el.style.borderStyle = 'dashed';
+        el.title = 'Approximate location - shown at the neighbourhood centre';
+    }
     // Hover: change border color only — no transform, no z-index (both cause MapLibre marker reflow/shuffle)
     el.addEventListener('mouseenter', function () { el.style.borderColor = '#3b82f6'; el.style.background = '#2563EB'; });
     el.addEventListener('mouseleave', function () { el.style.borderColor = '#fff'; el.style.background = bg; });
@@ -200,7 +292,7 @@
         if (group.length === 1) {
           // Single pin — show price marker
           var f = group[0];
-          var el = createMarkerEl(f.properties.price, f.properties.status);
+          var el = createMarkerEl(f.properties.price, f.properties.status, f.properties.approx);
           var marker = new maplibregl.Marker({ element: el }).setLngLat(f.geometry.coordinates).addTo(_map);
           (function (feat) {
             el.addEventListener('click', function () { showPopup(feat); highlightCard(feat.properties.id); });
@@ -230,7 +322,7 @@
         var f = features[i];
         var coords = f.geometry.coordinates;
         var p = f.properties;
-        var el = createMarkerEl(p.price, p.status);
+        var el = createMarkerEl(p.price, p.status, p.approx);
 
         var marker = new maplibregl.Marker({ element: el })
           .setLngLat(coords)
@@ -278,7 +370,7 @@
       + '<div style="padding:8px 10px;">'
       + '<div style="font-weight:700;font-size:14px;margin-bottom:2px;">' + fmtPrice(p.price) + (p.listingCategory === 'rental' ? '/mo' : '') + '</div>'
       + '<div style="font-size:11px;color:#6b7280;margin-bottom:4px;">' + (p.address || 'Address Undisclosed') + '</div>'
-      + '<div style="font-size:11px;color:#374151;">' + p.beds + ' bd &middot; ' + p.baths + ' ba' + (p.neighborhood ? ' &middot; ' + p.neighborhood : '') + '</div>'
+      + '<div style="font-size:11px;color:#374151;">' + fmtCount(p.beds) + ' bd &middot; ' + fmtCount(p.baths) + ' ba' + (p.neighborhood ? ' &middot; ' + p.neighborhood : '') + '</div>'
       + (p.approx ? '<div style="font-size:9px;color:#d97706;margin-top:3px;"><i class="fas fa-info-circle"></i> Approximate location</div>' : '')
       + '<button onclick="showListingDetail(\'' + String(p.id).replace(/'/g, "\\'") + '\')" style="margin-top:6px;width:100%;padding:5px;background:#111827;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">View Details</button>'
       + '</div></div>';
@@ -457,7 +549,25 @@
         _map.setFeatureState({ source: 'neighborhoods', id: slug }, { selected: true });
       }
 
-      var mapListings = (typeof getFilteredListings === 'function') ? getFilteredListings(true) : [];
+      // THE MAP'S OWN BOUNDED UNIVERSE, when one has been loaded.
+      //
+      // getFilteredListings(true) returns the rows currently on screen. Once
+      // pagination became a real server round trip that is ONE PAGE, so pins
+      // would have collapsed from ~200 to a page's worth. The map keeps its own
+      // bounded read of the same criteria and falls back to the visible rows
+      // when it has none — a preview, or a surface that never ran a search.
+      var mapListings = (searchResultsState && searchResultsState.mapListings
+                         && searchResultsState.mapListings.length)
+        ? searchResultsState.mapListings
+        : ((typeof getFilteredListings === 'function') ? getFilteredListings(true) : []);
+      // A COUNT FROM A BOUNDED SAMPLE IS QUALIFIED, NOT STATED FLATLY.
+      //
+      // mapListings is at most one bounded read of the universe, so this is
+      // "how many of the listings we loaded are in this neighbourhood", which is
+      // a different claim from "how many listings are in this neighbourhood".
+      // Printing the second when only the first is known is the same defect as
+      // printing a fetched window as the result total.
+      var _partial = !!(searchResultsState && searchResultsState.mapIsPartial);
       var count = mapListings.filter(function (l) { return l.neighborhood === name; }).length;
       var isSelected = !!_selectedSlugs[slug];
 
@@ -467,7 +577,7 @@
           '<div style="font-family:system-ui,sans-serif;padding:4px;">' +
           '<div style="font-weight:700;font-size:13px;">' + name + '</div>' +
           '<div style="font-size:11px;color:#6b7280;">' + borough + '</div>' +
-          '<div style="font-size:12px;margin-top:4px;font-weight:600;">' + count + ' listing' + (count !== 1 ? 's' : '') + '</div>' +
+          '<div style="font-size:12px;margin-top:4px;font-weight:600;">' + count + (_partial ? '+' : '') + ' listing' + (count !== 1 ? 's' : '') + (_partial ? ' loaded' : '') + '</div>' +
           '<div style="font-size:11px;margin-top:4px;color:' + (isSelected ? '#2563EB' : '#9CA3AF') + ';font-weight:600;">' +
           (isSelected ? '<i class="fas fa-check-circle"></i> Selected' : 'Deselected') + '</div>' +
           '</div>'
@@ -513,9 +623,20 @@
     // Debounce rapid calls (e.g., zoom events)
     if (_refreshDebounce) clearTimeout(_refreshDebounce);
     _refreshDebounce = setTimeout(function () {
-      var mapListings = (typeof getFilteredListings === 'function')
-        ? getFilteredListings(true)
-        : (searchResultsState && searchResultsState.filteredListings) || [];
+      // THE PINS READ THE MAP UNIVERSE, NOT THE CURRENT PAGE.
+    //
+    // This read getFilteredListings(true), which returns
+    // searchResultsState.filteredListings — and since pagination became a real
+    // server round trip that is ONE PAGE. So the 500-row map universe was being
+    // fetched, stored and then ignored by the only surface it exists for, and
+    // the pins silently collapsed to whatever twenty rows were on screen.
+    //
+    // That was my own defect, introduced with the map-universe read. The
+    // fallback to the visible rows stays for surfaces that never ran a search.
+    var mapListings = (searchResultsState && searchResultsState.mapListings
+                       && searchResultsState.mapListings.length)
+      ? searchResultsState.mapListings
+      : ((typeof getFilteredListings === 'function') ? getFilteredListings(true) : []);
 
       if (!_centroids) {
         var base = window.location.pathname.replace(/\/[^/]*$/, '');

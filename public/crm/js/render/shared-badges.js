@@ -1,12 +1,39 @@
 
+        /**
+         * A FEE WE DO NOT KNOW IS NOT A FEE OF ZERO.
+         *
+         * The FARE Act disclosure rendered `'$' + (f.applicationFee || 0)`, so an
+         * ABSENT application fee printed "App fee: $0" — telling a renter there
+         * is no application fee, inside the very disclosure that exists to state
+         * fees truthfully.
+         *
+         * The FARE Act attaches penalties to fee-disclosure violations. The
+         * amounts are deliberately not quoted here: an uncited legal figure in a
+         * code comment gets read as established fact, and the behaviour below
+         * does not depend on knowing it.
+         *
+         * `||` also cannot tell the two apart in the other direction: a genuine
+         * $0 fee is falsy and took the same branch, so "unknown" and "free" were
+         * rendered identically and neither could be trusted.
+         *
+         * Unknown says so. A real zero still says $0, because that is a real and
+         * useful fact about a rental.
+         */
+        function fareFeeAmount(value) {
+            if (value === null || value === undefined || value === '') return 'Not stated';
+            var n = Number(value);
+            if (isNaN(n)) return 'Not stated';
+            return '$' + n.toLocaleString();
+        }
+
         // ── FARE Act Fee Disclosure Helper (NYC Local Law, eff. June 2025) ──
         function fareActDisclosure(listing) {
             if (listing.listingCategory !== 'rental' || !listing.fareActFees) return '';
             var f = listing.fareActFees;
             return '<div class="text-[10px] bg-amber-50 border border-amber-100 rounded px-2 py-1 mt-1.5" data-compliance="fare-act">'
                 + '<i class="fas fa-receipt text-amber-400 mr-1"></i>'
-                + '<strong>Fee Disclosure:</strong> Broker fee paid by <strong><span data-fare-field="BrokerFeePaidBy">' + (f.brokerFeePaidBy || 'N/A') + '</span></strong>'
-                + ' &middot; App fee: <span data-fare-field="ApplicationFee">$' + (f.applicationFee || 0) + '</span>'
+                + '<strong>Fee Disclosure:</strong> Broker fee paid by <strong><span data-fare-field="BrokerFeePaidBy">' + (f.brokerFeePaidBy || 'Not stated') + '</span></strong>'
+                + ' &middot; App fee: <span data-fare-field="ApplicationFee">' + fareFeeAmount(f.applicationFee) + '</span>'
                 + (f.moveInFees ? ' &middot; Move-in: <span data-fare-field="MoveInFees">' + f.moveInFees + '</span>' : '')
                 + (f.otherFees ? ' &middot; Other: <span data-fare-field="OtherFees">' + f.otherFees + '</span>' : '')
                 + '</div>';
@@ -26,7 +53,7 @@
         // ── Coming Soon Badge Helper — full version (Gallery/ShortSum/Summary/MasterDetail) ──
         // UCBA Art. I Sec. 5(C): No showings, open houses, or negotiations. D7/D2/D1.
         function comingSoonBadge(listing) {
-            if (listing.status !== 'COMING_SOON') return '';
+            if (listing.status !== 'ComingSoon') return '';
             var dateTag = listing.comingSoonDate ? ' <span' + resoData('comingSoonDate', listing.comingSoonDate) + '>' + listing.comingSoonDate + '</span>' : '';
             return '<div class="bg-purple-50 border-b border-purple-200 px-3 py-1.5 text-xs text-purple-700 font-semibold"'
                 + ' data-reso-field="MlsStatus" data-reso-value="ComingSoon"'
@@ -40,7 +67,7 @@
 
         // ── Coming Soon Badge — compact version (Grid/Map) ──
         function comingSoonBadgeCompact(listing) {
-            if (listing.status !== 'COMING_SOON') return '';
+            if (listing.status !== 'ComingSoon') return '';
             return '<span class="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-[9px] font-bold"'
                 + ' data-reso-field="MlsStatus" data-reso-value="ComingSoon"'
                 + ' data-compliance="coming-soon-badge"'
@@ -77,7 +104,7 @@
         // Returns a text notice for Coming Soon listings: "No Showings or Open House until [date]"
         // Used in detail views and action bars to inform agent that showings are blocked.
         function comingSoonShowingNotice(listing) {
-            if (listing.status !== 'COMING_SOON') return '';
+            if (listing.status !== 'ComingSoon') return '';
             var dateStr = listing.comingSoonDate || 'active date';
             return '<div class="bg-purple-50 border border-purple-200 rounded px-2.5 py-1.5 text-xs text-purple-700 font-medium"'
                 + ' data-reso-field="MlsStatus" data-reso-value="ComingSoon"'
@@ -91,7 +118,7 @@
         // ── Helper: is listing Coming Soon? ──
         // Used to conditionally disable Schedule Showing buttons across views.
         function isComingSoon(listing) {
-            if (listing.status === 'COMING_SOON') return true;
+            if (listing.status === 'ComingSoon') return true;
             if (listing.comingSoonDate) {
                 var csDate = new Date(listing.comingSoonDate);
                 if (!isNaN(csDate.getTime()) && csDate > new Date()) return true;
@@ -149,9 +176,9 @@
             if (dom == null) return '<span class="text-xs text-gray-400">--</span>';
             var status = 'accruing';
             if (listing.permissions && listing.permissions.participantOnly) status = 'exempt';
-            else if (listing.status === 'COMING_SOON' || listing.status === 'Coming Soon') status = 'exempt';
+            else if (listing.status === 'ComingSoon' || listing.status === 'ComingSoon') status = 'exempt';
             else if (listing.status === 'Temp Off Market' || listing.status === 'WITHDRAWN' || listing.status === 'Withdrawn') status = 'paused';
-            else if (listing.status === 'CLOSED' || listing.status === 'Sold' || listing.status === 'Leased') status = 'stopped';
+            else if (listing.status === 'Closed' || listing.status === 'Sold' || listing.status === 'Leased') status = 'stopped';
 
             var color;
             if (status === 'exempt') color = '#9ca3af';

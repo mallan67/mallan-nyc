@@ -7,17 +7,47 @@
  *   1. `isMallanExclusiveListing()` — Mallan-AUTHORED local listing (`SL-`/`RL-`
  *      prefix OR `rls_eligible === false`). Governs DATA/MEDIA AUTHORITY.
  *      NOT broadened here, and NOT re-implemented here.
- *   2. **Mallan RLS return-copy** (this module) — an inbound Cotality/RLS row
- *      whose VERIFIED LIST-SIDE identity is Mallan. Still Cotality-SOURCE-OWNED
- *      data: its media stays Cotality-owned and must never enter the `crm:`
- *      namespace. It is only barred from being the PUBLIC CANONICAL listing.
+ *   2. **Mallan-office Cotality representation** (this module) — an inbound
+ *      Cotality/RLS row whose VERIFIED LIST-SIDE identity is Mallan. Still
+ *      Cotality-SOURCE-OWNED data: its media stays Cotality-owned and must never
+ *      enter the `crm:` namespace.
+ *
+ *      It is SUPPRESSED AS A COMPETING LISTING SYSTEM-WIDE. An earlier version of
+ *      this line said it "is only barred from being the PUBLIC CANONICAL
+ *      listing", which was wrong and dangerous: read alone, it invites a future
+ *      change to re-admit the provider copy into CRM, CMA or Reports. It may not
+ *      independently participate as a canonical listing in authenticated Sale or
+ *      Rental Search, Saved Search, alerts, counts/pagination, CMA candidate
+ *      pools, Building inventory, Map, listing detail, CRM, client portal,
+ *      Reports, Open House, Media authority, marketing or public/SEO consumers.
  *   3. Third-party RLS/IDX — normal public inventory, untouched.
  *
- * WHY A RETURN-COPY EXISTS AT ALL: Mallan enters its listing into RealPlus,
- * RealPlus submits to REBNY RLS, and the listing returns to Mallan through
- * Cotality as an `RLS*` row. That return trip is OUTSIDE this system; Mallan
- * never writes back. The local `SL-`/`RL-` row stays canonical and the returned
- * copy is publicly suppressed but retained for audit/reconciliation.
+ * WHY A REPRESENTATION EXISTS AT ALL: Mallan authors the listing locally, an
+ * EXTERNAL SUBMISSION PATH files it with REBNY RLS, and it returns to Mallan
+ * through Cotality as an `RLS*` row. That return trip is OUTSIDE this system;
+ * Mallan never writes back.
+ *
+ * The intermediary that performs the submission is deliberately NOT named here.
+ * It is not Mallan architecture, not a source system and not a data authority,
+ * and naming it invites a future session to build product logic, source enums or
+ * canonical terminology around a vendor. The system contract is Cotality/RLS.
+ *
+ * The local `SL-`/`RL-` row stays canonical; the returned representation is
+ * SUPPRESSED AS A COMPETING LISTING — not merely "publicly" — and retained for
+ * audit/reconciliation.
+ *
+ * TWO SEPARATE DECISIONS, never collapsed:
+ *   1. CLASSIFICATION — is this a Mallan-office Cotality representation?
+ *      Answered by verified list-side office identity alone.
+ *   2. TWIN RESOLUTION — which local Mallan listing does it reconcile to?
+ *      A stricter problem: MATCHED / AMBIGUOUS / UNRESOLVED.
+ *
+ * Failure of (2) NEVER reverses (1). Until a direct Mallan -> Cotality feed is
+ * implemented and proven, EVERY verified Mallan-office representation stays
+ * suppressed. If the expected local listing cannot be found, that is an
+ * integrity defect to surface and repair — it does not transfer canonical or
+ * display authority to the provider copy. Fail closed on canonical AUTHORITY,
+ * never fail open to Cotality.
  *
  * IDENTITY IS SOURCE-FIELD ONLY. Never `agent_id` (that is a CRM history/roster
  * association — `syncAgentHistory` sets it from BOTH list-side and BUYER-side
@@ -47,8 +77,29 @@ export interface MallanSourceIdentityRow {
   rls_eligible?: boolean | null;
 }
 
-/** CRM prefixes that mark a Mallan-AUTHORED local listing. */
-const LOCAL_PREFIXES = ['SL-', 'RL-'] as const;
+/**
+ * CRM prefixes that mark a Mallan-AUTHORED local listing.
+ *
+ * EXPORTED because Search needs the same answer. `crm-idx-filter.ts` sent every
+ * listing-ID criterion to Cotality as `ListingId eq`, including Mallan-domain
+ * references — which match nothing there, so an agent searching a Mallan listing
+ * by its own identifier got an empty result set and no explanation. Deciding
+ * "which domain is this identifier in" is a fact about Mallan identity, so it is
+ * answered here rather than re-derived at each caller.
+ */
+export const MALLAN_LOCAL_ID_PREFIXES = ['SL-', 'RL-'] as const;
+const LOCAL_PREFIXES = MALLAN_LOCAL_ID_PREFIXES;
+
+/**
+ * TRUE when this identifier is in the MALLAN domain rather than the provider's.
+ *
+ * Takes the bare identifier, not a row: Search only ever has the string a broker
+ * typed, and there is no record to consult until the domain is known.
+ */
+export function isMallanLocalIdentifier(listingId: string): boolean {
+  const id = String(listingId ?? '').trim();
+  return LOCAL_PREFIXES.some((p) => id.toUpperCase().startsWith(p));
+}
 
 /** TRUE when the row is a Mallan-authored LOCAL listing (canonical publicly). */
 export function isMallanLocalListing(row: MallanSourceIdentityRow): boolean {
@@ -67,6 +118,28 @@ export function isMallanLocalListing(row: MallanSourceIdentityRow): boolean {
  * FAILS CLOSED: an absent/blank `list_office_mls_id` is NOT a return-copy, so an
  * unclassifiable row keeps its normal public treatment rather than vanishing.
  * Suppression must never be the default for unknown provenance.
+ */
+/**
+ * LEGACY NAME. This answers CLASSIFICATION, not twin resolution.
+ *
+ * It returns true for a **Mallan-office Cotality representation** — a provider
+ * row whose verified list-side office identity is Mallan — WHETHER OR NOT a local
+ * canonical twin has been proven. It does NOT mean "matched Mallan return-copy",
+ * which is the stricter claim that a specific local listing has been identified
+ * (`resolveReturnCopyCanonicalTarget`).
+ *
+ * The two decisions are independent and failure of the second NEVER reverses the
+ * first: an unresolved or ambiguous twin keeps the representation suppressed and
+ * raises an integrity defect, rather than promoting the provider copy.
+ *
+ * WHY NOT SIMPLY RENAME IT: the name has 17 references across 6 files, two of
+ * which — `app/api/listings/suggest/route.ts` and `app/listing/[...slug]/page.tsx`
+ * — are PUBLIC consumer Search surfaces currently held at ZERO-DELTA against
+ * production. Renaming would modify them for cosmetic reasons and break that
+ * guarantee. The name is therefore documented as legacy rather than changed, and
+ * a rename is deferred until the public surfaces are separately in scope.
+ *
+ * DO NOT add a second classifier answering the same identity question.
  */
 export function isMallanRlsReturnCopy(row: MallanSourceIdentityRow): boolean {
   if (isMallanLocalListing(row)) return false;

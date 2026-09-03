@@ -5,10 +5,14 @@ import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
 import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
 import { toPublicDTO, annotateCoListedSiblings } from '@/lib/idx/public-dto';
 import { CARD_SELECT_FIELDS } from '@/lib/idx/card-fields';
+import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { geocodeListings } from '@/lib/geo/geocode';
 import { filterDisplayableDbListings, dbListingToPublicDTO, classifyDbListing, type DbListing } from '@/lib/idx/db-to-public-dto';
-import { preferCrmExclusiveOverIdxDuplicate } from '@/lib/listings/dedupe-crm-vs-idx';
+import {
+  preferCrmExclusiveOverIdxDuplicate,
+  dedupeAddressFromDbRow,
+} from '@/lib/listings/dedupe-crm-vs-idx';
 import { getOpenHouseIndex, findNextOpenHouse } from '@/lib/open-houses/upcoming-open-houses';
 import { buildSearchDisplayWhere, SEARCH_DISPLAY_GATE, ADDRESS_DISCLOSED_GATE } from '@/lib/search/listing-access-decision';
 import {
@@ -16,6 +20,12 @@ import {
   buildPublicListingDbSearch,
 } from '@/lib/search/public-listing-db';
 import { buildPublicListingTrestleFilter } from '@/lib/search/public-listing-trestle';
+import { assemblePublicUniverse } from '@/lib/search/public-universe';
+import { unsupportedExclusiveCriteria } from '@/lib/search/public-exclusive-criteria';
+import {
+  readOpenHouseMembership,
+  type OpenHouseMembership,
+} from '@/lib/search/open-house-membership';
 import { toPublicListingSummaries } from '@/lib/idx/public-listing-summary';
 // Trestle access audit logger — REBNY requires 12-month retention on MLS data access
 const logTrestleAccess = async (data: Record<string, unknown>) => {
@@ -44,6 +54,233 @@ function nextDay(isoDate: string): string {
   const d = new Date(isoDate + 'T00:00:00');
   d.setDate(d.getDate() + 1);
   return d.toISOString().split('T')[0];
+}
+
+/**
+ * How many candidate rows one public search may read to settle membership.
+ *
+ * A BUDGET, NOT A UNIVERSE. When it is reached the count becomes a declared
+ * LOWER BOUND and the last page number is withheld — the traversal says it did
+ * not finish rather than pretending the inventory ended where the budget did.
+ */
+const PUBLIC_CANDIDATE_BUDGET = 12_000;
+const PUBLIC_CANDIDATE_BATCH = 500;
+
+/**
+ * The same idea on the live-Cotality fallback: a ceiling on candidates read,
+ * declared as a budget and reported as one. The minimum keeps a shallow page
+ * from reading so little that ordinary exclusions empty it.
+ */
+const PUBLIC_TRESTLE_CANDIDATE_BUDGET = 1_000;
+const PUBLIC_TRESTLE_MIN_CANDIDATES = 200;
+
+/**
+ * EVERYTHING A CARD NEEDS — used for the PAGE, never for the walk.
+ *
+ * 43 scalar columns plus `features` (which carries ~2.6KB of PublicRemarks),
+ * the `media` JSON blob, and a filtered `listing_media` relation join. Read for
+ * fifty rows that is nothing; read for a 7,125-row candidate universe it was
+ * ~1.3ms per row of pure database read and transfer, and it is what made a
+ * corrected public search take eleven seconds. Membership never looks at any of
+ * the heavy members.
+ */
+const PAGE_LISTING_SELECT = {
+    id: true,
+    listing_id: true,
+    status: true,
+    listing_type: true,
+    property_type: true,
+    property_sub_type: true,
+    list_price: true,
+    bedrooms_total: true,
+    bathrooms_full: true,
+    bathrooms_half: true,
+    living_area: true,
+    borough: true,
+    neighborhood: true,
+    postal_code: true,
+    address: true,
+    features: true,
+    // dbListingToPublicDTO derives several public fields ONLY from
+    // raw_data (the full Trestle payload): virtualTourURL
+    // (VirtualTourURLBranded/Unbranded — not stored in `features`,
+    // which excludes the B26 media group), plus previousListPrice,
+    // daysOnMarket, leaseAmount, availabilityDate, on/closeDate.
+    // Omitting raw_data silently dropped all of these from DB-backed
+    // cards (e.g. the PR-C 3D Tour badge never showed). Response is
+    // cached (5 min), so the extra JSON is amortized.
+    raw_data: true,
+    // PR 4: keep reading `media` JSON as the fallback source for
+    // the 0.3% of listings not yet mirrored into listing_media.
+    media: true,
+    // Phase B: typed agent columns so the public DTO resolves attribution TYPED-FIRST.
+    list_agent_full_name: true, list_office_name: true,
+    list_agent_email: true, list_agent_direct_phone: true,
+    list_office_mls_id: true, list_agent_mls_id: true,
+    co_list_office_mls_id: true, co_list_agent_mls_id: true,
+    // C1 fix (2026-05-13): provenance signals needed by the DTO
+    // to distinguish Mallan exclusives (agent_id / owner_client_id)
+    // from website-only commercial (rls_eligible=false) from
+    // third-party IDX/RLS (everything else). Without these the DTO
+    // hard-codes `_source: "exclusive"` for every row.
+    agent_id: true,
+    owner_client_id: true,
+    rls_eligible: true,
+    idx_display_yn: true,
+    internet_entire_listing_display_yn: true,
+    internet_address_display_yn: true,
+    owner_opt_out: true,
+    participant_only: true,
+    listing_contract_date: true,
+    modification_timestamp: true,
+    created_at: true,
+    updated_at: true,
+    // PR 4 reader swap — relational media table. Filtered to
+    // active rows and ordered by (order, id) so the resolver
+    // receives a stable input. Selected columns mirror
+    // ListingMediaTableRow exactly so we don't over-fetch.
+    listing_media: {
+      where: { status: 'active' },
+      orderBy: [{ order: 'asc' }, { id: 'asc' }],
+      select: {
+        // media_key: MIXED-GALLERY COMPOSITION. resolveDbListingMedia treats an
+        // all-`crm:` relational set as a SUPPLEMENT to the legacy Cotality feed
+        // JSON rather than as the whole gallery; without this column that case is
+        // undetectable and one CRM upload hides the entire feed gallery.
+        media_key: true,
+        media_url_original: true,
+        media_url_cached: true,
+        media_type: true,
+        media_category: true,
+        media_classification: true,
+        order: true,
+        preferred_photo_yn: true,
+        status: true,
+      },
+    },
+    // All-status existence signal for the DTO's media authority (this
+    // select is ACTIVE-only). Without it, a Mallan exclusive whose
+    // relational photos were all deleted would read as "never imported"
+    // and resurrect deleted photos from the legacy JSON. Same batched
+    // query — no N+1 (Codex review, 2026-07-16).
+    _count: { select: { listing_media: true } },
+} satisfies Prisma.ListingSelect;
+
+/**
+ * WHAT A CORPUS FILTER NEEDS: the card projection MINUS the display-only
+ * members.
+ *
+ * A corpus-filter search derives propertyType, yearBuilt, furnished,
+ * petsAllowed and publicRemarks through the same DTO the page uses, so it
+ * cannot use the membership projection. It has no use for `media`,
+ * `listing_media` or `_count` — those feed the gallery, and no filter reads
+ * them. Dropping the three keeps the derivations byte-identical while removing
+ * the relation join, which is the part that scales badly across a corpus.
+ */
+const FILTER_LISTING_SELECT = (() => {
+  const {
+    media: _media,
+    listing_media: _listingMedia,
+    _count: _countRel,
+    ...rest
+  } = PAGE_LISTING_SELECT;
+  return rest satisfies Prisma.ListingSelect;
+})();
+/**
+ * EVERYTHING MEMBERSHIP NEEDS, AND NOTHING ELSE.
+ *
+ * The six distribution-gate columns, the listing identity, the address the
+ * canonical physical-unit key is built from, and the timestamp reconciliation
+ * uses to pick a winner between two Mallan rows. No media, no relation join, no
+ * remarks.
+ */
+const MEMBERSHIP_LISTING_SELECT = {
+  listing_id: true,
+  status: true,
+  rls_eligible: true,
+  idx_display_yn: true,
+  internet_entire_listing_display_yn: true,
+  owner_opt_out: true,
+  participant_only: true,
+  address: true,
+  modification_timestamp: true,
+} satisfies Prisma.ListingSelect;
+/** Pages of the OpenHouse resource one request may walk before refusing. */
+const OPEN_HOUSE_MAX_PAGES = 40;
+const OPEN_HOUSE_PAGE_SIZE = 500;
+
+/**
+ * WHAT A CANDIDATE NEEDS TO BE, AND NOTHING MORE.
+ *
+ * Membership reads six things: `id` and `address` (reconciliation), and — only
+ * when a corpus filter is actually requested — propertyType, yearBuilt,
+ * furnished, petsAllowed and publicRemarks. It never reads media, photos, the
+ * slug, the URL, agent attribution or the compliance block.
+ *
+ * Building a full public DTO for every candidate to reach those fields measured
+ * 1.29ms per row, of which media composition alone was two thirds: nine seconds
+ * of the eleven a 7,125-row sale search took, spent composing galleries for rows
+ * that were only being counted. The page still gets the complete DTO — it is
+ * built from `__row` after membership settles, for the fifty rows on screen.
+ *
+ * Satisfies DedupeCandidate and PublicPostFilterListing structurally, so both
+ * existing helpers run unchanged over it.
+ */
+type DbCandidate = {
+  id: string;
+  address?: ReturnType<typeof dedupeAddressFromDbRow> | null;
+  modificationTimestamp?: string | null;
+  propertyType?: string | null;
+  yearBuilt?: number | null;
+  furnished?: string | null;
+  petsAllowed?: string | null;
+  publicRemarks?: string | null;
+  __row: DbListing;
+};
+
+/**
+ * The COMPLETE set of listing keys with an active open house in the requested
+ * range, or an explicit refusal. Never a partial set: see
+ * lib/search/open-house-membership.ts.
+ */
+async function readPublicOpenHouseMembership(
+  openHouseDateParam: string | null,
+): Promise<OpenHouseMembership> {
+  const TRESTLE_API = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
+  const today = new Date().toISOString().split('T')[0];
+
+  let ohDateFilter = `OpenHouseDate ge ${today}`;
+  if (openHouseDateParam && openHouseDateParam !== 'weekend') {
+    ohDateFilter = `OpenHouseDate ge ${openHouseDateParam} and OpenHouseDate lt ${nextDay(openHouseDateParam)}`;
+  } else if (openHouseDateParam === 'weekend') {
+    const { sat, mon } = getNextWeekend();
+    ohDateFilter = `OpenHouseDate ge ${sat} and OpenHouseDate lt ${mon}`;
+  }
+
+  const first = new URLSearchParams();
+  first.set('$select', 'ListingKey');
+  first.set('$filter', `${ohDateFilter} and OpenHouseStatus eq 'Active'`);
+  first.set('$top', String(OPEN_HOUSE_PAGE_SIZE));
+  const firstUrl = `${TRESTLE_API}/odata/OpenHouse?${first.toString()}`;
+
+  return readOpenHouseMembership({
+    maxPages: OPEN_HOUSE_MAX_PAGES,
+    fetchPage: async (nextLink) => {
+      const token = await getAccessToken();
+      const res = await fetch(nextLink ?? firstUrl, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      });
+      // THROWN, NOT SWALLOWED. A non-OK response is a failure to establish
+      // membership; degrading it to an empty page would read as "nothing has an
+      // open house" and return an empty search under a 200.
+      if (!res.ok) throw new Error(`OpenHouse HTTP ${res.status}`);
+      const data = await res.json();
+      return {
+        keys: (data.value || []).map((r: Record<string, unknown>) => String(r.ListingKey)),
+        nextLink: (data['@odata.nextLink'] as string | undefined) ?? null,
+      };
+    },
+  });
 }
 
 function getNextWeekend(): { sat: string; mon: string } {
@@ -330,123 +567,252 @@ export async function GET(request: Request) {
             const andClause = ADDRESS_DISCLOSED_GATE;
             w.AND = Array.isArray(w.AND) ? [...w.AND, andClause] : w.AND ? [w.AND, andClause] : [andClause];
           }
-          const dbTake = limit;
-          const dbSkip = skip;
-
-          const [dbListings, dbTotal] = await Promise.all([
+          // CANDIDATES, NOT A PAGE.
+          //
+          // `skip`/`take` here are CANDIDATE coordinates. The broker's page is
+          // cut later, from membership that has been settled — see
+          // assemblePublicUniverse below. This query used to take `skip: skip,
+          // take: limit` and hand a page straight to filters that then removed
+          // rows from it, which is how a page of 50 rendered 31 and how the
+          // rows removed were lost rather than pulled forward.
+          const readCandidateBatch = (batchSkip: number, batchTake: number) =>
             prisma.listing.findMany({
               where: dbWhere,
               orderBy: dbOrderBy,
-              skip: dbSkip,
-              take: dbTake,
-              select: {
-                id: true,
-                listing_id: true,
-                status: true,
-                listing_type: true,
-                property_type: true,
-                property_sub_type: true,
-                list_price: true,
-                bedrooms_total: true,
-                bathrooms_full: true,
-                bathrooms_half: true,
-                living_area: true,
-                borough: true,
-                neighborhood: true,
-                postal_code: true,
-                address: true,
-                features: true,
-                // dbListingToPublicDTO derives several public fields ONLY from
-                // raw_data (the full Trestle payload): virtualTourURL
-                // (VirtualTourURLBranded/Unbranded — not stored in `features`,
-                // which excludes the B26 media group), plus previousListPrice,
-                // daysOnMarket, leaseAmount, availabilityDate, on/closeDate.
-                // Omitting raw_data silently dropped all of these from DB-backed
-                // cards (e.g. the PR-C 3D Tour badge never showed). Response is
-                // cached (5 min), so the extra JSON is amortized.
-                raw_data: true,
-                // PR 4: keep reading `media` JSON as the fallback source for
-                // the 0.3% of listings not yet mirrored into listing_media.
-                media: true,
-                // Phase B: typed agent columns so the public DTO resolves attribution TYPED-FIRST.
-                list_agent_full_name: true, list_office_name: true,
-                list_agent_email: true, list_agent_direct_phone: true,
-                list_office_mls_id: true, list_agent_mls_id: true,
-                co_list_office_mls_id: true, co_list_agent_mls_id: true,
-                // C1 fix (2026-05-13): provenance signals needed by the DTO
-                // to distinguish Mallan exclusives (agent_id / owner_client_id)
-                // from website-only commercial (rls_eligible=false) from
-                // third-party IDX/RLS (everything else). Without these the DTO
-                // hard-codes `_source: "exclusive"` for every row.
-                agent_id: true,
-                owner_client_id: true,
-                rls_eligible: true,
-                idx_display_yn: true,
-                internet_entire_listing_display_yn: true,
-                internet_address_display_yn: true,
-                owner_opt_out: true,
-                participant_only: true,
-                listing_contract_date: true,
-                modification_timestamp: true,
-                created_at: true,
-                updated_at: true,
-                // PR 4 reader swap — relational media table. Filtered to
-                // active rows and ordered by (order, id) so the resolver
-                // receives a stable input. Selected columns mirror
-                // ListingMediaTableRow exactly so we don't over-fetch.
-                listing_media: {
-                  where: { status: 'active' },
-                  orderBy: [{ order: 'asc' }, { id: 'asc' }],
-                  select: {
-                    // media_key: MIXED-GALLERY COMPOSITION. resolveDbListingMedia treats an
-                    // all-`crm:` relational set as a SUPPLEMENT to the legacy Cotality feed
-                    // JSON rather than as the whole gallery; without this column that case is
-                    // undetectable and one CRM upload hides the entire feed gallery.
-                    media_key: true,
-                    media_url_original: true,
-                    media_url_cached: true,
-                    media_type: true,
-                    media_category: true,
-                    media_classification: true,
-                    order: true,
-                    preferred_photo_yn: true,
-                    status: true,
-                  },
-                },
-                // All-status existence signal for the DTO's media authority (this
-                // select is ACTIVE-only). Without it, a Mallan exclusive whose
-                // relational photos were all deleted would read as "never imported"
-                // and resurrect deleted photos from the legacy JSON. Same batched
-                // query — no N+1 (Codex review, 2026-07-16).
-                _count: { select: { listing_media: true } },
-              },
-            }),
-            cachedPublicRead(() => prisma.listing.count({ where: dbWhere }), [
-              "api-listings-count",
-              cacheKey,
-            ], { tags: [SEARCH_CACHE_TAG] })(),
-          ]);
+              skip: batchSkip,
+              take: batchTake,
+              select: PAGE_LISTING_SELECT
+            });
 
-          if (dbListings.length > 0) {
-            const serialized: DbListing[] = dbListings.map((l) => ({
+          // OPEN HOUSE MEMBERSHIP IS ESTABLISHED FIRST, OR THE CRITERION IS REFUSED.
+          //
+          // It used to run last, as a `$top=500` read intersected with rows that
+          // were already a page, inside a `try { } catch { console.warn }`. When
+          // the provider failed the filter simply did not run and the response
+          // carried the UNFILTERED set under an Open House request — a silent
+          // widening behind a 200. Now the complete range is resolved up front
+          // and a range that cannot be completed refuses the search instead of
+          // answering it wrongly.
+          let openHouseKeys: ReadonlySet<string> | null = null;
+          if (openHouseParam) {
+            const membership = await readPublicOpenHouseMembership(
+              openHouseDateParam,
+            );
+            if (membership.state === "unavailable") {
+              return NextResponse.json(
+                {
+                  success: false,
+                  error: "Open House results are unavailable right now.",
+                  criterion: "openHouse",
+                  reason: membership.reason,
+                },
+                { status: 503, headers: { "Cache-Control": "no-store" } },
+              );
+            }
+            openHouseKeys = membership.listingKeys;
+          }
+
+          // Typed by the columns it actually converts, not by one caller's row
+          // shape — the card projection and the corpus-filter projection differ
+          // by three display-only members, and both need serializing.
+          // Typed by the columns it actually converts, not by one caller's row
+          // shape — the card projection and the corpus-filter projection differ
+          // by three display-only members, and both need serializing.
+          const serializeCandidate = <
+            T extends {
+              id: bigint;
+              list_price: unknown;
+              living_area: unknown;
+              agent_id: bigint | null;
+              owner_client_id: bigint | null;
+            },
+          >(
+            l: T,
+          ): DbListing =>
+            ({
               ...l,
-              id: l.id.toString(),
-              list_price: l.list_price.toString(),
-              living_area: l.living_area?.toString() ?? null,
+              id: String(l.id),
+              list_price: String(l.list_price),
+              living_area: l.living_area != null ? String(l.living_area) : null,
               // C1 fix: stringify BigInt FKs for JSON safety; the classifier
               // only checks `!= null` so the value shape doesn't matter, but
               // mixing BigInts into JSON.stringify throws at serialization.
-              agent_id: l.agent_id != null ? l.agent_id.toString() : null,
-              owner_client_id: l.owner_client_id != null ? l.owner_client_id.toString() : null,
-            }));
+              agent_id: l.agent_id != null ? String(l.agent_id) : null,
+              owner_client_id: l.owner_client_id != null ? String(l.owner_client_id) : null,
+            }) as unknown as DbListing;
 
-            const displayable = filterDisplayableDbListings(serialized);
-            // Public-surface dedupe (2026-05-28): when a Mallan CRM exclusive
+          // THE CANDIDATE-PREDICATE POPULATION — a DIFFERENT number, kept and
+          // named as one.
+          //
+          // This is what `prisma.count(dbWhere)` has always measured: how many
+          // rows the SQL predicate matches, BEFORE display eligibility, Mallan
+          // reconciliation, the business filters and Open House removed
+          // anything. It used to be reported as `total`, which is why the number
+          // above the cards described a population the cards did not come from.
+          // It is genuinely useful — it says how much the Mallan-side stages
+          // removed — so it is kept, cached as an anonymous public read, and
+          // published under its own name where it cannot be mistaken for a
+          // result count. `findMany` stays uncached: its rows carry BigInt ids
+          // that the data cache cannot serialize.
+          const dbPredicateCount = await cachedPublicRead(() => prisma.listing.count({ where: dbWhere }), [
+            "api-listings-count",
+            cacheKey,
+          ], { tags: [SEARCH_CACHE_TAG] })();
+
+          // DOES ANY STAGE NEED MORE THAN THE MEMBERSHIP PROJECTION?
+          //
+          // A corpus filter derives its five fields through the same DTO the
+          // page uses, so its walk must read the fuller row. Nothing else does.
+          //
+          // This flag REPLACES a shortcut that skipped the walk entirely when no
+          // Mallan-authored row matched the predicate. That precondition proved
+          // dead in Preview: Mallan holds exclusives in every broad sale band, so
+          // it never fired where it was needed, and it charged an extra count
+          // query to every request to find that out. The walk itself is now cheap
+          // enough that skipping it buys nothing worth a precondition.
+          const corpusFiltersActive =
+            !!openHouseParam ||
+            ["ownershipTypes", "yearBuilt", "furnished", "amenities", "keywords"].some(
+              (p) => !!searchParams.get(p),
+            );
+
+          // THE FINAL PUBLIC UNIVERSE. Reconciliation, display eligibility and
+          // every business filter run over the WHOLE corpus; the page is the
+          // last thing that happens, and `count` describes the same set the
+          // cards come from.
+          const universe = await assemblePublicUniverse<DbListing, DbCandidate>({
+            // READ WHAT MEMBERSHIP NEEDS, NOT WHAT A CARD NEEDS.
+            //
+            // Measured on Preview: with DTO construction already removed from
+            // this path, a 7,125-row walk still cost ~9.4s — ~1.3ms per row of
+            // database read and transfer, because every candidate arrived with
+            // ~2.6KB of remarks, a media JSON blob and a filtered relation join
+            // for photos nobody was going to look at. A corpus filter still
+            // needs the full row (it derives its five fields through the same
+            // DTO the page uses), and those searches legitimately do more work.
+            readBatch: async (batchSkip, batchTake) =>
+              corpusFiltersActive
+                ? (
+                    await prisma.listing.findMany({
+                      where: dbWhere,
+                      orderBy: dbOrderBy,
+                      skip: batchSkip,
+                      take: batchTake,
+                      select: FILTER_LISTING_SELECT,
+                    })
+                  ).map(serializeCandidate)
+                : ((await prisma.listing.findMany({
+                    where: dbWhere,
+                    orderBy: dbOrderBy,
+                    skip: batchSkip,
+                    take: batchTake,
+                    select: MEMBERSHIP_LISTING_SELECT,
+                    // The membership projection carries no BigInt column, so it
+                    // needs no serialization pass. The gate helper reads only
+                    // the six columns above; the cast says so rather than
+                    // pretending this is a whole listing.
+                  })) as unknown as DbListing[]),
+            // Display eligibility is already in `dbWhere`; this stays as
+            // defense-in-depth. It runs HERE and not inside readBatch on
+            // purpose: readBatch's row count is the exhaustion signal, and a
+            // filter that shortened a batch would fake the end of the universe.
+            toDtos: (rows) =>
+              filterDisplayableDbListings(rows).map((l) => {
+                // The five corpus-filter fields are derived through the SAME
+                // DTO the page uses, so a filter can never see a value the card
+                // would not — but ONLY when a corpus filter was requested. With
+                // none requested those fields are never read, and building them
+                // is the nine seconds this walk used to spend.
+                const filterFields = corpusFiltersActive
+                  ? dbListingToPublicDTO(l)
+                  : null;
+                return {
+                  id: l.listing_id,
+                  // One mapping, shared with buildAddressKeyFromDbRow, so a row
+                  // keyed here and a row keyed through the DTO cannot disagree
+                  // about which physical unit it is.
+                  address: dedupeAddressFromDbRow(l),
+                  modificationTimestamp:
+                    l.modification_timestamp instanceof Date
+                      ? l.modification_timestamp.toISOString()
+                      : (l.modification_timestamp as string | null) ?? null,
+                  propertyType: filterFields?.propertyType ?? null,
+                  yearBuilt: filterFields?.yearBuilt ?? null,
+                  furnished: filterFields?.furnished ?? null,
+                  petsAllowed: filterFields?.petsAllowed ?? null,
+                  publicRemarks: filterFields?.publicRemarks ?? null,
+                  __row: l,
+                } as DbCandidate;
+              }),
+            reconcile: (candidates) => preferCrmExclusiveOverIdxDuplicate(candidates),
+            corpusFilter: (candidates) => {
+              const featuresById = new Map<string, Record<string, unknown>>();
+              for (const c of candidates) {
+                featuresById.set(
+                  c.__row.listing_id,
+                  (c.__row.features || {}) as Record<string, unknown>,
+                );
+              }
+              const filtered = applyPublicListingPostFilters(
+                candidates,
+                featuresById,
+                searchParams,
+              );
+              return openHouseKeys
+                ? filtered.filter((l) => openHouseKeys!.has(l.id))
+                : filtered;
+            },
+            page: Math.floor(skip / Math.max(1, limit)) + 1,
+            pageSize: limit,
+            budget: PUBLIC_CANDIDATE_BUDGET,
+            batchSize: PUBLIC_CANDIDATE_BATCH,
+          });
+
+          const dbTotal = universe.count;
+
+          // CANDIDATES READ, not rows on this page. A deep page of a real result
+          // set is legitimately empty, and falling through to the live provider
+          // because page 9 of a 3-page search is empty would answer a different
+          // question from a different source.
+          if (universe.candidatesRead > 0) {
+            // THE PAGE, hydrated from rows whose membership is already settled.
+            //
+            // Public-surface dedupe (2026-05-28) — when a Mallan CRM exclusive
             // (SL-/RL-) and a Trestle-synced IDX duplicate represent the same
             // physical unit (same address atoms + unit + zip), keep only the
-            // CRM row. The IDX row stays in DB for audit history. See
+            // CRM row — now runs as the universe's `reconcile` stage over the
+            // COMPLETE corpus. Page-local, it could not collapse a twin that
+            // landed on another page, so one physical unit occupied two
+            // identities in the public universe. See
             // docs/crm/listing-canonical-mallan-exclusive-audit-2026-05-28.md
             // and lib/listings/dedupe-crm-vs-idx.ts.
+            // HYDRATE THE PAGE, NOT THE UNIVERSE.
+            //
+            // When the walk used the membership projection its rows carry no
+            // media, so the fifty rows on screen are re-read with the full card
+            // select. One small indexed query by listing_id, against a walk that
+            // would otherwise have dragged every heavy column across thousands
+            // of rows. Order is restored from the settled page, not from the
+            // database — membership decided it, and a re-read must not reorder
+            // what the count already described.
+            const pageListingIds = universe.rows.map((c) => c.__row.listing_id);
+            let displayable: DbListing[];
+            if (corpusFiltersActive) {
+              displayable = universe.rows.map((c) => c.__row);
+            } else if (pageListingIds.length === 0) {
+              displayable = [];
+            } else {
+              const hydrated = (
+                await prisma.listing.findMany({
+                  where: { listing_id: { in: pageListingIds } },
+                  select: PAGE_LISTING_SELECT,
+                })
+              ).map(serializeCandidate);
+              const byListingId = new Map(hydrated.map((l) => [l.listing_id, l]));
+              displayable = pageListingIds
+                .map((id) => byListingId.get(id))
+                .filter((l): l is DbListing => !!l);
+            }
             // FEED-authority: ONE grouped query for the page (lib/media/feed-media-authority.ts).
             // Only genuinely ambiguous listings are queried — Mallan-owned are excluded, a listing
             // already holding an ACTIVE feed row is proven without a read, and a listing with no
@@ -463,19 +829,14 @@ export async function GET(request: Request) {
 
             // Explicit arrow, NOT a bare `.map(dbListingToPublicDTO)`: `Array.map` passes
             // (value, index, array), so a bare reference would hand the INDEX to the options param.
-            let publicListings = preferCrmExclusiveOverIdxDuplicate(
-              displayable.map((l) =>
-                dbListingToPublicDTO(l, { hadFeedRelationalRows: feedAuthority.get(l.listing_id) }),
-              ),
+            //
+            // Re-mapped rather than reused from the universe because feed-media
+            // authority is a PER-PAGE batched query — resolving it across the
+            // whole corpus would be a large read for a value that changes no
+            // row's membership, only its media.
+            let publicListings = displayable.map((l) =>
+              dbListingToPublicDTO(l, { hadFeedRelationalRows: feedAuthority.get(l.listing_id) }),
             );
-
-            // Build features lookup — passed into applyPublicListingPostFilters
-            // for amenity/keyword evaluation against the raw Trestle features JSON.
-            const featuresById = new Map<string, Record<string, unknown>>();
-            for (const dbL of serialized) {
-              const feat = (dbL.features || {}) as Record<string, unknown>;
-              featuresById.set(dbL.listing_id, feat);
-            }
 
             // Geocode DB listings — use only in-memory + DB cache (fast).
             // Census API geocoding is too slow for search (~2-5s) — it runs during
@@ -486,46 +847,15 @@ export async function GET(request: Request) {
               new Promise<void>((resolve) => setTimeout(resolve, 1500)),
             ]).catch(() => { /* non-fatal */ });
 
-            // All DB-first DTO post-filters (ownership, yearBuilt, furnished,
-            // amenities, keywords) are owned by lib/search/public-listing-db.ts.
-            // Address search is already pushed into the Prisma query via
-            // buildPublicListingDbSearch(). Open House is handled below — it
-            // requires a live Trestle OpenHouse resource lookup that the
-            // helper intentionally does not own.
-            publicListings = applyPublicListingPostFilters(publicListings, featuresById, searchParams);
-
-            // Open House filter on DB path — query Trestle OpenHouse resource
-            if (openHouseParam) {
-              try {
-                const ohToken = await getAccessToken();
-                const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
-                const today = new Date().toISOString().split('T')[0];
-
-                let ohDateFilter = `OpenHouseDate ge ${today}`;
-                if (openHouseDateParam && openHouseDateParam !== 'weekend') {
-                  ohDateFilter = `OpenHouseDate ge ${openHouseDateParam} and OpenHouseDate lt ${nextDay(openHouseDateParam)}`;
-                } else if (openHouseDateParam === 'weekend') {
-                  const { sat, mon } = getNextWeekend();
-                  ohDateFilter = `OpenHouseDate ge ${sat} and OpenHouseDate lt ${mon}`;
-                }
-
-                const ohParams = new URLSearchParams();
-                ohParams.set('$select', 'ListingKey');
-                ohParams.set('$filter', `${ohDateFilter} and OpenHouseStatus eq 'Active'`);
-                ohParams.set('$top', '500');
-                const ohRes = await fetch(`${TRESTLE_API}/odata/OpenHouse?${ohParams.toString()}`, {
-                  headers: { Authorization: `Bearer ${ohToken}`, Accept: 'application/json' },
-                });
-                if (ohRes.ok) {
-                  const ohData = await ohRes.json();
-                  const ohKeys = new Set((ohData.value || []).map((r: Record<string, unknown>) => String(r.ListingKey)));
-                  publicListings = publicListings.filter(l => ohKeys.has(l.id));
-                }
-              } catch (ohErr) {
-                console.warn('[/api/listings] DB-path open house filter failed:', ohErr instanceof Error ? ohErr.message : ohErr);
-              }
-            }
-
+            // MEMBERSHIP IS ALREADY SETTLED.
+            //
+            // The DB-first business filters (ownership, yearBuilt, furnished,
+            // amenities, keywords) and the Open House intersection used to run
+            // HERE, on rows that were already a page. Both are now stages of
+            // assemblePublicUniverse above, applied to the complete corpus
+            // before the count is taken and before the page is cut. Nothing
+            // below this line may remove a listing: `publicListings` IS the
+            // page, and a row dropped now is a row the count already promised.
             // PR-E.1.a (2026-05-14) — bounded live media fallback for the
             // DB-first path.
             //
@@ -617,10 +947,27 @@ export async function GET(request: Request) {
             const responseBody = {
               success: true,
               count: annotatedListings.length,
+              // THE SAME UNIVERSE THE CARDS CAME FROM.
+              //
+              // `total` was `prisma.count(dbWhere)` — the population BEFORE
+              // display eligibility, Mallan reconciliation, the business filters
+              // and the Open House intersection had removed anything. The number
+              // above the results and the results themselves described different
+              // sets, and the gap grew with every criterion the SQL could not
+              // express. It is now the size of the settled universe.
               total: dbTotal,
+              countMeaning: universe.countMeaning,
+              totalPages: universe.totalPages,
+              /** Which stage removed what, kept separate so a missing listing is traceable. */
+              excluded: universe.exclusions,
+              candidatesRead: universe.candidatesRead,
+              /** SQL-predicate matches, before any Mallan-side stage. NOT a result count. */
+              candidatePredicateCount: dbPredicateCount,
               skip,
               limit,
-              hasMore: skip + limit < dbTotal,
+              // Fail-SAFE: also true when the count is only a floor, so a
+              // truncated traversal never reads as "that is everything".
+              hasMore: universe.hasMore,
               // SUMMARY CONTRACTION at the response boundary — cards get the
               // canonical hero + full photosCount, never the whole gallery.
               // Applied AFTER post-filters/dedupe/geocode/live-fallback and
@@ -782,10 +1129,26 @@ export async function GET(request: Request) {
           default: orderby = 'ListPrice desc'; break;
         }
 
-        // Fetch extra to account for gate filtering + post-filters
-        // Property type, neighborhood, borough all need heavy post-filtering headroom
-        const hasPostFilter = !!(boundsParam || borough || neighborhood || propertySubTypes || sortParam === 'new-development');
-        const fetchTop = Math.min(Math.ceil((limit + skip) * (hasPostFilter ? 4 : 1.2) + 20), 1000);
+        // A WORK BUDGET, NOT A UNIVERSE.
+        //
+        // This was `(limit + skip) * (hasPostFilter ? 4 : 1.2) + 20`, capped at
+        // 1000 — a guess at how much headroom the Mallan-side filters would need.
+        // Two things were wrong with it, and neither is fixed by a bigger
+        // multiple. It could not PROVE it had read far enough, so whenever
+        // exclusions exceeded the guess the search silently lost rows; and
+        // whichever number came out, the response reported the result as though
+        // the inventory had ended there.
+        //
+        // Open House is deliberately NOT added to a headroom list here. Adding a
+        // criterion to a multiplier does not make the multiplier honest — it
+        // just moves the same guess. What changed is that a truncated read now
+        // SAYS it was truncated: `countMeaning` below reports LOWER_BOUND and
+        // the last page number is withheld, so a budget can bound the work of
+        // one request without ever claiming to be the end of the inventory.
+        const fetchTop = Math.min(
+          Math.max(limit + skip + 20, PUBLIC_TRESTLE_MIN_CANDIDATES),
+          PUBLIC_TRESTLE_CANDIDATE_BUDGET,
+        );
 
         // Amenity fields are NOT added to Trestle $select — many are unavailable
         // on IDX Plus feed and Trestle rejects unknown fields (causes 400/502).
@@ -930,48 +1293,98 @@ export async function GET(request: Request) {
           }
         }
 
-        // Open House filter — requires separate Trestle OpenHouse resource query
+        // OPEN HOUSE — THE SAME COMPLETE-RANGE RULE AS THE DB PATH.
+        //
+        // This was a single `$top=500` read wrapped in a catch that logged and
+        // carried on. Both halves were wrong in the same direction as the DB
+        // path: 501 open houses in the range silently stripped the 501st
+        // listing's open house, and a provider failure skipped the filter
+        // entirely, so an Open House search returned listings with none.
+        //
+        // One reader now owns both executors, so neither can drift from the
+        // other, and an unanswerable range refuses the search instead of
+        // answering it wrongly.
         if (openHouseParam) {
-          try {
-            const ohToken = await getAccessToken();
-            const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
-            const today = new Date().toISOString().split('T')[0];
-
-            // Build date filter based on user selection
-            let ohDateFilter = `OpenHouseDate ge ${today}`;
-            if (openHouseDateParam && openHouseDateParam !== 'weekend') {
-              // Specific date: show open houses on that exact day
-              ohDateFilter = `OpenHouseDate ge ${openHouseDateParam} and OpenHouseDate lt ${nextDay(openHouseDateParam)}`;
-            } else if (openHouseDateParam === 'weekend') {
-              // This weekend: Saturday + Sunday
-              const { sat, mon } = getNextWeekend();
-              ohDateFilter = `OpenHouseDate ge ${sat} and OpenHouseDate lt ${mon}`;
-            }
-
-            const ohParams = new URLSearchParams();
-            ohParams.set('$select', 'ListingKey');
-            ohParams.set('$filter', `${ohDateFilter} and OpenHouseStatus eq 'Active'`);
-            ohParams.set('$top', '500');
-            const ohRes = await fetch(`${TRESTLE_API}/odata/OpenHouse?${ohParams.toString()}`, {
-              headers: { Authorization: `Bearer ${ohToken}`, Accept: 'application/json' },
-            });
-            if (ohRes.ok) {
-              const ohData = await ohRes.json();
-              const ohListingKeys = new Set((ohData.value || []).map((r: Record<string, unknown>) => String(r.ListingKey)));
-              filtered = filtered.filter(l => ohListingKeys.has(l.listingId));
-            }
-          } catch (ohErr) {
-            console.warn('[/api/listings] Open house filter failed:', ohErr instanceof Error ? ohErr.message : ohErr);
+          const membership = await readPublicOpenHouseMembership(openHouseDateParam);
+          if (membership.state === 'unavailable') {
+            return NextResponse.json(
+              {
+                success: false,
+                error: 'Open House results are unavailable right now.',
+                criterion: 'openHouse',
+                reason: membership.reason,
+              },
+              { status: 503, headers: { 'Cache-Control': 'no-store' } },
+            );
           }
+          filtered = filtered.filter((l) => membership.listingKeys.has(String(l.listingId)));
         }
+        // ── Step 4: SETTLE MEMBERSHIP, THEN CUT THE PAGE ──
+        //
+        // Three things used to happen in the wrong order here. The page was cut
+        // from `filtered`; THEN `mergeExclusiveListings` prepended Mallan
+        // exclusives to that page; THEN `excludeUndisclosed` removed rows from
+        // it. So the page grew and shrank after it had been decided, and the
+        // reported total was
+        //
+        //     totalCount + annotatedMerged.length - publicListings.length
+        //
+        // — arithmetic across three different populations. Because a different
+        // number of exclusives lands on each page, that total CHANGED AS THE
+        // USER PAGED, and a listing could occupy a place on more than one page.
+        //
+        // Mallan authority and address permission are membership decisions, so
+        // they belong to the corpus, not to a page. The count below is the size
+        // of the set the cards are cut from — the same one, every page.
+        // THE SECOND INJECTION IS GONE.
+        //
+        // `mergeExclusiveListings` used to prepend Mallan rows here. It applied
+        // its own predicate carrying only type / borough / neighborhood / price
+        // / beds — NOT the request's criteria — so it re-injected listings the
+        // search had already excluded. Proven on Preview at 535d2a24: a query
+        // pinned to one listing returned that listing under `maxBaths=1.5`
+        // despite its 2.0 baths, and again under an impossible
+        // `minSqft=99000`. An empty CORRECT answer was being broadened into a
+        // wrong one.
+        //
+        // It is not merely unsafe here, it is REDUNDANT, and that is what
+        // settles the question. This branch is reached only when the DB path
+        // read ZERO candidates, and `dbWhere` already carries the full criteria
+        // AND already admits Mallan-authored inventory — `rls_eligible: true`
+        // under the display gates, website-only `rls_eligible: false`, and the
+        // return-copy clause explicitly keeps `SL-`/`RL-`. So a Mallan exclusive
+        // that genuinely matched would have made `candidatesRead > 0` and been
+        // served by the DB path; this code could only ever add rows the criteria
+        // had rejected.
+        //
+        // The fix is therefore removal, not a second filter engine. Copying the
+        // criteria list into the exclusives query would leave two places to
+        // forget a criterion, which is how this defect and the bathroom defect
+        // both happened.
+        const corpus = excludeUndisclosed
+          ? filtered.map(toPublicDTO).filter(
+              // No `_source === 'exclusive'` exemption — provenance is not
+              // address permission. See ADDRESS_DISCLOSED_GATE.
+              (l) => l.address?.streetName !== 'Address Undisclosed',
+            )
+          : filtered.map(toPublicDTO);
+        // WHAT THE COUNT MEANS. `result.odataCount` is the PROVIDER's matching
+        // universe, taken before gates, Mallan-side filters, the exclusives
+        // merge and the disclosure gate removed or added anything — it can
+        // never be a Mallan result count, with or without a bounds/borough
+        // filter. The settled corpus is the only number that describes the
+        // cards, and it is EXACT only when the provider read was not truncated.
+        const totalCount = corpus.length;
+        const candidatesTruncated = !!result.hasMore;
+        const pageDtos = corpus.slice(skip, skip + limit);
 
-        // Step 4: Apply skip + limit and convert to public DTO
-        // When post-filtering (bounds, borough, neighborhood), use filtered.length as total
-        // because OData count doesn't account for server-side filtering.
-        const totalCount = (boundsParam || borough || neighborhood)
-          ? filtered.length
-          : (result.odataCount ?? filtered.length);
-        const pageListings = filtered.slice(skip, skip + limit);
+        // Media and geocoding enrich only the PROVIDER-origin rows on this page;
+        // exclusives arrive complete from the DB. Recovered by id so the page
+        // order set above is preserved exactly.
+        const internalById = new Map(filtered.map((l) => [String(l.listingId), l]));
+        const pageListings = pageDtos
+          .map((d) => internalById.get(String(d.id)))
+          .filter((l): l is NonNullable<typeof l> => !!l);
 
         // Step 4b+4c: Batch-fetch photos AND geocode IN PARALLEL (both are slow I/O)
         // When $expand=Media was used, photos are already inline — skip batch fetch.
@@ -1107,39 +1520,35 @@ export async function GET(request: Request) {
         // Wait for both to finish in parallel
         await Promise.allSettled([photoPromise, geocodePromise]);
 
-        const publicListings = pageListings.map(toPublicDTO);
-
-        // ── Merge local exclusive listings from DB ──
-        // UCBA Art. I, Sec. 5: Simultaneous Distribution — only show listings
-        // that are Active (already on RLS). Drafts are NOT displayed publicly.
-        // Dedup by listing_id to avoid showing the same listing twice.
-        const mergedListings = await mergeExclusiveListings(
-          publicListings,
-          listingType,
-          borough,
-          neighborhood,
-          minPrice ? parseInt(minPrice, 10) : undefined,
-          maxPrice ? parseInt(maxPrice, 10) : undefined,
-          minBeds ? parseInt(minBeds, 10) : undefined,
+        // The enriched provider rows go back into the page IN PLACE, so the
+        // order settled above survives. Exclusives pass through untouched —
+        // they arrive complete from the DB and were never media-enriched here.
+        const enrichedById = new Map(
+          pageListings.map((l) => [String(l.listingId), toPublicDTO(l)]),
         );
+        const publicListings = pageDtos.map((d) => enrichedById.get(String(d.id)) ?? d);
 
-        // PR-FE.2 Option C (2026-05-15) — annotate co-listed siblings in
-        // the Trestle-direct + exclusive-merged path too. Same shape and
-        // semantics as the DB-first branch above. Pure post-processing,
-        // does not remove or merge rows.
-        let annotatedMerged = annotateCoListedSiblings(mergedListings);
-        if (excludeUndisclosed) {
-          annotatedMerged = annotatedMerged.filter(
-            // No `_source === 'exclusive'` exemption — provenance is not address
-            // permission. See ADDRESS_DISCLOSED_GATE.
-            l => l.address?.streetName !== 'Address Undisclosed'
-          );
-        }
-
+        // PR-FE.2 Option C (2026-05-15) — annotate co-listed siblings in the
+        // Trestle-direct + exclusive-merged path too. Same shape and semantics
+        // as the DB-first branch above. Pure post-processing: it does not remove
+        // or merge rows, and it must stay that way, because membership is
+        // settled and counted before this line.
+        //
+        // The exclusives merge and the disclosure gate used to run HERE, after
+        // the page was cut. Both are membership decisions and both now run on
+        // the corpus at Step 4.
+        const annotatedMerged = annotateCoListedSiblings(publicListings);
         const responseBody = {
           success: true,
           count: annotatedMerged.length,
-          total: totalCount + annotatedMerged.length - publicListings.length,
+          // THE SETTLED CORPUS. Not `totalCount + merged.length - page.length`,
+          // which mixed a provider count with two page lengths and therefore
+          // changed as the user paged.
+          total: totalCount,
+          countMeaning: candidatesTruncated ? 'lower_bound' : 'exact',
+          // Withheld when the candidate read was truncated: "1000+ results /
+          // page 1 of 5" is a self-contradiction.
+          totalPages: candidatesTruncated ? null : Math.max(1, Math.ceil(totalCount / limit)),
           skip,
           limit,
           hasMore: skip + limit < totalCount || result.hasMore,
@@ -1215,15 +1624,35 @@ export async function GET(request: Request) {
       }
     }
 
-    // IDX not enabled — still show local exclusive listings if any
-    const exclusiveListings = await fetchExclusiveListings(
-      listingType,
-      borough,
-      neighborhood,
-      minPrice ? parseInt(minPrice, 10) : undefined,
-      maxPrice ? parseInt(maxPrice, 10) : undefined,
-      minBeds ? parseInt(minBeds, 10) : undefined,
-    );
+    // IDX not enabled — local Mallan listings only.
+    //
+    // FAIL CLOSED ON A CRITERION THIS PATH CANNOT ANSWER. `fetchExclusiveListings`
+    // evaluates six things: type, borough, neighborhood, price, beds. Every other
+    // public criterion — baths, sqft, year built, ownership, furnished, amenities,
+    // keywords, open house, statuses, sub-types, ZIPs — it simply does not apply.
+    //
+    // Ignoring them returns listings that violate the search. That is exactly the
+    // defect proven on the fallback branch, where an unevaluated criterion turned
+    // a correct empty answer into a wrong non-empty one. An unanswerable criterion
+    // must narrow to nothing here, never widen: being asked a question this path
+    // cannot answer is not permission to answer a different one.
+    const unsupportedForExclusives = unsupportedExclusiveCriteria(searchParams);
+    const exclusiveListings = unsupportedForExclusives.length > 0
+      ? []
+      : await fetchExclusiveListings(
+          listingType,
+          borough,
+          neighborhood,
+          minPrice ? parseInt(minPrice, 10) : undefined,
+          maxPrice ? parseInt(maxPrice, 10) : undefined,
+          minBeds ? parseInt(minBeds, 10) : undefined,
+        );
+    if (unsupportedForExclusives.length > 0) {
+      console.warn(
+        `[/api/listings] IDX disabled: refusing local-exclusive results because ` +
+          `${unsupportedForExclusives.join(', ')} cannot be evaluated on this path.`,
+      );
+    }
 
     return NextResponse.json(
       {
@@ -1267,7 +1696,6 @@ export async function GET(request: Request) {
 // may be displayed publicly. Draft/Incomplete listings are NOT shown.
 
 import type { PublicListingDTO } from '@/lib/idx/public-dto';
-import type { Prisma } from '@prisma/client';
 
 async function fetchExclusiveListings(
   listingType?: string | null,
@@ -1420,27 +1848,3 @@ async function fetchExclusiveListings(
  * canonical listing. This comment previously said the Trestle version took
  * precedence, which is the reversed model.
  */
-async function mergeExclusiveListings(
-  trestleListings: PublicListingDTO[],
-  listingType?: string | null,
-  borough?: string | null,
-  neighborhood?: string | null,
-  minPrice?: number,
-  maxPrice?: number,
-  minBeds?: number,
-): Promise<PublicListingDTO[]> {
-  const exclusives = await fetchExclusiveListings(listingType, borough, neighborhood, minPrice, maxPrice, minBeds);
-
-  if (exclusives.length === 0) return trestleListings;
-
-  // Build set of IDs already in Trestle results
-  const trestleIds = new Set(trestleListings.map((l) => l.id));
-
-  // Only add exclusives that aren't already in Trestle results
-  const newExclusives = exclusives.filter((e) => !trestleIds.has(e.id));
-
-  if (newExclusives.length === 0) return trestleListings;
-
-  // Prepend exclusives (your own listings first)
-  return [...newExclusives, ...trestleListings];
-}

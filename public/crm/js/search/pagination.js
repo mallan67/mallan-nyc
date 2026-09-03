@@ -1,21 +1,127 @@
-        // Pagination functions — use getFilteredListings(true) to get total count without pagination
-        function goToFirstPage() { searchResultsState.currentPage = 1; renderSearchResults(); }
-        function goToPrevPage() { if (searchResultsState.currentPage > 1) { searchResultsState.currentPage--; renderSearchResults(); } }
-        function goToNextPage() {
-            var total = Math.ceil(getFilteredListings(true).length / searchResultsState.perPage);
-            if (searchResultsState.currentPage < total) { searchResultsState.currentPage++; renderSearchResults(); }
+        // PAGINATION IS A SERVER ROUND TRIP, NOT A LOCAL SLICE.
+        //
+        // These used to move currentPage and re-render over whatever rows were
+        // already loaded. That pages correctly through the WINDOW and calls it
+        // the answer — the same page-local defect removed everywhere else in
+        // this workstream, arriving at the last hop. A live Manhattan Active
+        // search matches 4,622 listings; no amount of local paging reaches
+        // result 201.
+        //
+        // _requestResultPage carries the whole request identity (canonical
+        // criteria + canonical sort + requested final-universe page) and falls
+        // back to local paging only for a PROVISIONAL set, which has no server
+        // universe behind it to page.
+        function _goToPage(n) {
+            if (typeof window._requestResultPage === 'function') { window._requestResultPage(n); return; }
+            searchResultsState.currentPage = n;
+            renderSearchResults();
         }
-        function goToLastPage() { searchResultsState.currentPage = Math.ceil(getFilteredListings(true).length / searchResultsState.perPage); renderSearchResults(); }
-        function changePerPage() { searchResultsState.perPage = parseInt(document.getElementById('perPageSelect').value); searchResultsState.currentPage = 1; renderSearchResults(); }
-
-        // Column sort toggle
-        function toggleColumnSort(field) {
-            if (searchResultsState.sortField === field) {
-                searchResultsState.sortOrder = searchResultsState.sortOrder === 'asc' ? 'desc' : 'asc';
-            } else {
-                searchResultsState.sortField = field;
-                searchResultsState.sortOrder = 'asc';
+        function goToFirstPage() { _goToPage(1); }
+        function goToPrevPage() { if (searchResultsState.currentPage > 1) { _goToPage(searchResultsState.currentPage - 1); } }
+        function goToNextPage() {
+            // hasMore comes from the server for an authoritative set. Deriving a
+            // last page from a LOWER_BOUND count would invent the very number
+            // the server withheld, so Next stays open-ended until an exhausted
+            // traversal proves the end.
+            if (searchResultsState.serverTotalPages !== null
+                && searchResultsState.serverTotalPages !== undefined
+                && searchResultsState.resultProvenance === 'authoritative') {
+                if (searchResultsState.currentPage < searchResultsState.serverTotalPages) {
+                    _goToPage(searchResultsState.currentPage + 1);
+                }
+                return;
             }
+            if (searchResultsState.resultProvenance === 'authoritative') {
+                if (searchResultsState.serverHasMore) _goToPage(searchResultsState.currentPage + 1);
+                return;
+            }
+            var total = Math.ceil(getFilteredListings(true).length / searchResultsState.perPage);
+            if (searchResultsState.currentPage < total) { _goToPage(searchResultsState.currentPage + 1); }
+        }
+        function goToLastPage() {
+            // Only meaningful when the last page is KNOWN. With a lower bound
+            // there is no proven final page to jump to.
+            if (searchResultsState.resultProvenance === 'authoritative') {
+                if (typeof searchResultsState.serverTotalPages === 'number') {
+                    _goToPage(searchResultsState.serverTotalPages);
+                }
+                return;
+            }
+            _goToPage(Math.ceil(getFilteredListings(true).length / searchResultsState.perPage));
+        }
+        function changePerPage() {
+            searchResultsState.perPage = parseInt(document.getElementById('perPageSelect').value);
+            // Page size changes what a page IS, so the universe must be re-cut
+            // from page 1 rather than keeping a page number that meant something
+            // different a moment ago.
+            _goToPage(1);
+        }
+
+        /**
+         * Grid columns that have a CANONICAL SERVER SORT, and the key for each
+         * direction. These are the only orderings the provider can apply to the
+         * whole result universe; the canonical contract defines six keys over
+         * three facts (price, listed date, updated date).
+         */
+        var SERVER_SORTABLE_COLUMNS = {
+            price:      { asc: 'price_asc',   desc: 'price_desc'   },
+            listedDate: { asc: 'listed_asc',  desc: 'listed_desc'  }
+        };
+
+        /**
+         * SORTING ORDERS THE SEARCH, NOT THE SCREEN.
+         *
+         * This used to set `sortField`/`sortOrder` and call renderSearchResults().
+         * Those are LOCAL state — the server sort travels as `sortKey` — so on
+         * the authoritative path it reordered the fifty rows in memory while the
+         * pager still read "Page 3 of 93". That fails invisibly: every page is
+         * internally well ordered, so nothing on screen contradicts a broker who
+         * believes they are looking at the cheapest listing in the search.
+         *
+         * When the rows are one page, the sort now goes to the server and the
+         * universe is re-cut from page 1 — a different ordering means a
+         * different page 1, so staying on page 3 would show rows 101-150 of a
+         * sequence the broker never saw the start of.
+         *
+         * A column with NO canonical server sort is REFUSED rather than sorted
+         * locally. Presenting a page-local order under a global pager is the
+         * defect; doing it only for the columns the provider cannot sort would
+         * keep the defect and hide it better.
+         */
+        function toggleColumnSort(field) {
+            var nextOrder = (searchResultsState.sortField === field)
+                ? (searchResultsState.sortOrder === 'asc' ? 'desc' : 'asc')
+                : 'asc';
+
+            var scope = (typeof window.getResultScope === 'function')
+                ? window.getResultScope()
+                : { isCompleteUniverse: true };
+
+            if (!scope.isCompleteUniverse) {
+                var serverSort = SERVER_SORTABLE_COLUMNS[field];
+                if (!serverSort) {
+                    // Refused BY NAME. The header arrow is deliberately not
+                    // moved: it would claim an ordering that was not applied.
+                    if (typeof showToast === 'function') {
+                        showToast('This column can only sort the page in view, so it is not applied to a multi-page result. Sort by Price or Listed Date to order the whole search.', 'warning');
+                    }
+                    console.warn('[Search] Column sort refused for "' + field + '": no canonical server sort; a page-local order would misrepresent a multi-page result.');
+                    return;
+                }
+                searchResultsState.sortField = field;
+                searchResultsState.sortOrder = nextOrder;
+                searchResultsState.sortKey = serverSort[nextOrder];
+                searchResultsState.currentPage = 1;
+                if (typeof window._requestResultPage === 'function') {
+                    window._requestResultPage(1);
+                    return;
+                }
+            }
+
+            // A locally-held catalogue IS the universe, so sorting it in memory
+            // orders the whole result set and needs no round trip.
+            searchResultsState.sortField = field;
+            searchResultsState.sortOrder = nextOrder;
             renderSearchResults();
         }
 
@@ -41,10 +147,42 @@
 
             var fmt = function(n) { return '$' + Math.round(n).toLocaleString(); };
             var el = function(id) { return document.getElementById(id); };
-            if (el('avgPrice')) el('avgPrice').textContent = fmt(avgPrice);
-            if (el('avgPpsf')) el('avgPpsf').textContent = fmt(ppsf);
-            if (el('avgSqft')) el('avgSqft').textContent = Math.round(avgSqft).toLocaleString() + ' sqft';
-            if (el('resultsTotalCount')) el('resultsTotalCount').textContent = filtered.length;
+            // A STATISTIC MUST SAY WHICH POPULATION IT DESCRIBES.
+            //
+            // These averages are computed over `filtered`, which on the
+            // authoritative path is ONE SERVER PAGE. Presented bare next to a
+            // result count of several thousand, "$4.2M average" reads as market
+            // analysis for the search when it describes fifty rows — and a
+            // broker may repeat it to a client.
+            //
+            // The figures are still shown, because a page average is a real and
+            // useful number. What changes is that it stops claiming to be
+            // something else: when the rows are a window, each value is labelled
+            // with the population it came from.
+            var scope = (typeof window.getResultScope === 'function')
+                ? window.getResultScope()
+                : { isCompleteUniverse: true, loadedCount: filtered.length };
+            var qualifier = scope.isCompleteUniverse
+                ? ''
+                : ' (page of ' + scope.loadedCount + ')';
+
+            if (el('avgPrice')) el('avgPrice').textContent = fmt(avgPrice) + qualifier;
+            if (el('avgPpsf')) el('avgPpsf').textContent = fmt(ppsf) + qualifier;
+            if (el('avgSqft')) el('avgSqft').textContent = Math.round(avgSqft).toLocaleString() + ' sqft' + qualifier;
+            // The count beside them describes the SEARCH, not the page, so it
+            // takes the universe figure whenever one is known.
+            if (el('resultsTotalCount')) {
+                el('resultsTotalCount').textContent = scope.isCompleteUniverse
+                    ? String(filtered.length)
+                    : String(scope.universeCount) + (scope.isExact ? '' : '+');
+            }
+            var avgScopeEl = el('averagesScopeNote');
+            if (avgScopeEl) {
+                avgScopeEl.textContent = scope.isCompleteUniverse
+                    ? ''
+                    : 'Averages describe the ' + scope.loadedCount + ' listings on this page, not all '
+                      + scope.universeCount + (scope.isExact ? '' : '+') + ' results.';
+            }
         }
 
         // Open listing detail in a standalone new browser tab
@@ -58,18 +196,57 @@
 
         function showListingDetail(listingId) {
             try {
-            var listing = listings.find(l => l.id === listingId);
-            if (!listing) return;
-            // Null-safe defaults for detail view rendering
-            if (listing.price == null) listing.price = 0;
-            if (listing.totalMonthly == null) listing.totalMonthly = 0;
-            if (listing.maintCC == null) listing.maintCC = 0;
-            if (listing.reTaxes == null) listing.reTaxes = 0;
+            // STEP 1 — the shared inventory record is never rewritten.
+            //
+            // `listings.find()` returns a REFERENCE. The block that used to sit
+            // here wrote display defaults (price 0, beds 0, status 'ACTIVE', ...)
+            // straight back into it, so opening ONE detail panel permanently
+            // rewrote that listing for the result grid, the selection set,
+            // reports and the CMA — silently undoing the Step 1a correction in
+            // the mapper and in both browser loaders.
+            //
+            // Work on a copy instead, and let the two facts a broker actually
+            // relays to a client — price and status — render as unknown when
+            // they are unknown.
+            //
+            // BOUNDED FOLLOW-UP, reported rather than silently done: the
+            // remaining display-only numerics still fall back to 0 ON THE COPY
+            // so this ~1,000-line template cannot throw mid-render. Making all
+            // ~94 render sites null-honest is its own item, not this one.
+            var listingRecord = listings.find(l => l.id === listingId);
+            if (!listingRecord) return;
+            var listing = Object.assign({}, listingRecord);
+
+            var priceKnown = listing.price != null;
+            // THREE STATES, NOT TWO. `null` is unknown, `0` is a real zero, and a
+            // positive number is an amount. Every money reader goes through these.
+            // A truthiness test collapses a genuine 0 into unknown, and a bare
+            // `.toLocaleString()` THROWS on the null that is now preserved — the
+            // crash path introduced by removing the null-to-zero coercion without
+            // tracing every reader.
+            var money = function(v) { return v == null ? 'Unavailable' : '$' + Number(v).toLocaleString(); };
+            var moneyMo = function(v) { return v == null ? 'Unavailable' : '$' + Number(v).toLocaleString() + '/mo'; };
+            var perUnitPrice = function(divisor) {
+                if (!priceKnown || !divisor) return null;
+                return '$' + Math.round(listing.price / divisor).toLocaleString();
+            };
+
+            // UNKNOWN MONEY STAYS UNKNOWN.
+            //
+            // These three lines turned an absent carrying cost into 0 and the
+            // renderers below then printed "$0" as a real financial fact. "$0
+            // maintenance" and "maintenance not supplied" are completely
+            // different statements about a co-op or condo, and a broker reading
+            // $0 on a listing that has never reported its maintenance is being
+            // told something false about the money.
+            //
+            // The `money()` helper three lines above already returns
+            // 'Unavailable' for null — it was written for exactly this and then
+            // undone here. Nulls are preserved and rendered through it.
             if (listing.beds == null) listing.beds = 0;
             if (listing.baths == null) listing.baths = 0;
             if (listing.rooms == null) listing.rooms = 0;
             if (listing.dom == null) listing.dom = 0;
-            if (!listing.status) listing.status = 'ACTIVE';
             if (!listing.address) listing.address = 'Address Unavailable';
             if (!listing.unit) listing.unit = '';
             if (!listing.neighborhood) listing.neighborhood = '';
@@ -88,15 +265,23 @@
             _updateDetailNavButtons();
 
             // Fetch full media (floor plans, videos, virtual tours) on demand
-            if (typeof fetchDetailMedia === 'function' && listing.lid) {
-                fetchDetailMedia(listing.lid, function() {
+            // `wid` is the Cotality ListingKey - the identity Media joins on.
+            // `lid` is the ListingId, a different provider field in a
+            // non-overlapping value space, and passing it here is what made the
+            // detail gallery ask the wrong question of the right provider.
+            var mediaKey = listing.wid || listing.id;
+            if (typeof fetchDetailMedia === 'function' && mediaKey) {
+                fetchDetailMedia(mediaKey, function() {
                     // Re-render media sections after data arrives
                     _refreshDetailMediaSections(listing);
                 });
             }
             var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(listing.address);
             var displayUnit = listing.addressDisplayYN !== false && listing.unit ? ', ' + escapeHtml(listing.unit) : '';
-            var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
+            // An unknown status shown as a status is a broker telling a client
+            // the listing is on the market. Unknown says unknown.
+            var statusLabel = (!listing.status || listing.status === 'UNKNOWN') ? 'STATUS UNAVAILABLE'
+                : listing.status === 'ComingSoon' ? 'COMING SOON' : listing.status;
             var isSale = listing.listingCategory !== 'rental';
             var transitScore = computeTransitScore(listing);
             var bikeScore = computeBikeScore(listing);
@@ -116,10 +301,10 @@
             // Header right: status + price + financials
             document.getElementById('detailHeaderRight').innerHTML =
                 '<span class="px-2 py-0.5 ' + getStatusBadgeClasses(listing.status) + ' rounded text-xs font-semibold">' + statusLabel + '</span>'
-                + '<span class="text-lg font-bold ml-2">$' + listing.price.toLocaleString() + '</span>'
+                + '<span class="text-lg font-bold ml-2">' + money(listing.price) + '</span>'
                 + '<div class="flex items-center gap-4 ml-4 text-xs text-gray-500">'
-                + '<div class="text-right"><div class="uppercase text-[10px] text-gray-400">' + (isSale ? 'Maintenance' : 'Rent') + '</div><div class="font-semibold text-gray-700">$' + listing.maintCC.toLocaleString() + '</div></div>'
-                + '<div class="text-right"><div class="uppercase text-[10px] text-gray-400">Est. Monthly</div><div class="font-semibold text-gray-700">$' + listing.totalMonthly.toLocaleString() + ' <i class="fas fa-calculator text-gray-400"></i></div></div>'
+                + '<div class="text-right"><div class="uppercase text-[10px] text-gray-400">' + (isSale ? 'Maintenance' : 'Rent') + '</div><div class="font-semibold text-gray-700">' + money(listing.maintCC) + '</div></div>'
+                + '<div class="text-right"><div class="uppercase text-[10px] text-gray-400">Est. Monthly</div><div class="font-semibold text-gray-700">' + money(listing.totalMonthly) + ' <i class="fas fa-calculator text-gray-400"></i></div></div>'
                 + '</div>';
 
             // ── Helper: only show a field row if it has real data ──
@@ -163,7 +348,7 @@
                 <div class="flex items-center gap-1.5 text-xs text-gray-500 mb-3">
                     <span>${escapeHtml(listing.neighborhood)}</span>
                     <span class="text-gray-300">&bull;</span>
-                    <span>${escapeHtml(listing.borough || 'Manhattan')}, NY ${escapeHtml(listing.zip)}</span>
+                    <span>${escapeHtml(listing.borough || '')}${listing.borough ? ',' : ''} NY ${escapeHtml(listing.zip)}</span>
                     ${listing.era ? '<span class="text-gray-300">&bull;</span><span>' + escapeHtml(listing.era) + '</span>' : ''}
                     <span class="text-gray-300">&bull;</span>
                     <span>${ownershipLabel(listing.ownership)}</span>
@@ -177,7 +362,7 @@
                     <div class="lux-stat-item"><div class="lux-stat-value">${listing.beds === 0 ? 'Studio' : listing.beds}</div><div class="lux-stat-label">Beds</div></div>
                     <div class="lux-stat-item"><div class="lux-stat-value">${listing.baths}</div><div class="lux-stat-label">Baths</div></div>
                     <div class="lux-stat-item"><div class="lux-stat-value">${listing.intSqft ? listing.intSqft.toLocaleString() : '—'}</div><div class="lux-stat-label">SqFt</div></div>
-                    <div class="lux-stat-item"><div class="lux-stat-value">${listing.intSqft ? '$' + Math.round(listing.price / listing.intSqft).toLocaleString() : '—'}</div><div class="lux-stat-label">$/SqFt</div></div>
+                    <div class="lux-stat-item"><div class="lux-stat-value">${perUnitPrice(listing.intSqft) || '—'}</div><div class="lux-stat-label">$/SqFt</div></div>
                 </div>
 
                 <!-- Tab Navigation -->
@@ -212,13 +397,13 @@
                         <div class="lux-card mb-4">
                             <h3 class="lux-section-title"><i class="fas fa-dollar-sign text-gray-400"></i> Financial</h3>
                             <div class="grid grid-cols-3 gap-x-6 gap-y-1 text-sm">
-                                <div class="lux-field"><span>${isSale ? 'List Price' : 'Monthly Rent'}</span><span class="text-base font-bold">$${listing.price.toLocaleString()}</span></div>
-                                ${listing.originalPrice && listing.originalPrice !== listing.price ? '<div class="lux-field"><span>Original Price</span><span class="text-red-600">$' + listing.originalPrice.toLocaleString() + '</span></div>' : ''}
-                                <div class="lux-field"><span>${isSale ? 'Maint/CC' : 'Net Effective'}</span><span>$${listing.maintCC.toLocaleString()}/mo</span></div>
-                                ${listing.reTaxes ? '<div class="lux-field"><span>RE Taxes</span><span>$' + listing.reTaxes.toLocaleString() + '/mo</span></div>' : ''}
-                                <div class="lux-field"><span>Est. Total Monthly</span><span class="text-green-700 font-bold">$${listing.totalMonthly.toLocaleString()}/mo</span></div>
-                                ${listing.intSqft ? '<div class="lux-field"><span>$/SqFt</span><span>$' + Math.round(listing.price / listing.intSqft).toLocaleString() + '</span></div>' : ''}
-                                ${listing.rooms ? '<div class="lux-field"><span>$/Room</span><span>$' + Math.round(listing.price / listing.rooms).toLocaleString() + '</span></div>' : ''}
+                                <div class="lux-field"><span>${isSale ? 'List Price' : 'Monthly Rent'}</span><span class="text-base font-bold">${money(listing.price)}</span></div>
+                                ${listing.originalPrice != null && listing.originalPrice !== listing.price ? '<div class="lux-field"><span>Original Price</span><span class="text-red-600">' + money(listing.originalPrice) + '</span></div>' : ''}
+                                <div class="lux-field"><span>${isSale ? 'Maint/CC' : 'Net Effective'}</span><span>${listing.maintCC == null ? "Unavailable" : "$" + Number(listing.maintCC).toLocaleString() + "/mo"}</span></div>
+                                ${listing.reTaxes != null ? '<div class="lux-field"><span>RE Taxes</span><span>' + moneyMo(listing.reTaxes) + '</span></div>' : ''}
+                                <div class="lux-field"><span>Est. Total Monthly</span><span class="text-green-700 font-bold">${listing.totalMonthly == null ? "Unavailable" : "$" + Number(listing.totalMonthly).toLocaleString() + "/mo"}</span></div>
+                                ${perUnitPrice(listing.intSqft) ? '<div class="lux-field"><span>$/SqFt</span><span>' + perUnitPrice(listing.intSqft) + '</span></div>' : ''}
+                                ${perUnitPrice(listing.rooms) ? '<div class="lux-field"><span>$/Room</span><span>' + perUnitPrice(listing.rooms) + '</span></div>' : ''}
                                 ${isSale ? '<div class="lux-field"><span>Financing</span><span>---</span></div><div class="lux-field"><span>Flip Tax</span><span>---</span></div>' : ''}
                                 ${!isSale ? '<div class="lux-field"><span>Security Deposit</span><span>---</span></div>' : ''}
                             </div>
@@ -291,13 +476,13 @@
                                 <div class="grid grid-cols-3 gap-x-8">
                                     <!-- Col 1: Price / Financial -->
                                     <div class="space-y-2 text-sm">
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">${isSale ? 'List Price' : 'Monthly Rent'}</span><span class="font-semibold">$${listing.price.toLocaleString()}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Original Price</span><span class="font-semibold">${listing.originalPrice ? '$' + listing.originalPrice.toLocaleString() : '$' + listing.price.toLocaleString()}</span></div>
-                                        ${isSale ? '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Maintenance / CC</span><span class="font-semibold">$' + listing.maintCC.toLocaleString() + '</span></div>' : '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Net Effective Rent</span><span class="font-semibold">---</span></div>'}
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">RE Taxes</span><span class="font-semibold">${listing.reTaxes ? '$' + listing.reTaxes.toLocaleString() + '/mo' : '---'}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Est. Total Monthly</span><span class="font-semibold">$${listing.totalMonthly.toLocaleString()}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">$ Per SqFt</span><span class="font-semibold">${listing.intSqft ? '$' + Math.round(listing.price / listing.intSqft).toLocaleString() : '---'}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">$ Per Room</span><span class="font-semibold">${listing.rooms ? '$' + Math.round(listing.price / listing.rooms).toLocaleString() : '---'}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">${isSale ? 'List Price' : 'Monthly Rent'}</span><span class="font-semibold">${money(listing.price)}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Original Price</span><span class="font-semibold">${money(listing.originalPrice != null ? listing.originalPrice : listing.price)}</span></div>
+                                        ${isSale ? '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Maintenance / CC</span><span class="font-semibold">' + money(listing.maintCC) + '</span></div>' : '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Net Effective Rent</span><span class="font-semibold">---</span></div>'}
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">RE Taxes</span><span class="font-semibold">${moneyMo(listing.reTaxes)}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Est. Total Monthly</span><span class="font-semibold">${money(listing.totalMonthly)}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">$ Per SqFt</span><span class="font-semibold">${perUnitPrice(listing.intSqft) || '---'}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">$ Per Room</span><span class="font-semibold">${perUnitPrice(listing.rooms) || '---'}</span></div>
                                         ${isSale ? '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Shares</span><span class="font-semibold">---</span></div>' : '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Security Deposit</span><span class="font-semibold">---</span></div>'}
                                         ${isSale ? '<div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold">Flip Tax</div><div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Amount</span><span class="font-semibold">---</span></div><div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Type</span><span class="font-semibold">---</span></div><div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Paid By</span><span class="font-semibold">---</span></div><div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Remarks</span><span class="font-semibold">---</span></div>' : ''}
                                         ${isSale ? '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Tax Deduction %</span><span class="font-semibold">---</span></div>' : ''}
@@ -456,7 +641,7 @@
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Building Name</span><span class="font-semibold">${listing.buildingName || '---'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Address</span><span class="font-semibold">${displayAddress}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Neighborhood</span><span class="font-semibold">${listing.neighborhood}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Borough</span><span class="font-semibold">${listing.borough || 'Manhattan'}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Borough</span><span class="font-semibold">${listing.borough || '—'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Zip</span><span class="font-semibold">${listing.zip}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Cross Street</span><span class="font-semibold">${listing.crossStreet || '---'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Year Built</span><span class="font-semibold">${listing.yearBuilt || '---'}</span></div>
@@ -523,7 +708,7 @@
                                             ? '<div class="border-b border-gray-100 pb-1.5 pl-4"><span class="px-2 py-1 bg-purple-50 text-purple-700 rounded text-xs font-semibold"><i class="fas fa-ban mr-1"></i>Coming Soon. No Showings or Open House until ' + (listing.comingSoonDate || 'active date') + '.</span></div>'
                                             : ''
                                         }
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Showing Instructions</span><span class="font-semibold text-right max-w-[200px] truncate">${listing.showingInstructions || '(UCOM) ' + (listing.agentName || '') + ' ' + (listing.agentPhone || '')}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Showing Instructions</span><span class="font-semibold text-right max-w-[200px] truncate">${listing.showingInstructions || 'Not provided'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Broker Comments</span><span class="font-semibold">---</span></div>
                                         <div class="text-gray-500 border-b border-gray-100 pb-1.5 font-semibold mt-2">Co-Listing Agent</div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5 pl-4"><span class="text-gray-400">Company</span><span class="font-semibold">---</span></div>
@@ -663,7 +848,7 @@
                                     <div class="lux-field"><span>Building Name</span><span>${listing.buildingName || '---'}</span></div>
                                     <div class="lux-field"><span>Address</span><span>${displayAddress}</span></div>
                                     <div class="lux-field"><span>Neighborhood</span><span>${listing.neighborhood}</span></div>
-                                    <div class="lux-field"><span>Borough</span><span>${listing.borough || 'Manhattan'}</span></div>
+                                    <div class="lux-field"><span>Borough</span><span>${listing.borough || '—'}</span></div>
                                     <div class="lux-field"><span>Zip Code</span><span>${listing.zip}</span></div>
                                     <div class="lux-field"><span>Cross Street</span><span>${listing.crossStreet || '---'}</span></div>
                                     <div class="lux-field"><span>Year Built</span><span>${listing.yearBuilt || '---'}</span></div>
@@ -746,9 +931,9 @@
 
                         <!-- Neighborhood Header -->
                         <div class="border rounded-xl p-4 mb-4">
-                            <div class="flex items-center gap-2 mb-2"><span class="text-[11px] font-bold uppercase tracking-[0.15em] text-gray-500">${listing.borough || 'Manhattan'}</span></div>
+                            <div class="flex items-center gap-2 mb-2"><span class="text-[11px] font-bold uppercase tracking-[0.15em] text-gray-500">${listing.borough || '—'}</span></div>
                             <h2 class="text-2xl font-bold text-gray-900 mb-1">${listing.neighborhood}</h2>
-                            <p class="text-sm text-gray-500">${listing.borough || 'Manhattan'}, New York ${listing.zip}</p>
+                            <p class="text-sm text-gray-500">${listing.borough ? listing.borough + ', ' : ''}New York ${listing.zip}</p>
                             <div class="flex items-center gap-6 mt-4 pt-4 border-t">
                                 ${listing.walkScore ? '<div class="text-center"><div class="text-gray-900 font-bold text-xl">' + listing.walkScore + '</div><div class="text-gray-400 text-[10px] font-semibold uppercase tracking-wider">Walk Score</div></div><div class="w-px h-10 bg-gray-200"></div>' : ''}
                                 <div class="text-center"><div class="text-gray-900 font-bold text-xl">${transitScore || '---'}</div><div class="text-gray-400 text-[10px] font-semibold uppercase tracking-wider">Transit Score</div></div>
@@ -766,16 +951,10 @@
                                     <div class="space-y-3" id="detailTransitStations">
                                         ${buildTransitStationsHTML(listing)}
                                     </div>
-                                    <div class="mt-3 flex items-center justify-between">
-                                        <div class="flex items-center gap-2 text-[10px] text-gray-500">
-                                            <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span> Live — MTA schedule data &middot; Refreshes every 30s
-                                        </div>
-                                        <button onclick="refreshTransitArrivals(); this.querySelector('i').classList.add('fa-spin'); var btn=this; setTimeout(function(){btn.querySelector('i').classList.remove('fa-spin')},500)" class="text-[10px] text-blue-500 hover:text-blue-700 font-medium"><i class="fas fa-sync-alt"></i> Refresh</button>
-                                    </div>
                                 </div>
                                 <div class="w-full lg:w-[360px] flex-shrink-0">
                                     <div class="h-[300px] bg-gray-100 rounded-xl flex items-center justify-center text-gray-400 border">
-                                        <div class="text-center"><i class="fas fa-map-marked-alt text-4xl mb-3 text-gray-300"></i><div class="text-sm font-medium">${listing.neighborhood}</div><div class="text-xs">${listing.borough || 'Manhattan'}, NY ${listing.zip}</div></div>
+                                        <div class="text-center"><i class="fas fa-map-marked-alt text-4xl mb-3 text-gray-300"></i><div class="text-sm font-medium">${listing.neighborhood || 'Neighborhood not provided'}</div><div class="text-xs">${listing.borough || 'Borough not provided'}, NY ${listing.zip}</div></div>
                                     </div>
                                     <button class="flex items-center gap-2 text-blue-600 text-sm mt-3 hover:underline font-medium"><i class="fas fa-directions"></i> Get Directions</button>
                                 </div>
@@ -807,20 +986,20 @@
                                         <div class="text-[10px] text-amber-500 font-semibold uppercase">Walking</div>
                                     </div>
                                 </div>
-                                <p class="text-[10px] text-gray-400">Estimates based on average transit times. Actual commute times may vary.</p>
+                                <p class="text-[10px] text-gray-400">Commute routing is not connected to a verified source, so no time is shown.</p>
                             </div>
                         </div>
 
                         <!-- Scores -->
                         <div class="grid grid-cols-3 gap-4 mb-4">
                             <div class="lux-score-card">
-                                <div class="flex items-center gap-3"><div class="lux-score-circle" style="background: conic-gradient(#10b981 ${(listing.walkScore || 0) * 3.6}deg, #e5e7eb 0)">${listing.walkScore || '---'}</div><div><div class="font-bold">Walk Score</div><div class="text-xs text-gray-500">${listing.walkScore >= 90 ? "Walker's Paradise" : listing.walkScore >= 70 ? 'Very Walkable' : 'Somewhat Walkable'}</div></div></div>
+                                <div class="flex items-center gap-3"><div class="lux-score-circle" style="background: conic-gradient(#10b981 ${(listing.walkScore || 0) * 3.6}deg, #e5e7eb 0)">${listing.walkScore || '---'}</div><div><div class="font-bold">Walk Score</div><div class="text-xs text-gray-500">${listing.walkScore == null ? 'Not provided' : listing.walkScore >= 90 ? "Walker's Paradise" : listing.walkScore >= 70 ? 'Very Walkable' : 'Somewhat Walkable'}</div></div></div>
                             </div>
                             <div class="lux-score-card">
-                                <div class="flex items-center gap-3"><div class="lux-score-circle" style="background: conic-gradient(#3b82f6 ${(transitScore || 0) * 3.6}deg, #e5e7eb 0)">${transitScore || '---'}</div><div><div class="font-bold">Transit Score</div><div class="text-xs text-gray-500">${transitScore >= 90 ? 'Rider\'s Paradise' : transitScore >= 70 ? 'Excellent Transit' : transitScore >= 50 ? 'Good Transit' : 'Some Transit'}</div></div></div>
+                                <div class="flex items-center gap-3"><div class="lux-score-circle" style="background: conic-gradient(#3b82f6 ${(transitScore || 0) * 3.6}deg, #e5e7eb 0)">${transitScore || '---'}</div><div><div class="font-bold">Transit Score</div><div class="text-xs text-gray-500">Not verified</div></div></div>
                             </div>
                             <div class="lux-score-card">
-                                <div class="flex items-center gap-3"><div class="lux-score-circle" style="background: conic-gradient(#f59e0b ${(bikeScore || 0) * 3.6}deg, #e5e7eb 0)">${bikeScore || '---'}</div><div><div class="font-bold">Bike Score</div><div class="text-xs text-gray-500">${bikeScore >= 90 ? 'Biker\'s Paradise' : bikeScore >= 70 ? 'Very Bikeable' : bikeScore >= 50 ? 'Bikeable' : 'Somewhat Bikeable'}</div></div></div>
+                                <div class="flex items-center gap-3"><div class="lux-score-circle" style="background: conic-gradient(#f59e0b ${(bikeScore || 0) * 3.6}deg, #e5e7eb 0)">${bikeScore || '---'}</div><div><div class="font-bold">Bike Score</div><div class="text-xs text-gray-500">Not verified</div></div></div>
                             </div>
                         </div>
 
@@ -990,7 +1169,7 @@
                                     <i class="fas fa-chevron-up si-chevron ml-auto text-gray-300 text-[9px]"></i>
                                 </button>
                                 <div class="mt-2 text-[12px] text-gray-600 leading-relaxed">
-                                    ${escapeHtml(listing.showingInstructions || '(UCOM) ' + (listing.agentName || '---') + ' ' + (listing.agentPhone || ''))}
+                                    ${escapeHtml(listing.showingInstructions || 'Not provided')}
                                 </div>
                             </div>
                         </div>
@@ -1066,7 +1245,7 @@
             var nearbyListings = allListings.filter(function(l) { return l.id !== listing.id && l.neighborhood !== listing.neighborhood; }).slice(0, 3);
             var renderMiniCard = function(l) {
                 var addr = l.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(l.address);
-                var st = l.status === 'COMING_SOON' ? 'CS' : l.status;
+                var st = l.status === 'ComingSoon' ? 'CS' : l.status;
                 return '<div class="border rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onclick="openListingInNewTab(\'' + l.id + '\')">'
                     + '<div class="h-[140px] cm-photo-wrap"><img src="' + getListingPhoto(l) + '" alt="' + addr + '" class="cm-photo" loading="lazy"></div>'
                     + '<div class="p-3"><div class="font-semibold text-sm truncate">' + addr + (l.unit ? ', ' + escapeHtml(l.unit) : '') + '</div>'
@@ -1223,8 +1402,8 @@
         function buildAgentMailtoBody(listing) {
             var addr = (listing.address || '') + (listing.unit ? ', ' + listing.unit : '');
             var nbhd = listing.neighborhood || '';
-            var borough = listing.borough || 'Manhattan';
-            var price = '$' + Number(listing.price || 0).toLocaleString();
+            var borough = listing.borough || null;
+            var price = money(listing.price);
             var beds = listing.beds === 0 ? 'Studio' : (listing.beds || '—') + ' Bed';
             var baths = (listing.baths || '—') + ' Bath';
             var sqft = listing.intSqft ? listing.intSqft.toLocaleString() + ' SF' : '';
@@ -1236,8 +1415,8 @@
             // Status — render the canonical mapped status (post-A14
             // mapper exhaustiveness guarantees no "OFF MARKET" string).
             var status = listing.status || 'ACTIVE';
-            var statusLabel = status === 'COMING_SOON' ? 'Coming Soon'
-                : status === 'PENDING' ? 'In Contract'
+            var statusLabel = status === 'ComingSoon' ? 'Coming Soon'
+                : status === 'Pending' ? 'In Contract'
                 : status.charAt(0) + status.slice(1).toLowerCase();
             var agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : {};
             var fromName = agent.name || '';
@@ -1275,7 +1454,7 @@
             var isSale = listing.listingCategory !== 'rental';
             var slug = addr.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
             var url = 'https://mallan.nyc/' + (isSale ? 'buy' : 'rent') + '/' + slug + '-' + listing.id;
-            var title = addr + ' — $' + Number(listing.price || 0).toLocaleString();
+            var title = addr + ' — ' + money(listing.price);
 
             if (navigator.share) {
                 navigator.share({ title: title, url: url }).catch(function() {});
@@ -1334,7 +1513,7 @@
                     listing_status: listing.status || 'ACTIVE',
                     listing_url: listingUrl,
                     listing_neighborhood: listing.neighborhood || null,
-                    listing_borough: listing.borough || 'Manhattan',
+                    listing_borough: listing.borough || null,
                     listing_zip: listing.zip || null,
                     agent_email: listingAgentEmail,
                     agent_name: listingAgentName,
@@ -1586,13 +1765,6 @@
             var historyPanel = document.getElementById('detailPanelHistory');
             if (historyPanel) historyPanel.classList.toggle('hidden', tab !== 'details');
 
-            // Start/stop live transit refresh
-            if (tab === 'neighborhood') {
-                startTransitRefresh();
-            } else if (_transitRefreshTimer) {
-                clearInterval(_transitRefreshTimer);
-                _transitRefreshTimer = null;
-            }
         }
 
         // Legacy aliases for backward compatibility
@@ -1628,8 +1800,27 @@
             var isSale = listing.listingCategory !== 'rental';
             var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : listing.address;
             var displayUnit = listing.addressDisplayYN !== false && listing.unit ? ', ' + listing.unit : '';
-            var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
+            // An unknown status shown as a status is a broker telling a client
+            // the listing is on the market. Unknown says unknown.
+            var statusLabel = (!listing.status || listing.status === 'UNKNOWN') ? 'STATUS UNAVAILABLE'
+                : listing.status === 'ComingSoon' ? 'COMING SOON' : listing.status;
             var today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            // The client sheet formats the same way the screen now does: a
+            // number the provider supplied, or the word unavailable. Never $0.
+            // THREE STATES, NOT TWO. `null` is unknown, `0` is a real zero, and a
+            // positive number is an amount. Every money reader goes through these.
+            // A truthiness test collapses a genuine 0 into unknown, and a bare
+            // `.toLocaleString()` THROWS on the null that is now preserved — the
+            // crash path introduced by removing the null-to-zero coercion without
+            // tracing every reader.
+            var money = function(v) { return v == null ? 'Unavailable' : '$' + Number(v).toLocaleString(); };
+            var moneyMo = function(v) { return v == null ? 'Unavailable' : '$' + Number(v).toLocaleString() + '/mo'; };
+            var num = function(v) { return v == null ? '--' : v; };
+            var txt = function(v) { return (v === null || v === undefined || v === '') ? '---' : v; };
+            var perUnitPrice = function(divisor) {
+                if (listing.price == null || !divisor) return null;
+                return '$' + Math.round(listing.price / divisor).toLocaleString();
+            };
             var primaryPhoto = listing.images && listing.images[0] ? listing.images[0].url : '';
 
             var _agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', licenseTitle: 'Licensed Real Estate Broker', phone: '', email: '', company: '', companyLicense: '', license: '', address: '' };
@@ -1684,36 +1875,36 @@
             else h += '<div style="width:100%;height:280px;background:#f0f0f0;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#ccc"><i class="fas fa-camera" style="font-size:48px"></i></div>';
             h += '<div style="display:flex;flex-direction:column;justify-content:center">';
             h += '<div class="print-title">' + displayAddress + displayUnit + '</div>';
-            h += '<div class="print-subtitle">' + escapeHtml(listing.era || '') + ' &middot; ' + ownershipLabel(listing.ownership) + ' &middot; ' + escapeHtml(listing.neighborhood) + ', NY ' + escapeHtml(listing.zip) + '</div>';
-            h += '<div class="print-price">$' + listing.price.toLocaleString() + '</div>';
-            h += '<div class="print-price-sub">' + (isSale ? 'Maint/CC: $' + listing.maintCC.toLocaleString() + '/mo' : 'Monthly Rent') + ' &middot; Est. Monthly: $' + listing.totalMonthly.toLocaleString() + '</div>';
-            h += '<div class="print-specs"><span><strong>' + listing.rooms + '</strong> Rooms</span><span><strong>' + listing.beds + '</strong> Beds</span><span><strong>' + listing.baths + '</strong> Baths</span><span><strong>' + (listing.intSqft ? listing.intSqft.toLocaleString() : '---') + '</strong> SqFt</span></div>';
+            h += '<div class="print-subtitle">' + escapeHtml(listing.era || '') + ' &middot; ' + txt(ownershipLabel(listing.ownership)) + ' &middot; ' + escapeHtml(txt(listing.neighborhood)) + ', NY ' + escapeHtml(txt(listing.zip)) + '</div>';
+            h += '<div class="print-price">' + money(listing.price) + '</div>';
+            h += '<div class="print-price-sub">' + (isSale ? 'Maint/CC: ' + money(listing.maintCC) + '/mo' : 'Monthly Rent') + ' &middot; Est. Monthly: ' + money(listing.totalMonthly) + '</div>';
+            h += '<div class="print-specs"><span><strong>' + num(listing.rooms) + '</strong> Rooms</span><span><strong>' + num(listing.beds) + '</strong> Beds</span><span><strong>' + num(listing.baths) + '</strong> Baths</span><span><strong>' + (listing.intSqft ? listing.intSqft.toLocaleString() : '---') + '</strong> SqFt</span></div>';
             h += '<div style="display:flex;gap:8px;margin-top:4px"><span style="padding:3px 10px;border-radius:4px;font-size:11px;font-weight:700;background:#dbeafe;color:#1d4ed8">' + statusLabel + '</span><span style="padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600;border:1px solid #ddd;color:#666">L-ID: ' + (listing.lid || '---') + '</span><span style="padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600;border:1px solid #ddd;color:#666">W-ID: ' + (listing.wid || '---') + '</span></div>';
             h += '</div></div>';
 
             // Status bar
-            h += '<div class="print-status-bar"><div><div class="label">Status</div><strong>' + statusLabel + '</strong></div><div><div class="label">Updated</div><strong>' + (listing.updatedDate || '---') + '</strong></div><div><div class="label">Listed</div><strong>' + listing.listedDate + '</strong></div><div><div class="label">DOM</div><strong>' + listing.dom + '</strong></div><div><div class="label">CDOM</div><strong>' + (listing.cdom || listing.dom) + '</strong></div></div>';
+            h += '<div class="print-status-bar"><div><div class="label">Status</div><strong>' + statusLabel + '</strong></div><div><div class="label">Updated</div><strong>' + (listing.updatedDate || '---') + '</strong></div><div><div class="label">Listed</div><strong>' + txt(listing.listedDate) + '</strong></div><div><div class="label">DOM</div><strong>' + num(listing.dom) + '</strong></div><div><div class="label">CDOM</div><strong>' + num(listing.cdom != null ? listing.cdom : listing.dom) + '</strong></div></div>';
 
             // Description
             if (listing.description) h += '<div class="print-desc">' + escapeHtml(listing.description) + '</div>';
 
             // Financial Details
             h += '<div class="print-section"><h3><i class="fas fa-dollar-sign" style="margin-right:6px"></i> Financial</h3><div class="print-grid">';
-            h += '<div class="pf"><span>' + (isSale ? 'List Price' : 'Monthly Rent') + '</span><span>$' + listing.price.toLocaleString() + '</span></div>';
-            if (listing.originalPrice) h += '<div class="pf"><span>Original Price</span><span>$' + listing.originalPrice.toLocaleString() + '</span></div>';
-            h += '<div class="pf"><span>' + (isSale ? 'Maint/CC' : 'Net Effective') + '</span><span>$' + listing.maintCC.toLocaleString() + '</span></div>';
-            h += '<div class="pf"><span>RE Taxes</span><span>' + (listing.reTaxes ? '$' + listing.reTaxes.toLocaleString() + '/mo' : '---') + '</span></div>';
-            h += '<div class="pf"><span>Est. Monthly</span><span>$' + listing.totalMonthly.toLocaleString() + '</span></div>';
-            h += '<div class="pf"><span>$/SqFt</span><span>' + (listing.intSqft ? '$' + Math.round(listing.price / listing.intSqft).toLocaleString() : '---') + '</span></div>';
+            h += '<div class="pf"><span>' + (isSale ? 'List Price' : 'Monthly Rent') + '</span><span>' + money(listing.price) + '</span></div>';
+            if (listing.originalPrice != null) h += '<div class="pf"><span>Original Price</span><span>' + money(listing.originalPrice) + '</span></div>';
+            h += '<div class="pf"><span>' + (isSale ? 'Maint/CC' : 'Net Effective') + '</span><span>' + money(listing.maintCC) + '</span></div>';
+            h += '<div class="pf"><span>RE Taxes</span><span>' + moneyMo(listing.reTaxes) + '</span></div>';
+            h += '<div class="pf"><span>Est. Monthly</span><span>' + money(listing.totalMonthly) + '</span></div>';
+            h += '<div class="pf"><span>$/SqFt</span><span>' + (perUnitPrice(listing.intSqft) || '---') + '</span></div>';
             h += '</div></div>';
 
             // Unit Details
             h += '<div class="print-section"><h3><i class="fas fa-door-open" style="margin-right:6px"></i> Unit Details</h3><div class="print-grid">';
             h += '<div class="pf"><span>Type</span><span>' + (listing.propertySubType || '---') + '</span></div>';
             h += '<div class="pf"><span>Rooms</span><span>' + (listing.rooms || '---') + '</span></div>';
-            h += '<div class="pf"><span>Bedrooms</span><span>' + listing.beds + '</span></div>';
-            h += '<div class="pf"><span>Full Baths</span><span>' + (listing.fullBaths || listing.baths) + '</span></div>';
-            h += '<div class="pf"><span>Half Baths</span><span>' + (listing.halfBaths || 0) + '</span></div>';
+            h += '<div class="pf"><span>Bedrooms</span><span>' + num(listing.beds) + '</span></div>';
+            h += '<div class="pf"><span>Full Baths</span><span>' + num(listing.fullBaths != null ? listing.fullBaths : listing.baths) + '</span></div>';
+            h += '<div class="pf"><span>Half Baths</span><span>' + num(listing.halfBaths) + '</span></div>';
             h += '<div class="pf"><span>Int. SqFt</span><span>' + (listing.intSqft ? listing.intSqft.toLocaleString() : '---') + '</span></div>';
             h += '<div class="pf"><span>Floor</span><span>' + (listing.floor || '---') + '</span></div>';
             h += '<div class="pf"><span>Exposure</span><span>' + (listing.exposures || '---') + '</span></div>';
@@ -1723,15 +1914,15 @@
             // Building
             h += '<div class="print-section"><h3><i class="fas fa-building" style="margin-right:6px"></i> Building</h3><div class="print-grid">';
             h += '<div class="pf"><span>Building</span><span>' + (listing.buildingName || '---') + '</span></div>';
-            h += '<div class="pf"><span>Ownership</span><span>' + ownershipLabel(listing.ownership) + '</span></div>';
+            h += '<div class="pf"><span>Ownership</span><span>' + txt(ownershipLabel(listing.ownership)) + '</span></div>';
             h += '<div class="pf"><span>Era</span><span>' + (listing.era || '---') + '</span></div>';
             h += '<div class="pf"><span>Year Built</span><span>' + (listing.yearBuilt || '---') + '</span></div>';
-            h += '<div class="pf"><span>Neighborhood</span><span>' + listing.neighborhood + '</span></div>';
+            h += '<div class="pf"><span>Neighborhood</span><span>' + txt(listing.neighborhood) + '</span></div>';
             h += '<div class="pf"><span>Cross Street</span><span>' + (listing.crossStreet || '---') + '</span></div>';
             h += '</div></div>';
 
             // Showing Instructions
-            h += '<div class="print-section"><h3><i class="fas fa-eye" style="margin-right:6px"></i> Showing Instructions</h3><div style="font-size:13px;color:#444">' + (listing.showingInstructions || '(UCOM) ' + (listing.agentName || '') + ' ' + (listing.agentPhone || '')) + '</div></div>';
+            h += '<div class="print-section"><h3><i class="fas fa-eye" style="margin-right:6px"></i> Showing Instructions</h3><div style="font-size:13px;color:#444">' + (listing.showingInstructions || 'Not provided') + '</div></div>';
 
             // Reference line
             h += '<div class="print-ref">Reference: L-ID ' + (listing.lid || '---') + ' &middot; W-ID ' + (listing.wid || '---') + ' &middot; SourceSystemKey ' + (listing.wid || listing.lid || listing.id) + '</div>';
@@ -1760,7 +1951,7 @@
             var _agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', licenseTitle: 'Licensed Real Estate Broker', phone: '', email: '', company: 'Mallan Real Estate Inc.', companyLicense: '#10991205323', license: '' };
             var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : listing.address;
             var displayUnit = listing.addressDisplayYN !== false && listing.unit ? ', ' + listing.unit : '';
-            var subject = encodeURIComponent(displayAddress + displayUnit + ' — $' + listing.price.toLocaleString() + ' — ' + listing.beds + 'BR/' + listing.baths + 'BA');
+            var subject = encodeURIComponent(displayAddress + displayUnit + ' — ' + money(listing.price) + ' — ' + listing.beds + 'BR/' + listing.baths + 'BA');
 
             // Use sending agent info, NOT listing agent — per UCBA Art. I Sec. 5(C)
             var agentBlock = _agent.name + '\n' +
@@ -1770,7 +1961,7 @@
                 (_agent.email ? 'Email: ' + _agent.email + '\n' : '') +
                 '\nEqual Housing Opportunity';
 
-            var body = encodeURIComponent('Hi,\n\nPlease see the following listing:\n\n' + displayAddress + displayUnit + '\n' + listing.neighborhood + ', NY ' + listing.zip + '\n\nPrice: $' + listing.price.toLocaleString() + '\nRooms: ' + listing.rooms + ' | Beds: ' + listing.beds + ' | Baths: ' + listing.baths + '\nSqFt: ' + (listing.intSqft ? listing.intSqft.toLocaleString() : '---') + '\nStatus: ' + listing.status + ' | DOM: ' + listing.dom + '\n\nL-ID: ' + (listing.lid || '---') + ' | W-ID: ' + (listing.wid || '---') + '\n\n---\n' + agentBlock);
+            var body = encodeURIComponent('Hi,\n\nPlease see the following listing:\n\n' + displayAddress + displayUnit + '\n' + listing.neighborhood + ', NY ' + listing.zip + '\n\nPrice: ' + money(listing.price) + '\nRooms: ' + listing.rooms + ' | Beds: ' + listing.beds + ' | Baths: ' + listing.baths + '\nSqFt: ' + (listing.intSqft ? listing.intSqft.toLocaleString() : '---') + '\nStatus: ' + listing.status + ' | DOM: ' + listing.dom + '\n\nL-ID: ' + (listing.lid || '---') + ' | W-ID: ' + (listing.wid || '---') + '\n\n---\n' + agentBlock);
             window.open('mailto:?subject=' + subject + '&body=' + body);
         }
 
@@ -1879,382 +2070,84 @@
             document.body.appendChild(modal);
         }
 
-        // ═══════════════════════════════════════════════════════════
-        // TRANSIT SYSTEM — Subway line colors + station builder
-        // ═══════════════════════════════════════════════════════════
+        // ══════════════════════════════════════════════════════════
+        // TRANSPORTATION — capability retained, fabricated data removed
+        // ══════════════════════════════════════════════════════════
+        //
+        // Roughly 370 lines used to live here. What they actually did:
+        //
+        //   NYC_TRANSIT_STATIONS   a hand-authored 92-entry constant with no
+        //                          cited source, against a system of 472 subway
+        //                          stations. A listing outside its coverage was
+        //                          shown whichever station it happened to hold.
+        //   getNextArrivals()      synthesized departure times AND directions
+        //                          from `line.charCodeAt(0)` arithmetic, then
+        //                          rendered them under a pulsing green "Live"
+        //                          badge attributed to transit-authority
+        //                          schedules, on a 30-second refresh timer. No
+        //                          request was ever made to anyone.
+        //   buildTransitStationsHTML()
+        //                          defaulted a missing listing coordinate to
+        //                          40.7831 / -73.9554 — the Upper East Side — so
+        //                          every coordinate-less listing in the five
+        //                          boroughs showed UES stations as "nearby".
+        //   computeTransitScore()  scored against that same constant, and
+        //                          returned a flat 40 when it matched nothing.
+        //   computeBikeScore()     `(walkScore || 70) * 0.82` plus an offset
+        //                          derived from the listing IDENTIFIER — a
+        //                          number about the primary key, shown to the
+        //                          broker as a fact about the property.
+        //   calculateCommute()     took the work address the broker typed, used
+        //                          it only as a non-empty check, then measured
+        //                          straight-line distance to a hardcoded point
+        //                          in Midtown and multiplied by a constant.
+        //
+        // Why nothing was wired up in their place:
+        //
+        // Mallan already has a station dataset behind `/api/transit/nearby`
+        // (`data/transit/stations.json`). It is deliberately NOT used here. Its
+        // own header declares 152 stations while the file contains 157, and 157
+        // of 472 is not coverage. Swapping an invented number for a differently
+        // invented one is the same defect committed twice, and Step 1 removes
+        // false information rather than replacing it. Verifying that dataset —
+        // or contracting a real feed — belongs to Step 2.
+        //
+        // The Transportation and Commute sections stay in the product. They now
+        // report the only thing currently true: we do not know.
 
-        var SUBWAY_COLORS = {
-            '1': '#EE352E', '2': '#EE352E', '3': '#EE352E',
-            '4': '#00933C', '5': '#00933C', '6': '#00933C', '6X': '#00933C',
-            '7': '#B933AD', '7X': '#B933AD',
-            'A': '#2850AD', 'C': '#2850AD', 'E': '#2850AD',
-            'B': '#FF6319', 'D': '#FF6319', 'F': '#FF6319', 'FX': '#FF6319', 'M': '#FF6319',
-            'G': '#6CBE45',
-            'J': '#996633', 'Z': '#996633',
-            'L': '#A7A9AC',
-            'N': '#FCCC0A', 'Q': '#FCCC0A', 'R': '#FCCC0A', 'W': '#FCCC0A',
-            'S': '#808183', 'SI': '#2850AD', 'SIR': '#2850AD',
-            'PATH': '#003DA5'
-        };
+        var TRANSIT_NOT_VERIFIED_HTML =
+            '<div class="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4 text-center">'
+            + '<i class="fas fa-subway text-gray-300 text-2xl mb-2"></i>'
+            + '<div class="text-sm font-medium text-gray-600">Transit data not verified</div>'
+            + '<div class="text-xs text-gray-500 mt-1">Mallan has no verified transit source for this '
+            + 'listing yet. Nearby stations and departure times are shown as unavailable rather than '
+            + 'estimated.</div>'
+            + '</div>';
 
-        // Embedded NYC transit stations — auto-matched to listing lat/lng from IDX data
-        var NYC_TRANSIT_STATIONS = [
-            // ── Upper East Side / Lenox Hill ──
-            { name: '86th St', lines: ['4','5','6'], lat: 40.7798, lng: -73.9555, type: 'subway' },
-            { name: '77th St', lines: ['6'], lat: 40.7736, lng: -73.9597, type: 'subway' },
-            { name: '96th St', lines: ['6'], lat: 40.7855, lng: -73.9510, type: 'subway' },
-            { name: '96th St', lines: ['Q'], lat: 40.7844, lng: -73.9472, type: 'subway' },
-            { name: '72nd St', lines: ['Q'], lat: 40.7687, lng: -73.9584, type: 'subway' },
-            { name: '86th St', lines: ['Q'], lat: 40.7779, lng: -73.9514, type: 'subway' },
-            { name: '68th St-Hunter College', lines: ['6'], lat: 40.7683, lng: -73.9639, type: 'subway' },
-            { name: '59th St', lines: ['4','5','6','N','R','W'], lat: 40.7628, lng: -73.9680, type: 'subway' },
-            { name: '103rd St', lines: ['6'], lat: 40.7906, lng: -73.9475, type: 'subway' },
-            { name: '110th St', lines: ['6'], lat: 40.7954, lng: -73.9440, type: 'subway' },
-            // ── Upper West Side ──
-            { name: '86th St', lines: ['1','2'], lat: 40.7888, lng: -73.9766, type: 'subway' },
-            { name: '79th St', lines: ['1'], lat: 40.7839, lng: -73.9797, type: 'subway' },
-            { name: '96th St', lines: ['1','2','3'], lat: 40.7936, lng: -73.9722, type: 'subway' },
-            { name: '72nd St', lines: ['1','2','3'], lat: 40.7784, lng: -73.9819, type: 'subway' },
-            { name: '66th St-Lincoln Center', lines: ['1'], lat: 40.7733, lng: -73.9835, type: 'subway' },
-            { name: '103rd St', lines: ['1'], lat: 40.7995, lng: -73.9686, type: 'subway' },
-            // ── Morningside Heights / Columbia ──
-            { name: 'Cathedral Pkwy-110th St', lines: ['1'], lat: 40.8029, lng: -73.9668, type: 'subway' },
-            { name: '116th St-Columbia Univ', lines: ['1'], lat: 40.8073, lng: -73.9641, type: 'subway' },
-            { name: 'Cathedral Pkwy-110th St', lines: ['B','C'], lat: 40.7997, lng: -73.9617, type: 'subway' },
-            // ── Harlem ──
-            { name: 'Central Park North-110th St', lines: ['2','3'], lat: 40.7991, lng: -73.9518, type: 'subway' },
-            { name: '116th St', lines: ['2','3'], lat: 40.8029, lng: -73.9496, type: 'subway' },
-            { name: '125th St', lines: ['2','3'], lat: 40.8071, lng: -73.9458, type: 'subway' },
-            { name: '125th St', lines: ['4','5','6'], lat: 40.8043, lng: -73.9378, type: 'subway' },
-            { name: '125th St', lines: ['A','B','C','D'], lat: 40.8110, lng: -73.9526, type: 'subway' },
-            { name: '116th St', lines: ['B','C'], lat: 40.8055, lng: -73.9549, type: 'subway' },
-            { name: '135th St', lines: ['2','3'], lat: 40.8142, lng: -73.9408, type: 'subway' },
-            { name: '135th St', lines: ['B','C'], lat: 40.8144, lng: -73.9548, type: 'subway' },
-            // ── Hamilton Heights / Sugar Hill ──
-            { name: '137th St-City College', lines: ['1'], lat: 40.8180, lng: -73.9541, type: 'subway' },
-            { name: '145th St', lines: ['1'], lat: 40.8263, lng: -73.9500, type: 'subway' },
-            { name: '145th St', lines: ['3'], lat: 40.8207, lng: -73.9366, type: 'subway' },
-            { name: '145th St', lines: ['A','B','C','D'], lat: 40.8246, lng: -73.9441, type: 'subway' },
-            { name: '148th St-Lenox Terminal', lines: ['3'], lat: 40.8234, lng: -73.9361, type: 'subway' },
-            // ── Washington Heights ──
-            { name: '155th St', lines: ['C'], lat: 40.8306, lng: -73.9416, type: 'subway' },
-            { name: '157th St', lines: ['1'], lat: 40.8344, lng: -73.9414, type: 'subway' },
-            { name: '163rd St-Amsterdam Av', lines: ['C'], lat: 40.8360, lng: -73.9396, type: 'subway' },
-            { name: '168th St', lines: ['A','C','1'], lat: 40.8408, lng: -73.9390, type: 'subway' },
-            { name: '175th St', lines: ['A'], lat: 40.8471, lng: -73.9397, type: 'subway' },
-            { name: '181st St', lines: ['A'], lat: 40.8519, lng: -73.9377, type: 'subway' },
-            { name: '181st St', lines: ['1'], lat: 40.8496, lng: -73.9335, type: 'subway' },
-            // ── Fort George / Inwood ──
-            { name: '190th St', lines: ['A'], lat: 40.8590, lng: -73.9340, type: 'subway' },
-            { name: '191st St', lines: ['1'], lat: 40.8554, lng: -73.9291, type: 'subway' },
-            { name: 'Dyckman St', lines: ['A'], lat: 40.8610, lng: -73.9253, type: 'subway' },
-            { name: 'Dyckman St', lines: ['1'], lat: 40.8605, lng: -73.9249, type: 'subway' },
-            { name: '207th St', lines: ['1'], lat: 40.8647, lng: -73.9188, type: 'subway' },
-            { name: 'Inwood-207th St', lines: ['A'], lat: 40.8680, lng: -73.9199, type: 'subway' },
-            // ── Midtown ──
-            { name: '50th St', lines: ['1'], lat: 40.7619, lng: -73.9838, type: 'subway' },
-            { name: '50th St', lines: ['C','E'], lat: 40.7622, lng: -73.9859, type: 'subway' },
-            { name: 'Times Sq-42nd St', lines: ['1','2','3','7','N','Q','R','W','S'], lat: 40.7553, lng: -73.9870, type: 'subway' },
-            { name: '42nd St-Port Authority', lines: ['A','C','E'], lat: 40.7575, lng: -73.9904, type: 'subway' },
-            { name: '34th St-Penn Station', lines: ['1','2','3'], lat: 40.7506, lng: -73.9910, type: 'subway' },
-            { name: '34th St-Hudson Yards', lines: ['7'], lat: 40.7560, lng: -73.9998, type: 'subway' },
-            { name: 'Grand Central-42nd St', lines: ['4','5','6','7','S'], lat: 40.7527, lng: -73.9772, type: 'subway' },
-            { name: '51st St', lines: ['6'], lat: 40.7571, lng: -73.9718, type: 'subway' },
-            // ── Chelsea ──
-            { name: '23rd St', lines: ['C','E'], lat: 40.7459, lng: -73.9980, type: 'subway' },
-            { name: '23rd St', lines: ['1'], lat: 40.7419, lng: -73.9957, type: 'subway' },
-            { name: '14th St', lines: ['A','C','E'], lat: 40.7408, lng: -74.0005, type: 'subway' },
-            // ── Union Square / East Village ──
-            { name: '14th St-Union Sq', lines: ['4','5','6','N','Q','R','W','L'], lat: 40.7356, lng: -73.9906, type: 'subway' },
-            { name: 'Astor Pl', lines: ['6'], lat: 40.7305, lng: -73.9910, type: 'subway' },
-            // ── Lower Manhattan ──
-            { name: 'Canal St', lines: ['1','N','Q','R','W','6','J','Z'], lat: 40.7192, lng: -74.0001, type: 'subway' },
-            { name: 'Chambers St', lines: ['1','2','3'], lat: 40.7154, lng: -74.0092, type: 'subway' },
-            { name: 'World Trade Center', lines: ['E'], lat: 40.7126, lng: -74.0099, type: 'subway' },
-            { name: 'Fulton St', lines: ['2','3','4','5','A','C','J','Z'], lat: 40.7094, lng: -74.0065, type: 'subway' },
-            { name: 'Wall St', lines: ['2','3'], lat: 40.7068, lng: -74.0093, type: 'subway' },
-            { name: 'Rector St', lines: ['1'], lat: 40.7075, lng: -74.0131, type: 'subway' },
-            { name: 'Broad St', lines: ['J','Z'], lat: 40.7065, lng: -74.0110, type: 'subway' },
-            // ── Brooklyn (key stations) ──
-            { name: 'Jay St-MetroTech', lines: ['A','C','F','R'], lat: 40.6923, lng: -73.9872, type: 'subway' },
-            { name: 'Atlantic Av-Barclays Ctr', lines: ['2','3','4','5','B','D','N','Q','R'], lat: 40.6842, lng: -73.9776, type: 'subway' },
-            { name: 'DeKalb Av', lines: ['B','D','N','Q','R'], lat: 40.6907, lng: -73.9818, type: 'subway' },
-            { name: 'Borough Hall', lines: ['2','3','4','5'], lat: 40.6926, lng: -73.9900, type: 'subway' },
-            // ── Ferry ──
-            { name: 'East 90th St Ferry', lines: ['Ferry'], lat: 40.7802, lng: -73.9440, type: 'ferry' },
-            { name: 'Wall St/Pier 11 Ferry', lines: ['Ferry'], lat: 40.7033, lng: -74.0084, type: 'ferry' },
-            { name: 'East 34th St Ferry', lines: ['Ferry'], lat: 40.7440, lng: -73.9717, type: 'ferry' },
-            { name: 'Greenpoint Ferry', lines: ['Ferry'], lat: 40.7323, lng: -73.9597, type: 'ferry' },
-            { name: 'West Midtown Ferry', lines: ['Ferry'], lat: 40.7628, lng: -73.9999, type: 'ferry' },
-            // ── Bus (major crosstown/express routes) ──
-            { name: 'M86 Crosstown', lines: ['M86'], lat: 40.7843, lng: -73.9620, type: 'bus' },
-            { name: 'M79 Crosstown', lines: ['M79'], lat: 40.7779, lng: -73.9700, type: 'bus' },
-            { name: 'M72 Crosstown', lines: ['M72'], lat: 40.7719, lng: -73.9700, type: 'bus' },
-            { name: 'M96 Crosstown', lines: ['M96'], lat: 40.7890, lng: -73.9580, type: 'bus' },
-            { name: 'M15 (1st/2nd Av)', lines: ['M15'], lat: 40.7600, lng: -73.9560, type: 'bus' },
-            { name: 'M101/102/103 (Lex/3rd)', lines: ['M101','M102','M103'], lat: 40.7750, lng: -73.9590, type: 'bus' },
-            { name: 'M116 Crosstown', lines: ['M116'], lat: 40.8050, lng: -73.9500, type: 'bus' },
-            { name: 'M60-SBS (LaGuardia)', lines: ['M60'], lat: 40.8100, lng: -73.9530, type: 'bus' },
-            { name: 'Bx15 (3rd/Willis)', lines: ['Bx15'], lat: 40.8200, lng: -73.9440, type: 'bus' },
-            { name: 'M4/5 (Ft Tryon-Midtown)', lines: ['M4','M5'], lat: 40.8500, lng: -73.9340, type: 'bus' },
-            { name: 'M23 Crosstown', lines: ['M23'], lat: 40.7460, lng: -73.9930, type: 'bus' },
-            { name: 'M42 Crosstown', lines: ['M42'], lat: 40.7550, lng: -73.9870, type: 'bus' },
-            // ── PATH ──
-            { name: 'World Trade Center PATH', lines: ['PATH'], lat: 40.7126, lng: -74.0099, type: 'path' },
-            { name: '33rd St PATH', lines: ['PATH'], lat: 40.7490, lng: -73.9882, type: 'path' },
-            { name: 'Christopher St PATH', lines: ['PATH'], lat: 40.7330, lng: -74.0073, type: 'path' },
-            { name: '9th St PATH', lines: ['PATH'], lat: 40.7342, lng: -74.0028, type: 'path' },
-            { name: '14th St PATH', lines: ['PATH'], lat: 40.7375, lng: -73.9971, type: 'path' },
-            { name: '23rd St PATH', lines: ['PATH'], lat: 40.7430, lng: -73.9928, type: 'path' }
-        ];
+        function buildTransitStationsHTML(listing) {
+            return TRANSIT_NOT_VERIFIED_HTML;
+        }
 
-        // ── Transit/Bike Score Computation (auto-computed from IDX listing location) ──
-
+        // A score with no verified source is not a score. Returning null makes
+        // every renderer show "---" instead of a number nobody can stand behind.
         function computeTransitScore(listing) {
-            var lat = listing.latitude;
-            var lng = listing.longitude;
-            if (!lat || !lng) return null;
-
-            var stationsInHalfMile = 0;
-            var uniqueLines = {};
-            var closestDist = Infinity;
-
-            NYC_TRANSIT_STATIONS.forEach(function(s) {
-                if (s.type !== 'subway') return;
-                var dist = haversineDistance(lat, lng, s.lat, s.lng);
-                if (dist < closestDist) closestDist = dist;
-                if (dist <= 0.5) {
-                    stationsInHalfMile++;
-                    s.lines.forEach(function(l) { uniqueLines[l] = true; });
-                }
-            });
-
-            if (closestDist === Infinity) return 40;
-            var lineCount = Object.keys(uniqueLines).length;
-            // Proximity bonus: 0-30 pts (closer = higher)
-            var proximityBonus = Math.max(0, (0.5 - Math.min(closestDist, 0.5)) / 0.5 * 30);
-            // Station density: 0-40 pts
-            var stationBonus = Math.min(40, stationsInHalfMile * 7);
-            // Line diversity: 0-30 pts
-            var lineBonus = Math.min(30, lineCount * 3.5);
-            return Math.min(100, Math.round(proximityBonus + stationBonus + lineBonus));
+            return null;
         }
 
         function computeBikeScore(listing) {
-            var ws = listing.walkScore || 70;
-            // Deterministic offset based on listing ID (no randomness)
-            var offset = ((listing.id * 7 + 3) % 13) - 6;
-            return Math.min(100, Math.max(30, Math.round(ws * 0.82 + offset)));
-        }
-
-        // ── Live Transit Arrivals (schedule-based, refreshes with real time) ──
-
-        var MTA_HEADWAYS = {
-            // Typical NYC subway headways by time of day (minutes)
-            rushHour: { min: 2, max: 5 },    // 7-10am, 4-7pm
-            midday: { min: 5, max: 8 },      // 10am-4pm
-            evening: { min: 8, max: 12 },    // 7pm-11pm
-            overnight: { min: 12, max: 20 }, // 11pm-6am
-            weekend: { min: 6, max: 10 }     // Sat-Sun daytime
-        };
-
-        function getCurrentHeadway() {
-            var now = new Date();
-            var hour = now.getHours();
-            var day = now.getDay(); // 0=Sun, 6=Sat
-            var isWeekend = (day === 0 || day === 6);
-
-            if (isWeekend && hour >= 7 && hour < 23) return MTA_HEADWAYS.weekend;
-            if (hour >= 7 && hour < 10) return MTA_HEADWAYS.rushHour;
-            if (hour >= 10 && hour < 16) return MTA_HEADWAYS.midday;
-            if (hour >= 16 && hour < 19) return MTA_HEADWAYS.rushHour;
-            if (hour >= 19 && hour < 23) return MTA_HEADWAYS.evening;
-            return MTA_HEADWAYS.overnight;
-        }
-
-        function getNextArrivals(stationName, lines, count) {
-            count = count || 3;
-            var now = new Date();
-            var headway = getCurrentHeadway();
-            var arrivals = [];
-
-            for (var i = 0; i < lines.length; i++) {
-                // Stagger arrivals per line using line char code as seed
-                var lineCode = lines[i].charCodeAt(0);
-                var offset = ((lineCode * 37 + now.getMinutes()) % (headway.max - headway.min)) + headway.min;
-                for (var j = 0; j < 3; j++) {
-                    var minFromNow = offset + j * (headway.min + Math.floor((headway.max - headway.min) * ((lineCode * (j+1) * 13) % 100) / 100));
-                    var arrTime = new Date(now.getTime() + minFromNow * 60000);
-                    arrivals.push({
-                        line: lines[i],
-                        minutes: minFromNow,
-                        time: arrTime.getHours().toString().padStart(2,'0') + ':' + arrTime.getMinutes().toString().padStart(2,'0'),
-                        direction: (lineCode + j) % 2 === 0 ? 'Uptown' : 'Downtown'
-                    });
-                }
-            }
-
-            // Sort by minutes, take top N
-            arrivals.sort(function(a, b) { return a.minutes - b.minutes; });
-            return arrivals.slice(0, count);
-        }
-
-        function formatArrivalTime(min) {
-            if (min <= 1) return '<span class="text-green-600 font-bold">NOW</span>';
-            if (min < 60) return '<span class="font-bold">' + min + '</span> min';
-            return Math.floor(min/60) + 'h ' + (min%60) + 'm';
-        }
-
-        var _transitRefreshTimer = null;
-
-        function refreshTransitArrivals() {
-            var container = document.getElementById('detailTransitStations');
-            if (!container) return;
-            // Update just the arrival times, not the full station list
-            var arrivalEls = container.querySelectorAll('[data-arrival-station]');
-            arrivalEls.forEach(function(el) {
-                var stationName = el.getAttribute('data-arrival-station');
-                var lines = el.getAttribute('data-arrival-lines').split(',');
-                var arrivals = getNextArrivals(stationName, lines, 3);
-                var html = '';
-                arrivals.forEach(function(a) {
-                    html += '<div class="flex items-center gap-2 text-[11px]">' + getLineBadge(a.line) + ' <span class="text-gray-500">' + a.direction + '</span> <span class="ml-auto">' + formatArrivalTime(a.minutes) + '</span></div>';
-                });
-                el.innerHTML = html;
-            });
-        }
-
-        function startTransitRefresh() {
-            if (_transitRefreshTimer) clearInterval(_transitRefreshTimer);
-            refreshTransitArrivals();
-            _transitRefreshTimer = setInterval(refreshTransitArrivals, 30000); // refresh every 30s
-        }
-
-        function haversineDistance(lat1, lon1, lat2, lon2) {
-            var R = 3959; // Earth radius in miles
-            var dLat = (lat2 - lat1) * Math.PI / 180;
-            var dLon = (lon2 - lon1) * Math.PI / 180;
-            var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                    Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
-                    Math.sin(dLon/2) * Math.sin(dLon/2);
-            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        }
-
-        function walkingTime(distMiles) {
-            return Math.max(1, Math.round(distMiles / 3 * 60)); // 3 mph avg
-        }
-
-        function getLineBadge(line) {
-            var color = SUBWAY_COLORS[line] || '#6b7280';
-            var textColor = (line === 'N' || line === 'Q' || line === 'R' || line === 'W') ? '#333' : '#fff';
-            if (line === 'Ferry') return '<span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:#0891b2;color:#fff;font-size:10px;font-weight:700;flex-shrink:0"><i class="fas fa-ship" style="font-size:10px"></i></span>';
-            if (line === 'PATH') return '<span style="display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;border-radius:12px;background:#003DA5;color:#fff;font-size:9px;font-weight:700;padding:0 6px;flex-shrink:0">PATH</span>';
-            if (/^(M\d|Bx|B\d|Q\d|S\d)/.test(line)) return '<span style="display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;border-radius:12px;background:#1d4ed8;color:#fff;font-size:9px;font-weight:700;padding:0 6px;flex-shrink:0">' + line + '</span>';
-            return '<span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:' + color + ';color:' + textColor + ';font-size:11px;font-weight:700;flex-shrink:0">' + line + '</span>';
-        }
-
-        function buildTransitStationsHTML(listing) {
-            var lat = listing.latitude || 40.7831;
-            var lng = listing.longitude || -73.9554;
-
-            // Calculate distance for each station from listing lat/lng (auto from IDX)
-            var stationsWithDist = NYC_TRANSIT_STATIONS.map(function(s) {
-                var dist = haversineDistance(lat, lng, s.lat, s.lng);
-                return { name: s.name, lines: s.lines, dist: dist, type: s.type, walkMin: walkingTime(dist) };
-            });
-
-            stationsWithDist.sort(function(a, b) { return a.dist - b.dist; });
-
-            var subway = stationsWithDist.filter(function(s) { return s.type === 'subway' && s.dist <= 0.75; }).slice(0, 5);
-            var bus = stationsWithDist.filter(function(s) { return s.type === 'bus' && s.dist <= 0.75; }).slice(0, 3);
-            var ferry = stationsWithDist.filter(function(s) { return s.type === 'ferry' && s.dist <= 1.0; }).slice(0, 2);
-            var path = stationsWithDist.filter(function(s) { return s.type === 'path' && s.dist <= 1.5; }).slice(0, 2);
-
-            var html = '';
-
-            function buildStationCard(s, bgClass) {
-                var arrivals = getNextArrivals(s.name, s.lines, 4);
-                var card = '<div class="' + bgClass + ' rounded-xl mb-2 overflow-hidden">';
-                // Station header row
-                card += '<div class="flex items-center gap-3 p-3">';
-                card += '<div class="flex items-center gap-1 flex-wrap">';
-                s.lines.forEach(function(l) { card += getLineBadge(l); });
-                card += '</div>';
-                card += '<div class="flex-1"><div class="text-sm font-medium">' + s.name + '</div>';
-                card += '<div class="text-xs text-gray-500">' + s.dist.toFixed(2) + ' mi &middot; ' + s.walkMin + ' min walk</div></div>';
-                // Live indicator
-                card += '<div class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span><span class="text-[9px] text-green-600 font-bold uppercase">Live</span></div>';
-                card += '</div>';
-                // Next arrivals
-                if (arrivals.length) {
-                    card += '<div class="px-3 pb-3 space-y-1" data-arrival-station="' + s.name + '" data-arrival-lines="' + s.lines.join(',') + '">';
-                    arrivals.forEach(function(a) {
-                        card += '<div class="flex items-center gap-2 text-[11px]">' + getLineBadge(a.line) + ' <span class="text-gray-500">' + a.direction + '</span> <span class="ml-auto">' + formatArrivalTime(a.minutes) + '</span></div>';
-                    });
-                    card += '</div>';
-                }
-                card += '</div>';
-                return card;
-            }
-
-            // Subway
-            if (subway.length) {
-                html += '<div class="flex items-center gap-2 mb-2"><span class="text-xs font-bold text-gray-500 uppercase tracking-wider"><i class="fas fa-subway mr-1"></i> Subway</span><span class="text-[9px] text-gray-400 ml-auto">Next departures</span></div>';
-                subway.forEach(function(s) { html += buildStationCard(s, 'bg-gray-50'); });
-            }
-
-            // Bus
-            if (bus.length) {
-                html += '<div class="flex items-center gap-2 mb-2 mt-4"><span class="text-xs font-bold text-gray-500 uppercase tracking-wider"><i class="fas fa-bus mr-1"></i> Bus</span></div>';
-                bus.forEach(function(s) { html += buildStationCard(s, 'bg-gray-50'); });
-            }
-
-            // Ferry
-            if (ferry.length) {
-                html += '<div class="flex items-center gap-2 mb-2 mt-4"><span class="text-xs font-bold text-gray-500 uppercase tracking-wider"><i class="fas fa-ship mr-1"></i> Ferry</span></div>';
-                ferry.forEach(function(s) { html += buildStationCard(s, 'bg-cyan-50'); });
-            }
-
-            // PATH
-            if (path.length) {
-                html += '<div class="flex items-center gap-2 mb-2 mt-4"><span class="text-xs font-bold text-gray-500 uppercase tracking-wider"><i class="fas fa-train mr-1"></i> PATH</span></div>';
-                path.forEach(function(s) { html += buildStationCard(s, 'bg-blue-50'); });
-            }
-
-            if (!html) {
-                html = '<div class="text-sm text-gray-400 text-center py-4">No transit stations found within 0.75 miles</div>';
-            }
-
-            return html;
+            return null;
         }
 
         function calculateCommute(listingId) {
-            var address = document.getElementById('detailCommuteAddress').value.trim();
-            if (!address) { showToast('Please enter your work address.', 'warning'); return; }
-
+            // The destination the broker typed is real input. What is missing is
+            // a routing engine to answer it. Declining is the honest response;
+            // the previous code answered anyway, against Midtown, regardless of
+            // what was typed.
+            showToast('Commute times are unavailable — Mallan has no verified routing source yet.', 'warning');
             var results = document.getElementById('detailCommuteResults');
-            results.classList.remove('hidden');
-
-            // Estimated commute times derived from straight-line distance.
-            // Wire to Google Directions or MapBox Directions when an API key
-            // is available; the UI shape stays the same.
-            var listing = listings.find(function(l) { return l.id == listingId; });
-            if (!listing) listing = { latitude: 40.7831, longitude: -73.9554 };
-
-            // Simulate reasonable NYC commute times
-            var baseLat = listing.latitude || 40.7831;
-            var baseLng = listing.longitude || -73.9554;
-
-            // Estimate: midtown Manhattan ~40.7549, -73.9840
-            var midtownDist = haversineDistance(baseLat, baseLng, 40.7549, -73.9840);
-            var subwayMin = Math.max(10, Math.round(midtownDist * 8 + 5));
-            var busMin = Math.max(15, Math.round(midtownDist * 14 + 10));
-            var walkMin = Math.round(midtownDist / 3 * 60);
-
-            document.getElementById('commuteSubwayTime').textContent = '~' + subwayMin + ' min';
-            document.getElementById('commuteBusTime').textContent = '~' + busMin + ' min';
-            document.getElementById('commuteWalkTime').textContent = walkMin > 60 ? Math.round(walkMin/60) + ' hr ' + (walkMin%60) + ' min' : '~' + walkMin + ' min';
+            if (results) results.classList.add('hidden');
         }
+
 
         // ═══════════════════════════════════════════════════════════════════════════════
         // QUICK ACTION FUNCTIONS (wired to detail sidebar buttons)
@@ -2287,7 +2180,7 @@
                 + '<div class="p-6 space-y-4">'
                 + '<div class="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">'
                 + '<strong>' + escapeHtml(listing.address) + (listing.unit ? ', ' + escapeHtml(listing.unit) : '') + '</strong>'
-                + '<div class="text-xs text-gray-400 mt-1">$' + (listing.price ? listing.price.toLocaleString() : '0') + ' | ' + escapeHtml(listing.neighborhood || '') + '</div>'
+                + '<div class="text-xs text-gray-400 mt-1">' + money(listing.price) + ' | ' + escapeHtml(listing.neighborhood || '') + '</div>'
                 + '</div>'
                 + '<div><label class="block text-sm font-medium text-gray-700 mb-1">Date *</label>'
                 + '<input type="date" id="showingDate" class="w-full border rounded-lg px-3 py-2 text-sm" min="' + new Date().toISOString().split('T')[0] + '"></div>'
@@ -2407,7 +2300,12 @@
         }
 
         // ── 3C. Compare ──────────────────────────────────────────────────────
-        function addToCompareAndOpen(listingId) {
+        // `async` because a selected listing that is not on the loaded page is
+        // resolved from the server by its canonical identity before the
+        // comparison opens. The single call site is an inline onclick, which
+        // ignores the returned promise — correct here, since every outcome is
+        // reported through the UI rather than to the caller.
+        async function addToCompareAndOpen(listingId) {
             // Add to working set if not already there
             if (!_isInWorkingSet(listingId)) {
                 toggleWorkingSet(listingId);
@@ -2419,15 +2317,112 @@
                 return;
             }
 
-            // Get listing objects for comparison
+            // A COMPARISON THAT QUIETLY DROPS A LISTING IS THE WRONG COMPARISON.
+            //
+            // Ids are resolved against the loaded catalogue, and anything not
+            // found was silently skipped: `if (l) compareListings.push(l)`. A
+            // broker who added five listings across several pages — the working
+            // set is durable, the loaded rows are not — could be shown a
+            // three-way comparison presented as their five-way one, and told
+            // nothing. The only message fired when FEWER THAN TWO survived, so
+            // every partial case above that was invisible.
+            //
+            // Comparison is a decision aid. Dropping a candidate without saying
+            // so changes the decision.
             var compareListings = [];
+            var unresolvedIds = [];
             set.forEach(function(id) {
                 var l = listings.find(function(li) { return String(li.id) === String(id); });
                 if (l) compareListings.push(l);
+                else unresolvedIds.push(id);
             });
 
+            // A MISSING ROW IS FETCHED, NOT WARNED ABOUT.
+            //
+            // Naming the omission was an improvement on dropping it silently, but
+            // it still handed the broker a different comparison than the one they
+            // asked for — five selected, three compared, with a toast. The
+            // decision set changed, and a warning does not un-change it.
+            //
+            // The selection is durable by listing identity, so anything not in
+            // the loaded page is RESOLVED FROM THE SERVER by that identity. The
+            // broker does not have to go and reopen pages to reconstitute a
+            // selection the system already holds.
+            //
+            // If the fetch cannot produce them, this FAILS CLOSED: no partial
+            // comparison is opened by default. Comparing the loaded subset stays
+            // available, but only as a deliberate choice.
+            // HYDRATE IN THE RIGHT IDENTITY DOMAIN.
+            //
+            // The Search row id is a Cotality LISTINGKEY (crm-idx-mapper maps
+            // `id: listingKey`), and ListingKey is a DIFFERENT provider field
+            // from ListingId — Cotality declares both, and their value spaces do
+            // not overlap: a live pair reads ListingKey "1189389648" against
+            // ListingId "RLS20112214".
+            //
+            // The first version of this sent Search ids through the `listingId`
+            // criterion, which renders `ListingId eq ...`. Probed live: that
+            // returns count 0 — an empty result and no error — so hydration
+            // never worked and Compare simply refused every time. Using
+            // `listingKey`, equality and OR-chaining are SUPPORTED (count 1 and
+            // count 2 on the same probes).
+            //
+            // A Mallan-local SL-/RL- selection is NOT sent to Cotality at all: it
+            // has no provider key, and asking the provider about it would be
+            // asking the wrong system. Those stay unresolved here and fail closed
+            // below rather than being translated into a key they do not have.
+            var providerKeys = unresolvedIds.filter(function (id) {
+                return !/^(SL-|RL-)/i.test(String(id));
+            });
+            if (providerKeys.length > 0 && typeof MallanAPI !== 'undefined'
+                && MallanAPI.idx && typeof MallanAPI.idx.search === 'function') {
+                try {
+                    var hydrated = await MallanAPI.idx.search({
+                        listingKey: providerKeys.join(','),
+                        limit: Math.max(providerKeys.length, 10)
+                    });
+                    var fetched = (hydrated && hydrated.listings) || [];
+                    // PROVE THE ROWS ARE THE ONES ASKED FOR. A response that
+                    // came back non-empty is not evidence it answered THIS
+                    // question; only matching the returned identities against the
+                    // requested keys is.
+                    var requested = {};
+                    providerKeys.forEach(function (k) { requested[String(k)] = true; });
+                    fetched.forEach(function (row) {
+                        if (!requested[String(row.id)]) {
+                            console.warn('[Compare] Ignoring a row that was not requested:', row.id);
+                            return;
+                        }
+                        // Keep the loaded catalogue consistent with what the
+                        // comparison uses, so a later view resolves the same row.
+                        if (!listings.some(function (li) { return String(li.id) === String(row.id); })) {
+                            listings.push(row);
+                        }
+                        compareListings.push(row);
+                    });
+                    var resolvedKeys = fetched
+                        .filter(function (r) { return requested[String(r.id)]; })
+                        .map(function (r) { return String(r.id); });
+                    unresolvedIds = unresolvedIds.filter(function (id) {
+                        return resolvedKeys.indexOf(String(id)) === -1;
+                    });
+                } catch (hydrateErr) {
+                    console.error('[Compare] Could not resolve selected listings from the server:', hydrateErr);
+                }
+            }
+
+            if (unresolvedIds.length > 0) {
+                // FAIL CLOSED. The requested comparison cannot be constructed, so
+                // it is not silently replaced with a smaller one.
+                showToast('Cannot compare: ' + unresolvedIds.length + ' of ' + set.length +
+                    ' selected listings could not be loaded. Nothing has been compared — ' +
+                    'retry, or remove those listings from your set to compare the rest.', 'error');
+                console.error('[Compare] Unresolved selected listings, comparison refused:', unresolvedIds);
+                return;
+            }
+
             if (compareListings.length < 2) {
-                showToast('Need at least 2 listings loaded for comparison', 'warning');
+                showToast('Select at least 2 listings to compare.', 'warning');
                 return;
             }
 
@@ -2443,8 +2438,8 @@
                 { label: 'Baths', fn: function(l) { return l.baths; } },
                 { label: 'Sqft', fn: function(l) { return l.intSqft ? l.intSqft.toLocaleString() : 'N/A'; } },
                 { label: '$/Sqft', fn: function(l) { return l.intSqft && l.price ? '$' + Math.round(l.price / l.intSqft).toLocaleString() : 'N/A'; } },
-                { label: 'Maint/CC', fn: function(l) { return l.maintCC ? '$' + l.maintCC.toLocaleString() : 'N/A'; } },
-                { label: 'Taxes', fn: function(l) { return l.reTaxes ? '$' + Math.round(l.reTaxes).toLocaleString() + '/mo' : 'N/A'; } },
+                { label: 'Maint/CC', fn: function(l) { return l.maintCC == null ? 'N/A' : '$' + Number(l.maintCC).toLocaleString(); } },
+                { label: 'Taxes', fn: function(l) { return l.reTaxes == null ? 'N/A' : '$' + Math.round(l.reTaxes).toLocaleString() + '/mo'; } },
                 { label: 'DOM', fn: function(l) { return l.dom || 0; } },
                 { label: 'Neighborhood', fn: function(l) { return escapeHtml(l.neighborhood || ''); } },
                 { label: 'Year Built', fn: function(l) { return l.yearBuilt || 'N/A'; } },
@@ -2492,7 +2487,7 @@
 
             MallanAPI.cma.create({
                 property_address: listing.address + (listing.unit ? ', ' + listing.unit : ''),
-                borough: listing.borough || 'Manhattan',
+                borough: listing.borough || null,
                 neighborhood: listing.neighborhood || null,
                 listing_type: listing.listingCategory === 'rental' ? 'rental' : 'sale',
                 property_type: listing.ownership || listing.propertyType || null,
@@ -2587,19 +2582,21 @@
             // Build timeline from listing data
             var events = [];
             if (listing.listedDate) {
-                events.push({ date: listing.listedDate, label: 'Listed', detail: '$' + (listing.originalPrice || listing.price || 0).toLocaleString() });
+                // `|| 0` made an unknown listing price read as "$0" in the
+                // timeline — the same false financial fact, one renderer over.
+                events.push({ date: listing.listedDate, label: 'Listed', detail: money(listing.originalPrice != null ? listing.originalPrice : listing.price) });
             }
             if (listing.originalPrice && listing.originalPrice !== listing.price && listing.price) {
                 events.push({
                     date: listing.updatedDate || 'N/A',
                     label: 'Price ' + (listing.price < listing.originalPrice ? 'Reduced' : 'Increased'),
-                    detail: '$' + listing.originalPrice.toLocaleString() + ' → $' + listing.price.toLocaleString()
+                    detail: money(listing.originalPrice) + ' → ' + money(listing.price)
                 });
             }
-            if (listing.status && listing.status !== 'ACTIVE') {
+            if (listing.status && listing.status !== 'Active') {
                 events.push({ date: listing.updatedDate || 'N/A', label: 'Status: ' + listing.status, detail: '' });
             }
-            events.push({ date: 'Current', label: 'DOM: ' + (listing.dom || 0) + ' | CDOM: ' + (listing.cdom || 0), detail: '$' + (listing.price || 0).toLocaleString() });
+            events.push({ date: 'Current', label: 'DOM: ' + (listing.dom || 0) + ' | CDOM: ' + (listing.cdom || 0), detail: money(listing.price) });
 
             var timelineHtml = events.map(function(ev) {
                 return '<div class="flex items-start gap-3 pb-4">'
@@ -2654,7 +2651,7 @@
                 + '<div class="p-6 space-y-4">'
                 + '<div class="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">'
                 + '<strong>' + escapeHtml(listing.address) + '</strong>'
-                + '<div class="text-xs text-gray-400">$' + (listing.price ? listing.price.toLocaleString() : '0') + '</div></div>'
+                + '<div class="text-xs text-gray-400">' + money(listing.price) + '</div></div>'
                 + '<div><label class="block text-sm font-medium text-gray-700 mb-1">Select Clients</label>'
                 + '<div id="portalSendClientList" class="border rounded-lg max-h-48 overflow-y-auto p-2 text-sm">'
                 + '<p class="text-gray-400 text-xs"><i class="fas fa-spinner fa-spin"></i> Loading clients...</p></div></div>'

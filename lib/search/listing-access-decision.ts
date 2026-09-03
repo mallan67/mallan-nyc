@@ -85,8 +85,27 @@ export const PROJECTION_DISPLAY_GATE: Prisma.ListingSearchProjectionWhereInput =
   idx_display_yn: true,
   internet_entire_listing_display_yn: true,
   participant_only_yn: false,
-  // owner_opt_out is not on the projection — apply via the FK relation.
-  listing: { owner_opt_out: false },
+  // Two Listing-side invariants the projection cannot express natively, both
+  // applied through the SAME FK relation:
+  //
+  //   owner_opt_out            — simply not a projection column.
+  //   Mallan-office suppression — deliberately NOT copied here. A verified
+  //     Mallan-office Cotality representation must not participate as a
+  //     canonical listing, and that classification belongs to ONE authority
+  //     (`excludeMallanRlsReturnCopies`). Re-expressing the office rule in the
+  //     projection model would create a second copy free to drift from the
+  //     Listing path — which is exactly how the projection came to lack
+  //     suppression while `buildSearchDisplayWhere` had it.
+  //
+  // This matters far beyond public display: this gate feeds
+  // criteriaToProjectionWhere -> runProjectionListingSearch -> Saved Search
+  // count and execute -> the search-alerts cron. Without it a representation
+  // could be COUNTED, RETURNED and EMAILED to a client as its own listing.
+  //
+  // `runProjectionListingSearch` passes one predicate to both `findMany` and
+  // `count`, so suppression lands BEFORE pagination — page-local filtering would
+  // leave totals describing the unsuppressed population.
+  listing: { owner_opt_out: false, ...excludeMallanRlsReturnCopies() },
 };
 
 const ACTIVE_DISPLAY_SET = new Set<StatusValue>(ACTIVE_DISPLAY_VALUES);

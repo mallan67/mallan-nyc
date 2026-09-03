@@ -680,7 +680,7 @@ var CRM = (function () {
             'onclick="Router.navigate(\'/workspace/listing/' + E(lid) + '/overview\');CRM._closeSearchResults()">' +
             '<i class="fas fa-building text-xs text-gray-400 w-5 text-center"></i>' +
             '<div class="min-w-0 flex-1"><span class="font-medium truncate block">' + E(l.address || l.UnparsedAddress || 'No address') + '</span></div>' +
-            '<span class="shrink-0 text-xs text-gray-400">' + Utils.formatMoney(l.ListPrice || l.price) + '</span></button>';
+            '<span class="shrink-0 text-xs text-gray-400">' + Utils.formatMoney(l.ListPrice ?? l.price) + '</span></button>';
         });
         sectionIdx++;
       }
@@ -1320,7 +1320,7 @@ var CRM = (function () {
       listings.forEach(function (l) {
         var addr = l.address || l.UnparsedAddress || 'No address';
         html += '<button class="w-full text-left p-2 rounded hover:bg-gold-bg text-sm flex justify-between" onclick="CRM._selectSendListing(\'' + E(l.id || l.listing_id) + '\',\'' + E(addr) + '\')">' +
-          '<span>' + E(addr) + '</span><span class="text-gray-400">' + Utils.formatMoney(l.ListPrice || l.price) + '</span></button>';
+          '<span>' + E(addr) + '</span><span class="text-gray-400">' + Utils.formatMoney(l.ListPrice ?? l.price) + '</span></button>';
       });
       html += '</div>';
       el.innerHTML = listings.length ? html : '<p class="text-xs text-gray-400">No matches</p>';

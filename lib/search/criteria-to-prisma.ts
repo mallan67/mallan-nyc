@@ -3,6 +3,32 @@ import {
   buildProjectionSearchWhere,
   buildSearchDisplayWhere,
 } from "@/lib/search/listing-access-decision";
+import { OWNERSHIP_FLAG_BY_COMMON_INTEREST } from "@/lib/search/canonical/amenity-match";
+import { maxBathsAlternatives, minBathsAlternatives } from "@/lib/search/canonical/bath-contract";
+import { isAmenityExecutable } from "@/lib/search/canonical/field-registry";
+import {
+  isPropertySubTypeMember,
+  parsePropertySubTypeCriterion,
+  propertySubTypePrisma,
+} from "@/lib/search/canonical/property-subtype-contract";
+
+/**
+ * Normalised public ownership input → live `CommonInterest` member.
+ *
+ * Keyed on a normalised form (lowercase, non-alphanumerics stripped) because an
+ * exact-case map silently returned ZERO results for `condo` — the casing the UI
+ * actually sends — with no error.
+ */
+const OWNERSHIP_COMMON_INTEREST_BY_INPUT: Record<string, string> = {
+  condo: "Condominium",
+  condominium: "Condominium",
+  coop: "StockCooperative",
+  cooperative: "StockCooperative",
+  stockcooperative: "StockCooperative",
+  condop: "Condop",
+  rental: "RentalBuilding",
+  rentalbuilding: "RentalBuilding",
+};
 
 export type SearchCriteria = Record<string, unknown>;
 
@@ -14,7 +40,20 @@ export function isPlainSearchCriteria(value: unknown): value is SearchCriteria {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-const PROJECTION_SUPPORTED_CRITERIA_KEYS = new Set([
+/**
+ * ── ALERT ELIGIBILITY — a strict SUBSET of what the engine can execute ──────
+ *
+ * These are the criteria an alert may REPLAY. The set must stay byte-parity
+ * with the frontend `_ALERT_SUPPORTED_KEYS` in
+ * `public/crm/js/search/saved-searches.js`, which is a standing authorization
+ * hold — so widening it is a deliberate two-file change.
+ *
+ * THIS SET MUST NEVER GATE SEARCH EXECUTION. Search capability and alert
+ * eligibility are different questions, and conflating them made newly verified
+ * criteria unexecutable for Saved Search rather than merely un-alertable. The
+ * invariant is ALERT_SUPPORTED ⊆ SEARCH_ENGINE_SUPPORTED — never equality.
+ */
+const ALERT_SUPPORTED_CRITERIA_KEYS = new Set([
   "listing_type",
   "listingType",
   "type",
@@ -56,6 +95,47 @@ const PROJECTION_SUPPORTED_CRITERIA_KEYS = new Set([
   "maxSqft",
   "sqftMin",
   "sqftMax",
+]);
+
+/**
+ * ── SEARCH ENGINE CAPABILITY — everything `criteriaToProjectionWhere` executes ─
+ *
+ * The full verified criteria set. Alerts are an authorized subset of THIS.
+ *
+ * The criteria below the spread were each verified against live Cotality on
+ * 2026-08-19 and are derived at projection BUILD time into `amenity_keys`,
+ * `feature_flags`, `year_built` and `is_new_development` — so the engine can
+ * genuinely execute them, which is what this set is allowed to assert.
+ */
+const SEARCH_ENGINE_SUPPORTED_CRITERIA_KEYS = new Set([
+  ...ALERT_SUPPORTED_CRITERIA_KEYS,
+  "ownershipTypes",
+  "ownership_types",
+  "yearBuilt",
+  "year_built",
+  "furnished",
+  "pets",
+  "amenities",
+  "keywords",
+  "zipCodes",
+  "zip_codes",
+  "postal_code",
+  "newDevelopment",
+  "is_new_development",
+  // PropertySubType — live-verified 2026-08-21 as a scalar 75-member enum with
+  // `eq`/`in` SUPPORTED, and executed here as an exact `IN` on the indexed
+  // `property_sub_type` projection column.
+  "property_sub_type",
+  "propertySubType",
+  "property_sub_types",
+  "propertySubTypes",
+  // THE FOUR TABS. Public Search always emits `type` PLUS `commercial=true/false`
+  // for buy-residential / buy-commercial / rent-residential / rent-commercial.
+  // `type` alone does NOT identify the tab, so omitting `commercial` here let
+  // public Search and Saved Search disagree about which universe was requested.
+  // The projection producer already derives `is_commercial`.
+  "commercial",
+  "is_commercial",
 ]);
 
 const PROJECTION_RESERVED_CRITERIA_KEYS = new Set([
@@ -116,8 +196,49 @@ function isSupportedProjectionCriterionValue(key: string, value: unknown): boole
     return typeof value === "string" || isSupportedStringArray(value);
   }
 
+  if (
+    key === "ownershipTypes" || key === "ownership_types" ||
+    key === "amenities" || key === "keywords" ||
+    key === "zipCodes" || key === "zip_codes" || key === "postal_code"
+  ) {
+    return typeof value === "string" || isSupportedStringArray(value);
+  }
+
+  if (
+    key === "furnished" || key === "pets" ||
+    key === "newDevelopment" || key === "is_new_development" ||
+    key === "commercial" || key === "is_commercial"
+  ) {
+    return typeof value === "boolean" || value === "true" || value === "false";
+  }
+
+  if (key === "yearBuilt" || key === "year_built") {
+    return value === "pre-war" || value === "post-war" || value === "any";
+  }
+
   if (key === "property_type" || key === "property_types" || key === "propertyType" || key === "propertyTypes") {
     return typeof value === "string" || isSupportedStringArray(value);
+  }
+
+  if (
+    key === "property_sub_type" || key === "propertySubType" ||
+    key === "property_sub_types" || key === "propertySubTypes"
+  ) {
+    // Support is per-VALUE, not merely per-key. A saved search holding a token
+    // the live enum no longer declares must be reported unsupported rather than
+    // replayed — the provider would answer a mis-cased or retired literal with
+    // 200 and zero rows, which reads as "nothing matched" instead of "this
+    // search can no longer be executed".
+    const tokens = Array.isArray(value)
+      ? value
+      : typeof value === "string"
+        ? value.split(",")
+        : null;
+    if (tokens === null) return false;
+    return tokens.every((token) => {
+      const trimmed = typeof token === "string" ? token.trim() : "";
+      return trimmed === "" || isPropertySubTypeMember(trimmed);
+    });
   }
 
   if (key === "borough" || key === "neighborhood" || key === "searchTab") {
@@ -160,24 +281,55 @@ function isSupportedProjectionCriterionValue(key: string, value: unknown): boole
   return false;
 }
 
-export function getUnsupportedProjectionCriteria(criteria: SearchCriteria): string[] {
+function unsupportedAgainst(criteria: SearchCriteria, allowed: ReadonlySet<string>): string[] {
   const unsupported = new Set<string>();
-
   for (const [key, value] of Object.entries(criteria)) {
     if (PROJECTION_RESERVED_CRITERIA_KEYS.has(key)) continue;
-
-    if (!PROJECTION_SUPPORTED_CRITERIA_KEYS.has(key)) {
+    if (!allowed.has(key)) {
       unsupported.add(key);
       continue;
     }
-
     if (!isSupportedProjectionCriterionValue(key, value)) {
       unsupported.add(key);
     }
   }
-
   return [...unsupported].sort();
 }
+
+/**
+ * Criteria the projection SEARCH ENGINE cannot execute.
+ *
+ * Use this to decide whether a saved search can be RUN or COUNTED. Do NOT use
+ * it to decide alert eligibility — that is a narrower, separately authorized
+ * question (`getUnsupportedAlertCriteria`).
+ */
+export function getUnsupportedSearchCriteria(criteria: SearchCriteria): string[] {
+  return unsupportedAgainst(criteria, SEARCH_ENGINE_SUPPORTED_CRITERIA_KEYS);
+}
+
+/**
+ * Criteria alerts may not REPLAY, even where the engine can execute them.
+ * Strict subset of the engine's capability.
+ */
+export function getUnsupportedAlertCriteria(criteria: SearchCriteria): string[] {
+  return unsupportedAgainst(criteria, ALERT_SUPPORTED_CRITERIA_KEYS);
+}
+
+/**
+ * @deprecated Ambiguous — it conflated "can the engine run this?" with "may an
+ * alert replay this?", and gating execution on the ALERT set made newly
+ * verified criteria unrunnable rather than merely un-alertable. Call
+ * `getUnsupportedSearchCriteria` or `getUnsupportedAlertCriteria` explicitly.
+ * Retained pointing at SEARCH capability, which is what every current caller
+ * except the alert gate actually means.
+ */
+export function getUnsupportedProjectionCriteria(criteria: SearchCriteria): string[] {
+  return getUnsupportedSearchCriteria(criteria);
+}
+
+/** Exported for the invariant test: ALERT_SUPPORTED must be a SUBSET of SEARCH. */
+export const _ALERT_KEYS_FOR_TEST: ReadonlySet<string> = ALERT_SUPPORTED_CRITERIA_KEYS;
+export const _SEARCH_KEYS_FOR_TEST: ReadonlySet<string> = SEARCH_ENGINE_SUPPORTED_CRITERIA_KEYS;
 
 // ── Saved-search alert gate (P0-3) ──────────────────────────────────────
 //
@@ -215,7 +367,7 @@ export interface AlertGateDecision {
 }
 
 export function canEnableAlertForCriteria(criteria: SearchCriteria): AlertGateDecision {
-  const unsupported = getUnsupportedProjectionCriteria(criteria);
+  const unsupported = getUnsupportedAlertCriteria(criteria);
   if (unsupported.length === 0) {
     return { ok: true, unsupported: [], code: "ok", message: "Alerts can be enabled for this search." };
   }
@@ -230,6 +382,19 @@ export function canEnableAlertForCriteria(criteria: SearchCriteria): AlertGateDe
   };
 }
 
+/**
+ * @deprecated DORMANT — the Listing-backed twin of `criteriaToProjectionWhere`.
+ *
+ * Zero runtime callers, verified 2026-08-20: a repo-wide search finds it only in
+ * this module, its own tests, and a historical comment in `lib/search/core.ts`
+ * explaining that PR 5D/5E migrated its two callers (the saved-search execute
+ * route and the search-alerts cron) onto the projection runner.
+ *
+ * Prefer `criteriaToProjectionWhere`. New Search work must not reintroduce a
+ * second execution path; this exists for Listing-shaped callers that predate the
+ * projection and is kept in step with the canonical contracts so it cannot hand
+ * a future caller a stale answer.
+ */
 export function criteriaToPrismaWhere(
   criteria: SearchCriteria,
   options: SearchWhereOptions = {},
@@ -268,12 +433,37 @@ export function criteriaToPrismaWhere(
     if (maxBeds !== undefined) where.bedrooms_total.lte = maxBeds;
   }
 
+  // Baths render the CANONICAL total-bath contract, same as every other path.
+  //
+  // This previously applied the range DIRECTLY to `bathrooms_full`, so on an
+  // integer column `minBaths=1.5` became `>= 1.5` — excluding a 1-full/1-half
+  // unit that IS 1.5 baths — while `maxBaths=1` admitted every 1.5-bath listing.
+  // The function is dormant (see the deprecation note below), but a reusable
+  // helper carrying the old answer is a trap for the next caller.
   const minBaths = numberValue(first(criteria, ["min_baths", "minBaths", "baths", "bathsMin"]));
   const maxBaths = numberValue(first(criteria, ["max_baths", "maxBaths", "bathsMax"]));
-  if (minBaths !== undefined || maxBaths !== undefined) {
-    where.bathrooms_full = {};
-    if (minBaths !== undefined) where.bathrooms_full.gte = minBaths;
-    if (maxBaths !== undefined) where.bathrooms_full.lte = maxBaths;
+  const bathClauses: Prisma.ListingWhereInput[] = [];
+  if (minBaths !== undefined) {
+    bathClauses.push({
+      OR: minBathsAlternatives(minBaths).map((a) =>
+        a.fullAtLeast !== undefined
+          ? { bathrooms_full: { gte: a.fullAtLeast } }
+          : { bathrooms_full: a.fullExactly, bathrooms_half: { gte: a.halfAtLeast } },
+      ),
+    });
+  }
+  if (maxBaths !== undefined) {
+    bathClauses.push({
+      OR: maxBathsAlternatives(maxBaths).map((a) => ({
+        AND: [
+          { bathrooms_full: a.fullExactly },
+          { OR: [{ bathrooms_half: null }, { bathrooms_half: { lte: a.halfAtMost } }] },
+        ],
+      })),
+    });
+  }
+  if (bathClauses.length > 0) {
+    where.AND = Array.isArray(where.AND) ? [...where.AND, ...bathClauses] : where.AND ? [where.AND, ...bathClauses] : bathClauses;
   }
 
   const minSqft = numberValue(first(criteria, ["min_sqft", "minSqft", "sqftMin"]));
@@ -312,6 +502,117 @@ export function criteriaToPrismaWhere(
  * gate columns AND the FK-relation filter for the Listing-only
  * `owner_opt_out` field (which the bounded PR 5A schema did not mirror).
  */
+
+/** Truthy across the shapes criteria arrive in (JSON bool, form string). */
+function booleanValue(value: unknown): boolean {
+  return value === true || value === "true";
+}
+
+/**
+ * The criteria PROVEN against live Cotality on 2026-08-19, expressed against
+ * the projection's DERIVED columns rather than re-derived from provider JSON.
+ *
+ * This is the point of the read model. The public reader previously evaluated
+ * these against `listings.raw_data` / `listings.features` while Saved Search
+ * and the alert cron ran through the projection — two engines answering the
+ * same user question from different sources, which is exactly the split this
+ * consolidates. Deriving once at write time also means an amenity rule change
+ * is a projection rebuild, not a silent divergence between callers.
+ */
+function appendProvenProjectionCriteria(
+  where: Prisma.ListingSearchProjectionWhereInput,
+  criteria: SearchCriteria,
+): void {
+  const and: Prisma.ListingSearchProjectionWhereInput[] = [];
+
+  // ownershipTypes — NYC carries ownership in `CommonInterest`, NOT
+  // `PropertySubType` (where Condominium/StockCooperative/Townhouse are all
+  // ZERO live). The producer maps CommonInterest to a boolean feature flag.
+  const ownership = stringArray(first(criteria, ["ownershipTypes", "ownership_types"]));
+  if (ownership.length > 0) {
+    const flags = [
+      ...new Set(
+        ownership
+          .map((value) => OWNERSHIP_FLAG_BY_COMMON_INTEREST[
+            OWNERSHIP_COMMON_INTEREST_BY_INPUT[value.toLowerCase().replace(/[^a-z0-9]/g, "")] ?? ""
+          ])
+          .filter(Boolean),
+      ),
+    ];
+    // Fail CLOSED — an ownership filter we cannot map must return nothing
+    // rather than silently widening to the whole corpus.
+    if (flags.length === 0) {
+      and.push({ id: { in: [] } });
+    } else {
+      and.push({ OR: flags.map((flag) => ({ feature_flags: { path: [flag], equals: true } })) });
+    }
+  }
+
+  // yearBuilt — pre-war <=1946 / post-war >=1947, on the promoted column.
+  const yearBuilt = first(criteria, ["yearBuilt", "year_built"]);
+  if (yearBuilt === "pre-war") and.push({ year_built: { lte: 1946 } });
+  else if (yearBuilt === "post-war") and.push({ year_built: { gte: 1947 } });
+
+  // furnished — five live members; `true` means strictly `Furnished` (106 live).
+  if (booleanValue(first(criteria, ["furnished"]))) {
+    and.push({ feature_flags: { path: ["is_furnished"], equals: true } });
+  }
+
+  // pets — unit-level affirmation only. "BuildingYes,No" means the building
+  // permits pets and the UNIT does not; the producer resolves that by exact
+  // token, so readers never re-parse the multi-value.
+  if (booleanValue(first(criteria, ["pets"]))) {
+    and.push({ feature_flags: { path: ["is_pet_friendly"], equals: true } });
+  }
+
+  // commercial — the tab universe. `type=sale|rent` selects the transaction,
+  // `commercial` selects the inventory class, and BOTH are needed to name one of
+  // the four tabs. The projection derives `is_commercial` at build time, so this
+  // reads the derived column rather than re-deriving from sub-types.
+  //
+  // Explicitly three-state: absent means "no constraint" (used by feeds that
+  // span both), true means commercial only, false means residential only. A
+  // missing value must not silently mean "residential", which is how a
+  // commercial saved search could be replayed against residential inventory.
+  const commercialRaw = first(criteria, ["commercial", "is_commercial"]);
+  if (commercialRaw !== undefined) {
+    and.push({ is_commercial: booleanValue(commercialRaw) });
+  }
+
+  // newDevelopment — `NewConstructionYN` (950 live Active), never a sub-type.
+  if (booleanValue(first(criteria, ["newDevelopment", "is_new_development"]))) {
+    and.push({ is_new_development: true });
+  }
+
+  // amenities — AND across requested keys, each matched against the derived
+  // `amenity_keys` array. Unsupported amenities never widen the result.
+  const amenities = stringArray(first(criteria, ["amenities"]));
+  for (const amenity of amenities) {
+    // Fails closed on BOTH gates: no live token, AND unproven semantics. A
+    // semantically unproven amenity must not quietly filter by a token that
+    // means something else.
+    if (!isAmenityExecutable(amenity)) {
+      and.push({ id: { in: [] } });
+      continue;
+    }
+    and.push({ amenity_keys: { array_contains: [amenity] } });
+  }
+
+  // keywords — AND across case-insensitive matches on the projected text.
+  // `searchable_text` is built from PUB-tier fields only; it must never be
+  // extended to PrivateRemarks or ShowingInstructions (HID tier).
+  for (const keyword of stringArray(first(criteria, ["keywords"]))) {
+    and.push({ searchable_text: { contains: keyword, mode: "insensitive" } });
+  }
+
+  const zips = stringArray(first(criteria, ["zipCodes", "zip_codes", "postal_code"]));
+  if (zips.length > 0) and.push({ postal_code: { in: zips } });
+
+  if (and.length > 0) {
+    where.AND = Array.isArray(where.AND) ? [...where.AND, ...and] : where.AND ? [where.AND, ...and] : and;
+  }
+}
+
 export function criteriaToProjectionWhere(
   criteria: SearchCriteria,
   options: SearchWhereOptions = {},
@@ -325,6 +626,26 @@ export function criteriaToProjectionWhere(
 
   const propertyTypes = stringArray(first(criteria, ["property_type", "property_types", "propertyType", "propertyTypes"]));
   if (propertyTypes.length > 0) where.property_type = { in: propertyTypes };
+
+  // PropertySubType is a DIFFERENT provider fact from PropertyType — a scalar
+  // 75-member enum, probed live 2026-08-21. Rendered from the same contract that
+  // renders the OData half in `crm-idx-filter.ts`, so the provider path and the
+  // projection path describe ONE universe rather than two.
+  //
+  // `parsePropertySubTypeCriterion` throws `UnknownPropertySubTypeError` on a
+  // token that is not a live member. That is deliberate: the provider answers a
+  // MIS-CASED literal with HTTP 200 and zero rows, so a silently-dropped token
+  // would hand a broker a plausible-looking wrong result set with no signal.
+  const subTypeMembers = parsePropertySubTypeCriterion(
+    first(criteria, [
+      "property_sub_type",
+      "propertySubType",
+      "property_sub_types",
+      "propertySubTypes",
+    ]) as string | string[] | undefined,
+  );
+  const subTypePredicate = propertySubTypePrisma(subTypeMembers);
+  if (subTypePredicate) where.property_sub_type = subTypePredicate;
 
   const borough = first(criteria, ["borough"]);
   if (typeof borough === "string" && borough.trim() !== "") {
@@ -369,6 +690,8 @@ export function criteriaToProjectionWhere(
     if (minSqft !== undefined) where.living_area.gte = minSqft;
     if (maxSqft !== undefined) where.living_area.lte = maxSqft;
   }
+
+  appendProvenProjectionCriteria(where, criteria);
 
   if (options.modifiedSince) {
     where.modified_at = { gte: options.modifiedSince };

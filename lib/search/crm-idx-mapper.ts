@@ -1,16 +1,18 @@
 import { resolveListingMedia } from "@/lib/media/listing-media-resolver";
+import { classifyPropertyType } from "@/lib/search/canonical/property-type-universe";
+import { isStandardStatusMember } from "@/lib/search/canonical/status-token-contract";
+import { readCustomFields } from "@/lib/search/canonical/custom-fields";
 
-// REBNY IDX Plus pre-filter: REBNY/Cotality removes non-displayable rows from
-// the IDX Plus feed upstream, leaving InternetEntireListingDisplayYN and
-// InternetAddressDisplayYN null on the survivors. Treat null as displayable;
-// honor explicit false. Mirrors the writer-side convention at
-// lib/idx/trestle-mapper.ts:705-706 (commit 0309875b 2026-04-30) and the
-// reader-side gate at lib/compliance/gates.ts (idxPlusPreFiltered option).
+/**
+ * Existing authenticated-feed display convention. This is a Mallan runtime
+ * convention, NOT a claim about Cotality null semantics. Explicit false is
+ * always honored; the separate compliance gate remains authoritative.
+ */
 function isIdxPlusDisplayFlagOn(v: unknown): boolean {
   return v !== false && v !== "false" && v !== "FALSE";
 }
 
-export function mapDisplayPropertyType(raw: Record<string, unknown>): string {
+export function mapDisplayPropertyType(raw: Record<string, unknown>): string | null {
   const ci = raw.CommonInterest ? String(raw.CommonInterest) : "";
   if (ci === "Condominium") return "Condo";
   if (ci === "StockCooperative") return "Co-op";
@@ -26,21 +28,78 @@ export function mapDisplayPropertyType(raw: Record<string, unknown>): string {
   if (sub.includes("multi")) return "Multi-Family";
   if (sub === "apartment") return "Residential";
   if (sub) return String(raw.PropertySubType);
-  return String(raw.PropertyType || "Residential");
+  return raw.PropertyType != null && String(raw.PropertyType) !== ""
+    ? String(raw.PropertyType)
+    : null;
 }
 
+/**
+ * Mallan media GROUPING from the exact Cotality MediaCategory value.
+ *
+ * Live Cotality declares Photo, FloorPlan and Video as exact members. It does
+ * NOT declare a generic VirtualTour member, and every other declared category
+ * remains unclassified until its business equivalence is separately proven.
+ * Unknown/null is never a photograph.
+ */
 export function classifyMediaCategory(media: Record<string, unknown>): string {
-  const cat = String(media.MediaCategory || "").toLowerCase();
-  if (cat.includes("floor plan")) return "FloorPlan";
-  if (cat.includes("video")) return "Video";
-  if (cat.includes("virtual tour")) return "VirtualTour";
-  return "Photo";
+  const category = media.MediaCategory == null ? "" : String(media.MediaCategory);
+  if (category === "Photo") return "Photo";
+  if (category === "FloorPlan") return "FloorPlan";
+  if (category === "Video") return "Video";
+  return "Unclassified";
+}
+
+/** Provider number or null. Absent/unparsable is never silently zero. */
+function num(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Exact Cotality provider identity for Property.
+ *
+ * Live authenticated $metadata: Property.ListingKey is String(20) and
+ * Nullable=false. ListingId is separately nullable; SourceSystemKey is provider
+ * lineage. Neither is permitted to impersonate ListingKey.
+ */
+function listingIdentity(raw: Record<string, unknown>): string | null {
+  const value = raw.ListingKey;
+  if (value === null || value === undefined || String(value) === "") return null;
+  return String(value);
+}
+
+export function hasUsableListingIdentity(raw: Record<string, unknown>): boolean {
+  return listingIdentity(raw) !== null;
+}
+
+/**
+ * A provider MULTI-ENUM collection, or null when the provider sent nothing.
+ *
+ * Absent stays null rather than becoming `[]`: an empty collection is the
+ * provider asserting "none", which is a different fact from "not supplied".
+ * A single scalar is wrapped rather than String()-coerced, so a one-member
+ * response cannot decay into a per-character array downstream.
+ */
+function multiEnumOrNull(value: unknown): string[] | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (Array.isArray(value)) return value.map((v) => String(v));
+  return [String(value)];
+}
+
+/** Provider boolean or null. Never invents true/false. */
+function boolOrNull(value: unknown): boolean | null {
+  if (value === true || value === "true" || value === 1 || value === "1") return true;
+  if (value === false || value === "false" || value === 0 || value === "0") return false;
+  return null;
 }
 
 export function mapTrestleToCrmListing(
   raw: Record<string, unknown>,
   index: number,
 ): Record<string, unknown> {
+  void index;
+
   const streetParts = [
     raw.StreetNumber,
     raw.StreetDirPrefix,
@@ -51,23 +110,29 @@ export function mapTrestleToCrmListing(
   const address = streetParts.join(" ").toUpperCase() || "";
 
   const propertyType = String(raw.PropertyType || "");
-  const isRental = propertyType.toLowerCase().includes("lease");
-  const price = Number(raw.ListPrice) || 0;
+  const universe = classifyPropertyType(propertyType);
+  const isRental = universe === "rental";
+  const price = num(raw.ListPrice);
   const yearBuilt = raw.YearBuilt != null ? Number(raw.YearBuilt) : null;
 
-  const taxAnnual = Number(raw.TaxAnnualAmount) || 0;
-  const monthlyTax = taxAnnual / 12;
-  const maintCC = Number(raw.AssociationFee) || 0;
+  const taxAnnual = num(raw.TaxAnnualAmount);
+  const monthlyTax = taxAnnual === null ? null : taxAnnual / 12;
+
+  // Cotality carries the unit in a separate FeeFrequency enum. A fee is a
+  // monthly carrying cost ONLY when the provider explicitly says Monthly.
+  // Quarterly/annual/semi-monthly/etc. are preserved raw for later business
+  // normalization; Other/SeeAgent/SeeRemarks/NotApplicable are not periods at all.
+  const associationFee = num(raw.AssociationFee);
+  const associationFeeFrequency = raw.AssociationFeeFrequency != null
+    ? String(raw.AssociationFeeFrequency)
+    : null;
+  const maintCC = associationFeeFrequency === "Monthly" ? associationFee : null;
 
   const addressDisplayYN = isIdxPlusDisplayFlagOn(raw.InternetAddressDisplayYN);
   const displayAddress = addressDisplayYN
     ? address
     : "ADDRESS AVAILABLE UPON REQUEST";
 
-  // Photo-first media ordering — single source of truth in
-  // lib/media/listing-media-resolver.ts. Replaces the prior
-  // `isPrimary: i === 0` index-based assignment which would mark a FloorPlan
-  // as primary whenever Trestle returned floor-plan rows ahead of photo rows.
   const media = Array.isArray(raw.Media) ? raw.Media : [];
   const resolved = resolveListingMedia(media);
   const images = resolved.map(m => ({
@@ -76,52 +141,51 @@ export function mapTrestleToCrmListing(
     order: m.providerOrder,
     mediaType: m.mediaType,
   }));
-  const photoCount = Number(raw.PhotosCount) || images.length;
+  const providerPhotoCount = num(raw.PhotosCount);
+  const photoCount = providerPhotoCount !== null ? providerPhotoCount
+    : images.length > 0 ? images.length
+    : null;
 
   const customProps = Array.isArray(raw.CustomProperty)
     ? raw.CustomProperty[0] as Record<string, unknown> | undefined
     : raw.CustomProperty as Record<string, unknown> | undefined;
-  // DownPaymentAssistance* are live Property fields (migrated from CustomProperty,
-  // 2026-06-04). Read Property first; fall back to legacy CustomProperty values
-  // ONLY when the Property field is blank/null — protects old raw_data that stored
-  // these under CustomProperty.
+
+  // Legacy raw_data compatibility only. These are now declared Property fields;
+  // no new provider mapping is inferred from the old CustomProperty shape.
   const dpaAmountSrc =
-    raw.DownPaymentAssistanceAmount != null && raw.DownPaymentAssistanceAmount !== ''
+    raw.DownPaymentAssistanceAmount != null && raw.DownPaymentAssistanceAmount !== ""
       ? raw.DownPaymentAssistanceAmount
       : customProps?.DownPaymentAssistanceAmount;
-  const dpaAmount = dpaAmountSrc != null && dpaAmountSrc !== '' ? Number(dpaAmountSrc) : null;
+  const dpaAmount = dpaAmountSrc != null && dpaAmountSrc !== "" ? Number(dpaAmountSrc) : null;
   const dpaCountSrc =
-    raw.DownPaymentAssistanceCount != null && raw.DownPaymentAssistanceCount !== ''
+    raw.DownPaymentAssistanceCount != null && raw.DownPaymentAssistanceCount !== ""
       ? raw.DownPaymentAssistanceCount
       : customProps?.DownPaymentAssistanceCount;
-  const dpaCount = dpaCountSrc != null && dpaCountSrc !== '' ? Number(dpaCountSrc) : null;
+  const dpaCount = dpaCountSrc != null && dpaCountSrc !== "" ? Number(dpaCountSrc) : null;
 
-  // CustomFields is a REBNY-specific JSON string on CustomProperty that
-  // carries 41 NYC-specific flags (per CLAUDE.md). SponsorUnitYN is the
-  // canonical source-of-truth for "Is this a sponsor sale?" — the prior
-  // CRM rendering (grid-column-defs.js:63) showed a static '--' because
-  // there was no source. Now we parse the JSON once and expose
-  // sponsorUnit: true | false | null on the flat listing shape.
-  // null = unknown (CustomProperty not expanded, or field absent in JSON).
-  // Listing-detail and column renderers can read l.sponsorUnit directly.
-  let sponsorUnit: boolean | null = null;
+  // ONE parser for CustomProperty.CustomFields.
+  //
+  // This hand-decoded the JSON payload for `SponsorUnitYN` alone. Adding a
+  // second reader for `MaximumFinancingPercent` here — and a third wherever the
+  // projection needed it — would give one provider payload several
+  // interpretations free to disagree about the same listing. The decoding,
+  // the 0.00 sentinel rule and the range checks live in one canonical module.
   const customFieldsRaw = customProps?.CustomFields;
-  if (typeof customFieldsRaw === "string" && customFieldsRaw.length > 0) {
-    try {
-      const parsed = JSON.parse(customFieldsRaw) as Record<string, unknown>;
-      const v = parsed?.SponsorUnitYN;
-      if (v === true || v === "true" || v === "Yes" || v === 1) sponsorUnit = true;
-      else if (v === false || v === "false" || v === "No" || v === 0) sponsorUnit = false;
-    } catch {
-      // Malformed JSON — leave sponsorUnit as null. No log spam: CustomFields
-      // is provider-controlled and may legitimately be empty / non-JSON
-      // for older listings or non-REBNY MLOs.
-    }
-  }
+  const customFacts = readCustomFields(customFieldsRaw);
+  const sponsorUnit = customFacts.sponsorUnit;
 
-  const originalPrice = Number(raw.OriginalListPrice) || 0;
+  // A LISTING-level observation of the building's financing limit. Kept as the
+  // observation it is — `not_specified` is distinct from a stated 0, because the
+  // provider uses 0.00 as its not-specified sentinel. Reconciling several
+  // listings into one BUILDING answer is a separate step with its own rule.
+  const maximumFinancingPercent =
+    customFacts.maximumFinancingPercent.kind === "stated"
+      ? customFacts.maximumFinancingPercent.percent
+      : null;
+
+  const originalPrice = num(raw.OriginalListPrice);
   let priceChange: string | null = null;
-  if (originalPrice > 0 && originalPrice !== price) {
+  if (price !== null && originalPrice !== null && originalPrice !== price) {
     priceChange = price < originalPrice ? "down" : "up";
   }
 
@@ -132,92 +196,122 @@ export function mapTrestleToCrmListing(
     else era = "Pre-War";
   }
 
-  const mlsStatus = String(raw.MlsStatus || raw.StandardStatus || "Active");
-  const statusMap: Record<string, string> = {
-    Active: "ACTIVE",
-    ComingSoon: "COMING_SOON",
-    "Coming Soon": "COMING_SOON",
-    ActiveUnderContract: "PENDING",
-    "Active Under Contract": "PENDING",
-    Pending: "PENDING",
-    Closed: "CLOSED",
-    Expired: "EXPIRED",
-    Withdrawn: "WITHDRAWN",
-    Hold: "HOLD",
-    Incomplete: "INCOMPLETE",
-    Canceled: "CANCELLED",
-    Cancelled: "CANCELLED",
-    // ── UCBA Art. I §5(D) — "Off-Market" labeling is prohibited.
-    // Some MLS feeds (or stale data sources) may emit "Off Market" /
-    // "Off-Market" / "OffMarket" in MlsStatus. Map all variants to
-    // "WITHDRAWN", the closest UCBA-compliant canonical status.
-    // Without this mapping, the prior `mlsStatus.toUpperCase()`
-    // fallback would produce "OFF MARKET" — a literal violation.
-    "Off Market": "WITHDRAWN",
-    "Off-Market": "WITHDRAWN",
-    OffMarket: "WITHDRAWN",
-    offMarket: "WITHDRAWN",
-    "off market": "WITHDRAWN",
-  };
-  // Unmapped values fall through to "UNKNOWN" — a SAFE default that
-  // never accidentally surfaces non-canonical status text in UCBA-
-  // sensitive contexts. Renderers should treat UNKNOWN as a non-active
-  // sentinel and either suppress badges or show a neutral indicator.
-  // (Was: `mlsStatus.toUpperCase()` which could produce "OFF MARKET",
-  // "FUTURE", or any other vendor-specific string in the UI.)
-  const status = statusMap[mlsStatus] || "UNKNOWN";
+  const standardStatus = raw.StandardStatus;
+  const status = isStandardStatusMember(standardStatus) ? standardStatus : "UNKNOWN";
 
-  // ── Coming Soon date (UCBA Art. I §16(C)) ──────────────────────────
-  // UCBA requires "No Showings or Open House until [date]" disclosure
-  // for Coming Soon listings. The date must be specific. Previously
-  // comingSoonDate was hard-coded to null in the return object, and
-  // the badge renderer fell back to the vague string "until active
-  // date". Pull the actual date from Trestle:
-  //   ActivationDate    — REBNY's "showings begin" timestamp
-  //   OnMarketDate      — RESO standard fallback
-  // Format as ISO YYYY-MM-DD for downstream display.
+  // Transitional field name: downstream consumers currently read mlsStatus as
+  // effective StandardStatus. Raw Cotality MlsStatus is preserved separately and
+  // never participates in status decisions.
+  const mlsStatus = standardStatus != null ? String(standardStatus) : "";
+  const providerMlsStatus = raw.MlsStatus != null ? String(raw.MlsStatus) : null;
+
   let comingSoonDate: string | null = null;
-  if (status === "COMING_SOON") {
+  if (status === "ComingSoon") {
     const dateRaw = raw.ActivationDate ?? raw.OnMarketDate;
-    if (dateRaw) {
-      comingSoonDate = String(dateRaw).split("T")[0];
-    }
+    if (dateRaw) comingSoonDate = String(dateRaw).split("T")[0];
   }
 
+  const listingKey = listingIdentity(raw);
+
   return {
-    id: String(raw.ListingId || raw.SourceSystemKey || index + 1),
+    id: listingKey,
     address: displayAddress,
     unit: String(raw.UnitNumber || ""),
     price,
-    totalMonthly: isRental ? price : monthlyTax + maintCC,
-    rooms: Number(raw.RoomsTotal) || 0,
-    beds: Number(raw.BedroomsTotal) || 0,
-    baths:
-      raw.BathroomsTotalInteger != null ? Number(raw.BathroomsTotalInteger) :
-      (Number(raw.BathroomsFull) || 0) +
-      (Number(raw.BathroomsHalf) || 0) * 0.5,
-    fullBaths: Number(raw.BathroomsFull) || 0,
-    halfBaths: Number(raw.BathroomsHalf) || 0,
+
+    // Rental list price remains a Cotality fact. Sale "total monthly" is only a
+    // TOTAL when both tax and an explicitly-monthly association fee are known.
+    totalMonthly: isRental ? price
+      : (monthlyTax !== null && maintCC !== null) ? monthlyTax + maintCC
+      : null,
+
+    rooms: num(raw.RoomsTotal),
+    beds: num(raw.BedroomsTotal),
+    baths: (() => {
+      if (raw.BathroomsTotalInteger != null) return Number(raw.BathroomsTotalInteger);
+      const f = num(raw.BathroomsFull);
+      const h = num(raw.BathroomsHalf);
+      if (f === null && h === null) return null;
+      return (f ?? 0) + (h ?? 0) * 0.5;
+    })(),
+    fullBaths: num(raw.BathroomsFull),
+    halfBaths: num(raw.BathroomsHalf),
     reTaxes: monthlyTax,
     maintCC,
+    associationFee,
+    associationFeeFrequency,
     intSqft: raw.LivingArea != null ? Number(raw.LivingArea) : null,
+
     status,
     mlsStatus,
-    ownership: String(raw.CommonInterest || raw.OwnershipType || ""),
+    providerMlsStatus,
+
+    // CommonInterest is the verified ownership fact. OwnershipType is a
+    // separate Cotality field and is preserved separately rather than used as a
+    // silent fallback.
+    ownership: raw.CommonInterest != null ? String(raw.CommonInterest) : "",
+    providerOwnershipType: raw.OwnershipType != null ? String(raw.OwnershipType) : null,
     propertyType: mapDisplayPropertyType(raw),
     propertySubType: String(raw.PropertySubType || ""),
-    neighborhood: String(raw.SubdivisionName || ""),
-    borough: String(raw.CityRegion || raw.CountyOrParish || "Manhattan"),
+
+    // Geography semantics are not yet closed against live Cotality. Preserve the
+    // raw facts without asserting that SubdivisionName/CityRegion/CountyOrParish
+    // are the Mallan neighborhood/borough concepts.
+    neighborhood: null,
+    borough: null,
+    providerSubdivisionName: raw.SubdivisionName != null ? String(raw.SubdivisionName) : null,
+    providerCityRegion: raw.CityRegion != null ? String(raw.CityRegion) : null,
+    providerCountyOrParish: raw.CountyOrParish != null ? String(raw.CountyOrParish) : null,
     zip: String(raw.PostalCode || ""),
+
     yearBuilt,
     era,
     buildingName: raw.BuildingName ? String(raw.BuildingName) : null,
     buildingKey: raw.BuildingKeyNumeric != null ? Number(raw.BuildingKeyNumeric) : null,
-    listingType: "Exclusive",
-    lid: String(raw.ListingId || ""),
-    wid: raw.SourceSystemKey ? String(raw.SourceSystemKey) : null,
-    dom: Number(raw.DaysOnMarket) || 0,
-    cdom: Number(raw.CumulativeDaysOnMarket) || 0,
+    listingType: null,
+
+    // Distinct provider identity/lineage domains.
+    lid: raw.ListingId != null ? String(raw.ListingId) : "",
+    wid: listingKey,
+    providerListingId: raw.ListingId != null ? String(raw.ListingId) : null,
+    providerSourceSystemKey: raw.SourceSystemKey != null ? String(raw.SourceSystemKey) : null,
+
+    // ── Verified rental fee facts, preserved (not rendered here) ─────────────
+    //
+    // The Search route already selects these four from the live Property feed
+    // and they were being discarded at this boundary. They are NOT displayed on
+    // the authenticated Agent grid — Maya's 2026-08-26 determination is that an
+    // agent-only workbench is not the consumer-facing disclosure surface the
+    // FARE Act (NYC LL 119/2024) governs. They are preserved so that any
+    // downstream CLIENT-FACING rental output — share page, listing email,
+    // rental report, print, client collection, portal — can disclose
+    // tenant-payable fees from verified provider facts rather than re-fetching
+    // or inventing them.
+    //
+    // Live $metadata (probed 2026-08-26): MoveInCosts, OngoingFees and
+    // TenantPays are MULTI-ENUMS (Enums.Multi.*); TenantPaysDescription is a
+    // nullable String(1024). The collections stay collections — flattening them
+    // to a comma-joined string would force every consumer to re-parse something
+    // the provider never sent.
+    //
+    // ABSENT IS null, NEVER []. `[]` asserts "the provider says there are no
+    // tenant-payable fees"; null says "we were not told". A disclosure surface
+    // must be able to tell those apart, so the distinction is preserved here.
+    providerMoveInCosts: multiEnumOrNull(raw.MoveInCosts),
+    // Edm.Decimal(14,2) nullable. `num()` keeps a genuine 0 as 0 and turns an
+    // unparsable value into null rather than NaN — an amount is the single most
+    // disclosure-critical fee fact, so it must never silently become zero.
+    providerMoveInCostsAmount: num(raw.MoveInCostsAmount),
+    // Edm.String(1024) nullable — the human explanation of the amount.
+    providerMoveInCostsComments:
+      raw.MoveInCostsComments != null ? String(raw.MoveInCostsComments) : null,
+    providerOngoingFees: multiEnumOrNull(raw.OngoingFees),
+    providerTenantPays: multiEnumOrNull(raw.TenantPays),
+    providerTenantPaysDescription:
+      raw.TenantPaysDescription != null ? String(raw.TenantPaysDescription) : null,
+
+    dom: num(raw.DaysOnMarket),
+    cdom: num(raw.CumulativeDaysOnMarket),
     listedDate: raw.ListingContractDate
       ? new Date(String(raw.ListingContractDate)).toLocaleDateString("en-US")
       : "",
@@ -229,11 +323,17 @@ export function mapTrestleToCrmListing(
     agentEmail: String(raw.ListAgentEmail || ""),
     agentPhone: String(raw.ListAgentDirectPhone || ""),
     priceChange,
-    originalPrice: originalPrice > 0 && originalPrice !== price ? originalPrice : null,
+    originalPrice: originalPrice !== null && originalPrice !== price ? originalPrice : null,
     photoCount,
     images,
-    latitude: raw.Latitude != null ? Number(raw.Latitude) : null,
-    longitude: raw.Longitude != null ? Number(raw.Longitude) : null,
+
+    // Raw provider coordinate evidence. Canonical map coordinates are a
+    // different Mallan fact and are not asserted here.
+    latitude: null,
+    longitude: null,
+    providerLatitude: raw.Latitude != null ? Number(raw.Latitude) : null,
+    providerLongitude: raw.Longitude != null ? Number(raw.Longitude) : null,
+
     crossStreet: String(raw.CrossStreet || ""),
     floor: null,
     description: String(raw.PublicRemarks || ""),
@@ -242,27 +342,34 @@ export function mapTrestleToCrmListing(
       : raw.VirtualTourURLBranded
         ? String(raw.VirtualTourURLBranded)
         : null,
-    idxDisplayYN: true,
+
+    idxDisplayYN: isIdxPlusDisplayFlagOn(raw.InternetEntireListingDisplayYN),
     internetDisplayYN: isIdxPlusDisplayFlagOn(raw.InternetEntireListingDisplayYN),
     addressDisplayYN,
-    listingCategory: isRental ? "rental" : undefined,
+    listingCategory: universe === "unknown" ? undefined : universe,
     closedDate: raw.CloseDate ? String(raw.CloseDate) : null,
     contractDate: raw.ListingContractDate ? String(raw.ListingContractDate) : null,
     comingSoonDate,
     downPaymentAssistanceAmount: dpaAmount,
     downPaymentAssistanceCount: dpaCount,
     sponsorUnit,
+    maximumFinancingPercent,
+
     permissions: {
-      ownerOptOut: false,
-      participantOnly: false,
-      idxDisplay: true,
+      // No live Property field named OwnerOptOut/ParticipantOnly has been
+      // established for this mapper. Unknown stays unknown rather than being
+      // manufactured from unrelated provider facts.
+      ownerOptOut: null,
+      participantOnly: null,
+      idxDisplay: isIdxPlusDisplayFlagOn(raw.InternetEntireListingDisplayYN),
       internetDisplay: isIdxPlusDisplayFlagOn(raw.InternetEntireListingDisplayYN),
-      syndication: true,
+      syndication: null,
     },
+
     ListingAgreement: raw.ListingAgreement ? String(raw.ListingAgreement) : null,
-    LandLeaseYN: raw.LandLeaseYN === true || raw.LandLeaseYN === "true",
-    CoolingYN: raw.CoolingYN === true || raw.CoolingYN === "true",
-    GarageYN: raw.GarageYN === true || raw.GarageYN === "true",
+    LandLeaseYN: boolOrNull(raw.LandLeaseYN),
+    CoolingYN: boolOrNull(raw.CoolingYN),
+    GarageYN: boolOrNull(raw.GarageYN),
     DirectionFaces: raw.DirectionFaces ? String(raw.DirectionFaces) : null,
     View: raw.View ? String(raw.View) : null,
     OwnerPays: raw.OwnerPays ? String(raw.OwnerPays) : null,
@@ -278,13 +385,14 @@ export function mapTrestleToCrmListing(
     PatioAndPorchFeatures: raw.PatioAndPorchFeatures ? String(raw.PatioAndPorchFeatures) : null,
     AssociationAmenities: raw.AssociationAmenities ? String(raw.AssociationAmenities) : null,
     CurrentFinancing: raw.CurrentFinancing ? String(raw.CurrentFinancing) : null,
-    PetsAllowedYN: raw.PetsAllowedYN === true || raw.PetsAllowedYN === "true",
+    PetsAllowedYN: boolOrNull(raw.PetsAllowedYN),
     AvailableLeaseType: raw.AvailableLeaseType ? String(raw.AvailableLeaseType) : null,
     ExistingLeaseType: raw.ExistingLeaseType ? String(raw.ExistingLeaseType) : null,
     ConstructionMaterials: raw.ConstructionMaterials ? String(raw.ConstructionMaterials) : null,
-    NewConstructionYN: raw.NewConstructionYN === true || raw.NewConstructionYN === "true",
+    NewConstructionYN: boolOrNull(raw.NewConstructionYN),
     PriceChangeTimestamp: raw.PriceChangeTimestamp ? String(raw.PriceChangeTimestamp) : null,
+
     _source: "idx",
-    _listingKey: String(raw.ListingId || raw.SourceSystemKey || ""),
+    _listingKey: listingKey ?? "",
   };
 }

@@ -102,7 +102,7 @@ describe("projectionRowMateriallyEqual", () => {
   it("amenity/feature-flag change → NOT equal", () => {
     const existing = dbProjectionRow(sourceFixture());
     const next = buildListingSearchProjectionFromListing(
-      sourceFixture({ features: { PublicRemarks: "Bright two bedroom.", PetsAllowed: "CatsOK" } }),
+      sourceFixture({ features: { PublicRemarks: "Bright two bedroom.", PetsAllowed: "CatsOk" } }),
     );
     expect(projectionRowMateriallyEqual(existing, next)).toBe(false);
   });

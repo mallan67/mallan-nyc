@@ -1,0 +1,1869 @@
+{
+  "probedAt": "2026-08-21T18:55:29.334Z",
+  "api": "https://api.cotality.com/trestle",
+  "resourceInventory": {
+    "entityTypeCount": 17,
+    "fieldCounts": {
+      "Property": 757,
+      "Office": 80,
+      "Member": 91,
+      "Media": 56,
+      "OpenHouse": 47,
+      "CustomProperty": 142,
+      "PropertyRooms": 39,
+      "PropertyUnitTypes": 52,
+      "Teams": 48,
+      "TeamMembers": 29,
+      "Field": 15,
+      "Lookup": 15,
+      "Model": 8,
+      "PropertyGreenVerification": 39,
+      "Building": 1,
+      "HistoryTransactional": 29,
+      "Enumeration": 8
+    },
+    "propertyNavigationProperties": [
+      {
+        "name": "Media",
+        "type": "Collection(Cotality.DataStandard.RESO.DD.Media)"
+      },
+      {
+        "name": "OpenHouse",
+        "type": "Collection(Cotality.DataStandard.RESO.DD.OpenHouse)"
+      },
+      {
+        "name": "BuyerAgent",
+        "type": "Collection(Cotality.DataStandard.RESO.DD.Member)"
+      },
+      {
+        "name": "CoBuyerAgent",
+        "type": "Collection(Cotality.DataStandard.RESO.DD.Member)"
+      },
+      {
+        "name": "CoListAgent",
+        "type": "Collection(Cotality.DataStandard.RESO.DD.Member)"
+      },
+      {
+        "name": "ListAgent",
+        "type": "Collection(Cotality.DataStandard.RESO.DD.Member)"
+      },
+      {
+        "name": "BuyerOffice",
+        "type": "Collection(Cotality.DataStandard.RESO.DD.Office)"
+      },
+      {
+        "name": "CoBuyerOffice",
+        "type": "Collection(Cotality.DataStandard.RESO.DD.Office)"
+      },
+      {
+        "name": "CoListOffice",
+        "type": "Collection(Cotality.DataStandard.RESO.DD.Office)"
+      },
+      {
+        "name": "ListOffice",
+        "type": "Collection(Cotality.DataStandard.RESO.DD.Office)"
+      },
+      {
+        "name": "CustomProperty",
+        "type": "Collection(Cotality.DataStandard.RESO.DD.CustomProperty)"
+      },
+      {
+        "name": "Rooms",
+        "type": "Collection(Cotality.DataStandard.RESO.DD.PropertyRooms)"
+      },
+      {
+        "name": "UnitTypes",
+        "type": "Collection(Cotality.DataStandard.RESO.DD.PropertyUnitTypes)"
+      },
+      {
+        "name": "Building",
+        "type": "Collection(Cotality.DataStandard.RESO.DD.Building)"
+      }
+    ]
+  },
+  "classificationFields": {
+    "PropertyType": {
+      "declared": "Cotality.DataStandard.RESO.DD.Enums.PropertyType",
+      "typeName": "Cotality.DataStandard.RESO.DD.Enums.PropertyType",
+      "isMulti": false,
+      "members": [
+        "BusinessOpportunity",
+        "CommercialLease",
+        "CommercialSale",
+        "DisasterReliefRental",
+        "Farm",
+        "HighRise",
+        "Land",
+        "ManufacturedInPark",
+        "MultiFamily",
+        "Residential",
+        "ResidentialIncome",
+        "ResidentialLease",
+        "Specialty"
+      ]
+    },
+    "PropertySubType": {
+      "declared": "Cotality.DataStandard.RESO.DD.Enums.PropertySubType",
+      "typeName": "Cotality.DataStandard.RESO.DD.Enums.PropertySubType",
+      "isMulti": false,
+      "members": [
+        "Acreage",
+        "Agriculture",
+        "Apartment",
+        "Attached",
+        "BoatSlip",
+        "Building",
+        "BuildingBusiness",
+        "BuildingLand",
+        "BuildingLandBusiness",
+        "Business",
+        "BusinessLand",
+        "Cabin",
+        "Chalet",
+        "Cluster",
+        "Commercial",
+        "Condominium",
+        "CoOwnership",
+        "DeededParking",
+        "Detached",
+        "Dockominium",
+        "Duplex",
+        "Earthship",
+        "Farm",
+        "FlexibleSpace",
+        "Fractional",
+        "Garage",
+        "HalfDuplex",
+        "HotelMotel",
+        "ImprovedLand",
+        "Industrial",
+        "Institutional",
+        "Investment",
+        "Land",
+        "LiveWork",
+        "Loft",
+        "ManufacturedHome",
+        "ManufacturedOnLand",
+        "MiningClaim",
+        "MixedUse",
+        "MobileHome",
+        "MobileHomePark",
+        "ModularHome",
+        "MultiFamily",
+        "MultipleParcels",
+        "NewHomeCommunity",
+        "NewHomePlan",
+        "NewHomeSpecHome",
+        "NoLand",
+        "Office",
+        "Other",
+        "OwnYourOwn",
+        "ParkModel",
+        "Quadruplex",
+        "Ranch",
+        "Recreation",
+        "Residential",
+        "Retail",
+        "RoomingHouse",
+        "RoomsForRent",
+        "SemiDetached",
+        "SingleFamilyResidence",
+        "SitePlanned",
+        "SpecialPurpose",
+        "StockCooperative",
+        "Studio",
+        "TenancyInCommon",
+        "Timeshare",
+        "ToBeBuilt",
+        "Townhouse",
+        "Triplex",
+        "TwoApartment",
+        "UnimprovedLand",
+        "Villa",
+        "Warehouse",
+        "WaterPositionWithLand"
+      ]
+    },
+    "PropertySubTypeAdditional": {
+      "declared": "Cotality.DataStandard.RESO.DD.Enums.Multi.PropertySubTypeAdditional",
+      "typeName": "Cotality.DataStandard.RESO.DD.Enums.Multi.PropertySubTypeAdditional",
+      "isMulti": true,
+      "members": [
+        "Acreage",
+        "Agriculture",
+        "Apartment",
+        "Attached",
+        "BoatSlip",
+        "Building",
+        "BuildingBusiness",
+        "BuildingLand",
+        "BuildingLandBusiness",
+        "Business",
+        "BusinessLand",
+        "Cabin",
+        "Chalet",
+        "Cluster",
+        "Commercial",
+        "Condominium",
+        "CoOwnership",
+        "DeededParking",
+        "Detached",
+        "Dockominium",
+        "Duplex",
+        "Earthship",
+        "Farm",
+        "FlexibleSpace",
+        "Fractional",
+        "Garage",
+        "HalfDuplex",
+        "HotelMotel",
+        "ImprovedLand",
+        "Industrial",
+        "Institutional",
+        "Investment",
+        "Land",
+        "LiveWork",
+        "Loft",
+        "ManufacturedHome",
+        "ManufacturedOnLand",
+        "MiningClaim",
+        "MixedUse",
+        "MobileHome",
+        "MobileHomePark",
+        "ModularHome",
+        "MultiFamily",
+        "MultipleParcels",
+        "NewHomeCommunity",
+        "NewHomePlan",
+        "NewHomeSpecHome",
+        "NoLand",
+        "Office",
+        "Other",
+        "OwnYourOwn",
+        "ParkModel",
+        "Quadruplex",
+        "Ranch",
+        "Recreation",
+        "Residential",
+        "Retail",
+        "RoomingHouse",
+        "RoomsForRent",
+        "SemiDetached",
+        "SingleFamilyResidence",
+        "SitePlanned",
+        "SpecialPurpose",
+        "StockCooperative",
+        "Studio",
+        "TenancyInCommon",
+        "Timeshare",
+        "ToBeBuilt",
+        "Townhouse",
+        "Triplex",
+        "TwoApartment",
+        "UnimprovedLand",
+        "Villa",
+        "Warehouse",
+        "WaterPositionWithLand"
+      ]
+    },
+    "StructureType": {
+      "declared": "Cotality.DataStandard.RESO.DD.Enums.Multi.StructureType",
+      "typeName": "Cotality.DataStandard.RESO.DD.Enums.Multi.StructureType",
+      "isMulti": true,
+      "members": [
+        "Apartment",
+        "Cabin",
+        "Dock",
+        "Duplex",
+        "Flex",
+        "FreeStandingBuilding",
+        "HighRise",
+        "HotelMotel",
+        "House",
+        "Industrial",
+        "LowRise",
+        "ManufacturedHouse",
+        "MidRise",
+        "MixedUse",
+        "MultiFamily",
+        "None",
+        "Office",
+        "Other",
+        "Quadruplex",
+        "Retail",
+        "Townhouse",
+        "Triplex",
+        "Warehouse"
+      ]
+    },
+    "CommonInterest": {
+      "declared": "Cotality.DataStandard.RESO.DD.Enums.CommonInterest",
+      "typeName": "Cotality.DataStandard.RESO.DD.Enums.CommonInterest",
+      "isMulti": false,
+      "members": [
+        "BareLandCondominium",
+        "CommunityApartment",
+        "Condominium",
+        "Condop",
+        "CoOwnership",
+        "Freehold",
+        "Leasehold",
+        "None",
+        "Other",
+        "PlannedDevelopment",
+        "RentalBuilding",
+        "StockCooperative",
+        "Timeshare"
+      ]
+    },
+    "OwnershipType": {
+      "declared": "Cotality.DataStandard.RESO.DD.Enums.OwnershipType",
+      "typeName": "Cotality.DataStandard.RESO.DD.Enums.OwnershipType",
+      "isMulti": false,
+      "members": [
+        "Common",
+        "CoOwnership",
+        "Corporation",
+        "FeeSimple",
+        "Fractional",
+        "Franchise",
+        "LimitedPartnership",
+        "Llc",
+        "Partnership",
+        "Private",
+        "Reo",
+        "SeeRemarks",
+        "SoleProprietor"
+      ]
+    }
+  },
+  "probes": [
+    {
+      "label": "ALL-STATUS PropertySubType eq Townhouse",
+      "filter": "PropertySubType eq 'Townhouse'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "ALL-STATUS StructureType Townhouse",
+      "filter": "StructureType has Cotality.DataStandard.RESO.DD.Enums.Multi.StructureType'Townhouse'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 5951
+    },
+    {
+      "label": "ACTIVE StructureType Townhouse",
+      "filter": "StandardStatus eq 'Active' and StructureType has Cotality.DataStandard.RESO.DD.Enums.Multi.StructureType'Townhouse'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 612
+    },
+    {
+      "label": "ALL-STATUS CommonInterest eq Condominium",
+      "filter": "CommonInterest eq 'Condominium'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 240272
+    },
+    {
+      "label": "ACTIVE CommonInterest eq Condominium",
+      "filter": "StandardStatus eq 'Active' and CommonInterest eq 'Condominium'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 3722
+    },
+    {
+      "label": "ALL-STATUS PropertySubType eq Condominium",
+      "filter": "PropertySubType eq 'Condominium'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "ACTIVE CommonInterest Condominium AND PropertySubType ne Condominium",
+      "filter": "StandardStatus eq 'Active' and CommonInterest eq 'Condominium' and PropertySubType ne 'Condominium'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 3722
+    },
+    {
+      "label": "ALL-STATUS CommonInterest eq StockCooperative",
+      "filter": "CommonInterest eq 'StockCooperative'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 129041
+    },
+    {
+      "label": "ACTIVE CommonInterest eq StockCooperative",
+      "filter": "StandardStatus eq 'Active' and CommonInterest eq 'StockCooperative'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 2509
+    },
+    {
+      "label": "ALL-STATUS PropertySubType eq StockCooperative",
+      "filter": "PropertySubType eq 'StockCooperative'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "ACTIVE CommonInterest StockCooperative AND PropertySubType ne StockCooperative",
+      "filter": "StandardStatus eq 'Active' and CommonInterest eq 'StockCooperative' and PropertySubType ne 'StockCooperative'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 2509
+    },
+    {
+      "label": "ACTIVE CommonInterest ne null",
+      "filter": "StandardStatus eq 'Active' and CommonInterest ne null",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 8015
+    },
+    {
+      "label": "census CommonInterest BareLandCondominium",
+      "filter": "StandardStatus eq 'Active' and CommonInterest eq 'BareLandCondominium'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "census CommonInterest CommunityApartment",
+      "filter": "StandardStatus eq 'Active' and CommonInterest eq 'CommunityApartment'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "census CommonInterest Condominium",
+      "filter": "StandardStatus eq 'Active' and CommonInterest eq 'Condominium'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 3722
+    },
+    {
+      "label": "census CommonInterest Condop",
+      "filter": "StandardStatus eq 'Active' and CommonInterest eq 'Condop'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 147
+    },
+    {
+      "label": "census CommonInterest CoOwnership",
+      "filter": "StandardStatus eq 'Active' and CommonInterest eq 'CoOwnership'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "census CommonInterest Freehold",
+      "filter": "StandardStatus eq 'Active' and CommonInterest eq 'Freehold'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "census CommonInterest Leasehold",
+      "filter": "StandardStatus eq 'Active' and CommonInterest eq 'Leasehold'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "census CommonInterest None",
+      "filter": "StandardStatus eq 'Active' and CommonInterest eq 'None'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 998
+    },
+    {
+      "label": "census CommonInterest Other",
+      "filter": "StandardStatus eq 'Active' and CommonInterest eq 'Other'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "census CommonInterest PlannedDevelopment",
+      "filter": "StandardStatus eq 'Active' and CommonInterest eq 'PlannedDevelopment'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "census CommonInterest RentalBuilding",
+      "filter": "StandardStatus eq 'Active' and CommonInterest eq 'RentalBuilding'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 639
+    },
+    {
+      "label": "census CommonInterest StockCooperative",
+      "filter": "StandardStatus eq 'Active' and CommonInterest eq 'StockCooperative'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 2509
+    },
+    {
+      "label": "census CommonInterest Timeshare",
+      "filter": "StandardStatus eq 'Active' and CommonInterest eq 'Timeshare'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "ALL-STATUS PropertyType eq Land",
+      "filter": "PropertyType eq 'Land'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "ACTIVE PropertyType eq Land",
+      "filter": "StandardStatus eq 'Active' and PropertyType eq 'Land'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "ALL-STATUS PropertySubType eq UnimprovedLand",
+      "filter": "PropertySubType eq 'UnimprovedLand'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "ALL-STATUS PropertySubType eq Land",
+      "filter": "PropertySubType eq 'Land'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "ALL-STATUS PropertySubType eq ImprovedLand",
+      "filter": "PropertySubType eq 'ImprovedLand'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "ALL-STATUS PropertyType eq MultiFamily",
+      "filter": "PropertyType eq 'MultiFamily'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "ACTIVE PropertyType eq MultiFamily",
+      "filter": "StandardStatus eq 'Active' and PropertyType eq 'MultiFamily'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 0
+    },
+    {
+      "label": "ACTIVE PropertySubType eq MultiFamily",
+      "filter": "StandardStatus eq 'Active' and PropertySubType eq 'MultiFamily'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 426
+    },
+    {
+      "label": "ACTIVE StructureType MultiFamily",
+      "filter": "StandardStatus eq 'Active' and StructureType has Cotality.DataStandard.RESO.DD.Enums.Multi.StructureType'MultiFamily'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 715
+    },
+    {
+      "label": "ACTIVE StructureType MultiFamily AND PropertySubType ne MultiFamily",
+      "filter": "StandardStatus eq 'Active' and StructureType has Cotality.DataStandard.RESO.DD.Enums.Multi.StructureType'MultiFamily' and PropertySubType ne 'MultiFamily'",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 556
+    },
+    {
+      "label": "ACTIVE StructureType ne null",
+      "filter": "StandardStatus eq 'Active' and StructureType ne null",
+      "state": "SUPPORTED",
+      "status": 200,
+      "count": 7152
+    }
+  ],
+  "samples": {
+    "structureTypeTownhouse": [
+      {
+        "BedroomsTotal": 5,
+        "PropertyType": "Residential",
+        "CommonInterest": "None",
+        "StandardStatus": "Active",
+        "PropertySubType": "MultiFamily",
+        "NumberOfUnitsTotal": -1,
+        "StructureType": "Townhouse",
+        "PropertySubTypeAdditional": null,
+        "ListingId": "RLS20110476"
+      },
+      {
+        "BedroomsTotal": 1,
+        "PropertyType": "ResidentialLease",
+        "CommonInterest": "RentalBuilding",
+        "StandardStatus": "Active",
+        "PropertySubType": "SingleFamilyResidence",
+        "NumberOfUnitsTotal": 0,
+        "StructureType": "Townhouse",
+        "PropertySubTypeAdditional": null,
+        "ListingId": "RLS20110431"
+      },
+      {
+        "BedroomsTotal": 5,
+        "PropertyType": "ResidentialLease",
+        "CommonInterest": "None",
+        "StandardStatus": "Active",
+        "PropertySubType": "SingleFamilyResidence",
+        "NumberOfUnitsTotal": 1,
+        "StructureType": "Townhouse",
+        "PropertySubTypeAdditional": null,
+        "ListingId": "RLS20110412"
+      },
+      {
+        "BedroomsTotal": 2,
+        "PropertyType": "Residential",
+        "CommonInterest": "Condominium",
+        "StandardStatus": "Active",
+        "PropertySubType": "Apartment",
+        "NumberOfUnitsTotal": 54,
+        "StructureType": "Townhouse,Triplex",
+        "PropertySubTypeAdditional": "Apartment",
+        "ListingId": "RLS20110257"
+      },
+      {
+        "BedroomsTotal": 1,
+        "PropertyType": "ResidentialLease",
+        "CommonInterest": "None",
+        "StandardStatus": "Active",
+        "PropertySubType": "Triplex",
+        "NumberOfUnitsTotal": 3,
+        "StructureType": "Townhouse,Triplex",
+        "PropertySubTypeAdditional": null,
+        "ListingId": "RLS20110182"
+      },
+      {
+        "BedroomsTotal": 3,
+        "PropertyType": "Residential",
+        "CommonInterest": "None",
+        "StandardStatus": "Active",
+        "PropertySubType": "SingleFamilyResidence",
+        "NumberOfUnitsTotal": 1,
+        "StructureType": "Townhouse",
+        "PropertySubTypeAdditional": null,
+        "ListingId": "RLS20110168"
+      },
+      {
+        "BedroomsTotal": 6,
+        "PropertyType": "Residential",
+        "CommonInterest": "None",
+        "StandardStatus": "Active",
+        "PropertySubType": "MultiFamily",
+        "NumberOfUnitsTotal": 2,
+        "StructureType": "MultiFamily,Townhouse",
+        "PropertySubTypeAdditional": null,
+        "ListingId": "RLS20110138"
+      },
+      {
+        "BedroomsTotal": 4,
+        "PropertyType": "ResidentialLease",
+        "CommonInterest": "None",
+        "StandardStatus": "Active",
+        "PropertySubType": "SingleFamilyResidence",
+        "NumberOfUnitsTotal": 1,
+        "StructureType": "House,Townhouse",
+        "PropertySubTypeAdditional": null,
+        "ListingId": "RLS20110062"
+      },
+      {
+        "BedroomsTotal": 3,
+        "PropertyType": "Residential",
+        "CommonInterest": "None",
+        "StandardStatus": "Active",
+        "PropertySubType": "MultiFamily",
+        "NumberOfUnitsTotal": 2,
+        "StructureType": "MultiFamily,Townhouse",
+        "PropertySubTypeAdditional": null,
+        "ListingId": "RLS20110017"
+      },
+      {
+        "BedroomsTotal": 3,
+        "PropertyType": "ResidentialLease",
+        "CommonInterest": "None",
+        "StandardStatus": "Active",
+        "PropertySubType": "MultiFamily",
+        "NumberOfUnitsTotal": 4,
+        "StructureType": "House,Townhouse",
+        "PropertySubTypeAdditional": null,
+        "ListingId": "RLS20109953"
+      },
+      {
+        "BedroomsTotal": 0,
+        "PropertyType": "Residential",
+        "CommonInterest": "None",
+        "StandardStatus": "Pending",
+        "PropertySubType": "MultiFamily",
+        "NumberOfUnitsTotal": 3,
+        "StructureType": "MultiFamily,Townhouse",
+        "PropertySubTypeAdditional": null,
+        "ListingId": "RLS20109910"
+      },
+      {
+        "BedroomsTotal": 14,
+        "PropertyType": "Residential",
+        "CommonInterest": "None",
+        "StandardStatus": "Active",
+        "PropertySubType": "SingleFamilyResidence",
+        "NumberOfUnitsTotal": 1,
+        "StructureType": "Townhouse",
+        "PropertySubTypeAdditional": null,
+        "ListingId": "RLS20109786"
+      },
+      {
+        "BedroomsTotal": 4,
+        "PropertyType": "Residential",
+        "CommonInterest": "None",
+        "StandardStatus": "Pending",
+        "PropertySubType": "MultiFamily",
+        "NumberOfUnitsTotal": 6,
+        "StructureType": "Townhouse",
+        "PropertySubTypeAdditional": null,
+        "ListingId": "RLS20109744"
+      },
+      {
+        "BedroomsTotal": 4,
+        "PropertyType": "Residential",
+        "CommonInterest": "None",
+        "StandardStatus": "Active",
+        "PropertySubType": "SingleFamilyResidence",
+        "NumberOfUnitsTotal": 1,
+        "StructureType": "Townhouse",
+        "PropertySubTypeAdditional": null,
+        "ListingId": "RLS20109700"
+      },
+      {
+        "BedroomsTotal": 22,
+        "PropertyType": "Residential",
+        "CommonInterest": "None",
+        "StandardStatus": "Active",
+        "PropertySubType": "MultiFamily",
+        "NumberOfUnitsTotal": 8,
+        "StructureType": "Townhouse",
+        "PropertySubTypeAdditional": null,
+        "ListingId": "RLS20109673"
+      }
+    ],
+    "propertyTypeLand": [],
+    "commonInterestCondominium": [
+      {
+        "BedroomsTotal": 2,
+        "PropertyType": "Residential",
+        "CommonInterest": "Condominium",
+        "StandardStatus": "Active",
+        "PropertySubType": "Apartment",
+        "NumberOfUnitsTotal": 831,
+        "StructureType": "HighRise",
+        "PropertySubTypeAdditional": "Apartment",
+        "ListingId": "RLS20110536"
+      },
+      {
+        "BedroomsTotal": 4,
+        "PropertyType": "Residential",
+        "CommonInterest": "Condominium",
+        "StandardStatus": "Active",
+        "PropertySubType": "Apartment",
+        "NumberOfUnitsTotal": 86,
+        "StructureType": "HighRise",
+        "PropertySubTypeAdditional": "Apartment",
+        "ListingId": "RLS20110533"
+      },
+      {
+        "BedroomsTotal": 2,
+        "PropertyType": "ResidentialLease",
+        "CommonInterest": "Condominium",
+        "StandardStatus": "Active",
+        "PropertySubType": "Apartment",
+        "NumberOfUnitsTotal": 409,
+        "StructureType": "None",
+        "PropertySubTypeAdditional": "Apartment",
+        "ListingId": "RLS20110532"
+      },
+      {
+        "BedroomsTotal": 1,
+        "PropertyType": "Residential",
+        "CommonInterest": "Condominium",
+        "StandardStatus": "Active",
+        "PropertySubType": "Apartment",
+        "NumberOfUnitsTotal": 815,
+        "StructureType": "HighRise",
+        "PropertySubTypeAdditional": "Apartment",
+        "ListingId": "RLS20110525"
+      },
+      {
+        "BedroomsTotal": 3,
+        "PropertyType": "Residential",
+        "CommonInterest": "Condominium",
+        "StandardStatus": "Active",
+        "PropertySubType": "Apartment",
+        "NumberOfUnitsTotal": 122,
+        "StructureType": "None",
+        "PropertySubTypeAdditional": "Apartment",
+        "ListingId": "RLS20110521"
+      },
+      {
+        "BedroomsTotal": 1,
+        "PropertyType": "Residential",
+        "CommonInterest": "Condominium",
+        "StandardStatus": "Active",
+        "PropertySubType": "Apartment",
+        "NumberOfUnitsTotal": 0,
+        "StructureType": "HighRise",
+        "PropertySubTypeAdditional": "Apartment",
+        "ListingId": "RLS20110510"
+      },
+      {
+        "BedroomsTotal": 3,
+        "PropertyType": "ResidentialLease",
+        "CommonInterest": "Condominium",
+        "StandardStatus": "Active",
+        "PropertySubType": "Apartment",
+        "NumberOfUnitsTotal": 0,
+        "StructureType": "None",
+        "PropertySubTypeAdditional": "Apartment",
+        "ListingId": "RLS20110493"
+      },
+      {
+        "BedroomsTotal": 3,
+        "PropertyType": "Residential",
+        "CommonInterest": "Condominium",
+        "StandardStatus": "Active",
+        "PropertySubType": "Duplex",
+        "NumberOfUnitsTotal": 29,
+        "StructureType": "HighRise",
+        "PropertySubTypeAdditional": null,
+        "ListingId": "RLS20110487"
+      },
+      {
+        "BedroomsTotal": 4,
+        "PropertyType": "ResidentialLease",
+        "CommonInterest": "Condominium",
+        "StandardStatus": "Active",
+        "PropertySubType": "Apartment",
+        "NumberOfUnitsTotal": 8,
+        "StructureType": null,
+        "PropertySubTypeAdditional": "Apartment",
+        "ListingId": "RLS20110483"
+      },
+      {
+        "BedroomsTotal": 2,
+        "PropertyType": "Residential",
+        "CommonInterest": "Condominium",
+        "StandardStatus": "Active",
+        "PropertySubType": "Apartment",
+        "NumberOfUnitsTotal": 3,
+        "StructureType": null,
+        "PropertySubTypeAdditional": "Apartment",
+        "ListingId": "RLS20110466"
+      },
+      {
+        "BedroomsTotal": 2,
+        "PropertyType": "ResidentialLease",
+        "CommonInterest": "Condominium",
+        "StandardStatus": "Active",
+        "PropertySubType": "Apartment",
+        "NumberOfUnitsTotal": 3,
+        "StructureType": null,
+        "PropertySubTypeAdditional": "Apartment",
+        "ListingId": "RLS20110463"
+      },
+      {
+        "BedroomsTotal": 2,
+        "PropertyType": "Residential",
+        "CommonInterest": "Condominium",
+        "StandardStatus": "Active",
+        "PropertySubType": "Apartment",
+        "NumberOfUnitsTotal": 583,
+        "StructureType": "HighRise",
+        "PropertySubTypeAdditional": "Apartment",
+        "ListingId": "RLS20110455"
+      },
+      {
+        "BedroomsTotal": 0,
+        "PropertyType": "Residential",
+        "CommonInterest": "Condominium",
+        "StandardStatus": "Active",
+        "PropertySubType": "Apartment",
+        "NumberOfUnitsTotal": 224,
+        "StructureType": "HighRise",
+        "PropertySubTypeAdditional": "Apartment",
+        "ListingId": "RLS20110453"
+      },
+      {
+        "BedroomsTotal": 1,
+        "PropertyType": "ResidentialLease",
+        "CommonInterest": "Condominium",
+        "StandardStatus": "Active",
+        "PropertySubType": "Apartment",
+        "NumberOfUnitsTotal": 0,
+        "StructureType": "None",
+        "PropertySubTypeAdditional": "Apartment",
+        "ListingId": "RLS20110450"
+      },
+      {
+        "BedroomsTotal": 3,
+        "PropertyType": "Residential",
+        "CommonInterest": "Condominium",
+        "StandardStatus": "Active",
+        "PropertySubType": "Apartment",
+        "NumberOfUnitsTotal": 80,
+        "StructureType": "HighRise",
+        "PropertySubTypeAdditional": "Apartment",
+        "ListingId": "RLS20110449"
+      }
+    ],
+    "commonInterestStockCooperative": [
+      {
+        "BedroomsTotal": 1,
+        "PropertyType": "Residential",
+        "CommonInterest": "StockCooperative",
+        "StandardStatus": "Active",
+        "PropertySubType": "Apartment",
+        "NumberOfUnitsTotal": 229,
+        "StructureType": "HighRise",
+        "PropertySubTypeAdditional": "Apartment",
+        "ListingId": "RLS20110527"
+      },
+      {
+        "BedroomsTotal": 1,
+        "PropertyType": "Residential",
+        "CommonInterest": "StockCooperative",
+        "StandardStatus": "Active",
+        "PropertySubType": "Apartment",
+        "NumberOfUnitsTotal": 166,
+        "StructureType": "HighRise",
+        "PropertySubTypeAdditional": "Apartment",
+        "ListingId": "RLS20110524"
+      },
+      {
+        "BedroomsTotal": 2,
+        "PropertyType": "Residential",
+        "CommonInterest": "StockCooperative",
+        "StandardStatus": "Active",
+        "PropertySubType": "Apartment",
+        "NumberOfUnitsTotal": 99,
+        "StructureType": "HighRise",
+        "PropertySubTypeAdditional": "Apartment",
+        "ListingId": "RLS20110516"
+      },
+      {
+        "BedroomsTotal": 2,
+        "PropertyType": "Residential",
+        "CommonInterest": "StockCooperative",
+        "StandardStatus": "Active",
+        "PropertySubType": "Apartment",
+        "NumberOfUnitsTotal": 52,
+        "StructureType": "HighRise",
+        "PropertySubTypeAdditional": "Apartment",
+        "ListingId": "RLS20110492"
+      },
+      {
+        "BedroomsTotal": 1,
+        "PropertyType": "Residential",
+        "CommonInterest": "StockCooperative",
+        "StandardStatus": "Active",
+        "PropertySubType": "Apartment",
+        "NumberOfUnitsTotal": 0,
+        "StructureType": "None",
+        "PropertySubTypeAdditional": "Apartment",
+        "ListingId": "RLS20110490"
+      },
+      {
+        "BedroomsTotal": 2,
+        "PropertyType": "Residential",
+        "CommonInterest": "StockCooperative",
+        "StandardStatus": "Active",
+        "PropertySubType": "Apartment",
+        "NumberOfUnitsTotal": 63,
+        "StructureType": "None",
+        "PropertySubTypeAdditional": "Apartment",
+        "ListingId": "RLS20110477"
+      },
+      {
+        "BedroomsTotal": 3,
+        "PropertyType": "Residential",
+        "CommonInterest": "StockCooperative",
+        "StandardStatus": "Active",
+        "PropertySubType": "Apartment",
+        "NumberOfUnitsTotal": 28,
+        "StructureType": null,
+        "PropertySubTypeAdditional": "Apartment",
+        "ListingId": "RLS20110462"
+      },
+      {
+        "BedroomsTotal": 2,
+        "PropertyType": "Residential",
+        "CommonInterest": "StockCooperative",
+        "StandardStatus": "Active",
+        "PropertySubType": "Apartment",
+        "NumberOfUnitsTotal": 226,
+        "StructureType": "HighRise",
+        "PropertySubTypeAdditional": "Apartment",
+        "ListingId": "RLS20110456"
+      },
+      {
+        "BedroomsTotal": 1,
+        "PropertyType": "Residential",
+        "CommonInterest": "StockCooperative",
+        "StandardStatus": "Active",
+        "PropertySubType": "Apartment",
+        "NumberOfUnitsTotal": 0,
+        "StructureType": null,
+        "PropertySubTypeAdditional": "Apartment",
+        "ListingId": "RLS20110430"
+      },
+      {
+        "BedroomsTotal": 3,
+        "PropertyType": "Residential",
+        "CommonInterest": "StockCooperative",
+        "StandardStatus": "Active",
+        "PropertySubType": "Duplex",
+        "NumberOfUnitsTotal": 0,
+        "StructureType": "HighRise",
+        "PropertySubTypeAdditional": null,
+        "ListingId": "RLS20110424"
+      },
+      {
+        "BedroomsTotal": 2,
+        "PropertyType": "Residential",
+        "CommonInterest": "StockCooperative",
+        "StandardStatus": "Active",
+        "PropertySubType": "Apartment",
+        "NumberOfUnitsTotal": 0,
+        "StructureType": "None",
+        "PropertySubTypeAdditional": "Apartment",
+        "ListingId": "RLS20110416"
+      },
+      {
+        "BedroomsTotal": 0,
+        "PropertyType": "ResidentialLease",
+        "CommonInterest": "StockCooperative",
+        "StandardStatus": "Active",
+        "PropertySubType": "Apartment",
+        "NumberOfUnitsTotal": 111,
+        "StructureType": "HighRise",
+        "PropertySubTypeAdditional": "Apartment",
+        "ListingId": "RLS20110414"
+      },
+      {
+        "BedroomsTotal": 1,
+        "PropertyType": "ResidentialLease",
+        "CommonInterest": "StockCooperative",
+        "StandardStatus": "Active",
+        "PropertySubType": "Duplex",
+        "NumberOfUnitsTotal": 44,
+        "StructureType": null,
+        "PropertySubTypeAdditional": null,
+        "ListingId": "RLS20110408"
+      },
+      {
+        "BedroomsTotal": 2,
+        "PropertyType": "Residential",
+        "CommonInterest": "StockCooperative",
+        "StandardStatus": "Active",
+        "PropertySubType": "Apartment",
+        "NumberOfUnitsTotal": 145,
+        "StructureType": "HighRise",
+        "PropertySubTypeAdditional": "Apartment",
+        "ListingId": "RLS20110402"
+      },
+      {
+        "BedroomsTotal": 2,
+        "PropertyType": "Residential",
+        "CommonInterest": "StockCooperative",
+        "StandardStatus": "Active",
+        "PropertySubType": "Apartment",
+        "NumberOfUnitsTotal": 49,
+        "StructureType": "None",
+        "PropertySubTypeAdditional": "Apartment",
+        "ListingId": "RLS20110401"
+      }
+    ],
+    "propertySubTypeMultiFamily": [
+      {
+        "BedroomsTotal": 5,
+        "PropertyType": "Residential",
+        "CommonInterest": "None",
+        "StandardStatus": "Active",
+        "PropertySubType": "MultiFamily",
+        "NumberOfUnitsTotal": -1,
+        "StructureType": "Townhouse",
+        "PropertySubTypeAdditional": null,
+        "ListingId": "RLS20110476"
+      },
+      {
+        "BedroomsTotal": 5,
+        "PropertyType": "Residential",
+        "CommonInterest": "None",
+        "StandardStatus": "Active",
+        "PropertySubType": "MultiFamily",
+        "NumberOfUnitsTotal": 2,
+        "StructureType": "MultiFamily",
+        "PropertySubTypeAdditional": null,
+        "ListingId": "RLS20110103"
+      },
+      {
+        "BedroomsTotal": 10,
+        "PropertyType": "Residential",
+        "CommonInterest": "None",
+        "StandardStatus": "Active",
+        "PropertySubType": "MultiFamily",
+        "NumberOfUnitsTotal": 0,
+        "StructureType": "MultiFamily",
+        "PropertySubTypeAdditional": "MultiFamily",
+        "ListingId": "RLS20110281"
+      },
+      {
+        "BedroomsTotal": 3,
+        "PropertyType": "Residential",
+        "CommonInterest": "None",
+        "StandardStatus": "Active",
+        "PropertySubType": "MultiFamily",
+        "NumberOfUnitsTotal": 0,
+        "StructureType": "MultiFamily",
+        "PropertySubTypeAdditional": "MultiFamily",
+        "ListingId": "RLS20110246"
+      },
+      {
+        "BedroomsTotal": 6,
+        "PropertyType": "Residential",
+        "CommonInterest": "None",
+        "StandardStatus": "Active",
+        "PropertySubType": "MultiFamily",
+        "NumberOfUnitsTotal": 2,
+        "StructureType": "MultiFamily,Townhouse",
+        "PropertySubTypeAdditional": null,
+        "ListingId": "RLS20110138"
+      },
+      {
+        "BedroomsTotal": 4,
+        "PropertyType": "Residential",
+        "CommonInterest": "None",
+        "StandardStatus": "Active",
+        "PropertySubType": "MultiFamily",
+        "NumberOfUnitsTotal": 0,
+        "StructureType": "MultiFamily",
+        "PropertySubTypeAdditional": "MultiFamily",
+        "ListingId": "RLS20110084"
+      },
+      {
+        "BedroomsTotal": 3,
+        "PropertyType": "Residential",
+        "CommonInterest": "None",
+        "StandardStatus": "Active",
+        "PropertySubType": "MultiFamily",
+        "NumberOfUnitsTotal": 2,
+        "StructureType": "MultiFamily,Townhouse",
+        "PropertySubTypeAdditional": null,
+        "ListingId": "RLS20110017"
+      },
+      {
+        "BedroomsTotal": 12,
+        "PropertyType": "Residential",
+        "CommonInterest": "None",
+        "StandardStatus": "Active",
+        "PropertySubType": "MultiFamily",
+        "NumberOfUnitsTotal": 6,
+        "StructureType": "MultiFamily",
+        "PropertySubTypeAdditional": "MultiFamily",
+        "ListingId": "RLS20107422"
+      },
+      {
+        "BedroomsTotal": 3,
+        "PropertyType": "ResidentialLease",
+        "CommonInterest": "None",
+        "StandardStatus": "Active",
+        "PropertySubType": "MultiFamily",
+        "NumberOfUnitsTotal": 4,
+        "StructureType": "House,Townhouse",
+        "PropertySubTypeAdditional": null,
+        "ListingId": "RLS20109953"
+      },
+      {
+        "BedroomsTotal": 6,
+        "PropertyType": "Residential",
+        "CommonInterest": "None",
+        "StandardStatus": "Active",
+        "PropertySubType": "MultiFamily",
+        "NumberOfUnitsTotal": 3,
+        "StructureType": null,
+        "PropertySubTypeAdditional": null,
+        "ListingId": "RLS20109903"
+      },
+      {
+        "BedroomsTotal": 3,
+        "PropertyType": "Residential",
+        "CommonInterest": "None",
+        "StandardStatus": "Active",
+        "PropertySubType": "MultiFamily",
+        "NumberOfUnitsTotal": 2,
+        "StructureType": "MultiFamily",
+        "PropertySubTypeAdditional": "MultiFamily",
+        "ListingId": "RLS20109833"
+      },
+      {
+        "BedroomsTotal": 6,
+        "PropertyType": "Residential",
+        "CommonInterest": "None",
+        "StandardStatus": "Active",
+        "PropertySubType": "MultiFamily",
+        "NumberOfUnitsTotal": 0,
+        "StructureType": "MultiFamily",
+        "PropertySubTypeAdditional": "MultiFamily",
+        "ListingId": "RLS20109719"
+      },
+      {
+        "BedroomsTotal": 22,
+        "PropertyType": "Residential",
+        "CommonInterest": "None",
+        "StandardStatus": "Active",
+        "PropertySubType": "MultiFamily",
+        "NumberOfUnitsTotal": 8,
+        "StructureType": "Townhouse",
+        "PropertySubTypeAdditional": null,
+        "ListingId": "RLS20109673"
+      },
+      {
+        "BedroomsTotal": 4,
+        "PropertyType": "Residential",
+        "CommonInterest": "None",
+        "StandardStatus": "Active",
+        "PropertySubType": "MultiFamily",
+        "NumberOfUnitsTotal": 2,
+        "StructureType": "Townhouse",
+        "PropertySubTypeAdditional": null,
+        "ListingId": "RLS20109640"
+      },
+      {
+        "BedroomsTotal": 5,
+        "PropertyType": "Residential",
+        "CommonInterest": "None",
+        "StandardStatus": "Active",
+        "PropertySubType": "MultiFamily",
+        "NumberOfUnitsTotal": 2,
+        "StructureType": "Townhouse",
+        "PropertySubTypeAdditional": null,
+        "ListingId": "RLS20109397"
+      }
+    ],
+    "propertyTypeMultiFamily": []
+  },
+  "financingFields": [
+    {
+      "name": "ActivationDate",
+      "type": "Edm.Date",
+      "enumMembers": []
+    },
+    {
+      "name": "AvailabilityDate",
+      "type": "Edm.Date",
+      "enumMembers": []
+    },
+    {
+      "name": "AvailableLeaseType",
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.ExistingLeaseType",
+      "enumMembers": [
+        "AbsoluteNet",
+        "BaseAndPercentage",
+        "CpiAdjustment",
+        "DepositRequired",
+        "EscalationClause",
+        "Fixed",
+        "FullService",
+        "Gross",
+        "GroundLease",
+        "IndustrialGross",
+        "Modified",
+        "ModifiedGross",
+        "Net",
+        "Nn",
+        "Nnn",
+        "None",
+        "NotForLease",
+        "Oral",
+        "Other",
+        "Percentage",
+        "SeeAgent",
+        "SeeRemarks",
+        "Sublease"
+      ]
+    },
+    {
+      "name": "BuyerFinancing",
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.BuyerFinancing",
+      "enumMembers": [
+        "Arm",
+        "Assumed",
+        "BondForDeed",
+        "BuyerAssistanceProgram",
+        "CalVetLoan",
+        "Cash",
+        "CashToLoan",
+        "CashToNewLoan",
+        "CashToSecondLoan",
+        "CommittedFunds",
+        "Contract",
+        "Conventional",
+        "CourtApproval",
+        "Cryptocurrency",
+        "Exchange1031",
+        "FederalLandBank",
+        "Fha",
+        "Fha203b",
+        "Fha203k",
+        "Fhva",
+        "Fmha",
+        "GraduatedPaymentMortgage",
+        "Lease",
+        "LenderApproval",
+        "NotDisclosed",
+        "Other",
+        "PortfolioLoan",
+        "Private",
+        "RehabFinancing",
+        "RelocationProperty",
+        "SbaTypeLoan",
+        "SeeAgent",
+        "SeeRemarks",
+        "SellerFinancing",
+        "TexasVet",
+        "Trade",
+        "TrustConveyance",
+        "TrustDeed",
+        "Usda",
+        "Va",
+        "WrapAround",
+        "ZeroDown"
+      ]
+    },
+    {
+      "name": "ConcessionInPrice",
+      "type": "Edm.Decimal",
+      "enumMembers": []
+    },
+    {
+      "name": "ConcessionInPriceType",
+      "type": "Cotality.DataStandard.RESO.DD.Enums.ConcessionInPriceType",
+      "enumMembers": [
+        "Item",
+        "Item1"
+      ]
+    },
+    {
+      "name": "Concessions",
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Concessions",
+      "enumMembers": [
+        "CallListingAgent",
+        "No",
+        "Yes"
+      ]
+    },
+    {
+      "name": "ConcessionsAmount",
+      "type": "Edm.Int32",
+      "enumMembers": []
+    },
+    {
+      "name": "ConcessionsBuyerBrokerFee",
+      "type": "Edm.Int32",
+      "enumMembers": []
+    },
+    {
+      "name": "ConcessionsClosingCosts",
+      "type": "Edm.Int32",
+      "enumMembers": []
+    },
+    {
+      "name": "ConcessionsComments",
+      "type": "Edm.String",
+      "enumMembers": []
+    },
+    {
+      "name": "ConcessionsFinancingCosts",
+      "type": "Edm.Int32",
+      "enumMembers": []
+    },
+    {
+      "name": "ConcessionsOtherCosts",
+      "type": "Edm.Int32",
+      "enumMembers": []
+    },
+    {
+      "name": "ConcessionsPropertyImprovementCosts",
+      "type": "Edm.Int32",
+      "enumMembers": []
+    },
+    {
+      "name": "CultivatedArea",
+      "type": "Edm.Decimal",
+      "enumMembers": []
+    },
+    {
+      "name": "CurrentFinancing",
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.CurrentFinancing",
+      "enumMembers": [
+        "Assumable",
+        "CalVetLoan",
+        "Cash",
+        "Contract",
+        "Conventional",
+        "ExistingBonds",
+        "FannieMae",
+        "Fha",
+        "Fha203b",
+        "Fha203k",
+        "FreddieMac",
+        "GovernmentLoan",
+        "LeasedRenewables",
+        "None",
+        "Other",
+        "PowerPurchaseAgreement",
+        "Private",
+        "PropertyAssessedCleanEnergy",
+        "SeeRemarks",
+        "TrustDeed",
+        "Usda",
+        "Va",
+        "VaNoLoan",
+        "VaNoNoLoan"
+      ]
+    },
+    {
+      "name": "DocumentsAvailable",
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.DocumentsAvailable",
+      "enumMembers": [
+        "Abstract",
+        "AccessibilityFeaturesForm",
+        "Aerial",
+        "Appraisal",
+        "BuildingPlans",
+        "BuildingRestrictions",
+        "BuildingRules",
+        "BylawsAndAmendments",
+        "CallListingAgent",
+        "ComingSoonOwnerAuthorization",
+        "CommunityPlan",
+        "ComplianceCertificate",
+        "Contracts",
+        "CostEstimates",
+        "CropLease",
+        "CustomerList",
+        "Deed",
+        "DeedRestriction",
+        "Demographics",
+        "Disclosures",
+        "Easements",
+        "ElevationCertificate",
+        "EncroachmentAgreement",
+        "Energy",
+        "EngineeringReport",
+        "EnvironmentalStudy",
+        "EstoppelCertificate",
+        "FeasibilityStudy",
+        "Financials",
+        "Floorplan",
+        "GeologicalSurvey",
+        "GroundPhoto",
+        "Historical",
+        "HoaDocuments",
+        "HomeInspectionReport",
+        "HydrologyReport",
+        "Inventory",
+        "LandLease",
+        "LeadBasedPaintDisclosure",
+        "Lease",
+        "LegalDescription",
+        "LegalDocuments",
+        "Licenses",
+        "LocationMap",
+        "MarketingBrochure",
+        "None",
+        "NotApplicable",
+        "OakWiltTest",
+        "OfferingPlan",
+        "Other",
+        "OwnerOptOut",
+        "PercReport",
+        "Permits",
+        "PestControlReport",
+        "Plat",
+        "PlumbingPlans",
+        "PotabilityReport",
+        "PreliminaryTitleReport",
+        "ProfitLossStatement",
+        "Prospectus",
+        "RadonTest",
+        "RealEstateConditionReport",
+        "RealPropertyReport",
+        "RentRolls",
+        "ResalePackage",
+        "RestrictiveCovenants",
+        "RoadMaintenanceAgreement",
+        "RoofInspection",
+        "ScheduleA",
+        "SecurityCodes",
+        "SeeRemarks",
+        "SellersPropertyDisclosure",
+        "SepticCertification",
+        "SepticInspection",
+        "SewerMap",
+        "SharedWellAgreement",
+        "ShortSaleAddendum",
+        "SitePlan",
+        "SoilTest",
+        "SpecialAssessmentDistrict",
+        "SubdivisionPlan",
+        "Survey",
+        "TaxInformation",
+        "TenancySchedule",
+        "Title",
+        "TitleInsurance",
+        "TopographicalSurvey",
+        "TrafficCounts",
+        "UnitMixSchedule",
+        "Warranties",
+        "WaterWellReport",
+        "WellInspectionReport",
+        "WellLogAvailable",
+        "Yes"
+      ]
+    },
+    {
+      "name": "DownPaymentAssistanceAmount",
+      "type": "Edm.Decimal",
+      "enumMembers": []
+    },
+    {
+      "name": "DownPaymentAssistanceCount",
+      "type": "Edm.Int32",
+      "enumMembers": []
+    },
+    {
+      "name": "DownPaymentAssistanceYN",
+      "type": "Edm.Boolean",
+      "enumMembers": []
+    },
+    {
+      "name": "DualOrVariableRateCommissionYN",
+      "type": "Edm.Boolean",
+      "enumMembers": []
+    },
+    {
+      "name": "Elevation",
+      "type": "Edm.Int32",
+      "enumMembers": []
+    },
+    {
+      "name": "ElevationUnits",
+      "type": "Cotality.DataStandard.RESO.DD.Enums.LinearUnits",
+      "enumMembers": [
+        "Blocks",
+        "Feet",
+        "Meters",
+        "Miles"
+      ]
+    },
+    {
+      "name": "ExpirationDate",
+      "type": "Edm.Date",
+      "enumMembers": []
+    },
+    {
+      "name": "FhaEligibility",
+      "type": "Cotality.DataStandard.RESO.DD.Enums.FhaEligibility",
+      "enumMembers": [
+        "Approved",
+        "ConditionallyApproved",
+        "Rejected",
+        "Unknown",
+        "Withdrawn"
+      ]
+    },
+    {
+      "name": "FinancialDataSource",
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.FinancialDataSource",
+      "enumMembers": [
+        "Accountant",
+        "Other",
+        "Owner",
+        "PropertyManager",
+        "SeeRemarks"
+      ]
+    },
+    {
+      "name": "GrazingPermitsPrivateYN",
+      "type": "Edm.Boolean",
+      "enumMembers": []
+    },
+    {
+      "name": "GreenEnergyGeneration",
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.GreenEnergyGeneration",
+      "enumMembers": [
+        "BatteryStorage",
+        "Geothermal",
+        "GridTied",
+        "None",
+        "Offgrid",
+        "Other",
+        "Solar",
+        "Wind"
+      ]
+    },
+    {
+      "name": "GreenWaterConservation",
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.GreenWaterConservation",
+      "enumMembers": [
+        "CompostingToilet",
+        "DualFlushToilet",
+        "EfficientHotWaterDistribution",
+        "GrayWaterSystem",
+        "GreenInfrastructure",
+        "LowFlowFixtures",
+        "LowVolumeDripIrrigation",
+        "Other",
+        "RainGardens",
+        "RainWaterCollection",
+        "WaterRecycling",
+        "WaterSmartLandscaping"
+      ]
+    },
+    {
+      "name": "HoursDaysOfOperation",
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.HoursDaysOfOperation",
+      "enumMembers": [
+        "EveningsOnly",
+        "Open24Hours",
+        "Open7Days",
+        "Open8HoursDay",
+        "OpenLessThan8HoursDay",
+        "OpenMondayFriday",
+        "OpenMoreThan8HoursDay",
+        "OpenSaturday",
+        "OpenSunday"
+      ]
+    },
+    {
+      "name": "HoursDaysOfOperationDescription",
+      "type": "Edm.String",
+      "enumMembers": []
+    },
+    {
+      "name": "InternetAutomatedValuationDisplayYN",
+      "type": "Edm.Boolean",
+      "enumMembers": []
+    },
+    {
+      "name": "LandLeaseExpirationDate",
+      "type": "Edm.Date",
+      "enumMembers": []
+    },
+    {
+      "name": "LeaseExpiration",
+      "type": "Edm.Date",
+      "enumMembers": []
+    },
+    {
+      "name": "ListingTerms",
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.ListingTerms",
+      "enumMembers": [
+        "AllFinancingConsidered",
+        "AllInclusiveTrustDeed",
+        "Arm",
+        "Assumable",
+        "BondForDeed",
+        "BuyerAssistancePrograms",
+        "CalVetLoan",
+        "Cash",
+        "CashToExistingLoan",
+        "CashToNewLoan",
+        "CommercialLease",
+        "CommittedFunds",
+        "Contract",
+        "Conventional",
+        "CourtApproval",
+        "Cryptocurrency",
+        "Exchange1031",
+        "ExistingBonds",
+        "FannieMae",
+        "FederalLandBank",
+        "FHA",
+        "Fha203b",
+        "Fha203k",
+        "FreddieMac",
+        "GovernmentLoan",
+        "GraduatedPaymentMortgage",
+        "InvestorFinancing",
+        "LandContract",
+        "LandUseFee",
+        "Lease",
+        "LeaseBack",
+        "LeaseOption",
+        "LeasePurchase",
+        "LenderApproval",
+        "LienRelease",
+        "NewLoan",
+        "Other",
+        "OwnerMayCarry",
+        "OwnerMayCarrySecond",
+        "OwnerPayPoints",
+        "OwnerSurvey",
+        "OwnerWillCarry",
+        "PortfolioLoan",
+        "PreQualified",
+        "PrivateFinancingAvailable",
+        "RehabFinancing",
+        "RelocationProperty",
+        "SbaTypeLoan",
+        "SeeAgent",
+        "SeeRemarks",
+        "SellerEquityShare",
+        "SpecialFunding",
+        "StateBond",
+        "SubjectToOther",
+        "Submit",
+        "Subordinate",
+        "TexasVet",
+        "ThirdPartyFinancing",
+        "Trade",
+        "TrustConveyance",
+        "TrustDeed",
+        "UsdaLoan",
+        "VaLoan",
+        "VaNoLoan",
+        "VaNoNoLoan",
+        "WarrantyDeed",
+        "ZeroDown"
+      ]
+    },
+    {
+      "name": "NumberOfUnitsVacant",
+      "type": "Edm.Int32",
+      "enumMembers": []
+    },
+    {
+      "name": "PoolPrivateYN",
+      "type": "Edm.Boolean",
+      "enumMembers": []
+    },
+    {
+      "name": "PrivateOfficeRemarks",
+      "type": "Edm.String",
+      "enumMembers": []
+    },
+    {
+      "name": "PrivateRemarks",
+      "type": "Edm.String",
+      "enumMembers": []
+    },
+    {
+      "name": "SellerConsiderConcessionYN",
+      "type": "Edm.Boolean",
+      "enumMembers": []
+    },
+    {
+      "name": "ShowingAdvanceNotice",
+      "type": "Edm.Int32",
+      "enumMembers": []
+    },
+    {
+      "name": "ShowingConsiderations",
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.ShowingConsiderations",
+      "enumMembers": [
+        "DaySleeper",
+        "ElectricityNotOn",
+        "InconsistentCellService",
+        "LimitedVisibilityFromRoad",
+        "MinimalExteriorLighting",
+        "MinimalInteriorLighting",
+        "NoExteriorLighting",
+        "NoHeat",
+        "NoInteriorLighting",
+        "Occupied",
+        "PetsOnPremises",
+        "RemoteLocation",
+        "SecuritySystem",
+        "SeeRemarks"
+      ]
+    },
+    {
+      "name": "TaxAssessedValue",
+      "type": "Edm.Int32",
+      "enumMembers": []
+    },
+    {
+      "name": "VacancyAllowance",
+      "type": "Edm.Int32",
+      "enumMembers": []
+    },
+    {
+      "name": "VacancyAllowanceRate",
+      "type": "Edm.Decimal",
+      "enumMembers": []
+    }
+  ],
+  "customPropertyFinancing": [
+    {
+      "name": "AvailabilityType",
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.AvailabilityType",
+      "enumMembers": [
+        "Annual",
+        "Biweekly",
+        "Daily",
+        "LongTerm",
+        "Monthly",
+        "None",
+        "OffSeason",
+        "Other",
+        "Seasonal",
+        "ShortTerm",
+        "Vacation",
+        "Weekly"
+      ]
+    },
+    {
+      "name": "LeaseTermsDescription",
+      "type": "Edm.String",
+      "enumMembers": []
+    },
+    {
+      "name": "PrivateShowingInstructions",
+      "type": "Edm.String",
+      "enumMembers": []
+    },
+    {
+      "name": "TaxAssessedValueImprovement",
+      "type": "Edm.String",
+      "enumMembers": []
+    },
+    {
+      "name": "TaxAssessedValueLand",
+      "type": "Edm.String",
+      "enumMembers": []
+    },
+    {
+      "name": "ThirdPartyIntegrationType",
+      "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.ThirdPartyIntegrationType",
+      "enumMembers": [
+        "DownPaymentResource",
+        "RentalBeastApply",
+        "Rentspree",
+        "Showingtime"
+      ]
+    }
+  ]
+}

@@ -67,6 +67,39 @@ export function attributionViolation(req: AttributionRequirement, officeName: st
   return null;
 }
 
+/**
+ * AUDIENCE OBLIGATIONS — a TYPED vocabulary, not free strings.
+ *
+ * `audienceObligations` and the registry's `attributionObligations` were both
+ * `readonly string[]`, so a typo silently invented a brand-new obligation and
+ * nothing failed. A controlled vocabulary makes that a compile error.
+ *
+ * The concepts are kept SEPARATE on purpose — they are different duties owed to
+ * different parties, and collapsing them is how a Mallan-derived coordinate came
+ * to inherit "requires Cotality courtesy attribution", crediting the provider
+ * for a fact it never stated.
+ */
+export const AUDIENCE_OBLIGATIONS = Object.freeze([
+  /** Provider/REBNY factual-source obligation — the data's factual authority. */
+  'attribution_required',
+  /** "Listing Courtesy of ..." — a duty to the LISTING BROKERAGE, not to a data source. */
+  'listing_brokerage_courtesy',
+  /** The listing professional must be identified alongside the brokerage. */
+  'listing_professional',
+  /** The value is Mallan enrichment; disclose as such, never as provider truth. */
+  'mallan_derived_disclosure',
+  /** Origin must be visible to the audience regardless of who authored it. */
+  'provenance_disclosure',
+  /** How the fact was obtained is itself a licensing-relevant disclosure. */
+  'access_method_disclosure',
+  /** Restricted to broker/agent audiences. */
+  'broker_agent_only',
+] as const);
+export type AudienceObligation = (typeof AUDIENCE_OBLIGATIONS)[number];
+export function isAudienceObligation(v: unknown): v is AudienceObligation {
+  return typeof v === 'string' && (AUDIENCE_OBLIGATIONS as readonly string[]).includes(v);
+}
+
 // --- Attribution envelope (A1) -----------------------------------------------
 /**
  * Full provenance envelope for a fact/row. Separates the six attribution facets so
@@ -84,7 +117,8 @@ export interface AttributionEnvelope {
   accessMethod: SourceAccessMethod;
   observedAt: string;        // ISO-8601
   verifiedAt?: string;       // ISO-8601
-  audienceObligations: readonly string[]; // e.g. attribution_required, broker_agent_only
+  /** TYPED vocabulary — see AUDIENCE_OBLIGATIONS. Was `readonly string[]`. */
+  audienceObligations: readonly AudienceObligation[];
 }
 
 export function isAttributionEnvelope(v: unknown): v is AttributionEnvelope {
@@ -94,7 +128,7 @@ export function isAttributionEnvelope(v: unknown): v is AttributionEnvelope {
   if (!isObservationPlatform(e.observationPlatform)) return false;
   if (!isSourceAccessMethod(e.accessMethod)) return false;
   if (typeof e.observedAt !== 'string') return false;
-  if (!Array.isArray(e.audienceObligations) || !e.audienceObligations.every((o) => typeof o === 'string')) {
+  if (!Array.isArray(e.audienceObligations) || !e.audienceObligations.every(isAudienceObligation)) {
     return false;
   }
   for (const k of ['listingBrokerage', 'listingAgent', 'verifiedAt'] as const) {
@@ -109,6 +143,6 @@ export function isAttributionEnvelope(v: unknown): v is AttributionEnvelope {
  * never produces a courtesy line. Returns null when not required / no brokerage.
  */
 export function attributionEnvelopeCourtesy(env: AttributionEnvelope): string | null {
-  if (env.factualAuthority !== 'cotality_rebny') return null;
+  if (env.factualAuthority !== 'cotality') return null;
   return courtesyLabel(env.listingBrokerage);
 }

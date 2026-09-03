@@ -4,6 +4,8 @@ import {
   buildSearchDisplayWhere,
   SEARCH_DISPLAY_GATE,
 } from "@/lib/search/listing-access-decision";
+import { excludeMallanRlsReturnCopies } from "@/lib/listings/mallan-source-identity";
+import { minBathsPrisma, maxBathsPrisma } from "@/lib/search/canonical/bath-contract";
 import { AMENITY_FIELD_MAP, type AmenityFilter } from "@/lib/search/types";
 
 export interface PublicListingDbSearch {
@@ -188,6 +190,29 @@ export function buildPublicListingDbSearch(params: URLSearchParams): PublicListi
         address: { not: Prisma.DbNull },
       },
     ],
+    // MALLAN RLS RETURN-COPY SUPPRESSION — RESTORED 2026-09-01 (Section 6).
+    //
+    // This builder read `buildSearchDisplayWhere().status` — ONE key off a gate
+    // whose own comment says "Applied HERE, inside the canonical public gate, so
+    // it lands BEFORE count, skip and take in every caller. One owner, so no
+    // emitter can forget it." Taking `.status` and discarding the rest is
+    // exactly how an emitter forgets it, and this is the highest-traffic public
+    // reader there is.
+    //
+    // The consequence was not cosmetic. Mallan's own listing returns through
+    // Cotality as an `RLS*` row carrying Mallan's office id; with the clause
+    // gone that copy passed the public gate and could surface as a competing
+    // listing beside its own canonical `SL-`/`RL-` row. The only thing standing
+    // against it was `preferCrmExclusiveOverIdxDuplicate`, which runs AFTER the
+    // page is cut and matches on address atoms rather than provenance — so
+    // across two pages both could appear.
+    //
+    // The whole gate is NOT spread here on purpose: the public reader admits
+    // website-only rows (`rls_eligible: false`) that deliberately bypass the RLS
+    // display gates, and spreading `SEARCH_DISPLAY_GATE` at the top level would
+    // deny them. Only the suppression is inherited, and it is ANDed so it holds
+    // over BOTH arms — a return-copy is never public on either.
+    AND: [excludeMallanRlsReturnCopies()],
   };
 
   const listingType = params.get("type");
@@ -242,16 +267,30 @@ export function buildPublicListingDbSearch(params: URLSearchParams): PublicListi
     if (maxBeds !== null) where.bedrooms_total.lte = maxBeds;
   }
 
+  // BATHROOMS ARE full + half x 0.5, AND THAT IS DEFINED IN ONE PLACE.
+  //
+  // This read:
+  //
+  //     bathrooms_full >= floor(minBaths)
+  //     AND (minBaths has a half) bathrooms_half >= 1
+  //
+  // so `minBaths=1.5` demanded a half-bath and rejected a 2-full/0-half
+  // apartment holding 2.0 baths. Measured on the live Preview: 1,896 results for
+  // `minBaths=1.5` against 3,674 for `minBaths=2` — a STRICTER minimum returning
+  // 1,778 MORE listings, which is not a filter, it is a different question.
+  // `maxBaths` was wrong in the other direction: capping only `bathrooms_full`
+  // let a 1-full/3-half listing (2.5 baths) through `maxBaths=1.5`.
+  //
+  // The canonical contract already owned this rule and already rendered it to
+  // OData for the authenticated path. It now renders to Prisma too, so all three
+  // execution paths answer the same question. The rendering is an EXACT
+  // disjunction over the integer range BathroomsFull occupies — not an
+  // approximation — so it stays in the predicate, before count and pagination,
+  // and cannot remove a listing the canonical value would have kept.
   const minBaths = numberParam(params, "minBaths");
   const maxBaths = numberParam(params, "maxBaths");
-  if (minBaths !== null || maxBaths !== null) {
-    where.bathrooms_full = {};
-    if (minBaths !== null) {
-      where.bathrooms_full.gte = Math.floor(minBaths);
-      if (minBaths % 1 >= 0.5) where.bathrooms_half = { gte: 1 };
-    }
-    if (maxBaths !== null) where.bathrooms_full.lte = Math.floor(maxBaths);
-  }
+  if (minBaths !== null) appendAnd(where, minBathsPrisma(minBaths) as Prisma.ListingWhereInput);
+  if (maxBaths !== null) appendAnd(where, maxBathsPrisma(maxBaths) as Prisma.ListingWhereInput);
 
   const minSqft = intParam(params, "minSqft");
   const maxSqft = intParam(params, "maxSqft");

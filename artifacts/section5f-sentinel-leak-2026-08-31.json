@@ -1,0 +1,260 @@
+{
+  "probedAt": "2026-08-31",
+  "probedAtExact": "2026-08-31T00:15:14.768Z",
+  "fields": [
+    {
+      "field": "NumberOfUnitsTotal",
+      "max": 10,
+      "impossible": "NumberOfUnitsTotal lt 1",
+      "why": "a building has at least one unit; 0 and -1 are both not-a-count"
+    },
+    {
+      "field": "LivingArea",
+      "max": 500,
+      "impossible": "LivingArea lt 1",
+      "why": "a dwelling has floor area; 0 and negative are not measurements"
+    },
+    {
+      "field": "StoriesTotal",
+      "max": 10,
+      "impossible": "StoriesTotal lt 1",
+      "why": "a building has at least one storey"
+    },
+    {
+      "field": "ListPrice",
+      "max": 500000,
+      "impossible": "ListPrice lt 1",
+      "why": "a listed price of 0 or less is not a price"
+    },
+    {
+      "field": "RoomsTotal",
+      "max": 3,
+      "impossible": "RoomsTotal lt 1",
+      "why": "a dwelling has at least one room"
+    },
+    {
+      "field": "YearBuilt",
+      "max": 2020,
+      "impossible": "YearBuilt lt 1",
+      "why": "year 0 or negative is not a build year"
+    },
+    {
+      "field": "BedroomsTotal",
+      "max": 2,
+      "impossible": "BedroomsTotal lt 0",
+      "why": "ZERO IS A STUDIO and must never be excluded; only negatives are impossible"
+    }
+  ],
+  "results": [
+    {
+      "field": "NumberOfUnitsTotal",
+      "label": "max_bound_total",
+      "filter": "NumberOfUnitsTotal le 10",
+      "meaning": "rows a max-only search returns today",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 348063,
+      "error": null
+    },
+    {
+      "field": "NumberOfUnitsTotal",
+      "label": "impossible_total",
+      "filter": "NumberOfUnitsTotal lt 1",
+      "meaning": "rows whose value cannot be a real NumberOfUnitsTotal",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 267772,
+      "error": null
+    },
+    {
+      "field": "NumberOfUnitsTotal",
+      "label": "leaked_into_max",
+      "filter": "NumberOfUnitsTotal le 10 and NumberOfUnitsTotal lt 1",
+      "meaning": "WRONG ANSWERS: unknown-valued rows returned as if they qualified — a building has at least one unit; 0 and -1 are both not-a-count",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 267772,
+      "error": null
+    },
+    {
+      "field": "LivingArea",
+      "label": "max_bound_total",
+      "filter": "LivingArea le 500",
+      "meaning": "rows a max-only search returns today",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 168549,
+      "error": null
+    },
+    {
+      "field": "LivingArea",
+      "label": "impossible_total",
+      "filter": "LivingArea lt 1",
+      "meaning": "rows whose value cannot be a real LivingArea",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 151463,
+      "error": null
+    },
+    {
+      "field": "LivingArea",
+      "label": "leaked_into_max",
+      "filter": "LivingArea le 500 and LivingArea lt 1",
+      "meaning": "WRONG ANSWERS: unknown-valued rows returned as if they qualified — a dwelling has floor area; 0 and negative are not measurements",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 151463,
+      "error": null
+    },
+    {
+      "field": "StoriesTotal",
+      "label": "max_bound_total",
+      "filter": "StoriesTotal le 10",
+      "meaning": "rows a max-only search returns today",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 309926,
+      "error": null
+    },
+    {
+      "field": "StoriesTotal",
+      "label": "impossible_total",
+      "filter": "StoriesTotal lt 1",
+      "meaning": "rows whose value cannot be a real StoriesTotal",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 64384,
+      "error": null
+    },
+    {
+      "field": "StoriesTotal",
+      "label": "leaked_into_max",
+      "filter": "StoriesTotal le 10 and StoriesTotal lt 1",
+      "meaning": "WRONG ANSWERS: unknown-valued rows returned as if they qualified — a building has at least one storey",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 64384,
+      "error": null
+    },
+    {
+      "field": "ListPrice",
+      "label": "max_bound_total",
+      "filter": "ListPrice le 500000",
+      "meaning": "rows a max-only search returns today",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 407529,
+      "error": null
+    },
+    {
+      "field": "ListPrice",
+      "label": "impossible_total",
+      "filter": "ListPrice lt 1",
+      "meaning": "rows whose value cannot be a real ListPrice",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 658,
+      "error": null
+    },
+    {
+      "field": "ListPrice",
+      "label": "leaked_into_max",
+      "filter": "ListPrice le 500000 and ListPrice lt 1",
+      "meaning": "WRONG ANSWERS: unknown-valued rows returned as if they qualified — a listed price of 0 or less is not a price",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 658,
+      "error": null
+    },
+    {
+      "field": "RoomsTotal",
+      "label": "max_bound_total",
+      "filter": "RoomsTotal le 3",
+      "meaning": "rows a max-only search returns today",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 291270,
+      "error": null
+    },
+    {
+      "field": "RoomsTotal",
+      "label": "impossible_total",
+      "filter": "RoomsTotal lt 1",
+      "meaning": "rows whose value cannot be a real RoomsTotal",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 1968,
+      "error": null
+    },
+    {
+      "field": "RoomsTotal",
+      "label": "leaked_into_max",
+      "filter": "RoomsTotal le 3 and RoomsTotal lt 1",
+      "meaning": "WRONG ANSWERS: unknown-valued rows returned as if they qualified — a dwelling has at least one room",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 1968,
+      "error": null
+    },
+    {
+      "field": "YearBuilt",
+      "label": "max_bound_total",
+      "filter": "YearBuilt le 2020",
+      "meaning": "rows a max-only search returns today",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 467114,
+      "error": null
+    },
+    {
+      "field": "YearBuilt",
+      "label": "impossible_total",
+      "filter": "YearBuilt lt 1",
+      "meaning": "rows whose value cannot be a real YearBuilt",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 0,
+      "error": null
+    },
+    {
+      "field": "YearBuilt",
+      "label": "leaked_into_max",
+      "filter": "YearBuilt le 2020 and YearBuilt lt 1",
+      "meaning": "WRONG ANSWERS: unknown-valued rows returned as if they qualified — year 0 or negative is not a build year",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 0,
+      "error": null
+    },
+    {
+      "field": "BedroomsTotal",
+      "label": "max_bound_total",
+      "filter": "BedroomsTotal le 2",
+      "meaning": "rows a max-only search returns today",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 484901,
+      "error": null
+    },
+    {
+      "field": "BedroomsTotal",
+      "label": "impossible_total",
+      "filter": "BedroomsTotal lt 0",
+      "meaning": "rows whose value cannot be a real BedroomsTotal",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 0,
+      "error": null
+    },
+    {
+      "field": "BedroomsTotal",
+      "label": "leaked_into_max",
+      "filter": "BedroomsTotal le 2 and BedroomsTotal lt 0",
+      "meaning": "WRONG ANSWERS: unknown-valued rows returned as if they qualified — ZERO IS A STUDIO and must never be excluded; only negatives are impossible",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 0,
+      "error": null
+    }
+  ]
+}

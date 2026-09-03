@@ -1,0 +1,1156 @@
+{
+  "probedAt": "2026-08-31",
+  "probedAtExact": "2026-08-31T01:14:03.018Z",
+  "universe": "(PropertyType eq 'Residential' or PropertyType eq 'ResidentialLease') and (StandardStatus eq 'Active' or StandardStatus eq 'ComingSoon' or StandardStatus eq 'ActiveUnderContract')",
+  "neighborhood": {
+    "rowsRead": 7770,
+    "pagesRead": 8,
+    "truncated": false,
+    "distinctCount": 240,
+    "complete": true,
+    "values": [
+      {
+        "name": "Lenox Hill",
+        "rows": 422
+      },
+      {
+        "name": "Upper West Side",
+        "rows": 366
+      },
+      {
+        "name": "Lincoln Square",
+        "rows": 246
+      },
+      {
+        "name": "Upper East Side",
+        "rows": 226
+      },
+      {
+        "name": "Hell's Kitchen",
+        "rows": 221
+      },
+      {
+        "name": "Chelsea",
+        "rows": 219
+      },
+      {
+        "name": "Murray Hill",
+        "rows": 210
+      },
+      {
+        "name": "Financial District",
+        "rows": 202
+      },
+      {
+        "name": "Midtown",
+        "rows": 200
+      },
+      {
+        "name": "Midtown East",
+        "rows": 192
+      },
+      {
+        "name": "Williamsburg",
+        "rows": 191
+      },
+      {
+        "name": "Sutton Place",
+        "rows": 181
+      },
+      {
+        "name": "Yorkville",
+        "rows": 158
+      },
+      {
+        "name": "Long Island City",
+        "rows": 153
+      },
+      {
+        "name": "Tribeca",
+        "rows": 127
+      },
+      {
+        "name": "Turtle Bay",
+        "rows": 123
+      },
+      {
+        "name": "Greenwich Village",
+        "rows": 118
+      },
+      {
+        "name": "Kips Bay",
+        "rows": 115
+      },
+      {
+        "name": "Gramercy Park",
+        "rows": 112
+      },
+      {
+        "name": "Lower East Side",
+        "rows": 110
+      },
+      {
+        "name": "Bushwick",
+        "rows": 109
+      },
+      {
+        "name": "Central Park South",
+        "rows": 106
+      },
+      {
+        "name": "Bedford-Stuyvesant",
+        "rows": 101
+      },
+      {
+        "name": "Central Harlem",
+        "rows": 93
+      },
+      {
+        "name": "West Village",
+        "rows": 89
+      },
+      {
+        "name": "Flatiron",
+        "rows": 89
+      },
+      {
+        "name": "Battery Park City",
+        "rows": 88
+      },
+      {
+        "name": "Downtown Brooklyn",
+        "rows": 88
+      },
+      {
+        "name": "Astoria",
+        "rows": 88
+      },
+      {
+        "name": "Crown Heights",
+        "rows": 83
+      },
+      {
+        "name": "Greenpoint",
+        "rows": 82
+      },
+      {
+        "name": "Carnegie Hill",
+        "rows": 77
+      },
+      {
+        "name": "Spuyten Duyvil",
+        "rows": 75
+      },
+      {
+        "name": "Gowanus",
+        "rows": 75
+      },
+      {
+        "name": "East Harlem",
+        "rows": 72
+      },
+      {
+        "name": "East Village",
+        "rows": 71
+      },
+      {
+        "name": "Hudson Yards",
+        "rows": 70
+      },
+      {
+        "name": "Stuyvesant Heights",
+        "rows": 67
+      },
+      {
+        "name": "NoMad",
+        "rows": 65
+      },
+      {
+        "name": "Midtown West",
+        "rows": 63
+      },
+      {
+        "name": "Park Slope",
+        "rows": 62
+      },
+      {
+        "name": "Forest Hills",
+        "rows": 61
+      },
+      {
+        "name": "Harlem",
+        "rows": 54
+      },
+      {
+        "name": "Brooklyn Heights",
+        "rows": 52
+      },
+      {
+        "name": "Jackson Heights",
+        "rows": 51
+      },
+      {
+        "name": "Hamilton Heights",
+        "rows": 50
+      },
+      {
+        "name": "Washington Heights",
+        "rows": 50
+      },
+      {
+        "name": "Flatbush",
+        "rows": 49
+      },
+      {
+        "name": "Morningside Heights",
+        "rows": 49
+      },
+      {
+        "name": "SoHo",
+        "rows": 48
+      },
+      {
+        "name": "Hudson Heights",
+        "rows": 47
+      },
+      {
+        "name": "Clinton Hill",
+        "rows": 45
+      },
+      {
+        "name": "South Harlem",
+        "rows": 45
+      },
+      {
+        "name": "Bay Ridge",
+        "rows": 44
+      },
+      {
+        "name": "Ditmars Steinway",
+        "rows": 41
+      },
+      {
+        "name": "Central Riverdale",
+        "rows": 39
+      },
+      {
+        "name": "Woodside",
+        "rows": 38
+      },
+      {
+        "name": "Flushing",
+        "rows": 38
+      },
+      {
+        "name": "Beekman",
+        "rows": 37
+      },
+      {
+        "name": "Kensington",
+        "rows": 36
+      },
+      {
+        "name": "Jamaica",
+        "rows": 36
+      },
+      {
+        "name": "Midwood",
+        "rows": 33
+      },
+      {
+        "name": "Boerum Hill",
+        "rows": 30
+      },
+      {
+        "name": "East Flatbush",
+        "rows": 30
+      },
+      {
+        "name": "South Street Seaport",
+        "rows": 30
+      },
+      {
+        "name": "Prospect Lefferts Gardens",
+        "rows": 29
+      },
+      {
+        "name": "North Riverdale",
+        "rows": 29
+      },
+      {
+        "name": "Hudson Square",
+        "rows": 29
+      },
+      {
+        "name": "Carroll Gardens",
+        "rows": 28
+      },
+      {
+        "name": "Greenwood Heights",
+        "rows": 28
+      },
+      {
+        "name": "West Harlem",
+        "rows": 28
+      },
+      {
+        "name": "Ditmas Park",
+        "rows": 27
+      },
+      {
+        "name": "Canarsie",
+        "rows": 27
+      },
+      {
+        "name": "Dumbo",
+        "rows": 27
+      },
+      {
+        "name": "Inwood",
+        "rows": 26
+      },
+      {
+        "name": "Fort Greene",
+        "rows": 25
+      },
+      {
+        "name": "Roosevelt Island",
+        "rows": 24
+      },
+      {
+        "name": "Brighton Beach",
+        "rows": 24
+      },
+      {
+        "name": "Riverdale",
+        "rows": 23
+      },
+      {
+        "name": "Chinatown",
+        "rows": 23
+      },
+      {
+        "name": "Manhattan Valley",
+        "rows": 21
+      },
+      {
+        "name": "Sheepshead Bay",
+        "rows": 21
+      },
+      {
+        "name": "Rego Park",
+        "rows": 20
+      },
+      {
+        "name": "Two Bridges",
+        "rows": 20
+      },
+      {
+        "name": "Prospect Heights",
+        "rows": 19
+      },
+      {
+        "name": "Concourse Village",
+        "rows": 18
+      },
+      {
+        "name": "East New York",
+        "rows": 18
+      },
+      {
+        "name": "Sunnyside",
+        "rows": 17
+      },
+      {
+        "name": "Prospect Park South",
+        "rows": 17
+      },
+      {
+        "name": "NoHo",
+        "rows": 17
+      },
+      {
+        "name": "Fort Hamilton",
+        "rows": 17
+      },
+      {
+        "name": "Windsor Terrace",
+        "rows": 17
+      },
+      {
+        "name": "Weeksville",
+        "rows": 16
+      },
+      {
+        "name": "DUMBO",
+        "rows": 16
+      },
+      {
+        "name": "Elmhurst",
+        "rows": 16
+      },
+      {
+        "name": "Ridgewood",
+        "rows": 16
+      },
+      {
+        "name": "East Williamsburg",
+        "rows": 15
+      },
+      {
+        "name": "Hunters Point",
+        "rows": 14
+      },
+      {
+        "name": "Ocean Hill",
+        "rows": 12
+      },
+      {
+        "name": "Concourse",
+        "rows": 11
+      },
+      {
+        "name": "Rockaway Park",
+        "rows": 11
+      },
+      {
+        "name": "Nolita",
+        "rows": 10
+      },
+      {
+        "name": "Brownsville",
+        "rows": 10
+      },
+      {
+        "name": "Cobble Hill",
+        "rows": 10
+      },
+      {
+        "name": "Fordham",
+        "rows": 9
+      },
+      {
+        "name": "St. George",
+        "rows": 8
+      },
+      {
+        "name": "Gravesend",
+        "rows": 8
+      },
+      {
+        "name": "Madison",
+        "rows": 8
+      },
+      {
+        "name": "Red Hook",
+        "rows": 8
+      },
+      {
+        "name": "Fieldston",
+        "rows": 8
+      },
+      {
+        "name": "Kingsbridge",
+        "rows": 7
+      },
+      {
+        "name": "Little Italy",
+        "rows": 7
+      },
+      {
+        "name": "Flatlands",
+        "rows": 7
+      },
+      {
+        "name": "Soho",
+        "rows": 6
+      },
+      {
+        "name": "Glendale",
+        "rows": 6
+      },
+      {
+        "name": "TriBeCa",
+        "rows": 6
+      },
+      {
+        "name": "Kew Gardens Hills",
+        "rows": 6
+      },
+      {
+        "name": "Coney Island",
+        "rows": 6
+      },
+      {
+        "name": "Wingate",
+        "rows": 6
+      },
+      {
+        "name": "Norwood",
+        "rows": 6
+      },
+      {
+        "name": "New Lots",
+        "rows": 6
+      },
+      {
+        "name": "Homecrest",
+        "rows": 6
+      },
+      {
+        "name": "Queens Village",
+        "rows": 5
+      },
+      {
+        "name": "Sunset Park",
+        "rows": 5
+      },
+      {
+        "name": "Belle Harbor",
+        "rows": 5
+      },
+      {
+        "name": "Marine Park",
+        "rows": 5
+      },
+      {
+        "name": "Douglaston",
+        "rows": 5
+      },
+      {
+        "name": "Whitestone",
+        "rows": 5
+      },
+      {
+        "name": "Cypress Hills",
+        "rows": 5
+      },
+      {
+        "name": "Mill Basin",
+        "rows": 5
+      },
+      {
+        "name": "Jamaica Estates",
+        "rows": 4
+      },
+      {
+        "name": "Bellerose",
+        "rows": 4
+      },
+      {
+        "name": "Maspeth",
+        "rows": 4
+      },
+      {
+        "name": "Manhattan Beach",
+        "rows": 4
+      },
+      {
+        "name": "Kew Gardens",
+        "rows": 4
+      },
+      {
+        "name": "Morris Heights",
+        "rows": 4
+      },
+      {
+        "name": "Rockaway Beach",
+        "rows": 4
+      },
+      {
+        "name": "Middle Village",
+        "rows": 4
+      },
+      {
+        "name": "City Line",
+        "rows": 3
+      },
+      {
+        "name": "Breezy Point",
+        "rows": 3
+      },
+      {
+        "name": "Fort George",
+        "rows": 3
+      },
+      {
+        "name": "Bronxdale",
+        "rows": 3
+      },
+      {
+        "name": "Mott Haven",
+        "rows": 3
+      },
+      {
+        "name": "Todt Hill",
+        "rows": 3
+      },
+      {
+        "name": "Columbia Street Waterfront",
+        "rows": 3
+      },
+      {
+        "name": "Vinegar Hill",
+        "rows": 3
+      },
+      {
+        "name": "Estate Area",
+        "rows": 3
+      },
+      {
+        "name": "Woodhaven",
+        "rows": 3
+      },
+      {
+        "name": "South Jamaica",
+        "rows": 3
+      },
+      {
+        "name": "Richmond Hill",
+        "rows": 3
+      },
+      {
+        "name": "Manhattanville",
+        "rows": 3
+      },
+      {
+        "name": "Borough Park",
+        "rows": 2
+      },
+      {
+        "name": "Bay Terrace",
+        "rows": 2
+      },
+      {
+        "name": "Noho",
+        "rows": 2
+      },
+      {
+        "name": "Alphabet City",
+        "rows": 2
+      },
+      {
+        "name": "Oakland Gardens",
+        "rows": 2
+      },
+      {
+        "name": "Great Kills",
+        "rows": 2
+      },
+      {
+        "name": "Little Neck",
+        "rows": 2
+      },
+      {
+        "name": "Rosedale",
+        "rows": 2
+      },
+      {
+        "name": "Woodlawn Heights",
+        "rows": 2
+      },
+      {
+        "name": "Farragut",
+        "rows": 2
+      },
+      {
+        "name": "Bayside",
+        "rows": 2
+      },
+      {
+        "name": "Annadale",
+        "rows": 2
+      },
+      {
+        "name": "Throgs Neck",
+        "rows": 2
+      },
+      {
+        "name": "Lindenwood",
+        "rows": 2
+      },
+      {
+        "name": "Melrose",
+        "rows": 2
+      },
+      {
+        "name": "Parkchester",
+        "rows": 2
+      },
+      {
+        "name": "Dyker Heights",
+        "rows": 2
+      },
+      {
+        "name": "Highbridge",
+        "rows": 2
+      },
+      {
+        "name": "City Island",
+        "rows": 2
+      },
+      {
+        "name": "Glen Oaks",
+        "rows": 2
+      },
+      {
+        "name": "Bensonhurst",
+        "rows": 2
+      },
+      {
+        "name": "NoLIta",
+        "rows": 2
+      },
+      {
+        "name": "South Ozone Park",
+        "rows": 2
+      },
+      {
+        "name": "Wakefield",
+        "rows": 2
+      },
+      {
+        "name": "Rochdale Village",
+        "rows": 2
+      },
+      {
+        "name": "Soundview",
+        "rows": 2
+      },
+      {
+        "name": "Hollis",
+        "rows": 2
+      },
+      {
+        "name": "Bedford Park",
+        "rows": 2
+      },
+      {
+        "name": "Kingsbridge Heights",
+        "rows": 2
+      },
+      {
+        "name": "Tudor City",
+        "rows": 2
+      },
+      {
+        "name": "University Heights",
+        "rows": 2
+      },
+      {
+        "name": "Gerritsen Beach",
+        "rows": 2
+      },
+      {
+        "name": "Springfield Gardens",
+        "rows": 1
+      },
+      {
+        "name": "Bronxwood",
+        "rows": 1
+      },
+      {
+        "name": "Pleasant Plains",
+        "rows": 1
+      },
+      {
+        "name": "Tompkinsville",
+        "rows": 1
+      },
+      {
+        "name": "Jamaica Hills",
+        "rows": 1
+      },
+      {
+        "name": "New Springville",
+        "rows": 1
+      },
+      {
+        "name": "Midland Beach",
+        "rows": 1
+      },
+      {
+        "name": "Mount Hope",
+        "rows": 1
+      },
+      {
+        "name": "North Corona",
+        "rows": 1
+      },
+      {
+        "name": "Bath Beach",
+        "rows": 1
+      },
+      {
+        "name": "Briarwood",
+        "rows": 1
+      },
+      {
+        "name": "Prince's Bay",
+        "rows": 1
+      },
+      {
+        "name": "Marble Hill",
+        "rows": 1
+      },
+      {
+        "name": "Port Richmond",
+        "rows": 1
+      },
+      {
+        "name": "midtown",
+        "rows": 1
+      },
+      {
+        "name": "Broad Channel",
+        "rows": 1
+      },
+      {
+        "name": "Ocean Parkway",
+        "rows": 1
+      },
+      {
+        "name": "Howard Beach",
+        "rows": 1
+      },
+      {
+        "name": "Meiers Corners",
+        "rows": 1
+      },
+      {
+        "name": "Clason Point",
+        "rows": 1
+      },
+      {
+        "name": "East Elmhurst",
+        "rows": 1
+      },
+      {
+        "name": "Tottenville",
+        "rows": 1
+      },
+      {
+        "name": "Pelham Parkway",
+        "rows": 1
+      },
+      {
+        "name": "Pelham Gardens",
+        "rows": 1
+      },
+      {
+        "name": "Port Morris",
+        "rows": 1
+      },
+      {
+        "name": "Grasmere",
+        "rows": 1
+      },
+      {
+        "name": "College Point",
+        "rows": 1
+      },
+      {
+        "name": "Baychester",
+        "rows": 1
+      },
+      {
+        "name": "Astoria Heights",
+        "rows": 1
+      },
+      {
+        "name": "Castleton Corners",
+        "rows": 1
+      },
+      {
+        "name": "Concord",
+        "rows": 1
+      },
+      {
+        "name": "Mariners Harbor",
+        "rows": 1
+      },
+      {
+        "name": "Eastchester",
+        "rows": 1
+      },
+      {
+        "name": "Locust Point",
+        "rows": 1
+      },
+      {
+        "name": "Country Club",
+        "rows": 1
+      },
+      {
+        "name": "Belmont",
+        "rows": 1
+      },
+      {
+        "name": "Arverne",
+        "rows": 1
+      },
+      {
+        "name": "Rosebank",
+        "rows": 1
+      },
+      {
+        "name": "Bergen Beach",
+        "rows": 1
+      },
+      {
+        "name": "Sunnyside Gardens",
+        "rows": 1
+      },
+      {
+        "name": "Longwood",
+        "rows": 1
+      },
+      {
+        "name": "East Morrisania",
+        "rows": 1
+      },
+      {
+        "name": "Bayswater",
+        "rows": 1
+      },
+      {
+        "name": "Seaside",
+        "rows": 1
+      },
+      {
+        "name": "Woodstock",
+        "rows": 1
+      },
+      {
+        "name": "Morrisania",
+        "rows": 1
+      },
+      {
+        "name": "Pelham Bay",
+        "rows": 1
+      },
+      {
+        "name": "Edgemere",
+        "rows": 1
+      },
+      {
+        "name": "Mapleton",
+        "rows": 1
+      },
+      {
+        "name": "Stapleton",
+        "rows": 1
+      },
+      {
+        "name": "Morris Park",
+        "rows": 1
+      },
+      {
+        "name": "Eltingville",
+        "rows": 1
+      },
+      {
+        "name": "SOHO",
+        "rows": 1
+      },
+      {
+        "name": "NOMAD",
+        "rows": 1
+      },
+      {
+        "name": "St. Albans",
+        "rows": 1
+      },
+      {
+        "name": "Rose Hill",
+        "rows": 1
+      },
+      {
+        "name": "Van Nest",
+        "rows": 1
+      }
+    ]
+  },
+  "results": [
+    {
+      "group": "address",
+      "label": "exact_4",
+      "filter": "StreetNumber eq '4'",
+      "meaning": "addresses whose number IS exactly 4",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 1241,
+      "error": null
+    },
+    {
+      "group": "address",
+      "label": "prefix_4",
+      "filter": "startswith(StreetNumber,'4')",
+      "meaning": "addresses whose number BEGINS with 4",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 64603,
+      "error": null
+    },
+    {
+      "group": "address",
+      "label": "false_matches_4",
+      "filter": "startswith(StreetNumber,'4') and StreetNumber ne '4'",
+      "meaning": "rows a prefix search adds that are NOT street number 4",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 63362,
+      "error": null
+    },
+    {
+      "group": "address",
+      "label": "exact_40",
+      "filter": "StreetNumber eq '40'",
+      "meaning": "addresses whose number IS exactly 40",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 3117,
+      "error": null
+    },
+    {
+      "group": "address",
+      "label": "prefix_40",
+      "filter": "startswith(StreetNumber,'40')",
+      "meaning": "addresses whose number BEGINS with 40",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 12582,
+      "error": null
+    },
+    {
+      "group": "address",
+      "label": "false_matches_40",
+      "filter": "startswith(StreetNumber,'40') and StreetNumber ne '40'",
+      "meaning": "rows a prefix search adds that are NOT street number 40",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 9465,
+      "error": null
+    },
+    {
+      "group": "address",
+      "label": "exact_400",
+      "filter": "StreetNumber eq '400'",
+      "meaning": "addresses whose number IS exactly 400",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 3488,
+      "error": null
+    },
+    {
+      "group": "address",
+      "label": "prefix_400",
+      "filter": "startswith(StreetNumber,'400')",
+      "meaning": "addresses whose number BEGINS with 400",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 3561,
+      "error": null
+    },
+    {
+      "group": "address",
+      "label": "false_matches_400",
+      "filter": "startswith(StreetNumber,'400') and StreetNumber ne '400'",
+      "meaning": "rows a prefix search adds that are NOT street number 400",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 73,
+      "error": null
+    },
+    {
+      "group": "address",
+      "label": "exact_4000",
+      "filter": "StreetNumber eq '4000'",
+      "meaning": "addresses whose number IS exactly 4000",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 0,
+      "error": null
+    },
+    {
+      "group": "address",
+      "label": "prefix_4000",
+      "filter": "startswith(StreetNumber,'4000')",
+      "meaning": "addresses whose number BEGINS with 4000",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 0,
+      "error": null
+    },
+    {
+      "group": "address",
+      "label": "false_matches_4000",
+      "filter": "startswith(StreetNumber,'4000') and StreetNumber ne '4000'",
+      "meaning": "rows a prefix search adds that are NOT street number 4000",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 0,
+      "error": null
+    },
+    {
+      "group": "address",
+      "label": "structured_prefix",
+      "filter": "(startswith(StreetNumber,'400') and StreetDirPrefix eq 'E' and contains(StreetName,'90'))",
+      "meaning": "the expression the executor builds today",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 172,
+      "error": null
+    },
+    {
+      "group": "address",
+      "label": "structured_exact",
+      "filter": "(StreetNumber eq '400' and StreetDirPrefix eq 'E' and contains(StreetName,'90'))",
+      "meaning": "the same address asked EXACTLY",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 172,
+      "error": null
+    },
+    {
+      "group": "postal_code",
+      "label": "sentinel_00000",
+      "filter": "PostalCode eq '00000'",
+      "meaning": "the value used as the old negative control",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 215,
+      "error": null
+    },
+    {
+      "group": "postal_code",
+      "label": "candidate_99999",
+      "filter": "PostalCode eq '99999'",
+      "meaning": "candidate absent value",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 0,
+      "error": null
+    },
+    {
+      "group": "postal_code",
+      "label": "candidate_00001",
+      "filter": "PostalCode eq '00001'",
+      "meaning": "candidate absent value",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 0,
+      "error": null
+    },
+    {
+      "group": "postal_code",
+      "label": "candidate_12345678",
+      "filter": "PostalCode eq '12345678'",
+      "meaning": "candidate absent value",
+      "state": "SUPPORTED",
+      "httpStatus": 200,
+      "count": 0,
+      "error": null
+    }
+  ]
+}

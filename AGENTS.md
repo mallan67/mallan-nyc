@@ -5,8 +5,9 @@
 > is **paste-ready for ChatGPT**. When any tool's private memory disagrees with this file, **this file
 > wins** — do not act on stale chat memory.
 
-This project is a **live Cotality/Trestle (REBNY IDX Plus) synchronization platform** — not "an IDX
-website." It has downstream consumers: search, CRM, portal, media, compliance, archive, email, contact.
+This project is a **live Cotality API synchronization platform** — not "an IDX website" and not a
+RESO/RLS-backed application. It has downstream consumers: search, CRM, portal, media, compliance,
+archive, email, contact.
 
 ---
 
@@ -16,7 +17,7 @@ website." It has downstream consumers: search, CRM, portal, media, compliance, a
 |---|---|
 | **Claude** | `CLAUDE.md` → this file → `docs/PROJECT-HEALTH-DASHBOARD.md` → latest handoff snapshot |
 | **Codex** | this file (`AGENTS.md`) + **review the CURRENT HEAD commit of a PR, never stale bot comments** |
-| **ChatGPT** | paste `AGENTS.md` + `docs/PROJECT-HEALTH-DASHBOARD.md` (it has no repo access) |
+| **ChatGPT** | this file + `docs/PROJECT-HEALTH-DASHBOARD.md`; repo/API reads are required for current facts |
 
 ---
 
@@ -26,30 +27,49 @@ website." It has downstream consumers: search, CRM, portal, media, compliance, a
    org** `Vercel: maya` / `org-wild-king-99967357`) · default branch **`main` = `br-crimson-frog-adr7g9gt`**
    · endpoint **`ep-cold-waterfall-adno3ao2`**. **Stale / do-not-serve:** `morning-bread-68708332` /
    `ep-royal-dawn-ad6eh8t2` (personal org). Never target the stale one. Full rules: `NEON.md`.
-2. **Live Cotality/Trestle cadence is intentional** — `/api/cron/idx-sync` **every 10 min**,
+2. **Live Cotality API cadence is intentional** — `/api/cron/idx-sync` **every 10 min**,
    `/api/cron/media-sync` **every 15 min**, `/api/cron/db-keepalive` **every 15 min** (source of truth =
    `vercel.json`). Some route-file **comments are stale** (say "4 hours" / "4 minutes"). **Fix the
    comments, never the schedule**, unless Maya explicitly asks.
 3. **Proof-first** — a change is not "done" without a failing test that flips green, a live URL/runtime-log
    proof, or a direct source read (static claims only). Source-grep alone never proves rendering/behavior.
-4. **Fail-closed** — if a REBNY/RLS/IDX/FARE/Fair-Housing rule is unclear or a canonical file is missing,
-   STOP and report; do not guess or extrapolate across feeds/fields.
+4. **Fail-closed** — if a live Cotality API behavior or a REBNY/UCBA/FARE/Fair-Housing compliance rule is
+   unclear or a canonical compliance file is missing, STOP and report; do not guess, and do not substitute
+   RESO, RLS, legacy field registries, old snapshots, or another feed as provider authority.
 5. **Review the current HEAD** — a Codex/reviewer comment against an older commit is **not** a blocker if
    the current HEAD already addresses it. Always check the PR's current head SHA first.
-6. **Compliance-first** — anything touching listings, IDX, syndication, CRM lead/contact, intake forms,
-   display gates, media, or public text: read `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` first.
-7. **Cotality is the sole authority — always live, never a copy, never a spot-check** (Maya law,
-   2026-07-05). Every listing **status, field name, and picklist value** must be verified against the
-   **live Cotality API** (`api.cotality.com/trestle` `$metadata`), NOT a snapshot (`artifacts/metadata.xml`),
-   NOT a hand-copied set, NOT another agent's list. The single generated source is
-   `data/cotality-enums.live.json` (regenerate with `npm run cotality:pull`; the drift guard
-   `npm run cotality:verify` fails if it or any code set diverges from live). If a status/field value is
-   wrong in one place it is almost certainly wrong in the copies elsewhere — **verify the whole surface,
-   never one file.** Known live truths (2026-07-05): `StandardStatus` = {Active, ActiveUnderContract,
-   Canceled, Closed, ComingSoon, Delete, Expired, Hold, Incomplete, Pending, Withdrawn} (spelling is
-   **`Canceled`**, one L — never "Cancelled"); "Sold"/"Rented" exist in **no** Cotality enum;
-   `Permission` has **no** "OwnerOptOut"; `PropertyType` is camelCase (`ResidentialLease`, never
-   "Residential Lease"). Full audit: `docs/audits/cotality-status-truth-audit-2026-07-05.md`.
+6. **Compliance-first** — anything touching listings, provider data, syndication, CRM lead/contact, intake
+   forms, display gates, media, or public text: read `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` first.
+7. **Cotality API is the sole external provider authority — always live, never a copy, never a spot-check**
+   (Maya law). Every provider field name, type, picklist value, relationship, population claim, filter,
+   sort, expansion, permission, and capability verdict must be verified against the **live authenticated
+   Cotality API** in the current session. Repo code, RESO/RLS material, vendor documents, historical
+   field registries, tests, comments, snapshots, generated JSON, prior audits, another agent's report,
+   or model/chat memory are **not provider evidence**. Generated Cotality contract files may be used as
+   drift evidence or runtime inputs only after they are checked against the live API; they never replace
+   the live API as authority. If a provider fact is wrong in one place, verify the whole affected surface.
+   Cotality's own OData wire format may contain namespace strings chosen by Cotality; those strings are
+   transport syntax, not a second provider authority, and must not be promoted into Mallan architecture,
+   UI terminology, field registries, or business rules.
+8. **No RESO/RLS field layer.** Do not create, retain, consult, or validate Search against a RESO field
+   map, RLS field registry, RLS rename table, `data-reso-*` rendering contract, or similar parallel mapping
+   source. Search mappings must resolve from live Cotality API evidence into Mallan's single canonical
+   mapping layer. If old RESO/RLS field-layer code is encountered, remove or replace it rather than
+   extending it. Raw provider values must still be preserved exactly when provenance requires them.
+9. **Mallan listing ownership and feed topology are explicit.** A Mallan Real Estate listing entered
+   directly into Mallan is **Mallan-owned, canonical, editable by authorized Mallan broker/agents, and
+   publishable on the Mallan website** subject to the applicable display/compliance gates. During the
+   current transition period, the same Mallan listing may also reach the Cotality API through a
+   **third-party feed**. That Cotality record is a provider representation of the Mallan listing, not a
+   second canonical listing and not the editing master. It must be reconciled to the Mallan-owned record
+   and suppressed as a competing duplicate while its provider identifiers, status, permissions,
+   timestamps, and media relationships remain available as reconciliation evidence. **Do not overwrite
+   Mallan-authored listing facts from that duplicate Cotality representation merely because it arrived
+   through the provider.** In the future, Mallan will feed its listings **directly to Cotality**. That
+   future outbound path does not change authorship: Mallan remains the authoring/editing authority for
+   Mallan listings, Cotality becomes the distribution/provider representation, and Mallan must continue
+   to support local editing plus publication to the Mallan website. Third-party brokerage inventory that
+   is not a Mallan listing remains Cotality-owned/read-only in Mallan.
 
 ## 2. Non-negotiable holds (require explicit Maya approval)
 
@@ -61,7 +81,7 @@ notification dispatcher · open-house v2 · admin merge bypass · force-push to 
 
 ## 3. Where truth lives
 
-| Topic | File |
+| Topic | File / authority |
 |---|---|
 | Cross-agent constitution (this) | `AGENTS.md` |
 | Live operational status | `docs/PROJECT-HEALTH-DASHBOARD.md` (auto tier via `npm run health:probe`) |
@@ -70,8 +90,7 @@ notification dispatcher · open-house v2 · admin merge bypass · force-push to 
 | Claude-specific command center | `CLAUDE.md` |
 | Neon / Prisma / DB rules | `NEON.md` |
 | Compliance per-area map | `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` |
-| REBNY skill | `.claude/skills/rebny-compliance/SKILL.md` |
-| **Cotality enum truth (status/field/picklist)** | `data/cotality-enums.live.json` (generated live via `npm run cotality:pull`; guarded by `npm run cotality:verify`). The live API is authority; this file is its verified mirror. |
+| **Cotality provider truth** | **Live authenticated Cotality API in the current session.** Generated `data/cotality-*` files are evidence/mirrors only, never provider authority. |
 
 ### Canonical Documentation (Maya directive 2026-07-01)
 

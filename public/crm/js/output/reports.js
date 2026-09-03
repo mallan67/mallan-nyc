@@ -130,6 +130,28 @@
         // ── REBNY/IDX compliance validation ──
         function validateReportState() {
             var errors = [];
+
+            // A report LEAVES the CRM — CSV, Excel, a public shareable link, a
+            // printed sheet, an email to a client. It may only ever be built
+            // from a completed search.
+            //
+            // This gate used to ask only whether the rows may be DISPLAYED
+            // (IDX / internet opt-out). It never asked whether they were an
+            // ANSWER. So when a server search failed and the local preview rows
+            // stayed on screen, a report built from them validated cleanly and
+            // could be published or emailed to a client as search results.
+            //
+            // Deliberately keyed on `searchResultsAreStale()`, not on
+            // `!hasAuthoritativeSearchResults()`: reporting over the loaded
+            // catalogue BEFORE any search is existing behaviour and is not what
+            // this fixes.
+            if (typeof searchResultsAreStale === 'function' && searchResultsAreStale()) {
+                errors.push(
+                    'These rows are a preview, not a completed search — run the search again before ' +
+                    'generating a report. A failed or in-flight search cannot be delivered to a client.'
+                );
+            }
+
             if (reportState.selectedListingIds.length === 0) errors.push('Select at least 1 listing.');
             if (reportState.selectedListingIds.length > 250) errors.push('Maximum 250 listings allowed per report.');
             // Compliance: block agent-only comments in CSV/Excel customer export
@@ -172,6 +194,37 @@
             reportState.selectedListingIds = selIds.slice(0, 250);
 
             // Update counts in Sort Order tab
+            // A REPORT MUST NOT CALL ONE PAGE "ALL RESULTS".
+            //
+            // `allListings` is `searchResultsState.filteredListings`, which on
+            // the authoritative path is ONE SERVER PAGE. The option was labelled
+            // "All Results (N)" with N the page length, and it is the DEFAULT —
+            // so a broker generating a CSV, print-out or client email for a
+            // 4,000-result search got fifty listings under a label promising all
+            // of them. That output leaves the brokerage.
+            //
+            // The option still exists and still works; it stops misdescribing
+            // itself. When the rows are a window it is named for what it is, and
+            // the note below states the population outright.
+            var reportScope = (typeof window.getResultScope === 'function')
+                ? window.getResultScope()
+                : { isCompleteUniverse: true, loadedCount: allListings.length, universeCount: allListings.length, isExact: true };
+
+            var allLabelEl = document.getElementById('reportAllLabel');
+            if (allLabelEl) {
+                allLabelEl.textContent = reportScope.isCompleteUniverse
+                    ? 'All Results'
+                    : 'Listings on this page';
+            }
+            var scopeNoteEl = document.getElementById('reportScopeNote');
+            if (scopeNoteEl) {
+                scopeNoteEl.textContent = reportScope.isCompleteUniverse
+                    ? ''
+                    : 'This search has ' + reportScope.universeCount + (reportScope.isExact ? '' : '+')
+                      + ' results and ' + reportScope.loadedCount + ' are loaded. A report covers the loaded page '
+                      + 'or the listings you select — select across pages to include more.';
+            }
+
             var allEl = document.getElementById('reportAllCount');
             var selEl = document.getElementById('reportSelectedCount');
             if (allEl) allEl.textContent = Math.min(allListings.length, 250);
@@ -486,7 +539,10 @@
             // Batch in groups of 25 (API detail mode limit) to handle larger reports
             var needPhotos = listings.filter(function(l) { return !l.images || l.images.length === 0; });
             if (needPhotos.length > 0 && typeof fetch !== 'undefined') {
-                var allIds = needPhotos.map(function(l) { return l.lid || l.id; }).filter(Boolean);
+                // ONE DOMAIN PER BATCH. `l.lid || l.id` mixed RLS ListingIds
+                // and numeric ListingKeys into a single request, so one batch
+                // spanned two identity domains and only one could ever resolve.
+                var allIds = needPhotos.map(function(l) { return l.wid || l.id; }).filter(Boolean);
                 var BATCH_SIZE = 25;
                 var batches = [];
                 for (var bi = 0; bi < allIds.length; bi += BATCH_SIZE) {
@@ -499,7 +555,7 @@
                     var media = data.media || {};
                     needPhotos.forEach(function(l) {
                         if (l.images && l.images.length > 0) return; // already populated by earlier batch
-                        var lid = l.lid || l.id;
+                        var lid = l.wid || l.id;
                         if (media[lid] && media[lid].length > 0) {
                             l.images = media[lid].map(function(m) {
                                 return {
@@ -522,7 +578,7 @@
                     }
                 }
                 batches.forEach(function(batchIds) {
-                    fetch('/api/media/batch?ids=' + encodeURIComponent(batchIds.join(',')) + '&detail=true', { credentials: 'same-origin' })
+                    fetch('/api/media/batch?keys=' + encodeURIComponent(batchIds.join(',')) + '&detail=true', { credentials: 'same-origin' })
                         .then(function(r) { return r.ok ? r.json() : null; })
                         .then(applyMediaToListings)
                         .catch(function() { completedBatches++; });
@@ -625,7 +681,7 @@
                     'WITHDRAWN': { bg: '#f3f4f6', color: '#6b7280' },
                     'HOLD': { bg: '#f3f4f6', color: '#6b7280' },
                     'CANCELED': { bg: '#f3f4f6', color: '#6b7280' },
-                    'COMING_SOON': { bg: '#f5f3ff', color: '#7c3aed' }
+                    'ComingSoon': { bg: '#f5f3ff', color: '#7c3aed' }
                 };
                 return m[s] || { bg: '#f3f4f6', color: '#4b5563' };
             }
@@ -634,9 +690,9 @@
                 var sc = statusColor(s);
                 var label = s.replace(/_/g, ' ');
                 // UCBA Art. I Sec. 16: Coming Soon badge must include showing restriction text
-                if (s === 'COMING_SOON' && listing && listing.firstShowingDate) {
+                if (s === 'ComingSoon' && listing && listing.firstShowingDate) {
                     label = 'Coming Soon \u2014 No Showings or Open House until ' + listing.firstShowingDate;
-                } else if (s === 'COMING_SOON') {
+                } else if (s === 'ComingSoon') {
                     label = 'Coming Soon \u2014 No Showings or Open House until Scheduled Date';
                 }
                 return '<span style="display:inline-block;padding:2px 8px;background:' + sc.bg + ';color:' + sc.color + ';font-size:12px;border-radius:4px;font-weight:500">' + label + '</span>';
@@ -996,7 +1052,7 @@
             listings.forEach(function(l, idx) {
                 var isRental = l.listingCategory === 'rental';
                 var stC = statusColor(l.status);
-                var statusLabel = (l.status === 'COMING_SOON') ? 'COMING SOON' : (l.status || 'ACTIVE');
+                var statusLabel = (l.status === 'ComingSoon') ? 'COMING SOON' : (l.status || 'ACTIVE');
                 var bedsLabel = l.beds === 0 ? 'Studio' : l.beds;
                 var photo = getListingPhoto(l);
 
@@ -1276,7 +1332,6 @@
             linkHtml += '<p style="margin:4px 0;font-size:13px"><i class="fas fa-link" style="color:#C4A052;margin-right:6px;width:14px;text-align:center"></i><a href="#" style="color:#C4A052;text-decoration:none">View on mallan.nyc</a></p>';
             if (first.virtualTourUrl) linkHtml += '<p style="margin:4px 0;font-size:13px"><i class="fas fa-vr-cardboard" style="color:#C4A052;margin-right:6px;width:14px;text-align:center"></i><a href="' + first.virtualTourUrl + '" style="color:#C4A052;text-decoration:none">3D Virtual Tour</a></p>';
             if (first.videoTourUrl) linkHtml += '<p style="margin:4px 0;font-size:13px"><i class="fas fa-video" style="color:#C4A052;margin-right:6px;width:14px;text-align:center"></i><a href="' + first.videoTourUrl + '" style="color:#C4A052;text-decoration:none">Video Tour</a></p>';
-            linkHtml += '<p style="margin:4px 0;font-size:13px"><i class="fas fa-map-marker-alt" style="color:#C4A052;margin-right:6px;width:14px;text-align:center"></i><a href="https://maps.google.com/?q=' + encodeURIComponent(displayAddr(first) + ' New York NY') + '" style="color:#C4A052;text-decoration:none">Google Map</a></p>';
             linkHtml += '<p style="margin:4px 0;font-size:13px"><i class="fas fa-file-alt" style="color:#C4A052;margin-right:6px;width:14px;text-align:center"></i><a href="#" style="color:#C4A052;text-decoration:none">ACRIS Records</a></p>';
             d += '<div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:24px">' +
                 '<h3 style="font-weight:700;color:#111827;margin:0 0 12px;font-size:15px"><i class="fas fa-external-link-alt" style="color:#6b7280;margin-right:8px"></i>Links</h3>' + linkHtml + '</div>';
@@ -1737,9 +1792,19 @@
             // Media section for open house
             oh += renderMediaSection(ohFirst, optContent);
             // Links section
+                    // STEP 1 — the Google Map link that stood here is gone. It sent the
+                    // property address in the query string of a third party's URL,
+                    // out of an authenticated broker report. Two of the three sites
+                    // emitted it regardless of the "Google Map Link" option, so a
+                    // broker who left that box unchecked sent it anyway.
+                    //
+                    // Nothing replaces it: swapping Google for another outside
+                    // location authority is the same dependency renamed. Mallan's
+                    // map capability stays where it already lives — the
+                    // MapLibre/OpenFreeMap panels in js/render/results-map.js and
+                    // js/render/neighborhood-map.js. The report keeps the address.
             var ohLinks = '';
             if (optContent.listingWebLink) ohLinks += '<span style="margin-right:16px;font-size:13px"><i class="fas fa-link" style="color:#C4A052;margin-right:4px"></i><a href="#" style="color:#C4A052;text-decoration:none">View on mallan.nyc</a></span>';
-            if (optContent.googleMapLink) ohLinks += '<span style="margin-right:16px;font-size:13px"><i class="fas fa-map-marker-alt" style="color:#C4A052;margin-right:4px"></i><a href="https://maps.google.com/?q=' + encodeURIComponent(displayAddr(ohFirst) + ' New York NY') + '" style="color:#C4A052;text-decoration:none">Google Map</a></span>';
             if (optContent.mediaViewerLink && ohFirst.virtualTourUrl) ohLinks += '<span style="font-size:13px"><i class="fas fa-video" style="color:#C4A052;margin-right:4px"></i><a href="' + ohFirst.virtualTourUrl + '" style="color:#C4A052;text-decoration:none">Virtual Tour</a></span>';
             if (ohLinks) oh += '<div style="margin-bottom:24px">' + ohLinks + '</div>';
             // Agent contact card (prominent)
@@ -1771,15 +1836,17 @@
                 img += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #e5e7eb">' +
                     '<div><h3 style="font-weight:700;color:#111827;margin:0;font-size:15px">' + addrLink(l, imgAddrText) + '</h3>' +
                     '<p style="font-size:13px;color:#6b7280;margin:2px 0 0">' + imgStats + '</p></div>' +
-                    '<span style="padding:4px 10px;background:rgba(196,160,82,0.06);color:#B8860B;font-size:12px;border-radius:4px;font-weight:600"><i class="fas fa-images" style="margin-right:4px"></i>' + (l.photoCount||6) + ' photos</span></div>';
+                    '<span style="padding:4px 10px;background:rgba(196,160,82,0.06);color:#B8860B;font-size:12px;border-radius:4px;font-weight:600"><i class="fas fa-images" style="margin-right:4px"></i>' + (reportedPhotoCount(l) == null ? 'Photo count not provided' : reportedPhotoCount(l) + ' photos') + '</span></div>';
                 // Photo grid 3-col
                 img += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
-                var pCount = l.photoCount || 6;
-                var imgArr = getListingPhotos(l);
-                for (var pi = 0; pi < Math.min(pCount, 9); pi++) {
+                // The grid renders the media that exists, once each. It used to
+                // render `photoCount || 6` tiles and fill them with `imgArr[pi % len]`,
+                // so two real photos became a six-tile grid of repeats numbered 1..6.
+                var imgArr = reportPhotoTiles(l);
+                for (var pi = 0; pi < imgArr.length; pi++) {
                     var hgt = pi === 0 ? '180px' : '120px';
                     var span = pi === 0 ? 'grid-column:span 2;grid-row:span 2;' : '';
-                    var imgUrl = imgArr[pi % imgArr.length] ? imgArr[pi % imgArr.length].url : getListingPhoto(l);
+                    var imgUrl = imgArr[pi].url;
                     img += '<div style="' + span + 'height:' + (pi===0?'260px':hgt) + ';border-radius:6px;overflow:hidden;position:relative;background:#f1f5f9">' +
                         '<img src="' + imgUrl + '" alt="" style="width:100%;height:100%;object-fit:cover;filter:contrast(1.05) brightness(1.03)" onerror="' + _imgErr + '">' +
                         '<span style="position:absolute;bottom:4px;right:6px;font-size:10px;color:rgba(255,255,255,0.8);background:rgba(0,0,0,0.5);padding:1px 4px;border-radius:2px">' + (pi+1) + '</span></div>';
@@ -1897,11 +1964,41 @@
                     }
                     setTimeout(function() { var ov = document.getElementById('emailSendingOverlay'); if (ov) ov.remove(); }, 6000);
                 } else {
-                    // Success state
-                    if (icon) { icon.style.display = 'block'; icon.innerHTML = '<div style="width:48px;height:48px;background:#059669;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto;"><span style="color:#fff;font-size:24px;font-weight:bold;">&#10003;</span></div>'; }
-                    if (msg) { msg.style.color = '#059669'; msg.textContent = realSend ? 'Email delivered!' : 'Email sent (simulated)'; }
+                    // A SIMULATED SEND IS NOT A SUCCESS, AND MUST NOT LOOK LIKE ONE.
+                    //
+                    // Both outcomes drew the same green tick and the same green
+                    // text, differing only by the parenthetical "(simulated)".
+                    // The visual language said delivered; a broker glancing at a
+                    // green check and "3 listings sent to Jane (jane@...)" has
+                    // every reason to believe their client received the report.
+                    // Nothing was sent.
+                    //
+                    // The word was present and the meaning still did not land,
+                    // which is the point: a caveat inside a success state reads
+                    // as a footnote on a success. Simulation now gets its own
+                    // amber, non-tick treatment and says plainly that nothing
+                    // was delivered.
+                    if (icon) {
+                        icon.style.display = 'block';
+                        icon.innerHTML = realSend
+                            ? '<div style="width:48px;height:48px;background:#059669;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto;"><span style="color:#fff;font-size:24px;font-weight:bold;">&#10003;</span></div>'
+                            : '<div style="width:48px;height:48px;background:#d97706;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto;"><span style="color:#fff;font-size:26px;font-weight:bold;">!</span></div>';
+                    }
+                    if (msg) {
+                        msg.style.color = realSend ? '#059669' : '#92400e';
+                        msg.textContent = realSend
+                            ? 'Email delivered!'
+                            : 'NOT SENT — preview only';
+                    }
                     if (detail) {
-                        var html = count + ' listing' + (count !== 1 ? 's' : '') + ' sent to ' + toName + (to ? ' (' + to + ')' : '');
+                        // "sent to Jane" is the sentence that does the damage when
+                        // nothing was sent. The recipient is still named — the
+                        // broker needs to know who it WOULD have gone to — but the
+                        // verb tells the truth.
+                        var html = realSend
+                            ? count + ' listing' + (count !== 1 ? 's' : '') + ' sent to ' + toName + (to ? ' (' + to + ')' : '')
+                            : 'Nothing was delivered. ' + count + ' listing' + (count !== 1 ? 's' : '') +
+                              ' would have gone to ' + toName + (to ? ' (' + to + ')' : '') + '.';
                         html += '<br><a href="/crm/dashboard" target="_blank" style="color:#C4A052;font-weight:600;font-size:12px;text-decoration:underline;margin-top:8px;display:inline-block;">View in Dashboard</a>';
                         if (!realSend) {
                             html += '<br><a href="#" onclick="openEmailSettings();var ov=document.getElementById(\'emailSendingOverlay\');if(ov)ov.remove();return false;" style="color:#6b7280;font-size:11px;text-decoration:underline;margin-top:4px;display:inline-block;">Configure real email delivery &rarr;</a>';
@@ -1987,14 +2084,18 @@
             var firstName = preparedFor ? preparedFor.split(' ')[0] : '';
 
             // Status color map (inline — email safe)
+            // Keyed on the EXACT Cotality StandardStatus member, which is what
+            // listing.status now carries end to end.
             var statusColors = {
-                'ACTIVE': { bg: '#dcfce7', color: '#166534' },
-                'PENDING': { bg: '#fef3c7', color: '#92400e' },
-                'CONTRACT': { bg: '#ede9fe', color: '#5b21b6' },
-                'CLOSED': { bg: '#fee2e2', color: '#991b1b' },
-                'COMING_SOON': { bg: '#f5f3ff', color: '#7c3aed' },
-                'WITHDRAWN': { bg: '#f3f4f6', color: '#6b7280' },
-                'HOLD': { bg: '#f3f4f6', color: '#6b7280' }
+                'Active': { bg: '#dcfce7', color: '#166534' },
+                'Pending': { bg: '#fef3c7', color: '#92400e' },
+                'ActiveUnderContract': { bg: '#ede9fe', color: '#5b21b6' },
+                'Closed': { bg: '#fee2e2', color: '#991b1b' },
+                'ComingSoon': { bg: '#f5f3ff', color: '#7c3aed' },
+                'Withdrawn': { bg: '#f3f4f6', color: '#6b7280' },
+                'Canceled': { bg: '#f3f4f6', color: '#6b7280' },
+                'Expired': { bg: '#f3f4f6', color: '#6b7280' },
+                'Hold': { bg: '#f3f4f6', color: '#6b7280' }
             };
 
             var h = '';
@@ -2451,10 +2552,10 @@
             function da(listing) { return listing.addressDisplayYN === false ? 'Available Upon Request' : listing.address + (listing.unit ? ', ' + listing.unit : ''); }
             function sBadge(s, listing) {
                 s = (s || 'Active').toUpperCase();
-                var m = { 'ACTIVE':['#dcfce7','#15803d'], 'OFFER IN':['#ffedd5','#c2410c'], 'IN CONTRACT':['#f3e8ff','#7e22ce'], 'SOLD':['#dbeafe','#1d4ed8'], 'COMING_SOON':['#f5f3ff','#7c3aed'] };
+                var m = { 'ACTIVE':['#dcfce7','#15803d'], 'OFFER IN':['#ffedd5','#c2410c'], 'IN CONTRACT':['#f3e8ff','#7e22ce'], 'SOLD':['#dbeafe','#1d4ed8'], 'ComingSoon':['#f5f3ff','#7c3aed'] };
                 var c = m[s] || ['#f3f4f6','#4b5563'];
                 var label = s.replace(/_/g,' ');
-                if (s === 'COMING_SOON') label = listing && listing.firstShowingDate ? 'Coming Soon \u2014 No Showings until ' + listing.firstShowingDate : 'Coming Soon';
+                if (s === 'ComingSoon') label = listing && listing.firstShowingDate ? 'Coming Soon \u2014 No Showings until ' + listing.firstShowingDate : 'Coming Soon';
                 return '<span style="display:inline-block;padding:2px 8px;background:' + c[0] + ';color:' + c[1] + ';font-size:12px;border-radius:4px;font-weight:500">' + label + '</span>';
             }
             function dr(label, val) {
@@ -2610,7 +2711,10 @@
                 '<p style="margin:4px 0;font-size:13px"><a href="#" style="color:#C4A052;text-decoration:none">View on mallan.nyc</a></p>';
             if (l.virtualTourUrl) html += '<p style="margin:4px 0;font-size:13px"><a href="' + l.virtualTourUrl + '" style="color:#C4A052;text-decoration:none">3D Virtual Tour</a></p>';
             if (l.videoTourUrl) html += '<p style="margin:4px 0;font-size:13px"><a href="' + l.videoTourUrl + '" style="color:#C4A052;text-decoration:none">Video Tour</a></p>';
-            html += '<p style="margin:4px 0;font-size:13px"><a href="https://maps.google.com/?q=' + encodeURIComponent(da(l) + ' New York NY') + '" style="color:#C4A052;text-decoration:none">Google Map</a></p></div>';
+            // Closes the links block. The Google Map link removed from here had
+            // been carrying this closing tag, so it is restored on its own line
+            // where it belongs rather than riding on a content statement.
+            html += '</div>';
 
             // ── NO listing agent info or building contact (customer version) ──
 

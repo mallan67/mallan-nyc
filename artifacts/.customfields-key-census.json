@@ -1,0 +1,995 @@
+{
+  "probedAt": "2026-08-21T19:03:07.787Z",
+  "api": "https://api.cotality.com/trestle",
+  "coverage": {
+    "rowsRead": 8010,
+    "providerDeclaredActive": 8010,
+    "pagesRead": 41,
+    "complete": true,
+    "nullBlobs": 0,
+    "unparsable": 0,
+    "note": "CustomFields is an UNDECLARED JSON blob inside a declared Edm.String. Keys vary per row, so a key absent from a row is absent — not null. Percentages are of ROWS READ."
+  },
+  "distinctKeys": 52,
+  "keys": [
+    {
+      "key": "ElevatorsTotal",
+      "rowsCarrying": 8010,
+      "pctOfRowsRead": 100,
+      "sampleValues": [
+        "0",
+        "1",
+        "7",
+        "4",
+        "2",
+        "3",
+        "9",
+        "5",
+        "6",
+        "20",
+        "8",
+        "11"
+      ]
+    },
+    {
+      "key": "BuildingTaxLot",
+      "rowsCarrying": 8010,
+      "pctOfRowsRead": 100,
+      "sampleValues": [
+        "0011",
+        "7502",
+        "7501",
+        "0045",
+        "0001",
+        "0068",
+        "0038",
+        "0026",
+        "0013",
+        "0012",
+        "0031",
+        "0029"
+      ]
+    },
+    {
+      "key": "AttendanceType",
+      "rowsCarrying": 8010,
+      "pctOfRowsRead": 100,
+      "sampleValues": [
+        "None",
+        "DoormanFullTime,ConciergeFullTime",
+        "DoormanFullTime,ConciergeFullTime,ElevatorAttendanceYes",
+        "DoormanFullTime,ConciergeYes",
+        "DoormanYes,DoormanFullTime",
+        "DoormanFullTime",
+        "ConciergeYes,DoormanYes,DoormanFullTime",
+        "DoormanFullTime,ConciergeFullTime,ElevatorAttendanceFullTime",
+        "DoormanYes,DoormanFullTime,DoormanPartTime",
+        "DoormanPartTime",
+        "DoormanPartTime,LobbyAttendantPartTime",
+        "DoormanFullTime,LobbyAttendantFullTime"
+      ]
+    },
+    {
+      "key": "ListingKey",
+      "rowsCarrying": 8010,
+      "pctOfRowsRead": 100,
+      "sampleValues": [
+        "1183681390",
+        "1183680774",
+        "1183674675",
+        "1183672397",
+        "1183672249",
+        "1183670463",
+        "1183670134",
+        "1183669214",
+        "1183667066",
+        "1183666462",
+        "1183664825",
+        "1183663097"
+      ]
+    },
+    {
+      "key": "TaxAbatementYN",
+      "rowsCarrying": 7999,
+      "pctOfRowsRead": 99.9,
+      "sampleValues": [
+        "0",
+        "1"
+      ]
+    },
+    {
+      "key": "SponsorUnitYN",
+      "rowsCarrying": 7769,
+      "pctOfRowsRead": 97,
+      "sampleValues": [
+        "0",
+        "1"
+      ]
+    },
+    {
+      "key": "FlipTax",
+      "rowsCarrying": 7126,
+      "pctOfRowsRead": 89,
+      "sampleValues": [
+        "2.00",
+        "0.00",
+        "1.00",
+        "15.00",
+        "1.75",
+        "3.00",
+        "3750.00",
+        "1.50",
+        "25.00",
+        "4510.00",
+        "1.80",
+        "1560.00"
+      ]
+    },
+    {
+      "key": "PercentOfCommonElements",
+      "rowsCarrying": 6890,
+      "pctOfRowsRead": 86,
+      "sampleValues": [
+        "0.00",
+        "0.06",
+        "33.00",
+        "50.00",
+        "1.00",
+        "1.03",
+        "6.00",
+        "16.00",
+        "2.00",
+        "100.00",
+        "0.97",
+        "0.38"
+      ]
+    },
+    {
+      "key": "MaximumFinancingPercent",
+      "rowsCarrying": 6803,
+      "pctOfRowsRead": 84.9,
+      "sampleValues": [
+        "80.00",
+        "0.00",
+        "90.00",
+        "75.00",
+        "50.00",
+        "70.00",
+        "72.00",
+        "10.00",
+        "100.00",
+        "99.00",
+        "85.00",
+        "65.00"
+      ]
+    },
+    {
+      "key": "MaximumFinancingRemarks",
+      "rowsCarrying": 6616,
+      "pctOfRowsRead": 82.6,
+      "sampleValues": [
+        "Confirm with listing agent.",
+        "0",
+        "90%",
+        "none",
+        "75%",
+        "Max financing 90%",
+        "75% max financing",
+        "-",
+        "90",
+        "80",
+        "See Maximum Financing Percent",
+        "70"
+      ]
+    },
+    {
+      "key": "CertificateOfOccupancyYN",
+      "rowsCarrying": 5951,
+      "pctOfRowsRead": 74.3,
+      "sampleValues": [
+        "0",
+        "1"
+      ]
+    },
+    {
+      "key": "TaxMonthlyAmount",
+      "rowsCarrying": 5787,
+      "pctOfRowsRead": 72.2,
+      "sampleValues": [
+        "0.00",
+        "1986.00",
+        "3967.00",
+        "12.00",
+        "5107.75",
+        "1221.00",
+        "1365.00",
+        "321.95",
+        "2192.00",
+        "967.70",
+        "8058.00",
+        "2532.00"
+      ]
+    },
+    {
+      "key": "LandmarkStatusYN",
+      "rowsCarrying": 5691,
+      "pctOfRowsRead": 71,
+      "sampleValues": [
+        "0",
+        "1"
+      ]
+    },
+    {
+      "key": "FlipTaxRemarks",
+      "rowsCarrying": 5242,
+      "pctOfRowsRead": 65.4,
+      "sampleValues": [
+        "Paid by Seller",
+        "NONE",
+        "0.0",
+        "Call Listing Agent",
+        "None",
+        "Ask Agent",
+        "2 Months Common Charges Case By Case, --NO--",
+        "ask",
+        "ASK EXCL BROKER",
+        "15% on profit paid by Seller.",
+        "SELLER PAYS",
+        "paid by seller"
+      ]
+    },
+    {
+      "key": "ViewRemarks",
+      "rowsCarrying": 4887,
+      "pctOfRowsRead": 61,
+      "sampleValues": [
+        "C",
+        "SL,PA,R,F,S",
+        "PA,P,S",
+        "C,S,T",
+        "B,C,SL,PA,R,S",
+        "C,T",
+        "B,C,SL,D,PA,P,R,F,O,S",
+        "excellent",
+        "City",
+        "T",
+        "G,T",
+        " "
+      ]
+    },
+    {
+      "key": "TaxDeductionPercent",
+      "rowsCarrying": 4746,
+      "pctOfRowsRead": 59.3,
+      "sampleValues": [
+        "0.00",
+        "52.00",
+        "45.00",
+        "41.00",
+        "57.00",
+        "55.00",
+        "56.00",
+        "65.00",
+        "35.00",
+        "49.00",
+        "50.00",
+        "58.00"
+      ]
+    },
+    {
+      "key": "CapitalReservesYN",
+      "rowsCarrying": 4421,
+      "pctOfRowsRead": 55.2,
+      "sampleValues": [
+        "0",
+        "1"
+      ]
+    },
+    {
+      "key": "PrivateOutdoorSpaceSize",
+      "rowsCarrying": 3131,
+      "pctOfRowsRead": 39.1,
+      "sampleValues": [
+        "LessThan60SqFt",
+        "GreaterThan60SqFt"
+      ]
+    },
+    {
+      "key": "UnitLine",
+      "rowsCarrying": 3092,
+      "pctOfRowsRead": 38.6,
+      "sampleValues": [
+        "D",
+        "B",
+        "H",
+        "F",
+        "L",
+        "K",
+        "E",
+        "2",
+        "J",
+        "R",
+        "A",
+        "T"
+      ]
+    },
+    {
+      "key": "KitchenCondition",
+      "rowsCarrying": 2503,
+      "pctOfRowsRead": 31.2,
+      "sampleValues": [
+        "Excellent",
+        "Good",
+        "New",
+        "Fair",
+        "Poor"
+      ]
+    },
+    {
+      "key": "FlipTaxType",
+      "rowsCarrying": 2374,
+      "pctOfRowsRead": 29.6,
+      "sampleValues": [
+        "Percent",
+        "SeeRemarks",
+        "Dollars"
+      ]
+    },
+    {
+      "key": "BathroomCondition",
+      "rowsCarrying": 2041,
+      "pctOfRowsRead": 25.5,
+      "sampleValues": [
+        "Excellent",
+        "Good",
+        "Fair",
+        "New",
+        "Poor"
+      ]
+    },
+    {
+      "key": "FurnishedListPrice",
+      "rowsCarrying": 1398,
+      "pctOfRowsRead": 17.5,
+      "sampleValues": [
+        "35000.00",
+        "1095000.00",
+        "695000.00",
+        "7250.00",
+        "2175000.00",
+        "4750.00",
+        "1175000.00",
+        "1185000.00",
+        "999000.00",
+        "579000.00",
+        "849000.00",
+        "7250000.00"
+      ]
+    },
+    {
+      "key": "BuildingStaffType",
+      "rowsCarrying": 1312,
+      "pctOfRowsRead": 16.4,
+      "sampleValues": [
+        "SuperLiveIn",
+        "SuperOffsite",
+        "ResidentManagerFullTime"
+      ]
+    },
+    {
+      "key": "BuildingSmokeFreeYN",
+      "rowsCarrying": 1262,
+      "pctOfRowsRead": 15.8,
+      "sampleValues": [
+        "0",
+        "1"
+      ]
+    },
+    {
+      "key": "MaxLeaseMonths",
+      "rowsCarrying": 1021,
+      "pctOfRowsRead": 12.7,
+      "sampleValues": [
+        "12",
+        "24",
+        "18",
+        "25",
+        "20",
+        "15",
+        "14",
+        "13",
+        "2",
+        "22",
+        "36",
+        "27"
+      ]
+    },
+    {
+      "key": "BuildingRules",
+      "rowsCarrying": 849,
+      "pctOfRowsRead": 10.6,
+      "sampleValues": [
+        "PiedATerreAllowed",
+        "PiedATerreAllowed,BuildingWasherDryerAllowed",
+        "BuildingWasherDryerAllowed",
+        "PiedATerreAllowed,CorporateOwnerAllowed,BuildingWasherDryerAllowed",
+        "CopurchasersAllowed",
+        "PiedATerreAllowed,CorporateOwnerAllowed",
+        "PiedATerreAllowed,LiveWorkAllowed",
+        "LiveWorkAllowed",
+        "CorporateOwnerAllowed",
+        "CopurchasersAllowed,CorporateOwnerAllowed,PiedATerreAllowed",
+        "ArtistInResidenceAllowed",
+        "LiveWorkAllowed,PiedATerreAllowed"
+      ]
+    },
+    {
+      "key": "ClosetsTotal",
+      "rowsCarrying": 845,
+      "pctOfRowsRead": 10.5,
+      "sampleValues": [
+        "0",
+        "3",
+        "6",
+        "4",
+        "2",
+        "15",
+        "8",
+        "7",
+        "10",
+        "5"
+      ]
+    },
+    {
+      "key": "TaxDeductionAmount",
+      "rowsCarrying": 761,
+      "pctOfRowsRead": 9.5,
+      "sampleValues": [
+        "97067.01",
+        "100296.00",
+        "0.00",
+        "126377.00",
+        "94050.00",
+        "84850.00",
+        "50163.04",
+        "58327.00",
+        "53313.24",
+        "90350.00",
+        "29846.00",
+        "23142.00"
+      ]
+    },
+    {
+      "key": "MaximumFinancingAmount",
+      "rowsCarrying": 761,
+      "pctOfRowsRead": 9.5,
+      "sampleValues": [
+        "0.00",
+        "511200.00"
+      ]
+    },
+    {
+      "key": "GuarantorsAcceptedYN",
+      "rowsCarrying": 645,
+      "pctOfRowsRead": 8.1,
+      "sampleValues": [
+        "0",
+        "1"
+      ]
+    },
+    {
+      "key": "CommercialUnitsYN",
+      "rowsCarrying": 644,
+      "pctOfRowsRead": 8,
+      "sampleValues": [
+        "0",
+        "1"
+      ]
+    },
+    {
+      "key": "TaxDeductionRemarks",
+      "rowsCarrying": 623,
+      "pctOfRowsRead": 7.8,
+      "sampleValues": [
+        "ASK EXCL BROKER"
+      ]
+    },
+    {
+      "key": "CeilingHeightFeet",
+      "rowsCarrying": 369,
+      "pctOfRowsRead": 4.6,
+      "sampleValues": [
+        "9",
+        "10",
+        "11",
+        "18",
+        "14",
+        "8",
+        "12",
+        "15",
+        "20",
+        "0",
+        "13",
+        "17"
+      ]
+    },
+    {
+      "key": "CeilingHeightInches",
+      "rowsCarrying": 327,
+      "pctOfRowsRead": 4.1,
+      "sampleValues": [
+        "6",
+        "120",
+        "0",
+        "108",
+        "9",
+        "7",
+        "2",
+        "132",
+        "107",
+        "3",
+        "122",
+        "114"
+      ]
+    },
+    {
+      "key": "TaxAbatementComments",
+      "rowsCarrying": 202,
+      "pctOfRowsRead": 2.5,
+      "sampleValues": [
+        "Through 2031 0% 100%\n2032–2033 20% 80%\n2034–2035 40% 60%\n2036–2037 60% 40%\n2038–2039 80% 20%",
+        "J51",
+        "421A",
+        "abatement",
+        "n/a",
+        "Tax abatement until 2033.",
+        "Ends 2039",
+        "DEC 2024",
+        "421A Tax Abatement",
+        "Expires 2033",
+        "421a abatement expires in 2020",
+        "Expiration in 2042"
+      ]
+    },
+    {
+      "key": "TaxAbatementExpirationYear",
+      "rowsCarrying": 202,
+      "pctOfRowsRead": 2.5,
+      "sampleValues": [
+        "2039",
+        "2025",
+        "2019",
+        "2043",
+        "2023",
+        "2033",
+        "2020",
+        "2024",
+        "2042",
+        "2028",
+        "2034",
+        "2026"
+      ]
+    },
+    {
+      "key": "BuildingParkingTotal",
+      "rowsCarrying": 188,
+      "pctOfRowsRead": 2.3,
+      "sampleValues": [
+        "200",
+        "58",
+        "1",
+        "30",
+        "0",
+        "25",
+        "60",
+        "100",
+        "49",
+        "8",
+        "6",
+        "17"
+      ]
+    },
+    {
+      "key": "FurnishedMinLeaseMonths",
+      "rowsCarrying": 154,
+      "pctOfRowsRead": 1.9,
+      "sampleValues": [
+        "12",
+        "3",
+        "0",
+        "8",
+        "1",
+        "24",
+        "10",
+        "6",
+        "4",
+        "36"
+      ]
+    },
+    {
+      "key": "FurnishedMaxLeaseMonths",
+      "rowsCarrying": 154,
+      "pctOfRowsRead": 1.9,
+      "sampleValues": [
+        "1",
+        "12",
+        "24",
+        "0",
+        "36",
+        "20",
+        "120",
+        "3"
+      ]
+    },
+    {
+      "key": "ComingSoonTimestamp",
+      "rowsCarrying": 87,
+      "pctOfRowsRead": 1.1,
+      "sampleValues": [
+        "2026-08-19T00:00:00.000",
+        "2026-08-14T00:00:00.000",
+        "2026-08-09T00:00:00.000",
+        "2026-08-06T00:00:00.000",
+        "2026-08-05T00:00:00.000",
+        "2026-08-04T00:00:00.000",
+        "2026-08-03T00:00:00.000",
+        "2026-07-31T00:00:00.000",
+        "2026-07-30T00:00:00.000",
+        "2026-07-28T00:00:00.000",
+        "2026-07-27T00:00:00.000",
+        "2026-07-25T00:00:00.000"
+      ]
+    },
+    {
+      "key": "NumberOfProfessionalUnitsTotal",
+      "rowsCarrying": 70,
+      "pctOfRowsRead": 0.9,
+      "sampleValues": [
+        "1",
+        "0",
+        "435",
+        "4",
+        "2",
+        "7",
+        "3"
+      ]
+    },
+    {
+      "key": "CeilingHeightUnits",
+      "rowsCarrying": 65,
+      "pctOfRowsRead": 0.8,
+      "sampleValues": [
+        "Feet"
+      ]
+    },
+    {
+      "key": "CapitalReservesTotal",
+      "rowsCarrying": 53,
+      "pctOfRowsRead": 0.7,
+      "sampleValues": [
+        "1.00",
+        "0.00",
+        "1232691.00",
+        "2.00",
+        "2000000.00",
+        "6.00",
+        "850000.00",
+        "233132.00",
+        "4500000.00",
+        "3.00"
+      ]
+    },
+    {
+      "key": "ManagingAgencyListingYN",
+      "rowsCarrying": 51,
+      "pctOfRowsRead": 0.6,
+      "sampleValues": [
+        "0",
+        "1"
+      ]
+    },
+    {
+      "key": "ArchitectName",
+      "rowsCarrying": 26,
+      "pctOfRowsRead": 0.3,
+      "sampleValues": [
+        "KPF",
+        "Emery Roth & Sons",
+        "Selldorf Architects",
+        "David Chipperfield",
+        "NA",
+        "Brent Buck",
+        "Kenneth M. Murchison",
+        "Charles W. Romeyn and Henry R. Wynne",
+        "Richard Morris Hunt"
+      ]
+    },
+    {
+      "key": "SpecialAssessmentExpirationDateTime",
+      "rowsCarrying": 15,
+      "pctOfRowsRead": 0.2,
+      "sampleValues": [
+        "2015-12-31T19:06:00.000",
+        "2019-12-31T19:06:00.000",
+        "2026-11-29T19:06:00.000",
+        "2017-12-31T19:06:00.000",
+        "2014-12-31T19:06:00.000",
+        "2018-12-31T19:06:00.000",
+        "2016-12-31T19:06:00.000",
+        "2024-12-30T19:06:00.000"
+      ]
+    },
+    {
+      "key": "AreaOverFAR",
+      "rowsCarrying": 6,
+      "pctOfRowsRead": 0.1,
+      "sampleValues": [
+        "0.00",
+        "1150.00",
+        "2910.00"
+      ]
+    },
+    {
+      "key": "AreaUnderFAR",
+      "rowsCarrying": 5,
+      "pctOfRowsRead": 0.1,
+      "sampleValues": [
+        "0.00",
+        "1000.00"
+      ]
+    },
+    {
+      "key": "RoofRightsYN",
+      "rowsCarrying": 2,
+      "pctOfRowsRead": 0,
+      "sampleValues": [
+        "1"
+      ]
+    },
+    {
+      "key": "BonusYN",
+      "rowsCarrying": 2,
+      "pctOfRowsRead": 0,
+      "sampleValues": [
+        "0"
+      ]
+    },
+    {
+      "key": "BuyerAgentRLSParticipantYN",
+      "rowsCarrying": 1,
+      "pctOfRowsRead": 0,
+      "sampleValues": [
+        "0"
+      ]
+    }
+  ],
+  "byCommonInterest": {
+    "StockCooperative": {
+      "ElevatorsTotal": 2507,
+      "BuildingTaxLot": 2507,
+      "TaxAbatementYN": 2507,
+      "AttendanceType": 2507,
+      "ListingKey": 2507,
+      "FlipTax": 2499,
+      "MaximumFinancingRemarks": 2497,
+      "SponsorUnitYN": 2497,
+      "MaximumFinancingPercent": 2497,
+      "FlipTaxRemarks": 2171,
+      "PercentOfCommonElements": 2167,
+      "LandmarkStatusYN": 1920,
+      "CertificateOfOccupancyYN": 1881,
+      "TaxMonthlyAmount": 1736,
+      "TaxDeductionPercent": 1708,
+      "CapitalReservesYN": 1458,
+      "ViewRemarks": 1426,
+      "FlipTaxType": 1406,
+      "UnitLine": 1127,
+      "KitchenCondition": 795,
+      "BathroomCondition": 674,
+      "PrivateOutdoorSpaceSize": 673,
+      "FurnishedListPrice": 486,
+      "BuildingStaffType": 468,
+      "ClosetsTotal": 218,
+      "CommercialUnitsYN": 215,
+      "GuarantorsAcceptedYN": 215,
+      "TaxDeductionAmount": 207,
+      "MaximumFinancingAmount": 207,
+      "BuildingRules": 191,
+      "BuildingSmokeFreeYN": 117,
+      "CeilingHeightFeet": 81,
+      "TaxDeductionRemarks": 78,
+      "CeilingHeightInches": 74,
+      "MaxLeaseMonths": 54,
+      "ComingSoonTimestamp": 41,
+      "BuildingParkingTotal": 28,
+      "FurnishedMinLeaseMonths": 21,
+      "FurnishedMaxLeaseMonths": 21,
+      "TaxAbatementComments": 20,
+      "TaxAbatementExpirationYear": 20,
+      "NumberOfProfessionalUnitsTotal": 19,
+      "CapitalReservesTotal": 15,
+      "CeilingHeightUnits": 10,
+      "SpecialAssessmentExpirationDateTime": 9,
+      "ArchitectName": 4,
+      "ManagingAgencyListingYN": 1,
+      "RoofRightsYN": 1
+    },
+    "RentalBuilding": {
+      "ElevatorsTotal": 639,
+      "BuildingTaxLot": 639,
+      "TaxAbatementYN": 639,
+      "AttendanceType": 639,
+      "ListingKey": 639,
+      "MaxLeaseMonths": 603,
+      "SponsorUnitYN": 598,
+      "BuildingSmokeFreeYN": 353,
+      "ViewRemarks": 345,
+      "CertificateOfOccupancyYN": 282,
+      "FlipTax": 246,
+      "TaxMonthlyAmount": 246,
+      "PercentOfCommonElements": 241,
+      "LandmarkStatusYN": 241,
+      "CapitalReservesYN": 241,
+      "MaximumFinancingRemarks": 241,
+      "TaxDeductionPercent": 241,
+      "MaximumFinancingPercent": 241,
+      "PrivateOutdoorSpaceSize": 217,
+      "KitchenCondition": 130,
+      "BathroomCondition": 110,
+      "UnitLine": 102,
+      "BuildingStaffType": 61,
+      "ClosetsTotal": 41,
+      "ManagingAgencyListingYN": 41,
+      "BuildingRules": 37,
+      "FurnishedMinLeaseMonths": 32,
+      "FurnishedMaxLeaseMonths": 32,
+      "FurnishedListPrice": 31,
+      "FlipTaxRemarks": 6,
+      "BuildingParkingTotal": 4,
+      "CeilingHeightFeet": 4,
+      "CeilingHeightInches": 4,
+      "NumberOfProfessionalUnitsTotal": 3,
+      "BonusYN": 1
+    },
+    "Condominium": {
+      "ElevatorsTotal": 3719,
+      "BuildingTaxLot": 3719,
+      "AttendanceType": 3719,
+      "ListingKey": 3719,
+      "TaxAbatementYN": 3713,
+      "SponsorUnitYN": 3672,
+      "PercentOfCommonElements": 3623,
+      "FlipTax": 3622,
+      "TaxMonthlyAmount": 3622,
+      "MaximumFinancingRemarks": 3614,
+      "MaximumFinancingPercent": 3614,
+      "CertificateOfOccupancyYN": 2926,
+      "FlipTaxRemarks": 2884,
+      "LandmarkStatusYN": 2688,
+      "TaxDeductionPercent": 2628,
+      "ViewRemarks": 2414,
+      "CapitalReservesYN": 2078,
+      "UnitLine": 1778,
+      "PrivateOutdoorSpaceSize": 1571,
+      "KitchenCondition": 1490,
+      "BathroomCondition": 1166,
+      "FlipTaxType": 929,
+      "BuildingStaffType": 737,
+      "FurnishedListPrice": 655,
+      "BuildingRules": 606,
+      "ClosetsTotal": 569,
+      "TaxDeductionAmount": 540,
+      "TaxDeductionRemarks": 540,
+      "MaximumFinancingAmount": 540,
+      "GuarantorsAcceptedYN": 303,
+      "CommercialUnitsYN": 302,
+      "CeilingHeightFeet": 276,
+      "CeilingHeightInches": 241,
+      "MaxLeaseMonths": 239,
+      "BuildingSmokeFreeYN": 229,
+      "TaxAbatementComments": 177,
+      "TaxAbatementExpirationYear": 177,
+      "BuildingParkingTotal": 127,
+      "FurnishedMinLeaseMonths": 87,
+      "FurnishedMaxLeaseMonths": 87,
+      "CeilingHeightUnits": 54,
+      "CapitalReservesTotal": 35,
+      "ComingSoonTimestamp": 33,
+      "NumberOfProfessionalUnitsTotal": 23,
+      "ArchitectName": 21,
+      "ManagingAgencyListingYN": 7,
+      "SpecialAssessmentExpirationDateTime": 6,
+      "AreaOverFAR": 4,
+      "AreaUnderFAR": 3,
+      "RoofRightsYN": 1,
+      "BonusYN": 1
+    },
+    "None": {
+      "ElevatorsTotal": 998,
+      "BuildingTaxLot": 998,
+      "AttendanceType": 998,
+      "ListingKey": 998,
+      "TaxAbatementYN": 993,
+      "SponsorUnitYN": 855,
+      "CertificateOfOccupancyYN": 751,
+      "PercentOfCommonElements": 723,
+      "LandmarkStatusYN": 720,
+      "PrivateOutdoorSpaceSize": 623,
+      "FlipTax": 619,
+      "ViewRemarks": 593,
+      "BuildingSmokeFreeYN": 555,
+      "CapitalReservesYN": 547,
+      "MaximumFinancingPercent": 312,
+      "FurnishedListPrice": 201,
+      "GuarantorsAcceptedYN": 127,
+      "CommercialUnitsYN": 127,
+      "MaximumFinancingRemarks": 125,
+      "MaxLeaseMonths": 109,
+      "FlipTaxRemarks": 74,
+      "TaxMonthlyAmount": 69,
+      "TaxDeductionPercent": 56,
+      "BathroomCondition": 36,
+      "KitchenCondition": 27,
+      "NumberOfProfessionalUnitsTotal": 25,
+      "BuildingParkingTotal": 19,
+      "FurnishedMinLeaseMonths": 14,
+      "FurnishedMaxLeaseMonths": 14,
+      "ComingSoonTimestamp": 12,
+      "UnitLine": 10,
+      "FlipTaxType": 9,
+      "CeilingHeightInches": 7,
+      "CeilingHeightFeet": 7,
+      "BuildingRules": 3,
+      "ClosetsTotal": 3,
+      "ManagingAgencyListingYN": 2,
+      "AreaOverFAR": 2,
+      "AreaUnderFAR": 2,
+      "TaxAbatementComments": 2,
+      "TaxAbatementExpirationYear": 2,
+      "CapitalReservesTotal": 1,
+      "BuyerAgentRLSParticipantYN": 1,
+      "ArchitectName": 1,
+      "CeilingHeightUnits": 1
+    },
+    "Condop": {
+      "ElevatorsTotal": 147,
+      "TaxAbatementYN": 147,
+      "BuildingTaxLot": 147,
+      "AttendanceType": 147,
+      "SponsorUnitYN": 147,
+      "ListingKey": 147,
+      "FlipTax": 140,
+      "MaximumFinancingRemarks": 139,
+      "MaximumFinancingPercent": 139,
+      "PercentOfCommonElements": 136,
+      "LandmarkStatusYN": 122,
+      "TaxMonthlyAmount": 114,
+      "TaxDeductionPercent": 113,
+      "CertificateOfOccupancyYN": 111,
+      "ViewRemarks": 109,
+      "FlipTaxRemarks": 107,
+      "CapitalReservesYN": 97,
+      "UnitLine": 75,
+      "KitchenCondition": 61,
+      "BathroomCondition": 55,
+      "PrivateOutdoorSpaceSize": 47,
+      "BuildingStaffType": 46,
+      "FlipTaxType": 30,
+      "FurnishedListPrice": 25,
+      "MaxLeaseMonths": 16,
+      "ClosetsTotal": 14,
+      "TaxDeductionAmount": 14,
+      "MaximumFinancingAmount": 14,
+      "BuildingRules": 12,
+      "BuildingParkingTotal": 10,
+      "BuildingSmokeFreeYN": 8,
+      "TaxDeductionRemarks": 5,
+      "TaxAbatementComments": 3,
+      "TaxAbatementExpirationYear": 3,
+      "CapitalReservesTotal": 2,
+      "ComingSoonTimestamp": 1,
+      "CeilingHeightInches": 1,
+      "CeilingHeightFeet": 1
+    }
+  }
+}

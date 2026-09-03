@@ -16,7 +16,7 @@ import {
 } from "@/lib/search/core";
 import { recordSearchRun } from "@/lib/search/search-run-recorder";
 import {
-  getUnsupportedProjectionCriteria,
+  getUnsupportedSearchCriteria,
   isPlainSearchCriteria,
 } from "@/lib/search/criteria-to-prisma";
 
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     }
 
     const criteria = search.criteria;
-    const unsupportedCriteria = getUnsupportedProjectionCriteria(criteria);
+    const unsupportedCriteria = getUnsupportedSearchCriteria(criteria);
     if (unsupportedCriteria.length > 0) {
       return NextResponse.json(
         {

@@ -107,7 +107,6 @@
                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="nextOpenHouse"> Next Open House</label>
                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="mediaViewerLink"> Media Viewer Link</label>
                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="listingWebLink"> Listing Web Link</label>
-                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="googleMapLink"> Google Map Link</label>
                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="acrisLink"> ACRIS Link</label>
                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="listingImages"> Listing Images</label>
                         <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-option="buildingImages"> Building Images</label>
@@ -580,7 +579,7 @@
                         <div class="space-y-2">
                             <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                                 <input type="radio" name="reportSelection" value="all" checked class="w-4 h-4">
-                                <span class="text-sm">All Results (<span id="reportAllCount">400</span>)</span>
+                                <span class="text-sm"><span id="reportAllLabel">All Results</span> (<span id="reportAllCount">400</span>)</span>
                             </label>
                             <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                                 <input type="radio" name="reportSelection" value="selected" class="w-4 h-4">
@@ -595,6 +594,7 @@
                                 <span class="text-sm">Liked Listings (<span id="reportLikedCount">0</span>)</span>
                             </label>
                         </div>
+                        <p id="reportScopeNote" class="mt-2 text-[11px] text-amber-700"></p>
                         <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                             <p class="text-xs text-yellow-700"><i class="fas fa-exclamation-triangle mr-1"></i> Maximum 250 records per report</p>
                         </div>

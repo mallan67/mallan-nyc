@@ -19,8 +19,19 @@ export const LIVE_AUTHORITY = Object.freeze({
   /** Regeneration command — run before freezing any enum-derived constant. */
   regenerate: 'npm run cotality:pull && npm run cotality:verify',
   source: 'https://api.cotality.com/trestle/odata/$metadata',
-  /** The pull date recorded in the live file at the time this projection was last verified. */
-  verifiedAgainstPull: '2026-07-05',
+  /**
+   * Date this projection was last verified against a live pull.
+   *
+   * Was '2026-07-05' and had gone six weeks stale while carrying provider
+   * statements the August live verification disproved.
+   *
+   * NOTE: this is the date `npm run cotality:pull && npm run cotality:verify`
+   * was actually RUN and passed (181 enums), not a value read from the generated
+   * file — `data/cotality-enums.live.json` records `pulled_at: null`, so it
+   * cannot date itself. That weakens drift detection and is worth fixing in
+   * `scripts/cotality/pull-enums.mjs` separately.
+   */
+  verifiedAgainstPull: '2026-08-19',
 });
 
 /**
@@ -78,7 +89,13 @@ export const DEAD_OR_INVALID_VALUES = Object.freeze([
   { value: 'Cooperative', field: 'CommonInterest', reason: 'not a live member; co-op is StockCooperative', keepAsFailClosedGuard: false },
   { value: 'Residential Lease', field: 'PropertyType', reason: 'invalid (space); live value is ResidentialLease', keepAsFailClosedGuard: false },
   { value: 'SingleFamilyTownhouse', field: 'PropertySubType', reason: 'not a live member (400); real member is Townhouse', keepAsFailClosedGuard: false },
-  { value: 'NewConstruction', field: 'PropertySubType', reason: 'not a live member (400); detected via PublicRemarks/DevelopmentStatus', keepAsFailClosedGuard: false },
+  // CORRECTED 2026-08-20. The reason field previously recommended detecting new
+  // development "via PublicRemarks/DevelopmentStatus". That heuristic is now
+  // removed from both Search paths: matching prose cannot be verified against any
+  // provider field, and a listing whose remarks say "brand new" is not new
+  // construction. `NewConstructionYN` IS a live filterable Boolean (951 Active),
+  // despite an older repo claim that it is not exposed on IDX Plus.
+  { value: 'NewConstruction', field: 'PropertySubType', reason: 'not a live member (400); use the NewConstructionYN Boolean (live, filterable, 951 Active) — NOT PublicRemarks prose', keepAsFailClosedGuard: false },
   { value: 'OwnerOptOut', field: 'Permission', reason: 'NOT a live Permission/ListingPermission member — owner-opt-out must fail closed until a live field/value is confirmed', keepAsFailClosedGuard: true /* COMPLIANCE Gate 1: do NOT remove on field-truth alone */ },
   { value: 'InteriorFeatures', field: '(amenity field)', reason: 'live enum key is InteriorOrRoomFeatures — amenity mappings using InteriorFeatures are needs_probe', keepAsFailClosedGuard: false },
 ] as const);

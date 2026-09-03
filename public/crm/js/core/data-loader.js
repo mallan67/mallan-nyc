@@ -13,12 +13,13 @@
         // Add default permissions to all listings that don't have explicit permissions set
         listings.forEach(function(l) {
             if (!l.permissions) {
-                l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false, syndication: true };
+                l.permissions = { ownerOptOut: null, participantOnly: null, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false, syndication: null }; // Step 1: unknown is null, never an affirmative false/true. The two display flags keep the IDX Plus pre-filter rule (null = displayable).
             }
         });
 
-        // Add borough to all listings that don't have it
-        listings.forEach(function(l) { if (!l.borough) l.borough = 'Manhattan'; });
+        // STEP 1: borough is NOT defaulted. An unknown borough is unknown — it is
+        // not Manhattan. This ran at module load and silently relabelled every
+        // listing whose CityRegion the provider had not supplied.
 
         // ── NeighborhoodCanonical: resolve SubdivisionName → canonical polygon name on ingest ──
         // This runs at ingest time so every listing has a stable canonical name for map-based search.
@@ -96,7 +97,7 @@
                 listingTypeCompany: false, listingContact: false, dom: false,
                 updatedSoldDate: false, priceSqft: false, originalPrice: false,
                 nextOpenHouse: false, mediaViewerLink: false, listingWebLink: false,
-                googleMapLink: false, acrisLink: false, listingImages: false,
+                acrisLink: false, listingImages: false,
                 listingFloorplans: false, buildingImages: false, buildingSummaryCoverPage: false,
                 customAgentComments: false, importPersonalComments: false,
                 commentsAboutCustomer: false, appointmentTime: false,
@@ -236,15 +237,51 @@
                 reTaxes: parseFloat(feat.RealEstateTax || 0) / 12,
                 maintCC: parseFloat(feat.AssociationFee || 0),
                 intSqft: parseFloat(apiListing.living_area) || null,
-                status: (apiListing.status || 'ACTIVE').toUpperCase(),
+                // THE EXACT COTALITY MEMBER, unaltered.
+                //
+                // This was `(apiListing.status || 'ACTIVE').toUpperCase()`, which
+                // did two damaging things. It DEFAULTED an unknown status to
+                // ACTIVE - telling a broker an unknown listing is on the market.
+                // And it uppercased the exact member the database stores
+                // (prisma/schema.prisma:447, "RESO StandardStatus"), so
+                // 'ComingSoon' became 'COMINGSOON' while every renderer compared
+                // against 'COMING_SOON'. The UCBA Art. I s16 Coming Soon badge
+                // never matched for a DB-path listing as a result.
+                status: apiListing.status || 'UNKNOWN',
                 ownership: feat.CommonInterest || apiListing.property_type || '',
-                propertyType: apiListing.property_type || 'Residential',
+                // NO INVENTED LISTING FACTS ON THIS PATH EITHER.
+                //
+                // The Trestle mapper was stripped of these defaults and this
+                // DB-path mapping still carried them. A default here is not a
+                // cosmetic nicety — it is a fact Mallan asserts about someone
+                // else's listing.
+                //
+                // borough: was `|| 'Manhattan'`. A Brooklyn listing read as
+                // Manhattan is wrong on the card, the map, the report and every
+                // saved search, which is precisely why the comment three
+                // hundred lines below already says borough must not be
+                // defaulted. It was still defaulted here.
+                //
+                // propertyType: was `|| 'Residential'`. Commercial and land
+                // inventory exists on this feed.
+                propertyType: apiListing.property_type || '',
                 propertySubType: apiListing.property_sub_type || '',
                 neighborhood: apiListing.neighborhood || '',
-                borough: apiListing.borough || 'Manhattan',
+                borough: apiListing.borough || '',
                 zip: apiListing.postal_code || addr.PostalCode || '',
                 yearBuilt: parseInt(feat.YearBuilt) || null,
-                era: parseInt(feat.YearBuilt) >= 2015 ? 'New Construction' : parseInt(feat.YearBuilt) >= 1960 ? 'Post-War' : 'Pre-War',
+                // era: an UNKNOWN year used to fall all the way through to
+                // 'Pre-War'. parseInt(undefined) is NaN, every comparison
+                // against NaN is false, and the final ternary branch caught it —
+                // so a listing with no YearBuilt was labelled Pre-War on the
+                // strength of no information at all.
+                //
+                // The boundaries themselves are a Mallan definition, not a
+                // provider fact (nothing in the feed says a pre-war building is
+                // one built in 1946 or earlier), which is a separate open
+                // question. Guessing the era of a listing whose year is unknown
+                // is not.
+                era: _eraFromYearBuilt(feat.YearBuilt),
                 listingType: 'Exclusive',
                 lid: apiListing.listing_id || '',
                 dom: 0,
@@ -376,30 +413,43 @@
         // Flag to prevent _replaceListings from overwriting active server search results
         var _serverSearchActive = false;
 
+        /**
+         * Era from YearBuilt, or nothing when the year is unknown.
+         *
+         * Unknown is its own answer. Returning '' lets a renderer show it as
+         * unavailable instead of asserting an era nobody established.
+         */
+        function _eraFromYearBuilt(rawYear) {
+            var year = parseInt(rawYear, 10);
+            if (isNaN(year)) return '';
+            if (year >= 2015) return 'New Construction';
+            if (year >= 1960) return 'Post-War';
+            return 'Pre-War';
+        }
+
         function _replaceListings(newData, source) {
             listings.length = 0;
             newData.forEach(function(l) { listings.push(l); });
             // Ensure all fields used by renderers have safe defaults
             listings.forEach(function(l) {
-                if (l.price == null) l.price = 0;
-                if (l.totalMonthly == null) l.totalMonthly = 0;
-                if (l.maintCC == null) l.maintCC = 0;
-                if (l.reTaxes == null) l.reTaxes = 0;
-                if (l.beds == null) l.beds = 0;
-                if (l.baths == null) l.baths = 0;
-                if (l.rooms == null) l.rooms = 0;
-                if (l.dom == null) l.dom = 0;
-                if (l.photoCount == null) l.photoCount = (l.images && l.images.length) || 0;
-                if (!l.status) l.status = 'ACTIVE';
+                // STEP 1 — the unknown-to-value defaults are REMOVED.
+                // These re-invented, after the server had answered, exactly what
+                // crm-idx-mapper.ts refuses to invent: an unknown fee became $0,
+                // an unknown status became ACTIVE, an unknown borough became
+                // Manhattan. Renderers must show unknown as unavailable.
+                // A photo count is still derived from media ACTUALLY PRESENT —
+                // that is evidence, not a default. Absent both, it stays unknown.
+                if (l.photoCount == null && l.images && l.images.length > 0) l.photoCount = l.images.length;
                 if (!l.address) l.address = 'Address Unavailable';
                 if (!l.unit) l.unit = '';
                 if (!l.neighborhood) l.neighborhood = '';
                 if (!l.zip) l.zip = '';
-                if (!l.borough) l.borough = 'Manhattan';
+                // borough is NOT defaulted — a Brooklyn listing read as Manhattan is wrong on
+                // the card, the map, the report and every saved search.
                 if (!l.listedDate) l.listedDate = '--';
                 if (!l.company) l.company = '';
                 if (!l.permissions) {
-                    l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false, syndication: true };
+                    l.permissions = { ownerOptOut: null, participantOnly: null, idxDisplay: l.idxDisplayYN !== false, internetDisplay: l.internetDisplayYN !== false, syndication: null }; // Step 1: unknown is null, never an affirmative false/true. The two display flags keep the IDX Plus pre-filter rule (null = displayable).
                 }
             });
             listings.forEach(function(l) { resolveNeighborhoodCanonical(l); });
@@ -424,6 +474,11 @@
                 } else {
                     searchResultsState.filteredListings = listings.slice();
                 }
+                // This is a LOCAL re-filter of the freshly bootstrapped catalogue,
+                // not a server answer — so it must not inherit the authority of
+                // whatever search ran before it. Downgrade to a preview, which
+                // closes the downstream broker actions until a real search runs.
+                if (typeof markSearchResultsProvisional === 'function') markSearchResultsProvisional();
                 if (typeof initializeSearchResults === 'function') initializeSearchResults();
                 if (typeof updateResultsCount === 'function') updateResultsCount();
             }

@@ -280,15 +280,24 @@
                 // sponsorUnit param round-trip (Bug A11 frontend split)
                 sponsor_unit: c.sponsorUnit || undefined,
                 // checkboxFilters carries the whitelisted Cooling/Garage/View/
-                // BuildingFeatures/etc. set. Stored as a JSON string to
                 // preserve the inner shape unchanged across save/load.
-                checkbox_filters: c.checkboxFilters ? JSON.stringify(c.checkboxFilters) : undefined,
+                // Send the OBJECT, not a JSON string inside a JSON column.
+                // The SERVER canonicalises legacy data-field keys to Mallan
+                // criteria (lib/search/canonical/saved-search-normalizer.ts) —
+                // that adapter is deliberately NOT duplicated here, because two
+                // translation tables is how the vocabularies drifted apart in
+                // the first place.
+                checkbox_filters: c.checkboxFilters || undefined,
             };
             return out;
         }
 
         /** Restore API criteria → form fields and re-run search */
         function _criteriaToFormFields(criteria) {
+            // RESTORE_INCOMPLETE evidence. Anything the form could not
+            // faithfully reproduce lands here and blocks execution.
+            var _restoreIssues = [];
+            window._lastRestoreIssues = _restoreIssues;
             if (!criteria) return;
 
             // Set search tab
@@ -341,19 +350,83 @@
             if (criteria.neighborhoods && criteria.neighborhoods.length > 0 && typeof selectNeighborhood === 'function') {
                 var tagsId = typeof _resolveActiveNeighborhoodTagsId === 'function' ? _resolveActiveNeighborhoodTagsId() : 'saleNeighborhoodTags';
                 criteria.neighborhoods.forEach(function(n) {
-                    var borough = typeof _findBoroughForNeighborhood === 'function' ? _findBoroughForNeighborhood(n) : '';
-                    selectNeighborhood(n, borough, !borough, '', tagsId);
+                    // ONE AUTHORITY. This read a hard-coded borough table that placed
+                    // Mott Haven in Manhattan, and any name the table did not list came
+                    // back with no borough — which `!borough` then flagged as
+                    // BOROUGH-LEVEL, so a restored neighbourhood was silently
+                    // reclassified as a whole borough and the search widened.
+                    var vocab = window.MallanNeighborhoods;
+                    var r = vocab ? vocab.resolveState(n) : { state: 'unknown', identity: null, candidates: [] };
+                    // A SKIPPED NEIGHBOURHOOD IS A RESTORE ISSUE, NOT A WARNING.
+                    //
+                    // Both branches below used to show a toast and `return`, adding
+                    // nothing to _restoreIssues — so the gate below saw a clean
+                    // restore and auto-fired performSearch(). A legacy record saved
+                    // as bare `Bay Terrace` therefore ran WITHOUT its neighbourhood
+                    // criterion: a broader search than the broker saved, executed on
+                    // their behalf, with only a toast to say so.
+                    //
+                    // The server's disposition check cannot cover this — it
+                    // classifies checkbox criteria and does not know about geography
+                    // ambiguity — so the issue has to be raised here.
+                    if (r.state === 'impossible_qualifier') {
+                        // A stored value naming a borough the neighbourhood is not in.
+                        // Resolving it to where the place actually IS would change what
+                        // the broker saved.
+                        _restoreIssues.push(
+                            'neighborhood = ' + n + ': that neighbourhood is not in the borough saved — it is ' +
+                            r.candidates.map(function (c) { return c.label; }).join(' or ')
+                        );
+                        return;
+                    }
+                    if (r.state === 'ambiguous') {
+                        // A LEGACY saved search can hold a bare name that now means
+                        // two places. Migrating it to whichever came first would
+                        // silently change what the broker saved.
+                        _restoreIssues.push(
+                            'neighborhood = ' + n + ': could be ' +
+                            r.candidates.map(function (c) { return c.label; }).join(' or ') +
+                            ' — reselect it to update this saved search'
+                        );
+                        return;
+                    }
+                    if (r.state === 'unknown') {
+                        // A stored name the live feed no longer carries is reported,
+                        // not silently turned into something else.
+                        _restoreIssues.push(
+                            'neighborhood = ' + n + ': no longer a live Cotality neighbourhood'
+                        );
+                        return;
+                    }
+                    var identity = r.identity;
+                    var borough = identity.borough ? vocab.boroughLabel(identity.borough) : '';
+                    selectNeighborhood(identity.label, borough, false, '', tagsId);
                 });
             }
 
-            // Building-specific fields
-            if (tab === 'building' || criteria.min_year || criteria.max_year) {
-                _setSelectValue('buildingMinYear', criteria.min_year);
-                _setSelectValue('buildingMaxYear', criteria.max_year);
-                _setSelectValue('buildingMinUnits', criteria.min_units);
-                _setSelectValue('buildingMaxUnits', criteria.max_units);
-                _setSelectValue('buildingMinFloors', criteria.min_floors);
-                _setSelectValue('buildingMaxFloors', criteria.max_floors);
+            // Building-fact controls (YearBuilt / StoriesTotal / NumberOfUnitsTotal).
+            //
+            // CORRECTED 2026-08-26. This previously wrote EVERY saved
+            // year/floor/unit value into the BUILDING tab's controls, gated on
+            // `tab === 'building' || criteria.min_year || criteria.max_year`.
+            // So a SALE search saved with a year range reloaded with the sale
+            // controls empty: collectSearchCriteria() then read
+            // saleBuildingMinYear (blank) and executed a search WITHOUT the
+            // range the broker had saved. Save -> reload -> execute returned a
+            // different search, silently.
+            //
+            // It now resolves ids through the SAME shared rule the collector
+            // uses, so the two cannot drift apart again.
+            var _bIds = (typeof window._resolveBuildingFieldIds === 'function')
+                ? window._resolveBuildingFieldIds(tab, false)
+                : null;
+            if (_bIds) {
+                _setSelectValue(_bIds.yearMin, criteria.min_year);
+                _setSelectValue(_bIds.yearMax, criteria.max_year);
+                _setSelectValue(_bIds.unitsMin, criteria.min_units);
+                _setSelectValue(_bIds.unitsMax, criteria.max_units);
+                _setSelectValue(_bIds.floorsMin, criteria.min_floors);
+                _setSelectValue(_bIds.floorsMax, criteria.max_floors);
             }
 
             // Restore date range pickers
@@ -375,10 +448,22 @@
             // Restore status checkboxes
             if (criteria.status && Array.isArray(criteria.status) && criteria.status.length > 0) {
                 // Map saved statuses back to checkbox data-value attributes
-                var statusReverseMap = {
-                    'ACTIVE': 'Active', 'COMING_SOON': 'ComingSoon', 'PENDING': 'Pending',
+                // THE THIRD TRANSLATION TABLE, REMOVED 2026-08-22.
+                //
+                // Criteria are now persisted as EXACT Cotality StandardStatus
+                // members, which is exactly what the checkbox data-value
+                // attributes already held - so restoring is a lookup, not a
+                // translation. This map existed only because the JS layer had
+                // invented an uppercase vocabulary in between.
+                //
+                // The legacy spellings a saved search written BEFORE that may
+                // still contain are migrated here, at the boundary, on the way
+                // in. They are never persisted again and never sent to Cotality.
+                var legacyStatusAliases = {
+                    'ACTIVE': 'Active', 'ComingSoon': 'ComingSoon', 'Pending': 'Pending',
+                    'UNDER_CONTRACT': 'ActiveUnderContract', 'CONTRACT': 'ActiveUnderContract',
                     'CLOSED': 'Closed', 'WITHDRAWN': 'Withdrawn', 'CANCELED': 'Canceled',
-                    'EXPIRED': 'Expired', 'HOLD': 'Hold'
+                    'CANCELLED': 'Canceled', 'EXPIRED': 'Expired', 'HOLD': 'Hold'
                 };
                 // First uncheck all status checkboxes in the active form
                 var activeForm = document.getElementById(tab === 'rent' ? 'searchBasicModeRental' : 'searchBasicMode');
@@ -387,7 +472,8 @@
                 }
                 // Then check the saved ones
                 criteria.status.forEach(function(s) {
-                    var resoVal = statusReverseMap[s] || s;
+                    // An exact member passes straight through; only a legacy spelling is mapped.
+                    var resoVal = legacyStatusAliases[s] || s;
                     var cb = activeForm ? activeForm.querySelector('[data-field="MlsStatus"][data-value="' + resoVal + '"]') : null;
                     if (cb) cb.checked = true;
                 });
@@ -423,7 +509,13 @@
                 if (kwEl) kwEl.value = criteria.keyword;
             }
 
-            // Management Company (ListOfficeName contains)
+            // Management Company — an UNRESOLVED Mallan criterion.
+            // NOT ListOfficeName: Cotality declares no ManagementCompany
+            // Property field and listing office is a different fact. The
+            // canonical server contract rejects that substitution, and the
+            // page-local match that implemented it has been removed. The value
+            // is persisted/restored for compatibility only; it must never imply
+            // ListOfficeName.
             if (criteria.management_company) {
                 var mgmtEl = document.getElementById(_isAdv ? 'adv-management' : 'searchManagementCompany');
                 if (mgmtEl) mgmtEl.value = criteria.management_company;
@@ -449,7 +541,7 @@
             // depending on which is visible.
             if (criteria.property_sub_type) {
                 var pstValues = String(criteria.property_sub_type).split(',').map(function(s) { return s.trim(); }).filter(Boolean);
-                var pstScope = _isAdv ? document.getElementById('searchAdvancedMode') : document.getElementById('searchBasicMode');
+                var pstScope = _isAdv ? document.getElementById('searchAdvancedMode') : activeBasicSurface();
                 if (pstScope && pstValues.length > 0) {
                     pstScope.querySelectorAll('input[data-field="PropertySubType"]').forEach(function(cb) { cb.checked = false; });
                     pstValues.forEach(function(v) {
@@ -462,7 +554,7 @@
             // SponsorUnit — independent param (Bug A11 split). Restored
             // by toggling the SponsorUnit/Yes checkbox if it exists.
             if (criteria.sponsor_unit === 'true' || criteria.sponsor_unit === true) {
-                var spScope = _isAdv ? document.getElementById('searchAdvancedMode') : document.getElementById('searchBasicMode');
+                var spScope = _isAdv ? document.getElementById('searchAdvancedMode') : activeBasicSurface();
                 if (spScope) {
                     var spCb = spScope.querySelector('input[data-field="SponsorUnit"][data-value="true"]') ||
                                spScope.querySelector('input[data-field="SponsorUnit"][data-value="Yes"]');
@@ -470,35 +562,71 @@
                 }
             }
 
-            // checkboxFilters — the whitelisted Cooling/Garage/View/
-            // BuildingFeatures/LaundryFeatures/SecurityFeatures/PoolFeatures/
-            // AccessibilityFeatures/ExteriorFeatures/PetsAllowedYN/etc.
-            // Stored as JSON string. For each (field, [values]) pair, find
-            // and check the matching data-field/data-value checkbox.
+            // checkbox_filters — restored by CANONICAL criterion.
+            //
+            // Persistence is canonical now, but the UI could still lose a
+            // criterion here: this block used to do
+            //   `if (cb && !cb.disabled) cb.checked = true;`
+            // so a missing control, a missing value option, or a DISABLED
+            // control was silently skipped — and loadSavedSearch then ran the
+            // search anyway. Persistence being canonical does not help if
+            // restore quietly drops a criterion on the way to the form; the
+            // result is the same broader-than-saved search.
+            //
+            // Every failure is now recorded as RESTORE_INCOMPLETE and blocks
+            // execution. Lookup prefers data-criterion (the canonical Mallan
+            // key) and falls back to legacy data-field for un-migrated controls.
+            // There is deliberately NO JavaScript view->View map: the server
+            // canonical registry remains the provider-name authority.
             if (criteria.checkbox_filters) {
-                try {
-                    var cbFilters = typeof criteria.checkbox_filters === 'string'
-                        ? JSON.parse(criteria.checkbox_filters)
-                        : criteria.checkbox_filters;
-                    var cbScope = _isAdv ? document.getElementById('searchAdvancedMode') : document.getElementById('searchBasicMode');
-                    if (cbScope && cbFilters && typeof cbFilters === 'object') {
-                        Object.keys(cbFilters).forEach(function(field) {
-                            var values = cbFilters[field];
-                            if (!Array.isArray(values)) return;
-                            // First clear existing checks for this field
-                            cbScope.querySelectorAll('input[data-field="' + field + '"]').forEach(function(cb) { cb.checked = false; });
-                            values.forEach(function(v) {
-                                var cb = cbScope.querySelector('input[data-field="' + field + '"][data-value="' + String(v).replace(/"/g, '\\"') + '"]');
-                                if (cb && !cb.disabled) cb.checked = true;
-                            });
-                        });
+                var cbFilters = criteria.checkbox_filters;
+                if (typeof cbFilters === 'string') {
+                    try {
+                        cbFilters = JSON.parse(cbFilters);
+                    } catch (e) {
+                        _restoreIssues.push('checkbox_filters: unreadable stored value');
+                        cbFilters = null;
                     }
-                } catch (e) {
-                    // Malformed JSON — silently skip restore. Saved
-                    // search payloads are agent-trusted but defensive
-                    // here against any future migration drift.
+                }
+                var cbScope = _isAdv ? document.getElementById('searchAdvancedMode') : activeBasicSurface();
+                if (!cbScope) {
+                    if (cbFilters) _restoreIssues.push('checkbox_filters: no active form to restore into');
+                } else if (cbFilters && typeof cbFilters === 'object') {
+                    Object.keys(cbFilters).forEach(function(criterion) {
+                        var values = cbFilters[criterion];
+                        if (!Array.isArray(values)) {
+                            _restoreIssues.push(criterion + ': stored value is not a list');
+                            return;
+                        }
+                        var sel = 'input[data-criterion="' + criterion + '"]';
+                        var targets = cbScope.querySelectorAll(sel);
+                        if (!targets.length) {
+                            sel = 'input[data-field="' + criterion + '"]';
+                            targets = cbScope.querySelectorAll(sel);
+                        }
+                        if (!targets.length) {
+                            _restoreIssues.push(criterion + ': no control for this criterion');
+                            return;
+                        }
+                        targets.forEach(function(cb) { cb.checked = false; });
+                        values.forEach(function(v) {
+                            var want = String(v).replace(/"/g, '\\"');
+                            var cb = cbScope.querySelector(sel + '[data-value="' + want + '"]');
+                            if (!cb) {
+                                _restoreIssues.push(criterion + ' = ' + v + ': no matching option');
+                                return;
+                            }
+                            if (cb.disabled) {
+                                _restoreIssues.push(criterion + ' = ' + v + ': control is disabled');
+                                return;
+                            }
+                            cb.checked = true;
+                        });
+                    });
                 }
             }
+
+            return _restoreIssues;
         }
 
         /** Helper: set a <select> value, trying exact match then closest */
@@ -655,11 +783,71 @@
                 if (typeof clearSearchForm === 'function') clearSearchForm();
 
                 // Restore form fields from saved criteria
-                _criteriaToFormFields(search.criteria);
+                var restoreIssues = _criteriaToFormFields(search.criteria) || [];
+
+                // RESTORE_INCOMPLETE blocks execution.
+                //
+                // Canonical persistence does not help if the form silently
+                // loses a criterion on the way back in. A search that runs with
+                // fewer criteria than were saved is broader than the one the
+                // broker saved, which is the same defect family arriving at the
+                // last boundary.
+                if (restoreIssues.length) {
+                    showToast(
+                        'Loaded "' + search.name + '" for review — NOT run. ' +
+                        'These saved criteria could not be restored: ' +
+                        restoreIssues.join('; ') +
+                        '. Running it would search more broadly than you saved.',
+                        'warning'
+                    );
+                    return;
+                }
+
+                // AUTO-EXECUTION IS GATED ON THE SERVER'S DISPOSITION.
+                //
+                // This previously restored whatever it could and then fired
+                // performSearch() unconditionally 100ms later. A legacy record
+                // whose meaning could not be fully represented therefore ran as
+                // a BROADER search than the one the broker saved — the exact
+                // silent widening the persistence work exists to remove.
+                //
+                // Readable is not runnable: an unresolved record still loads so
+                // the agent can inspect and repair it, but it does not execute
+                // until its criteria can be represented.
+                // FAIL CLOSED ON ABSENCE.
+                //
+                // This was `search.criteria_status || 'executable'`, which made
+                // a MISSING field mean permission to run — so an older server,
+                // a contract regression, or any reader that omits the
+                // disposition would silently restore auto-execution of an
+                // unresolved search. Absence is not evidence of safety.
+                //
+                // Only an EXPLICIT 'executable' authorises performSearch().
+                // Missing, unknown, or any future token fails closed.
+                var status = search.criteria_status;
+                if (status !== 'executable') {
+                    var issues = search.criteria_issues || {};
+                    var named = []
+                        .concat(issues.malformed || [])
+                        .concat(issues.unavailable || [])
+                        .concat(issues.unknown || [])
+                        .concat(issues.unexecutable_values || []);
+                    var why = named.join(', ');
+                    if (!status) {
+                        why = 'the server did not report an execution status for this search';
+                    } else if (!why) {
+                        why = 'status: ' + status;
+                    }
+                    showToast(
+                        'Loaded "' + search.name + '" for review — NOT run. ' + why +
+                        '. Running it could search more broadly than you saved.',
+                        'warning'
+                    );
+                    return;
+                }
 
                 showToast('Loaded: ' + search.name, 'success');
 
-                // Re-run the search with restored criteria
                 setTimeout(function() {
                     if (typeof performSearch === 'function') performSearch();
                 }, 100);

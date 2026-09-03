@@ -5,53 +5,255 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 (function() {
-    // All NYC neighborhoods organized by borough (matches Advanced Search tree)
-    var NEIGHBORHOODS = {
-        'Bronx': [
-            'Allerton','Baychester','Bedford Park','Belmont','City Island','Co-op City',
-            'Fordham','Kingsbridge','Morris Park','Pelham Bay','Central Riverdale',
-            'Fieldston','North Riverdale','Spuyten Duyvil','Throgs Neck','Woodlawn'
-        ],
-        'Brooklyn': [
-            'Bath Beach','Bay Ridge','Fort Hamilton','Bedford - Stuyvesant','Ocean Hill',
-            'Stuyvesant Heights','Bensonhurst','Boerum Hill','Borough Park','Brighton Beach',
-            'Brooklyn Heights','Bushwick','Carroll Gardens','Cobble Hill','Coney Island',
-            'Crown Heights','Ditmas Park','Downtown Brooklyn','Dumbo','Dyker Heights',
-            'Flatbush','Fort Greene','Gowanus','Greenpoint','Park Slope','Prospect Heights',
-            'Red Hook','Sheepshead Bay','Sunset Park','Williamsburg','Windsor Terrace'
-        ],
-        'Manhattan': [
-            'Battery Park City','Carnegie Hill','Central Harlem','Chelsea','Chinatown',
-            'Civic Center','East Harlem','East Village','Financial District','Flatiron',
-            'Gramercy Park','Greenwich Village','Hamilton Heights','Hell\'s Kitchen',
-            'Hudson Square','Hudson Yards','Inwood','Kips Bay','Lenox Hill','Lincoln Square',
-            'Little Italy','Lower East Side','Manhattan Valley','Manhattanville','Marble Hill',
-            'Meatpacking District','Midtown','Midtown East','Midtown West','Morningside Heights',
-            'Murray Hill','NoHo','NoMad','Nolita','Peter Cooper Village','Roosevelt Island',
-            'SoHo','Stuyvesant Town','Sugar Hill','Sutton Place','Times Square','Tribeca',
-            'Tudor City','Turtle Bay','Two Bridges','Union Square','Upper East Side',
-            'Upper West Side','Washington Heights','West Harlem','West Village','Yorkville'
-        ],
-        'Queens': [
-            'Astoria','Bayside','Corona','Elmhurst','Flushing','Forest Hills',
-            'Hunters Point','Jackson Heights','Jamaica','Kew Gardens',
-            'Long Island City (LIC)','Rego Park','Ridgewood','Sunnyside','Whitestone','Woodside'
-        ],
-        'Staten Island': [
-            'Annadale','Arden Heights','Dongan Hills','Great Kills','New Dorp',
-            'St. George','Stapleton','Todt Hill'
-        ]
-    };
+    // ── THE ONE NEIGHBOURHOOD VOCABULARY, LOADED NOT HARD-CODED ──────────────
+    //
+    // This carried its own array of ~130 names, so the UI could offer a selection
+    // the server refused while omitting live neighbourhoods no broker could reach.
+    //
+    // Four lists existed for one concept: this one, the server contract, the
+    // neighbourhood->borough table in search-engine.js, and the map polygon names.
+    // Copying the live names into this array would have made a fifth. It now loads
+    // the SAME generated file the server contract is generated from, so neither can
+    // be edited independently.
+    //
+    // MAP POLYGON NAMES REMAIN A SEPARATE VOCABULARY answering a different
+    // question (which shape to draw). The bridge lives in the map layer.
+    //
+    // TWO EARLIER CLAIMS HERE ARE WITHDRAWN:
+    //
+    //   - that `Stuyvesant Town` and `Union Square` are not carried by the live
+    //     feed. They are — 14 and 654 rows. The vocabulary that judged them had
+    //     been read from 1.3% of the feed. They are ACCEPTED and searchable, and
+    //     simply not OFFERED, having no current on-market inventory.
+    //   - that the 240 values were each proven unique to one borough. That held
+    //     only within the on-market slice. Across the whole feed 124 of 632 folded
+    //     names span more than one CityRegion, which is why identity is
+    //     (borough × name) and a bare ambiguous name resolves to nothing.
+    //
+    // Evidence: artifacts/subdivision-full-feed-2026-08-31.json — 591,409 rows,
+    // every status, every PropertyType, not truncated.
+    var NEIGHBORHOODS = {};
+    var _identities = [];
+    var _boroughLabels = {};
 
-    // Build flat search list with borough labels
-    var _searchList = [];
-    Object.keys(NEIGHBORHOODS).forEach(function(borough) {
-        // Add borough itself as selectable
-        _searchList.push({ name: borough, borough: '', display: borough, isBoroughLevel: true });
-        NEIGHBORHOODS[borough].forEach(function(n) {
-            _searchList.push({ name: n, borough: borough, display: n + ', ' + borough, isBoroughLevel: false });
+    /** Same fold as the server contract: case, space and punctuation insensitive. */
+    function _fold(v) { return String(v).toLowerCase().replace(/[^a-z]/g, ''); }
+
+    /**
+     * Split a qualified label into base name and borough.
+     *
+     * A QUALIFIED LABEL MUST NOT BE FOLDED WHOLE: 'Downtown, Brooklyn' and the
+     * real neighbourhood 'Downtown Brooklyn' fold to the same key, which made a
+     * genuine name collide with the disambiguated form of a different one — and
+     * 'Downtown Brooklyn' became unsearchable while still being offered.
+     *
+     * Mirrors splitQualified() in the generated server contract exactly. The whole
+     * point of this module is that the two resolvers cannot answer differently.
+     */
+    function _splitQualified(value) {
+        // PARENTHESES, NOT A COMMA. The neighborhood request param is
+        // was once comma-separated for multi-select, so 'Bay Terrace, Queens' split into
+        // two neighbourhoods and the qualified form never reached the executor.
+        // The list now travels as repeated parameters, and the parenthesised form
+        // is what keeps a qualifier readable on either side.
+        // String operations, not a regex — mirrors splitQualified() in the
+        // generated server contract exactly, and avoids the backslash-eating that
+        // silently corrupted the emitted pattern.
+        var v = String(value);
+        var close = v.lastIndexOf(')');
+        var open = v.lastIndexOf('(');
+        if (close !== v.length - 1 || open <= 0) return { base: value, borough: null };
+        var tail = v.slice(open + 1, close).trim();
+        var folds = {};
+        Object.keys(_boroughLabels).forEach(function (k) {
+            folds[_fold(k)] = true;
+            folds[_fold(_boroughLabels[k])] = true;
         });
-    });
+        if (!folds[_fold(tail)]) return { base: value, borough: null };
+        return { base: v.slice(0, open).trim(), borough: tail };
+    }
+
+    // Built from the loaded vocabulary. Empty until the fetch resolves, which is
+    // correct: an autocomplete that suggests nothing is visibly not ready, whereas
+    // one suggesting a stale hard-coded list looks ready and is wrong.
+    var _searchList = [];
+
+    function buildSearchList() {
+        _searchList = [];
+        Object.keys(NEIGHBORHOODS).forEach(function(borough) {
+            // The borough itself stays selectable — it is a separate criterion
+            // (CityRegion), not a neighbourhood, and is marked as such.
+            _searchList.push({ name: borough, borough: '', display: borough, isBoroughLevel: true });
+            NEIGHBORHOODS[borough].forEach(function(n) {
+                _searchList.push({ name: n, borough: borough, display: n + ', ' + borough, isBoroughLevel: false });
+            });
+        });
+    }
+
+    // ── LOADING, FAILED AND READY ARE THREE STATES ───────────────────────────
+    //
+    // They were one. The list was empty while loading AND after a failed fetch,
+    // and both rendered 'No neighborhoods found' — an affirmative answer that is
+    // definitely wrong in both cases. A broker could not tell 'not ready yet'
+    // from 'that place does not exist', and the catch was empty so nothing was
+    // reported anywhere.
+    var _vocabState = 'loading';   // 'loading' | 'ready' | 'failed'
+
+    function neighborhoodVocabStatus() { return _vocabState; }
+
+    (function loadNeighborhoodVocabulary() {
+        // The SAME absolute path every other CRM data loader uses — panels.js and
+        // transit-search.js both fetch '/crm/data/...' unconditionally.
+        fetch('/crm/data/neighborhood-vocabulary.generated.json')
+            .then(function (r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
+            })
+            .then(function (data) {
+                if (!data || !Array.isArray(data.identities) || data.identities.length === 0) {
+                    throw new Error('empty vocabulary');
+                }
+                _identities = data.identities;
+                _boroughLabels = data.boroughLabels || {};
+                // ACCEPT AND OFFER ARE DIFFERENT SETS, AND THE BROWSER NEEDS BOTH.
+                //
+                // `_identities` holds every identity the provider carries, because
+                // resolve() must recognise a SAVED search containing a valid name the
+                // dropdown does not offer. Shipping only the offered subset is what
+                // made Saved Search restore tell the broker that `Union Square` "is no
+                // longer available to search" and silently drop it — a valid,
+                // searchable, historically real neighbourhood.
+                //
+                // The dropdown itself shows only `offered`.
+                //
+                // ONE ENTRY PER IDENTITY, not one per provider spelling: SoHo, Soho and
+                // SOHO are one neighbourhood and appear once, while the union of
+                // spellings executes server-side so capitalisation loses nothing.
+                NEIGHBORHOODS = {};
+                _identities.forEach(function (i) {
+                    if (!i.offered) return;
+                    // The BROKER LABEL for the borough. The provider value is
+                    // StatenIsland; nobody should ever read that in a dropdown.
+                    //
+                    // Every identity now HAS a borough — identity is (borough x name)
+                    // — so nothing is dropped here. The previous version skipped any
+                    // identity whose borough was null, which silently removed
+                    // Downtown Brooklyn and Midwood from the autocomplete entirely.
+                    var label = i.boroughLabel || _boroughLabels[i.borough] || i.borough;
+                    if (!label) return;
+                    if (!NEIGHBORHOODS[label]) NEIGHBORHOODS[label] = [];
+                    NEIGHBORHOODS[label].push(i.label);
+                });
+                buildSearchList();
+                _vocabState = 'ready';
+                document.dispatchEvent(new CustomEvent('mallan:neighborhoods-ready'));
+            })
+            .catch(function (err) {
+                // NOT SILENT. A failed load must never look like a real answer.
+                _vocabState = 'failed';
+                if (window.console && console.warn) {
+                    console.warn('[neighborhoods] vocabulary failed to load:', err && err.message);
+                }
+                document.dispatchEvent(new CustomEvent('mallan:neighborhoods-failed'));
+            });
+    })();
+
+    // ── THE ONE BROWSER GEOGRAPHY AUTHORITY ──────────────────────────────────
+    //
+    // search-engine.js carried a hard-coded neighbourhood->borough table and
+    // saved-searches.js called into it, so the claim that four vocabularies had
+    // become one was false. That table also placed MOTT HAVEN IN MANHATTAN; the
+    // live feed puts it in the Bronx on 574 of 575 rows.
+    window.MallanNeighborhoods = {
+        state: neighborhoodVocabStatus,
+        identities: function () { return _identities.slice(); },
+        /** Provider CityRegion value for a neighbourhood, or '' when unknown/split. */
+        boroughFor: function (name) {
+            var i = this.resolve(name);
+            return (i && i.borough) || '';
+        },
+        /** Broker label for a provider borough value. StatenIsland -> Staten Island. */
+        boroughLabel: function (providerValue) {
+            return _boroughLabels[providerValue] || providerValue || '';
+        },
+        /**
+         * EVERY identity a name could mean. Length > 1 is AMBIGUOUS.
+         *
+         * Both Bay Terrace identities carry the raw spelling "Bay Terrace", so a
+         * bare lookup finds two.
+         */
+        candidates: function (name) {
+            if (typeof name !== 'string') return [];
+            // Match on the BASE name. Folding a qualified label whole makes
+            // 'Downtown, Brooklyn' collide with the real 'Downtown Brooklyn'.
+            var key = _fold(_splitQualified(name.trim()).base);
+            if (!key) return [];
+            var out = [];
+            for (var n = 0; n < _identities.length; n++) {
+                var idn = _identities[n];
+                var match = _fold(_splitQualified(idn.label).base) === key;
+                for (var k = 0; !match && k < idn.spellings.length; k++) {
+                    if (_fold(idn.spellings[k]) === key) match = true;
+                }
+                if (match && out.indexOf(idn) === -1) out.push(idn);
+            }
+            return out;
+        },
+
+        /**
+         * THE SAME CARDINALITY RULE THE SERVER USES.
+         *
+         * This returned the FIRST match, so a bare `Bay Terrace` silently became
+         * whichever of Queens or Staten Island appeared first in the JSON — while
+         * the server resolver returned null and called it ambiguous. Two resolvers,
+         * two answers, and the Map and Saved Search both ran the browser one.
+         *
+         *   0 matches  -> unknown
+         *   1 match    -> that identity
+         *   many       -> AMBIGUOUS unless a borough disambiguates
+         *
+         * `state()` is the shape callers should use, because "I have never heard of
+         * this" and "this could be two places" need different messages and
+         * different repairs.
+         */
+        resolveState: function (name, borough) {
+            var hits = this.candidates(name);
+            // A qualified input carries its own borough; honour it when the caller
+            // did not pass one separately.
+            if (!borough && typeof name === 'string') {
+                borough = _splitQualified(name.trim()).borough;
+            }
+            if (hits.length === 0) return { state: 'unknown', identity: null, candidates: [] };
+
+            // A SUPPLIED QUALIFIER IS CHECKED FIRST, WHATEVER THE CANDIDATE COUNT.
+            //
+            // This returned the sole candidate before looking at the borough, so
+            // `Tribeca (Queens)` resolved to Tribeca in MANHATTAN — the agent asked
+            // for Queens and was handed Manhattan with nothing said. A qualifier is
+            // part of the criterion and may never be ignored.
+            //
+            // `impossible_qualifier` is its own state: the place exists and is not
+            // in the borough asked for, which is neither unknown nor ambiguous and
+            // needs a different repair. Mirrors resolveNeighborhood() on the server.
+            if (borough) {
+                var want = _fold(borough);
+                for (var n = 0; n < hits.length; n++) {
+                    if (_fold(hits[n].borough) === want || _fold(hits[n].boroughLabel) === want) {
+                        return { state: 'ok', identity: hits[n], candidates: hits };
+                    }
+                }
+                return { state: 'impossible_qualifier', identity: null, candidates: hits };
+            }
+
+            if (hits.length === 1) return { state: 'ok', identity: hits[0], candidates: hits };
+            return { state: 'ambiguous', identity: null, candidates: hits };
+        },
+
+        /** The identity a name means, or null when unknown OR ambiguous. */
+        resolve: function (name, borough) {
+            return this.resolveState(name, borough).identity;
+        }
+    };
 
     // Track selected neighborhoods per input (keyed by tagsContainerId)
     var _selected = {};
@@ -93,7 +295,21 @@
         }).slice(0, 12);
 
         if (matches.length === 0) {
-            dropdown.innerHTML = '<div class="px-3 py-2 text-gray-400">No neighborhoods found</div>';
+            // THREE STATES, THREE MESSAGES. This said "No neighborhoods found"
+            // whatever the reason, so a vocabulary that had not loaded yet — or had
+            // failed to load entirely, silently, with an empty catch — gave the
+            // broker a confident answer about NYC geography. "That place does not
+            // exist" and "I have not loaded the list" are different facts.
+            var msg;
+            if (_vocabState === 'loading') {
+                msg = '<i class="fas fa-circle-notch fa-spin mr-2"></i>Loading neighborhoods…';
+            } else if (_vocabState === 'failed') {
+                msg = '<i class="fas fa-triangle-exclamation mr-2"></i>' +
+                      'Neighborhood list unavailable — reload the page to try again.';
+            } else {
+                msg = 'No neighborhoods found';
+            }
+            dropdown.innerHTML = '<div class="px-3 py-2 text-gray-400">' + msg + '</div>';
             dropdown.classList.remove('hidden');
             return;
         }
@@ -128,6 +344,36 @@
         var input = dropdown ? dropdown.previousElementSibling : null;
         if (input && input.tagName !== 'INPUT') input = dropdown.parentElement.querySelector('input[type="text"]');
         if (input) { input.value = ''; input.focus(); }
+    };
+
+    /**
+     * SET the whole selection for one tag container.
+     *
+     * Added 2026-08-30 so canonical Search state can RENDER geography back into
+     * whichever view the agent opens. `selectNeighborhood` adds one entry and
+     * `removeNeighborhoodTag` removes one; neither expresses "the selection is
+     * now exactly this", which is what rendering a canonical value requires.
+     *
+     * The setter lives HERE, with the widget that owns `_selected`, rather than
+     * the caller reaching into that state. It also resolves each name back to its
+     * borough and borough-level flag from this module's own list, so the caller
+     * only carries names — the canonical shape — and this module stays the single
+     * authority on what a neighbourhood entry is.
+     */
+    window.setNeighborhoodSelection = function(tagsId, neighborhoodNames, boroughNames) {
+        var id = tagsId || 'saleNeighborhoodTags';
+        var next = [];
+        (boroughNames || []).forEach(function(name) {
+            next.push({ name: name, borough: '', isBoroughLevel: true });
+        });
+        (neighborhoodNames || []).forEach(function(name) {
+            var known = _searchList.filter(function(entry) {
+                return !entry.isBoroughLevel && entry.name === name;
+            })[0];
+            next.push({ name: name, borough: known ? known.borough : '', isBoroughLevel: false });
+        });
+        _selected[id] = next;
+        renderTags(id);
     };
 
     // Remove a neighborhood tag

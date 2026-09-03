@@ -60,9 +60,21 @@ describe('active authority never reintroduces the reversed RLS-replaces-local mo
   const files = activeAuthorityFiles();
 
   it('finds active authority files at all (guards a broken scan)', () => {
+    // RETARGETED 2026-08-24. The second anchor was
+    // `docs/architecture/COTALITY-COMPLETE-REFERENCE.md`, deliberately deleted
+    // by a5b20ab9 because it had become a second, stale Cotality authority
+    // competing with the live contract. Anchoring a liveness check on a file
+    // that no longer exists turns this guard permanently red for a reason
+    // unrelated to what it guards, so it now anchors on two files that are
+    // tracked today and span both scanned roots (docs/architecture/ and lib/).
     expect(files.length).toBeGreaterThan(50);
     expect(files).toContain('docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md');
-    expect(files).toContain('docs/architecture/COTALITY-COMPLETE-REFERENCE.md');
+    expect(files).toContain('lib/search/canonical/status-token-contract.ts');
+  });
+
+  it('does not readmit the deleted competing Cotality reference', () => {
+    // The deletion is the point, so it is asserted rather than merely assumed.
+    expect(files).not.toContain('docs/architecture/COTALITY-COMPLETE-REFERENCE.md');
   });
 
   it('contains NO reversed-model instruction outside superseded/history files', () => {

@@ -9604,7 +9604,7 @@ var Panels = (function () {
           '<td class="px-3 py-2"><p class="text-sm font-medium text-gray-900">' + E(addr) + '</p></td>' +
           '<td class="px-3 py-2 text-xs text-gray-500">' + E(l._isRental ? 'Rental' : 'Sale') + '</td>' +
           '<td class="px-3 py-2 text-sm font-semibold">' + $(price) + '</td>' +
-          '<td class="px-3 py-2">' + UI.statusBadge(l.status || 'Active') + '</td>' +
+          '<td class="px-3 py-2">' + UI.statusBadge(l.status || 'UNKNOWN') + '</td>' +
           '<td class="px-3 py-2 text-xs text-gray-600">' + dom + '</td>' +
           '<td class="px-3 py-2">' + expiryHtml + '</td>' +
           '<td class="px-3 py-2">' + (function () {
@@ -12172,7 +12172,7 @@ var Panels = (function () {
               '<p class="text-sm font-medium truncate">' + E(addr) + '</p>' +
               '<div class="flex items-center gap-3 text-xs text-gray-500">' +
                 '<span class="font-bold text-gray-900">' + $(price) + '</span>' +
-                UI.statusBadge(l.status || 'Active') +
+                UI.statusBadge(l.status || 'UNKNOWN') +
                 '<span>' + dom + ' DOM</span>' +
                 (l._neighborhood ? '<span>' + E(l._neighborhood) + '</span>' : '') +
               '</div>' +

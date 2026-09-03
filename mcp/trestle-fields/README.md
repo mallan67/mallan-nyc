@@ -1,41 +1,49 @@
-# trestle-fields MCP server
+# Cotality live contract MCP server
 
-Live Cotality field/enum lookup for the RLS resources. Parses the **live**
-`https://api.cotality.com/trestle/odata/$metadata` (OAuth2 client_credentials, same creds as
-`lib/idx/auth.ts`), refreshes it on a **10-min TTL** (`TRESTLE_METADATA_TTL_MS`) — aligned to the
-system's Cotality `idx-sync` cadence unless Cotality specifies otherwise — and exposes 4 tools:
-`trestle_lookup_field`, `trestle_list_fields`, `trestle_get_picklist`, `trestle_validate_field`.
+This MCP is the agent-facing adapter for Mallan's **single live Cotality reader**.
+It does not parse or cache a separate provider dictionary. Every tool delegates to
+`scripts/cotality/query-live.mjs`, which uses `scripts/cotality/live-client.mjs`.
 
-Source of truth is the **live Cotality API only**. If the live fetch fails it falls back to
-`artifacts/metadata.xml` (a current-format snapshot), never a hardcoded field list.
+**Provider rule:** the authenticated live Cotality API is the only provider-data authority.
+There is **no metadata/CSV/document fallback**. If authentication, the endpoint, or a query
+cannot be verified, the tool returns/fails **UNVERIFIED** instead of presenting stale data as
+current.
 
-## ⚠️ HARD RULE — rebuild + reload after any change
+## Tools
 
-`dist/` is **gitignored**. `.mcp.json` runs `mcp/trestle-fields/dist/index.js`, so editing
-`index.ts` does **nothing** at runtime until you rebuild — and a running MCP server keeps the
-**old** `dist` loaded until it is reloaded.
+- `trestle_census` — current resources, field counts and relationships from `$metadata`.
+- `trestle_list_fields` — every live field/relationship for one resource.
+- `trestle_lookup_field` / `trestle_validate_field` — exact field existence/type/resource.
+- `trestle_get_picklist` — exact enum members from current `$metadata`.
+- `trestle_lookup_values` — live `Lookup` rows including query token, display value, override and definition.
+- `trestle_query_resource` — bounded read-only resource query with `$select/$filter/$orderby/$expand/$count`.
+- `trestle_page_resource` — follow `@odata.nextLink` with an explicit maximum and completeness state.
+- `trestle_probe_field` — select/filter/population/order/type-operator proof with `SUPPORTED / PROVIDER_REJECTED / UNVERIFIED`.
+- `trestle_probe_relationship` — live `$expand` acceptance and sampled relationship-payload proof.
+- `trestle_data_system` — live DataSystem endpoint.
+- `trestle_service_document` — live OData service document.
 
-**After merging any change here (or pulling one):**
+The MCP is for interactive inspection. The exhaustive contract run is:
+
+```bash
+npm run cotality:startup-gate
+npm run cotality:compile
+npm run cotality:search:verify
+```
+
+The compiler output is **evidence only**, never a replacement authority. Re-run it whenever a
+provider fact is needed for implementation or drift is suspected.
+
+## Rebuild + reload after MCP changes
+
+`dist/` is gitignored. `.mcp.json` runs `mcp/trestle-fields/dist/index.js`, so source changes do
+not affect a running MCP until it is rebuilt and reloaded.
 
 ```bash
 cd mcp/trestle-fields
-npm install      # first time only
-npm run build    # regenerate dist/index.js  ← REQUIRED
+npm install      # first time / dependency change
+npm run build
 ```
 
-Then **reload the MCP server** (restart the Claude Code session / MCP host). Skipping this means
-the code is "fixed" but the running server still uses the old build.
-
-> Any PR that changes this server MUST state the rebuild + reload requirement in its description.
-
-## Fix history
-
-- **2026-07-05 — multi-schema parse fix + cadence + dynamic resources.** The live Cotality
-  `$metadata` has **5** `<Schema>` namespaces (`RESO.DD` = entities, `RESO.DD.Enums` +
-  `.Enums.Multi` = enums). The parser read a single `Schema`, so it saw `undefined` for
-  `EntityType`/`EnumType` and parsed **0 fields** — every lookup wrongly returned "not found"
-  (broke at the CoreLogic→Cotality rebrand). Fixed to iterate all schemas. Refresh cadence
-  moved 24h → 10-min TTL, aligned to the system's Cotality `idx-sync` cadence unless Cotality
-  specifies otherwise. `trestle_list_fields` now accepts **any live resource** (dynamic,
-  case-insensitive) instead of a hardcoded enum that silently dropped sections such as
-  `Media` (photos/video), `HistoryTransactional`, `Model`, `Enumeration`.
+Then restart/reload the MCP host. Any PR changing this server must record that rebuild/reload
+requirement in its handoff.

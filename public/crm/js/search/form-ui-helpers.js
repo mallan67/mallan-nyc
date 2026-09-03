@@ -66,23 +66,52 @@
             var from = new Date(today);
             var to = new Date(today);
 
+            // THESE BOUNDARIES MATCH lib/search/open-house-window.ts.
+            // The picker must display the range that actually executes;
+            // two different answers to "this weekend" is how a broker ends
+            // up trusting a result set that was never what they asked for.
             if (preset === 'today') {
                 // from = to = today (already set)
             } else if (preset === 'weekend') {
-                // Find next Saturday
-                var day = today.getDay();
-                var daysToSat = (6 - day + 7) % 7;
-                if (daysToSat === 0 && day === 0) daysToSat = 6; // Sunday → next Sat
-                if (day === 6) daysToSat = 0; // Already Saturday
-                from = new Date(today);
-                from.setDate(today.getDate() + daysToSat);
-                to = new Date(from);
-                to.setDate(from.getDate() + 1); // Sunday
+                var day = today.getDay(); // 0 = Sunday
+                if (day === 0) {
+                    // ON SUNDAY THE WEEKEND IS TODAY. The previous code sent
+                    // the broker to NEXT Saturday and hid the open houses
+                    // happening that afternoon.
+                    from = new Date(today);
+                    to = new Date(today);
+                } else if (day === 6) {
+                    from = new Date(today);
+                    to = new Date(today);
+                    to.setDate(today.getDate() + 1);
+                } else {
+                    from = new Date(today);
+                    from.setDate(today.getDate() + (6 - day));
+                    to = new Date(from);
+                    to.setDate(from.getDate() + 1);
+                }
             } else if (preset === '7days') {
-                to.setDate(today.getDate() + 7);
+                // Seven days INCLUSIVE of today: today plus six.
+                to.setDate(today.getDate() + 6);
             } else if (preset === '30days') {
-                to.setDate(today.getDate() + 30);
+                to.setDate(today.getDate() + 29);
             }
+            // THE TOKEN IS THE CRITERION. The dates below are only what the
+            // picker DISPLAYS; the server recomputes the window in
+            // America/New_York from this token, so a broker on a laptop set to
+            // another timezone still searches the New York day.
+            //
+            // One vocabulary: the HTML still calls this with the legacy '7days'
+            // and '30days' labels, normalised here in the single place that
+            // knows both, rather than translated again server-side.
+            var CANONICAL_OH_PRESET = {
+                today: 'today', weekend: 'weekend',
+                '7days': 'next7', next7: 'next7',
+                '30days': 'next30', next30: 'next30'
+            };
+            var token = CANONICAL_OH_PRESET[preset];
+            if (token) wrapper.setAttribute('data-oh-preset', token);
+            else wrapper.removeAttribute('data-oh-preset');
 
             // Store on wrapper
             var fromStr = formatDateMDY(from);
@@ -111,6 +140,11 @@
         }
 
         function clearOpenHousePreset(drpId) {
+            // The token must go with the highlight. A stale token would keep
+            // executing a preset window the broker can no longer see selected.
+            var w = document.querySelector('.drp-wrapper[data-drp="' + drpId + '"]')
+                || document.querySelector('[data-drp="' + drpId + '"]');
+            if (w) w.removeAttribute('data-oh-preset');
             var allBtns = document.querySelectorAll('.oh-preset[data-oh="' + drpId + '"]');
             allBtns.forEach(function(b) {
                 b.classList.remove('bg-blue-100', 'border-blue-400', 'text-blue-700');

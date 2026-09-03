@@ -4,6 +4,7 @@
 // READ-ONLY: maps inbound data only — nothing goes back to Trestle.
 
 import { affirmPermission } from "@/lib/compliance/gates";
+import { hasPermissionToken } from '@/lib/compliance/gates';
 import { slimRawData } from "@/lib/compliance/raw-data-keep-fields";
 import { classifyMediaItem } from "@/lib/media/listing-media-resolver";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
@@ -1017,17 +1018,35 @@ export interface PermissionGates {
 export function derivePermissionGates(raw: Record<string, unknown>): PermissionGates {
   // REBNY Gate 2 — "Participant Only" = Permissions enum value 'Private' per
   // UCBA 2026 H4 / Definitions (W) and data/rebny-rls-property-lookup.csv:1643.
+  // `Property.Permission` is a MULTI-ENUM (live type
+  // `Cotality.DataStandard.RESO.DD.Enums.Multi.ListingPermission`), and the feed
+  // delivers multi-token values — `IDX,SyndicateOptOut` occurs live.
+  //
+  // This previously did `permissions === 'Private'` on a scalar read, so a
+  // `"IDX,Private"` listing was persisted as NOT participant-only while
+  // `lib/compliance/gates.ts` gated the same value correctly. Two answers to one
+  // field, and this side writes the PERSISTED columns that feed idx_display_yn.
+  //
+  // Token interpretation now has ONE owner: the compliance primitive. This
+  // composes it rather than re-parsing. The direction matters — compliance is
+  // the lower-level module and must not depend on this mapper.
+  const permissionInput = { Permission: raw.Permission, Permissions: raw.Permissions };
   const permissions =
     typeof raw.Permission === 'string'
       ? raw.Permission
       : typeof raw.Permissions === 'string'
         ? raw.Permissions
-        : '';
-  const participantOnly = permissions === 'Private';
-  // REBNY Gate 1 — Owner Opt-Out via Permission enum (compliance/IDX-VOW-DISPLAY-RULES.md:31).
+        : Array.isArray(raw.Permission)
+          ? (raw.Permission as unknown[]).join(',')
+          : '';
+  const participantOnly = hasPermissionToken(permissionInput, 'Private');
+  // REBNY Gate 1 — retained as a FAIL-CLOSED guard. `OwnerOptOut` is NOT among
+  // the 20 live Permission members, so it cannot fire from provider data; it
+  // stays until a live field/value is confirmed rather than being dropped on
+  // field-truth alone.
   const ownerOptOut =
-    permissions === 'OwnerOptOut' ||
-    permissions === 'Owner Opt-Out' ||
+    hasPermissionToken(permissionInput, 'OwnerOptOut') ||
+    hasPermissionToken(permissionInput, 'Owner Opt-Out') ||
     String(raw.MlsStatus || '') === 'OwnerOptOut';
   return { permissions, participantOnly, ownerOptOut };
 }

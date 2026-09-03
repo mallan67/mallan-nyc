@@ -104,9 +104,24 @@ describe('4. needs_probe fields cannot be treated as verified', () => {
     expect(requiresLiveProbe('needs_probe')).toBe(true);
   });
   it('a needs_probe field returns a probe-required error, not usable', () => {
+    // `new_development` used to be the example here. It is now VERIFIED —
+    // `NewConstructionYN` is a live filterable Boolean, true on 951 Active, and
+    // the registry claim that it "does not exist" was false.
+    //
+    // `parking` is the better example, and for a more interesting reason: its
+    // FIELD is verified (GarageYN, 2,630 live true) while its SEMANTICS are not.
+    // GarageYN proves a garage; the UI label also promises generic parking.
+    // Token health never upgrades an unproven meaning to verified.
+    const parking = getField('parking')!;
+    expect(parking.filterable).toBe('needs_probe');
+    expect(assertCapabilityUsable(parking, 'filterable')).toMatch(/needs_probe/);
+    expect(parking.semanticEquivalenceProven).toBe(false);
+  });
+
+  it('new_development is now VERIFIED against live Cotality', () => {
     const nd = getField('new_development')!;
-    expect(nd.filterable).toBe('needs_probe');
-    expect(assertCapabilityUsable(nd, 'filterable')).toMatch(/needs_probe/);
+    expect(nd.cotalityField).toBe('NewConstructionYN');
+    expect(nd.filterable).toBe('yes');
   });
 });
 
@@ -144,7 +159,11 @@ describe('6. all sort keys have a deterministic tie-break', () => {
 
 describe('7. saved-search criteria carries criteria_version', () => {
   it('serializeCriteria stamps the current version', () => {
-    const c = serializeCriteria({ filters: { price_min: 1000 }, sort: 'price_desc' });
+    // VOCABULARY CHANGED 2026-08-28: one persistence key per BUSINESS CONCEPT,
+    // not one per bound. The concept is `list_price` and the bounds live in the
+    // VALUE. `price_min` / `price_max` were two keys for one criterion, which is
+    // why a range had no single business identity to persist.
+    const c = serializeCriteria({ filters: { list_price: { min: 1000 } }, sort: 'price_desc' });
     expect(c.criteria_version).toBe(CRITERIA_VERSION);
     expect(isValidSavedSearch(c)).toBe(true);
   });
@@ -164,10 +183,16 @@ describe('7. saved-search criteria carries criteria_version', () => {
   });
   it('alert-incompatible criteria are flagged (not silently saved)', () => {
     const alertable = new Set(alertableFilterKeys());
-    const c = serializeCriteria({ filters: { amenities: ['doorman'], price_min: 1000 }, sort: 'newest' });
+    const c = serializeCriteria({
+      filters: { feature_criteria: ['doorman'], list_price: { min: 1000 } },
+      sort: 'newest',
+    });
     const bad = unalertableCriteria(c, alertable);
-    expect(bad).toContain('amenities');     // amenities are NOT alert-capable
-    expect(bad).not.toContain('price_min'); // price_min IS alert-capable (list_price alertable → price_min/price_max)
+    // `amenities` was renamed `feature_criteria`: the checkbox family spans 18
+    // Cotality fields including ListingAgreement, LandLeaseYN, BusinessType and
+    // OwnerPays — none of which is an amenity.
+    expect(bad).toContain('feature_criteria'); // still NOT alert-capable
+    expect(bad).not.toContain('list_price');   // list_price IS alert-capable
   });
 });
 
@@ -258,13 +283,33 @@ describe('module: comp-eligibility uses CloseDate window + ownership segmentatio
 
 describe('module: filter-keys map divergent params, fail loud on unmapped', () => {
   it('resolves the analysis param divergences to one canonical key', () => {
-    expect(toCanonicalFilterKey('baths')).toBe('baths_min');
-    expect(toCanonicalFilterKey('minBaths')).toBe('baths_min');
-    expect(toCanonicalFilterKey('q')).toBe('address');
-    expect(toCanonicalFilterKey('zipCodes')).toBe('zip');
-    expect(toCanonicalFilterKey('keyword')).toBe('keywords');
-    expect(toCanonicalFilterKey('propertySubType')).toBe('property_sub_types'); // singular — crm-idx-filter.ts:217
-    expect(toCanonicalFilterKey('propertySubTypes')).toBe('property_sub_types');
+    // Every boundary spelling of ONE concept now resolves to that ONE concept.
+    // Both bounds of a range collapse onto the same key: the bound is carried in
+    // the value, not encoded in the key name.
+    expect(toCanonicalFilterKey('baths')).toBe('bathrooms');
+    expect(toCanonicalFilterKey('minBaths')).toBe('bathrooms');
+    expect(toCanonicalFilterKey('maxBaths')).toBe('bathrooms');
+    expect(toCanonicalFilterKey('q')).toBe('street_address');
+    expect(toCanonicalFilterKey('zipCodes')).toBe('postal_code');
+    expect(toCanonicalFilterKey('keyword')).toBe('public_remarks_keyword');
+    expect(toCanonicalFilterKey('propertySubType')).toBe('property_sub_type');
+    expect(toCanonicalFilterKey('propertySubTypes')).toBe('property_sub_type');
+
+    // THE ALIAS THAT WAS MISSING. The wire param has always been `status`
+    // (singular) while the old table knew only `statuses`, so a saved status
+    // criterion could not be resolved at all.
+    expect(toCanonicalFilterKey('status')).toBe('market_status');
+    expect(toCanonicalFilterKey('statuses')).toBe('market_status');
+
+    // Legacy snake_case from rows written before this vocabulary existed.
+    expect(toCanonicalFilterKey('min_price')).toBe('list_price');
+    expect(toCanonicalFilterKey('close_date_from')).toBe('close_date');
+
+    // Broker-facing listing-id search resolves the MALLAN canonical reference,
+    // never the provider-evidence entry.
+    expect(toCanonicalFilterKey('listingId')).toBe('listing_id_canonical');
+    expect(toCanonicalFilterKey('rlsId')).toBe('listing_id_canonical');
+
     expect(toCanonicalFilterKey('nope')).toBeNull();
   });
 });
@@ -302,5 +347,129 @@ describe('reserved dimensions: 12 placeholders, none wired', () => {
       expect(d.schema).toBe(false);
       expect(d.runtimeBehavior).toBe(false);
     }
+  });
+});
+
+/**
+ * FACTUAL AUTHORITY IS NOT A PER-FIELD CONSTANT.
+ *
+ * Mallan uses the SAME canonical fields for Mallan-authored local listings and
+ * third-party Cotality inventory. `list_price` on a local listing is authored by
+ * MALLAN; on third-party inventory it is authored by Cotality/RLS. A static
+ * per-field authority is therefore false half the time, and the suppressed
+ * Cotality representation of a Mallan listing does not transfer authorship of
+ * the local canonical value to the provider.
+ *
+ * The registry declares HOW authority is resolved; `AttributionEnvelope`
+ * carries the answer per fact at runtime.
+ */
+describe("authority resolution, not a static per-field author", () => {
+  const get = (k: string) => FIELD_REGISTRY.find((f) => f.canonicalKey === k)!;
+
+  it("every entry declares how its authorship is decided", () => {
+    for (const spec of FIELD_REGISTRY) {
+      expect(spec.authorityResolution).toBeDefined();
+    }
+  });
+
+  it("authorable listing facts are resolved BY LISTING AUTHORITY, never fixed", () => {
+    // The exact category error: these are Mallan-authored on a local listing.
+    for (const key of ["list_price", "street_address", "bedrooms", "bathrooms", "ownership", "media"]) {
+      const spec = get(key);
+      expect(spec.authorityResolution).toBe("by_listing_authority");
+      // A fixed author would be a lie for half the corpus.
+      expect(spec.sourceAuthority).toBeUndefined();
+      expect(spec.authorityByListingKind).toEqual({
+        mallanLocal: "mallan_crm",
+        providerListing: "cotality",
+      });
+    }
+  });
+
+  it("a fixed author is declared ONLY where it is genuinely permanent", () => {
+    // Provider identifiers exist only for provider records; CRM state only for Mallan.
+    expect(get("listing_key").sourceAuthority).toBe("cotality");
+    expect(get("mallan_exclusive").sourceAuthority).toBe("mallan_crm");
+    expect(get("acris_sale_history").sourceAuthority).toBe("acris");
+    for (const key of ["listing_key", "mallan_exclusive", "acris_sale_history"]) {
+      expect(get(key).authorityResolution).toBe("fixed");
+    }
+  });
+
+  it("UNRESOLVED is not a synonym for mallan_derived", () => {
+    // Each of these has a LIVE Cotality candidate that has not been probed:
+    //   achieved_rent   LeaseAmount / TotalActualRent
+    //   assessment      TaxOtherAnnualAssessmentAmount
+    //   price_per_sqft  CustomProperty.PricePerArea + PricePerAreaUnit
+    // Declaring them Mallan-derived before probing would bake in a wrong answer.
+    for (const key of ["achieved_rent", "assessment", "price_per_sqft", "owner_opt_out"]) {
+      const spec = get(key);
+      expect(spec.authorityResolution).toBe("unresolved");
+      expect(spec.sourceAuthority).toBeUndefined();
+    }
+  });
+
+  it("geography is authored by whoever authored the LISTING", () => {
+    // TWICE-CORRECTED, and the second correction is the interesting one.
+    //
+    // This originally required both to stay "unresolved until the live NYC
+    // study". That study ran on 2026-08-31 — the Search universe read
+    // exhaustively for 240 distinct SubdivisionName values, each proven unique to
+    // one borough — so I resolved neighborhood to fixed/cotality.
+    //
+    // That was still wrong, and wrong in a way the probe could not reveal, because
+    // it answers a DIFFERENT QUESTION. The study settles which provider field
+    // expresses the concept. `authorityResolution` asks who AUTHORS the fact on a
+    // given listing, and app/api/crm/listings/route.ts answers it plainly:
+    //
+    //   borough:      (persistence.topLevel.borough as string) ?? null
+    //   neighborhood: (persistence.topLevel.neighborhood as string) ?? null
+    //
+    // Those are the values a Mallan agent typed into the CRM form. Declaring the
+    // fact fixed/cotality would say Cotality owns the canonical neighbourhood on
+    // EVERY listing including Mallan's own — which would let a SUPPRESSED
+    // Mallan-office provider representation supply a canonical fact about a
+    // listing Mallan authored, the return-copy inversion the architecture exists
+    // to prevent.
+    //
+    // Geography is an ADDRESS fact and is authored exactly like street_address,
+    // postal_code and unit.
+    for (const key of ["borough", "neighborhood"]) {
+      expect(get(key).authorityResolution).toBe("by_listing_authority");
+      expect(get(key).authorityByListingKind).toEqual({
+        mallanLocal: "mallan_crm",
+        providerListing: "cotality",
+      });
+      // A per-listing-kind fact must not ALSO carry a static author.
+      expect(get(key).sourceAuthority).toBeUndefined();
+    }
+  });
+
+  it("pipeline lineage is a separate concept, not a canonical source", () => {
+    // The canonical key `source` was RENAMED to `provider_lineage`, because the
+    // model — not just the note — was wrong. SourceSystem*/OriginatingSystem*
+    // describe RLS -> REBNY -> Trestle. On 35 live Mallan-office rows
+    // SourceSystemName and SourceSystemKey were BOTH 0/35.
+    expect(FIELD_REGISTRY.find((f) => f.canonicalKey === "source")).toBeUndefined();
+    const lineage = get("provider_lineage");
+    expect(lineage.notes).toMatch(/pipeline/i);
+    // Lineage is evidence, never a Search axis.
+    expect(lineage.filterable).toBe("no");
+    expect(lineage.sortable).toBe("no");
+    expect(lineage.reportable).toBe("no");
+  });
+
+  it("provider ListingKey and Mallan listing_id are DIFFERENT identity domains", () => {
+    // Schema documents Listing.listing_id as "Trestle ListingId OR internal
+    // SL-/RL- prefix", while ListingsArchive.listing_key is "Trestle ListingKey".
+    // Mapping ListingKey onto the ListingId column conflates two identifiers.
+    const key = get("listing_key");
+    expect(key.cotalityField).toBe("ListingKey");
+    expect(key.dbColumn).not.toBe("listing_id");
+    // ListingKey is not in any typed Listing column — raw_data carries it.
+    expect(key.dbColumn).toBeNull();
+
+    const canonicalListingId = get("listing_id_canonical");
+    expect(canonicalListingId.notes).toMatch(/DUAL-DOMAIN/i);
   });
 });

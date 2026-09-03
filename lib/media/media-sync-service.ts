@@ -110,7 +110,15 @@ export const defaultMediaSyncDeps: MediaSyncDeps = {
  * recognise. This matches the resolver convention at
  * `lib/media/listing-media-resolver.ts:classifyMediaItem`.
  */
-export type CanonicalMediaType = "Photo" | "FloorPlan" | "Video" | "VirtualTour";
+/**
+ * What the provider said this media IS.
+ *
+ * `Unclassified` is a real member, not a placeholder: it means the Cotality feed
+ * supplied no category, or supplied one this classifier does not recognise. It
+ * is NOT a fifth kind of media — it is the absence of a classification, kept
+ * distinct from the four that were actually stated.
+ */
+export type CanonicalMediaType = "Photo" | "FloorPlan" | "Video" | "VirtualTour" | "Unclassified";
 
 /**
  * Classify a Trestle MediaCategory string into a canonical mediaType.
@@ -142,7 +150,21 @@ export type CanonicalMediaType = "Photo" | "FloorPlan" | "Video" | "VirtualTour"
 export function classifyTrestleMediaCategory(
   category: string | null | undefined,
 ): CanonicalMediaType {
-  if (!category) return "Photo";
+  // STEP 1. This used to return "Photo", justified by the comment "Trestle
+  // leaves MediaCategory null/empty on bare photo rows". That is a claim about
+  // what the Cotality feed MEANS by an empty field, and no live evidence for it
+  // exists in this repo — the class of assertion CLAUDE.md §A.0 requires a
+  // current-session HTTP response to make.
+  //
+  // It was not harmless. lib/idx/media-sync.ts:1702-1706 already documents the
+  // consequence: a floor plan arriving with no category was STORED as
+  // media_type='Photo', so Listing.photo_count reported one more photo than the
+  // public gallery held. That was patched by adding a richer classifier
+  // downstream; the false value at the source stayed.
+  //
+  // Unknown is now recorded as unknown. Verifying what the feed actually means
+  // by an empty MediaCategory is Step 2's job, against the live Media contract.
+  if (!category) return "Unclassified";
   const cat = String(category).toLowerCase().trim();
 
   // Floor-plan detection — multiple forms because Trestle emits "FloorPlan"
@@ -160,10 +182,28 @@ export function classifyTrestleMediaCategory(
   if (cat === "video" || cat.includes("video")) {
     return "Video";
   }
-  // Photo is the explicit value AND the default for any unrecognised string.
-  // Trestle leaves MediaCategory null/empty on bare photo rows, so empty
-  // already returned "Photo" via the early null guard above.
-  return "Photo";
+  if (cat === "photo") return "Photo";
+
+  // CORRECTED (Maya, Step 2 handoff). An earlier version of this comment said
+  // that mapping to "Other" would itself be an invention. That was WRONG:
+  // `Other` is a genuine Cotality MediaCategory enum member, alongside Photo,
+  // FloorPlan, Video, Document, Disclosure, Addendum, Survey, Restriction,
+  // RentalDocuments, AgentPhoto, OfficePhoto and others.
+  //
+  // The distinction that actually matters:
+  //
+  //     RAW COTALITY FACT  ≠  MALLAN MEDIA GROUP
+  //
+  // The raw provider value is preserved verbatim in `media_category` (and
+  // `media_classification`) at line ~1260 of lib/idx/media-sync.ts — a listing
+  // whose category is `Other` still stores `Other` there, losslessly. What THIS
+  // function answers is the narrower question of which Mallan canonical media
+  // GROUP the item belongs to, and Mallan has not yet defined a group for
+  // `Other`, `Document`, `Disclosure`, `Survey` and the rest.
+  //
+  // So the answer is "not yet grouped", not "not a real value". Defining those
+  // groups needs the live Cotality Media contract — Step 2.
+  return "Unclassified";
 }
 
 /**

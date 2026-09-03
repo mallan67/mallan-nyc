@@ -91,10 +91,27 @@ describe('the route uses the canonical gate, DB-side, before pagination', () => 
   });
 
   it('the gate is applied before take/skip so DB paging stays correct', () => {
+    // ANCHORED ON THE READER, NOT ON A LOCAL VARIABLE NAME. This looked for
+    // `const dbTake = limit;` — the line that took a PAGE straight from Prisma.
+    // Section 6 replaced it with a candidate reader, because taking a page and
+    // then filtering it is the defect this ordering rule exists to prevent, so
+    // the old anchor named exactly the thing that had to go. The RULE is
+    // unchanged and is what is asserted: the disclosure gate must be in the
+    // predicate before anything applies skip/take.
     const gateIdx = routeSource.indexOf('ADDRESS_DISCLOSED_GATE;');
-    const takeIdx = routeSource.indexOf('const dbTake = limit;');
+    const readerIdx = routeSource.indexOf('const readCandidateBatch =');
+    const skipIdx = routeSource.indexOf('skip: batchSkip,');
     expect(gateIdx).toBeGreaterThan(-1);
-    expect(takeIdx).toBeGreaterThan(gateIdx);
+    expect(readerIdx).toBeGreaterThan(gateIdx);
+    expect(skipIdx).toBeGreaterThan(readerIdx);
+  });
+
+  it('no page-coordinate read survives on the DB path', () => {
+    // The gate landing before `skip`/`take` is only half the rule. If any query
+    // still pages in listing coordinates, membership can be decided after the
+    // cut somewhere else in the file and this suite would not notice.
+    expect(routeSource).not.toContain('const dbTake = limit;');
+    expect(routeSource).not.toContain('const dbSkip = skip;');
   });
 });
 
@@ -106,8 +123,13 @@ describe('DTO post-filter has NO provenance exemption (both response paths)', ()
   });
 
   it('both paths filter purely on the canonical DTO address', () => {
+    // TOLERANT OF THE ARROW PARAMETER'S FORMATTING. This matched `l =>` only, so
+    // rewriting one path's predicate as `(l) =>` — the same rule, one pair of
+    // brackets — dropped the count to 1 and failed a semantic guard for a
+    // cosmetic reason. What must hold is that BOTH response paths test the
+    // canonical DTO address and nothing else.
     const matches = routeSource.match(
-      /l => l\.address\?\.streetName !== 'Address Undisclosed'/g,
+      /\(?l\)? => l\.address\?\.streetName !== 'Address Undisclosed'/g,
     );
     expect(matches).not.toBeNull();
     expect(matches!.length).toBeGreaterThanOrEqual(2);

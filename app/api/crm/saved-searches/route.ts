@@ -12,10 +12,11 @@ import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeJson } from "@/lib/api/safe-json";
 import { scanTextForFairHousing } from "@/lib/compliance/rls-enforcement";
 import { assertLeadIdStringAccess } from "@/lib/crm/access";
+import { normalizeSavedSearchCriteria, savedSearchDisposition } from "@/lib/search/canonical/saved-search-normalizer";
 import {
   canEnableAlertForCriteria,
   criteriaToProjectionWhere,
-  getUnsupportedProjectionCriteria,
+  getUnsupportedSearchCriteria,
   isPlainSearchCriteria,
 } from "@/lib/search/criteria-to-prisma";
 
@@ -79,8 +80,14 @@ export async function GET(req: NextRequest) {
     const countCache = new Map<string, Promise<number>>();
 
     const serialized = await Promise.all(searches.map(async (s) => {
-      const criteria = isPlainSearchCriteria(s.criteria) ? s.criteria : null;
-      const unsupportedCriteria = criteria ? getUnsupportedProjectionCriteria(criteria) : [];
+      // Legacy rows are normalized IN MEMORY on read. Nothing is rewritten or
+      // backfilled — this is a read-boundary compatibility correction, not a
+      // migration.
+      const rawCriteria = isPlainSearchCriteria(s.criteria) ? s.criteria : null;
+      const criteria = rawCriteria
+        ? (normalizeSavedSearchCriteria(rawCriteria).criteria as typeof rawCriteria)
+        : null;
+      const unsupportedCriteria = criteria ? getUnsupportedSearchCriteria(criteria) : [];
       const countStatus: SavedSearchCountStatus = !criteria
         ? "invalid_criteria"
         : unsupportedCriteria.length > 0
@@ -111,6 +118,9 @@ export async function GET(req: NextRequest) {
         projection_count: projectionCount,
         live_result_count: projectionCount,
         count_status: countStatus,
+        // Execution disposition travels with each row so the client can refuse
+        // to auto-run a record whose meaning cannot be fully represented.
+        ...savedSearchDisposition(s.criteria),
         unsupported_criteria: unsupportedCriteria.length > 0 ? unsupportedCriteria : null,
         invalid_criteria: criteria ? null : true,
       };
@@ -152,7 +162,39 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const validationError = validateCriteria(criteria);
+    // CANONICALISE AT THE PERSISTENCE BOUNDARY.
+    //
+    // Execution became canonical in Tranche 1; storage did not, so a saved
+    // search was a SECOND TRUTH written in provider vocabulary. Everything
+    // below — validation, the alert gate, and the persisted row — now sees the
+    // same canonical criteria the executor will see, so a reload cannot mean
+    // something different from the save.
+    const normalized = normalizeSavedSearchCriteria(criteria);
+    const canonicalCriteria = normalized.criteria;
+
+    // FAIL CLOSED ON A CRITERION WE CANNOT REPRESENT.
+    //
+    // The normalizer reports malformed/unknown/unavailable criteria; earlier
+    // this route ignored that and persisted anyway, so a saved search whose
+    // meaning could not be represented was stored as a BROADER search. A new
+    // Saved Search must not be accepted if its meaning cannot be carried.
+    if (normalized.hasUnresolved) {
+      const cb = normalized.checkboxes;
+      return NextResponse.json(
+        {
+          error: "Saved Search contains criteria that cannot be represented.",
+          code: "UNSUPPORTED_CRITERION",
+          criterion: "checkbox_filters",
+          unsupportedValues: [...cb.malformed, ...cb.unknown, ...cb.unavailable],
+          malformed: cb.malformed,
+          unknown: cb.unknown,
+          unavailable: cb.unavailable,
+        },
+        { status: 400 },
+      );
+    }
+
+    const validationError = validateCriteria(canonicalCriteria);
     if (validationError) {
       return NextResponse.json({ error: validationError }, { status: 400 });
     }
@@ -179,7 +221,7 @@ export async function POST(req: NextRequest) {
     // divergence). See lib/search/criteria-to-prisma.ts canEnableAlertForCriteria.
     const wantAlert = Boolean(alert_frequency) && alert_enabled !== false;
     if (wantAlert) {
-      const gate = canEnableAlertForCriteria(criteria);
+      const gate = canEnableAlertForCriteria(canonicalCriteria);
       if (!gate.ok) {
         return NextResponse.json(
           {
@@ -195,7 +237,7 @@ export async function POST(req: NextRequest) {
     const search = await prisma.savedSearch.create({
       data: {
         name: name.trim(),
-        criteria: criteria as Prisma.InputJsonValue,
+        criteria: canonicalCriteria as Prisma.InputJsonValue,
         agent_id: auth.userId,
         lead_id: leadAccess?.leadId ?? null,
         alert_frequency: alert_frequency ?? null,

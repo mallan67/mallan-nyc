@@ -4,6 +4,7 @@ import { cachedPublicRead, SEARCH_CACHE_TAG } from '@/lib/cache/public-cache';
 import type { Prisma } from '@prisma/client';
 import { getAccessToken } from '@/lib/idx/auth';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
+import { normalizeMarketType, marketPropertyClass, marketActiveStatusFilter, marketClosedStatusFilter } from '@/lib/market/query-contract';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
@@ -115,7 +116,7 @@ export async function GET(request: Request) {
 
     // Base where clause — distribution gates enforced
     const baseWhere: Prisma.ListingWhereInput = {
-      listing_type: type === 'rent' ? 'rent' : 'sale',
+      listing_type: normalizeMarketType(type) === 'rental' ? 'rent' : 'sale',
       idx_display_yn: true,
       internet_entire_listing_display_yn: true,
       owner_opt_out: false,
@@ -184,10 +185,17 @@ export async function GET(request: Request) {
     if (activeListings.length < 10) {
       try {
         const token = await getAccessToken();
-        const isRental = type === 'rent';
+        // Both 'rent' and 'rental' mean rental — MarketSnapshot sends one and
+        // MarketReportContent the other, and this branch used to recognise only
+        // 'rent', so every MarketSnapshot rental request ran the SALE branch.
+        const isRental = normalizeMarketType(type) === 'rental';
         // Cotality PropertyType is camelCase 'ResidentialLease' (no space) — the space variant
         // matched 0 live rows, silently emptying every rental market stat (AGENTS.md §1 invariant 7).
-        const propertyClass = isRental ? "PropertyType eq 'ResidentialLease'" : "PropertyType eq 'Residential'";
+        // Was re-derived here as two string literals. A canonical helper the real
+        // writer ignores is not closure — that is precisely how the Sale/Rental
+        // negation survived a "fixed" contract last round. This now resolves
+        // route -> market contract -> canonical PropertyType universe.
+        const propertyClass = marketPropertyClass(isRental ? 'rental' : 'sale');
         const boroughFilter = borough ? ` and CityRegion eq '${borough.replace(/'/g, "''")}'` : '';
         // $select fields verified against live Trestle $metadata (2026-04-19):
         // IDXEntireListingDisplayYN / OwnerOptOut / ParticipantOnlyYN do NOT
@@ -197,7 +205,11 @@ export async function GET(request: Request) {
 
         // Active listings from Trestle
         const activeParams = new URLSearchParams({
-          $filter: `MlsStatus eq 'Active' and ${propertyClass}${boroughFilter}`,
+          // Was `MlsStatus eq 'Active'` — provider-suppressed, HTTP 400 every
+          // time, so this fallback never ran. Now the same ACTIVE definition the
+          // database branch of this route uses (Active + ComingSoon +
+          // ActiveUnderContract), rendered through the canonical status contract.
+          $filter: `${marketActiveStatusFilter()} and ${propertyClass}${boroughFilter}`,
           $select: selectFields,
           $top: '200',
           $count: 'true',
@@ -216,7 +228,8 @@ export async function GET(request: Request) {
         // Closed listings from Trestle (within period)
         const periodStartISO = periodStart.toISOString().split('T')[0];
         const closedParams = new URLSearchParams({
-          $filter: `(MlsStatus eq 'Closed' or StandardStatus eq 'Closed') and ${propertyClass} and CloseDate ge ${periodStartISO}${boroughFilter}`,
+          // The MlsStatus half of this OR made the whole predicate invalid.
+          $filter: `${marketClosedStatusFilter()} and ${propertyClass} and CloseDate ge ${periodStartISO}${boroughFilter}`,
           $select: `${selectFields},ClosePrice,CloseDate`,
           $top: '200',
         });

@@ -48,7 +48,14 @@
 
             var idsParam = batch.join(',');
 
-            fetch('/api/media/batch?ids=' + encodeURIComponent(idsParam), {
+            // ASK IN THE DOMAIN THE CARD CARRIES.
+            //
+            // These are Cotality ListingKeys, and the provider matches them on
+            // Media.ResourceRecordKey. Sending them as `ids` would have them
+            // matched against ResourceRecordID, whose value space does not
+            // overlap - probed live 2026-09-01: cross-domain returns count 0,
+            // an empty HTTP 200 that looks exactly like "no photos".
+            fetch('/api/media/batch?keys=' + encodeURIComponent(idsParam), {
                 credentials: 'same-origin'
             }).then(function(res) {
                 if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -75,7 +82,7 @@
         function _applyPhotoToCards(listingId, photoUrl) {
             if (!photoUrl) return;
             // Find all img elements inside cards for this listing
-            var cards = document.querySelectorAll('[data-listing-lid="' + listingId + '"] .cm-photo, [data-listing-lid="' + listingId + '"] .cm-photo-wrap img');
+            var cards = document.querySelectorAll('[data-listing-key="' + listingId + '"] .cm-photo, [data-listing-key="' + listingId + '"] .cm-photo-wrap img');
             cards.forEach(function(img) {
                 if (img.tagName === 'IMG') {
                     // Replace if: showing SVG placeholder, hidden from onerror, or empty src
@@ -89,7 +96,12 @@
                 }
             });
             // Also try by data-photo-lid attribute (set by renderers)
-            var imgs = document.querySelectorAll('img[data-photo-lid="' + listingId + '"]');
+            // SAME DOMAIN AS THE REQUEST. This selected on data-photo-lid,
+            // which holds the ListingId, using a listingId that is now a
+            // ListingKey - so it matched nothing and the fetched photo was
+            // never applied to these images. The identity moved; the selector
+            // had not.
+            var imgs = document.querySelectorAll('img[data-photo-key="' + listingId + '"]');
             imgs.forEach(function(img) {
                 var isSvg = img.src && img.src.indexOf('data:image/svg') !== -1;
                 var isHidden = img.style.display === 'none';
@@ -119,7 +131,7 @@
                 entries.forEach(function(entry) {
                     if (entry.isIntersecting) {
                         var card = entry.target;
-                        var lid = card.getAttribute('data-listing-lid');
+                        var lid = card.getAttribute('data-listing-key');
                         if (lid) queuePhotoLoad(lid);
                         _photoObserver.unobserve(card);
                     }
@@ -130,9 +142,9 @@
             });
 
             // Observe all listing cards with an LID
-            var cards = document.querySelectorAll('[data-listing-lid]');
+            var cards = document.querySelectorAll('[data-listing-key]');
             cards.forEach(function(card) {
-                var lid = card.getAttribute('data-listing-lid');
+                var lid = card.getAttribute('data-listing-key');
                 // Only observe if this listing doesn't already have a real photo
                 if (lid && !_photoCache[lid]) {
                     _photoObserver.observe(card);
@@ -141,9 +153,9 @@
         }
 
         function _loadAllVisiblePhotos() {
-            var cards = document.querySelectorAll('[data-listing-lid]');
+            var cards = document.querySelectorAll('[data-listing-key]');
             cards.forEach(function(card) {
-                var lid = card.getAttribute('data-listing-lid');
+                var lid = card.getAttribute('data-listing-key');
                 if (lid) queuePhotoLoad(lid);
             });
         }
@@ -177,7 +189,15 @@
                 return;
             }
 
-            fetch('/api/media/batch?ids=' + encodeURIComponent(lid) + '&detail=true', {
+            // THE DETAIL PATH ASKS IN THE SAME DOMAIN AS THE CARD.
+            //
+            // This sent `ids=<ListingId>` while the card beside it sent
+            // `keys=<ListingKey>`. The provider answers both, but the route
+            // grouped the reply by ResourceRecordKey regardless of what was
+            // asked, then looked it up by the RLS id - so a provider-only
+            // listing showed its thumbnail and then opened an EMPTY gallery.
+            // One listing, one provider, two answers.
+            fetch('/api/media/batch?keys=' + encodeURIComponent(lid) + '&detail=true', {
                 credentials: 'same-origin'
             }).then(function(res) {
                 if (!res.ok) throw new Error('HTTP ' + res.status);

@@ -9,15 +9,17 @@
 //   - description-compliance pattern coverage cases (pure regex)
 //   - form-validator JSDOM cases (loads validators 19/20/21/22 into a
 //     synthetic DOM and exercises the public surface)
+//   - authenticated Search status browser-to-wire transport cases
 //   - fixture-loader sanity (confirms the 126-listing dataset still loads)
 //
 // Exits 0 on all-pass, 1 on any failure. Used as a CI gate
 // (`npm run crm:test`) to detect silent regressions in the in-tree
 // validators that gate Fair Housing + UCBA description compliance on the
-// listing forms.
+// listing forms, plus authenticated CRM Search criteria transport.
 
 const descCompliance = require('./crm-tests/cases-description-compliance');
 const formValidators = require('./crm-tests/cases-form-validators');
+const statusTransport = require('./crm-tests/cases-status-transport');
 const { loadFixtures } = require('./crm-tests/fixtures');
 
 function colorize(text, code) {
@@ -44,6 +46,7 @@ function main() {
     ...runFixturesCheck().map((r) => ({ ...r, suite: 'fixtures' })),
     ...descCompliance.run().map((r) => ({ ...r, suite: 'description-compliance' })),
     ...formValidators.run().map((r) => ({ ...r, suite: 'form-validators' })),
+    ...statusTransport.run().map((r) => ({ ...r, suite: 'status-transport' })),
   ];
 
   const passed = all.filter((r) => r.pass).length;

@@ -4814,7 +4814,7 @@ var Workspace = (function () {
     var l = _listing;
     var address = _resolveAddr(l.address) || l.UnparsedAddress || 'No address';
     var price = l.ListPrice || l.price || l.list_price;
-    var status = l.status || l.StandardStatus || 'Active';
+    var status = l.status || l.StandardStatus || 'UNKNOWN';
 
     var html = '<div class="space-y-0">';
 
