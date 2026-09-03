@@ -25,12 +25,51 @@ const DIRECTORY_DESCRIPTION =
  * `/agents/[name]/listings`) already noindex their unavailable state; the
  * roster was the one public agent surface that did not.
  *
- * NOTE ON STATUS CODE: this still responds HTTP 200. A Next.js App Router page
- * has no supported way to set 503 on a rendered page — `notFound()` (404) is
- * the only status interrupt available, and a 404 would assert the directory
- * does not exist, which is a different and worse lie. `robots: noindex` is the
- * strongest correct signal available at this layer. UNVERIFIED whether a
- * proxy-level 503 is worth adding; it is deliberately not attempted here.
+ * STATUS CODE — the previous note here claimed, without evidence, that a page
+ * "has no supported way to set 503" and that a proxy-level 503 was UNVERIFIED.
+ * The claim has now been MEASURED against the installed Next.js 16.2.4 with
+ * `next build && next start`, and it is replaced by what was observed.
+ *
+ * An App Router page can produce exactly these statuses:
+ *
+ *   normal render                        200
+ *   notFound()                           404, plus an automatic
+ *                                        <meta name="robots" content="noindex">
+ *   redirect()                           307 / 308
+ *   uncaught throw                       500, plus the same automatic noindex —
+ *                                        but the segment error.tsx is NOT in the
+ *                                        served HTML, only the generic framework
+ *                                        error shell, so the controlled
+ *                                        temporarily-unavailable copy is LOST
+ *   throw with digest
+ *   NEXT_HTTP_ERROR_FALLBACK;503         500, NOT 503
+ *
+ * The last line is enforced, not incidental. In
+ * node_modules/next/dist/client/components/http-access-fallback/http-access-fallback.js
+ * the digest status is validated against a fixed allow-list —
+ * `{ NOT_FOUND: 404, FORBIDDEN: 403, UNAUTHORIZED: 401 }` — so a 503 digest is
+ * not recognised as an access fallback and falls through to `statusCode = 500`.
+ * next/navigation exports only notFound / forbidden / unauthorized / redirect /
+ * permanentRedirect / unstable_rethrow, none of which sets an availability
+ * status, and next/dist/server/request/ exposes no status API at all.
+ * `unstable_rethrow` merely re-raises framework control-flow errors.
+ *
+ * The proxy CAN return 503 for a matched path — that part was verified, and it
+ * works. What it cannot do is learn this page's answer. Measured by logging
+ * both: the proxy runs strictly BEFORE the page, and the object it returns
+ * carries a fixed `status: 200` with a null body, so it has no visibility into
+ * whether the authority answered. Emitting 503 from the proxy therefore
+ * requires the proxy to make its OWN determination — a second Agent-directory
+ * database read, in a bundle that is deliberately kept free of Prisma so the
+ * public shell stays static and cacheable.
+ *
+ * So: BLOCKED, deliberately. 200 + noindex is behaviourally truthful here — the
+ * body says unavailable and the head refuses indexation — and the JSON
+ * authority endpoint (/api/agents/public) already returns a correct 503. A
+ * safe HTML 503 needs an architectural change, not a workaround, and a platform
+ * limitation is not a reason to make the proxy a database consumer.
+ *
+ * The noindex below is therefore the operative protection, not a consolation.
  */
 export async function generateMetadata(): Promise<Metadata> {
   const agents = await getAgents();

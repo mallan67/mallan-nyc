@@ -7,6 +7,7 @@ import {
   isAddressDisplayablePerSuggest,
 } from '@/lib/search/suggest-classify';
 import prisma from '@/lib/prisma';
+import { professionalTitle } from '@/lib/agents/professional-title';
 
 // Neighborhood data for local matching (loaded once at module level)
 import manhattanData from '@/data/manhattan-neighborhoods.json';
@@ -235,6 +236,10 @@ export async function GET(request: Request) {
           first_name: true,
           last_name: true,
           title: true,
+          // Needed to DERIVE the designation. Without these the route had to
+          // guess, and its guess was 'Licensed Real Estate Salesperson'.
+          license_type: true,
+          role: true,
         },
         take: 2,
       });
@@ -242,10 +247,24 @@ export async function GET(request: Request) {
       for (const a of agents) {
         const name = a.full_name || `${a.first_name} ${a.last_name}`;
         const slug = a.public_slug || `${a.first_name}-${a.last_name}`.toLowerCase().replace(/\s+/g, '-');
+        // Derived through the ONE title authority, never defaulted.
+        //
+        // This read `a.title || 'Licensed Real Estate Salesperson'`, so an
+        // agent whose stored title was empty was published to this PUBLIC
+        // autocomplete as a salesperson — including a NY Associate Broker, who
+        // holds a BROKER licence. That is a false statement about a licensee
+        // under NY DOS 19 NYCRR 175.25, and it is a second title authority: a
+        // designation asserted here that nothing in the Agent record supports.
+        //
+        // professionalTitle() returns '' when neither the licence class nor a
+        // stored title resolves one, and the sub-label then renders as nothing
+        // — every consumer already guards on `suggestion.sublabel &&`. Saying
+        // nothing is correct; inventing a designation is not. The field stays a
+        // required string so the shared Suggestion contract is untouched.
         suggestions.push({
           type: 'agent',
           label: name,
-          sublabel: a.title || 'Licensed Real Estate Salesperson',
+          sublabel: professionalTitle(a),
           value: slug,
         });
       }
