@@ -23,6 +23,18 @@ import {
   isContinuationAvailable,
   nextContinuation,
 } from "@/lib/search/continuation";
+import prisma from "@/lib/prisma";
+import {
+  readMallanLocalCandidates,
+  mixedSourceComparator,
+  isMallanLocalRow,
+  type MallanLocalRow,
+} from "@/lib/search/mallan-local-rows";
+import { mapMallanLocalToCrmListing } from "@/lib/search/mallan-local-mapper";
+import {
+  brokerSearchOpenHouseWhere,
+  localOpenHouseMembershipFrom,
+} from "@/lib/open-houses/local-open-house-membership";
 import {
   readOpenHouseMembershipForWindow,
 } from "@/lib/search/open-house-provider";
@@ -596,6 +608,116 @@ export async function GET(req: NextRequest) {
       executedOpenHouseWindow = { from: window.from, to: window.to, preset: ohPreset || 'custom' };
     }
 
+    // -- THE MALLAN-AUTHORED HALF OF THE UNIVERSE --
+    //
+    // Authenticated Search read Cotality and nothing else, so a Mallan-authored
+    // listing could not appear under any criterion. It is a SOURCE, not an
+    // open-house special case: reading it only when `openHouse` is set would
+    // make a listing blink into existence the moment a filter is clicked.
+    let localRows: readonly MallanLocalRow[] = [];
+    let mallanLocalState: {
+      included: boolean;
+      reason: string | null;
+      rowsMatched: number;
+      openHouseMembers: number | null;
+    } = { included: false, reason: null, rowsMatched: 0, openHouseMembers: null };
+
+    {
+      // Open House constrains this source through the MALLAN authority - the
+      // showings table keyed on the canonical SL-/RL- identity. A Mallan
+      // listing has no ListingKey, so the provider membership set can never
+      // contain it, and asking Cotality about it would be asking the wrong
+      // system.
+      let localOpenHouseMembers: ReadonlySet<string> | undefined;
+      if (executedOpenHouseWindow) {
+        try {
+          const showings = await prisma.showing.findMany({
+            where: brokerSearchOpenHouseWhere({
+              from: executedOpenHouseWindow.from,
+              to: executedOpenHouseWindow.to,
+            }),
+            select: {
+              date: true, type: true, status: true,
+              listing: { select: { listing_id: true, rls_eligible: true, status: true } },
+            },
+          });
+          const m = localOpenHouseMembershipFrom(showings, {
+            from: executedOpenHouseWindow.from,
+            to: executedOpenHouseWindow.to,
+          });
+          if (m.state !== "resolved") {
+            // FAIL CLOSED, the same rule as the provider half: an
+            // unresolvable membership may not become an empty set, which
+            // would read as "no Mallan listing has an open house".
+            logger.complete("error", "local open house membership unavailable");
+            return NextResponse.json(
+              {
+                error: "Open house availability could not be established for Mallan listings, so no results are shown.",
+                criterion: "openHouse",
+              },
+              { status: 503, headers: { "Cache-Control": "private, no-store" } },
+            );
+          }
+          localOpenHouseMembers = m.listingIds;
+          mallanLocalState.openHouseMembers = m.listingIds.size;
+        } catch (err) {
+          logger.complete("error", "local open house read failed");
+          return NextResponse.json(
+            {
+              error: "Open house availability could not be established for Mallan listings, so no results are shown.",
+              criterion: "openHouse",
+              detail: err instanceof Error ? err.message : String(err),
+            },
+            { status: 503, headers: { "Cache-Control": "private, no-store" } },
+          );
+        }
+      }
+
+      const candidates = await readMallanLocalCandidates({
+        params,
+        openHouseMembers: localOpenHouseMembers,
+        findListings: (where) =>
+          prisma.listing.findMany({
+            where: where as never,
+            select: {
+              listing_id: true, status: true, listing_type: true, address: true,
+              neighborhood: true, borough: true, city: true, postal_code: true,
+              list_price: true, bedrooms_total: true, bathrooms_full: true,
+              bathrooms_half: true, living_area: true, property_type: true,
+              property_sub_type: true, listing_contract_date: true,
+              modification_timestamp: true, updated_at: true, days_on_market: true,
+              cumulative_days_on_market: true, photo_count: true,
+              list_office_name: true, list_agent_full_name: true, list_agent_email: true,
+            },
+          }) as never,
+      });
+
+      if (candidates.state === "resolved") {
+        localRows = candidates.rows;
+        mallanLocalState = {
+          ...mallanLocalState, included: true, reason: null,
+          rowsMatched: candidates.rows.length,
+        };
+      } else if (candidates.state === "excluded") {
+        // NOT a 400. The provider half is complete and answerable on its
+        // own, so the search runs and the response NAMES the criterion that
+        // left Mallan inventory out. Refusing would regress provider
+        // searches that work today and are perfectly answerable.
+        mallanLocalState = {
+          ...mallanLocalState, included: false, rowsMatched: 0,
+          reason: `Mallan-authored inventory excluded: "${candidates.criterion}" cannot be applied to it`,
+        };
+      } else {
+        // A local READ FAILURE is not "Mallan has nothing matching".
+        // Reported, so the response never implies a complete mixed universe
+        // it did not actually read.
+        mallanLocalState = {
+          ...mallanLocalState, included: false, rowsMatched: 0,
+          reason: candidates.reason,
+        };
+      }
+    }
+
     const universe = await assembleFinalUniverse<Record<string, unknown>>({
       fetchPage: async (
         providerSkip: number,
@@ -667,6 +789,14 @@ export async function GET(req: NextRequest) {
       // reconciles to Property.ListingKey; a listing holding both a Saturday
       // and a Sunday open house is ONE member of the set, so this is a set
       // test rather than a join and cannot duplicate the property.
+      // Mallan-authored rows join the SAME universe, in sort position,
+      // before the count and before the page is cut.
+      mergeRows: localRows.length
+        ? {
+            rows: localRows as unknown as Record<string, unknown>[],
+            compare: mixedSourceComparator(resolvedSort.key),
+          }
+        : undefined,
       corpusFilter: openHouseKeys
         ? (record: Record<string, unknown>) => openHouseKeys.has(String(record.ListingKey ?? ""))
         : undefined,
@@ -705,7 +835,26 @@ export async function GET(req: NextRequest) {
 
     // Search GET is read-only. It no longer mutates the Building workspace as a
     // side effect. Building projection/writes belong to their explicit writer.
-    const listings = universe.rows.map((record, i) => mapTrestleToCrmListing(record, (page - 1) * limit + i));
+    // -- ONE DTO, TWO MAPPERS, DISCRIMINATED AT THE BOUNDARY --
+    //
+    // mapTrestleToCrmListing reads Cotality Property fields. A Mallan row has
+    // none of them, so passing one through would produce a card with a null
+    // id, blank address, status UNKNOWN and no beds - while every count and
+    // pagination test stayed green. The engine would report Mallan inventory
+    // as included and the broker would receive malformed cards.
+    //
+    // The other shortcut - dressing an SL-/RL- listing in fake Cotality field
+    // names so the old mapper accepts it - is the conflation behind every
+    // identity defect in this workstream.
+    const listings = universe.rows.map((record, i) => {
+      const index = (page - 1) * limit + i;
+      return isMallanLocalRow(record)
+        ? mapMallanLocalToCrmListing(
+            (record as unknown as MallanLocalRow).record,
+            index,
+          )
+        : mapTrestleToCrmListing(record, index);
+    });
 
     const response = {
       listings,
@@ -754,7 +903,11 @@ export async function GET(req: NextRequest) {
       // CAPABILITY, STATED. A client must never assume deep continuation exists
       // merely because the code supports it: the sealing secret is a protected
       // env requirement and is not set.
-      continuationAvailable: isContinuationAvailable(),
+      continuationAvailable: localRows.length === 0 && isContinuationAvailable(),
+      continuationUnavailableReason:
+        localRows.length > 0
+          ? "mixed-source result universe: the continuation keyset is over provider ListingKey, which Mallan-authored rows do not have"
+          : null,
       continuationMode: isContinuationAvailable() ? "keyset" : "bounded_rescan",
       // WHAT PAGING THROUGH THIS UNIVERSE ACTUALLY GUARANTEES.
       //
@@ -792,7 +945,19 @@ export async function GET(req: NextRequest) {
       // continuation, and offering one while calling it validated is the kind of
       // claim this codebase keeps removing. Without the secret, deep traversal
       // falls back to the bounded rescan.
+      // A MIXED UNIVERSE MAY NOT MINT A PROVIDER CURSOR.
+      //
+      // The token is a keyset over ListingKey. If the page boundary is a
+      // Mallan row it has no ListingKey, so the boundary sort value and
+      // `lastListingKey` below would be read off a row that cannot answer
+      // them - producing a token that silently skips or repeats rows on the
+      // next page. The engine already REFUSES to resume such a token; this
+      // stops the route creating one in the first place.
+      //
+      // Degraded honestly: no token, and `continuationAvailable` says false
+      // with a named reason rather than a capability that does not exist.
       continuation:
+        localRows.length > 0 ||
         !isContinuationAvailable() ||
         universe.more === MoreResults.NO ||
         universe.rows.length === 0
@@ -825,7 +990,12 @@ export async function GET(req: NextRequest) {
       attribution: generateAttributionText(),
       mediaMode: "lazy" as const,
       _meta: {
-        source: "cotality",
+        // NOT "cotality" once a Mallan-authored row is in the response.
+        // Attribution and provenance do not transfer between sources, and a
+        // reader that trusts this field would attribute Mallan inventory to
+        // the provider.
+        source: localRows.length > 0 ? "cotality+mallan_local" : "cotality",
+        mallanLocal: mallanLocalState,
         fetchedAt: new Date().toISOString(),
         filter,
         sort: effectiveSort,
@@ -932,6 +1102,18 @@ export async function GET(req: NextRequest) {
         // @odata.count for the query ACTUALLY RUN — narrowed on a resume.
         provider_matched_for_this_query: result.odataCount ?? null,
         gate_blocked_by_reason: gateBlockedReasons,
+        // PROVIDER ACCOUNTING STAYS PROVIDER ACCOUNTING.
+        //
+        // `universe.count` now includes Mallan rows, so balancing it against
+        // provider rows read / gated / deduped would be arithmetic across two
+        // different populations - 8 provider survivors + 2 Mallan listings
+        // does not reconcile to 8 provider rows read. The provenance is kept
+        // even though the DISPLAY universe is one.
+        mallan_local_included: mallanLocalState.included,
+        mallan_local_rows_matched: mallanLocalState.rowsMatched,
+        mallan_local_open_house_members: mallanLocalState.openHouseMembers,
+        mallan_local_excluded_reason: mallanLocalState.reason,
+        combined_universe_count: universe.count,
         mapper_returned: listings.length,
         listings_with_images: imagesWithMedia,
         listings_without_images: listings.length - imagesWithMedia,

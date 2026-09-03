@@ -25,6 +25,8 @@
  * These checks are deliberately about MEANING rather than shape, because every
  * shape-level check passed while the file was wrong.
  */
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { FIELD_REGISTRY, type FieldSpec } from '../canonical/field-registry';
 
 /** Entries that actually carry prose worth checking. */
@@ -163,5 +165,82 @@ describe('open_house specifically, after the 2026-09-02 repair', () => {
     const pps = FIELD_REGISTRY.find((f) => f.canonicalKey === 'price_per_sqft') as FieldSpec;
     expect(pps.notes).toMatch(/PricePerArea/);
     expect(pps.notes).not.toMatch(/OpenHouse|corpusFilter|showings/);
+  });
+});
+
+/**
+ * READINESS MUST BE SOURCE-AWARE.
+ *
+ * `open_house` declares TWO authorities:
+ *
+ *     authorityByListingKind: { mallanLocal: 'mallan_crm', providerListing: 'cotality' }
+ *
+ * and for a long time carried `filterable: 'yes'` while only the cotality
+ * branch executed. Both statements were individually defensible and together
+ * they were misleading: a later handoff reads "Open House = YES" and never
+ * learns that half the declared authority was missing.
+ *
+ * The fix is not a footnote in the notes. A criterion that names a
+ * Mallan-CRM authority must have a Mallan-CRM implementation the executor
+ * actually calls, and that is checked here against the real route source.
+ */
+describe('a declared authority branch has an implementation', () => {
+  const route = readFileSync(
+    resolve(__dirname, '../../../app/api/idx/search/route.ts'),
+    'utf8',
+  );
+
+  const dualAuthority = FIELD_REGISTRY.filter(
+    (f) => f.authorityByListingKind?.mallanLocal === 'mallan_crm',
+  );
+
+  it('at least one criterion declares a Mallan-CRM authority', () => {
+    // If this ever becomes zero the checks below would pass vacuously.
+    expect(dualAuthority.length).toBeGreaterThan(0);
+  });
+
+  it('the authenticated Search route reads Mallan storage at all', () => {
+    // The whole gap in one assertion: the route had ZERO prisma references,
+    // so no criterion declaring a Mallan-CRM authority could possibly honour
+    // it, whatever the registry said.
+    expect(route).toMatch(/from "@\/lib\/prisma"/);
+  });
+
+  it('open_house resolves its Mallan half through the canonical contract', () => {
+    // Not a second prisma.showing.findMany() inlined in the route: the
+    // membership rule lives in one place and the route consumes it.
+    expect(route).toMatch(/brokerSearchOpenHouseWhere/);
+    expect(route).toMatch(/localOpenHouseMembershipFrom/);
+  });
+
+  it('Mallan rows reach the universe as a SOURCE, not an open-house patch', () => {
+    // `readMallanLocalCandidates` is called unconditionally; only the Open
+    // House MEMBERSHIP is conditional. Reading local rows only when
+    // `openHouse` is set would make a listing appear the moment a filter is
+    // clicked and vanish when it is cleared.
+    const call = route.indexOf('readMallanLocalCandidates({');
+    expect(call).toBeGreaterThan(-1);
+    const openHouseGuard = route.indexOf('if (executedOpenHouseWindow) {');
+    // The candidate read sits AFTER the open-house block closes, not inside it.
+    expect(call).toBeGreaterThan(openHouseGuard);
+    const between = route.slice(openHouseGuard, call);
+    expect(between).toContain('}');
+  });
+
+  it('a Mallan row is mapped by the Mallan mapper, never the provider one', () => {
+    expect(route).toMatch(/isMallanLocalRow\(record\)/);
+    expect(route).toMatch(/mapMallanLocalToCrmListing/);
+  });
+
+  it('a mixed response cannot mint a provider continuation', () => {
+    // The engine refuses to RESUME one; this is the route refusing to CREATE
+    // one. Without both, the first mixed page hands out a token whose keyset
+    // cannot describe half the rows it covers.
+    expect(route).toMatch(/localRows\.length > 0 \|\|/);
+    expect(route).toMatch(/continuationUnavailableReason/);
+  });
+
+  it('a mixed response does not claim to be sourced from cotality alone', () => {
+    expect(route).toMatch(/cotality\+mallan_local/);
   });
 });

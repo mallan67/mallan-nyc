@@ -362,6 +362,11 @@ describe('A1 · only authorised readers import the canonical package', () => {
     // point for amenity keys and feature flags; everything downstream reads the
     // DERIVED columns rather than re-deriving from provider payloads.
     const AUTHORISED = new Set([
+      // MALLAN-LOCAL OUTPUT MAPPER. It must decide status with the SAME
+      // contract the provider mapper uses, or one result set would carry two
+      // status vocabularies and a Mallan card could show a token the status
+      // filter does not recognise.
+      'lib/search/mallan-local-mapper.ts',
       // MALLAN-LOCAL SEARCH SOURCE. It applies the broker's criteria to
       // Mallan-authored listings, and must answer bath ranges the SAME way
       // the provider half does — half-baths are exactly where a second

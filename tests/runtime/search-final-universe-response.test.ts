@@ -20,6 +20,24 @@
  */
 const mockFetchFromTrestle = jest.fn();
 
+// THE ROUTE NOW HAS A SECOND SOURCE.
+//
+// Authenticated Search reads Mallan-authored listings alongside the provider
+// feed, so it touches prisma. These tests are about the PROVIDER half of the
+// universe: the local half is mocked EMPTY so every count, page boundary and
+// continuation assertion below still measures exactly what it did before.
+//
+// Mocked rather than left to fail: an unmocked client makes these tests depend
+// on whether DATABASE_URL happens to be set in the runner, which is how a
+// suite starts passing and failing for reasons unrelated to the code.
+jest.mock('@/lib/prisma', () => ({
+  __esModule: true,
+  default: {
+    listing: { findMany: jest.fn(async () => []) },
+    showing: { findMany: jest.fn(async () => []) },
+  },
+}));
+
 jest.mock('@/lib/idx/fetch', () => ({
   __esModule: true,
   fetchFromTrestle: (args: unknown) => mockFetchFromTrestle(args),

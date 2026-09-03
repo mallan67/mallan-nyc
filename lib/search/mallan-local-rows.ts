@@ -11,6 +11,7 @@ import {
   UnsupportedLocalCriterionError,
   type MallanLocalWhere,
 } from '@/lib/search/mallan-local-source';
+import type { MallanListingForDto } from '@/lib/search/mallan-local-mapper';
 
 /**
  * A Mallan-authored candidate, in its OWN shape.
@@ -28,6 +29,12 @@ export interface MallanLocalRow {
   readonly listPrice: number | null;
   readonly listedDate: string | null;
   readonly updatedAt: string | null;
+  /**
+   * The full storage record, carried so the DTO mapper has everything a card
+   * renders. The three fields above are hoisted purely so the comparator does
+   * not reach through on every comparison.
+   */
+  readonly record: MallanListingForDto;
 }
 
 /** Is this row from Mallan storage rather than the provider feed? */
@@ -96,13 +103,8 @@ export function mixedSourceComparator(sortKey: string): (a: AnyRow, b: AnyRow) =
   };
 }
 
-/** One row as Mallan storage returns it. */
-export interface MallanListingRecord {
-  listing_id: string | null;
-  list_price: unknown;
-  listing_contract_date?: Date | null;
-  updated_at?: Date | null;
-}
+/** One row as Mallan storage returns it — the DTO's full input. */
+export type MallanListingRecord = MallanListingForDto;
 
 export interface MallanLocalCandidateInput {
   readonly params: URLSearchParams;
@@ -185,7 +187,8 @@ export async function readMallanLocalCandidates(
       listingId,
       listPrice: l.list_price == null ? null : Number(l.list_price),
       listedDate: l.listing_contract_date ? l.listing_contract_date.toISOString() : null,
-      updatedAt: l.updated_at ? l.updated_at.toISOString() : null,
+      updatedAt: (l.modification_timestamp ?? l.updated_at)?.toISOString() ?? null,
+      record: l,
     });
   }
   return { state: 'resolved', rows };
