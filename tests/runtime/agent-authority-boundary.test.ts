@@ -1,4 +1,10 @@
 /// <reference types="jest" />
+// This file uses require() for its imports so jest.mock() factories are
+// hoisted above them. That leaves no top-level import/export, which would
+// make TypeScript treat the file as a global SCRIPT and collide its
+// top-level names with the sibling agent test file. The empty export marks
+// it as a module and scopes them.
+export {};
 /**
  * Three things this file exists to hold down.
  *

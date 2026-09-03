@@ -3,6 +3,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import prisma from '@/lib/prisma';
+import { isReservedAgentSegment } from '@/lib/agents/reserved-slug';
 import {
   resolvePublicAgent,
   AgentDirectoryUnavailable,
@@ -94,6 +95,14 @@ type ProfileResolution =
   | { state: 'unavailable' };
 
 async function resolveProfile(slug: string): Promise<ProfileResolution> {
+  // ROUTE BOUNDARY. Before any Agent database read, and deliberately so.
+  //
+  // /agents/sitemap.xml used to reach the Agent lookup and, during an outage,
+  // render the profile "temporarily unavailable" page with HTTP 200. A segment
+  // that cannot be an agent must be rejected from the segment alone, so the
+  // answer never depends on whether the authority can be reached.
+  if (isReservedAgentSegment(slug)) return { state: 'not_found' };
+
   try {
     const agent = await getAgentBySlug(slug);
     return agent ? { state: 'found', agent } : { state: 'not_found' };
