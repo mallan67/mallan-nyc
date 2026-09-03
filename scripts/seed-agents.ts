@@ -45,7 +45,7 @@ async function main() {
         + `(got ${JSON.stringify(brokerageRole)}). It is a recorded fact and must be set.`,
       );
     }
-    const role = brokerageRole.trim().toUpperCase();
+    const role = brokerageRole;   // exact canonical value, validated above
 
     const existing = await prisma.agent.findUnique({ where: { email: agent.email } });
 

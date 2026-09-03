@@ -63,6 +63,15 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       license_expiry: agent.license_expiry,
       sale_split: agent.sale_split?.toString() ?? null,
       rental_split: agent.rental_split?.toString() ?? null,
+      // Returned, never accepted as an update field: there is deliberately no
+      // `body.role` branch in PATCH below.
+      //
+      // FOLLOW-UP LIFECYCLE GAP (not built here, by direction): a salesperson
+      // who later qualifies as an Associate Broker needs a GOVERNED
+      // reclassification workflow - both the licence class and the brokerage
+      // role change together, on evidence, with an audit trail. Editing them as
+      // ordinary profile fields is not that. The CRM Edit form renders no
+      // brokerage-role control, so nothing visible is being silently dropped.
       role: agent.role,
       status: agent.status,
       title: agent.title,

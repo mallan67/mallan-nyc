@@ -5,7 +5,9 @@
 // {
 //   authenticated: boolean,
 //   principalType: "agent" | "lead",
-//   role: "BROKER" | "AGENT" | "buyer" | "tenant" | "seller" | "landlord",
+//   role: agent  -> "BROKER" | "ASSOCIATE_BROKER" | "SALESPERSON"
+//                   (legacy "AGENT" still present on un-migrated rows)
+//         lead   -> "buyer" | "tenant" | "seller" | "landlord"
 //   portalRole: string | null,          // client portal role (lead only)
 //   user: {
 //     id: string,
@@ -13,10 +15,11 @@
 //     email: string,
 //     phone: string | null,
 //     license: string | null,           // agent license number
-//     licenseTitle: string | null,      // DERIVED via lib/agents/professional-title:
-//                                       // "Licensed Real Estate Broker" (principal, role BROKER)
-//                                       // "Licensed Real Estate Associate Broker" (broker licence, role AGENT)
-//                                       // "Licensed Real Estate Salesperson"
+//     licenseTitle: string | null,      // DERIVED via lib/agents/professional-title
+//                                       // from license_type ALONE — never role:
+//                                       // broker           -> "Licensed Real Estate Broker"
+//                                       // associate_broker -> "Licensed Associate Real Estate Broker"
+//                                       // salesperson      -> "Licensed Real Estate Salesperson"
 //     companyKey: "mallan",
 //     companyName: "Mallan Real Estate Inc.",
 //     companyLicense: string | null,    // brokerage license number
@@ -58,9 +61,11 @@ async function getCompanyInfo() {
  *
  *   if (type === "broker") return "Licensed Real Estate Broker";
  *
- * It read `license_type` alone and never consulted `role`, so every NY
- * Associate Broker — a broker licence held with role AGENT — was handed the
- * PRINCIPAL broker designation on sign-in. That value is not cosmetic: it lands
+ * It read a two-value `license_type` that could not tell a principal broker
+ * from an associate, so every NY Associate Broker was handed the PRINCIPAL
+ * broker designation on sign-in. The repair was NOT to consult `role` — that
+ * manufactures a licence class from a Mallan fact — but to give the column a
+ * third canonical value. That designation is not cosmetic: it lands
  * in AGENT_PROFILE.licenseTitle (public/crm/js/core/agent-context.js) and is
  * printed on CMA reports, print headers/footers and outbound email signatures
  * addressed to outside brokers, where a designation the licensee does not hold
@@ -134,7 +139,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       authenticated: true,
       principalType: "agent",
-      role: agent.role,          // "BROKER" | "AGENT"
+      // BROKERAGE PROFESSIONAL ROLE, reported verbatim. Every CRM access gate
+      // depends on this field; it is not a licence class.
+      role: agent.role,
       portalRole: null,
       user: {
         id: agent.id.toString(),
@@ -142,9 +149,9 @@ export async function GET(req: NextRequest) {
         email: agent.email,
         phone: agent.phone || null,
         license: agent.license_no || null,
-        // DERIVED through the one authority from licence class + authorisation
-        // role. license_type alone cannot tell a principal broker from an
-        // associate broker; both hold a broker licence.
+        // DERIVED through the one authority from the LICENCE CLASS alone.
+        // `role` is selected for the authorisation contract above and is never
+        // an input to this.
         licenseTitle: licenseTitle(agent),
         // Cotality/Trestle MLS member id (RESO ListAgentMlsId). This — NOT the
         // NY State `license` and NOT the internal `id` — is the authoritative

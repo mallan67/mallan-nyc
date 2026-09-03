@@ -137,8 +137,10 @@ describe('field ownership — what the form collects, it sends', () => {
     expect(createForm).not.toContain('<option value="BROKER"');
     // and the server refuses it too, so a stale browser cannot mint one
     const api = readFileSync(resolve(ROOT, 'app/api/crm/agents/route.ts'), 'utf8');
-    expect(api).toContain('rejectNonCanonicalBrokerageRole');
+    expect(api).toContain('requireBrokerageRole(body.role)');
     expect(api).toContain('cannot be assigned through the roster form');
+    // and the server has no default: an absent role is refused, not written
+    expect(api).not.toContain('?? "AGENT"');
   });
 });
 

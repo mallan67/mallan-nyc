@@ -65,9 +65,9 @@ export interface DbAgentRow {
   /**
    * The NY LICENCE CLASS. It alone determines the advertised designation.
    *
-   * `role` is deliberately ABSENT from this shape: it is the Mallan
-   * authorisation grant, and reading it here is what used to manufacture a
-   * licence class out of a permission.
+   * `role` is deliberately ABSENT from this shape: it is the brokerage
+   * professional role, and reading it here is what used to manufacture a
+   * licence class out of a Mallan fact about standing.
    */
   license_type: string | null;
   photo: string | null;
@@ -79,7 +79,13 @@ export interface DbAgentRow {
   featured: boolean;
 }
 
-/** The shape `data/agents.json` carries. It has no licence or role columns. */
+/**
+ * The shape `data/agents.json` carries.
+ *
+ * The roster records a `role` per agent as seed input, but it is deliberately
+ * NOT carried into this shape: nothing on a public identity path may read it.
+ * The roster has no licence-class column at all — its `title` is the evidence.
+ */
 export interface StaticAgentEntry {
   id: string;
   name: string;
@@ -99,8 +105,8 @@ const PLACEHOLDER_PHOTO = '/images/agent-placeholder.svg';
  * Normalise a canonical Agent row for public display.
  *
  * The title is DERIVED from the LICENCE CLASS, so neither a stale `title`
- * column nor an authorisation grant can advertise a designation the licence
- * does not support.
+ * column nor the brokerage role can advertise a designation the licence does
+ * not support.
  */
 export function fromDatabase(a: DbAgentRow, fallbackSlug: string): PublicAgentProfile {
   return {

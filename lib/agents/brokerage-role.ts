@@ -81,21 +81,53 @@ export function isLicenseeAccessRole(role: string | null | undefined): boolean {
     || (LEGACY_BROKERAGE_ROLES as readonly string[]).includes(r);
 }
 
-/** True when the value is one `Agent.role` may be WRITTEN with. */
+/**
+ * True when the value is one `Agent.role` may be WRITTEN with.
+ *
+ * EXACT match, deliberately. Case-insensitive comparison belongs to the READ
+ * helpers above, which exist because mixed casing is already in live data.
+ * Accepting `"salesperson"` here and storing `"SALESPERSON"` would be inbound
+ * normalisation — the write boundary refuses what it is given rather than
+ * quietly repairing it, exactly as the licence-class boundary does.
+ */
 export function isCanonicalBrokerageRole(v: unknown): v is BrokerageRole {
-  return typeof v === 'string'
-    && (BROKERAGE_ROLES as readonly string[]).includes(v.trim().toUpperCase());
+  return typeof v === 'string' && (BROKERAGE_ROLES as readonly string[]).includes(v);
 }
 
 /**
  * WRITE BOUNDARY for `Agent.role`.
  *
- * Legacy values are tolerated on READ and refused here, exactly as the licence
- * class is. Returns an error message, or null when acceptable.
+ * Legacy values — `"AGENT"` above all — are tolerated on READ and REFUSED here.
+ * Read tolerance is not write tolerance: a brand-new row must carry a canonical
+ * professional role, or the transition never ends.
+ *
+ * Returns an error message, or null when acceptable. An ABSENT value is
+ * accepted here because callers differ on whether the field is optional;
+ * the CREATE path additionally REQUIRES it — see requireBrokerageRole().
  */
 export function rejectNonCanonicalBrokerageRole(v: unknown): string | null {
-  if (v === undefined || v === null || v === '') return null; // optional
+  if (v === undefined || v === null || v === '') return null; // presence is the caller's rule
   if (isCanonicalBrokerageRole(v)) return null;
   return `role must be one of ${BROKERAGE_ROLES.join(' | ')}, received "${String(v)}". `
     + 'It is the brokerage professional role, not a licence class and not a permission.';
+}
+
+/**
+ * CREATE-PATH RULE: the brokerage role is REQUIRED and has NO default.
+ *
+ * A default of `"AGENT"` is what this correction exists to remove. `"AGENT"`
+ * never named a profession — it meant "not the principal broker" — so defaulting
+ * to it let a stale client or a direct API caller mint a brand-new non-canonical
+ * Agent at the one place that creates rows. There is deliberately no fallback:
+ * an unstated professional role is refused, not guessed.
+ *
+ * Returns an error message, or null when acceptable.
+ */
+export function requireBrokerageRole(v: unknown): string | null {
+  if (v === undefined || v === null || v === '') {
+    return `role is required and must be one of ${BROKERAGE_ROLES.join(' | ')}. `
+      + 'It is the brokerage professional role, recorded from a known fact — it is '
+      + 'not defaulted, not derived from the licence class, and not a permission.';
+  }
+  return rejectNonCanonicalBrokerageRole(v);
 }

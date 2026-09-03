@@ -21,13 +21,15 @@
  * AUTHORISATION grant to manufacture a NY licence class. `broker + AGENT` no
  * longer means Associate Broker. The licence class carries the fact itself.
  *
- * ── KNOWN OPEN BOUNDARY (reported, not silently worked around) ────────────
- * `Agent.role` is still "BROKER" | "AGENT" and is still the application's ONLY
- * authorisation fact — it is copied verbatim into `Session.role` and read by
- * every access gate in the CRM. Separating BROKERAGE ROLE from AUTHORISATION
- * therefore requires schema growth, which is out of scope and is reported
- * rather than attempted. What IS done here: the professional-identity path no
- * longer reads `role` at all, so the conflation is gone in this direction.
+ * ── WHERE THE OTHER TWO FACTS LIVE ────────────────────────────────────────
+ * `Agent.role` names the BROKERAGE PROFESSIONAL ROLE — BROKER,
+ * ASSOCIATE_BROKER or SALESPERSON (see lib/agents/brokerage-role.ts). It is
+ * NOT read here: the designation derives from the licence class alone.
+ *
+ * SOFTWARE AUTHORISATION is a decision made about a session, not a stored
+ * attribute of a person: the authenticated session identity (`Session.user_type`)
+ * combined with an explicit eligibility predicate. No authorisation column was
+ * added, and none is needed.
  *
  * ── WHOSE FACT THIS IS, TODAY ─────────────────────────────────────────────
  * Three evidence layers, kept strictly separate. A population finding is NOT a
@@ -150,10 +152,10 @@ const LEGACY_LICENSE_TYPE_VALUES: Record<string, LicenseClass> = {
  * legacy designation strings above. Returns '' when it is neither.
  *
  * A BARE legacy "broker" normalises to `broker` and NOTHING ELSE. It is NOT
- * converted to `associate_broker` because the row happens to carry role
- * "AGENT": that would re-derive a licence class from an authorisation grant —
- * exactly the defect this module was corrected to remove — and would do it
- * silently across every legacy row at once. A pre-existing bare "broker" row is
+ * converted to `associate_broker` because the row happens to carry a particular
+ * `role`: that would re-derive a licence class from a Mallan fact about
+ * standing or permissions — exactly the defect this module was corrected to
+ * remove — and would do it silently across every legacy row at once. A pre-existing bare "broker" row is
  * ambiguous historical data and must be reconciled per record from
  * authoritative licence evidence, never swept by a rule.
  */
@@ -169,20 +171,24 @@ export interface ProfessionalTitleSource {
   /** NY licence class: "salesperson" | "associate_broker" | "broker". */
   license_type?: string | null;
   /**
-   * Mallan AUTHORISATION grant: "BROKER" | "AGENT".
+   * The BROKERAGE PROFESSIONAL ROLE: "BROKER" | "ASSOCIATE_BROKER" |
+   * "SALESPERSON", plus the legacy "AGENT" still on un-migrated rows.
    *
    * ACCEPTED ONLY so callers can pass a whole Agent row without stripping
-   * fields. It is NEVER read to produce a designation. Authorisation is not a
-   * licence class and cannot manufacture one.
+   * fields. It is NEVER read to produce a designation: what someone IS in the
+   * firm, and what the software permits them to do, are separate facts from
+   * what the State licensed them as, and neither may manufacture it.
    */
   role?: string | null;
 }
 
 /**
- * True only for the principal-broker AUTHORISATION grant.
+ * True only for the principal-broker role.
  *
- * An AUTHORISATION predicate. Deliberately NOT used by professionalTitle() or
- * by any designation derivation — see the module note.
+ * Deliberately NOT used by professionalTitle() or by any designation
+ * derivation — see the module note. The canonical predicate now lives in
+ * ./brokerage-role.ts as isPrincipalBroker(); this one is retained for the
+ * licence/role coherence check in ./license-designation.ts.
  */
 export function isPrincipalBrokerRole(role: string | null | undefined): boolean {
   return (role ?? '').trim().toUpperCase() === 'BROKER';

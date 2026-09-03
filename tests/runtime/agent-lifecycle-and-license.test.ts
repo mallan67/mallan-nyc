@@ -49,13 +49,14 @@ import {
 // ─── prisma mock ───────────────────────────────────────────────────────────
 const agentFindUnique = jest.fn();
 const agentUpdate = jest.fn(async () => ({}));
+const agentCreate = jest.fn();
 const sessionDeleteMany = jest.fn(async () => ({ count: 3 }));
 const mfaDeleteMany = jest.fn(async () => ({ count: 1 }));
 const auditCreate = jest.fn(async () => ({ id: 1n }));
 
 const txSpy = jest.fn();
 const client = {
-  agent: { findUnique: agentFindUnique, update: agentUpdate, create: jest.fn() },
+  agent: { findUnique: agentFindUnique, update: agentUpdate, create: agentCreate },
   session: { deleteMany: sessionDeleteMany },
   mfaSession: { deleteMany: mfaDeleteMany },
   auditEvent: { create: auditCreate },
@@ -101,6 +102,7 @@ beforeEach(() => {
   requireBrokerMock.mockResolvedValue(BROKER);
   agentFindUnique.mockResolvedValue({ ...TARGET });
   agentUpdate.mockResolvedValue({ ...TARGET });
+  agentCreate.mockResolvedValue({ id: 7n, email: 'new@mallan.nyc', status: 'active' });
   sessionDeleteMany.mockResolvedValue({ count: 3 });
   mfaDeleteMany.mockResolvedValue({ count: 1 });
   auditCreate.mockResolvedValue({ id: 1n });
@@ -459,4 +461,89 @@ describe('P1-6 the server enforces the licence facts the form marks required', (
       expect(json.error).toContain(missing);
     });
   }
+});
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe('CREATE: the brokerage role is REQUIRED, canonical, and never defaulted', () => {
+  // The write boundary is the whole point. The Add Agent form requires the
+  // field, but HTML `required` is not a contract: the server accepted a missing
+  // `role` and wrote the retired "AGENT", so a stale client or a direct API
+  // caller could still mint a brand-new non-canonical Agent at the one place
+  // that creates rows. Legacy "AGENT" is READ tolerance only.
+  //
+  // Every case asserts the ROW COUNT, not just the status. A 400 that still
+  // wrote a row would be the worse failure.
+  const BASE = {
+    first_name: 'New', last_name: 'Agent', email: 'newagent@mallan.nyc',
+    license_type: 'associate_broker', license_no: '10301200574',
+    license_expiry: '2030-01-01',
+  };
+  const create = (body: Record<string, unknown>) =>
+    makeRequest({ url: 'http://test/api/crm/agents', method: 'POST', body });
+
+  beforeEach(() => {
+    // no existing account with this email, so the email guard cannot be what
+    // produces the 400 below
+    agentFindUnique.mockResolvedValue(null);
+  });
+
+  it('refuses a MISSING role with 400 and creates ZERO rows', async () => {
+    const { POST } = await import('@/app/api/crm/agents/route');
+    const res = await POST(create({ ...BASE }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toContain('role is required');
+    expect(agentCreate).not.toHaveBeenCalled();
+    expect(agentCreate.mock.calls).toHaveLength(0);
+  });
+
+  it('refuses the retired "AGENT" role with 400 and creates ZERO rows', async () => {
+    const { POST } = await import('@/app/api/crm/agents/route');
+    const res = await POST(create({ ...BASE, role: 'AGENT' }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toContain('must be one of');
+    expect(agentCreate).not.toHaveBeenCalled();
+    expect(agentCreate.mock.calls).toHaveLength(0);
+  });
+
+  it('refuses the principal-broker role from the roster form, with ZERO rows', async () => {
+    const { POST } = await import('@/app/api/crm/agents/route');
+    const res = await POST(create({ ...BASE, license_type: 'broker', role: 'BROKER' }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toContain('principal-broker role cannot be assigned');
+    expect(agentCreate.mock.calls).toHaveLength(0);
+  });
+
+  it('refuses free text and mis-cased values rather than normalising them inbound', async () => {
+    const { POST } = await import('@/app/api/crm/agents/route');
+    for (const bad of ['salesperson', 'Associate Broker', 'associate_broker', 'ADMIN', '']) {
+      agentCreate.mockClear();
+      const res = await POST(create({ ...BASE, role: bad }));
+      expect(res.status).toBe(400);
+      expect(agentCreate.mock.calls).toHaveLength(0);
+    }
+  });
+
+  it('accepts a canonical role, writes it VERBATIM, and creates exactly one row', async () => {
+    const { POST } = await import('@/app/api/crm/agents/route');
+    const res = await POST(create({ ...BASE, role: 'ASSOCIATE_BROKER' }));
+    expect(res.status).toBe(201);
+    expect(agentCreate).toHaveBeenCalledTimes(1);
+    const data = (agentCreate.mock.calls as unknown as Array<[{ data: Record<string, unknown> }]>)[0][0].data;
+    // recorded exactly as sent - no default, no up-casing, no derivation
+    expect(data.role).toBe('ASSOCIATE_BROKER');
+    // and the designation still follows the LICENCE CLASS, not the role
+    expect(data.license_type).toBe('associate_broker');
+    expect(data.title).toBe('Licensed Associate Real Estate Broker');
+  });
+
+  it('the route holds no "AGENT" fallback at all', async () => {
+    const src = readFileSync(resolve(ROOT, 'app/api/crm/agents/route.ts'), 'utf8');
+    const live = src.replace(/\/\*[\s\S]*?\*\//g, '')
+      .split(String.fromCharCode(10)).filter((l) => !/^\s*\/\//.test(l))
+      .join(String.fromCharCode(10));
+    expect(live).not.toContain('"AGENT"');
+    expect(live).not.toContain("'AGENT'");
+    expect(live).toContain('requireBrokerageRole(body.role)');
+  });
 });

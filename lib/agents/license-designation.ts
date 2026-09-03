@@ -9,7 +9,9 @@
  *                  "salesperson" | "associate_broker" | "broker". Not free text.
  *   title          the advertised professional designation, DERIVED from
  *                  license_type alone, owned by ./professional-title.ts.
- *   role           the Mallan AUTHORISATION grant, "BROKER" | "AGENT".
+ *   role           the BROKERAGE PROFESSIONAL ROLE — what the person IS in the
+ *                  firm. "BROKER" | "ASSOCIATE_BROKER" | "SALESPERSON", owned
+ *                  by ./brokerage-role.ts. Never read to decide a title.
  *
  * A designation is what a human picks in the UI. It resolves INTO a licence
  * class; it is never itself stored. The Add Agent form used to post the
@@ -63,11 +65,13 @@ export interface ResolvedDesignation {
   license_type: LicenseType;
   title: string;
   /**
-   * TRANSITIONAL AUTHORISATION NOTE, not a licence fact.
+   * A ROSTER-FORM RULE, not a licence fact and not a permission.
    *
    * True only for the principal-broker designation. It records that the Add
-   * Agent path — which hardcodes the AGENT authorisation — must not offer that
-   * option, because `role` is still the application's only authorisation fact.
+   * Agent path must not offer that option: the principal broker of the
+   * brokerage is not created through the roster form, and the server refuses
+   * `role: "BROKER"` there as well.
+   *
    * It is NEVER read to derive a title or a licence class.
    */
   requiresBrokerRole: boolean;
@@ -109,9 +113,9 @@ export function resolveDesignation(d: string | null | undefined): ResolvedDesign
 /**
  * STORED axes → the designation to preselect when reopening a record.
  *
- * Reads the LICENCE CLASS. It does NOT read `role` — an authorisation grant
- * cannot tell you which licence someone holds, and the earlier version that
- * used it is precisely what this correction removes.
+ * Reads the LICENCE CLASS. It does NOT read `role` — what someone IS in the
+ * firm cannot tell you which licence the State issued them, and the earlier
+ * version that used it is precisely what this correction removes.
  *
  * The second argument is the row's STORED TITLE, used only for the legacy
  * ambiguity guard described in professional-title.ts: a bare legacy "broker"
@@ -194,11 +198,10 @@ export function canonicalTitleFor(licenseType: string | null | undefined): strin
  * principal broker of a NY brokerage holds a broker licence. Reported rather
  * than silently normalised, because it means one of the two facts is wrong.
  *
- * NOTE — this is the ONE remaining place where a licence class and an
- * authorisation grant are compared. It is a coherence CHECK, not a derivation:
- * it never turns one into the other. It belongs to the reported authorisation
- * boundary and should be revisited when BROKERAGE ROLE and AUTHORISATION become
- * separate stored facts.
+ * NOTE — this is the ONE remaining place where a licence class and a brokerage
+ * role are compared. It is a coherence CHECK, not a derivation: it never turns
+ * one into the other, and it grants nothing. Principal-broker AUTHORISATION is
+ * decided about a session, not read from here.
  */
 export function rejectIncoherentLicenceRole(
   licenseType: string | null | undefined,

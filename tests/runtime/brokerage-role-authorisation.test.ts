@@ -50,6 +50,7 @@ import {
   isPrincipalBroker,
   isCanonicalBrokerageRole,
   rejectNonCanonicalBrokerageRole,
+  requireBrokerageRole,
 } from '@/lib/agents/brokerage-role';
 
 /** The route helpers read `req.cookies.get("session_token")?.value`. */
@@ -292,12 +293,32 @@ describe('the WRITE boundary for the brokerage role', () => {
   });
 
   it('refuses free text, licence classes and permissions alike', () => {
+    // `associate_broker` / `salesperson` are LICENCE-CLASS tokens; a licence
+    // class is not a brokerage role. `agent` is the retired value. All refused.
     for (const bad of ['agent', 'Associate Broker', 'associate_broker', 'salesperson', 'admin', 'ADMIN']) {
-      // (`agent`/`associate_broker`/`salesperson` are licence-class or legacy
-      // tokens — a licence class is not a brokerage role.)
-      if (isCanonicalBrokerageRole(bad)) continue;
+      expect(isCanonicalBrokerageRole(bad)).toBe(false);
       expect(rejectNonCanonicalBrokerageRole(bad)).not.toBeNull();
     }
+  });
+
+  it('does NOT normalise casing inbound — the write boundary is exact', () => {
+    // Case-insensitivity belongs to the READ helpers, which exist because
+    // mixed casing is already in live data. Accepting "salesperson" here and
+    // storing "SALESPERSON" would be silent inbound repair.
+    expect(isCanonicalBrokerageRole('SALESPERSON')).toBe(true);
+    expect(isCanonicalBrokerageRole('Salesperson')).toBe(false);
+    expect(isLicenseeAccessRole('salesperson')).toBe(true);   // read side, tolerant
+  });
+
+  it('CREATE has no default: an absent role is REQUIRED, not guessed', () => {
+    // rejectNonCanonicalBrokerageRole leaves presence to the caller; the
+    // create path adds the requirement, with no "AGENT" fallback behind it.
+    expect(rejectNonCanonicalBrokerageRole(undefined)).toBeNull();
+    for (const absent of [undefined, null, '']) {
+      expect(requireBrokerageRole(absent)).toContain('role is required');
+    }
+    expect(requireBrokerageRole('AGENT')).toContain('must be one of');
+    expect(requireBrokerageRole('ASSOCIATE_BROKER')).toBeNull();
   });
 });
 

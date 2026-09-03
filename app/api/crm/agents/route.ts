@@ -9,7 +9,7 @@ import {
   rejectUnverifiedMemberMlsId,
   canonicalTitleFor,
 } from "@/lib/agents/license-designation";
-import { rejectNonCanonicalBrokerageRole } from "@/lib/agents/brokerage-role";
+import { requireBrokerageRole } from "@/lib/agents/brokerage-role";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 
 export async function GET(req: NextRequest) {
@@ -110,23 +110,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: licenseTypeError }, { status: 400 });
   }
 
-  // THE BROKERAGE PROFESSIONAL ROLE IS RECORDED, NOT COMPUTED.
-  //
-  // It correlates with the licence class but is not derived from it: they agree
-  // because both are set from known facts, and a future licensee may break the
-  // symmetry. This path never mints BROKER - the principal broker of the
-  // brokerage is not created through the roster form.
-  const roleError = rejectNonCanonicalBrokerageRole(body.role);
-  if (roleError) {
-    return NextResponse.json({ error: roleError }, { status: 400 });
-  }
-  if (typeof body.role === "string" && body.role.trim().toUpperCase() === "BROKER") {
-    return NextResponse.json(
-      { error: "The principal-broker role cannot be assigned through the roster form." },
-      { status: 400 }
-    );
-  }
-
   // ONBOARDING CONTRACT. The form marks the licence designation, the NY DOS
   // licence number and the expiry as required; the server enforced none of
   // them, so an active brokerage account could be created with no licence
@@ -151,6 +134,26 @@ export async function POST(req: NextRequest) {
   const mlsIdError = rejectUnverifiedMemberMlsId(body.trestle_mls_id);
   if (mlsIdError) {
     return NextResponse.json({ error: mlsIdError }, { status: 400 });
+  }
+
+  // THE BROKERAGE PROFESSIONAL ROLE IS RECORDED, NOT COMPUTED, AND REQUIRED.
+  //
+  // It correlates with the licence class but is not derived from it: they agree
+  // because both are set from known facts, and a future licensee may break the
+  // symmetry. There is NO default - a missing role is refused rather than
+  // silently written as the retired "AGENT", which never named a profession.
+  // Every branch below returns BEFORE any row is created.
+  const roleError = requireBrokerageRole(body.role);
+  if (roleError) {
+    return NextResponse.json({ error: roleError }, { status: 400 });
+  }
+  // This path never mints BROKER: the principal broker of the brokerage is not
+  // created through the roster form.
+  if (body.role === "BROKER") {
+    return NextResponse.json(
+      { error: "The principal-broker role cannot be assigned through the roster form." },
+      { status: 400 }
+    );
   }
 
   const existing = await prisma.agent.findUnique({ where: { email } });
@@ -189,9 +192,10 @@ export async function POST(req: NextRequest) {
       trestle_mls_id: null,
       sale_split: body.sale_split != null ? Number(body.sale_split) : null,
       rental_split: body.rental_split != null ? Number(body.rental_split) : null,
-      // Recorded from the form. Legacy "AGENT" remains the default only while
-      // un-migrated rows and sessions still carry it; it states no profession.
-      role: (body.role as string | undefined)?.trim().toUpperCase() ?? "AGENT",
+      // Recorded from the form, verbatim. Validated above as one of the exact
+      // canonical values, so there is nothing to normalise and nothing to
+      // default: a new row can only ever carry a canonical professional role.
+      role: body.role as string,
       status: "active",
       // Public profile fields
       // DERIVED from the LICENCE CLASS alone. Never client input: the title
