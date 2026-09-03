@@ -63,6 +63,27 @@
  * asks.
  */
 
+/**
+ * MUST be a function, never a prerendered artifact.
+ *
+ * Without this, `next build` PRERENDERS this handler and Vercel then serves its
+ * BODY as a static file. Measured on the deployed Preview: the 9 bytes
+ * "Not Found" came back with `Content-Length: 9`, `Etag`, `Last-Modified`,
+ * `Accept-Ranges: bytes`, `Content-Disposition: inline; filename="sitemap.xml"`
+ * -- and `HTTP/1.1 200 OK`. The body survived the freeze; the 404 status line
+ * did not, because no handler was invoked to emit it.
+ *
+ * That is also why `next build && next start` disagreed with Vercel and both
+ * were right: `next start` invokes the handler, the deployed static artifact
+ * does not. Local evidence could never have caught this. The status line has to
+ * be measured on the deployment.
+ *
+ * `force-dynamic` keeps it out of the prerender manifest so it deploys as a
+ * function. Confirm after any change here that the build no longer lists
+ * /agents/sitemap.xml as a prerendered route.
+ */
+export const dynamic = 'force-dynamic';
+
 export function GET(): Response {
   return new Response('Not Found', {
     status: 404,
