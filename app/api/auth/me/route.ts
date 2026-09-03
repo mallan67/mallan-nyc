@@ -13,7 +13,10 @@
 //     email: string,
 //     phone: string | null,
 //     license: string | null,           // agent license number
-//     licenseTitle: string | null,      // "Licensed Real Estate Broker" | "Licensed Real Estate Salesperson"
+//     licenseTitle: string | null,      // DERIVED via lib/agents/professional-title:
+//                                       // "Licensed Real Estate Broker" (principal, role BROKER)
+//                                       // "Licensed Real Estate Associate Broker" (broker licence, role AGENT)
+//                                       // "Licensed Real Estate Salesperson"
 //     companyKey: "mallan",
 //     companyName: "Mallan Real Estate Inc.",
 //     companyLicense: string | null,    // brokerage license number
@@ -25,6 +28,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateSession, SESSION_COOKIE } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import {
+  professionalTitle,
+  type ProfessionalTitleSource,
+} from "@/lib/agents/professional-title";
 import { readFile } from "fs/promises";
 import path from "path";
 
@@ -45,10 +52,27 @@ async function getCompanyInfo() {
   }
 }
 
-function licenseTitle(type: string | null): string | null {
-  if (!type) return null;
-  if (type === "broker") return "Licensed Real Estate Broker";
-  return "Licensed Real Estate Salesperson";
+/**
+ * The CRM's own copy of the designation rule USED TO LIVE HERE, and it was a
+ * second authority that disagreed with the public one:
+ *
+ *   if (type === "broker") return "Licensed Real Estate Broker";
+ *
+ * It read `license_type` alone and never consulted `role`, so every NY
+ * Associate Broker — a broker licence held with role AGENT — was handed the
+ * PRINCIPAL broker designation on sign-in. That value is not cosmetic: it lands
+ * in AGENT_PROFILE.licenseTitle (public/crm/js/core/agent-context.js) and is
+ * printed on CMA reports, print headers/footers and outbound email signatures
+ * addressed to outside brokers, where a designation the licensee does not hold
+ * is a false statement about a licensee under NY DOS 19 NYCRR 175.25.
+ *
+ * There is ONE title authority — lib/agents/professional-title.ts — and this
+ * route now defers to it like every other reader. `null` (not "") is returned
+ * when nothing is resolvable, to keep the documented `licenseTitle: string |
+ * null` contract and to assert no designation rather than a defaulted one.
+ */
+function licenseTitle(agent: ProfessionalTitleSource): string | null {
+  return professionalTitle(agent) || null;
 }
 
 export async function GET(req: NextRequest) {
@@ -89,6 +113,10 @@ export async function GET(req: NextRequest) {
         role: true,
         license_no: true,
         license_type: true,
+        // the stored designation - consulted by the title authority only when
+        // the licence class cannot be resolved, so a legacy row still says
+        // something rather than nothing
+        title: true,
         trestle_mls_id: true,
         phone: true,
       },
@@ -114,7 +142,10 @@ export async function GET(req: NextRequest) {
         email: agent.email,
         phone: agent.phone || null,
         license: agent.license_no || null,
-        licenseTitle: licenseTitle(agent.license_type),
+        // DERIVED through the one authority from licence class + authorisation
+        // role. license_type alone cannot tell a principal broker from an
+        // associate broker; both hold a broker licence.
+        licenseTitle: licenseTitle(agent),
         // Cotality/Trestle MLS member id (RESO ListAgentMlsId). This — NOT the
         // NY State `license` and NOT the internal `id` — is the authoritative
         // cross-source agent identifier. The sale form stamps it onto
