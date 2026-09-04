@@ -5947,7 +5947,12 @@ function generateAgentInfoSheet() {
         '<div class="header"><div class="logo-block"><h1>MALLAN</h1><p>REAL ESTATE</p></div></div>' +
         '<div class="agent-card">' +
         '<h2>' + agentName + '</h2>' +
-        '<div class="title">Licensed Real Estate Agent</div>' +
+        // The regulated designation is deliberately ABSENT. This printed
+        // "Licensed Real Estate Agent" unconditionally under whichever name
+        // the form happened to carry - a title that is not one of the three
+        // NY licence classes at all, and which 19 NYCRR 175.25(c)(4)
+        // expressly prohibits. This document has no licence-class input, so
+        // it may not state one.
         '<div class="agent-detail">' +
         '<div><div class="label">Phone</div><div class="value">' + agentPhone + '</div></div>' +
         '<div><div class="label">Email</div><div class="value">' + agentEmail + '</div></div>' +
@@ -7542,7 +7547,9 @@ function buildRentalEmailCardHTML(data) {
     if (desc) html += '<p style="font-size:13px; color:#555; margin-top:12px; line-height:1.5; border-top:1px solid #eee; padding-top:12px;">"' + desc + '"</p>';
     html += '<div style="border-top:1px solid #eee; margin-top:16px; padding-top:12px; font-size:12px; color:#666;">';
     html += '<p style="font-weight:600; color:#1a1a1a; margin:0;">' + (data.updatingAgent || '--') + '</p>';
-    html += '<p style="margin:2px 0;">Licensed Real Estate Broker</p>';
+    // No designation line: this block names an individual agent taken from a
+    // free-text form field, with no licence class anywhere in the document.
+    // It printed "Licensed Real Estate Broker" for every one of them.
     html += '<p style="margin:2px 0;">Mallan Real Estate Inc. | Lic. #10991205323</p>';
     html += '<p style="margin:6px 0 2px; font-size:10px; color:#999;">Listing data provided by the REBNY Listing Service.</p>';
     html += '<p style="margin:0; font-size:10px; color:#999;">Equal Housing Opportunity</p>';
@@ -7607,7 +7614,8 @@ function copyRentalEmailToClipboard() {
     if (desc) htmlContent += '<p style="font-size:13px; color:#555; margin:12px 0 0; line-height:1.5; border-top:1px solid #eee; padding-top:12px;">&ldquo;' + desc + '&rdquo;</p>';
     htmlContent += '<div style="border-top:1px solid #eee; margin-top:16px; padding-top:12px; font-size:12px; color:#666;">';
     htmlContent += '<p style="font-weight:600; color:#1a1a1a; margin:0;">' + (data.updatingAgent || '--') + '</p>';
-    htmlContent += '<p style="margin:2px 0;">Licensed Real Estate Broker</p>';
+    // No designation line - see the note on the printable sheet above. This
+    // is the clipboard/email-safe copy of the same block.
     htmlContent += '<p style="margin:2px 0;">Mallan Real Estate Inc. | Lic. #10991205323</p>';
     htmlContent += '<p style="margin:6px 0 2px; font-size:10px; color:#999;">Listing data provided by the REBNY Listing Service.</p>';
     htmlContent += '<p style="margin:0; font-size:10px; color:#999;">Equal Housing Opportunity</p>';

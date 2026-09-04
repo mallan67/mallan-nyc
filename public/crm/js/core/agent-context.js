@@ -26,7 +26,21 @@ var LOGGED_IN_AGENT = {
     phone: '',
     email: '',
     license: '',
-    licenseTitle: 'Licensed Real Estate Broker',
+    // THE REGULATED PROFESSIONAL DESIGNATION — seeded EMPTY, deliberately.
+    //
+    // This seeded a principal-broker designation, and the assignment below read
+    // `u.licenseTitle || LOGGED_IN_AGENT.licenseTitle`, so the server's
+    // deliberate `licenseTitle: null` fell straight back onto the seed. Every
+    // agent whose licence class could not be resolved was then advertised as
+    // the PRINCIPAL BROKER of the firm — on CMA reports, print headers and
+    // footers, and outbound email signatures addressed to outside brokers.
+    //
+    // The designation is derived server-side from `Agent.license_type` alone,
+    // by lib/agents/professional-title.ts — the ONE authority. The browser
+    // holds no licence evidence of its own, so it may not supply a value here.
+    // An empty designation is honest; a fabricated one is a false statement
+    // about a licensee under NY DOS 19 NYCRR 175.25.
+    licenseTitle: '',
     companyKey: 'mallan',
     companyName: 'Mallan Real Estate Inc.',
     role: ''
@@ -56,7 +70,11 @@ if (typeof MallanAPI !== 'undefined') {
             LOGGED_IN_AGENT.phone = u.phone || LOGGED_IN_AGENT.phone;
             LOGGED_IN_AGENT.email = u.email || LOGGED_IN_AGENT.email;
             LOGGED_IN_AGENT.license = u.license || LOGGED_IN_AGENT.license;
-            LOGGED_IN_AGENT.licenseTitle = u.licenseTitle || LOGGED_IN_AGENT.licenseTitle;
+            // Taken VERBATIM from the server, with no client fallback. A `null`
+            // here is the server's considered answer — "this licensee's class
+            // is not resolvable, assert nothing" — and it must survive into
+            // every surface that reads AGENT_PROFILE.
+            LOGGED_IN_AGENT.licenseTitle = u.licenseTitle || '';
             LOGGED_IN_AGENT.companyKey = u.companyKey || LOGGED_IN_AGENT.companyKey;
             LOGGED_IN_AGENT.companyName = u.companyName || LOGGED_IN_AGENT.companyName;
             LOGGED_IN_AGENT.role = (data.role || 'agent').toLowerCase();

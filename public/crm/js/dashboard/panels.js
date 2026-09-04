@@ -671,9 +671,20 @@ var Panels = (function () {
           '<div class="relative flex-1 max-w-xs"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>' +
             '<input type="text" id="rosterSearch" placeholder="Search agents..." class="form-input pl-9 text-sm" oninput="Panels._filterRoster()"></div>' +
           '<select id="rosterRoleFilter" class="form-input form-select text-sm" style="width:auto" onchange="Panels._filterRoster()">' +
+            // BROKERAGE ROLES, labelled as roles.
+            //
+            // This offered value "AGENT" — retired, so it matched nobody — had
+            // no ASSOCIATE_BROKER option at all, and labelled the two it did
+            // offer with §175.25 DESIGNATION strings ("Licensed Broker",
+            // "Licensed Salesperson"), conflating what someone IS in the firm
+            // with what the State licensed them as. Those are separate facts
+            // and neither implies the other. The canonical roles are
+            // BROKER | ASSOCIATE_BROKER | SALESPERSON; legacy "AGENT" rows are
+            // read-tolerated and stay visible under "All Roles".
             '<option value="">All Roles</option>' +
-            '<option value="BROKER">Licensed Broker</option>' +
-            '<option value="AGENT">Licensed Salesperson</option>' +
+            '<option value="BROKER">Broker</option>' +
+            '<option value="ASSOCIATE_BROKER">Associate Broker</option>' +
+            '<option value="SALESPERSON">Salesperson</option>' +
           '</select>' +
         '</div>' +
         '<button class="btn btn-sm btn-gold" onclick="Panels._addAgent()"><i class="fas fa-user-plus mr-1"></i> Add Agent</button>' +
@@ -700,7 +711,11 @@ var Panels = (function () {
   function _agentCard(a, idx) {
     var name = a.full_name || a.name || a.email || 'Agent';
     var initials = Utils.initials(name);
-    var role = (a.role || 'AGENT').toUpperCase();
+    // The role is REPORTED, never invented: defaulting a row with no recorded
+    // role to the retired "AGENT" stamped a value onto it that the record does
+    // not carry. An unknown role stays empty and the card shows under
+    // "All Roles" only.
+    var role = (a.role || '').toUpperCase();
     // The DESIGNATION comes from the LICENCE CLASS, never from the role. This
     // read `role === 'BROKER' ? 'Licensed Broker' : 'Licensed Salesperson'`,
     // which labelled every associate broker a salesperson in the roster and
@@ -734,7 +749,9 @@ var Panels = (function () {
             avatarHtml +
             '<div>' +
               '<p class="text-sm font-semibold text-gray-900">' + E(name) + '</p>' +
-              '<p class="text-xs text-gray-500">' + E(roleLabel) + (license ? ' · #' + E(license) : '') + '</p>' +
+              // No designation resolves -> the line carries the licence number
+              // alone, with no leading separator. Absence reads as absence.
+              '<p class="text-xs text-gray-500">' + E(roleLabel) + (license ? (roleLabel ? ' · ' : '') + '#' + E(license) : '') + '</p>' +
             '</div>' +
           '</div>' +
           '<i class="fas fa-chevron-down text-gray-300 text-xs transition-transform" id="agentChevron_' + idx + '"></i>' +
@@ -756,7 +773,9 @@ var Panels = (function () {
         '<div class="px-4 py-3 border-t bg-white">' +
           // Quick actions
           '<div class="flex items-center justify-between mb-3">' +
-            '<div class="sm:hidden"><span class="px-2 py-0.5 border border-gray-200 text-gray-500 rounded text-[10px] font-semibold">' + E(roleLabel) + '</span></div>' +
+            // The designation badge is omitted entirely, not rendered empty,
+            // when the licence class does not resolve.
+            '<div class="sm:hidden">' + (roleLabel ? '<span class="px-2 py-0.5 border border-gray-200 text-gray-500 rounded text-[10px] font-semibold">' + E(roleLabel) + '</span>' : '') + '</div>' +
             '<div class="flex items-center gap-2">' +
               '<button onclick="CRM.doImpersonate(\'' + E(a.id) + '\')" class="px-3 py-1.5 bg-gray-800 text-white rounded-lg text-xs font-semibold hover:bg-gray-700 flex items-center gap-1.5"><i class="fas fa-user-secret"></i> Impersonate</button>' +
               '<button onclick="Panels._editAgent(\'' + E(a.id) + '\')" class="px-3 py-1.5 border border-gray-300 text-gray-600 rounded-lg text-xs font-semibold hover:bg-gray-50 flex items-center gap-1.5"><i class="fas fa-edit"></i> Edit</button>' +
@@ -1498,7 +1517,13 @@ var Panels = (function () {
             '<div class="form-group"><label class="form-label">Last Name *</label><input class="form-input" name="last_name" value="' + E(lastName) + '" required></div>' +
           '</div>' +
           '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">' +
-            '<div class="form-group"><label class="form-label">Public Title (derived)</label><input class="form-input bg-gray-100" readonly data-derived-from="license_type" name="title" value="' + E(a.title || '') + '" placeholder="e.g. Senior Sales Associate"></div>' +
+            // The placeholder read "e.g. Senior Sales Associate". §175.25(c)(4)
+            // expressly PROHIBITS "sales associate" as a licensee title, and DOS
+            // treats corporate-style titles ("Senior", "VP", "Director") on a
+            // licensee as misleading advertising — so this field, whose whole
+            // point is that the designation is DERIVED from the licence, was
+            // hinting at a title no Mallan licensee may lawfully advertise.
+            '<div class="form-group"><label class="form-label">Public Title (derived)</label><input class="form-input bg-gray-100" readonly data-derived-from="license_type" name="title" value="' + E(a.title || '') + '" placeholder="Set automatically by the licence designation"></div>' +
             '<div class="form-group"><label class="form-label">Status</label>' +
               '<select class="form-input form-select" name="status">' +
                 '<option value="active"' + (a.status === 'active' ? ' selected' : '') + '>Active</option>' +
@@ -8011,14 +8036,34 @@ var Panels = (function () {
           else if (days <= 60) { statusColor = '#DC2626'; statusLabel = 'Critical'; }
           else if (days <= 90) { statusColor = '#F59E0B'; statusLabel = 'Expiring Soon'; }
           else { statusColor = '#059669'; statusLabel = 'Current'; }
-          var role = (a.role || 'AGENT').toUpperCase();
-          var licType = role === 'BROKER' ? 'Licensed Broker' : 'Licensed Salesperson';
+          // THE LICENCE TYPE COLUMN, on the licence-tracking screen itself.
+          //
+          // This read:
+          //     var role = (a.role || 'AGENT').toUpperCase();
+          //     var licType = role === 'BROKER' ? 'Licensed Broker' : 'Licensed Salesperson';
+          //
+          // — a licence class manufactured from the BROKERAGE ROLE, defaulting
+          // to the retired "AGENT", and emitting two strings that are not
+          // §175.25 designations at all (the bare "broker" form is expressly
+          // prohibited by §175.25(c)(4)). Every ASSOCIATE_BROKER was displayed
+          // as a salesperson, on the one screen whose whole purpose is to state
+          // what licence each person holds.
+          //
+          // It now routes through the SAME mirror the roster card uses —
+          // _designationFromStored, which reproduces the server's
+          // designationFromStored including its legacy bare-"broker"
+          // non-escalation guard — and reads the licence class alone.
+          var licType = a.title || _designationFromStored(a.license_type, a.title) || '';
           var issueDate = a.license_issue_date || a.licenseIssueDate || '';
           var dosVerified = a.dos_verified || a.dosVerified || false;
           html += '<tr class="border-b hover:bg-gray-50">' +
             '<td class="px-3 py-2 text-sm font-medium">' + E(a.full_name || a.name || a.email) + '</td>' +
             '<td class="px-3 py-2 text-xs font-mono">' + E(a.license_no || a.licenseNumber || a.license_number || '-') + '</td>' +
-            '<td class="px-3 py-2 text-xs">' + E(licType) + '</td>' +
+            // "-" is not a designation: it is this table's existing marker for
+            // a fact the record does not carry, used by the licence-number,
+            // issue-date and expiry columns beside it. An unknown licence class
+            // is now VISIBLY unknown instead of being guessed.
+            '<td class="px-3 py-2 text-xs">' + E(licType || '-') + '</td>' +
             '<td class="px-3 py-2 text-xs">' + (issueDate ? D(issueDate) : '-') + '</td>' +
             '<td class="px-3 py-2 text-xs">' + (exp ? D(exp) : '-') + '</td>' +
             '<td class="px-3 py-2 text-sm text-right font-bold" style="color:' + statusColor + '">' + (days !== null ? days : '-') + '</td>' +
@@ -12937,7 +12982,11 @@ var Panels = (function () {
           // read-only in Add/Edit Agent.
           '<div class="form-group mb-4">' +
             '<label class="form-label">Public Title (derived)</label>' +
-            '<input class="form-input" name="title" value="' + E(title) + '" placeholder="e.g. Licensed Real Estate Broker" maxlength="100">' +
+            // The placeholder named ONE specific §175.25 designation, so an
+            // agent with no resolved licence class was shown the PRINCIPAL
+            // BROKER title as the suggested thing to write about themselves.
+            // A hint may describe the field; it may not propose a licence.
+            '<input class="form-input" name="title" value="' + E(title) + '" placeholder="Set from your licence designation" maxlength="100">' +
             '<p class="text-xs text-gray-400 mt-1">Appears below your name on your agent page.</p>' +
           '</div>' +
 
@@ -12984,7 +13033,11 @@ var Panels = (function () {
             '<div class="form-group">' +
               '<label class="form-label">License Type</label>' +
               (isBroker
-                ? '<input class="form-input" name="license_type" value="' + E(licenseType) + '" placeholder="e.g. Real Estate Broker">'
+                // license_type stores the LICENCE CLASS, not a display string.
+                // The hint suggested "e.g. Real Estate Broker" — a designation
+                // form — which is how display strings ended up in this column
+                // in the first place. It now names the canonical vocabulary.
+                ? '<input class="form-input" name="license_type" value="' + E(licenseType) + '" placeholder="salesperson | associate_broker | broker">'
                 : '<input class="form-input bg-gray-50" value="' + E(licenseType) + '" readonly>') +
             '</div>' +
             '<div class="form-group">' +

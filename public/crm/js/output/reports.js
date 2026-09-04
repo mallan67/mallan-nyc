@@ -579,9 +579,15 @@
             var isAllRental = rentalCount === listings.length && listings.length > 0;
 
             // Agent info (auto-populated from AGENT_PROFILE set by agent-context.js)
+            // `title` is the REGULATED DESIGNATION. It resolves from the
+            // licence class server-side or it resolves to NOTHING; this file
+            // has no licence evidence with which to pick a default, and the
+            // two defaults it used to carry ('Licensed Real Estate Broker'
+            // here and in the else-branch below) advertised the firm's
+            // principal broker for anyone whose class was unknown.
             var agentInfo = typeof AGENT_PROFILE !== 'undefined' ? {
                 name: AGENT_PROFILE.name || '',
-                title: AGENT_PROFILE.licenseTitle || AGENT_PROFILE.title || 'Licensed Real Estate Broker',
+                title: AGENT_PROFILE.licenseTitle || AGENT_PROFILE.title || '',
                 company: AGENT_PROFILE.company || '',
                 email: AGENT_PROFILE.email || '',
                 phone: AGENT_PROFILE.phone || '',
@@ -591,7 +597,7 @@
                 photo: AGENT_PROFILE.photo || ''
             } : {
                 name: '',
-                title: 'Licensed Real Estate Broker',
+                title: '',
                 company: '',
                 email: '',
                 phone: '',
@@ -2028,7 +2034,13 @@
             h += '<td style="vertical-align:top;width:50%;">';
             h += '<span style="font-size:10px;text-transform:uppercase;color:#9ca3af;letter-spacing:1px;">Prepared By</span><br>';
             h += '<span style="font-size:14px;font-weight:600;color:#1a1a1a;">' + agent.name + '</span><br>';
-            h += '<span style="font-size:12px;color:#4b5563;">' + (agent.licenseTitle || agent.title || 'Licensed Real Estate Broker') + '</span><br>';
+            // The designation LINE IS OMITTED ENTIRELY when the licence class
+            // is unknown. Rendering an empty span would be harmless; rendering
+            // a default was a false statement about the licensee.
+            var _preparedByTitle = agent.licenseTitle || agent.title || '';
+            if (_preparedByTitle) {
+                h += '<span style="font-size:12px;color:#4b5563;">' + _preparedByTitle + '</span><br>';
+            }
             h += '<span style="font-size:12px;color:#6b7280;">' + (agent.company || 'Mallan Real Estate Inc.') + ' &middot; Lic. ' + (agent.companyLicense || '') + '</span><br>';
             h += '<span style="font-size:12px;color:#6b7280;">' + (agent.phone || '') + ' &middot; ' + (agent.email || '') + '</span>';
             h += '</td>';
@@ -2111,7 +2123,11 @@
             h += '<p style="margin:0 0 6px 0;font-size:10px;color:#6b7280;font-style:italic;">';
             h += 'Commission rates are not set by law and are fully negotiable. The commission on any particular listing is set by the listing participant and is disclosed to cooperating brokers.</p>';
             h += '<p style="margin:0;font-size:10px;color:#9ca3af;">';
-            h += agent.name + ', ' + (agent.title || 'Licensed Real Estate Broker') + ' &middot; Lic. ' + (agent.license || '') + ' &middot; ' + (agent.company || 'Mallan Real Estate Inc.') + ' &middot; ' + (agent.companyLicense || '') + '<br>';
+            // Name, then the designation ONLY IF THERE IS ONE — the ", " that
+            // joined them goes with it, so an unknown class reads as a plain
+            // name rather than as a licensee who holds something unstated.
+            var _footerTitle = agent.title || '';
+            h += agent.name + (_footerTitle ? ', ' + _footerTitle : '') + ' &middot; Lic. ' + (agent.license || '') + ' &middot; ' + (agent.company || 'Mallan Real Estate Inc.') + ' &middot; ' + (agent.companyLicense || '') + '<br>';
             h += (agent.address || '') + ' &middot; ' + (agent.phone || '') + ' &middot; ' + (agent.website || 'mallan.nyc') + '</p>';
             h += '</td></tr>';
 
@@ -2408,7 +2424,7 @@
         function getAgentInfo() {
             return typeof AGENT_PROFILE !== 'undefined' ? {
                 name: AGENT_PROFILE.name,
-                title: AGENT_PROFILE.licenseTitle || AGENT_PROFILE.title || 'Licensed Real Estate Broker',
+                title: AGENT_PROFILE.licenseTitle || AGENT_PROFILE.title || '',
                 company: AGENT_PROFILE.company || 'Mallan Real Estate Inc.',
                 email: AGENT_PROFILE.email || '',
                 phone: AGENT_PROFILE.phone || '',
@@ -2417,7 +2433,7 @@
                 address: AGENT_PROFILE.address || ''
             } : {
                 name: '',
-                title: 'Licensed Real Estate Broker',
+                title: '',
                 company: '',
                 email: '',
                 phone: '',
