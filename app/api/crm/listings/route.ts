@@ -16,6 +16,7 @@ import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-pro
 import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { buildPublishContract } from "@/lib/crm/listing-publish-contract";
 import { buildExclusiveAgentAssignment } from "@/lib/listings/exclusive-agent-assignment";
+import { buildCrmListingsWhere, resolvePageSize } from "@/lib/crm/listings-scope";
 import { composeDbPublicMedia } from "@/lib/media/db-media-composition";
 import type { Prisma } from "@prisma/client";
 
@@ -26,36 +27,57 @@ export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
   const type = searchParams.get("type"); // "sale" | "rent"
   const status = searchParams.get("status");
-  // PR-CRM.4 (2026-05-24) — clamp limit to [1, 200] to prevent bulk
+  // PR-CRM.4 (2026-05-24) — clamp limit to [1, MAX_PAGE_SIZE] to prevent bulk
   // extraction (NY SHIELD Act concern surfaced by the 2026-05-24 CRM
   // Backbone Audit §8 finding #4). Prior cap was 200 but had no
   // min-guard / NaN-guard: `?limit=` (empty) or `?limit=abc` would
   // have made `parseInt` return NaN, propagating through Math.min to
   // Prisma and failing unpredictably. Default 50 preserved.
-  const limit = Math.min(Math.max(parseInt(searchParams.get("limit") || "50") || 50, 1), 200);
-  const offset = parseInt(searchParams.get("offset") || "0");
+  //
+  // THE CAP IS NOT RAISED. It is now REPORTED. A caller asking for 500 was
+  // silently served 200 and had no field to detect it, so a partial page could
+  // be read as a complete result set. The security limit stays exactly where it
+  // was; `requestedLimit`, `maxLimit` and `limitClamped` make the truncation
+  // observable instead of silent.
+  const { requestedLimit, limit, limitClamped, maxLimit } = resolvePageSize(
+    searchParams.get("limit")
+  );
+  const offset = parseInt(searchParams.get("offset") || "0") || 0;
 
   // Build where clause with ownership enforcement.
   // CRM My Listings shows: (1) CRM-created listings (no mls_id — SL-/RL- prefix),
-  // and (2) closed/terminal Trestle-synced deals. Active/Pending Trestle listings
-  // are managed via REBNY RLS directly, not through the CRM.
-  const TRESTLE_CLOSED = ["Closed", "Sold", "Leased", "Rented"];
-  const CRM_HIDDEN = ["Withdrawn", "Cancelled"];
-  const crmCreated = { mls_id: null, listing_id: { startsWith: "SL-" }, status: { notIn: CRM_HIDDEN } };
-  const crmCreatedRental = { mls_id: null, listing_id: { startsWith: "RL-" }, status: { notIn: CRM_HIDDEN } };
-  const trestleClosed = { mls_id: { not: null }, status: { in: TRESTLE_CLOSED } };
-
-  const where: Record<string, unknown> = {
-    OR: [crmCreated, crmCreatedRental, trestleClosed],
-  };
-
-  // Ownership: agent sees only their own, broker sees all
-  if (auth.role !== "BROKER") {
-    where.agent_id = auth.userId;
-  }
-
-  if (type) where.listing_type = type;
-  if (status) where.status = status;
+  // and (2) closed/terminal Trestle-synced deals THAT ARE MALLAN'S OWN.
+  // Active/Pending Trestle listings are managed via REBNY RLS directly, not
+  // through the CRM.
+  //
+  // MALLAN LIST-SIDE IDENTITY IS THE OWNERSHIP TEST, NOT `agent_id`.
+  // `trestleClosed` previously read `{ mls_id not null, status in CLOSED }` with
+  // no ownership predicate at all. For an AGENT the outer `agent_id` narrowing
+  // contained it; for a BROKER there is no narrowing, so the clause admitted
+  // every closed listing in the entire IDX corpus — 2,237 rows on production, of
+  // which 2,205 belong to other brokerages. Ordered by `updated_at desc`, that
+  // continuously re-synced third-party population occupied the whole first page
+  // and pushed Mallan's own active listings to ranks 726 and 2,206, beyond any
+  // permitted page size. The listings were admitted by the query and paginated
+  // out before the response was built.
+  //
+  // `agent_id` MUST NOT be used as the ownership test. Per
+  // `lib/listings/mallan-source-identity.ts`, it is a CRM history/roster
+  // association written by `syncAgentHistory` from BOTH list-side and
+  // BUYER-side matches. Production carries a worked example: a Closed row whose
+  // `agent_id` is Maya's while its `list_office_mls_id` is 51 (Douglas Elliman)
+  // — her prior brokerage. Ownership by `agent_id` would have claimed another
+  // brokerage's listing as Mallan inventory.
+  //
+  // Buyer-side and co-broker closed transaction history is a DEAL/HISTORY
+  // association, not listing ownership, and is not smuggled into this listing
+  // reader. It already has its own surface (`/api/crm/past-deals`).
+  const where = buildCrmListingsWhere({
+    role: auth.role,
+    userId: auth.userId,
+    type,
+    status,
+  });
 
   const [listings, total] = await Promise.all([
     prisma.listing.findMany({
@@ -179,11 +201,20 @@ export async function GET(req: NextRequest) {
     };
   });
 
+  // Pagination contract: every field below describes the SAME reachable
+  // dataset. `limit` is the EFFECTIVE page size actually applied to the query,
+  // `requestedLimit` is what the caller asked for, and `limitClamped` says
+  // whether the two differ. A caller can no longer request 500, receive 200,
+  // and believe it holds the complete set.
   return NextResponse.json({
     listings: serialized,
     total,
     limit,
     offset,
+    requestedLimit,
+    maxLimit,
+    limitClamped,
+    hasMore: offset + serialized.length < total,
   });
 }
 
