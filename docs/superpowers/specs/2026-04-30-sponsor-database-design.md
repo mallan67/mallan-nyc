@@ -994,7 +994,7 @@ There is NO explicit `Sponsor` value — sponsor units are inferred via `BoardAp
 
 ### Non-REBNY listings in MBQ — quantification
 
-REBNY RLS by structure carries only REBNY-member listings. Non-REBNY-member brokerages (e.g., Silverstein Collection LLC observed in RealPlus screenshots) do not appear in RLS. Cross-MLS market sizing (web-search 2026-05-01):
+REBNY RLS by structure carries only REBNY-member listings. Non-REBNY-member brokerages (e.g., Silverstein Collection LLC observed in competitor-platform screenshots) do not appear in RLS. Cross-MLS market sizing (web-search 2026-05-01):
 
 | MLS | NYC coverage | Approximate active inventory |
 |---|---|---:|

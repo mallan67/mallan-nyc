@@ -86,7 +86,7 @@
 | ID | Finding | Source |
 |---|---|---|
 | D1 | ISR `revalidatePath('/listing/[slug]')` trigger inside `idx-sync` cron when a new MLS row appears — eliminates cold first-visit risk. Touches `lib/idx/sync.ts` + cron route. Spec under master-plan PR 5; evaluate AFTER PR 5 lands. | vercel:performance-optimizer |
-| D2 | Populate `MALLAN_OFFICE_MLS_IDS` in `lib/syndication/mallan-identity.ts:89-93` AND backfill `Agent.trestle_mls_id` — required ONLY when/if syndication is enabled. Confirm Office MLS ID via RealPlus broker dashboard or `rlssupport@rebny.com` / 212-616-5270. Not required for the imminent launch. | tristle + general-purpose |
+| D2 | Populate `MALLAN_OFFICE_MLS_IDS` in `lib/syndication/mallan-identity.ts:89-93` AND backfill `Agent.trestle_mls_id` — required ONLY when/if syndication is enabled. Confirm Office MLS ID via the REBNY RLS portal or `rlssupport@rebny.com` / 212-616-5270. Not required for the imminent launch. | tristle + general-purpose |
 
 ### Class E — already working (no action)
 - Sitemap: 10,573 listing URLs, lastmod fresh to T-11min, well-formed XML.
