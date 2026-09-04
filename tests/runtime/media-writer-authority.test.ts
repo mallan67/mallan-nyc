@@ -128,28 +128,12 @@ describe('legacy POST /photos is retired', () => {
 });
 
 describe('set-main never clears source-owned feed preference', () => {
-  it('the clear is scoped to the crm: namespace', async () => {
-    mockListingFindUnique.mockResolvedValue(LOCAL_ROW);
-    const prisma = (await import('@/lib/prisma')).default as unknown as {
-      listingMedia: { findFirst: unknown };
-    };
-    prisma.listingMedia.findFirst = async () => ({ media_type: 'Photo' });
-
-    const { PATCH } = await import('@/app/api/crm/listings/[id]/media/[mediaId]/route');
-    const res = await PATCH(req({ preferred_photo_yn: true }), {
-      params: Promise.resolve({ id: 'SL-0004', mediaId: 'crm:SL-0004:abc' }),
-    });
-    expect(res.status).toBe(200);
-
-    const clearCall = mockMediaUpdateMany.mock.calls.find(
-      (c) => (c[0] as { data?: { preferred_photo_yn?: boolean } })?.data?.preferred_photo_yn === false,
-    );
-    expect(clearCall).toBeDefined();
-    const where = (clearCall![0] as { where: { media_key?: { startsWith?: string } } }).where;
-    // Without this scope the update would also clear PreferredPhotoYN on feed
-    // rows — source-owned metadata that media-sync rewrites every cycle.
-    expect(where.media_key?.startsWith).toBe('crm:');
-  });
+  // MIGRATED to tests/runtime/crm-media-summary-convergence.integration.test.ts.
+  // The assertion here inspected the `where` clause handed to a MOCKED
+  // updateMany through a fake `$transaction: (ops) => Promise.all(ops)`. That
+  // proves a call shape, not that source-owned feed metadata survives — and a
+  // Promise.all cannot model the transaction the route now uses. The real
+  // invariant is asserted against real rows in real Postgres.
 
   it('refuses a non-crm media key outright', async () => {
     mockListingFindUnique.mockResolvedValue(THIRD_PARTY_ROW);
