@@ -2,9 +2,9 @@
 
 ## Decision
 
-Maya Allan approved the Neon CPU/storage remediation and directed that no unrelated work proceed until it is finalized.
+Maya Allan approved the Neon CPU/storage remediation and the bounded retention rule below.
 
-The following two `AuditEvent.action` values are classified as **write-only operational diagnostics**, not business, consumer, transaction, access, consent, unsubscribe, brokerage, RLS-display, or regulatory audit evidence:
+The following two `AuditEvent.action` values are classified as **write-only operational diagnostics**, not business, consumer, transaction, access, consent, unsubscribe, brokerage, legal, or regulatory audit evidence:
 
 - `idx_sync_listing_upsert_failure`
 - `idx_sync_syncstate_failure`
@@ -15,7 +15,7 @@ They may be retained for **30 days** and then deleted in bounded, resumable batc
 
 All other `AuditEvent` rows keep the existing two-year retention rule unless a longer-lived canonical record owns the requirement. In particular, this decision does not shorten retention for:
 
-- REBNY/RLS or Cotality/Trestle access evidence;
+- Cotality access or source-use evidence;
 - listing-display, status, gate, attribution, or broker-decision evidence;
 - lead consent, email suppression, or unsubscribe evidence;
 - CRM mutations, offers, deals, commissions, documents, or transaction records;
@@ -43,4 +43,4 @@ The production measurement reconciled during the 2026-08-02 Neon review found **
 
 ## Authority boundary
 
-This file is the narrow approved exception to the general AuditEvent two-year floor in `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` §15. It applies only to the exact allowlist above. Any additional action requires a new explicit policy decision and test update.
+This is a narrow approved exception to Mallan's general AuditEvent two-year retention floor. It applies only to the exact allowlist above. Any additional action requires a new explicit policy decision and test update.
