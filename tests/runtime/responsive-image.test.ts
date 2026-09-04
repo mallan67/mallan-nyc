@@ -173,12 +173,60 @@ describe('buildImageSources — cards must request card-sized bytes', () => {
     expect(Math.max(...CARD_IMAGE_WIDTHS)).toBeGreaterThanOrEqual(1200);
   });
 
-  it('carries no unused 1920/2048 candidate', () => {
-    // The widest card need is 1232 device px (616px slot at 2x), which
-    // 1200 covers. Those larger entries remain in next.config only for
-    // the full-bleed non-card surfaces that declare sizes="100vw".
+  it('tops out at the tightest rung covering a full-width tablet card', () => {
+    // Full width applies up to 767px, so the largest card need is
+    // 767 x 2 = 1534. 1600 covers it at 1.04x; 1920 covers it at 1.25x
+    // and downloads 25% more for nothing.
+    expect(CARD_IMAGE_WIDTHS).toContain(1600);
     expect(CARD_IMAGE_WIDTHS).not.toContain(1920);
     expect(CARD_IMAGE_WIDTHS).not.toContain(2048);
+    expect(Math.max(...CARD_IMAGE_WIDTHS)).toBeGreaterThanOrEqual(767 * 2);
+  });
+
+  it('1600 is admitted by the Next config, not just by the card ladder', () => {
+    // cardImageWidths is NOT the optimizer allowlist — Next validates `w`
+    // against deviceSizes + imageSizes and 400s anything else. 1600 is
+    // not a Next default, so it had to be added explicitly.
+    const cfg = require('../../config/image-optimization.json');
+    expect([...cfg.deviceSizes, ...cfg.imageSizes]).toContain(1600);
+  });
+
+  it('every sizes breakpoint is COMPLEMENTARY to Tailwind, never equal', () => {
+    // Tailwind breakpoints are min-width rules, so `md` applies AT
+    // 768px. A `sizes` branch of `(max-width: 768px)` is inclusive and
+    // overlaps md by one pixel-width. Both failure directions were
+    // measured on preview:
+    //   (max-width: 640px) -> 641-767px UNDER-resolved  (700@1x = 0.55x)
+    //   (max-width: 768px) -> exactly 768px OVER-downloaded (1920 for a
+    //                         369px card needing 738)
+    // The branch must therefore end one pixel BELOW the breakpoint.
+    const TAILWIND = [640, 768, 1024, 1280, 1536];
+    const COMPLEMENTARY = new Set(TAILWIND.map((b) => b - 1));
+
+    // Collect every offender first so the failure message names them all
+    // rather than stopping at the first.
+    const overlapping: string[] = [];
+    const misaligned: string[] = [];
+    for (const [name, profile] of Object.entries(CARD_SIZES)) {
+      if (name === 'hero') continue;
+      for (const m of profile.matchAll(/max-width:\s*(\d+)px/g)) {
+        const px = Number(m[1]);
+        if (TAILWIND.includes(px)) {
+          overlapping.push(`${name}: (max-width: ${px}px) overlaps Tailwind ${px} — use ${px - 1}`);
+        } else if (!COMPLEMENTARY.has(px)) {
+          misaligned.push(`${name}: (max-width: ${px}px) is not one below any Tailwind breakpoint`);
+        }
+      }
+    }
+    expect(overlapping).toEqual([]);
+    expect(misaligned).toEqual([]);
+
+    // GridCard is one column until md(768) -> branch ends at 767.
+    expect(CARD_SIZES.grid).toMatch(/^\(max-width: 767px\) 100vw/);
+    // ListCard's rail widens at sm(640) -> branch ends at 639.
+    expect(CARD_SIZES.list).toMatch(/^\(max-width: 639px\)/);
+    // SplitCard only goes two-up at lg(1024) -> branch ends at 1023.
+    expect(CARD_SIZES.split).toMatch(/^\(max-width: 1023px\) 100vw/);
   });
 
   it('never emits the raw original as a srcSet candidate', () => {
@@ -267,10 +315,13 @@ describe('optimizedUrl', () => {
 describe('CARD_SIZES — the hint must describe the REAL rendered width', () => {
   // Widths measured on the preview 2026-07-31 at 1440 and 1920:
   //   all-listings 564-610 · grid 400-433 · split 376-544 · list 256-275
-  it('declares the WIDER of the two GridCard layouts', () => {
-    // GridCard serves all-listings (≈616px) and grid view (≈433px).
-    // Declaring the narrower one under-resolves every all-listings card.
-    expect(CARD_SIZES.grid).toMatch(/640px$/);
+  it('gives each GridCard layout its own measured profile', () => {
+    // One profile could not serve both: all-listings renders 501px at
+    // 1024 while the 3-col grid view renders 326px there. Sharing
+    // over-declared the narrower one by up to 1.67x.
+    expect(CARD_SIZES.grid).toMatch(/600px$/);       // all-listings, capped
+    expect(CARD_SIZES.gridTight).toMatch(/414px$/);  // 3-col, capped
+    expect(CARD_SIZES.grid).not.toBe(CARD_SIZES.gridTight);
     expect(CARD_SIZES.grid).not.toBe('100vw');
   });
 
@@ -280,8 +331,16 @@ describe('CARD_SIZES — the hint must describe the REAL rendered width', () => 
     // so the browser lands exactly rather than rounding down.
     //   grid 640 -> 1280 ✓   (was 600 -> 1200, 2.6% short of a 616px card)
     //   list 224 ->  448 ✓   (was 192 ->  384, 7% short of a 207px card)
-    const declaredPx = (s: string) => Number(s.match(/(\d+)px$/)?.[1] ?? 0);
-    expect(CARD_IMAGE_WIDTHS).toContain(declaredPx(CARD_SIZES.grid) * 2);
+    // The ladder must COVER 2x every profile's capped declaration.
+    // Not "declared x 2 must itself be a rung" — that was over-strict:
+    // grid declares 600 for a 584px card, and 1200 is not a rung, but
+    // both 1168 (real need) and 1200 (declared) select 1280, so the
+    // selection is exact anyway.
+    const declaredPx = (v: string) => Number(v.match(/(\d+)px$/)?.[1] ?? 0);
+    for (const profile of [CARD_SIZES.grid, CARD_SIZES.gridTight]) {
+      const need = declaredPx(profile) * 2;
+      expect(CARD_IMAGE_WIDTHS.some((w) => w >= need)).toBe(true);
+    }
     // list declares rem; 14rem = 224px.
     const listRem = Number(CARD_SIZES.list.match(/(\d+)rem/)![1]);
     expect(CARD_IMAGE_WIDTHS).toContain(listRem * 16 * 2);

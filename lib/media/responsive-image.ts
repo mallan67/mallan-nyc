@@ -52,8 +52,10 @@ import IMAGE_CONFIG from '@/config/image-optimization.json';
 
 /**
  * Minimal candidate ladder covering every measured card width at 1x and
- * 2x DPR. Deliberately excludes 1920/2048 — the widest card need is
- * 1232 device px, which 1200 covers. See the JSON's $comment keys.
+ * 2x DPR. Tops out at 1600: with the full-width branch ending at 767px,
+ * the largest card need is 767 x 2 = 1534 device px, which 1600 covers
+ * at 1.04x. 1920 would cover it at 1.25x and download 25% more for no
+ * visible gain. See the JSON's $comment keys.
  */
 export const CARD_IMAGE_WIDTHS: readonly number[] = IMAGE_CONFIG.cardImageWidths;
 
@@ -79,32 +81,88 @@ export const OPTIMIZER_TRUSTED_HOSTS: readonly string[] =
  */
 export const CARD_SIZES = {
   /**
-   * GridCard. Serves TWO layouts, so this must cover the wider one:
-   *   all-listings — max-w-6xl, 2 col : measured 564-616px
-   *   grid view    — max-w-7xl, 3 col : measured 385-437px
-   * Declaring the narrower one would under-resolve every all-listings
-   * card by ~1.6x, so the wider layout wins.
+   * ALL-LISTINGS layout only (2-col within max-w-6xl).
    *
-   * 640px, tuned to the candidate ladder (premium standard, 2026-08-01):
-   *   @1x -> 640  (1.04x of the 616px render)
-   *   @2x -> 1280 (2.08x — true retina coverage)
-   * The previous 600px landed on 1200, which was 2.6% SHORT of the
-   * 1232 a 616px card needs at 2x. 640 is the smallest declaration that
-   * reaches the new 1280 rung without overshooting to 1920.
+   * This profile used to serve the 3-column grid view as well. It no
+   * longer does — that view has its own `gridTight` below. Do NOT
+   * recombine them: sharing one profile over-declared the narrower
+   * layout by up to 1.67x (a 326px card receiving 640).
+   *
+   * Measured: 367@768, 435@900, 501@1023, 501@1024, then fixed at 584
+   * from 1280 up as max-w-6xl caps. So: a vw ratio until the container
+   * caps, then a constant.
+   *
+   * TWO RULES THIS ENCODES, both learned from measured defects.
+   *
+   * 1. BREAKPOINTS MUST BE COMPLEMENTARY TO TAILWIND, NOT EQUAL TO IT.
+   *    Tailwind breakpoints are `min-width`, so `md` applies AT 768px.
+   *    An inclusive `(max-width: 768px)` overlaps it by one pixel-width.
+   *    Both directions were measured on preview:
+   *      (max-width: 640px) -> 641-767px UNDER-resolved, still one
+   *        column but claiming 50vw: 700@1x rendered 693, got 384 =
+   *        0.55x; 700@2x rendered 695, got 828 = 0.60x
+   *      (max-width: 768px) -> AT 768px OVER-downloaded, md already
+   *        two columns but still claiming 100vw: @2x rendered 369,
+   *        needed 738, got 1920
+   *    Hence 767 = md-1 and 1279 = xl-1.
+   *
+   * 2. USE THE MEASURED RATIO, NOT A ROUND ONE. The column is
+   *    47.8-49.0vw once gap and padding are subtracted (367/768,
+   *    435/900, 501/1023). A round 50vw selected 448 for a 383px card
+   *    and 640 for a 436px card; 49vw still over-declared at 800 (392
+   *    against a 383px render). 48vw satisfies every measured point.
+   *
+   * The 600px cap is likewise measured, not rounded: the card settles
+   * at 584 once max-w-6xl binds. A flat 640px was one rung too high at
+   * 1024@2x (502px card needs 1004, which 1080 covers; 640x2=1280 was
+   * selected instead).
    */
-  grid: '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 640px',
+  grid: '(max-width: 767px) 100vw, (max-width: 1279px) 48vw, 600px',
+
   /**
-   * ListCard: w-48 / sm:w-64 rail — measured 207-283px.
-   * The mobile branch was 12rem (192px) against a 207px render, i.e. 7%
-   * short, and at 2x it received 384 for a 414px need. 14rem (224px)
-   * reaches the new 448 rung: 2.16x coverage instead of 0.93x.
+   * GridCard in the 3-COLUMN grid view (`md:grid-cols-2 lg:grid-cols-3`
+   * within max-w-7xl). Split out from `grid` on 2026-08-02 because one
+   * profile could not serve both layouts without waste.
+   *
+   * Measured: 369@768, 438@900, 500@1023 (still 2-col, same as
+   * all-listings), then 326@1024, 413@1280, 416@1440, 414@1920 — it
+   * drops at lg when the third column appears, then settles at ~415 as
+   * max-w-7xl caps.
+   *
+   * 1279 is xl(1280) - 1, complementary like every other branch here.
    */
-  list: '(max-width: 640px) 14rem, 18rem',
+  gridTight: '(max-width: 767px) 100vw, (max-width: 1023px) 48vw, (max-width: 1279px) 32vw, 414px',
   /**
-   * SplitCard: 2 col inside the ~55% listings panel. Measured 376-405px
-   * at 1440 and 508-544px at 1920, so no fixed px is right at both ends.
+   * ListCard: `w-48 sm:w-64` rail — measured 199-283px.
+   *
+   * Two boundary fixes:
+   *   12rem -> 14rem : 192px declared against a 207px render was 7%
+   *     short, and at 2x received 384 for a 414px need.
+   *   640 -> 639     : Tailwind `sm` is min-width 640, so `sm:w-64`
+   *     (256px) applies AT 640px while an inclusive `(max-width: 640px)`
+   *     still declared 14rem. Measured: 640px @2x rendered 265, needed
+   *     530, received 448 = 0.85x. One pixel of overlap, visibly soft.
    */
-  split: '(max-width: 768px) 50vw, 30vw',
+  list: '(max-width: 639px) 14rem, 18rem',
+  /**
+   * SplitCard: 2 col inside the ~55% listings panel, measured 376-405px
+   * at 1440 and 508-544px at 1920 — no fixed px is right at both ends.
+   *
+   * The split grid is `grid-cols-1 lg:grid-cols-2` and the map is
+   * `hidden lg:block`, so SplitCard only ever renders two-up at >=1024px.
+   * Below that the page renders GridCards instead — verified live at
+   * 700/800/900/1000px, where the grid profile was the applied `sizes`.
+   *
+   * The branch ends at 1023, not 1024: `lg` is min-width 1024, so an
+   * inclusive `(max-width: 1024px)` overlapped it. Measured at exactly
+   * 1024px: rendered 274, needed 548, received 1920 — a 3.5x
+   * over-download caused by one pixel of overlap.
+   *
+   * 28vw, not 30vw. Measured 394/1440 = 27.4vw and 531/1920 = 27.7vw;
+   * the round 30vw pushed one rung too far (1080 where 828 fits, 1280
+   * where 1080 fits).
+   */
+  split: '(max-width: 1023px) 100vw, 28vw',
   /** Full-bleed. Only for a surface genuinely rendered at viewport width. */
   hero: '100vw',
 } as const;
