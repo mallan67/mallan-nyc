@@ -135,10 +135,19 @@ function makeOptions(
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockMediaSyncFindUnique.mockResolvedValue({
-    last_photos_change: PRIOR_TS,
-    last_media_modified: PRIOR_TS,
-    last_listing_key: "1100000000",
+  // RESOURCE-SCOPED. `media_sync_state` is keyed by its unique `resource`, and
+  // more than one owner now uses it (the media-sync keyset cursor, and PHASE
+  // 4a's R2 policy re-admission rotation). A mock that ignored `where.resource`
+  // handed the media-sync watermark to the other owner, which then wrote its
+  // own row — real in the harness, impossible in Postgres.
+  mockMediaSyncFindUnique.mockImplementation(async (args) => {
+    const resource = (args as { where?: { resource?: string } })?.where?.resource;
+    if (resource !== "Media") return null;
+    return {
+      last_photos_change: PRIOR_TS,
+      last_media_modified: PRIOR_TS,
+      last_listing_key: "1100000000",
+    };
   });
   mockMediaSyncUpsert.mockResolvedValue(undefined);
   mockListingMediaUpdateMany.mockResolvedValue({ count: 0 });
