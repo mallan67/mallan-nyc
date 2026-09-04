@@ -7,15 +7,17 @@
 // They start with dev defaults, then update when MallanAPI.init() resolves.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// Configure API base URL for cross-origin access (GitHub Pages → mallan.nyc)
-(function() {
-    if (typeof MallanAPI !== 'undefined') {
-        var origin = window.location.origin;
-        if (origin.indexOf('mallan.nyc') === -1) {
-            MallanAPI.configure({ baseUrl: 'https://mallan.nyc' });
-        }
-    }
-})();
+// API BASE URL — deliberately NOT set here.
+//
+// This file used to sniff the host and repoint the API at Production on any
+// origin without the literal "mallan.nyc", which made every *.vercel.app
+// Preview and every branch alias read and write PRODUCTION — and, because the
+// CRM CSP is `connect-src 'self'`, made /api/auth/me fail, which app.js turned
+// into a /crm/login.html redirect loop.
+//
+// The CRM and the API are served by the same deployment, so the base URL is
+// resolved once, same-origin, by api-client.js (loaded before this file).
+// See the governed-resolver note at the top of js/core/api-client.js.
 
 // Defaults — overwritten by server data when MallanAPI.init() resolves
 var LOGGED_IN_AGENT = {

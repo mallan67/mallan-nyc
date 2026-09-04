@@ -10,7 +10,82 @@ var MallanAPI = (function () {
   'use strict';
 
   // ─── Configuration ───────────────────────────────────────────────────────
-  var _baseUrl = ''; // Same origin when served from Next.js; set via MallanAPI.configure()
+  // ─── API BASE URL — the ONE governed resolver ──────────────────────────
+  //
+  // CANONICAL RULE: when the CRM and the API are served by the same Mallan
+  // deployment, use SAME-ORIGIN. That is true of every deployed environment,
+  // so the base URL is '' (relative) everywhere:
+  //
+  //     Preview CRM     -> Preview API     -> QA Neon
+  //     Production CRM  -> Production API  -> Production Neon
+  //
+  // REMOVED 2026-09-04 — host sniffing. agent-context.js, login.html and the
+  // two standalone forms each carried a variant of:
+  //
+  //     if (window.location.origin.indexOf('mallan.nyc') === -1) {
+  //         MallanAPI.configure({ baseUrl: 'https://mallan.nyc' });
+  //     }
+  //
+  // On any origin without the literal "mallan.nyc" — every *.vercel.app
+  // Preview, every branch alias, localhost — that repointed the CRM's API
+  // authority at PRODUCTION. Two consequences, both real:
+  //   1. Cross-environment authority: a Preview CRM read and wrote the
+  //      Production API and Production Neon.
+  //   2. A login redirect loop: the CRM CSP is `connect-src 'self'`, so the
+  //      browser refused the cross-origin /api/auth/me probe, _fetch's
+  //      rejection was coerced to { authenticated: false }, app.js sent the
+  //      user to /crm/login.html — which never loaded agent-context.js, so it
+  //      stayed same-origin, saw a valid session, and bounced back to the
+  //      dashboard. Reproduced live: 33 navigations in 14 seconds.
+  // The original rationale ("GitHub Pages -> mallan.nyc") is dead: there is
+  // no Pages deployment; /crm is served by the same Next.js app as /api.
+  //
+  // LOCAL DEVELOPMENT is the one explicitly governed exception, and it is
+  // OPT-IN ONLY — never a silent fallthrough. `next dev` serves the CRM and
+  // the API together, so same-origin is correct there too (and required: the
+  // session cookie is same-origin) and is the default on localhost. A
+  // developer who deliberately wants a local CRM to read a remote API sets
+  // this in an inline script BEFORE this file loads:
+  //
+  //     window.MALLAN_API_BASE_URL = 'https://<host>';
+  //
+  // That override is honoured on localhost / 127.0.0.1 / ::1 ONLY. It is
+  // never consulted on a deployed origin, so no deployed CRM can be pointed
+  // off-origin by page content.
+
+  var LOCAL_HOSTNAMES = ['localhost', '127.0.0.1', '[::1]', '::1', ''];
+
+  /** @returns {object|null} the current Location, or null outside a browser */
+  function _currentLocation() {
+    return (typeof window !== 'undefined' && window.location) ? window.location : null;
+  }
+
+  /** @returns {boolean} true only for a local development origin */
+  function _isLocalOrigin(loc) {
+    if (!loc) return false;
+    return LOCAL_HOSTNAMES.indexOf(String(loc.hostname || '')) !== -1;
+  }
+
+  /** Strip trailing slashes so '' and 'https://x/' compare cleanly. */
+  function _normalizeBase(value) {
+    return String(value == null ? '' : value).replace(/\/+$/, '');
+  }
+
+  /**
+   * Resolve the base URL for the origin currently serving the CRM.
+   * Same-origin ('') everywhere, except an explicit localhost opt-in.
+   */
+  function _resolveInitialBaseUrl() {
+    var loc = _currentLocation();
+    if (!_isLocalOrigin(loc)) return '';
+    var override = (typeof window !== 'undefined') ? window.MALLAN_API_BASE_URL : null;
+    if (typeof override === 'string' && /^https?:\/\//i.test(override)) {
+      return _normalizeBase(override);
+    }
+    return '';
+  }
+
+  var _baseUrl = _resolveInitialBaseUrl();
   var _user = null;  // Populated by init()
   var _context = null; // Full /api/auth/me response (principalType, role, portalRole, user)
   var _ready = false;
@@ -720,14 +795,40 @@ var MallanAPI = (function () {
 
   return {
     /**
-     * Configure the API base URL and validate connection.
-     * Call once before any API use.
+     * Override the API base URL.
+     *
+     * FAIL-CLOSED (2026-09-04): on a DEPLOYED origin this accepts only a base
+     * equal to the current origin (or '' — same-origin). Any off-origin base
+     * is REFUSED and logged, so no page, panel or future caller can point a
+     * Preview CRM at Production (or Production at a Preview). Localhost may
+     * still be pointed anywhere — see the governed-resolver note at the top
+     * of this file.
+     *
      * @param {object} opts - { baseUrl: string }
      */
     configure: function (opts) {
-      if (opts && opts.baseUrl) {
-        _baseUrl = opts.baseUrl.replace(/\/$/, '');
-      }
+      if (!opts || !opts.baseUrl) return;
+      var next = _normalizeBase(opts.baseUrl);
+      if (next === '') { _baseUrl = ''; return; }
+
+      var loc = _currentLocation();
+      if (next === _normalizeBase(loc && loc.origin)) { _baseUrl = next; return; }
+      if (_isLocalOrigin(loc)) { _baseUrl = next; return; }
+
+      console.error(
+        '[MallanAPI] Refusing off-origin API base "' + next + '" on ' +
+        _normalizeBase(loc && loc.origin) + '. The CRM and the API are served ' +
+        'by the same deployment; same-origin is the only permitted authority.'
+      );
+    },
+
+    /**
+     * The base URL currently prepended to every API path.
+     * '' means same-origin. Exposed so the invariant is assertable.
+     * @returns {string}
+     */
+    getBaseUrl: function () {
+      return _baseUrl;
     },
 
     /**

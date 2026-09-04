@@ -127,14 +127,10 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
 </style>
 <!-- API Client — identity from session token, no PII in URLs -->
 <script src="js/core/api-client.js"></script>
-<script>
-(function() {
-    var origin = window.location.origin;
-    if (origin.indexOf('mallan.nyc') === -1) {
-        MallanAPI.configure({ baseUrl: 'https://mallan.nyc' });
-    }
-})();
-</script>
+<!-- API base URL is resolved once, same-origin, inside api-client.js.
+     The host sniff that used to live here repointed every non-mallan.nyc
+     origin (Previews, branch aliases, localhost) at PRODUCTION. See the
+     governed-resolver note at the top of js/core/api-client.js. -->
 </head>
 <body class="bg-gray-50 min-h-screen" data-rls-viewer="true">
 
