@@ -44,7 +44,7 @@
                         <div class="grid grid-cols-4 gap-x-4 gap-y-0.5 text-xs">
                             <!-- Col 1: Price -->
                             <div>
-                                <div class="flex justify-between"><span class="text-gray-500">Price:</span><span class="font-bold">$${listing.price.toLocaleString()}</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">Price:</span><span class="font-bold">${listing.price == null ? '—' : '$' + listing.price.toLocaleString()}</span></div>
                                 ${listing.originalPrice ? '<div class="text-[10px] text-gray-400">(Originally $' + listing.originalPrice.toLocaleString() + ')</div>' : ''}
                                 <div class="flex justify-between"><span class="text-gray-500">Rm/Bd/Bth:</span><span>${listing.rooms == null ? '—' : listing.rooms}/${listing.beds == null ? '—' : listing.beds}/${listing.baths == null ? '—' : listing.baths}</span></div>
                                 <div class="flex justify-between"><span class="text-gray-500">SqFt:</span><span>${listing.intSqft ? listing.intSqft.toLocaleString() : '--'}</span></div>

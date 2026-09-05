@@ -33,7 +33,7 @@
                                 <h4 class="font-bold text-[15px] text-gray-900 truncate">${displayAddress}${displayUnit ? ', ' + displayUnit : ''}</h4>
                                 <p class="text-[12px] text-gray-500 font-light mt-0.5">${escapeHtml(listing.era || '--')} &middot; ${ownershipLabel(listing.ownership)} &middot; ${escapeHtml(listing.neighborhood)}</p>
                             </div>
-                            <span class="text-base font-bold text-gray-900 whitespace-nowrap"${resoData('price', listing.price)}>$${listing.price.toLocaleString()}</span>
+                            <span class="text-base font-bold text-gray-900 whitespace-nowrap"${resoData('price', listing.price)}>${listing.price == null ? '—' : '$' + listing.price.toLocaleString()}</span>
                         </div>
                         <p class="text-[13px] text-gray-600 font-light">
                             ${listing.beds == null ? '—' : listing.beds} bd &middot; ${listing.baths == null ? '—' : listing.baths} ba${listing.intSqft ? ' &middot; ' + listing.intSqft.toLocaleString() + ' sf' : ''}

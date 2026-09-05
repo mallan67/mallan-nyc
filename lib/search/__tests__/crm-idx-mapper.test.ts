@@ -121,6 +121,8 @@ describe("crm idx mapper", () => {
       OriginalListPrice: 1300000,
       TaxAnnualAmount: 12000,
       AssociationFee: 1100,
+      // Live: every fee-bearing active row carries a frequency; a fee is monthly only when the provider says so.
+      AssociationFeeFrequency: "Monthly",
       RoomsTotal: 5,
       BedroomsTotal: 2,
       BathroomsFull: 2,

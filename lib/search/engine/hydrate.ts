@@ -79,12 +79,25 @@ type MallanRow = {
   borough: string | null; neighborhood: string | null; city: string | null; postal_code: string | null;
   address: unknown; media: unknown; photo_count: number | null; listing_contract_date: Date | null; updated_at: Date;
   list_agent_full_name: string | null; list_office_name: string | null;
+  raw_data: unknown; days_on_market: number | null; cumulative_days_on_market: number | null;
   listing_media: Array<{ media_key: string | null; media_url_cached: string | null; media_url_original: string | null; media_category: string | null; media_type: string; order: number }>;
 };
 
-/** Mallan storage → provider-shaped record for the shared mapper. Unknown facts stay null. */
-function mallanRecord(r: MallanRow): Record<string, unknown> {
+const rawNum = (v: unknown): number | null => (v === null || v === undefined || v === '' ? null : Number.isFinite(Number(v)) ? Number(v) : null);
+const rawStr = (v: unknown): string | null => (v === null || v === undefined || String(v).trim() === '' ? null : String(v));
+
+/**
+ * Mallan storage → provider-shaped record for the shared mapper. Unknown facts stay null.
+ *
+ * Precedence for every Mallan-authored fact (Search Consolidation Packet 1 closure):
+ *   verified typed Mallan column (where one exists) → the existing form payload preserved in
+ *   `raw_data` (the CRM sale/rental forms persist AssociationFee, AssociationFeeFrequency and,
+ *   where entered, TaxAnnualAmount / RoomsTotal / OriginalListPrice / ListingAgreement under
+ *   the provider key names) → null. Never a fabricated zero or default. No second storage.
+ */
+export function mallanRecord(r: MallanRow): Record<string, unknown> {
   const addr = (r.address && typeof r.address === 'object' ? r.address : {}) as Record<string, unknown>;
+  const rd = (r.raw_data && typeof r.raw_data === 'object' ? r.raw_data : {}) as Record<string, unknown>;
   const relational = r.listing_media.map((m) => ({
     MediaKey: m.media_key, MediaURL: m.media_url_cached || m.media_url_original, MediaCategory: m.media_category,
     MediaType: m.media_type, Order: m.order, MediaStatus: 'Active', ResourceRecordID: r.listing_id,
@@ -102,6 +115,15 @@ function mallanRecord(r: MallanRow): Record<string, unknown> {
     City: r.city ?? addr.City ?? null, PostalCode: r.postal_code ?? addr.PostalCode ?? null,
     ListingContractDate: r.listing_contract_date ? r.listing_contract_date.toISOString().slice(0, 10) : null,
     ModificationTimestamp: r.updated_at.toISOString(),
+    // Carrying costs and the remaining facts: typed column first, then the preserved form payload, then null.
+    AssociationFee: rawNum(rd.AssociationFee),
+    AssociationFeeFrequency: rawStr(rd.AssociationFeeFrequency),
+    TaxAnnualAmount: rawNum(rd.TaxAnnualAmount),
+    RoomsTotal: rawNum(rd.RoomsTotal),
+    OriginalListPrice: rawNum(rd.OriginalListPrice),
+    ListingAgreement: rawStr(rd.ListingAgreement),
+    DaysOnMarket: r.days_on_market ?? null,
+    CumulativeDaysOnMarket: r.cumulative_days_on_market ?? null,
     ListAgentFullName: r.list_agent_full_name, ListOfficeName: r.list_office_name ?? 'Mallan Real Estate Inc.', ListOfficeMlsId: null,
     // Mallan-authored: Mallan decides display for its own listing.
     InternetAddressDisplayYN: true, InternetEntireListingDisplayYN: true, Permission: 'IDX',
@@ -119,6 +141,7 @@ async function mallanRecords(ids: readonly string[]): Promise<Map<string, Record
       listing_id: true, status: true, listing_type: true, property_sub_type: true, list_price: true, bedrooms_total: true,
       bathrooms_full: true, bathrooms_half: true, living_area: true, borough: true, neighborhood: true, city: true, postal_code: true,
       address: true, media: true, photo_count: true, listing_contract_date: true, updated_at: true, list_agent_full_name: true, list_office_name: true,
+      raw_data: true, days_on_market: true, cumulative_days_on_market: true,
       listing_media: { where: { status: 'active' }, orderBy: [{ order: 'asc' }, { id: 'asc' }], select: { media_key: true, media_url_cached: true, media_url_original: true, media_category: true, media_type: true, order: true } },
     },
   });

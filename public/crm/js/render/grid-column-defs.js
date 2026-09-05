@@ -2,7 +2,7 @@
             // Core fields — each render includes data-reso-field/data-reso-value attributes
             address:          { label: 'ADDRESS',        reso: 'UnparsedAddress',         render: function(l) { var addr = l.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(l.address); return '<span class="font-medium text-blue-600 hover:underline cursor-pointer text-xs"' + resoData('address', addr) + ' onclick="event.stopPropagation(); openListingInNewTab(\'' + l.id + '\')">' + addr + '</span>'; } },
             unit:             { label: 'UNIT',           reso: 'UnitNumber',              render: function(l) { return '<span' + resoData('unit', l.unit) + '>' + (l.addressDisplayYN === false ? '--' : escapeHtml(l.unit)) + '</span>'; } },
-            price:            { label: 'PRICE',          reso: 'ListPrice',               render: function(l) { return '<span class="font-bold text-gray-900"' + resoData('price', l.price) + '>$' + l.price.toLocaleString() + '</span>'; } },
+            price:            { label: 'PRICE',          reso: 'ListPrice',               render: function(l) { return '<span class="font-bold text-gray-900"' + resoData('price', l.price) + '>' + (l.price == null ? '—' : '$' + l.price.toLocaleString()) + '</span>'; } },
             totalMonthly:     { label: 'TOTAL MONTHLY',  reso: 'AssociationFee+TaxAnnualAmount', render: function(l) { return '<span' + resoData('totalMonthly', l.totalMonthly) + '>' + (l.totalMonthly == null ? '—' : '$' + l.totalMonthly.toLocaleString()) + '</span>'; } },
             rooms:            { label: 'RMS',            reso: 'RoomsTotal',              render: function(l) { return '<span' + resoData('rooms', l.rooms) + '>' + (l.rooms || '--') + '</span>'; } },
             beds:             { label: 'BDS',            reso: 'BedroomsTotal',           render: function(l) { return '<span' + resoData('beds', l.beds) + '>' + (l.beds == null ? '—' : l.beds) + '</span>'; } },
@@ -27,7 +27,7 @@
             pricePerSqft:     { label: '$/SQFT',         reso: null,                      render: function(l) { return l.intSqft ? '$' + Math.round(l.price / l.intSqft).toLocaleString() : '--'; } },
             // Extended fields (available in Grid Layouts modal)
             activityHistory:    { label: 'ACTIVITY',       reso: null,                      render: function(l) { return '--'; } },
-            pricePerRoom:       { label: '$/ROOM',         reso: null,                      render: function(l) { return l.rooms ? '$' + Math.round(l.price / l.rooms).toLocaleString() : '--'; } },
+            pricePerRoom:       { label: '$/ROOM',         reso: null,                      render: function(l) { return (l.rooms && l.price != null) ? '$' + Math.round(l.price / l.rooms).toLocaleString() : '--'; } },
             pricePerShare:      { label: '$/SHARE',        reso: null,                      render: function(l) { return '--'; } },
             acrisDocuments:     { label: 'ACRIS DOCS',     reso: null,                      render: function(l) { return '--'; } },
             acrisId:            { label: 'ACRIS ID',       reso: null,                      render: function(l) { return '--'; } },

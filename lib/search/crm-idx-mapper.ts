@@ -10,7 +10,24 @@ function isIdxPlusDisplayFlagOn(v: unknown): boolean {
   return v !== false && v !== "false" && v !== "FALSE";
 }
 
-export function mapDisplayPropertyType(raw: Record<string, unknown>): string {
+/**
+ * Provider number or null. ABSENT and ZERO are different facts (Search Consolidation
+ * Packet 1 closure): an absent/unparsable value is null; a literal 0 is preserved as 0.
+ * Every numeric fact the mapper emits goes through here — never `Number(x) || 0`.
+ */
+function num(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+/** Provider string or null; empty is unknown. */
+function str(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  const s = String(value);
+  return s === "" ? null : s;
+}
+
+export function mapDisplayPropertyType(raw: Record<string, unknown>): string | null {
   const ci = raw.CommonInterest ? String(raw.CommonInterest) : "";
   if (ci === "Condominium") return "Condo";
   if (ci === "StockCooperative") return "Co-op";
@@ -26,7 +43,8 @@ export function mapDisplayPropertyType(raw: Record<string, unknown>): string {
   if (sub.includes("multi")) return "Multi-Family";
   if (sub === "apartment") return "Residential";
   if (sub) return String(raw.PropertySubType);
-  return String(raw.PropertyType || "Residential");
+  // No PropertyType → unknown. Never "Residential" by default (live: PropertyType is nullable).
+  return str(raw.PropertyType);
 }
 
 export function classifyMediaCategory(media: Record<string, unknown>): string {
@@ -52,12 +70,22 @@ export function mapTrestleToCrmListing(
 
   const propertyType = String(raw.PropertyType || "");
   const isRental = propertyType.toLowerCase().includes("lease");
-  const price = Number(raw.ListPrice) || 0;
+  // ListPrice is nullable live: absent stays null; a literal 0 stays 0.
+  const price = num(raw.ListPrice);
   const yearBuilt = raw.YearBuilt != null ? Number(raw.YearBuilt) : null;
 
-  const taxAnnual = Number(raw.TaxAnnualAmount) || 0;
-  const monthlyTax = taxAnnual / 12;
-  const maintCC = Number(raw.AssociationFee) || 0;
+  // TaxAnnualAmount is nullable live (Active sale: 3,111 of 6,628 rows carry it, 888 of them
+  // an explicit 0). Absent → null; /12 is a safe derivation only when the annual figure is known.
+  const taxAnnual = num(raw.TaxAnnualAmount);
+  const monthlyTax = taxAnnual === null ? null : taxAnnual / 12;
+  // AssociationFee is nullable live and carries its own unit, AssociationFeeFrequency (live
+  // FeeFrequency enum, 15 members; on both active universes every fee-bearing row is
+  // Monthly except 2 Annually rows — verified 2026-09-05). A fee is a MONTHLY carrying cost
+  // only when the provider says Monthly. Any other frequency is preserved raw and is never
+  // presented as monthly maintenance nor added into an exact monthly total.
+  const associationFee = num(raw.AssociationFee);
+  const associationFeeFrequency = str(raw.AssociationFeeFrequency);
+  const maintCC = associationFee !== null && associationFeeFrequency === "Monthly" ? associationFee : null;
 
   const addressDisplayYN = isIdxPlusDisplayFlagOn(raw.InternetAddressDisplayYN);
   const displayAddress = addressDisplayYN
@@ -119,9 +147,9 @@ export function mapTrestleToCrmListing(
     }
   }
 
-  const originalPrice = Number(raw.OriginalListPrice) || 0;
+  const originalPrice = num(raw.OriginalListPrice);
   let priceChange: string | null = null;
-  if (originalPrice > 0 && originalPrice !== price) {
+  if (originalPrice !== null && price !== null && originalPrice !== price) {
     priceChange = price < originalPrice ? "down" : "up";
   }
 
@@ -132,7 +160,9 @@ export function mapTrestleToCrmListing(
     else era = "Pre-War";
   }
 
-  const mlsStatus = String(raw.MlsStatus || raw.StandardStatus || "Active");
+  // A missing status is UNKNOWN — never Active by default. (Provider status text still goes
+  // through the UCBA-safe map below; unmapped/absent → "UNKNOWN".)
+  const mlsStatus = str(raw.MlsStatus) ?? str(raw.StandardStatus) ?? "";
   const statusMap: Record<string, string> = {
     Active: "ACTIVE",
     ComingSoon: "COMING_SOON",
@@ -202,9 +232,11 @@ export function mapTrestleToCrmListing(
     address: displayAddress,
     unit: String(raw.UnitNumber || ""),
     price,
-    totalMonthly: isRental ? price : monthlyTax + maintCC,
-    rooms: Number(raw.RoomsTotal) || 0,
-    beds: Number(raw.BedroomsTotal) || 0,
+    // Rental: the verified rental meaning (monthly rent = ListPrice). Sale: a TOTAL only when
+    // both the monthly tax and an explicitly-monthly fee are known; otherwise unavailable.
+    totalMonthly: isRental ? price : (monthlyTax !== null && maintCC !== null ? monthlyTax + maintCC : null),
+    rooms: num(raw.RoomsTotal),
+    beds: num(raw.BedroomsTotal),
     // Canonical Mallan bath value = BathroomsFull + 0.5 x BathroomsHalf, ONLY when both
     // components are present and numeric; otherwise null. Live Cotality declares all three
     // bathroom fields nullable. The Validator proved Full/Half complete on the current active
@@ -216,6 +248,8 @@ export function mapTrestleToCrmListing(
     halfBaths,
     reTaxes: monthlyTax,
     maintCC,
+    associationFee,
+    associationFeeFrequency,
     intSqft: raw.LivingArea != null ? Number(raw.LivingArea) : null,
     status,
     mlsStatus,
@@ -223,17 +257,20 @@ export function mapTrestleToCrmListing(
     propertyType: mapDisplayPropertyType(raw),
     propertySubType: String(raw.PropertySubType || ""),
     neighborhood: String(raw.SubdivisionName || ""),
-    borough: String(raw.CityRegion || raw.CountyOrParish || "Manhattan"),
+    // CityRegion is the live borough carrier (Validator 2026-09-05). CountyOrParish is the
+    // county field, not a borough; a missing borough is unknown — never Manhattan.
+    borough: str(raw.CityRegion),
     zip: String(raw.PostalCode || ""),
     yearBuilt,
     era,
     buildingName: raw.BuildingName ? String(raw.BuildingName) : null,
     buildingKey: raw.BuildingKeyNumeric != null ? Number(raw.BuildingKeyNumeric) : null,
-    listingType: "Exclusive",
+    // The listing-agreement type is a provider fact (ListingAgreement), never a hard-coded label.
+    listingType: str(raw.ListingAgreement),
     lid: String(raw.ListingId || ""),
     wid: raw.SourceSystemKey ? String(raw.SourceSystemKey) : null,
-    dom: Number(raw.DaysOnMarket) || 0,
-    cdom: Number(raw.CumulativeDaysOnMarket) || 0,
+    dom: num(raw.DaysOnMarket),
+    cdom: num(raw.CumulativeDaysOnMarket),
     listedDate: raw.ListingContractDate
       ? new Date(String(raw.ListingContractDate)).toLocaleDateString("en-US")
       : "",
@@ -245,7 +282,7 @@ export function mapTrestleToCrmListing(
     agentEmail: String(raw.ListAgentEmail || ""),
     agentPhone: String(raw.ListAgentDirectPhone || ""),
     priceChange,
-    originalPrice: originalPrice > 0 && originalPrice !== price ? originalPrice : null,
+    originalPrice: originalPrice !== null && price !== null && originalPrice !== price ? originalPrice : null,
     photoCount,
     images,
     latitude: raw.Latitude != null ? Number(raw.Latitude) : null,

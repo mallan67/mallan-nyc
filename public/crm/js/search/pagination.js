@@ -65,16 +65,9 @@
             try {
             var listing = listings.find(l => l.id === listingId);
             if (!listing) return;
-            // Null-safe defaults for detail view rendering
-            if (listing.price == null) listing.price = 0;
-            if (listing.totalMonthly == null) listing.totalMonthly = 0;
-            if (listing.maintCC == null) listing.maintCC = 0;
-            if (listing.reTaxes == null) listing.reTaxes = 0;
-            if (listing.beds == null) listing.beds = 0;
-            if (listing.baths == null) listing.baths = 0;
-            if (listing.rooms == null) listing.rooms = 0;
-            if (listing.dom == null) listing.dom = 0;
-            if (!listing.status) listing.status = 'ACTIVE';
+            // Unknown facts stay unknown in the detail view (Search Consolidation Packet 1
+            // closure): no price/fee/tax/beds/baths/rooms/DOM is ever coerced to 0 and no
+            // missing status becomes Active. Presentation strings below only default text.
             if (!listing.address) listing.address = 'Address Unavailable';
             if (!listing.unit) listing.unit = '';
             if (!listing.neighborhood) listing.neighborhood = '';
@@ -180,7 +173,7 @@
                 <div class="lux-stat-bar mb-4">
                     <div class="lux-stat-item"><div class="lux-stat-value">${listing.rooms || '—'}</div><div class="lux-stat-label">Rooms</div></div>
                     <div class="lux-stat-item"><div class="lux-stat-value">${listing.beds === 0 ? 'Studio' : listing.beds}</div><div class="lux-stat-label">Beds</div></div>
-                    <div class="lux-stat-item"><div class="lux-stat-value">${listing.baths}</div><div class="lux-stat-label">Baths</div></div>
+                    <div class="lux-stat-item"><div class="lux-stat-value">${listing.baths == null ? '—' : listing.baths}</div><div class="lux-stat-label">Baths</div></div>
                     <div class="lux-stat-item"><div class="lux-stat-value">${listing.intSqft ? listing.intSqft.toLocaleString() : '—'}</div><div class="lux-stat-label">SqFt</div></div>
                     <div class="lux-stat-item"><div class="lux-stat-value">${listing.intSqft ? '$' + Math.round(listing.price / listing.intSqft).toLocaleString() : '—'}</div><div class="lux-stat-label">$/SqFt</div></div>
                 </div>
@@ -206,8 +199,8 @@
                         <div class="lux-card mb-4">
                             <div class="grid grid-cols-5 gap-3 text-xs">
                                 <div><div class="text-gray-400 uppercase text-[9px] font-semibold mb-0.5">Status</div><span class="px-1.5 py-0.5 ${getStatusBadgeClasses(listing.status)} rounded text-[10px] font-semibold">${statusLabel}</span></div>
-                                <div><div class="text-gray-400 uppercase text-[9px] font-semibold mb-0.5">DOM</div><div class="text-sm font-bold text-gray-900">${listing.dom}</div></div>
-                                <div><div class="text-gray-400 uppercase text-[9px] font-semibold mb-0.5">CDOM</div><div class="text-sm font-bold text-gray-900">${listing.cdom || listing.dom}</div></div>
+                                <div><div class="text-gray-400 uppercase text-[9px] font-semibold mb-0.5">DOM</div><div class="text-sm font-bold text-gray-900">${listing.dom == null ? '—' : listing.dom}</div></div>
+                                <div><div class="text-gray-400 uppercase text-[9px] font-semibold mb-0.5">CDOM</div><div class="text-sm font-bold text-gray-900">${listing.cdom != null ? listing.cdom : (listing.dom == null ? '—' : listing.dom)}</div></div>
                                 <div><div class="text-gray-400 uppercase text-[9px] font-semibold mb-0.5">Listed</div><div class="text-xs font-semibold text-gray-700">${listing.listedDate}</div></div>
                                 <div><div class="text-gray-400 uppercase text-[9px] font-semibold mb-0.5">Updated</div><div class="text-xs font-semibold text-gray-700">${listing.updatedDate || '—'}</div></div>
                             </div>
@@ -217,11 +210,11 @@
                         <div class="lux-card mb-4">
                             <h3 class="lux-section-title"><i class="fas fa-dollar-sign text-gray-400"></i> Financial</h3>
                             <div class="grid grid-cols-3 gap-x-6 gap-y-1 text-sm">
-                                <div class="lux-field"><span>${isSale ? 'List Price' : 'Monthly Rent'}</span><span class="text-base font-bold">$${listing.price.toLocaleString()}</span></div>
+                                <div class="lux-field"><span>${isSale ? 'List Price' : 'Monthly Rent'}</span><span class="text-base font-bold">${listing.price == null ? '—' : '$' + listing.price.toLocaleString()}</span></div>
                                 ${listing.originalPrice && listing.originalPrice !== listing.price ? '<div class="lux-field"><span>Original Price</span><span class="text-red-600">$' + listing.originalPrice.toLocaleString() + '</span></div>' : ''}
-                                <div class="lux-field"><span>${isSale ? 'Maint/CC' : 'Net Effective'}</span><span>$${listing.maintCC.toLocaleString()}/mo</span></div>
+                                <div class="lux-field"><span>${isSale ? 'Maint/CC' : 'Net Effective'}</span><span>${listing.maintCC == null ? '—' : '$' + listing.maintCC.toLocaleString() + '/mo'}</span></div>
                                 ${listing.reTaxes ? '<div class="lux-field"><span>RE Taxes</span><span>$' + listing.reTaxes.toLocaleString() + '/mo</span></div>' : ''}
-                                <div class="lux-field"><span>Est. Total Monthly</span><span class="text-green-700 font-bold">$${listing.totalMonthly.toLocaleString()}/mo</span></div>
+                                <div class="lux-field"><span>Est. Total Monthly</span><span class="text-green-700 font-bold">${listing.totalMonthly == null ? '—' : '$' + listing.totalMonthly.toLocaleString()}/mo</span></div>
                                 ${listing.intSqft ? '<div class="lux-field"><span>$/SqFt</span><span>$' + Math.round(listing.price / listing.intSqft).toLocaleString() + '</span></div>' : ''}
                                 ${listing.rooms ? '<div class="lux-field"><span>$/Room</span><span>$' + Math.round(listing.price / listing.rooms).toLocaleString() + '</span></div>' : ''}
                                 ${isSale ? '<div class="lux-field"><span>Financing</span><span>---</span></div><div class="lux-field"><span>Flip Tax</span><span>---</span></div>' : ''}
@@ -296,11 +289,11 @@
                                 <div class="grid grid-cols-3 gap-x-8">
                                     <!-- Col 1: Price / Financial -->
                                     <div class="space-y-2 text-sm">
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">${isSale ? 'List Price' : 'Monthly Rent'}</span><span class="font-semibold">$${listing.price.toLocaleString()}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Original Price</span><span class="font-semibold">${listing.originalPrice ? '$' + listing.originalPrice.toLocaleString() : '$' + listing.price.toLocaleString()}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">${isSale ? 'List Price' : 'Monthly Rent'}</span><span class="font-semibold">${listing.price == null ? '—' : '$' + listing.price.toLocaleString()}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Original Price</span><span class="font-semibold">${listing.originalPrice ? '$' + listing.originalPrice.toLocaleString() : (listing.price == null ? '—' : '$' + listing.price.toLocaleString())}</span></div>
                                         ${isSale ? '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Maintenance / CC</span><span class="font-semibold">$' + listing.maintCC.toLocaleString() + '</span></div>' : '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Net Effective Rent</span><span class="font-semibold">---</span></div>'}
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">RE Taxes</span><span class="font-semibold">${listing.reTaxes ? '$' + listing.reTaxes.toLocaleString() + '/mo' : '---'}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Est. Total Monthly</span><span class="font-semibold">$${listing.totalMonthly.toLocaleString()}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Est. Total Monthly</span><span class="font-semibold">${listing.totalMonthly == null ? '—' : '$' + listing.totalMonthly.toLocaleString()}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">$ Per SqFt</span><span class="font-semibold">${listing.intSqft ? '$' + Math.round(listing.price / listing.intSqft).toLocaleString() : '---'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">$ Per Room</span><span class="font-semibold">${listing.rooms ? '$' + Math.round(listing.price / listing.rooms).toLocaleString() : '---'}</span></div>
                                         ${isSale ? '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Shares</span><span class="font-semibold">---</span></div>' : '<div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Security Deposit</span><span class="font-semibold">---</span></div>'}
@@ -335,8 +328,8 @@
                                     <!-- Col 3: Status / Dates / IDs -->
                                     <div class="space-y-2 text-sm">
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Status</span><span class="px-1.5 py-0.5 ${getStatusBadgeClasses(listing.status)} rounded text-xs font-semibold">${statusLabel}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Days on Market</span><span class="font-semibold text-blue-600">${listing.dom}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Cumulative DOM</span><span class="font-semibold">${listing.cdom || listing.dom}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Days on Market</span><span class="font-semibold text-blue-600">${listing.dom == null ? '—' : listing.dom}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Cumulative DOM</span><span class="font-semibold">${listing.cdom != null ? listing.cdom : (listing.dom == null ? '—' : listing.dom)}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Updated Date</span><span class="font-semibold">${listing.updatedDate || '---'}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Date Listed</span><span class="font-semibold">${listing.listedDate}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">${isSale ? 'Available for Showing' : 'Available Date'}</span><span class="font-semibold">---</span></div>
@@ -369,7 +362,7 @@
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Approx Exterior SqFt</span><span class="font-semibold">---</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Ceiling Height</span><span class="font-semibold">---</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Total Rooms</span><span class="font-semibold">${listing.rooms || '---'}</span></div>
-                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Bedrooms</span><span class="font-semibold">${listing.beds}</span></div>
+                                        <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Bedrooms</span><span class="font-semibold">${listing.beds == null ? '—' : listing.beds}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Full Bathrooms</span><span class="font-semibold">${listing.fullBaths || listing.baths}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Half Bathrooms</span><span class="font-semibold">${listing.halfBaths || 0}</span></div>
                                         <div class="flex justify-between border-b border-gray-100 pb-1.5"><span class="text-gray-500">Staff Bedrooms</span><span class="font-semibold">---</span></div>
