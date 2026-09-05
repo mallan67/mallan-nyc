@@ -707,30 +707,13 @@ var MallanAPI = (function () {
       if (params.neighborhood) qs.push('neighborhood=' + encodeURIComponent(params.neighborhood));
       if (params.borough) qs.push('borough=' + encodeURIComponent(params.borough));
       if (params.status) qs.push('status=' + encodeURIComponent(params.status));
-      if (params.propertySubType) qs.push('propertySubType=' + encodeURIComponent(params.propertySubType));
-      if (params.address) qs.push('address=' + encodeURIComponent(params.address));
+      // Only the executor's executable parameters can leave the browser (Search Consolidation
+      // Packet 1). Anything else is refused upstream by serializeSearchCriteria; it is not
+      // silently forwarded here either.
       if (params.listingId) qs.push('listingId=' + encodeURIComponent(params.listingId));
       if (params.zip) qs.push('zip=' + encodeURIComponent(params.zip));
-      if (params.minRooms) qs.push('minRooms=' + params.minRooms);
-      if (params.maxRooms) qs.push('maxRooms=' + params.maxRooms);
-      if (params.minSqft) qs.push('minSqft=' + params.minSqft);
-      if (params.maxSqft) qs.push('maxSqft=' + params.maxSqft);
-      if (params.dateFrom) qs.push('dateFrom=' + encodeURIComponent(params.dateFrom));
-      if (params.dateTo) qs.push('dateTo=' + encodeURIComponent(params.dateTo));
-      if (params.dateType) qs.push('dateType=' + encodeURIComponent(params.dateType));
-      if (params.closeDateFrom) qs.push('closeDateFrom=' + encodeURIComponent(params.closeDateFrom));
-      if (params.closeDateTo) qs.push('closeDateTo=' + encodeURIComponent(params.closeDateTo));
       if (params.ownership) qs.push('ownership=' + encodeURIComponent(params.ownership));
       if (params.StructureType) qs.push('StructureType=' + encodeURIComponent(params.StructureType));
-      if (params.sponsorUnit) qs.push('sponsorUnit=' + encodeURIComponent(params.sponsorUnit));
-      // Building-specific filters (OData: YearBuilt, StoriesTotal, NumberOfUnitsTotal)
-      if (params.minYear) qs.push('minYear=' + params.minYear);
-      if (params.maxYear) qs.push('maxYear=' + params.maxYear);
-      if (params.minFloors) qs.push('minFloors=' + params.minFloors);
-      if (params.maxFloors) qs.push('maxFloors=' + params.maxFloors);
-      if (params.minUnits) qs.push('minUnits=' + params.minUnits);
-      if (params.maxUnits) qs.push('maxUnits=' + params.maxUnits);
-      if (params.buildingName) qs.push('buildingName=' + encodeURIComponent(params.buildingName));
       if (params.sort) qs.push('sort=' + encodeURIComponent(params.sort));
       if (params.limit) qs.push('limit=' + params.limit);
       if (params.skip) qs.push('skip=' + params.skip);

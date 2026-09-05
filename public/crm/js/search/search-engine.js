@@ -597,8 +597,10 @@
         function _serverAddressSearch(query, resultsDivId, localMatches) {
             var resultsDiv = document.getElementById(resultsDivId);
             if (!resultsDiv) return;
-            // Call our search API with address filter
-            MallanAPI.idx.search({ address: query, limit: 10 }).then(function(result) {
+            // The Search executor executes NO address criterion (it is refused by name), so the
+            // autocomplete never asks it (Search Consolidation Packet 1). Suggestions come from
+            // the local building index only. Kept as a no-op shape so callers are unchanged.
+            Promise.resolve({ listings: [] }).then(function(result) {
                 if (!result || !result.listings) return;
                 var serverMatches = localMatches.slice(); // start with local
                 var existingAddrs = {};
