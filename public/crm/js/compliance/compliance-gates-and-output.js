@@ -1355,15 +1355,17 @@ function REBNYComplianceDoctor(options) {
     (function test8_Commingling() {
         var resultCards = document.querySelectorAll('[data-listing-id]');
         var totalListings = resultCards.length;
-        var sourceLabeledCards = document.querySelectorAll('[data-source="REBNY-RLS"]');
+        // Verified source model (Search Consolidation Packet 1): every result card carries
+        // data-source="COTALITY-API" (provider inventory) or "MALLAN-LOCAL" (Mallan-authored).
+        var sourceLabeledCards = document.querySelectorAll('[data-source="COTALITY-API"], [data-source="MALLAN-LOCAL"]');
 
         if (totalListings === 0) {
             addResult(8, 'Commingling Prevention', 'PASS', 'No listings displayed — no commingling risk');
         } else if (sourceLabeledCards.length >= totalListings) {
-            addResult(8, 'Commingling Prevention', 'PASS', 'All ' + totalListings + ' listings have data-source labels');
+            addResult(8, 'Commingling Prevention', 'PASS', 'All ' + totalListings + ' listings carry a verified data-source label');
         } else {
             addResult(8, 'Commingling Prevention', 'FAIL',
-                (totalListings - sourceLabeledCards.length) + '/' + totalListings + ' listings lack data-source="REBNY-RLS" attribute — commingling risk');
+                (totalListings - sourceLabeledCards.length) + '/' + totalListings + ' listings lack a verified data-source (COTALITY-API | MALLAN-LOCAL) — commingling risk');
         }
     })();
 
@@ -1815,13 +1817,16 @@ function REBNYComplianceExtended(options) {
 
     // ── C1: Source Separation ──────────────────────────────────────────
     (function() {
-        var rls = document.querySelectorAll('[data-source="REBNY-RLS"]');
+        // Verified source model (Search Consolidation Packet 1): provider inventory is
+        // data-source="COTALITY-API", Mallan-authored inventory is "MALLAN-LOCAL".
+        var provider = document.querySelectorAll('[data-source="COTALITY-API"]');
+        var mallan = document.querySelectorAll('[data-source="MALLAN-LOCAL"]');
         var allSrc = document.querySelectorAll('[data-source]');
         var allCards = document.querySelectorAll('[data-listing-id]');
         var issues = [];
         if (allCards.length > 0 && allSrc.length < allCards.length) issues.push((allCards.length - allSrc.length) + ' unlabeled');
-        if (rls.length > 0 && document.body.innerHTML.indexOf('REBNY') === -1) issues.push('RLS without attribution');
-        addResult('C1', 'Source Separation', issues.length === 0 ? 'PASS' : 'FAIL', issues.length === 0 ? allSrc.length + ' labeled (RLS:' + rls.length + ')' : issues.join('; '));
+        if (provider.length > 0 && document.body.innerHTML.indexOf('Real Estate Board of New York') === -1) issues.push('provider inventory without attribution');
+        addResult('C1', 'Source Separation', issues.length === 0 ? 'PASS' : 'FAIL', issues.length === 0 ? allSrc.length + ' labeled (provider:' + provider.length + ', Mallan:' + mallan.length + ')' : issues.join(', '));
     })();
 
     // ── C2: Print CSS Test ─────────────────────────────────────────────
