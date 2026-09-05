@@ -149,7 +149,7 @@
             // Apply sorting
             var field = searchResultsState.sortField;
             var order = searchResultsState.sortOrder;
-            if (field) {
+            if (field && !searchResultsState.serverPaged) {
                 listings.sort(function(a, b) {
                     var va = a[field], vb = b[field];
                     if (va == null) va = '';
@@ -165,7 +165,7 @@
                 });
             }
             // Apply pagination unless explicitly skipped (e.g., for total count)
-            if (!skipPagination) {
+            if (!skipPagination && !searchResultsState.serverPaged) {
                 var perPage = searchResultsState.perPage || 50;
                 var page = searchResultsState.currentPage || 1;
                 var start = (page - 1) * perPage;

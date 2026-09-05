@@ -5,6 +5,14 @@
         var parts = hash.split('/');
         var route = parts[0] || 'main';
         var routeParam = parts[1] || null;
+        // #detail/<id>?type=sale|rental — the universe travels with the id.
+        var _detailUniverse = null;
+        if (routeParam && routeParam.indexOf('?') !== -1) {
+            var _rq = routeParam.split('?');
+            routeParam = decodeURIComponent(_rq[0]);
+            var _tm = /(?:^|&)type=(sale|rental)(?:&|$)/.exec(_rq[1] || '');
+            if (_tm) _detailUniverse = _tm[1];
+        }
 
         // On refresh with #results: keep the route — we'll restore search state
         // after API data loads via MallanAPI.onReady() in the results handler below.
@@ -154,7 +162,14 @@
                         // lid-based URL — fetch this single listing directly
                         MallanAPI.onReady(function() {
                             if (_detailResolved) return;
-                            MallanAPI.idx.search({ listingId: detailId, limit: 1 }).then(function(result) {
+                            // The executor binds a listing to its universe. Ask in the
+                            // universe the link carried; a bare link tries Sale, then Rental,
+                            // each lookup universe-bound — a bare id never searches both at once.
+                            var _lookup = function(type) { return MallanAPI.idx.search({ listingId: detailId, type: type, limit: 1 }); };
+                            var _detailFetch = _detailUniverse
+                                ? _lookup(_detailUniverse)
+                                : _lookup('sale').then(function(r) { return (r && r.listings && r.listings.length > 0) ? r : _lookup('rental'); });
+                            _detailFetch.then(function(result) {
                                 if (_detailResolved) return;
                                 if (result.listings && result.listings.length > 0) {
                                     var fetched = result.listings[0];

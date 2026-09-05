@@ -1,12 +1,21 @@
-        // Pagination functions — use getFilteredListings(true) to get total count without pagination
-        function goToFirstPage() { searchResultsState.currentPage = 1; renderSearchResults(); }
-        function goToPrevPage() { if (searchResultsState.currentPage > 1) { searchResultsState.currentPage--; renderSearchResults(); } }
+        // Pagination — a server-paged result set asks the executor for the page
+        // (window.goToServerPage); legacy local result sets keep their local slice.
+        function goToFirstPage() { if (window.goToServerPage && goToServerPage(1)) return; searchResultsState.currentPage = 1; renderSearchResults(); }
+        function goToPrevPage() { if (window.goToServerPage && goToServerPage(searchResultsState.currentPage - 1)) return; if (searchResultsState.currentPage > 1) { searchResultsState.currentPage--; renderSearchResults(); } }
         function goToNextPage() {
+            if (window.goToServerPage && goToServerPage(searchResultsState.currentPage + 1)) return;
             var total = Math.ceil(getFilteredListings(true).length / searchResultsState.perPage);
             if (searchResultsState.currentPage < total) { searchResultsState.currentPage++; renderSearchResults(); }
         }
-        function goToLastPage() { searchResultsState.currentPage = Math.ceil(getFilteredListings(true).length / searchResultsState.perPage); renderSearchResults(); }
-        function changePerPage() { searchResultsState.perPage = parseInt(document.getElementById('perPageSelect').value); searchResultsState.currentPage = 1; renderSearchResults(); }
+        function goToLastPage() {
+            if (searchResultsState.serverPaged && window.goToServerPage) { goToServerPage(Math.ceil((searchResultsState.serverTotal || 0) / (searchResultsState.perPage || 50))); return; }
+            searchResultsState.currentPage = Math.ceil(getFilteredListings(true).length / searchResultsState.perPage); renderSearchResults();
+        }
+        function changePerPage() {
+            searchResultsState.perPage = parseInt(document.getElementById('perPageSelect').value); searchResultsState.currentPage = 1;
+            if (window.reissueServerSearch && reissueServerSearch()) return;
+            renderSearchResults();
+        }
 
         // Column sort toggle
         function toggleColumnSort(field) {
@@ -49,7 +58,12 @@
 
         // Open listing detail in a standalone new browser tab
         function openListingInNewTab(listingId) {
-            window.open(location.pathname + '#detail/' + listingId, '_blank');
+            // The executor binds every listing to its universe (Sale or Rental); the
+            // detail view must ask for it in that universe — never a bare id.
+            var l = (typeof listings !== 'undefined') ? listings.find(function(x) { return x.id === listingId; }) : null;
+            var type = l ? (l.listingCategory === 'rental' ? 'rental' : 'sale')
+                         : ((typeof currentSearchTab !== 'undefined' && currentSearchTab === 'rent') ? 'rental' : 'sale');
+            window.open(location.pathname + '#detail/' + encodeURIComponent(listingId) + '?type=' + type, '_blank');
         }
 
         var _detailCurrentId = null;

@@ -47,6 +47,16 @@
                 label.textContent = labels[field] || field;
             }
             toggleSortDropdown();
+            if (searchResultsState && searchResultsState.serverPaged) {
+                // The executor sorts the whole universe by price or by listing date only.
+                if (field !== 'price' && field !== 'listedDate') {
+                    searchResultsState.sortField = 'price';
+                    if (label) label.textContent = 'Price';
+                    if (typeof showToast === 'function') showToast('Sorting by ' + (labels[field] || field) + ' is not available in this Search yet — sorted by price.', 'warning');
+                }
+                if (window.reissueServerSearch) reissueServerSearch();
+                return;
+            }
             if (typeof renderSearchResults === 'function') {
                 renderSearchResults();
             }
@@ -56,6 +66,7 @@
         function toggleSortOrder() {
             if (!searchResultsState) return;
             searchResultsState.sortOrder = searchResultsState.sortOrder === 'asc' ? 'desc' : 'asc';
+            if (searchResultsState.serverPaged && window.reissueServerSearch) { reissueServerSearch(); return; }
 
             // For price sort, re-fetch from server with correct ordering
             // (local sort only covers the 500 loaded listings)

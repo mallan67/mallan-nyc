@@ -8,7 +8,7 @@
                 var stB = listing.status === 'ACTIVE' ? '#dcfce7' : listing.status === 'PENDING' ? '#fff7ed' : listing.status === 'COMING_SOON' ? '#f5f3ff' : '#f3f4f6';
                 var selected = searchResultsState.selectedListings.includes(listing.id);
                 return `
-                <div class="listing-card mb-4 bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" data-listing-lid="${escapeHtml(listing.lid || '')}" style="box-shadow: 0 2px 12px rgba(0,0,0,0.04);">
+                <div class="listing-card mb-4 bg-white rounded-2xl overflow-hidden ${selected ? 'ring-2 ring-blue-500' : ''}" data-source="${listing._source === 'mallan' ? 'MALLAN-LOCAL' : 'COTALITY-API'}" data-listing-id="${listing.id}" data-listing-lid="${escapeHtml(listing.lid || '')}" style="box-shadow: 0 2px 12px rgba(0,0,0,0.04);">
                     ${comingSoonBadge(listing)}
                     <div class="flex" style="min-height: 280px;">
                         <!-- Photo — large, proper aspect ratio -->
@@ -58,7 +58,7 @@
                                 <div class="flex items-center gap-4 text-sm text-gray-700 mb-3 mt-3">
                                     <span><strong>${listing.beds}</strong> Beds</span>
                                     <span class="text-gray-300">&middot;</span>
-                                    <span><strong>${listing.baths}</strong> Baths</span>
+                                    <span><strong>${listing.baths == null ? '—' : listing.baths}</strong> Baths</span>
                                     <span class="text-gray-300">&middot;</span>
                                     <span><strong>${listing.intSqft ? listing.intSqft.toLocaleString() : '--'}</strong> SF</span>
                                     ${listing.intSqft ? '<span class="text-gray-300">&middot;</span><span class="text-gray-500">$' + Math.round(listing.price / listing.intSqft).toLocaleString() + '/SF</span>' : ''}

@@ -162,23 +162,11 @@
             try {
                 // Collect search criteria from the active form
                 activeSearchCriteria = collectSearchCriteria();
-
                 if (typeof searchResultsState === 'undefined' || !searchResultsState) {
                     showToast('Error: Search state not initialized. Please refresh the page.', 'error');
                     return;
                 }
-
-                // ── P1 multi-borough advisory ─────────────────────────────
-                // collectSearchCriteria() at search-engine.js:880-895
-                // intentionally leaves criteria.borough unset when 2+
-                // borough-level chips are selected, because the backend
-                // OData builder cannot OR multiple CityRegion values
-                // through a single param. Without this notice, the user
-                // would see their two borough chips and assume the result
-                // set was constrained to those boroughs — when in fact
-                // the borough constraint was silently dropped, BROADENING
-                // the search to all NYC. Surface the advisory once per
-                // submission so the user can react before paging through.
+                // Multi-borough advisory (unchanged): the executor takes ONE borough.
                 try {
                     var _activeTagsId = (typeof _resolveActiveNeighborhoodTagsId === 'function')
                         ? _resolveActiveNeighborhoodTagsId()
@@ -193,34 +181,33 @@
                             'warning'
                         );
                     }
-                } catch (_advErr) {
-                    // Non-fatal — advisory failure must not block the search.
+                } catch (_advErr) { /* advisory only */ }
+                // ── Canonical executor contract (Search Browser Integration P0, 2026-09-05) ──
+                // The browser sends criteria to /api/idx/search and renders ONLY what the
+                // executor returns for the requested page: no local pre-render over rows
+                // fetched earlier, no local filtering, no local pagination, no local
+                // sorting. A criterion the executor does not execute is REFUSED here by
+                // name (mirroring the route's 400 UNSUPPORTED_CRITERION) — never dropped
+                // into a silently broader search.
+                var _ser = window.serializeSearchCriteria(activeSearchCriteria);
+                if (_ser.refused.length > 0) {
+                    showToast('Not executable in this Search: ' + _ser.refused.join(', ') + '. Clear those controls and search again.', 'warning');
+                    return;
                 }
-
-                // Filter locally loaded listings only when the criteria set is
-                // fully server-honored. Programmatic callers can still pass old
-                // Open House/transit/grid keys; the server strips those, so a
-                // local pre-render would briefly show a narrower, false result.
-                var hasLocalData = typeof listings !== 'undefined' && listings && listings.length > 0;
-                var hasServerIgnoredCriteria = _hasServerIgnoredCriteria(activeSearchCriteria);
-                var localResults = (hasLocalData && !hasServerIgnoredCriteria)
-                    ? filterListings(listings, activeSearchCriteria)
-                    : [];
-
-                // Show results section (with local results or empty while server loads)
-                searchResultsState.filteredListings = localResults;
+                // A new search establishes a NEW result set — never adds to the old one.
+                searchResultsState.filteredListings = [];
+                searchResultsState.serverPaged = true;
+                searchResultsState.serverTotal = null;
+                searchResultsState.serverCountMeaning = null;
                 searchResultsState.currentPage = 1;
                 _showSearchResults();
-
-                // Always also query the server for fresh results
                 if (typeof MallanAPI !== 'undefined') {
-                    _serverSearch(activeSearchCriteria, localResults);
+                    _serverSearch(activeSearchCriteria);
                 }
             } catch (err) {
                 showToast('Search error: ' + err.message + '. Check browser console (F12) for details.', 'error');
             }
         }
-
         function _hasServerIgnoredCriteria(criteria) {
             return Boolean(criteria && (
                 criteria.openHouseDateFrom ||
@@ -279,230 +266,208 @@
         // reflects the same Trestle filter the Search button will run. Live
         // tracker can override `limit: 1` to get a count-only response.
         // Window-attached so init-tracker.js can call it.
-        window.buildIdxSearchParams = function(criteria) {
-            var params = {};
-            if (!criteria) return params;
-            if (criteria.searchTab === 'rent') params.type = 'rental';
-            else if (criteria.searchTab === 'sale') params.type = 'sale';
-            if (criteria.address) params.address = criteria.address;
+        // ── Canonical criteria serializer (Search Browser Integration P0, 2026-09-05) ──
+        // The executor (/api/idx/search — lib/search/engine/criteria.ts) executes exactly:
+        //   type · status · minPrice/maxPrice · minBeds/maxBeds · minBaths/maxBaths ·
+        //   borough · neighborhood · ownership · StructureType · zip · listingId ·
+        //   sort · limit · skip
+        // and REFUSES every other parameter by name. The browser therefore sends only
+        // those, and any criterion the user set that is not executable is returned in
+        // `refused` so the caller can say so — a visible refusal, never a quiet drop.
+        var _EXECUTABLE_STATUS = {
+            'ACTIVE': 'Active', 'COMING_SOON': 'ComingSoon', 'PENDING': 'Pending',
+            'CONTRACT': 'ActiveUnderContract', 'UNDER_CONTRACT': 'ActiveUnderContract',
+            'CLOSED': 'Closed', 'WITHDRAWN': 'Withdrawn', 'CANCELED': 'Canceled', 'CANCELLED': 'Canceled',
+            'EXPIRED': 'Expired', 'HOLD': 'Hold', 'INCOMPLETE': 'Incomplete', 'DELETE': 'Delete'
+        };
+        var _EXECUTABLE_OWNERSHIP = { 'Condominium': 1, 'StockCooperative': 1, 'Condop': 1, 'RentalBuilding': 1, 'None': 1 };
+        // Live StructureType members (Cotality API Lookup, 2026-09-05).
+        var _EXECUTABLE_STRUCTURE = {
+            'Apartment': 1, 'Cabin': 1, 'Dock': 1, 'Duplex': 1, 'Flex': 1, 'FreeStandingBuilding': 1, 'HighRise': 1,
+            'HotelMotel': 1, 'House': 1, 'Industrial': 1, 'LowRise': 1, 'ManufacturedHouse': 1, 'MidRise': 1,
+            'MixedUse': 1, 'MultiFamily': 1, 'None': 1, 'Office': 1, 'Other': 1, 'Quadruplex': 1, 'Retail': 1,
+            'Townhouse': 1, 'Triplex': 1, 'Warehouse': 1
+        };
+        var _NOT_EXECUTABLE = [
+            ['address', 'Address / Building Name'], ['unit', 'Unit #'], ['keyword', 'Keyword'],
+            ['roomsMin', 'Min Rooms'], ['roomsMax', 'Max Rooms'], ['sqftMin', 'Min SqFt'], ['sqftMax', 'Max SqFt'],
+            ['managementCompany', 'Management Company'], ['dateFrom', 'Listing Activity date'], ['dateTo', 'Listing Activity date'],
+            ['dateActivityType', 'Listing Activity type'], ['contractDateFrom', 'Contract date'], ['contractDateTo', 'Contract date'],
+            ['soldDateFrom', 'Sold date'], ['soldDateTo', 'Sold date'], ['yearMin', 'Year Built'], ['yearMax', 'Year Built'],
+            ['floorsMin', 'Floors'], ['floorsMax', 'Floors'], ['unitsMin', 'Units'], ['unitsMax', 'Units'],
+            ['buildingName', 'Building Name'], ['openHouseDateFrom', 'Open House date'], ['openHouseDateTo', 'Open House date'],
+            ['_transitLines', 'Transit'], ['_transitBounds', 'Transit'], ['_gridBounds', 'Map grid']
+        ];
+        function _isSet(v) { return !(v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0)); }
+        window.serializeSearchCriteria = function(criteria) {
+            var params = {}; var refused = []; var seen = {};
+            function refuse(label) { if (!seen[label]) { seen[label] = true; refused.push(label); } }
+            if (!criteria) return { params: params, refused: refused };
+            params.type = criteria.searchTab === 'rent' ? 'rental' : 'sale';
+            if (criteria.searchTab === 'building') refuse('Building search');
             if (criteria.priceMin) params.minPrice = criteria.priceMin;
             if (criteria.priceMax) params.maxPrice = criteria.priceMax;
             if (criteria.bedsMin != null) params.minBeds = criteria.bedsMin;
             if (criteria.bedsMax != null) params.maxBeds = criteria.bedsMax;
             if (criteria.bathsMin) params.minBaths = criteria.bathsMin;
             if (criteria.bathsMax) params.maxBaths = criteria.bathsMax;
-            if (criteria.neighborhoods && criteria.neighborhoods.length > 0) {
-                params.neighborhood = criteria.neighborhoods.join(',');
-            }
+            if (criteria.neighborhoods && criteria.neighborhoods.length > 0) params.neighborhood = criteria.neighborhoods.join(',');
             if (criteria.borough) params.borough = criteria.borough;
-            if (criteria.propertySubType) params.propertySubType = criteria.propertySubType;
-            if (criteria.rlsId) params.listingId = criteria.rlsId;
+            if (criteria.rlsId) params.listingId = String(criteria.rlsId).split(',').map(function(s) { return s.trim(); }).filter(Boolean).join(',');
             if (criteria.zip) params.zip = criteria.zip;
-            if (criteria.unit) params.unit = criteria.unit;
-            if (criteria.keyword) params.keyword = criteria.keyword;
-            if (criteria.roomsMin) params.minRooms = criteria.roomsMin;
-            if (criteria.roomsMax) params.maxRooms = criteria.roomsMax;
-            if (criteria.sqftMin) params.minSqft = criteria.sqftMin;
-            if (criteria.sqftMax) params.maxSqft = criteria.sqftMax;
-            if (criteria.managementCompany) params.managementCompany = criteria.managementCompany;
-            if (criteria.dateFrom) params.dateFrom = criteria.dateFrom;
-            if (criteria.dateTo) params.dateTo = criteria.dateTo;
-            if (criteria.dateActivityType) params.dateType = criteria.dateActivityType;
-            if (criteria.contractDateFrom) params.contractDateFrom = criteria.contractDateFrom;
-            if (criteria.contractDateTo) params.contractDateTo = criteria.contractDateTo;
-            if (criteria.soldDateFrom) params.closeDateFrom = criteria.soldDateFrom;
-            if (criteria.soldDateTo) params.closeDateTo = criteria.soldDateTo;
-            // ── Codex Risk P0 fix: programmatic block of unsupported params ──
-            // Open House date range and (when reached via programmatic
-            // path) transit/grid bounds do not produce any backend OData
-            // clause — see lib/search/__tests__/crm-idx-filter.test.ts
-            // BATCH 2 dead-pattern tests. The UI controls are disabled
-            // by public/crm/js/init/init-disable-dead-controls.js, but
-            // criteria can still arrive via saved-search reload or a
-            // programmatic call. Strip the keys here and emit a console
-            // warning instead of silently submitting a request whose
-            // narrowing intent the backend will drop. The user-facing
-            // toast on multi-borough advisory at performSearch() also
-            // covers borough-multi; this block covers OH/transit/grid.
-            if (criteria.openHouseDateFrom || criteria.openHouseDateTo) {
-                console.warn('[CRM Search] Stripped unsupported openHouseDate criteria — backend has no OpenHouse handler. See init-disable-dead-controls.js.');
-            }
-            // Note: criteria._transitBounds / criteria._gridBounds are
-            // SET by transit-search.js / manhattan-grid.js only when
-            // the user interacts with those panels, which P1 disabled.
-            // Strip defensively in case a future programmatic path
-            // populates them (REBNY IDX feed has no Latitude/Longitude
-            // — Lat/Lng OData clauses match zero rows at runtime).
-            if (criteria._transitBounds) {
-                console.warn('[CRM Search] Stripped _transitBounds — REBNY IDX feed has no Lat/Lng.');
-            }
-            if (criteria._gridBounds) {
-                console.warn('[CRM Search] Stripped _gridBounds — REBNY IDX feed has no Lat/Lng.');
-            }
-            if (criteria.ownership && criteria.ownership.length > 0) {
-                params.ownership = criteria.ownership.join(',');
-            }
-            if (criteria.yearMin) params.minYear = criteria.yearMin;
-            if (criteria.yearMax) params.maxYear = criteria.yearMax;
-            if (criteria.floorsMin) params.minFloors = criteria.floorsMin;
-            if (criteria.floorsMax) params.maxFloors = criteria.floorsMax;
-            if (criteria.unitsMin) params.minUnits = criteria.unitsMin;
-            if (criteria.unitsMax) params.maxUnits = criteria.unitsMax;
-            if (criteria.buildingName) params.buildingName = criteria.buildingName;
-            // Status: CRM uppercase -> RESO PascalCase
             if (criteria.statuses && criteria.statuses.length > 0) {
-                var statusMap = { 'ACTIVE': 'Active', 'COMING_SOON': 'ComingSoon', 'PENDING': 'ActiveUnderContract', 'CONTRACT': 'ActiveUnderContract', 'UNDER_CONTRACT': 'ActiveUnderContract', 'CLOSED': 'Closed', 'WITHDRAWN': 'Withdrawn', 'CANCELED': 'Canceled', 'CANCELLED': 'Canceled', 'EXPIRED': 'Expired', 'HOLD': 'Hold', 'FUTURE': 'Incomplete', 'INCOMPLETE': 'Incomplete' };
-                var resoStatuses = criteria.statuses.map(function(s) { return statusMap[s] || s; }).filter(function(s, i, arr) { return arr.indexOf(s) === i; });
-                params.status = resoStatuses.join(',');
+                var st = [];
+                criteria.statuses.forEach(function(s) {
+                    var t = _EXECUTABLE_STATUS[String(s).toUpperCase()];
+                    if (t) { if (st.indexOf(t) === -1) st.push(t); } else refuse('Status "' + s + '"');
+                });
+                if (st.length) params.status = st.join(',');
             }
-            // Bug A11 — SponsorUnit lives inside CustomProperty.CustomFields
-            // (REBNY-specific JSON-string field), NOT a top-level OData
-            // property. The generic checkboxFilters loop on the backend
-            // (lib/search/crm-idx-filter.ts:239-277) would silently drop
-            // it because "SponsorUnit" is not in the odataSafe whitelist.
-            // Pull it out into a dedicated `sponsorUnit` param so the
-            // route handler can apply a post-fetch filter against the
-            // mapper's parsed listing.sponsorUnit field.
-            if (criteria.checkboxFilters && criteria.checkboxFilters.SponsorUnit) {
-                var _sp = criteria.checkboxFilters.SponsorUnit;
-                if (Array.isArray(_sp) && (_sp.indexOf('true') !== -1 || _sp.indexOf('Yes') !== -1)) {
-                    params.sponsorUnit = 'true';
-                }
-                // Remove from the JSON payload so the backend doesn't try to
-                // OData-filter on it.
-                delete criteria.checkboxFilters.SponsorUnit;
+            var own = [], structure = [];
+            (criteria.ownership || []).forEach(function(o) {
+                if (_EXECUTABLE_OWNERSHIP[o]) own.push(o);
+                else if (o === 'Townhouse') structure.push('Townhouse');
+                else refuse('Ownership "' + o + '"');
+            });
+            if (criteria.propertySubType) {
+                String(criteria.propertySubType).split(',').forEach(function(v) {
+                    v = v.trim(); if (!v) return;
+                    if (v === 'Townhouse') structure.push('Townhouse'); else refuse('Property type "' + v + '"');
+                });
             }
             if (criteria.checkboxFilters) {
-                var _cbJson = JSON.stringify(criteria.checkboxFilters);
-                if (_cbJson !== '{}') params.checkboxFilters = _cbJson;
+                Object.keys(criteria.checkboxFilters).forEach(function(k) {
+                    var v = criteria.checkboxFilters[k]; if (!_isSet(v)) return;
+                    if (k === 'StructureType') {
+                        (Array.isArray(v) ? v : [v]).forEach(function(m) { if (_EXECUTABLE_STRUCTURE[m]) structure.push(m); else refuse('Building form "' + m + '"'); });
+                    } else refuse(k);
+                });
             }
-            // ── Codex Risk P0 fix: transit/grid panels are disabled at
-            //    container level (init-disable-dead-controls.js) AND
-            //    the underlying REBNY IDX feed does not populate
-            //    Latitude/Longitude per CLAUDE.md. The two blocks below
-            //    previously turned criteria._transitBounds /
-            //    criteria._gridBounds into a `gridFilter` param that
-            //    matched zero Trestle rows at runtime. They are now
-            //    short-circuited; the warning was emitted above. When
-            //    geocoded coordinates land on the projection (master
-            //    plan PR 5), restore both blocks AND remove the
-            //    transit/grid entries from DEAD_CONTAINERS in
-            //    init-disable-dead-controls.js. Both must move together.
-            return params;
+            if (own.length) params.ownership = own.filter(function(x, i, a) { return a.indexOf(x) === i; }).join(',');
+            if (structure.length) params.StructureType = structure.filter(function(x, i, a) { return a.indexOf(x) === i; }).join(',');
+            _NOT_EXECUTABLE.forEach(function(p) { if (_isSet(criteria[p[0]])) refuse(p[1]); });
+            return { params: params, refused: refused };
         };
-
+        // Kept for the live count badge (init-tracker.js) and any other caller: the
+        // executable parameters only. Refusals are surfaced by performSearch.
+        window.buildIdxSearchParams = function(criteria) {
+            return window.serializeSearchCriteria(criteria).params;
+        };
         // Server-side search: query Trestle API with criteria — this is the PRIMARY data source
-        function _serverSearch(criteria, localResults) {
-            var params = window.buildIdxSearchParams(criteria);
-
-            // ≤200: server sends inline photos via $expand=Media (fast, one request)
-            // >200: server sends listings without photos, photo-loader.js lazy-loads
-            //       via /api/media/batch + IntersectionObserver
-            params.limit = 200;
-
-            console.log('[Search] Querying Trestle API:', JSON.stringify(params));
+        // The executor sorts the WHOLE universe (price_desc | price_asc | newest);
+        // the browser never re-sorts a page. Other sort fields are not executable.
+        function _serverSortKey() {
+            var f = searchResultsState.sortField, o = searchResultsState.sortOrder;
+            if (f === 'listedDate') return 'newest';
+            if (f === 'price' && o === 'asc') return 'price_asc';
+            return 'price_desc';
+        }
+        var _serverSearchSeq = 0;
+        // Server-side search: ONE page of the executor's settled universe. The executor
+        // owns the universe, the criteria, the exact total, the order and the page.
+        function _serverSearch(criteria) {
+            var ser = window.serializeSearchCriteria(criteria);
+            if (ser.refused.length > 0) {
+                showToast('Not executable in this Search: ' + ser.refused.join(', '), 'warning');
+                return;
+            }
+            var params = ser.params;
+            var perPage = Math.min(Math.max(parseInt(searchResultsState.perPage, 10) || 50, 1), 200);
+            var page = Math.max(parseInt(searchResultsState.currentPage, 10) || 1, 1);
+            params.limit = perPage;
+            params.skip = (page - 1) * perPage;
+            params.sort = _serverSortKey();
+            var requestSeq = ++_serverSearchSeq;
             if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = true;
+            if (typeof _showResultsSkeleton === 'function') { try { _showResultsSkeleton(); } catch (e0) {} }
             MallanAPI.idx.search(params).then(function(result) {
+                if (requestSeq !== _serverSearchSeq) return; // superseded by a newer search
                 if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = false;
-                console.log('[Search] Trestle returned:', result ? (result.listings ? result.listings.length + ' listings' : 'no listings array') : 'null');
-                if (!result || !result.listings || result.listings.length === 0) {
-                    // Server returned 0. Trestle is the source of truth for IDX
-                    // search — DO NOT keep the pre-display local fixture
-                    // results visible, because they include cross-borough
-                    // fixture rows that don't match the actual IDX query
-                    // (e.g. Manhattan + 1 bed search briefly showing Bronx/
-                    // Queens fixtures while server loads). Clear the display
-                    // so the empty-state + toast surfaces honestly.
-                    searchResultsState.filteredListings = [];
-                    searchResultsState.currentPage = 1;
-                    try {
-                        if (typeof initializeSearchResults === 'function') initializeSearchResults();
-                        if (typeof updateResultsCount === 'function') updateResultsCount();
-                        if (typeof refreshResultsMap === 'function') refreshResultsMap();
-                    } catch (renderErr) {
-                        console.error('[Search] Render after zero-result failed:', renderErr);
-                    }
-                    _saveSearchState();
-                    showToast('No listings found. Try broadening your search criteria.', 'warning');
-                    return;
-                }
-
-                // Server results are the primary data — they're already in CRM flat shape
-                var serverListings = result.listings;
-
-                // Apply neighborhood resolution and defaults
-                serverListings.forEach(function(l) {
+                var rows = (result && Array.isArray(result.listings)) ? result.listings : [];
+                rows.forEach(function(l) {
+                    // Presentation defaults ONLY where renderers need a string. Numeric
+                    // provider facts stay null when the executor says null: a missing
+                    // carrying cost or bath count is shown as unavailable, never as 0.
                     if (l.price == null) l.price = 0;
-                    if (l.totalMonthly == null) l.totalMonthly = 0;
-                    if (l.maintCC == null) l.maintCC = 0;
-                    if (l.reTaxes == null) l.reTaxes = 0;
-                    if (l.beds == null) l.beds = 0;
-                    if (l.baths == null) l.baths = 0;
-                    if (l.rooms == null) l.rooms = 0;
-                    if (l.dom == null) l.dom = 0;
                     if (l.photoCount == null) l.photoCount = (l.images && l.images.length) || 0;
                     if (!l.status) l.status = 'ACTIVE';
                     if (!l.address) l.address = 'Address Unavailable';
                     if (!l.unit) l.unit = '';
                     if (!l.neighborhood) l.neighborhood = '';
                     if (!l.zip) l.zip = '';
-                    if (!l.borough) l.borough = 'Manhattan';
+                    if (!l.borough) l.borough = '';
                     if (!l.listedDate) l.listedDate = '--';
                     if (!l.company) l.company = '';
                     if (!l.permissions) l.permissions = { ownerOptOut: false, participantOnly: false, idxDisplay: true, internetDisplay: true, syndication: true };
                     if (typeof resolveNeighborhoodCanonical === 'function') resolveNeighborhoodCanonical(l);
                 });
-
-                // Merge server results into listings (preserving existing data with photos)
-                var existingById = {};
-                listings.forEach(function(l) { existingById[l.id] = l; });
-                var existingByLid = {};
-                listings.forEach(function(l) { if (l.lid) existingByLid[l.lid] = l; });
-                serverListings.forEach(function(l) {
-                    var existing = existingById[l.id] || (l.lid ? existingByLid[l.lid] : null);
-                    if (existing) {
-                        // Update existing listing but preserve images if server has none
-                        if ((!l.images || l.images.length === 0) && existing.images && existing.images.length > 0) {
-                            l.images = existing.images;
-                        }
+                // The global `listings` index only serves detail/photo lookups by id.
+                // It is NEVER a result set: nothing is counted or rendered from it.
+                var byId = {};
+                listings.forEach(function(l, i) { byId[l.id] = i; });
+                rows.forEach(function(l) {
+                    var i = byId[l.id];
+                    if (i !== undefined) {
+                        var ex = listings[i];
+                        if ((!l.images || l.images.length === 0) && ex.images && ex.images.length > 0) l.images = ex.images;
+                        listings[i] = l;
                     } else {
                         listings.push(l);
                     }
                 });
-
-                // REPLACE the pre-display local fixture results with the
-                // authoritative Trestle server results. Previously this
-                // merged `localResults` (fixture-side filter output) with
-                // `serverListings`, which polluted IDX search results with
-                // cross-borough fixtures — e.g. Manhattan+1bed search would
-                // render Bronx/Queens fixture rows above the actual Manhattan
-                // listings because filterListings(listings, criteria) on the
-                // ~126-row local fixture set is not borough/neighborhood-
-                // strict and IDX search is server-authoritative anyway.
-                // serverListings has been merged into the global `listings`
-                // array above so existing-by-id lookups still work; we just
-                // stop polluting the rendered list.
-                searchResultsState.filteredListings = serverListings;
-                searchResultsState.currentPage = 1;
+                searchResultsState.serverPaged = true;
+                searchResultsState.filteredListings = rows;
+                searchResultsState.serverTotal = (result && typeof result.total === 'number') ? result.total : rows.length;
+                searchResultsState.serverCountMeaning = (result && result.countMeaning) || 'exact';
+                var totalPages = Math.max(1, Math.ceil(searchResultsState.serverTotal / perPage));
+                if (page > totalPages) searchResultsState.currentPage = totalPages;
                 try {
                     if (typeof initializeSearchResults === 'function') initializeSearchResults();
                     if (typeof updateResultsCount === 'function') updateResultsCount();
                     if (typeof refreshResultsMap === 'function') refreshResultsMap();
-                } catch(renderErr) {
-                    console.error('[Search] Render after server search failed:', renderErr);
+                } catch (renderErr) {
+                    console.error('[Search] Render after executor response failed:', renderErr);
                 }
                 _saveSearchState();
-                console.log('[Search] Rendered ' + serverListings.length + ' listings from Trestle');
+                if (rows.length === 0 && page === 1) showToast('No listings match these criteria.', 'warning');
             }).catch(function(err) {
+                if (requestSeq !== _serverSearchSeq) return;
                 if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = false;
-                console.error('[Search] Trestle search failed:', err);
-                // Keep local results visible — they're already rendered
-                if (localResults.length === 0) {
-                    showToast('Search temporarily unavailable. Please try again.', 'error');
-                }
+                console.error('[Search] Executor request failed:', err);
+                // A failed search shows NOTHING in its place — never stale or partial rows.
+                searchResultsState.filteredListings = [];
+                searchResultsState.serverTotal = 0;
+                searchResultsState.serverCountMeaning = 'exact';
+                try {
+                    if (typeof initializeSearchResults === 'function') initializeSearchResults();
+                    if (typeof updateResultsCount === 'function') updateResultsCount();
+                } catch (e2) {}
+                var d = err && err.data;
+                var msg = (d && (d.code === 'UNSUPPORTED_CRITERION' || d.code === 'INVALID_CRITERION'))
+                    ? 'The Search executor refused: ' + ((d.unsupported || []).concat((d.invalid || []).map(function(i) { return i.param + ' (' + i.reason + ')'; })).join(', '))
+                    : 'Search failed (' + ((err && err.message) || 'error') + '). Nothing was shown in its place — try again.';
+                showToast(msg, 'error');
             });
         }
-
+        window._serverSearch = _serverSearch;
+        // Page navigation asks the executor for the page. Returns false when the
+        // current result set is not server-paged (legacy local sets keep their slice).
+        window.goToServerPage = function(n) {
+            if (!searchResultsState || !searchResultsState.serverPaged) return false;
+            var perPage = Math.min(Math.max(parseInt(searchResultsState.perPage, 10) || 50, 1), 200);
+            var totalPages = Math.max(1, Math.ceil((searchResultsState.serverTotal || 0) / perPage));
+            n = Math.min(Math.max(parseInt(n, 10) || 1, 1), totalPages);
+            if (n === searchResultsState.currentPage) return true;
+            searchResultsState.currentPage = n;
+            if (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) _serverSearch(activeSearchCriteria);
+            return true;
+        };
+        window.reissueServerSearch = function() {
+            if (!searchResultsState || !searchResultsState.serverPaged) return false;
+            searchResultsState.currentPage = 1;
+            if (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) _serverSearch(activeSearchCriteria);
+            return true;
+        };
         // Quick Search — formerly gated submission on RLS/Zip/Address/
         // Neighborhood being present. Removed 2026-05-03 after telemetry +
         // user reports confirmed agents expected the quick-card Search button
@@ -975,9 +940,11 @@
                 zipInputId = 'adv-zip';
                 unitInputId = 'searchQuickUnit';
             } else {
-                rlsInputId = 'searchQuickRls';
-                zipInputId = 'searchQuickZip';
-                unitInputId = 'searchQuickUnit';
+                // Basic form ids are per tab (saleQuick* / rentalQuick*); the old
+                // 'searchQuick*' ids never existed, which left these controls inert.
+                rlsInputId = currentSearchTab === 'rent' ? 'rentalQuickRls' : 'saleQuickRls';
+                zipInputId = currentSearchTab === 'rent' ? 'rentalQuickZip' : 'saleQuickZip';
+                unitInputId = currentSearchTab === 'rent' ? 'rentalQuickUnit' : 'saleQuickUnit';
             }
             var rlsInput = document.getElementById(rlsInputId);
             var zipInput = document.getElementById(zipInputId);
@@ -1737,30 +1704,28 @@
         }
 
         function updateResultsCount() {
-            var filtered = searchResultsState.filteredListings || listings;
-            var count = filtered.length;
             var perPage = searchResultsState.perPage || 50;
+            var count, label;
+            if (searchResultsState.serverPaged && searchResultsState.serverTotal != null) {
+                count = searchResultsState.serverTotal;
+                label = (searchResultsState.serverCountMeaning === 'lower_bound' ? 'At least ' : '') + count.toLocaleString() + ' Results';
+            } else {
+                var filtered = searchResultsState.filteredListings || listings;
+                count = filtered.length;
+                label = count + ' Results';
+            }
             var totalPages = Math.max(1, Math.ceil(count / perPage));
-
-            // Update all results count elements (top + bottom)
             var countEls = document.querySelectorAll('#resultsCount, #resultsCount2');
-            countEls.forEach(function(el) { el.textContent = count + ' Results'; });
-
-            // Update top pagination
+            countEls.forEach(function(el) { el.textContent = label; });
             var totalPagesEl = document.getElementById('totalPages');
             if (totalPagesEl) totalPagesEl.textContent = totalPages;
-
             var currentPageEl = document.getElementById('currentPage');
             if (currentPageEl) currentPageEl.textContent = searchResultsState.currentPage;
-
-            // Update bottom pagination
             var bottomTotalPagesEl = document.getElementById('bottomTotalPages');
             if (bottomTotalPagesEl) bottomTotalPagesEl.textContent = totalPages;
-
             var bottomCurrentPageEl = document.getElementById('bottomCurrentPage');
             if (bottomCurrentPageEl) bottomCurrentPageEl.textContent = searchResultsState.currentPage;
         }
-
         // Back to search - show search form, hide results
         function backToSearch() {
             // Close refine panel if open
@@ -2169,6 +2134,9 @@
                     mode: curMode,
                     page: searchResultsState.currentPage || 1,
                     address: addr,
+                    serverPaged: !!searchResultsState.serverPaged,
+                    serverTotal: searchResultsState.serverTotal,
+                    criteria: (searchResultsState.serverPaged && typeof activeSearchCriteria !== 'undefined') ? activeSearchCriteria : null,
                     ts: Date.now()
                 }));
             } catch (e) { /* sessionStorage full or unavailable */ }
@@ -2207,6 +2175,20 @@
                 }
 
                 // Rebuild filteredListings from saved IDs
+                if (state.serverPaged && state.criteria) {
+                    // Server-paged set: the page is re-fetched from the executor, never
+                    // rebuilt from whatever rows happen to be cached in the browser.
+                    activeSearchCriteria = state.criteria;
+                    searchResultsState.serverPaged = true;
+                    searchResultsState.serverTotal = (typeof state.serverTotal === 'number') ? state.serverTotal : null;
+                    searchResultsState.serverCountMeaning = null;
+                    searchResultsState.filteredListings = [];
+                    searchResultsState.currentPage = state.page || 1;
+                    if (typeof MallanAPI !== 'undefined' && typeof MallanAPI.onReady === 'function') {
+                        MallanAPI.onReady(function() { _serverSearch(activeSearchCriteria); });
+                    }
+                    return true;
+                }
                 var idSet = {};
                 state.filteredIds.forEach(function(id) { idSet[id] = true; });
                 searchResultsState.filteredListings = listings.filter(function(l) { return idSet[l.id]; });

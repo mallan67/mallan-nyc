@@ -5,7 +5,7 @@
                 var selected = searchResultsState.selectedListings.includes(listing.id);
                 var selIdx = searchResultsState.selectedListings.indexOf(listing.id) + 1;
                 return `
-                <div class="p-2.5 border-b hover:bg-gray-50 cursor-pointer flex gap-2.5 ${selected ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" onclick="showListingInDetailPanel('${listing.id}'); if (typeof isResultsMapOpen === 'function' && isResultsMapOpen()) { if (typeof panToListing === 'function') panToListing('${listing.id}'); }">
+                <div class="p-2.5 border-b hover:bg-gray-50 cursor-pointer flex gap-2.5 ${selected ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''}" data-source="${listing._source === 'mallan' ? 'MALLAN-LOCAL' : 'COTALITY-API'}" data-listing-id="${listing.id}" onclick="showListingInDetailPanel('${listing.id}'); if (typeof isResultsMapOpen === 'function' && isResultsMapOpen()) { if (typeof panToListing === 'function') panToListing('${listing.id}'); }">
                     <div class="relative flex-shrink-0">
                         <div class="w-[140px] h-[100px] rounded-lg cm-photo-wrap">
                             <img src="${getListingPhotoThumb(listing)}" alt="${displayAddress}" class="cm-photo rounded-lg" loading="lazy">
@@ -43,7 +43,7 @@
                             <span class="text-gray-300">|</span>
                             <span><strong>${listing.beds}</strong> Beds</span>
                             <span class="text-gray-300">|</span>
-                            <span><strong>${listing.baths}</strong> Baths</span>
+                            <span><strong>${listing.baths == null ? '—' : listing.baths}</strong> Baths</span>
                             <span class="text-gray-300">|</span>
                             <span><strong>${listing.intSqft || '--'}</strong> SqFt</span>
                             <span class="text-gray-300">|</span>
@@ -93,9 +93,9 @@
                 <div class="flex items-center flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-gray-500 mb-1.5">
                     <span>L-ID: ${escapeHtml(listing.lid || '--')}</span>
                     <span>W-ID: ${escapeHtml(listing.wid || '--')}</span>
-                    <span>CC: $${listing.maintCC}</span>
-                    <span>RET: $${listing.reTaxes}</span>
-                    <span>EST. MONTHLY: $${listing.totalMonthly.toLocaleString()}</span>
+                    <span>CC: ${listing.maintCC == null ? '—' : '$' + listing.maintCC}</span>
+                    <span>RET: ${listing.reTaxes == null ? '—' : '$' + listing.reTaxes}</span>
+                    <span>EST. MONTHLY: ${listing.totalMonthly == null ? '—' : '$' + listing.totalMonthly.toLocaleString()}</span>
                 </div>
 
                 <!-- Tags -->
@@ -140,7 +140,7 @@
                     <span class="text-gray-300">|</span>
                     <span><strong>${listing.beds}</strong> Beds</span>
                     <span class="text-gray-300">|</span>
-                    <span><strong>${listing.baths}</strong> Baths</span>
+                    <span><strong>${listing.baths == null ? '—' : listing.baths}</strong> Baths</span>
                     <span class="text-gray-300">|</span>
                     <span><strong>${listing.intSqft ? listing.intSqft.toLocaleString() : '--'}</strong> SqFt</span>
                     <span class="text-gray-300">|</span>
@@ -167,7 +167,7 @@
                         <div><span class="text-gray-500">List Price</span><div class="font-bold text-gray-900">$${listing.price.toLocaleString()}</div></div>
                         <div><span class="text-gray-500">Common Charges</span><div class="font-semibold">$${listing.maintCC}/mo</div></div>
                         <div><span class="text-gray-500">RE Taxes</span><div class="font-semibold">$${listing.reTaxes}/mo</div></div>
-                        <div><span class="text-gray-500">Est. Monthly</span><div class="font-semibold">$${listing.totalMonthly.toLocaleString()}/mo</div></div>
+                        <div><span class="text-gray-500">Est. Monthly</span><div class="font-semibold">${listing.totalMonthly == null ? '—' : '$' + listing.totalMonthly.toLocaleString() + '/mo'}</div></div>
                         <div><span class="text-gray-500">Price/SqFt</span><div class="font-semibold">${listing.intSqft ? '$' + Math.round(listing.price / listing.intSqft).toLocaleString() : '--'}</div></div>
                         ${listing.originalPrice ? '<div><span class="text-gray-500">Original Price</span><div class="font-semibold text-red-600">$' + listing.originalPrice.toLocaleString() + '</div></div>' : '<div><span class="text-gray-500">Price/Room</span><div class="font-semibold">' + (listing.rooms ? '$' + Math.round(listing.price / listing.rooms).toLocaleString() : '--') + '</div></div>'}
                     </div>
@@ -179,7 +179,7 @@
                     <div class="grid grid-cols-3 gap-3 text-xs">
                         <div><span class="text-gray-500">Rooms</span><div class="font-semibold">${listing.rooms || '--'}</div></div>
                         <div><span class="text-gray-500">Bedrooms</span><div class="font-semibold">${listing.beds}</div></div>
-                        <div><span class="text-gray-500">Bathrooms</span><div class="font-semibold">${listing.baths}</div></div>
+                        <div><span class="text-gray-500">Bathrooms</span><div class="font-semibold">${listing.baths == null ? '—' : listing.baths}</div></div>
                         <div><span class="text-gray-500">Int. SqFt</span><div class="font-semibold">${listing.intSqft ? listing.intSqft.toLocaleString() : '--'}</div></div>
                         <div><span class="text-gray-500">Floor</span><div class="font-semibold">${escapeHtml(listing.floor || '--')}</div></div>
                         <div><span class="text-gray-500">Exposures</span><div class="font-semibold">${escapeHtml(listing.exposures || '--')}</div></div>

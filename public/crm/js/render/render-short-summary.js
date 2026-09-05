@@ -5,7 +5,7 @@
                 var displayUnit = listing.addressDisplayYN === false ? '' : (listing.unit ? ', ' + escapeHtml(listing.unit) : '');
                 var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
                 return `
-                <div class="border-b hover:bg-gray-50 cursor-pointer ${searchResultsState.selectedListings.includes(listing.id) ? 'bg-blue-50' : ''}" data-source="REBNY-RLS" data-listing-id="${listing.id}" onclick="openListingInNewTab('${listing.id}'); if (typeof isResultsMapOpen === 'function' && isResultsMapOpen()) { if (typeof panToListing === 'function') panToListing('${listing.id}'); }">
+                <div class="border-b hover:bg-gray-50 cursor-pointer ${searchResultsState.selectedListings.includes(listing.id) ? 'bg-blue-50' : ''}" data-source="${listing._source === 'mallan' ? 'MALLAN-LOCAL' : 'COTALITY-API'}" data-listing-id="${listing.id}" onclick="openListingInNewTab('${listing.id}'); if (typeof isResultsMapOpen === 'function' && isResultsMapOpen()) { if (typeof panToListing === 'function') panToListing('${listing.id}'); }">
                     ${comingSoonBadge(listing)}
                     <div class="flex">
                     <!-- Photo (full height left) -->
@@ -46,7 +46,7 @@
                             <div>
                                 <div class="flex justify-between"><span class="text-gray-500">Price:</span><span class="font-bold">$${listing.price.toLocaleString()}</span></div>
                                 ${listing.originalPrice ? '<div class="text-[10px] text-gray-400">(Originally $' + listing.originalPrice.toLocaleString() + ')</div>' : ''}
-                                <div class="flex justify-between"><span class="text-gray-500">Rm/Bd/Bth:</span><span>${listing.rooms}/${listing.beds}/${listing.baths}</span></div>
+                                <div class="flex justify-between"><span class="text-gray-500">Rm/Bd/Bth:</span><span>${listing.rooms == null ? '—' : listing.rooms}/${listing.beds == null ? '—' : listing.beds}/${listing.baths == null ? '—' : listing.baths}</span></div>
                                 <div class="flex justify-between"><span class="text-gray-500">SqFt:</span><span>${listing.intSqft ? listing.intSqft.toLocaleString() : '--'}</span></div>
                                 <div class="flex justify-between"><span class="text-gray-500">$ per SqFt:</span><span>${listing.intSqft ? '$' + Math.round(listing.price / listing.intSqft) : '--'}</span></div>
                             </div>
