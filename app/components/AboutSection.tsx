@@ -44,7 +44,29 @@ export default function AboutSection() {
             </div>
             <div>
               <p className="font-display font-semibold text-[15px] text-brand-dark">Maya Allan</p>
-              <p className="text-brand-dark/95 text-[12px] font-light">Founder &middot; Licensed NYC Broker</p>
+              {/*
+                This read "Founder &middot; Licensed NYC Broker".
+
+                "Licensed NYC Broker" is an INDIVIDUAL professional claim,
+                hard-coded here and published from Git on every visit to the
+                home page, ungoverned by the Agent record. Same defect class
+                as the founder.jobTitle removed from the root JSON-LD: that
+                prong was cleaned, this rendered one was not. It is wrong
+                while the database is HEALTHY, not only during an outage,
+                because nothing about it can be corrected by changing the
+                Agent record.
+
+                It is also imprecise. "Licensed NYC Broker" is not a New York
+                designation at all. The statutory ones are Licensed Real
+                Estate Broker, Licensed Associate Real Estate Broker and
+                Licensed Real Estate Salesperson (NY DOS 19 NYCRR 175.25).
+
+                "Founder" is a COMPANY role, not a licence assertion, so it
+                stays. The regulated designation belongs to the governed
+                Agent profile at /agents/maya-allan, which derives it through
+                lib/agents/professional-title.
+              */}
+              <p className="text-brand-dark/95 text-[12px] font-light">Founder</p>
             </div>
           </div>
         </div>

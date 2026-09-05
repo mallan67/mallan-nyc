@@ -8,6 +8,10 @@
 // one agent at a time.
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import {
+  directoryFromDatabase,
+  type DbAgentDirectoryRow,
+} from '@/lib/agents/public-profile-authority';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +25,9 @@ export async function GET() {
         first_name: true,
         last_name: true,
         title: true,
+        // the LICENCE CLASS alone DERIVES the professional designation.
+        // `role` is an authorisation grant and is deliberately NOT selected.
+        license_type: true,
         photo: true,
         bio: true,
         specialties: true,
@@ -30,16 +37,13 @@ export async function GET() {
       orderBy: [{ featured: 'desc' }, { created_at: 'asc' }],
     });
 
-    const mapped = agents.map((a) => ({
-      id: a.public_slug || `${a.first_name}-${a.last_name}`.toLowerCase().replace(/\s+/g, '-'),
-      name: a.full_name || `${a.first_name} ${a.last_name}`,
-      title: a.title || 'Licensed Real Estate Salesperson',
-      photo: a.photo || '/images/agent-placeholder.svg',
-      bio: a.bio || '',
-      specialties: a.specialties,
-      languages: a.languages,
-      featured: a.featured,
-    }));
+    // Titles derived through the one authority. phone/email are dropped below -
+    // this endpoint deliberately never returns per-agent contact details.
+    // Contact columns are never selected, so they cannot be mapped out by
+    // mistake. Titles derived through the one authority.
+    const mapped = agents.map((a) =>
+      directoryFromDatabase(a as DbAgentDirectoryRow,
+        `${a.first_name}-${a.last_name}`.toLowerCase().replace(/\s+/g, '-')));
 
     return NextResponse.json(
       { agents: mapped },
@@ -48,14 +52,10 @@ export async function GET() {
   } catch (error) {
     console.error('[/api/agents/public] DB error:', error instanceof Error ? error.message : error);
     // Fallback to static JSON — strip phone/email here too
-    const agentsData = await import('@/data/agents.json');
-    const stripped = {
-      ...agentsData,
-      agents: (agentsData.agents || []).map((a: Record<string, unknown>) => {
-        const { phone: _phone, email: _email, ...rest } = a as { phone?: string; email?: string };
-        return rest;
-      }),
-    };
-    return NextResponse.json(stripped);
+    // 503, not a stale roster. See lib/agents/public-profile-authority.
+    return NextResponse.json(
+      { error: 'agent_directory_unavailable' },
+      { status: 503, headers: { 'Cache-Control': 'no-store' } }
+    );
   }
 }

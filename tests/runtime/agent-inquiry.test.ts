@@ -92,9 +92,9 @@ const MAYA_RECORD = {
 };
 const CLAUDIA_RECORD = {
   full_name: 'Claudia Milkowski',
-  title: 'Licensed Real Estate Associate Broker',
-  license_type: 'broker',   // NY licence designation
-  role: 'AGENT',            // CRM authorisation — NOT the principal broker
+  title: 'Licensed Associate Real Estate Broker',
+  license_type: 'associate_broker',   // NY LICENCE CLASS, carries the fact itself
+  role: 'AGENT',                      // Mallan AUTHORISATION — a separate fact
   phone: '(646) 418-8388',
   email: 'cmilkowski@mallan.nyc',
 };
@@ -329,7 +329,7 @@ describe('POST /api/crm/agent-inquiry — professional title vs authorisation', 
 
     const html = htmlFromLastSend();
     expect(html).toContain('Claudia Milkowski');
-    expect(html).toContain('Licensed Real Estate Associate Broker');
+    expect(html).toContain('Licensed Associate Real Estate Broker');
     expect(html).not.toContain('Licensed Real Estate Salesperson');
     // Her own phone now reaches the recipient (previously always the office).
     expect(html).toContain('(646) 418-8388');
@@ -415,7 +415,7 @@ describe('POST /api/crm/agent-inquiry — sender resolved by canonical SessionUs
 
     const html = (sendEmailMock.mock.calls[0] as unknown as SendEmailCallArgs)[2];
     expect(html).toContain('Claudia Milkowski');
-    expect(html).toContain('Licensed Real Estate Associate Broker');
+    expect(html).toContain('Licensed Associate Real Estate Broker');
     expect(html).toContain('cmilkowski@mallan.nyc');
     expect(html).toContain('(646) 418-8388');
     expect(html).not.toContain('Mallan Agent');   // the unresolved-name fallback

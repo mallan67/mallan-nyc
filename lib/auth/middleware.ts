@@ -2,6 +2,7 @@
 // Auth helpers for API route handlers
 import { NextRequest, NextResponse } from "next/server";
 import { validateSession, type SessionUser } from "./session";
+import { isLicenseeAccessRole } from "@/lib/agents/brokerage-role";
 import prisma from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 
@@ -73,12 +74,51 @@ export async function requireBroker(
 }
 
 /**
- * Require agent or broker role.
+ * Require an authenticated MALLAN LICENSEE session. ~146 route files call this.
+ *
+ * ── The name is deliberate technical debt ─────────────────────────────────
+ * `Agent.role` now names the BROKERAGE PROFESSIONAL ROLE — BROKER,
+ * ASSOCIATE_BROKER or SALESPERSON — so "AgentOrBroker" is a misnomer. Renaming
+ * it would turn a semantic fix into a 146-file mechanical rename, so the name
+ * stays and the semantics are corrected here, at the one place that decides.
+ * Rename/deprecate as a separate packet.
+ *
+ * ── What changed, and what deliberately did NOT ───────────────────────────
+ * This used to be `requireRole(req, "AGENT", "BROKER")` — a literal match on
+ * the two values the retired model happened to store. Naming the professional
+ * roles honestly would have 403'd every associate broker and salesperson out of
+ * every route that calls this.
+ *
+ * It was NOT replaced with a bare `userType === "agent"` check. The middleware
+ * already uses that test to bypass client-portal restrictions, where it carries
+ * the broader meaning "internal user", and nothing in the schema proves every
+ * `Agent` row is a licensed professional (`license_type` is nullable). Widening
+ * all ~146 routes to any agent-type session could silently grant licensee
+ * permissions to an office or admin account.
+ *
+ * So BOTH must hold: the session identity is an agent session, AND the role is
+ * an eligible professional role. That is today's allow-list plus exactly the
+ * two honest professional values — no widening, and legacy "AGENT" rows and
+ * live sessions keep working through the transition.
+ *
+ * PRINCIPAL-BROKER-ONLY authority is a DIFFERENT question and stays narrow:
+ * requireBroker() / `auth.role !== "BROKER"` are untouched, and an Associate
+ * Broker does not acquire them.
  */
 export async function requireAgentOrBroker(
   req: NextRequest
 ): Promise<SessionUser | NextResponse> {
-  return requireRole(req, "AGENT", "BROKER");
+  const result = await requireAuth(req);
+  if (result instanceof NextResponse) return result;
+
+  if (result.userType !== "agent" || !isLicenseeAccessRole(result.role)) {
+    return NextResponse.json(
+      { error: "Insufficient permissions" },
+      { status: 403 }
+    );
+  }
+
+  return result;
 }
 
 /**

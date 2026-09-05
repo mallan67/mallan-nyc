@@ -1241,7 +1241,11 @@
                 : status.charAt(0) + status.slice(1).toLowerCase();
             var agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : {};
             var fromName = agent.name || '';
-            var fromTitle = agent.licenseTitle || agent.title || 'Licensed Real Estate Broker';
+            // The designation, or nothing. This defaulted to the principal
+            // broker designation, so an inquiry sent by an agent whose licence
+            // class was unknown told the RECEIVING BROKER that the sender was
+            // the firm's principal broker.
+            var fromTitle = agent.licenseTitle || agent.title || '';
             var fromCompany = agent.company || 'Mallan Real Estate Inc.';
             var fromPhone = agent.phone || '';
             var fromEmail = agent.email || '';
@@ -1258,7 +1262,7 @@
                 'View Listing: ' + url + '\n\n' +
                 '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
                 'From: ' + fromName + '\n' +
-                fromTitle + '\n' +
+                (fromTitle ? fromTitle + '\n' : '') +
                 fromCompany + ' · License ' + brokerageLicense + '\n' +
                 brokerageAddress + '\n' +
                 fromPhone + (fromEmail ? ' · ' + fromEmail : '') + '\n\n' +
@@ -1632,7 +1636,13 @@
             var today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
             var primaryPhoto = listing.images && listing.images[0] ? listing.images[0].url : '';
 
-            var _agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', licenseTitle: 'Licensed Real Estate Broker', phone: '', email: '', company: '', companyLicense: '', license: '', address: '' };
+            // A seeded designation in this fallback is the same fabrication
+            // wearing an object literal: with no AGENT_PROFILE there is no
+            // licence evidence at all, so the only honest value is none.
+            var _agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', licenseTitle: '', phone: '', email: '', company: '', companyLicense: '', license: '', address: '' };
+            // Resolved ONCE for this sheet, so the header, the prepared-by
+            // block and the footer all omit their designation together.
+            var _agentTitle = _agent.licenseTitle || _agent.title || '';
 
             // Build full HTML string (CSP-safe — no document.write)
             var h = '<!DOCTYPE html><html><head><title>' + displayAddress + displayUnit + ' — Listing Detail</title>';
@@ -1670,11 +1680,11 @@
             h += '<div class="print-page">';
 
             // Header with branding
-            h += '<div class="print-header"><div><div class="print-brand">mallan<span>.nyc</span></div><div style="font-size:11px;color:#888;margin-top:2px">' + _agent.company + ' &middot; ' + (_agent.licenseTitle || _agent.title || 'Licensed Real Estate Broker') + '</div></div><div class="agent-block"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#B8860B">Prepared</div><div>' + today + '</div></div></div>';
+            h += '<div class="print-header"><div><div class="print-brand">mallan<span>.nyc</span></div><div style="font-size:11px;color:#888;margin-top:2px">' + _agent.company + (_agentTitle ? ' &middot; ' + _agentTitle : '') + '</div></div><div class="agent-block"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#B8860B">Prepared</div><div>' + today + '</div></div></div>';
 
             // Dual agent blocks — prepared by (our agent) + listing agent (from RLS)
             h += '<div class="dual-agent">';
-            h += '<div><div class="label">Prepared By</div><div class="name">' + _agent.name + '</div><div class="info">' + (_agent.licenseTitle || _agent.title || 'Licensed Real Estate Broker') + '<br>' + _agent.company + ' &middot; Lic. ' + (_agent.companyLicense || '') + '<br>' + (_agent.address || '') + '<br>' + _agent.phone + ' &middot; ' + _agent.email + '<br>' + (_agent.license ? 'License ' + _agent.license : '') + '</div></div>';
+            h += '<div><div class="label">Prepared By</div><div class="name">' + _agent.name + '</div><div class="info">' + (_agentTitle ? _agentTitle + '<br>' : '') + _agent.company + ' &middot; Lic. ' + (_agent.companyLicense || '') + '<br>' + (_agent.address || '') + '<br>' + _agent.phone + ' &middot; ' + _agent.email + '<br>' + (_agent.license ? 'License ' + _agent.license : '') + '</div></div>';
             h += '<div><div class="label">Listing Agent</div><div class="name">' + escapeHtml(listing.agentName || '---') + '</div><div class="info">' + escapeHtml(listing.company || '---') + '<br>' + escapeHtml(listing.agentPhone || '') + (listing.agentEmail ? ' &middot; ' + escapeHtml(listing.agentEmail) : '') + '<br>' + escapeHtml(listing.listingType || 'Exclusive') + '</div></div>';
             h += '</div>';
 
@@ -1737,7 +1747,7 @@
             h += '<div class="print-ref">Reference: L-ID ' + (listing.lid || '---') + ' &middot; W-ID ' + (listing.wid || '---') + ' &middot; SourceSystemKey ' + (listing.wid || listing.lid || listing.id) + '</div>';
 
             // Footer
-            h += '<div class="print-footer">Listing data courtesy of the REBNY Listing Service (RLS) via Trestle &middot; ' + _agent.company + ' ' + (_agent.companyLicense || '') + ' &middot; Information deemed reliable but not guaranteed<br>&copy; ' + new Date().getFullYear() + ' ' + _agent.company + ' &middot; ' + (_agent.address || '') + (_agent.phone ? ' &middot; ' + _agent.phone : '') + '<br>' + _agent.name + ', ' + (_agent.licenseTitle || _agent.title || 'Licensed Real Estate Broker') + (_agent.license ? ' &middot; Lic. ' + _agent.license : '') + '<span class="eho">&bull; Equal Housing Opportunity</span></div>';
+            h += '<div class="print-footer">Listing data courtesy of the REBNY Listing Service (RLS) via Trestle &middot; ' + _agent.company + ' ' + (_agent.companyLicense || '') + ' &middot; Information deemed reliable but not guaranteed<br>&copy; ' + new Date().getFullYear() + ' ' + _agent.company + ' &middot; ' + (_agent.address || '') + (_agent.phone ? ' &middot; ' + _agent.phone : '') + '<br>' + _agent.name + (_agentTitle ? ', ' + _agentTitle : '') + (_agent.license ? ' &middot; Lic. ' + _agent.license : '') + '<span class="eho">&bull; Equal Housing Opportunity</span></div>';
 
             // Toolbar (hidden when printing)
             h += '<div class="print-toolbar" style="position:sticky;top:0;z-index:100;background:#1e293b;padding:10px 20px;display:flex;align-items:center;gap:16px;font-family:Manrope,sans-serif;margin:-32px -36px 20px -36px"><span style="color:#fff;font-weight:700;font-size:15px">' + displayAddress + displayUnit + '</span><span style="flex:1"></span><button onclick="window.print()" style="background:#2563eb;color:#fff;border:none;padding:8px 20px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px"><i class="fas fa-print"></i> Print</button><button onclick="window.close()" style="background:#475569;color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:14px;cursor:pointer">Close</button></div>';
@@ -1757,14 +1767,19 @@
                 return;
             }
 
-            var _agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', licenseTitle: 'Licensed Real Estate Broker', phone: '', email: '', company: 'Mallan Real Estate Inc.', companyLicense: '#10991205323', license: '' };
+            var _agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : { name: '', licenseTitle: '', phone: '', email: '', company: 'Mallan Real Estate Inc.', companyLicense: '#10991205323', license: '' };
             var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : listing.address;
             var displayUnit = listing.addressDisplayYN !== false && listing.unit ? ', ' + listing.unit : '';
             var subject = encodeURIComponent(displayAddress + displayUnit + ' — $' + listing.price.toLocaleString() + ' — ' + listing.beds + 'BR/' + listing.baths + 'BA');
 
             // Use sending agent info, NOT listing agent — per UCBA Art. I Sec. 5(C)
+            // This site defaulted to SALESPERSON while every other site in
+            // this file defaulted to BROKER: one unknown input, two different
+            // fabrications, in outbound email to outside brokers. It now
+            // asserts nothing, and the signature line is omitted with it.
+            var _agentTitle = _agent.licenseTitle || _agent.title || '';
             var agentBlock = _agent.name + '\n' +
-                (_agent.licenseTitle || 'Licensed Real Estate Salesperson') + '\n' +
+                (_agentTitle ? _agentTitle + '\n' : '') +
                 (_agent.company || 'Mallan Real Estate Inc.') + '\n' +
                 (_agent.phone ? 'Phone: ' + _agent.phone + '\n' : '') +
                 (_agent.email ? 'Email: ' + _agent.email + '\n' : '') +

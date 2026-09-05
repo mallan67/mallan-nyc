@@ -239,7 +239,14 @@
                                 </div>
                                 <div>
                                     <p class="font-semibold text-gray-900" id="reportPreviewAgentName">--</p>
-                                    <p class="text-sm text-gray-600" id="reportPreviewAgentTitle">Licensed Real Estate Broker</p>
+                                    <!-- The regulated professional designation. Nothing
+                                         in public/crm/** ever assigns this element, so
+                                         the hardcoded text WAS the final rendered value
+                                         for every agent, always — an unconditional
+                                         principal-broker claim on the report preview.
+                                         Left empty by design: an unresolved licence
+                                         class shows nothing. -->
+                                    <p class="text-sm text-gray-600" id="reportPreviewAgentTitle"></p>
                                     <p class="text-sm text-gray-500" id="reportPreviewAgentContact">--</p>
                                 </div>
                             </div>

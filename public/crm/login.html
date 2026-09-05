@@ -378,12 +378,15 @@
     (function () {
         'use strict';
 
-        // ── Configure API base URL ──
-        var currentOrigin = window.location.origin;
-        var isLocal = currentOrigin.indexOf('localhost') !== -1 || currentOrigin.indexOf('127.0.0.1') !== -1;
-        if (isLocal) {
-            MallanAPI.configure({ baseUrl: 'https://mallan.nyc' });
-        }
+        // ── API base URL — deliberately NOT set here ──
+        // This page used to point localhost at https://mallan.nyc, which
+        // contradicted its own dev-login button (same-origin POST to
+        // /api/auth/dev-login) and its same-origin session cookie. The CRM and
+        // the API are served by the same deployment, so api-client.js resolves
+        // the base once, same-origin, for every environment. A localhost
+        // developer who intentionally needs a remote API opts in explicitly
+        // with window.MALLAN_API_BASE_URL before api-client.js loads — see the
+        // governed-resolver note at the top of js/core/api-client.js.
 
         // ── Check if already logged in (always try — httpOnly cookie not visible to JS) ──
         MallanAPI.init().then(function (data) {

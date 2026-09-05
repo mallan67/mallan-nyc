@@ -209,12 +209,12 @@ export async function POST(req: NextRequest) {
   const sessionUser: SessionUser = auth;
 
   // Resolve the sender against the CANONICAL Agent record before advertising a
-  // professional designation. The session carries `role` (the CRM
-  // authorisation grant) but not `title` (the NY licence designation), and the
-  // two are not interchangeable: an Associate Broker holds a broker licence yet
-  // role "AGENT", so deriving the title from `role` advertised her as a
-  // "Licensed Real Estate Salesperson" — a false statement about a licensee in
-  // brokerage correspondence (NY DOS 19 NYCRR 175.25).
+  // professional designation. The session carries `role` (the Mallan
+  // authorisation grant) but not the LICENCE CLASS, and the two are not
+  // interchangeable: deriving the title from `role` advertised an Associate
+  // Broker as a "Licensed Real Estate Salesperson" — a false statement about a
+  // licensee in brokerage correspondence (NY DOS 19 NYCRR 175.25). The
+  // designation is derived from `license_type`; `role` is not selected.
   //
   // Keyed on the session's userId only. There is deliberately NO secondary
   // lookup key: an empty-string email fallback would silently match nothing (or
@@ -224,14 +224,13 @@ export async function POST(req: NextRequest) {
     full_name: string | null;
     title: string | null;
     license_type: string | null;
-    role: string | null;
     phone: string | null;
     email: string;
   } | null = null;
   try {
     senderRecord = await prisma.agent.findUnique({
       where: { id: sessionUser.userId },
-      select: { full_name: true, title: true, license_type: true, role: true, phone: true, email: true },
+      select: { full_name: true, title: true, license_type: true, phone: true, email: true },
     });
   } catch (err) {
     // Fail LOUD in the log, then degrade to omitting the title. We must never
