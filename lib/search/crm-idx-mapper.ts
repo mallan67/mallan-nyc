@@ -184,6 +184,19 @@ export function mapTrestleToCrmListing(
     }
   }
 
+  const fullBaths =
+    raw.BathroomsFull != null && Number.isFinite(Number(raw.BathroomsFull))
+      ? Number(raw.BathroomsFull)
+      : null;
+  const halfBaths =
+    raw.BathroomsHalf != null && Number.isFinite(Number(raw.BathroomsHalf))
+      ? Number(raw.BathroomsHalf)
+      : null;
+  const baths =
+    fullBaths != null && halfBaths != null
+      ? fullBaths + halfBaths * 0.5
+      : null;
+
   return {
     id: String(raw.ListingId || raw.SourceSystemKey || index + 1),
     address: displayAddress,
@@ -192,12 +205,15 @@ export function mapTrestleToCrmListing(
     totalMonthly: isRental ? price : monthlyTax + maintCC,
     rooms: Number(raw.RoomsTotal) || 0,
     beds: Number(raw.BedroomsTotal) || 0,
-    baths:
-      raw.BathroomsTotalInteger != null ? Number(raw.BathroomsTotalInteger) :
-      (Number(raw.BathroomsFull) || 0) +
-      (Number(raw.BathroomsHalf) || 0) * 0.5,
-    fullBaths: Number(raw.BathroomsFull) || 0,
-    halfBaths: Number(raw.BathroomsHalf) || 0,
+    // Canonical Mallan bath value = BathroomsFull + 0.5 x BathroomsHalf, ONLY when both
+    // components are present and numeric; otherwise null. Live Cotality declares all three
+    // bathroom fields nullable. The Validator proved Full/Half complete on the current active
+    // sale and rental universes (2026-09-05, re-check item 3) and that BathroomsTotalInteger
+    // disagrees with Full+Half on sampled rows, so TotalInteger is never the source and never
+    // a fallback. A null component is an unknown provider fact, never 0.
+    baths,
+    fullBaths,
+    halfBaths,
     reTaxes: monthlyTax,
     maintCC,
     intSqft: raw.LivingArea != null ? Number(raw.LivingArea) : null,
