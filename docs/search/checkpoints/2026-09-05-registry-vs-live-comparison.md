@@ -55,7 +55,9 @@ Classification vocabulary: VERIFIED_CURRENT · CORRECT_MAPPING_REQUIRED · NEEDS
 
 ## BUILDER EVIDENCE — NOT part of the Validator's verdict (Builder-run live probes, 2026-09-05T03:06–03:07Z)
 
-Evidence class: **Builder**. These three probes were run by the Builder after the Validator's report, against the live Cotality API, to fill gaps in the Validator's brief. They are recorded separately, were not seen by the Validator, and carry Builder weight only until the fresh Contract/Data Validator re-check confirms or contradicts them.
+Evidence class: **Builder**. These three probes were run by the Builder after the Validator's report, against the live Cotality API, to fill gaps in the Validator's brief. They were recorded separately and were not seen by the Validator.
+
+**Re-check outcome (independent Contract/Data Validator, 2026-09-05, `docs/search/evidence/2026-09-05-registry-recheck-validator.md`): all 11 corrected mappings CONFIRMED, 0 contradicted, 0 unverified.** Of the three Builder probes: the sort key (item 7) and the Mallan office rows (item 8) are now Validator-confirmed; for the neighborhood vocabulary the Validator confirmed population, operators and every named case variant (item 5) but declined by rule to verify the universe-wide token count, so the vocabulary SIZE stays Builder evidence. New live nuance from the re-check: `CityRegion eq 'Staten Island'` (with a space) is accepted and returns 0, not rejected.
 
 **Newest-first sort key.** `ListingContractDate ne null`: SALE 6,639 / RENT 918 (every row). `OnMarketDate`: 6,639 / 917. `ModificationTimestamp` and `OriginalEntryTimestamp`: every row. `probeField` on `ListingContractDate`: select, non-null (581,763 corpus), orderby and `ge` operator all SUPPORTED. **`ListingContractDate` is a fully populated, orderable "newest" key on both universes**; the registry's `listing_contract_date` entry ("canonical newest sort key") is VERIFIED_CURRENT. `ModificationTimestamp`, the executor's default on `main`, orders by last touch, not by listing date.
 

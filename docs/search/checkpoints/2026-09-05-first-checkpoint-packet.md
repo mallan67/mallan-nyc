@@ -42,9 +42,12 @@ Not modified by this lane: `public/crm/js/core/api-client.js`, `public/crm/js/da
 ## Evidence sections (filled as each class reports)
 
 ### 1. Contract/Data Validator — live provider truth
-_Status: RUNNING (dispatched 2026-09-05, live Cotality only, no registry or #618 visibility)._
-Evidence file: `SEARCH-CHECKPOINT-LIVE-COTALITY-IV-2026-09-05.md` (scratchpad; copied here on receipt).
-Registry comparison per executable entry: VERIFIED_CURRENT · CORRECT_MAPPING_REQUIRED · NEEDS_LIVE_SEMANTIC_PROBE · NOT_POPULATED · NOT_AUTHORIZED · REMOVE_FROM_EXECUTION — _pending the live report_.
+_Status: COMPLETE, two independent passes._
+- First pass (live Cotality only, no registry/#618 visibility): `docs/search/evidence/2026-09-05-live-cotality-checkpoint-contract.md`.
+- Registry comparison and classification: `docs/search/checkpoints/2026-09-05-registry-vs-live-comparison.md`.
+- Builder correction: commit `e16ab876` (registry only, no executor).
+- Re-check of the corrected mappings (independent, claims stated in full, no document access): `docs/search/evidence/2026-09-05-registry-recheck-validator.md` — **11 / 11 CONFIRMED**.
+- Builder live evidence still not Validator-verified by rule: the universe-wide neighborhood token count (`2026-09-05-subdivision-vocab-*.json`).
 
 ### 2. Builder — extraction ledger from #618 (evidence only, never merged wholesale)
 `#618 source → current-main equivalent → contract re-verified against section 1? → tests → runtime dependency` — _pending_.
