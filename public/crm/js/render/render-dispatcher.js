@@ -146,31 +146,7 @@
                     });
                 }
             }
-            // Apply sorting
-            var field = searchResultsState.sortField;
-            var order = searchResultsState.sortOrder;
-            if (field && !searchResultsState.serverPaged) {
-                listings.sort(function(a, b) {
-                    var va = a[field], vb = b[field];
-                    if (va == null) va = '';
-                    if (vb == null) vb = '';
-                    if (typeof va === 'number' && typeof vb === 'number') {
-                        return order === 'asc' ? va - vb : vb - va;
-                    }
-                    va = String(va).toLowerCase();
-                    vb = String(vb).toLowerCase();
-                    if (va < vb) return order === 'asc' ? -1 : 1;
-                    if (va > vb) return order === 'asc' ? 1 : -1;
-                    return 0;
-                });
-            }
-            // Apply pagination unless explicitly skipped (e.g., for total count)
-            if (!skipPagination && !searchResultsState.serverPaged) {
-                var perPage = searchResultsState.perPage || 50;
-                var page = searchResultsState.currentPage || 1;
-                var start = (page - 1) * perPage;
-                listings = listings.slice(start, start + perPage);
-            }
+            // Order and page are the executor's (Search Consolidation Packet 1): no local sort, no local slice.
             return listings;
         }
 

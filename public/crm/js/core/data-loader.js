@@ -309,6 +309,14 @@
         if (typeof MallanAPI !== 'undefined') {
             _loadClients(); // Load clients for email/report recipient selectors
             MallanAPI.onReady(function() {
+                // The Search contract (executable parameters + vocabularies) is the browser's ONLY
+                // source; without it Search refuses to run (fail loud, no hard-coded fallback).
+                if (typeof window.loadSearchContract === 'function') {
+                    window.loadSearchContract().catch(function(cErr) {
+                        console.error('[Search] contract load failed:', cErr && cErr.message);
+                        if (typeof showToast === 'function') showToast('Search is unavailable: the Search contract did not load. Reload the page.', 'error');
+                    });
+                }
                 _loadFromIDX().catch(function(idxErr) {
                     // IDX unavailable (503, no credentials, etc.) — fall back to Prisma DB
                     console.warn('[DataLoader] IDX unavailable, falling back to local DB:', idxErr && idxErr.message);
@@ -346,9 +354,6 @@
                     // Show REBNY attribution
                     if (result.attribution) _showAttribution(result.attribution);
                     // Set initial activeSearchCriteria so refine panel works
-                    if (typeof activeSearchCriteria !== 'undefined' && !activeSearchCriteria) {
-                        activeSearchCriteria = { searchTab: _savedTab === 'rent' ? 'rent' : 'sale' };
-                    }
                     return result;
                 }
                 return Promise.reject(new Error('IDX returned 0 listings'));
@@ -380,22 +385,14 @@
             listings.length = 0;
             newData.forEach(function(l) { listings.push(l); });
             // Ensure all fields used by renderers have safe defaults
+            // Presentation defaults ONLY where a renderer needs a string. No numeric provider fact,
+            // status or borough is ever invented (Search Consolidation Packet 1).
             listings.forEach(function(l) {
-                if (l.price == null) l.price = 0;
-                if (l.totalMonthly == null) l.totalMonthly = 0;
-                if (l.maintCC == null) l.maintCC = 0;
-                if (l.reTaxes == null) l.reTaxes = 0;
-                if (l.beds == null) l.beds = 0;
-                if (l.baths == null) l.baths = 0;
-                if (l.rooms == null) l.rooms = 0;
-                if (l.dom == null) l.dom = 0;
                 if (l.photoCount == null) l.photoCount = (l.images && l.images.length) || 0;
-                if (!l.status) l.status = 'ACTIVE';
                 if (!l.address) l.address = 'Address Unavailable';
                 if (!l.unit) l.unit = '';
                 if (!l.neighborhood) l.neighborhood = '';
                 if (!l.zip) l.zip = '';
-                if (!l.borough) l.borough = 'Manhattan';
                 if (!l.listedDate) l.listedDate = '--';
                 if (!l.company) l.company = '';
                 if (!l.permissions) {
@@ -406,27 +403,8 @@
             console.log('[DataLoader] Loaded ' + listings.length + ' listings from ' + source);
             // Dispatch event so other modules (e.g. hash routing) know data is ready
             window.dispatchEvent(new CustomEvent('mallan:data:ready', { detail: { count: listings.length, source: source } }));
-            // If user is viewing results, re-filter with existing criteria and re-render
-            // Do NOT call performSearch() — that re-collects from hidden form and may get wrong values
-            // Do NOT overwrite if a server search is actively running (it will re-render when complete)
-            if (_serverSearchActive) {
-                console.log('[DataLoader] Skipping re-render — server search is active');
-                return;
-            }
-            var resultsSection = document.getElementById('searchResultsSection');
-            var isViewingResults = resultsSection && resultsSection.style.display !== 'none' && !resultsSection.classList.contains('hidden');
-            if (isViewingResults && typeof searchResultsState !== 'undefined') {
-                // Re-filter with current criteria (or show all if no criteria)
-                if (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) {
-                    searchResultsState.filteredListings = typeof filterListings === 'function'
-                        ? filterListings(listings, activeSearchCriteria)
-                        : listings.slice();
-                } else {
-                    searchResultsState.filteredListings = listings.slice();
-                }
-                if (typeof initializeSearchResults === 'function') initializeSearchResults();
-                if (typeof updateResultsCount === 'function') updateResultsCount();
-            }
+            // The loaded rows are an INDEX for detail/photo/address lookups only. They never
+            // become Search membership and are never re-filtered (Search Consolidation Packet 1).
         }
 
         /**

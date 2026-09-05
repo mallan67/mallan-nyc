@@ -1,20 +1,11 @@
-        // Pagination — a server-paged result set asks the executor for the page
-        // (window.goToServerPage); legacy local result sets keep their local slice.
-        function goToFirstPage() { if (window.goToServerPage && goToServerPage(1)) return; searchResultsState.currentPage = 1; renderSearchResults(); }
-        function goToPrevPage() { if (window.goToServerPage && goToServerPage(searchResultsState.currentPage - 1)) return; if (searchResultsState.currentPage > 1) { searchResultsState.currentPage--; renderSearchResults(); } }
-        function goToNextPage() {
-            if (window.goToServerPage && goToServerPage(searchResultsState.currentPage + 1)) return;
-            var total = Math.ceil(getFilteredListings(true).length / searchResultsState.perPage);
-            if (searchResultsState.currentPage < total) { searchResultsState.currentPage++; renderSearchResults(); }
-        }
-        function goToLastPage() {
-            if (searchResultsState.serverPaged && window.goToServerPage) { goToServerPage(Math.ceil((searchResultsState.serverTotal || 0) / (searchResultsState.perPage || 50))); return; }
-            searchResultsState.currentPage = Math.ceil(getFilteredListings(true).length / searchResultsState.perPage); renderSearchResults();
-        }
+        // Pagination — every page is the executor's page (Search Consolidation Packet 1).
+        function goToFirstPage() { if (window.goToServerPage) goToServerPage(1); }
+        function goToPrevPage() { if (window.goToServerPage) goToServerPage((searchResultsState.currentPage || 1) - 1); }
+        function goToNextPage() { if (window.goToServerPage) goToServerPage((searchResultsState.currentPage || 1) + 1); }
+        function goToLastPage() { if (window.goToServerPage) goToServerPage(Math.ceil((searchResultsState.serverTotal || 0) / (searchResultsState.perPage || 50))); }
         function changePerPage() {
             searchResultsState.perPage = parseInt(document.getElementById('perPageSelect').value); searchResultsState.currentPage = 1;
-            if (window.reissueServerSearch && reissueServerSearch()) return;
-            renderSearchResults();
+            if (window.reissueServerSearch) reissueServerSearch();
         }
 
         // Column sort toggle

@@ -136,17 +136,16 @@
                 if (typeof activeSearchCriteria !== 'undefined') {
                     activeSearchCriteria = parsed.criteria;
                 }
-                if (typeof searchResultsState !== 'undefined' && typeof listings !== 'undefined') {
-                    searchResultsState.filteredListings = filterListings(listings, parsed.criteria);
+                if (typeof searchResultsState !== 'undefined') {
+                    // A recalled search is re-asked of the canonical executor — never rebuilt
+                    // from rows cached in the browser (Search Consolidation Packet 1).
+                    searchResultsState.filteredListings = [];
+                    searchResultsState.serverPaged = true;
+                    searchResultsState.serverTotal = null;
+                    searchResultsState.serverCountMeaning = null;
                     searchResultsState.currentPage = 1;
-                    var searchResultsSection = document.getElementById('searchResultsSection');
-                    if (searchResultsSection) {
-                        searchResultsSection.style.display = 'block';
-                        searchResultsSection.classList.remove('hidden');
-                        initializeSearchResults();
-                    }
-                    updateResultsCount();
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    if (typeof _showSearchResults === 'function') _showSearchResults();
+                    if (typeof _serverSearch === 'function') _serverSearch(parsed.criteria);
                 }
                 var ago = Math.round((Date.now() - parsed.timestamp) / 60000);
                 var agoText = ago < 1 ? 'just now' : ago < 60 ? ago + 'm ago' : Math.round(ago / 60) + 'h ago';

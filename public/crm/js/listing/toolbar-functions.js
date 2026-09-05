@@ -66,57 +66,10 @@
         function toggleSortOrder() {
             if (!searchResultsState) return;
             searchResultsState.sortOrder = searchResultsState.sortOrder === 'asc' ? 'desc' : 'asc';
-            if (searchResultsState.serverPaged && window.reissueServerSearch) { reissueServerSearch(); return; }
-
-            // For price sort, re-fetch from server with correct ordering
-            // (local sort only covers the 500 loaded listings)
-            var field = searchResultsState.sortField;
-            var order = searchResultsState.sortOrder;
-            if ((field === 'price' || field === 'listedDate' || field === 'dom') && typeof MallanAPI !== 'undefined') {
-                var fieldMap = { 'price': 'ListPrice', 'listedDate': 'ModificationTimestamp', 'dom': 'DaysOnMarket' };
-                var trestleField = fieldMap[field] || 'ListPrice';
-                var trestleOrder = order === 'desc' ? trestleField + ' desc' : trestleField + ' asc';
-
-                var savedTab;
-                try { savedTab = sessionStorage.getItem('searchTab'); } catch(e) {}
-                var searchType = savedTab === 'rent' ? 'rental' : 'sale';
-
-                // Build search params with current criteria
-                var params = { limit: 200, type: searchType };
-                if (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) {
-                    if (activeSearchCriteria.priceMin) params.minPrice = activeSearchCriteria.priceMin;
-                    if (activeSearchCriteria.priceMax) params.maxPrice = activeSearchCriteria.priceMax;
-                    if (activeSearchCriteria.bedsMin) params.minBeds = activeSearchCriteria.bedsMin;
-                    if (activeSearchCriteria.bathsMin) params.minBaths = activeSearchCriteria.bathsMin;
-                    if (activeSearchCriteria.neighborhoods && activeSearchCriteria.neighborhoods.length === 1) {
-                        params.neighborhood = activeSearchCriteria.neighborhoods[0];
-                    }
-                }
-                // Add sort param for the API
-                params.sort = trestleOrder;
-
-                _serverSearchActive = true;
-                MallanAPI.idx.search(params).then(function(result) {
-                    _serverSearchActive = false;
-                    if (result.listings && result.listings.length > 0) {
-                        _replaceListings(result.listings, 'IDX/Trestle (re-sort)');
-                        // Re-filter and render
-                        var criteria = (typeof activeSearchCriteria !== 'undefined' && activeSearchCriteria) ? activeSearchCriteria : { searchTab: searchType === 'rental' ? 'rent' : 'sale' };
-                        searchResultsState.filteredListings = typeof filterListings === 'function'
-                            ? filterListings(listings, criteria) : listings.slice();
-                        searchResultsState.currentPage = 1;
-                        if (typeof initializeSearchResults === 'function') initializeSearchResults();
-                        if (typeof updateResultsCount === 'function') updateResultsCount();
-                    }
-                }).catch(function(err) {
-                    _serverSearchActive = false;
-                    console.warn('[Sort] Server re-fetch failed, using local sort:', err.message);
-                    renderSearchResults();
-                });
-                return;
-            }
-
-            renderSearchResults();
+            // Order is the executor's: re-ask it. (The legacy re-fetch-then-local-filter path was
+            // removed in Search Consolidation Packet 1.)
+            if (window.reissueServerSearch && reissueServerSearch()) return;
+            if (typeof renderSearchResults === 'function') renderSearchResults();
         }
 
         function showAllResults() {

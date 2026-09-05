@@ -166,22 +166,6 @@
                     showToast('Error: Search state not initialized. Please refresh the page.', 'error');
                     return;
                 }
-                // Multi-borough advisory (unchanged): the executor takes ONE borough.
-                try {
-                    var _activeTagsId = (typeof _resolveActiveNeighborhoodTagsId === 'function')
-                        ? _resolveActiveNeighborhoodTagsId()
-                        : 'saleNeighborhoodTags';
-                    var _selectedBoroughs = (typeof getSelectedBoroughs === 'function')
-                        ? getSelectedBoroughs(_activeTagsId)
-                        : [];
-                    if (_selectedBoroughs.length > 1) {
-                        showToast(
-                            'Multi-borough filter is not supported — borough constraint dropped. ' +
-                            'For precise results, pick neighborhoods in each borough instead.',
-                            'warning'
-                        );
-                    }
-                } catch (_advErr) { /* advisory only */ }
                 // ── Canonical executor contract (Search Browser Integration P0, 2026-09-05) ──
                 // The browser sends criteria to /api/idx/search and renders ONLY what the
                 // executor returns for the requested page: no local pre-render over rows
@@ -190,6 +174,10 @@
                 // name (mirroring the route's 400 UNSUPPORTED_CRITERION) — never dropped
                 // into a silently broader search.
                 var _ser = window.serializeSearchCriteria(activeSearchCriteria);
+                if (_ser.contractMissing) {
+                    showToast('Search is unavailable: the Search contract did not load. Reload the page.', 'error');
+                    return;
+                }
                 if (_ser.refused.length > 0) {
                     showToast('Not executable in this Search: ' + _ser.refused.join(', ') + '. Clear those controls and search again.', 'warning');
                     return;
@@ -208,16 +196,6 @@
                 showToast('Search error: ' + err.message + '. Check browser console (F12) for details.', 'error');
             }
         }
-        function _hasServerIgnoredCriteria(criteria) {
-            return Boolean(criteria && (
-                criteria.openHouseDateFrom ||
-                criteria.openHouseDateTo ||
-                criteria._transitLines ||
-                criteria._transitBounds ||
-                criteria._gridBounds
-            ));
-        }
-
         // Show search results UI (extracted for reuse by server search)
         function _showSearchResults() {
             // Save for "Last Search" recall
@@ -266,28 +244,30 @@
         // reflects the same Trestle filter the Search button will run. Live
         // tracker can override `limit: 1` to get a count-only response.
         // Window-attached so init-tracker.js can call it.
-        // ── Canonical criteria serializer (Search Browser Integration P0, 2026-09-05) ──
-        // The executor (/api/idx/search — lib/search/engine/criteria.ts) executes exactly:
-        //   type · status · minPrice/maxPrice · minBeds/maxBeds · minBaths/maxBaths ·
-        //   borough · neighborhood · ownership · StructureType · zip · listingId ·
-        //   sort · limit · skip
-        // and REFUSES every other parameter by name. The browser therefore sends only
-        // those, and any criterion the user set that is not executable is returned in
-        // `refused` so the caller can say so — a visible refusal, never a quiet drop.
-        var _EXECUTABLE_STATUS = {
-            'ACTIVE': 'Active', 'COMING_SOON': 'ComingSoon', 'PENDING': 'Pending',
-            'CONTRACT': 'ActiveUnderContract', 'UNDER_CONTRACT': 'ActiveUnderContract',
-            'CLOSED': 'Closed', 'WITHDRAWN': 'Withdrawn', 'CANCELED': 'Canceled', 'CANCELLED': 'Canceled',
-            'EXPIRED': 'Expired', 'HOLD': 'Hold', 'INCOMPLETE': 'Incomplete', 'DELETE': 'Delete'
+        // ── Canonical criteria serializer (Search Consolidation Packet 1, 2026-09-05) ──
+        // The browser carries NO vocabulary. Every member list and the executable parameter set
+        // come from GET /api/idx/search/contract, which is the executor's own source verbatim
+        // (data/cotality-enums.live.json → canonical/live-truth.ts → engine/criteria.ts).
+        // Without a loaded contract the browser refuses to search (fail loud, no fallback).
+        var _SEARCH_CONTRACT = null;
+        window.loadSearchContract = function() {
+            if (typeof MallanAPI === 'undefined' || !MallanAPI.idx || typeof MallanAPI.idx.contract !== 'function') {
+                return Promise.reject(new Error('MallanAPI.idx.contract unavailable'));
+            }
+            return MallanAPI.idx.contract().then(function(c) {
+                if (!c || !c.members || !c.members.StandardStatus || !Array.isArray(c.executableParams)) throw new Error('malformed Search contract');
+                _SEARCH_CONTRACT = c;
+                window.SEARCH_CONTRACT = c;
+                return c;
+            });
         };
-        var _EXECUTABLE_OWNERSHIP = { 'Condominium': 1, 'StockCooperative': 1, 'Condop': 1, 'RentalBuilding': 1, 'None': 1 };
-        // Live StructureType members (Cotality API Lookup, 2026-09-05).
-        var _EXECUTABLE_STRUCTURE = {
-            'Apartment': 1, 'Cabin': 1, 'Dock': 1, 'Duplex': 1, 'Flex': 1, 'FreeStandingBuilding': 1, 'HighRise': 1,
-            'HotelMotel': 1, 'House': 1, 'Industrial': 1, 'LowRise': 1, 'ManufacturedHouse': 1, 'MidRise': 1,
-            'MixedUse': 1, 'MultiFamily': 1, 'None': 1, 'Office': 1, 'Other': 1, 'Quadruplex': 1, 'Retail': 1,
-            'Townhouse': 1, 'Triplex': 1, 'Warehouse': 1
-        };
+        function _contractTokens(field) {
+            var set = {};
+            var m = _SEARCH_CONTRACT && _SEARCH_CONTRACT.members && _SEARCH_CONTRACT.members[field];
+            (m || []).forEach(function(x) { set[x.token] = true; });
+            return set;
+        }
+        // Shell criteria keys the executor does not execute (UI labels only — not vocabulary).
         var _NOT_EXECUTABLE = [
             ['address', 'Address / Building Name'], ['unit', 'Unit #'], ['keyword', 'Keyword'],
             ['roomsMin', 'Min Rooms'], ['roomsMax', 'Max Rooms'], ['sqftMin', 'Min SqFt'], ['sqftMax', 'Max SqFt'],
@@ -302,7 +282,11 @@
         window.serializeSearchCriteria = function(criteria) {
             var params = {}; var refused = []; var seen = {};
             function refuse(label) { if (!seen[label]) { seen[label] = true; refused.push(label); } }
-            if (!criteria) return { params: params, refused: refused };
+            if (!criteria) return { params: params, refused: refused, contractMissing: !_SEARCH_CONTRACT };
+            if (!_SEARCH_CONTRACT) return { params: params, refused: ['Search contract not loaded'], contractMissing: true };
+            var STATUS = _contractTokens('StandardStatus');
+            var OWNERSHIP = _contractTokens('CommonInterest');
+            var STRUCTURE = _contractTokens('StructureType');
             params.type = criteria.searchTab === 'rent' ? 'rental' : 'sale';
             if (criteria.searchTab === 'building') refuse('Building search');
             if (criteria.priceMin) params.minPrice = criteria.priceMin;
@@ -312,41 +296,43 @@
             if (criteria.bathsMin) params.minBaths = criteria.bathsMin;
             if (criteria.bathsMax) params.maxBaths = criteria.bathsMax;
             if (criteria.neighborhoods && criteria.neighborhoods.length > 0) params.neighborhood = criteria.neighborhoods.join(',');
-            if (criteria.borough) params.borough = criteria.borough;
+            // EVERY selected borough is sent; the executor ORs CityRegion across provider and Mallan rows.
+            if (criteria.boroughs && criteria.boroughs.length > 0) params.borough = criteria.boroughs.join(',');
+            else if (criteria.borough) params.borough = criteria.borough;
             if (criteria.rlsId) params.listingId = String(criteria.rlsId).split(',').map(function(s) { return s.trim(); }).filter(Boolean).join(',');
             if (criteria.zip) params.zip = criteria.zip;
             if (criteria.statuses && criteria.statuses.length > 0) {
                 var st = [];
                 criteria.statuses.forEach(function(s) {
-                    var t = _EXECUTABLE_STATUS[String(s).toUpperCase()];
-                    if (t) { if (st.indexOf(t) === -1) st.push(t); } else refuse('Status "' + s + '"');
+                    if (typeof s === 'string' && s.indexOf('sub:') === 0) { refuse('Sub-status "' + s.slice(4) + '"'); return; }
+                    if (STATUS[s]) { if (st.indexOf(s) === -1) st.push(s); } else refuse('Status "' + s + '"');
                 });
                 if (st.length) params.status = st.join(',');
             }
             var own = [], structure = [];
             (criteria.ownership || []).forEach(function(o) {
-                if (_EXECUTABLE_OWNERSHIP[o]) own.push(o);
-                else if (o === 'Townhouse') structure.push('Townhouse');
+                if (OWNERSHIP[o]) own.push(o);
+                else if (STRUCTURE[o]) structure.push(o);
                 else refuse('Ownership "' + o + '"');
             });
             if (criteria.propertySubType) {
                 String(criteria.propertySubType).split(',').forEach(function(v) {
                     v = v.trim(); if (!v) return;
-                    if (v === 'Townhouse') structure.push('Townhouse'); else refuse('Property type "' + v + '"');
+                    if (STRUCTURE[v]) structure.push(v); else refuse('Property type "' + v + '"');
                 });
             }
             if (criteria.checkboxFilters) {
                 Object.keys(criteria.checkboxFilters).forEach(function(k) {
                     var v = criteria.checkboxFilters[k]; if (!_isSet(v)) return;
                     if (k === 'StructureType') {
-                        (Array.isArray(v) ? v : [v]).forEach(function(m) { if (_EXECUTABLE_STRUCTURE[m]) structure.push(m); else refuse('Building form "' + m + '"'); });
+                        (Array.isArray(v) ? v : [v]).forEach(function(m) { if (STRUCTURE[m]) structure.push(m); else refuse('Building form "' + m + '"'); });
                     } else refuse(k);
                 });
             }
             if (own.length) params.ownership = own.filter(function(x, i, a) { return a.indexOf(x) === i; }).join(',');
             if (structure.length) params.StructureType = structure.filter(function(x, i, a) { return a.indexOf(x) === i; }).join(',');
             _NOT_EXECUTABLE.forEach(function(p) { if (_isSet(criteria[p[0]])) refuse(p[1]); });
-            return { params: params, refused: refused };
+            return { params: params, refused: refused, contractMissing: false };
         };
         // Kept for the live count badge (init-tracker.js) and any other caller: the
         // executable parameters only. Refusals are surfaced by performSearch.
@@ -419,6 +405,10 @@
                 searchResultsState.filteredListings = rows;
                 searchResultsState.serverTotal = (result && typeof result.total === 'number') ? result.total : rows.length;
                 searchResultsState.serverCountMeaning = (result && result.countMeaning) || 'exact';
+                if (result && result.attribution) {
+                    var _attrEl = document.getElementById('searchAttributionText');
+                    if (_attrEl) _attrEl.textContent = result.attribution;
+                }
                 var totalPages = Math.max(1, Math.ceil(searchResultsState.serverTotal / perPage));
                 if (page > totalPages) searchResultsState.currentPage = totalPages;
                 try {
@@ -858,25 +848,15 @@
                         var val = cb.getAttribute('data-value');
                         var sub = cb.getAttribute('data-sub-status');
                         if (sub) {
-                            // Sub-status checkbox (e.g., "Offer Accepted", "Contract Out")
-                            criteria.statuses.push(sub);
+                            // A sub-status (MlsStatus detail, e.g. "Contract Out") is NOT executable by the
+                            // Search executor (MlsStatus is not filterable live). It is refused by name —
+                            // never silently widened to its parent status.
+                            criteria.statuses.push('sub:' + sub);
                         } else if (val) {
-                            // Handle comma-separated values (e.g., "Withdrawn,Canceled,Expired,Hold")
-                            var parts = val.split(',');
-                            parts.forEach(function(part) {
+                            // Provider StandardStatus tokens exactly as the form declares them.
+                            val.split(',').forEach(function(part) {
                                 var s = part.trim();
-                                // Map to uppercase
-                                if (s === 'Active' || s === 'BackOnMarket') criteria.statuses.push('ACTIVE');
-                                else if (s === 'ComingSoon') criteria.statuses.push('COMING_SOON');
-                                else if (s === 'Future') criteria.statuses.push('FUTURE');
-                                else if (s === 'Pending') criteria.statuses.push('PENDING');
-                                else if (s === 'Closed') criteria.statuses.push('CLOSED');
-                                else if (s === 'Withdrawn') criteria.statuses.push('WITHDRAWN');
-                                else if (s === 'Canceled') criteria.statuses.push('CANCELED');
-                                else if (s === 'Expired') criteria.statuses.push('EXPIRED');
-                                else if (s === 'Hold') criteria.statuses.push('HOLD');
-                                else if (s === 'Incomplete') criteria.statuses.push('INCOMPLETE');
-                                else criteria.statuses.push(s.toUpperCase());
+                                if (s) criteria.statuses.push(s);
                             });
                         }
                     });
@@ -918,14 +898,14 @@
 
                 // Borough resolution — explicit borough chip wins; otherwise
                 // derive from neighborhoods only when all are in one borough.
-                if (selectedBoroughs.length === 1) {
-                    criteria.borough = selectedBoroughs[0];
+                if (selectedBoroughs.length > 0) {
+                    // ALL selected boroughs — the executor ORs CityRegion (provider) and the
+                    // borough storage variants (Mallan rows). No selected borough is ever dropped.
+                    criteria.boroughs = selectedBoroughs.slice();
                 } else if (selectedNeighborhoods.length > 0) {
                     var boroughs = selectedNeighborhoods.map(function(n) { return _findBoroughForNeighborhood(n); }).filter(Boolean);
                     var uniqueBoroughs = boroughs.filter(function(b, i, arr) { return arr.indexOf(b) === i; });
-                    if (uniqueBoroughs.length === 1) {
-                        criteria.borough = uniqueBoroughs[0];
-                    }
+                    if (uniqueBoroughs.length > 0) criteria.boroughs = uniqueBoroughs;
                 }
                 // selectedBoroughs.length > 1 (multi-borough): leave
                 // criteria.borough unset — backend cannot OR multiple
@@ -1398,310 +1378,9 @@
             searchDisplayContext = 'vow';
         }
 
-        function filterListings(listings, criteria, displayContext) {
-            // displayContext: 'idx' (default/public) | 'vow' (authenticated client) | 'crm' (agent/broker)
-            displayContext = displayContext || searchDisplayContext || 'idx';
-
-            return listings.filter(function(listing) {
-
-                // ═══════════════════════════════════════════════════════════
-                // REBNY DISTRIBUTION GATES — UCBA 2026 Art. I Sec. 4-5
-                // These gates MUST be enforced BEFORE any other filter.
-                // ═══════════════════════════════════════════════════════════
-
-                var perm = listing.permissions || {};
-
-                // Gate 1: Owner Opt-Out — NEVER display in ANY context (UCBA Art. I Sec. 4(A))
-                if (perm.ownerOptOut === true) return false;
-
-                // Gate 2: Participant Only — CRM only (authorized RLS participants)
-                if (perm.participantOnly === true) {
-                    if (displayContext !== 'crm') return false;
-                }
-
-                // Gate 3: Display context — IDX vs VOW vs CRM
-                if (displayContext === 'idx') {
-                    // IDX: both IDX and Internet gates must be true
-                    if (listing.idxDisplayYN === false || perm.idxDisplay === false) return false;
-                    if (listing.internetDisplayYN === false) return false;
-                } else if (displayContext === 'vow') {
-                    // VOW: only InternetEntireListingDisplayYN matters (IDX flag irrelevant)
-                    if (listing.internetDisplayYN === false) return false;
-                }
-                // CRM: no Gate 3 filtering (authorized participant sees all except Owner Opt-Out)
-
-                // Gate 4: Syndication — SyndicateYN controls third-party distribution.
-                // In IDX search context, listing still appears but is flagged as non-syndicated.
-                // The badge is rendered in the view layer (shared-badges.js → syndicationBadge).
-                // No filtering here — syndication does NOT block IDX display.
-
-                // Gate 5: Coming Soon — listing IS displayed in search results, but:
-                // - "Coming Soon" badge is shown (view layer)
-                // - Schedule Showing button is disabled (view layer)
-                // - Text: "Coming Soon. No Showings or Open House until [date]" (view layer)
-                // No filtering here — Coming Soon listings are visible in IDX search.
-
-                // Gate 6: Closed Status — suppress listings closed > 24 hours
-                if (listing.status === 'CLOSED' && listing.closedDate) {
-                    var closedTime = new Date(listing.closedDate).getTime();
-                    var now = Date.now();
-                    var hoursSinceClosed = (now - closedTime) / (1000 * 60 * 60);
-                    if (hoursSinceClosed > 24) return false;
-                }
-
-                // ═══════════════════════════════════════════════════════════
-                // Standard search filters
-                // ═══════════════════════════════════════════════════════════
-
-                // Search tab filter — only show sale or rental listings
-                if (criteria.searchTab === 'rent' && listing.listingCategory !== 'rental') return false;
-                if (criteria.searchTab === 'sale' && listing.listingCategory === 'rental') return false;
-
-                // Price filter
-                if (criteria.priceMin && listing.price < criteria.priceMin) return false;
-                if (criteria.priceMax && listing.price > criteria.priceMax) return false;
-
-                // Beds filter — explicit null check (beds=0 is valid for studios)
-                if (criteria.bedsMin !== undefined && criteria.bedsMin !== null && listing.beds < criteria.bedsMin) return false;
-                if (criteria.bedsMax !== undefined && criteria.bedsMax !== null && listing.beds > criteria.bedsMax) return false;
-
-                // Baths filter — explicit null check (0 is valid)
-                if (criteria.bathsMin !== undefined && criteria.bathsMin !== null && listing.baths < criteria.bathsMin) return false;
-                if (criteria.bathsMax !== undefined && criteria.bathsMax !== null && listing.baths > criteria.bathsMax) return false;
-
-                // Rooms filter — explicit null check (0 is valid)
-                if (criteria.roomsMin !== undefined && criteria.roomsMin !== null && listing.rooms < criteria.roomsMin) return false;
-                if (criteria.roomsMax !== undefined && criteria.roomsMax !== null && listing.rooms > criteria.roomsMax) return false;
-
-                // Sqft filter — exclude listings with null/undefined sqft when filter is set
-                if (criteria.sqftMin !== undefined && criteria.sqftMin !== null) {
-                    if (!listing.intSqft && listing.intSqft !== 0) return false; // null sqft excluded
-                    if (listing.intSqft < criteria.sqftMin) return false;
-                }
-                if (criteria.sqftMax !== undefined && criteria.sqftMax !== null) {
-                    if (!listing.intSqft && listing.intSqft !== 0) return false;
-                    if (listing.intSqft > criteria.sqftMax) return false;
-                }
-
-                // Ownership filter — exact match (not indexOf, to prevent Condo matching Condop)
-                if (criteria.ownership && criteria.ownership.length > 0) {
-                    var match = criteria.ownership.some(function(o) {
-                        return listing.ownership.toLowerCase() === o.toLowerCase();
-                    });
-                    if (!match) return false;
-                }
-
-                // PropertySubType filter
-                if (criteria.propertySubType) {
-                    var pstValues = criteria.propertySubType.split(',').map(function(v) { return v.toLowerCase(); });
-                    var sub = (listing.propertySubType || '').toLowerCase();
-                    var pstMatch = pstValues.some(function(v) { return sub.indexOf(v) !== -1; });
-                    if (!pstMatch) return false;
-                }
-
-                // Address / building name filter — partial match
-                if (criteria.address) {
-                    var normAddr = normalizeAddress(criteria.address);
-                    var addrMatch = normalizeAddress(listing.address).indexOf(normAddr) !== -1;
-                    var bldgMatch = listing.buildingName && normalizeAddress(listing.buildingName).indexOf(normAddr) !== -1;
-                    if (!addrMatch && !bldgMatch) return false;
-                }
-
-                // Neighborhood filter — single value (Quick Search) or multi-select (tree/map)
-                if (criteria.neighborhood) {
-                    var nLower = criteria.neighborhood.toLowerCase();
-                    var nHit = (listing.neighborhood && listing.neighborhood.toLowerCase().indexOf(nLower) !== -1)
-                            || (listing.neighborhoodCanonical && listing.neighborhoodCanonical.toLowerCase().indexOf(nLower) !== -1);
-                    if (!nHit) return false;
-                }
-                if (criteria.neighborhoods && criteria.neighborhoods.length > 0) {
-                    var nLookup = {};
-                    criteria.neighborhoods.forEach(function(n) { nLookup[n.toLowerCase()] = true; });
-                    var nMatch = (listing.neighborhood && nLookup[listing.neighborhood.toLowerCase()])
-                              || (listing.neighborhoodCanonical && nLookup[listing.neighborhoodCanonical.toLowerCase()]);
-                    // Also check multi-canonical array (e.g. "Chelsea / Flatiron" → ["Chelsea", "Flatiron"])
-                    if (!nMatch && listing.neighborhoodCanonicals) {
-                        for (var nc = 0; nc < listing.neighborhoodCanonicals.length; nc++) {
-                            if (nLookup[listing.neighborhoodCanonicals[nc].toLowerCase()]) { nMatch = true; break; }
-                        }
-                    }
-                    if (!nMatch) return false;
-                }
-
-                // Status filter — check both StandardStatus (listing.status) and MlsStatus sub-statuses
-                if (criteria.statuses && criteria.statuses.length > 0) {
-                    var statusMatch = criteria.statuses.some(function(s) {
-                        var sl = s.toLowerCase();
-                        // Match against main status (ACTIVE, PENDING, CLOSED, etc.)
-                        if (listing.status && listing.status.toLowerCase() === sl) return true;
-                        // Match against MlsStatus sub-status (OfferOut, ContractSigned, BoardApproved, etc.)
-                        if (listing.mlsStatus && listing.mlsStatus.toLowerCase().indexOf(sl) !== -1) return true;
-                        return false;
-                    });
-                    if (!statusMatch) return false;
-                }
-
-                // RLS ID filter (comma-separated, check lid, wid, and id)
-                if (criteria.rlsId) {
-                    var ids = criteria.rlsId.split(',').map(function(s) { return s.trim().toLowerCase(); });
-                    var idMatch = ids.some(function(id) {
-                        return (listing.lid && listing.lid.toLowerCase() === id) ||
-                               (listing.wid && listing.wid.toLowerCase() === id) ||
-                               (String(listing.id) === id);
-                    });
-                    if (!idMatch) return false;
-                }
-
-                // Zip filter
-                if (criteria.zip && listing.zip !== criteria.zip) return false;
-
-                // Unit filter
-                if (criteria.unit && listing.unit && listing.unit.toLowerCase() !== criteria.unit.toLowerCase()) return false;
-
-                // Management Company filter — matches against ListOfficeName
-                if (criteria.managementCompany) {
-                    var mc = criteria.managementCompany.toLowerCase();
-                    if (!listing.company || listing.company.toLowerCase().indexOf(mc) === -1) return false;
-                }
-
-                // Keyword filter — search in description (PublicRemarks)
-                if (criteria.keyword) {
-                    var kw = criteria.keyword.toLowerCase();
-                    var desc = (listing.description || '').toLowerCase();
-                    var addr = (listing.address || '').toLowerCase();
-                    if (desc.indexOf(kw) === -1 && addr.indexOf(kw) === -1) return false;
-                }
-
-                // Date range filters
-                if (criteria.dateFrom) {
-                    var from = new Date(criteria.dateFrom);
-                    var to = new Date(criteria.dateTo || criteria.dateFrom);
-                    to.setHours(23, 59, 59); // include end date
-                    var type = criteria.dateActivityType;
-                    if (type === 'Listed' || type === 'ListedAndUpdated') {
-                        var listed = listing.listedDate ? new Date(listing.listedDate) : null;
-                        if (type === 'Listed') {
-                            if (!listed || listed < from || listed > to) return false;
-                        } else {
-                            // ListedAndUpdated: either listed or updated must be in range
-                            var updated = listing.updatedDate ? new Date(listing.updatedDate) : null;
-                            var listedOk = listed && listed >= from && listed <= to;
-                            var updatedOk = updated && updated >= from && updated <= to;
-                            if (!listedOk && !updatedOk) return false;
-                        }
-                    } else if (type === 'Updated') {
-                        var updated = listing.updatedDate ? new Date(listing.updatedDate) : null;
-                        if (!updated || updated < from || updated > to) return false;
-                    }
-                }
-                if (criteria.contractDateFrom) {
-                    var cFrom = new Date(criteria.contractDateFrom);
-                    var cTo = new Date(criteria.contractDateTo || criteria.contractDateFrom);
-                    cTo.setHours(23, 59, 59);
-                    var contractDate = listing.contractDate ? new Date(listing.contractDate) : null;
-                    if (!contractDate || contractDate < cFrom || contractDate > cTo) return false;
-                }
-                if (criteria.soldDateFrom) {
-                    var sFrom = new Date(criteria.soldDateFrom);
-                    var sTo = new Date(criteria.soldDateTo || criteria.soldDateFrom);
-                    sTo.setHours(23, 59, 59);
-                    var closedDate = listing.closedDate ? new Date(listing.closedDate) : null;
-                    if (!closedDate || closedDate < sFrom || closedDate > sTo) return false;
-                }
-
-                // Transit proximity filter — is listing near a selected subway station?
-
-                // ═══════════════════════════════════════════════════════════
-                // GENERIC CHECKBOX FILTER
-                // Matches criteria.checkboxFilters against listing properties.
-                // OR within a field (any value matches), AND across fields.
-                // ═══════════════════════════════════════════════════════════
-                if (criteria.checkboxFilters) {
-                    // Map HTML data-field names → listing property names
-                    // (where they differ between CRM HTML and Trestle/API)
-                    var _fieldMap = {
-                        'BuildingLaundryFeatures': 'LaundryFeatures',
-                        'BuildingSecurityFeatures': 'SecurityFeatures',
-                        'BuildingPoolFeatures': 'PoolFeatures',
-                        'BuildingPetsAllowed': 'PetsAllowedYN',
-                        'BuildingSmokeFreeYN': 'SmokeFree',
-                        'LeaseType': 'AvailableLeaseType',
-                        'ConstructionType': 'ConstructionMaterials',
-                        'NewConstruction': 'NewConstructionYN',
-                        'CRM': null // skip CRM-internal fields
-                    };
-
-                    // YN fields: filter checks for boolean true
-                    var _ynFields = {
-                        'LandLeaseYN': 1, 'CoolingYN': 1, 'GarageYN': 1,
-                        'PetsAllowedYN': 1, 'NewConstructionYN': 1,
-                        'BuildingSmokeFreeYN': 1, 'BuildingPetsAllowed': 1
-                    };
-
-                    for (var _fk in criteria.checkboxFilters) {
-                        if (!criteria.checkboxFilters.hasOwnProperty(_fk)) continue;
-
-                        // Skip CRM-internal or unmappable fields
-                        if (_fieldMap[_fk] === null) continue;
-
-                        // Skip distribution gate filters (handled above)
-                        if (_fk === 'InternetEntireListingDisplayYN' || _fk === 'RLSParticipantOnly') continue;
-
-                        var _vals = criteria.checkboxFilters[_fk];
-                        var _propName = _fieldMap[_fk] || _fk;
-
-                        // Resolve listing value — try exact prop, then lowercase first char
-                        var _listVal = listing[_propName];
-                        if (_listVal === undefined) {
-                            var _lcProp = _propName.charAt(0).toLowerCase() + _propName.slice(1);
-                            _listVal = listing[_lcProp];
-                        }
-
-                        // YN boolean fields
-                        if (_ynFields[_fk]) {
-                            var _wantTrue = _vals.indexOf('true') !== -1 || _vals.indexOf('Yes') !== -1;
-                            var _wantFalse = _vals.indexOf('false') !== -1 || _vals.indexOf('No') !== -1;
-                            if (_wantTrue && !_wantFalse) {
-                                if (_listVal !== true && _listVal !== 'true' && _listVal !== 'Yes') return false;
-                            } else if (_wantFalse && !_wantTrue) {
-                                if (_listVal === true || _listVal === 'true' || _listVal === 'Yes') return false;
-                            }
-                            continue;
-                        }
-
-                        // ListOfficeMlsId — exact match for "my office" filter
-                        if (_fk === 'ListOfficeMlsId') {
-                            if (listing.company) {
-                                // listing.company = ListOfficeName, not MlsId — skip server match
-                                // This filter is best handled server-side via OData
-                            }
-                            continue;
-                        }
-
-                        // MaximumFinancingPercent — range filter, not checkbox match
-                        if (_fk === 'MaximumFinancingPercent') continue;
-
-                        // Skip if listing doesn't have this field (don't exclude — field may
-                        // not be in API response yet; server-side OData handles it)
-                        if (_listVal == null || _listVal === '') continue;
-
-                        // Multi-value match: Trestle may return comma-separated values
-                        // (e.g. "FullTimeDoorman,VirtualDoorman") or single values
-                        var _listStr = String(_listVal).toLowerCase();
-                        var _matched = false;
-                        for (var _vi = 0; _vi < _vals.length; _vi++) {
-                            if (_listStr.indexOf(_vals[_vi].toLowerCase()) !== -1) {
-                                _matched = true;
-                                break;
-                            }
-                        }
-                        if (!_matched) return false;
-                    }
-                }
-
-                return true;
-            });
-        }
+        // filterListings() — the browser-local Search membership engine — was REMOVED
+        // (Search Consolidation Packet 1, 2026-09-05). Search membership, count, order and
+        // pages come from the canonical executor only.
 
         function updateResultsCount() {
             var perPage = searchResultsState.perPage || 50;

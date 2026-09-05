@@ -1725,16 +1725,6 @@ function REBNYBehaviorTest(options) {
         if (status === 'PASS') passed++; else if (status === 'FAIL') failed++; else if (status !== 'SKIP') warnings++;
     }
 
-    // ── B1: Zero-Result Test (ACTIVE) ──────────────────────────────────
-    (function() {
-        if (!runActive) { addResult('B1', 'Zero-Result', 'SKIP', 'Active test — click "Run Active Tests"'); return; }
-        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('B1', 'Zero-Result', 'FAIL', 'Required: filterListings function and listings array both must exist'); return; }
-        var r = filterListings(listings, { priceMin: 999999999, priceMax: 1, searchTab: 'sale' });
-        var noErr = true;
-        try { r.slice().sort(function(a,b){return a.price-b.price;}); } catch(e) { noErr = false; }
-        addResult('B1', 'Zero-Result', (r.length === 0 && noErr) ? 'PASS' : 'FAIL', r.length === 0 ? 'Impossible criteria → 0 results, no error' : 'Got ' + r.length + ' results');
-    })();
-
     // ── B2: High Volume Test (ACTIVE) ──────────────────────────────────
     (function() {
         if (!runActive) { addResult('B2', 'High Volume', 'SKIP', 'Active test — click "Run Active Tests"'); return; }
@@ -2698,77 +2688,10 @@ function AllowlistLeakTests(options) {
 }
 
 // ─── S: SEARCH CORRECTNESS TESTS (4) ──────────────────────────────────────
-function SearchCorrectnessTests(options) {
-    options = options || {};
-    var runActive = options.runActive || false;
-    var results = [], passed = 0, failed = 0, warnings = 0;
-    function addResult(id, name, status, detail) {
-        results.push({ test: id, name: name, status: status, detail: detail });
-        if (status === 'PASS') passed++; else if (status === 'FAIL') failed++; else if (status !== 'SKIP') warnings++;
-    }
-
-    // S1: Type coercion test (ACTIVE)
-    (function() {
-        if (!runActive) { addResult('S1', 'Type Coercion', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('S1', 'Type Coercion', 'FAIL', 'Required: filterListings and listings must exist'); return; }
-        var numResult = filterListings(listings, { priceMin: 1000000, priceMax: 3000000, searchTab: 'sale' });
-        var strResult = filterListings(listings, { priceMin: '1000000', priceMax: '3000000', searchTab: 'sale' });
-        var numIds = numResult.map(function(l) { return l.id; }).sort();
-        var strIds = strResult.map(function(l) { return l.id; }).sort();
-        var match = numIds.length === strIds.length && numIds.every(function(id, i) { return id === strIds[i]; });
-        addResult('S1', 'Type Coercion', match ? 'PASS' : 'FAIL',
-            match ? 'String vs number criteria → same ' + numIds.length + ' results' : 'Mismatch: number=' + numIds.length + ' vs string=' + strIds.length);
-    })();
-
-    // S2: Range normalization (ACTIVE)
-    (function() {
-        if (!runActive) { addResult('S2', 'Range Normalization', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('S2', 'Range Normalization', 'FAIL', 'Required: filterListings and listings must exist'); return; }
-        var noErr = true, result = [];
-        try { result = filterListings(listings, { priceMin: 5000000, priceMax: 100000, searchTab: 'sale' }); } catch(e) { noErr = false; }
-        addResult('S2', 'Range Normalization', noErr ? 'PASS' : 'FAIL',
-            noErr ? 'Min>Max handled gracefully → ' + result.length + ' results (no crash)' : 'Exception thrown on inverted range');
-    })();
-
-    // S3: Multi-select AND/OR semantics (ACTIVE)
-    (function() {
-        if (!runActive) { addResult('S3', 'Multi-Select Semantics', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('S3', 'Multi-Select Semantics', 'FAIL', 'Required: filterListings and listings must exist'); return; }
-        var saleOnly = filterListings(listings, { searchTab: 'sale' });
-        var checks = [], issues = [];
-        // Property type multi-select should be OR (broader results)
-        if (saleOnly.length > 0) {
-            var types = {};
-            saleOnly.forEach(function(l) { if (l.propertyType) types[l.propertyType] = true; });
-            var typeKeys = Object.keys(types);
-            if (typeKeys.length >= 2) {
-                var single = filterListings(listings, { searchTab: 'sale', propertyTypes: [typeKeys[0]] });
-                var multi = filterListings(listings, { searchTab: 'sale', propertyTypes: [typeKeys[0], typeKeys[1]] });
-                if (multi.length >= single.length) checks.push('type-OR(' + single.length + '→' + multi.length + ')');
-                else issues.push('Multi-type returned fewer results (AND instead of OR?)');
-            } else { checks.push('single-type-only'); }
-        }
-        addResult('S3', 'Multi-Select Semantics', issues.length === 0 ? 'PASS' : 'FAIL',
-            issues.length > 0 ? issues.join('; ') : checks.join(', '));
-    })();
-
-    // S4: Duplicate suppression test (ACTIVE)
-    (function() {
-        if (!runActive) { addResult('S4', 'Duplicate Suppression', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof getFilteredListings !== 'function') { addResult('S4', 'Duplicate Suppression', 'FAIL', 'getFilteredListings function missing — required for duplicate check'); return; }
-        var all = getFilteredListings(true);
-        var ids = all.map(function(l) { return l.id; });
-        var unique = {};
-        var dupes = [];
-        ids.forEach(function(id) {
-            if (unique[id]) dupes.push(id);
-            unique[id] = true;
-        });
-        addResult('S4', 'Duplicate Suppression', dupes.length === 0 ? 'PASS' : 'FAIL',
-            dupes.length === 0 ? ids.length + ' listings, 0 duplicates' : dupes.length + ' duplicate IDs: ' + dupes.slice(0, 5).join(','));
-    })();
-
-    return { mode: 'search_correctness', results: results, summary: { passed: passed, failed: failed, warnings: warnings, total: results.length } };
+// SearchCorrectnessTests — a browser-local oracle for Search membership — was REMOVED
+// (Search Consolidation Packet 1). Search correctness is proven against the canonical executor.
+function SearchCorrectnessTests() {
+    return { mode: 'search_correctness', results: [], summary: { passed: 0, failed: 0, warnings: 0, total: 0 }, removed: true };
 }
 
 // ─── X: SECURITY HARDENING V2 (3) ─────────────────────────────────────────
@@ -3038,42 +2961,6 @@ function MutationRegressionTests(options) {
         if (status === 'PASS') passed++; else if (status === 'FAIL') failed++; else if (status !== 'SKIP') warnings++;
     }
 
-    // R1: Golden snapshot stability (ACTIVE)
-    (function() {
-        if (!runActive) { addResult('R1', 'Golden Snapshot', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('R1', 'Golden Snapshot', 'FAIL', 'Required: filterListings and listings must exist'); return; }
-        // 5 canonical test cases
-        var cases = [
-            { name: 'All sales', criteria: { searchTab: 'sale' } },
-            { name: 'All rentals', criteria: { searchTab: 'rent' } },
-            { name: 'Sales $1-3M', criteria: { searchTab: 'sale', priceMin: 1000000, priceMax: 3000000 } },
-            { name: 'Manhattan only', criteria: { searchTab: 'sale', boroughs: ['Manhattan'] } },
-            { name: '2+ beds', criteria: { searchTab: 'sale', bedsMin: 2 } }
-        ];
-        var snapKey = 'golden_snapshot_v1';
-        var current = {};
-        cases.forEach(function(c) {
-            var r = filterListings(listings, c.criteria);
-            current[c.name] = { count: r.length, ids: r.slice(0, 5).map(function(l) { return l.id; }).join(',') };
-        });
-        var prev = null;
-        try { prev = JSON.parse(localStorage.getItem(snapKey)); } catch(e) {}
-        localStorage.setItem(snapKey, JSON.stringify(current));
-        if (!prev) {
-            addResult('R1', 'Golden Snapshot', 'PASS', 'Baseline captured: ' + cases.length + ' cases');
-        } else {
-            var diffs = [];
-            cases.forEach(function(c) {
-                var p = prev[c.name], cur = current[c.name];
-                if (!p) { diffs.push(c.name + ': NEW'); return; }
-                if (p.count !== cur.count) diffs.push(c.name + ': count ' + p.count + '→' + cur.count);
-                else if (p.ids !== cur.ids) diffs.push(c.name + ': order changed');
-            });
-            addResult('R1', 'Golden Snapshot', diffs.length === 0 ? 'PASS' : 'FAIL',
-                diffs.length === 0 ? cases.length + ' cases stable against golden snapshot' : 'REGRESSION: ' + diffs.join('; '));
-        }
-    })();
-
     // R2: Break injection — red-team compliance gates (ACTIVE)
     (function() {
         if (!runActive) { addResult('R2', 'Break Injection', 'SKIP', 'Active — click Run Active'); return; }
@@ -3100,33 +2987,6 @@ function MutationRegressionTests(options) {
             'Caught: ' + caught.join(', ') + (missed.length > 0 ? ' | Missed: ' + missed.join(', ') : ''));
     })();
 
-    // R3: Fuzz test — random criteria (ACTIVE)
-    (function() {
-        if (!runActive) { addResult('R3', 'Fuzz Test', 'SKIP', 'Active — click Run Active'); return; }
-        if (typeof filterListings !== 'function' || typeof listings === 'undefined') { addResult('R3', 'Fuzz Test', 'FAIL', 'Required: filterListings and listings must exist'); return; }
-        var errors = 0, runs = 100, dupRuns = 0;
-        var boroughs = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island'];
-        for (var i = 0; i < runs; i++) {
-            var criteria = {
-                searchTab: Math.random() > 0.5 ? 'sale' : 'rent',
-                priceMin: Math.floor(Math.random() * 5000000),
-                priceMax: Math.floor(Math.random() * 10000000),
-                bedsMin: Math.floor(Math.random() * 5),
-                boroughs: Math.random() > 0.5 ? [boroughs[Math.floor(Math.random() * boroughs.length)]] : undefined
-            };
-            try {
-                var result = filterListings(listings, criteria);
-                // Check for duplicates
-                var ids = {};
-                result.forEach(function(l) {
-                    if (ids[l.id]) dupRuns++;
-                    ids[l.id] = true;
-                });
-            } catch(e) { errors++; }
-        }
-        addResult('R3', 'Fuzz Test', errors === 0 && dupRuns === 0 ? 'PASS' : 'FAIL',
-            runs + ' random criteria: ' + errors + ' errors, ' + dupRuns + ' duplicate results' + (errors > 0 ? ' — filterListings threw exceptions' : '') + (dupRuns > 0 ? ' — duplicate IDs in results' : ''));
-    })();
 
     return { mode: 'regression', results: results, summary: { passed: passed, failed: failed, warnings: warnings, total: results.length } };
 }

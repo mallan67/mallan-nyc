@@ -18,39 +18,37 @@
 
 export type SearchWorkflow = 'sale' | 'rental';
 
-/** [LookupValue, StandardLookupValue] pairs, verbatim from the live Lookup resource. */
+import {
+  STANDARD_STATUS_MEMBERS as LIVE_STANDARD_STATUS,
+  PROPERTY_TYPE_MEMBERS as LIVE_PROPERTY_TYPE,
+  COMMON_INTEREST_MEMBERS as LIVE_COMMON_INTEREST,
+  STRUCTURE_TYPE_MEMBERS as LIVE_STRUCTURE_TYPE,
+  CITY_REGION_VALUES as LIVE_CITY_REGION,
+} from '../canonical/live-truth';
+
+/**
+ * ONE vocabulary authority (Search Consolidation Packet 1, 2026-09-05):
+ *   data/cotality-enums.live.json  → canonical/live-truth.ts (typed, test-bound) → THIS executor
+ *   → engine/contract.ts → /api/idx/search/contract → the browser.
+ * No member list is hand-maintained here. A Member is [LookupValue, derived label]; the label is
+ * a presentation derivation of the token (a space before each capital), NOT the provider's
+ * StandardLookupValue, which the pinned pull tooling does not capture. Resolution of inputs is
+ * by token, case- and separator-insensitive, so both spellings resolve.
+ */
 export type Member = readonly [token: string, display: string];
+function derivedLabel(token: string): string {
+  return token.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+}
+const members = (tokens: readonly string[]): readonly Member[] =>
+  Object.freeze(tokens.map((t) => Object.freeze([t, derivedLabel(t)] as const)));
 
-export const STANDARD_STATUS_MEMBERS: readonly Member[] = Object.freeze([
-  ['Active', 'Active'], ['ActiveUnderContract', 'Active Under Contract'], ['Canceled', 'Canceled'], ['Closed', 'Closed'],
-  ['ComingSoon', 'Coming Soon'], ['Delete', 'Delete'], ['Expired', 'Expired'], ['Hold', 'Hold'], ['Incomplete', 'Incomplete'],
-  ['Pending', 'Pending'], ['Withdrawn', 'Withdrawn'],
-]);
+export const STANDARD_STATUS_MEMBERS: readonly Member[] = members(LIVE_STANDARD_STATUS);
+export const PROPERTY_TYPE_MEMBERS: readonly Member[] = members(LIVE_PROPERTY_TYPE);
+export const COMMON_INTEREST_MEMBERS: readonly Member[] = members(LIVE_COMMON_INTEREST);
+export const STRUCTURE_TYPE_MEMBERS: readonly Member[] = members(LIVE_STRUCTURE_TYPE);
 
-export const PROPERTY_TYPE_MEMBERS: readonly Member[] = Object.freeze([
-  ['BusinessOpportunity', 'Business Opportunity'], ['CommercialLease', 'Commercial Lease'], ['CommercialSale', 'Commercial Sale'],
-  ['DisasterReliefRental', 'Disaster Relief Rental'], ['Farm', 'Farm'], ['HighRise', 'High Rise'], ['Land', 'Land'],
-  ['ManufacturedInPark', 'Manufactured In Park'], ['MultiFamily', 'Multi Family'], ['Residential', 'Residential'],
-  ['ResidentialIncome', 'Residential Income'], ['ResidentialLease', 'Residential Lease'], ['Specialty', 'Specialty'],
-]);
-
-export const COMMON_INTEREST_MEMBERS: readonly Member[] = Object.freeze([
-  ['BareLandCondominium', 'Bare Land Condominium'], ['CoOwnership', 'Co-Ownership'], ['CommunityApartment', 'Community Apartment'],
-  ['Condominium', 'Condominium'], ['Condop', 'Condop'], ['Freehold', 'Freehold'], ['Leasehold', 'Leasehold'], ['None', 'None'],
-  ['Other', 'Other'], ['PlannedDevelopment', 'Planned Development'], ['RentalBuilding', 'Rental Building'],
-  ['StockCooperative', 'Stock Cooperative'], ['Timeshare', 'Timeshare'],
-]);
-
-export const STRUCTURE_TYPE_MEMBERS: readonly Member[] = Object.freeze([
-  ['Apartment', 'Apartment'], ['Cabin', 'Cabin'], ['Dock', 'Dock'], ['Duplex', 'Duplex'], ['Flex', 'Flex'],
-  ['FreeStandingBuilding', 'Free Standing Building'], ['HighRise', 'High Rise'], ['HotelMotel', 'Hotel/Motel'], ['House', 'House'],
-  ['Industrial', 'Industrial'], ['LowRise', 'Low Rise'], ['ManufacturedHouse', 'Manufactured House'], ['MidRise', 'Mid Rise'],
-  ['MixedUse', 'Mixed Use'], ['MultiFamily', 'Multi Family'], ['None', 'None'], ['Office', 'Office'], ['Other', 'Other'],
-  ['Quadruplex', 'Quadruplex'], ['Retail', 'Retail'], ['Townhouse', 'Townhouse'], ['Triplex', 'Triplex'], ['Warehouse', 'Warehouse'],
-]);
-
-/** CityRegion is a plain string field with no lookup; these are its live values. `StatenIsland` has no space. */
-export const CITY_REGION_VALUES = Object.freeze(['Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'StatenIsland'] as const);
+/** CityRegion is a plain string field (no lookup); values bound in canonical/live-truth. `StatenIsland` has no space. */
+export const CITY_REGION_VALUES = LIVE_CITY_REGION;
 export type CityRegionValue = (typeof CITY_REGION_VALUES)[number];
 
 export type SortKey = 'price_desc' | 'price_asc' | 'newest';
@@ -95,7 +93,7 @@ export type CriteriaResult =
   | { ok: false; refusal: CriteriaRefusal };
 
 /** Wire names the CRM already sends, plus the provider field names themselves. */
-const EXECUTED_PARAMS = new Set([
+export const EXECUTED_PARAMS = new Set([
   'type', 'status', 'StandardStatus', 'minPrice', 'maxPrice', 'beds', 'minBeds', 'maxBeds', 'minBaths', 'maxBaths',
   'borough', 'CityRegion', 'neighborhood', 'SubdivisionName', 'ownership', 'CommonInterest', 'StructureType',
   'zip', 'PostalCode', 'listingId', 'ListingId', 'sort', 'limit', 'skip', 'offset',

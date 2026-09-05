@@ -20,7 +20,7 @@ export const LIVE_AUTHORITY = Object.freeze({
   regenerate: 'npm run cotality:pull && npm run cotality:verify',
   source: 'https://api.cotality.com/trestle/odata/$metadata',
   /** The pull date recorded in the live file at the time this projection was last verified. */
-  verifiedAgainstPull: '2026-07-05',
+  verifiedAgainstPull: '2026-09-05',
 });
 
 /**
@@ -66,6 +66,32 @@ export const COMMON_INTEREST_SEGMENTATION = Object.freeze([
  * (see DEAD_OR_INVALID_VALUES; the gate is enforced via the DB column, and must fail closed until
  * a live field/value is confirmed). Members list is the compliance-relevant subset used by the gate.
  */
+/**
+ * Live PropertyType members (pull 2026-09-05). Under StandardStatus eq 'Active' only
+ * Residential and ResidentialLease are populated; the other eleven are 0 (Validator 2026-09-05).
+ */
+export const PROPERTY_TYPE_MEMBERS = Object.freeze([
+  'BusinessOpportunity', 'CommercialLease', 'CommercialSale', 'DisasterReliefRental', 'Farm', 'HighRise', 'Land',
+  'ManufacturedInPark', 'MultiFamily', 'Residential', 'ResidentialIncome', 'ResidentialLease', 'Specialty',
+] as const);
+
+/**
+ * Live StructureType members (pull 2026-09-05). Multi-value field; executed with the bare-string
+ * `StructureType has '<member>'` form (Validator 2026-09-05 §D/§J). Carrier of Mallan's Townhouse type.
+ */
+export const STRUCTURE_TYPE_MEMBERS = Object.freeze([
+  'Apartment', 'Cabin', 'Dock', 'Duplex', 'Flex', 'FreeStandingBuilding', 'HighRise', 'HotelMotel', 'House',
+  'Industrial', 'LowRise', 'ManufacturedHouse', 'MidRise', 'MixedUse', 'MultiFamily', 'None', 'Office', 'Other',
+  'Quadruplex', 'Retail', 'Townhouse', 'Triplex', 'Warehouse',
+] as const);
+
+/**
+ * CityRegion is a plain string field with NO lookup, so it is not in the enums file. These are its
+ * live values on both active universes (Contract/Data Validator re-check 2026-09-05, item 4: the five
+ * sale counts sum exactly to the universe). `StatenIsland` has no space. Re-verify live, never infer.
+ */
+export const CITY_REGION_VALUES = Object.freeze(['Manhattan', 'Brooklyn', 'Queens', 'Bronx', 'StatenIsland'] as const);
+
 export const PERMISSION_PRIVATE = 'Private';
 
 /**

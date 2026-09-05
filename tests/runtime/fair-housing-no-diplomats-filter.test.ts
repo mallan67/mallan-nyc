@@ -5,16 +5,21 @@
  * "Diplomats Allowed" is a national-origin / citizenship / immigration-status
  * proxy (protected under the NYC Human Rights Law). It was removed from the CRM
  * agent-search UI on 2026-07-07. These tests fail red if it is ever reintroduced
- * in the source form, the built bundle, or accepted as a server-side filter.
+ * in the source form, the built bundle, or accepted by the Search executor.
  *
- * Proof obligations (per the hotfix spec):
+ * Proof obligations:
  *  1. absent from the UI source (search-form-and-results.html)
  *  2. absent from the served bundle (index-built.html)
- *  3. ignored server-side even if a client submits it (buildCrmIdxODataFilter)
+ *  3. REFUSED server-side if a client submits it — the canonical executor
+ *     (lib/search/engine) refuses the whole `checkboxFilters` parameter by name and
+ *     never builds a provider clause from it; no executable vocabulary resolves the
+ *     token either. (Search Consolidation Packet 1 replaced the legacy
+ *     buildCrmIdxODataFilter oracle with this behavioural proof.)
  */
 import { readFileSync } from 'fs';
 import * as path from 'path';
-import { buildCrmIdxODataFilter } from '@/lib/search/crm-idx-filter';
+import { criteriaFromParams, resolveMember, COMMON_INTEREST_MEMBERS, STRUCTURE_TYPE_MEMBERS, STANDARD_STATUS_MEMBERS } from '@/lib/search/engine/criteria';
+import { buildProviderQuery } from '@/lib/search/engine/provider-query';
 
 const CRM = path.resolve(__dirname, '../../public/crm');
 const read = (p: string) => readFileSync(path.join(CRM, p), 'utf8');
@@ -23,37 +28,37 @@ describe('Fair Housing — no "Diplomats" CRM search filter', () => {
   it('is absent from the search-form SOURCE', () => {
     const src = read('html/search-form-and-results.html');
     expect(src).not.toMatch(/DiplomatsAllowed/);
-    // the visible label + its data-field="CRM" checkbox must both be gone
     expect(src).not.toMatch(/data-value="DiplomatsAllowed"/);
   });
-
   it('is absent from the served bundle (index-built.html)', () => {
-    const built = read('index-built.html');
-    expect(built).not.toMatch(/DiplomatsAllowed/);
+    expect(read('index-built.html')).not.toMatch(/DiplomatsAllowed/);
   });
-
   it('leaves the non-protected sibling AdvertisingAllowed intact (scope guard)', () => {
-    // We removed ONLY the protected-class control, not the whole data-field="CRM"
-    // group — AdvertisingAllowed (advertising permission) is a legitimate concept.
     expect(read('html/search-form-and-results.html')).toMatch(/AdvertisingAllowed/);
   });
 });
 
-describe('Fair Housing — server drops a submitted Diplomats filter', () => {
-  const buildWith = (checkboxFilters: Record<string, string[]>) => {
-    const params = new URLSearchParams();
-    params.set('checkboxFilters', JSON.stringify(checkboxFilters));
-    return buildCrmIdxODataFilter(params);
-  };
-
-  it('emits no OData clause for a {"CRM":["DiplomatsAllowed"]} submission', () => {
-    const odata = buildWith({ CRM: ['DiplomatsAllowed'] });
-    expect(odata).not.toMatch(/Diplomat/i);
-    expect(odata).not.toMatch(/\bCRM\b/);
+describe('Fair Housing — the Search executor refuses a submitted Diplomats filter', () => {
+  it('refuses the checkboxFilters parameter by name; no provider clause is ever built', () => {
+    const params = new URLSearchParams({ type: 'sale', checkboxFilters: JSON.stringify({ CRM: ['DiplomatsAllowed'] }) });
+    const r = criteriaFromParams(params);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.refusal.unsupported).toContain('checkboxFilters');
   });
-
-  it('does not leak the raw value even alongside a legitimate filter', () => {
-    const odata = buildWith({ CRM: ['DiplomatsAllowed'], PetsAllowedYN: ['true'] });
-    expect(odata).not.toMatch(/Diplomat/i);
+  it('refuses it even alongside a legitimate criterion, and nothing leaks into an accepted query', () => {
+    const bad = criteriaFromParams(new URLSearchParams({ type: 'sale', minBeds: '2', checkboxFilters: JSON.stringify({ CRM: ['DiplomatsAllowed'], PetsAllowedYN: ['true'] }) }));
+    expect(bad.ok).toBe(false);
+    const good = criteriaFromParams(new URLSearchParams({ type: 'sale', minBeds: '2' }));
+    expect(good.ok).toBe(true);
+    if (good.ok) expect(buildProviderQuery(good.criteria).filter).not.toMatch(/Diplomat|\bCRM\b/i);
+  });
+  it('no executable vocabulary resolves the protected-class token', () => {
+    expect(resolveMember('DiplomatsAllowed', COMMON_INTEREST_MEMBERS)).toBeNull();
+    expect(resolveMember('DiplomatsAllowed', STRUCTURE_TYPE_MEMBERS)).toBeNull();
+    expect(resolveMember('DiplomatsAllowed', STANDARD_STATUS_MEMBERS)).toBeNull();
+    for (const p of ['ownership', 'StructureType', 'status']) {
+      const r = criteriaFromParams(new URLSearchParams({ type: 'sale', [p]: 'DiplomatsAllowed' }));
+      expect(r.ok).toBe(false);
+    }
   });
 });
