@@ -9,6 +9,22 @@
 //                    featured, slug
 // `specialties` and `languages` are text[] columns and are accepted ONLY as
 // arrays — a non-array is a 400, never a silent [].
+//
+// ── license_type IS NOT A SELF-SERVICE FIELD ──────────────────────────────
+// `Agent.license_type` is the NY LICENCE CLASS: a governed regulated identity
+// fact and the sole input to the advertised 19 NYCRR §175.25 designation. It
+// has exactly ONE canonical writer —
+//
+//   Broker Agent Management -> PATCH /api/crm/agents/[id] (requireBroker)
+//                           -> Agent.license_type -> canonicalTitleFor()
+//
+// This route used to accept it from a BROKER and re-derive `title` from it,
+// which made My Profile a SECOND writer of that fact, outside the governed
+// path. A supplied `license_type` is now REFUSED with 403.
+//
+// REFUSED, not ignored. Dropping the value and answering 200 would be a false
+// success — the same defect class this branch exists to remove, where the form
+// offered an editable `title` the route silently discarded.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import {
@@ -17,11 +33,7 @@ import {
   logAuditEvent,
 } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
-import {
-  rejectNonCanonicalLicenseType,
-  rejectIncoherentLicenceRole,
-  canonicalTitleFor,
-} from "@/lib/agents/license-designation";
+import { rejectIncoherentLicenceRole } from "@/lib/agents/license-designation";
 import { applyAgentStatusTransition, isAgentStatus, type AgentStatus } from "@/lib/agents/agent-lifecycle";
 
 /**
@@ -114,14 +126,29 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const licenseTypeError = rejectNonCanonicalLicenseType(body.license_type);
-  if (licenseTypeError) {
-    return NextResponse.json({ error: licenseTypeError }, { status: 400 });
+  // THE ONE-WRITER BOUNDARY, checked before anything else is considered.
+  //
+  // Refusing the WHOLE request — rather than stripping the key and saving the
+  // rest — is deliberate. A caller that believed it was setting a licence class
+  // must not be told the save succeeded, and a partial apply is indistinguishable
+  // from a full one at the call site.
+  //
+  // The presence of the key is what is refused, not its value: an explicit
+  // `null` is a write attempt too (it would have cleared the column), and a
+  // designation display string must be refused as NOT SELF-EDITABLE rather than
+  // as bad vocabulary — a 400 would invite a retry with the canonical spelling
+  // on a route that may never accept it at all.
+  if (Object.prototype.hasOwnProperty.call(body, "license_type")) {
+    return NextResponse.json(
+      { error: "license_type is not self-editable; use Agent Management" },
+      { status: 403 }
+    );
   }
-  const coherence = rejectIncoherentLicenceRole(
-    (body.license_type as string | undefined) ?? agent.license_type,
-    agent.role
-  );
+
+  // STORED licence class against STORED role. Nothing on this route can change
+  // either one, so this is a coherence check on the existing record, unchanged
+  // from before: it never derives one axis from the other.
+  const coherence = rejectIncoherentLicenceRole(agent.license_type, agent.role);
   if (coherence) {
     return NextResponse.json({ error: coherence }, { status: 400 });
   }
@@ -163,12 +190,9 @@ export async function PATCH(req: NextRequest) {
       update.full_name = `${body.first_name ?? agent.first_name} ${body.last_name ?? agent.last_name}`;
     }
     if (body.license_no !== undefined) update.license_no = body.license_no as string | null;
-    if (body.license_type !== undefined) {
-      update.license_type = body.license_type as string | null;
-      // the title follows the LICENCE CLASS, exactly as on the other writers
-      const derived = canonicalTitleFor(body.license_type as string);
-      if (derived) update.title = derived;
-    }
+    // `license_type` is deliberately ABSENT, and so is the title derivation
+    // that hung off it. Both belong to Broker Agent Management alone; a
+    // supplied value never reaches here, it is refused 403 above.
     if (body.sale_split !== undefined) update.sale_split = body.sale_split != null ? Number(body.sale_split) : null;
     if (body.rental_split !== undefined) update.rental_split = body.rental_split != null ? Number(body.rental_split) : null;
     if (body.featured !== undefined) update.featured = Boolean(body.featured);

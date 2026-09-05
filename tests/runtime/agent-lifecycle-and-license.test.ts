@@ -322,10 +322,21 @@ describe('P0-2 every status and licence writer obeys the authority', () => {
     expect(Object.keys(transition!)).toEqual(['status']);
   });
 
-  it('/agents/me rejects a non-canonical license_type', async () => {
+  it('/agents/me rejects a supplied license_type outright, canonical or not', async () => {
+    // TIGHTENED, not relaxed. This used to assert a 400 "not a canonical
+    // licence class", which implied the canonical spelling WOULD be accepted
+    // here — and it was, from a BROKER, re-deriving `title` outside the
+    // governed path. `license_type` has ONE writer, Broker Agent Management
+    // (PATCH /api/crm/agents/[id]), so the self-service route now refuses the
+    // FIELD at 403 whatever its value. Full coverage in
+    // tests/runtime/crm-profile-license-type-not-self-editable.test.ts.
     const { PATCH } = await import('@/app/api/crm/agents/me/route');
     const res = await PATCH(me({ license_type: 'Licensed Associate Broker' }));
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(403);
+    expect(agentUpdate).not.toHaveBeenCalled();
+
+    const canonical = await PATCH(me({ license_type: 'associate_broker' }));
+    expect(canonical.status).toBe(403);
     expect(agentUpdate).not.toHaveBeenCalled();
   });
 

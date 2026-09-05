@@ -168,6 +168,10 @@ interface Harness {
   toasts: { msg: string; kind: string }[];
   value(field: string): string;
   set(field: string, v: string): void;
+  /** A read-only DISPLAY control, addressed by id — it carries no `name`. */
+  display(id: string): HTMLInputElement | null;
+  /** Does the profile form offer a WRITABLE control with this name? */
+  hasControl(field: string): boolean;
   render(): Promise<void>;
   save(): Promise<void>;
 }
@@ -280,6 +284,8 @@ async function bootProfile(opts: HarnessOpts = {}): Promise<Harness> {
     set: (field, v) => {
       control(field).value = v;
     },
+    display: (id) => doc.getElementById(id) as HTMLInputElement | null,
+    hasControl: (field) => doc.querySelector('#profileForm [name="' + field + '"]') !== null,
     async render() {
       Panels.profile();
       await settle();
@@ -545,10 +551,20 @@ describe('title, license_type and role are unwritable from this path', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('the broker view of My Profile obeys the same guard', () => {
-  it('hydrates the licence class and still sends nothing on an untouched save', async () => {
+  it('still DISPLAYS the licence class, read-only, and sends nothing on an untouched save', async () => {
+    // The broker's licence-class control used to be a writable input under
+    // `name="license_type"`, and PATCH /api/crm/agents/me accepted it — a
+    // second writer of a governed regulated fact. It is now read-only for
+    // everyone, and the field-table entry that made it writable is gone.
+    // Full coverage lives in
+    // tests/runtime/crm-profile-license-type-not-self-editable.test.ts.
     const before = snapshot();
     const h = await bootProfile({ isBroker: true });
-    expect(h.value('license_type')).toBe('salesperson');
+    expect(h.hasControl('license_type')).toBe(false);
+    const display = h.display('profileLicenseType');
+    expect(display).not.toBeNull();
+    expect(display!.readOnly).toBe(true);
+    expect(display!.value).toBe('salesperson');
     await h.save();
     expect(h.patches.length).toBe(0);
     expect(snapshot()).toEqual(before);

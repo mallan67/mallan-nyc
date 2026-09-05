@@ -12923,13 +12923,20 @@ var Panels = (function () {
     { api: 'languages', control: 'languages', type: 'list' }
   ];
 
-  // Broker-only. Pre-existing capability on this route, left exactly as it
-  // was and merely brought under the same changed-field guard: an untouched
-  // licence class is no longer re-sent (and no longer re-derives the title)
-  // on every save. NOT extended — no field was added to the write set.
-  var PROFILE_BROKER_FIELDS = [
-    { api: 'license_type', control: 'license_type', type: 'text' }
-  ];
+  // Broker-only self-editable fields. DELIBERATELY EMPTY.
+  //
+  // This table held `license_type`, so a BROKER's My Profile offered an
+  // editable licence-class control and PATCH /api/crm/agents/me accepted it
+  // and re-derived `title` from it. That made this self-service form a SECOND
+  // writer of a governed regulated identity fact whose one canonical writer is
+  // Broker Agent Management (PATCH /api/crm/agents/[id], requireBroker).
+  //
+  // The route now refuses a supplied `license_type` with 403, and the control
+  // is rendered read-only for EVERYONE — brokers included — so the UI cannot
+  // present a write that cannot happen. Nothing may be added here without a
+  // matching self-editable field on that route: an entry with no server
+  // counterpart is a save that silently does nothing.
+  var PROFILE_BROKER_FIELDS = [];
 
   // The display-form values from the last SUCCESSFUL GET, per writable field.
   // `null` means there is NO authority and this form may not write anything.
@@ -13194,14 +13201,16 @@ var Panels = (function () {
         // ── License Information ──
         UI.card('<i class="fas fa-id-badge text-gold mr-2"></i>License Information',
           '<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">' +
+            // The LICENCE CLASS — read-only for EVERYONE, brokers included.
+            //
+            // It was an editable input for a broker, and the route accepted it,
+            // which is precisely the duplicate authority being removed: the one
+            // canonical writer of this fact is Broker Agent Management. It is
+            // READ-ONLY, NOT HIDDEN — the licensee still sees the class on
+            // record; they simply cannot change it from a self-service form.
             '<div class="form-group">' +
               '<label class="form-label">License Type</label>' +
-              (isBroker
-                // license_type stores the LICENCE CLASS, not a display string.
-                // The placeholder names the canonical vocabulary so a
-                // designation form cannot end up in this column.
-                ? '<input class="form-input" name="license_type" placeholder="salesperson | associate_broker | broker">'
-                : '<input class="form-input bg-gray-50" id="profileLicenseType" readonly>') +
+              '<input class="form-input bg-gray-50" id="profileLicenseType" readonly>' +
             '</div>' +
             '<div class="form-group">' +
               '<label class="form-label">License #</label>' +
@@ -13212,10 +13221,13 @@ var Panels = (function () {
               '<input class="form-input bg-gray-50" id="profileLicenseExpiry" readonly>' +
             '</div>' +
           '</div>' +
+          // Names where the regulated change is actually made, so the copy
+          // matches what the controls now do. A broker can go there directly;
+          // everyone else asks the broker to.
           '<p class="text-xs text-gray-400 mt-2"><i class="fas fa-lock text-gray-300 mr-1"></i>' +
             (isBroker
-              ? 'Licence number and expiry are managed in Agent Management.'
-              : 'License fields are managed by the broker.') +
+              ? 'Licence class, number and expiry are managed in Agent Management.'
+              : 'Licence class, number and expiry are managed by your broker in Agent Management.') +
           '</p>'
         ) +
 
@@ -13268,7 +13280,7 @@ var Panels = (function () {
       ) +
     '</div>';
 
-    _hydrateProfileForm(vm, isBroker);
+    _hydrateProfileForm(vm);
 
     // Wire up live preview updates
     var formEl = document.getElementById('profileForm');
@@ -13285,7 +13297,7 @@ var Panels = (function () {
    * the save baseline — one source, so a control can never disagree with the
    * baseline it is compared against.
    */
-  function _hydrateProfileForm(vm, isBroker) {
+  function _hydrateProfileForm(vm) {
     var form = document.getElementById('profileForm');
     if (!form) return;
 
@@ -13307,11 +13319,11 @@ var Panels = (function () {
     setByName('phone', vm.phone);
     setById('profilePublicUrl', 'mallan.nyc/agents/' + (vm.slug || 'your-name'));
 
-    if (isBroker) {
-      setByName('license_type', vm.licenseType);
-    } else {
-      setById('profileLicenseType', vm.licenseType);
-    }
+    // The stored licence class is still SHOWN — one read-only control, the
+    // same for every role. The stored value is displayed as stored; no
+    // designation is derived here (see _designationFromStored, the one
+    // sanctioned browser mirror, used on the surfaces that advertise one).
+    setById('profileLicenseType', vm.licenseType);
     setById('profileLicenseNumber', vm.licenseNumber);
     setById(
       'profileLicenseExpiry',
