@@ -25,7 +25,7 @@ export interface RecordSearchRunInput {
   criteria?: Record<string, unknown>;
   universe?: { total: number; countMeaning: "exact" | "lower_bound" };
   /** Alert delivery rule applied over the complete universe (cron only). */
-  delta?: { since: string; matched: number; delivered: number; unknownTimestamp: number };
+  delta?: { since: string; matched: number; delivered: number; unknownTimestamp: number; alreadyDelivered?: number; alreadySentToLead?: number };
 }
 
 export async function recordSearchRun(input: RecordSearchRunInput): Promise<void> {

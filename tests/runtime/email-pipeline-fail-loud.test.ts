@@ -43,10 +43,10 @@ jest.mock('@/lib/prisma', () => ({
   __esModule: true,
   default: {
     lead: { upsert: leadUpsertMock },
-    auditEvent: { create: auditEventCreateMock },
+    auditEvent: { create: auditEventCreateMock, findMany: jest.fn(async () => []) },
     savedSearch: { update: savedSearchUpdateMock, findMany: savedSearchFindManyMock },
     listing: { findMany: jest.fn(async () => []) },
-    clientListingAction: { upsert: clientListingActionUpsertMock },
+    clientListingAction: { upsert: clientListingActionUpsertMock, findMany: jest.fn(async () => []) },
   },
 }));
 
@@ -280,6 +280,7 @@ describe('GET /api/cron/search-alerts — SMTP fail-loud bail-out (Bug A20)', ()
     return {
       __esModule: true,
       rowsModifiedSince: actual.rowsModifiedSince,
+      universeKeyOf: actual.universeKeyOf,
       settledUniverseFor: jest.fn(async () => ({ universe: { rows: [{ source: 'provider', listingKey: 'K1', listingId: 'RLS123', price: 1000000, contractDate: null, modificationTimestamp: '2099-01-01T00:00:00Z' }], total: 1, countMeaning: 'exact' } })),
       hydrateRows: jest.fn(async () => ({ listings: [{ id: 'RLS123', address: '100 W 72ND STREET', unit: '', neighborhood: 'Upper West Side', price: 1000000, beds: 1, baths: 1 }], missing: [], gateExcluded: [] })),
     };

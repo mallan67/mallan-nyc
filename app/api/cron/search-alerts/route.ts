@@ -3,11 +3,16 @@
 // new matches. Protected by CRON_SECRET header (Vercel Cron).
 //
 // Search Consolidation Packet 2 — the pipeline is separated, in this order:
-//   canonical Saved Search universe (the SAME executor as live Agent Search)
-//   → alert delta ("new since last alert"): a delivery rule over the COMPLETE universe,
+//   canonical Saved Search universe (the SAME executor as live Agent Search; identical
+//     canonical criteria are settled ONCE per invocation and reused)
+//   → alert delta ("modified since last alert"): a delivery rule over the COMPLETE universe,
 //     decided by source modification time, never a Search criterion and never a page filter
+//   → remove listings ALREADY DELIVERED (durable history: ClientListingAction "sent" for the
+//     linked Lead, and this saved search's own search_alert_delivered audit trail) — a later
+//     modification never re-sends a listing as "New"
 //   → delivery cap / universe order
-//   → email.
+//   → hydrate → email
+//   → after a successful send: durable delivery history FIRST, then last_alert_sent.
 import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
@@ -15,7 +20,9 @@ import { sendEmail } from "@/lib/email/sendgrid";
 import { listingAlertEmail } from "@/lib/email/templates";
 import { escapeHtml } from "@/lib/sanitize";
 import { CRITERIA_VERSION, resolveStoredCriteria } from "@/lib/search/engine/saved-search";
-import { hydrateRows, rowsModifiedSince, settledUniverseFor } from "@/lib/search/engine/executor";
+import { hydrateRows, rowsModifiedSince, settledUniverseFor, universeKeyOf } from "@/lib/search/engine/executor";
+import type { SettledUniverse } from "@/lib/search/engine/universe";
+import { excludeDelivered, loadDeliveryHistory, recordDelivery } from "@/lib/search/alert-delivery-history";
 import { SEARCH_SELECT_FIELDS } from "@/lib/search/engine/select";
 import { recordSearchRun } from "@/lib/search/search-run-recorder";
 
@@ -78,6 +85,22 @@ export async function GET(req: NextRequest) {
     let skipped = 0;
     let errored = 0;
     let skippedUnsupported = 0;
+    // One settle per canonical universe per invocation. Keyed by the exact universe identity
+    // (criteria without paging). Identical criteria across saved searches reuse it.
+    const universeMemo = new Map<string, Promise<SettledUniverse>>();
+    let universeSettles = 0;
+    let universeReuses = 0;
+    let providerPages = 0;
+    const universeFor = (c: Parameters<typeof settledUniverseFor>[0]): Promise<SettledUniverse> => {
+      const key = universeKeyOf(c);
+      const hit = universeMemo.get(key);
+      if (hit) { universeReuses++; return hit; }
+      universeSettles++;
+      const pending = settledUniverseFor(c, false).then((r) => { providerPages += r.universe.providerPages; return r.universe; });
+      universeMemo.set(key, pending);
+      return pending;
+    };
+    const startedAt = Date.now();
 
     for (const search of searches) {
       try {
@@ -132,11 +155,15 @@ export async function GET(req: NextRequest) {
         const since = search.last_alert_sent || new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
         // 1. The canonical universe — complete, same membership and order as live Search.
-        const { universe } = await settledUniverseFor(resolved.criteria, false);
+        const universe = await universeFor(resolved.criteria);
         // 2. The delta over the COMPLETE universe (never the first page).
         const delta = rowsModifiedSince(universe, since);
-        // 3. Delivery cap in universe order.
-        const delivered = delta.rows.slice(0, ALERT_DELIVERY_CAP);
+        // 3. Never "New" twice: drop what this alert already delivered, or what was already sent
+        //    to the linked Lead by any workflow. Decided BEFORE the cap, over the whole delta.
+        const history = await loadDeliveryHistory({ savedSearchId: search.id, leadId: search.lead_id, candidateListingIds: delta.rows.map((r) => r.listingId) });
+        const { fresh, excluded } = excludeDelivered(delta.rows, history);
+        // 4. Delivery cap in universe order.
+        const delivered = fresh.slice(0, ALERT_DELIVERY_CAP);
 
         await recordSearchRun({
           savedSearchId: search.id.toString(),
@@ -147,7 +174,7 @@ export async function GET(req: NextRequest) {
           source: "search_alert_cron",
           criteria: { criteria_version: CRITERIA_VERSION, params: resolved.params, criteria_state: resolved.state },
           universe: { total: universe.total, countMeaning: universe.countMeaning },
-          delta: { since: since.toISOString(), matched: delta.rows.length, delivered: delivered.length, unknownTimestamp: delta.unknownTimestamp },
+          delta: { since: since.toISOString(), matched: delta.rows.length, delivered: delivered.length, unknownTimestamp: delta.unknownTimestamp, alreadyDelivered: excluded.byAlertHistory, alreadySentToLead: excluded.bySentToLead },
         });
 
         if (delivered.length === 0) {
@@ -159,7 +186,7 @@ export async function GET(req: NextRequest) {
           continue;
         }
 
-        // 4. Email. The template has no image, so no media is fetched for these rows.
+        // 5. Email. The template has no image, so no media is fetched for these rows.
         const hydrated = await hydrateRows(delivered, { select: SEARCH_SELECT_FIELDS, media: false });
         const newListings = hydrated.listings;
         if (newListings.length === 0) {
@@ -186,34 +213,15 @@ export async function GET(req: NextRequest) {
 
         if (result.success) {
           sent++;
+          // 6. Durable delivery history FIRST (the next cron decision reads it), then the cadence
+          //    clock. Only the listings actually in the email are recorded.
+          const emailedIds = newListings.map((l) => String(l.id));
+          const emailedKeys = emailedIds.map((id) => delivered.find((r) => r.listingId === id)?.listingKey ?? null);
+          await recordDelivery({ savedSearchId: search.id, leadId: search.lead_id, listingIds: emailedIds, listingKeys: emailedKeys, localIdByListingId: history.localIdByListingId, now });
           await prisma.savedSearch.update({
             where: { id: search.id },
             data: { last_alert_sent: now, result_count: universe.total },
           });
-
-          // Durable per-client record of what was sent. ClientListingAction references the local
-          // Listing row; a provider listing with no local row (not yet synced) cannot be linked.
-          if (search.lead_id) {
-            const ids = newListings.map((l) => String(l.id));
-            const local = await prisma.listing.findMany({ where: { listing_id: { in: ids } }, select: { id: true, listing_id: true } });
-            for (const row of local) {
-              await prisma.clientListingAction.upsert({
-                where: {
-                  lead_id_listing_id_action: {
-                    lead_id: search.lead_id,
-                    listing_id: row.id,
-                    action: "sent",
-                  },
-                },
-                update: { created_at: now },
-                create: {
-                  lead_id: search.lead_id,
-                  listing_id: row.id,
-                  action: "sent",
-                },
-              }).catch(() => {});
-            }
-          }
         } else {
           errored++;
           // ── SMTP fail-loud (P0-B compliance gate) ──────────────────
@@ -274,6 +282,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    const elapsedMs = Date.now() - startedAt;
     await prisma.auditEvent.create({
       data: {
         action: "search_alerts_cron",
@@ -287,6 +296,10 @@ export async function GET(req: NextRequest) {
           skipped,
           errored,
           skippedUnsupported,
+          universeSettles,
+          universeReuses,
+          providerPages,
+          elapsedMs,
         },
       },
     });
@@ -298,6 +311,10 @@ export async function GET(req: NextRequest) {
       skipped,
       errored,
       skippedUnsupported,
+      universeSettles,
+      universeReuses,
+      providerPages,
+      elapsedMs,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";

@@ -22,8 +22,8 @@ jest.mock("@/lib/prisma", () => ({
   default: {
     savedSearch: { findUnique: savedSearchFindUniqueMock, findMany: savedSearchFindManyMock, update: savedSearchUpdateMock, create: savedSearchCreateMock },
     listing: { findMany: listingFindManyMock },
-    clientListingAction: { upsert: clientActionUpsertMock },
-    auditEvent: { create: auditCreateMock },
+    clientListingAction: { upsert: clientActionUpsertMock, findMany: jest.fn(async () => []) },
+    auditEvent: { create: auditCreateMock, findMany: jest.fn(async () => []) },
     lead: { upsert: leadUpsertMock },
   },
 }));

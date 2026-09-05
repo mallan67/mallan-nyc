@@ -60,10 +60,12 @@ describe("saved-search alert matching goes through the canonical Search executor
     expect(cron).toContain("rowsModifiedSince");
     expect(cron).not.toContain("runProjectionListingSearch");
     expect(cron).not.toContain("listingSearchProjection");
-    // the ONE Listing read is the ClientListingAction link for rows already chosen for delivery
-    const reads = cron.match(/prisma\.listing\.findMany/g) || [];
-    expect(reads.length).toBe(1);
-    expect(cron).toMatch(/prisma\.listing\.findMany\(\{ where: \{ listing_id: \{ in: ids \} \}/);
+    // no Listing read in the cron at all: delivery history (ClientListingAction / audit) lives in
+    // lib/search/alert-delivery-history.ts and is consulted BEFORE the cap, never as membership
+    expect(cron).not.toMatch(/prisma.listing.findMany/);
+    expect(cron).toContain("loadDeliveryHistory");
+    expect(cron).toContain("excludeDelivered");
+    expect(cron).toContain("recordDelivery");
   });
 });
 
