@@ -77,7 +77,7 @@ describe("writer rule wired into every terminal-status writer", () => {
     const s = read("lib/listings/ensure-local-listing.ts") /* Packet 2 closure: the ensure-listing create lives in the helper the route and the alert cron both call */;
     expect(s).toMatch(/import\s*\{\s*computeTerminalSincePatch\s*\}\s*from\s*"@\/lib\/listings\/terminal-since"/);
     // create spreads the patch with previousStatus undefined + the normalized status
-    expect(s).toMatch(/computeTerminalSincePatch\(\{[\s\S]*?previousStatus:\s*undefined[\s\S]*?newStatus:\s*canonicalStatus/);
+    expect(s).toMatch(/computeTerminalSincePatch\(\{[\s\S]*?previousStatus:\s*undefined[\s\S]*?newStatus:\s*gates\.normalized_status/);
   });
   it("reconcile-ghosts.js sets terminal_since: now on ghost→Withdrawn (matches the wired cron twin) (#446)", () => {
     const s = read("scripts/reconcile-ghosts.js");

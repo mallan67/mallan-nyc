@@ -38,7 +38,7 @@ export interface EnsureListingInput {
   listing_id: string;
   address?: unknown; unit?: unknown; neighborhood?: unknown; borough?: unknown; zip?: unknown;
   latitude?: unknown; longitude?: unknown; cross_street?: unknown;
-  price?: unknown; beds?: unknown; baths?: unknown; full_baths?: unknown; half_baths?: unknown; int_sqft?: unknown;
+  price?: unknown; list_price?: unknown; beds?: unknown; baths?: unknown; full_baths?: unknown; half_baths?: unknown; int_sqft?: unknown;
   property_type?: unknown; property_sub_type?: unknown; status?: unknown;
   listing_category?: unknown; listing_type?: unknown;
   agent_name?: unknown; agent_email?: unknown; agent_phone?: unknown; company?: unknown;
@@ -105,7 +105,8 @@ export async function ensureLocalListing(
 
   // 3. Required local facts — refused, never fabricated.
   const reasons: string[] = [];
-  const price = input.price === null || input.price === undefined || input.price === "" ? null : Number(input.price);
+  const priceRaw = input.price ?? input.list_price;
+  const price = priceRaw === null || priceRaw === undefined || priceRaw === "" ? null : Number(priceRaw);
   if (price === null || !Number.isFinite(price)) reasons.push("ListPrice is absent (Cotality declares it nullable; a $0 row would be a fabricated fact)");
   const statusRaw = String(input.status ?? "").trim();
   const liveStatus = statusRaw ? resolveMember(statusRaw, LIVE_STATUS) : null;

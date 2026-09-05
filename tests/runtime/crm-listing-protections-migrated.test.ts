@@ -65,7 +65,8 @@ describe("saved-search alert matching goes through the canonical Search executor
     expect(cron).not.toMatch(/prisma.listing.findMany/);
     expect(cron).toContain("loadDeliveryHistory");
     expect(cron).toContain("excludeDelivered");
-    expect(cron).toContain("recordDelivery");
+    // post-send persistence is ONE transaction (client history + evidence + cadence)
+    expect(cron).toContain("commitDelivery");
   });
 });
 
