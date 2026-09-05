@@ -473,7 +473,7 @@ body { font-family: Manrope, sans-serif; }
                                 </div>
                                 <div class="border-l-4 border-blue-400 pl-3 bg-blue-50 py-2 pr-2 rounded-r">
                                     <p class="font-bold text-blue-800">In-House — Web Only <span class="text-[10px] text-blue-600 font-semibold">mallan.nyc ONLY</span></p>
-                                    <p class="text-gray-600 mt-1">Published on <strong>mallan.nyc only</strong>. Not submitted to REBNY RLS or any portal. Requires seller authorization to advertise. Can be featured on the homepage. Can be used as RealPlus Listing Url.</p>
+                                    <p class="text-gray-600 mt-1">Published on <strong>mallan.nyc only</strong>. Not submitted to REBNY RLS or any portal. Requires seller authorization to advertise. Can be featured on the homepage. Can be used as REBNY listing URL.</p>
                                     <p class="text-blue-600 text-xs mt-1"><i class="fas fa-globe mr-1"></i>No RLS, no IDX, no syndication. Public on mallan.nyc only.</p>
                                 </div>
                                 <hr class="border-gray-200">
@@ -508,7 +508,7 @@ body { font-family: Manrope, sans-serif; }
                         <i class="fas fa-lock text-gray-600 mt-0.5"></i>
                         <div class="text-xs text-gray-700">
                             <p class="font-semibold mb-1 text-gray-900">Internal Only: Not Public</p>
-                            <p>This listing is for <strong>CRM/brokerage use only</strong>. It will NOT appear on mallan.nyc, will NOT be eligible for Featured Listings, and should NOT be used as a RealPlus Listing Url.</p>
+                            <p>This listing is for <strong>CRM/brokerage use only</strong>. It will NOT appear on mallan.nyc, will NOT be eligible for Featured Listings, and should NOT be supplied to REBNY RLS as the listing URL.</p>
                             <p class="mt-1">Status will remain <strong>Draft</strong>. To make this listing public on mallan.nyc, change listing type to <strong>In-House — Web Only</strong>.</p>
                         </div>
                     </div>
@@ -522,7 +522,7 @@ body { font-family: Manrope, sans-serif; }
                                 <li>Not on REBNY RLS — other brokers will NOT see this listing</li>
                                 <li>No IDX, no syndication to Realtor.com, Zillow, StreetEasy, or any portal</li>
                                 <li>Can be pinned to Featured Listings on mallan.nyc homepage</li>
-                                <li>Can be used as RealPlus Listing Url when Active</li>
+                                <li>Can be supplied to REBNY RLS as the listing URL when Active</li>
                                 <li>Fair Housing Act + NY DOS advertising laws STILL apply</li>
                             </ul>
                         </div>
@@ -7552,7 +7552,7 @@ function collectSaleFormData() {
     data.ListAgentDirectPhone = data.saleUpdatingAgentPhone || '';
     // CRM-owned Mallan rows use the canonical office NAME. Office MLS id/key are
     // intentionally left blank until verified from a trusted canonical source
-    // (REBNY/Cotality/RealPlus) — never the "mallan" slug, never the REBNY
+    // (REBNY/Cotality) — never the "mallan" slug, never the REBNY
     // "MAllan" typo. (Maya decision, 2026-05-28.)
     data.ListOfficeName = data.saleUpdatingAgentCompanyName || 'Mallan Real Estate Inc.';
     // ListOfficeKey / ListOfficeMlsId are intentionally NOT written here: the
@@ -8061,10 +8061,10 @@ function submitSalesListing() {
             _pendingMediaFiles = [];
             // Determine the best URL from status transition or create/update result
             var publicUrl = (typeof statusResult !== 'undefined' && statusResult && statusResult.publicUrl) || result.publicUrl || null;
-            var realPlusUrl = (typeof statusResult !== 'undefined' && statusResult && statusResult.realPlusUrl) || result.realPlusUrl || null;
-            if (finalStatus === 'Active' && realPlusUrl) {
+            var rebnyListingUrl = (typeof statusResult !== 'undefined' && statusResult && statusResult.rebnyListingUrl) || result.rebnyListingUrl || null;
+            if (finalStatus === 'Active' && rebnyListingUrl) {
                 showToast('Listing ' + lid + ' published — Status: Active', 'success');
-                // Show RealPlus URL panel
+                // Show REBNY listing URL panel
                 var urlPanel = document.getElementById('salePublishUrlPanel');
                 if (!urlPanel) {
                     urlPanel = document.createElement('div');
@@ -8078,9 +8078,9 @@ function submitSalesListing() {
                     '<div class="mb-3"><label class="text-xs font-semibold text-gray-500 block mb-1">Public URL</label>' +
                     '<div class="flex items-center gap-2"><input id="salePublicUrlInput" type="text" readonly value="' + publicUrl + '" class="flex-1 text-sm border rounded px-3 py-2 bg-gray-50 text-gray-800 font-mono" />' +
                     '<button onclick="navigator.clipboard.writeText(document.getElementById(\'salePublicUrlInput\').value);showToast(\'Public URL copied\',\'success\')" class="px-3 py-2 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700"><i class="fas fa-copy mr-1"></i>Copy</button></div></div>' +
-                    '<div class="mb-4"><label class="text-xs font-semibold text-gray-500 block mb-1">RealPlus URL</label>' +
-                    '<div class="flex items-center gap-2"><input id="saleRealPlusUrlInput" type="text" readonly value="' + realPlusUrl + '" class="flex-1 text-sm border rounded px-3 py-2 bg-gray-50 text-gray-800 font-mono" />' +
-                    '<button onclick="navigator.clipboard.writeText(document.getElementById(\'saleRealPlusUrlInput\').value);showToast(\'RealPlus URL copied\',\'success\')" class="px-3 py-2 bg-green-600 text-white rounded text-xs font-medium hover:bg-green-700"><i class="fas fa-copy mr-1"></i>Copy</button></div></div>' +
+                    '<div class="mb-4"><label class="text-xs font-semibold text-gray-500 block mb-1">REBNY listing URL</label>' +
+                    '<div class="flex items-center gap-2"><input id="saleRebnyListingUrlInput" type="text" readonly value="' + rebnyListingUrl + '" class="flex-1 text-sm border rounded px-3 py-2 bg-gray-50 text-gray-800 font-mono" />' +
+                    '<button onclick="navigator.clipboard.writeText(document.getElementById(\'saleRebnyListingUrlInput\').value);showToast(\'REBNY listing URL copied\',\'success\')" class="px-3 py-2 bg-green-600 text-white rounded text-xs font-medium hover:bg-green-700"><i class="fas fa-copy mr-1"></i>Copy</button></div></div>' +
                     '<div class="flex justify-end gap-2">' +
                     '<button onclick="document.getElementById(\'salePublishUrlPanel\').remove();window.location.href=\'/crm/dashboard#/ops/listings\'" class="px-4 py-2 bg-gray-200 text-gray-700 rounded text-sm font-medium hover:bg-gray-300">Go to Dashboard</button>' +
                     '<a href="' + publicUrl + '" target="_blank" class="px-4 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 inline-flex items-center"><i class="fas fa-external-link-alt mr-1"></i>View Listing</a></div></div>';
@@ -9936,7 +9936,7 @@ function _populateSaleFormFromApi(listing) {
 
     // ── Composite address field (the main input the user sees) ──
     // Fallback MUST include StreetDirPrefix (E/W/N/S) or "333 E 46th St" would
-    // restore as "333 46th St" — the exact bug that broke RealPlus URL lookup.
+    // restore as "333 46th St" — the exact bug that broke REBNY listing URL lookup.
     var streetAddr = addr.UnparsedAddress || raw.UnParsedAddress || raw.UnparsedAddress || '';
     if (!streetAddr) {
         var parts = [

@@ -3216,7 +3216,7 @@ export const DEFAULT_PHASE2_RESERVE_MS = 12_000;
  * R2 mirror concurrency for Phase 3. Matches the production-tested pattern
  * in `lib/idx/sync.ts:694` (`MAX_CONCURRENT = 5` inside `migrateMediaToR2`).
  * Trestle's published Media URL ceiling is 480/min ≈ 8/sec
- * (per `data/RLS-FIELD-REGISTRY.md:307-310`); concurrency-5 with sequential
+ * (historical registry `data/RLS-FIELD-REGISTRY.md:307-310`, 2026-03-20 — live Cotality is the authority); concurrency-5 with sequential
  * batches sustains ~5/sec — comfortably within Trestle's bandwidth budget
  * and matches the proven-production `migrateMediaToR2` cron that has drained
  * 128K+ photos without incident.
@@ -3403,7 +3403,7 @@ export const defaultFetchDeps: MediaSyncFetchDeps = {
  *     `Promise.allSettled` and concurrency 5 — matching the proven-
  *     production pattern in `lib/idx/sync.ts:694-708` (`migrateMediaToR2`),
  *     and within Trestle's 480/min Media URL ceiling
- *     (per `data/RLS-FIELD-REGISTRY.md:307-310`). Stops when remaining
+ *     (historical registry `data/RLS-FIELD-REGISTRY.md:307-310`, 2026-03-20 — live Cotality is the authority). Stops when remaining
  *     time < `phase2ReserveMs`. R2 failures count in `r2_failed` (separate
  *     from source `rows_failed`); the row stays in the backlog for retry.
  *

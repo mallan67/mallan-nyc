@@ -17,8 +17,6 @@ export {
   type ListingData,
 } from './rebny-validator';
 
-export { mapListingToRESO, mapRESOToListing, canExportToRESO } from './reso-mapper';
-
 export {
   getCurrentRLSRules,
   getRulesVersion,

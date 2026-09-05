@@ -60,9 +60,6 @@ describe("writer rule wired into every terminal-status writer", () => {
   it("listing-expiration seeds terminal_since from the actual expiration_date (not cron run time)", () => {
     expect(read("app/api/cron/listing-expiration/route.ts")).toMatch(/terminal_since:\s*listing\.expiration_date/);
   });
-  it("import-closed sets terminal_since from the stable date", () => {
-    expect(read("scripts/import-closed-from-trestle.ts")).toMatch(/deriveTerminalSince/);
-  });
   it("reset-sync uses computeTerminalSincePatch on create + update (#446)", () => {
     const s = read("app/api/crm/listings/reset-sync/route.ts");
     expect(s).toMatch(/computeTerminalSincePatch/);

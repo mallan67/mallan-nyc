@@ -412,11 +412,11 @@
                                 <!-- Row 1: Activity Type Dropdown + Date Range -->
                                 <div class="flex gap-1 items-center">
                                     <!-- P1: "Listed and Updated" option removed — backend has no
-                                         third-branch handler in lib/search/crm-idx-filter.ts:182-188;
+                                         third-branch handler in the retired browser filter (deleted, Packet 1);
                                          it silently degrades to default Listed. Re-add only when
                                          the OData builder gains an OR-clause for ListingContractDate
                                          | ModificationTimestamp, AND the corresponding test in
-                                         lib/search/__tests__/crm-idx-filter.test.ts is updated. -->
+                                         the executor tests are updated. -->
                                     <select id="saleListingActivityType" class="flex-shrink-0 w-[140px] border rounded px-1 py-1 text-xs truncate">
                                         <option value="">Select Activity</option>
                                         <option value="Listed">Listed</option>

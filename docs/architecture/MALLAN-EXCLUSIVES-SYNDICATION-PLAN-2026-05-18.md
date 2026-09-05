@@ -1,3 +1,5 @@
+> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/search/checkpoints/2026-09-05-carry-forward-after-validators.md` §5.
+
 # Mallan Exclusives Syndication — MVP Plan (REPORT ONLY · v2)
 
 > **Status:** Architecture plan only. **No code from this doc.** Docs-only PR.

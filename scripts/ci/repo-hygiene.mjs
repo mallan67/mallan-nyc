@@ -65,7 +65,6 @@ const PR4_PATHS = [
   "app/api/idx/sync-historical/",
   "lib/media/",
   "app/api/media/",
-  "scripts/import-closed-from-trestle.ts",
   "public/crm/js/render/photo-loader.js",
 ];
 

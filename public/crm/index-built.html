@@ -3686,11 +3686,11 @@ function toggleSection(header) {
                                 <!-- Row 1: Activity Type Dropdown + Date Range -->
                                 <div class="flex gap-1 items-center">
                                     <!-- P1: "Listed and Updated" option removed — backend has no
-                                         third-branch handler in lib/search/crm-idx-filter.ts:182-188;
+                                         third-branch handler in the retired browser filter (deleted, Packet 1);
                                          it silently degrades to default Listed. Re-add only when
                                          the OData builder gains an OR-clause for ListingContractDate
                                          | ModificationTimestamp, AND the corresponding test in
-                                         lib/search/__tests__/crm-idx-filter.test.ts is updated. -->
+                                         the executor tests are updated. -->
                                     <select id="saleListingActivityType" class="flex-shrink-0 w-[140px] border rounded px-1 py-1 text-xs truncate">
                                         <option value="">Select Activity</option>
                                         <option value="Listed">Listed</option>
@@ -19467,9 +19467,14 @@ function manageShowToast(msg) {
         //   - RLS uses "SubdivisionName" for neighborhood, Trestle also has "MLSAreaMinor"
         //   - "WalkScore" exists in Trestle schema but NOT in RLS (Trestle-only)
         //   - Coming Soon: RLS uses "ActivationDate" (not FirstShowingDate)
-        //     and "ComingSoonTimestamp" (not ComingSoonOnMarketDate/ExpirationDate)
+        //     and the retired ComingSoon timestamp name (not ComingSoonOnMarketDate/ExpirationDate)
         //   - BuyerBrokerageCompensation: REMOVED from RLS feed Aug 2025 (NAR settlement)
         // ═══════════════════════════════════════════════════════════════════════════
+        // DISPLAY-ANNOTATION VOCABULARY, NOT PROVIDER AUTHORITY (Packet 2 closure).
+        // Maps CRM DTO keys to the live Cotality Property field they were mapped FROM, so cards can
+        // carry a data-reso attribute for compliance checks. Every value is verified against the dated
+        // live field pull (data/cotality-property-fields.live.json) by tests/runtime/provider-authority-census.test.ts;
+        // "computed:" marks a value the mapper derives. Nothing here maps data in either direction.
         var RESO_FIELD_MAP = {
             // ── Address & Location ──
             address:        'UnparsedAddress',           // RLS: UnparsedAddress → UnParsedAddress (Matrix). Trestle OData: UnparsedAddress
@@ -19482,7 +19487,7 @@ function manageShowToast(msg) {
 
             // ── Pricing ──
             price:          'ListPrice',                 // RLS: ListPrice
-            totalMonthly:   'AssociationFee+TaxAnnualAmount',  // computed (not a real field)
+            totalMonthly:   'computed:AssociationFee+TaxAnnualAmount',  // COMPUTED by the mapper (monthly fee + tax/12), not a provider field
             maintCC:        'AssociationFee',            // RLS: AssociationFee (monthly maint/CC)
             reTaxes:        'TaxAnnualAmount',           // RLS: TaxAnnualAmount (annual, for townhouses/lots)
             originalPrice:  'OriginalListPrice',         // RLS: OriginalListPrice (read-only)
@@ -19524,7 +19529,7 @@ function manageShowToast(msg) {
             dom:            'DaysOnMarket',              // RLS: DaysOnMarket (system). Reset after 30 days W/C (UCBA 2026)
             cdom:           'CumulativeDaysOnMarket',    // RLS: CumulativeDaysOnMarket (system)
             listedDate:     'OnMarketDate',              // RLS: OnMarketDate. Required if MLSStatus=Active
-            updatedDate:    'SourceSystemModificationTimestamp', // RLS: SourceSystemModificationTimestamp. RESO "ModificationTimestamp" renamed by RLS
+            updatedDate:    'ModificationTimestamp', // live Cotality field (SourceSystemModificationTimestamp is a REBNY submission-form name, not a live field)
 
             // ── Agent & Office ──
             company:        'ListOfficeName',            // RLS: ListOfficeName
@@ -19555,14 +19560,12 @@ function manageShowToast(msg) {
             walkScore:      'WalkScore',                 // Trestle-only (not in RLS CSV)
 
             // ── Display Control Flags ──
-            idxDisplayYN:           'IDXEntireListingDisplayYN',       // RLS: IDXEntireListingDisplayYN (IDX-specific gate, requires office participation)
             internetDisplayYN:      'InternetEntireListingDisplayYN',  // RLS: InternetEntireListingDisplayYN (master gate — cascades to addr/AVM/comment)
             addressDisplayYN:       'InternetAddressDisplayYN',       // RLS: InternetAddressDisplayYN
             syndicateTo:            'SyndicateTo',                    // Trestle: SyndicateTo (multi-enum)
 
             // ── Coming Soon (REBNY-specific) ──
             comingSoonDate:       'ActivationDate',                   // RLS: ActivationDate (date Coming Soon becomes Active). Required if MLSStatus=ComingSoon
-            comingSoonTimestamp:   'ComingSoonTimestamp',              // RLS: ComingSoonTimestamp (system — when listing first entered Coming Soon)
 
             // ── REMOVED from RLS (NAR Settlement Aug 2025) — kept for reference only ──
             // buyerComp:      'BuyerBrokerageCompensation',          // REMOVED from feed Aug 2025
@@ -21223,7 +21226,7 @@ function parseBudgetValue(td) {
             // REBNY: "Market time will not accrue when permission is set to Participant Only."
             // Production: freeze DOM clock when participantOnly=true, resume when converted to Standard.
             dom:              { label: 'DOM',            reso: 'DaysOnMarket',            render: function(l) { return '<span' + resoData('dom', l.dom) + '>' + (l.dom || '--') + '</span>'; } },
-            freshness:        { label: 'FRESHNESS',      reso: 'SourceSystemModificationTimestamp',   render: function(l) { return listingFreshness(l); } },
+            freshness:        { label: 'FRESHNESS',      reso: 'ModificationTimestamp',   render: function(l) { return listingFreshness(l); } },
             domEnhanced:      { label: 'DOM',            reso: 'DaysOnMarket',            render: function(l) { return domDisplay(l); } },
             neighborhood:     { label: 'NEIGHBORHOOD',   reso: 'SubdivisionName',         render: function(l) { return '<span' + resoData('neighborhood', l.neighborhood) + '>' + escapeHtml(l.neighborhood || '--') + '</span>'; } },
             listedDate:       { label: 'LISTED',         reso: 'OnMarketDate',            render: function(l) { return '<span' + resoData('listedDate', l.listedDate) + '>' + escapeHtml(l.listedDate || '--') + '</span>'; } },
@@ -21268,7 +21271,7 @@ function parseBudgetValue(td) {
             shares:             { label: 'SHARES',         reso: null,                      render: function(l) { return '--'; } },
             shown:              { label: 'SHOWN',          reso: null,                      render: function(l) { return '--'; } },
             sponsorUnit:        { label: 'SPONSOR',        reso: 'CustomProperty/CustomFields:SponsorUnitYN', render: function(l) { return l && l.sponsorUnit === true ? '<span class="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-semibold rounded">SPONSOR</span>' : (l && l.sponsorUnit === false ? 'No' : '--'); } },
-            updatedSold:        { label: 'UPDATED',        reso: 'SourceSystemModificationTimestamp',   render: function(l) { return '<span' + resoData('updatedDate', l.updatedDate) + '>' + escapeHtml(l.updatedDate || '--') + '</span>'; } },
+            updatedSold:        { label: 'UPDATED',        reso: 'ModificationTimestamp',   render: function(l) { return '<span' + resoData('updatedDate', l.updatedDate) + '>' + escapeHtml(l.updatedDate || '--') + '</span>'; } },
             verifiedEstimated:  { label: 'VERIFIED/EST',   reso: null,                      render: function(l) { return '--'; } },
             verifiedBuyer:      { label: 'VER. BUYER',     reso: null,                      render: function(l) { return '--'; } },
             verifiedSeller:     { label: 'VER. SELLER',    reso: null,                      render: function(l) { return '--'; } },

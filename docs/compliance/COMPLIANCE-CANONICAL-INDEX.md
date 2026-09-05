@@ -1,3 +1,5 @@
+> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/search/checkpoints/2026-09-05-carry-forward-after-validators.md` §5.
+
 # Compliance Canonical Index — mallan.nyc
 
 > **Read this FIRST** when a task touches public listings, IDX, RLS, Trestle/Cotality, syndication, CRM lead routing, seller/landlord intake, advertising, listing display, broker attribution, audit-event creation, lead consent capture, or retention windows.

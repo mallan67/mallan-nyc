@@ -93,7 +93,7 @@ const RESO_TO_RLS_RENAMES = {
 const CRITICAL_RENAMES = {
   status:      'MlsStatus',
   wid:         'SourceSystemKey',
-  updatedDate: 'SourceSystemModificationTimestamp',
+  updatedDate: 'ModificationTimestamp', // live Cotality field (the REBNY submission-form name SourceSystemModificationTimestamp is not a live field)
 };
 
 const PICKLIST_SKIP_CONTEXTS = new Set(['PropertyType']);

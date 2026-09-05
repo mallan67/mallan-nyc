@@ -1,3 +1,5 @@
+> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/search/checkpoints/2026-09-05-carry-forward-after-validators.md` §5.
+
 # IDX & VOW Display Rules
 
 > **Feed:** REBNY RLS via Trestle (Cotality) | **LMP:** RealPlus (listing input to RLS) | **IDX Display:** Trestle IDX Plus WebAPI — public display + internal CRM + reporting (REBNY confirmed 2026-03-27). IDX-eligible inventory only, not full-market search.

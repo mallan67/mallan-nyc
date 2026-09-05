@@ -13,8 +13,8 @@
  *      namespace. It is only barred from being the PUBLIC CANONICAL listing.
  *   3. Third-party RLS/IDX — normal public inventory, untouched.
  *
- * WHY A RETURN-COPY EXISTS AT ALL: Mallan enters its listing into RealPlus,
- * RealPlus submits to REBNY RLS, and the listing returns to Mallan through
+ * WHY A RETURN-COPY EXISTS AT ALL: Mallan submits its exclusive to REBNY RLS
+ * (through the brokerage's REBNY submission channel, OUTSIDE this system), and the listing returns to Mallan through
  * Cotality as an `RLS*` row. That return trip is OUTSIDE this system; Mallan
  * never writes back. The local `SL-`/`RL-` row stays canonical and the returned
  * copy is publicly suppressed but retained for audit/reconciliation.

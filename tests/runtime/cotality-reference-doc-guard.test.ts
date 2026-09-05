@@ -25,9 +25,10 @@ describe('Cotality reference doc guard', () => {
     expect(content).toContain('CURRENT BUILDING LOOKUP LIMITATION');
   });
 
-  it('contains System Ownership section identifying RealPlus as listing-entry source', () => {
+  it('contains System Ownership section identifying REBNY RLS submission (outside this system) as the listing-entry channel', () => {
     const content = readFileSync(DOC_PATH, 'utf-8');
-    expect(content).toContain('RealPlus/RLS');
+    expect(content).toContain('REBNY RLS submission (outside this system)');
+    expect(content).not.toMatch(/RealPlus.*Listing-entry source/);
     expect(content).toContain('Listing-entry source for official REBNY listings');
   });
 });

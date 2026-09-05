@@ -1,3 +1,5 @@
+> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/search/checkpoints/2026-09-05-carry-forward-after-validators.md` §5.
+
 # Cotality IDX Plus Web API — Complete Reference
 
 > Single unified reference for every aspect of using Cotality/Trestle on mallan.nyc.
@@ -41,7 +43,7 @@ Cotality ref: docs/architecture/COTALITY-COMPLETE-REFERENCE.md §18 (CRM Buildin
 | System | Role |
 |---|---|
 | **Cotality/Trestle** | External data provider. REBNY IDX Plus feed via OData v4. Read-only consumption by mallan.nyc. |
-| **RealPlus/RLS** | Listing-entry source for official REBNY listings. Maya enters listings into RealPlus; they appear in the Cotality feed as `RLS*` IDs. |
+| **REBNY RLS submission (outside this system)** | Listing-entry source for official REBNY listings. Mallan submits its exclusives to REBNY RLS through the brokerage's REBNY submission channel; they appear in the Cotality feed as `RLS*` IDs. RealPlus has no role in Mallan's application architecture. |
 | **mallan.nyc** | Consumes Cotality data for public display, search, building reference, and media. Does NOT write back to Trestle. |
 | **InHouse/local web** | Mallan-created website-only records (`SL-*` / `RL-*` IDs). Not on RLS. Must be manually reconciled when an official `RLS*` feed record arrives. |
 

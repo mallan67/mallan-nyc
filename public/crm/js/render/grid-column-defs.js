@@ -16,7 +16,7 @@
             // REBNY: "Market time will not accrue when permission is set to Participant Only."
             // Production: freeze DOM clock when participantOnly=true, resume when converted to Standard.
             dom:              { label: 'DOM',            reso: 'DaysOnMarket',            render: function(l) { return '<span' + resoData('dom', l.dom) + '>' + (l.dom || '--') + '</span>'; } },
-            freshness:        { label: 'FRESHNESS',      reso: 'SourceSystemModificationTimestamp',   render: function(l) { return listingFreshness(l); } },
+            freshness:        { label: 'FRESHNESS',      reso: 'ModificationTimestamp',   render: function(l) { return listingFreshness(l); } },
             domEnhanced:      { label: 'DOM',            reso: 'DaysOnMarket',            render: function(l) { return domDisplay(l); } },
             neighborhood:     { label: 'NEIGHBORHOOD',   reso: 'SubdivisionName',         render: function(l) { return '<span' + resoData('neighborhood', l.neighborhood) + '>' + escapeHtml(l.neighborhood || '--') + '</span>'; } },
             listedDate:       { label: 'LISTED',         reso: 'OnMarketDate',            render: function(l) { return '<span' + resoData('listedDate', l.listedDate) + '>' + escapeHtml(l.listedDate || '--') + '</span>'; } },
@@ -61,7 +61,7 @@
             shares:             { label: 'SHARES',         reso: null,                      render: function(l) { return '--'; } },
             shown:              { label: 'SHOWN',          reso: null,                      render: function(l) { return '--'; } },
             sponsorUnit:        { label: 'SPONSOR',        reso: 'CustomProperty/CustomFields:SponsorUnitYN', render: function(l) { return l && l.sponsorUnit === true ? '<span class="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-semibold rounded">SPONSOR</span>' : (l && l.sponsorUnit === false ? 'No' : '--'); } },
-            updatedSold:        { label: 'UPDATED',        reso: 'SourceSystemModificationTimestamp',   render: function(l) { return '<span' + resoData('updatedDate', l.updatedDate) + '>' + escapeHtml(l.updatedDate || '--') + '</span>'; } },
+            updatedSold:        { label: 'UPDATED',        reso: 'ModificationTimestamp',   render: function(l) { return '<span' + resoData('updatedDate', l.updatedDate) + '>' + escapeHtml(l.updatedDate || '--') + '</span>'; } },
             verifiedEstimated:  { label: 'VERIFIED/EST',   reso: null,                      render: function(l) { return '--'; } },
             verifiedBuyer:      { label: 'VER. BUYER',     reso: null,                      render: function(l) { return '--'; } },
             verifiedSeller:     { label: 'VER. SELLER',    reso: null,                      render: function(l) { return '--'; } },

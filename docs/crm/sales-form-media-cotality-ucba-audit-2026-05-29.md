@@ -1,3 +1,5 @@
+> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/search/checkpoints/2026-09-05-carry-forward-after-validators.md` §5.
+
 # Sales-Form Media — Cotality/IDX Plus + REBNY UCBA Audit
 
 > Generated 2026-05-29. **Audit only — no code, no PR.** Grounded in Cotality/IDX Plus normalized media rules (canonical) + REBNY UCBA advertising/display requirements. RealPlus is NOT treated as source of truth. No listing-identity/canonical-URL code touched. No SL-0004 rename. No Sentinel-L change (one future-detector recommendation noted in §9).

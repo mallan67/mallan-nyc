@@ -3,7 +3,7 @@
  *
  * Layer 1 — Canonical server/public status (RESO-safe):
  *   Controls DB status, public display, idx_display_yn, Internet display
- *   gates, Featured/Exclusives eligibility, RealPlus URL eligibility,
+ *   gates, Featured/Exclusives eligibility, REBNY listing URL eligibility,
  *   syndication/public surfaces.
  *
  * Layer 2 — Internal CRM workflow status:

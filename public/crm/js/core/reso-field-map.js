@@ -17,9 +17,14 @@
         //   - RLS uses "SubdivisionName" for neighborhood, Trestle also has "MLSAreaMinor"
         //   - "WalkScore" exists in Trestle schema but NOT in RLS (Trestle-only)
         //   - Coming Soon: RLS uses "ActivationDate" (not FirstShowingDate)
-        //     and "ComingSoonTimestamp" (not ComingSoonOnMarketDate/ExpirationDate)
+        //     and the retired ComingSoon timestamp name (not ComingSoonOnMarketDate/ExpirationDate)
         //   - BuyerBrokerageCompensation: REMOVED from RLS feed Aug 2025 (NAR settlement)
         // ═══════════════════════════════════════════════════════════════════════════
+        // DISPLAY-ANNOTATION VOCABULARY, NOT PROVIDER AUTHORITY (Packet 2 closure).
+        // Maps CRM DTO keys to the live Cotality Property field they were mapped FROM, so cards can
+        // carry a data-reso attribute for compliance checks. Every value is verified against the dated
+        // live field pull (data/cotality-property-fields.live.json) by tests/runtime/provider-authority-census.test.ts;
+        // "computed:" marks a value the mapper derives. Nothing here maps data in either direction.
         var RESO_FIELD_MAP = {
             // ── Address & Location ──
             address:        'UnparsedAddress',           // RLS: UnparsedAddress → UnParsedAddress (Matrix). Trestle OData: UnparsedAddress
@@ -32,7 +37,7 @@
 
             // ── Pricing ──
             price:          'ListPrice',                 // RLS: ListPrice
-            totalMonthly:   'AssociationFee+TaxAnnualAmount',  // computed (not a real field)
+            totalMonthly:   'computed:AssociationFee+TaxAnnualAmount',  // COMPUTED by the mapper (monthly fee + tax/12), not a provider field
             maintCC:        'AssociationFee',            // RLS: AssociationFee (monthly maint/CC)
             reTaxes:        'TaxAnnualAmount',           // RLS: TaxAnnualAmount (annual, for townhouses/lots)
             originalPrice:  'OriginalListPrice',         // RLS: OriginalListPrice (read-only)
@@ -74,7 +79,7 @@
             dom:            'DaysOnMarket',              // RLS: DaysOnMarket (system). Reset after 30 days W/C (UCBA 2026)
             cdom:           'CumulativeDaysOnMarket',    // RLS: CumulativeDaysOnMarket (system)
             listedDate:     'OnMarketDate',              // RLS: OnMarketDate. Required if MLSStatus=Active
-            updatedDate:    'SourceSystemModificationTimestamp', // RLS: SourceSystemModificationTimestamp. RESO "ModificationTimestamp" renamed by RLS
+            updatedDate:    'ModificationTimestamp', // live Cotality field (SourceSystemModificationTimestamp is a REBNY submission-form name, not a live field)
 
             // ── Agent & Office ──
             company:        'ListOfficeName',            // RLS: ListOfficeName
@@ -105,14 +110,12 @@
             walkScore:      'WalkScore',                 // Trestle-only (not in RLS CSV)
 
             // ── Display Control Flags ──
-            idxDisplayYN:           'IDXEntireListingDisplayYN',       // RLS: IDXEntireListingDisplayYN (IDX-specific gate, requires office participation)
             internetDisplayYN:      'InternetEntireListingDisplayYN',  // RLS: InternetEntireListingDisplayYN (master gate — cascades to addr/AVM/comment)
             addressDisplayYN:       'InternetAddressDisplayYN',       // RLS: InternetAddressDisplayYN
             syndicateTo:            'SyndicateTo',                    // Trestle: SyndicateTo (multi-enum)
 
             // ── Coming Soon (REBNY-specific) ──
             comingSoonDate:       'ActivationDate',                   // RLS: ActivationDate (date Coming Soon becomes Active). Required if MLSStatus=ComingSoon
-            comingSoonTimestamp:   'ComingSoonTimestamp',              // RLS: ComingSoonTimestamp (system — when listing first entered Coming Soon)
 
             // ── REMOVED from RLS (NAR Settlement Aug 2025) — kept for reference only ──
             // buyerComp:      'BuyerBrokerageCompensation',          // REMOVED from feed Aug 2025

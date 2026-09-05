@@ -53,8 +53,8 @@ const urls = (over: Record<string, unknown>) =>
   buildListingUrls({ ...base, ...over } as never);
 
 /** Every way the street or unit could leak into a URL. */
-function assertNoAddressLeak(u: { publicUrl: string | null; realPlusUrl: string | null }) {
-  for (const url of [u.publicUrl, u.realPlusUrl]) {
+function assertNoAddressLeak(u: { publicUrl: string | null; rebnyListingUrl: string | null }) {
+  for (const url of [u.publicUrl, u.rebnyListingUrl]) {
     if (!url) continue;
     const lower = url.toLowerCase();
     expect(lower).not.toContain('57th');
@@ -69,7 +69,7 @@ describe('RLS-backed: address permitted', () => {
   it('entire=true + address=true -> address slug', () => {
     const u = urls({});
     expect(u.publicUrl).toContain('57th');
-    expect(u.realPlusUrl).toContain('57th');
+    expect(u.rebnyListingUrl).toContain('57th');
   });
 });
 
@@ -151,8 +151,8 @@ describe('unknown provenance fails closed', () => {
   });
 });
 
-describe('non-active listings still produce no realPlusUrl', () => {
-  it('a Draft listing has realPlusUrl null', () => {
-    expect(urls({ status: 'Draft' }).realPlusUrl).toBeNull();
+describe('non-active listings still produce no rebnyListingUrl', () => {
+  it('a Draft listing has rebnyListingUrl null', () => {
+    expect(urls({ status: 'Draft' }).rebnyListingUrl).toBeNull();
   });
 });

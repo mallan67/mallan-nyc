@@ -30,7 +30,6 @@ const WIRED_WRITERS: { label: string; rel: string }[] = [
   // the route and the alert cron both call.
   { label: "idx/ensure-listing (lib/listings/ensure-local-listing)", rel: "lib/listings/ensure-local-listing.ts" },
   { label: "crm/listings/reset-sync", rel: "app/api/crm/listings/reset-sync/route.ts" },
-  { label: "scripts/import-closed-from-trestle", rel: "scripts/import-closed-from-trestle.ts" },
 ];
 
 function readFile(rel: string): string {
