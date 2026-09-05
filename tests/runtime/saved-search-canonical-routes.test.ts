@@ -25,6 +25,7 @@ jest.mock("@/lib/prisma", () => ({
     clientListingAction: { upsert: clientActionUpsertMock, findMany: jest.fn(async () => []) },
     auditEvent: { create: auditCreateMock, findMany: jest.fn(async () => []) },
     lead: { upsert: leadUpsertMock },
+    $transaction: jest.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn({ clientListingAction: { upsert: clientActionUpsertMock }, auditEvent: { create: auditCreateMock }, savedSearch: { update: savedSearchUpdateMock } })),
   },
 }));
 jest.mock("@/lib/auth/readonly-guard", () => ({ __esModule: true, assertWriteAllowed: () => null }));

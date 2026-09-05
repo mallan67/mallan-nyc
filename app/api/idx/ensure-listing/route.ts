@@ -6,15 +6,16 @@
 // If not, creates a minimal record from the IDX search data provided in the body.
 //
 // Auth: agent or broker session required.
-// The listing is marked rls_eligible=false (external IDX listing, not our exclusive).
+// The row is Cotality-source-owned (rls_eligible=true, like every Trestle row); it is never a
+// Mallan-local listing. A body without a price, a live status or an explicit inventory type
+// is refused (422) — no fact is fabricated to obtain a foreign-key identity.
 //
 // The creation logic lives in lib/listings/ensure-local-listing.ts (Packet 2 closure) so the
-// Saved Search alert cron can obtain the same local identity for a Lead's client history
-// without an authenticated HTTP round-trip. Route semantics are unchanged.
+// Saved Search alert cron can obtain the same local identity without an HTTP round-trip.
 import { NextRequest, NextResponse } from "next/server";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
-import { ensureLocalListing, type EnsureListingInput } from "@/lib/listings/ensure-local-listing";
+import { ensureLocalListing, UnrepresentableListingError, type EnsureListingInput } from "@/lib/listings/ensure-local-listing";
 
 export async function POST(req: NextRequest) {
   const writeBlock = assertWriteAllowed();
@@ -46,6 +47,12 @@ export async function POST(req: NextRequest) {
       { status: ensured.created ? 201 : 200 },
     );
   } catch (err) {
+    if (err instanceof UnrepresentableListingError) {
+      return NextResponse.json(
+        { error: "This listing cannot be recorded locally without fabricating provider facts.", code: "unrepresentable_listing", reasons: err.reasons },
+        { status: 422 },
+      );
+    }
     console.error("[ensure-listing] Create failed:", err);
     return NextResponse.json(
       { error: "Failed to create listing record" },

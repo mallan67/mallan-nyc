@@ -9,32 +9,32 @@
  *     (lead_id, listing_id [local Listing PK], action = "sent") — the same row the CRM
  *     listing-send workflow writes. It is the ONLY truth for "this Lead already received this
  *     listing", across ALL saved searches and ALL workflows. A provider result with no local
- *     row is CANONICALIZED first (lib/listings/ensure-local-listing.ts — the mechanism the CRM
- *     has always used before listing-sends) so the event is always representable; a listing
- *     whose identity cannot be ensured is NOT sent (fail loud, audited), never delivered
- *     "unremembered".
+ *     row is CANONICALIZED first (lib/listings/ensure-local-listing.ts — the CRM's own
+ *     mechanism, Cotality-source-owned, no fabricated facts) so the event is representable;
+ *     a listing whose identity cannot be ensured is NOT sent (fail loud, audited).
  *
  *   AGENT-ONLY ALERT (no Lead) → the saved search's own audit trail,
  *     AuditEvent(entity_type 'saved_search', entity_id <id>, action 'search_alert_delivered',
- *     changes.listing_ids). This is OPERATIONAL agent-notification history, NOT client CRM
- *     history. Audit rows are purged after 2 years (data-retention cron), so exact lifetime
- *     idempotency for agent-only alerts is bounded by that retention. Recorded, not hidden.
+ *     changes.listing_ids). OPERATIONAL agent-notification history, NOT client CRM history;
+ *     audit rows are purged after 2 years, so exact lifetime idempotency for agent-only alerts
+ *     is bounded by that retention.
  *
- * The audit row is also written for lead-linked deliveries as EVIDENCE; it is never consulted
- * as client truth.
+ * POST-SEND PERSISTENCE IS ATOMIC (one Prisma transaction): every ClientListingAction row, the
+ * delivery-evidence audit row and the saved search's cadence/result update commit together
+ * or not at all. The unavoidable window is between the email provider accepting the message
+ * and that transaction committing: a crash there means an email went out that the database
+ * does not remember (the next run may re-send). Email and Postgres are not one transaction
+ * and this module does not pretend they are; the window is recorded, not hidden.
  */
 import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { ensureInputFromSearchDto, ensureLocalListing } from "@/lib/listings/ensure-local-listing";
+import { ensureInputFromSearchDto, ensureLocalListing, type EnsureListingType } from "@/lib/listings/ensure-local-listing";
 
 export const ALERT_DELIVERED_ACTION = "search_alert_delivered";
 
 export interface DeliveryHistory {
-  /** Agent-only: ListingId strings this saved search already delivered (audit trail). */
   deliveredByThisAlert: Set<string>;
-  /** Lead-linked: ListingId strings already sent to the Lead by ANY workflow (ClientListingAction). */
   sentToLead: Set<string>;
-  /** Local Listing PK by ListingId string for candidates that already have a local row. */
   localIdByListingId: Map<string, bigint>;
   audience: "lead" | "agent";
 }
@@ -87,13 +87,15 @@ export function excludeDelivered<T extends { listingId: string }>(rows: readonly
 }
 
 /**
- * LEAD-LINKED ONLY. Give every hydrated DTO a local Listing identity BEFORE anything is sent,
- * so the delivery can be remembered in the Lead's canonical history. A DTO whose identity
- * cannot be ensured is returned in `unrepresentable` and must not be delivered.
+ * LEAD-LINKED ONLY. Give every hydrated DTO a local Listing identity BEFORE anything is sent.
+ * `listingType` is the saved search's KNOWN inventory type (sale / rental universe), never
+ * inferred from a DTO's absence. A DTO whose identity cannot be ensured (unrepresentable
+ * facts, DB failure) is returned in `unrepresentable` and must not be delivered.
  */
 export async function canonicalizeForLead(
   dtos: readonly Record<string, unknown>[],
   known: ReadonlyMap<string, bigint>,
+  listingType: EnsureListingType,
 ): Promise<{ localIdByListingId: Map<string, bigint>; deliverable: Record<string, unknown>[]; unrepresentable: Array<{ listingId: string; reason: string }> }> {
   const localIdByListingId = new Map<string, bigint>(known);
   const deliverable: Record<string, unknown>[] = [];
@@ -102,7 +104,7 @@ export async function canonicalizeForLead(
     const listingId = String(dto.id ?? "");
     if (localIdByListingId.has(listingId)) { deliverable.push(dto); continue; }
     try {
-      const ensured = await ensureLocalListing(ensureInputFromSearchDto(dto), async (listing) => {
+      const ensured = await ensureLocalListing(ensureInputFromSearchDto(dto, listingType), async (listing) => {
         await prisma.auditEvent.create({
           data: { action: "create", entity_type: "listing", entity_id: listing.id.toString(), user_type: "system", user_id: null, changes: { source: "idx_ensure", via: "search_alert_cron", trestle_id: listingId } as Prisma.InputJsonValue },
         });
@@ -116,45 +118,56 @@ export async function canonicalizeForLead(
   return { localIdByListingId, deliverable, unrepresentable };
 }
 
+export interface CommitDeliveryInput {
+  savedSearchId: bigint;
+  leadId: bigint | null;
+  /** Exactly the listing ids placed in the successfully sent email. */
+  listingIds: readonly string[];
+  listingKeys: readonly (string | null)[];
+  localIdByListingId: ReadonlyMap<string, bigint>;
+  now: Date;
+  /** The saved search's post-send state: cadence clock and universe total. */
+  resultCount: number;
+}
+
 /**
- * Write durable delivery history for the listings that were ACTUALLY in a successfully sent
- * email. Lead-linked: ClientListingAction for every delivered listing (all have a local
- * identity by construction) — the client truth — plus the audit row as evidence. Agent-only:
- * the audit row IS the operational history. Called only after `sendEmail` reported success.
+ * ATOMIC post-send persistence. Called only after `sendEmail` reported success. Lead-linked:
+ * every delivered listing has a local identity by construction (canonicalizeForLead), so
+ * every one gets a ClientListingAction row — a missing identity here is a programming error
+ * and aborts the transaction rather than committing a partial client history.
  */
-export async function recordDelivery(o: {
-  savedSearchId: bigint; leadId: bigint | null; listingIds: readonly string[]; listingKeys: readonly (string | null)[];
-  localIdByListingId: ReadonlyMap<string, bigint>; now: Date;
-}): Promise<{ audited: boolean; clientActionsWritten: number; withoutLocalRow: number }> {
-  let clientActionsWritten = 0;
-  let withoutLocalRow = 0;
-  if (o.leadId != null) {
-    for (const listingId of o.listingIds) {
-      const localId = o.localIdByListingId.get(listingId);
-      if (localId == null) { withoutLocalRow++; continue; }
-      await prisma.clientListingAction.upsert({
-        where: { lead_id_listing_id_action: { lead_id: o.leadId, listing_id: localId, action: "sent" } },
-        update: { created_at: o.now },
-        create: { lead_id: o.leadId, listing_id: localId, action: "sent" },
-      });
-      clientActionsWritten++;
+export async function commitDelivery(o: CommitDeliveryInput): Promise<{ clientActionsWritten: number }> {
+  return prisma.$transaction(async (tx) => {
+    let clientActionsWritten = 0;
+    if (o.leadId != null) {
+      for (const listingId of o.listingIds) {
+        const localId = o.localIdByListingId.get(listingId);
+        if (localId == null) throw new Error(`delivery history: no local identity for ${listingId} (must be canonicalized before the send)`);
+        await tx.clientListingAction.upsert({
+          where: { lead_id_listing_id_action: { lead_id: o.leadId, listing_id: localId, action: "sent" } },
+          update: { created_at: o.now },
+          create: { lead_id: o.leadId, listing_id: localId, action: "sent" },
+        });
+        clientActionsWritten++;
+      }
     }
-  }
-  await prisma.auditEvent.create({
-    data: {
-      action: ALERT_DELIVERED_ACTION,
-      entity_type: "saved_search",
-      entity_id: o.savedSearchId.toString(),
-      user_type: "system",
-      user_id: null,
-      changes: {
-        listing_ids: [...o.listingIds],
-        listing_keys: [...o.listingKeys],
-        lead_id: o.leadId != null ? o.leadId.toString() : null,
-        client_history_rows: clientActionsWritten,
-        delivered_at: o.now.toISOString(),
-      } as Prisma.InputJsonValue,
-    },
+    await tx.auditEvent.create({
+      data: {
+        action: ALERT_DELIVERED_ACTION,
+        entity_type: "saved_search",
+        entity_id: o.savedSearchId.toString(),
+        user_type: "system",
+        user_id: null,
+        changes: {
+          listing_ids: [...o.listingIds],
+          listing_keys: [...o.listingKeys],
+          lead_id: o.leadId != null ? o.leadId.toString() : null,
+          client_history_rows: clientActionsWritten,
+          delivered_at: o.now.toISOString(),
+        } as Prisma.InputJsonValue,
+      },
+    });
+    await tx.savedSearch.update({ where: { id: o.savedSearchId }, data: { last_alert_sent: o.now, result_count: o.resultCount } });
+    return { clientActionsWritten };
   });
-  return { audited: true, clientActionsWritten, withoutLocalRow };
 }

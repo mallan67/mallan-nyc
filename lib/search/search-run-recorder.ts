@@ -14,6 +14,35 @@ export interface SearchRunActor {
   actorUserId?: bigint | null;
 }
 
+/**
+ * Alert pipeline observability (cron only). Every stage is counted separately so the audit
+ * says what ACTUALLY happened: `delivered` / `emailed` are the listings placed in the
+ * successfully sent email — never a pre-hydration candidate count.
+ */
+export interface SearchRunDelta {
+  since: string;
+  /** Universe rows modified after `since`. */
+  matched: number;
+  unknownTimestamp: number;
+  /** Excluded by this alert's own history (agent-only). */
+  alreadyDelivered: number;
+  /** Excluded by the Lead's canonical client history (lead-linked). */
+  alreadySentToLead: number;
+  /** Fresh candidates after exclusion, before the cap. */
+  candidates: number;
+  /** Candidates after the delivery cap. */
+  capped: number;
+  hydrationMissing: number;
+  gateExcluded: number;
+  /** Lead-linked candidates that could not be given a local identity (not sent). */
+  unrepresentable: number;
+  /** Listings actually in the successfully sent email (0 on failure / nothing to send). */
+  emailed: number;
+  /** Same meaning as `emailed` (kept for readers of earlier runs). */
+  delivered: number;
+  sendSuccess: boolean;
+}
+
 export interface RecordSearchRunInput {
   savedSearchId: string;
   actor: SearchRunActor;
@@ -24,8 +53,7 @@ export interface RecordSearchRunInput {
   source: "saved_search_execute" | "search_alert_cron";
   criteria?: Record<string, unknown>;
   universe?: { total: number; countMeaning: "exact" | "lower_bound" };
-  /** Alert delivery rule applied over the complete universe (cron only). */
-  delta?: { since: string; matched: number; delivered: number; unknownTimestamp: number; alreadyDelivered?: number; alreadySentToLead?: number };
+  delta?: SearchRunDelta;
 }
 
 export async function recordSearchRun(input: RecordSearchRunInput): Promise<void> {

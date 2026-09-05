@@ -23,6 +23,7 @@ jest.mock("@/lib/prisma", () => ({
     listing: { findMany: listingFindManyMock },
     clientListingAction: { findMany: clientActionFindManyMock, upsert: clientActionUpsertMock },
     auditEvent: { findMany: auditFindManyMock, create: auditCreateMock },
+    $transaction: jest.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn({ clientListingAction: { upsert: clientActionUpsertMock }, auditEvent: { create: auditCreateMock }, savedSearch: { update: savedSearchUpdateMock } })),
   },
 }));
 const ensureLocalListingMock = jest.fn(async (input: { listing_id: string }) => ({ id: BigInt(1000 + Number(input.listing_id.replace(/\D/g, "") || 0)), listing_id: input.listing_id, created: true }));

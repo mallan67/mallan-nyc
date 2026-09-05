@@ -23,6 +23,7 @@ jest.mock("@/lib/prisma", () => ({
     listing: { findMany: listingFindManyMock },
     clientListingAction: { findMany: clientActionFindManyMock, upsert: clientActionUpsertMock },
     auditEvent: { findMany: auditFindManyMock, create: auditCreateMock },
+    $transaction: jest.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn({ clientListingAction: { upsert: clientActionUpsertMock }, auditEvent: { create: auditCreateMock }, savedSearch: { update: savedSearchUpdateMock } })),
   },
 }));
 const ensureLocalListingMock = jest.fn();
@@ -79,7 +80,9 @@ describe("same Lead, two saved searches, same provider-only listing", () => {
     listingFindManyMock.mockResolvedValue([]);
     await cron();
     expect(ensureLocalListingMock).toHaveBeenCalledTimes(1);
-    expect((ensureLocalListingMock.mock.calls[0][0] as { listing_id: string }).listing_id).toBe("ID7");
+    expect((ensureLocalListingMock.mock.calls[0][0] as { listing_id: string; listing_type: string }).listing_id).toBe("ID7");
+    // the inventory type is the saved search's own (sale universe), never inferred from the DTO
+    expect((ensureLocalListingMock.mock.calls[0][0] as { listing_type: string }).listing_type).toBe("sale");
     expect(clientRows()).toEqual([{ lead_id: 77n, listing_id: 1007n, action: "sent" }]);
     expect(emailed()).toEqual([["ID7"]]);
     // Search B, later: the local row now exists and the Lead's history holds it
@@ -132,6 +135,9 @@ describe("provider-only Lead path: canonicalized or refused, never sent unrememb
     expect(clientRows()).toEqual([{ lead_id: 77n, listing_id: 1001n, action: "sent" }]);
     const unrep = (auditCreateMock.mock.calls as unknown as Array<[{ data: { action: string; changes: { listings?: Array<{ listingId: string }> } } }]>).map((c) => c[0].data).find((d) => d.action === "search_alerts_cron_delivery_unrepresentable");
     expect(unrep?.changes.listings?.map((l) => l.listingId)).toEqual(["ID2"]);
+    // OBSERVABILITY: the search_run audit reflects the ACTUAL email — 2 capped, 1 unrepresentable, 1 emailed
+    const { recordSearchRun } = await import("@/lib/search/search-run-recorder");
+    expect(recordSearchRun).toHaveBeenCalledWith(expect.objectContaining({ delta: expect.objectContaining({ matched: 2, candidates: 2, capped: 2, unrepresentable: 1, emailed: 1, delivered: 1, sendSuccess: true }) }));
   });
   it("when nothing can be canonicalized, nothing is sent and nothing advances", async () => {
     savedSearchFindManyMock.mockResolvedValue([alertRow()]);
@@ -154,5 +160,59 @@ describe("agent-only alert keeps its per-saved-search operational history (uncha
     expect(ensureLocalListingMock).not.toHaveBeenCalled();
     expect(clientActionUpsertMock).not.toHaveBeenCalled();
     expect((auditFindManyMock.mock.calls[0][0] as { where: { entity_id: string } }).where.entity_id).toBe("5");
+  });
+});
+
+describe("post-send persistence is ONE transaction", () => {
+  it("client history + delivery evidence + cadence commit together; a failure mid-history rolls everything back (no partial ClientListingAction set, no cadence advance)", async () => {
+    const { default: prisma } = await import("@/lib/prisma");
+    const tx = (prisma as unknown as { $transaction: jest.Mock }).$transaction;
+    savedSearchFindManyMock.mockResolvedValue([alertRow()]);
+    settledUniverseForMock.mockResolvedValue(universe([urow("ID1"), urow("ID2"), urow("ID3")]));
+    // second history row fails inside the transaction
+    clientActionUpsertMock.mockImplementationOnce(async () => ({})).mockImplementationOnce(async () => { throw new Error("db down mid-transaction"); });
+    const res = await cron();
+    expect(tx).toHaveBeenCalledTimes(1);
+    // the transaction threw: Prisma rolls back everything inside it — the cron treats it as an error
+    expect((await res.json()).errored).toBe(1);
+    // the cadence update inside the transaction was never reached; nothing outside it touched the row
+    expect(savedSearchUpdateMock).not.toHaveBeenCalled();
+    const evidence = (auditCreateMock.mock.calls as unknown as Array<[{ data: { action: string } }]>).map((c) => c[0].data.action);
+    expect(evidence).not.toContain("search_alert_delivered");
+  });
+  it("on success the three writes happen inside the same transaction, and only then", async () => {
+    const { default: prisma } = await import("@/lib/prisma");
+    const tx = (prisma as unknown as { $transaction: jest.Mock }).$transaction;
+    savedSearchFindManyMock.mockResolvedValue([alertRow()]);
+    settledUniverseForMock.mockResolvedValue(universe([urow("ID1"), urow("ID2")]));
+    await cron();
+    expect(tx).toHaveBeenCalledTimes(1);
+    expect(clientActionUpsertMock).toHaveBeenCalledTimes(2);
+    expect(savedSearchUpdateMock).toHaveBeenCalledTimes(1);
+    expect(savedSearchUpdateMock).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ last_alert_sent: expect.any(Date), result_count: 2 }) }));
+    const txOrder = tx.mock.invocationCallOrder[0];
+    for (const order of [...clientActionUpsertMock.mock.invocationCallOrder, ...savedSearchUpdateMock.mock.invocationCallOrder]) expect(order).toBeGreaterThan(txOrder);
+  });
+});
+
+describe("alert line: a withheld address withholds the UNIT too", () => {
+  it("emits no unit when addressDisplayYN is false; neighborhood may show", async () => {
+    const { alertLine } = await import("@/app/api/cron/search-alerts/route");
+    const line = alertLine({ id: "RLS1", address: "217 W 57TH STREET", unit: "PH-4A", neighborhood: "Tribeca", addressDisplayYN: false, price: 1850000, beds: 2, baths: 2 });
+    expect(line.address).toBe("Address Available on Request, Tribeca");
+    expect(line.address).not.toContain("PH-4A");
+    expect(line.address).not.toContain("57TH");
+    const shown = alertLine({ id: "RLS1", address: "217 W 57TH STREET", unit: "PH-4A", neighborhood: "Tribeca", addressDisplayYN: true, price: 1850000, beds: 2, baths: 2 });
+    expect(shown.address).toBe("217 W 57TH STREET #PH-4A, Tribeca");
+  });
+  it("the emitted email string contains no unit for a withheld address", async () => {
+    savedSearchFindManyMock.mockResolvedValue([alertRow()]);
+    settledUniverseForMock.mockResolvedValue(universe([urow("ID9")]));
+    hydrateRowsMock.mockResolvedValue({ listings: [{ ...dto("ID9"), unit: "PH-4A", addressDisplayYN: false }], missing: [], gateExcluded: [] });
+    await cron();
+    const html = String(sendEmailMock.mock.calls[0][2]);
+    expect(html).toContain("Address Available on Request, Tribeca");
+    expect(html).not.toContain("PH-4A");
+    expect(html).not.toContain("57TH");
   });
 });
