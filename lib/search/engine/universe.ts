@@ -74,7 +74,9 @@ async function mallanRowsFor(c: SearchCriteria): Promise<{ rows: UniverseRow[]; 
   if (c.cityRegion.length) where.borough = { in: c.cityRegion.flatMap((v) => CITY_REGION_STORAGE[v] ?? [v]) };
   if (c.subdivisionName.length) where.OR = c.subdivisionName.map((n) => ({ neighborhood: { equals: n, mode: 'insensitive' } }));
   if (c.postalCode.length) where.postal_code = { in: [...c.postalCode] };
-  if (c.listingId.length) where.listing_id = { in: [...c.listingId] };
+  // A listingId narrows the universe; it never replaces the SL-/RL- prefix that bounds it
+  // (Independent Verifier 2026-09-05, M1/M2: a Mallan row addressed by id crossed universes).
+  if (c.listingId.length) where.listing_id = { startsWith: prefix, in: [...c.listingId] };
 
   const rows = await prisma.listing.findMany({
     where,
