@@ -82,7 +82,9 @@ export function isSavedSearchCriteria(v: unknown): v is SavedSearchCriteria {
   const c = v as Record<string, unknown>;
   if (c.criteria_version !== CRITERIA_VERSION) return false;
   if (c.params == null || typeof c.params !== 'object' || Array.isArray(c.params)) return false;
-  return Object.entries(c.params as Record<string, unknown>).every(([k, val]) => SAVED_PARAM_KEYS.has(k) && typeof val === 'string');
+  // Shape only: string-valued parameters. A parameter the executor does not execute is refused BY
+  // NAME by resolveStoredCriteria (criteriaFromParams), never hidden behind a shape error.
+  return Object.values(c.params as Record<string, unknown>).every((val) => typeof val === 'string');
 }
 
 /** current = carries the current version; legacy = a plain object without it; invalid = not an object. */

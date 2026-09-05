@@ -53,10 +53,13 @@ describe('save what actually executed', () => {
 });
 
 describe('version state', () => {
-  test('current / legacy / invalid are three states; a version-2 blob with a foreign key is invalid', () => {
+  test('current / legacy / invalid are three states; a version-2 blob with a foreign key is refused BY NAME on resolve', () => {
     expect(savedSearchVersionState({ criteria_version: CRITERIA_VERSION, params: { type: 'sale' } })).toBe('current');
     expect(savedSearchVersionState({ listing_type: 'sale' })).toBe('legacy');
-    expect(savedSearchVersionState({ criteria_version: CRITERIA_VERSION, params: { min_sqft: '900' } })).toBe('invalid');
+    const foreign = resolveStoredCriteria({ criteria_version: CRITERIA_VERSION, params: { type: 'sale', min_sqft: '900' } });
+    expect(foreign.state).toBe('invalid');
+    expect(foreign.state === 'invalid' && foreign.unsupported).toEqual(['min_sqft']);
+    expect(savedSearchVersionState({ criteria_version: CRITERIA_VERSION, params: { type: 7 } })).toBe('invalid');
     expect(savedSearchVersionState({ criteria_version: 1, filters: {}, sort: 'price_desc' })).toBe('invalid');
     expect(savedSearchVersionState(null)).toBe('invalid');
     expect(savedSearchVersionState([])).toBe('invalid');

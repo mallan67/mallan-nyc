@@ -159,10 +159,11 @@ describe('7. saved-search criteria carries criteria_version (Packet 2: executor 
     expect(savedSearchVersionState(stale)).toBe('invalid');
     expect(resolveStoredCriteria(stale).state).toBe('invalid');
   });
-  it('a bogus/unmapped parameter fails loud (invalid), never accepted', () => {
-    const blob = { criteria_version: CRITERIA_VERSION, params: { totallyBogus: '1' } };
-    expect(savedSearchVersionState(blob)).toBe('invalid');
-    expect(isSavedSearchCriteria(blob)).toBe(false);
+  it('a bogus/unmapped parameter fails loud BY NAME on resolve, never accepted', () => {
+    const blob = { criteria_version: CRITERIA_VERSION, params: { type: 'sale', totallyBogus: '1' } };
+    const r = resolveStoredCriteria(blob);
+    expect(r.state).toBe('invalid');
+    expect(r.state === 'invalid' && r.unsupported).toEqual(['totallyBogus']);
   });
   it('alert eligibility is executor eligibility: an unexecutable criterion is refused at save, not silently saved', () => {
     const r = savedCriteriaFromExecuted({ type: 'sale', amenities: 'doorman', minPrice: 1000 });
