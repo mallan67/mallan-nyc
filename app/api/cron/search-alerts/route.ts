@@ -7,12 +7,16 @@
 //     canonical criteria are settled ONCE per invocation and reused)
 //   → alert delta ("modified since last alert"): a delivery rule over the COMPLETE universe,
 //     decided by source modification time, never a Search criterion and never a page filter
-//   → remove listings ALREADY DELIVERED (durable history: ClientListingAction "sent" for the
-//     linked Lead, and this saved search's own search_alert_delivered audit trail) — a later
-//     modification never re-sends a listing as "New"
+//   → remove listings ALREADY DELIVERED — ONE history per audience: a Lead's canonical
+//     ClientListingAction "sent" (any saved search, any workflow); an agent-only alert's own
+//     search_alert_delivered audit trail — a later modification never re-sends "New"
 //   → delivery cap / universe order
-//   → hydrate → email
-//   → after a successful send: durable delivery history FIRST, then last_alert_sent.
+//   → hydrate
+//   → lead-linked: ensure a LOCAL Listing identity for every provider DTO before sending
+//     (the CRM's own ensure-listing mechanism); a listing that cannot be ensured is not sent
+//   → email
+//   → after a successful send: durable history FIRST (ClientListingAction / audit), then
+//     last_alert_sent.
 import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
@@ -22,7 +26,7 @@ import { escapeHtml } from "@/lib/sanitize";
 import { CRITERIA_VERSION, resolveStoredCriteria } from "@/lib/search/engine/saved-search";
 import { hydrateRows, rowsModifiedSince, settledUniverseFor, universeKeyOf } from "@/lib/search/engine/executor";
 import type { SettledUniverse } from "@/lib/search/engine/universe";
-import { excludeDelivered, loadDeliveryHistory, recordDelivery } from "@/lib/search/alert-delivery-history";
+import { canonicalizeForLead, excludeDelivered, loadDeliveryHistory, recordDelivery } from "@/lib/search/alert-delivery-history";
 import { SEARCH_SELECT_FIELDS } from "@/lib/search/engine/select";
 import { recordSearchRun } from "@/lib/search/search-run-recorder";
 
@@ -205,19 +209,42 @@ export async function GET(req: NextRequest) {
           continue;
         }
 
-        const formattedListings = newListings.map(alertLine);
+        // Lead-linked: canonical local identity BEFORE the send. "Do not send an item to a Lead
+        // unless the system can durably remember that the Lead received it."
+        let localIds: ReadonlyMap<string, bigint> = history.localIdByListingId;
+        let toDeliver = newListings;
+        if (search.lead_id != null) {
+          const c = await canonicalizeForLead(newListings, history.localIdByListingId);
+          localIds = c.localIdByListingId;
+          toDeliver = c.deliverable;
+          if (c.unrepresentable.length > 0) {
+            await prisma.auditEvent.create({
+              data: {
+                action: "search_alerts_cron_delivery_unrepresentable",
+                entity_type: "saved_search",
+                entity_id: search.id.toString(),
+                user_type: "system",
+                user_id: null,
+                changes: { lead_id: search.lead_id.toString(), listings: c.unrepresentable },
+              },
+            }).catch(() => {});
+            if (toDeliver.length === 0) { errored++; continue; }
+          }
+        }
+
+        const formattedListings = toDeliver.map(alertLine);
 
         const html = listingAlertEmail(formattedListings, escapeHtml(clientName || "there"));
-        const subject = `${newListings.length} New Listing${newListings.length !== 1 ? "s" : ""} Matching "${search.name}"`;
+        const subject = `${toDeliver.length} New Listing${toDeliver.length !== 1 ? "s" : ""} Matching "${search.name}"`;
         const result = await sendEmail(email, subject, html);
 
         if (result.success) {
           sent++;
           // 6. Durable delivery history FIRST (the next cron decision reads it), then the cadence
           //    clock. Only the listings actually in the email are recorded.
-          const emailedIds = newListings.map((l) => String(l.id));
+          const emailedIds = toDeliver.map((l) => String(l.id));
           const emailedKeys = emailedIds.map((id) => delivered.find((r) => r.listingId === id)?.listingKey ?? null);
-          await recordDelivery({ savedSearchId: search.id, leadId: search.lead_id, listingIds: emailedIds, listingKeys: emailedKeys, localIdByListingId: history.localIdByListingId, now });
+          await recordDelivery({ savedSearchId: search.id, leadId: search.lead_id, listingIds: emailedIds, listingKeys: emailedKeys, localIdByListingId: localIds, now });
           await prisma.savedSearch.update({
             where: { id: search.id },
             data: { last_alert_sent: now, result_count: universe.total },

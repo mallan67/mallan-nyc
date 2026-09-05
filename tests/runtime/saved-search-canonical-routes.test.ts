@@ -41,6 +41,11 @@ jest.mock("@/lib/idx/mapping", () => ({ __esModule: true, generateAttributionTex
 jest.mock("@/lib/crm/access", () => ({ __esModule: true, assertLeadIdStringAccess: async (_a: unknown, id: string) => ({ leadId: BigInt(id), response: null }) }));
 jest.mock("@/lib/middleware/rate-limiter", () => ({ __esModule: true, checkRouteRateLimit: async () => true, extractClientIp: () => "203.0.113.9" }));
 jest.mock("@/lib/inquiries/create", () => ({ __esModule: true, createInquiry: jest.fn(async () => ({})) }));
+const ensureLocalListingMock = jest.fn(async (input: { listing_id: string }) => ({ id: BigInt(1000 + Number(String(input.listing_id).replace(/\D/g, "") || 0)), listing_id: input.listing_id, created: true }));
+jest.mock("@/lib/listings/ensure-local-listing", () => {
+  const actual = jest.requireActual("@/lib/listings/ensure-local-listing");
+  return { __esModule: true, ensureLocalListing: ensureLocalListingMock, ensureInputFromSearchDto: actual.ensureInputFromSearchDto };
+});
 const sendEmailMock = jest.fn<Promise<{ success: boolean; _devMode?: boolean; error?: string }>, [string, string, string]>(async () => ({ success: true }));
 jest.mock("@/lib/email/sendgrid", () => ({ __esModule: true, sendEmail: sendEmailMock }));
 
@@ -289,7 +294,9 @@ describe("GET /api/cron/search-alerts — delta over the COMPLETE canonical univ
       delta: expect.objectContaining({ matched: 15, delivered: 10, unknownTimestamp: 0 }),
     }));
     expect(savedSearchUpdateMock).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ result_count: 300 }) }));
-    expect(clientActionUpsertMock).toHaveBeenCalledTimes(2);
+    // ONE client history: every delivered listing gains a local identity first (8 ensured + 2 already local) and a canonical "sent" row
+    expect(ensureLocalListingMock).toHaveBeenCalledTimes(8);
+    expect(clientActionUpsertMock).toHaveBeenCalledTimes(10);
   });
   it("the cadence rule never touches membership: a daily alert sent 2h ago is skipped before any universe is settled", async () => {
     savedSearchFindManyMock.mockResolvedValue([alertRow({ last_alert_sent: new Date(Date.now() - 2 * 3600 * 1000) })]);

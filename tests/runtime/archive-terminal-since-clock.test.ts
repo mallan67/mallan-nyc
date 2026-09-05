@@ -74,7 +74,7 @@ describe("writer rule wired into every terminal-status writer", () => {
     expect(s).toMatch(/computeTerminalSincePatch\(\{[\s\S]*?newStatus:\s*"Withdrawn"/);
   });
   it("idx/ensure-listing create wires computeTerminalSincePatch on arbitrary body.status (#446)", () => {
-    const s = read("app/api/idx/ensure-listing/route.ts");
+    const s = read("lib/listings/ensure-local-listing.ts") /* Packet 2 closure: the ensure-listing create lives in the helper the route and the alert cron both call */;
     expect(s).toMatch(/import\s*\{\s*computeTerminalSincePatch\s*\}\s*from\s*"@\/lib\/listings\/terminal-since"/);
     // create spreads the patch with previousStatus undefined + the normalized status
     expect(s).toMatch(/computeTerminalSincePatch\(\{[\s\S]*?previousStatus:\s*undefined[\s\S]*?newStatus:\s*canonicalStatus/);

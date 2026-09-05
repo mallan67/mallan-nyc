@@ -50,6 +50,11 @@ jest.mock('@/lib/prisma', () => ({
   },
 }));
 
+const ensureLocalListingMock = jest.fn(async (input: { listing_id: string }) => ({ id: BigInt(1000 + Number(String(input.listing_id).replace(/\D/g, "") || 0)), listing_id: input.listing_id, created: true }));
+jest.mock("@/lib/listings/ensure-local-listing", () => {
+  const actual = jest.requireActual("@/lib/listings/ensure-local-listing");
+  return { __esModule: true, ensureLocalListing: ensureLocalListingMock, ensureInputFromSearchDto: actual.ensureInputFromSearchDto };
+});
 jest.mock('@/lib/auth/readonly-guard', () => ({
   __esModule: true,
   assertWriteAllowed: () => null,

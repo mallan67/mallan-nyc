@@ -25,6 +25,11 @@ jest.mock("@/lib/prisma", () => ({
     auditEvent: { findMany: auditFindManyMock, create: auditCreateMock },
   },
 }));
+const ensureLocalListingMock = jest.fn(async (input: { listing_id: string }) => ({ id: BigInt(1000 + Number(input.listing_id.replace(/\D/g, "") || 0)), listing_id: input.listing_id, created: true }));
+jest.mock("@/lib/listings/ensure-local-listing", () => {
+  const actual = jest.requireActual("@/lib/listings/ensure-local-listing");
+  return { __esModule: true, ensureLocalListing: ensureLocalListingMock, ensureInputFromSearchDto: actual.ensureInputFromSearchDto };
+});
 const sendEmailMock = jest.fn<Promise<{ success: boolean; _devMode?: boolean; error?: string }>, [string, string, string]>(async () => ({ success: true }));
 jest.mock("@/lib/email/sendgrid", () => ({ __esModule: true, sendEmail: sendEmailMock }));
 const recordSearchRunMock = jest.fn(async () => undefined);
@@ -95,12 +100,12 @@ describe("B/C. already delivered by this alert, then modified → NOT re-sent; i
 });
 
 describe("D. one genuinely new + one previously delivered-but-modified → only the new one is emailed", () => {
-  it("lead-linked: the Lead's CRM send history (ClientListingAction) counts too", async () => {
+  it("lead-linked: the Lead's ONE canonical history (ClientListingAction, any workflow, any saved search) decides", async () => {
     savedSearchFindManyMock.mockResolvedValue([alertRow()]);
     settledUniverseForMock.mockResolvedValue(universe([urow("ID-OLD", NEW), urow("ID-NEW", NEW), urow("ID-CRM", NEW)]));
-    auditFindManyMock.mockResolvedValue([priorDelivery(["ID-OLD"])]);
-    listingFindManyMock.mockResolvedValue([{ id: 1001n, listing_id: "ID-CRM" }, { id: 1002n, listing_id: "ID-NEW" }]);
-    clientActionFindManyMock.mockResolvedValue([{ listing_id: 1001n }]);
+    // ID-OLD: delivered earlier by an alert (local row 1000 + "sent"); ID-CRM: sent via the CRM (1001 + "sent")
+    listingFindManyMock.mockResolvedValue([{ id: 1000n, listing_id: "ID-OLD" }, { id: 1001n, listing_id: "ID-CRM" }, { id: 1002n, listing_id: "ID-NEW" }]);
+    clientActionFindManyMock.mockResolvedValue([{ listing_id: 1000n }, { listing_id: 1001n }]);
     const res = await cron();
     expect((await res.json()).sent).toBe(1);
     expect(emailedIds()).toEqual([["ID-NEW"]]);
@@ -108,6 +113,8 @@ describe("D. one genuinely new + one previously delivered-but-modified → only 
     expect(html).toContain("/listing/ID-NEW");
     expect(html).not.toContain("/listing/ID-OLD");
     expect(html).not.toContain("/listing/ID-CRM");
+    // the audit trail is evidence only — never consulted as client truth
+    expect(auditFindManyMock).not.toHaveBeenCalled();
     // and the Lead's canonical history gains the delivered local listing
     expect(clientActionUpsertMock).toHaveBeenCalledTimes(1);
     expect(clientActionUpsertMock).toHaveBeenCalledWith(expect.objectContaining({ create: { lead_id: 77n, listing_id: 1002n, action: "sent" } }));
@@ -128,17 +135,19 @@ describe("E. email failure → no history, no cadence advance", () => {
 });
 
 describe("G/H. identity paths", () => {
-  it("provider-only result with no local Listing row: durably recorded in the saved search's audit trail (no ClientListingAction possible), and excluded next time", async () => {
+  it("provider-only result with no local Listing row, for a Lead: canonicalized BEFORE the send (ensure-listing), remembered in ClientListingAction, excluded next time by that history", async () => {
     savedSearchFindManyMock.mockResolvedValue([alertRow()]);
-    settledUniverseForMock.mockResolvedValue(universe([urow("ID-PROV", NEW)]));
+    settledUniverseForMock.mockResolvedValue(universe([urow("ID7", NEW)]));
     listingFindManyMock.mockResolvedValue([]);
     await cron();
-    expect(emailedIds()).toEqual([["ID-PROV"]]);
-    expect(clientActionUpsertMock).not.toHaveBeenCalled();
+    expect(ensureLocalListingMock).toHaveBeenCalledTimes(1);
+    expect(emailedIds()).toEqual([["ID7"]]);
+    expect(clientActionUpsertMock).toHaveBeenCalledWith(expect.objectContaining({ create: { lead_id: 77n, listing_id: 1007n, action: "sent" } }));
     jest.clearAllMocks();
     savedSearchFindManyMock.mockResolvedValue([alertRow()]);
-    settledUniverseForMock.mockResolvedValue(universe([urow("ID-PROV", NEW)]));
-    auditFindManyMock.mockResolvedValue([priorDelivery(["ID-PROV"])]);
+    settledUniverseForMock.mockResolvedValue(universe([urow("ID7", NEW)]));
+    listingFindManyMock.mockResolvedValue([{ id: 1007n, listing_id: "ID7" }]);
+    clientActionFindManyMock.mockResolvedValue([{ listing_id: 1007n }]);
     const res = await cron();
     expect((await res.json()).sent).toBe(0);
     expect(sendEmailMock).not.toHaveBeenCalled();
@@ -156,7 +165,7 @@ describe("G/H. identity paths", () => {
     auditFindManyMock.mockResolvedValue([priorDelivery(["SL-QA-1"])]);
     expect((await (await cron()).json()).sent).toBe(0);
   });
-  it("history is per saved search: another saved search's delivery does not silence this one (the audit query is scoped by entity_id)", async () => {
+  it("agent-only history is per saved search: another agent-only saved search's delivery does not silence this one (the audit query is scoped by entity_id)", async () => {
     savedSearchFindManyMock.mockResolvedValue([alertRow({ id: 9n, lead_id: null, lead: null, agent: { id: 42n, first_name: "A", last_name: "B", email: "a@example.com" } })]);
     settledUniverseForMock.mockResolvedValue(universe([urow("ID1", NEW)]));
     await cron();

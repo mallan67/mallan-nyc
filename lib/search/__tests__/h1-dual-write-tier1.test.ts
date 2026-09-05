@@ -26,7 +26,9 @@ const HELPER_FILE = path.join(REPO_ROOT, "lib", "search", "listing-search-projec
 const WIRED_WRITERS: { label: string; rel: string }[] = [
   { label: "crm/convert", rel: "app/api/crm/convert/route.ts" },
   { label: "cron/feed-reconcile", rel: "app/api/cron/feed-reconcile/route.ts" },
-  { label: "idx/ensure-listing", rel: "app/api/idx/ensure-listing/route.ts" },
+  // Packet 2 closure: the ensure-listing creation path (and its dual-write) lives in the helper
+  // the route and the alert cron both call.
+  { label: "idx/ensure-listing (lib/listings/ensure-local-listing)", rel: "lib/listings/ensure-local-listing.ts" },
   { label: "crm/listings/reset-sync", rel: "app/api/crm/listings/reset-sync/route.ts" },
   { label: "scripts/import-closed-from-trestle", rel: "scripts/import-closed-from-trestle.ts" },
 ];
