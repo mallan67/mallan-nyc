@@ -123,7 +123,11 @@ describe("crm idx mapper", () => {
       AssociationFee: 1100,
       RoomsTotal: 5,
       BedroomsTotal: 2,
-      BathroomsTotalInteger: 2.5,
+      BathroomsFull: 2,
+      BathroomsHalf: 1,
+      // Present with a value that disagrees with the components: baths must be 2.5 from
+      // BathroomsFull + 0.5 x BathroomsHalf, proving the integer field is not read.
+      BathroomsTotalInteger: 7,
       LivingArea: 1100,
       MlsStatus: "ActiveUnderContract",
       SubdivisionName: "Chelsea",
