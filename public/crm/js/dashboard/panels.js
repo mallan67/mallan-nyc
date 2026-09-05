@@ -12882,6 +12882,151 @@ var Panels = (function () {
   // SETTINGS
   // ═══════════════════════════════════════════════════════════════════════
 
+  // ── My Profile — ONE field table, read by BOTH hydration and save ───────
+  //
+  // 2026-09-01: opening My Profile and pressing Save Changes WITHOUT TOUCHING
+  // ANYTHING sent
+  //     {"title":"","bio":"","specialties":"","languages":"","phone":"..."}
+  // and destroyed a 2,829-character bio, four specialties and two languages,
+  // while the UI reported success. Two independent faults combined:
+  //
+  //   1. HYDRATION. GET /api/crm/agents/me returns the profile at the TOP
+  //      LEVEL. This panel read `res.agent` — always undefined — and fell
+  //      back to Store.session.currentUser, the /api/auth/me shape, which
+  //      carries `name` and `phone` but has no bio, specialties, languages or
+  //      title. That is exactly why those four rendered blank and the other
+  //      two did not.
+  //   2. SERIALISATION. The save posted EVERY editable control
+  //      unconditionally, so each blank DOM default overwrote stored data.
+  //
+  // Fixing (1) alone would leave the next unhydrated control free to do the
+  // same thing, so the writable set is defined ONCE, here, and a control may
+  // be written back ONLY IF the server actually delivered its key on GET.
+  // A control with no delivered value has no known stored value, so "blank"
+  // cannot be told apart from "cleared" and MUST NOT be written.
+  //
+  //   api     — the key on GET /api/crm/agents/me AND on the PATCH body.
+  //             Deliberately the same key: a mismatch here is a save that
+  //             silently does nothing.
+  //   control — the form control's `name` attribute.
+  //   type    — 'text' for a String column, 'list' for a Postgres text[].
+  //             A 'list' is comma-separated in the UI and an ARRAY on the
+  //             wire. Sending the string is what stored [] every time.
+  //
+  // `title`, `role` and `status` are deliberately ABSENT. `title` is the
+  // regulated 19 NYCRR §175.25 professional designation derived from the
+  // licence class — displayed read-only here, never sent from this path.
+  var PROFILE_FIELDS = [
+    { api: 'bio', control: 'bio', type: 'text' },
+    { api: 'phone', control: 'phone', type: 'text' },
+    { api: 'specialties', control: 'specialties', type: 'list' },
+    { api: 'languages', control: 'languages', type: 'list' }
+  ];
+
+  // Broker-only. Pre-existing capability on this route, left exactly as it
+  // was and merely brought under the same changed-field guard: an untouched
+  // licence class is no longer re-sent (and no longer re-derives the title)
+  // on every save. NOT extended — no field was added to the write set.
+  var PROFILE_BROKER_FIELDS = [
+    { api: 'license_type', control: 'license_type', type: 'text' }
+  ];
+
+  // The display-form values from the last SUCCESSFUL GET, per writable field.
+  // `null` means there is NO authority and this form may not write anything.
+  var _profileAuthority = null;
+
+  function _profileFieldsFor(isBroker) {
+    return isBroker ? PROFILE_FIELDS.concat(PROFILE_BROKER_FIELDS) : PROFILE_FIELDS;
+  }
+
+  /** Postgres text[] -> the comma-separated string the control displays. */
+  function _profileListToDisplay(v) {
+    if (Array.isArray(v)) return v.join(', ');
+    return v == null ? '' : String(v);
+  }
+
+  /** The control's comma-separated string -> the ARRAY the column stores. */
+  function _profileDisplayToList(s) {
+    var out = [];
+    var parts = String(s == null ? '' : s).split(',');
+    for (var i = 0; i < parts.length; i++) {
+      var t = parts[i].trim();
+      if (t) out.push(t);
+    }
+    return out;
+  }
+
+  function _profileText(v) {
+    return v == null ? '' : String(v);
+  }
+
+  /** GET body -> the view model every control and the preview card read. */
+  function _profileViewModel(res) {
+    var r = res || {};
+    var name = _profileText(r.full_name);
+    if (!name) {
+      name = (_profileText(r.first_name) + ' ' + _profileText(r.last_name)).trim();
+    }
+    return {
+      photoUrl: _profileText(r.photo),
+      name: name,
+      title: _profileText(r.title),
+      bio: _profileText(r.bio),
+      specialties: _profileListToDisplay(r.specialties),
+      languages: _profileListToDisplay(r.languages),
+      slug: _profileText(r.public_slug),
+      email: _profileText(r.email),
+      phone: _profileText(r.phone),
+      licenseType: _profileText(r.license_type),
+      licenseNumber: _profileText(r.license_no),
+      licenseExpiry: _profileText(r.license_expiry)
+    };
+  }
+
+  /**
+   * Reference-only view model for the case where the profile GET FAILED.
+   * `licenseTitle` is the designation /api/auth/me already derived from the
+   * licence class (null when unknown) — it is displayed, never invented.
+   */
+  function _profileSessionViewModel() {
+    var u = Store.session.currentUser || {};
+    return {
+      photoUrl: _profileText(u.photo),
+      name: _profileText(u.name),
+      title: _profileText(u.licenseTitle),
+      bio: '',
+      specialties: '',
+      languages: '',
+      slug: '',
+      email: _profileText(u.email),
+      phone: _profileText(u.phone),
+      licenseType: '',
+      licenseNumber: _profileText(u.license),
+      licenseExpiry: ''
+    };
+  }
+
+  /**
+   * The authority snapshot: for each writable field the server ACTUALLY
+   * delivered, the exact display string its stored value produces.
+   *
+   * A key the response omits is left OUT of `values` — not defaulted to ''.
+   * That distinction is the whole fail-safe, and it is why a field added to
+   * this form years from now that fails to hydrate still cannot destroy data.
+   */
+  function _profileSnapshot(res, isBroker) {
+    var values = {};
+    var fields = _profileFieldsFor(isBroker);
+    for (var i = 0; i < fields.length; i++) {
+      var f = fields[i];
+      if (!res || !Object.prototype.hasOwnProperty.call(res, f.api)) continue;
+      values[f.api] = f.type === 'list'
+        ? _profileListToDisplay(res[f.api])
+        : _profileText(res[f.api]);
+    }
+    return { values: values };
+  }
+
   function profile() {
     CRM.setPanelTitle('My Profile');
     var c = _container();
@@ -12889,38 +13034,38 @@ var Panels = (function () {
 
     var isBroker = Permissions.isBroker();
 
+    // A baseline from a PREVIOUS successful load must never survive a failed
+    // reload — that would let the new blank form write over the record it
+    // could not read.
+    _profileAuthority = null;
+
     MallanAPI._fetch('/api/crm/agents/me').then(function (res) {
-      var agent = (res && res.agent) || Store.session.currentUser || {};
-      // Update local session cache
-      if (res && res.agent) {
-        Store.session.currentUser = Object.assign(Store.session.currentUser || {}, res.agent);
-      }
-      _renderProfileForm(c, agent, isBroker);
+      var vm = _profileViewModel(res);
+      _profileAuthority = _profileSnapshot(res, isBroker);
+      // Refresh only the keys the session cache actually owns. Assigning the
+      // whole response would put snake_case duplicates into the cache that
+      // every other CRM surface would then have to disambiguate.
+      Store.session.currentUser = Object.assign(Store.session.currentUser || {}, {
+        name: vm.name,
+        email: vm.email,
+        phone: vm.phone
+      });
+      _renderProfileForm(c, vm, isBroker, true);
     }).catch(function () {
-      // Fallback to cached session data
-      var agent = Store.session.currentUser || {};
-      _renderProfileForm(c, agent, isBroker);
+      // No authority. The form is rendered from cache FOR REFERENCE ONLY and
+      // cannot be saved — see the fail-closed guard in _saveProfile.
+      _profileAuthority = null;
+      _renderProfileForm(c, _profileSessionViewModel(), isBroker, false);
     });
   }
 
-  function _renderProfileForm(c, agent, isBroker) {
-    var photoUrl = agent.photoUrl || agent.photo_url || '';
-    var name = agent.name || '';
-    var title = agent.title || '';
-    var bio = agent.bio || '';
-    var specialties = agent.specialties || '';
-    var languages = agent.languages || '';
-    var slug = agent.slug || '';
-    var email = agent.email || '';
-    var phone = agent.phone || '';
-    var licenseType = agent.licenseType || agent.license_type || '';
-    var licenseNumber = agent.licenseNumber || agent.license_number || '';
-    var licenseExpiry = agent.licenseExpiry || agent.license_expiry || '';
+  function _renderProfileForm(c, vm, isBroker, hydrated) {
+    var slug = vm.slug || '';
 
     // Determine if profile is incomplete
-    var isIncomplete = !photoUrl || !bio || !specialties;
+    var isIncomplete = !vm.photoUrl || !vm.bio || !vm.specialties;
 
-    var incompleteCallout = isIncomplete
+    var incompleteCallout = (hydrated && isIncomplete)
       ? '<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4 flex items-start gap-3">' +
           '<i class="fas fa-exclamation-triangle text-yellow-600 mt-0.5"></i>' +
           '<div>' +
@@ -12930,6 +13075,25 @@ var Panels = (function () {
         '</div>'
       : '';
 
+    // The profile could not be read. Saying so, and refusing the save, is the
+    // only honest option: a form full of blanks that posts is how the record
+    // got destroyed.
+    var unavailableCallout = hydrated
+      ? ''
+      : '<div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4 flex items-start gap-3">' +
+          '<i class="fas fa-exclamation-circle text-red-600 mt-0.5"></i>' +
+          '<div>' +
+            '<p class="text-sm font-semibold text-red-800">Your profile could not be loaded</p>' +
+            '<p class="text-sm text-red-700">Saving is disabled so nothing can be written over your stored profile. Reload the page to try again.</p>' +
+          '</div>' +
+        '</div>';
+
+    // NOTE ON ESCAPING: no stored value is interpolated into an attribute
+    // below. Every control ships empty and is filled through the DOM in
+    // _hydrateProfileForm, which is both the hydration path and the source of
+    // the save baseline. Utils.esc escapes & < > but NOT quotes, so a bio or
+    // specialty containing a double quote would have broken out of a
+    // value="..." attribute the moment these fields started hydrating.
     c.innerHTML = '<div class="space-y-4">' +
       UI.sectionHeader('My Profile', '') +
 
@@ -12938,6 +13102,8 @@ var Panels = (function () {
         '<i class="fas fa-info-circle text-blue-500 mt-0.5"></i>' +
         '<p class="text-sm text-blue-700">Your profile information appears on your public agent page at <strong>mallan.nyc/agents/' + E(slug || 'your-name') + '</strong>. Changes sync automatically.</p>' +
       '</div>' +
+
+      unavailableCallout +
 
       // Incomplete callout
       incompleteCallout +
@@ -12953,9 +13119,7 @@ var Panels = (function () {
             '<label class="form-label">Profile Photo</label>' +
             '<div class="flex items-center gap-4">' +
               '<div id="profilePhotoPreview" class="w-20 h-20 rounded-full bg-gray-100 border-2 border-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">' +
-                (photoUrl
-                  ? '<img src="' + E(photoUrl) + '" class="w-full h-full object-cover" alt="Profile photo">'
-                  : '<i class="fas fa-user text-3xl text-gray-300"></i>') +
+                '<i class="fas fa-user text-3xl text-gray-300"></i>' +
               '</div>' +
               '<div class="flex-1">' +
                 '<input type="file" id="profilePhotoFile" accept="image/jpeg,image/png,image/webp" class="form-input text-sm" onchange="Panels._previewProfilePhoto(this)">' +
@@ -12968,46 +13132,46 @@ var Panels = (function () {
           '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">' +
             '<div class="form-group">' +
               '<label class="form-label">Name</label>' +
-              '<input class="form-input bg-gray-50" name="name" value="' + E(name) + '" readonly>' +
+              '<input class="form-input bg-gray-50" name="name" readonly>' +
               '<p class="text-xs text-gray-400 mt-1">Only the broker can change your name.</p>' +
             '</div>' +
             '<div class="form-group">' +
               '<label class="form-label">Public URL</label>' +
-              '<input class="form-input bg-gray-50" value="mallan.nyc/agents/' + E(slug || 'your-name') + '" readonly>' +
+              '<input class="form-input bg-gray-50" id="profilePublicUrl" readonly>' +
             '</div>' +
           '</div>' +
 
           // Public Title - the regulated professional designation, derived
-          // from the licence. Read-only here for the same reason it is
-          // read-only in Add/Edit Agent.
+          // from the licence. READ-ONLY here for the same reason it is
+          // read-only in Add/Edit Agent, and now visibly so: the field was
+          // rendered editable while the server ignored every value posted to
+          // it, so typing a designation and pressing Save reported success
+          // and changed nothing.
           '<div class="form-group mb-4">' +
             '<label class="form-label">Public Title (derived)</label>' +
-            // The placeholder named ONE specific §175.25 designation, so an
-            // agent with no resolved licence class was shown the PRINCIPAL
-            // BROKER title as the suggested thing to write about themselves.
             // A hint may describe the field; it may not propose a licence.
-            '<input class="form-input" name="title" value="' + E(title) + '" placeholder="Set from your licence designation" maxlength="100">' +
-            '<p class="text-xs text-gray-400 mt-1">Appears below your name on your agent page.</p>' +
+            '<input class="form-input bg-gray-50" name="title" placeholder="Set from your licence designation" maxlength="100" readonly>' +
+            '<p class="text-xs text-gray-400 mt-1">Appears below your name on your agent page. Derived from your licence designation — only the broker can change it.</p>' +
           '</div>' +
 
           // Bio
           '<div class="form-group mb-4">' +
             '<label class="form-label">Bio</label>' +
-            '<textarea class="form-input" name="bio" rows="5" placeholder="Write a professional bio that tells clients about your experience, approach, and areas of expertise...">' + E(bio) + '</textarea>' +
+            '<textarea class="form-input" name="bio" rows="5" placeholder="Write a professional bio that tells clients about your experience, approach, and areas of expertise..."></textarea>' +
             '<p class="text-xs text-gray-400 mt-1">Displayed on your public profile. Keep it professional and engaging.</p>' +
           '</div>' +
 
           // Specialties
           '<div class="form-group mb-4">' +
             '<label class="form-label">Specialties</label>' +
-            '<input class="form-input" name="specialties" value="' + E(specialties) + '" placeholder="e.g. Upper East Side, Luxury Condos, First-Time Buyers">' +
+            '<input class="form-input" name="specialties" placeholder="e.g. Upper East Side, Luxury Condos, First-Time Buyers">' +
             '<p class="text-xs text-gray-400 mt-1">Comma-separated. Shown as badges on your profile.</p>' +
           '</div>' +
 
           // Languages
           '<div class="form-group">' +
             '<label class="form-label">Languages</label>' +
-            '<input class="form-input" name="languages" value="' + E(languages) + '" placeholder="e.g. English, Spanish, Mandarin">' +
+            '<input class="form-input" name="languages" placeholder="e.g. English, Spanish, Mandarin">' +
             '<p class="text-xs text-gray-400 mt-1">Comma-separated. Helps clients find agents who speak their language.</p>' +
           '</div>'
         ) +
@@ -13017,12 +13181,12 @@ var Panels = (function () {
           '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">' +
             '<div class="form-group">' +
               '<label class="form-label">Email</label>' +
-              '<input class="form-input bg-gray-50" name="email" value="' + E(email) + '" readonly>' +
+              '<input class="form-input bg-gray-50" name="email" readonly>' +
               '<p class="text-xs text-gray-400 mt-1">Contact your broker to change your email.</p>' +
             '</div>' +
             '<div class="form-group">' +
               '<label class="form-label">Phone</label>' +
-              '<input class="form-input" name="phone" value="' + E(phone) + '" placeholder="e.g. 212-555-1234">' +
+              '<input class="form-input" name="phone" placeholder="e.g. 212-555-1234">' +
             '</div>' +
           '</div>'
         ) +
@@ -13034,42 +13198,39 @@ var Panels = (function () {
               '<label class="form-label">License Type</label>' +
               (isBroker
                 // license_type stores the LICENCE CLASS, not a display string.
-                // The hint suggested "e.g. Real Estate Broker" — a designation
-                // form — which is how display strings ended up in this column
-                // in the first place. It now names the canonical vocabulary.
-                ? '<input class="form-input" name="license_type" value="' + E(licenseType) + '" placeholder="salesperson | associate_broker | broker">'
-                : '<input class="form-input bg-gray-50" value="' + E(licenseType) + '" readonly>') +
+                // The placeholder names the canonical vocabulary so a
+                // designation form cannot end up in this column.
+                ? '<input class="form-input" name="license_type" placeholder="salesperson | associate_broker | broker">'
+                : '<input class="form-input bg-gray-50" id="profileLicenseType" readonly>') +
             '</div>' +
             '<div class="form-group">' +
               '<label class="form-label">License #</label>' +
-              (isBroker
-                ? '<input class="form-input" name="license_number" value="' + E(licenseNumber) + '">'
-                : '<input class="form-input bg-gray-50" value="' + E(licenseNumber) + '" readonly>') +
+              '<input class="form-input bg-gray-50" id="profileLicenseNumber" readonly>' +
             '</div>' +
             '<div class="form-group">' +
               '<label class="form-label">License Expiry</label>' +
-              (isBroker
-                ? '<input class="form-input" name="license_expiry" type="date" value="' + E(licenseExpiry ? licenseExpiry.substring(0, 10) : '') + '">'
-                : '<input class="form-input bg-gray-50" value="' + E(licenseExpiry ? D(licenseExpiry) : 'N/A') + '" readonly>') +
+              '<input class="form-input bg-gray-50" id="profileLicenseExpiry" readonly>' +
             '</div>' +
           '</div>' +
-          (isBroker ? '' : '<p class="text-xs text-gray-400 mt-2"><i class="fas fa-lock text-gray-300 mr-1"></i>License fields are managed by the broker.</p>')
+          '<p class="text-xs text-gray-400 mt-2"><i class="fas fa-lock text-gray-300 mr-1"></i>' +
+            (isBroker
+              ? 'Licence number and expiry are managed in Agent Management.'
+              : 'License fields are managed by the broker.') +
+          '</p>'
         ) +
 
         // ── Preview Card ──
         UI.card('<i class="fas fa-eye text-gold mr-2"></i>Profile Preview',
           '<p class="text-xs text-gray-500 mb-3">This is how your profile will appear on mallan.nyc.</p>' +
-          '<div id="profilePreviewCard" class="border rounded-xl p-5 bg-white max-w-md">' +
-            _buildProfilePreview(agent) +
-          '</div>'
+          '<div id="profilePreviewCard" class="border rounded-xl p-5 bg-white max-w-md"></div>'
         ) +
 
         // ── Save Button ──
         '<div class="flex items-center gap-3">' +
-          '<button type="button" class="btn btn-gold" onclick="Panels._saveProfile()" id="profileSaveBtn">' +
+          '<button type="button" class="btn btn-gold" onclick="Panels._saveProfile()" id="profileSaveBtn"' + (hydrated ? '' : ' disabled') + '>' +
             '<i class="fas fa-save mr-1"></i> Save Changes' +
           '</button>' +
-          '<span id="profileSaveStatus" class="text-sm text-gray-500"></span>' +
+          '<span id="profileSaveStatus" class="text-sm text-gray-500">' + (hydrated ? '' : 'Saving is disabled until your profile loads.') + '</span>' +
         '</div>' +
 
       '</form>' +
@@ -13107,6 +13268,8 @@ var Panels = (function () {
       ) +
     '</div>';
 
+    _hydrateProfileForm(vm, isBroker);
+
     // Wire up live preview updates
     var formEl = document.getElementById('profileForm');
     if (formEl) {
@@ -13114,6 +13277,58 @@ var Panels = (function () {
         _updateProfilePreview();
       });
     }
+  }
+
+  /**
+   * Put the stored values into the controls. This is THE hydration path, and
+   * the values it writes are exactly the ones _profileSnapshot recorded as
+   * the save baseline — one source, so a control can never disagree with the
+   * baseline it is compared against.
+   */
+  function _hydrateProfileForm(vm, isBroker) {
+    var form = document.getElementById('profileForm');
+    if (!form) return;
+
+    function setByName(name, value) {
+      var el = form.querySelector('[name="' + name + '"]');
+      if (el) el.value = value == null ? '' : value;
+    }
+    function setById(id, value) {
+      var el = document.getElementById(id);
+      if (el) el.value = value == null ? '' : value;
+    }
+
+    setByName('name', vm.name);
+    setByName('title', vm.title);
+    setByName('bio', vm.bio);
+    setByName('specialties', vm.specialties);
+    setByName('languages', vm.languages);
+    setByName('email', vm.email);
+    setByName('phone', vm.phone);
+    setById('profilePublicUrl', 'mallan.nyc/agents/' + (vm.slug || 'your-name'));
+
+    if (isBroker) {
+      setByName('license_type', vm.licenseType);
+    } else {
+      setById('profileLicenseType', vm.licenseType);
+    }
+    setById('profileLicenseNumber', vm.licenseNumber);
+    setById(
+      'profileLicenseExpiry',
+      vm.licenseExpiry ? D(vm.licenseExpiry) : 'N/A'
+    );
+
+    var photoEl = document.getElementById('profilePhotoPreview');
+    if (photoEl && vm.photoUrl) {
+      var img = document.createElement('img');
+      img.src = vm.photoUrl;
+      img.className = 'w-full h-full object-cover';
+      img.alt = 'Profile photo';
+      photoEl.innerHTML = '';
+      photoEl.appendChild(img);
+    }
+
+    _updateProfilePreview();
   }
 
   function _buildProfilePreview(agent) {
@@ -13189,35 +13404,103 @@ var Panels = (function () {
     reader.readAsDataURL(input.files[0]);
   }
 
+  /**
+   * Build the PATCH body from the CHANGED controls only.
+   *
+   * Returns null when there is no authority — no successful GET — in which
+   * case nothing at all may be written. Otherwise returns an object holding
+   * only the fields whose control value differs from the value the server
+   * delivered, converted to the type the column owns.
+   *
+   * THE CLEARING RULE, stated plainly:
+   *
+   *   A field is CLEARED when the server delivered a value for it and the
+   *   user has emptied the control. That is a difference, so it is sent —
+   *   '' for a text column, [] for an array column — and the clear persists.
+   *
+   *   A control that is empty because the server delivered nothing for it —
+   *   an absent key, or a failed GET — is UNKNOWN, not cleared. Unknown is
+   *   never sent. Blankness only ever means "cleared" when there is a known
+   *   stored value to have cleared.
+   *
+   *   A control that is empty because the stored value was already empty is
+   *   unchanged, so it is not sent either.
+   */
+  function _collectProfileChanges(form, isBroker) {
+    if (!_profileAuthority) return null;
+
+    var data = {};
+    var fields = _profileFieldsFor(isBroker);
+    for (var i = 0; i < fields.length; i++) {
+      var f = fields[i];
+      // NEVER hydrated => no known stored value => not writable. This is the
+      // guard that holds for a field added to this form years from now.
+      if (!Object.prototype.hasOwnProperty.call(_profileAuthority.values, f.api)) continue;
+
+      var input = form.querySelector('[name="' + f.control + '"]');
+      if (!input) continue;
+
+      var current = input.value == null ? '' : String(input.value);
+      if (current === _profileAuthority.values[f.api]) continue;
+
+      data[f.api] = f.type === 'list' ? _profileDisplayToList(current) : current;
+    }
+    return data;
+  }
+
+  /** Adopt the just-saved control values as the new baseline. */
+  function _commitProfileBaseline(form, sentKeys, isBroker) {
+    if (!_profileAuthority) return;
+    var fields = _profileFieldsFor(isBroker);
+    for (var i = 0; i < fields.length; i++) {
+      var f = fields[i];
+      if (sentKeys.indexOf(f.api) < 0) continue;
+      var input = form.querySelector('[name="' + f.control + '"]');
+      if (!input) continue;
+      _profileAuthority.values[f.api] = input.value == null ? '' : String(input.value);
+    }
+  }
+
   function _saveProfile() {
     var form = document.getElementById('profileForm');
     if (!form) return;
     var saveBtn = document.getElementById('profileSaveBtn');
     var statusEl = document.getElementById('profileSaveStatus');
+    var isBroker = Permissions.isBroker();
+
+    function setStatus(text, cls) {
+      if (statusEl) {
+        statusEl.textContent = text;
+        statusEl.className = 'text-sm ' + (cls || 'text-gray-500');
+      }
+    }
+
+    var data = _collectProfileChanges(form, isBroker);
+
+    // FAIL CLOSED. Without a successful GET there is no stored value to
+    // compare against, so every control is unknown and none may be written.
+    if (data === null) {
+      CRM.toast('Your profile has not loaded — nothing was saved. Reload and try again.', 'error');
+      setStatus('Not saved — profile not loaded', 'text-red-500');
+      return;
+    }
+
+    var photoInput = document.getElementById('profilePhotoFile');
+    var hasNewPhoto = !!(photoInput && photoInput.files && photoInput.files[0]);
+    var sentKeys = Object.keys(data);
+
+    if (sentKeys.length === 0 && !hasNewPhoto) {
+      setStatus('No changes to save');
+      return;
+    }
 
     // Disable button during save
     if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Saving...'; }
-    if (statusEl) statusEl.textContent = '';
+    setStatus('');
 
-    // Collect editable fields (skip readonly: name, email)
-    var data = {};
-    var editableFields = ['title', 'bio', 'specialties', 'languages', 'phone'];
-    // Broker can also edit license fields
-    var isBroker = Permissions.isBroker();
-    if (isBroker) {
-      editableFields.push('license_type', 'license_number', 'license_expiry');
-    }
-
-    for (var i = 0; i < editableFields.length; i++) {
-      var field = editableFields[i];
-      var input = form.querySelector('[name="' + field + '"]');
-      if (input) data[field] = input.value;
-    }
-
-    // Check if there is a new photo to upload
-    var photoInput = document.getElementById('profilePhotoFile');
-    var hasNewPhoto = photoInput && photoInput.files && photoInput.files[0];
-
+    // The photo is stored by its own endpoint, which writes agent.photo
+    // itself. It is NOT a PATCH field — posting `photo_url` here was a key
+    // the route has never read.
     var uploadPhotoPromise;
     if (hasNewPhoto) {
       var formData = new FormData();
@@ -13226,14 +13509,9 @@ var Panels = (function () {
         method: 'POST',
         body: formData,
         rawBody: true
-      }).then(function (res) {
-        if (res && res.url) {
-          data.photo_url = res.url;
-        }
-        return res;
       }).catch(function (err) {
         CRM.toast('Photo upload failed: ' + (err.message || 'Unknown error'), 'error');
-        // Continue with other fields even if photo fails
+        // Continue with the other fields even if the photo fails.
         return null;
       });
     } else {
@@ -13241,19 +13519,23 @@ var Panels = (function () {
     }
 
     uploadPhotoPromise.then(function () {
+      if (sentKeys.length === 0) return null;
       return MallanAPI._fetch('/api/crm/agents/me', {
         method: 'PATCH',
         body: JSON.stringify(data)
       });
-    }).then(function (res) {
-      if (res && res.agent) {
-        Store.session.currentUser = Object.assign(Store.session.currentUser || {}, res.agent);
+    }).then(function () {
+      _commitProfileBaseline(form, sentKeys, isBroker);
+      if (Object.prototype.hasOwnProperty.call(data, 'phone')) {
+        Store.session.currentUser = Object.assign(Store.session.currentUser || {}, {
+          phone: data.phone
+        });
       }
-      CRM.toast('Profile updated \u2014 changes will appear on mallan.nyc shortly', 'success');
-      if (statusEl) statusEl.textContent = 'Saved';
+      CRM.toast('Profile updated — changes will appear on mallan.nyc shortly', 'success');
+      setStatus('Saved');
     }).catch(function (err) {
       CRM.toast('Failed to save profile: ' + (err.message || 'Unknown error'), 'error');
-      if (statusEl) { statusEl.textContent = 'Save failed'; statusEl.className = 'text-sm text-red-500'; }
+      setStatus('Save failed', 'text-red-500');
     }).then(function () {
       // Always re-enable button (finally equivalent)
       if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fas fa-save mr-1"></i> Save Changes'; }

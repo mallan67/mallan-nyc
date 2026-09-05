@@ -1,7 +1,14 @@
 // /api/crm/agents/me
-// GET: Fetch own profile. PATCH: Update own profile fields.
-// Agent can edit: title, bio, photo, specialties, languages, phone
-// Agent CANNOT edit: name, email, license, splits, role, status, featured, slug
+// GET: Fetch own profile — the profile is returned at the TOP LEVEL of the
+//      body, NOT wrapped in an `agent` key. The CRM My Profile panel read
+//      `res.agent` for months, got undefined, and silently fell back to the
+//      /api/auth/me session cache; see js/dashboard/panels.js.
+// PATCH: Update own profile fields.
+// Agent can edit: bio, photo, specialties, languages, phone
+// Agent CANNOT edit: title, name, email, license, splits, role, status,
+//                    featured, slug
+// `specialties` and `languages` are text[] columns and are accepted ONLY as
+// arrays — a non-array is a 400, never a silent [].
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import {
@@ -129,15 +136,23 @@ export async function PATCH(req: NextRequest) {
   if (body.bio !== undefined) update.bio = body.bio as string | null;
   if (body.photo !== undefined) update.photo = body.photo as string | null;
   if (body.phone !== undefined) update.phone = body.phone as string | null;
-  if (body.specialties !== undefined) {
-    update.specialties = Array.isArray(body.specialties)
-      ? body.specialties.map(String)
-      : [];
-  }
-  if (body.languages !== undefined) {
-    update.languages = Array.isArray(body.languages)
-      ? body.languages.map(String)
-      : [];
+
+  // `specialties` and `languages` are Postgres text[] columns. Anything that
+  // was not an array used to be COERCED to [], so the CRM — which serialised
+  // both as comma-separated STRINGS — silently emptied the two columns on
+  // every save, whether or not the agent had typed anything. A malformed
+  // value is now a 400 instead of a silent wipe. Sending [] still clears them
+  // deliberately, because [] is an array.
+  for (const key of ["specialties", "languages"] as const) {
+    const value = body[key];
+    if (value === undefined) continue;
+    if (!Array.isArray(value)) {
+      return NextResponse.json(
+        { error: `${key} must be an array of strings (send [] to clear it)` },
+        { status: 400 }
+      );
+    }
+    update[key] = value.map(String);
   }
 
   // Broker-only fields — silently ignore if agent tries to set them
