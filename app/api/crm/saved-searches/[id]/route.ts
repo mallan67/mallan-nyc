@@ -1,6 +1,9 @@
 // GET /api/crm/saved-searches/[id] — get a single saved search
 // PATCH /api/crm/saved-searches/[id] — update saved search
 // DELETE /api/crm/saved-searches/[id] — delete saved search
+//
+// Search Consolidation Packet 2: criteria are the canonical executor parameters. A legacy row
+// is resolved at read time; the first authorized update persists its canonical form.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import {
@@ -11,7 +14,13 @@ import {
 import type { Prisma } from "@prisma/client";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { assertLeadIdStringAccess } from "@/lib/crm/access";
-import { canEnableAlertForCriteria } from "@/lib/search/criteria-to-prisma";
+import {
+  CRITERIA_VERSION,
+  isSavedSearchCriteria,
+  resolveStoredCriteria,
+  type ResolvedSavedSearch,
+} from "@/lib/search/engine/saved-search";
+import { CRITERIA_CONTRACT_ERROR, serializeSavedSearch, stampedCount } from "@/lib/search/saved-search-read";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -35,19 +44,7 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    return NextResponse.json({
-      id: search.id.toString(),
-      name: search.name,
-      criteria: search.criteria,
-      last_run: search.last_run,
-      result_count: search.result_count,
-      agent_id: search.agent_id?.toString() ?? null,
-      lead_id: search.lead_id?.toString() ?? null,
-      alert_frequency: search.alert_frequency ?? null,
-      alert_enabled: search.alert_enabled ?? false,
-      created_at: search.created_at,
-      updated_at: search.updated_at,
-    });
+    return NextResponse.json(serializeSavedSearch(search, resolveStoredCriteria(search.criteria)));
   } catch (err) {
     console.error("Get saved search error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -90,24 +87,28 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
       updates.name = body.name.trim();
     }
 
+    let resolved: ResolvedSavedSearch = resolveStoredCriteria(existing.criteria);
+    let criteriaChanged = false;
     if (body.criteria !== undefined) {
-      // Codex Risk P0 fix: tighten criteria validation. The prior
-      // `typeof body.criteria !== "object"` check incorrectly accepted
-      // null (typeof null === "object" in JS) and arrays (typeof [] ===
-      // "object") and treated them as valid criteria. Both shapes break
-      // every downstream consumer (criteriaToProjectionWhere, alert gate,
-      // _criteriaToFormFields). Reject all three with a clear 400.
-      if (
-        body.criteria === null ||
-        Array.isArray(body.criteria) ||
-        typeof body.criteria !== "object"
-      ) {
+      // null / arrays / non-objects are refused with a clear 400 (Codex Risk P0); so is any
+      // object that is not the versioned executor-parameter contract.
+      if (body.criteria === null || Array.isArray(body.criteria) || typeof body.criteria !== "object") {
         return NextResponse.json(
           { error: "criteria must be a plain JSON object (not null, not an array)" },
           { status: 400 },
         );
       }
-      updates.criteria = body.criteria as Prisma.InputJsonValue;
+      if (!isSavedSearchCriteria(body.criteria)) {
+        return NextResponse.json({ error: CRITERIA_CONTRACT_ERROR, code: "criteria_contract", criteria_version: CRITERIA_VERSION }, { status: 400 });
+      }
+      resolved = resolveStoredCriteria(body.criteria);
+      if (resolved.state === "invalid") {
+        return NextResponse.json(
+          { error: "These criteria cannot be executed by Search: " + resolved.reasons.join("; "), code: "unsupported_criteria", reasons: resolved.reasons },
+          { status: 422 },
+        );
+      }
+      criteriaChanged = true;
     }
 
     if (body.alert_frequency !== undefined) {
@@ -131,31 +132,30 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
       }
     }
 
-    // P0-3 alert-gate: re-evaluate the gate against the EFFECTIVE state —
-    // existing row + the patch. Both `criteria` and the alert-enable
-    // toggles can change in a single PATCH, so we have to combine them
-    // before deciding. If the post-patch row would have alerts enabled
-    // AND criteria is unsupported, refuse the change. Untouched fields
-    // fall back to their existing values.
-    const effectiveCriteria =
-      body.criteria !== undefined ? (body.criteria as Record<string, unknown>) : (existing.criteria as Record<string, unknown>);
+    // An alert may only be on for criteria the executor can reproduce exactly. Evaluate the
+    // EFFECTIVE state (existing row + this patch).
     const effectiveAlertFrequency =
       body.alert_frequency !== undefined ? (body.alert_frequency as string | null) : existing.alert_frequency ?? null;
     const effectiveAlertEnabled =
       body.alert_enabled !== undefined ? Boolean(body.alert_enabled) : Boolean(existing.alert_enabled);
-    const wouldHaveAlertOn = Boolean(effectiveAlertFrequency) && effectiveAlertEnabled !== false;
-    if (wouldHaveAlertOn) {
-      const gate = canEnableAlertForCriteria(effectiveCriteria || {});
-      if (!gate.ok) {
-        return NextResponse.json(
-          {
-            error: gate.message,
-            code: gate.code,
-            unsupported_criteria: gate.unsupported,
-          },
-          { status: 422 },
-        );
-      }
+    if (Boolean(effectiveAlertFrequency) && effectiveAlertEnabled && resolved.state === "invalid") {
+      return NextResponse.json(
+        { error: "Alerts cannot be enabled: the stored criteria cannot be executed by Search. Recreate the search. " + resolved.reasons.join("; "), code: "invalid_criteria", reasons: resolved.reasons },
+        { status: 422 },
+      );
+    }
+
+    // Persist the canonical form: on a criteria change, or when a legacy row is updated for
+    // any reason (read-time conversion becomes stored form on a normal authorized update).
+    if (resolved.state !== "invalid" && (criteriaChanged || resolved.state === "migrated")) {
+      updates.criteria = { criteria_version: CRITERIA_VERSION, params: resolved.params } as Prisma.InputJsonValue;
+    }
+    let countStatus: string | null = null;
+    if (criteriaChanged && resolved.state !== "invalid") {
+      const count = await stampedCount(resolved);
+      updates.result_count = count.result_count;
+      updates.last_run = count.last_run;
+      countStatus = count.count_status;
     }
 
     const updated = await prisma.savedSearch.update({
@@ -163,13 +163,15 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
       data: updates,
     });
 
-    await logAuditEvent("update", "saved_search", id, auth, body);
+    await logAuditEvent("update", "saved_search", id, auth, {
+      ...body,
+      ...(updates.criteria !== undefined ? { criteria_persisted: updates.criteria } : {}),
+      ...(countStatus ? { count_status: countStatus } : {}),
+    });
 
     return NextResponse.json({
-      id: updated.id.toString(),
-      name: updated.name,
-      criteria: updated.criteria,
-      updated_at: updated.updated_at,
+      ...serializeSavedSearch(updated, resolveStoredCriteria(updated.criteria)),
+      count_status_now: countStatus,
     });
   } catch (err) {
     console.error("Update saved search error:", err);

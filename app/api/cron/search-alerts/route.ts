@@ -1,19 +1,53 @@
 // GET /api/cron/search-alerts
-// Daily cron: runs saved searches through the shared SearchCore and emails
-// new compliant matches. Protected by CRON_SECRET header (Vercel Cron).
+// Daily cron: runs alert-enabled saved searches on the canonical Search universe and emails
+// new matches. Protected by CRON_SECRET header (Vercel Cron).
+//
+// Search Consolidation Packet 2 — the pipeline is separated, in this order:
+//   canonical Saved Search universe (the SAME executor as live Agent Search)
+//   → alert delta ("new since last alert"): a delivery rule over the COMPLETE universe,
+//     decided by source modification time, never a Search criterion and never a page filter
+//   → delivery cap / universe order
+//   → email.
 import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { sendEmail } from "@/lib/email/sendgrid";
 import { listingAlertEmail } from "@/lib/email/templates";
 import { escapeHtml } from "@/lib/sanitize";
-import { formatSearchAlertAddress, runProjectionListingSearch } from "@/lib/search/core";
+import { CRITERIA_VERSION, resolveStoredCriteria } from "@/lib/search/engine/saved-search";
+import { hydrateRows, rowsModifiedSince, settledUniverseFor } from "@/lib/search/engine/executor";
+import { SEARCH_SELECT_FIELDS } from "@/lib/search/engine/select";
 import { recordSearchRun } from "@/lib/search/search-run-recorder";
-import { canEnableAlertForCriteria } from "@/lib/search/criteria-to-prisma";
 
 export const maxDuration = 60;
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "https://mallan.nyc";
+/** Listings delivered per alert email (the email template renders at most this many). */
+export const ALERT_DELIVERY_CAP = 10;
+
+/**
+ * Alert line for one DTO.
+ *
+ * REBNY §2.05 address-display gate: the DTO's `addressDisplayYN` is the mapper's reading of
+ * the provider's InternetAddressDisplayYN (explicit false = withheld; null = displayable under
+ * the IDX Plus pre-filter). The mapper already replaces a withheld address, and this line
+ * gates on the flag AGAIN so an email can never print a suppressed address whatever the
+ * upstream text was.
+ */
+export function alertLine(l: Record<string, unknown>): { address: string; price: string; beds: number | string; baths: number | string; url: string } {
+  const addressWithheld = l.addressDisplayYN === false;
+  const address = addressWithheld ? "Address Available on Request" : String(l.address || "Address Available on Request");
+  const unit = l.unit ? ` #${String(l.unit)}` : "";
+  const area = String(l.neighborhood || l.borough || "New York");
+  const price = typeof l.price === "number" ? `$${l.price.toLocaleString()}` : "Price on request";
+  return {
+    address: `${address}${unit}, ${area}`,
+    price,
+    beds: typeof l.beds === "number" ? l.beds : "—",
+    baths: typeof l.baths === "number" ? l.baths : "—",
+    url: `${BASE_URL}/listing/${String(l.id)}`,
+  };
+}
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -47,19 +81,11 @@ export async function GET(req: NextRequest) {
 
     for (const search of searches) {
       try {
-        // P0-3 cron-side alert-gate: defense in depth. The
-        // POST/PATCH gate at app/api/crm/saved-searches blocks NEW
-        // alert-enabled rows whose criteria are projection-unsupported,
-        // but pre-existing rows from before the gate landed may still
-        // be `alert_enabled=true` with unsupported criteria. Skip them
-        // here rather than silently sending mail derived from a strict
-        // subset of the criteria. The savedSearch is left intact (no
-        // last_alert_sent bump) so the agent's UI continues to surface
-        // the alert as configured — the saved-search list-endpoint and
-        // the modal both label these clearly.
-        const criteria = search.criteria as Record<string, unknown>;
-        const gate = canEnableAlertForCriteria(criteria || {});
-        if (!gate.ok) {
+        // A saved search whose stored criteria the executor cannot reproduce EXACTLY gets no
+        // alert — never a broader one. The row is left intact (no last_alert_sent bump) and the
+        // skip is audited by name.
+        const resolved = resolveStoredCriteria(search.criteria);
+        if (resolved.state === "invalid") {
           skippedUnsupported++;
           await prisma.auditEvent.create({
             data: {
@@ -69,14 +95,16 @@ export async function GET(req: NextRequest) {
               user_type: "system",
               user_id: null,
               changes: {
-                code: gate.code,
-                unsupported_criteria: gate.unsupported,
+                code: "invalid_criteria",
+                reasons: resolved.reasons,
+                unsupported_criteria: resolved.unsupported,
               },
             },
           }).catch(() => {});
           continue;
         }
 
+        // Cadence is a delivery rule; it never changes what the search means.
         if (search.last_alert_sent) {
           const hoursSinceLastAlert = (now.getTime() - search.last_alert_sent.getTime()) / (1000 * 60 * 60);
           if (search.alert_frequency === "daily" && hoursSinceLastAlert < 23) {
@@ -102,47 +130,55 @@ export async function GET(req: NextRequest) {
             : "there";
 
         const since = search.last_alert_sent || new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        // PR 5E — second reader migrated to listing_search_projection.
-        // modifiedSince is supported by the projection runner via the
-        // mirrored `modified_at` column. Address suppression flows through
-        // the included Listing's permission flags via formatSearchAlertAddress
-        // below, preserving the existing alert formatting unchanged.
-        const searchRun = await runProjectionListingSearch(prisma, criteria, {
-          limit: 10,
-          offset: 0,
-          modifiedSince: since,
-        });
+
+        // 1. The canonical universe — complete, same membership and order as live Search.
+        const { universe } = await settledUniverseFor(resolved.criteria, false);
+        // 2. The delta over the COMPLETE universe (never the first page).
+        const delta = rowsModifiedSince(universe, since);
+        // 3. Delivery cap in universe order.
+        const delivered = delta.rows.slice(0, ALERT_DELIVERY_CAP);
 
         await recordSearchRun({
           savedSearchId: search.id.toString(),
-          actor: {
-            userType: "system",
-            userId: null,
-          },
-          resultCount: searchRun.total,
-          limit: searchRun.limit,
-          offset: searchRun.offset,
+          actor: { userType: "system", userId: null, actorUserId: null },
+          resultCount: universe.total,
+          limit: ALERT_DELIVERY_CAP,
+          offset: 0,
           source: "search_alert_cron",
-          criteria,
+          criteria: { criteria_version: CRITERIA_VERSION, params: resolved.params, criteria_state: resolved.state },
+          universe: { total: universe.total, countMeaning: universe.countMeaning },
+          delta: { since: since.toISOString(), matched: delta.rows.length, delivered: delivered.length, unknownTimestamp: delta.unknownTimestamp },
         });
 
-        const newListings = searchRun.listings;
-        if (newListings.length === 0) {
+        if (delivered.length === 0) {
           await prisma.savedSearch.update({
             where: { id: search.id },
-            data: { last_alert_sent: now },
+            data: { last_alert_sent: now, result_count: universe.total },
           });
           skipped++;
           continue;
         }
 
-        const formattedListings = newListings.map((listing) => ({
-          address: formatSearchAlertAddress(listing),
-          price: `$${Number(listing.list_price).toLocaleString()}`,
-          beds: listing.bedrooms_total || 0,
-          baths: listing.bathrooms_full || 0,
-          url: `${BASE_URL}/listing/${listing.listing_id}`,
-        }));
+        // 4. Email. The template has no image, so no media is fetched for these rows.
+        const hydrated = await hydrateRows(delivered, { select: SEARCH_SELECT_FIELDS, media: false });
+        const newListings = hydrated.listings;
+        if (newListings.length === 0) {
+          // Every delivered row failed hydration or a gate: nothing may be shown in its place.
+          errored++;
+          await prisma.auditEvent.create({
+            data: {
+              action: "search_alerts_cron_delivery_unavailable",
+              entity_type: "saved_search",
+              entity_id: search.id.toString(),
+              user_type: "system",
+              user_id: null,
+              changes: { delivered: delivered.length, missing: hydrated.missing, gateExcluded: hydrated.gateExcluded },
+            },
+          }).catch(() => {});
+          continue;
+        }
+
+        const formattedListings = newListings.map(alertLine);
 
         const html = listingAlertEmail(formattedListings, escapeHtml(clientName || "there"));
         const subject = `${newListings.length} New Listing${newListings.length !== 1 ? "s" : ""} Matching "${search.name}"`;
@@ -152,23 +188,27 @@ export async function GET(req: NextRequest) {
           sent++;
           await prisma.savedSearch.update({
             where: { id: search.id },
-            data: { last_alert_sent: now, result_count: searchRun.total },
+            data: { last_alert_sent: now, result_count: universe.total },
           });
 
+          // Durable per-client record of what was sent. ClientListingAction references the local
+          // Listing row; a provider listing with no local row (not yet synced) cannot be linked.
           if (search.lead_id) {
-            for (const listing of newListings) {
+            const ids = newListings.map((l) => String(l.id));
+            const local = await prisma.listing.findMany({ where: { listing_id: { in: ids } }, select: { id: true, listing_id: true } });
+            for (const row of local) {
               await prisma.clientListingAction.upsert({
                 where: {
                   lead_id_listing_id_action: {
                     lead_id: search.lead_id,
-                    listing_id: listing.id,
+                    listing_id: row.id,
                     action: "sent",
                   },
                 },
                 update: { created_at: now },
                 create: {
                   lead_id: search.lead_id,
-                  listing_id: listing.id,
+                  listing_id: row.id,
                   action: "sent",
                 },
               }).catch(() => {});

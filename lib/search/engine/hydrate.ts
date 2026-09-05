@@ -20,6 +20,8 @@ import type { UniverseRow } from './universe';
 export interface HydrateOptions {
   /** The route's own select list, passed in so the engine never imports the route. */
   select: readonly string[];
+  /** Fetch provider media for the page (default true). The alert cron passes false: its email has no image. */
+  media?: boolean;
 }
 
 export interface HydratedPage {
@@ -42,16 +44,16 @@ function inList(values: readonly string[]): string {
 
 type MediaRow = Record<string, unknown> & { ResourceRecordKey?: string | null };
 
-async function providerRecords(keys: readonly string[], select: readonly string[]) {
+async function providerRecords(keys: readonly string[], select: readonly string[], withMedia: boolean) {
   const records = new Map<string, Record<string, unknown>>();
   if (keys.length === 0) return { records, mediaRows: 0, mediaComplete: true };
   const [rows, media] = await Promise.all([
     queryProvider<Record<string, unknown>>({ resource: 'Property', select, filter: `ListingKey in (${inList(keys)})`, top: keys.length }),
-    walkProvider<MediaRow>({
+    withMedia ? walkProvider<MediaRow>({
       resource: 'Media', select: MEDIA_SELECT,
       filter: `ResourceRecordKey in (${inList(keys)}) and MediaStatus eq 'Active'`,
       orderby: 'ResourceRecordKey asc,Order asc', top: 1000,
-    }, 5),
+    }, 5) : Promise.resolve({ rows: [] as MediaRow[], complete: true }),
   ]);
   const mediaByKey = new Map<string, MediaRow[]>();
   for (const m of media.rows) {
@@ -152,7 +154,7 @@ async function mallanRecords(ids: readonly string[]): Promise<Map<string, Record
 export async function hydratePage(page: readonly UniverseRow[], o: HydrateOptions): Promise<HydratedPage> {
   const providerKeys = page.filter((r) => r.source === 'provider' && r.listingKey).map((r) => r.listingKey as string);
   const mallanIds = page.filter((r) => r.source === 'mallan').map((r) => r.listingId);
-  const [prov, mal] = await Promise.all([providerRecords(providerKeys, o.select), mallanRecords(mallanIds)]);
+  const [prov, mal] = await Promise.all([providerRecords(providerKeys, o.select, o.media !== false), mallanRecords(mallanIds)]);
 
   const listings: Record<string, unknown>[] = [];
   const missing: string[] = [];

@@ -17,64 +17,14 @@ import { hasCredentials } from "@/lib/idx/auth";
 import { generateAttributionText } from "@/lib/idx/mapping";
 import { logFetchAttempt } from "@/lib/idx/logger";
 import { criteriaFromParams } from "@/lib/search/engine/criteria";
-import { settleUniverse, pageOf, type SettledUniverse } from "@/lib/search/engine/universe";
-import { hydratePage } from "@/lib/search/engine/hydrate";
+import { executeSearch } from "@/lib/search/engine/executor";
+import { SEARCH_SELECT_FIELDS as ENGINE_SELECT_FIELDS } from "@/lib/search/engine/select";
 import { ProviderError } from "@/lib/search/engine/provider-client";
 
-// Fields selected for a hydrated page (route-local; passed into the engine).
-export const SEARCH_SELECT_FIELDS = [
-  // Address
-  "StreetNumber", "StreetName", "StreetDirPrefix", "StreetDirSuffix", "StreetSuffix", "UnitNumber",
-  "City", "CityRegion", "SubdivisionName", "PostalCity", "PostalCode", "StateOrProvince", "CountyOrParish", "CrossStreet",
-  "Latitude", "Longitude",
-  // Classification
-  "ListingId", "ListingKey", "SourceSystemKey", "PropertyType", "PropertySubType", "CommonInterest", "OwnershipType", "NewConstructionYN",
-  // Status & dates
-  "StandardStatus", "MlsStatus", "ModificationTimestamp", "ListingContractDate", "OnMarketDate", "CloseDate", "ClosePrice",
-  "ActivationDate", "DaysOnMarket", "CumulativeDaysOnMarket", "OriginalListPrice", "PreviousListPrice", "AvailabilityDate",
-  // Pricing
-  "ListPrice", "LeaseAmount", "LeaseAmountFrequency",
-  // Rooms & size
-  "BedroomsTotal", "BathroomsFull", "BathroomsHalf", "BathroomsTotalInteger", "LivingArea", "LotSizeArea", "YearBuilt", "RoomsTotal", "StoriesTotal",
-  // Building
-  "BuildingName", "NumberOfUnitsTotal", "BuildingKeyNumeric",
-  // Financial
-  "AssociationFee", "AssociationFeeFrequency", "TaxAnnualAmount", "DownPaymentAssistanceAmount", "DownPaymentAssistanceCount",
-  // Agent / office
-  "ListAgentMlsId", "ListAgentFullName", "ListAgentEmail", "ListAgentDirectPhone", "ListOfficeMlsId", "ListOfficeName",
-  // Media
-  "PhotosCount", "VirtualTourURLBranded", "VirtualTourURLUnbranded",
-  // Remarks
-  "PublicRemarks",
-  // Display / permission
-  "InternetEntireListingDisplayYN", "InternetAddressDisplayYN", "Permission",
-  // Rental + fee transparency
-  "PetsAllowed", "Furnished", "MoveInCosts", "OngoingFees", "TenantPays", "TenantPaysDescription",
-  // Checkbox fields returned for the CRM's local rendering
-  "ListingAgreement", "LandLeaseYN", "CoolingYN", "GarageYN", "DirectionFaces", "View", "OwnerPays", "ArchitecturalStyle",
-  "StructureType", "BusinessType", "AccessibilityFeatures", "ExteriorFeatures", "BuildingFeatures", "LaundryFeatures",
-  "SecurityFeatures", "PoolFeatures", "PetsAllowedYN", "AvailableLeaseType", "ExistingLeaseType", "ConstructionMaterials",
-  "PriceChangeTimestamp", "PatioAndPorchFeatures", "AssociationAmenities", "CurrentFinancing",
-];
-
-// Settled-universe cache: keyed by criteria WITHOUT paging, short-lived.
-const UNIVERSE_TTL_MS = 60_000;
-const UNIVERSE_MAX = 64;
-const universeCache = new Map<string, { u: SettledUniverse; expiresAt: number }>();
-
-function cachedUniverse(key: string): SettledUniverse | null {
-  const e = universeCache.get(key);
-  if (!e) return null;
-  if (Date.now() > e.expiresAt) { universeCache.delete(key); return null; }
-  return e.u;
-}
-function rememberUniverse(key: string, u: SettledUniverse): void {
-  if (universeCache.size >= UNIVERSE_MAX) {
-    const first = universeCache.keys().next().value;
-    if (first !== undefined) universeCache.delete(first);
-  }
-  universeCache.set(key, { u, expiresAt: Date.now() + UNIVERSE_TTL_MS });
-}
+// The hydrated-page select list lives in the engine (lib/search/engine/select.ts) so every
+// executor consumer selects the same fields. Re-exported here because idx:validate and
+// tests/runtime/idx-search-select-fields.test.ts read it from this route.
+export const SEARCH_SELECT_FIELDS = ENGINE_SELECT_FIELDS;
 
 const NO_STORE = { "Cache-Control": "private, no-store" } as const;
 
@@ -103,29 +53,16 @@ export async function GET(req: NextRequest) {
       );
     }
     const c = parsed.criteria;
-    const { limit, offset, ...universeKeyParts } = c;
-    const universeKey = JSON.stringify(universeKeyParts);
-
-    let universe = cachedUniverse(universeKey);
-    const universeFromCache = universe !== null;
-    if (!universe) {
-      universe = await settleUniverse(c);
-      rememberUniverse(universeKey, universe);
-    }
-
-    const page = pageOf(universe, offset, limit);
-    const hydrated = await hydratePage(page, { select: SEARCH_SELECT_FIELDS });
-
-    // A gate exclusion or a missing hydration changes what the page can claim.
-    const pageShort = hydrated.missing.length + hydrated.gateExcluded.length;
-    const countMeaning = universe.countMeaning === "exact" && pageShort === 0 ? "exact" : "lower_bound";
+    const { limit, offset } = c;
+    const run = await executeSearch(c, { select: SEARCH_SELECT_FIELDS });
+    const { universe, hydrated, page, universeFromCache, countMeaning } = run;
 
     const response = {
-      listings: hydrated.listings,
-      total: universe.total,
-      totalCount: universe.total,
+      listings: run.listings,
+      total: run.total,
+      totalCount: run.total,
       countMeaning,
-      hasMore: offset + page.length < universe.total,
+      hasMore: run.hasMore,
       skip: offset,
       limit,
       attribution: generateAttributionText(),

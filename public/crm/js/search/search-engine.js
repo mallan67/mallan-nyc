@@ -368,15 +368,17 @@
             if (typeof _showResultsSkeleton === 'function') { try { _showResultsSkeleton(); } catch (e0) {} }
             MallanAPI.idx.search(params).then(function(result) {
                 if (requestSeq !== _serverSearchSeq) return; // superseded by a newer search
+                // What the executor actually ran — the only thing a saved search may store.
+                var executedParams = {};
+                Object.keys(params).forEach(function(k) { if (k !== 'limit' && k !== 'skip' && k !== 'offset' && params[k] != null && params[k] !== '') executedParams[k] = String(params[k]); });
+                window._lastExecutedSearch = { params: executedParams, total: (result && typeof result.total === 'number') ? result.total : null, at: new Date().toISOString() };
                 if (typeof _serverSearchActive !== 'undefined') _serverSearchActive = false;
                 var rows = (result && Array.isArray(result.listings)) ? result.listings : [];
                 rows.forEach(function(l) {
                     // Presentation defaults ONLY where renderers need a string. Numeric
                     // provider facts stay null when the executor says null: a missing
                     // carrying cost or bath count is shown as unavailable, never as 0.
-                    if (l.price == null) l.price = 0;
                     if (l.photoCount == null) l.photoCount = (l.images && l.images.length) || 0;
-                    if (!l.status) l.status = 'ACTIVE';
                     if (!l.address) l.address = 'Address Unavailable';
                     if (!l.unit) l.unit = '';
                     if (!l.neighborhood) l.neighborhood = '';

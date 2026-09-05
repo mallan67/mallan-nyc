@@ -20,14 +20,13 @@ import {
   // filter keys
   toCanonicalFilterKey, assertCanonicalFilterKey,
   // saved search
-  serializeCriteria, isValidSavedSearch, savedSearchVersionState, unalertableCriteria, CRITERIA_VERSION,
   // attribution
   resolveAttribution, courtesyLabel, attributionViolation,
   // capability
   isVerified, requiresLiveProbe, isUnsupported,
   // registry
   FIELD_REGISTRY, REQUIRED_FAMILIES, missingFamilies, representedFamilies, getField,
-  assertCapabilityUsable, alertableFilterKeys,
+  assertCapabilityUsable,
   // live truth
   STANDARD_STATUS_MEMBERS, COMMON_INTEREST_MEMBERS, PROPERTY_TYPE_SALE, PROPERTY_TYPE_RENTAL,
   MLS_STATUS_FILTERABLE, DEAD_OR_INVALID_VALUES,
@@ -35,6 +34,7 @@ import {
   RESERVED_DIMENSIONS, isReservedOnly,
   type CanonicalFilterKey,
 } from '../canonical';
+import { savedCriteriaFromExecuted, isSavedSearchCriteria, savedSearchVersionState, resolveStoredCriteria, CRITERIA_VERSION } from '../engine/saved-search';
 import { resolveVisibility, type Audience, type LifecycleStatus } from '../visibility-contract';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -142,32 +142,32 @@ describe('6. all sort keys have a deterministic tie-break', () => {
   });
 });
 
-describe('7. saved-search criteria carries criteria_version', () => {
-  it('serializeCriteria stamps the current version', () => {
-    const c = serializeCriteria({ filters: { price_min: 1000 }, sort: 'price_desc' });
-    expect(c.criteria_version).toBe(CRITERIA_VERSION);
-    expect(isValidSavedSearch(c)).toBe(true);
+describe('7. saved-search criteria carries criteria_version (Packet 2: executor parameters)', () => {
+  it('savedCriteriaFromExecuted stamps the current version and stores only executor parameters', () => {
+    const r = savedCriteriaFromExecuted({ type: 'sale', minPrice: 1000, sort: 'price_desc', limit: 50 });
+    expect(r.ok && r.criteria.criteria_version).toBe(CRITERIA_VERSION);
+    expect(r.ok && isSavedSearchCriteria(r.criteria)).toBe(true);
+    expect(r.ok && r.criteria.params).toEqual({ type: 'sale', minPrice: '1000', sort: 'price_desc' });
   });
-  it('criteria without a version is invalid', () => {
-    expect(isValidSavedSearch({ filters: {}, sort: 'price_desc' })).toBe(false);
-    expect(savedSearchVersionState({ filters: {}, sort: 'price_desc' })).toBe('invalid');
+  it('criteria without a version is legacy — converted only by the proven map, never read as current', () => {
+    expect(isSavedSearchCriteria({ listing_type: 'sale' })).toBe(false);
+    expect(savedSearchVersionState({ listing_type: 'sale' })).toBe('legacy');
+    expect(resolveStoredCriteria({ listing_type: 'sale' }).state).toBe('migrated');
   });
-  it('a STALE version is migration_required, never read as current', () => {
-    const stale = { criteria_version: CRITERIA_VERSION - 1, filters: {}, sort: 'price_desc' };
-    expect(savedSearchVersionState(stale)).toBe('migration_required');
-    expect(isValidSavedSearch(stale)).toBe(false); // must NOT be reinterpreted as current
+  it('a STALE version (the never-persisted v1 draft) is invalid, never reinterpreted', () => {
+    const stale = { criteria_version: 1, filters: { price_min: 1000 }, sort: 'price_desc' };
+    expect(savedSearchVersionState(stale)).toBe('invalid');
+    expect(resolveStoredCriteria(stale).state).toBe('invalid');
   });
-  it('a bogus/unmapped filter key fails loud (invalid), never accepted', () => {
-    const blob = { criteria_version: CRITERIA_VERSION, filters: { totallyBogus: 1 }, sort: 'price_desc' };
+  it('a bogus/unmapped parameter fails loud (invalid), never accepted', () => {
+    const blob = { criteria_version: CRITERIA_VERSION, params: { totallyBogus: '1' } };
     expect(savedSearchVersionState(blob)).toBe('invalid');
-    expect(isValidSavedSearch(blob)).toBe(false);
+    expect(isSavedSearchCriteria(blob)).toBe(false);
   });
-  it('alert-incompatible criteria are flagged (not silently saved)', () => {
-    const alertable = new Set(alertableFilterKeys());
-    const c = serializeCriteria({ filters: { amenities: ['doorman'], price_min: 1000 }, sort: 'newest' });
-    const bad = unalertableCriteria(c, alertable);
-    expect(bad).toContain('amenities');     // amenities are NOT alert-capable
-    expect(bad).not.toContain('price_min'); // price_min IS alert-capable (list_price alertable → price_min/price_max)
+  it('alert eligibility is executor eligibility: an unexecutable criterion is refused at save, not silently saved', () => {
+    const r = savedCriteriaFromExecuted({ type: 'sale', amenities: 'doorman', minPrice: 1000 });
+    expect(r.ok).toBe(false);
+    expect(!r.ok && r.refusal.unsupported).toEqual(['amenities']);
   });
 });
 

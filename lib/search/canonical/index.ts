@@ -24,7 +24,6 @@ export * from './display-gate';
 export * from './comp-eligibility';
 export * from './sort';
 export * from './filter-keys';
-export * from './saved-search';
 export * from './attribution';
 export * from './field-registry';
 export * from './reserved-dimensions';

@@ -122,7 +122,8 @@ export function orderbyFor(sort: SortKey): string {
 }
 
 /** Fields walked to settle the universe: identity plus every sort key. */
-export const UNIVERSE_SELECT = Object.freeze(['ListingKey', 'ListingId', 'ListPrice', 'ListingContractDate'] as const);
+/** Key-universe fields. ModificationTimestamp carries the alert delta ("new since") over the COMPLETE universe. */
+export const UNIVERSE_SELECT = Object.freeze(['ListingKey', 'ListingId', 'ListPrice', 'ListingContractDate', 'ModificationTimestamp'] as const);
 
 /** The provider's page cap for a $select+$orderby+$count query (verbatim 400 message, 2026-09-05). */
 export const PROVIDER_PAGE_CAP = 1000;

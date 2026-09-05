@@ -117,7 +117,7 @@ export function portalInviteEmail(
  * Listing alert email — sent when new listings match a client's saved search criteria.
  */
 export function listingAlertEmail(
-  listings: { address: string; price: string; beds: number; baths: number; url: string }[],
+  listings: { address: string; price: string; beds: number | string; baths: number | string; url: string }[],
   clientName: string
 ): string {
   const listingCards = listings.slice(0, 10).map((l) => `

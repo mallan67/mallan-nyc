@@ -25,6 +25,8 @@ export interface UniverseRow {
   listingId: string;
   price: number | null;
   contractDate: string | null;
+  /** Provider ModificationTimestamp / Mallan updated_at (ISO). Null when the source did not say. */
+  modificationTimestamp: string | null;
 }
 
 export interface SettledUniverse {
@@ -42,7 +44,7 @@ export interface SettledUniverse {
   orderby: string;
 }
 
-type ProviderKeyRow = { ListingKey?: string; ListingId?: string; ListPrice?: number | string | null; ListingContractDate?: string | null };
+type ProviderKeyRow = { ListingKey?: string; ListingId?: string; ListPrice?: number | string | null; ListingContractDate?: string | null; ModificationTimestamp?: string | null };
 
 function toNum(v: unknown): number | null {
   if (v == null || v === '') return null;
@@ -80,7 +82,7 @@ async function mallanRowsFor(c: SearchCriteria): Promise<{ rows: UniverseRow[]; 
 
   const rows = await prisma.listing.findMany({
     where,
-    select: { listing_id: true, list_price: true, listing_contract_date: true, bathrooms_full: true, bathrooms_half: true, property_sub_type: true },
+    select: { listing_id: true, list_price: true, listing_contract_date: true, bathrooms_full: true, bathrooms_half: true, property_sub_type: true, updated_at: true },
   });
 
   const out: UniverseRow[] = [];
@@ -103,6 +105,7 @@ async function mallanRowsFor(c: SearchCriteria): Promise<{ rows: UniverseRow[]; 
       source: 'mallan', listingKey: null, listingId: r.listing_id,
       price: toNum(r.list_price),
       contractDate: r.listing_contract_date ? r.listing_contract_date.toISOString() : null,
+      modificationTimestamp: r.updated_at ? r.updated_at.toISOString() : null,
     });
   }
   return { rows: out, excludedUnresolvedType };
@@ -141,6 +144,7 @@ export async function settleUniverse(c: SearchCriteria): Promise<SettledUniverse
     listingId: String(r.ListingId ?? r.ListingKey ?? ''),
     price: toNum(r.ListPrice),
     contractDate: r.ListingContractDate ?? null,
+    modificationTimestamp: r.ModificationTimestamp != null ? String(r.ModificationTimestamp) : null,
   }));
   const rows = [...providerRows, ...mallan.rows].sort(comparatorFor(c.sort));
   return {

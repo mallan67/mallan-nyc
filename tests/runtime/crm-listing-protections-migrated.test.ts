@@ -53,12 +53,17 @@ describe("building search response carries structured direction + postal atoms",
   });
 });
 
-describe("saved-search alert send goes through the display-gated projection", () => {
+describe("saved-search alert matching goes through the canonical Search executor", () => {
   const cron = read("app/api/cron/search-alerts/route.ts");
-  it("the alert-send path uses runProjectionListingSearch (display-gated), not a raw query", () => {
-    expect(cron).toContain("runProjectionListingSearch");
-    // and does not bypass the projection with a raw prisma.listing.findMany
-    expect(cron).not.toMatch(/prisma\.listing\.findMany/);
+  it("membership comes from settledUniverseFor + rowsModifiedSince (gated at hydration), never a projection or a raw membership query", () => {
+    expect(cron).toContain("settledUniverseFor");
+    expect(cron).toContain("rowsModifiedSince");
+    expect(cron).not.toContain("runProjectionListingSearch");
+    expect(cron).not.toContain("listingSearchProjection");
+    // the ONE Listing read is the ClientListingAction link for rows already chosen for delivery
+    const reads = cron.match(/prisma\.listing\.findMany/g) || [];
+    expect(reads.length).toBe(1);
+    expect(cron).toMatch(/prisma\.listing\.findMany\(\{ where: \{ listing_id: \{ in: ids \} \}/);
   });
 });
 

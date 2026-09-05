@@ -45,6 +45,7 @@ jest.mock('@/lib/prisma', () => ({
     lead: { upsert: leadUpsertMock },
     auditEvent: { create: auditEventCreateMock },
     savedSearch: { update: savedSearchUpdateMock, findMany: savedSearchFindManyMock },
+    listing: { findMany: jest.fn(async () => []) },
     clientListingAction: { upsert: clientListingActionUpsertMock },
   },
 }));
@@ -264,7 +265,7 @@ describe('GET /api/cron/search-alerts — SMTP fail-loud bail-out (Bug A20)', ()
     alert_frequency: 'daily',
     last_alert_sent: null,
     name: 'My Manhattan Search',
-    criteria_json: { type: 'sale', borough: 'Manhattan' },
+    criteria: { criteria_version: 2, params: { type: 'sale', borough: 'Manhattan' } },
     lead_id: 99n,
     lead: { id: 99n, first_name: 'Test', last_name: 'Buyer', email: 'recipient@example.com' },
     agent: null,
@@ -273,15 +274,16 @@ describe('GET /api/cron/search-alerts — SMTP fail-loud bail-out (Bug A20)', ()
   // Mock the search-core run to return one new listing so the route
   // reaches sendEmail. Without this, runProjectionListingSearch returns
   // [] and the loop would skip the send entirely.
-  const runSearchMock = jest.fn(async () => ({
-    listings: [{ id: 1n, listing_id: 'RLS123', list_price: 1000000, bedrooms_total: 1, bathrooms_full: 1 }],
-    total: 1,
-  }));
-  jest.mock('@/lib/search/core', () => ({
-    __esModule: true,
-    formatSearchAlertAddress: () => '100 W 72nd St',
-    runProjectionListingSearch: runSearchMock,
-  }));
+  // The executor boundary: one universe row modified after `since`, hydrated to one DTO.
+  jest.mock('@/lib/search/engine/executor', () => {
+    const actual = jest.requireActual('@/lib/search/engine/executor');
+    return {
+      __esModule: true,
+      rowsModifiedSince: actual.rowsModifiedSince,
+      settledUniverseFor: jest.fn(async () => ({ universe: { rows: [{ source: 'provider', listingKey: 'K1', listingId: 'RLS123', price: 1000000, contractDate: null, modificationTimestamp: '2099-01-01T00:00:00Z' }], total: 1, countMeaning: 'exact' } })),
+      hydrateRows: jest.fn(async () => ({ listings: [{ id: 'RLS123', address: '100 W 72ND STREET', unit: '', neighborhood: 'Upper West Side', price: 1000000, beds: 1, baths: 1 }], missing: [], gateExcluded: [] })),
+    };
+  });
   jest.mock('@/lib/search/search-run-recorder', () => ({
     __esModule: true,
     recordSearchRun: jest.fn(async () => undefined),

@@ -79,7 +79,7 @@ export function mapTrestleToCrmListing(
   const taxAnnual = num(raw.TaxAnnualAmount);
   const monthlyTax = taxAnnual === null ? null : taxAnnual / 12;
   // AssociationFee is nullable live and carries its own unit, AssociationFeeFrequency (live
-  // FeeFrequency enum, 15 members; on both active universes every fee-bearing row is
+  // FeeFrequency enum, 16 members — verified live 2026-09-05; on both active universes every fee-bearing row is
   // Monthly except 2 Annually rows — verified 2026-09-05). A fee is a MONTHLY carrying cost
   // only when the provider says Monthly. Any other frequency is preserved raw and is never
   // presented as monthly maintenance nor added into an exact monthly total.

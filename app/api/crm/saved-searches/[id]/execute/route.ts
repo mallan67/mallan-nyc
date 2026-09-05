@@ -1,6 +1,6 @@
 // POST /api/crm/saved-searches/[id]/execute
-// Execute a saved search — run criteria against local listings DB.
-// Updates last_run and result_count.
+// Execute a saved search on the canonical Search universe — the SAME executor, membership,
+// order and total as live Agent Search. Updates last_run and result_count.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import {
@@ -9,18 +9,17 @@ import {
   logAuditEvent,
 } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
-import {
-  runProjectionListingSearch,
-  serializeSearchListing,
-  hydrateSearchListingMedia,
-} from "@/lib/search/core";
+import { hasCredentials } from "@/lib/idx/auth";
+import { generateAttributionText } from "@/lib/idx/mapping";
+import { CRITERIA_VERSION, resolveStoredCriteria } from "@/lib/search/engine/saved-search";
+import { executeSearch } from "@/lib/search/engine/executor";
+import { ProviderError } from "@/lib/search/engine/provider-client";
+import { SEARCH_SELECT_FIELDS } from "@/lib/search/engine/select";
 import { recordSearchRun } from "@/lib/search/search-run-recorder";
-import {
-  getUnsupportedProjectionCriteria,
-  isPlainSearchCriteria,
-} from "@/lib/search/criteria-to-prisma";
 
 type RouteContext = { params: Promise<{ id: string }> };
+
+const MAX_EXECUTE_LIMIT = 100;
 
 export async function POST(req: NextRequest, ctx: RouteContext) {
   const blocked = assertWriteAllowed();
@@ -43,111 +42,94 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    if (!isPlainSearchCriteria(search.criteria)) {
+    // The stored criteria must resolve to executable criteria — current or a proven legacy
+    // conversion. Anything else is refused by name; nothing is executed broader than saved.
+    const resolved = resolveStoredCriteria(search.criteria);
+    if (resolved.state === "invalid") {
       return NextResponse.json(
         {
-          error: "Saved search criteria is invalid and cannot be executed.",
+          error: "Saved search criteria cannot be executed exactly: " + resolved.reasons.join("; "),
           code: "invalid_criteria",
+          reasons: resolved.reasons,
+          unsupported_criteria: resolved.unsupported,
         },
         { status: 422 },
       );
     }
 
-    const criteria = search.criteria;
-    const unsupportedCriteria = getUnsupportedProjectionCriteria(criteria);
-    if (unsupportedCriteria.length > 0) {
-      return NextResponse.json(
-        {
-          error:
-            "Saved search cannot be executed because these criteria are not supported by the projection search engine.",
-          code: "unsupported_criteria",
-          unsupported_criteria: unsupportedCriteria,
-        },
-        { status: 422 },
-      );
+    if (process.env.IDX_ENABLED !== "true" || !hasCredentials()) {
+      return NextResponse.json({ error: "Search not available", code: "IDX_UNAVAILABLE" }, { status: 503 });
     }
 
-    // Parse optional pagination from request body
-    let limit = 100;
+    // Optional pagination from the request body
+    let limit = MAX_EXECUTE_LIMIT;
     let offset = 0;
     try {
       const body = await req.json();
-      if (body.limit && typeof body.limit === "number") limit = Math.min(body.limit, 100);
-      if (body.offset && typeof body.offset === "number") offset = body.offset;
+      if (body.limit && typeof body.limit === "number") limit = Math.min(Math.max(Math.floor(body.limit), 1), MAX_EXECUTE_LIMIT);
+      if (body.offset && typeof body.offset === "number") offset = Math.max(0, Math.floor(body.offset));
     } catch {
       // No body is fine — use defaults
     }
 
-    // PR 5D — first reader migrated to listing_search_projection. The
-    // projection table is at full parity with `Listing` (PR 5C backfill);
-    // the dual-write in lib/idx/sync.ts keeps it converged. Fail-closed
-    // gates are preserved exactly: 4 mirrored gates fire on the projection;
-    // owner_opt_out is applied via the FK `listing` relation filter.
-    // Address suppression still flows through `sanitizeSearchAddress` on
-    // the included Listing — same response shape as the Listing-backed path.
-    const result = await runProjectionListingSearch(prisma, criteria, { limit, offset });
+    const run = await executeSearch({ ...resolved.criteria, limit, offset }, { select: SEARCH_SELECT_FIELDS });
 
-    // Update last_run and result_count
     await prisma.savedSearch.update({
       where: { id: BigInt(id) },
       data: {
         last_run: new Date(),
-        result_count: result.total,
+        result_count: run.total,
       },
     });
 
     await logAuditEvent("execute", "saved_search", id, auth, {
-      resultCount: result.total,
+      resultCount: run.total,
+      countMeaning: run.countMeaning,
+      criteria_state: resolved.state,
     });
 
     await recordSearchRun({
       savedSearchId: id,
       actor: {
         userType: auth.userType,
+        // EFFECTIVE agent. The delegated-access branch (edab58bb) supplies `auth.actorUserId`
+        // here for a broker acting inside an agent's context; this branch has no such field.
         userId: auth.userId,
+        actorUserId: null,
       },
-      resultCount: result.total,
-      limit: result.limit,
-      offset: result.offset,
+      resultCount: run.total,
+      limit,
+      offset,
       source: "saved_search_execute",
-      criteria,
+      criteria: { criteria_version: CRITERIA_VERSION, params: resolved.params },
+      universe: { total: run.total, countMeaning: run.countMeaning },
     });
 
-    // RESPONSE CONTRACT (2026-08-13, CANONICAL-READER migration): this endpoint
-    // has always returned a `media` key per listing, and that key is PRESERVED.
-    //
-    // What changed is only its SOURCE. It used to be the raw legacy
-    // `Listing.media` JSON blob — an unresolved array whose `media[0]` can be a
-    // FloorPlan. It is now the canonical composition (relational `listing_media`
-    // first, legacy JSON only where the resolver permits, photo-first ordering).
-    //
-    // "No first-party caller" does NOT license dropping a public key: it cannot
-    // prove an older or external client is not reading it. So the shape stays.
-    //
-    // The hydration is deliberately NOT part of SEARCH_RESULT_LISTING_SELECT.
-    // The other consumer of that select — the `/api/cron/search-alerts` cron —
-    // provably discards media (`listingAlertEmail` has no image field), and it
-    // must not pay a relational read for a value it throws away. One batched
-    // query, on this route only, never per-row.
-    const mediaById = await hydrateSearchListingMedia(
-      prisma,
-      result.listings.map((l) => l.listing_id),
-    );
-    const serialized = result.listings.map((l) => ({
-      ...serializeSearchListing(l),
-      // `[]` (not undefined) when a listing has no composable media, so the key
-      // and its type stay stable for every row.
-      media: mediaById.get(l.listing_id)?.media ?? [],
-    }));
+    // RESPONSE CONTRACT: `listings` is the shared Search DTO (the same shape live Agent Search
+    // returns). The `media` key this endpoint has always carried is PRESERVED per listing; its
+    // elements are the DTO's resolved media items (url, isPrimary, order, mediaType).
+    const listings = run.listings.map((l) => ({ ...l, media: Array.isArray(l.images) ? l.images : [] }));
 
     return NextResponse.json({
-      listings: serialized,
-      total: result.total,
-      limit: result.limit,
-      offset: result.offset,
+      listings,
+      total: run.total,
+      countMeaning: run.countMeaning,
+      hasMore: run.hasMore,
+      limit,
+      offset,
       searchName: search.name,
+      criteria_state: resolved.state,
+      executable_params: resolved.params,
+      attribution: generateAttributionText(),
     });
   } catch (err) {
+    if (err instanceof ProviderError) {
+      console.error("[Saved Search execute] provider error", { status: err.status });
+      return NextResponse.json(
+        { error: err.status === 429 ? "Search temporarily unavailable. Please try again shortly." : "Search failed at the provider.", code: err.status === 429 ? "PROVIDER_RATE_LIMITED" : "PROVIDER_ERROR", providerStatus: err.status },
+        { status: err.status === 429 ? 503 : 502 },
+      );
+    }
     console.error("Execute saved search error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

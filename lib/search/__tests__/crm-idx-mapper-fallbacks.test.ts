@@ -4,7 +4,9 @@
  *
  * Live Cotality (2026-09-05) declares ListPrice, BedroomsTotal, RoomsTotal, DaysOnMarket,
  * CumulativeDaysOnMarket, OriginalListPrice, TaxAnnualAmount and AssociationFee nullable, and
- * AssociationFeeFrequency as the 15-member FeeFrequency enum. UNKNOWN and ZERO are different
+ * AssociationFeeFrequency as the 16-member FeeFrequency enum (Annually, BiMonthly, BiWeekly, Daily,
+ * FullTerm, Monthly, NotApplicable, OneTime, Other, Quarterly, Seasonal, SeeAgent, SeeRemarks,
+ * SemiAnnually, SemiMonthly, Weekly — verified live 2026-09-05). UNKNOWN and ZERO are different
  * facts: absence never becomes 0, a literal 0 is preserved, and no default status, borough or
  * property type is invented. These are direct tests of the shared DTO mapper.
  */
@@ -39,7 +41,7 @@ describe('5–6: fee frequency semantics', () => {
     expect(l.totalMonthly).toBe(1350);
     expect(l.associationFeeFrequency).toBe('Monthly');
   });
-  test.each(['Annually', 'Quarterly', 'BiMonthly', 'FullTerm', 'Seasonal', 'Other', 'SeeAgent', 'SeeRemarks', 'NotApplicable', 'OneTime'])(
+  test.each(['Annually', 'Quarterly', 'BiMonthly', 'BiWeekly', 'Daily', 'FullTerm', 'Seasonal', 'Other', 'SeeAgent', 'SeeRemarks', 'NotApplicable', 'OneTime', 'SemiAnnually', 'SemiMonthly', 'Weekly'])(
     '6. %s fee is preserved raw, never labelled monthly, never totalled', (freq) => {
       const l = sale({ AssociationFee: 3000, AssociationFeeFrequency: freq, TaxAnnualAmount: 6000 });
       expect(l.associationFee).toBe(3000);
