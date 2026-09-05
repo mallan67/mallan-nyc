@@ -45,6 +45,10 @@ var CRM = (function () {
       renderSidebar();
       renderTopBar();
       renderUserInfo();
+      // Render the delegation bar from the SERVER-hydrated store, so it is
+      // present immediately on a reload rather than only after an in-page
+      // impersonation click.
+      _updateImpersonationBar();
 
       // Load alerts
       Alerts.load().then(function () { refreshAlerts(); });
@@ -826,18 +830,24 @@ var CRM = (function () {
   // ─── Impersonation ───────────────────────────────────────────────────
   function showImpersonationPicker() {
     if (Store.isImpersonating()) {
-      // PR-CRM.6 (2026-05-24, post-Codex-P1) — Stop impersonation
-      // server-side FIRST so the AuditEvent is written and the
-      // delegated session cookie is destroyed. Routed through the
+      // RETURN TO BROKER — no re-login, no second MFA.
+      //
+      // Stop server-side FIRST so the AuditEvent is written and the
+      // delegated session row is destroyed. Routed through the
       // MallanAPI.auth.stopImpersonation() wrapper (NOT raw fetch)
       // so the call honors MallanAPI._baseUrl (the CRM may be served
       // from a non-mallan.nyc origin while pointing at https://
       // mallan.nyc via agent-context.js) AND inherits the shared
-      // 401-unauthorized handler. Per the backend route's own doc,
-      // "Broker must re-login with their own credentials" — the
-      // original broker session cannot be restored because
-      // impersonation overwrote the cookie when it started. We
-      // redirect to /crm/login.html?redirect=/crm after stop.
+      // 401-unauthorized handler.
+      //
+      // The old comment here said "the original broker session cannot
+      // be restored because impersonation overwrote the cookie", and
+      // that WAS true — starting a delegation replaced the broker's
+      // session outright. It no longer is: the delegated row is a
+      // CHILD of the broker's own preserved row, so the backend
+      // rotates a fresh token onto the parent and hands it back. We
+      // therefore RELOAD rather than bouncing to the login page, and
+      // /api/auth/me re-resolves as the broker.
       var stoppedAgentId = Store.session.impersonatedAgentId;
       MallanAPI.auth.stopImpersonation().then(function (data) {
         if (!data || !data.success) {
@@ -853,10 +863,12 @@ var CRM = (function () {
         renderSidebar();
         renderUserInfo();
         _updateImpersonationBar();
-        toast('Impersonation ended — please log in again.', 'info');
-        // Backend cleared the session cookie; navigate to login so the
-        // next request lands on a fresh authenticated session.
-        window.location.href = '/crm/login.html?redirect=/crm';
+        var backAs = (data.restored && data.restored.name) ? data.restored.name : 'your own account';
+        toast('Returned to ' + backAs + '.', 'success');
+        // The broker's OWN session is live again under a freshly rotated
+        // token. Reload so identity is re-read from the server rather than
+        // patched client-side — /api/auth/me is the single authority.
+        window.location.reload();
       }).catch(function (err) {
         // _fetch rejects on non-2xx (with a parsed error message when
         // available) and on network failure. Either way, surface
@@ -964,9 +976,16 @@ var CRM = (function () {
     bar.id = 'impersonationBar';
     bar.className = 'flex items-center justify-between px-4 py-2 text-sm font-medium text-white';
     bar.style.cssText = 'background:#7C3AED;flex-shrink:0;';
+    // Everything rendered here comes from the SERVER (via Store.setSession →
+    // hydrateDelegation), so the bar states who is really acting and survives
+    // a reload instead of vanishing with in-memory state.
     var imp = Store.session.impersonatedAgent;
-    bar.innerHTML = '<span><i class="fas fa-user-secret mr-2"></i>Viewing as: ' + E(imp ? imp.name : 'Agent') + '</span>' +
-      '<button class="px-3 py-1 bg-white/20 rounded-lg hover:bg-white/30 text-xs font-bold" onclick="CRM.showImpersonationPicker()">Exit</button>';
+    var actor = Store.session.delegationActor;
+    bar.innerHTML = '<span><i class="fas fa-user-secret mr-2"></i>Viewing as: ' +
+      E(imp ? imp.name : 'Agent') +
+      (actor && actor.name ? ' <span style="opacity:.8">\u2014 signed in as ' + E(actor.name) + '</span>' : '') +
+      '</span>' +
+      '<button class="px-3 py-1 bg-white/20 rounded-lg hover:bg-white/30 text-xs font-bold" onclick="CRM.showImpersonationPicker()">Return to Broker</button>';
 
     var main = document.getElementById('main');
     if (main) main.insertBefore(bar, main.firstChild);

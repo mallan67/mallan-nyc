@@ -71,6 +71,11 @@ export async function POST(req: NextRequest) {
       userType: "agent",
       role: agent.role,
       sessionId: "mfa-pending",
+      // An MFA challenge is never delegated — it is the agent's own primary
+      // authentication. Stated explicitly so the audit rows it writes carry
+      // actor_user_id = null, i.e. "the actor IS the effective user".
+      parentSessionId: null,
+      actorUserId: null,
     };
 
     // ── Verify code against bcrypt hash ──

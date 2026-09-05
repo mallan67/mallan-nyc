@@ -399,7 +399,10 @@ export async function POST(req: NextRequest) {
   // postal address in the footer. Recipients that have unsubscribed are never sent.
   const campaign_id = strOrUndef(body.campaign_id) || randomUUID();
   const ipAddress = req.headers.get("x-forwarded-for") ?? undefined;
-  const sessionUser = { userId: auth.userId, userType: auth.userType } as SessionUser;
+  // Real session, not a partial cast: the cast dropped role, sessionId and
+  // actorUserId, so a campaign sent during delegated access would have lost
+  // the broker actor from its audit rows.
+  const sessionUser: SessionUser = auth;
 
   // Campaign-level audit row (the grouping anchor).
   await prisma.auditEvent.create({
@@ -409,6 +412,7 @@ export async function POST(req: NextRequest) {
       entity_id: listing_id,
       user_type: auth.userType,
       user_id: auth.userId,
+      actor_user_id: auth.actorUserId ?? null,  // broker actor when delegated; null otherwise
       changes: { campaign_id, mode, subject, counts } as Prisma.InputJsonValue,
       ip_address: ipAddress ?? null,
     },
@@ -443,6 +447,7 @@ export async function POST(req: NextRequest) {
         entity_id: r.email,
         user_type: auth.userType,
         user_id: auth.userId,
+        actor_user_id: auth.actorUserId ?? null,  // broker actor when delegated; null otherwise
         changes: { campaign_id, listing_id, mode, reason: reason ?? null } as Prisma.InputJsonValue,
         ip_address: ipAddress ?? null,
       },
@@ -459,6 +464,7 @@ export async function POST(req: NextRequest) {
       entity_id: listing_id,
       user_type: auth.userType,
       user_id: auth.userId,
+      actor_user_id: auth.actorUserId ?? null,  // broker actor when delegated; null otherwise
       changes: { campaign_id, mode, sent, failed, skipped, deliverable: counts.deliverable } as Prisma.InputJsonValue,
       ip_address: ipAddress ?? null,
     },

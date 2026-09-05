@@ -347,7 +347,10 @@ async function logEmailAudit(
         entity_type: "email",
         entity_id: to,
         user_type: user?.userType || "system",
+        // EFFECTIVE user — the agent during delegated access. Never inverted.
         user_id: user?.userId ?? null,
+        // Real human actor when it differs (the broker during delegation).
+        actor_user_id: user?.actorUserId ?? null,
         changes: { subject, ...extra } as Prisma.InputJsonValue,
       },
     });

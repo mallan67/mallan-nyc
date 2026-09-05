@@ -619,9 +619,26 @@ model Session {
   ip_address String?  @map("ip_address")
   user_agent String?  @map("user_agent") @db.Text
 
+  // ── BROKER DELEGATED ACCESS ────────────────────────────────────────────
+  // The principal broker enters an agent's account with no agent password and
+  // no agent MFA. `user_id` / `role` above stay the EFFECTIVE AGENT, so every
+  // authorisation decision operates as the agent. This column is the ONLY
+  // marker that the row is delegated, and it holds the parent broker
+  // `Session.id` — an id, NEVER a token. Null means an ordinary session.
+  //
+  // onDelete: Cascade is REQUIRED, and SetNull is FORBIDDEN. SetNull would
+  // clear this column on parent deletion and silently convert a delegated
+  // child into a genuine agent session with no server-side trace of the
+  // delegation. Deleting or expiring the parent must invalidate the child.
+  // NEON.md also forbids an FK without explicit ON DELETE behaviour.
+  parent_session_id  String?   @map("parent_session_id")
+  parent             Session?  @relation("SessionDelegation", fields: [parent_session_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  delegated_children Session[] @relation("SessionDelegation")
+
   @@index([token])
   @@index([user_type, user_id])
   @@index([expires_at])
+  @@index([parent_session_id])
   @@map("sessions")
 }
 
@@ -744,7 +761,16 @@ model AuditEvent {
   entity_type String   @map("entity_type") // "listing" | "deal" | "lead" | "agent" | "session"
   entity_id   String   @map("entity_id") // ID of the affected record
   user_type   String   @map("user_type") // "agent" | "lead" | "system"
+  // THE EFFECTIVE USER / BUSINESS OWNER of the record. Load-bearing business
+  // data (CE licensing records, referral agent ids, scenario ownership gates,
+  // per-agent compliance scoring). During delegated access this stays the
+  // AGENT and must NEVER be inverted to the broker — inverting it would
+  // misattribute regulatory records.
   user_id     BigInt?  @map("user_id")
+  // The REAL HUMAN ACTOR when that differs from the effective user — i.e. the
+  // principal broker's id during delegated access. Null for ordinary activity,
+  // which means actor == effective user.
+  actor_user_id BigInt? @map("actor_user_id")
   changes     Json? // { field: { old, new } } diff
   ip_address  String?  @map("ip_address")
   created_at  DateTime @default(now()) @map("created_at")

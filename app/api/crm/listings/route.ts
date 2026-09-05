@@ -541,6 +541,7 @@ export async function POST(req: NextRequest) {
         entity_id: listing.id.toString(),
         user_type: auth.userType,
         user_id: auth.userId,
+        actor_user_id: auth.actorUserId ?? null,  // broker actor when delegated; null otherwise
         changes: { listing_id: listingId, listing_type: listingType } as Prisma.InputJsonValue,
         ip_address: ipAddress ?? null,
       },
@@ -594,6 +595,7 @@ export async function POST(req: NextRequest) {
         entity_id: result.id,
         user_type: auth.userType,
         user_id: auth.userId,
+        actor_user_id: auth.actorUserId ?? null,  // broker actor when delegated; null otherwise
         changes: {
           source: "crm_listing_create",
           listing_id: result.listingId,

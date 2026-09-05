@@ -144,6 +144,7 @@ export async function PATCH(req: NextRequest) {
       entity_id: configId.toString(),
       user_type: "agent",
       user_id: auth.userId,
+      actor_user_id: auth.actorUserId ?? null,  // broker actor when delegated; null otherwise
       changes: {
         pinned_ids: pinned_ids ?? null,
         pinned_ids_capped: rawPinnedIds !== undefined && rawPinnedIds.length > PINNED_IDS_CAP,

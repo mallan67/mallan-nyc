@@ -105,6 +105,7 @@ export async function POST(req: NextRequest) {
       entity_id: feedback.id.toString(),
       user_type: auth.userType === "lead" ? "lead" : "agent",
       user_id: auth.userId,
+      actor_user_id: auth.actorUserId ?? null,  // broker actor when delegated; null otherwise
       changes: {
         showing_id: showingId.toString(),
         rating,

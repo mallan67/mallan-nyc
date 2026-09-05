@@ -180,6 +180,7 @@ export async function POST(req: NextRequest) {
         entity_id: recipient.clientId || recipient.email,
         user_type: auth.userType,
         user_id: auth.userId,
+        actor_user_id: auth.actorUserId ?? null,  // broker actor when delegated; null otherwise
         changes: {
           subject: emailSubject,
           to: recipient.email,

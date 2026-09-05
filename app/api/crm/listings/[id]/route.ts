@@ -536,6 +536,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         entity_id: updated.id.toString(),
         user_type: auth.userType,
         user_id: auth.userId,
+        actor_user_id: auth.actorUserId ?? null,  // broker actor when delegated; null otherwise
         changes: {
           source: "crm_listing_patch",
           listing_id: updated.listing_id,

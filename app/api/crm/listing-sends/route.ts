@@ -211,6 +211,7 @@ export async function POST(req: NextRequest) {
         entity_id: listing_id,
         user_type: auth.userType,
         user_id: auth.userId,
+        actor_user_id: auth.actorUserId ?? null,  // broker actor when delegated; null otherwise
         changes: changes as Prisma.InputJsonValue,
         ip_address: ipAddress ?? null,
       },
@@ -225,6 +226,7 @@ export async function POST(req: NextRequest) {
           entity_id: clientId,
           user_type: auth.userType,
           user_id: auth.userId,
+          actor_user_id: auth.actorUserId ?? null,  // broker actor when delegated; null otherwise
           changes: {
             listing_id,
             sent_via: sent_via ?? "crm",
@@ -353,7 +355,8 @@ export async function POST(req: NextRequest) {
       client.email,
       `New listing for you: ${listing.address || listing.listing_id}`,
       html,
-      { userId: auth.userId, userType: auth.userType } as import("@/lib/auth/session").SessionUser,
+      // Real session, not a partial cast — see /api/crm/email for why.
+      auth,
       {
         channel: "agent",
         from: agent ? { email: agent.email, name: agentName } : undefined,

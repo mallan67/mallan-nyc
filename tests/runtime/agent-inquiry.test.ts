@@ -104,7 +104,18 @@ const CLAUDIA_RECORD = {
 // which do not exist on SessionUser, and that fiction is exactly why the
 // production defect (route read `sessionUser.id`) passed CI.
 function authedSession(overrides: Partial<SessionUser> = {}): SessionUser {
-  return { userId: 42n, userType: 'agent', role: 'BROKER', sessionId: 'sess-test-1', ...overrides };
+  // parentSessionId/actorUserId are part of the REAL contract: null means
+  // "ordinary session, actor == effective user". Defaulted here so the mock
+  // states them rather than leaving them undefined.
+  return {
+    userId: 42n,
+    userType: 'agent',
+    role: 'BROKER',
+    sessionId: 'sess-test-1',
+    parentSessionId: null,
+    actorUserId: null,
+    ...overrides,
+  } as SessionUser;
 }
 
 beforeEach(() => {

@@ -82,6 +82,7 @@ export async function POST(req: NextRequest) {
       entity_id: clientId,
       user_type: "agent",
       user_id: auth.userId,
+      actor_user_id: auth.actorUserId ?? null,  // broker actor when delegated; null otherwise
       changes: { type, label: label || type, values: values || {} } as unknown as import("@prisma/client").Prisma.InputJsonValue,
     },
   });

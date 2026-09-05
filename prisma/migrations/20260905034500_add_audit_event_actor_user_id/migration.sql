@@ -1,0 +1,23 @@
+-- MIGRATION 2 of 2 for broker delegated access.
+-- NEON.md §4: ONE COLUMN PER COMMIT. This migration touches `audit_events`
+-- only, and deliberately does not also carry the `sessions` change, so the two
+-- have two independent rollback paths.
+--
+-- Nullable, per NEON.md §4. NULL is the ordinary case and MEANS SOMETHING:
+-- "the actor IS the effective user". It is not an unpopulated backfill target.
+--
+-- `audit_events.user_id` is NOT touched by this migration and must never be
+-- inverted. It remains the EFFECTIVE USER / business owner of the record —
+-- load-bearing business data at seven call sites (CE licensing records,
+-- referral agent ids, scenario ownership gates, per-agent compliance scoring).
+-- `actor_user_id` is additive: the real human actor when that differs, i.e.
+-- the principal broker's id during delegated access.
+--
+-- No index is created. An index on this column was NOT authorized.
+--
+-- NEON.md §4 restricts migrations on `audit_events` to 3–5 AM ET. That binds
+-- the Production apply, which is NOT authorized in this packet. It was applied
+-- here to the isolated QA project only.
+
+-- AlterTable
+ALTER TABLE "audit_events" ADD COLUMN "actor_user_id" BIGINT;

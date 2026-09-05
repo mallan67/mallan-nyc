@@ -292,6 +292,7 @@ export async function PATCH(
         entity_id: listing.id.toString(),
         user_type: auth.userType,
         user_id: auth.userId,
+        actor_user_id: auth.actorUserId ?? null,  // broker actor when delegated; null otherwise
         changes: {
           source: "crm_status_patch",
           listing_id: listing.listing_id,

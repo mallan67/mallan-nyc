@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
       entity_id: openHouseId,
       user_type: session.userType === "lead" ? "lead" : "agent",
       user_id: session.userId,
+      actor_user_id: session.actorUserId ?? null,  // broker actor when delegated; null otherwise
       changes: {
         open_house_id: openHouseId,
         ...(listingId ? { listing_id: listingId } : {}),

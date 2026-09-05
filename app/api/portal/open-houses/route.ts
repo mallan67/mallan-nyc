@@ -89,6 +89,7 @@ export async function POST(req: NextRequest) {
       entity_id: openHouseId,
       user_type: "lead",
       user_id: auth.userId,
+      actor_user_id: auth.actorUserId ?? null,  // broker actor when delegated; null otherwise
     },
   });
 

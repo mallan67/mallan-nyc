@@ -85,6 +85,7 @@ export async function POST(req: NextRequest) {
       entity_id: `ref_${Date.now()}`,
       user_type: auth.userType,
       user_id: auth.userId,
+      actor_user_id: auth.actorUserId ?? null,  // broker actor when delegated; null otherwise
       changes: body as Prisma.InputJsonValue,
       ip_address: req.headers.get("x-forwarded-for") ?? null,
     },

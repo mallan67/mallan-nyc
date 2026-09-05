@@ -355,12 +355,11 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     prospect.owner_email,
     emailSubject,
     html,
-    {
-      userId: auth.userId,
-      userType: auth.userType,
-      role: auth.role,
-      sessionId: auth.sessionId,
-    },
+    // The real session, not a hand-rebuilt copy. A field-by-field literal
+    // silently drops anything added to SessionUser later — which is exactly
+    // how actorUserId (the broker actor during delegated access) would have
+    // gone missing from this email's audit row.
+    auth,
     {
       channel: "agent",
       from: agent?.email

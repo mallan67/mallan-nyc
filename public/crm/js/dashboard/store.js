@@ -12,6 +12,8 @@ var Store = (function () {
     currentRole: null,           // 'broker' | 'agent' | 'client'
     impersonatedAgentId: null,
     impersonatedAgent: null,     // full agent object when impersonating
+    delegationActor: null,       // the REAL broker behind a delegated session
+    delegationExpiresAt: null,   // ISO; the delegation's fixed 2h ceiling
     permissions: null,           // computed permissions object
     authStatus: 'pending',      // 'pending' | 'authenticated' | 'unauthenticated'
     portalRole: null,            // 'buyer' | 'seller' | 'renter' | 'landlord' | null
@@ -212,7 +214,37 @@ var Store = (function () {
     session.principalType = data.principalType || null;
     session.portalRole = data.portalRole || null;
     session.authStatus = data.authenticated ? 'authenticated' : 'unauthenticated';
+    hydrateDelegation(data.delegation);
     emit('session:changed', session);
+  }
+
+  // SERVER-SOURCED delegation state, from /api/auth/me.
+  //
+  // The old indicator was in-memory only: a page reload wiped it, leaving the
+  // broker still delegated server-side with nothing on screen saying so. The
+  // server is now the authority and this rehydrates from it on every boot, so
+  // the "Viewing as ..." bar survives reloads, new tabs and deep links.
+  //
+  // Note what `currentUser` / `currentRole` hold during delegation: the AGENT.
+  // That is deliberate — isBroker() is false, so the broker console hides and
+  // every client-side gate evaluates with the agent's permissions, matching
+  // what the server will enforce.
+  function hydrateDelegation(delegation) {
+    if (delegation && delegation.active && delegation.actingAs) {
+      session.impersonatedAgentId = delegation.actingAs.id;
+      session.impersonatedAgent = {
+        id: delegation.actingAs.id,
+        name: delegation.actingAs.name,
+        role: delegation.actingAs.role
+      };
+      session.delegationActor = delegation.actor || null;
+      session.delegationExpiresAt = delegation.expiresAt || null;
+    } else {
+      session.impersonatedAgentId = null;
+      session.impersonatedAgent = null;
+      session.delegationActor = null;
+      session.delegationExpiresAt = null;
+    }
   }
 
   function isBroker() {
@@ -356,6 +388,7 @@ var Store = (function () {
     getEffectiveAgentId: getEffectiveAgentId,
     startImpersonation: startImpersonation,
     stopImpersonation: stopImpersonation,
+    hydrateDelegation: hydrateDelegation,
 
     setEntities: setEntities,
     getEntities: getEntities,

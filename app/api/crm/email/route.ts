@@ -107,6 +107,7 @@ export async function POST(req: NextRequest) {
           entity_id: client.id.toString(),
           user_type: auth.userType,
           user_id: auth.userId,
+          actor_user_id: auth.actorUserId ?? null,  // broker actor when delegated; null otherwise
           changes: {
             phone: client.phone,
             body: bodyText.substring(0, 160),
@@ -137,7 +138,10 @@ export async function POST(req: NextRequest) {
         client.email,
         emailSubject,
         html,
-        { userId: auth.userId, userType: auth.userType } as import("@/lib/auth/session").SessionUser,
+        // Pass the REAL session through. The old partial cast dropped role,
+        // sessionId and — once delegated access existed — actorUserId, so an
+        // email sent by the broker while delegated would have lost the actor.
+        auth,
         {
           channel,
           from: channel === "agent" && agent ? { email: agent.email, name: agentName } : undefined,
@@ -153,6 +157,7 @@ export async function POST(req: NextRequest) {
           entity_id: client.id.toString(),
           user_type: auth.userType,
           user_id: auth.userId,
+          actor_user_id: auth.actorUserId ?? null,  // broker actor when delegated; null otherwise
           changes: {
             subject: emailSubject,
             to: client.email,

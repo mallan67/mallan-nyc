@@ -66,11 +66,46 @@ export async function requireRole(
 
 /**
  * Require broker role. Convenience wrapper.
+ *
+ * NOTE what this does NOT answer: whether the caller's own session is genuine.
+ * During delegated access `role` is the EFFECTIVE role, so a delegation into a
+ * BROKER row produces a delegated session that satisfies this check. That is
+ * correct for ordinary broker surfaces — the effective user really is a broker
+ * — but it is NOT sufficient to authorise creating a further delegation. Use
+ * requireNonDelegatedBroker() for that.
  */
 export async function requireBroker(
   req: NextRequest
 ): Promise<SessionUser | NextResponse> {
   return requireRole(req, "BROKER");
+}
+
+/**
+ * Require a BROKER session that is itself GENUINE — not delegated.
+ *
+ * This is the anti-chaining gate, and requireBroker() alone does not implement
+ * it. The impersonate route excludes only self-impersonation, so a broker may
+ * delegate into another row whose role is BROKER; that child carries BROKER
+ * role and would pass requireBroker() and could delegate again. Each hop would
+ * further obscure which human is really acting, which is the entire thing
+ * delegated access exists to keep visible.
+ *
+ * `parent_session_id IS NULL` is the test that actually closes it.
+ */
+export async function requireNonDelegatedBroker(
+  req: NextRequest
+): Promise<SessionUser | NextResponse> {
+  const result = await requireBroker(req);
+  if (result instanceof NextResponse) return result;
+
+  if (result.parentSessionId !== null) {
+    return NextResponse.json(
+      { error: "A delegated session cannot start another delegation" },
+      { status: 403 }
+    );
+  }
+
+  return result;
 }
 
 /**
@@ -218,6 +253,18 @@ export function isAuthError(
 
 /**
  * Log an audit event for a mutation.
+ *
+ * ── TWO IDENTITIES, AND THEY ARE NOT INTERCHANGEABLE ──────────────────────
+ *
+ * `user_id` is the EFFECTIVE USER — the business owner of the record. During
+ * delegated access that is the AGENT, and it MUST NOT be inverted to the
+ * broker. Seven call sites read this column as business data (CE licensing
+ * records, referral agent ids, scenario ownership gates, per-agent compliance
+ * scoring); inverting it would misattribute regulatory records to the broker.
+ *
+ * `actor_user_id` is the REAL HUMAN ACTOR when that differs — the broker's id
+ * during delegation, and NULL otherwise. Null is meaningful: it asserts that
+ * the actor IS the effective user, not that the actor is unknown.
  */
 export async function logAuditEvent(
   action: string,
@@ -233,7 +280,10 @@ export async function logAuditEvent(
       entity_type: entityType,
       entity_id: entityId,
       user_type: user.userType,
+      // EFFECTIVE user — never the actor. See the note above.
       user_id: user.userId,
+      // Real actor during delegation; null when actor == effective user.
+      actor_user_id: user.actorUserId ?? null,
       changes: changes ? (changes as Prisma.InputJsonValue) : undefined,
       ip_address: ipAddress ?? null,
     },

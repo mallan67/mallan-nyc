@@ -293,6 +293,7 @@ export async function POST(req: NextRequest) {
       // audited with user_id = null — no record of WHO sent it. The contract
       // field is `userId`, already a bigint, so no coercion is needed.
       user_id: sessionUser.userId,
+      actor_user_id: sessionUser.actorUserId ?? null,  // broker actor when delegated; null otherwise
       changes: {
         recipient_agent_name: body.agent_name,
         // Recipient email recorded but NOT logged to console

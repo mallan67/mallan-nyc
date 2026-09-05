@@ -32,6 +32,27 @@
  * for these endpoints, the local Store mutation is gated on backend
  * success, the bundle is regenerated, and the backend routes still
  * meet the contract.
+ *
+ * ── UPDATED 2026-09-05 (broker delegated access) ─────────────────────
+ * Four pins in this file asserted the OLD, BROKEN contract and had to
+ * change. They were not wrong when written; the behaviour they pinned
+ * was the defect:
+ *
+ *   1. `requireBroker(req)`            -> `requireNonDelegatedBroker(req)`
+ *      requireBroker alone let a delegated BROKER-role session start a
+ *      further delegation.
+ *   2. `createSession('agent', ...)`   -> `createSessionRecord(...)` with a
+ *      parentSessionId + a fixed lifetime. The old call produced an
+ *      UNPARENTED 8h session under a 2h cookie.
+ *   3. `destroySession(` in the stop route -> `endDelegationAndRotateParent(`.
+ *      The old route destroyed the broker's only session, which is why it
+ *      then had to tell her to log in again.
+ *   4. "redirects to login after stop" -> reloads in place. Requiring a
+ *      re-login (and therefore a SECOND MFA) is exactly the defect this
+ *      packet exists to remove.
+ *
+ * The negative pins that still hold — no raw fetch, backend-gated Store
+ * mutation, bundle regenerated — are untouched.
  */
 
 import { readFileSync } from 'fs';
@@ -197,8 +218,12 @@ describe('PR-CRM.6 — stop impersonation goes through MallanAPI (not raw fetch)
     expect(stopImpIdx).toBeGreaterThan(wrapperIdx);
   });
 
-  it('redirects to login after stop (cookie destroyed by backend)', () => {
-    expect(body).toMatch(/window\.location\.href\s*=\s*['"]\/crm\/login\.html\?redirect=\/crm['"]/);
+  it('does NOT bounce to login after stop — the broker session is restored', () => {
+    // The whole point: Return to Broker must not require a re-login, because
+    // a re-login means a SECOND MFA. The backend rotates a fresh token onto
+    // the preserved parent session, so a reload is enough.
+    expect(body).not.toMatch(/window\.location\.href\s*=\s*['"]\/crm\/login\.html/);
+    expect(body).toMatch(/window\.location\.reload\(\)/);
   });
 
   it('surfaces backend rejection with honest error toast (does NOT clear local state)', () => {
@@ -223,9 +248,15 @@ describe('PR-CRM.6 — backend route contract (read-only verification)', () => {
   it('start route requires broker auth + writes AuditEvent + sets session cookie', () => {
     const src = readFileSync(START_ROUTE_PATH, 'utf8');
     expect(src).toMatch(/export\s+async\s+function\s+POST/);
-    expect(src).toMatch(/requireBroker\(req\)/);
+    // requireNonDelegatedBroker, NOT requireBroker: a delegated session that
+    // happens to carry BROKER role would satisfy the latter.
+    expect(src).toMatch(/requireNonDelegatedBroker\(req\)/);
+    expect(src).not.toMatch(/await requireBroker\(req\)/);
     expect(src).toMatch(/logAuditEvent\(\s*['"]impersonate_start['"]/);
-    expect(src).toMatch(/createSession\(\s*['"]agent['"]/);
+    // The delegated session must be PARENTED and lifetime-capped.
+    expect(src).toMatch(/createSessionRecord\(\s*['"]agent['"]/);
+    expect(src).toMatch(/parentSessionId:\s*auth\.sessionId/);
+    expect(src).toMatch(/maxLifetimeMs:\s*DELEGATED_SESSION_MAX_MS/);
     expect(src).toMatch(/res\.cookies\.set\(SESSION_COOKIE/);
     expect(src).toMatch(/success:\s*true/);
     expect(src).toMatch(/impersonating:\s*\{/);
@@ -237,13 +268,25 @@ describe('PR-CRM.6 — backend route contract (read-only verification)', () => {
     expect(src).toMatch(/Agent not found or inactive/);
   });
 
-  it('stop route requires auth + writes AuditEvent + destroys session + clears cookie', () => {
+  it('stop route requires auth + writes AuditEvent + restores the broker session', () => {
     const src = readFileSync(STOP_ROUTE_PATH, 'utf8');
     expect(src).toMatch(/export\s+async\s+function\s+POST/);
     expect(src).toMatch(/requireAuth\(req\)/);
     expect(src).toMatch(/logAuditEvent\(\s*['"]impersonate_stop['"]/);
-    expect(src).toMatch(/destroySession\(/);
+    // destroySession() would have killed the broker's ONLY session — that is
+    // the bug. Only the delegated child is destroyed, and the parent gets a
+    // freshly rotated token.
+    expect(src).not.toMatch(/destroySession\(/);
+    expect(src).toMatch(/endDelegationAndRotateParent\(auth\.sessionId\)/);
+    expect(src).toMatch(/res\.cookies\.set\(SESSION_COOKIE, restored\.token/);
+    // the cookie is only CLEARED on the fail-closed branch
     expect(src).toMatch(/res\.cookies\.delete\(SESSION_COOKIE\)/);
+    expect(src).not.toMatch(/Impersonation ended\. Please log in again/);
+  });
+
+  it('stop route refuses a caller that is not in a delegated session', () => {
+    const src = readFileSync(STOP_ROUTE_PATH, 'utf8');
+    expect(src).toMatch(/!auth\.parentSessionId/);
   });
 });
 

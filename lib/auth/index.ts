@@ -2,15 +2,24 @@
 export { hashPassword, verifyPassword } from "./password";
 export {
   createSession,
+  createSessionRecord,
   validateSession,
   destroySession,
   cleanExpiredSessions,
+  endDelegationAndRotateParent,
+  DelegationRefusedError,
+  DELEGATED_SESSION_MAX_MS,
+  isDelegationTargetRole,
   type SessionUser,
+  type DelegationSpec,
+  type CreatedSession,
+  type RestoredParentSession,
 } from "./session";
 export {
   requireAuth,
   requireRole,
   requireBroker,
+  requireNonDelegatedBroker,
   requireAgentOrBroker,
   requirePortalRole,
   requireWorkspace,

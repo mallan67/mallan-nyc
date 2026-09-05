@@ -47,6 +47,7 @@ export async function POST(
       entity_id: id,
       user_type: "agent",
       user_id: BigInt(id),
+      actor_user_id: auth.actorUserId ?? null,  // broker actor when delegated; null otherwise
       changes: JSON.parse(JSON.stringify(courseData)),
     },
   });

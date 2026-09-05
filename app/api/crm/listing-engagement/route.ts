@@ -146,6 +146,7 @@ export async function POST(req: NextRequest) {
       entity_id: listingId || clientId || "",
       user_type: "agent",
       user_id: auth.userId,
+      actor_user_id: auth.actorUserId ?? null,  // broker actor when delegated; null otherwise
       changes: {
         listingId: listingId || null,
         clientId: clientId || null,

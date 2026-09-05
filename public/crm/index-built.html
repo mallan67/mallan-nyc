@@ -13394,13 +13394,14 @@ var MallanAPI = (function () {
     },
 
     /**
-     * PR-CRM.6 (2026-05-24) — stop an active impersonation session.
+     * Return to broker — end an active delegated session.
      * Backend (app/api/auth/impersonation/stop) writes an AuditEvent
-     * ("impersonate_stop"), destroys the delegated session, and
-     * clears the SESSION_COOKIE. Per the route's own doc:
-     * "Broker must re-login with their own credentials" — the
-     * original broker session cannot be restored because impersonation
-     * overwrote the cookie at start.
+     * ("impersonate_stop") carrying BOTH identities, destroys ONLY the
+     * delegated session row, and rotates a FRESH token onto the broker's
+     * preserved parent session. There is no re-login and no second MFA:
+     * the broker's own session was never destroyed to begin with.
+     *
+     * Response shape: { success: true, restored: { id, name, role } }
      *
      * MUST go through _fetch so the call honors MallanAPI._baseUrl
      * + 401-unauthorized handling (same reason as agents.impersonate

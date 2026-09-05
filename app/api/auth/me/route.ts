@@ -26,8 +26,19 @@
 //     companyAddress: string | null,    // brokerage address
 //     companyPhone: string | null,      // brokerage phone
 //     photo: string | null,
-//   } | null
+//   } | null,
+//   delegation: null | {                // ADDITIVE, 2026-09-05 (broker delegated access)
+//     active: true,
+//     actingAs: { id, name, role },     // the EFFECTIVE agent — who `user` above is
+//     actor:    { id, name, role },     // the REAL human — the principal broker
+//     expiresAt: string,                // ISO; the delegation's FIXED ceiling
+//   }
 // }
+//
+// `delegation` is the SERVER-SOURCED truth for the "Viewing as <agent> —
+// Return to Broker" indicator. The previous indicator was in-memory only and
+// vanished on reload, so a broker could be mid-delegation with nothing on
+// screen saying so. Anything that must survive a reload has to come from here.
 import { NextRequest, NextResponse } from "next/server";
 import { validateSession, SESSION_COOKIE } from "@/lib/auth";
 import prisma from "@/lib/prisma";
@@ -89,6 +100,7 @@ export async function GET(req: NextRequest) {
       principalType: null,
       role: null,
       portalRole: null,
+      delegation: null,
       user: null,
     });
   }
@@ -100,6 +112,7 @@ export async function GET(req: NextRequest) {
       principalType: null,
       role: null,
       portalRole: null,
+      delegation: null,
       user: null,
     });
     res.cookies.delete(SESSION_COOKIE);
@@ -132,13 +145,56 @@ export async function GET(req: NextRequest) {
         principalType: null,
         role: null,
         portalRole: null,
+        delegation: null,
         user: null,
       });
     }
     const company = await getCompanyInfo();
+
+    // ── DELEGATION CONTEXT — server-sourced, survives a reload ──
+    // `session.userId` is already the EFFECTIVE agent, so `agent` above is who
+    // the broker is acting AS. The actor is resolved from the PARENT session
+    // row by validateSession and cannot be forged from the delegated row.
+    let delegation: {
+      active: true;
+      actingAs: { id: string; name: string; role: string };
+      actor: { id: string; name: string; role: string };
+      expiresAt: string;
+    } | null = null;
+
+    if (session.parentSessionId && session.actorUserId !== null) {
+      const [actor, delegatedRow] = await Promise.all([
+        prisma.agent.findUnique({
+          where: { id: session.actorUserId },
+          select: { id: true, full_name: true, first_name: true, last_name: true, role: true },
+        }),
+        prisma.session.findUnique({
+          where: { id: session.sessionId },
+          select: { expires_at: true },
+        }),
+      ]);
+      if (actor && delegatedRow) {
+        delegation = {
+          active: true,
+          actingAs: {
+            id: agent.id.toString(),
+            name: agent.full_name || `${agent.first_name} ${agent.last_name}`,
+            role: agent.role,
+          },
+          actor: {
+            id: actor.id.toString(),
+            name: actor.full_name || `${actor.first_name} ${actor.last_name}`,
+            role: actor.role,
+          },
+          expiresAt: delegatedRow.expires_at.toISOString(),
+        };
+      }
+    }
+
     return NextResponse.json({
       authenticated: true,
       principalType: "agent",
+      delegation,
       // BROKERAGE PROFESSIONAL ROLE, reported verbatim. Every CRM access gate
       // depends on this field; it is not a licence class.
       role: agent.role,
@@ -189,6 +245,7 @@ export async function GET(req: NextRequest) {
         principalType: null,
         role: null,
         portalRole: null,
+        delegation: null,
         roles: [],
         primaryPortalRole: null,
         enabledWorkspaces: [],
@@ -204,6 +261,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       authenticated: true,
       principalType: "lead",
+      // Client-portal sessions are never delegated — delegation is a
+      // broker-into-agent facility, and this states that explicitly rather
+      // than leaving the field absent.
+      delegation: null,
       role: lead.portal_role || session.role,
       portalRole: lead.portal_role || null,   // LEGACY — kept for backward compat
       roles: lead.roles || [],

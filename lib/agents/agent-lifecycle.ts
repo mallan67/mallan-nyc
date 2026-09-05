@@ -54,8 +54,15 @@ export function revokesSessions(next: AgentStatus): boolean {
 export type LifecycleDb = Prisma.TransactionClient;
 
 export interface LifecycleActor {
+  /** The EFFECTIVE user — the business owner of the resulting audit row. */
   userId: bigint;
   userType: string;
+  /**
+   * The REAL human actor when it differs — the principal broker during
+   * delegated access. Optional so system/script callers stay valid; a
+   * SessionUser satisfies it structurally.
+   */
+  actorUserId?: bigint | null;
 }
 
 export interface TransitionResult {
@@ -96,6 +103,7 @@ export async function applyAgentStatusTransition(
       entity_id: agentId.toString(),
       user_type: actor.userType,
       user_id: actor.userId,
+      actor_user_id: actor.actorUserId ?? null,  // broker actor when delegated; null otherwise
       ip_address: opts.ip ?? null,
       changes: {
         status: { old: opts.previous ?? null, new: next },

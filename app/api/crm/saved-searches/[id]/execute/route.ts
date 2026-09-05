@@ -105,6 +105,9 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
       actor: {
         userType: auth.userType,
         userId: auth.userId,
+        // Carry the real actor so a search run executed during delegated
+        // access records WHO ran it, not just whose account it ran under.
+        actorUserId: auth.actorUserId,
       },
       resultCount: result.total,
       limit: result.limit,

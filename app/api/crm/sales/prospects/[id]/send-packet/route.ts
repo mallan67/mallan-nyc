@@ -624,7 +624,8 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     prospect.owner_email,
     subject,
     html,
-    { userId: auth.userId, userType: auth.userType, role: auth.role, sessionId: auth.sessionId },
+    // Real session, not a rebuilt literal — see the hook-email route.
+    auth,
     {
       channel: "agent",
       from: agent?.email

@@ -99,6 +99,7 @@ export async function POST(req: NextRequest) {
       entity_id: entityId,
       user_type: "agent",
       user_id: auth.userId,
+      actor_user_id: auth.actorUserId ?? null,  // broker actor when delegated; null otherwise
       changes: { title, description },
     },
   });
