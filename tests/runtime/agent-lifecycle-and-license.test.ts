@@ -304,22 +304,25 @@ describe('P0-2 every status and licence writer obeys the authority', () => {
   const me = (body: unknown) =>
     makeRequest({ url: 'http://test/api/crm/agents/me', body, method: 'PATCH' });
 
-  it('/agents/me status change revokes sessions instead of writing the field', async () => {
+  it('/agents/me cannot change account state AT ALL — the transition is not its to make', async () => {
+    // TIGHTENED, not relaxed. This used to assert that a status sent to the
+    // SELF-SERVICE route was applied through the lifecycle authority, i.e.
+    // that /agents/me was a legitimate — if well-behaved — second entry point
+    // to account state. It is not one. `Agent.status` is account lifecycle and
+    // SESSION authority, and it belongs to the broker administrative writer
+    // (PATCH /api/crm/agents/[id]) alone. /agents/me is a deny-by-default
+    // self-service profile writer over bio | photo | phone | specialties |
+    // languages, so the field is refused outright and the generic field in the
+    // same body is not written either. Full coverage in
+    // tests/runtime/crm-profile-self-editable-allowlist.test.ts.
     const { PATCH } = await import('@/app/api/crm/agents/me/route');
-    // send a generic field alongside, so the two update paths are separable
+    // send a generic field alongside, so a partial apply would be visible
     const res = await PATCH(me({ status: 'inactive', bio: 'x' }));
-    expect(res.status).toBe(200);
-    expect(sessionDeleteMany).toHaveBeenCalledWith({ where: { user_type: 'agent', user_id: 6n } });
-
-    const calls = (agentUpdate.mock.calls as unknown as Array<[{ data: Record<string, unknown> }]>)
-      .map((c) => c[0].data);
-    // the ONLY write carrying status is the lifecycle transition, which writes
-    // status alone; the generic field update carries bio and never status
-    const generic = calls.find((d) => 'bio' in d);
-    expect(generic).toBeDefined();
-    expect(generic!.status).toBeUndefined();
-    const transition = calls.find((d) => 'status' in d);
-    expect(Object.keys(transition!)).toEqual(['status']);
+    expect(res.status).toBe(403);
+    // no transition: no session revocation, no lifecycle audit
+    expect(sessionDeleteMany).not.toHaveBeenCalled();
+    // no partial apply: not one write of any kind
+    expect(agentUpdate).not.toHaveBeenCalled();
   });
 
   it('/agents/me rejects a supplied license_type outright, canonical or not', async () => {
@@ -341,12 +344,13 @@ describe('P0-2 every status and licence writer obeys the authority', () => {
   });
 
   it('/agents/me cannot self-edit the regulated professional title', async () => {
+    // TIGHTENED the same way: the title used to be silently dropped while the
+    // bio beside it still saved, which reported success for a write that never
+    // happened. The key is now refused and nothing in the body is applied.
     const { PATCH } = await import('@/app/api/crm/agents/me/route');
-    await PATCH(me({ title: 'Licensed Real Estate Broker', bio: 'x' }));
-    const dataArg = ((agentUpdate.mock.calls as unknown as Array<[{ data: Record<string, unknown> }]>)[0]
-      ?? [{ data: {} }])[0];
-    expect(dataArg.data.title).toBeUndefined();
-    expect(dataArg.data.bio).toBe('x');
+    const res = await PATCH(me({ title: 'Licensed Real Estate Broker', bio: 'x' }));
+    expect(res.status).toBe(403);
+    expect(agentUpdate).not.toHaveBeenCalled();
   });
 
   it('the second Agent creation authority is RETIRED, not merely guarded', () => {

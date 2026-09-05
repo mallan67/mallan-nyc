@@ -518,31 +518,45 @@ describe('title, license_type and role are unwritable from this path', () => {
     }
   });
 
-  it('the route refuses to write title even when a body carries one', async () => {
+  // TIGHTENED, not relaxed. Both cases below used to assert that the governed
+  // key was DROPPED and the rest of the body still saved — a silent PARTIAL
+  // APPLY, which is the very defect class this file exists to close: the
+  // caller was answered 200 for a write that did not happen.
+  // `/api/crm/agents/me` is now a deny-by-default allowlist
+  // (bio | photo | phone | specialties | languages), so the mere PRESENCE of a
+  // governed key refuses the WHOLE request and the legal half never lands
+  // either. Full coverage in
+  // tests/runtime/crm-profile-self-editable-allowlist.test.ts.
+
+  it('the route refuses the WHOLE request when a body carries a title', async () => {
     const { PATCH } = await import('@/app/api/crm/agents/me/route');
-    await (PATCH as unknown as (r: Request) => Promise<Response>)(
+    const res = await (PATCH as unknown as (r: Request) => Promise<Response>)(
       new Request('http://localhost/api/crm/agents/me', {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ title: 'Licensed Real Estate Broker', bio: 'x' }),
       }),
     );
-    expect(updateCalls[0].title).toBeUndefined();
-    expect(updateCalls[0].bio).toBe('x');
+    expect(res.status).toBe(403);
+    // no partial apply: the legal `bio` in the same body is not written either
+    expect(updateCalls.length).toBe(0);
     expect(store.row.title).toBe(TITLE);
+    expect(store.row.bio).not.toBe('x');
   });
 
-  it('the route refuses to write role from this path', async () => {
+  it('the route refuses the WHOLE request when a body carries a role', async () => {
     const { PATCH } = await import('@/app/api/crm/agents/me/route');
-    await (PATCH as unknown as (r: Request) => Promise<Response>)(
+    const res = await (PATCH as unknown as (r: Request) => Promise<Response>)(
       new Request('http://localhost/api/crm/agents/me', {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ role: 'BROKER', bio: 'x' }),
       }),
     );
-    expect(updateCalls[0].role).toBeUndefined();
+    expect(res.status).toBe(403);
+    expect(updateCalls.length).toBe(0);
     expect(store.row.role).toBe('AGENT');
+    expect(store.row.bio).not.toBe('x');
   });
 });
 
