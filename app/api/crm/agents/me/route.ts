@@ -8,9 +8,9 @@
 // ── THE SELF-SERVICE BOUNDARY IS AN ALLOWLIST, AND IT IS THE ONLY ONE ─────
 //
 // This is the SELF-SERVICE PROFILE WRITER for EVERY professional role,
-// BROKER included. Exactly five facts are self-editable:
+// BROKER included. Exactly four facts are self-editable as JSON:
 //
-//     SELF_EDITABLE_FIELDS = bio | photo | phone | specialties | languages
+//     SELF_EDITABLE_FIELDS = bio | phone | specialties | languages
 //
 // A body carrying ANY other key — governed today or invented tomorrow — is
 // refused WHOLE, with 403. Nothing is applied, nothing is silently dropped,
@@ -37,6 +37,7 @@
 //   featured                   brokerage publication / marketing authority
 //   title                      the derived 19 NYCRR §175.25 designation
 //   role                       authorisation grant
+//   photo                      a media fact with its own writer (below)
 //
 // None of them belongs in a self-service profile writer merely because the
 // logged-in person happens to be the principal broker.
@@ -61,11 +62,25 @@
 // as bad vocabulary (400) — a 400 invites a retry with the canonical spelling
 // on a route that may never accept the field at all.
 //
-// `photo` is in the writable set because this route writes the column, but the
-// CRM uploads a headshot through POST /api/crm/agents/me/photo, which stores
-// the file and writes `agent.photo` itself. That route is untouched by this
-// allowlist: it reads multipart form data, not a JSON body. (`photo_url` was
-// once posted here and read by nothing; it is now refused rather than ignored.)
+// ── `photo` IS NOT A JSON FACT ─────────────────────────────────────────────
+//
+// `photo` used to sit in the set above, which made this route a SECOND
+// writer of the headshot column: it set the column to whatever string was
+// posted, bypassing image validation, EXIF/GPS stripping, WebP optimisation
+// and R2 entirely, while the dedicated route did all of that work for the
+// same column. Two writers, one of them unvalidated.
+//
+// The canonical self-service photo writer is POST /api/crm/agents/me/photo
+// and nothing else. It reads multipart form data under the part name
+// `file`, stores the object, and writes `agent.photo` itself — so it is
+// untouched by this allowlist and unreachable through this handler.
+//
+// A JSON `photo` key is therefore refused by the GENERAL deny-by-default
+// gate below, exactly as `status` or an invented column is. There is
+// deliberately no special case for it: a bespoke branch would be one more
+// per-field rule of the kind this construction exists to replace.
+// (`photo_url` was once posted here and read by nothing; it is likewise
+// refused rather than ignored.)
 //
 // `specialties` and `languages` are text[] columns and are accepted ONLY as
 // arrays — a non-array is a 400, never a silent [].
@@ -87,7 +102,6 @@ import { rejectIncoherentLicenceRole } from "@/lib/agents/license-designation";
  */
 const SELF_EDITABLE_FIELDS = [
   "bio",
-  "photo",
   "phone",
   "specialties",
   "languages",
@@ -239,7 +253,6 @@ export async function PATCH(req: NextRequest) {
   const update: Record<string, unknown> = {};
 
   if (body.bio !== undefined) update.bio = body.bio as string | null;
-  if (body.photo !== undefined) update.photo = body.photo as string | null;
   if (body.phone !== undefined) update.phone = body.phone as string | null;
 
   // `specialties` and `languages` are Postgres text[] columns. Anything that

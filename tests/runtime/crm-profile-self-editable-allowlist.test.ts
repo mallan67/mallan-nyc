@@ -28,11 +28,31 @@
  * self-writable administrative field would trip nothing. The writable set is
  * therefore stated ONCE —
  *
- *     SELF_EDITABLE_FIELDS = bio | photo | phone | specialties | languages
+ *     SELF_EDITABLE_FIELDS = bio | phone | specialties | languages
  *
  * — and EVERYTHING else is refused, including a key that does not exist
  * today. Section 4 below proves that property directly, with keys no column
  * has ever had. That is the construction under test, not the enumeration.
+ *
+ * ── WHY `photo` LEFT THE ALLOWLIST (2026-09-04) ──────────────────────────
+ *
+ * `photo` was a SECOND media writer. A JSON string posted here set the
+ * column directly — no image validation, no EXIF/GPS strip, no WebP
+ * optimisation, no R2 upload. It let any authenticated licensee point their
+ * public headshot at an arbitrary string, while the dedicated route did all
+ * of that work for the same column.
+ *
+ * The canonical self-service photo writer is POST /api/crm/agents/me/photo
+ * and nothing else. A JSON `photo` key is now refused by the SAME general
+ * deny-by-default gate that refuses `status` or an invented column — there
+ * is deliberately NO special case for it, and section 10 proves that by
+ * comparing the refusal against the refusal for a column no schema has.
+ *
+ * Section 9 closes the other half of the same broken contract: the CRM
+ * appended the file part as `photo` while both photo routes read `file`, so
+ * choosing a headshot in My Profile answered 400 `Missing 'file' field`.
+ * Removing the JSON writer without fixing that key would have left NO
+ * working way to set a headshot at all.
  *
  * ── Why the WHOLE request is refused ──────────────────────────────────────
  *
@@ -135,9 +155,15 @@ jest.mock('@/lib/images/r2', () => ({
   uploadToR2: (...a: unknown[]) => uploadToR2(...(a as [])),
 }));
 
+/**
+ * Mutable so a case can make image validation FAIL without the route being
+ * touched. `mock`-prefixed so jest's hoist plugin permits the reference.
+ */
+const mockImageValidation: { valid: boolean; error?: string } = { valid: true };
+
 jest.mock('@/lib/images/optimize', () => ({
   __esModule: true,
-  validateImage: () => ({ valid: true }),
+  validateImage: () => ({ ...mockImageValidation }),
   optimizeImage: async () => [{ variant: 'card', buffer: Buffer.from('img') }],
 }));
 
@@ -253,6 +279,12 @@ const src = (f: string) => readFileSync(f, 'utf8');
 interface Harness {
   patches: Record<string, unknown>[];
   photoPosts: string[];
+  /**
+   * The multipart PART NAMES the client actually appended, per POST. This is
+   * the difference between proving a request was made and proving the
+   * request carries the key the route reads.
+   */
+  photoParts: string[][];
   doc: Document;
   /** Give the file picker a chosen file, as the browser would. */
   chooseFile(): void;
@@ -276,8 +308,12 @@ async function bootProfile(opts: { isBroker?: boolean } = {}): Promise<Harness> 
   const content = doc.getElementById('content')!;
   const patches: Record<string, unknown>[] = [];
   const photoPosts: string[] = [];
+  const photoParts: string[][] = [];
 
-  async function _fetch(url: string, options?: { method?: string; body?: string }) {
+  async function _fetch(
+    url: string,
+    options?: { method?: string; body?: string | FormData },
+  ) {
     const method = (options && options.method) || 'GET';
     if (url === '/api/crm/agents/me' && method === 'GET') {
       const res = await callGet(new Request('http://localhost/api/crm/agents/me'));
@@ -289,7 +325,7 @@ async function bootProfile(opts: { isBroker?: boolean } = {}): Promise<Harness> 
         new Request('http://localhost/api/crm/agents/me', {
           method: 'PATCH',
           headers: { 'content-type': 'application/json' },
-          body: options!.body,
+          body: String(options!.body),
         }),
       );
       const body = await res.json();
@@ -298,6 +334,14 @@ async function bootProfile(opts: { isBroker?: boolean } = {}): Promise<Harness> 
     }
     if (url === '/api/crm/agents/me/photo' && method === 'POST') {
       photoPosts.push(url);
+      const sent = options && options.body;
+      const names: string[] = [];
+      if (sent && typeof (sent as FormData).forEach === 'function') {
+        (sent as FormData).forEach((_v, k) => names.push(k));
+      } else {
+        names.push('<NOT-FORM-DATA>');
+      }
+      photoParts.push(names);
       return { photo: '/uploaded.webp' };
     }
     throw new Error('unexpected fetch: ' + method + ' ' + url);
@@ -355,6 +399,7 @@ async function bootProfile(opts: { isBroker?: boolean } = {}): Promise<Harness> 
   const h: Harness = {
     patches,
     photoPosts,
+    photoParts,
     doc,
     named,
     chooseFile() {
@@ -396,28 +441,34 @@ beforeEach(() => {
   auth.userType = 'agent';
   agentFindUnique.mockClear();
   agentUpdate.mockClear();
+  uploadToR2.mockClear();
+  mockImageValidation.valid = true;
+  delete mockImageValidation.error;
   sessionDeleteMany.mockClear();
   mfaDeleteMany.mockClear();
   auditCreate.mockClear();
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 1. THE ALLOWLIST — the five self-service facts, and only those, still work
+// 1. THE ALLOWLIST — the four self-service facts, and only those, still work
 // ═══════════════════════════════════════════════════════════════════════════
 
-const SELF_EDITABLE = ['bio', 'photo', 'phone', 'specialties', 'languages'];
+const SELF_EDITABLE = ['bio', 'phone', 'specialties', 'languages'];
 
-describe('the five self-service profile facts are writable and stored correctly', () => {
-  it('bio / photo / phone in one body succeed and store exactly', async () => {
+describe('the four self-service profile facts are writable and stored correctly', () => {
+  it('bio / phone in one body succeed and store exactly', async () => {
+    const storedPhoto = store.row.photo;
     const res = await patchMe({
       bio: 'A rewritten professional bio.',
-      photo: '/images/agents/maya-allan-2026.jpg',
       phone: '212-555-1234',
     });
     expect(res.status).toBe(200);
     expect(store.row.bio).toBe('A rewritten professional bio.');
-    expect(store.row.photo).toBe('/images/agents/maya-allan-2026.jpg');
     expect(store.row.phone).toBe('212-555-1234');
+    // The headshot is not a JSON fact on this route, so a legal save leaves
+    // it exactly where the media endpoint put it.
+    expect(store.row.photo).toBe(storedPhoto);
+    expect((res.body.updated_fields as string[]).sort()).toEqual(['bio', 'phone']);
   });
 
   it('specialties / languages store as ARRAYS, not strings', async () => {
@@ -442,7 +493,6 @@ describe('the five self-service profile facts are writable and stored correctly'
     auth.role = 'AGENT';
     const res = await patchMe({
       bio: 'b',
-      photo: 'p',
       phone: 'ph',
       specialties: ['s'],
       languages: ['l'],
@@ -455,7 +505,6 @@ describe('the five self-service profile facts are writable and stored correctly'
     auth.role = 'BROKER';
     const res = await patchMe({
       bio: 'b',
-      photo: 'p',
       phone: 'ph',
       specialties: ['s'],
       languages: ['l'],
@@ -579,6 +628,24 @@ describe('a mixed body rejects the ENTIRE request', () => {
     expect(agentUpdate).not.toHaveBeenCalled();
   });
 
+  it('{ bio, photo } refuses AND leaves the STORED BIO AND PHOTO untouched', async () => {
+    const storedBioBefore = store.row.bio;
+    const storedPhotoBefore = store.row.photo;
+    expect(storedBioBefore).toBe(BIO);
+    expect(storedPhotoBefore).toBe('/images/agents/maya-allan.jpg');
+
+    const res = await patchMe({ bio: 'new text', photo: '/attacker-controlled.jpg' });
+
+    expect(res.status).toBe(403);
+    expect(res.body.rejected_fields).toEqual(['photo']);
+    // THE ASSERTION THAT MATTERS: the legal half of the body did not land.
+    expect(store.row.bio).toBe(BIO);
+    expect(store.row.bio).not.toBe('new text');
+    expect(store.row.photo).toBe(storedPhotoBefore);
+    expect(agentUpdate).not.toHaveBeenCalled();
+    expect(updateCalls.length).toBe(0);
+  });
+
   it('{ bio, photo, phone, specialties, languages, featured } refuses all six', async () => {
     const before = snapshot();
     const res = await patchMe({
@@ -676,6 +743,8 @@ describe('the update-call count is ZERO across every refusal', () => {
       { bio: 'x', some_future_field: 1 },
       { totally_invented_column: 'x' },
       { photo_url: '/x.jpg' },
+      { photo: '/x.jpg' },
+      { bio: 'x', photo: '/x.jpg' },
       { first_name: 'A', last_name: 'B' },
     ];
     for (const b of bodies) {
@@ -789,20 +858,31 @@ describe('the populated-profile save guard still holds', () => {
     expect(snapshot()).toBe(before);
   });
 
-  it('edit bio/specialties/languages -> save -> reload gives the exact values, arrays as arrays', async () => {
+  it('edit bio/phone/specialties/languages -> save -> reload gives the exact values, arrays as arrays', async () => {
+    const storedPhoto = store.row.photo;
     const h = await bootProfile();
     h.set('bio', 'A new professional bio.');
+    h.set('phone', '(212) 555-0143');
     h.set('specialties', 'Negotiation, Buyer Representation');
     h.set('languages', 'English, French');
     await h.save();
 
+    // All FOUR self-service facts travel in ONE body and all four land.
+    expect(h.patches.length).toBe(1);
+    expect(Object.keys(h.patches[0]).sort()).toEqual(
+      ['bio', 'languages', 'phone', 'specialties'],
+    );
     expect(store.row.bio).toBe('A new professional bio.');
+    expect(store.row.phone).toBe('(212) 555-0143');
     expect(store.row.specialties).toEqual(['Negotiation', 'Buyer Representation']);
     expect(store.row.languages).toEqual(['English', 'French']);
     expect(Array.isArray(h.patches[0].specialties)).toBe(true);
+    // A full four-field save still never touches the headshot column.
+    expect(store.row.photo).toBe(storedPhoto);
 
     await h.render();
     expect(h.value('bio')).toBe('A new professional bio.');
+    expect(h.value('phone')).toBe('(212) 555-0143');
     expect(h.value('specialties')).toBe('Negotiation, Buyer Representation');
     expect(h.value('languages')).toBe('English, French');
   });
@@ -870,10 +950,10 @@ describe('My Profile presents no writable control for a governed field', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 9. `photo` HAS ITS OWN CANONICAL WRITER, AND THE ALLOWLIST DOES NOT TOUCH IT
+// 9. `photo` HAS EXACTLY ONE SELF-SERVICE WRITER, AND IT NOW WORKS
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('POST /api/crm/agents/me/photo is unaffected by the JSON allowlist', () => {
+describe('POST /api/crm/agents/me/photo is the ONE self-service photo writer', () => {
   it('stores the headshot and writes agent.photo through its own route', async () => {
     const res = await postPhoto('file');
     expect(res.status).toBe(200);
@@ -898,17 +978,58 @@ describe('POST /api/crm/agents/me/photo is unaffected by the JSON allowlist', ()
     expect(store.row.photo).toBe('https://cdn.mallan.nyc/agents/maya-allan/headshot.webp');
   });
 
-  it('OBSERVED, NOT ENDORSED: the route reads a form field named "file"', async () => {
-    // The CRM's My Profile picker appends the part as `photo`
-    // (public/crm/js/dashboard/panels.js), and BOTH photo routes read `file`,
-    // so a headshot chosen in My Profile is answered 400 today. That
-    // mismatch PREDATES this commit, lives in public/crm/** (a standing
-    // approval hold) and is reported rather than changed here. This case pins
-    // the CURRENT behaviour so the discrepancy cannot be lost; whoever fixes
-    // the field name will see it fail and update it deliberately.
+  it('still VALIDATES the image — a refused file is 400 and never reaches R2', async () => {
+    mockImageValidation.valid = false;
+    mockImageValidation.error = 'File too large (max 10MB)';
+    const res = await postPhoto('file');
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('File too large (max 10MB)');
+    expect(uploadToR2).not.toHaveBeenCalled();
+    expect(store.row.photo).toBe('/images/agents/maya-allan.jpg');
+    expect(agentUpdate).not.toHaveBeenCalled();
+  });
+
+  // ── THE HALF THAT MADE THE CORRECT PATH UNUSABLE ───────────────────────
+  //
+  // The CRM appended the file part as `photo`; both photo routes read
+  // `file`. Choosing a headshot in My Profile therefore answered
+  // 400 Missing 'file' field. Removing the JSON `photo` writer without
+  // fixing this key would have left no working way to set a headshot.
+
+  it('the CRM appends the part under the key the ROUTE reads', async () => {
+    const h = await bootProfile();
+    h.chooseFile();
+    await h.save();
+
+    // Not merely 'a request was made' — the KEY the client built.
+    expect(h.photoPosts).toEqual(['/api/crm/agents/me/photo']);
+    expect(h.photoParts).toEqual([['file']]);
+    expect(h.photoParts[0]).not.toContain('photo');
+  });
+
+  it('the key the CLIENT sends is the key the ROUTE accepts — end to end', async () => {
+    const h = await bootProfile();
+    h.chooseFile();
+    await h.save();
+    const clientKeys = h.photoParts[0];
+    expect(clientKeys.length).toBe(1);
+
+    // Feed the CLIENT'S OWN part name into the REAL route. Before this
+    // commit the client sent `photo` and this answered 400.
+    const res = await postPhoto(clientKeys[0]);
+    expect(res.status).toBe(200);
+    expect(uploadToR2).toHaveBeenCalled();
+    expect(store.row.photo).toBe('https://cdn.mallan.nyc/agents/maya-allan/headshot.webp');
+  });
+
+  it('the ROUTE was not loosened — the old `photo` part is still refused', async () => {
+    // The client was corrected, NOT the route. A route that accepted both
+    // names would hide the next occurrence of this same defect.
     const res = await postPhoto('photo');
     expect(res.status).toBe(400);
     expect(String(res.body.error)).toContain("Missing 'file' field");
+    expect(uploadToR2).not.toHaveBeenCalled();
+    expect(agentUpdate).not.toHaveBeenCalled();
   });
 
   it('a photo-only save issues NO /me PATCH — no empty body, no spurious refusal', async () => {
@@ -928,6 +1049,121 @@ describe('POST /api/crm/agents/me/photo is unaffected by the JSON allowlist', ()
     expect(h.photoPosts.length).toBe(1);
     expect(h.patches.length).toBe(1);
     expect(Object.keys(h.patches[0])).toEqual(['bio']);
+    expect(store.row.bio).toBe('a new bio with a new headshot');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 10. A JSON `photo` IS REFUSED — BY THE GENERAL GATE, NOT A SPECIAL CASE
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// `photo` used to sit in SELF_EDITABLE_FIELDS, which made this route a
+// SECOND writer of the headshot column: it set the column to whatever
+// string was posted, bypassing image validation, EXIF/GPS stripping, WebP
+// optimisation and R2 entirely. Its removal is deliberately NOT accompanied
+// by a bespoke `if (body.photo)` refusal — the deny-by-default boundary
+// built in the previous commit is what must refuse it. These cases prove
+// the refusal is the GENERAL one.
+
+describe('a JSON `photo` key is refused by the general deny-by-default gate', () => {
+  const ROLES: { label: string; role: string; licence: string; agentRole: string }[] = [
+    { label: 'BROKER', role: 'BROKER', licence: 'broker', agentRole: 'BROKER' },
+    {
+      label: 'ordinary licensee',
+      role: 'AGENT',
+      licence: 'salesperson',
+      agentRole: 'SALESPERSON',
+    },
+  ];
+
+  for (const r of ROLES) {
+    it(r.label + ': { photo } alone is 403 and the column is untouched', async () => {
+      auth.role = r.role;
+      store.row = freshRow(r.licence, r.agentRole);
+      const before = snapshot();
+
+      const res = await patchMe({ photo: '/attacker-controlled.jpg' });
+
+      expect(res.status).toBe(403);
+      expect(res.body.rejected_fields).toEqual(['photo']);
+      expect(store.row.photo).toBe('/images/agents/maya-allan.jpg');
+      expect(agentUpdate).not.toHaveBeenCalled();
+      expect(updateCalls.length).toBe(0);
+      expect(snapshot()).toBe(before);
+    });
+  }
+
+  it('`photo` is absent from the writable set the refusal advertises', async () => {
+    const res = await patchMe({ photo: '/x.jpg' });
+    expect(res.body.self_editable_fields).not.toContain('photo');
+    expect((res.body.self_editable_fields as string[]).sort()).toEqual(
+      [...SELF_EDITABLE].sort(),
+    );
+  });
+
+  // ── THE PROOF THAT NO SPECIAL CASE EXISTS ──────────────────────────────
+
+  it('the refusal is INDISTINGUISHABLE from one for a column no schema has', async () => {
+    const forPhoto = await patchMe({ photo: '/x.jpg' });
+
+    store.row = freshRow();
+    agentUpdate.mockClear();
+    const forInvented = await patchMe({ column_that_has_never_existed: '/x.jpg' });
+
+    // Same status, same body SHAPE, same wording — only the name differs.
+    expect(forPhoto.status).toBe(forInvented.status);
+    expect(Object.keys(forPhoto.body).sort()).toEqual(Object.keys(forInvented.body).sort());
+    expect(forPhoto.body.self_editable_fields).toEqual(forInvented.body.self_editable_fields);
+    expect(String(forPhoto.body.error).replace('photo', 'X')).toBe(
+      String(forInvented.body.error).replace('column_that_has_never_existed', 'X'),
+    );
+
+    // A bespoke branch would say something bespoke. This says the general
+    // thing, which is the exact refusal a JSON `photo` now receives.
+    expect(String(forPhoto.body.error)).toBe(
+      'photo is not self-editable; use Agent Management',
+    );
+  });
+
+  it('the route SOURCE carries no `photo` branch at all', async () => {
+    // Supplementary to the behavioural cases above, not a substitute for
+    // them: it pins that the refusal cannot have come from a per-field test.
+    const routeSrc = readFileSync(
+      path.resolve(__dirname, '../../app/api/crm/agents/me/route.ts'),
+      'utf8',
+    );
+    // Comments may DISCUSS photo; executable code must not branch on it.
+    const code = routeSrc
+      .split('\n')
+      .filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l))
+      .join('\n');
+    expect(code).not.toMatch(/body\.photo/);
+    expect(code).not.toMatch(/update\.photo/);
+    expect(code).not.toMatch(/["']photo["']/);
+  });
+
+  it('a photo-only save from the CRM emits no JSON `photo` anywhere', async () => {
+    const h = await bootProfile();
+    h.chooseFile();
+    await h.save();
+
+    // The upload happened; NO /me PATCH was issued at all, so there is no
+    // body in which a `photo` key could travel.
+    expect(h.photoPosts.length).toBe(1);
+    expect(h.patches.length).toBe(0);
+    expect(agentUpdate).not.toHaveBeenCalled();
+  });
+
+  it('a photo + bio save sends the bio ONLY, never a photo key', async () => {
+    const h = await bootProfile();
+    h.chooseFile();
+    h.set('bio', 'a new bio with a new headshot');
+    await h.save();
+
+    expect(h.photoParts).toEqual([['file']]);
+    expect(h.patches.length).toBe(1);
+    expect(Object.keys(h.patches[0])).toEqual(['bio']);
+    expect(Object.keys(h.patches[0])).not.toContain('photo');
     expect(store.row.bio).toBe('a new bio with a new headshot');
   });
 });

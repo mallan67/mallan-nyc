@@ -13511,12 +13511,20 @@ var Panels = (function () {
     setStatus('');
 
     // The photo is stored by its own endpoint, which writes agent.photo
-    // itself. It is NOT a PATCH field — posting `photo_url` here was a key
-    // the route has never read.
+    // itself. It is NOT a PATCH field, and it is no longer accepted as one:
+    // POST /api/crm/agents/me/photo is the ONE self-service photo writer,
+    // because it is the only path that validates the image, strips EXIF/GPS,
+    // produces the WebP variants and stores the object in R2.
+    //
+    // THE PART NAME IS `file`, BECAUSE THAT IS WHAT THE ROUTE READS.
+    // It was `photo` here while both photo routes read `file`, so every
+    // headshot chosen in My Profile was answered 400 Missing 'file' field —
+    // the feature could not work at all. Do not rename this without
+    // renaming formData.get('file') in app/api/crm/agents/me/photo/route.ts.
     var uploadPhotoPromise;
     if (hasNewPhoto) {
       var formData = new FormData();
-      formData.append('photo', photoInput.files[0]);
+      formData.append('file', photoInput.files[0]);
       uploadPhotoPromise = MallanAPI._fetch('/api/crm/agents/me/photo', {
         method: 'POST',
         body: formData,
