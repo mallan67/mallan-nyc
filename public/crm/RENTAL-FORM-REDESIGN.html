@@ -4985,6 +4985,40 @@ function initLoggedInAgent() {
         var headerCompany = document.getElementById('headerCompanyName');
         if (headerName && u.name) headerName.textContent = u.name;
         if (headerCompany && u.companyName) headerCompany.textContent = u.companyName;
+
+        // (moved inside populate — Packet 2 closure: this block sat at function scope and referenced
+        //  companyKey / companyName / agentId that only exist here, throwing a ReferenceError on every load)
+        var companyKey = u.companyKey, companyName = u.companyName, agentId = u.id;
+        // Pre-select the agent's company in the Listing Agent dropdown (Tab 1.3)
+        var listingCompanyHidden = document.getElementById('rentalListingCompany');
+        var listingCompanySearch = document.getElementById('rentalListingCompanySearch');
+        if (listingCompanyHidden && companyKey) listingCompanyHidden.value = companyKey;
+        if (listingCompanySearch && companyName) listingCompanySearch.value = companyName;
+
+        // Enable agent search for that company
+        var listingAgentSearch = document.getElementById('rentalListingAgentSearch');
+        if (listingAgentSearch) {
+            listingAgentSearch.disabled = false;
+            listingAgentSearch.placeholder = 'Search agent...';
+        }
+
+        // If agent data in rebnyAgents, auto-select the agent
+        if (companyKey && rebnyAgents[companyKey]) {
+            var match = rebnyAgents[companyKey].find(function(a) { return a.id === agentId; });
+            if (match) {
+                var agentHidden = document.getElementById('rentalListingAgent');
+                if (agentHidden) agentHidden.value = agentId;
+                if (listingAgentSearch) listingAgentSearch.value = match.name;
+                // Show agent info card
+                var el = function(id) { return document.getElementById(id); };
+                if (el('rentalListingAgentId')) el('rentalListingAgentId').textContent = match.id;
+                if (el('rentalListingAgentPhone')) el('rentalListingAgentPhone').textContent = match.phone;
+                if (el('rentalListingAgentEmail')) el('rentalListingAgentEmail').textContent = match.email;
+                if (el('rentalListingAgentLicense')) el('rentalListingAgentLicense').textContent = match.license;
+                var infoCard = el('rentalListingAgentInfo');
+                if (infoCard) infoCard.style.display = 'block';
+            }
+        }
     }
 
     if (typeof MallanAPI !== 'undefined') {
@@ -5003,36 +5037,6 @@ function initLoggedInAgent() {
         console.warn('[RentalForm] MallanAPI not loaded — agent fields left blank');
     }
 
-    // Pre-select the agent's company in the Listing Agent dropdown (Tab 1.3)
-    var listingCompanyHidden = document.getElementById('rentalListingCompany');
-    var listingCompanySearch = document.getElementById('rentalListingCompanySearch');
-    if (listingCompanyHidden && companyKey) listingCompanyHidden.value = companyKey;
-    if (listingCompanySearch && companyName) listingCompanySearch.value = companyName;
-
-    // Enable agent search for that company
-    var listingAgentSearch = document.getElementById('rentalListingAgentSearch');
-    if (listingAgentSearch) {
-        listingAgentSearch.disabled = false;
-        listingAgentSearch.placeholder = 'Search agent...';
-    }
-
-    // If agent data in rebnyAgents, auto-select the agent
-    if (companyKey && rebnyAgents[companyKey]) {
-        var match = rebnyAgents[companyKey].find(function(a) { return a.id === agentId; });
-        if (match) {
-            var agentHidden = document.getElementById('rentalListingAgent');
-            if (agentHidden) agentHidden.value = agentId;
-            if (listingAgentSearch) listingAgentSearch.value = match.name;
-            // Show agent info card
-            var el = function(id) { return document.getElementById(id); };
-            if (el('rentalListingAgentId')) el('rentalListingAgentId').textContent = match.id;
-            if (el('rentalListingAgentPhone')) el('rentalListingAgentPhone').textContent = match.phone;
-            if (el('rentalListingAgentEmail')) el('rentalListingAgentEmail').textContent = match.email;
-            if (el('rentalListingAgentLicense')) el('rentalListingAgentLicense').textContent = match.license;
-            var infoCard = el('rentalListingAgentInfo');
-            if (infoCard) infoCard.style.display = 'block';
-        }
-    }
 }
 
 // ══════════════════════════════════════════════════════

@@ -277,6 +277,7 @@ export async function POST(req: NextRequest) {
   const inHouseValues = ["InHouse", "InHouseInternal", "InHouseWebOnly"];
   const isInHouse =
     inHouseValues.includes(String(body.saleListingType || "")) ||
+    inHouseValues.includes(String(body.rentalListingType || "")) ||
     inHouseValues.includes(String(body.listingAgreement || ""));
   const eligibility = classifyRlsEligibility(body, {
     explicitOptOut: body.rls_eligible === false || isInHouse,

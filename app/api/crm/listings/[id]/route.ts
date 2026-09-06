@@ -150,6 +150,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   const inHouseValues = ["InHouse", "InHouseInternal", "InHouseWebOnly"];
   const isInHouse =
     inHouseValues.includes(String(merged.saleListingType || "")) ||
+    inHouseValues.includes(String(merged.rentalListingType || "")) ||
     inHouseValues.includes(String(merged.listingAgreement || "")) ||
     inHouseValues.includes(String(merged.ListingAgreement || ""));
   const eligibility = classifyRlsEligibility(merged, {
