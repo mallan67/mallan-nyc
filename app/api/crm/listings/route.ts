@@ -15,6 +15,7 @@ import { AGENT_TYPED_SELECT } from "@/lib/listings/agent-info-resolver";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { buildPublishContract } from "@/lib/crm/listing-publish-contract";
+import { applyServerFormMapping } from "@/lib/crm/listing-form-mapping";
 import { buildExclusiveAgentAssignment } from "@/lib/listings/exclusive-agent-assignment";
 import { composeDbPublicMedia } from "@/lib/media/db-media-composition";
 import type { Prisma } from "@prisma/client";
@@ -256,6 +257,19 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
+
+  // SERVER-OWNED conversion (Packet 2 closure): MlsStatus / PropertyType / PropertySubType /
+  // CommonInterest are derived here from the Mallan form keys (saleStatus, salePropertyType,
+  // saleOfficeRetailOwnership, …); client-supplied provider values are validated against the live
+  // Cotality enums when no form key is present. Unknown values are refused, never defaulted.
+  const formMapping = applyServerFormMapping(body, listingType as "sale" | "rent");
+  if (formMapping.errors.length > 0) {
+    return NextResponse.json(
+      { error: "Listing form values could not be converted to the stored vocabulary", code: "form_mapping", details: formMapping.errors },
+      { status: 422 }
+    );
+  }
+  body = formMapping.body;
 
   // Classify RLS eligibility using UCBA mixed-use model (Art. I, Sec. 5(F))
   // Mixed-use in ≤5 unit buildings → RLS-eligible; >5 units or pure commercial → website-only

@@ -1,14 +1,10 @@
 import { resolveListingMedia } from "@/lib/media/listing-media-resolver";
+import { computeGateColumns, derivePermissionGates, inferListingType, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
+import { displayPropertyType } from "@/lib/idx/display-property-type";
 
-// REBNY IDX Plus pre-filter: REBNY/Cotality removes non-displayable rows from
-// the IDX Plus feed upstream, leaving InternetEntireListingDisplayYN and
-// InternetAddressDisplayYN null on the survivors. Treat null as displayable;
-// honor explicit false. Mirrors the writer-side convention at
-// lib/idx/trestle-mapper.ts:705-706 (commit 0309875b 2026-04-30) and the
-// reader-side gate at lib/compliance/gates.ts (idxPlusPreFiltered option).
-function isIdxPlusDisplayFlagOn(v: unknown): boolean {
-  return v !== false && v !== "false" && v !== "FALSE";
-}
+// Display / permission gates come from THE canonical helpers in lib/idx/trestle-mapper.ts
+// (computeGateColumns with the IDX Plus pre-filter convention, derivePermissionGates for the
+// Permission enum). This mapper interprets no permission itself.
 
 /**
  * Provider number or null. ABSENT and ZERO are different facts (Search Consolidation
@@ -27,24 +23,9 @@ function str(value: unknown): string | null {
   return s === "" ? null : s;
 }
 
+/** Display property type for a raw record — THE implementation lives in lib/idx/display-property-type.ts. */
 export function mapDisplayPropertyType(raw: Record<string, unknown>): string | null {
-  const ci = raw.CommonInterest ? String(raw.CommonInterest) : "";
-  if (ci === "Condominium") return "Condo";
-  if (ci === "StockCooperative") return "Co-op";
-  if (ci === "Condop") return "Condop";
-
-  const sub = raw.PropertySubType ? String(raw.PropertySubType).toLowerCase() : "";
-  if (sub.includes("condo")) return "Condo";
-  if (sub.includes("co-op") || sub.includes("coop") || sub.includes("stock cooperative")) return "Co-op";
-  if (sub.includes("condop")) return "Condop";
-  if (sub.includes("townhouse")) return "Townhouse";
-  if (sub.includes("loft")) return "Loft";
-  if (sub.includes("single family") || sub.includes("house")) return "House";
-  if (sub.includes("multi")) return "Multi-Family";
-  if (sub === "apartment") return "Residential";
-  if (sub) return String(raw.PropertySubType);
-  // No PropertyType → unknown. Never "Residential" by default (live: PropertyType is nullable).
-  return str(raw.PropertyType);
+  return displayPropertyType(raw.CommonInterest, raw.PropertySubType, raw.PropertyType);
 }
 
 export function classifyMediaCategory(media: Record<string, unknown>): string {
@@ -68,8 +49,8 @@ export function mapTrestleToCrmListing(
   ].filter(Boolean);
   const address = streetParts.join(" ").toUpperCase() || "";
 
-  const propertyType = String(raw.PropertyType || "");
-  const isRental = propertyType.toLowerCase().includes("lease");
+  // Inventory type: THE classification in lib/idx/trestle-mapper.ts (inferListingType).
+  const isRental = inferListingType(raw) === "rent";
   // ListPrice is nullable live: absent stays null; a literal 0 stays 0.
   const price = num(raw.ListPrice);
   const yearBuilt = raw.YearBuilt != null ? Number(raw.YearBuilt) : null;
@@ -87,7 +68,18 @@ export function mapTrestleToCrmListing(
   const associationFeeFrequency = str(raw.AssociationFeeFrequency);
   const maintCC = associationFee !== null && associationFeeFrequency === "Monthly" ? associationFee : null;
 
-  const addressDisplayYN = isIdxPlusDisplayFlagOn(raw.InternetAddressDisplayYN);
+  const permission = derivePermissionGates(raw);
+  const gates = computeGateColumns({
+    status: raw.StandardStatus,
+    internetEntireListingDisplayYN: raw.InternetEntireListingDisplayYN,
+    internetAddressDisplayYN: raw.InternetAddressDisplayYN,
+    internetAutomatedValuationDisplayYN: raw.InternetAutomatedValuationDisplayYN,
+    internetConsumerCommentYN: raw.InternetConsumerCommentYN,
+    participantOnly: permission.participantOnly,
+    ownerOptOut: permission.ownerOptOut,
+    rls_eligible: true,
+  });
+  const addressDisplayYN = gates.internet_address_display_yn;
   const displayAddress = addressDisplayYN
     ? address
     : "ADDRESS AVAILABLE UPON REQUEST";
@@ -162,7 +154,9 @@ export function mapTrestleToCrmListing(
 
   // A missing status is UNKNOWN — never Active by default. (Provider status text still goes
   // through the UCBA-safe map below; unmapped/absent → "UNKNOWN".)
-  const mlsStatus = str(raw.MlsStatus) ?? str(raw.StandardStatus) ?? "";
+  // Provider status text goes through THE normalizer first (canonical spelling); the map below
+  // is Mallan's CRM display vocabulary for that canonical value.
+  const mlsStatus = normalizeStandardStatus(str(raw.MlsStatus) ?? str(raw.StandardStatus) ?? "");
   const statusMap: Record<string, string> = {
     Active: "ACTIVE",
     ComingSoon: "COMING_SOON",
@@ -295,8 +289,8 @@ export function mapTrestleToCrmListing(
       : raw.VirtualTourURLBranded
         ? String(raw.VirtualTourURLBranded)
         : null,
-    idxDisplayYN: true,
-    internetDisplayYN: isIdxPlusDisplayFlagOn(raw.InternetEntireListingDisplayYN),
+    idxDisplayYN: gates.idx_display_yn,
+    internetDisplayYN: gates.internet_entire_listing_display_yn,
     addressDisplayYN,
     listingCategory: isRental ? "rental" : undefined,
     closedDate: raw.CloseDate ? String(raw.CloseDate) : null,
@@ -306,10 +300,10 @@ export function mapTrestleToCrmListing(
     downPaymentAssistanceCount: dpaCount,
     sponsorUnit,
     permissions: {
-      ownerOptOut: false,
-      participantOnly: false,
-      idxDisplay: true,
-      internetDisplay: isIdxPlusDisplayFlagOn(raw.InternetEntireListingDisplayYN),
+      ownerOptOut: permission.ownerOptOut,
+      participantOnly: permission.participantOnly,
+      idxDisplay: gates.idx_display_yn,
+      internetDisplay: gates.internet_entire_listing_display_yn,
       syndication: true,
     },
     ListingAgreement: raw.ListingAgreement ? String(raw.ListingAgreement) : null,

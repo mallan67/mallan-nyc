@@ -247,15 +247,15 @@ describe('C2 — DOM/typo robustness', () => {
     expect(mapped.idx_display_yn).toBe(true);
   });
 
-  it('missing StandardStatus → falls through to permission gates', () => {
+  it('missing StandardStatus → REFUSED (unrepresentable), never displayed by default', () => {
+    // Packet 2 closure: the mapper no longer invents "Active" for an absent status. The record
+    // is refused loudly; live 2026-09-05: 0 of 591,546 Property rows lack StandardStatus.
     const raw = buildRaw({
       InternetEntireListingDisplayYN: true,
       Permission: 'Public',
     });
     delete (raw as Record<string, unknown>).StandardStatus;
-    const mapped = mapTrestleToPrisma(raw);
-    // Permission gates allow it; status is empty (not in terminal set).
-    expect(mapped.idx_display_yn).toBe(true);
+    expect(() => mapTrestleToPrisma(raw)).toThrow(/StandardStatus is absent/);
   });
 
   it('case-insensitive — "closed" (lowercase) IS canonicalized + blocked under Phase A', () => {

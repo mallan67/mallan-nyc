@@ -3,7 +3,7 @@
  *
  * The /api/listings endpoint returns two possible shapes:
  * - PublicListingDTO (flat, from Trestle/IDX path)
- * - Listing (deeply nested, from local data/listings.json fallback)
+ * - Listing (deeply nested legacy shape — the static data/listings.json catalogue is gone; no runtime source produces it)
  *
  * This adapter normalizes both into DisplayListing for frontend cards.
  *
@@ -30,7 +30,7 @@ function countyToBorough(county: string): string {
 
 /**
  * Get the URL slug for a listing.
- * COMPLIANCE: The slug is pre-computed by toPublicDTO() and respects
+ * COMPLIANCE: The slug is pre-computed by dbListingToPublicDTO() and respects
  * InternetAddressDisplayYN — suppressed addresses get MLS-ID slugs.
  */
 export function listingSlug(listing: DisplayListing): string {

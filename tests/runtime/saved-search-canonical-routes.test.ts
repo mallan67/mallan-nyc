@@ -38,7 +38,7 @@ jest.mock("@/lib/auth", () => ({
   logAuditEvent: logAuditEventMock,
 }));
 jest.mock("@/lib/idx/auth", () => ({ __esModule: true, hasCredentials: () => true }));
-jest.mock("@/lib/idx/mapping", () => ({ __esModule: true, generateAttributionText: () => "Listing information © REBNY (test)" }));
+jest.mock("@/lib/idx/attribution", () => ({ __esModule: true, generateAttributionText: () => "Listing information © REBNY (test)" }));
 jest.mock("@/lib/crm/access", () => ({ __esModule: true, assertLeadIdStringAccess: async (_a: unknown, id: string) => ({ leadId: BigInt(id), response: null }) }));
 jest.mock("@/lib/middleware/rate-limiter", () => ({ __esModule: true, checkRouteRateLimit: async () => true, extractClientIp: () => "203.0.113.9" }));
 jest.mock("@/lib/inquiries/create", () => ({ __esModule: true, createInquiry: jest.fn(async () => ({})) }));

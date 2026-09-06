@@ -630,7 +630,7 @@ body { font-family: Manrope, sans-serif; }
                     </div>
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
                         <p class="text-[10px] text-gray-500 uppercase">RESO MlsStatus</p>
-                        <p class="text-xs font-medium text-blue-700" id="saleResoMlsStatus">ComingSoon</p>
+                        <p class="text-xs font-medium text-blue-700" id="saleResoMlsStatus">set by server on save</p>
                     </div>
                 </div>
                 <!-- Validation Panel -->
@@ -5913,9 +5913,9 @@ function updateSaleStatusFields() {
         if (soldPrice) soldPrice.style.display = '';
     }
 
-    // Update RESO MlsStatus display
+    // The canonical (server) status is shown from the save response; the browser does not translate.
     var resoDisplay = document.getElementById('saleResoMlsStatus');
-    if (resoDisplay) resoDisplay.textContent = getResoMlsStatus(status);
+    if (resoDisplay) resoDisplay.textContent = 'set by server on save';
 
     // Enable/disable Commission Request tab (Tab 7)
     var commTab = document.getElementById('sidebarTab7');
@@ -7419,14 +7419,9 @@ function collectSaleFormData() {
     // See _deriveSaleYNFields (Codex #280 follow-up).
     _deriveSaleYNFields(data);
 
-    // Map CRM property type to RLS fields via getResoPropertyFields()
-    var resoFields = getResoPropertyFields(data.salePropertyType || '');
-    data.PropertyType = resoFields.PropertyType || 'Residential';
-    data.PropertySubType = resoFields.PropertySubType || '';
-    data.CommonInterest = resoFields.CommonInterest || data.saleCommonInterest || '';
-
-    // Map CRM status to RLS MlsStatus
-    data.MlsStatus = (typeof getResoMlsStatus === 'function') ? getResoMlsStatus(data.saleStatus || '') : (data.saleStatus || '');
+    // PropertyType / PropertySubType / CommonInterest / MlsStatus are DERIVED BY THE SERVER from
+    // salePropertyType, saleOfficeRetailOwnership and saleStatus (lib/crm/listing-form-mapping.ts).
+    // The browser never decides the provider representation (Packet 2 closure).
 
     // Persist the CRM workflow status alongside the canonical MlsStatus so it
     // round-trips through every save path — autosave, manualSaveDraft, and
@@ -8034,7 +8029,6 @@ function submitSalesListing() {
             var currentCanonical = result.status || 'Draft';
             var statusResult = null;
             var formWorkflowStatus = document.getElementById('saleStatus') ? document.getElementById('saleStatus').value : 'Active';
-            var targetCanonical = CRM_TO_RESO_STATUS[formWorkflowStatus] || 'Active';
             var listType = document.querySelector('input[name="saleListingType"]:checked');
             var isInternalOnly = (listType && listType.value === 'InHouseInternal') ||
                 fullData.inHouseVisibility === 'internal_only' ||
@@ -8046,10 +8040,12 @@ function submitSalesListing() {
                 } catch (e) { /* non-critical — workflow status is supplementary */ }
             }
             var finalStatus = currentCanonical;
-            if (currentCanonical !== targetCanonical && dbId && !isInternalOnly && targetCanonical !== 'Draft') {
+            // The server maps the workflow status to its canonical status and treats an unchanged
+            // status as a no-op; the browser sends the Mallan workflow value only.
+            if (dbId && !isInternalOnly && formWorkflowStatus !== 'Draft' && formWorkflowStatus !== 'Future') {
                 try {
-                    statusResult = await MallanAPI.listings.updateStatus(dbId, targetCanonical);
-                    finalStatus = statusResult.status || targetCanonical;
+                    statusResult = await MallanAPI.listings.updateStatus(dbId, formWorkflowStatus);
+                    finalStatus = statusResult.status || currentCanonical;
                 } catch (statusErr) {
                     console.warn('[Submit] Status transition failed:', statusErr.message);
                     showToast('Saved as Draft. Publish failed: ' + statusErr.message, 'warning');
@@ -8129,14 +8125,6 @@ function navigateBackToBefore2(formType) {
 // ═══════════════════════════════════════════════════════════
 // BUILDING TYPE MAPPING & SYNC
 // ═══════════════════════════════════════════════════════════
-function getBuildingTypeMapping(buildingType) {
-    switch (buildingType) {
-        case 'Condo': return 'Condominium';
-        case 'Coop': return 'StockCooperative';
-        case 'Condop': return 'Condop';
-        default: return 'None';
-    }
-}
 
 function syncBuildingTypeToPropertyForm(formType, buildingType) {
     const propTypeEl = document.querySelector('input[name="' + formType + 'PropertyType"]:checked');
@@ -8569,58 +8557,8 @@ const STATUS_TRANSITIONS = {
     'Expired':       ['Active', 'Draft'],
 };
 
-// ═══════════════════════════════════════════════════════════
-// CRM → RESO MlsStatus MAPPING
-// ═══════════════════════════════════════════════════════════
-
-const CRM_TO_RESO_STATUS = {
-    'Draft': 'Draft', 'Future': 'Draft', 'ComingSoon': 'ComingSoon',
-    'Active': 'Active', 'BackOnMarket': 'Active',
-    'OfferOut': 'ActiveUnderContract', 'OfferThruUs': 'ActiveUnderContract',
-    'OfferAccepted': 'ActiveUnderContract', 'OAThruUs': 'ActiveUnderContract',
-    'ContractOut': 'ActiveUnderContract', 'COThruUs': 'ActiveUnderContract',
-    'ContractSigned': 'Pending', 'ContractSignedThruUs': 'Pending', 'BoardApproved': 'Pending',
-    'Sold': 'Sold', 'SoldThruUs': 'Sold',
-    'Withdrawn': 'Withdrawn', 'Cancelled': 'Cancelled',
-    'PermOffMarket': 'Withdrawn', 'TempOffMarket': 'Hold', 'Expired': 'Expired',
-    'Hold': 'Hold',
-};
-
-function getResoMlsStatus(crmStatus) {
-    return CRM_TO_RESO_STATUS[crmStatus] || 'Active';
-}
-
-// ═══════════════════════════════════════════════════════════
-// RESO 3-FIELD PROPERTY TYPE MAPPING
-// Maps CRM property type radio values to RESO standard
-// ═══════════════════════════════════════════════════════════
-
-function getResoPropertyFields(crmValue, formType) {
-    const officeRetailOwnership = formType
-        ? document.querySelector('input[name="' + formType + 'OfficeRetailOwnership"]:checked')?.value
-        : null;
-
-    const MAP = {
-        'Condo':                    { PropertyType: 'Residential', CommonInterest: 'Condominium',  PropertySubType: 'Apartment' },
-        'Coop':                     { PropertyType: 'Residential', CommonInterest: 'StockCooperative',  PropertySubType: 'Apartment' },
-        'Condop':                   { PropertyType: 'Residential', CommonInterest: 'Condop',       PropertySubType: 'Apartment' },
-        'SingleFamilyTownhouse':    { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'SingleFamilyTownhouse' },
-        'MultiFamilyTownhouse':     { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'MultiFamilyTownhouse' },
-        'SingleFamily':             { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'SingleFamilyResidence' },
-        'MultiFamily':              { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'MultiFamily' },
-        'MixedUse':                 { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'MixedUse' },
-        'Loft':                     { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'Loft' },
-        'Duplex':                   { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'Duplex' },
-        'Triplex':                  { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'Triplex' },
-        'Quadruplex':               { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'Quadruplex' },
-        'Office':                   { PropertyType: 'Residential', CommonInterest: getBuildingTypeMapping(officeRetailOwnership), PropertySubType: 'Office' },
-        'Retail':                   { PropertyType: 'Residential', CommonInterest: getBuildingTypeMapping(officeRetailOwnership), PropertySubType: 'Retail' },
-        'Land':                     { PropertyType: 'Residential',  CommonInterest: 'None',         PropertySubType: 'UnimprovedLand' },
-        'DeededParking':            { PropertyType: 'Residential', CommonInterest: 'None',         PropertySubType: 'DeededParking' },
-        'Commercial':               { PropertyType: 'Commercial',  CommonInterest: 'None',         PropertySubType: '' },
-    };
-    return MAP[crmValue] || { PropertyType: 'Residential', CommonInterest: 'None', PropertySubType: '' };
-}
+// CRM → provider status / property-type mapping: REMOVED (Packet 2 closure). The SERVER owns the Mallan form → Cotality vocabulary conversion
+// (lib/crm/listing-form-mapping.ts); the browser sends Mallan form state only.
 
 // ═══════════════════════════════════════════════════════════
 // STATUS CHANGE HANDLER — Validates transitions + updates UI
@@ -8817,12 +8755,10 @@ function updateStatusTracking() {
     const tsEl = document.getElementById('saleStatusChangeTimestamp');
     if (tsEl) tsEl.textContent = timestamp;
 
-    // Update RESO MlsStatus display
+    // The canonical (server) status is shown from the save response; the browser does not translate.
     const statusEl = document.getElementById('saleStatus');
     const resoEl = document.getElementById('saleResoMlsStatus');
-    if (statusEl && resoEl) {
-        resoEl.textContent = getResoMlsStatus(statusEl.value);
-    }
+    if (statusEl && resoEl) resoEl.textContent = 'set by server on save';
 
     // Compute DOM (days since first Active)
     const statusVal = statusEl?.value || '';

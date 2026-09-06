@@ -10,7 +10,7 @@
  * become the hero / leak onto agent cards.
  */
 
-import { mapRESOToInternal } from "../mapping";
+import { cotalityRecordToStorageShape, cotalityRecordToPublicDTO } from "../cotality-public-dto";
 import { mapAgentCardMedia } from "../agent-card-media";
 
 function rawListing(media: Array<Record<string, unknown>>): Record<string, unknown> {
@@ -26,54 +26,47 @@ function rawListing(media: Array<Record<string, unknown>>): Record<string, unkno
     PostalCode: "10017",
     InternetEntireListingDisplayYN: true,
     InternetAddressDisplayYN: true,
+    ModificationTimestamp: "2026-09-01T12:00:00Z",
+    Permission: "IDX",
     Media: media,
   };
 }
+type StoredMedia = { url: string; mediaType: string; order: number };
+const storedMedia = (raw: Record<string, unknown>): StoredMedia[] => cotalityRecordToStorageShape(raw).media as StoredMedia[];
 
-describe("P1C3 — mapRESOToInternal media classification (lib/idx/mapping.ts)", () => {
-  it("classifies feed-form 'FloorPlan' (no space) as FloorPlan, sorted last — never the hero", () => {
-    const listing = mapRESOToInternal(
-      rawListing([
-        { MediaURL: "https://cdn/fp.jpg", MediaCategory: "FloorPlan", Order: 0 },
-        { MediaURL: "https://cdn/photo.jpg", MediaCategory: "Photo", Order: 1 },
-      ]),
-    );
-    expect(listing).not.toBeNull();
-    const media = listing!.media!;
-    expect(media[0].url).toBe("https://cdn/photo.jpg");
-    expect(media[0].mediaType).toBe("Photo");
-    expect(media[1].mediaType).toBe("FloorPlan");
+describe("P1C3 — canonical chain media classification (mapTrestleToPrisma → public projection)", () => {
+  it("classifies feed-form 'FloorPlan' (no space) as FloorPlan; the public hero is the photo", () => {
+    const raw = rawListing([
+      { MediaURL: "https://cdn/photo.jpg", MediaCategory: "Photo", Order: 1 },
+      { MediaURL: "https://cdn/plan.jpg", MediaCategory: "FloorPlan", Order: 0 },
+    ]);
+    const stored = storedMedia(raw);
+    expect(stored.find((m) => m.url === "https://cdn/plan.jpg")!.mediaType).toBe("FloorPlan");
+    expect(stored.find((m) => m.url === "https://cdn/photo.jpg")!.mediaType).toBe("Photo");
+    const dto = cotalityRecordToPublicDTO(raw, { alreadyGated: true })!;
+    expect(dto.media[0].mediaType).toBe("Photo");
+    expect(dto.media[0].url).toBe("https://cdn/photo.jpg"); // non-Cotality hosts are not proxied
+    expect(dto.media[dto.media.length - 1].mediaType).toBe("FloorPlan");
   });
 
   it("classifies 'UnbrandedVirtualTour' / 'BrandedVirtualTour' as VirtualTour (not Photo)", () => {
-    const listing = mapRESOToInternal(
-      rawListing([
-        { MediaURL: "https://cdn/tour1.mp4", MediaCategory: "UnbrandedVirtualTour", Order: 0 },
-        { MediaURL: "https://cdn/tour2.mp4", MediaCategory: "BrandedVirtualTour", Order: 1 },
-      ]),
-    );
-    const types = listing!.media!.map((m) => m.mediaType);
-    expect(types).toEqual(["VirtualTour", "VirtualTour"]);
+    const stored = storedMedia(rawListing([
+      { MediaURL: "https://cdn/tour1.mp4", MediaCategory: "UnbrandedVirtualTour", Order: 0 },
+      { MediaURL: "https://cdn/tour2.mp4", MediaCategory: "BrandedVirtualTour", Order: 1 },
+    ]));
+    expect(stored.map((m) => m.mediaType)).toEqual(["VirtualTour", "VirtualTour"]);
   });
 
-  it("retains the ShortDescription floor-plan heuristic (classifier is category-only)", () => {
-    const listing = mapRESOToInternal(
-      rawListing([
-        { MediaURL: "https://cdn/x.jpg", MediaCategory: "Photo", ShortDescription: "Floor plan - 2BR", Order: 0 },
-      ]),
-    );
-    expect(listing!.media![0].mediaType).toBe("FloorPlan");
-  });
-
-  it("preferred photo keeps the -1 order sentinel and photos-first sort is unchanged", () => {
-    const listing = mapRESOToInternal(
-      rawListing([
-        { MediaURL: "https://cdn/b.jpg", MediaCategory: "Photo", Order: 5 },
-        { MediaURL: "https://cdn/a.jpg", MediaCategory: "Photo", Order: 9, PreferredPhotoYN: true },
-      ]),
-    );
-    expect(listing!.media![0].url).toBe("https://cdn/a.jpg");
-    expect(listing!.media![0].order).toBe(-1);
+  it("preferred photo keeps the -1 order sentinel in storage and leads the public gallery", () => {
+    const raw = rawListing([
+      { MediaURL: "https://cdn/b.jpg", MediaCategory: "Photo", Order: 5 },
+      { MediaURL: "https://cdn/a.jpg", MediaCategory: "Photo", Order: 9, PreferredPhotoYN: true },
+    ]);
+    const stored = storedMedia(raw);
+    expect(stored.find((m) => m.url === "https://cdn/a.jpg")!.order).toBe(-1);
+    const dto = cotalityRecordToPublicDTO(raw, { alreadyGated: true })!;
+    expect(dto.media[0].url).toBe("https://cdn/a.jpg");
+    expect(dto.media[0].isPrimary).toBe(true);
   });
 });
 

@@ -416,7 +416,7 @@ Trestle sends the RLS name; the mapper normalizes to canonical. Defined in `lib/
 | ListOfficeMlsId | ListOfficeKey |
 | BuyerOfficeMlsId | BuyerOfficeKey |
 | DuplicateListingIDs | CoExclusiveListingKey |
-| ... (13 more) | See `RESO_TO_RLS_RENAMES` in trestle-mapper.ts |
+| ... | HISTORICAL. The mapper carries NO alias table since the Packet 2 closure (2026-09-05): every live field is read by its own name; the pairs above bridged non-live or different-semantics fields. |
 
 ### Fields NOT on Trestle (code must NOT use these)
 
@@ -434,7 +434,7 @@ Trestle sends the RLS name; the mapper normalizes to canonical. Defined in `lib/
 
 ### Fields excluded from IDX Plus feed `$select`
 
-85 fields exist in the full RLS spec but are NOT available on the IDX Plus feed — requesting them in `$select` may cause HTTP 400. Full list in `IDX_PLUS_EXCLUDED_FIELDS` in `trestle-mapper.ts`. Key exclusions:
+HISTORICAL (superseded 2026-09-05). The REBNY-spec-only names that used to sit in the mapper (75 of them, e.g. `ElevatorYN`, `CeilingHeightFeet`, `SourceSystemModificationTimestamp`) are NOT Cotality Property fields and were removed from the mapper; `COTALITY_PROPERTY_FIELDS` now holds live fields only (guarded against the dated live pull), and `LIVE_FIELDS_NOT_SELECTED` names the two live fields deliberately not requested.
 
 - All alternate address fields (`AlternateStreetName`, etc.)
 - `NewDevelopmentYN` (use PublicRemarks heuristic)
@@ -617,7 +617,7 @@ Every field has a distribution profile controlling who can see it. Implemented i
 
 ### Process
 
-1. **Normalize renames** — Apply `RESO_TO_RLS_RENAMES` (23 field renames)
+1. **Read live field names** — no alias table (Packet 2 closure); an absent StandardStatus / ListPrice / ModificationTimestamp / PropertyType is REFUSED (`UnrepresentableProviderRecordError`), never defaulted
 2. **Infer listing type** — `PropertyType` contains "lease"/"rental" → `rent`, else → `sale`
 3. **Infer borough** — `CountyOrParish` or `City` → borough name
 4. **Extract neighborhood** — `SubdivisionName` (not `CityRegion` which is borough)
@@ -669,7 +669,7 @@ Every field has a distribution profile controlling who can see it. Implemented i
 
 ## 11. Mapping: DB to Public DTO
 
-**Implementation:** `toPublicDTO()` in `lib/idx/public-dto.ts`
+**Implementation:** `dbListingToPublicDTO()` in `lib/idx/db-to-public-dto.ts` — THE one builder. Live Cotality records reach it through `lib/idx/cotality-public-dto.ts` (`mapTrestleToPrisma` → the same builder); the former second builder `toPublicDTO(IDXListing)` and the duplicate provider mapper `lib/idx/mapping.ts` were removed in the Packet 2 closure (2026-09-05).
 
 The PublicListingDTO is the shape returned by `GET /api/listings` and `GET /api/listings/:id`. It strips private data and enforces compliance.
 
@@ -1180,8 +1180,8 @@ The CRM building lookup route (`/api/buildings/search`) returns `{ buildings: []
 | `lib/idx/fetch.ts` | OData Property + Media fetching, filters, pagination |
 | `lib/idx/trestle-mapper.ts` | 902 fields, 29 categories, Trestle→Prisma mapping, gate computation |
 | `lib/idx/sync.ts` | Sync orchestrator (Trestle→DB) |
-| `lib/idx/types.ts` | IDXListing, TrestleAuthToken, IDXFetchResult types |
-| `lib/idx/public-dto.ts` | PublicListingDTO shape, toPublicDTO(), attribution |
+| `lib/idx/types.ts` | TrestleAuthToken, IDXFetchResult types (the IDXListing DTO type is gone) |
+| `lib/idx/public-dto.ts` | PublicListingDTO shape + shared helpers (the one builder is `db-to-public-dto.ts`; live records via `cotality-public-dto.ts`) |
 | `lib/idx/db-to-public-dto.ts` | DB listing → PublicListingDTO (for InHouse/exclusives) |
 | `lib/idx/display-adapter.ts` | DisplayListing type for frontend cards |
 | `lib/idx/media-sync.ts` | Media sync to R2 |

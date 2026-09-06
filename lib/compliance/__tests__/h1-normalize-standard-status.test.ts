@@ -29,24 +29,26 @@ import {
   TERMINAL_STATUSES,
 } from '../../idx/trestle-mapper';
 
-describe('normalizeStandardStatus — empty / non-string fallback', () => {
-  it('null → "Active"', () => {
-    expect(normalizeStandardStatus(null)).toBe('Active');
+describe('normalizeStandardStatus — empty / non-string input is UNKNOWN (never "Active")', () => {
+  // Packet 2 closure: an absent status is not a provider fact. It normalizes to '' and every
+  // reader treats '' as not displayable / draft-like (fail-closed).
+  it('null → ""', () => {
+    expect(normalizeStandardStatus(null)).toBe('');
   });
-  it('undefined → "Active"', () => {
-    expect(normalizeStandardStatus(undefined)).toBe('Active');
+  it('undefined → ""', () => {
+    expect(normalizeStandardStatus(undefined)).toBe('');
   });
-  it('empty string → "Active"', () => {
-    expect(normalizeStandardStatus('')).toBe('Active');
+  it('empty string → ""', () => {
+    expect(normalizeStandardStatus('')).toBe('');
   });
-  it('whitespace-only string → "Active"', () => {
-    expect(normalizeStandardStatus('   ')).toBe('Active');
+  it('whitespace-only string → ""', () => {
+    expect(normalizeStandardStatus('   ')).toBe('');
   });
-  it('non-string (number) → "Active"', () => {
-    expect(normalizeStandardStatus(42 as unknown as string)).toBe('Active');
+  it('non-string (number) → ""', () => {
+    expect(normalizeStandardStatus(42 as unknown as string)).toBe('');
   });
-  it('non-string (object) → "Active"', () => {
-    expect(normalizeStandardStatus({} as unknown as string)).toBe('Active');
+  it('non-string (object) → ""', () => {
+    expect(normalizeStandardStatus({} as unknown as string)).toBe('');
   });
 });
 
@@ -217,7 +219,8 @@ describe('integration — normalize + guard combination (the actual writer path)
     const canonical = normalizeStandardStatus(rawStatus);
     return {
       status: canonical,
-      idx_display_yn: !TERMINAL_STATUSES.has(canonical),
+      // mirrors computeGateColumns: an unknown ('') status is never displayable
+      idx_display_yn: canonical !== '' && !TERMINAL_STATUSES.has(canonical),
     };
   };
 
@@ -263,10 +266,10 @@ describe('integration — normalize + guard combination (the actual writer path)
     });
   });
 
-  it('body.status = null → row stored as Active, idx_display_yn=true (default eligible)', () => {
+  it('body.status = null → row stored as UNKNOWN (""), idx_display_yn=false (fail-closed, no default)', () => {
     expect(writerPipeline(null)).toEqual({
-      status: 'Active',
-      idx_display_yn: true,
+      status: '',
+      idx_display_yn: false,
     });
   });
 });

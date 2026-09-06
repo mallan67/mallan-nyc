@@ -152,11 +152,14 @@ export function classifyMediaItem(raw: unknown): MediaClass {
     return 'floorplan';
   }
 
+  // The provider CATEGORY is the fact; the video URL sniff below is a heuristic for untagged legacy rows.
+  // Live MediaCategory members are the no-space enum names ('UnbrandedVirtualTour', 'BrandedVirtualTour',
+  // verified against the dated live enum pull 2026-09-05); the spaced form is accepted for legacy rows.
+  if (cat.includes('virtualtour') || cat.includes('virtual tour')) {
+    return 'virtualTour';
+  }
   if (cat === 'video' || cat.includes('video') || /\.(mp4|mov|webm)(\?|$)/i.test(url)) {
     return 'video';
-  }
-  if (cat === 'virtualtour' || cat.includes('virtual tour') || cat === 'virtual tour') {
-    return 'virtualTour';
   }
   if (cat === 'photo' || cat === 'image' || cat === '' /* default Trestle Media is Photo */) {
     return 'photo';

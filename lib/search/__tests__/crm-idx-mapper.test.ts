@@ -8,7 +8,10 @@ describe("crm idx mapper", () => {
   it("maps display property type without using Apartment as a display label", () => {
     expect(mapDisplayPropertyType({ CommonInterest: "Condominium" })).toBe("Condo");
     expect(mapDisplayPropertyType({ CommonInterest: "StockCooperative" })).toBe("Co-op");
-    expect(mapDisplayPropertyType({ PropertySubType: "Apartment" })).toBe("Residential");
+    // "Apartment" alone carries no classification: unknown stays unknown (null), never an invented
+    // "Residential". With the provider's own PropertyType present, that value is shown.
+    expect(mapDisplayPropertyType({ PropertySubType: "Apartment" })).toBeNull();
+    expect(mapDisplayPropertyType({ PropertySubType: "Apartment", PropertyType: "Residential" })).toBe("Residential");
   });
 
   it("classifies media category using RESO content category", () => {

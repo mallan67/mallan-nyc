@@ -5,7 +5,7 @@
  * Verifies:
  * 1. No client-side Trestle/IDX API calls
  * 2. No NEXT_PUBLIC_ env vars containing secrets
- * 3. toPublicDTO() used in public API endpoints
+ * 3. the canonical public projection (cotalityRecordsToPublicDTOs / dbListingToPublicDTO) used in public API endpoints
  * 4. checkDistributionGates() used in public API endpoints
  *
  * Exit code 0 = pass, 1 = fail
@@ -137,7 +137,7 @@ for (const envFile of ['.env', '.env.local', '.env.production']) {
   }
 }
 
-// ── 4. toPublicDTO used in public listing endpoints ──
+// ── 4. the canonical public projection used in public listing endpoints (no second provider→DTO mapper) ──
 const publicEndpoints = [
   path.join(ROOT, 'app', 'api', 'listings', 'route.ts'),
   path.join(ROOT, 'app', 'api', 'listings', '[id]', 'route.ts'),
@@ -145,10 +145,10 @@ const publicEndpoints = [
 for (const ep of publicEndpoints) {
   const rel = path.relative(ROOT, ep);
   if (fs.existsSync(ep)) {
-    if (fileContains(ep, /toPublicDTO/)) {
-      pass(`toPublicDTO used in ${rel}`);
+    if (fileContains(ep, /cotalityRecordsToPublicDTOs|cotalityRecordToPublicDTO|dbListingToPublicDTO/) && !fileContains(ep, /mapRESOToInternal|toPublicDTO\b/)) {
+      pass(`canonical public projection used in ${rel}`);
     } else {
-      fail(`toPublicDTO missing in ${rel}`);
+      fail(`canonical public projection missing (or a retired mapper present) in ${rel}`);
     }
   }
 }

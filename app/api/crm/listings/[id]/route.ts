@@ -14,6 +14,7 @@ import { classifyRlsEligibility } from "@/lib/compliance/rls-eligibility";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { sanitizeForCRM } from "@/lib/compliance/dto";
 import { derivePermissionBooleans } from "@/lib/compliance/normalizer";
+import { applyServerFormMapping } from "@/lib/crm/listing-form-mapping";
 import { coerceStrictBool } from "@/lib/compliance/gates";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
@@ -128,6 +129,17 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
+
+  // SERVER-OWNED conversion (Packet 2 closure): provider-vocabulary fields are derived from the
+  // Mallan form keys, or validated against the live Cotality enums when supplied directly.
+  const formMapping = applyServerFormMapping(body, (listing.listing_type as string) === "rent" ? "rent" : "sale");
+  if (formMapping.errors.length > 0) {
+    return NextResponse.json(
+      { error: "Listing form values could not be converted to the stored vocabulary", code: "form_mapping", details: formMapping.errors },
+      { status: 422 }
+    );
+  }
+  body = formMapping.body;
 
   // Merge existing raw_data with updates for validation
   const existingRaw = (listing.raw_data as Record<string, unknown>) ?? {};

@@ -1,45 +1,38 @@
 // lib/idx/trestle-mapper.ts
-// Trestle/REBNY RLS to Prisma Listing model mapper (902 IDX Plus fields across 7 resources).
-// Maps ALL 29 RLS categories. Handles 23 RESO-to-RLS renames.
-// READ-ONLY: maps inbound data only — nothing goes back to Trestle.
+// THE canonical Cotality (Trestle) Property record → Mallan Listing storage mapper.
+// Provider contract = the live api.cotality.com/trestle Property resource, nothing else: every
+// field name below is verified against the dated live field pull (data/cotality-property-fields.live.json)
+// by tests/runtime/provider-authority-census.test.ts. REBNY / UCBA appear here only as the
+// compliance and policy layer that governs display; RESO only as vocabulary where a comment
+// needs it. No provider fact is fabricated: a record that lacks a fact Mallan storage cannot
+// represent as unknown is refused (UnrepresentableProviderRecordError), never defaulted.
+// READ-ONLY: maps inbound data only — nothing goes back to Cotality.
 
 import { affirmPermission } from "@/lib/compliance/gates";
 import { slimRawData } from "@/lib/compliance/raw-data-keep-fields";
 import { classifyMediaItem } from "@/lib/media/listing-media-resolver";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
+import { LEGACY_MALLAN_FORM_CONTROL_KEYS } from "@/lib/compliance/legacy-form-keys";
 
-// ═══════════════════════════════════════════════════════════
-// RESO-to-RLS RENAMES (23 fields)
-// Trestle sends the RLS name; we normalize to our canonical name.
-// ═══════════════════════════════════════════════════════════
-export const RESO_TO_RLS_RENAMES: Record<string, string> = {
-  SourceSystemKey: "ListingKey",
-  MlsStatus: "StandardStatus",
-  SourceSystemModificationTimestamp: "ModificationTimestamp",
-  BuyerAgentMlsId: "BuyerAgentKey",
-  BuyerOfficeMlsId: "BuyerOfficeKey",
-  BuyerTeamMlsId: "BuyerTeamKey",
-  CableTVExpense: "CableTvExpense",
-  CoBuyerAgentMlsId: "CoBuyerAgentKey",
-  CoBuyerOfficeMlsId: "CoBuyerOfficeKey",
-  DuplicateListingIDs: "CoExclusiveListingKey",
-  CoListAgent2MLSID: "CoListAgent2Key",
-  CoListAgent3MLSID: "CoListAgent3Key",
-  CoListAgentMlsId: "CoListAgentKey",
-  ListAgentMlsId: "ListAgentKey",
-  ListOfficeMlsId: "ListOfficeKey",
-  ListTeamMlsId: "ListTeamKey",
-  LotSizeSource: "LotDimensionsSource",
-  ShowingContactPhone: "ShowingContactPhoneExt",
-  UnParsedAddress: "UnparsedAddress",
-};
+/**
+ * A provider record that Mallan storage cannot represent honestly. Thrown by
+ * mapTrestleToPrisma instead of inventing a value (the pre-Packet-2 mapper defaulted a
+ * missing status to "Active", a missing ListPrice to "0" and a missing ModificationTimestamp
+ * to the local clock). Callers already run validateRequiredFields first; this is the
+ * fail-loud backstop so no path can persist a fabricated fact.
+ */
+export class UnrepresentableProviderRecordError extends Error {
+  constructor(public readonly field: string, public readonly listingId: string) {
+    super(`Cotality record ${listingId || "(no ListingId)"} cannot be stored: ${field} is absent and Mallan storage cannot represent it as unknown`);
+    this.name = "UnrepresentableProviderRecordError";
+  }
+}
 
-// CeilingHeightFeet + CeilingHeightInches → CeilingHeight (split into 2)
-// Handled specially in mapTrestleToPrisma
-
-// ═══════════════════════════════════════════════════════════
-// ALL RLS PROPERTY FIELD NAMES (for $select query)
-// Grouped by the 29 RLS categories (B1–B29)
+// ═══════════════════════════════════════════════════════════════════════════════
+// COTALITY PROPERTY FIELD NAMES (the live $select contract)
+// Grouped by Mallan's own working categories (B1–B30). Every name is a live Cotality
+// Property field; names that exist only in REBNY's submission spec were removed
+// (Packet 2 closure, 2026-09-05) — they are not provider fields.
 // ═══════════════════════════════════════════════════════════
 
 // B1: Address (25 fields)
@@ -48,16 +41,14 @@ const B1_ADDRESS = [
   "StreetSuffix", "UnitNumber", "City", "CityRegion", "SubdivisionName", "PostalCity",
   "PostalCode", "StateOrProvince", "CountyOrParish", "Country",
   "CrossStreet", "Directions", "Latitude", "Longitude",
-  "UnParsedAddress", "AlternateStreetName", "AlternateStreetNumber",
-  "AlternateStreetDirPrefix", "AlternateStreetDirSuffix",
-  "AlternateStreetSuffix", "MapCoordinate",
+  "MapCoordinate",
 ];
 
 // B2: Classification (18 fields)
 const B2_CLASSIFICATION = [
   // `ListingKey` is REQUIRED by the Property keyset cursor (2026-08-13).
   //
-  // `SourceSystemKey` alone is not enough. RESO_TO_RLS_RENAMES maps
+  // `SourceSystemKey` alone is not enough. The former alias table mapped
   // SourceSystemKey -> ListingKey defensively, but this feed sends ListingKey
   // DIRECTLY and leaves SourceSystemKey NULL. Verified live against
   // api.cotality.com the same day: a $select of both returns
@@ -71,7 +62,7 @@ const B2_CLASSIFICATION = [
   "ListingKey",
   "ListingId", "SourceSystemKey", "PropertyType", "PropertySubType",
   "CommonInterest", "OwnershipType", "StructureType", "NewConstructionYN",
-  "NewDevelopmentYN", "DevelopmentStatus", "NumberOfUnitsTotal",
+  "DevelopmentStatus", "NumberOfUnitsTotal",
   "NumberOfUnitsVacant", "NumberOfUnitsLeased", "NumberOfBuildings",
   "StoriesTotal", "NumberOfSeparateElectricMeters", "NumberOfSeparateGasMeters",
   "NumberOfSeparateWaterMeters", "BusinessType",
@@ -81,39 +72,36 @@ const B2_CLASSIFICATION = [
 const B3_LISTING_AGREEMENT = [
   "ListingAgreement", "ListingContractDate", "ExpirationDate",
   "OriginalEntryTimestamp", "ListingService", "MlsStatus",
-  "DuplicateListingIDs", "ParticipantTypes", "ExclusiveAgency",
   "InternetEntireListingDisplayYN", "InternetAddressDisplayYN",
   "SyndicationRemarks",
-  "Permission", // Owner opt-out detection — required by checkDistributionGates() (singular, not "Permissions")
+  "Permission", // Owner opt-out detection — required by checkDistributionGates() (singular, not )
 ];
 
 // B4: Status & Dates (32 fields)
 const B4_STATUS_DATES = [
-  "StandardStatus", "SourceSystemModificationTimestamp",
+  "StandardStatus",
   "ModificationTimestamp", "StatusChangeTimestamp",
-  "ActivationDate", "ActivationTimestamp", "OnMarketDate",
+  "ActivationDate", "OnMarketDate",
   "OffMarketDate", "OffMarketTimestamp", "BackOnMarketDate",
   "BackOnMarketTimestamp", "ContractStatusChangeDate",
   "PurchaseContractDate", "CloseDate", "ClosePrice",
-  "CancelationDate", "WithdrawnDate",
+  "WithdrawnDate",
   "DaysOnMarket", "CumulativeDaysOnMarket",
   "PendingTimestamp", "ContingentDate",
   "AvailabilityDate",
   // PossessionDate is RESO-standard but Trestle ignores it (CLAUDE.md, verified
   // 2026-04-19). Use AvailabilityDate for rental availability and CloseDate for
   // sale possession.
-  "ComingSoonDate", "ComingSoonTimestamp",
-  "ActiveOpenHouseCount",
   "OriginalListPrice", "PreviousListPrice",
   "ListPriceLow", "ListPrice",
-  "LastChangeType", "LastChangeTimestamp",
+  
 ];
 
 // B5: Pricing Extras (8 fields)
 const B5_PRICING = [
-  "SpecialListingConditions", "SaleType", "Concessions",
+  "SpecialListingConditions", "Concessions",
   "ConcessionsAmount", "ConcessionsComments",
-  "AuctionType", "LeaseAmount", "LeaseAmountFrequency",
+  "LeaseAmount", "LeaseAmountFrequency",
 ];
 
 // B6: Display Flags / Distribution
@@ -153,11 +141,11 @@ const B9_COLIST_AGENT = [
   "CoListAgentDirectPhone", "CoListAgentURL",
   "CoListOfficeMlsId", "CoListOfficeKey", "CoListOfficeName",
   "CoListOfficePhone",
-  "CoListAgent2MLSID", "CoListAgent2Key", "CoListAgent2FirstName",
+  "CoListAgent2Key", "CoListAgent2FirstName",
   "CoListAgent2LastName", "CoListAgent2FullName",
-  "CoListAgent3MLSID", "CoListAgent3Key", "CoListAgent3FirstName",
+  "CoListAgent3Key", "CoListAgent3FirstName",
   "CoListAgent3LastName", "CoListAgent3FullName",
-  "CoListTeamKey", "CoListTeamName",
+  
 ];
 
 // B10: Buyer Agent & Office (18 fields)
@@ -178,34 +166,33 @@ const B11_COBUYER_AGENT = [
   "CoBuyerAgentDirectPhone", "CoBuyerAgentURL",
   "CoBuyerOfficeMlsId", "CoBuyerOfficeKey", "CoBuyerOfficeName",
   "CoBuyerOfficePhone",
-  "CoBuyerTeamKey", "CoBuyerTeamName",
+  
 ];
 
 // B12: Unit Rooms & Size (25 fields)
 const B12_UNIT_ROOMS = [
   "BedroomsTotal", "BathroomsFull", "BathroomsHalf",
   "BathroomsOneQuarter", "BathroomsThreeQuarter",
-  "BathroomsPartial", "BathroomsTotal", "BathroomsTotalInteger",
+  "BathroomsPartial", "BathroomsTotalInteger",
   "LivingArea", "LivingAreaUnits", "LivingAreaSource",
   "AboveGradeFinishedArea", "AboveGradeFinishedAreaSource",
   "AboveGradeFinishedAreaUnits", "BelowGradeFinishedArea",
   "BelowGradeFinishedAreaSource", "BelowGradeFinishedAreaUnits",
   "BuildingAreaTotal", "BuildingAreaSource", "BuildingAreaUnits",
-  "RoomsTotal", "NumberOfDiningAreas", "NumberOfMasterBathrooms",
-  "CeilingHeightFeet", "CeilingHeightInches",
-  "TotalLegalRooms", "Levels", "Stories", "EntryLevel",
+  "RoomsTotal",
+  "Levels", "Stories", "EntryLevel",
 ];
 
 // B13: Building Details (23 fields)
 const B13_BUILDING = [
-  "BuildingName", "BuilderName", "ArchitectName",
+  "BuildingName", "BuilderName", 
   "YearBuilt", "YearBuiltSource", "YearBuiltDetails",
   "ArchitecturalStyle", "ConstructionMaterials",
-  "Roof", "Foundation", "Heating", "Cooling",
+  "Roof", "Heating", "Cooling",
   // Search/CRM filters and reporting depend on these live IDX Plus fields.
   "Basement", "CoolingYN", "HeatingYN", "DirectionFaces",
   "ElectricOnPropertyYN", "Sewer", "WaterSource",
-  "OtherStructures", "FloorNumber", "FloorNumberInBuilding",
+  "OtherStructures",
   "BuildingKeyNumeric", "BasementYN", "FoundationArea", "FoundationDetails",
 ];
 
@@ -214,12 +201,9 @@ const B14_BUILDING_AMENITIES = [
   "BuildingFeatures",
   "AssociationAmenities", "CommunityFeatures",
   "SecurityFeatures", "AccessibilityFeatures",
-  "BuildingAccessibilityFeatures",
-  "AttendanceType", "ElevatorYN",
   "PoolPrivateYN", "PoolFeatures", "SpaYN", "SpaFeatures",
-  "GymYN", "DoormanYN", "LaundryFeatures",
-  "StorageYN", "BicycleStorageYN",
-  "WalkScore", "TransitScore", "BikeScore",
+  "LaundryFeatures",
+  "WalkScore",
   "CommonWalls",
 ];
 
@@ -241,7 +225,7 @@ const B16_FINANCIAL_BUILDING = [
   "GrossIncome", "GrossScheduledIncome", "NetOperatingIncome",
   "OperatingExpense", "OperatingExpenseIncludes",
   "IncomeIncludes", "NumberOfUnitsTotal",
-  "CapRate", "GrossRentMultiplier", "PricePerUnit",
+  "CapRate",
 ];
 
 // B17: Expenses (16 fields)
@@ -251,7 +235,7 @@ const B17_EXPENSES = [
   "NewTaxesExpense", "OtherExpense", "PestControlExpense",
   "ProfessionalManagementExpense", "SuppliesExpense",
   "TrashExpense", "VacancyAllowance", "WaterSewerExpense",
-  "WorkmansCompensationExpense", "CableTVExpense",
+  "WorkmansCompensationExpense",
 ];
 
 // B18: Concessions (4 fields)
@@ -264,7 +248,7 @@ const B18_CONCESSIONS = [
 const B19_LOT_LAND = [
   "LotSizeArea", "LotSizeUnits", "LotSizeSource",
   "LotSizeDimensions", "LotDimensionsSource",
-  "LotFeatures", "FrontageLength", "FrontageLengthUnits",
+  "LotFeatures", "FrontageLength", 
   "FrontageLengthUnit",
   "FrontageType", "RoadSurfaceType", "RoadFrontageType",
   "Topography", "Vegetation", "WaterfrontFeatures",
@@ -279,8 +263,6 @@ const B20_UNIT_FEATURES = [
   "FireplacesTotal", "Appliances", "PatioAndPorchFeatures",
   "Fencing", "View", "ViewYN",
   "Exposures",
-  "BathroomCondition", "KitchenCondition",
-  "AreaOverFAR", "AreaUnderFAR",
   "Furnished", "PropertyCondition", "CurrentUse",
 ];
 
@@ -293,10 +275,7 @@ const B21_PARKING = [
 
 // B22: Outdoor & Pets (8 fields)
 const B22_OUTDOOR_PETS = [
-  "GardenYN", "GardenDescription",
-  "DeckYN", "DeckDescription",
-  "PatioYN", "PatioDescription",
-  "PetsAllowed", "PetRestrictions",
+  "PetsAllowed",
 ];
 
 // B23: Showings (8 fields)
@@ -309,7 +288,7 @@ const B23_SHOWINGS = [
 
 // B24: New Development (6 fields)
 const B24_NEW_DEV = [
-  "NewConstructionYN", "NewDevelopmentYN",
+  "NewConstructionYN",
   "DevelopmentStatus", "BuilderName",
   "BuilderModel", "GreenBuildingVerificationType",
 ];
@@ -319,7 +298,7 @@ const B25_GREEN = [
   "GreenEnergyEfficient", "GreenEnergyGeneration",
   "GreenWaterConservation", "GreenIndoorAirQuality",
   "GreenSustainability", "GreenBuildingVerificationType",
-  "GreenCertification", "PowerProductionType",
+  "PowerProductionType",
 ];
 
 // B26: Media — Property-level media metadata (counts, timestamps, tour URLs).
@@ -332,7 +311,7 @@ export const B26_MEDIA = [
   "VirtualTourURLBranded", "VirtualTourURLUnbranded", "VirtualTourURLUnbranded2", "VirtualTourURLUnbranded3",
   "DocumentsAvailable", "DocumentsCount", "DocumentsChangeTimestamp",
   "MapURL",
-  "Media", "MediaURL",
+  
 ];
 
 // B27: Rental-Specific
@@ -345,13 +324,12 @@ export const B26_MEDIA = [
 //   - MoveInCostsAmountTotal still does NOT exist on Trestle — kept out (phantom).
 const B27_RENTAL = [
   "LeaseAmount", "LeaseAmountFrequency",
-  "LeaseConsideredTerms", "LeaseTerm",
+  "LeaseTerm",
   "AvailabilityDate",
   "AvailableLeaseType", "ExistingLeaseType",
-  "Furnished", "FurnishedDescription",
-  "PetsAllowed", "PetDeposit", "PetRestrictions",
-  "RentalApplicationRequired", "ApplicationFee",
-  "SecurityDeposit", "KeyDeposit",
+  "Furnished",
+  "PetsAllowed", "PetDeposit", 
+  "SecurityDeposit",
   "TenantPays",
   // FARE Act fee transparency (NYC LL 119/2024)
   // MoveInCosts (multi-select cost types) + MoveInCostsAmount (Edm.Decimal $) +
@@ -360,11 +338,9 @@ const B27_RENTAL = [
   "OngoingFees", "TenantPaysDescription",
 ];
 
-// B30: FARE Act Custom Property Fields (4 fields — need $expand=CustomProperty)
-const B30_FARE_ACT_FEES = [
-  "AdditionalFee", "AdditionalFeeDescription",
-  "AdditionalFeeYN", "FeeFrequency",
-];
+// (The FARE Act fee fields AdditionalFee / AdditionalFeeDescription / AdditionalFeeYN / FeeFrequency live on the
+// Cotality CustomProperty resource, not on Property — they are read through the CustomProperty expansion,
+// never selected on Property. Removed from this list in the Packet 2 closure.)
 
 // B28: (empty in REBNY — reserved)
 // B29: Other / Misc (12 fields)
@@ -378,9 +354,8 @@ const B29_OTHER = [
   "CountyOrParish",
   "WaterfrontYN",
 ];
-
-/** All REBNY IDX Plus Property field names combined. Deduplicated. */
-export const ALL_RLS_FIELDS: string[] = [...new Set([
+/** Every live Cotality Property field Mallan reads, deduplicated (union of the categories above). */
+export const COTALITY_PROPERTY_FIELDS: string[] = [...new Set([
   ...B1_ADDRESS, ...B2_CLASSIFICATION, ...B3_LISTING_AGREEMENT,
   ...B4_STATUS_DATES, ...B5_PRICING, ...B6_DISPLAY_FLAGS,
   ...B7_REMARKS, ...B8_LIST_AGENT, ...B9_COLIST_AGENT,
@@ -389,91 +364,24 @@ export const ALL_RLS_FIELDS: string[] = [...new Set([
   ...B16_FINANCIAL_BUILDING, ...B17_EXPENSES, ...B18_CONCESSIONS,
   ...B19_LOT_LAND, ...B20_UNIT_FEATURES, ...B21_PARKING,
   ...B22_OUTDOOR_PETS, ...B23_SHOWINGS, ...B24_NEW_DEV,
-  ...B25_GREEN, ...B26_MEDIA, ...B27_RENTAL, ...B30_FARE_ACT_FEES, ...B29_OTHER,
+  ...B25_GREEN, ...B26_MEDIA, ...B27_RENTAL, ...B29_OTHER,
 ])];
 
-// ═══════════════════════════════════════════════════════════
-// IDX PLUS FEED — FIELD EXCLUSIONS
-// These 85 fields exist in the full RLS spec but are NOT available
-// on the IDX Plus feed ("IDX Plus feed for Mallan Real Estate Inc").
-// Validated live against Trestle on 2026-03-04.
-//
-// Reasons:
-//   - IDX/VOW/Participant gate fields: pre-filtered by Trestle (the feed
-//     only returns listings that pass these gates, so the fields aren't exposed)
-//   - Media: navigation property — requires $expand=Media, not $select
-//   - Team MLS IDs, some building/rental details: not provisioned on IDX Plus
-//
-// Trestle IDX Plus WebAPI provides all 1,363 fields. VOW-enriched fields
-// (ClosePrice, DaysOnMarket, etc.) are served to authenticated portal users
-// via sanitizeForVOW() in lib/compliance/dto.ts — no license upgrade needed.
-// ═══════════════════════════════════════════════════════════
-const IDX_PLUS_EXCLUDED_FIELDS = new Set([
-  // (IDX*/VOW*/IDXParticipationYN/ParticipantOnlyYN previously listed here are
-  // not present in any of the canonical B-category arrays anymore; they do not
-  // exist on live Trestle — the gate model uses the `Permission` enum.)
-  // Address alternates
-  "UnParsedAddress", "AlternateStreetName", "AlternateStreetNumber",
-  "AlternateStreetDirPrefix", "AlternateStreetDirSuffix", "AlternateStreetSuffix",
-  // Classification
-  "NewDevelopmentYN",
-  // Listing agreement
-  "DuplicateListingIDs", "ParticipantTypes", "ExclusiveAgency",
-  // Status & dates (PossessionDate already removed from B4_STATUS_DATES — RESO-only)
-  "SourceSystemModificationTimestamp", "ActivationTimestamp",
-  "CancelationDate",
-  "ComingSoonDate", "ComingSoonTimestamp",
-  "ActiveOpenHouseCount", "LastChangeType", "LastChangeTimestamp",
-  // Pricing
-  "SaleType", "AuctionType",
-  // Agent/team
-  "ListTeamMlsId", "BuyerTeamMlsId",
-  "CoListAgent2MLSID", "CoListAgent3MLSID",
-  "CoListTeamKey", "CoListTeamName",
-  "CoBuyerTeamKey", "CoBuyerTeamName",
-  // Unit rooms
-  "BathroomsTotal", "CeilingHeightFeet", "CeilingHeightInches",
-  "NumberOfDiningAreas", "NumberOfMasterBathrooms", "TotalLegalRooms",
-  // Building (BuildingKeyNumeric re-enabled — Trestle 6.17, deployed 2026-03-04, metadata live 2026-03-10)
-  "ArchitectName", "FloorNumber", "FloorNumberInBuilding",
-  "Foundation",
-  // Building amenities
-  "BuildingAccessibilityFeatures", "AttendanceType",
-  "ElevatorYN", "GymYN", "DoormanYN",
-  "StorageYN", "BicycleStorageYN",
-  "TransitScore", "BikeScore",
-  // Financial
-  "GrossRentMultiplier", "PricePerUnit", "CableTVExpense",
-  // Lot & land
-  "FrontageLengthUnits",
-  // Unit features
-  "BathroomCondition", "KitchenCondition", "AreaOverFAR", "AreaUnderFAR",
-  // Outdoor & pets
-  "GardenYN", "GardenDescription", "DeckYN", "DeckDescription",
-  "PatioYN", "PatioDescription", "PetRestrictions",
-  // Green
-  "GreenCertification",
-  // Media navigation property + Media-resource field — excluded from the flat
-  // Property $select; media items are fetched via $expand=Media / fetchListingMedia
-  // (classified by MediaCategory). Phantom *URL names removed 2026-06-04 (not on live).
-  "Media", "MediaURL",
-  // Rental
-  "LeaseConsideredTerms", "FurnishedDescription",
-  "RentalApplicationRequired", "ApplicationFee", "KeyDeposit",
-  // (MoveInCostsAmount + MoveInCostsComments are NOT excluded — they are live
-  // Property fields selected via B27_RENTAL as of 2026-06-04. MoveInCostsAmountTotal
-  // remains absent from live and is simply never listed in any B-category array.)
-  // FARE Act CustomProperty fields (need $expand=CustomProperty)
-  "AdditionalFee", "AdditionalFeeDescription", "AdditionalFeeYN", "FeeFrequency",
+// Live Cotality Property fields Mallan deliberately does NOT request on the IDX Plus $select
+// (present on the live resource; not part of the feed licence Mallan reads, or never needed).
+// Verified live 2026-09-05. Keep this the ONLY reason a live field is absent from the select.
+const LIVE_FIELDS_NOT_SELECTED = new Set<string>([
+  "ListTeamMlsId",
+  "BuyerTeamMlsId",
 ]);
 
 /**
- * Fields validated for the IDX Plus feed $select query.
- * = ALL_RLS_FIELDS minus fields not available on the IDX Plus feed.
- * Use this for $select in fetchFromTrestle() to avoid 400 errors.
+ * The IDX Plus feed $select list = every live Cotality Property field Mallan reads,
+ * minus the live fields deliberately not requested. Verified live by the sync itself
+ * (a non-live name is an HTTP 400) and by the census guard.
  */
-export const IDX_PLUS_SELECT_FIELDS: string[] = ALL_RLS_FIELDS.filter(
-  (f) => !IDX_PLUS_EXCLUDED_FIELDS.has(f)
+export const IDX_PLUS_SELECT_FIELDS: string[] = COTALITY_PROPERTY_FIELDS.filter(
+  (f) => !LIVE_FIELDS_NOT_SELECTED.has(f)
 );
 
 // ═══════════════════════════════════════════════════════════
@@ -491,21 +399,14 @@ const HIDDEN_FIELDS = new Set([
   "ListOfficePhone", "ListOfficeURL", "ListOfficeEmail",
 ]);
 
-// CTL fields — agent-controlled distribution gates. The canonical fields on live
-// Trestle (verified 2026-04-19) are the Internet-* gates plus the Permission enum
-// and SyndicateTo. The legacy IDX*/VOW*/IDXParticipationYN/ParticipantOnlyYN/
-// SyndicateYN names are retained as defensive entries so getFieldProfile() also
-// classifies legacy payloads as CTL — they should never leak through public DTOs.
+// CTL fields — agent-controlled distribution gates on the live Cotality Property resource:
+// the Internet-* gates plus the Permission enum and SyndicateTo. Legacy Mallan FORM keys that
+// once carried these decisions are classified by lib/compliance/legacy-form-keys.ts — they are
+// Mallan form vocabulary, not provider fields, and never belong in this map.
 const CONTROL_FIELDS = new Set([
-  // Live-Trestle canonical
   "InternetEntireListingDisplayYN", "InternetAddressDisplayYN",
   "InternetAutomatedValuationDisplayYN", "InternetConsumerCommentYN",
   "Permission", "SyndicateTo",
-  // Legacy-name guards (do NOT exist on live Trestle — defensive only)
-  "IDXEntireListingDisplayYN", "IDXAutomatedValuationDisplayYN",
-  "IDXParticipationYN", "ParticipantOnlyYN",
-  "VOWEntireListingDisplayYN", "VOWAutomatedValuationDisplayYN",
-  "VOWConsumerCommentYN", "SyndicateYN",
 ]);
 
 const CLOSE_ONLY_FIELDS = new Set([
@@ -518,7 +419,7 @@ const CLOSE_ONLY_FIELDS = new Set([
 /** Get the distribution profile for a field. */
 export function getFieldProfile(fieldName: string): DistProfile {
   if (HIDDEN_FIELDS.has(fieldName)) return "HID";
-  if (CONTROL_FIELDS.has(fieldName)) return "CTL";
+  if (CONTROL_FIELDS.has(fieldName) || LEGACY_MALLAN_FORM_CONTROL_KEYS.has(fieldName)) return "CTL";
   if (CLOSE_ONLY_FIELDS.has(fieldName)) return "CLOSE";
   if (fieldName.startsWith("CoBuyer") || fieldName.startsWith("Buyer")) return "AGT";
   return "PUB";
@@ -571,28 +472,25 @@ function pick(
   return result;
 }
 
-/** Normalize rename: if Trestle sends RLS name, map to our canonical name. */
+/**
+ * Identity pass-through kept as the single entry point for raw records. The pre-Packet-2 alias
+ * table (SourceSystemKey→ListingKey, MlsStatus→StandardStatus, …) copied one live field into
+ * another or read names that do not exist on the live resource; the mapper reads every live
+ * field by its own name, so no alias is applied.
+ */
 function normalizeRenames(raw: Record<string, unknown>): Record<string, unknown> {
-  const normalized = { ...raw };
-  for (const [rlsName, canonicalName] of Object.entries(RESO_TO_RLS_RENAMES)) {
-    if (rlsName in normalized && !(canonicalName in normalized)) {
-      normalized[canonicalName] = normalized[rlsName];
-    }
-  }
-  // Special: CeilingHeightFeet + CeilingHeightInches → combined
-  // /* IDX-VALIDATE-IGNORE: CeilingHeight fields excluded from IDX Plus — only populated on CRM listing submissions, not IDX fetch */
-  if (normalized.CeilingHeightFeet || normalized.CeilingHeightInches) {
-    const feet = Number(normalized.CeilingHeightFeet) || 0;
-    const inches = Number(normalized.CeilingHeightInches) || 0;
-    normalized.CeilingHeight = feet + inches / 12; /* IDX-VALIDATE-IGNORE: derived field */
-  }
-  return normalized;
+  return { ...raw };
 }
 
 /**
  * Determine listing_type from PropertyType.
  */
-function inferListingType(raw: Record<string, unknown>): "sale" | "rent" {
+/**
+ * Mallan's inventory-type classification of the live PropertyType enum (13 members, verified
+ * 2026-09-05): the two *Lease members are rentals, every other member is a sale. The ONE place
+ * this classification lives — the Search engine and the public DTO import it.
+ */
+export function inferListingType(raw: Record<string, unknown>): "sale" | "rent" {
   const pt = String(raw.PropertyType || "").toLowerCase();
   if (pt.includes("lease") || pt.includes("rental")) return "rent";
   return "sale";
@@ -707,9 +605,11 @@ const STATUS_ALIASES: Record<string, string> = {
  * automatically.
  */
 export function normalizeStandardStatus(input: unknown): string {
-  if (typeof input !== 'string') return 'Active';
+  // An absent / empty status is UNKNOWN and stays empty. It is never "Active": every reader
+  // treats '' as not-displayable / draft-like (fail-closed), which is the honest outcome.
+  if (typeof input !== 'string') return '';
   const trimmed = input.trim();
-  if (!trimmed) return 'Active';
+  if (!trimmed) return '';
 
   // Fast path — exact-case canonical.
   if (
@@ -794,7 +694,7 @@ export function normalizeStandardStatus(input: unknown): string {
 //     of the other flags (this is the H1 fix at writer-side; the cron is
 //     belt-and-suspenders for DB-direct mutation paths).
 export interface ComputeGateColumnsInput {
-  /** REBNY/RESO StandardStatus value. Normalized internally via
+  /** Cotality StandardStatus value (live enum). Normalized internally via
    * `normalizeStandardStatus`; safe to pass un-normalized strings. */
   status: unknown;
   /** Trestle / form field. null = displayable per IDX Plus pre-filter. */
@@ -887,18 +787,14 @@ export interface PermissionGates {
  * fields to reproduce ingest's decision; supplying only `Permission` silently
  * loses the `MlsStatus='OwnerOptOut'` arm.
  *
- * @param raw Trestle Property record — reads `Permission` (legacy alias
- *            `Permissions`) and `MlsStatus`. Any other key is ignored.
+ * @param raw Cotality Property record — reads `Permission` and `MlsStatus`. Any other key is ignored.
  */
 export function derivePermissionGates(raw: Record<string, unknown>): PermissionGates {
   // REBNY Gate 2 — "Participant Only" = Permissions enum value 'Private' per
   // UCBA 2026 H4 / Definitions (W) and data/rebny-rls-property-lookup.csv:1643.
-  const permissions =
-    typeof raw.Permission === 'string'
-      ? raw.Permission
-      : typeof raw.Permissions === 'string'
-        ? raw.Permissions
-        : '';
+  // Permission is the live field (enum verified 2026-09-05). No alias: "Permissions" is not a
+  // Cotality field (it is a Mallan form key handled by lib/compliance/normalizer.ts).
+  const permissions = typeof raw.Permission === 'string' ? raw.Permission : '';
   const participantOnly = permissions === 'Private';
   // REBNY Gate 1 — Owner Opt-Out via Permission enum (compliance/IDX-VOW-DISPLAY-RULES.md:31).
   const ownerOptOut =
@@ -958,7 +854,11 @@ export function computeGateColumns(
   // the existing inline CRM POST gate (`rlsEligible && ...` in
   // app/api/crm/listings/route.ts) so commercial / website-only listings
   // can never become publicly-displayable IDX rows.
+  // An UNKNOWN status ('' after normalization) is never displayable — fail-closed. The
+  // pre-Packet-2 helper normalized an absent status to "Active" and therefore displayed it.
+  const status_known = normalized_status !== '';
   const idx_display_yn =
+    status_known &&
     rls_eligible &&
     !is_terminal &&
     internet_entire_listing_display_yn &&
@@ -1028,11 +928,23 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
 
   const listingId = String(raw.ListingId || raw.ListingKey || "");
   const mlsId = raw.ListingKey ? String(raw.ListingKey) : null;
-  const status = String(raw.StandardStatus || raw.MlsStatus || "Active");
+  // StandardStatus is the provider's status fact. Absent → unrepresentable (listings.status is
+  // NOT NULL). MlsStatus is a different, richer vocabulary and is never substituted for it.
+  if (raw.StandardStatus == null || String(raw.StandardStatus).trim() === "") {
+    throw new UnrepresentableProviderRecordError("StandardStatus", listingId);
+  }
+  const status = String(raw.StandardStatus);
+  if (raw.PropertyType == null || String(raw.PropertyType).trim() === "") {
+    throw new UnrepresentableProviderRecordError("PropertyType", listingId);
+  }
   const listingType = inferListingType(raw);
 
-  // Explicit columns
-  const listPrice = raw.ListPrice != null ? String(raw.ListPrice) : "0"; // String for Prisma Decimal precision
+  // Explicit columns. ListPrice absent → unrepresentable (listings.list_price is NOT NULL and 0 is a
+  // real price, never a stand-in for unknown).
+  if (raw.ListPrice == null || raw.ListPrice === "") {
+    throw new UnrepresentableProviderRecordError("ListPrice", listingId);
+  }
+  const listPrice = String(raw.ListPrice); // String for Prisma Decimal precision
   const bedroomsTotal = raw.BedroomsTotal != null ? Number(raw.BedroomsTotal) : null;
   const bathroomsFull = raw.BathroomsFull != null ? Number(raw.BathroomsFull) : null;
   const bathroomsHalf = raw.BathroomsHalf != null ? Number(raw.BathroomsHalf) : null;
@@ -1146,7 +1058,6 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
     ...pick(raw, B24_NEW_DEV),
     ...pick(raw, B25_GREEN),
     ...pick(raw, B27_RENTAL),
-    ...pick(raw, B30_FARE_ACT_FEES),
     ...pick(raw, B29_OTHER),
   };
   // S1 (#415): stop persisting the redundant Trestle `compliance` JSON copy.
@@ -1208,10 +1119,12 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
           .filter((m: { url: string }) => m.url)
       : [];
 
-  // Timestamps
-  const modTimestamp = raw.ModificationTimestamp
-    ? new Date(String(raw.ModificationTimestamp))
-    : new Date();
+  // Timestamps. ModificationTimestamp absent or unparseable → unrepresentable (the column is
+  // NOT NULL and the local clock is not a provider fact).
+  const modTimestamp = raw.ModificationTimestamp ? new Date(String(raw.ModificationTimestamp)) : null;
+  if (!modTimestamp || Number.isNaN(modTimestamp.getTime())) {
+    throw new UnrepresentableProviderRecordError("ModificationTimestamp", listingId);
+  }
   const contractDate = raw.ListingContractDate
     ? new Date(String(raw.ListingContractDate))
     : null;
@@ -1312,31 +1225,29 @@ export function checkDistributionGates(raw: Record<string, unknown>): {
   return { displayable: false, reason: result.reason };
 }
 
-/** 41 required REBNY RLS fields that must be present for a valid listing. */
-export const REQUIRED_RLS_FIELDS = [
-  // Absolute minimum to identify and store a listing.
-  // Verified against live Trestle data — only fields that are ALWAYS present.
-  // Many UCBA "mandatory" fields are mandatory for LISTING INPUT (via LMP),
-  // not for every record on the IDX feed. Trestle returns null for optional fields.
+/**
+ * Live Cotality Property fields a record must carry before Mallan stores it. Verified live
+ * 2026-09-05: on 591,546 Property rows, ListPrice / StandardStatus / ModificationTimestamp /
+ * PropertyType / ListingId are null on 0. REBNY's "mandatory for listing input" fields are a
+ * submission-form rule, not a feed fact, and are NOT enforced here.
+ */
+export const REQUIRED_COTALITY_FIELDS = [
   "ListingId", "PropertyType", "ListPrice", "StandardStatus",
   "StreetName", "City", "StateOrProvince", "PostalCode",
   "ListAgentMlsId", "ListOfficeName",
   "ModificationTimestamp",
-  // Note: StreetNumber, BedroomsTotal, BathroomsFull, LivingArea, YearBuilt,
-  // TaxAnnualAmount, TaxYear, OwnershipType, MlsStatus, ActivationDate, PhotosCount,
-  // etc. are often null on Trestle — especially for new, incomplete, or special listings.
-  // The sync should accept these and store what's available, not reject the entire listing.
+  // Everything else is nullable live and is stored as unknown (null), never defaulted.
 ];
 
 /**
- * Validate that a raw Trestle record contains all 41 required fields.
+ * Validate that a raw Cotality record carries every REQUIRED_COTALITY_FIELDS entry.
  */
 export function validateRequiredFields(raw: Record<string, unknown>): {
   valid: boolean;
   missingFields: string[];
 } {
   const normalized = normalizeRenames(raw);
-  const missing = REQUIRED_RLS_FIELDS.filter(
+  const missing = REQUIRED_COTALITY_FIELDS.filter(
     (field) => normalized[field] === undefined || normalized[field] === null
   );
   return { valid: missing.length === 0, missingFields: missing };

@@ -25,6 +25,10 @@ export const CANONICAL_STATUSES = [
   'Expired',
   'Hold',
   'Cancelled',
+  // Rental close (already a stored Mallan status: the status route and the agent page treat
+  // 'Rented' as the rental terminal state). Packet 2 closure made the server own the rental
+  // workflow → canonical conversion the browser used to do.
+  'Rented',
 ] as const;
 
 export type CanonicalStatus = typeof CANONICAL_STATUSES[number];
@@ -53,6 +57,19 @@ export const CRM_WORKFLOW_STATUSES = [
   'Expired',
   'Hold',
   'Cancelled',
+  // Rental workflow (the rental form's own pipeline)
+  'AppOut',
+  'AppThruUs',
+  'AppAccepted',
+  'AppAcceptedThruUs',
+  'LeaseOut',
+  'LeaseOutThruUs',
+  'LeaseSigned',
+  'LeaseSignedThruUs',
+  'Rented',
+  'RentedThruUs',
+  'Leased',
+  'LeasedThruUs',
 ] as const;
 
 export type CrmWorkflowStatus = typeof CRM_WORKFLOW_STATUSES[number];
@@ -86,6 +103,20 @@ const WORKFLOW_TO_CANONICAL: Record<CrmWorkflowStatus, CanonicalStatus> = {
   Expired: 'Expired',
   Hold: 'Hold',
   Cancelled: 'Cancelled',
+  // Rental workflow → canonical (mirrors the sale pipeline: an application or lease in progress
+  // is Pending; a signed-and-closed lease is the rental terminal state Rented).
+  AppOut: 'Pending',
+  AppThruUs: 'Pending',
+  AppAccepted: 'Pending',
+  AppAcceptedThruUs: 'Pending',
+  LeaseOut: 'Pending',
+  LeaseOutThruUs: 'Pending',
+  LeaseSigned: 'Pending',
+  LeaseSignedThruUs: 'Pending',
+  Rented: 'Rented',
+  RentedThruUs: 'Rented',
+  Leased: 'Rented',
+  LeasedThruUs: 'Rented',
 };
 
 /** Agent-facing display labels */
@@ -112,6 +143,18 @@ const DISPLAY_LABELS: Record<CrmWorkflowStatus, string> = {
   Expired: 'Expired',
   Hold: 'Hold',
   Cancelled: 'Cancelled',
+  AppOut: 'Application Out',
+  AppThruUs: 'Application Thru Us',
+  AppAccepted: 'Application Accepted',
+  AppAcceptedThruUs: 'Application Accepted Thru Us',
+  LeaseOut: 'Lease Out',
+  LeaseOutThruUs: 'Lease Out Thru Us',
+  LeaseSigned: 'Lease Signed',
+  LeaseSignedThruUs: 'Lease Signed Thru Us',
+  Rented: 'Rented',
+  RentedThruUs: 'Rented Thru Us',
+  Leased: 'Leased',
+  LeasedThruUs: 'Leased Thru Us',
 };
 
 const CANONICAL_SET = new Set<string>(CANONICAL_STATUSES);
@@ -125,6 +168,7 @@ const PUBLIC_DISPLAY_STATUSES: Set<CanonicalStatus> = new Set([
 
 const TERMINAL_STATUSES: Set<CanonicalStatus> = new Set([
   'Sold',
+  'Rented',
   'Withdrawn',
   'Expired',
   'Cancelled',
@@ -186,8 +230,8 @@ const CRM_TRANSITIONS: Record<CrmWorkflowStatus, CrmWorkflowStatus[]> = {
   Draft: ['Future', 'Active', 'ComingSoon'],
   Future: ['Active', 'ComingSoon', 'Draft'],
   ComingSoon: ['Active', 'Withdrawn'],
-  Active: ['OfferOut', 'OfferThruUs', 'BackOnMarket', 'ContractOut', 'COThruUs', 'TempOffMarket', 'Withdrawn', 'Expired'],
-  BackOnMarket: ['OfferOut', 'OfferThruUs', 'ContractOut', 'COThruUs', 'TempOffMarket', 'Withdrawn', 'Expired'],
+  Active: ['OfferOut', 'OfferThruUs', 'BackOnMarket', 'ContractOut', 'COThruUs', 'TempOffMarket', 'Withdrawn', 'Expired', 'AppOut', 'AppThruUs'],
+  BackOnMarket: ['OfferOut', 'OfferThruUs', 'ContractOut', 'COThruUs', 'TempOffMarket', 'Withdrawn', 'Expired', 'AppOut', 'AppThruUs'],
   OfferOut: ['Active', 'OfferAccepted', 'OAThruUs', 'BackOnMarket'],
   OfferThruUs: ['Active', 'OfferAccepted', 'OAThruUs', 'BackOnMarket'],
   OfferAccepted: ['ContractOut', 'COThruUs', 'Active', 'BackOnMarket'],
@@ -196,7 +240,7 @@ const CRM_TRANSITIONS: Record<CrmWorkflowStatus, CrmWorkflowStatus[]> = {
   COThruUs: ['ContractSigned', 'ContractSignedThruUs', 'Active', 'BackOnMarket'],
   ContractSigned: ['BoardApproved', 'Sold', 'SoldThruUs', 'Active', 'BackOnMarket'],
   ContractSignedThruUs: ['BoardApproved', 'Sold', 'SoldThruUs', 'Active', 'BackOnMarket'],
-  BoardApproved: ['Sold', 'SoldThruUs', 'Active', 'BackOnMarket'],
+  BoardApproved: ['Sold', 'SoldThruUs', 'Rented', 'RentedThruUs', 'Active', 'BackOnMarket'],
   Sold: [],
   SoldThruUs: [],
   TempOffMarket: ['Active', 'BackOnMarket'],
@@ -205,6 +249,18 @@ const CRM_TRANSITIONS: Record<CrmWorkflowStatus, CrmWorkflowStatus[]> = {
   Expired: ['Active', 'Draft'],
   Hold: ['Active', 'Draft'],
   Cancelled: [],
+  AppOut: ['Active', 'AppAccepted', 'AppAcceptedThruUs', 'BackOnMarket'],
+  AppThruUs: ['Active', 'AppAccepted', 'AppAcceptedThruUs', 'BackOnMarket'],
+  AppAccepted: ['LeaseOut', 'LeaseOutThruUs', 'LeaseSigned', 'LeaseSignedThruUs', 'Active', 'BackOnMarket'],
+  AppAcceptedThruUs: ['LeaseOut', 'LeaseOutThruUs', 'LeaseSigned', 'LeaseSignedThruUs', 'Active', 'BackOnMarket'],
+  LeaseOut: ['LeaseSigned', 'LeaseSignedThruUs', 'Active', 'BackOnMarket'],
+  LeaseOutThruUs: ['LeaseSigned', 'LeaseSignedThruUs', 'Active', 'BackOnMarket'],
+  LeaseSigned: ['BoardApproved', 'Rented', 'RentedThruUs', 'Active', 'BackOnMarket'],
+  LeaseSignedThruUs: ['BoardApproved', 'Rented', 'RentedThruUs', 'Active', 'BackOnMarket'],
+  Rented: [],
+  RentedThruUs: [],
+  Leased: [],
+  LeasedThruUs: [],
 };
 
 /**

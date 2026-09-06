@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import { fetchFromTrestle } from '@/lib/idx/fetch';
 import { getAccessToken } from '@/lib/idx/auth';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
-import { mapRESOToInternal, generateAttributionText } from '@/lib/idx/mapping';
-import { toPublicDTO, annotateCoListedSiblings } from '@/lib/idx/public-dto';
+import { generateAttributionText } from '@/lib/idx/attribution';
+import { cotalityRecordsToPublicDTOs } from '@/lib/idx/cotality-public-dto';
+import { annotateCoListedSiblings } from '@/lib/idx/public-dto';
 import { CARD_SELECT_FIELDS } from '@/lib/idx/card-fields';
 import prisma from '@/lib/prisma';
 import { geocodeListings } from '@/lib/geo/geocode';
@@ -146,11 +147,11 @@ function checkRateLimit(ip: string): boolean {
 /**
  * GET /api/listings
  *
- * COMPLIANCE PIPELINE (Option A — distribution gates on raw Trestle data):
+ * COMPLIANCE PIPELINE (distribution gates on raw Cotality data, ONE canonical chain):
  *   fetchFromTrestle() → raw records
  *   checkDistributionGates(raw) → filter non-displayable
- *   mapRESOToInternal(raw) → IDXListing
- *   toPublicDTO(listing) → PublicListingDTO (strips private data, suppresses address)
+ *   cotalityRecordsToPublicDTOs(raw) → mapTrestleToPrisma → dbListingToPublicDTO
+ *     (the same projection the DB path uses; strips private data, suppresses address)
  *
  * When IDX_ENABLED=true: fetches from Trestle/REBNY RLS via OData v4.
  * When IDX_ENABLED=false: returns empty with clear indicator.
@@ -877,10 +878,16 @@ export async function GET(request: Request) {
           }
         }
 
-        // Step 2: Map to IDXListing
-        const mapped = subTypeFiltered
-          .map((raw) => mapRESOToInternal(raw))
-          .filter((l): l is NonNullable<typeof l> => l !== null);
+        // Step 2: ONE canonical provider mapping (mapTrestleToPrisma) → the same public projection
+        // the DB path uses. Gates already ran on the raw records above. A record the canonical
+        // mapper refuses (absent status / price / timestamp) is counted and logged, never defaulted.
+        const projected = cotalityRecordsToPublicDTOs(subTypeFiltered, { alreadyGated: true });
+        if (projected.unrepresentable.length > 0) {
+          console.warn('[/api/listings] unrepresentable Cotality records skipped:',
+            projected.unrepresentable.map((u) => `${u.listingId}:${u.field}`).join(', '));
+        }
+        const listingKeyNumericById = projected.listingKeyNumericById;
+        const mapped = projected.dtos;
 
         // Step 3: Post-fetch filters (can't push to OData)
         let filtered = mapped;
@@ -958,7 +965,7 @@ export async function GET(request: Request) {
             if (ohRes.ok) {
               const ohData = await ohRes.json();
               const ohListingKeys = new Set((ohData.value || []).map((r: Record<string, unknown>) => String(r.ListingKey)));
-              filtered = filtered.filter(l => ohListingKeys.has(l.listingId));
+              filtered = filtered.filter(l => ohListingKeys.has(l.id));
             }
           } catch (ohErr) {
             console.warn('[/api/listings] Open house filter failed:', ohErr instanceof Error ? ohErr.message : ohErr);
@@ -991,8 +998,8 @@ export async function GET(request: Request) {
             for (let i = 0; i < needsPhotos.length; i += CONCURRENCY) {
               const batch = needsPhotos.slice(i, i + CONCURRENCY);
               const results = await Promise.allSettled(batch.map(async (listing) => {
-                const media = await fetchListingMedia(listing.listingId, {
-                  listingKeyNumeric: listing.listingKeyNumeric,
+                const media = await fetchListingMedia(listing.id, {
+                  listingKeyNumeric: listingKeyNumericById.get(listing.id),
                 });
                 if (media.length > 0) {
                   const PH = ['cotality.com', 'corelogic.com'];
@@ -1003,7 +1010,7 @@ export async function GET(request: Request) {
                       : m.url,
                   })) as typeof listing.media;
                 }
-                return { id: listing.listingId, count: media.length };
+                return { id: listing.id, count: media.length };
               }));
               // Phase 1 photo-batch results are surfaced through the audit
               // trail at the call site, not logged here.
@@ -1034,7 +1041,7 @@ export async function GET(request: Request) {
               const { resolveDbListingMedia, toDtoMedia } = await import('@/lib/media/listing-media-resolver');
               const dbListings = await prisma.listing.findMany({
                 where: {
-                  listing_id: { in: stillEmpty.map(l => l.listingId) },
+                  listing_id: { in: stillEmpty.map(l => l.id) },
                 },
                 select: {
                   listing_id: true,
@@ -1075,7 +1082,7 @@ export async function GET(request: Request) {
                 })),
               );
               for (const dbL of dbListings) {
-                const listing = stillEmpty.find(l => l.listingId === dbL.listing_id);
+                const listing = stillEmpty.find(l => l.id === dbL.listing_id);
                 if (!listing) continue;
                 const tableRows = Array.isArray(dbL.listing_media) ? dbL.listing_media : [];
                 const resolved = resolveDbListingMedia(
@@ -1107,7 +1114,7 @@ export async function GET(request: Request) {
         // Wait for both to finish in parallel
         await Promise.allSettled([photoPromise, geocodePromise]);
 
-        const publicListings = pageListings.map(toPublicDTO);
+        const publicListings = pageListings;
 
         // ── Merge local exclusive listings from DB ──
         // UCBA Art. I, Sec. 5: Simultaneous Distribution — only show listings

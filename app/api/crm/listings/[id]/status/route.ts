@@ -20,6 +20,7 @@ import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { checkFeeDisclosure, isDisplayReadyStatus } from "@/lib/crm/fee-disclosure";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import { listingCapabilities, CAPABILITY_DENIED } from "@/lib/auth/listing-capabilities";
+import { canonicalStatusFromForm } from "@/lib/crm/listing-form-mapping";
 
 // REBNY RLS status state machine
 // Valid transitions map: current → allowed next statuses
@@ -85,16 +86,38 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const newStatus = body.status;
-  if (!newStatus) {
+  const requested = body.status;
+  if (!requested) {
     return NextResponse.json(
       { error: "Missing 'status' field" },
       { status: 400 }
     );
   }
 
-  // Validate transition
+  // SERVER-OWNED conversion (Packet 2 closure): the client sends the Mallan workflow value
+  // (e.g. "OfferOut") or an already-canonical status; the server maps it. Unknown → 400.
+  const newStatus = canonicalStatusFromForm(requested);
+  if (!newStatus) {
+    return NextResponse.json(
+      { error: `Unrecognized status: ${String(requested)}`, code: "form_mapping" },
+      { status: 400 }
+    );
+  }
+
   const currentStatus = listing.status;
+  // Idempotent submit: the form re-sends its workflow status on every save; an unchanged
+  // canonical status is a no-op (no write, no transition check, no cache bust).
+  if (newStatus === currentStatus) {
+    return NextResponse.json({
+      id: listing.id.toString(),
+      listing_id: listing.listing_id,
+      previous_status: currentStatus,
+      status: currentStatus,
+      unchanged: true,
+    });
+  }
+
+  // Validate transition
   const allowed = STATUS_TRANSITIONS[currentStatus];
 
   if (!allowed) {

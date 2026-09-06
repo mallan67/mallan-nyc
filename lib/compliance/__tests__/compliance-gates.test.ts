@@ -11,76 +11,14 @@
  */
 
 import { checkDistributionGates, validateRequiredFields, mapTrestleToPrisma } from '@/lib/idx/trestle-mapper';
-import { toPublicDTO } from '@/lib/idx/public-dto';
+import { cotalityRecordToPublicDTO } from '@/lib/idx/cotality-public-dto';
 import { filterDisplayableDbListings } from '@/lib/idx/db-to-public-dto';
 import type { DbListing } from '@/lib/idx/db-to-public-dto';
 import { evaluateDisplayGate } from '@/lib/compliance/gates';
 import { assertRlsCompliantPayload } from '@/lib/compliance/rls-enforcement';
 import { escapeHtml } from '@/lib/sanitize';
-import type { IDXListing } from '@/lib/idx/types';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
-/** Build a complete IDXListing with sensible defaults. Override any field via partial. */
-function buildMockListing(overrides: Partial<IDXListing> = {}): IDXListing {
-  return {
-    listingId: 'TEST-123',
-    mlsId: 'MLS-456',
-    standardStatus: 'Active',
-    listingType: 'sale',
-    listPrice: 1500000,
-    originalListPrice: 1600000,
-    closePrice: null,
-    bedroomsTotal: 2,
-    bathroomsFull: 2,
-    bathroomsHalf: 0,
-    livingArea: 1200,
-    lotSizeArea: null,
-    yearBuilt: 2020,
-    propertyType: 'Residential',
-    propertySubType: null,
-    commonInterest: 'Condominium',
-    listOfficeName: 'Test Brokerage',
-    listOfficeMlsId: 'OFFICE-789',
-    listAgentFullName: 'Test Agent',
-    listAgentMlsId: 'AGENT-001',
-    listAgentEmail: 'agent@test.com',
-    media: [
-      { url: 'https://api.cotality.com/trestle/media/123.jpg', mediaType: 'Photo', order: 0 },
-    ],
-    photosCount: 1,
-    publicRemarks: 'Beautiful apartment in the heart of Chelsea.',
-    privateRemarks: 'Seller motivated. Will accept 1.4M.',
-    listingContractDate: '2026-01-01',
-    modificationTimestamp: '2026-03-01T00:00:00Z',
-    onMarketDate: '2026-01-15',
-    closeDate: undefined,
-    address: {
-      streetNumber: '100',
-      streetName: 'Main St',
-      unitNumber: '5A',
-      city: 'New York',
-      stateOrProvince: 'NY',
-      postalCode: '10001',
-      county: 'New York',
-      latitude: 40.7,
-      longitude: -74.0,
-      cityRegion: 'Chelsea',
-    },
-    internetAddressDisplayYN: true,
-    idxEntireListingDisplayYN: true,
-    internetEntireListingDisplayYN: true,
-    participantOnlyYN: false,
-    _source: 'idx',
-    _lastFetched: '2026-03-01T00:00:00Z',
-    _displayCompliance: {
-      requiresAttribution: true,
-      attributionText: 'Listing courtesy of REBNY RLS',
-      disclaimerRequired: true,
-    },
-    ...overrides,
-  };
-}
 
 /** Build a raw Trestle record for distribution gate / validation tests. */
 function buildRawTrestle(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -207,24 +145,23 @@ describe('checkDistributionGates', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 2. PUBLIC DTO (toPublicDTO)
+// 2. PUBLIC DTO (the canonical chain: cotalityRecordToPublicDTO)
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('toPublicDTO', () => {
-  it('suppresses address when internetAddressDisplayYN = false', () => {
-    const listing = buildMockListing({ internetAddressDisplayYN: false });
-    const dto = toPublicDTO(listing);
+describe('public DTO through THE canonical chain (cotalityRecordToPublicDTO)', () => {
+  const dtoOf = (overrides: Record<string, unknown> = {}) =>
+    cotalityRecordToPublicDTO(buildRawTrestle({ Latitude: 40.7, Longitude: -74.0, UnitNumber: '5A', ...overrides }), { alreadyGated: true })!;
 
+  it('suppresses address when InternetAddressDisplayYN = false', () => {
+    const dto = dtoOf({ InternetAddressDisplayYN: false });
     expect(dto.address.streetName).toBe('Address Undisclosed');
     expect(dto.address.streetNumber).toBe('');
     expect(dto.address.latitude).toBeUndefined();
     expect(dto.address.longitude).toBeUndefined();
   });
 
-  it('includes full address when internetAddressDisplayYN = true', () => {
-    const listing = buildMockListing({ internetAddressDisplayYN: true });
-    const dto = toPublicDTO(listing);
-
+  it('includes full address when InternetAddressDisplayYN = true', () => {
+    const dto = dtoOf({ InternetAddressDisplayYN: true });
     expect(dto.address.streetName).toBe('Main St');
     expect(dto.address.streetNumber).toBe('100');
     expect(dto.address.latitude).toBe(40.7);
@@ -232,20 +169,14 @@ describe('toPublicDTO', () => {
   });
 
   it('strips agent PII — no email, no MLS IDs in output', () => {
-    const listing = buildMockListing({
-      listAgentEmail: 'secret@brokerage.com',
-      listAgentMlsId: 'AGENT-SECRET-001',
-      listOfficeMlsId: 'OFFICE-SECRET-789',
+    const dto = dtoOf({
+      ListAgentEmail: 'secret@brokerage.com',
+      ListAgentMlsId: 'AGENT-SECRET-001',
+      ListOfficeMlsId: 'OFFICE-SECRET-789',
     });
-    const dto = toPublicDTO(listing);
     const json = JSON.stringify(dto);
-
-    // Office name IS included (public attribution = broker/office only)
     expect(dto.listOfficeName).toBe('Test Brokerage');
-    // Agent name must NOT be in public DTO (REBNY: public attribution = office only)
     expect(json).not.toContain('listAgentFullName');
-
-    // PII must NOT be present anywhere in the DTO
     expect(json).not.toContain('secret@brokerage.com');
     expect(json).not.toContain('AGENT-SECRET-001');
     expect(json).not.toContain('OFFICE-SECRET-789');
@@ -255,58 +186,40 @@ describe('toPublicDTO', () => {
   });
 
   it('never includes private remarks', () => {
-    const listing = buildMockListing({
-      privateRemarks: 'TOP SECRET: Seller desperate, will take lowball.',
-    });
-    const dto = toPublicDTO(listing);
+    const dto = dtoOf({ PrivateRemarks: 'TOP SECRET: Seller desperate, will take lowball.' });
     const json = JSON.stringify(dto);
-
     expect(json).not.toContain('TOP SECRET');
     expect(json).not.toContain('privateRemarks');
     expect(json).not.toContain('Seller desperate');
   });
 
-  it('proxies Trestle media URLs through /api/media/proxy', () => {
-    const listing = buildMockListing({
-      media: [
-        { url: 'https://api.cotality.com/trestle/media/photo1.jpg', mediaType: 'Photo', order: 0 },
-        { url: 'https://cdn.example.com/photo2.jpg', mediaType: 'Photo', order: 1 },
+  it('proxies Cotality media URLs through /api/media/proxy', () => {
+    const dto = dtoOf({
+      Media: [
+        { MediaURL: 'https://api.cotality.com/trestle/media/photo1.jpg', MediaCategory: 'Photo', Order: 0 },
+        { MediaURL: 'https://cdn.example.com/photo2.jpg', MediaCategory: 'Photo', Order: 1 },
       ],
     });
-    const dto = toPublicDTO(listing);
-
-    // Trestle URL should be proxied
     expect(dto.media[0].url).toContain('/api/media/proxy');
     expect(dto.media[0].url).toContain(encodeURIComponent('https://api.cotality.com/trestle/media/photo1.jpg'));
-
-    // Non-Trestle URL should pass through unchanged
     expect(dto.media[1].url).toBe('https://cdn.example.com/photo2.jpg');
   });
 
   it('sets comingSoon flag in _displayCompliance for Coming Soon listings', () => {
-    // Canonical value — the DB stores 'ComingSoon' (no space) per RESO.
-    // This was previously 'Coming Soon' which never fired the badge branch
-    // because public-dto compared against the wrong format.
-    const listing = buildMockListing({ standardStatus: 'ComingSoon' });
-    const dto = toPublicDTO(listing);
-
+    const dto = dtoOf({ StandardStatus: 'ComingSoon', MlsStatus: 'ComingSoon' });
     expect(dto._displayCompliance.comingSoon).toBe(true);
   });
 
   it('does not set comingSoon flag for Active listings', () => {
-    const listing = buildMockListing({ standardStatus: 'Active' });
-    const dto = toPublicDTO(listing);
-
-    expect(dto._displayCompliance.comingSoon).toBeUndefined();
+    expect(dtoOf({ StandardStatus: 'Active' })._displayCompliance.comingSoon).toBeUndefined();
   });
 
   it('includes REBNY attribution in _displayCompliance', () => {
-    const listing = buildMockListing();
-    const dto = toPublicDTO(listing);
-
+    const dto = dtoOf();
     expect(dto._displayCompliance.requiresAttribution).toBe(true);
     expect(dto._displayCompliance.attributionText).toBeTruthy();
     expect(dto._displayCompliance.disclaimerRequired).toBe(true);
+    expect(dto._source).toBe('idx');
   });
 });
 
@@ -871,88 +784,30 @@ describe('mapTrestleToPrisma — fail-closed on missing AVM/consumer-comment fla
   });
 });
 
-describe('toPublicDTO suppressAddress — fail-closed on null permission', () => {
-  function buildMinimalIdx(overrides: Partial<IDXListing> = {}): IDXListing {
-    return {
-      listingId: 'IDX-TEST-1',
-      mlsId: 'MLS-IDX-1',
-      standardStatus: 'Active',
-      listingType: 'sale',
-      listPrice: 1000000,
-      originalListPrice: 1000000,
-      closePrice: null,
-      bedroomsTotal: 1,
-      bathroomsFull: 1,
-      bathroomsHalf: 0,
-      livingArea: 800,
-      lotSizeArea: null,
-      yearBuilt: 2020,
-      propertyType: 'Residential',
-      propertySubType: null,
-      commonInterest: 'Condominium',
-      listOfficeName: 'Test',
-      listOfficeMlsId: 'OFF-1',
-      listAgentFullName: 'A',
-      listAgentMlsId: 'AGT-1',
-      listAgentEmail: 'a@b.com',
-      media: [],
-      photosCount: 0,
-      publicRemarks: '',
-      privateRemarks: '',
-      listingContractDate: '2026-01-01',
-      modificationTimestamp: '2026-03-01T00:00:00Z',
-      onMarketDate: '2026-01-01',
-      closeDate: undefined,
-      address: {
-        streetNumber: '100',
-        streetName: 'Main',
-        unitNumber: '5',
-        city: 'NYC',
-        stateOrProvince: 'NY',
-        postalCode: '10001',
-        county: 'New York',
-        latitude: 40.7,
-        longitude: -74.0,
-      },
-      internetAddressDisplayYN: true,
-      idxEntireListingDisplayYN: true,
-      internetEntireListingDisplayYN: true,
-      participantOnlyYN: false,
-      _source: 'idx',
-      _lastFetched: '2026-03-01T00:00:00Z',
-      _displayCompliance: {
-        requiresAttribution: true,
-        attributionText: 'x',
-        disclaimerRequired: true,
-      },
-      ...overrides,
-    };
-  }
+describe('canonical chain address suppression — live-record flags', () => {
+  // A LIVE record's null display flags mean "REBNY pre-filtered this row in" (displayable); only
+  // an explicit false suppresses. The former second builder was fail-closed on null at the DTO
+  // layer because its input was already a mapped object; that layer no longer exists. The
+  // fail-closed-on-null contract for PERSISTED rows is pinned by
+  // 'filterDisplayableDbListings — fail-closed on null permission flags' above.
+  const dtoOf = (overrides: Record<string, unknown>) =>
+    cotalityRecordToPublicDTO(buildRawTrestle({ Latitude: 40.7, Longitude: -74.0, ...overrides }), { alreadyGated: true })!;
 
-  it('suppresses address when internetAddressDisplayYN is null (was leaking before fix)', () => {
-    const dto = toPublicDTO(buildMinimalIdx({
-      internetAddressDisplayYN: null as unknown as boolean,
-    }));
+  it('null InternetAddressDisplayYN on a live record is displayable (IDX Plus pre-filter)', () => {
+    const dto = dtoOf({ InternetAddressDisplayYN: null });
+    expect(dto.address.streetName).toBe('Main St');
+    expect(dto.address.latitude).toBe(40.7);
+  });
+
+  it('explicit false InternetAddressDisplayYN suppresses address and coordinates', () => {
+    const dto = dtoOf({ InternetAddressDisplayYN: false });
     expect(dto.address.streetName).toBe('Address Undisclosed');
     expect(dto.address.streetNumber).toBe('');
     expect(dto.address.latitude).toBeUndefined();
   });
 
-  it('suppresses address when internetEntireListingDisplayYN is null (cascade)', () => {
-    const dto = toPublicDTO(buildMinimalIdx({
-      internetEntireListingDisplayYN: null as unknown as boolean,
-    }));
-    expect(dto.address.streetName).toBe('Address Undisclosed');
-    expect(dto.address.latitude).toBeUndefined();
-  });
-
-  it('shows address only when BOTH flags are explicitly true', () => {
-    const dto = toPublicDTO(buildMinimalIdx({
-      internetAddressDisplayYN: true,
-      internetEntireListingDisplayYN: true,
-    }));
-    expect(dto.address.streetName).toBe('Main');
-    expect(dto.address.latitude).toBe(40.7);
+  it('explicit false InternetEntireListingDisplayYN is refused by the distribution gate', () => {
+    expect(cotalityRecordToPublicDTO(buildRawTrestle({ InternetEntireListingDisplayYN: false }))).toBeNull();
   });
 });
 

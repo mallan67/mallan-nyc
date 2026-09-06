@@ -19164,12 +19164,10 @@ function manageShowToast(msg) {
             var tsEl = document.getElementById(formType + 'StatusChangeTimestamp');
             if (tsEl) tsEl.textContent = timestamp;
 
-            // Update RESO MlsStatus display
+            // The canonical (server) status is shown from the save response; the browser does not translate.
             var statusEl = document.getElementById(formType + 'Status');
             var resoEl = document.getElementById(formType + 'ResoMlsStatus');
-            if (statusEl && resoEl && typeof getResoMlsStatus === 'function') {
-                resoEl.textContent = getResoMlsStatus(statusEl.value);
-            }
+            if (statusEl && resoEl) resoEl.textContent = 'set by server on save';
 
             // Compute DOM (days since first Active)
             var activeKey = formType + '_firstActiveDate';

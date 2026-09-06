@@ -42,7 +42,7 @@ console.log(`REBNY fields loaded: ${rebnyData.length}`);
 // ─── 2. Load mapper fields ────────────────────────────────────────────
 const mapperSrc = fs.readFileSync(path.join(ROOT, 'lib', 'idx', 'trestle-mapper.ts'), 'utf8');
 
-// Extract ALL_RLS_FIELDS (B1-B30 arrays)
+// Extract COTALITY_PROPERTY_FIELDS (B1-B29 arrays — live Cotality Property fields only)
 const allMapperFields = new Set();
 const arrayRe = /const\s+B\d+_\w+\s*(?::\s*string\[\])?\s*=\s*\[([\s\S]*?)\];/g;
 let m;
@@ -52,21 +52,16 @@ while ((m = arrayRe.exec(mapperSrc)) !== null) {
   while ((sm = strRe.exec(m[1])) !== null) allMapperFields.add(sm[1]);
 }
 
-// Extract IDX_PLUS_EXCLUDED_FIELDS
+// Extract LIVE_FIELDS_NOT_SELECTED (live fields deliberately absent from the $select)
 const excludedFields = new Set();
-const exMatch = mapperSrc.match(/IDX_PLUS_EXCLUDED_FIELDS\s*=\s*new\s+Set\(\[([\s\S]*?)\]\)/);
+const exMatch = mapperSrc.match(/LIVE_FIELDS_NOT_SELECTED\s*=\s*new\s+Set<string>\(\[([\s\S]*?)\]\)/);
 if (exMatch) {
   const exRe = /['"](\w+)['"]/g;
   while ((m = exRe.exec(exMatch[1])) !== null) excludedFields.add(m[1]);
 }
 
-// Extract RESO_TO_RLS_RENAMES
+// The mapper carries no alias table (live Cotality field names only — Packet 2 closure).
 const renames = {};
-const renameMatch = mapperSrc.match(/RESO_TO_RLS_RENAMES[^{]*\{([\s\S]*?)\}/);
-if (renameMatch) {
-  const renRe = /['"](\w+)['"]\s*:\s*['"](\w+)['"]/g;
-  while ((m = renRe.exec(renameMatch[1])) !== null) renames[m[1]] = m[2];
-}
 
 console.log(`Mapper: ${allMapperFields.size} fields, ${excludedFields.size} excluded, ${Object.keys(renames).length} renames`);
 

@@ -9,6 +9,7 @@ import { NextResponse } from 'next/server';
 import { composeDbPublicMedia } from '@/lib/media/db-media-composition';
 import { getAccessToken } from '@/lib/idx/auth';
 import { mapPropertyTypeToDisplay } from '@/lib/idx/public-dto';
+import { displayPropertyType } from '@/lib/idx/display-property-type';
 import prisma from '@/lib/prisma';
 import { evaluateDisplayGate } from '@/lib/compliance/gates';
 import { resolveListingAgentInfo, AGENT_TYPED_SELECT } from '@/lib/listings/agent-info-resolver';
@@ -625,11 +626,10 @@ function formatTrestleTime(time: string | null | undefined): string {
   return time;
 }
 
+/** Open-house card label — delegates to THE display property-type implementation; a rental with no
+ *  ownership classification is labelled 'Rental', anything else shows the provider's own value or blank. */
 function mapPropertyType(commonInterest: string | null | undefined, propType: string | null | undefined): string {
-  switch (commonInterest) {
-    case 'Condominium': return 'Condo';
-    case 'StockCooperative': return 'Co-op';
-    case 'Condop': return 'Condop';
-    default: return propType === 'ResidentialLease' ? 'Rental' : 'Residential';
-  }
+  const t = displayPropertyType(commonInterest, null, propType);
+  if (t === 'ResidentialLease') return 'Rental';
+  return t ?? '';
 }

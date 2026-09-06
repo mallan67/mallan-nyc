@@ -13,6 +13,7 @@
 
 import prisma from '@/lib/prisma';
 import { mapTrestleToCrmListing } from '@/lib/search/crm-idx-mapper';
+import { derivePermissionGates } from '@/lib/idx/trestle-mapper';
 import { escapeOData } from './provider-query';
 import { queryProvider, walkProvider } from './provider-client';
 import type { UniverseRow } from './universe';
@@ -68,11 +69,17 @@ async function providerRecords(keys: readonly string[], select: readonly string[
   return { records, mediaRows: media.rows.length, mediaComplete: media.complete };
 }
 
-/** A provider row must carry Permission including IDX and must not carry an explicit false display flag. Null is not false. */
+/**
+ * Provider-row permission gate for the agent Search page — THE canonical interpretation
+ * (derivePermissionGates: Permission 'Private' = participant-only, owner opt-out arms) plus the
+ * IDX Plus display-flag convention (null is not false; only an explicit false blocks). Status is
+ * a search criterion here, not a gate, so the public closed-24h rule does not apply.
+ * Live 2026-09-05: 7,559 of 7,559 Active rows carry Permission 'IDX', 0 'Private', 0 null — the
+ * former "must include IDX" rule and this one agree on the whole live universe.
+ */
 function passesGate(raw: Record<string, unknown>): boolean {
-  const perm = raw.Permission;
-  const permOk = perm == null ? true : String(perm).split(',').map((s) => s.trim()).includes('IDX');
-  return permOk && raw.InternetEntireListingDisplayYN !== false;
+  const { participantOnly, ownerOptOut } = derivePermissionGates(raw);
+  return !participantOnly && !ownerOptOut && raw.InternetEntireListingDisplayYN !== false;
 }
 
 type MallanRow = {

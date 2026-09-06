@@ -10,7 +10,7 @@ import {
 } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { hasCredentials } from "@/lib/idx/auth";
-import { generateAttributionText } from "@/lib/idx/mapping";
+import { generateAttributionText } from "@/lib/idx/attribution";
 import { CRITERIA_VERSION, resolveStoredCriteria } from "@/lib/search/engine/saved-search";
 import { executeSearch } from "@/lib/search/engine/executor";
 import { ProviderError } from "@/lib/search/engine/provider-client";

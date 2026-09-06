@@ -563,7 +563,7 @@ body { font-family: Manrope, sans-serif; }
                     </div>
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
                         <p class="text-[10px] text-gray-500 uppercase">RESO MlsStatus</p>
-                        <p class="text-xs font-medium text-blue-700" id="rentalResoMlsStatus">Draft</p>
+                        <p class="text-xs font-medium text-blue-700" id="rentalResoMlsStatus">set by server on save</p>
                     </div>
                 </div>
                 <!-- Validation Panel -->
@@ -4625,9 +4625,9 @@ function updateRentalStatusFields() {
         if (rentedPrice) rentedPrice.style.display = '';
     }
 
-    // Update RESO MlsStatus display
+    // The canonical (server) status is shown from the save response; the browser does not translate.
     var resoDisplay = document.getElementById('rentalResoMlsStatus');
-    if (resoDisplay) resoDisplay.textContent = getResoRentalMlsStatus(status);
+    if (resoDisplay) resoDisplay.textContent = 'set by server on save';
 
     // Enable/disable Commission Request tab (Tab 7)
     var commTab = document.getElementById('sidebarTab7');
@@ -4808,44 +4808,8 @@ function navigateBackFromDistribution(formType) {
     }
 }
 
-// ═══════════════════════════════════════════════════════════
-// RESO 3-FIELD PROPERTY TYPE DECOMPOSITION (Rental)
-// Maps CRM radio value → { PropertyType, CommonInterest, PropertySubType }
-// ALL rental types use PropertyType: 'ResidentialLease' (not 'Residential')
-// ═══════════════════════════════════════════════════════════
-
-function getBuildingTypeMapping(buildingType) {
-    switch (buildingType) {
-        case 'Condo': return 'Condominium';
-        case 'Coop': return 'StockCooperative';
-        case 'Condop': return 'Condop';
-        default: return 'None';
-    }
-}
-
-function getResoPropertyFields(crmValue) {
-    const officeRetailOwnership = document.querySelector('input[name="rentalOfficeRetailOwnership"]:checked')?.value || null;
-
-    const MAP = {
-        'Condo':                    { PropertyType: 'ResidentialLease', CommonInterest: 'Condominium', PropertySubType: 'Apartment' },
-        'Coop':                     { PropertyType: 'ResidentialLease', CommonInterest: 'StockCooperative', PropertySubType: 'Apartment' },
-        'Condop':                   { PropertyType: 'ResidentialLease', CommonInterest: 'Condop',          PropertySubType: 'Apartment' },
-        'RentalBuilding':           { PropertyType: 'ResidentialLease', CommonInterest: 'RentalBuilding',  PropertySubType: 'Apartment' },
-        'SingleFamilyTownhouse':    { PropertyType: 'ResidentialLease', CommonInterest: 'None',            PropertySubType: 'SingleFamilyTownhouse' },
-        'MultiFamilyTownhouse':     { PropertyType: 'ResidentialLease', CommonInterest: 'None',            PropertySubType: 'MultiFamilyTownhouse' },
-        'SingleFamily':             { PropertyType: 'ResidentialLease', CommonInterest: 'None',            PropertySubType: 'SingleFamilyResidence' },
-        'MultiFamily':              { PropertyType: 'ResidentialLease', CommonInterest: 'None',            PropertySubType: 'MultiFamily' },
-        'MixedUse':                 { PropertyType: 'ResidentialLease', CommonInterest: 'None',            PropertySubType: 'MixedUse' },
-        'Loft':                     { PropertyType: 'ResidentialLease', CommonInterest: 'None',            PropertySubType: 'Loft' },
-        'Duplex':                   { PropertyType: 'ResidentialLease', CommonInterest: 'None',            PropertySubType: 'Duplex' },
-        'Triplex':                  { PropertyType: 'ResidentialLease', CommonInterest: 'None',            PropertySubType: 'Triplex' },
-        'Quadruplex':               { PropertyType: 'ResidentialLease', CommonInterest: 'None',            PropertySubType: 'Quadruplex' },
-        'Office':                   { PropertyType: 'ResidentialLease', CommonInterest: getBuildingTypeMapping(officeRetailOwnership), PropertySubType: 'Office' },
-        'Retail':                   { PropertyType: 'ResidentialLease', CommonInterest: getBuildingTypeMapping(officeRetailOwnership), PropertySubType: 'Retail' },
-        'Commercial':               { PropertyType: 'Commercial',      CommonInterest: 'None',            PropertySubType: '' },
-    };
-    return MAP[crmValue] || { PropertyType: 'ResidentialLease', CommonInterest: 'None', PropertySubType: '' };
-}
+// CRM → provider property-type mapping: REMOVED (Packet 2 closure). The SERVER owns the Mallan form → Cotality vocabulary conversion
+// (lib/crm/listing-form-mapping.ts); the browser sends Mallan form state only.
 
 /**
  * FARE Act — handles landlord-pays-broker-fee toggle.
@@ -4996,28 +4960,8 @@ function updateListingHeaderBar(prefix) {
     if (unit && unitDisp) unitDisp.textContent = unit.value || '[Unit]';
 }
 
-// ═══════════════════════════════════════════════════════════
-// CRM → RESO MlsStatus MAPPING (Rental)
-// REBNY RLS Section J: 9 statuses. Rentals use Closed (= Rented).
-// No ComingSoon for rentals per UCBA D1.
-// ═══════════════════════════════════════════════════════════
-
-const CRM_TO_RESO_RENTAL_STATUS = {
-    'Draft': 'Incomplete', 'Future': 'Incomplete',
-    'Active': 'Active', 'BackOnMarket': 'Active',
-    'AppOut': 'Pending', 'AppThruUs': 'Pending',
-    'AppAccepted': 'Pending', 'AppAcceptedThruUs': 'Pending',
-    'LeaseOut': 'Pending', 'LeaseOutThruUs': 'Pending',
-    'LeaseSigned': 'Pending', 'LeaseSignedThruUs': 'Pending',
-    'BoardApproved': 'Pending',
-    'Rented': 'Closed', 'RentedThruUs': 'Closed',
-    'Withdrawn': 'Withdrawn', 'Cancelled': 'Canceled',
-    'PermOffMarket': 'Withdrawn', 'TempOffMarket': 'Hold', 'Expired': 'Expired',
-};
-
-function getResoRentalMlsStatus(crmStatus) {
-    return CRM_TO_RESO_RENTAL_STATUS[crmStatus] || 'Active';
-}
+// CRM → provider status mapping: REMOVED (Packet 2 closure). The SERVER owns the Mallan form → Cotality vocabulary conversion
+// (lib/crm/listing-form-mapping.ts); the browser sends Mallan form state only.
 
 function validateStatusChange(prefix) {
     // Stub — full validation to be added
@@ -5667,14 +5611,9 @@ function collectRentalFormData() {
         }
     });
 
-    // Map CRM property type to RLS fields via getResoPropertyFields()
-    var resoFields = getResoPropertyFields(data.rentalPropertyType || '');
-    data.PropertyType = resoFields.PropertyType || 'ResidentialLease';
-    data.PropertySubType = resoFields.PropertySubType || '';
-    data.CommonInterest = resoFields.CommonInterest || data.rentalCommonInterest || '';
-
-    // Map CRM status to RLS MlsStatus
-    data.MlsStatus = (typeof getResoRentalMlsStatus === 'function') ? getResoRentalMlsStatus(data.rentalStatus || '') : (data.rentalStatus || '');
+    // PropertyType / PropertySubType / CommonInterest / MlsStatus are DERIVED BY THE SERVER from
+    // rentalPropertyType, rentalOfficeRetailOwnership and rentalStatus (lib/crm/listing-form-mapping.ts).
+    // The browser never decides the provider representation (Packet 2 closure).
 
     // Map key fields to RLS names — using CORRECT element IDs
     data.ListPrice = parseFloat(data.rentalMonthlyRent || '0') || 0;
@@ -6919,7 +6858,8 @@ function _populateRentalFormFromApi(listing) {
     setVal('rentalNeighborhood', listing.neighborhood || raw.MLSAreaMajor || '');
 
     // Property type
-    setRadio('rentalPropertyType', raw.PropertySubType || listing.property_sub_type || '');
+    // The Mallan form value is the restore key; the provider sub-type is a legacy fallback only.
+    setRadio('rentalPropertyType', raw.rentalPropertyType || raw.PropertySubType || listing.property_sub_type || '');
 
     // Price (rent). A3: real save control is rentalMonthlyRent (collectRentalFormData
     // reads val('rentalMonthlyRent')); the old rentalListPrice id does not exist.

@@ -581,7 +581,7 @@ const V2_BATCH = {
       data: ['lib/compliance/rebny-field-tables.ts'],
     },
     surface_patterns: {
-      gate: 'validate|REQUIRED_RLS_FIELDS',
+      gate: 'validate|REQUIRED_COTALITY_FIELDS',
       data: 'REBNY_FIELD_TABLES|enumValues',
     },
     expected_aggregate: 'PASS',

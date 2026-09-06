@@ -2,7 +2,7 @@
  * Floor-plan hero contract — the shared classification/ordering functions that
  * EVERY card/public hero surface now routes through:
  *   - server: /api/media/batch (default+detail), /api/listings/similar, agent-card-media,
- *     dbListingToPublicDTO, toPublicDTO, crm-idx-mapper  → classifyMediaItem /
+ *     dbListingToPublicDTO, cotality-public-dto, crm-idx-mapper  → classifyMediaItem /
  *     resolveListingMedia / resolveListingMediaFromRows / pickPrimaryPhotoUrl
  *   - client: getHeroPhoto / getValidPhotoMedia / isPhotoMedia (listing-card-media)
  *

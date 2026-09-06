@@ -24,7 +24,7 @@ const TYPED_KEYS = [
 
 function mapped() {
   return mapTrestleToPrisma({
-    ListingId: "RLS-C-1", ListingKey: "RLS-C-1", StandardStatus: "Active",
+    ListingId: "RLS-C-1", ListingKey: "RLS-C-1", StandardStatus: "Active", PropertyType: "Residential", ListPrice: 1000000, ModificationTimestamp: "2026-09-01T00:00:00Z",
     ListAgentFullName: "Jane Doe", ListOfficeName: "Acme Realty",
     ListAgentEmail: "jane@acme.com", ListAgentDirectPhone: "212-555-0100",
     ListOfficeMlsId: "OFF1", ListAgentMlsId: "AG1",

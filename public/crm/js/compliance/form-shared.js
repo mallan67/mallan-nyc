@@ -273,22 +273,8 @@
             if (warning) warning.style.display = 'none';
         }
 
-        /**
-         * Map building ownership type to RESO CommonInterest value
-         * Used by Office/Retail building type sub-selector
-         * @param {string} buildingType - Selected building ownership type
-         * @returns {string} - RESO CommonInterest value
-         */
-        function getBuildingTypeMapping(buildingType) {
-            switch (buildingType) {
-                case 'Condo':     return 'Condominium';
-                case 'Coop':      return 'Cooperative';
-                case 'Condop':    return 'Condop';
-                case 'Townhouse': return 'None';
-                case 'MixedUse':  return 'None';
-                case 'FeeSimple': return 'None';
-                default:          return 'None';
-            }
+        // getBuildingTypeMapping: REMOVED (Packet 2 closure). The SERVER derives CommonInterest for Office/Retail
+        // from the ownership sub-selector (lib/crm/listing-form-mapping.ts); it also wrote a non-live member ('Cooperative').
         }
 
         /**

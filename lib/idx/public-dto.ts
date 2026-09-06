@@ -1,7 +1,12 @@
 /**
  * Public Listing DTO — safe for API responses.
  *
- * COMPLIANCE: This module converts IDXListing → PublicListingDTO by:
+ * The DTO shape and its shared helpers live here. The ONE builder is
+ * lib/idx/db-to-public-dto.ts (storage row → PublicListingDTO); live Cotality records reach it
+ * through lib/idx/cotality-public-dto.ts (mapTrestleToPrisma → the same builder). The former
+ * second builder that consumed the retired provider-mapper type is gone (Packet 2 closure).
+ *
+ * COMPLIANCE: the builder produces a PublicListingDTO by:
  * - Stripping private remarks (never exposed)
  * - Stripping agent PII (email, phone, MLS IDs)
  * - Suppressing address when InternetAddressDisplayYN = false
@@ -11,38 +16,20 @@
  * @module lib/idx/public-dto
  */
 
-import type { IDXListing } from './types';
+import { displayPropertyType } from './display-property-type';
 import { generateListingSlug, stripListingIdSuffix } from '@/lib/listing-slug';
 import { buildCanonicalListingPath } from '@/lib/listing-canonical-url';
 import { isComingSoonStatus } from '@/lib/compliance/status';
 import { isAddressDisplayable } from '@/lib/compliance/gates';
 import { resolveListingMedia, toDtoMedia, tourUrlsForDto } from '@/lib/media/listing-media-resolver';
 
-/** Map Trestle property fields to user-friendly property type */
+/**
+ * Display property type — delegates to THE implementation in lib/idx/display-property-type.ts.
+ * `fallback` is the provider's own PropertyType (or a caller's already-derived display value);
+ * an unknown classification yields '' (unknown), never an invented "Residential".
+ */
 export function mapPropertyTypeToDisplay(commonInterest?: string, propertySubType?: string | null, fallback?: string): string {
-  // 1. CommonInterest is the most reliable for co-op/condo distinction
-  if (commonInterest) {
-    switch (commonInterest) {
-      case 'Condominium': return 'Condo';
-      case 'StockCooperative': return 'Co-op';
-      case 'Condop': return 'Condop';
-    }
-  }
-  // 2. PropertySubType often has the actual type
-  if (propertySubType) {
-    const sub = propertySubType.toLowerCase();
-    if (sub.includes('condo')) return 'Condo';
-    if (sub.includes('co-op') || sub.includes('coop') || sub.includes('stock cooperative')) return 'Co-op';
-    if (sub.includes('condop')) return 'Condop';
-    if (sub.includes('townhouse')) return 'Townhouse';
-    if (sub.includes('single family') || sub.includes('house')) return 'House';
-    if (sub.includes('multi') || sub.includes('multi-family')) return 'Multi-Family';
-    if (sub.includes('loft')) return 'Loft';
-    // "Apartment" is not useful — NYC listings are Co-op, Condo, or Condop
-    if (sub === 'apartment') return fallback || 'Residential';
-    return propertySubType;
-  }
-  return fallback || 'Residential';
+  return displayPropertyType(commonInterest, propertySubType, fallback) ?? '';
 }
 
 // Trestle MediaURL proxying + photo-first ordering moved to
@@ -69,7 +56,7 @@ function toIsoOrNull(value: unknown): string | null {
 /**
  * Build the public auction object from a listing source that may carry the
  * snake_case auction columns directly on the listing (DB path) or alongside
- * the canonical IDXListing shape (Trestle path).
+ * the storage-shaped record (live Cotality path through the canonical chain).
  *
  * Returns null when auction_yn is not strictly true. This is the single
  * source of truth for the AuctionBanner render-or-not decision —
@@ -361,198 +348,6 @@ export function resolveMoveInFees(
   };
 }
 
-/**
- * Convert an IDXListing to a public-safe DTO.
- *
- * Strips: privateRemarks, listAgentEmail, listAgentMlsId, listOfficeMlsId,
- *         showing instructions, compensation fields.
- * Suppresses: address + lat/lng when internetAddressDisplayYN is false.
- */
-export function toPublicDTO(listing: IDXListing): PublicListingDTO {
-  // Address display cascades through the internet-entire-listing gate;
-  // null/undefined on either flag suppresses (fail-closed).
-  const suppressAddress = !isAddressDisplayable(listing);
-
-  const address = suppressAddress
-    ? {
-        streetNumber: '',
-        streetName: 'Address Undisclosed',
-        unitNumber: null,
-        city: listing.address.city,
-        stateOrProvince: listing.address.stateOrProvince,
-        postalCode: listing.address.postalCode,
-        county: listing.address.county,
-        neighborhood: listing.address.cityRegion || undefined,
-        // No lat/lng when address is suppressed — prevents map pin leaking location
-      }
-    : {
-        streetNumber: listing.address.streetNumber,
-        streetName: listing.address.streetName,
-        unitNumber: listing.address.unitNumber,
-        city: listing.address.city,
-        stateOrProvince: listing.address.stateOrProvince,
-        postalCode: listing.address.postalCode,
-        county: listing.address.county,
-        neighborhood: listing.address.cityRegion || undefined,
-        latitude: listing.address.latitude,
-        longitude: listing.address.longitude,
-      };
-
-  // Use canonical helper — `listing.standardStatus` may arrive as the RESO
-  // no-space canonical ('ComingSoon') or as the legacy display form
-  // ('Coming Soon'); the helper accepts both. The old comparison here was
-  // `=== 'Coming Soon'` and silently never fired because DB values are
-  // always canonical (no space) — suppressing the REBNY §16(C) badge on
-  // every Coming Soon listing.
-  const isComingSoon = isComingSoonStatus(listing.standardStatus);
-  // Photo-first serialization (order = resolved index, isPrimary = hero flag).
-  const resolvedMedia = toDtoMedia(resolveListingMedia(listing.media));
-  const resolvedPhotoCount = resolvedMedia.filter(m => m.mediaType === 'Photo').length;
-
-  // Generate address-based slug — respects InternetAddressDisplayYN gate
-  const slug = generateListingSlug({
-    address: {
-      streetNumber: listing.address.streetNumber,
-      streetName: listing.address.streetName,
-      unitNumber: listing.address.unitNumber,
-      city: listing.address.city,
-      stateOrProvince: listing.address.stateOrProvince,
-      postalCode: listing.address.postalCode,
-    },
-    id: listing.listingId,
-    mlsId: listing.mlsId,
-    internetAddressDisplayYN: listing.internetAddressDisplayYN,
-  });
-
-  return {
-    id: listing.listingId,
-    mlsId: listing.mlsId,
-    slug,
-    url: buildCanonicalListingPath({ slug, id: listing.listingId }),
-    status: listing.standardStatus,
-    listingType: listing.listingType,
-    address,
-    listPrice: listing.listPrice,
-    originalListPrice: listing.originalListPrice,
-    previousListPrice: listing.previousListPrice,
-    closePrice: listing.closePrice,
-    propertyType: mapPropertyTypeToDisplay(listing.commonInterest, listing.propertySubType, listing.propertyType),
-    propertySubType: listing.propertySubType,
-    bedroomsTotal: listing.bedroomsTotal,
-    bathroomsFull: listing.bathroomsFull,
-    bathroomsHalf: listing.bathroomsHalf,
-    livingArea: listing.livingArea,
-    lotSizeArea: listing.lotSizeArea,
-    yearBuilt: listing.yearBuilt,
-    storiesTotal: listing.storiesTotal,
-    roomsTotal: listing.roomsTotal,
-    // Agent: office/broker name only — agent name stripped for public (REBNY attribution = office)
-    listOfficeName: listing.listOfficeName,
-    // Media — photo-first ordering via shared resolver. Replaces the prior
-    // pass-through `listing.media.map(...)` which trusted whatever order the
-    // writer (sync.ts) emitted and could surface a FloorPlan as media[0] for
-    // listings that arrived from Trestle with mixed-category ordering.
-    // resolveListingMedia also proxies Trestle URLs (replaces local proxyMediaUrl).
-    media: resolvedMedia,
-    photosCount: resolvedPhotoCount,
-    // Host-split video vs 3D, unbranded-preferred (UCBA §5(C)).
-    ...tourUrlsForDto([listing.virtualTourURLUnbranded], listing.virtualTourURLBranded),
-    // Public remarks only — private remarks are NEVER on IDXListing
-    publicRemarks: listing.publicRemarks,
-    // Dates
-    listingContractDate: listing.listingContractDate,
-    modificationTimestamp: listing.modificationTimestamp,
-    onMarketDate: listing.onMarketDate,
-    closeDate: listing.closeDate,
-    // Building & Amenities
-    buildingName: listing.buildingName,
-    architecturalStyle: listing.architecturalStyle,
-    interiorFeatures: listing.interiorFeatures,
-    buildingFeatures: listing.buildingFeatures,
-    exteriorFeatures: listing.exteriorFeatures,
-    appliances: listing.appliances,
-    laundryFeatures: listing.laundryFeatures,
-    securityFeatures: listing.securityFeatures,
-    attendanceType: listing.attendanceType,
-    communityFeatures: listing.communityFeatures,
-    associationAmenities: listing.associationAmenities,
-    parkingFeatures: listing.parkingFeatures,
-    poolFeatures: listing.poolFeatures,
-    spaFeatures: listing.spaFeatures,
-    heating: listing.heating,
-    cooling: listing.cooling,
-    flooring: listing.flooring,
-    petsAllowedDetail: listing.petsAllowed,
-    // Financial
-    associationFee: listing.associationFee,
-    associationFeeFrequency: listing.associationFeeFrequency,
-    taxAnnualAmount: listing.taxAnnualAmount,
-    taxYear: listing.taxYear,
-    // Rental
-    leaseAmount: listing.leaseAmount,
-    leaseAmountFrequency: listing.leaseAmountFrequency,
-    petsAllowed: listing.petsAllowed,
-    furnished: listing.furnished,
-    availabilityDate: listing.availabilityDate,
-    daysOnMarket: listing.daysOnMarket,
-    cumulativeDaysOnMarket: listing.cumulativeDaysOnMarket,
-    moveInCosts: listing.moveInCosts,
-    ongoingFees: listing.ongoingFees,
-    tenantPays: listing.tenantPays,
-    tenantPaysDescription: listing.tenantPaysDescription,
-    additionalFeeYN: listing.additionalFeeYN,
-    additionalFee: listing.additionalFee,
-    additionalFeeDescription: listing.additionalFeeDescription,
-    feeFrequency: listing.feeFrequency,
-    // Auction (UCBA Art. I exception path) — null on non-auction listings.
-    // The IDXListing canonical type doesn't yet carry the snake_case auction
-    // columns; the DB-mapped path (lib/idx/sync.ts) attaches them alongside,
-    // and the Trestle direct path resolves them through CustomFields.
-    auction: buildAuctionPublic(listing as unknown),
-    // Source & compliance
-    _source: listing._source,
-    _displayCompliance: {
-      ...listing._displayCompliance,
-      comingSoon: isComingSoon || undefined,
-      comingSoonDate: isComingSoon ? listing.activationDate : undefined,
-    },
-  };
-}
-
-/**
- * Option C (PR-FE.2, 2026-05-15) — annotate co-listed siblings.
- *
- * Walks the array once, groups listings by their canonical address slug
- * (= the listing.slug stripped of any Option D `-rlsXXX` listing_id
- * suffix), and for every listing in a group of size > 1 sets:
- *
- *   _coListedCount: <N - 1>     // number of OTHER listings at this address
- *   _coListedBrokerages: [...]  // their listOfficeName values (deduped, NOT including self)
- *
- * Pure function: returns a NEW array, does not mutate inputs.
- *
- * Skips entries whose slug is an MLS-ID fallback (`listing-rlsXXX`) — those
- * are address-suppressed listings and cannot meaningfully share an
- * address with another row. Also skips entries with an empty slug.
- *
- * Designed for per-page annotation in the /api/listings route. Does NOT
- * make any DB query — siblings outside the current page are not counted.
- * That's intentional: the badge surfaces what's visually duplicated on
- * the page the user is currently looking at. Cross-page sibling
- * detection would require a separate query and is out of scope.
- */
-/**
- * PR-A (2026-06-05) — a listing is "Mallan-relevant" for the co-listed badge if
- * it is a Mallan exclusive / internal listing. The yellow "Additional listing
- * source" badge must NOT render on ordinary third-party-vs-third-party
- * co-listings (e.g. a Compass listing and a Corcoran listing of the same unit) —
- * labeling a competitor's card with "Additional listing source: {competitor}"
- * misrepresents third-party listings. Signals (DTO-present, no new schema field):
- *   - `id` (= listing_id) prefixed `SL-` / `RL-` — Mallan CRM sale/rental
- *     exclusive (the same `isCrmExclusive` check as db-to-public-dto.ts; note a
- *     third-party `RLS…` id does NOT match `RL-`).
- *   - `_source === 'exclusive'` — Mallan exclusive (mallan-exclusive provenance).
- */
 function isMallanRelevantListing(dto: PublicListingDTO | undefined): boolean {
   if (!dto) return false;
   const id = dto.id ?? '';

@@ -3,7 +3,7 @@
  *
  * The bug: a single listing on `/api/listings` (DB-first list) returned a
  * full street + unit address and `_source: "exclusive"`, while the same
- * listing on `/api/listings/:id` (Trestle live detail) returned
+ * listing on `/api/listings/:id` (live detail through the since-retired duplicate mapper) returned
  * `streetName: "Address Undisclosed"` and `_source: "idx"`. The list path
  * also hard-coded `disclaimerRequired: false` on every row, masking the
  * REBNY RLS disclaimer requirement for 10,484 third-party listings.
@@ -23,8 +23,7 @@
  * these tests fail and surface the regression before deploy.
  */
 
-import { mapRESOToInternal } from '../../lib/idx/mapping';
-import { toPublicDTO } from '../../lib/idx/public-dto';
+import { cotalityRecordToPublicDTO } from '../../lib/idx/cotality-public-dto';
 import {
   dbListingToPublicDTO,
   buildSourceAndCompliance,
@@ -125,9 +124,7 @@ describe('list/detail DTO parity for the same logical listing (C1)', () => {
       InternetEntireListingDisplayYN: null,
       InternetAddressDisplayYN: null,
     };
-    const idxListing = mapRESOToInternal(trestleRaw);
-    expect(idxListing).not.toBeNull();
-    const detailDto = toPublicDTO(idxListing!);
+    const detailDto = cotalityRecordToPublicDTO(trestleRaw, { alreadyGated: true })!;
 
     // List path: DB row → DTO. The writer (sync.ts) bakes the null upstream
     // into `internet_address_display_yn=true` in the DB column, so the row
@@ -151,8 +148,7 @@ describe('list/detail DTO parity for the same logical listing (C1)', () => {
       InternetEntireListingDisplayYN: true,
       InternetAddressDisplayYN: false,
     };
-    const idxListing = mapRESOToInternal(trestleRaw);
-    const detailDto = toPublicDTO(idxListing!);
+    const detailDto = cotalityRecordToPublicDTO(trestleRaw, { alreadyGated: true })!;
     expect(detailDto.address.streetName).toBe('Address Undisclosed');
     expect(detailDto.address.unitNumber).toBeNull();
   });
@@ -177,8 +173,7 @@ describe('list/detail DTO parity for the same logical listing (C1)', () => {
       InternetEntireListingDisplayYN: true,
       InternetAddressDisplayYN: true,
     };
-    const idxListing = mapRESOToInternal(trestleRaw);
-    const detailDto = toPublicDTO(idxListing!);
+    const detailDto = cotalityRecordToPublicDTO(trestleRaw, { alreadyGated: true })!;
     expect(detailDto._displayCompliance.disclaimerRequired).toBe(true);
   });
 });
@@ -212,25 +207,22 @@ describe('public identity semantics across source paths', () => {
   };
 
   it('public `id` AGREES across both paths — this is the stable public identity', () => {
-    const detailDto = toPublicDTO(mapRESOToInternal(trestleRaw)!);
+    const detailDto = cotalityRecordToPublicDTO(trestleRaw, { alreadyGated: true })!;
     const listDto = dbListingToPublicDTO(DB_ROW_BASE);
     expect(detailDto.id).toBe('RLS20059088');
     expect(listDto.id).toBe('RLS20059088');
     expect(detailDto.id).toBe(listDto.id);
   });
 
-  it('DOCUMENTED DIVERGENCE: `mlsId` does NOT agree across paths', () => {
-    const detailDto = toPublicDTO(mapRESOToInternal(trestleRaw)!);
-    const listDto = dbListingToPublicDTO(DB_ROW_BASE);
-
-    // Trestle path publishes the numeric provider ListingKey.
-    expect(detailDto.mlsId).toBe('1146011469');
-    // DB path publishes listing_id — the RLS id, not the provider key.
+  it('`mlsId` AGREES across paths — it is the PUBLIC listing id on both (one identity)', () => {
+    // Both paths run the same builder now, so the former "documented divergence" (the retired
+    // second builder exposed the provider ListingKey as mlsId) cannot recur. The provider record
+    // key is stored as mls_id and carried by the live projection result for media lookups only.
+    const detailDto = cotalityRecordToPublicDTO(trestleRaw, { alreadyGated: true })!;
+    const listDto = dbListingToPublicDTO({ ...DB_ROW_BASE, mls_id: '1146011469' });
+    expect(detailDto.mlsId).toBe('RLS20059088');
     expect(listDto.mlsId).toBe('RLS20059088');
-
-    // The divergence is real. When it is resolved, this assertion must be
-    // replaced by an equality assertion — NOT deleted.
-    expect(detailDto.mlsId).not.toBe(listDto.mlsId);
+    expect(detailDto.mlsId).toBe(listDto.mlsId);
   });
 });
 
@@ -403,13 +395,11 @@ describe('third-party listings are never attributed to Mallan', () => {
   });
 
   it('Trestle path: attribution never claims Mallan for a Compass listing', () => {
-    const detailDto = toPublicDTO(
-      mapRESOToInternal({
+    const detailDto = cotalityRecordToPublicDTO({
         ...TRESTLE_RAW_BASE,
         InternetEntireListingDisplayYN: true,
         InternetAddressDisplayYN: true,
-      })!,
-    );
+      }, { alreadyGated: true })!;
     expect(detailDto.listOfficeName).toBe('Compass');
     expect(detailDto._displayCompliance.attributionText).not.toMatch(FORBIDDEN);
   });

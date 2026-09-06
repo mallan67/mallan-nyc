@@ -14,7 +14,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { hasCredentials } from "@/lib/idx/auth";
-import { generateAttributionText } from "@/lib/idx/mapping";
+import { generateAttributionText } from "@/lib/idx/attribution";
 import { logFetchAttempt } from "@/lib/idx/logger";
 import { criteriaFromParams } from "@/lib/search/engine/criteria";
 import { executeSearch } from "@/lib/search/engine/executor";

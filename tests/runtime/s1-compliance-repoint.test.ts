@@ -47,7 +47,7 @@ function buildTrestleRow(extras: Record<string, unknown> = {}): Record<string, u
     ListOfficeMlsId: "O-1",
     InternetEntireListingDisplayYN: true,
     InternetAddressDisplayYN: true,
-    Permissions: "Public",
+    Permission: "Public",
     Media: [],
     ...extras,
   };
@@ -91,9 +91,9 @@ describe("S1 — mapper stops writing the redundant compliance copy", () => {
   });
 
   it("owner opt-out / participant gates still computed (independent of compliance JSON)", () => {
-    const optOut = mapTrestleToPrisma(buildTrestleRow({ Permissions: "OwnerOptOut" }));
+    const optOut = mapTrestleToPrisma(buildTrestleRow({ Permission: "OwnerOptOut" }));
     expect(optOut.owner_opt_out).toBe(true);
-    const priv = mapTrestleToPrisma(buildTrestleRow({ Permissions: "Private" }));
+    const priv = mapTrestleToPrisma(buildTrestleRow({ Permission: "Private" }));
     expect(priv.participant_only).toBe(true);
   });
 });

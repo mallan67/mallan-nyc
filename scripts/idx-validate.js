@@ -23,7 +23,7 @@
  *    1. $select Field Completeness
  *    2. Distribution Gate → DB Column Mapping
  *    3. Field Count Verification (all 1,426 OData fields accounted)
- *    4. REQUIRED_RLS_FIELDS vs IDX Plus Availability
+ *    4. REQUIRED_COTALITY_FIELDS vs IDX Plus Availability
  *    5. Prisma Listing ↔ Mapper Return Type
  *    6. Picklist / Value Canonicalization
  *   ── CRM & API ──
@@ -155,11 +155,11 @@ function getMapperFields() {
     blocks.set(name, fields);
     for (const field of fields) allRls.add(field);
   }
-  const exMatch = mapper.match(/IDX_PLUS_EXCLUDED_FIELDS\s*=\s*new\s+Set\(\[\s*([\s\S]*?)\]\)/);
+  const exMatch = mapper.match(/LIVE_FIELDS_NOT_SELECTED\s*=\s*new\s+Set<string>\(\[\s*([\s\S]*?)\]\)/);
   const excluded = new Set();
   if (exMatch) { for (const n of (exMatch[1].match(/"([^"]+)"/g) || [])) excluded.add(n.replace(/"/g, '')); }
   const select = new Set([...allRls].filter(f => !excluded.has(f)));
-  const reqMatch = mapper.match(/REQUIRED_RLS_FIELDS\s*=\s*\[\s*([\s\S]*?)\]/);
+  const reqMatch = mapper.match(/REQUIRED_COTALITY_FIELDS\s*=\s*\[\s*([\s\S]*?)\]/);
   const required = new Set();
   if (reqMatch) { for (const n of (reqMatch[1].match(/"([^"]+)"/g) || [])) required.add(n.replace(/"/g, '')); }
   return { allRls, excluded, select, required, blocks, content: mapper };
@@ -392,14 +392,14 @@ function section3() {
       `These fields are no longer in the current REBNY Property CSV: ${staleSearchCriticalFields.join(', ')}`);
   }
   if (noopExcludedFields.length === 0) {
-    pass(s, 'IDX_PLUS_EXCLUDED: all excluded fields are present in mapper categories');
+    pass(s, 'LIVE_FIELDS_NOT_SELECTED: all excluded fields are present in mapper categories');
   } else {
-    warning(s, `IDX_PLUS_EXCLUDED: ${noopExcludedFields.length} no-op exclusion(s)`,
-      `These exclusions no longer affect $select because the fields are not in ALL_RLS_FIELDS: ${noopExcludedFields.slice(0, 25).join(', ')}`);
+    warning(s, `LIVE_FIELDS_NOT_SELECTED: ${noopExcludedFields.length} no-op exclusion(s)`,
+      `These exclusions no longer affect $select because the fields are not in COTALITY_PROPERTY_FIELDS: ${noopExcludedFields.slice(0, 25).join(', ')}`);
   }
 
-  pass(s, `Mapper ALL_RLS_FIELDS: ${allRls.size} unique fields`);
-  pass(s, `IDX_PLUS_EXCLUDED: ${excluded.size} fields`);
+  pass(s, `Mapper COTALITY_PROPERTY_FIELDS: ${allRls.size} unique fields`);
+  pass(s, `LIVE_FIELDS_NOT_SELECTED: ${excluded.size} fields`);
   pass(s, `IDX_PLUS_SELECT (fetched): ${select.size} fields`);
 
   // Check picklist coverage
@@ -411,7 +411,7 @@ function section3() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SECTION 4: REQUIRED_RLS_FIELDS vs IDX Plus Availability
+// SECTION 4: REQUIRED_COTALITY_FIELDS vs IDX Plus Availability
 // ═══════════════════════════════════════════════════════════════════════════
 function section4() {
   const s = startSection(4, 'REQUIRED vs IDX Plus Availability', 'IDX Pipeline');
@@ -497,11 +497,12 @@ function section6() {
     }
   }
 
-  // Check RESO_TO_RLS_RENAMES completeness
-  const renamesMatch = mapper.match(/RESO_TO_RLS_RENAMES[^{]*\{([^}]+)\}/);
-  if (renamesMatch) {
-    const renames = (renamesMatch[1].match(/\w+:/g) || []).length;
-    pass(s, `RESO_TO_RLS_RENAMES: ${renames} field renames defined`);
+  // The provider mapper carries NO alias table (Packet 2 closure): every live field is read by
+  // its own name. A reappearing alias table is a second schema authority.
+  if (/RESO_TO_RLS_RENAMES|COTALITY_FIELD_ALIASES/.test(mapper)) {
+    critical(s, 'provider alias table present in the mapper', 'Cotality fields are read by their live names only');
+  } else {
+    pass(s, 'no provider alias table (live field names only)');
   }
 
   // Check SyndicateYN vs SyndicateTo mismatch
@@ -1252,9 +1253,13 @@ function section28() {
     } else pass(s, 'All search checkboxes have data-field');
   }
 
-  // 3. checkboxFilters support in CRM search endpoint
+  // 3. CRM search filters: the canonical Search engine executes ONLY its declared criteria vocabulary and
+  //    REFUSES any other filter BY NAME (422 unsupported_criteria) — nothing is silently dropped.
+  //    (The pre-engine `checkboxFilters` pass-through is gone with the retired route; Packet 2 closure.)
   if (searchRoute) {
+    const engineCriteria = readFile('lib/search/engine/criteria.ts') || '';
     if (/checkboxFilters/.test(searchRoute)) pass(s, '/api/idx/search: checkboxFilters supported');
+    else if (/search\/engine\/executor/.test(searchRoute) && /UNSUPPORTED_CRITERION|refusal\.unsupported/.test(searchRoute + engineCriteria)) pass(s, '/api/idx/search: unknown filters are refused by name (engine criteria contract)');
     else critical(s, '/api/idx/search: NO checkboxFilters support',
       'Generic checkbox filters from CRM are silently dropped. Add checkboxFilters handling.');
   }
@@ -1298,8 +1303,9 @@ function section28() {
     critical(s, '/api/listings: distribution gates NOT enforced', 'REBNY violation');
   }
 
-  if (searchRoute && /checkDistributionGates/.test(searchRoute)) {
-    pass(s, '/api/idx/search: distribution gates enforced');
+  const engineHydrate = readFile('lib/search/engine/hydrate.ts') || '';
+  if (searchRoute && (/checkDistributionGates/.test(searchRoute) || (/search\/engine\/executor/.test(searchRoute) && /derivePermissionGates\(raw\)/.test(engineHydrate)))) {
+    pass(s, '/api/idx/search: distribution gates enforced (canonical derivePermissionGates in the engine hydrate step)');
   } else if (searchRoute) {
     critical(s, '/api/idx/search: distribution gates NOT enforced', 'REBNY violation');
   }
