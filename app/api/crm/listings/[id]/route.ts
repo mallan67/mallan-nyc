@@ -420,6 +420,11 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     "ShowingInstructions", "CommonInterest", "AssociationFee",
     "RealEstateTax", "TaxAnnualAmount", "NewDevelopmentYN",
     "BathroomsTotal",
+    // FARE Act fee facts (live multi-selects + the Mallan free-text keys they are derived from)
+    "MoveInCosts", "OngoingFees", "TenantPays",
+    "MoveInCostsDescription", "OngoingFeesDescription", "TenantPaysList",
+    // server-derived provider enum fields (lib/crm/listing-form-mapping.ts)
+    "StructureType", "View", "BuildingFeatures", "PetsAllowed",
   ];
   const updatedFeatures = { ...existingFeatures };
   for (const k of featureKeys) {

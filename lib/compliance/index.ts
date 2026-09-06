@@ -1,45 +1,22 @@
 /**
  * REBNY RLS Compliance Module
  *
- * This module provides validation and compliance checking for NYC real estate listings
- * against REBNY RLS Data Rules, RESO standards, and Fair Housing regulations.
+ * Validation and compliance checking for Mallan listings.
+ *   COTALITY LIVE CONTRACT → provider facts · REBNY / UCBA → compliance rules · MALLAN → form / workflow / storage · RESO = vocabulary only.
  *
  * @module lib/compliance
  */
 
+// Reporting wrapper over the canonical contracts (no rule catalogue of its own — see the file header).
 export {
   validateListing,
   validateField,
   getRequiredFields,
   generatePublicRemarks,
+  NYC_BOROUGHS,
   type ValidationResult,
-  type RLSRule,
   type ListingData,
 } from './rebny-validator';
-
-export {
-  getCurrentRLSRules,
-  getRulesVersion,
-  getRequiredFields as getRequiredRLSFields,
-  getConditionalFields,
-  getRelevantRulesForListing,
-  getFairHousingProhibitedTerms,
-  getNYCBoroughs,
-  isFieldRequired,
-  evaluateCondition,
-  getMissingRequiredFields,
-  getConditionalViolations,
-  type RLSField,
-  type RLSRulesData,
-} from './data-loader';
-
-export {
-  buildValidationPrompt,
-  buildFieldValidationPrompt,
-  buildFairHousingPrompt,
-  buildPublicRemarksPrompt,
-  parseValidationResponse,
-} from './prompts';
 
 export {
   isDisplayableInIDX,
@@ -50,6 +27,6 @@ export {
   shouldRemoveClosedListing,
 } from './idx-display-gate';
 
-// Re-export rules for reference
-import rlsRules from './rls-rules.json';
-export { rlsRules };
+// The former rls-rules.json catalogue is deleted (Packet 2 closure): provider facts are the live
+// Cotality contract (lib/cotality/live-contract.ts); REBNY / UCBA rules are REBNY_UCBA_RULES.
+export { REBNY_UCBA_RULES } from './rebny-ucba-rules';

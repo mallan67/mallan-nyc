@@ -967,13 +967,13 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                     <label class="field-label mb-2">Unit Pet Policy <span class="text-red-500">*</span></label>
                     <p class="text-[10px] text-gray-500 mb-2">RLS: PetsAllowed — Locked if building says "No Pets".</p>
                     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2" id="rentalPetsAllowedGroup">
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="UnitYes" class="w-4 h-4 rental-unit-pets-cb" data-rls-field="PetsAllowed"> Yes</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="UnitCatsOK" class="w-4 h-4 rental-unit-pets-cb"> Cats OK</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="UnitDogsOK" class="w-4 h-4 rental-unit-pets-cb"> Dogs OK</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="UnitBreedRestrictions" class="w-4 h-4 rental-unit-pets-cb"> Breed Restr.</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="UnitSizeLimit" class="w-4 h-4 rental-unit-pets-cb"> Size Limit</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="UnitNumberLimit" class="w-4 h-4 rental-unit-pets-cb"> Number Limit</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="UnitNo" class="w-4 h-4 rental-unit-pets-cb"> No Pets</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="Yes" class="w-4 h-4 rental-unit-pets-cb" data-rls-field="PetsAllowed"> Yes</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="CatsOk" class="w-4 h-4 rental-unit-pets-cb"> Cats OK</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="DogsOk" class="w-4 h-4 rental-unit-pets-cb"> Dogs OK</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="BreedRestrictions" class="w-4 h-4 rental-unit-pets-cb"> Breed Restr.</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="SizeLimit" class="w-4 h-4 rental-unit-pets-cb"> Size Limit</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="NumberLimit" class="w-4 h-4 rental-unit-pets-cb"> Number Limit</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="No" class="w-4 h-4 rental-unit-pets-cb"> No Pets</label>
                     </div>
                 </div>
                 <div>
@@ -1772,7 +1772,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
         </div>
         <div>
             <label class="field-label">Unit Type</label>
-            <select id="rentalUnitType" class="field-input" data-rls-field="PropertySubType">
+            <select id="rentalUnitType" class="field-input" data-rls-ignore="true" data-mallan-field="PropertySubType">
                 <option value="">Select Type</option>
                 <option value="Apartment">Apartment</option>
                 <option value="Apartment">Penthouse (Apartment)</option>
@@ -1803,7 +1803,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
             <label class="field-label">Condition</label>
-            <select id="rentalCondition" class="field-input" data-rls-field="PropertyCondition">
+            <select id="rentalCondition" class="field-input" data-rls-ignore="true" data-mallan-field="PropertyCondition">
                 <option value="">Select Condition</option>
                 <option value="Excellent">Excellent</option>
                 <option value="Fixer">Fixer</option>
@@ -3551,7 +3551,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div>
                                 <label class="field-label">Building Type <span class="text-red-500">*</span></label>
-                                <select id="bldgType" class="field-input" data-rls-field="StructureType">
+                                <select id="bldgType" class="field-input" data-rls-ignore="true" data-mallan-field="StructureType">
                                     <option value="">Select Structure Type</option>
                                     <option value="Duplex">Duplex</option>
                                     <option value="HighRise">High-Rise</option>
@@ -3593,7 +3593,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                             </div>
                             <div>
                                 <label class="field-label">Architectural Style</label>
-                                <select id="bldgArchitecturalStyle" class="field-input" data-rls-field="ArchitecturalStyle">
+                                <select id="bldgArchitecturalStyle" class="field-input" data-rls-ignore="true" data-mallan-field="ArchitecturalStyle">
                                     <option value="">Select</option>
                                     <option value="Prewar">Prewar</option>
                                     <option value="ArtDeco">Art Deco</option>

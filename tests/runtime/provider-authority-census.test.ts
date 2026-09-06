@@ -203,7 +203,8 @@ describe("the SERVER owns the Mallan form → Cotality vocabulary conversion (no
     expect(codeOnly(read("app/api/crm/listings/[id]/route.ts"))).toMatch(/applyServerFormMapping\(body/);
     expect(codeOnly(read("app/api/crm/listings/[id]/status/route.ts"))).toMatch(/canonicalStatusFromForm\(requested\)/);
     const mapping = codeOnly(read("lib/crm/listing-form-mapping.ts"));
-    expect(mapping).toMatch(/cotality-enums.live.json/);
+    expect(mapping).toMatch(/@\/lib\/cotality\/live-contract/); // the live contract module reads the dated pull
+    expect(read("lib/cotality/live-contract.ts")).toMatch(/cotality-enums.live.json/);
     expect(mapping).not.toMatch(/['"]Commercial['"]\s*:\s*\{[^}]*PropertyType:\s*['"]Commercial['"]/);
   });
   it("every value the server may write is a live enum member (dated pull)", () => {

@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
     select: {
       id: true,
       listing_id: true,
+      listing_type: true,
       address: true,
       status: true,
       agent_id: true,
@@ -55,8 +56,13 @@ export async function POST(req: NextRequest) {
     const address = (listing.address ?? raw.UnparsedAddress ?? "Unknown") as string;
     const agentId = listing.agent_id?.toString() ?? null;
 
-    // Run REBNY validator
-    const validation = validateListing(raw);
+    // Reporting wrapper + the ONE required / conditional evaluator (rls-enforcement over REBNY_UCBA_RULES).
+    const validation = validateListing(raw, {
+      listingType: (listing.listing_type as string) === "rent" ? "rent" : "sale",
+      isNewDevelopment: raw.NewDevelopmentYN === true,
+      currentStatus: (raw._mallanStatus as string) || listing.status || undefined,
+      rlsEligible: listing.rls_eligible !== false,
+    });
 
     // Convert validation errors to findings
     if (validation.errors) {

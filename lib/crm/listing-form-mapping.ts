@@ -6,26 +6,36 @@
  *                       →  THIS module (the one conversion)
  *                       →  Mallan storage + business / REBNY-UCBA compliance rules
  *
- * The browser no longer translates its own workflow status or property type into provider
- * values (the former CRM_TO_RESO_STATUS / getResoMlsStatus / getResoPropertyFields copies are
- * gone). Every provider-vocabulary value written here is a LIVE enum member (verified against
- * the dated live enum pull, data/cotality-enums.live.json, 2026-09-05): the former browser tables
- * wrote non-live members ("Commercial" PropertyType, "Cooperative" CommonInterest,
- * "SingleFamilyTownhouse" / "MultiFamilyTownhouse" PropertySubType) — those are not written.
+ * Authority:
+ *   COTALITY LIVE CONTRACT (lib/cotality/live-contract.ts) → provider facts: which fields exist,
+ *     which enum members exist. Every provider-vocabulary value this module writes, and every
+ *     provider enum value a client supplies directly, is checked against it (the live-enum boundary).
+ *   REBNY / UCBA (lib/compliance/rebny-ucba-rules.ts) → compliance and business rules, applied after.
+ *   MALLAN (lib/listings/mallan-form-contract.ts, lib/listings/mallan-status.ts) → form, workflow, storage.
+ *   RESO = vocabulary only.
+ *
+ * The browser never translates its own workflow status, property type, building type, amenities or
+ * views into provider values. Mallan form facts that have no live counterpart ("Walk-Up" building
+ * type, a "Park" view, a "Roof Deck" amenity label, a free-text fee list) stay under their Mallan
+ * keys; the provider field receives only live members. Nothing is defaulted: an unknown form value
+ * or a non-live provider value is an error.
  *
  * Status: workflow → Mallan business status is lib/crm/status-mapping.ts. The result is written under the
  * MALLAN keys `_mallanStatus` / `_crmWorkflowStatus` — NEVER under the provider's MlsStatus / StandardStatus
  * (those are Cotality fields whose values are exact live enum members; Mallan's Draft / Sold / Rented /
  * Cancelled are not). The permission decision travels under `_mallanPermission`. See
  * lib/listings/mallan-status.ts for the three status domains.
- * Unknown form values are refused (null / error), never defaulted.
  */
-import liveEnumPull from '@/data/cotality-enums.live.json';
+import { liveEnumMembers, liveEnumViolations } from '@/lib/cotality/live-contract';
+import { PROVIDER_DECISION_FIELDS } from '@/lib/listings/mallan-form-contract';
+import { normalizePayload } from '@/lib/compliance/normalizer';
 import {
   mapCrmStatusToCanonicalStatus,
   CANONICAL_STATUSES,
   type CanonicalStatus,
 } from './status-mapping';
+
+export { PROVIDER_DECISION_FIELDS };
 
 export type ListingFormType = 'sale' | 'rent';
 
@@ -117,12 +127,6 @@ export const WRITABLE_PROPERTY_SUB_TYPES: readonly string[] = Object.freeze(Obje
 export const WRITABLE_COMMON_INTERESTS: readonly string[] = Object.freeze(['Condominium', 'StockCooperative', 'Condop', 'RentalBuilding', 'None']);
 export const MALLAN_FORM_PROPERTY_TYPE_VALUES: readonly string[] = Object.freeze(Object.keys(FORM_PROPERTY_TYPES));
 
-// Live enum members from the dated live pull (data/cotality-enums.live.json, regenerated live by
-// `npm run cotality:compile`, drift-checked by `npm run cotality:verify`). Read directly: the
-// lib/search/canonical package is reserved for the Search executor (A1 contract).
-const LIVE_ENUMS = (liveEnumPull as { enums: Record<string, string[]> }).enums;
-const PROPERTY_TYPE_SET = new Set<string>(LIVE_ENUMS.PropertyType ?? []);
-const COMMON_INTEREST_SET = new Set<string>(LIVE_ENUMS.CommonInterest ?? []);
 const CANONICAL_STATUS_SET = new Set<string>(CANONICAL_STATUSES as readonly string[]);
 
 /**
@@ -140,9 +144,6 @@ export function canonicalStatusFromForm(input: unknown): CanonicalStatus | null 
   return mapCrmStatusToCanonicalStatus(trimmed);
 }
 
-/** Provider field names that carry a Mallan decision in a Mallan-authored payload — always redirected to Mallan keys. */
-export const PROVIDER_DECISION_FIELDS: readonly string[] = Object.freeze(['MlsStatus', 'StandardStatus', 'Permission', 'Permissions']);
-
 /** Mallan permission decisions (UCBA owner opt-out = signed Exhibit B; participant-only). Stored under `_mallanPermission`. */
 export const MALLAN_PERMISSION_VALUES: readonly string[] = Object.freeze(['OwnerOptOut', 'Private']);
 const PERMISSION_INPUT_ALIASES: Readonly<Record<string, string>> = Object.freeze({
@@ -156,11 +157,73 @@ export function mallanPermissionFromForm(input: unknown): string | null | undefi
   return PERMISSION_INPUT_ALIASES[input.trim()] ?? undefined;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Mallan form facts → the live members among them (server-derived provider fields)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Building-amenity LABELS on Mallan's building profile → live BuildingFeatures members. Only exact
+ * correspondences (every target is guarded live by test). Labels without a live counterpart
+ * ("Roof Deck", "Live-In Super", "Pool", …) stay Mallan facts under the *BuildingFeaturesInternal key.
+ */
+export const BUILDING_FEATURE_LABEL_TO_LIVE: Readonly<Record<string, string>> = Object.freeze({
+  'Elevator': 'Elevators',
+  'Gym/Fitness Center': 'FitnessCenter',
+  "Children's Playroom": 'CommonPlayroom',
+  'Resident Lounge': 'CommonLounge',
+  'Bike Room': 'BikeStorage',
+  'Storage Available': 'Storage',
+  'Package Room': 'PackageRoom',
+  'Cold Storage': 'ColdStorage',
+  'Conference Room': 'ConferenceRoom',
+});
+
+export interface MallanFactDerivation {
+  /** The Mallan key that carries the agent's selection (form key or declared Mallan-internal key). */
+  form: string;
+  /** The live Cotality enum field the live members are written to. */
+  field: string;
+  /** list: array / comma list of members · single: one member (first live one wins) · text: free text, comma-split. */
+  kind: 'list' | 'single' | 'text';
+  /** Optional Mallan label → live member table applied before the live check. */
+  labels?: Readonly<Record<string, string>>;
+}
+
+/**
+ * Where a Mallan form fact feeds a provider enum field. When one of these Mallan keys is present the
+ * provider field is DERIVED (a client-supplied provider value is not consulted). The Mallan key keeps
+ * the full selection; the provider field receives only live members.
+ */
+export const MALLAN_FACT_DERIVATIONS: readonly MallanFactDerivation[] = Object.freeze([
+  { form: 'saleViewList', field: 'View', kind: 'list' },
+  { form: 'saleBuildingFeaturesInternal', field: 'BuildingFeatures', kind: 'list', labels: BUILDING_FEATURE_LABEL_TO_LIVE },
+  { form: 'rentalBuildingFeaturesInternal', field: 'BuildingFeatures', kind: 'list', labels: BUILDING_FEATURE_LABEL_TO_LIVE },
+  // building profile type first (the sale form's historical precedence), unit-level select second
+  { form: 'saleBldgType', field: 'StructureType', kind: 'single' },
+  { form: 'saleStructureType', field: 'StructureType', kind: 'single' },
+  { form: 'bldgType', field: 'StructureType', kind: 'single' },
+  { form: 'rentalStructureType', field: 'StructureType', kind: 'single' },
+  // FARE Act fee lists: the agent's free text is a Mallan fact (displayed as typed); the provider
+  // multi-select receives the live members it names, if any.
+  { form: 'MoveInCostsDescription', field: 'MoveInCosts', kind: 'text' },
+  { form: 'OngoingFeesDescription', field: 'OngoingFees', kind: 'text' },
+  { form: 'TenantPaysList', field: 'TenantPays', kind: 'text' },
+]);
+
+function factValues(kind: MallanFactDerivation['kind'], src: unknown): string[] {
+  if (Array.isArray(src)) return src.map((v) => String(v).trim()).filter(Boolean);
+  const s = String(src).trim();
+  if (!s) return [];
+  return kind === 'single' ? [s] : s.split(',').map((t) => t.trim()).filter(Boolean);
+}
+
 export interface ServerFormMappingResult {
-  /** The body with server-derived _mallanStatus / _crmWorkflowStatus / _mallanPermission / PropertyType / PropertySubType / CommonInterest. */
+  /** The body with server-derived _mallanStatus / _crmWorkflowStatus / _mallanPermission / PropertyType / PropertySubType / CommonInterest / … */
   body: Record<string, unknown>;
   /** Which fields the server derived (from the Mallan form keys) — for audit / response detail. */
   derived: string[];
+  /** Mallan facts kept only under their Mallan key because they have no live counterpart (not errors). */
+  retained: string[];
   /** Refusals: an unknown Mallan form value or a client-supplied provider value that is not live. */
   errors: string[];
 }
@@ -169,11 +232,14 @@ export interface ServerFormMappingResult {
  * Apply the server-owned conversion to an incoming CRM listing payload.
  *
  *  - When the Mallan form keys are present (saleStatus / rentalStatus, salePropertyType /
- *    rentalPropertyType, *OfficeRetailOwnership), the server DERIVES the provider-vocabulary
- *    fields from them and any client-supplied MlsStatus / PropertyType / PropertySubType /
- *    CommonInterest is ignored (the browser does not decide the provider representation).
- *  - When only provider-vocabulary keys are present (an API client), each is VALIDATED against
- *    the live Cotality enum / Mallan canonical statuses; a non-live value is an error.
+ *    rentalPropertyType, *OfficeRetailOwnership, saleViewList, *BuildingFeaturesInternal, building
+ *    type, fee lists …), the server DERIVES the provider-vocabulary fields from them and any
+ *    client-supplied value under those provider fields is ignored (the browser does not decide the
+ *    provider representation).
+ *  - EVERY provider enum field present on the payload (whatever its source) is then checked against
+ *    the live Cotality contract — the live-enum boundary. A non-live value is an error. Mallan form
+ *    value aliases (the form contract's valueAliases) are applied first, and the aliased value is
+ *    written back so storage carries the live member.
  *  - Nothing is defaulted: an unknown form value is an error.
  */
 export function applyServerFormMapping(
@@ -182,6 +248,7 @@ export function applyServerFormMapping(
 ): ServerFormMappingResult {
   const body: Record<string, unknown> = { ...input };
   const derived: string[] = [];
+  const retained: string[] = [];
   const errors: string[] = [];
   const prefix = formType === 'rent' ? 'rental' : 'sale';
 
@@ -226,14 +293,43 @@ export function applyServerFormMapping(
       body.CommonInterest = cls.CommonInterest;
       derived.push('PropertyType', 'PropertySubType', 'CommonInterest');
     }
-  } else {
-    if (body.PropertyType !== undefined && body.PropertyType !== null && body.PropertyType !== '' && !PROPERTY_TYPE_SET.has(String(body.PropertyType))) {
-      errors.push(`PropertyType "${String(body.PropertyType)}" is not a live Cotality PropertyType member`);
-    }
-    if (body.CommonInterest !== undefined && body.CommonInterest !== null && body.CommonInterest !== '' && !COMMON_INTEREST_SET.has(String(body.CommonInterest))) {
-      errors.push(`CommonInterest "${String(body.CommonInterest)}" is not a live Cotality CommonInterest member`);
-    }
   }
 
-  return { body, derived, errors };
+  // ── Mallan form facts → live members under the provider field ──
+  const factFields = new Map<string, string[] | null>(); // field → live members derived so far (null = single not yet resolved)
+  for (const d of MALLAN_FACT_DERIVATIONS) {
+    const src = body[d.form];
+    if (src === undefined || src === null || src === '') continue;
+    const members = liveEnumMembers(d.field);
+    if (!members) continue; // guarded by test: every derivation targets a live enum field
+    const values = factValues(d.kind, src);
+    const live = values.map((v) => d.labels?.[v] ?? v).filter((v) => members.includes(v));
+    const nonLive = values.filter((v) => !members.includes(d.labels?.[v] ?? v));
+    if (nonLive.length) retained.push(`${d.form}: ${nonLive.map((v) => `"${v}"`).join(', ')} kept as Mallan fact (no live ${d.field} member)`);
+    if (d.kind === 'single') {
+      if (factFields.get(d.field)?.length) continue; // an earlier form key already resolved a live member
+      factFields.set(d.field, live.length ? [live[0]] : []);
+    } else {
+      factFields.set(d.field, [...new Set([...(factFields.get(d.field) ?? []), ...live])]);
+    }
+  }
+  for (const [field, live] of factFields) {
+    const single = MALLAN_FACT_DERIVATIONS.find((d) => d.field === field)?.kind === 'single';
+    // single with no live member: the provider field is cleared (never a stale or fake fact); lists carry the live subset
+    body[field] = single ? (live && live.length ? live[0] : null) : (live ?? []);
+    derived.push(field);
+  }
+
+  // ── the live-enum boundary: every provider enum value on the payload must be a live member ──
+  // The Mallan form contract's key / value aliases are applied first (so "St" → "Street", the legacy
+  // "UnitYes" → "Yes", "CoExclusive" → "CoExclusiveAgency" are accepted and stored as live members).
+  const { normalized } = normalizePayload(body);
+  for (const key of Object.keys(normalized)) {
+    if (key in body && liveEnumMembers(key) && normalized[key] !== body[key]) body[key] = normalized[key];
+  }
+  for (const v of liveEnumViolations(normalized)) {
+    errors.push(`${v.field} "${v.value}" is not a live Cotality ${v.field} member`);
+  }
+
+  return { body, derived, retained, errors };
 }

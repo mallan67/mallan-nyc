@@ -842,7 +842,7 @@ body { font-family: Manrope, sans-serif; }
                     <div class="mt-4 pt-3 border-t">
                         <label class="field-label mb-2">Structure Type <span class="text-red-500">*</span></label>
                         <p class="text-[10px] text-gray-500 mb-2">RLS Field: StructureType — Auto-set from IDX/RLS building data or property type. Override if needed.</p>
-                        <select id="saleStructureType" class="field-input" data-rls-field="StructureType">
+                        <select id="saleStructureType" class="field-input" data-rls-ignore="true" data-mallan-field="StructureType">
                             <option value="">Select...</option>
                             <option value="Duplex">Duplex</option>
                             <option value="HighRise">High-Rise</option>
@@ -1826,7 +1826,7 @@ body { font-family: Manrope, sans-serif; }
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label class="field-label">Property Condition</label>
-                    <select id="saleCondition" class="field-input" data-rls-field="PropertyCondition">
+                    <select id="saleCondition" class="field-input" data-rls-ignore="true" data-mallan-field="PropertyCondition">
                         <option value="">Select Condition</option>
                         <option value="Excellent">Excellent</option>
                         <option value="Fixer">Fixer</option>
@@ -2329,13 +2329,13 @@ body { font-family: Manrope, sans-serif; }
             <div class="form-card-header"><i class="fas fa-paw"></i> Unit Pet Policy <span class="text-red-500">*</span></div>
             <p class="text-[10px] text-gray-500 mb-3">RLS Field: PetsAllowed — Unit-level pet policy. If building policy is "No Pets", this locks to "No".</p>
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3" id="salePetsAllowedGroup">
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="UnitYes" class="w-4 h-4 sale-unit-pets-cb" onchange="handleSaleUnitPetsChange(this)" data-rls-field="PetsAllowed"> Yes (All Pets)</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="UnitCatsOK" class="w-4 h-4 sale-unit-pets-cb" onchange="handleSaleUnitPetsChange(this)"> Cats OK</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="UnitDogsOK" class="w-4 h-4 sale-unit-pets-cb" onchange="handleSaleUnitPetsChange(this)"> Dogs OK</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="UnitBreedRestrictions" class="w-4 h-4 sale-unit-pets-cb" onchange="handleSaleUnitPetsChange(this)"> Breed Restrictions</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="UnitSizeLimit" class="w-4 h-4 sale-unit-pets-cb" onchange="handleSaleUnitPetsChange(this)"> Size Limit</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="UnitNumberLimit" class="w-4 h-4 sale-unit-pets-cb" onchange="handleSaleUnitPetsChange(this)"> Number Limit</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="UnitNo" class="w-4 h-4 sale-unit-pets-cb" onchange="handleSaleUnitPetsChange(this)"> No Pets</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="Yes" class="w-4 h-4 sale-unit-pets-cb" onchange="handleSaleUnitPetsChange(this)" data-rls-field="PetsAllowed"> Yes (All Pets)</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="CatsOk" class="w-4 h-4 sale-unit-pets-cb" onchange="handleSaleUnitPetsChange(this)"> Cats OK</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="DogsOk" class="w-4 h-4 sale-unit-pets-cb" onchange="handleSaleUnitPetsChange(this)"> Dogs OK</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="BreedRestrictions" class="w-4 h-4 sale-unit-pets-cb" onchange="handleSaleUnitPetsChange(this)"> Breed Restrictions</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="SizeLimit" class="w-4 h-4 sale-unit-pets-cb" onchange="handleSaleUnitPetsChange(this)"> Size Limit</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="NumberLimit" class="w-4 h-4 sale-unit-pets-cb" onchange="handleSaleUnitPetsChange(this)"> Number Limit</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="No" class="w-4 h-4 sale-unit-pets-cb" onchange="handleSaleUnitPetsChange(this)"> No Pets</label>
             </div>
             <div id="salePetsAllowedLocked" class="hidden mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
                 <i class="fas fa-lock mr-1"></i> Locked to "No Pets" — Building pet policy is set to "No Pets" (BuildingNo).
@@ -4203,7 +4203,7 @@ body { font-family: Manrope, sans-serif; }
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div>
                                 <label class="field-label">Building Type <span class="text-red-500">*</span></label>
-                                <select id="saleBldgType" class="field-input" data-rls-field="StructureType">
+                                <select id="saleBldgType" class="field-input" data-rls-ignore="true" data-mallan-field="StructureType">
                                     <option value="">Select Structure Type</option>
                                     <option value="Duplex">Duplex</option>
                                     <option value="HighRise">High-Rise</option>
@@ -5586,10 +5586,9 @@ function populateBuildingFromIDX(prefix, building) {
     // miss. Members the form has no checkbox for (BirdsOk, Building*, …) map to
     // '' and are ignored. PetsAllowedYN true/false → Yes/No. (Codex #297.)
     const PET_COTALITY_TO_FORM = {
-        Yes: 'UnitYes', No: 'UnitNo',
-        CatsOk: 'UnitCatsOK', DogsOk: 'UnitDogsOK',
-        BreedRestrictions: 'UnitBreedRestrictions',
-        SizeLimit: 'UnitSizeLimit', NumberLimit: 'UnitNumberLimit',
+        // the unit-level checkbox values ARE the live PetsAllowed members (Packet 2 closure)
+        Yes: 'Yes', No: 'No', CatsOk: 'CatsOk', DogsOk: 'DogsOk',
+        BreedRestrictions: 'BreedRestrictions', SizeLimit: 'SizeLimit', NumberLimit: 'NumberLimit',
     };
     const mapPet = function (m) { return PET_COTALITY_TO_FORM[m] || ''; };
     const _petsMulti = pick('pets_allowed', 'petsAllowed');
@@ -7582,7 +7581,8 @@ function collectSaleFormData() {
 
     // Map building-level RLS fields from modal
     data.BuildingName = data.saleBldgName || '';
-    data.StructureType = data.saleBldgType || data.saleStructureType || '';
+    // StructureType is DERIVED BY THE SERVER from saleBldgType / saleStructureType (only a live member is written;
+    // "Loft" / "Walk-Up" / "Commercial" stay Mallan form facts) — lib/crm/listing-form-mapping.ts.
     data.StoriesTotal = parseInt(data.saleBldgTotalFloors || '0') || null;
     data.NumberOfUnitsTotal = parseInt(data.saleBldgTotalUnits || '0') || null;
     data.CrossStreet = data.saleBldgCrossStreet1 || '';
@@ -7615,17 +7615,13 @@ function collectSaleFormData() {
     // policies + 1 mis-tagged Yes/No radio) that don't belong in this
     // canonical array. They have their own SALE_FIELD_MAP / SALE_RADIO_MAP
     // entries.
-    data.BuildingFeatures = [];
+    // The agent's amenity LABELS are a Mallan fact (saleBuildingFeaturesInternal). The live
+    // BuildingFeatures members among them are DERIVED BY THE SERVER (lib/crm/listing-form-mapping.ts,
+    // BUILDING_FEATURE_LABEL_TO_LIVE) — the browser never writes the provider field.
     data.saleBuildingFeaturesInternal = [];
     document.querySelectorAll('#saleBuildingModal input[data-rls-field="BuildingFeatures"]:checked').forEach(function(cb) {
         var label = cb.parentElement ? cb.parentElement.textContent.trim() : cb.value;
-        if (!label) return;
-        var canonical = BUILDING_FEATURES_LABEL_TO_CANONICAL[label];
-        if (canonical) {
-            data.BuildingFeatures.push(canonical);
-        } else {
-            data.saleBuildingFeaturesInternal.push(label);
-        }
+        if (label) data.saleBuildingFeaturesInternal.push(label);
     });
     // AttendanceType — multi-value checkbox array
     data.AttendanceType = [];
@@ -7718,7 +7714,7 @@ function collectSaleFormData() {
     // Canonical Cotality `View` array (mirrors the Heating/Cooling pattern) so the
     // server-side RLS conditional (ViewYN=true → require View) is satisfiable.
     // saleViewList is the form's restore key; View is the Cotality field.
-    data.View = data.saleViewList.slice();
+    // View is DERIVED BY THE SERVER from saleViewList (live members only; "Park" / "Streets" … stay Mallan facts).
     data.saleAdditionalRooms = [];
     document.querySelectorAll('input[name="saleAdditionalRooms"]:checked').forEach(function(cb) { data.saleAdditionalRooms.push(cb.value); });
     data.saleKitchenType = [];
@@ -9164,7 +9160,7 @@ var SALE_FIELD_MAP = [
 
   // ── Building ──
   { rls: 'BuildingName', form: 'saleBldgName', type: 'text', src: 'raw' },
-  { rls: 'StructureType', form: 'saleBldgType', type: 'text', src: 'raw' },
+  { rls: 'saleBldgType', form: 'saleBldgType', type: 'text', src: 'raw', fallbackRls: 'StructureType' }, // Mallan form key first; StructureType is server-derived
   { rls: 'YearBuilt', form: 'saleBldgYearBuilt', type: 'number', src: 'raw' },
   { rls: 'saleBldgYearRenovated', form: 'saleBldgYearRenovated', type: 'number', src: 'raw', fallbackRls: 'YearRenovated' }, // internal; YearRenovated not in Cotality
   { rls: 'StoriesTotal', form: 'saleBldgTotalFloors', type: 'number', src: 'raw' },
@@ -9429,6 +9425,9 @@ var SALE_CHECKBOX_ARRAY_MAP = [
   { rls: 'saleFreshAirSystem', name: 'saleFreshAirSystem' },
   { rls: 'saleHvacSystem', name: 'saleHvacSystem' },
 ];
+
+// Rows saved before the unit-level pet checkboxes carried the live PetsAllowed members (Packet 2 closure).
+var LEGACY_UNIT_PET_VALUES = { UnitYes: 'Yes', UnitNo: 'No', UnitCatsOK: 'CatsOk', UnitDogsOK: 'DogsOk', UnitBreedRestrictions: 'BreedRestrictions', UnitSizeLimit: 'SizeLimit', UnitNumberLimit: 'NumberLimit' };
 
 // Building feature checkboxes (individual IDs → BuildingFeatures array)
 // Translation table — form-label → canonical IDX Plus / RESO
@@ -9803,6 +9802,7 @@ function _populateSaleFormFromApi(listing) {
         var vals = raw[ca.rls];
         if (!Array.isArray(vals) && ca.fallbackRls) vals = raw[ca.fallbackRls]; // legacy phantom-key reload (Cotality-clean 2026-05-30)
         if (!Array.isArray(vals)) return;
+        if (ca.rls === 'PetsAllowed') vals = vals.map(function(v) { return LEGACY_UNIT_PET_VALUES[v] || v; }); // rows saved before the live-member values
         document.querySelectorAll('input[name="' + ca.name + '"]').forEach(function(cb) {
             cb.checked = vals.includes(cb.value);
         });
@@ -10802,7 +10802,8 @@ function submitSaleCommissionRequest() {
 // ═══════════════════════════════════════════════════════════
 // RLS FIELD HANDLERS — AttendanceType, PetsAllowed,
 // BuildingPetsAllowed, CommonInterest
-// RLS TRUMPS ALL — every value= attribute is exact RLS picklist
+// COTALITY LIVE CONTRACT — every value= attribute below is an exact live enum member; the server
+// re-validates every provider enum value against lib/cotality/live-contract.ts on save.
 // ═══════════════════════════════════════════════════════════
 
 // AttendanceType: "None" deselects all others; selecting any other deselects "None"
@@ -10833,24 +10834,24 @@ function handleSaleBldgPetsChange(cb) {
     enforceSalePetsConditional();
 }
 
-// PetsAllowed (unit): "UnitNo" deselects all others; selecting any other deselects "UnitNo"
+// PetsAllowed (unit): "No" deselects all others; selecting any other deselects "No" (live members)
 function handleSaleUnitPetsChange(cb) {
     var cbs = document.querySelectorAll('.sale-unit-pets-cb');
-    if (cb.value === 'UnitNo' && cb.checked) {
-        cbs.forEach(function(c) { if (c.value !== 'UnitNo') c.checked = false; });
+    if (cb.value === 'No' && cb.checked) {
+        cbs.forEach(function(c) { if (c.value !== 'No') c.checked = false; });
     } else if (cb.checked) {
-        cbs.forEach(function(c) { if (c.value === 'UnitNo') c.checked = false; });
+        cbs.forEach(function(c) { if (c.value === 'No') c.checked = false; });
     }
 }
 
-// Conditional: If BuildingPetsAllowed includes BuildingNo → lock PetsAllowed to UnitNo
+// Conditional: If BuildingPetsAllowed includes BuildingNo → lock PetsAllowed to No
 function enforceSalePetsConditional() {
     var buildingNo = document.querySelector('.sale-bldg-pets-cb[value="BuildingNo"]');
     var unitCbs = document.querySelectorAll('.sale-unit-pets-cb');
     var lockMsg = document.getElementById('salePetsAllowedLocked');
     if (buildingNo && buildingNo.checked) {
         unitCbs.forEach(function(c) {
-            c.checked = (c.value === 'UnitNo');
+            c.checked = (c.value === 'No');
             c.disabled = true;
         });
         if (lockMsg) lockMsg.classList.remove('hidden');

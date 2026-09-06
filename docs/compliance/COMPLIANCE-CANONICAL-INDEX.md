@@ -26,9 +26,9 @@
 
 ---
 
-## 0. Field authority order (which source wins for field / display truth)
+## 0. Authority (which source wins for field / display truth)
 
-When sources disagree about whether a field exists, what it is named, or whether it may be displayed, resolve in this order:
+**COTALITY LIVE CONTRACT → provider facts · REBNY / UCBA → compliance / business rules · MALLAN → form / workflow / storage · RESO = vocabulary only.** (Packet 2 closure, 2026-09-06: `lib/cotality/live-contract.ts`, `lib/compliance/rebny-ucba-rules.ts`, `lib/listings/mallan-form-contract.ts`.) When sources disagree about whether a field exists, what it is named, or whether it may be displayed, resolve in this order:
 
 1. **UCBA 2026 governs compliance.** REBNY co-brokerage rules set the outer bound for what may be collected, displayed, and syndicated.
 2. **IDX Plus / the live Cotality feed / the refreshed CSVs define displayable field truth.** The live `api.cotality.com/trestle` feed and the CSVs regenerated from it (`data/rebny-rls-property-fields.csv`, `data/rebny-rls-property-lookup.csv`) are the field-name / field-existence authority. Static markdown field snapshots are not.

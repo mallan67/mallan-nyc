@@ -8,13 +8,12 @@
     "feed": "REBNY RLS via Trestle (Cotality)",
     "lmp": "RealPlus (listing input to RLS)",
     "idx_display": "Trestle IDX Plus WebAPI (Trestle-11371-20) — read-only on mallan.nyc",
-    "fieldAuthorityOrder": [
-      "1. UCBA governs everything",
-      "2. REBNY RLS rules + RLS fields",
-      "3. RLS overrides RESO/IDX",
-      "4. RESO/IDX fills gaps",
-      "5. INTERNAL-ONLY otherwise",
-      "6. Fail closed = NON-DISPLAY"
+    "authority": [
+      "COTALITY LIVE CONTRACT (lib/cotality/live-contract.ts) -> provider facts: field existence, enum members",
+      "REBNY / UCBA (lib/compliance/rebny-ucba-rules.ts) -> compliance and business rules",
+      "MALLAN (lib/listings/mallan-form-contract.ts, lib/listings/mallan-status.ts) -> form, workflow, storage",
+      "RESO = vocabulary only",
+      "Fail closed = NON-DISPLAY"
     ]
   },
   "enforcedRules": {

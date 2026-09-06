@@ -3,7 +3,7 @@
     "extractedFrom": "public/crm/ (html + js + css)",
     "extractedAt": "2026-03-05",
     "purpose": "Complete search field definitions for interface rebuild — ALL fields are RLS-mapped",
-    "compliance": "REBNY RLS via Trestle (Cotality) — RLS TRUMPS ALL. RESO/IDX fills gaps only.",
+    "compliance": "COTALITY LIVE CONTRACT = provider facts; REBNY / UCBA = compliance rules; MALLAN = form / workflow / storage; RESO = vocabulary only.",
     "trestleApi": "api.cotality.com/trestle (deadline: March 31, 2026)",
     "totalFields": 450,
     "searchModes": ["sale", "rental", "building", "comparables"],

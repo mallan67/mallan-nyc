@@ -11,16 +11,17 @@
 
 ---
 
-## FIELD AUTHORITY ORDER (ENFORCED — ALL WORK)
+## AUTHORITY (Packet 2 closure, 2026-09-06)
 
-| Priority | Authority | Governs |
-|----------|-----------|---------|
-| **1** | **UCBA** | Everything — contractual obligations, timing, statuses, agent conduct |
-| **2** | **REBNY RLS rules + fields** | Permissions, timing, statuses, mapping, IDs, dissemination |
-| **3** | **RLS overrides RESO/IDX** | If an RLS rule/field exists, it overrides all RESO/IDX schema or vendor defaults |
-| **4** | **RESO/IDX fills gaps** | If no RLS rule/field exists, use RESO definitions for naming/types/enums |
-| **5** | **INTERNAL-ONLY** | If neither RLS nor RESO/IDX governs, must not affect public display eligibility |
-| **6** | **Fail closed** | Any uncertainty or missing permission data defaults to **NON-DISPLAY** |
+| Layer | Source | Governs |
+|---|---|---|
+| **COTALITY LIVE CONTRACT** | `lib/cotality/live-contract.ts` (the dated live pulls from api.cotality.com) | provider facts: which fields exist, which enum members exist — for every provider-named field |
+| **REBNY / UCBA** | `lib/compliance/rebny-ucba-rules.ts` (+ `lib/compliance/rls-enforcement.ts`, the one required / conditional evaluator) | compliance and business rules: required-under-condition fields, removed fields, content rules, display policy, DOM |
+| **MALLAN** | `lib/listings/mallan-form-contract.ts`, `lib/listings/mallan-status.ts`, `lib/crm/listing-form-mapping.ts` | form input, workflow, storage; the server-owned conversion of form state into live vocabulary |
+| **RESO** | — | vocabulary only; never an authority for field existence, enum members or display |
+| **Fail closed** | — | any uncertainty or missing permission data defaults to **NON-DISPLAY** |
+
+The former "FIELD AUTHORITY ORDER … RLS overrides RESO/IDX … RESO/IDX fills gaps" ordering is retired: no CSV, RESO document or hand-typed table is a field authority.
 
 ---
 

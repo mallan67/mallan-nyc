@@ -2025,13 +2025,13 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
             <div class="form-card-header"><i class="fas fa-paw"></i> Unit Pet Policy <span class="text-red-500">*</span></div>
             <p class="text-[10px] text-gray-500 mb-3">RLS: PetsAllowed — Unit-level pet policy. Locked if building says "No Pets".</p>
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3" id="salePetsAllowedGroup">
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="UnitYes" class="w-4 h-4 sale-unit-pets-cb" data-rls-field="PetsAllowed"> Yes (All Pets)</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="UnitCatsOK" class="w-4 h-4 sale-unit-pets-cb"> Cats OK</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="UnitDogsOK" class="w-4 h-4 sale-unit-pets-cb"> Dogs OK</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="UnitBreedRestrictions" class="w-4 h-4 sale-unit-pets-cb"> Breed Restrictions</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="UnitSizeLimit" class="w-4 h-4 sale-unit-pets-cb"> Size Limit</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="UnitNumberLimit" class="w-4 h-4 sale-unit-pets-cb"> Number Limit</label>
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="UnitNo" class="w-4 h-4 sale-unit-pets-cb"> No Pets</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="Yes" class="w-4 h-4 sale-unit-pets-cb" data-rls-field="PetsAllowed"> Yes (All Pets)</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="CatsOk" class="w-4 h-4 sale-unit-pets-cb"> Cats OK</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="DogsOk" class="w-4 h-4 sale-unit-pets-cb"> Dogs OK</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="BreedRestrictions" class="w-4 h-4 sale-unit-pets-cb"> Breed Restrictions</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="SizeLimit" class="w-4 h-4 sale-unit-pets-cb"> Size Limit</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="NumberLimit" class="w-4 h-4 sale-unit-pets-cb"> Number Limit</label>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="No" class="w-4 h-4 sale-unit-pets-cb"> No Pets</label>
             </div>
         </div>
 
@@ -4089,7 +4089,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div>
                                 <label class="field-label">Building Type <span class="text-red-500">*</span></label>
-                                <select id="saleBldgType" class="field-input" data-rls-field="StructureType">
+                                <select id="saleBldgType" class="field-input" data-rls-ignore="true" data-mallan-field="StructureType">
                                     <option value="">Select Structure Type</option>
                                     <option value="Duplex">Duplex</option>
                                     <option value="HighRise">High-Rise</option>

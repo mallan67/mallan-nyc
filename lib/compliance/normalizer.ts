@@ -17,13 +17,11 @@
  * (MlsStatus / StandardStatus / Permission).
  */
 
-import { MALLAN_FORM_CONTRACT } from '@/lib/listings/mallan-form-contract';
+import { MALLAN_FORM_CONTRACT, PROVIDER_DECISION_FIELDS } from '@/lib/listings/mallan-form-contract';
 import { REBNY_UCBA_RULES } from './rebny-ucba-rules';
 
 type Payload = Record<string, unknown>;
 
-/** Provider field names a Mallan-authored payload must never carry (they are Mallan decisions under Mallan keys). */
-const PROVIDER_DECISION_FIELDS = new Set(['MlsStatus', 'StandardStatus', 'Permission', 'Permissions']);
 
 /**
  * Normalize a raw form payload into Mallan's stored field names and values.
@@ -69,11 +67,19 @@ export function normalizePayload(raw: Payload): {
 
     // Step 3: Normalize form values
     let finalValue = value;
-    if (typeof value === 'string' && valueAliasMap[canonicalKey]) {
-      const mapped = valueAliasMap[canonicalKey][value];
+    const aliases = valueAliasMap[canonicalKey];
+    if (aliases && typeof value === 'string') {
+      const mapped = aliases[value];
       if (mapped !== undefined) {
         valueNormalized.push({ field: canonicalKey, from: value, to: mapped });
         finalValue = mapped;
+      }
+    } else if (aliases && Array.isArray(value)) {
+      // multi-select: alias each element (e.g. the legacy unit-level pet values)
+      const mappedArr = value.map((v) => (typeof v === 'string' && aliases[v] !== undefined ? aliases[v] : v));
+      if (mappedArr.some((v, i) => v !== value[i])) {
+        valueNormalized.push({ field: canonicalKey, from: value, to: mappedArr });
+        finalValue = mappedArr;
       }
     }
 

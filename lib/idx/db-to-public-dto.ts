@@ -332,6 +332,13 @@ export function filterDisplayableDbListings(listings: DbListing[]): DbListing[] 
 /**
  * Convert a single Prisma DB listing to PublicListingDTO.
  */
+/** A fee list for display: arrays joined, blanks dropped. */
+function feeText(v: unknown): string | undefined {
+  if (v === undefined || v === null) return undefined;
+  const s = Array.isArray(v) ? v.map((x) => String(x).trim()).filter(Boolean).join(', ') : String(v).trim();
+  return s ? s : undefined;
+}
+
 export function dbListingToPublicDTO(
   listing: DbListing,
   opts?: {
@@ -608,11 +615,12 @@ export function dbListingToPublicDTO(
       rawData.VirtualTourURLBranded,
     ),
     // FARE Act fee transparency
-    moveInCosts: features.MoveInCosts ? String(features.MoveInCosts) : undefined,
+    // live MoveInCosts members when present; otherwise the Mallan free-text fact (MoveInCostsDescription)
+    moveInCosts: feeText(features.MoveInCosts) ?? feeText(features.MoveInCostsDescription),
     // Shared zero-safe resolver (canonical-first legacy fallback) — same on every path.
     ...resolveMoveInFees(features as Record<string, unknown>),
-    ongoingFees: features.OngoingFees ? String(features.OngoingFees) : undefined,
-    tenantPays: features.TenantPays ? String(features.TenantPays) : undefined,
+    ongoingFees: feeText(features.OngoingFees) ?? feeText(features.OngoingFeesDescription),
+    tenantPays: feeText(features.TenantPays) ?? feeText(features.TenantPaysList),
     tenantPaysDescription: features.TenantPaysDescription ? String(features.TenantPaysDescription) : undefined,
     additionalFeeYN: features.AdditionalFeeYN === true || features.AdditionalFeeYN === 'true' ? true : undefined,
     additionalFee: features.AdditionalFee != null ? Number(features.AdditionalFee) : undefined,

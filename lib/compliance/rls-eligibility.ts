@@ -49,11 +49,10 @@ const RESIDENTIAL_SUBTYPES = new Set([
   "GardenApartment",
   "Loft",
   "MultiFamily",
-  "MultiFamilyTownhouse",
   "Quadruplex",
   "SingleFamilyResidence",
-  "SingleFamilyTownhouse",
   "Timeshare",
+  "Townhouse",           // the live PropertySubType member (both Mallan townhouse form values map to it)
   "Triplex",
   "UnimprovedLand",
   "UnitDuplex",

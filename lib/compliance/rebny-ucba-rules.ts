@@ -248,10 +248,13 @@ export const REBNY_UCBA_RULES = {
     {
       code: 'BUILDING-001',
       description: 'Townhouse/Multi-family require BuildingAreaTotal, TaxAnnualAmount, LotSize',
+      // Evaluated on POST-MAPPING data: the live PropertySubType member is "Townhouse" (both Mallan
+      // townhouse form values map to it — lib/crm/listing-form-mapping.ts). The single/multi-family
+      // distinction is a Mallan form fact and is not needed by this rule.
       appliesWhen: {
         PropertyType: ['Residential'],
         PropertySubType: [
-          'SingleFamilyTownhouse', 'MultiFamilyTownhouse',
+          'Townhouse',
           'SingleFamilyResidence', 'MultiFamily', 'MixedUse',
           'Duplex', 'Triplex', 'Quadruplex', 'UnimprovedLand',
         ],
@@ -713,6 +716,16 @@ export const REBNY_UCBA_RULES = {
   // ═══════════════════════════════════════════════════════════════════════════
 
   contentRules: {
+    /** Plain-text prohibited terms scanned by the reporting validator (lib/compliance/rebny-validator.ts). */
+    fairHousingProhibitedTerms: [
+      'family-friendly', 'perfect for families', 'ideal for children', 'no children', 'adults only',
+      'mature community', 'senior living', 'walking distance to church', 'near synagogue', 'close to mosque',
+      'traditional neighborhood', 'exclusive neighborhood', 'safe neighborhood', 'good schools',
+      'minority neighborhood', 'ethnic enclave', 'diverse area', 'integrated area', 'white neighborhood',
+      'bachelor pad', 'man cave', 'perfect for single professional', 'great for couple', 'no Section 8',
+      'no vouchers', 'no welfare', 'employed applicants only', 'must have good credit', 'speak English',
+      'born in USA', 'US citizens only', 'able-bodied', 'wheelchair users', 'handicapped', 'disabled welcome',
+    ],
     fairHousing: [
       '\\b(whites?\\s+only|no\\s+(blacks?|hispanics?|asians?|mexicans?))\\b',
       '\\b(christian\\s+(home|family|neighborhood)|no\\s+(muslims?|jews?|hindus?))\\b',

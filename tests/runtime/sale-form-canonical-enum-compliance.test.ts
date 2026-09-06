@@ -32,14 +32,19 @@ import { resolve } from 'path';
 
 const FORM_PATH = resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html');
 const LOOKUP_PATH = resolve(__dirname, '../../data/rebny-rls-property-lookup.csv');
+const LIVE_ENUMS_PATH = resolve(__dirname, '../../data/cotality-enums.live.json');
 
 const formHtml = readFileSync(FORM_PATH, 'utf8');
 const lookupCsv = readFileSync(LOOKUP_PATH, 'utf8');
+// AUTHORITY: the dated live Cotality pull for every field that is an enum on the live resource; the
+// REBNY CSV is a SNAPSHOT used only for submission-form fields that are not live enum fields.
+const liveEnums = JSON.parse(readFileSync(LIVE_ENUMS_PATH, 'utf8')).enums as Record<string, string[]>;
 
 // ── Helpers ──
 
-/** Extract REBNY enum values for a given canonical field name. */
+/** Enum values for a canonical field: live Cotality members first; the REBNY CSV only for non-live submission fields. */
 function rebnyEnum(field: string): Set<string> {
+  if (Array.isArray(liveEnums[field]) && liveEnums[field].length) return new Set(liveEnums[field]);
   const values = new Set<string>();
   const re = new RegExp(`,Property,${field},([^,]+),`, 'g');
   let m: RegExpExecArray | null;
@@ -154,16 +159,25 @@ describe('BuildingFeatures translation table — Herringbone-class PR #270 fix',
     expect(toCanonical.length + toInternal.length).toBe(labels.length);
   });
 
-  it('collectSaleFormData routes via the translation table (canonical+internal split)', () => {
-    // Verify the collector emits BOTH BuildingFeatures (canonical) AND
-    // saleBuildingFeaturesInternal (Mallan internal) buckets.
+  it('collectSaleFormData emits the Mallan labels only; the SERVER translates them to live BuildingFeatures members (Packet 2 closure)', () => {
+    // The browser never writes a provider enum field: the amenity labels travel under
+    // saleBuildingFeaturesInternal and lib/crm/listing-form-mapping.ts (BUILDING_FEATURE_LABEL_TO_LIVE)
+    // writes the live members among them. The form keeps its table for restore only.
     const collectStart = formHtml.indexOf('function collectSaleFormData()');
     const collectEnd = formHtml.indexOf('\nfunction submitSalesListing(', collectStart);
     const collectBody = formHtml.slice(collectStart, collectEnd);
-    expect(collectBody).toMatch(/data\.BuildingFeatures\s*=\s*\[\]/);
+    expect(collectBody).not.toMatch(/data\.BuildingFeatures\s*=/);
     expect(collectBody).toMatch(/data\.saleBuildingFeaturesInternal\s*=\s*\[\]/);
-    // Verify it uses the translation map name (so a rename catches the test).
-    expect(collectBody).toMatch(/BUILDING_FEATURES_LABEL_TO_CANONICAL\[label\]/);
+    expect(collectBody).not.toMatch(/BUILDING_FEATURES_LABEL_TO_CANONICAL\[label\]/);
+    const mapping = readFileSync(resolve(__dirname, '../../lib/crm/listing-form-mapping.ts'), 'utf8');
+    const formTable = extractBuildingFeaturesMap();
+    expect(Object.keys(formTable).length).toBeGreaterThanOrEqual(8);
+    for (const [label, member] of Object.entries(formTable)) {
+      // the server table carries every mapping the form used to apply, with live targets
+      expect(mapping).toContain("'" + member + "'");
+      expect(mapping).toContain(label.includes("'") ? '"' + label + '"' : "'" + label + "'");
+      expect(liveEnums.BuildingFeatures).toContain(member);
+    }
   });
 
   it('restore reads BOTH canonical and internal arrays', () => {

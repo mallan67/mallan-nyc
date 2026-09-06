@@ -255,10 +255,14 @@ describe('Sale form save/load retention — collect/populate shape parity (cross
     expect(collectBody).toMatch(/data\._crmWorkflowStatus\s*=\s*data\.saleStatus/);
   });
 
-  it('collect emits the canonical Cotality View array (mirrors Heating/Cooling) — Codex #280 F7', () => {
-    // Server RLS conditional (ViewYN=true → require View) reads the canonical
-    // `View` field; collect must emit it from saleViewList.
-    expect(collectBody).toMatch(/data\.View\s*=\s*data\.saleViewList/);
+  it('collect emits saleViewList; the SERVER derives the canonical Cotality View array from it (Packet 2 closure)', () => {
+    // The browser never writes a provider enum field: saleViewList is the Mallan fact, and
+    // lib/crm/listing-form-mapping.ts writes the live View members among it (a "Park" view stays
+    // a Mallan fact). The server RLS conditional (ViewYN=true → require View) reads the derived field.
+    expect(collectBody).toMatch(/input\[name="saleViewList"\]:checked/);
+    expect(collectBody).not.toMatch(/data\.View\s*=/);
+    const mapping = readFileSync(resolve(__dirname, '../../lib/crm/listing-form-mapping.ts'), 'utf8');
+    expect(mapping).toMatch(/\{ form: 'saleViewList', field: 'View', kind: 'list' \}/);
   });
 
   it('_deriveSaleYNFields maps each form YN to its canonical Cotality field', () => {

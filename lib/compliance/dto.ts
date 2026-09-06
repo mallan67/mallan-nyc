@@ -16,7 +16,8 @@
  * Active — Trestle IDX Plus WebAPI provides all 1,363 fields. VOW display is
  * authorized for registered/logged-in portal consumers per REBNY RLS rules.
  *
- * FIELD AUTHORITY ORDER: UCBA → RLS TRUMPS ALL → RESO/IDX fills gaps → INTERNAL-ONLY → Fail closed
+ * AUTHORITY: COTALITY LIVE CONTRACT → provider facts · REBNY / UCBA → compliance / display rules ·
+ * MALLAN → form / workflow / storage · RESO = vocabulary only · Fail closed = non-display.
  */
 
 import { affirmPermission, isOwnerOptOut, isParticipantOnly } from "./gates";

@@ -5,7 +5,7 @@
     "generated": "2026-02-22",
     "totalLookupFields": 114,
     "totalValues": 1993,
-    "fieldAuthorityOrder": "See fields.json._meta.fieldAuthorityOrder — RLS picklist values override RESO defaults"
+    "authority": "HISTORICAL SNAPSHOT (2026-02-22) — NOT a picklist authority. Enum members come only from the live Cotality contract (lib/cotality/live-contract.ts); REBNY / UCBA = compliance rules; MALLAN = form / workflow / storage; RESO = vocabulary only."
   },
   "lookups": {
     "LookupName (Current)": {

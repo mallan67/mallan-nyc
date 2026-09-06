@@ -5,13 +5,11 @@
  * Unlike the HTML mockup validator (lib/rls-validator/) which validates mockup files,
  * this module enforces UCBA/RLS rules on live API payloads at the route handler level.
  *
- * FIELD AUTHORITY ORDER (ENFORCED):
- *   1. UCBA governs everything
- *   2. REBNY RLS rules + fields — RLS TRUMPS ALL
- *   3. RLS overrides RESO/IDX
- *   4. RESO/IDX fills gaps only
- *   5. INTERNAL-ONLY otherwise
- *   6. Fail closed = REJECT
+ * AUTHORITY:
+ *   COTALITY LIVE CONTRACT (lib/cotality/live-contract.ts) → provider facts (fields, enum members)
+ *   REBNY / UCBA (lib/compliance/rebny-ucba-rules.ts)       → compliance / business rules (this gate)
+ *   MALLAN (lib/listings/mallan-form-contract.ts)           → form / workflow / storage
+ *   RESO = vocabulary only. Fail closed = REJECT.
  *
  * REBNY CHANGES ADDRESSED:
  *   - DOM reset: 90 → 30 days (UCBA 2026)

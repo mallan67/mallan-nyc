@@ -50,3 +50,38 @@ export const COTALITY_MLS_STATUS_MEMBERS: readonly string[] = Object.freeze([...
 export function isCotalityStandardStatus(value: unknown): value is string {
   return typeof value === 'string' && COTALITY_STANDARD_STATUS_MEMBERS.includes(value);
 }
+
+export interface LiveEnumViolation { field: string; value: string }
+
+/**
+ * The member tokens of a stored enum value: arrays element-wise; a string is one token when it is
+ * itself a member, otherwise a comma-separated list. Empty / null → no tokens.
+ */
+export function enumValueTokens(field: string, value: unknown): string[] {
+  if (value === undefined || value === null || value === '') return [];
+  if (Array.isArray(value)) return value.flatMap((v) => enumValueTokens(field, v));
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    const members = liveEnumMembers(field);
+    if (members && members.includes(trimmed)) return [trimmed];
+    return trimmed.split(',').map((t) => t.trim()).filter(Boolean);
+  }
+  return [String(value)];
+}
+
+/**
+ * THE live-enum boundary: every (field, token) on a record where the field is a live enum field and
+ * the token is not a live member. Applies to every provider enum field, whatever wrote it.
+ */
+export function liveEnumViolations(record: Record<string, unknown>): LiveEnumViolation[] {
+  const out: LiveEnumViolation[] = [];
+  for (const [field, value] of Object.entries(record)) {
+    const members = liveEnumMembers(field);
+    if (!members) continue;
+    for (const token of enumValueTokens(field, value)) {
+      if (!members.includes(token)) out.push({ field, value: token });
+    }
+  }
+  return out;
+}

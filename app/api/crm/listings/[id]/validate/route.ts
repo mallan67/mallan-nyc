@@ -58,7 +58,13 @@ export async function POST(
     // No body provided — validate existing data only
   }
 
-  const validation = validateListing(merged);
+  // Reporting wrapper + the ONE required / conditional evaluator (rls-enforcement over REBNY_UCBA_RULES).
+  const validation = validateListing(merged, {
+    listingType: (listing.listing_type as string) === "rent" ? "rent" : "sale",
+    isNewDevelopment: merged.NewDevelopmentYN === true,
+    currentStatus: (merged._mallanStatus as string) || listing.status || undefined,
+    rlsEligible: listing.rls_eligible !== false,
+  });
 
   return NextResponse.json({
     listing_id: listing.listing_id,

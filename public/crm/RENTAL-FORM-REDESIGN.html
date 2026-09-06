@@ -684,7 +684,7 @@ body { font-family: Manrope, sans-serif; }
                         <div class="mt-4 pt-3 border-t">
                             <label class="field-label mb-2">Structure Type <span class="text-red-500">*</span></label>
                             <p class="text-[10px] text-gray-500 mb-2">RLS Field: StructureType — Auto-set from IDX/RLS building data or property type. Override if needed.</p>
-                            <select id="rentalStructureType" class="field-input" data-rls-field="StructureType">
+                            <select id="rentalStructureType" class="field-input" data-rls-ignore="true" data-mallan-field="StructureType">
                                 <option value="">Select...</option>
                                 <option value="Duplex">Duplex</option>
                                 <option value="HighRise">High-Rise</option>
@@ -982,13 +982,13 @@ body { font-family: Manrope, sans-serif; }
                     <label class="field-label mb-2">Unit Pet Policy <span class="text-red-500">*</span></label>
                     <p class="text-[10px] text-gray-500 mb-2">RLS Field: PetsAllowed — Unit-level policy. Locked if building says "No Pets".</p>
                     <div class="grid grid-cols-2 gap-2" id="rentalPetsAllowedGroup">
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="UnitYes" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)" data-rls-field="PetsAllowed"> Yes</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="UnitCatsOK" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)"> Cats OK</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="UnitDogsOK" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)"> Dogs OK</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="UnitBreedRestrictions" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)"> Breed Restr.</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="UnitSizeLimit" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)"> Size Limit</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="UnitNumberLimit" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)"> Number Limit</label>
-                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="UnitNo" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)"> No Pets</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="Yes" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)" data-rls-field="PetsAllowed"> Yes</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="CatsOk" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)"> Cats OK</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="DogsOk" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)"> Dogs OK</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="BreedRestrictions" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)"> Breed Restr.</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="SizeLimit" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)"> Size Limit</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="NumberLimit" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)"> Number Limit</label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="No" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)"> No Pets</label>
                     </div>
                     <div id="rentalPetsAllowedLocked" class="hidden mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
                         <i class="fas fa-lock mr-1"></i> Locked to "No Pets" — Building pet policy is "No Pets" (BuildingNo).
@@ -1804,7 +1804,7 @@ body { font-family: Manrope, sans-serif; }
         </div>
         <div>
             <label class="field-label">Unit Type</label>
-            <select id="rentalUnitType" class="field-input" data-rls-field="PropertySubType">
+            <select id="rentalUnitType" class="field-input" data-rls-ignore="true" data-mallan-field="PropertySubType">
                 <option value="">Select Type</option>
                 <option value="Apartment">Apartment</option>
                 <option value="Apartment">Penthouse (Apartment)</option>
@@ -1835,7 +1835,7 @@ body { font-family: Manrope, sans-serif; }
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
             <label class="field-label">Condition</label>
-            <select id="rentalCondition" class="field-input" data-rls-field="PropertyCondition">
+            <select id="rentalCondition" class="field-input" data-rls-ignore="true" data-mallan-field="PropertyCondition">
                 <option value="">Select Condition</option>
                 <option value="Excellent">Excellent</option>
                 <option value="Fixer">Fixer</option>
@@ -3542,7 +3542,7 @@ body { font-family: Manrope, sans-serif; }
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div>
                                 <label class="field-label">Building Type <span class="text-red-500">*</span></label>
-                                <select id="bldgType" class="field-input" data-rls-field="StructureType">
+                                <select id="bldgType" class="field-input" data-rls-ignore="true" data-mallan-field="StructureType">
                                     <option value="">Select Structure Type</option>
                                     <option value="Duplex">Duplex</option>
                                     <option value="HighRise">High-Rise</option>
@@ -3584,7 +3584,7 @@ body { font-family: Manrope, sans-serif; }
                             </div>
                             <div>
                                 <label class="field-label">Architectural Style</label>
-                                <select id="bldgArchitecturalStyle" class="field-input" data-rls-field="ArchitecturalStyle">
+                                <select id="bldgArchitecturalStyle" class="field-input" data-rls-ignore="true" data-mallan-field="ArchitecturalStyle">
                                     <option value="">Select</option>
                                     <option value="Prewar">Prewar</option>
                                     <option value="ArtDeco">Art Deco</option>
@@ -3634,7 +3634,7 @@ body { font-family: Manrope, sans-serif; }
                             </div>
                             <div>
                                 <label class="field-label">Ownership Type</label>
-                                <select id="rentalOwnershipType" class="field-input" data-rls-field="OwnershipType">
+                                <select id="rentalOwnershipType" class="field-input" data-rls-ignore="true" data-mallan-field="OwnershipType">
                                     <option value="">Select</option>
                                     <option value="Condo">Condo</option>
                                     <option value="Co-op">Co-op</option>
@@ -5710,7 +5710,7 @@ function collectRentalFormData() {
 
     // Map building-level RLS fields from modal
     data.BuildingName = data.bldgName || '';
-    data.StructureType = data.bldgType || data.rentalStructureType || '';
+    // StructureType is DERIVED BY THE SERVER from bldgType / rentalStructureType (live members only) — lib/crm/listing-form-mapping.ts.
     data.StoriesTotal = parseInt(data.bldgTotalFloors || '0') || null;
     data.NumberOfUnitsTotal = parseInt(data.bldgTotalUnits || '0') || null;
     data.CrossStreet = data.bldgCrossStreet1 || '';
@@ -5723,10 +5723,12 @@ function collectRentalFormData() {
     document.querySelectorAll('input[name="rentalPetsAllowed"]:checked').forEach(function(cb) { data.PetsAllowed.push(cb.value); });
     data.BuildingPetsAllowed = [];
     document.querySelectorAll('input[name="rentalBuildingPetsAllowed"]:checked').forEach(function(cb) { data.BuildingPetsAllowed.push(cb.value); });
-    data.BuildingFeatures = [];
+    // The agent's amenity LABELS are a Mallan fact (rentalBuildingFeaturesInternal); the live
+    // BuildingFeatures members among them are DERIVED BY THE SERVER (lib/crm/listing-form-mapping.ts).
+    data.rentalBuildingFeaturesInternal = [];
     document.querySelectorAll('#rentalBuildingModal input[data-rls-field="BuildingFeatures"]:checked').forEach(function(cb) {
         var label = cb.parentElement ? cb.parentElement.textContent.trim() : cb.value;
-        data.BuildingFeatures.push(label);
+        if (label) data.rentalBuildingFeaturesInternal.push(label);
     });
     // AttendanceType — multi-value checkbox array
     data.AttendanceType = [];
@@ -5734,9 +5736,10 @@ function collectRentalFormData() {
     // BuildingLaundryFeatures — multi-value checkbox array
     data.BuildingLaundryFeatures = [];
     document.querySelectorAll('input[name="rentalBuildingLaundryFeatures"]:checked').forEach(function(cb) { data.BuildingLaundryFeatures.push(cb.value); });
-    // OwnerPays — single checkbox (id-based, no name attribute)
+    // "Owner Pays" (broker fee) is a Mallan fact (rentalOwnerPays). The live OwnerPays enum lists
+    // utilities / services and has no "Yes" member — the provider field is not written.
     var ownerPaysEl = document.getElementById('rentalOwnerPays');
-    data.OwnerPays = (ownerPaysEl && ownerPaysEl.checked) ? ['Yes'] : [];
+    data.rentalOwnerPays = !!(ownerPaysEl && ownerPaysEl.checked);
 
     // Map remaining RLS field names from CRM element IDs
     data.CountyOrParish = data.rentalCountyOrParish || '';
@@ -5807,11 +5810,13 @@ function collectRentalFormData() {
     data.LivingAreaSource = '';
 
     // FARE Act (NYC LL 119/2024) field mappings
-    data.TenantPays = data.rentalTenantPays || '';
+    // FARE Act fee lists as typed = Mallan facts; the live multi-selects TenantPays / OngoingFees /
+    // MoveInCosts receive only the live members the server finds in them (lib/crm/listing-form-mapping.ts).
+    data.TenantPaysList = data.rentalTenantPays || '';
     data.TenantPaysDescription = data.rentalTenantPaysDescription || '';
-    data.OngoingFees = data.rentalOngoingFees || '';
+    data.OngoingFeesDescription = data.rentalOngoingFees || '';
     data.FeeFrequency = data.rentalFeeFrequency || '';
-    data.MoveInCosts = data.rentalMoveInCosts || '';
+    data.MoveInCostsDescription = data.rentalMoveInCosts || '';
     data.MoveInCostsAmount = parseFloat(data.rentalMoveInCostsAmount || '0') || 0;
     data.MoveInCostsComments = data.rentalMoveInCostsComments || '';
     data.AdditionalFeeYN = data.rentalAdditionalFeeYN || '';
@@ -6913,11 +6918,12 @@ function _populateRentalFormFromApi(listing) {
     if (raw.AvailabilityDate) setVal('rentalAvailableDate', raw.AvailabilityDate.split('T')[0]);
 
     // FARE Act fields
-    setVal('rentalTenantPays', raw.TenantPays || '');
+    var _feeText = function(v) { return Array.isArray(v) ? v.join(', ') : (v || ''); };
+    setVal('rentalTenantPays', raw.TenantPaysList || _feeText(raw.TenantPays));
     setVal('rentalTenantPaysDescription', raw.TenantPaysDescription || '');
-    setVal('rentalOngoingFees', raw.OngoingFees || '');
+    setVal('rentalOngoingFees', raw.OngoingFeesDescription || _feeText(raw.OngoingFees));
     setVal('rentalFeeFrequency', raw.FeeFrequency || '');
-    setVal('rentalMoveInCosts', raw.MoveInCosts || '');
+    setVal('rentalMoveInCosts', raw.MoveInCostsDescription || _feeText(raw.MoveInCosts));
     // Legacy fallback: rentals saved before 2026-06-04 stored the amount under
     // the (phantom) MoveInCostsAmountTotal key in raw_data. Read the live field
     // first, fall back to the legacy key so existing listings keep their value
@@ -7183,7 +7189,8 @@ function submitRentalCommissionRequest() {
 // ═══════════════════════════════════════════════════════════
 // RLS FIELD HANDLERS — AttendanceType, PetsAllowed,
 // BuildingPetsAllowed, CommonInterest
-// RLS TRUMPS ALL — every value= attribute is exact RLS picklist
+// COTALITY LIVE CONTRACT — every value= attribute below is an exact live enum member; the server
+// re-validates every provider enum value against lib/cotality/live-contract.ts on save.
 // ═══════════════════════════════════════════════════════════
 
 // AttendanceType: "None" deselects all others
@@ -7207,24 +7214,24 @@ function handleRentalBldgPetsChange(cb) {
     enforceRentalPetsConditional();
 }
 
-// PetsAllowed (unit): "UnitNo" deselects all others
+// PetsAllowed (unit): "No" deselects all others (live members)
 function handleRentalUnitPetsChange(cb) {
     var cbs = document.querySelectorAll('.rental-unit-pets-cb');
-    if (cb.value === 'UnitNo' && cb.checked) {
-        cbs.forEach(function(c) { if (c.value !== 'UnitNo') c.checked = false; });
+    if (cb.value === 'No' && cb.checked) {
+        cbs.forEach(function(c) { if (c.value !== 'No') c.checked = false; });
     } else if (cb.checked) {
-        cbs.forEach(function(c) { if (c.value === 'UnitNo') c.checked = false; });
+        cbs.forEach(function(c) { if (c.value === 'No') c.checked = false; });
     }
 }
 
-// Conditional: BuildingNo → lock unit PetsAllowed to UnitNo
+// Conditional: BuildingNo → lock unit PetsAllowed to No
 function enforceRentalPetsConditional() {
     var buildingNo = document.querySelector('.rental-bldg-pets-cb[value="BuildingNo"]');
     var unitCbs = document.querySelectorAll('.rental-unit-pets-cb');
     var lockMsg = document.getElementById('rentalPetsAllowedLocked');
     if (buildingNo && buildingNo.checked) {
         unitCbs.forEach(function(c) {
-            c.checked = (c.value === 'UnitNo');
+            c.checked = (c.value === 'No');
             c.disabled = true;
         });
         if (lockMsg) lockMsg.classList.remove('hidden');

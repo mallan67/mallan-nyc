@@ -20,6 +20,9 @@
  * Split out of the former lib/compliance/rebny-field-tables.ts (Packet 2 closure, 2026-09-06).
  */
 
+/** Provider field names that carry a Mallan decision in a Mallan-authored payload — always redirected to Mallan keys, never stored. */
+export const PROVIDER_DECISION_FIELDS: readonly string[] = Object.freeze(['MlsStatus', 'StandardStatus', 'Permission', 'Permissions']);
+
 /** Mallan-internal keys that are not Cotality Property fields (REBNY submission-form facts + Mallan decisions). */
 export const MALLAN_INTERNAL_KEYS: readonly string[] = [
   // Mallan decisions
@@ -36,6 +39,9 @@ export const MALLAN_INTERNAL_KEYS: readonly string[] = [
   'CoOwnershipInterest', 'FractionalUnitNumber', 'GarageSpacesAssignedYN', 'CoBuyerAgentRLSParticipantYN',
   'AlternateStreetDirPrefix', 'AlternateStreetName', 'AlternateStreetNumber', 'CeilingHeightFeet', 'CeilingHeightInches',
   'ChangeType', 'PrivateOutdoorSpaceSize',
+  // FARE Act fee facts as the agent typed them (displayed as typed); the live multi-selects
+  // MoveInCosts / OngoingFees / TenantPays receive only the live members named in them.
+  'MoveInCostsDescription', 'OngoingFeesDescription', 'TenantPaysList',
 ];
 
 export const MALLAN_FORM_CONTRACT = {
@@ -153,6 +159,7 @@ export const MALLAN_FORM_CONTRACT = {
       'Exclusive Right To Lease': 'ExclusiveRightToLease',
       'Co-Exclusive': 'CoExclusiveAgency',   // live ListingAgreement member (there is no live 'CoExclusive')
       'Co Exclusive': 'CoExclusiveAgency',
+      'CoExclusive': 'CoExclusiveAgency',      // the forms' radio value
       'Exclusive Right With Exception': 'ExclusiveRightWithException',
     },
     CoBrokeAgreement: {
@@ -165,6 +172,22 @@ export const MALLAN_FORM_CONTRACT = {
       'Call Listing Agent': 'CallListingAgent',
       'yes': 'Yes',
       'no': 'No',
+    },
+    // Unit-level pet policy: the forms' legacy checkbox values → the live (unit-level) PetsAllowed
+    // members. The live enum carries the building-level policy as the Building*-prefixed members.
+    PetsAllowed: {
+      'UnitYes': 'Yes',
+      'UnitNo': 'No',
+      'UnitCatsOK': 'CatsOk',
+      'UnitDogsOK': 'DogsOk',
+      'UnitBreedRestrictions': 'BreedRestrictions',
+      'UnitSizeLimit': 'SizeLimit',
+      'UnitNumberLimit': 'NumberLimit',
+    },
+    // Street-type abbreviations the address parser accepts → the live StreetSuffix members.
+    StreetSuffix: {
+      'St': 'Street', 'Ave': 'Avenue', 'Blvd': 'Boulevard', 'Rd': 'Road', 'Dr': 'Drive', 'Pl': 'Place',
+      'Ct': 'Court', 'Ln': 'Lane', 'Ter': 'Terrace', 'Cir': 'Circle', 'Pkwy': 'Parkway', 'Plz': 'Plaza',
     },
   } as const,
 
@@ -295,6 +318,13 @@ export const MALLAN_FORM_CONTRACT = {
     BuildingPetsAllowedComments: { features: true, raw: true },
     PetsAllowed: { features: true, raw: true },
     PetsAllowedComments: { features: true, raw: true },
+    // FARE Act fee facts: live multi-selects + the Mallan free-text keys they are derived from
+    MoveInCosts: { features: true, raw: true },
+    OngoingFees: { features: true, raw: true },
+    TenantPays: { features: true, raw: true },
+    MoveInCostsDescription: { features: true, raw: true },
+    OngoingFeesDescription: { features: true, raw: true },
+    TenantPaysList: { features: true, raw: true },
     BuildingTaxLot: { features: true, raw: true }, // LEGACY/compatibility only — canonical Cotality field is TaxLot (below). Routes old raw_data.BuildingTaxLot on reload; NOT mandatory authority (see requiredFields H1 note).
     TaxBlock: { features: true, raw: true },
     TaxLot: { features: true, raw: true },

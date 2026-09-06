@@ -43,7 +43,7 @@ describe("no second field authority", () => {
   it("the monolithic REBNY field table is gone and no runtime file claims an RLS-first authority order", () => {
     expect(exists("lib/compliance/rebny-field-tables.ts")).toBe(false);
     // code lines only: the successor modules cite the retired file by name in their history comments
-    const hits = runtimeFiles().filter((f) => /Single Canonical Field Authority|RLS overrides RESO|REBNY_FIELD_TABLES|rebny-field-tables/.test(codeOnly(read(f))));
+    const hits = runtimeFiles().filter((f) => /Single Canonical Field Authority|RLS overrides RESO|RLS TRUMPS ALL|REBNY_FIELD_TABLES|rebny-field-tables|rls-rules\.json|compliance\/data-loader/.test(codeOnly(read(f))));
     expect(hits).toEqual([]);
   });
   it("the compliance rules only name live Cotality fields or declared Mallan-internal keys", () => {
