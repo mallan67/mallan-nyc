@@ -6149,8 +6149,8 @@ var Workspace = (function () {
     var l = _listing;
     var isRLS = l.rls_eligible !== false;
     var isFeatured = !!(l.featuredFlag || l.featured);
-    var idxDisplay = l.IDXEntireListingDisplayYN !== false && l.idx_display_yn !== false;
-    var vowDisplay = l.VOWEntireListingDisplayYN !== false && l.vow_display_yn !== false;
+    var idxDisplay = l.idx_display_yn !== false;
+    var vowDisplay = l.vow_display_yn !== false; // Mallan column; VOW display is a licence tier, not a provider field
     var internetAddress = l.InternetAddressDisplayYN !== false && l.internet_address_display_yn !== false;
     var syncedAt = l.syncedAt || l.synced_at || l.updated_at || l.updatedAt;
     var lastPublished = l.publishedAt || l.published_at || syncedAt;

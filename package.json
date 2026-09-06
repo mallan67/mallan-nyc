@@ -27,7 +27,7 @@
     "generate:registry": "node scripts/generate-master-registry.js",
     "validate:standalone": "node scripts/validate-standalone.js validate all",
     "backup:standalone": "node scripts/validate-standalone.js backup all",
-    "rls:validate": "node scripts/validate-rls-compliance.js",
+    "rls:validate": "tsx scripts/validate-rls-compliance.js",
     "rls:generate": "node scripts/audit-form-fields.js",
     "rls:inject": "node scripts/inject-rls-attributes.js",
     "test:rls": "node scripts/test-rls-bindings.js",

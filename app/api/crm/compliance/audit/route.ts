@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
         category: "distribution",
         severity: "high",
         title: "IDX display disabled",
-        description: "IDXEntireListingDisplayYN is false. This listing won't appear in IDX feeds.",
+        description: "The Mallan IDX-display decision (idx_display_yn) is false. This listing won't appear in IDX feeds.",
         fix: "Enable IDX display if this listing should be publicly searchable",
       });
     }

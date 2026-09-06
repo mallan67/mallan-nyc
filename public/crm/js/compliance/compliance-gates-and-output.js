@@ -34,7 +34,7 @@ function checkListingCompliance(listingIds, displayContext) {
         // Gate 3: Display context — IDX vs VOW vs CRM
         if (displayContext === 'idx') {
             if (listing.idxDisplayYN === false || perm.idxDisplay === false) {
-                result.blocked.push({ id: id, address: listing.address, reason: 'IDX Display opted out — not shown on IDX websites (RLS: IDXEntireListingDisplayYN)' });
+                result.blocked.push({ id: id, address: listing.address, reason: 'IDX Display opted out — not shown on IDX websites (Mallan decision: idx_display_yn)' });
                 return;
             }
             if (listing.internetDisplayYN === false) {
@@ -50,10 +50,10 @@ function checkListingCompliance(listingIds, displayContext) {
         // CRM: skip Gate 3 (authorized participant sees all except Owner Opt-Out)
 
         // Gate 4: Syndication — track for distribution control
-        // SyndicateYN=false means listing should NOT go to third-party portals,
+        // An empty SyndicateTo (the Mallan syndication decision) means the listing should NOT go to third-party portals,
         // but it still appears in IDX search. Flag as warning for output/reports.
         if (perm.syndication === false || listing.syndicateYN === false) {
-            result.warnings.push({ id: id, address: listing.address, reason: 'Not Syndicated — listing will not be distributed to third-party portals (SyndicateYN=false)' });
+            result.warnings.push({ id: id, address: listing.address, reason: 'Not Syndicated — listing will not be distributed to third-party portals (SyndicateTo empty)' });
         }
 
         // Gate 5: Coming Soon — show but with restrictions
@@ -1536,7 +1536,7 @@ function REBNYWiringTest(options) {
 
     // ── W1: Field Parity Test ──────────────────────────────────────────
     (function() {
-        var ALLOWED = ['SourceSystemKey','ListPrice','MlsStatus','PropertyType','PropertySubType','BedroomsTotal','BathroomsTotalInteger','LivingArea','YearBuilt','UnparsedAddress','City','StateOrProvince','PostalCode','Latitude','Longitude','ListAgentFullName','ListOfficeName','ListingAgreement','InternetEntireListingDisplayYN','InternetAddressDisplayYN','OwnerOptOut','ParticipantOnly','IDXEntireListingDisplayYN','SyndicateTo','ComingSoonTimestamp','ActivationDate','PublicRemarks','PrivateRemarks','ShowingInstructions','ListAgentEmail','ListAgentDirectPhone','MaintenanceFee','TaxAnnualAmount','CommonCharges','neighborhood','borough','photoCount','daysOnMarket','pricePerSqft','updatedDate','listedDate','buildingName','lotSize','stories','units','parkingFeatures','garageSpaces','listingCategory','CommonInterest','Ownership','PetsAllowed','LaundryFeatures','Amenities','CoolingYN','HeatingYN','FireplacesTotal','WaterfrontYN','ViewYN','TaxBlock','TaxLot','Zoning','FloorNumber','UnitNumber','Concessions','FinancialDataSource','AssociationFee','RentIncludes','NumberOfUnitsTotal','StoriesTotal','LotSizeArea','GarageYN','AssociationFee+TaxAnnualAmount','RoomsTotal','BathroomsFull','SubdivisionName','OnMarketDate','DaysOnMarket','CumulativeDaysOnMarket','OpenHouseDate','AssociationName','SecurityFeatures','PropertyCondition','PurchaseContractDate','BuyerFinancing','BuildingAreaTotal','PreviousListPrice','OriginalListPrice','PriceChangeTimestamp','ListAgentDirectPhone','PatioAndPorchFeatures','NewConstructionYN','SourceSystemModificationTimestamp','ListingId','EntryLevel','CrossStreet','Exposures','WalkScore','BathroomsHalf','BuildingName','CloseDate','ClosePrice','PhotosCount','VirtualTourURLBranded','View','Flooring','Cooling','Heating','ParkingFeatures','ParkingTotal','PetsAllowedYN','AssociationAmenities','InteriorFeatures'];
+        var ALLOWED = ['SourceSystemKey','ListPrice','MlsStatus','PropertyType','PropertySubType','BedroomsTotal','BathroomsTotalInteger','LivingArea','YearBuilt','UnparsedAddress','City','StateOrProvince','PostalCode','Latitude','Longitude','ListAgentFullName','ListOfficeName','ListingAgreement','InternetEntireListingDisplayYN','InternetAddressDisplayYN','OwnerOptOut','ParticipantOnly','SyndicateTo','ComingSoonTimestamp','ActivationDate','PublicRemarks','PrivateRemarks','ShowingInstructions','ListAgentEmail','ListAgentDirectPhone','MaintenanceFee','TaxAnnualAmount','CommonCharges','neighborhood','borough','photoCount','daysOnMarket','pricePerSqft','updatedDate','listedDate','buildingName','lotSize','stories','units','parkingFeatures','garageSpaces','listingCategory','CommonInterest','Ownership','PetsAllowed','LaundryFeatures','Amenities','CoolingYN','HeatingYN','FireplacesTotal','WaterfrontYN','ViewYN','TaxBlock','TaxLot','Zoning','FloorNumber','UnitNumber','Concessions','FinancialDataSource','AssociationFee','RentIncludes','NumberOfUnitsTotal','StoriesTotal','LotSizeArea','GarageYN','AssociationFee+TaxAnnualAmount','RoomsTotal','BathroomsFull','SubdivisionName','OnMarketDate','DaysOnMarket','CumulativeDaysOnMarket','OpenHouseDate','AssociationName','SecurityFeatures','PropertyCondition','PurchaseContractDate','BuyerFinancing','BuildingAreaTotal','PreviousListPrice','OriginalListPrice','PriceChangeTimestamp','ListAgentDirectPhone','PatioAndPorchFeatures','NewConstructionYN','SourceSystemModificationTimestamp','ListingId','EntryLevel','CrossStreet','Exposures','WalkScore','BathroomsHalf','BuildingName','CloseDate','ClosePrice','PhotosCount','VirtualTourURLBranded','View','Flooring','Cooling','Heating','ParkingFeatures','ParkingTotal','PetsAllowedYN','AssociationAmenities','InteriorFeatures'];
         var resoEls = document.querySelectorAll('[data-reso-field]');
         var unknown = [], seen = {};
         resoEls.forEach(function(el) {
@@ -1567,7 +1567,7 @@ function REBNYWiringTest(options) {
             val.split(',').forEach(function(v) { v = v.trim(); if (v && VS.indexOf(v) === -1) issues.push('Status:"' + v + '"'); });
         });
         var VB = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island','The Bronx'];
-        document.querySelectorAll('[data-reso-field="borough"][data-reso-value]').forEach(function(el) {
+        document.querySelectorAll('[data-mallan-field="borough"][data-reso-value]').forEach(function(el) {
             var v = el.getAttribute('data-reso-value'); if (v && VB.indexOf(v) === -1) issues.push('Borough:"' + v + '"');
         });
         if (typeof listings !== 'undefined') {

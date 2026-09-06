@@ -275,7 +275,7 @@ function comingSoonCountdown(listing) {
     else if (remaining >= 0) { color = '#dc2626'; bg = '#fef2f2'; textColor = '#991b1b'; pulse = ''; }
     else { color = '#dc2626'; bg = '#fef2f2'; textColor = '#991b1b'; pulse = ' animate-pulse'; }
 
-    var html = '<div class="mt-2 rounded-lg px-3 py-2 text-xs' + pulse + '" style="background:' + bg + ';border:1px solid ' + color + '30" data-compliance="coming-soon-countdown" data-reso-field="ComingSoonTimestamp" data-reso-value="' + listing.comingSoonStartDate + '">';
+    var html = '<div class="mt-2 rounded-lg px-3 py-2 text-xs' + pulse + '" style="background:' + bg + ';border:1px solid ' + color + '30" data-compliance="coming-soon-countdown" data-reso-field="ActivationDate" data-reso-value="' + listing.comingSoonStartDate + '">';
 
     if (remaining > 0) {
         html += '<div class="flex items-center justify-between">';
@@ -342,8 +342,8 @@ function renderManageCards(listings) {
         // Photo banner with RLS/IDX media metadata
         if (l.photo) {
             var media = l.media || {};
-            html += '<div class="manage-photo-wrap" style="height:140px" data-reso-field="Media" data-reso-value="PhotosCount:' + (l.photoCount || 0) + '">';
-            html += '<img src="' + l.photo + '" alt="' + l.address + ' ' + l.unit + '" class="manage-photo" loading="lazy" data-reso-field="MediaURL">';
+            html += '<div class="manage-photo-wrap" style="height:140px" data-reso-field="PhotosCount" data-reso-value="' + (l.photoCount || 0) + '">';
+            html += '<img src="' + l.photo + '" alt="' + l.address + ' ' + l.unit + '" class="manage-photo" loading="lazy" data-mallan-field="photo">';
             // Top-left: status badge
             html += '<div class="absolute top-2.5 left-2.5"><span class="px-2 py-1 ' + sc.bg + ' ' + sc.text + ' rounded-md text-[10px] font-bold shadow-sm">' + l.status + '</span></div>';
             // Top-right: RLS / IDX / Web distribution badges
@@ -352,7 +352,7 @@ function renderManageCards(listings) {
                 html += '<span class="px-1.5 py-0.5 bg-blue-600/80 text-white text-[9px] font-bold rounded backdrop-blur-sm" title="Uploaded to REBNY RLS via Trestle">RLS</span>';
             }
             if (media.idxDisplayYN) {
-                html += '<span class="px-1.5 py-0.5 bg-green-600/80 text-white text-[9px] font-bold rounded backdrop-blur-sm" title="IDX display enabled" data-reso-field="IDXEntireListingDisplayYN" data-reso-value="true">IDX</span>';
+                html += '<span class="px-1.5 py-0.5 bg-green-600/80 text-white text-[9px] font-bold rounded backdrop-blur-sm" title="IDX display enabled" data-mallan-field="idx_display_yn" data-reso-value="true">IDX</span>';
             }
             if (media.webDisplayed) {
                 html += '<span class="px-1.5 py-0.5 bg-amber-600/80 text-white text-[9px] font-bold rounded backdrop-blur-sm" title="Displayed on mallan.nyc">Web</span>';

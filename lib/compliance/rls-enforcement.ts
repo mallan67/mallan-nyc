@@ -69,7 +69,7 @@ const SYSTEM_GENERATED_FIELDS = new Set<string>(
 
 // Fields with documented RLS defaults — warn if missing, don't block.
 // LMPs MUST default these to true per RLS rules, so the backend can auto-fill.
-// Note: IDXEntireListingDisplayYN and SyndicateYN do NOT exist on live Trestle
+// Note: the retired IDX-display / syndication boolean names do NOT exist on live Trestle
 // (verified 2026-04-19 against $metadata). Use InternetEntireListingDisplayYN
 // and SyndicateTo (multi-select) respectively.
 const DEFAULTABLE_FIELDS = new Set<string>([
@@ -355,14 +355,10 @@ export function assertRlsCompliantPayload(
   // InternetEntireListingDisplayYN cascade — when master is false, all subordinate
   // Internet-* gates must also be false.
   //
-  // IDXEntireListingDisplayYN does NOT exist on live Trestle (verified 2026-04-19),
-  // but it IS retained in this list as a defensive guard: legacy form payloads
-  // and third-party API callers may still include the dead field name. If they
-  // submit IDXEntireListingDisplayYN=true while InternetEntireListingDisplayYN=false,
-  // that is a contradictory opt-out intent and we block it rather than silently drop.
+  // Only live Cotality fields take part (the retired IDXEntireListingDisplayYN name is refused by the
+  // live resource; the Mallan IDX-display decision travels as _mallanIdxDisplay → idx_display_yn).
   if (payload.InternetEntireListingDisplayYN === false) {
     const cascadeFields = [
-      "IDXEntireListingDisplayYN", // legacy guard — see comment above
       "InternetAddressDisplayYN",
       "InternetAutomatedValuationDisplayYN",
       "InternetConsumerCommentYN",
@@ -408,14 +404,10 @@ export function assertRlsCompliantPayload(
     perm === "Owner Opt-Out" ||
     perm === "Private"
   ) {
-    // Check boolean display flags. InternetEntireListingDisplayYN is the canonical
-    // gate on live Trestle (verified 2026-04-19). IDXEntireListingDisplayYN does
-    // NOT exist on Trestle but is retained here as a defensive guard: a legacy
-    // payload submitting IDXEntireListingDisplayYN=true on an Owner Opt-Out
-    // listing is still a contradiction we block (don't silently drop intent).
+    // The live master display flag and the Mallan IDX-display decision must both be off.
     const booleanDisplayFields = [
       "InternetEntireListingDisplayYN",
-      "IDXEntireListingDisplayYN", // legacy guard — see comment above
+      "_mallanIdxDisplay",
     ];
     for (const field of booleanDisplayFields) {
       if (payload[field] === true) {
@@ -428,19 +420,7 @@ export function assertRlsCompliantPayload(
         });
       }
     }
-    // Syndication: SyndicateTo (multi-select picker) is the only valid field on
-    // live Trestle. SyndicateYN is retained as a defensive guard: legacy form
-    // payloads may submit SyndicateYN=true (boolean) intending to syndicate
-    // everywhere — we block that on opted-out listings rather than silently drop.
-    if (payload.SyndicateYN === true) {
-      blockers.push({
-        code: "DG-002",
-        severity: "BLOCKER",
-        field: "SyndicateYN",
-        message: "SyndicateYN must be false for Owner Opt-Out / Participant Only listings (legacy field — use SyndicateTo).",
-        ucbaRef: "UCBA Art. I, Sec. 7",
-      });
-    }
+    // Syndication: SyndicateTo is the live collection; an opted-out listing may not name any target.
     const syndicateTo = payload.SyndicateTo;
     if (syndicateTo && (syndicateTo === true || (typeof syndicateTo === "string" && syndicateTo.length > 0) || (Array.isArray(syndicateTo) && syndicateTo.length > 0))) {
       blockers.push({

@@ -5,7 +5,7 @@
  * Every listing displayed publicly (IDX context) MUST pass through these checks.
  *
  * 6 Distribution Gates (REBNY RLS / UCBA 2026):
- * 1. Owner Opt-Out (IDXEntireListingDisplayYN = false)
+ * 1. Owner Opt-Out (the Mallan decision; there is no provider Boolean for it)
  * 2. Participant Only Network (flags.participantOnlyNetwork = true)
  * 3. IDX Display Opt-Out (compliance.idxOptOut = true)
  * 4. Internet Address Display (InternetAddressDisplayYN = false → suppress address)

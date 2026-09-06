@@ -359,7 +359,7 @@ export async function POST(req: NextRequest) {
   // 1. Strip removed fields (NAR Settlement)
   // 2. Rename aliases → canonical RLS field names
   // 3. Normalize enum values
-  // 4. Apply defaults (IDXEntireListingDisplayYN, SyndicateYN)
+  // 4. Apply defaults (InternetEntireListingDisplayYN)
   const { normalized, stripped } = normalizePayload(body);
 
   // Fair Housing applies to ALL advertising, regardless of RLS eligibility (Federal FHA, NY State

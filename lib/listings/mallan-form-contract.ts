@@ -27,6 +27,9 @@ export const PROVIDER_DECISION_FIELDS: readonly string[] = Object.freeze(['MlsSt
 export const MALLAN_INTERNAL_KEYS: readonly string[] = [
   // Mallan decisions
   '_mallanStatus', '_crmWorkflowStatus', '_mallanPermission',
+  // the agent's IDX-display control → the idx_display_yn column (there is NO provider field for it:
+  // IDXEntireListingDisplayYN was never on the live resource — verified 400 "Could not find a property")
+  '_mallanIdxDisplay',
   // REBNY submission-form / Mallan facts kept under their submission names (not on the live Property resource)
   'RLSListingID', 'CoBrokeAgreement', 'BathroomsTotal', 'AttendanceType', 'BuildingLaundryFeatures',
   'BuildingPetsAllowed', 'BuildingPetsAllowedComments', 'PetsAllowedComments', 'BuildingTaxLot',
@@ -42,6 +45,12 @@ export const MALLAN_INTERNAL_KEYS: readonly string[] = [
   // FARE Act fee facts as the agent typed them (displayed as typed); the live multi-selects
   // MoveInCosts / OngoingFees / TenantPays receive only the live members named in them.
   'MoveInCostsDescription', 'OngoingFeesDescription', 'TenantPaysList',
+  // Mallan facts the forms bind that are not live Property fields (REBNY submission / Mallan business facts)
+  'AdditionalFeeYN', 'AdditionalFee', 'AdditionalFeeDescription', 'AdditionalFeeFrequency', 'MaxLeaseMonths',
+  'MaximumFinancingAmount', 'TaxDeductionPercent', 'GuarantorsAcceptedYN', 'BuildingSmokeFreeYN', 'CommercialUnitsYN',
+  'LandmarkStatusYN', 'CapitalReservesTotal', 'CapitalReservesYN',
+  // Mallan auction facts bound under their storage column names
+  'auction_yn', 'auction_type', 'auction_start_date', 'auction_end_date', 'auction_terms_url',
 ];
 
 export const MALLAN_FORM_CONTRACT = {
@@ -97,9 +106,12 @@ export const MALLAN_FORM_CONTRACT = {
     // exist on live Trestle (verified 2026-04-19). Redirect ALL three forms
     // (short, camelCase, PascalCase) to the canonical Internet-prefixed gate
     // so any legacy form payload still normalizes correctly.
-    idxDisplayYN: 'InternetEntireListingDisplayYN',
-    idxEntireListingDisplayYN: 'InternetEntireListingDisplayYN',
-    IDXEntireListingDisplayYN: 'InternetEntireListingDisplayYN',
+    // The IDX-display control is a MALLAN decision (idx_display_yn); it is never the live master flag.
+    idxDisplayYN: '_mallanIdxDisplay',
+    idxEntireListingDisplayYN: '_mallanIdxDisplay',
+    IDXEntireListingDisplayYN: '_mallanIdxDisplay',
+    saleIdxDisplayYN: '_mallanIdxDisplay',
+    rentalIdxDisplayYN: '_mallanIdxDisplay',
     internetDisplayYN: 'InternetEntireListingDisplayYN',
     // participantOnlyYN / ParticipantOnlyYN (legacy booleans) are folded into `_mallanPermission` by the normalizer.
 

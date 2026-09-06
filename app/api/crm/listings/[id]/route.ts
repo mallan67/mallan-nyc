@@ -279,12 +279,11 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // coerceStrictBool() so only literal true / "true" / "TRUE" stores as true;
   // anything else (including null, "false", typos, malformed JSON) stores as
   // false. This matches the compliance gate doctrine in lib/compliance/gates.ts.
-  // IDX-display control (Cotality-clean 2026-05-30): the internal flag
-  // `saleIdxDisplayYN` drives the internal `idx_display_yn` column. There is NO
-  // Cotality field for IDX display — `IDXEntireListingDisplayYN` was a phantom and
-  // is accepted here only as a legacy fallback. The §2.05 terminal guard below is
-  // unchanged (rls-eligible AND not-terminal AND coerceStrictBool).
-  const idxDisplayControl = body.saleIdxDisplayYN ?? body.IDXEntireListingDisplayYN;
+  // IDX-display control: the Mallan decision key `_mallanIdxDisplay` (both forms) or the sale form's
+  // `saleIdxDisplayYN` drives the internal `idx_display_yn` column. There is NO Cotality field for IDX
+  // display (the retired IDXEntireListingDisplayYN name is refused by the live resource) — no provider-named
+  // key is consulted. The §2.05 terminal guard below is unchanged (rls-eligible AND not-terminal AND coerceStrictBool).
+  const idxDisplayControl = body._mallanIdxDisplay ?? body.saleIdxDisplayYN ?? body.rentalIdxDisplayYN;
   if (idxDisplayControl !== undefined) {
     // H1 fix (2026-05-13) + amend: close the secondary-writer §2.05 gap with
     // canonical-status normalization. An agent editing a listing whose
@@ -303,12 +302,12 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     //
     // Phase A Codex fix (2026-05-20): also AND-in `effectiveRlsEligible` so a
     // commercial / website-only listing (`rls_eligible=false`) cannot have
-    // its idx_display_yn flipped true by the body's IDXEntireListingDisplayYN
+    // its idx_display_yn flipped true by the body's IDX-display control
     // input. Matches the CRM POST guard at
     // app/api/crm/listings/route.ts:340-343 (`rlsEligible && ...`). Before
     // this fix, if a listing was already `rls_eligible=false` AND the body
     // did not change rls_eligible (so the block at line 140-145 didn't
-    // override), the body's IDXEntireListingDisplayYN: true would have
+    // override), the body's IDX-display control: true would have
     // bypassed the rls_eligible guard.
     const effectiveStatus = normalizeStandardStatus(
       (merged._mallanStatus as string | undefined) ?? listing.status,
@@ -357,16 +356,14 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
         ? body.auction_terms_url
         : null;
   }
-  // ParticipantOnly + OwnerOptOut: derive from Permissions enum (same as POST route),
-  // or accept the canonical RESO field names ParticipantOnlyYN / OwnerOptOutYN as fallback.
-  const permValue = body._mallanPermission; // the Mallan decision (server-owned form mapping redirected any legacy Permission/Permissions input here)
+  // ParticipantOnly + OwnerOptOut: the Mallan decision key only (the server-owned form mapping redirects every
+  // legacy Permission / Permissions input to it; the normalizer folds the legacy participant-only booleans on
+  // create). No provider-named or retired boolean key is consulted here.
+  const permValue = body._mallanPermission;
   if (permValue !== undefined) {
     const permBools = derivePermissionBooleans(permValue);
     update.participant_only = permBools.participant_only;
     update.owner_opt_out = permBools.owner_opt_out;
-  } else {
-    if (body.ParticipantOnlyYN !== undefined) update.participant_only = body.ParticipantOnlyYN === true;
-    if (body.OwnerOptOutYN !== undefined) update.owner_opt_out = body.OwnerOptOutYN === true;
   }
 
   // Update JSON columns by merging
@@ -537,7 +534,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // Phase A W3 — dual-write the listing_search_projection so any reader
   // (including the PR 5B-future projection reader) sees the updated row
   // immediately. CRM PATCH can change `list_price`, address fields,
-  // `idx_display_yn` (via IDXEntireListingDisplayYN guard above),
+  // `idx_display_yn` (via the IDX-display control guard above),
   // `rls_eligible`, status, and other projection-mirrored columns; without
   // this dual-write the projection would lag until the next idx-sync run
   // (Trestle path only) or the data-retention cron (terminal rows only).

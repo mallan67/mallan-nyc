@@ -14758,7 +14758,7 @@ function comingSoonCountdown(listing) {
     else if (remaining >= 0) { color = '#dc2626'; bg = '#fef2f2'; textColor = '#991b1b'; pulse = ''; }
     else { color = '#dc2626'; bg = '#fef2f2'; textColor = '#991b1b'; pulse = ' animate-pulse'; }
 
-    var html = '<div class="mt-2 rounded-lg px-3 py-2 text-xs' + pulse + '" style="background:' + bg + ';border:1px solid ' + color + '30" data-compliance="coming-soon-countdown" data-reso-field="ComingSoonTimestamp" data-reso-value="' + listing.comingSoonStartDate + '">';
+    var html = '<div class="mt-2 rounded-lg px-3 py-2 text-xs' + pulse + '" style="background:' + bg + ';border:1px solid ' + color + '30" data-compliance="coming-soon-countdown" data-reso-field="ActivationDate" data-reso-value="' + listing.comingSoonStartDate + '">';
 
     if (remaining > 0) {
         html += '<div class="flex items-center justify-between">';
@@ -14825,8 +14825,8 @@ function renderManageCards(listings) {
         // Photo banner with RLS/IDX media metadata
         if (l.photo) {
             var media = l.media || {};
-            html += '<div class="manage-photo-wrap" style="height:140px" data-reso-field="Media" data-reso-value="PhotosCount:' + (l.photoCount || 0) + '">';
-            html += '<img src="' + l.photo + '" alt="' + l.address + ' ' + l.unit + '" class="manage-photo" loading="lazy" data-reso-field="MediaURL">';
+            html += '<div class="manage-photo-wrap" style="height:140px" data-reso-field="PhotosCount" data-reso-value="' + (l.photoCount || 0) + '">';
+            html += '<img src="' + l.photo + '" alt="' + l.address + ' ' + l.unit + '" class="manage-photo" loading="lazy" data-mallan-field="photo">';
             // Top-left: status badge
             html += '<div class="absolute top-2.5 left-2.5"><span class="px-2 py-1 ' + sc.bg + ' ' + sc.text + ' rounded-md text-[10px] font-bold shadow-sm">' + l.status + '</span></div>';
             // Top-right: RLS / IDX / Web distribution badges
@@ -14835,7 +14835,7 @@ function renderManageCards(listings) {
                 html += '<span class="px-1.5 py-0.5 bg-blue-600/80 text-white text-[9px] font-bold rounded backdrop-blur-sm" title="Uploaded to REBNY RLS via Trestle">RLS</span>';
             }
             if (media.idxDisplayYN) {
-                html += '<span class="px-1.5 py-0.5 bg-green-600/80 text-white text-[9px] font-bold rounded backdrop-blur-sm" title="IDX display enabled" data-reso-field="IDXEntireListingDisplayYN" data-reso-value="true">IDX</span>';
+                html += '<span class="px-1.5 py-0.5 bg-green-600/80 text-white text-[9px] font-bold rounded backdrop-blur-sm" title="IDX display enabled" data-mallan-field="idx_display_yn" data-reso-value="true">IDX</span>';
             }
             if (media.webDisplayed) {
                 html += '<span class="px-1.5 py-0.5 bg-amber-600/80 text-white text-[9px] font-bold rounded backdrop-blur-sm" title="Displayed on mallan.nyc">Web</span>';
@@ -21042,7 +21042,7 @@ function parseBudgetValue(td) {
             // Gate 1: Owner Opt-Out → NEVER display (UCBA Art. I Sec. 4(A))
             // Gate 2: Participant Only → RLS participants only, NOT for IDX/public display
             // Gate 3: IDX Display Opted Out → NOT for IDX websites (InternetEntireListingDisplayYN=false)
-            // Gate 4: Syndication → SyndicateYN=false → NOT for third-party portals (no filter, badge only)
+            // Gate 4: Syndication → SyndicateTo empty (Mallan decision) → NOT for third-party portals (no filter, badge only)
             // Gate 5: Coming Soon → MlsStatus=ComingSoon → visible but no showings (no filter, badge + disable)
             // Gate 6: Closed Status → suppress after 24 hours (filtered in search-engine.js)
             //
@@ -21452,7 +21452,7 @@ function parseBudgetValue(td) {
         }
 
         // ── Syndication Badge Helper (Gate 4) ──
-        // UCBA: SyndicateYN=false → listing not distributed to third-party portals.
+        // UCBA: SyndicateTo empty (the Mallan syndication decision) → listing not distributed to third-party portals.
         // Listing still appears in IDX search. Badge informs agent of distribution status.
         function syndicationBadge(listing) {
             var perm = listing.permissions || {};
@@ -21460,7 +21460,7 @@ function parseBudgetValue(td) {
             return '<span class="px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded text-[9px] font-bold"'
                 + ' data-reso-field="SyndicateTo" data-reso-value="None"'
                 + ' data-compliance="syndication-gate"'
-                + ' title="SyndicateYN=false — this listing is not distributed to third-party syndication portals (StreetEasy, Zillow, etc.)."'
+                + ' title="SyndicateTo empty — this listing is not distributed to third-party syndication portals (StreetEasy, Zillow, etc.)."'
                 + '>NOT SYNDICATED</span>';
         }
 
@@ -33663,7 +33663,7 @@ function emailCurrentCalc() {
             if (!entireEl) return;
 
             var cascadeTargets = [
-                prefix + 'IDXEntireListingDisplayYN',
+                prefix + 'Dist_IDX', // the Mallan IDX-display control (no provider field exists)
                 prefix + 'InternetAddressDisplayYN',
             ];
 
@@ -33762,7 +33762,7 @@ function checkListingCompliance(listingIds, displayContext) {
         // Gate 3: Display context — IDX vs VOW vs CRM
         if (displayContext === 'idx') {
             if (listing.idxDisplayYN === false || perm.idxDisplay === false) {
-                result.blocked.push({ id: id, address: listing.address, reason: 'IDX Display opted out — not shown on IDX websites (RLS: IDXEntireListingDisplayYN)' });
+                result.blocked.push({ id: id, address: listing.address, reason: 'IDX Display opted out — not shown on IDX websites (Mallan decision: idx_display_yn)' });
                 return;
             }
             if (listing.internetDisplayYN === false) {
@@ -33778,10 +33778,10 @@ function checkListingCompliance(listingIds, displayContext) {
         // CRM: skip Gate 3 (authorized participant sees all except Owner Opt-Out)
 
         // Gate 4: Syndication — track for distribution control
-        // SyndicateYN=false means listing should NOT go to third-party portals,
+        // An empty SyndicateTo (the Mallan syndication decision) means the listing should NOT go to third-party portals,
         // but it still appears in IDX search. Flag as warning for output/reports.
         if (perm.syndication === false || listing.syndicateYN === false) {
-            result.warnings.push({ id: id, address: listing.address, reason: 'Not Syndicated — listing will not be distributed to third-party portals (SyndicateYN=false)' });
+            result.warnings.push({ id: id, address: listing.address, reason: 'Not Syndicated — listing will not be distributed to third-party portals (SyndicateTo empty)' });
         }
 
         // Gate 5: Coming Soon — show but with restrictions
@@ -35264,7 +35264,7 @@ function REBNYWiringTest(options) {
 
     // ── W1: Field Parity Test ──────────────────────────────────────────
     (function() {
-        var ALLOWED = ['SourceSystemKey','ListPrice','MlsStatus','PropertyType','PropertySubType','BedroomsTotal','BathroomsTotalInteger','LivingArea','YearBuilt','UnparsedAddress','City','StateOrProvince','PostalCode','Latitude','Longitude','ListAgentFullName','ListOfficeName','ListingAgreement','InternetEntireListingDisplayYN','InternetAddressDisplayYN','OwnerOptOut','ParticipantOnly','IDXEntireListingDisplayYN','SyndicateTo','ComingSoonTimestamp','ActivationDate','PublicRemarks','PrivateRemarks','ShowingInstructions','ListAgentEmail','ListAgentDirectPhone','MaintenanceFee','TaxAnnualAmount','CommonCharges','neighborhood','borough','photoCount','daysOnMarket','pricePerSqft','updatedDate','listedDate','buildingName','lotSize','stories','units','parkingFeatures','garageSpaces','listingCategory','CommonInterest','Ownership','PetsAllowed','LaundryFeatures','Amenities','CoolingYN','HeatingYN','FireplacesTotal','WaterfrontYN','ViewYN','TaxBlock','TaxLot','Zoning','FloorNumber','UnitNumber','Concessions','FinancialDataSource','AssociationFee','RentIncludes','NumberOfUnitsTotal','StoriesTotal','LotSizeArea','GarageYN','AssociationFee+TaxAnnualAmount','RoomsTotal','BathroomsFull','SubdivisionName','OnMarketDate','DaysOnMarket','CumulativeDaysOnMarket','OpenHouseDate','AssociationName','SecurityFeatures','PropertyCondition','PurchaseContractDate','BuyerFinancing','BuildingAreaTotal','PreviousListPrice','OriginalListPrice','PriceChangeTimestamp','ListAgentDirectPhone','PatioAndPorchFeatures','NewConstructionYN','SourceSystemModificationTimestamp','ListingId','EntryLevel','CrossStreet','Exposures','WalkScore','BathroomsHalf','BuildingName','CloseDate','ClosePrice','PhotosCount','VirtualTourURLBranded','View','Flooring','Cooling','Heating','ParkingFeatures','ParkingTotal','PetsAllowedYN','AssociationAmenities','InteriorFeatures'];
+        var ALLOWED = ['SourceSystemKey','ListPrice','MlsStatus','PropertyType','PropertySubType','BedroomsTotal','BathroomsTotalInteger','LivingArea','YearBuilt','UnparsedAddress','City','StateOrProvince','PostalCode','Latitude','Longitude','ListAgentFullName','ListOfficeName','ListingAgreement','InternetEntireListingDisplayYN','InternetAddressDisplayYN','OwnerOptOut','ParticipantOnly','SyndicateTo','ComingSoonTimestamp','ActivationDate','PublicRemarks','PrivateRemarks','ShowingInstructions','ListAgentEmail','ListAgentDirectPhone','MaintenanceFee','TaxAnnualAmount','CommonCharges','neighborhood','borough','photoCount','daysOnMarket','pricePerSqft','updatedDate','listedDate','buildingName','lotSize','stories','units','parkingFeatures','garageSpaces','listingCategory','CommonInterest','Ownership','PetsAllowed','LaundryFeatures','Amenities','CoolingYN','HeatingYN','FireplacesTotal','WaterfrontYN','ViewYN','TaxBlock','TaxLot','Zoning','FloorNumber','UnitNumber','Concessions','FinancialDataSource','AssociationFee','RentIncludes','NumberOfUnitsTotal','StoriesTotal','LotSizeArea','GarageYN','AssociationFee+TaxAnnualAmount','RoomsTotal','BathroomsFull','SubdivisionName','OnMarketDate','DaysOnMarket','CumulativeDaysOnMarket','OpenHouseDate','AssociationName','SecurityFeatures','PropertyCondition','PurchaseContractDate','BuyerFinancing','BuildingAreaTotal','PreviousListPrice','OriginalListPrice','PriceChangeTimestamp','ListAgentDirectPhone','PatioAndPorchFeatures','NewConstructionYN','SourceSystemModificationTimestamp','ListingId','EntryLevel','CrossStreet','Exposures','WalkScore','BathroomsHalf','BuildingName','CloseDate','ClosePrice','PhotosCount','VirtualTourURLBranded','View','Flooring','Cooling','Heating','ParkingFeatures','ParkingTotal','PetsAllowedYN','AssociationAmenities','InteriorFeatures'];
         var resoEls = document.querySelectorAll('[data-reso-field]');
         var unknown = [], seen = {};
         resoEls.forEach(function(el) {
@@ -35295,7 +35295,7 @@ function REBNYWiringTest(options) {
             val.split(',').forEach(function(v) { v = v.trim(); if (v && VS.indexOf(v) === -1) issues.push('Status:"' + v + '"'); });
         });
         var VB = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island','The Bronx'];
-        document.querySelectorAll('[data-reso-field="borough"][data-reso-value]').forEach(function(el) {
+        document.querySelectorAll('[data-mallan-field="borough"][data-reso-value]').forEach(function(el) {
             var v = el.getAttribute('data-reso-value'); if (v && VB.indexOf(v) === -1) issues.push('Borough:"' + v + '"');
         });
         if (typeof listings !== 'undefined') {

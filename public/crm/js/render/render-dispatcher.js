@@ -88,7 +88,7 @@
             // Gate 1: Owner Opt-Out → NEVER display (UCBA Art. I Sec. 4(A))
             // Gate 2: Participant Only → RLS participants only, NOT for IDX/public display
             // Gate 3: IDX Display Opted Out → NOT for IDX websites (InternetEntireListingDisplayYN=false)
-            // Gate 4: Syndication → SyndicateYN=false → NOT for third-party portals (no filter, badge only)
+            // Gate 4: Syndication → SyndicateTo empty (Mallan decision) → NOT for third-party portals (no filter, badge only)
             // Gate 5: Coming Soon → MlsStatus=ComingSoon → visible but no showings (no filter, badge + disable)
             // Gate 6: Closed Status → suppress after 24 hours (filtered in search-engine.js)
             //

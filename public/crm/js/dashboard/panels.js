@@ -118,7 +118,7 @@ var Panels = (function () {
         if (l.rls_eligible === false) return;
         var issues = [];
         if (l.OwnerOptOut || l.owner_opt_out) issues.push('Owner Opt-Out active');
-        if (l.IDXEntireListingDisplayYN === false) issues.push('IDX display disabled');
+        if (l.idx_display_yn === false) issues.push('IDX display disabled');
         if (issues.length > 0) {
           items.push({
             id: l.id || l.listing_id,
@@ -305,7 +305,7 @@ var Panels = (function () {
       listings.forEach(function (l) {
         if (l.rls_eligible === false) return;
         if (l.OwnerOptOut || l.owner_opt_out) compViolations++;
-        if (l.rls_eligible !== false && !l.IDXEntireListingDisplayYN && l.IDXEntireListingDisplayYN !== undefined && l.IDXEntireListingDisplayYN !== true) compViolations++;
+        if (l.rls_eligible !== false && l.idx_display_yn === false) compViolations++;
       });
 
       var pendingDocs = docs.filter(function (d) { return d.status === 'pending_approval'; });
@@ -5590,7 +5590,7 @@ var Panels = (function () {
     // 5. Feed/Display problems (RLS-eligible only)
     if (isRLS) {
       var ownerOptOut = listing.OwnerOptOut || listing.owner_opt_out;
-      var idxDisplay = listing.IDXEntireListingDisplayYN !== false && listing.idx_display_yn !== false;
+      var idxDisplay = listing.idx_display_yn !== false;
       if (ownerOptOut) {
         issues.push({ type: 'Feed/Display Problems', severity: 'critical', description: 'Owner Opt-Out is enabled — listing must not display publicly' });
       }
@@ -6406,7 +6406,7 @@ var Panels = (function () {
           var addr = l.address || l.UnparsedAddress || 'No address';
           var ownerOpt = l.OwnerOptOut || l.owner_opt_out;
           var participantOnly = l.ParticipantOnly || l.participant_only;
-          var idxOk = l.IDXEntireListingDisplayYN !== false && l.idx_display_yn !== false;
+          var idxOk = l.idx_display_yn !== false;
           var syndOk = l.SyndicationOptInYN !== false && l.syndication_opt_in !== false;
           var comingSoon = (l.status || '').toLowerCase() === 'coming soon' || (l.status || '').toLowerCase() === 'comingsoon';
           var closed = (l.status || '').toLowerCase() === 'closed';

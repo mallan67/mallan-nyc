@@ -513,7 +513,7 @@ body { font-family: Manrope, sans-serif; }
             <!-- Status -->
             <div class="mb-5">
                 <label class="field-label mb-1">Status <span class="text-red-500">*</span></label>
-                <select id="rentalStatus" class="field-input max-w-md" required onchange="validateStatusChange('rental'); updateRentalStatusFields()" data-rls-field="MlsStatus">
+                <select id="rentalStatus" class="field-input max-w-md" required onchange="validateStatusChange('rental'); updateRentalStatusFields()" data-rls-ignore="true" data-mallan-field="_crmWorkflowStatus">
                     <option value="Draft" selected>Draft</option>
                     <option value="Future">Future</option>
                     <option value="Active">Active</option>
@@ -635,27 +635,27 @@ body { font-family: Manrope, sans-serif; }
                             <label class="field-label mb-2">Property Type <span class="text-red-500">*</span></label>
                             <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Residential</p>
                             <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 mb-3">
-                                <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalPropertyType" value="Condo" class="w-4 h-4" onchange="applyRentalFieldRules()" data-rls-field="PropertyType"> Condo</label>
-                                <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalPropertyType" value="Coop" class="w-4 h-4" onchange="applyRentalFieldRules()"> Co-op</label>
-                                <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalPropertyType" value="Condop" class="w-4 h-4" onchange="applyRentalFieldRules()"> Condop</label>
-                                <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalPropertyType" value="SingleFamilyTownhouse" class="w-4 h-4" onchange="applyRentalFieldRules()"> Single Family TH</label>
-                                <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalPropertyType" value="MultiFamilyTownhouse" class="w-4 h-4" onchange="applyRentalFieldRules()"> Multi-Family TH</label>
-                                <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalPropertyType" value="SingleFamily" class="w-4 h-4" onchange="applyRentalFieldRules()"> Single Family</label>
-                                <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalPropertyType" value="MultiFamily" class="w-4 h-4" onchange="applyRentalFieldRules()"> Multi-Family</label>
-                                <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalPropertyType" value="MixedUse" class="w-4 h-4" onchange="applyRentalFieldRules()"> Mixed Use</label>
-                                <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalPropertyType" value="Loft" class="w-4 h-4" onchange="applyRentalFieldRules()"> Loft</label>
-                                <label class="radio-card flex items-center gap-2 text-sm border-blue-300 bg-blue-50"><input type="radio" name="rentalPropertyType" value="RentalBuilding" class="w-4 h-4" onchange="applyRentalFieldRules()" checked> Rental Building</label>
+                                <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalPropertyType" value="Condo" class="w-4 h-4" onchange="applyRentalFieldRules()" data-rls-ignore="true" data-mallan-field="PropertyType"> Condo</label>
+                                <label class="radio-card flex items-center gap-2 text-sm"><input data-rls-ignore="true" data-mallan-field="PropertyType" type="radio" name="rentalPropertyType" value="Coop" class="w-4 h-4" onchange="applyRentalFieldRules()"> Co-op</label>
+                                <label class="radio-card flex items-center gap-2 text-sm"><input data-rls-ignore="true" data-mallan-field="PropertyType" type="radio" name="rentalPropertyType" value="Condop" class="w-4 h-4" onchange="applyRentalFieldRules()"> Condop</label>
+                                <label class="radio-card flex items-center gap-2 text-sm"><input data-rls-ignore="true" data-mallan-field="PropertyType" type="radio" name="rentalPropertyType" value="SingleFamilyTownhouse" class="w-4 h-4" onchange="applyRentalFieldRules()"> Single Family TH</label>
+                                <label class="radio-card flex items-center gap-2 text-sm"><input data-rls-ignore="true" data-mallan-field="PropertyType" type="radio" name="rentalPropertyType" value="MultiFamilyTownhouse" class="w-4 h-4" onchange="applyRentalFieldRules()"> Multi-Family TH</label>
+                                <label class="radio-card flex items-center gap-2 text-sm"><input data-rls-ignore="true" data-mallan-field="PropertyType" type="radio" name="rentalPropertyType" value="SingleFamily" class="w-4 h-4" onchange="applyRentalFieldRules()"> Single Family</label>
+                                <label class="radio-card flex items-center gap-2 text-sm"><input data-rls-ignore="true" data-mallan-field="PropertyType" type="radio" name="rentalPropertyType" value="MultiFamily" class="w-4 h-4" onchange="applyRentalFieldRules()"> Multi-Family</label>
+                                <label class="radio-card flex items-center gap-2 text-sm"><input data-rls-ignore="true" data-mallan-field="PropertyType" type="radio" name="rentalPropertyType" value="MixedUse" class="w-4 h-4" onchange="applyRentalFieldRules()"> Mixed Use</label>
+                                <label class="radio-card flex items-center gap-2 text-sm"><input data-rls-ignore="true" data-mallan-field="PropertyType" type="radio" name="rentalPropertyType" value="Loft" class="w-4 h-4" onchange="applyRentalFieldRules()"> Loft</label>
+                                <label class="radio-card flex items-center gap-2 text-sm border-blue-300 bg-blue-50"><input data-rls-ignore="true" data-mallan-field="PropertyType" type="radio" name="rentalPropertyType" value="RentalBuilding" class="w-4 h-4" onchange="applyRentalFieldRules()" checked> Rental Building</label>
                             </div>
                             <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Small Multi-Family (Whole Building)</p>
                             <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 mb-3">
-                                <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalPropertyType" value="Duplex" class="w-4 h-4" onchange="applyRentalFieldRules()"> Duplex (2 Unit)</label>
-                                <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalPropertyType" value="Triplex" class="w-4 h-4" onchange="applyRentalFieldRules()"> Triplex (3 Unit)</label>
-                                <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalPropertyType" value="Quadruplex" class="w-4 h-4" onchange="applyRentalFieldRules()"> Quadruplex (4 Unit)</label>
+                                <label class="radio-card flex items-center gap-2 text-sm"><input data-rls-ignore="true" data-mallan-field="PropertyType" type="radio" name="rentalPropertyType" value="Duplex" class="w-4 h-4" onchange="applyRentalFieldRules()"> Duplex (2 Unit)</label>
+                                <label class="radio-card flex items-center gap-2 text-sm"><input data-rls-ignore="true" data-mallan-field="PropertyType" type="radio" name="rentalPropertyType" value="Triplex" class="w-4 h-4" onchange="applyRentalFieldRules()"> Triplex (3 Unit)</label>
+                                <label class="radio-card flex items-center gap-2 text-sm"><input data-rls-ignore="true" data-mallan-field="PropertyType" type="radio" name="rentalPropertyType" value="Quadruplex" class="w-4 h-4" onchange="applyRentalFieldRules()"> Quadruplex (4 Unit)</label>
                             </div>
                             <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Commercial (RLS-eligible)</p>
                             <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 mb-2">
-                                <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalPropertyType" value="Office" class="w-4 h-4" onchange="applyRentalFieldRules()"> Office</label>
-                                <label class="radio-card flex items-center gap-2 text-sm"><input type="radio" name="rentalPropertyType" value="Retail" class="w-4 h-4" onchange="applyRentalFieldRules()"> Retail</label>
+                                <label class="radio-card flex items-center gap-2 text-sm"><input data-rls-ignore="true" data-mallan-field="PropertyType" type="radio" name="rentalPropertyType" value="Office" class="w-4 h-4" onchange="applyRentalFieldRules()"> Office</label>
+                                <label class="radio-card flex items-center gap-2 text-sm"><input data-rls-ignore="true" data-mallan-field="PropertyType" type="radio" name="rentalPropertyType" value="Retail" class="w-4 h-4" onchange="applyRentalFieldRules()"> Retail</label>
                             </div>
                             <!-- Office/Retail Building Type Sub-Selector -->
                             <div id="rentalOfficeRetailBuildingType" class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg" style="display: none;">
@@ -734,7 +734,7 @@ body { font-family: Manrope, sans-serif; }
                     <!-- Master Commercial Radio -->
                     <div class="mb-3 mt-3 bg-purple-50 border border-purple-200 rounded-lg p-3">
                         <label class="flex items-center gap-2 cursor-pointer text-sm font-semibold text-purple-800">
-                            <input type="radio" name="rentalPropertyType" value="Commercial" class="w-4 h-4 text-purple-600" onchange="applyRentalFieldRules()"> Select Commercial Listing
+                            <input data-rls-ignore="true" data-mallan-field="PropertyType" type="radio" name="rentalPropertyType" value="Commercial" class="w-4 h-4 text-purple-600" onchange="applyRentalFieldRules()"> Select Commercial Listing
                         </label>
                     </div>
                     <!-- WWW-only banner -->
@@ -919,8 +919,8 @@ body { font-family: Manrope, sans-serif; }
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-4">
                 <div id="rentalBoardApprovalField" class="flex items-center gap-3">
                     <span class="text-[13px] font-semibold text-gray-600 whitespace-nowrap">Board Approval</span>
-                    <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalBoardApproval" value="Yes" class="w-4 h-4" data-rls-field="BuildingFeatures"> Y</label>
-                    <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalBoardApproval" value="No" class="w-4 h-4"> N</label>
+                    <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalBoardApproval" value="Yes" class="w-4 h-4" data-rls-ignore="true" data-mallan-field="BoardApproval"> Y</label>
+                    <label class="flex items-center gap-1 text-sm"><input data-rls-ignore="true" data-mallan-field="BoardApproval" type="radio" name="rentalBoardApproval" value="No" class="w-4 h-4"> N</label>
                 </div>
                 <div id="rentalBoardInterviewField" class="flex items-center gap-3">
                     <span class="text-[13px] font-semibold text-gray-600 whitespace-nowrap">Board Interview</span>
@@ -974,8 +974,8 @@ body { font-family: Manrope, sans-serif; }
                 <div>
                     <label class="field-label mb-2">Furnished</label>
                     <div class="flex gap-4">
-                        <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalFurnished" value="Yes" class="w-4 h-4"> Yes</label>
-                        <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalFurnished" value="No" class="w-4 h-4"> No</label>
+                        <label class="flex items-center gap-1 text-sm"><input data-rls-ignore="true" data-mallan-field="Furnished" type="radio" name="rentalFurnished" value="Yes" class="w-4 h-4"> Yes</label>
+                        <label class="flex items-center gap-1 text-sm"><input data-rls-ignore="true" data-mallan-field="Furnished" type="radio" name="rentalFurnished" value="No" class="w-4 h-4"> No</label>
                     </div>
                 </div>
                 <div>
@@ -1849,7 +1849,7 @@ body { font-family: Manrope, sans-serif; }
         </div>
         <div>
             <label class="field-label">Furnished</label>
-            <select id="rentalFurnished" class="field-input" onchange="toggleFurnishedFields()" data-rls-field="Furnished">
+            <select id="rentalFurnished" class="field-input" onchange="toggleFurnishedFields()" data-rls-ignore="true" data-mallan-field="Furnished">
                 <option value="Unfurnished">Unfurnished</option>
                 <option value="Furnished">Furnished</option>
                 <option value="Partially">Partially Furnished</option>
@@ -2203,7 +2203,7 @@ body { font-family: Manrope, sans-serif; }
         </div>
         <div>
             <label class="field-label">Development Status</label>
-            <select id="rentalTHDevStatus" class="field-input" data-rls-field="DevelopmentStatus">
+            <select id="rentalTHDevStatus" class="field-input" data-rls-ignore="true" data-mallan-field="DevelopmentStatus">
                 <option value="">Select</option><option value="Proposed">Proposed</option><option value="UnderConstruction">Under Construction</option>
                 <option value="RawLand">Raw Land</option><option value="RoughGrade">Rough Grade</option>
                 <option value="SitePlanFiled">Site Plan Filed</option><option value="SitePlanApproved">Site Plan Approved</option>
@@ -2400,12 +2400,12 @@ body { font-family: Manrope, sans-serif; }
     <div class="form-card-header"><i class="fas fa-folder-open"></i> Documents Available (Upon Request)</div>
     <p class="text-xs text-gray-500 mb-3">Select which building/property documents are available for prospective tenants or their representatives.</p>
     <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalTHDocsAvailable" value="BuildingRules" class="w-4 h-4" data-rls-field="DocumentsAvailable"> Building Rules</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalTHDocsAvailable" value="BylawsAndAmendments" class="w-4 h-4"> Bylaws & Amendments</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalTHDocsAvailable" value="FinancialStatement" class="w-4 h-4"> Financial Statement</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalTHDocsAvailable" value="OfferingPlan" class="w-4 h-4"> Offering Plan</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalTHDocsAvailable" value="ResaleBoardPackageTemplate" class="w-4 h-4"> Board Package Template</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalTHDocsAvailable" value="ScheduleA" class="w-4 h-4"> Schedule A</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalTHDocsAvailable" value="BuildingRules" class="w-4 h-4" data-rls-ignore="true" data-mallan-field="DocumentsAvailable"> Building Rules</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input data-rls-ignore="true" data-mallan-field="DocumentsAvailable" type="checkbox" name="rentalTHDocsAvailable" value="BylawsAndAmendments" class="w-4 h-4"> Bylaws & Amendments</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input data-rls-ignore="true" data-mallan-field="DocumentsAvailable" type="checkbox" name="rentalTHDocsAvailable" value="FinancialStatement" class="w-4 h-4"> Financial Statement</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input data-rls-ignore="true" data-mallan-field="DocumentsAvailable" type="checkbox" name="rentalTHDocsAvailable" value="OfferingPlan" class="w-4 h-4"> Offering Plan</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input data-rls-ignore="true" data-mallan-field="DocumentsAvailable" type="checkbox" name="rentalTHDocsAvailable" value="ResaleBoardPackageTemplate" class="w-4 h-4"> Board Package Template</label>
+        <label class="flex items-center gap-2 cursor-pointer text-sm"><input data-rls-ignore="true" data-mallan-field="DocumentsAvailable" type="checkbox" name="rentalTHDocsAvailable" value="ScheduleA" class="w-4 h-4"> Schedule A</label>
     </div>
     <p class="text-[10px] text-gray-400 mt-2">RLS/RESO/IDX: DocumentsAvailable (multi-select)</p>
 </div>
@@ -2614,7 +2614,7 @@ body { font-family: Manrope, sans-serif; }
                 </label>
                 <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">ON</span>
             </div>
-            <p class="text-xs text-gray-500">RLS/RESO/IDX: IDXEntireListingDisplayYN — controls all licensed partner display</p>
+            <p class="text-xs text-gray-500">Mallan IDX-display decision (idx_display_yn) — there is no provider field for it; InternetEntireListingDisplayYN is the live master flag</p>
             <p class="text-[10px] text-red-500 mt-1"><i class="fas fa-exclamation-circle mr-1"></i>If unchecked, listing will NOT appear on any IDX-licensed partner sites.</p>
         </div>
         <!-- VOW Opt-Out (Not Activated) -->
@@ -2637,7 +2637,7 @@ body { font-family: Manrope, sans-serif; }
                     <span class="text-sm font-semibold text-gray-700">Syndicate to Third-Party Portals</span>
                 </label>
             </div>
-            <p class="text-xs text-gray-500">RLS: SyndicateYN — default: True (required by RLS rules)</p>
+            <p class="text-xs text-gray-500">Mallan syndication intent — the live SyndicateTo collection receives only verified members (there is no provider Yes/No)</p>
         </div>
     </div>
     <div id="rentalIdxWarning" class="warning-banner bg-red-50 border border-red-200 mt-4" style="display:none;">
@@ -3985,12 +3985,12 @@ body { font-family: Manrope, sans-serif; }
                         <div class="form-card-header"><i class="fas fa-folder-open"></i> Documents Available (Upon Request)</div>
                         <p class="text-xs text-gray-500 mb-3">Select which building documents are available for prospective tenants or their representatives.</p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="bldgDocsAvailable" value="BuildingRules" class="w-4 h-4" data-rls-field="DocumentsAvailable"> Building Rules</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="bldgDocsAvailable" value="BylawsAndAmendments" class="w-4 h-4"> Bylaws & Amendments</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="bldgDocsAvailable" value="FinancialStatement" class="w-4 h-4"> Financial Statement</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="bldgDocsAvailable" value="OfferingPlan" class="w-4 h-4"> Offering Plan</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="bldgDocsAvailable" value="ResaleBoardPackageTemplate" class="w-4 h-4"> Board Package Template</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="bldgDocsAvailable" value="ScheduleA" class="w-4 h-4"> Schedule A</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="bldgDocsAvailable" value="BuildingRules" class="w-4 h-4" data-rls-ignore="true" data-mallan-field="DocumentsAvailable"> Building Rules</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input data-rls-ignore="true" data-mallan-field="DocumentsAvailable" type="checkbox" name="bldgDocsAvailable" value="BylawsAndAmendments" class="w-4 h-4"> Bylaws & Amendments</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input data-rls-ignore="true" data-mallan-field="DocumentsAvailable" type="checkbox" name="bldgDocsAvailable" value="FinancialStatement" class="w-4 h-4"> Financial Statement</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input data-rls-ignore="true" data-mallan-field="DocumentsAvailable" type="checkbox" name="bldgDocsAvailable" value="OfferingPlan" class="w-4 h-4"> Offering Plan</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input data-rls-ignore="true" data-mallan-field="DocumentsAvailable" type="checkbox" name="bldgDocsAvailable" value="ResaleBoardPackageTemplate" class="w-4 h-4"> Board Package Template</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input data-rls-ignore="true" data-mallan-field="DocumentsAvailable" type="checkbox" name="bldgDocsAvailable" value="ScheduleA" class="w-4 h-4"> Schedule A</label>
                         </div>
                         <p class="text-[10px] text-gray-400 mt-2">RLS/RESO/IDX: DocumentsAvailable (multi-select)</p>
                     </div>
@@ -5665,16 +5665,18 @@ function collectRentalFormData() {
     data._mallanPermission = isOwnerOptOut ? 'OwnerOptOut' : isParticipantOnly ? 'Private' : null;
 
     // Distribution gates — force OFF when Owner Opt-Out or Participant Only
+    // The IDX-display control is a Mallan decision (_mallanIdxDisplay → idx_display_yn); there is NO provider
+    // field for it. Syndication intent is the Mallan checkbox (rentalSyndicateYN, kept as a form key); the live
+    // collection SyndicateTo is written only as the explicit empty set on opt-out — never a fabricated member.
     if (isOwnerOptOut || isParticipantOnly) {
-        data.IDXEntireListingDisplayYN = false;
+        data._mallanIdxDisplay = false;
         data.InternetEntireListingDisplayYN = false;
         data.InternetAddressDisplayYN = false;
-        data.SyndicateYN = false;
+        data.SyndicateTo = [];
     } else {
-        data.IDXEntireListingDisplayYN = data.rentalDist_IDX !== false;
+        data._mallanIdxDisplay = data.rentalDist_IDX !== false && data.rentalIDXEntireListingDisplayYN !== false;
         data.InternetEntireListingDisplayYN = data.rentalInternetEntireListingDisplayYN !== false && data.rentalDist_VOW !== false;
         data.InternetAddressDisplayYN = data.rentalInternetAddressDisplayYN !== false;
-        data.SyndicateYN = data.rentalSyndicateYN !== false;
     }
 
     // Agent identity from session

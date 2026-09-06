@@ -50,7 +50,7 @@
         }
 
         // ── Syndication Badge Helper (Gate 4) ──
-        // UCBA: SyndicateYN=false → listing not distributed to third-party portals.
+        // UCBA: SyndicateTo empty (the Mallan syndication decision) → listing not distributed to third-party portals.
         // Listing still appears in IDX search. Badge informs agent of distribution status.
         function syndicationBadge(listing) {
             var perm = listing.permissions || {};
@@ -58,7 +58,7 @@
             return '<span class="px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded text-[9px] font-bold"'
                 + ' data-reso-field="SyndicateTo" data-reso-value="None"'
                 + ' data-compliance="syndication-gate"'
-                + ' title="SyndicateYN=false — this listing is not distributed to third-party syndication portals (StreetEasy, Zillow, etc.)."'
+                + ' title="SyndicateTo empty — this listing is not distributed to third-party syndication portals (StreetEasy, Zillow, etc.)."'
                 + '>NOT SYNDICATED</span>';
         }
 

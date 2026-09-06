@@ -4,7 +4,8 @@
  *
  * There is no Cotality field for "IDX display" — `IDXEntireListingDisplayYN` was a
  * phantom. It is reclassified to the internal flag `saleIdxDisplayYN`, which drives
- * the internal `idx_display_yn` column. Legacy `IDXEntireListingDisplayYN` is still
+ * the internal `idx_display_yn` column (the Mallan decision key `_mallanIdxDisplay` since the
+ * blocker round; the retired name is refused by the live resource and is no longer
  * accepted (fallback). Critically, the §2.05 terminal-status guard on
  * `idx_display_yn` must remain intact (no terminal listing can be flipped to
  * display).
@@ -27,10 +28,11 @@ describe('IDX-display control — internal saleIdxDisplayYN; §2.05 guard preser
     );
   });
 
-  it('PATCH reads internal saleIdxDisplayYN with legacy IDXEntireListingDisplayYN fallback', () => {
+  it('PATCH reads the Mallan IDX-display decision (_mallanIdxDisplay, then the form keys) and never a provider-named key', () => {
     expect(routeTs).toMatch(
-      /const idxDisplayControl = body\.saleIdxDisplayYN \?\? body\.IDXEntireListingDisplayYN/,
+      /const idxDisplayControl = body\._mallanIdxDisplay \?\? body\.saleIdxDisplayYN \?\? body\.rentalIdxDisplayYN;/,
     );
+    expect(routeTs).not.toMatch(/body\.IDXEntireListingDisplayYN/);
   });
 
   it('§2.05 terminal guard preserved: rls-eligible AND not-terminal AND coerceStrictBool(control)', () => {
