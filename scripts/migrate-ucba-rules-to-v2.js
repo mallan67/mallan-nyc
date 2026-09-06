@@ -507,7 +507,7 @@ const V2_BATCH = {
     required_surfaces: ['gate', 'data'],
     evidence: {
       gate: ['lib/compliance/rls-enforcement.ts'],
-      data: ['lib/compliance/rebny-field-tables.ts'],
+      data: ['lib/compliance/rebny-ucba-rules.ts'],
     },
     surface_patterns: {
       gate: 'ListingAgreement|exclusive',
@@ -578,11 +578,11 @@ const V2_BATCH = {
     required_surfaces: ['gate', 'data'],
     evidence: {
       gate: ['lib/compliance/rls-enforcement.ts'],
-      data: ['lib/compliance/rebny-field-tables.ts'],
+      data: ['lib/compliance/rebny-ucba-rules.ts'],
     },
     surface_patterns: {
       gate: 'validate|REQUIRED_COTALITY_FIELDS',
-      data: 'REBNY_FIELD_TABLES|enumValues',
+      data: 'live-contract|liveEnumMembers',
     },
     expected_aggregate: 'PASS',
   },

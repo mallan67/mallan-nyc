@@ -20,12 +20,12 @@
  *   - Distribution gates: All 6 enforced on write
  *   - Fair Housing: Federal + NY State + NYC HRL Title 8
  *
- * AUTHORITY SOURCE: REBNY_FIELD_TABLES (lib/compliance/rebny-field-tables.ts)
+ * AUTHORITY SOURCES: REBNY / UCBA rules (lib/compliance/rebny-ucba-rules.ts); provider facts = the live Cotality contract (lib/cotality/live-contract.ts)
  *   All mandatory fields, removed fields, conditional rules, enum values,
  *   and content scanning patterns are imported from the single canonical authority table.
  */
 
-import { REBNY_FIELD_TABLES } from './rebny-field-tables';
+import { REBNY_UCBA_RULES } from './rebny-ucba-rules';
 import prohibitedTermsJson from '../../data/compliance/prohibited-terms.json';
 
 // ─── Types ────────────────────────────────────────────────────────────────
@@ -56,17 +56,17 @@ export type ListingContext = {
   mixedUseSmallBuilding?: boolean;
 };
 
-// ─── Derived from REBNY_FIELD_TABLES (single source of truth) ─────────────
+// ─── Derived from REBNY_UCBA_RULES (the REBNY / UCBA compliance contract; provider facts come from the live Cotality contract) ─────────────
 
-const REMOVED_FIELDS = new Set<string>(REBNY_FIELD_TABLES.removedFields);
+const REMOVED_FIELDS = new Set<string>(REBNY_UCBA_RULES.removedFields);
 
 // Agent-submitted mandatory fields from authority table
-const MANDATORY_FIELDS = REBNY_FIELD_TABLES.requiredFields.agentSubmitted;
+const MANDATORY_FIELDS = REBNY_UCBA_RULES.requiredFields.agentSubmitted;
 
 // System-generated fields — NEVER block agent payloads for these.
 // Backend populates them before Trestle submission.
 const SYSTEM_GENERATED_FIELDS = new Set<string>(
-  REBNY_FIELD_TABLES.requiredFields.systemGenerated
+  REBNY_UCBA_RULES.requiredFields.systemGenerated
 );
 
 // Fields with documented RLS defaults — warn if missing, don't block.
@@ -213,7 +213,7 @@ const COMPENSATION_PATTERNS = [
 ];
 
 // G4: Free/No-Cost claims (from authority table contentRules.freeService)
-const FREE_SERVICE_PATTERNS = REBNY_FIELD_TABLES.contentRules.freeService.map(
+const FREE_SERVICE_PATTERNS = REBNY_UCBA_RULES.contentRules.freeService.map(
   (p) => new RegExp(p, 'gi')
 );
 
@@ -400,11 +400,12 @@ export function assertRlsCompliantPayload(
     }
   }
 
-  // Owner Opt-Out / Participant Only blocks all display
-  const permRaw = payload.Permission ?? payload.Permissions; // A2: canonical + legacy
+  // Owner Opt-Out / Participant Only blocks all display. The Mallan decision lives under
+  // `_mallanPermission`; legacy rows persisted before the Packet 2 closure may still carry it under
+  // the provider field name, which is read here ONLY as a legacy fallback (never written).
+  const permRaw = payload._mallanPermission ?? payload.Permission ?? payload.Permissions;
   const perm = typeof permRaw === "string" ? permRaw : "";
   if (
-    payload.MlsStatus === "OwnerOptOut" ||
     perm === "OwnerOptOut" ||
     perm === "Owner Opt-Out" ||
     perm === "Private"
@@ -454,8 +455,9 @@ export function assertRlsCompliantPayload(
     }
   }
 
-  // ── 4. Coming Soon rules (D1-D12) ─────────────────────────────────
-  if (payload.MlsStatus === "ComingSoon") {
+  // ── 4. Coming Soon rules (D1-D12) — keyed on the MALLAN business status ─────────────
+  const mallanStatus = (typeof ctx.currentStatus === "string" && ctx.currentStatus) || (typeof payload._mallanStatus === "string" ? payload._mallanStatus : "");
+  if (mallanStatus === "ComingSoon") {
     // D1: Coming Soon is SALES ONLY
     if (ctx.listingType === "rent") {
       blockers.push({
@@ -649,7 +651,7 @@ export function assertRlsCompliantPayload(
 
   // ── 7. Listing agreement must be exclusive ─────────────────────────
   const agreement = typeof payload.ListingAgreement === 'string' ? payload.ListingAgreement : '';
-  const VALID_LISTING_AGREEMENTS: readonly string[] = REBNY_FIELD_TABLES.enumValues.ListingAgreement;
+  const VALID_LISTING_AGREEMENTS: readonly string[] = REBNY_UCBA_RULES.exclusiveListingAgreements;
   if (agreement && !VALID_LISTING_AGREEMENTS.includes(agreement)) {
     blockers.push({
       code: "LA-001",
@@ -661,7 +663,7 @@ export function assertRlsCompliantPayload(
   }
 
   // ── 8. Conditional field checks (from authority table — 51 rules) ──
-  for (const rule of REBNY_FIELD_TABLES.conditionalRules) {
+  for (const rule of REBNY_UCBA_RULES.conditionalRules) {
     if (conditionMatches(payload, rule.appliesWhen)) {
       for (const field of rule.requireFields) {
         const val = payload[field];

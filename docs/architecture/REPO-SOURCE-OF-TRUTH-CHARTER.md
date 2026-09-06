@@ -346,7 +346,7 @@ The data flow has three distinct layers. Conflating them is how compliance bugs 
 | Distribution gates (reader) | `lib/compliance/gates.ts` | `evaluateDisplayGate`, `isInternetEntireListingDisplayable`, `isAddressDisplayable`. Has `idxPlusPreFiltered` option for Trestle-live records. |
 | Compliance status | `lib/compliance/status.ts` | RESO status normalization |
 | RLS validator | `lib/compliance/rebny-validator.ts` | 10-section validator (CI-gateable) |
-| Field tables | `lib/compliance/rebny-field-tables.ts` | Authority table for required fields |
+| REBNY / UCBA rules | `lib/compliance/rebny-ucba-rules.ts` | Compliance contract (required-under-condition, Coming Soon, content, display, DOM rules) applied AFTER the live Cotality field contract (`lib/cotality/live-contract.ts`); Mallan persistence + form aliases in `lib/listings/mallan-form-contract.ts`; status domains in `lib/listings/mallan-status.ts` |
 | Compliance DTO sanitizer | `lib/compliance/dto.ts` | Public/portal/CRM tier sanitizer |
 | RLS field CSV | `data/rebny-rls-property-fields.csv` | 902+ REBNY IDX Plus fields. Replaced 2026-03-19. |
 | RLS lookup CSV | `data/rebny-rls-property-lookup.csv` | 2,066+ picklist values |

@@ -281,8 +281,8 @@ describe('assertRlsCompliantPayload', () => {
       StructureType: 'HighRise',
       CommonInterest: 'Condominium',
       ListPrice: 1500000,
-      MlsStatus: 'Active',
-      StandardStatus: 'Active',
+      // the Mallan business status under the Mallan key (a Mallan-authored payload carries no provider status)
+      _mallanStatus: 'Active',
       // Agent / Office / Agreement
       ListAgentMlsId: 'AGENT-001',
       ListingAgreement: 'ExclusiveRightToSell',
@@ -411,7 +411,7 @@ describe('assertRlsCompliantPayload', () => {
 
   it('blocks Coming Soon status on rental listings (UCBA D1)', () => {
     const payload = buildValidPayload({
-      MlsStatus: 'ComingSoon',
+      _mallanStatus: 'ComingSoon',
       ActivationDate: '2026-02-01',
     });
     const result = assertRlsCompliantPayload(payload, rentCtx);
@@ -422,7 +422,7 @@ describe('assertRlsCompliantPayload', () => {
 
   it('blocks Coming Soon period exceeding 14 days (UCBA D2)', () => {
     const payload = buildValidPayload({
-      MlsStatus: 'ComingSoon',
+      _mallanStatus: 'ComingSoon',
       ActivationDate: '2026-02-20',
       OnMarketDate: '2026-01-01', // 50 days gap
     });

@@ -345,7 +345,7 @@
           "verdict": "PASS",
           "verifyFiles": [
             "lib/compliance/rls-enforcement.ts",
-            "lib/compliance/rebny-field-tables.ts"
+            "lib/compliance/rebny-ucba-rules.ts"
           ],
           "verifyPattern": "ListingAgreement|ExclusiveRightToSell|ExclusiveAgency",
           "verifyDescription": "Check ListingAgreement enum whitelist contains only exclusive types AND enforcement gate rejects others",
@@ -362,7 +362,7 @@
                 "lib/compliance/rls-enforcement.ts"
               ],
               "data": [
-                "lib/compliance/rebny-field-tables.ts"
+                "lib/compliance/rebny-ucba-rules.ts"
               ]
             },
             "surface_patterns": {
@@ -1104,7 +1104,7 @@
           "verdict": "PASS",
           "verifyFiles": [
             "lib/compliance/rls-enforcement.ts",
-            "lib/compliance/rebny-field-tables.ts"
+            "lib/compliance/rebny-ucba-rules.ts"
           ],
           "verifyPattern": "MANDATORY_FIELDS|agentSubmitted|mandatoryCount",
           "verifyDescription": "Check enforcement gate validates all 48 mandatory + 51 conditional fields",
@@ -1121,12 +1121,12 @@
                 "lib/compliance/rls-enforcement.ts"
               ],
               "data": [
-                "lib/compliance/rebny-field-tables.ts"
+                "lib/compliance/rebny-ucba-rules.ts"
               ]
             },
             "surface_patterns": {
               "gate": "validate|REQUIRED_COTALITY_FIELDS",
-              "data": "REBNY_FIELD_TABLES|enumValues"
+              "data": "live-contract|liveEnumMembers"
             },
             "expected_aggregate": "PASS"
           }

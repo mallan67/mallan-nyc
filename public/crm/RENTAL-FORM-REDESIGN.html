@@ -5657,7 +5657,8 @@ function collectRentalFormData() {
 
     // Permissions: OwnerOptOut = owner signed Exhibit B, listing on RLS but NOT public.
     // Private (Participant Only) = broker-initiated, listing on RLS but NOT public.
-    data.Permissions = isOwnerOptOut ? 'OwnerOptOut' : isParticipantOnly ? 'Private' : null;
+    // Mallan decision (UCBA owner opt-out / participant-only) under the Mallan key — never the provider Permission enum.
+    data._mallanPermission = isOwnerOptOut ? 'OwnerOptOut' : isParticipantOnly ? 'Private' : null;
 
     // Distribution gates — force OFF when Owner Opt-Out or Participant Only
     if (isOwnerOptOut || isParticipantOnly) {

@@ -14,6 +14,7 @@
 import prisma from '@/lib/prisma';
 import { mapTrestleToCrmListing } from '@/lib/search/crm-idx-mapper';
 import { derivePermissionGates } from '@/lib/idx/trestle-mapper';
+import { cotalityStandardStatusForMallan } from '@/lib/listings/mallan-status';
 import { escapeOData } from './provider-query';
 import { queryProvider, walkProvider } from './provider-client';
 import type { UniverseRow } from './universe';
@@ -116,7 +117,10 @@ export function mallanRecord(r: MallanRow): Record<string, unknown> {
     ...addr,
     ListingId: r.listing_id, ListingKey: null, SourceSystemKey: r.listing_id,
     PropertyType: r.listing_type === 'rent' ? 'ResidentialLease' : 'Residential',
-    PropertySubType: r.property_sub_type, StandardStatus: r.status,
+    PropertySubType: r.property_sub_type,
+    // A provider-shaped record may carry ONLY a verified live member under StandardStatus; the Mallan
+    // business status rides under the Mallan key (lib/listings/mallan-status.ts).
+    StandardStatus: cotalityStandardStatusForMallan(r.status), _mallanStatus: r.status,
     ListPrice: r.list_price == null ? null : Number(r.list_price),
     BedroomsTotal: r.bedrooms_total, BathroomsFull: r.bathrooms_full, BathroomsHalf: r.bathrooms_half,
     LivingArea: r.living_area == null ? null : Number(r.living_area),

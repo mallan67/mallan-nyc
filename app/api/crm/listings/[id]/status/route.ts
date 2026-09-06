@@ -188,7 +188,7 @@ export async function PATCH(
   const isCrmCreated = !listing.mls_id;
   if (listing.rls_eligible && !isCrmCreated) {
     const enforcement = assertRlsCompliantPayload(
-      { ...existingRaw, MlsStatus: newStatus },
+      { ...existingRaw, _mallanStatus: newStatus },
       {
         listingType: (listing.listing_type as "sale" | "rent") ?? "sale",
         isNewDevelopment: (existingRaw.NewDevelopmentYN as boolean) === true,

@@ -66,12 +66,12 @@ describe("ops-health archive backlog predicate mirrors the #405 archiver", () =>
       join(__dirname, "../../app/api/cron/data-retention/route.ts"),
       "utf8",
     );
-    const m = routeSrc.match(/const\s+TERMINAL_STATUSES\s*=\s*\[([^\]]*)\]/);
-    expect(m).not.toBeNull();
-    const routeStatuses = (m![1].match(/"([^"]+)"/g) || []).map((s) => s.replace(/"/g, ""));
-    expect(routeStatuses.length).toBeGreaterThan(0);
+    // The route no longer carries its own literal list: it spreads the mapper export, which is THE
+    // terminal set in lib/listings/mallan-status.ts (one definition; the monitor's CommonJS copy mirrors it).
+    expect(routeSrc).toMatch(/const\s+TERMINAL_STATUSES\s*=\s*\[\.\.\.MAPPER_TERMINAL_STATUSES\]/);
+    const { MALLAN_TERMINAL_STATUSES } = require("../../lib/listings/mallan-status") as { MALLAN_TERMINAL_STATUSES: ReadonlySet<string> };
     // Identical set AND order — monitoring counts exactly the cron's terminal population.
-    expect(ARCHIVE_TERMINAL_STATUSES).toEqual(routeStatuses);
+    expect(ARCHIVE_TERMINAL_STATUSES).toEqual([...MALLAN_TERMINAL_STATUSES]);
   });
 
   it("cap alignment: count population mirrors the cron in BOTH flag states (so the 500/run warn is accurate)", () => {

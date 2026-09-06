@@ -128,7 +128,7 @@ export function classifyRlsEligibility(
     if (numberOfUnits === null) {
       // Mixed-use with no unit count: warn but default to RLS-eligible
       // (agent must provide NumberOfUnitsTotal — the field is already required
-      // for MixedUse/MultiFamily in rebny-field-tables.ts BUILDING-001)
+      // for MixedUse/MultiFamily in rebny-ucba-rules.ts BUILDING-001)
       return {
         rlsEligible: true,
         reason: "Mixed-use property — NumberOfUnitsTotal not provided. Defaulting to RLS-eligible. Agent must provide unit count for accurate classification.",

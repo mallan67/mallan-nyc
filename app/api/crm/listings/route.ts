@@ -310,7 +310,7 @@ export async function POST(req: NextRequest) {
     const enforcement = assertRlsCompliantPayload(body, {
       listingType: listingType as "sale" | "rent",
       isNewDevelopment: body.NewDevelopmentYN === true,
-      currentStatus: (body.MlsStatus as string) || undefined,
+      currentStatus: (body._mallanStatus as string) || undefined,
       rlsEligible,
       mixedUseSmallBuilding: eligibility.mixedUseSmallBuilding,
     });
@@ -326,7 +326,7 @@ export async function POST(req: NextRequest) {
     }
 
     // D9: Coming Soon is one-time per address — cannot re-use for same property
-    if (body.MlsStatus === "ComingSoon" && body.StreetName) {
+    if (body._mallanStatus === "ComingSoon" && body.StreetName) {
       const priorComingSoon = await prisma.listing.findFirst({
         where: {
           postal_code: (body.PostalCode as string) || undefined,
@@ -395,9 +395,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Derive permission booleans from Permissions string
-  // (forms send "OwnerOptOut"/"Private"/"RLS-Owner-OptOut"/etc. — normalizer resolves)
-  const permBools = derivePermissionBooleans(normalized.Permission ?? normalized.Permissions);
+  // Derive the gate columns from the Mallan permission decision (`_mallanPermission`, set by the
+  // server-owned form mapping; never the provider Permission enum).
+  const permBools = derivePermissionBooleans(normalized._mallanPermission);
 
   // Route normalized fields to structured DB buckets via persistenceMap
   const persistence = buildPersistenceRecord(normalized);

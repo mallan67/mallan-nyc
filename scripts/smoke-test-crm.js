@@ -250,7 +250,7 @@ const COMPLIANCE_FILES = [
   'lib/compliance/rls-enforcement.ts',
   'lib/compliance/dom-tracker.ts',
   'lib/compliance/dto.ts',
-  'lib/compliance/rebny-field-tables.ts',
+  'lib/compliance/rebny-ucba-rules.ts',
   'lib/compliance/rebny-validator.ts',
   'lib/compliance/normalizer.ts',
   'lib/compliance/business-days.ts',

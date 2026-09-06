@@ -156,7 +156,9 @@ export function mapTrestleToCrmListing(
   // through the UCBA-safe map below; unmapped/absent → "UNKNOWN".)
   // Provider status text goes through THE normalizer first (canonical spelling); the map below
   // is Mallan's CRM display vocabulary for that canonical value.
-  const mlsStatus = normalizeStandardStatus(str(raw.MlsStatus) ?? str(raw.StandardStatus) ?? "");
+  // Provider rows: the live StandardStatus (MlsStatus is null on every sampled live row) normalized into
+  // Mallan's storage vocabulary. Mallan rows: their Mallan business status under the Mallan key.
+  const mlsStatus = normalizeStandardStatus(str(raw._mallanStatus) ?? str(raw.StandardStatus) ?? str(raw.MlsStatus) ?? "");
   const statusMap: Record<string, string> = {
     Active: "ACTIVE",
     ComingSoon: "COMING_SOON",
@@ -171,6 +173,12 @@ export function mapTrestleToCrmListing(
     Incomplete: "INCOMPLETE",
     Canceled: "CANCELLED",
     Cancelled: "CANCELLED",
+    // Mallan-only business statuses (never provider values)
+    Draft: "DRAFT",
+    Sold: "SOLD",
+    Rented: "RENTED",
+    Leased: "RENTED",
+    Delete: "DELETED",
     // ── UCBA Art. I §5(D) — "Off-Market" labeling is prohibited.
     // Some MLS feeds (or stale data sources) may emit "Off Market" /
     // "Off-Market" / "OffMarket" in MlsStatus. Map all variants to

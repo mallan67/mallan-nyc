@@ -13,6 +13,13 @@ import { slimRawData } from "@/lib/compliance/raw-data-keep-fields";
 import { classifyMediaItem } from "@/lib/media/listing-media-resolver";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { LEGACY_MALLAN_FORM_CONTROL_KEYS } from "@/lib/compliance/legacy-form-keys";
+import { isCotalityStandardStatus } from "@/lib/cotality/live-contract";
+import {
+  mallanStatusFromCotality,
+  MALLAN_TERMINAL_STATUSES,
+  MALLAN_ACTIVE_STATUSES,
+  MALLAN_LIFECYCLE_STATUSES,
+} from "@/lib/listings/mallan-status";
 
 /**
  * A provider record that Mallan storage cannot represent honestly. Thrown by
@@ -513,7 +520,7 @@ function inferBorough(raw: Record<string, unknown>): string | null {
 }
 
 /**
- * RESO StandardStatus values that mean "no longer publicly displayable on IDX."
+ * Mallan storage statuses that mean "no longer publicly displayable" (lib/listings/mallan-status.ts).
  *
  * Mirrors the data-retention cron predicate at
  * `app/api/cron/data-retention/route.ts:79`. Cron and writer agree on the
@@ -527,28 +534,16 @@ function inferBorough(raw: Record<string, unknown>): string | null {
  * set instead of redeclaring its own copy — a third copy would re-open the
  * dual-write gap on a different axis.
  */
-export const TERMINAL_STATUSES: ReadonlySet<string> = new Set([
-  'Closed',
-  'Sold',
-  'Leased',
-  'Rented',
-  'Withdrawn',
-  'Expired',
-  'Cancelled',
-]);
+export const TERMINAL_STATUSES: ReadonlySet<string> = MALLAN_TERMINAL_STATUSES;
 
 /**
- * RESO StandardStatus values that are publicly displayable on IDX.
+ * Mallan storage statuses that are publicly displayable (lib/listings/mallan-status.ts).
  *
  * Mirrors `DISPLAYABLE_STATUSES` in `lib/idx/db-to-public-dto.ts:155`. Kept
  * here so callers of `normalizeStandardStatus` can fold input strings like
  * `"active"` / `"ACTIVE"` / `"Active "` back to the canonical `"Active"`.
  */
-const ACTIVE_STATUSES: ReadonlySet<string> = new Set([
-  'Active',
-  'ComingSoon',
-  'ActiveUnderContract',
-]);
+const ACTIVE_STATUSES: ReadonlySet<string> = MALLAN_ACTIVE_STATUSES;
 
 /**
  * CRM lifecycle statuses that exist outside the public IDX displayable set
@@ -558,18 +553,13 @@ const ACTIVE_STATUSES: ReadonlySet<string> = new Set([
  * anomaly class (row stored with non-canonical status, invisible to every
  * exact-case counter).
  */
-const CRM_LIFECYCLE_STATUSES: ReadonlySet<string> = new Set([
-  'Draft',
-  'Incomplete',
-  'Pending',
-]);
+const CRM_LIFECYCLE_STATUSES: ReadonlySet<string> = MALLAN_LIFECYCLE_STATUSES;
 
 /**
- * Alias map for known non-canonical spellings of terminal statuses that the
- * normalizer rewrites to the canonical REBNY/Trestle form. Limited to
- * canonical-equivalent spellings — never coerces an arbitrary unknown string
- * into a terminal value. Examples:
- *   - "canceled" (US English single-L) → "Cancelled" (RESO canonical double-L)
+ * Alias map for known spellings of terminal statuses that the Mallan storage normalizer rewrites to
+ * Mallan's storage spelling. Limited to equivalent spellings — never coerces an arbitrary unknown
+ * string into a terminal value. Example:
+ *   - "canceled" (the live Cotality single-L member) → "Cancelled" (Mallan storage spelling)
  *
  * Add a new entry here only when a real-world client has been observed
  * submitting that variant. The alias map is the only place where one status
@@ -581,10 +571,11 @@ const STATUS_ALIASES: Record<string, string> = {
 };
 
 /**
- * Normalize an untrusted status string (POST body, CRM form, etc.) to the
- * canonical REBNY/Trestle spelling so the terminal-status guard and every
- * downstream exact-case predicate (data-retention cron, ops:health,
- * `DISPLAYABLE_STATUSES`) all see the same value.
+ * Normalize an untrusted status string (POST body, CRM form, a persisted column) to the MALLAN
+ * storage spelling so the terminal-status guard and every downstream exact-case predicate
+ * (data-retention cron, ops:health, `DISPLAYABLE_STATUSES`) all see the same value. This is the
+ * Mallan storage vocabulary, not the provider's: raw Cotality StandardStatus values are parsed
+ * against the exact live enum in mapTrestleToPrisma first.
  *
  * H1 amend (2026-05-13) — closes a normalization gap raised by Maya on
  * PR #113: `body.status = "closed"` previously bypassed the terminal-status
@@ -620,7 +611,7 @@ export function normalizeStandardStatus(input: unknown): string {
     return trimmed;
   }
 
-  // Lowercase alias hit (e.g., "canceled" → "Cancelled").
+  // Lowercase alias hit (e.g., the live "canceled" → Mallan storage "Cancelled").
   const lower = trimmed.toLowerCase();
   if (STATUS_ALIASES[lower]) return STATUS_ALIASES[lower];
 
@@ -635,9 +626,8 @@ export function normalizeStandardStatus(input: unknown): string {
     if (s.toLowerCase() === lower) return s;
   }
 
-  // Unknown — preserve trimmed form. Never silently coerce an unknown
-  // value to a known status; new statuses must be added to the relevant
-  // set above before they round-trip through the normalizer.
+  // Unknown — preserve trimmed form. Never silently coerce an unknown value to a known status;
+  // new Mallan storage statuses are declared in lib/listings/mallan-status.ts first.
   return trimmed;
 }
 
@@ -694,7 +684,7 @@ export function normalizeStandardStatus(input: unknown): string {
 //     of the other flags (this is the H1 fix at writer-side; the cron is
 //     belt-and-suspenders for DB-direct mutation paths).
 export interface ComputeGateColumnsInput {
-  /** Cotality StandardStatus value (live enum). Normalized internally via
+  /** Mallan storage status (lib/listings/mallan-status.ts). Normalized internally via
    * `normalizeStandardStatus`; safe to pass un-normalized strings. */
   status: unknown;
   /** Trestle / form field. null = displayable per IDX Plus pre-filter. */
@@ -928,12 +918,15 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
 
   const listingId = String(raw.ListingId || raw.ListingKey || "");
   const mlsId = raw.ListingKey ? String(raw.ListingKey) : null;
-  // StandardStatus is the provider's status fact. Absent → unrepresentable (listings.status is
-  // NOT NULL). MlsStatus is a different, richer vocabulary and is never substituted for it.
-  if (raw.StandardStatus == null || String(raw.StandardStatus).trim() === "") {
+  // StandardStatus is the provider's status fact and must be an EXACT live enum member (the dated
+  // live pull); anything else — absent, empty, unknown spelling — is unrepresentable (listings.status
+  // is NOT NULL and nothing is guessed). MlsStatus is a different vocabulary (null on every sampled
+  // live row) and is never substituted. The live member is then stored in Mallan's storage
+  // vocabulary (lib/listings/mallan-status.ts: exact, except the established spelling 'Cancelled').
+  if (!isCotalityStandardStatus(raw.StandardStatus)) {
     throw new UnrepresentableProviderRecordError("StandardStatus", listingId);
   }
-  const status = String(raw.StandardStatus);
+  const status = mallanStatusFromCotality(raw.StandardStatus)!;
   if (raw.PropertyType == null || String(raw.PropertyType).trim() === "") {
     throw new UnrepresentableProviderRecordError("PropertyType", listingId);
   }

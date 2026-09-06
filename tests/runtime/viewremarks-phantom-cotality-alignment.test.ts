@@ -14,7 +14,7 @@
  * it flips green.
  */
 import { assertRlsCompliantPayload, type ListingContext } from '@/lib/compliance/rls-enforcement';
-import { REBNY_FIELD_TABLES } from '@/lib/compliance/rebny-field-tables';
+import { REBNY_UCBA_RULES } from '@/lib/compliance/rebny-ucba-rules';
 
 const CTX: ListingContext = { listingType: 'sale', rlsEligible: true };
 const base: Record<string, unknown> = {
@@ -47,7 +47,7 @@ describe('H2 — VIEW-001 requires canonical View only (ViewRemarks is phantom)'
   });
 
   it('VIEW-001 requireFields = [View] only — phantom ViewRemarks removed', () => {
-    const rules = REBNY_FIELD_TABLES.conditionalRules as ReadonlyArray<{
+    const rules = REBNY_UCBA_RULES.conditionalRules as ReadonlyArray<{
       code: string;
       requireFields: readonly string[];
     }>;

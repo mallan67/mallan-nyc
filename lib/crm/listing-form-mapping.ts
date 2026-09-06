@@ -13,7 +13,11 @@
  * wrote non-live members ("Commercial" PropertyType, "Cooperative" CommonInterest,
  * "SingleFamilyTownhouse" / "MultiFamilyTownhouse" PropertySubType) — those are not written.
  *
- * Status: workflow → canonical is lib/crm/status-mapping.ts (Mallan's own Layer-1 vocabulary).
+ * Status: workflow → Mallan business status is lib/crm/status-mapping.ts. The result is written under the
+ * MALLAN keys `_mallanStatus` / `_crmWorkflowStatus` — NEVER under the provider's MlsStatus / StandardStatus
+ * (those are Cotality fields whose values are exact live enum members; Mallan's Draft / Sold / Rented /
+ * Cancelled are not). The permission decision travels under `_mallanPermission`. See
+ * lib/listings/mallan-status.ts for the three status domains.
  * Unknown form values are refused (null / error), never defaulted.
  */
 import liveEnumPull from '@/data/cotality-enums.live.json';
@@ -136,8 +140,24 @@ export function canonicalStatusFromForm(input: unknown): CanonicalStatus | null 
   return mapCrmStatusToCanonicalStatus(trimmed);
 }
 
+/** Provider field names that carry a Mallan decision in a Mallan-authored payload — always redirected to Mallan keys. */
+export const PROVIDER_DECISION_FIELDS: readonly string[] = Object.freeze(['MlsStatus', 'StandardStatus', 'Permission', 'Permissions']);
+
+/** Mallan permission decisions (UCBA owner opt-out = signed Exhibit B; participant-only). Stored under `_mallanPermission`. */
+export const MALLAN_PERMISSION_VALUES: readonly string[] = Object.freeze(['OwnerOptOut', 'Private']);
+const PERMISSION_INPUT_ALIASES: Readonly<Record<string, string>> = Object.freeze({
+  OwnerOptOut: 'OwnerOptOut', 'RLS-Owner-OptOut': 'OwnerOptOut', 'Owner Opt-Out': 'OwnerOptOut', 'Owner Opt Out': 'OwnerOptOut', OWNER_OPT_OUT: 'OwnerOptOut',
+  Private: 'Private', 'RLS-Participant': 'Private', 'Participant Only': 'Private', 'Participant Only Network': 'Private', ParticipantOnly: 'Private', PARTICIPANT_ONLY: 'Private',
+});
+export function mallanPermissionFromForm(input: unknown): string | null | undefined {
+  if (input === undefined) return undefined;
+  if (input === null || input === '' || input === 'Public') return null;
+  if (typeof input !== 'string') return undefined;
+  return PERMISSION_INPUT_ALIASES[input.trim()] ?? undefined;
+}
+
 export interface ServerFormMappingResult {
-  /** The body with server-derived MlsStatus / PropertyType / PropertySubType / CommonInterest. */
+  /** The body with server-derived _mallanStatus / _crmWorkflowStatus / _mallanPermission / PropertyType / PropertySubType / CommonInterest. */
   body: Record<string, unknown>;
   /** Which fields the server derived (from the Mallan form keys) — for audit / response detail. */
   derived: string[];
@@ -165,17 +185,34 @@ export function applyServerFormMapping(
   const errors: string[] = [];
   const prefix = formType === 'rent' ? 'rental' : 'sale';
 
-  // ── status ──
+  // ── status: CRM workflow → Mallan business status, under MALLAN keys only ──
   const workflowStatus = body[`${prefix}Status`] ?? body._crmWorkflowStatus;
+  const legacyProviderNamed = body.MlsStatus ?? body.StandardStatus ?? body.status;
   if (typeof workflowStatus === 'string' && workflowStatus.trim() !== '') {
     const canonical = canonicalStatusFromForm(workflowStatus);
     if (!canonical) errors.push(`${prefix}Status "${workflowStatus}" is not a recognized Mallan workflow status`);
-    else { body.MlsStatus = canonical; body.StandardStatus = canonical; derived.push('MlsStatus'); }
-  } else if (body.MlsStatus !== undefined && body.MlsStatus !== null && body.MlsStatus !== '') {
-    const canonical = canonicalStatusFromForm(body.MlsStatus);
-    if (!canonical) errors.push(`MlsStatus "${String(body.MlsStatus)}" is not a Mallan canonical status`);
-    else body.MlsStatus = canonical;
+    else { body._mallanStatus = canonical; body._crmWorkflowStatus = workflowStatus.trim(); derived.push('_mallanStatus'); }
+  } else if (legacyProviderNamed !== undefined && legacyProviderNamed !== null && legacyProviderNamed !== '') {
+    // A legacy client sent the Mallan status under a provider field name: it is a Mallan status and is
+    // stored under the Mallan key; the provider-named key is removed below.
+    const canonical = canonicalStatusFromForm(legacyProviderNamed);
+    if (!canonical) errors.push(`status "${String(legacyProviderNamed)}" is not a Mallan canonical status`);
+    else { body._mallanStatus = canonical; derived.push('_mallanStatus'); }
+  } else if (typeof body._mallanStatus === 'string' && body._mallanStatus !== '') {
+    const canonical = canonicalStatusFromForm(body._mallanStatus);
+    if (!canonical) errors.push(`_mallanStatus "${String(body._mallanStatus)}" is not a Mallan canonical status`);
+    else body._mallanStatus = canonical;
   }
+
+  // ── permission: a Mallan decision (UCBA), never the provider Permission enum ──
+  const permissionInput = body._mallanPermission !== undefined ? body._mallanPermission : (body.Permission ?? body.Permissions);
+  if (permissionInput !== undefined) {
+    const perm = mallanPermissionFromForm(permissionInput);
+    if (perm === undefined) errors.push(`permission "${String(permissionInput)}" is not a Mallan permission decision (OwnerOptOut | Private | none)`);
+    else { body._mallanPermission = perm; derived.push('_mallanPermission'); }
+  }
+  for (const f of PROVIDER_DECISION_FIELDS) delete body[f];
+  delete body.status;
 
   // ── property classification ──
   const formPropertyType = body[`${prefix}PropertyType`];

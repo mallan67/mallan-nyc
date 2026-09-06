@@ -29,7 +29,7 @@
  * automatically expand the cron's effective scope via this same import.
  */
 
-import { mapTrestleToPrisma, TERMINAL_STATUSES } from '../../idx/trestle-mapper';
+import { mapTrestleToPrisma, TERMINAL_STATUSES, computeGateColumns } from '../../idx/trestle-mapper';
 
 const REQUIRED_MIN_FIELDS: Record<string, unknown> = {
   ListingId: 'RLS20000001',
@@ -50,8 +50,9 @@ function buildRaw(overrides: Record<string, unknown>): Record<string, unknown> {
 }
 
 describe('C2 — TERMINAL_STATUSES constant', () => {
-  it('contains exactly the 7 statuses the cron also targets', () => {
-    expect(TERMINAL_STATUSES.size).toBe(7);
+  it('contains exactly the 8 Mallan storage terminal statuses the cron also targets (one definition: lib/listings/mallan-status.ts)', () => {
+    expect(TERMINAL_STATUSES.size).toBe(8);
+    expect(TERMINAL_STATUSES.has('Delete')).toBe(true); // the live Cotality 'Delete' member, stored as-is
     expect(TERMINAL_STATUSES.has('Closed')).toBe(true);
     expect(TERMINAL_STATUSES.has('Sold')).toBe(true);
     expect(TERMINAL_STATUSES.has('Leased')).toBe(true);
@@ -63,34 +64,43 @@ describe('C2 — TERMINAL_STATUSES constant', () => {
     expect(TERMINAL_STATUSES.has('Active')).toBe(false);
     expect(TERMINAL_STATUSES.has('ComingSoon')).toBe(false);
     expect(TERMINAL_STATUSES.has('ActiveUnderContract')).toBe(false);
-    // Common spelling variant kept distinct — Trestle / REBNY use double-L.
+    // The live Cotality member is single-L 'Canceled'; Mallan STORAGE spells it 'Cancelled' (the
+    // mapper parses the live member and stores the Mallan spelling), so the storage set holds only the latter.
     expect(TERMINAL_STATUSES.has('Canceled')).toBe(false);
   });
 });
 
 describe('C2 — terminal statuses force idx_display_yn=false', () => {
+  // The mapper accepts ONLY live Cotality StandardStatus members (exact spelling) and stores them in
+  // Mallan's storage vocabulary. Mallan-only terminal values (Sold / Rented / Leased / Cancelled) never
+  // arrive from the provider; they are covered through the shared gate helper below.
   it.each([
-    'Closed',
-    'Sold',
-    'Leased',
-    'Rented',
-    'Withdrawn',
-    'Expired',
-    'Cancelled',
-  ])('%s + display permissions all-true → idx_display_yn=false', (status) => {
+    ['Closed', 'Closed'],
+    ['Canceled', 'Cancelled'],
+    ['Withdrawn', 'Withdrawn'],
+    ['Expired', 'Expired'],
+    ['Delete', 'Delete'],
+  ])('live %s (stored as %s) + display permissions all-true → idx_display_yn=false', (live, stored) => {
     const raw = buildRaw({
-      StandardStatus: status,
+      StandardStatus: live,
       InternetEntireListingDisplayYN: true,
       InternetAddressDisplayYN: true,
       Permission: 'Public',
     });
     const mapped = mapTrestleToPrisma(raw);
+    expect(mapped.status).toBe(stored);
     expect(mapped.idx_display_yn).toBe(false);
     // Sanity — the display permission booleans themselves are still TRUE
     // (the writer doesn't lie about Trestle's input); only the legacy
     // `idx_display_yn` aggregate is forced false.
     expect(mapped.internet_entire_listing_display_yn).toBe(true);
     expect(mapped.internet_address_display_yn).toBe(true);
+  });
+
+  it.each(['Sold', 'Rented', 'Leased', 'Cancelled'])('Mallan-only terminal %s closes the gate through computeGateColumns', (status) => {
+    const gates = computeGateColumns({ status, internetEntireListingDisplayYN: true, internetAddressDisplayYN: true });
+    expect(gates.is_terminal).toBe(true);
+    expect(gates.idx_display_yn).toBe(false);
   });
 
   it('terminal status with null display permissions still forces false', () => {
@@ -232,19 +242,13 @@ describe('C2 — regression: a closed row cannot be re-flipped true by mapper ou
 });
 
 describe('C2 — DOM/typo robustness', () => {
-  it('unknown StandardStatus → mapper does not force false (no spurious blocking)', () => {
-    // A truly-unknown status string (e.g. a vendor-side spelling drift) is
-    // NOT in TERMINAL_STATUSES, so the writer falls through to the
-    // existing permission gates. Status-aware does not mean status-paranoid:
-    // we only short-circuit on the canonical 7. New statuses get added by
-    // expanding the set, not by silent fail-closed.
+  it('unknown StandardStatus → REFUSED: the provider status must be an exact live member (never guessed, never displayed)', () => {
     const raw = buildRaw({
       StandardStatus: 'NotAStatusThatExists',
       InternetEntireListingDisplayYN: true,
       Permission: 'Public',
     });
-    const mapped = mapTrestleToPrisma(raw);
-    expect(mapped.idx_display_yn).toBe(true);
+    expect(() => mapTrestleToPrisma(raw)).toThrow(/StandardStatus/);
   });
 
   it('missing StandardStatus → REFUSED (unrepresentable), never displayed by default', () => {
@@ -258,32 +262,14 @@ describe('C2 — DOM/typo robustness', () => {
     expect(() => mapTrestleToPrisma(raw)).toThrow(/StandardStatus is absent/);
   });
 
-  it('case-insensitive — "closed" (lowercase) IS canonicalized + blocked under Phase A', () => {
-    // Phase A (2026-05-20): the inline gate computation moved into the
-    // shared `computeGateColumns` helper, which always runs
-    // `normalizeStandardStatus` on its `status` input. That means even the
-    // Trestle-sourced mapper path now case-folds "closed" → "Closed" and
-    // matches the canonical TERMINAL_STATUSES set — so a hypothetical
-    // upstream emit of lowercased "closed" is now correctly blocked at the
-    // writer instead of silently passing through.
-    //
-    // The cron predicate at app/api/cron/data-retention/route.ts:79 still
-    // uses Prisma's exact-case `status: { in: [...] }`, so this is a one-
-    // sided defensive improvement: the writer is now MORE defensive than
-    // the cron. If Trestle ever did emit "closed" (lowercase), the writer
-    // would set idx_display_yn=false at ingest time and no cron sweep
-    // would be needed. Strictly safer than the previous symmetric-but-
-    // permissive contract.
-    //
-    // The H1 ping-pong scenario fixed by PR #112/#113 (writer re-flips
-    // terminal row to displayable on every re-emit) is unaffected — the
-    // canonical exact-case "Closed" path is still the dominant case, and
-    // this test exists only to document the new lowercased-edge behavior.
+  it('lowercase "closed" is NOT a live member → REFUSED at the provider boundary (the exact live domain is case-sensitive)', () => {
+    // Mallan's storage normalizer still folds "closed" → "Closed" for Mallan-side inputs
+    // (POST bodies, persisted columns) — that is the Mallan vocabulary, not the provider's.
     const raw = buildRaw({
       StandardStatus: 'closed',
       InternetEntireListingDisplayYN: true,
     });
-    const mapped = mapTrestleToPrisma(raw);
-    expect(mapped.idx_display_yn).toBe(false);
+    expect(() => mapTrestleToPrisma(raw)).toThrow(/StandardStatus/);
+    expect(computeGateColumns({ status: 'closed', internetEntireListingDisplayYN: true }).idx_display_yn).toBe(false);
   });
 });

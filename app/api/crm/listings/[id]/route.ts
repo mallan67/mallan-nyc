@@ -222,7 +222,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // request-override considerations as the persisted-status RLS gate above, but
   // is intentionally left at its established behavior in this PR (separate
   // follow-up). isDisplayReadyStatus() normalizes the value internally.
-  const effectiveStatus = (merged.MlsStatus as string) || listing.status || "Draft";
+  // The Mallan business status: the request's Mallan key, else the persisted column. Never a provider-named key.
+  const effectiveStatus = (merged._mallanStatus as string) || listing.status || "Draft";
   const isRental = ((listing.listing_type as string) ?? "") === "rent";
   if (isRental && isDisplayReadyStatus(effectiveStatus)) {
     const feeCheck = checkFeeDisclosure(merged);
@@ -309,7 +310,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     // override), the body's IDXEntireListingDisplayYN: true would have
     // bypassed the rls_eligible guard.
     const effectiveStatus = normalizeStandardStatus(
-      (merged.MlsStatus as string | undefined) ?? listing.status,
+      (merged._mallanStatus as string | undefined) ?? listing.status,
     );
     update.idx_display_yn =
       effectiveRlsEligible &&
@@ -357,7 +358,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   }
   // ParticipantOnly + OwnerOptOut: derive from Permissions enum (same as POST route),
   // or accept the canonical RESO field names ParticipantOnlyYN / OwnerOptOutYN as fallback.
-  const permValue = body.Permission ?? body.Permissions; // A2: accept canonical Permission + legacy Permissions
+  const permValue = body._mallanPermission; // the Mallan decision (server-owned form mapping redirected any legacy Permission/Permissions input here)
   if (permValue !== undefined) {
     const permBools = derivePermissionBooleans(permValue);
     update.participant_only = permBools.participant_only;

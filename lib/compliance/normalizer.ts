@@ -1,20 +1,32 @@
 /**
- * Payload Normalizer — Consumes REBNY_FIELD_TABLES to normalize incoming
- * form payloads before validation or persistence.
+ * Payload Normalizer — prepares a Mallan listing-form payload for Mallan storage.
+ *
+ * Consumes the MALLAN form contract (lib/listings/mallan-form-contract.ts) and the REBNY/UCBA rules
+ * (lib/compliance/rebny-ucba-rules.ts). It does NOT define a provider schema: field existence,
+ * spelling and enum membership are the live Cotality contract (lib/cotality/live-contract.ts); the
+ * server-owned vocabulary conversion (lib/crm/listing-form-mapping.ts) runs BEFORE this normalizer.
  *
  * Steps:
- *   1. Strip removed fields (NAR Settlement)
- *   2. Rename alias keys → canonical RLS names
- *   3. Normalize enum values via valueAliases
- *   4. Apply defaults (InternetEntireListingDisplayYN; SyndicateTo defaults to all-vendors when undefined)
+ *   1. Strip removed fields (NAR Settlement — REBNY/UCBA rule)
+ *   2. Rename Mallan form aliases → the stored field name (live Cotality field or Mallan-internal key)
+ *   3. Normalize Mallan form VALUES via valueAliases
+ *   4. Fold legacy permission booleans into the Mallan decision key `_mallanPermission`
+ *   5. Apply defaults (InternetEntireListingDisplayYN)
+ *
+ * A Mallan status or permission decision never lands under a provider field name
+ * (MlsStatus / StandardStatus / Permission).
  */
 
-import { REBNY_FIELD_TABLES } from './rebny-field-tables';
+import { MALLAN_FORM_CONTRACT } from '@/lib/listings/mallan-form-contract';
+import { REBNY_UCBA_RULES } from './rebny-ucba-rules';
 
 type Payload = Record<string, unknown>;
 
+/** Provider field names a Mallan-authored payload must never carry (they are Mallan decisions under Mallan keys). */
+const PROVIDER_DECISION_FIELDS = new Set(['MlsStatus', 'StandardStatus', 'Permission', 'Permissions']);
+
 /**
- * Normalize a raw form payload into canonical RLS field names and values.
+ * Normalize a raw form payload into Mallan's stored field names and values.
  * Returns a new object — does not mutate the input.
  */
 export function normalizePayload(raw: Payload): {
@@ -28,9 +40,9 @@ export function normalizePayload(raw: Payload): {
   const renamed: Array<{ from: string; to: string }> = [];
   const valueNormalized: Array<{ field: string; from: unknown; to: unknown }> = [];
 
-  const removedSet = new Set<string>(REBNY_FIELD_TABLES.removedFields);
-  const aliasMap = REBNY_FIELD_TABLES.aliasToCanonical as Record<string, string>;
-  const valueAliasMap = REBNY_FIELD_TABLES.valueAliases as Record<string, Record<string, string>>;
+  const removedSet = new Set<string>(REBNY_UCBA_RULES.removedFields);
+  const aliasMap = MALLAN_FORM_CONTRACT.aliasToCanonical as Record<string, string>;
+  const valueAliasMap = MALLAN_FORM_CONTRACT.valueAliases as Record<string, Record<string, string>>;
 
   for (const [key, value] of Object.entries(raw)) {
     // Step 1: Strip removed fields
@@ -39,14 +51,23 @@ export function normalizePayload(raw: Payload): {
       continue;
     }
 
-    // Step 2: Rename alias → canonical
+    // Legacy participant-only booleans → the Mallan decision (Step 4)
+    if (key === 'participantOnlyYN' || key === 'ParticipantOnlyYN') {
+      if (value === true && normalized._mallanPermission === undefined) {
+        normalized._mallanPermission = 'Private';
+        renamed.push({ from: key, to: '_mallanPermission' });
+      }
+      continue;
+    }
+
+    // Step 2: Rename alias → stored field name
     let canonicalKey = key;
     if (aliasMap[key]) {
       canonicalKey = aliasMap[key];
       renamed.push({ from: key, to: canonicalKey });
     }
 
-    // Step 3: Normalize enum values
+    // Step 3: Normalize form values
     let finalValue = value;
     if (typeof value === 'string' && valueAliasMap[canonicalKey]) {
       const mapped = valueAliasMap[canonicalKey][value];
@@ -62,12 +83,15 @@ export function normalizePayload(raw: Payload): {
     }
   }
 
-  // Step 4: Apply defaults
-  // IDXEntireListingDisplayYN does NOT exist on live Trestle (verified 2026-04-19
-  // against $metadata) — use InternetEntireListingDisplayYN. SyndicateYN does
-  // NOT exist on Trestle either; SyndicateTo is the multi-select picker. Default
-  // is left undefined here (form supplies it explicitly); the gate logic in
-  // rls-enforcement treats undefined as "agent did not opt out".
+  // A provider-named status / permission can only have arrived through an alias that has already
+  // been redirected to its Mallan key; anything left under the provider name is dropped here.
+  for (const f of PROVIDER_DECISION_FIELDS) {
+    if (f in normalized) { delete normalized[f]; stripped.push(f); }
+  }
+
+  // Step 5: Apply defaults
+  // InternetEntireListingDisplayYN is the live Cotality master display flag; the form supplies it
+  // explicitly, and an absent value means "not opted out".
   if (normalized['InternetEntireListingDisplayYN'] === undefined) {
     normalized['InternetEntireListingDisplayYN'] = true;
   }
@@ -76,24 +100,24 @@ export function normalizePayload(raw: Payload): {
 }
 
 /**
- * Derive boolean DB columns from Permissions field.
+ * Derive the two gate columns from the Mallan permission decision (`_mallanPermission`).
  * Returns { owner_opt_out: boolean, participant_only: boolean }.
  */
-export function derivePermissionBooleans(permissions: unknown): {
+export function derivePermissionBooleans(mallanPermission: unknown): {
   owner_opt_out: boolean;
   participant_only: boolean;
 } {
-  if (!permissions || permissions === 'Public') {
+  if (!mallanPermission || mallanPermission === 'Public') {
     return { owner_opt_out: false, participant_only: false };
   }
   return {
-    owner_opt_out: permissions === 'OwnerOptOut',
-    participant_only: permissions === 'Private',
+    owner_opt_out: mallanPermission === 'OwnerOptOut',
+    participant_only: mallanPermission === 'Private',
   };
 }
 
 /**
- * Build the structured DB record from a normalized payload using persistenceMap.
+ * Build the structured DB record from a normalized payload using the Mallan persistence map.
  * Returns { address, features, agentInfo, compliance, raw_data, topLevel }.
  */
 export function buildPersistenceRecord(normalized: Payload): {
@@ -108,7 +132,7 @@ export function buildPersistenceRecord(normalized: Payload): {
   const agentInfo: Record<string, unknown> = {};
   const topLevel: Record<string, unknown> = {};
 
-  const pMap = REBNY_FIELD_TABLES.persistenceMap as Record<string, {
+  const pMap = MALLAN_FORM_CONTRACT.persistenceMap as Record<string, {
     db?: string;
     address?: boolean;
     features?: boolean;
@@ -124,36 +148,18 @@ export function buildPersistenceRecord(normalized: Payload): {
     if (!target) continue; // Field not in persistence map → raw_data only
     if (target.removed) continue; // Removed field
 
-    // Route to address bucket
-    if (target.address) {
-      address[key] = value;
-    }
+    if (target.address) address[key] = value;
+    if (target.features) features[key] = value;
+    if (target.agentInfo) agentInfo[key] = value;
+    if (target.db) topLevel[target.db] = value;
 
-    // Route to features bucket
-    if (target.features) {
-      features[key] = value;
-    }
-
-    // Route to agentInfo bucket
-    if (target.agentInfo) {
-      agentInfo[key] = value;
-    }
-
-    // Route to top-level DB column
-    if (target.db) {
-      topLevel[target.db] = value;
-    }
-
-    // Derive boolean columns from Permissions
+    // Derive the gate columns from the Mallan permission decision
     if (target.deriveBooleans && typeof value === 'string') {
       for (const [enumVal, config] of Object.entries(target.deriveBooleans)) {
         topLevel[config.db] = value === enumVal;
       }
       if (target.defaultPublic && !value) {
-        // No permission set = public
-        for (const config of Object.values(target.deriveBooleans)) {
-          topLevel[config.db] = false;
-        }
+        for (const config of Object.values(target.deriveBooleans)) topLevel[config.db] = false;
       }
     }
   }

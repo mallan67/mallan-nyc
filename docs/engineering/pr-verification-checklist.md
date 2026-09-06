@@ -275,7 +275,7 @@ grep -rln 'CLAUDE\.md' --exclude-dir=node_modules --exclude-dir=.next \
 | `lib/idx/trestle-mapper.ts` | Cites CLAUDE.md for Trestle field rules |
 | `lib/idx/mapping.ts` | Same |
 | `lib/idx/db-to-public-dto.ts` | Same |
-| `lib/compliance/rebny-field-tables.ts` | Same |
+| `lib/compliance/rebny-ucba-rules.ts` | Same |
 | `lib/search/crm-idx-mapper.ts` | Cites CLAUDE.md for compliance constraints |
 | `lib/search/__tests__/crm-idx-filter.test.ts` | Same |
 | `prisma/schema.prisma` | Cites CLAUDE.md commercial property classification |

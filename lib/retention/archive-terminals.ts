@@ -11,17 +11,10 @@
  */
 import { Prisma, PrismaClient } from "@prisma/client";
 import { resolveListingAgentInfo, AGENT_TYPED_SELECT, ResolvableListingAgent } from "@/lib/listings/agent-info-resolver";
+import { MALLAN_TERMINAL_STATUSES } from "@/lib/listings/mallan-status";
 
-/** Mirror of the cron route's TERMINAL_STATUSES (kept in sync by tests). */
-export const ARCHIVE_TERMINAL_STATUSES = [
-  "Closed",
-  "Sold",
-  "Leased",
-  "Rented",
-  "Withdrawn",
-  "Expired",
-  "Cancelled",
-] as const;
+/** THE terminal set (Mallan storage vocabulary) — one definition in lib/listings/mallan-status.ts; the cron route and the monitor derive from it. */
+export const ARCHIVE_TERMINAL_STATUSES = [...MALLAN_TERMINAL_STATUSES] as readonly string[];
 
 export const ARCHIVE_CUTOFF_DAYS = 180;
 

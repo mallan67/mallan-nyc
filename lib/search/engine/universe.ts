@@ -1,3 +1,4 @@
+import { mallanStorageStatusesForCotality } from '@/lib/listings/mallan-status';
 /**
  * THE SETTLED UNIVERSE — membership first, then count, then the page.
  *
@@ -64,7 +65,9 @@ const CITY_REGION_STORAGE: Readonly<Record<string, string[]>> = Object.freeze({
 
 async function mallanRowsFor(c: SearchCriteria): Promise<{ rows: UniverseRow[]; excludedUnresolvedType: number }> {
   const prefix = c.workflow === 'sale' ? 'SL-' : 'RL-';
-  const where: Record<string, unknown> = { mls_id: null, listing_id: { startsWith: prefix }, status: { in: [...c.standardStatus] } };
+  // The criterion is a live StandardStatus member; Mallan rows are stored in Mallan's status vocabulary
+  // (e.g. a live 'Closed' covers Mallan Closed / Sold / Rented / Leased; 'Canceled' covers 'Cancelled').
+  const where: Record<string, unknown> = { mls_id: null, listing_id: { startsWith: prefix }, status: { in: mallanStorageStatusesForCotality(c.standardStatus) } };
   const price: Record<string, number> = {};
   if (c.priceMin != null && c.priceMin > 0) price.gte = c.priceMin;
   if (c.priceMax != null && c.priceMax > 0) price.lte = c.priceMax;

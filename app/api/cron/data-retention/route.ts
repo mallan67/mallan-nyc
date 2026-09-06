@@ -13,6 +13,7 @@
 import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { TERMINAL_STATUSES as MAPPER_TERMINAL_STATUSES } from "@/lib/idx/trestle-mapper";
 import { Prisma } from "@prisma/client";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 import { buildingAndManifestInvalidationTags, listingCacheTag, newRevalidationCounters, safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
@@ -26,7 +27,8 @@ export const maxDuration = 60;
 const T30_BATCH_CAP = 1000;
 const T180_BATCH_CAP = 500;
 
-const TERMINAL_STATUSES = ["Closed", "Sold", "Leased", "Rented", "Withdrawn", "Expired", "Cancelled"] as const;
+// ONE terminal set (Mallan storage vocabulary) — lib/listings/mallan-status.ts via the mapper export.
+const TERMINAL_STATUSES = [...MAPPER_TERMINAL_STATUSES] as string[];
 
 // (T+180 archive summary/strip helpers moved to lib/retention/archive-terminals.ts — Gate 6,
 // shared with the controlled operator drain so the two paths cannot drift.)
@@ -142,7 +144,7 @@ export async function GET(req: NextRequest) {
   const closedCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const staleClosedListings = await prisma.listing.findMany({
     where: {
-      status: { in: ["Closed", "Sold", "Leased", "Rented", "Withdrawn", "Expired", "Cancelled"] },
+      status: { in: TERMINAL_STATUSES },
       status_changed_at: { lt: closedCutoff },
       idx_display_yn: true, // still marked for IDX display
     },

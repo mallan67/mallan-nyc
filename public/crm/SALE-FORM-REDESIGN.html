@@ -7495,7 +7495,8 @@ function collectSaleFormData() {
     // Private (Participant Only) = broker-initiated, listing on RLS but NOT public.
     // A2 (Cotality-clean 2026-05-30): canonical field is Permission (singular,
     // live Cotality Multi.ListingPermission). Legacy Permissions reads still work.
-    data.Permission = isOwnerOptOut ? 'OwnerOptOut' : isParticipantOnly ? 'Private' : null;
+    // Mallan decision (UCBA owner opt-out / participant-only) under the Mallan key — never the provider Permission enum.
+    data._mallanPermission = isOwnerOptOut ? 'OwnerOptOut' : isParticipantOnly ? 'Private' : null;
 
     // Distribution gates — force OFF when Owner Opt-Out, Participant Only, or InHouse
     // InHouseWebOnly: IDX/syndication OFF but address displays on mallan.nyc

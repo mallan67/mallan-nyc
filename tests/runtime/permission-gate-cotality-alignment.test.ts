@@ -9,7 +9,7 @@
  * suppressed must still suppress).
  */
 import { derivePermissionBooleans, normalizePayload, buildPersistenceRecord } from '@/lib/compliance/normalizer';
-import { REBNY_FIELD_TABLES } from '@/lib/compliance/rebny-field-tables';
+import { MALLAN_FORM_CONTRACT } from '@/lib/listings/mallan-form-contract';
 
 describe('A2 — Permission gate derivation (no fail-open)', () => {
   it('derivePermissionBooleans suppresses for OwnerOptOut / Private; public/absent = no suppression', () => {
@@ -19,14 +19,17 @@ describe('A2 — Permission gate derivation (no fail-open)', () => {
     expect(derivePermissionBooleans(undefined)).toEqual({ owner_opt_out: false, participant_only: false });
   });
 
-  it('normalizePayload aliases legacy Permissions → canonical Permission', () => {
-    expect(normalizePayload({ Permissions: 'OwnerOptOut' }).normalized.Permission).toBe('OwnerOptOut');
-    expect(normalizePayload({ permission: 'RLS-Owner-OptOut' }).normalized.Permission).toBe('OwnerOptOut');
+  it('normalizePayload folds legacy Permissions / permission inputs into the MALLAN decision key (never the provider Permission field)', () => {
+    const a = normalizePayload({ Permissions: 'OwnerOptOut' }).normalized;
+    expect(a._mallanPermission).toBe('OwnerOptOut');
+    expect(a).not.toHaveProperty('Permission');
+    expect(normalizePayload({ permission: 'RLS-Owner-OptOut' }).normalized._mallanPermission).toBe('OwnerOptOut');
+    expect(normalizePayload({ Permission: 'Private' }).normalized._mallanPermission).toBe('Private');
   });
 
-  it('buildPersistenceRecord derives gate columns from canonical Permission', () => {
-    expect(buildPersistenceRecord({ Permission: 'OwnerOptOut' }).topLevel.owner_opt_out).toBe(true);
-    expect(buildPersistenceRecord({ Permission: 'Private' }).topLevel.participant_only).toBe(true);
+  it('buildPersistenceRecord derives the gate columns from the Mallan decision key', () => {
+    expect(buildPersistenceRecord({ _mallanPermission: 'OwnerOptOut' }).topLevel.owner_opt_out).toBe(true);
+    expect(buildPersistenceRecord({ _mallanPermission: 'Private' }).topLevel.participant_only).toBe(true);
   });
 
   it('legacy Permissions still suppresses end-to-end (normalize → persist) — NO fail-open', () => {
@@ -36,9 +39,9 @@ describe('A2 — Permission gate derivation (no fail-open)', () => {
     expect(buildPersistenceRecord(n2).topLevel.owner_opt_out).toBe(true);
   });
 
-  it('persistenceMap canonical key is Permission with deriveBooleans', () => {
-    const pm = REBNY_FIELD_TABLES.persistenceMap as Record<string, { deriveBooleans?: Record<string, { db: string }> }>;
-    expect(pm['Permission']?.deriveBooleans?.OwnerOptOut?.db).toBe('owner_opt_out');
-    expect(pm['Permission']?.deriveBooleans?.Private?.db).toBe('participant_only');
+  it('persistenceMap derives the gate columns from _mallanPermission', () => {
+    const pm = MALLAN_FORM_CONTRACT.persistenceMap as Record<string, { deriveBooleans?: Record<string, { db: string }> }>;
+    expect(pm['_mallanPermission']?.deriveBooleans?.OwnerOptOut?.db).toBe('owner_opt_out');
+    expect(pm['_mallanPermission']?.deriveBooleans?.Private?.db).toBe('participant_only');
   });
 });
