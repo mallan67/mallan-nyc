@@ -41,6 +41,7 @@ const liveContract = require(path.join(REPO_ROOT, 'lib', 'cotality', 'live-contr
 const { REBNY_UCBA_RULES } = require(path.join(REPO_ROOT, 'lib', 'compliance', 'rebny-ucba-rules'));
 const { MALLAN_INTERNAL_KEYS, MALLAN_FORM_CONTRACT } = require(path.join(REPO_ROOT, 'lib', 'listings', 'mallan-form-contract'));
 const { LEGACY_MALLAN_FORM_CONTROL_KEYS } = require(path.join(REPO_ROOT, 'lib', 'compliance', 'legacy-form-keys'));
+const formMapping = require(path.join(REPO_ROOT, 'lib', 'crm', 'listing-form-mapping'));
 
 const LIVE_FIELDS = liveContract.LIVE_PROPERTY_FIELDS;               // Set<string>
 const liveEnumMembers = liveContract.liveEnumMembers;                // (field) => string[] | null
@@ -85,9 +86,14 @@ const GATE_MODULES = {
 // Mallan-side classification of submission surfaces (not provider facts)
 const FORM_PREFIXES = ['sale', 'rental', 'bldg', 'search', 'oh', 'crm', 'comm'];
 const RENTAL_ONLY = new Set(['NetMonthlyRent', 'AvailabilityDate', 'LeaseType', 'MinLeaseMonths']);
-const SALE_ONLY = new Set(['FlipTax', 'FlipTaxType', 'MaximumFinancingAmount', 'MaximumFinancingPercent', 'PercentOfCommonElements', 'TaxDeductionPercent']);
+const SALE_ONLY = new Set(['FlipTax', 'FlipTaxType', 'FlipTaxRemarks', 'MaximumFinancingAmount', 'MaximumFinancingPercent', 'MaximumFinancingRemarks', 'PercentOfCommonElements', 'TaxDeductionPercent']);
 /** Provider classification fields the SERVER derives from the Mallan form keys (lib/crm/listing-form-mapping.ts). */
 const SERVER_DERIVED = new Set(['PropertyType', 'PropertySubType', 'CommonInterest', 'StructureType', 'View', 'BuildingFeatures', 'MoveInCosts', 'OngoingFees', 'TenantPays']);
+/** Values the server derivation can write per form type — a rule keyed on a value it never produces cannot fire on that form. */
+const SERVER_DERIVED_VALUES = {
+  sale:   { PropertyType: new Set(['Residential', 'CommercialSale', 'Land']), PropertySubType: new Set(formMapping.WRITABLE_PROPERTY_SUB_TYPES), CommonInterest: new Set(formMapping.WRITABLE_COMMON_INTERESTS) },
+  rental: { PropertyType: new Set(['ResidentialLease', 'CommercialLease', 'Land']), PropertySubType: new Set(formMapping.WRITABLE_PROPERTY_SUB_TYPES), CommonInterest: new Set(formMapping.WRITABLE_COMMON_INTERESTS) },
+};
 const CLOSING_ONLY_FIELDS = new Set(['BuyerAgentMlsId', 'BuyerAgentDirectPhone', 'BuyerAgentEmail', 'BuyerAgentFullName', 'BuyerAgentStateLicense', 'BuyerAgentRLSParticipantYN', 'BuyerOfficeName', 'BuyerOfficePhone', 'ClosePrice', 'PurchaseContractDate']);
 
 // ── Results ──────────────────────────────────────────────────────────────────
@@ -98,7 +104,7 @@ const results = {
   4:  { name: 'DISTRIBUTION GATES (live fields)',   errors: [], warnings: [] },
   5:  { name: 'FIELD MAP INTEGRITY (annotation)',   errors: [], warnings: [] },
   6:  { name: '(REMOVED)',                          errors: [], warnings: [] },
-  7:  { name: 'CONDITIONAL RULES (REBNY/UCBA)',     errors: [], warnings: [], missing: [] },
+  7:  { name: 'CONDITIONAL RULES (REBNY/UCBA)',     errors: [], warnings: [], missing: [] }, // missing must stay 0: an applicable gap is an ERROR
   8:  { name: 'ROLE MASKING',                       errors: [], warnings: [] },
   9:  { name: 'CANONICAL COVERAGE',                 errors: [], warnings: [] },
   10: { name: 'VIEWER LOCKDOWN',                    errors: [], warnings: [] },
@@ -143,7 +149,10 @@ function resolveElement(el) {
     if (identifier.toLowerCase().startsWith(prefix) && identifier.length > prefix.length) {
       const after = identifier.substring(prefix.length);
       if (/^[A-Z]/.test(after)) {
-        if (prefix === 'bldg' && isCanonical('Building' + after)) { classification.byLayer[3]++; return { field: 'Building' + after, layer: 3 }; }
+        if (prefix === 'bldg') {
+          if (isCanonical('Building' + after)) { classification.byLayer[3]++; return { field: 'Building' + after, layer: 3 }; }
+          classification.byLayer[3]++; return { internal: true, layer: 3 }; // a Mallan building-profile fact (no canonical Building* field) — never the unit-level field
+        }
         remainder = after; break;
       }
     }
@@ -151,7 +160,7 @@ function resolveElement(el) {
   if (remainder.startsWith('Bldg') && remainder.length > 4 && /^[A-Z]/.test(remainder[4])) {
     const bName = 'Building' + remainder.substring(4);
     if (isCanonical(bName)) { classification.byLayer[3]++; return { field: bName, layer: 3 }; }
-    remainder = remainder.substring(4);
+    classification.byLayer[3]++; return { internal: true, layer: 3 }; // Mallan building-profile fact — never resolved onto the unit-level field
   }
   if (remainder.startsWith('TH') && remainder.length > 2 && /^[A-Z]/.test(remainder[2])) remainder = remainder.substring(2);
 
@@ -248,7 +257,7 @@ function validateRequiredFields(fileElements) {
       if (systemGenerated.has(fieldName) || skip.has(fieldName)) continue;
       if (isMallanDecisionKey(fieldName) || SERVER_DERIVED.has(fieldName)) continue; // derived by the server from the Mallan form keys
       if (covered.has(fieldName)) continue;
-      const inJS = raw.includes(fieldName);
+      const inJS = new RegExp('data[.]' + fieldName + '[ \\t]*=').test(raw); // the form emits it
       if (CLOSING_ONLY_FIELDS.has(fieldName)) { if (!inJS) warn(2, `${fname}: closing-only field "${fieldName}" not found (OK if only at closing)`); }
       else if (inJS) log(`${fname}: "${fieldName}" — no bound control but referenced in the form script`);
       else error(2, `${fname}: REBNY required field "${fieldName}" — no bound control and no script reference`);
@@ -301,12 +310,17 @@ const GATE_FIELDS = {
   'address display (provider-gated)':                { field: 'InternetAddressDisplayYN' },
   'AVM display (per-row)':                           { field: 'InternetAutomatedValuationDisplayYN' },
   'consumer comment (per-row)':                      { field: 'InternetConsumerCommentYN' },
-  'participant-only / owner opt-out (provider fact)': { field: 'Permission', members: ['Private', 'IDX'] },
+  'provider permission enum (provider fact; no proven mapping to the Mallan owner-opt-out / participant-only decisions)': { field: 'Permission', enum: true },
   'syndication (provider collection)':               { field: 'SyndicateTo', enum: true },
   'coming soon / closed (status)':                   { field: 'StandardStatus', members: ['ComingSoon', 'Closed'] },
 };
-/** Mallan business facts with NO provider field — they stay Mallan-internal by design. */
-const MALLAN_ONLY_GATE_FACTS = ['_mallanPermission', 'owner_opt_out', 'participant_only', 'idx_display_yn'];
+/**
+ * Mallan / REBNY-UCBA business facts with NO proven provider field: owner opt-out and participant-only are Mallan
+ * decisions (_mallanPermission → owner_opt_out / participant_only); the IDX-display decision is _mallanIdxDisplay →
+ * idx_display_yn. Live metadata proves only that Property.Permission exists with members such as IDX / Private /
+ * Public / SyndicateOptOut — it does NOT prove Private == participant-only or any owner-opt-out member.
+ */
+const MALLAN_ONLY_GATE_FACTS = ['_mallanPermission', '_mallanIdxDisplay', 'owner_opt_out', 'participant_only', 'idx_display_yn'];
 
 function validateDistributionGates(fileElements) {
   console.log('\n  Section 4: Distribution gates (live fields + Mallan decisions) ...');
@@ -339,7 +353,7 @@ function validateDistributionGates(fileElements) {
     const data = fileElements[key]; if (!data) continue;
     if (!data.raw.includes('SyndicateTo')) warn(4, `${data.fname}: no reference to the live syndication collection SyndicateTo`);
   }
-  log(`Mallan-only gate facts (no provider field by design): ${MALLAN_ONLY_GATE_FACTS.join(', ')}`);
+  console.log(`    Mallan / REBNY-UCBA decisions with no proven provider field: ${MALLAN_ONLY_GATE_FACTS.join(', ')}`);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -386,18 +400,35 @@ function validateConditionalRules(fileElements) {
       if (!isCanonical(f)) error(7, `rule ${rule.code} names "${f}", which is neither live nor a declared Mallan-internal key`);
     }
   }
+  /** How a submission form can supply a field: bound control, form-contract alias, script reference, server derivation, or the status decision. */
+  // a script reference counts only when the form actually EMITS the field (data.<Field> = …), never a mere mention
+  const collectableBy = (data, bound, f) => f.startsWith('_') || SERVER_DERIVED.has(f) || bound.has(f) || new RegExp('data[.]' + f + '[ \\t]*=').test(data.raw);
   for (const data of Object.values(fileElements)) {
     if (data.config.category !== 'submission') continue;
-    const skip = data.config.type === 'sale' ? RENTAL_ONLY : SALE_ONLY;
-    const covered = new Set(data.elements.filter((e) => e.result.field).map((e) => e.result.field));
+    const type = data.config.type;
+    const skip = type === 'sale' ? RENTAL_ONLY : SALE_ONLY;
+    const bound = new Set(data.elements.filter((e) => e.result.field).map((e) => e.result.field));
+    let applicable = 0, notTriggerable = 0;
     for (const rule of REBNY_UCBA_RULES.conditionalRules) {
       const when = rule.appliesWhen;
-      if (data.config.type === 'sale' && Array.isArray(when.PropertyType) && when.PropertyType.every((t) => /Lease/.test(t))) continue;
-      if (data.config.type === 'rental' && Array.isArray(when.PropertyType) && !when.PropertyType.some((t) => /Lease/.test(t))) continue;
-      const gaps = rule.requireFields.filter((f) => !skip.has(f) && !covered.has(f) && !SERVER_DERIVED.has(f) && !data.raw.includes(f));
-      if (gaps.length) missing(`${data.fname}: ${rule.code} (${rule.description}) — not collectable: ${gaps.join(', ')}`);
+      // APPLICABILITY (canonical): the rule can fire on a payload this form authors only when every trigger is
+      // collectable here and, for a server-derived trigger, the derivation can produce one of the rule's values.
+      let triggerable = true; const why = [];
+      for (const [field, expected] of Object.entries(when)) {
+        if (skip.has(field)) { triggerable = false; why.push(`${field} is ${type === 'sale' ? 'rental' : 'sale'}-only`); continue; }
+        if (SERVER_DERIVED.has(field) && Array.isArray(expected)) {
+          const producible = SERVER_DERIVED_VALUES[type][field];
+          if (producible && !expected.some((v) => producible.has(v))) { triggerable = false; why.push(`${field} never derives to ${expected.join('/')} on this form`); continue; }
+        }
+        if (!collectableBy(data, bound, field)) { triggerable = false; why.push(`trigger ${field} is not collected`); }
+      }
+      if (!triggerable) { notTriggerable++; log(`${data.fname}: ${rule.code} — not triggerable on this form (${why.join('; ')})`); continue; }
+      applicable++;
+      const gaps = rule.requireFields.filter((f) => !skip.has(f) && !collectableBy(data, bound, f));
+      if (gaps.length) error(7, `${data.fname}: ${rule.code} (${rule.description}) applies to this form but cannot be satisfied — not collectable: ${gaps.join(', ')}`);
       else log(`${data.fname}: ${rule.code} — collectable`);
     }
+    console.log(`    ${data.fname}: ${applicable} conditional rules applicable (all requirements collectable unless listed as ERROR) · ${notTriggerable} not triggerable on this form`);
   }
 }
 
@@ -568,7 +599,12 @@ function main() {
     console.log(`  HTML report → ${reportPath}`);
   }
 
-  process.exit((totalErrors > 0 || classification.unknown > 0) ? 1 : 0);
+  // PASS = no errors, no UNKNOWN controls, no MISSING items — the same predicate the HTML report uses.
+  const passAll = totalErrors === 0 && totalMissing === 0 && classification.unknown === 0;
+  console.log(`  RESULT: ${passAll ? 'PASS' : 'FAIL'}`);
+  process.exit(passAll ? 0 : 1);
 }
 
-main();
+// The classification pipeline is the ONE form-control resolver; tests exercise it directly.
+module.exports = { resolveElement, isCanonical, FIELD_ALIASES, RAW_ALIASES, INTERNAL_ONLY_IDS, PHANTOMS, MALLAN_GROUPS, FILE_CONFIG, SERVER_DERIVED };
+if (require.main === module) main();

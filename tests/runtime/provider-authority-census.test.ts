@@ -138,7 +138,7 @@ describe("live Cotality metadata verifies every provider field used", () => {
     expect(names.filter((n) => !live.has(n))).toEqual([]);
   });
   it("phantom names never sit in an active provider map (only in the legacy-form-key module and in tests)", () => {
-    const hits = offenders(["lib/idx", "lib/search", "app/api/idx", "app/api/listings"].flatMap((d) => walk(d)), /["']IDXEntireListingDisplayYN["']|["']ParticipantOnlyYN["']|["']IDXParticipationYN["']|["']SyndicateYN["']/);
+    const hits = offenders(["lib/idx", "lib/search", "lib/cotality", "app/api/idx", "app/api/listings", "scripts/cotality", "scripts/reso"].filter((d) => fs.existsSync(d)).flatMap((d) => walk(d)), /["']IDXEntireListingDisplayYN["']|["']ParticipantOnlyYN["']|["']IDXParticipationYN["']|["']SyndicateYN["']/);
     expect(hits).toEqual([]);
     const ctl = read("lib/idx/trestle-mapper.ts").match(/const CONTROL_FIELDS = new Set\(\[([\s\S]*?)\]\)/)![1];
     expect(ctl).not.toMatch(/IDXEntireListingDisplayYN|ParticipantOnlyYN|VOW|SyndicateYN/);

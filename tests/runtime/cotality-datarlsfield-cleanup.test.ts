@@ -18,9 +18,19 @@ const PHANTOM = [
   'TaxAbatementYN', 'TaxAbatementComments', 'MaximumFinancingPercent',
 ];
 
-describe('Group 5 — data-rls-field no longer claims phantom Cotality fields', () => {
-  it.each(PHANTOM)('data-rls-field="%s" removed (now data-removed-field/ignore)', (f) => {
-    expect(formHtml).not.toMatch(new RegExp('data-rls-field="' + f + '"'));
+// Packet 2 convergence (2026-09-06): these names are NOT live Cotality fields (still asserted below), but the
+// ones the REBNY / UCBA rules require are DECLARED Mallan-internal keys (lib/listings/mallan-form-contract.ts):
+// REBNY submission facts the write path persists under their own names, never presented as provider facts.
+// A data-rls-field claim is therefore canonical only for a declared Mallan-internal key; any other non-live
+// name is a phantom claim and stays forbidden.
+const { MALLAN_INTERNAL_KEYS } = require('@/lib/listings/mallan-form-contract') as { MALLAN_INTERNAL_KEYS: string[] };
+const { LIVE_PROPERTY_FIELDS } = require('@/lib/cotality/live-contract') as { LIVE_PROPERTY_FIELDS: Set<string> };
+
+describe('Group 5 — data-rls-field never claims a name that is neither live Cotality nor a declared Mallan-internal key', () => {
+  it.each(PHANTOM)('"%s" is not a live Cotality field; a data-rls-field claim exists only if it is a declared Mallan-internal key', (f) => {
+    expect(LIVE_PROPERTY_FIELDS.has(f)).toBe(false);
+    const claimed = new RegExp('data-rls-field="' + f + '"').test(formHtml);
+    if (claimed) expect(MALLAN_INTERNAL_KEYS).toContain(f);
   });
 
   it('legit data-rls-field="BuildingFeatures" (real Cotality Multi enum + collector selector) retained', () => {

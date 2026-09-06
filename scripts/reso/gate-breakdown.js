@@ -7,10 +7,14 @@
  * the gap to a specific gate so you can see whether the drop is
  * compliance-correct (e.g. participant-only) or a sync issue.
  *
- * Trestle calls: 1 baseline + up to 4 gate probes (pet-friendly /
- * AVM / consumer-comment / coming-soon counts) per invocation.
- * IDX-PLUS-aware: skips gate fields that aren't queryable on the IDX
- * Plus tier (OwnerOptOut, ParticipantOnly).
+ * Trestle calls: 1 baseline + the gate probes below per invocation.
+ * LIVE-CONTRACT-aware (verified 2026-09-06 against api.cotality.com): InternetEntireListingDisplayYN
+ * and InternetAddressDisplayYN are live Booleans that the authorized feed does NOT allow filtering on
+ * ($filter → 400 "Results from 'RLS' has been suppressed (provider Level)"), so they are NOT probed —
+ * a known-invalid filter is not a gate measurement. InternetAutomatedValuationDisplayYN and
+ * InternetConsumerCommentYN are filterable per-row Booleans and are probed. Owner opt-out and
+ * participant-only are Mallan / REBNY-UCBA business decisions with no verified provider filter; this
+ * diagnostic makes no claim about them.
  *
  * Usage:
  *   npm run reso:gate-breakdown
@@ -53,8 +57,8 @@ function arg(name, fallback) {
   // to the baseline, NOT a chained narrowing.
   const probes = [
     { name: 'baseline', filter: baseFilter, kind: 'total', note: `Active listings of the requested type.` },
-    { name: 'idx_display_yn=false', filter: `${baseFilter} and InternetEntireListingDisplayYN eq false`, kind: 'gate', note: 'Listings the participant flagged off public IDX entirely.' },
-    { name: 'address_display_yn=false', filter: `${baseFilter} and InternetAddressDisplayYN eq false`, kind: 'gate', note: 'Listings with the address sub-gate off (cascade applies).' },
+    // InternetEntireListingDisplayYN / InternetAddressDisplayYN: live fields, NOT filterable on this feed (400
+    // "suppressed (provider Level)", verified 2026-09-06) — deliberately not probed.
     { name: 'avm_display=false', filter: `${baseFilter} and InternetAutomatedValuationDisplayYN eq false`, kind: 'gate', note: 'Listings opted out of AVM display (Zestimate-equivalent).' },
     { name: 'consumer_comment_yn=false', filter: `${baseFilter} and InternetConsumerCommentYN eq false`, kind: 'gate', note: 'Listings opted out of public comments / reviews.' },
     { name: 'auction=true', filter: `${baseFilter} and AuctionYN eq true`, kind: 'flag', note: 'Auction listings — UCBA Art. I auction display rules apply.' },
@@ -92,7 +96,7 @@ function arg(name, fallback) {
     captured_at: new Date().toISOString(),
     elapsed_ms: elapsedMs,
     base_filter: baseFilter,
-    note_idx_plus_quirks: 'OwnerOptOut and ParticipantOnly are NOT queryable on IDX Plus — Trestle pre-filters those listings out of the feed entirely. Their elimination is invisible at this layer (subtracted upstream).',
+    note_not_probed: 'InternetEntireListingDisplayYN / InternetAddressDisplayYN are live Booleans the authorized feed does not allow filtering on (400 suppressed, provider Level). Owner opt-out and participant-only are Mallan / REBNY-UCBA decisions with no verified provider filter; nothing is asserted about them here. Verified 2026-09-06.',
     baseline: baselineTotal,
     gates: results.filter((r) => r.kind !== 'total').map(({ name, filter, count, pct_of_baseline, note }) => ({ name, filter, count, pct_of_baseline, note })),
   };
@@ -114,9 +118,9 @@ function arg(name, fallback) {
     console.log(`    ${r.note}`);
   }
   console.log('');
-  console.log(`Note: OwnerOptOut and ParticipantOnly listings are pre-filtered out of`);
-  console.log(`      the IDX Plus feed entirely — they don't appear in the baseline at`);
-  console.log(`      all, so their elimination is invisible at this layer.`);
+  console.log(`Note: InternetEntireListingDisplayYN / InternetAddressDisplayYN are not filterable on this feed`);
+  console.log(`      (400 suppressed, provider Level — verified 2026-09-06) and are not probed. Owner opt-out and`);
+  console.log(`      participant-only are Mallan / REBNY-UCBA decisions with no verified provider filter.`);
   console.log(`Probes completed in ${elapsedMs} ms`);
 })().catch((err) => {
   console.error('[gate-breakdown] fatal:', err.message || err);

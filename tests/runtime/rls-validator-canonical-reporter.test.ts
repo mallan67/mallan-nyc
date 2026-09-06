@@ -101,10 +101,19 @@ describe('the reporter runs green over the canonical contracts', () => {
     const tsx = join(ROOT, 'node_modules', 'tsx', 'dist', 'cli.mjs');
     const r = spawnSync(process.execPath, [tsx, SCRIPT], { cwd: ROOT, encoding: 'utf8', timeout: 180000 });
     const out = (r.stdout || '') + (r.stderr || '');
-    expect(out).toMatch(/TOTAL: 0 ERRORS/);
+    expect(out).toMatch(/TOTAL: 0 ERRORS, \d+ WARNINGS?, 0 MISSING/);
     expect(out).toMatch(/UNKNOWN: 0 \(MUST be 0\)/);
+    expect(out).toMatch(/RESULT: PASS/);
+    expect(out).toMatch(/Section {2}7: CONDITIONAL RULES \(REBNY\/UCBA\) \.+ PASS/);
     expect(out).toMatch(/REBNY contract \d+\/\d+ collectable/);
     expect(out).toMatch(/live Cotality Property fields: \d+ \(pull /);
     expect(r.status).toBe(0);
   }, 200000);
+  it('CLI exit and HTML PASS use the same predicate: errors, UNKNOWN and MISSING all block', () => {
+    expect(code).toMatch(/const passAll = totalErrors === 0 && totalMissing === 0 && classification\.unknown === 0;[\s\S]*process\.exit\(passAll \? 0 : 1\)/);
+    expect(code).not.toMatch(/process\.exit\(\(totalErrors > 0 \|\| classification\.unknown > 0\)/);
+    // an applicable conditional gap is an ERROR (never an informational MISSING)
+    expect(code).toMatch(/error\(7, `\$\{data\.fname\}: \$\{rule\.code\} \(\$\{rule\.description\}\) applies to this form but cannot be satisfied/);
+    expect(code).not.toMatch(/missing\(`/);
+  });
 });

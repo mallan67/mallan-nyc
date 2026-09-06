@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * scripts/reso/drift.js — Track field-set drift between three sources
- * of truth: Trestle's live $metadata, the REBNY IDX Plus field CSV,
+ * of evidence (REFERENCE / HISTORICAL comparison — the provider authority is lib/cotality/live-contract.ts): Trestle's live $metadata, the REBNY IDX Plus field CSV,
  * and (optionally) a snapshot from a prior run.
  *
  * The "Trestle is behind on RESO updates" reality: Cotality's Trestle
@@ -11,7 +11,7 @@
  * on their own cadence. So the three sources can drift independently:
  *
  *   1. Trestle live $metadata (what the feed actually exposes)
- *   2. REBNY IDX Plus CSV (what REBNY documents we should see)
+ *   2. REBNY IDX Plus CSV (REFERENCE: what REBNY documents; not provider authority)
  *   3. RESO DD reference (the canonical standard)
  *
  * What this tool does:
@@ -23,7 +23,7 @@
  *
  * What this tool does NOT do:
  *   - Hit the live Trestle $metadata endpoint (the cache file is the
- *     source of truth; refresh it with the existing
+ *     comparison snapshot (not authority); refresh it with the existing
  *     `scripts/refresh-trestle-csv.ts` runner). This keeps drift.js
  *     from burning IDX Plus quota on every run.
  *

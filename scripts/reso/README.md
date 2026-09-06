@@ -51,6 +51,14 @@ node scripts/reso/query.js --entity=Property --top=3 --select="ListingId,Standar
 | `schema-audit.js` | Column-by-column compare of `prisma/schema.prisma` Listing model vs REBNY CSV vs Trestle metadata. Names every column as `RESO+Trestle aligned`, `mallan-internal (no RESO mapping)`, or `drift`. Output: `artifacts/schema-audit.md` + `.json`. | local source only |
 | `lib/trestle-client.js` | Shared OAuth + OData helpers used by the rest of the kit | — |
 
+## Tool classification (Packet 2 convergence, 2026-09-06)
+
+| Class | Tools | Rule |
+|---|---|---|
+| A — live Cotality operational diagnostic | `analyze.js`, `count.js`, `query.js`, `lookups.js`, `coverage.js`, `parity.js`, `trace.js`, `snapshot.js`, `gate-breakdown.js`, `route-catalog.js` (static, no provider facts) | every provider fact and query uses verified live Cotality fields and semantics; no known-invalid filter is issued as a measurement |
+| B — historical / reference comparison | `drift.js`, `schema-audit.js` | the REBNY CSVs and the `$metadata` snapshot are REFERENCE / HISTORICAL comparison evidence — never provider authority and never release truth; the live contract is the authority in every output |
+| C — obsolete | none retired this round (no consumer proof gathered) | retire only with consumer proof |
+
 ## Examples
 
 ### 1. Site status snapshot
@@ -97,8 +105,8 @@ node scripts/reso/lookups.js --entity=Property --field=PropertySubType --sample=
 node scripts/reso/lookups.js --entity=Property --field=CommonInterest --filter="StandardStatus eq 'Active'"
 ```
 
-Compare against `data/rebny-rls-property-lookup.csv` to flag enum values
-that REBNY documents but our feed doesn't populate (or vice versa).
+Compare against the live enum pull (`data/cotality-enums.live.json`) to flag members the
+live contract carries but our feed does not populate; the REBNY lookup CSV is REFERENCE only.
 
 ### 4. Field-population coverage
 
@@ -207,5 +215,8 @@ seed for:
     triage the 10,428 vs 5,169 gap during the migration.
 - Cached Trestle metadata: `artifacts/metadata.xml`.
 - Field registry: `data/RLS-FIELD-REGISTRY.md`.
-- Authoritative field list: `data/rebny-rls-property-fields.csv`.
-- Lookup values: `data/rebny-rls-property-lookup.csv`.
+- Provider field / enum authority: `lib/cotality/live-contract.ts` (the dated live Cotality pulls,
+  `npm run cotality:compile`). Nothing else decides whether a field or member exists.
+- REFERENCE / HISTORICAL only (never provider authority, never release truth):
+  `data/rebny-rls-property-fields.csv`, `data/rebny-rls-property-lookup.csv` — the REBNY submission
+  documentation the comparison tools diff against.

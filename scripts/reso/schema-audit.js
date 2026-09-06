@@ -13,7 +13,7 @@
  *
  * Read-only. No DB queries. No Trestle calls. Reads:
  *   - prisma/schema.prisma
- *   - data/rebny-rls-property-fields.csv
+ *   - data/rebny-rls-property-fields.csv (REFERENCE / HISTORICAL — not provider authority)
  *   - artifacts/metadata.xml
  *
  * Usage:

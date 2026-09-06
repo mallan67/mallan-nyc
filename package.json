@@ -30,7 +30,7 @@
     "rls:validate": "tsx scripts/validate-rls-compliance.js",
     "rls:generate": "node scripts/audit-form-fields.js",
     "rls:inject": "node scripts/inject-rls-attributes.js",
-    "test:rls": "node scripts/test-rls-bindings.js",
+    "test:rls": "jest --ci tests/runtime/rls-form-bindings-canonical.test.ts tests/runtime/rls-validator-canonical-reporter.test.ts",
     "test:prospect-parser": "npx tsx scripts/test-prospect-parser.ts",
     "db:seed": "npx tsx prisma/seed.ts",
     "crm:build": "node public/crm/build.js",

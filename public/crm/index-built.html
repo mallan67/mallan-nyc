@@ -19446,28 +19446,19 @@ function manageShowToast(msg) {
 <!-- Core Data -->
 <script>
 // ═══ js/core/reso-field-map.js ═══
-        // ═══════════════════════════════════════════════════════════════════════════
-        // RESO FIELD MAPPING — Maps mock field names to RESO Data Dictionary fields
-        // Used for data-reso-field attributes on rendered HTML elements
-        // Reference: Trestle/CoreLogic Property entity (REBNY RLS)
+        // ═══════════════════════════════════════════════════════════════════════
+        // DISPLAY / SOURCE ANNOTATION ONLY — public/crm/js/core/reso-field-map.js
         //
-        // VERIFIED 2026-02-19 against:
-        //   data/rebny-rls-property-fields.csv (902 REBNY IDX Plus fields across 7 resources)
-        //   data/trestle-dictionary/property-fields.csv (744 Trestle fields)
-        //   data/trestle-excel/02_PROPERTY.csv
-        //
-        // KEY NOTES:
-        //   - RLS "ListingKey" attr → Trestle "SourceSystemKey" (LMP's listing ID)
-        //   - Trestle "ListingKey" = OData primary key (Trestle-generated)
-        //   - Trestle "ListingId" = RLS listing number (Matrix-generated)
-        //   - RLS "StandardStatus" attr → Trestle "MlsStatus" (detailed)
-        //     Trestle also has "StandardStatus" (RESO normalized) — we use MlsStatus (RLS name)
-        //   - RLS uses "SubdivisionName" for neighborhood, Trestle also has "MLSAreaMinor"
-        //   - "WalkScore" exists in Trestle schema but NOT in RLS (Trestle-only)
-        //   - Coming Soon: RLS uses "ActivationDate" (not FirstShowingDate)
-        //     and the retired ComingSoon timestamp name (not ComingSoonOnMarketDate/ExpirationDate)
-        //   - BuyerBrokerageCompensation: REMOVED from RLS feed Aug 2025 (NAR settlement)
-        // ═══════════════════════════════════════════════════════════════════════════
+        // RESO_FIELD_MAP maps CRM DTO keys to the live Cotality Property field each value was mapped
+        // FROM, so rendered cards can carry a data-reso-field attribute for compliance checks.
+        //   - every value is checked against the live Cotality contract (data/cotality-property-fields.live.json)
+        //     by tests/runtime/provider-authority-census.test.ts and by scripts/validate-rls-compliance.js §5;
+        //     "computed:" marks a value the mapper derives.
+        //   - it does NOT map provider data in either direction, does NOT define provider semantics,
+        //     and does NOT define compliance requirements. Provider facts = lib/cotality/live-contract.ts;
+        //     REBNY / UCBA rules = lib/compliance/rebny-ucba-rules.ts; Mallan form / storage =
+        //     lib/listings/mallan-form-contract.ts. RESO is vocabulary only.
+        // ═══════════════════════════════════════════════════════════════════════
         // DISPLAY-ANNOTATION VOCABULARY, NOT PROVIDER AUTHORITY (Packet 2 closure).
         // Maps CRM DTO keys to the live Cotality Property field they were mapped FROM, so cards can
         // carry a data-reso attribute for compliance checks. Every value is verified against the dated

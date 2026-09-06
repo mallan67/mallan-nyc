@@ -679,6 +679,10 @@ body { font-family: Manrope, sans-serif; }
                 <div id="saleTaxMonthlyField">
                     <label class="field-label">RE Taxes (Monthly)</label>
                     <input type="number" id="saleTaxMonthly" placeholder="$0.00" step="0.01" class="field-input" data-rls-ignore="true" data-removed-field="TaxMonthlyAmount" oninput="syncSaleAnnualFromMonthly()">
+                    <div class="mt-2" data-p2-block="sale-percent-common-elements">
+                        <label class="field-label">Percent of Common Elements</label>
+                        <input type="number" step="0.0001" id="salePercentOfCommonElements" placeholder="e.g. 1.25" class="field-input" data-rls-field="PercentOfCommonElements">
+                    </div>
                     <p class="text-[10px] text-gray-500 mt-1">Auto-calculated if blank</p>
                 </div>
             </div>
@@ -695,6 +699,22 @@ body { font-family: Manrope, sans-serif; }
                 <div id="saleSoldPriceField" style="display:none;">
                     <label class="field-label">Sold Price <span class="text-red-500">*</span></label>
                     <input type="number" id="saleSoldPrice" placeholder="$0" class="field-input" data-rls-field="ClosePrice">
+                    <!-- REBNY CLOSED-001 / CANCELLED-001 (Packet 2 convergence): closing facts the gate requires -->
+                    <div class="mt-3" data-p2-block="sale-closing-facts">
+                        <label class="field-label">Buyer agent is an RLS participant?</label>
+                        <div class="flex gap-4 text-sm"><label class="flex items-center gap-1"><input type="radio" name="saleBuyerAgentRLSParticipantYN" value="Yes" class="w-4 h-4" data-rls-field="BuyerAgentRLSParticipantYN"> Yes</label><label class="flex items-center gap-1"><input type="radio" name="saleBuyerAgentRLSParticipantYN" value="No" class="w-4 h-4" data-rls-field="BuyerAgentRLSParticipantYN"> No</label></div>
+                        <label class="field-label" style="margin-top:.5rem">Cancellation Date</label>
+                        <input type="date" id="saleCancellationDate" class="field-input" data-rls-field="CancellationDate">
+                        <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2" data-p2-block="sale-buyer-agent-contact">
+                            <p class="sm:col-span-2 text-[10px] text-gray-500">REBNY BUYER-NONRLS-001: when the Buyer agent is not an RLS participant, their contact details are required at close.</p>
+                            <div><label class="field-label">Buyer Agent Full Name</label><input type="text" id="saleBuyerAgentFullName" class="field-input" data-rls-field="BuyerAgentFullName"></div>
+                            <div><label class="field-label">Buyer Agent Direct Phone</label><input type="tel" id="saleBuyerAgentDirectPhone" class="field-input" data-rls-field="BuyerAgentDirectPhone"></div>
+                            <div><label class="field-label">Buyer Agent Email</label><input type="email" id="saleBuyerAgentEmail" class="field-input" data-rls-field="BuyerAgentEmail"></div>
+                            <div><label class="field-label">Buyer Agent State License</label><input type="text" id="saleBuyerAgentStateLicense" class="field-input" data-rls-field="BuyerAgentStateLicense"></div>
+                            <div><label class="field-label">Buyer Office Name</label><input type="text" id="saleBuyerOfficeName" class="field-input" data-rls-field="BuyerOfficeName"></div>
+                            <div><label class="field-label">Buyer Office Phone</label><input type="tel" id="saleBuyerOfficePhone" class="field-input" data-rls-field="BuyerOfficePhone"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="mb-4">
@@ -1147,6 +1167,12 @@ body { font-family: Manrope, sans-serif; }
                 <div>
                     <label class="field-label">Flip Tax Amount <span class="text-red-500 sale-req-star hidden">*</span></label>
                     <input type="number" id="saleFlipTaxAmount" placeholder="$0.00" step="0.01" class="field-input" required data-rls-ignore="true" data-removed-field="FlipTax">
+                    <div class="mt-2" data-p2-block="sale-fliptax-details">
+                        <label class="field-label">Flip Tax Type</label>
+                        <input type="text" id="saleFlipTaxType" placeholder="e.g. percentage of price, per share, flat amount" class="field-input" data-rls-field="FlipTaxType">
+                        <label class="field-label" style="margin-top:.5rem">Flip Tax Remarks</label>
+                        <textarea id="saleFlipTaxRemarks" rows="2" placeholder="Who pays, how it is computed" class="field-input" data-rls-field="FlipTaxRemarks"></textarea>
+                    </div>
                 </div>
                 <div>
                     <label class="field-label">Flip Tax Type</label>
@@ -1313,6 +1339,14 @@ body { font-family: Manrope, sans-serif; }
                         <option value="No">No</option>
                         <option value="CallListingAgent">Call Listing Agent</option>
                     </select>
+                    <div class="mt-2" data-p2-block="sale-concessions-comments">
+                        <label class="field-label">Concessions Comments</label>
+                        <textarea id="saleConcessionsComments" rows="2" placeholder="Required when Concessions = Yes" class="field-input" data-rls-field="ConcessionsComments"></textarea>
+                    </div>
+                    <div class="mt-2" data-p2-block="sale-special-listing-conditions">
+                        <label class="field-label">Special Listing Conditions</label>
+                        <select id="saleSpecialListingConditions" class="field-input" data-rls-field="SpecialListingConditions"><option value="">Select</option><option value="AffordableHousingSubsidy">Affordable Housing Subsidy</option><option value="AllowanceFlooring">Allowance Flooring</option><option value="AllowanceRoofing">Allowance Roofing</option><option value="Auction">Auction</option><option value="BankruptcyProperty">Bankruptcy Property</option><option value="BoardApprovalNotRequired">Board Approval Not Required</option><option value="BoardApprovalRequired">Board Approval Required</option><option value="BuilderOwned">Builder Owned</option><option value="Conservatorship">Conservatorship</option><option value="CorporateListing">Corporate Listing</option><option value="Estate">Estate</option><option value="GovernmentOwned">Government Owned</option><option value="GseOwned">Gse Owned</option><option value="HudOwned">Hud Owned</option><option value="InForeclosure">In Foreclosure</option><option value="ListedAsIs">Listed As Is</option><option value="Model">Model</option><option value="None">None</option><option value="NoSmoking">No Smoking</option><option value="NoticeOfDefault">Notice Of Default</option><option value="Other">Other</option><option value="PetRestrictions">Pet Restrictions</option><option value="PreForeclosure">Pre Foreclosure</option><option value="ProbateListing">Probate Listing</option><option value="RealEstateOwned">Real Estate Owned</option><option value="Relocation">Relocation</option><option value="Section8Accepted">Section8 Accepted</option><option value="SeeAgent">See Agent</option><option value="SeeRemarks">See Remarks</option><option value="ShortSale">Short Sale</option><option value="Standard">Standard</option><option value="ThirdPartyApproval">Third Party Approval</option><option value="Trust">Trust</option><option value="VaOwned">Va Owned</option></select>
+                    </div>
                 </div>
                 <div>
                     <!-- RLS/RESO/IDX: ConcessionsAmount (Conditional: if Concessions=Yes) -->
@@ -1826,17 +1860,7 @@ body { font-family: Manrope, sans-serif; }
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label class="field-label">Property Condition</label>
-                    <select id="saleCondition" class="field-input" data-rls-ignore="true" data-mallan-field="PropertyCondition">
-                        <option value="">Select Condition</option>
-                        <option value="Excellent">Excellent</option>
-                        <option value="Fixer">Fixer</option>
-                        <option value="Good">Good</option>
-                        <option value="Fair">Fair</option>
-                        <option value="Poor">Poor</option>
-                        <option value="UnderConstruction">Under Construction</option>
-                        <option value="NewConstruction">New Construction</option>
-                        <option value="Updated">Updated/Remodeled</option>
-                    </select>
+                    <select id="saleCondition" class="field-input" data-rls-field="PropertyCondition"><option value="">Select Condition</option><option value="Excellent">Excellent</option><option value="VeryGoodCondition">Very Good Condition</option><option value="GoodCondition">Good Condition</option><option value="AverageCondition">Average Condition</option><option value="BelowAverage">Below Average</option><option value="PoorCondition">Poor Condition</option><option value="Fixer">Fixer</option><option value="UpdatedRemodeled">Updated Remodeled</option><option value="UnderRenovation">Under Renovation</option><option value="UnderConstruction">Under Construction</option><option value="NewConstruction">New Construction</option><option value="NeverOccupied">Never Occupied</option><option value="Resale">Resale</option><option value="Turnkey">Turnkey</option><option value="ShowsWell">Shows Well</option><option value="RepairsCosmetic">Repairs Cosmetic</option><option value="RepairsMajor">Repairs Major</option><option value="KnownDamage">Known Damage</option><option value="SeeRemarks">See Remarks</option><option value="Other">Other</option></select>
                 </div>
             </div>
         </div>
@@ -2336,6 +2360,10 @@ body { font-family: Manrope, sans-serif; }
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="SizeLimit" class="w-4 h-4 sale-unit-pets-cb" onchange="handleSaleUnitPetsChange(this)"> Size Limit</label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="NumberLimit" class="w-4 h-4 sale-unit-pets-cb" onchange="handleSaleUnitPetsChange(this)"> Number Limit</label>
                 <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="salePetsAllowed" value="No" class="w-4 h-4 sale-unit-pets-cb" onchange="handleSaleUnitPetsChange(this)"> No Pets</label>
+            </div>
+            <div class="mt-2" data-p2-block="sale-pets-comments">
+                <label class="field-label">Pet Restriction Comments</label>
+                <textarea id="salePetsAllowedComments" rows="2" placeholder="Required when a size, number or breed restriction is selected" class="field-input" data-rls-field="PetsAllowedComments"></textarea>
             </div>
             <div id="salePetsAllowedLocked" class="hidden mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
                 <i class="fas fa-lock mr-1"></i> Locked to "No Pets" — Building pet policy is set to "No Pets" (BuildingNo).
@@ -4624,6 +4652,10 @@ body { font-family: Manrope, sans-serif; }
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-paw"></i> Building Pet Policy <span class="text-red-500">*</span></div>
                         <p class="text-[10px] text-gray-500 mb-3">Mallan Building Profile — internal building pet policy (not in Cotality; not submitted to RLS/IDX). Select all that apply. If "No Pets" is selected, unit-level PetsAllowed will be locked to "No".</p>
+                        <div class="mb-2" data-p2-block="sale-building-pets-comments">
+                            <label class="field-label">Building Pet Restriction Comments</label>
+                            <textarea id="saleBuildingPetsAllowedComments" rows="2" placeholder="Required when the building limits size, number or breed" class="field-input" data-rls-field="BuildingPetsAllowedComments"></textarea>
+                        </div>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-4" id="saleBuildingPetsAllowedGroup">
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingPetsAllowed" value="BuildingYes" class="w-4 h-4 sale-bldg-pets-cb" onchange="handleSaleBldgPetsChange(this)" data-rls-ignore="true"> Yes (All Pets)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingPetsAllowed" value="BuildingCatsOK" class="w-4 h-4 sale-bldg-pets-cb" onchange="handleSaleBldgPetsChange(this)"> Cats OK</label>
@@ -4702,6 +4734,10 @@ body { font-family: Manrope, sans-serif; }
                             <div>
                                 <label class="field-label">Max Financing Allowed</label>
                                 <input type="text" id="saleBldgMaxFinancing" placeholder="80%" class="field-input" data-rls-ignore="true" data-removed-field="MaximumFinancingPercent">
+                                <div class="mt-2" data-p2-block="sale-financing-remarks">
+                                    <label class="field-label">Maximum Financing Remarks</label>
+                                    <textarea id="saleMaximumFinancingRemarks" rows="2" placeholder="Financing conditions the building imposes" class="field-input" data-rls-field="MaximumFinancingRemarks"></textarea>
+                                </div>
                             </div>
                             <div>
                                 <label class="field-label">Min Down Payment</label>
@@ -7456,6 +7492,32 @@ function collectSaleFormData() {
     data.UnparsedAddress = data.saleUnparsedAddress || '';
     data.PublicRemarks = data.saleDescription || '';
     data.PrivateRemarks = data.saleBrokerComments || '';
+    // REBNY conditional requirements the form must be able to satisfy (Packet 2 convergence round)
+    data.BuyerAgentRLSParticipantYN = data.saleBuyerAgentRLSParticipantYN === 'Yes' ? true : data.saleBuyerAgentRLSParticipantYN === 'No' ? false : undefined;
+    data.BuyerAgentFullName = data.saleBuyerAgentFullName || '';
+    data.BuyerAgentDirectPhone = data.saleBuyerAgentDirectPhone || '';
+    data.BuyerAgentEmail = data.saleBuyerAgentEmail || '';
+    data.BuyerAgentStateLicense = data.saleBuyerAgentStateLicense || '';
+    data.BuyerOfficeName = data.saleBuyerOfficeName || '';
+    data.BuyerOfficePhone = data.saleBuyerOfficePhone || '';
+    data.ConcessionsComments = data.saleConcessionsComments || '';
+    data.PercentOfCommonElements = parseFloat(data.salePercentOfCommonElements || '') || null;
+    // REBNY-required facts the form already collected under its own keys, now emitted under the canonical (Mallan-internal) names
+    data.ElevatorsTotal = parseInt(data.saleBldgNumElevators || '') || null;
+    data.NewDevelopmentYN = data.saleBldgNewDevelopment === true || data.saleBldgNewDevelopment === 'true';
+    data.MaximumFinancingPercent = parseFloat(String(data.saleBldgMaxFinancing || '').replace('%', '')) || null;
+    data.NumberOfShares = parseInt(data.saleUnitShares || '') || null;
+    data.TaxMonthlyAmount = parseFloat(data.saleTaxMonthly || '') || null;
+    data.TaxAbatementExpirationYear = parseInt(data.saleBldgTaxAbatementExpYear || '') || null;
+    data.PropertyCondition = data.saleCondition || '';   // live PropertyCondition members (the select offers live members only)
+    data.Basement = data.saleTHBasementType || '';       // live Basement members
+    data.CancellationDate = data.saleCancellationDate || '';
+    data.FlipTaxType = data.saleFlipTaxType || '';
+    data.FlipTaxRemarks = data.saleFlipTaxRemarks || '';
+    data.MaximumFinancingRemarks = data.saleMaximumFinancingRemarks || '';
+    data.SpecialListingConditions = data.saleSpecialListingConditions || '';
+    data.PetsAllowedComments = data.salePetsAllowedComments || '';
+    data.BuildingPetsAllowedComments = data.saleBuildingPetsAllowedComments || '';
     data.ShowingInstructions = data.saleShowingInstructions || '';
     data.YearBuilt = parseInt(data.saleBldgYearBuilt || '0') || null;
     // NewDevelopmentYN is NOT in live Cotality $metadata (phantom — verified
@@ -9157,6 +9219,29 @@ var SALE_FIELD_MAP = [
   { rls: 'WithdrawnDate', form: 'saleWithdrawnDate', type: 'date', src: 'raw' },
   { rls: 'PurchaseContractDate', form: 'saleContractSignedDate', type: 'date', src: 'raw' },
   { rls: 'CloseDate', form: 'saleSoldDate', type: 'date', src: 'raw' },
+  { rls: 'CancellationDate', form: 'saleCancellationDate', type: 'date', src: 'raw' },
+  { rls: 'BuyerAgentFullName', form: 'saleBuyerAgentFullName', type: 'text', src: 'raw' },
+  { rls: 'BuyerAgentDirectPhone', form: 'saleBuyerAgentDirectPhone', type: 'text', src: 'raw' },
+  { rls: 'BuyerAgentEmail', form: 'saleBuyerAgentEmail', type: 'text', src: 'raw' },
+  { rls: 'BuyerAgentStateLicense', form: 'saleBuyerAgentStateLicense', type: 'text', src: 'raw' },
+  { rls: 'BuyerOfficeName', form: 'saleBuyerOfficeName', type: 'text', src: 'raw' },
+  { rls: 'BuyerOfficePhone', form: 'saleBuyerOfficePhone', type: 'text', src: 'raw' },
+  { rls: 'ConcessionsComments', form: 'saleConcessionsComments', type: 'text', src: 'raw' },
+  { rls: 'PercentOfCommonElements', form: 'salePercentOfCommonElements', type: 'number', src: 'raw' },
+  { rls: 'ElevatorsTotal', form: 'saleBldgNumElevators', type: 'number', src: 'raw' },
+  { rls: 'NewDevelopmentYN', form: 'saleBldgNewDevelopment', type: 'bool', src: 'raw' },
+  { rls: 'MaximumFinancingPercent', form: 'saleBldgMaxFinancing', type: 'text', src: 'raw' },
+  { rls: 'NumberOfShares', form: 'saleUnitShares', type: 'number', src: 'raw' },
+  { rls: 'TaxMonthlyAmount', form: 'saleTaxMonthly', type: 'number', src: 'raw' },
+  { rls: 'TaxAbatementExpirationYear', form: 'saleBldgTaxAbatementExpYear', type: 'text', src: 'raw' },
+  { rls: 'PropertyCondition', form: 'saleCondition', type: 'text', src: 'raw' },
+  { rls: 'Basement', form: 'saleTHBasementType', type: 'text', src: 'raw' },
+  { rls: 'FlipTaxType', form: 'saleFlipTaxType', type: 'text', src: 'raw' },
+  { rls: 'FlipTaxRemarks', form: 'saleFlipTaxRemarks', type: 'text', src: 'raw' },
+  { rls: 'MaximumFinancingRemarks', form: 'saleMaximumFinancingRemarks', type: 'text', src: 'raw' },
+  { rls: 'SpecialListingConditions', form: 'saleSpecialListingConditions', type: 'text', src: 'raw' },
+  { rls: 'PetsAllowedComments', form: 'salePetsAllowedComments', type: 'text', src: 'raw' },
+  { rls: 'BuildingPetsAllowedComments', form: 'saleBuildingPetsAllowedComments', type: 'text', src: 'raw' },
   { rls: 'Possession', form: 'saleAvailableOccupancy', type: 'date', src: 'raw', fallbackRls: 'PossessionDate' },
 
   // ── Building ──
@@ -9494,6 +9579,7 @@ var SALE_SYNDICATION_MAP = [
 
 // Radio-button fields
 var SALE_RADIO_MAP = [
+  { rls: 'BuyerAgentRLSParticipantYN', name: 'saleBuyerAgentRLSParticipantYN', src: 'raw', rawKey: 'saleBuyerAgentRLSParticipantYN', fallback: 'BuyerAgentRLSParticipantYN', valueMap: { true: 'Yes', false: 'No' } },
   { rls: 'saleListingType', name: 'saleListingType', src: 'raw', rawKey: 'saleListingType', fallback: 'ListingAgreement' },
   // Buyer-agent payer radios (OwnerPays/BuyerPays). Renamed from saleCommissionType
   // to break the key collision with the %/$ type select. Legacy rows stored the

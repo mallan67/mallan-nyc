@@ -546,6 +546,24 @@ body { font-family: Manrope, sans-serif; }
                     <option value="Hold">Hold</option>
                     <option value="Incomplete">Incomplete</option>
                 </select>
+                <!-- REBNY CLOSED-001 / PENDING-001 / CANCELLED-001 (Packet 2 convergence): status facts the gate requires -->
+                <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3" data-p2-block="rental-status-facts">
+                    <div><label class="field-label">Lease Signed (Pending) Date</label><input type="date" id="rentalPurchaseContractDate" class="field-input" data-rls-field="PurchaseContractDate"></div>
+                    <div><label class="field-label">Close Date</label><input type="date" id="rentalCloseDate" class="field-input" data-rls-field="CloseDate"></div>
+                    <div><label class="field-label">Close Price (final rent)</label><input type="number" id="rentalClosePrice" placeholder="$0" class="field-input" data-rls-field="ClosePrice"></div>
+                    <div><label class="field-label">Cancellation Date</label><input type="date" id="rentalCancellationDate" class="field-input" data-rls-field="CancellationDate"></div>
+                    <div class="sm:col-span-2"><label class="field-label">Tenant agent is an RLS participant?</label>
+                        <div class="flex gap-4 text-sm"><label class="flex items-center gap-1"><input type="radio" name="rentalBuyerAgentRLSParticipantYN" value="Yes" class="w-4 h-4" data-rls-field="BuyerAgentRLSParticipantYN"> Yes</label><label class="flex items-center gap-1"><input type="radio" name="rentalBuyerAgentRLSParticipantYN" value="No" class="w-4 h-4" data-rls-field="BuyerAgentRLSParticipantYN"> No</label></div></div>
+                        <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2" data-p2-block="rental-buyer-agent-contact">
+                            <p class="sm:col-span-2 text-[10px] text-gray-500">REBNY BUYER-NONRLS-001: when the Tenant agent is not an RLS participant, their contact details are required at close.</p>
+                            <div><label class="field-label">Tenant Agent Full Name</label><input type="text" id="rentalBuyerAgentFullName" class="field-input" data-rls-field="BuyerAgentFullName"></div>
+                            <div><label class="field-label">Tenant Agent Direct Phone</label><input type="tel" id="rentalBuyerAgentDirectPhone" class="field-input" data-rls-field="BuyerAgentDirectPhone"></div>
+                            <div><label class="field-label">Tenant Agent Email</label><input type="email" id="rentalBuyerAgentEmail" class="field-input" data-rls-field="BuyerAgentEmail"></div>
+                            <div><label class="field-label">Tenant Agent State License</label><input type="text" id="rentalBuyerAgentStateLicense" class="field-input" data-rls-field="BuyerAgentStateLicense"></div>
+                            <div><label class="field-label">Tenant Office Name</label><input type="text" id="rentalBuyerOfficeName" class="field-input" data-rls-field="BuyerOfficeName"></div>
+                            <div><label class="field-label">Tenant Office Phone</label><input type="tel" id="rentalBuyerOfficePhone" class="field-input" data-rls-field="BuyerOfficePhone"></div>
+                        </div>
+                </div>
                 <p class="text-xs text-amber-600 mt-1"><i class="fas fa-ban mr-1"></i>Coming Soon is not available for rental listings (REBNY RLS Sec. 2.05(d)).</p>
                 <!-- DOM Tracking -->
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
@@ -990,6 +1008,10 @@ body { font-family: Manrope, sans-serif; }
                         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="NumberLimit" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)"> Number Limit</label>
                         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="No" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)"> No Pets</label>
                     </div>
+                    <div class="mt-2" data-p2-block="rental-pets-comments">
+                        <label class="field-label">Pet Restriction Comments</label>
+                        <textarea id="rentalPetsAllowedComments" rows="2" placeholder="Required when a size, number or breed restriction is selected" class="field-input" data-rls-field="PetsAllowedComments"></textarea>
+                    </div>
                     <div id="rentalPetsAllowedLocked" class="hidden mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
                         <i class="fas fa-lock mr-1"></i> Locked to "No Pets" — Building pet policy is "No Pets" (BuildingNo).
                     </div>
@@ -1215,6 +1237,10 @@ body { font-family: Manrope, sans-serif; }
                         <option value="No">No</option>
                         <option value="CallListingAgent">Call Listing Agent</option>
                     </select>
+                    <div class="mt-2" data-p2-block="rental-concessions-comments">
+                        <label class="field-label">Concessions Comments</label>
+                        <textarea id="rentalConcessionsComments" rows="2" placeholder="Required when Concessions = Yes" class="field-input" data-rls-field="ConcessionsComments"></textarea>
+                    </div>
                 </div>
                 <div>
                     <label class="field-label">Concession Amount</label>
@@ -1835,21 +1861,11 @@ body { font-family: Manrope, sans-serif; }
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
             <label class="field-label">Condition</label>
-            <select id="rentalCondition" class="field-input" data-rls-ignore="true" data-mallan-field="PropertyCondition">
-                <option value="">Select Condition</option>
-                <option value="Excellent">Excellent</option>
-                <option value="Fixer">Fixer</option>
-                <option value="Good">Good</option>
-                <option value="Fair">Fair</option>
-                <option value="Poor">Poor</option>
-                <option value="UnderConstruction">Under Construction</option>
-                <option value="NewConstruction">New Construction</option>
-                <option value="Updated">Updated/Remodeled</option>
-            </select>
+            <select id="rentalCondition" class="field-input" data-rls-field="PropertyCondition"><option value="">Select Condition</option><option value="Excellent">Excellent</option><option value="VeryGoodCondition">Very Good Condition</option><option value="GoodCondition">Good Condition</option><option value="AverageCondition">Average Condition</option><option value="BelowAverage">Below Average</option><option value="PoorCondition">Poor Condition</option><option value="Fixer">Fixer</option><option value="UpdatedRemodeled">Updated Remodeled</option><option value="UnderRenovation">Under Renovation</option><option value="UnderConstruction">Under Construction</option><option value="NewConstruction">New Construction</option><option value="NeverOccupied">Never Occupied</option><option value="Resale">Resale</option><option value="Turnkey">Turnkey</option><option value="ShowsWell">Shows Well</option><option value="RepairsCosmetic">Repairs Cosmetic</option><option value="RepairsMajor">Repairs Major</option><option value="KnownDamage">Known Damage</option><option value="SeeRemarks">See Remarks</option><option value="Other">Other</option></select>
         </div>
         <div>
             <label class="field-label">Furnished</label>
-            <select id="rentalFurnished" class="field-input" onchange="toggleFurnishedFields()" data-rls-ignore="true" data-mallan-field="Furnished">
+            <select id="rentalFurnished" class="field-input" onchange="toggleFurnishedFields()" data-rls-field="Furnished">
                 <option value="Unfurnished">Unfurnished</option>
                 <option value="Furnished">Furnished</option>
                 <option value="Partially">Partially Furnished</option>
@@ -4038,6 +4054,10 @@ body { font-family: Manrope, sans-serif; }
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-paw"></i> Building Pet Policy <span class="text-red-500">*</span></div>
                         <p class="text-[10px] text-gray-500 mb-3">RLS Field: BuildingPetsAllowed — Select all that apply. If "No Pets" is selected, unit-level PetsAllowed will be locked to "No".</p>
+                        <div class="mb-2" data-p2-block="rental-building-pets-comments">
+                            <label class="field-label">Building Pet Restriction Comments</label>
+                            <textarea id="rentalBuildingPetsAllowedComments" rows="2" placeholder="Required when the building limits size, number or breed" class="field-input" data-rls-field="BuildingPetsAllowedComments"></textarea>
+                        </div>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-4" id="rentalBuildingPetsAllowedGroup">
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingPetsAllowed" value="BuildingYes" class="w-4 h-4 rental-bldg-pets-cb" onchange="handleRentalBldgPetsChange(this)" data-rls-ignore="true"> Yes (All Pets)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingPetsAllowed" value="BuildingCatsOK" class="w-4 h-4 rental-bldg-pets-cb" onchange="handleRentalBldgPetsChange(this)"> Cats OK</label>
@@ -5639,6 +5659,30 @@ function collectRentalFormData() {
     data.UnParsedAddress = data.rentalUnparsedAddress || '';
     data.PublicRemarks = data.rentalDescription || '';
     data.PrivateRemarks = data.rentalAgentRemarks || '';
+    // REBNY conditional requirements the form must be able to satisfy (Packet 2 convergence round)
+    data.PurchaseContractDate = data.rentalPurchaseContractDate || '';
+    data.CloseDate = data.rentalCloseDate || '';
+    data.ClosePrice = parseFloat(data.rentalClosePrice || '0') || 0;
+    data.CancellationDate = data.rentalCancellationDate || '';
+    data.BuyerAgentRLSParticipantYN = data.rentalBuyerAgentRLSParticipantYN === 'Yes' ? true : data.rentalBuyerAgentRLSParticipantYN === 'No' ? false : undefined;
+    data.BuyerAgentFullName = data.rentalBuyerAgentFullName || '';
+    data.BuyerAgentDirectPhone = data.rentalBuyerAgentDirectPhone || '';
+    data.BuyerAgentEmail = data.rentalBuyerAgentEmail || '';
+    data.BuyerAgentStateLicense = data.rentalBuyerAgentStateLicense || '';
+    data.BuyerOfficeName = data.rentalBuyerOfficeName || '';
+    data.BuyerOfficePhone = data.rentalBuyerOfficePhone || '';
+    // REBNY-required facts the form already collected under its own keys, now emitted under the canonical names
+    data.TaxLot = data.bldgTaxLot || '';
+    data.Furnished = data.rentalFurnished || '';          // live Furnished members (select)
+    data.MinLeaseMonths = parseInt(data.rentalMinLease || '') || null;
+    data.LeaseType = data.rentalLeaseType || '';          // Mallan-internal lease type (REBNY submission fact)
+    data.TaxAbatementExpirationYear = parseInt(data.bldgTaxAbatementExpYear || '') || null;
+    data.Basement = data.rentalTHBasementType || '';      // live Basement members
+    data.PropertyCondition = data.rentalCondition || '';  // live PropertyCondition members
+    data.ConcessionsComments = data.rentalConcessionsComments || '';
+    data.LivingAreaUnits = data.LivingArea > 0 ? 'SquareFeet' : ''; // the square-footage input is square feet by construction
+    data.PetsAllowedComments = data.rentalPetsAllowedComments || '';
+    data.BuildingPetsAllowedComments = data.rentalBuildingPetsAllowedComments || '';
     data.ShowingInstructions = data.rentalShowingInstructions || '';
     data.YearBuilt = parseInt(data.bldgYearBuilt || '0') || null;
     data.NewDevelopmentYN = data.bldgNewDevelopment === true || data.bldgNewDevelopment === 'true';
@@ -6888,6 +6932,23 @@ function _populateRentalFormFromApi(listing) {
     // Description
     setVal('rentalDescription', raw.PublicRemarks || '');
     setVal('rentalAgentRemarks', raw.PrivateRemarks || '');
+    // Packet 2 convergence: the status / closing / concession / pet facts round-trip
+    setVal('rentalPurchaseContractDate', (raw.PurchaseContractDate || '').split('T')[0]);
+    setVal('rentalCloseDate', (raw.CloseDate || '').split('T')[0]);
+    setVal('rentalClosePrice', raw.ClosePrice || '');
+    setVal('rentalCancellationDate', (raw.CancellationDate || '').split('T')[0]);
+    setRadio('rentalBuyerAgentRLSParticipantYN', raw.BuyerAgentRLSParticipantYN === true ? 'Yes' : raw.BuyerAgentRLSParticipantYN === false ? 'No' : '');
+    setVal('rentalConcessionsComments', raw.ConcessionsComments || '');
+    setVal('rentalPetsAllowedComments', raw.PetsAllowedComments || '');
+    setVal('rentalBuildingPetsAllowedComments', raw.BuildingPetsAllowedComments || '');
+    setVal('rentalBuyerAgentFullName', raw.BuyerAgentFullName || '');
+    setVal('rentalBuyerAgentDirectPhone', raw.BuyerAgentDirectPhone || '');
+    setVal('rentalBuyerAgentEmail', raw.BuyerAgentEmail || '');
+    setVal('rentalBuyerAgentStateLicense', raw.BuyerAgentStateLicense || '');
+    setVal('rentalBuyerOfficeName', raw.BuyerOfficeName || '');
+    setVal('rentalBuyerOfficePhone', raw.BuyerOfficePhone || '');
+    setVal('rentalCondition', raw.PropertyCondition || raw.rentalCondition || '');
+    setVal('rentalTHBasementType', raw.Basement || raw.rentalTHBasementType || '');
     setVal('rentalShowingInstructions', raw.ShowingInstructions || '');
 
     // Listing agreement

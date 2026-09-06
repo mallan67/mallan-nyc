@@ -82,11 +82,16 @@ describe('Building — phantom fields reclassified internal (match Cotality)', (
     expect(formHtml).toMatch(/id="saleBldgNewDevelopment"[^>]*data-rls-ignore="true"[^>]*data-removed-field="NewDevelopmentYN"/);
     expect(formHtml).not.toMatch(/id="saleBldgNewDevelopment"[^>]*data-rls-field="NewConstructionYN"/);
   });
-  it('collect no longer emits the phantom canonical keys; NewConstructionYN (real) still emitted', () => {
+  it('collect emits ElevatorsTotal / NewDevelopmentYN under their DECLARED Mallan-internal names (REBNY-required submission facts, never provider fields); NewConstructionYN (live) still emitted', () => {
+    // Packet 2 convergence (2026-09-06): both are REBNY_UCBA_RULES.requiredFields and declared MALLAN_INTERNAL_KEYS;
+    // the form collects them under its own keys and emits the canonical Mallan-internal names. They are still not
+    // live Cotality fields (asserted above) and the provider mapper never selects them.
+    const { MALLAN_INTERNAL_KEYS } = require('@/lib/listings/mallan-form-contract') as { MALLAN_INTERNAL_KEYS: string[] };
+    expect(MALLAN_INTERNAL_KEYS).toEqual(expect.arrayContaining(['ElevatorsTotal', 'NewDevelopmentYN']));
     const collect = extractFn(formHtml, 'collectSaleFormData');
-    expect(collect).not.toMatch(/data\.NewDevelopmentYN\s*=/);
-    expect(collect).not.toMatch(/data\.ElevatorsTotal\s*=/);
-    expect(collect).toMatch(/data\.NewConstructionYN\s*=/);
+    expect(collect).toMatch(/data[.]NewDevelopmentYN[ ]*=[ ]*data[.]saleBldgNewDevelopment/);
+    expect(collect).toMatch(/data[.]ElevatorsTotal[ ]*=[ ]*parseInt[(]data[.]saleBldgNumElevators/);
+    expect(collect).toMatch(/data[.]NewConstructionYN[ ]*=/);
   });
   it('restore keeps the values internal with legacy fallback', () => {
     expect(formHtml).toMatch(/rls:\s*'saleBldgNumElevators',\s*form:\s*'saleBldgNumElevators'[^}]*fallbackRls:\s*'ElevatorsTotal'/);

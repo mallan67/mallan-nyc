@@ -526,7 +526,9 @@ export const REBNY_UCBA_RULES = {
       code: 'UNITPETS-001',
       description: 'PetsAllowedComments required if unit-level restrictions',
       appliesWhen: {
-        PetsAllowed: ['UnitBreedRestrictions', 'UnitNumberLimit', 'UnitSizeLimit'],
+        // live PetsAllowed members (the forms and the write path carry the live unit-level members;
+        // the retired Unit* spellings are aliased to them before any rule runs)
+        PetsAllowed: ['BreedRestrictions', 'NumberLimit', 'SizeLimit'],
       },
       requireFields: ['PetsAllowedComments'],
     },

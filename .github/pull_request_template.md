@@ -14,7 +14,7 @@
 ## Generated artifact (if a generated file changed)
 - [ ] Generator ran; source files unchanged unless explicitly scoped
 - [ ] Generated "unknown" count is zero or explicitly accepted
-- [ ] `npm run test:rls` run locally (**not in PR CI**) — result: _______________
+- [ ] `npm run test:rls` (canonical form-binding + RLS-reporter suites) run locally (**not in PR CI**) — result: _______________
 
 ## Green-checks statement
 - [ ] For each passing check, stated **what it proves AND what it does not prove**
