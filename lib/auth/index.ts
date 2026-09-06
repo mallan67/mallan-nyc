@@ -5,6 +5,9 @@ export {
   validateSession,
   destroySession,
   cleanExpiredSessions,
+  isPrincipalBrokerRole,
+  BrokerSessionAssuranceError,
+  type BrokerSessionAssurance,
   type SessionUser,
 } from "./session";
 export {

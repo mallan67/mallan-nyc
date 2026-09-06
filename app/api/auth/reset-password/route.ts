@@ -2,7 +2,12 @@
 // Validates token and sets new password. Creates session on success.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { hashPassword, createSession, SESSION_COOKIE } from "@/lib/auth";
+import {
+  hashPassword,
+  createSession,
+  isPrincipalBrokerRole,
+  SESSION_COOKIE,
+} from "@/lib/auth";
 import { validateResetToken } from "@/lib/auth/reset-token";
 import { logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
@@ -113,21 +118,31 @@ export async function POST(req: NextRequest) {
       { field: "password_hash", method: "reset_token" }
     );
 
+    const user = {
+      id: userId.toString(),
+      name: userName,
+      email: userEmail,
+      role,
+      userType,
+    };
+
+    // ── Principal brokers get NO session from a password reset ──
+    // Possession of a reset token proves control of the mailbox; it does not
+    // prove broker MFA. Minting a broker session here would let the reset path
+    // skip the OTP challenge that POST /api/auth/login enforces. The broker
+    // must sign in normally, which issues that challenge. `requires_signin`
+    // tells the client to route to sign-in instead of a dashboard it cannot
+    // reach. Non-broker principals keep the existing sign-in-on-reset flow.
+    if (userType === "agent" && isPrincipalBrokerRole(role)) {
+      return NextResponse.json({ success: true, requires_signin: true, user });
+    }
+
     // Create session so user is logged in immediately
     const ip = req.headers.get("x-forwarded-for") ?? undefined;
     const ua = req.headers.get("user-agent") ?? undefined;
     const sessionToken = await createSession(userType, userId, role, ip, ua);
 
-    const res = NextResponse.json({
-      success: true,
-      user: {
-        id: userId.toString(),
-        name: userName,
-        email: userEmail,
-        role,
-        userType,
-      },
-    });
+    const res = NextResponse.json({ success: true, user });
 
     res.cookies.set(SESSION_COOKIE, sessionToken, getSessionCookieConfig(userType, role));
 
