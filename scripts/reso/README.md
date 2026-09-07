@@ -144,9 +144,11 @@ npm run reso:gate-breakdown -- --status=Active --type=sale --json
 ```
 
 Each row = one Trestle probe answering "how many of the baseline match
-this gate-blocking condition?" Notes that `OwnerOptOut` and
-`ParticipantOnly` are NOT queryable on IDX Plus — those listings are
-pre-filtered upstream and don't appear in the baseline at all.
+this gate-blocking condition?" InternetEntireListingDisplayYN /
+InternetAddressDisplayYN are not probed (live Booleans the feed does not
+allow filtering on — 400 suppressed, provider Level). Owner opt-out and
+participant-only are Mallan / REBNY-UCBA decisions with no verified provider
+filter; the tool makes no claim about them.
 
 ### 7. RESO ↔ Trestle ↔ REBNY drift tracking
 

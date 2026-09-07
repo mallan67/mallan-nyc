@@ -321,12 +321,12 @@ describe("runMediaSync — empty page", () => {
 // ─── Defensive compliance gates ──────────────────────────────────────────
 
 describe("runMediaSync — defensive compliance gates", () => {
-  it("skips owner_opt_out listings (Permission='OwnerOptOut') without fetching their Media", async () => {
+  it("skips listings with a non-IDX Permission token (Permission='Officeidxoptout') without fetching their Media", async () => {
     mockMediaSyncFindUnique.mockResolvedValue(null);
     const fetchMedia = jest.fn();
     const fetchDeps = makeFetchDeps({
       fetchProperties: jest.fn().mockResolvedValueOnce([
-        makeProperty({ Permission: "OwnerOptOut" }),
+        makeProperty({ Permission: "Officeidxoptout" }),
         makeProperty({ ListingId: "RLS-OK", ListingKey: "K-OK" }),
       ]),
       fetchMedia,
@@ -339,7 +339,7 @@ describe("runMediaSync — defensive compliance gates", () => {
     expect((fetchMedia as jest.Mock).mock.calls[0][0]).toBe("K-OK");
   });
 
-  it("skips participant_only listings (Permission='Private') without fetching their Media", async () => {
+  it("skips Permission='Private' (a non-IDX provider token, not a Mallan participant-only decision) without fetching Media", async () => {
     mockMediaSyncFindUnique.mockResolvedValue(null);
     const fetchMedia = jest.fn().mockResolvedValue([]);
     const fetchDeps = makeFetchDeps({
@@ -355,9 +355,9 @@ describe("runMediaSync — defensive compliance gates", () => {
     expect(fetchMedia).not.toHaveBeenCalled();
   });
 
-  it("skips owner_opt_out via legacy plural Permissions enum without fetching Media", async () => {
+  it("does NOT consult the legacy plural `Permissions` key (not a provider field — Trestle returns 400 for it)", async () => {
     mockMediaSyncFindUnique.mockResolvedValue(null);
-    const fetchMedia = jest.fn();
+    const fetchMedia = jest.fn().mockResolvedValue([]);
     const fetchDeps = makeFetchDeps({
       fetchProperties: jest.fn().mockResolvedValueOnce([
         makeProperty({ Permissions: "OwnerOptOut" }),
@@ -365,27 +365,28 @@ describe("runMediaSync — defensive compliance gates", () => {
       fetchMedia,
     });
     const result = await runMediaSync(makeOptions({ fetchDeps }));
-    expect(result.listings_skipped).toBe(1);
-    expect(fetchMedia).not.toHaveBeenCalled();
+    expect(result.listings_skipped).toBe(0);
+    expect(fetchMedia).toHaveBeenCalledTimes(1);
   });
 
-  it("skips owner_opt_out via 'Owner Opt-Out' alternate spelling", async () => {
+  it("skips any Permission value that is not the served 'IDX' token, whatever its spelling (fail-closed, no meaning asserted)", async () => {
     mockMediaSyncFindUnique.mockResolvedValue(null);
     const fetchMedia = jest.fn();
     const fetchDeps = makeFetchDeps({
       fetchProperties: jest.fn().mockResolvedValueOnce([
         makeProperty({ Permission: "Owner Opt-Out" }),
+        makeProperty({ ListingId: "RLS-MULTI", ListingKey: "K-MULTI", Permission: "IDX,Private" }),
       ]),
       fetchMedia,
     });
     const result = await runMediaSync(makeOptions({ fetchDeps }));
-    expect(result.listings_skipped).toBe(1);
+    expect(result.listings_skipped).toBe(2);
     expect(fetchMedia).not.toHaveBeenCalled();
   });
 
-  it("skips owner_opt_out via MlsStatus='OwnerOptOut'", async () => {
+  it("does NOT read MlsStatus='OwnerOptOut' as a permission (MlsStatus is a status, not a permission fact)", async () => {
     mockMediaSyncFindUnique.mockResolvedValue(null);
-    const fetchMedia = jest.fn();
+    const fetchMedia = jest.fn().mockResolvedValue([]);
     const fetchDeps = makeFetchDeps({
       fetchProperties: jest.fn().mockResolvedValueOnce([
         makeProperty({ MlsStatus: "OwnerOptOut" }),
@@ -393,8 +394,8 @@ describe("runMediaSync — defensive compliance gates", () => {
       fetchMedia,
     });
     const result = await runMediaSync(makeOptions({ fetchDeps }));
-    expect(result.listings_skipped).toBe(1);
-    expect(fetchMedia).not.toHaveBeenCalled();
+    expect(result.listings_skipped).toBe(0);
+    expect(fetchMedia).toHaveBeenCalledTimes(1);
   });
 
   it("skips when InternetEntireListingDisplayYN === false (master gate)", async () => {
@@ -958,24 +959,30 @@ describe("isPropertyComplianceBlocked", () => {
     expect(isPropertyComplianceBlocked(makeProperty())).toBe(false);
   });
 
-  it("returns true for Permission='OwnerOptOut'", () => {
-    expect(isPropertyComplianceBlocked(makeProperty({ Permission: "OwnerOptOut" }))).toBe(true);
+  it("returns true for any non-IDX Permission token (live member 'Officeidxoptout')", () => {
+    expect(isPropertyComplianceBlocked(makeProperty({ Permission: "Officeidxoptout" }))).toBe(true);
   });
 
-  it("returns true for Permission='Owner Opt-Out' (alternate spelling)", () => {
+  it("returns true for a non-live spelling such as 'Owner Opt-Out' (fail-closed; no meaning asserted)", () => {
     expect(isPropertyComplianceBlocked(makeProperty({ Permission: "Owner Opt-Out" }))).toBe(true);
   });
 
-  it("returns true for Permissions='OwnerOptOut' (legacy plural)", () => {
-    expect(isPropertyComplianceBlocked(makeProperty({ Permissions: "OwnerOptOut" }))).toBe(true);
+  it("returns false for the legacy plural Permissions key (not a provider field; never consulted)", () => {
+    expect(isPropertyComplianceBlocked(makeProperty({ Permissions: "OwnerOptOut" }))).toBe(false);
   });
 
-  it("returns true for Permission='Private' (participant-only)", () => {
+  it("returns true for Permission='Private' (a non-IDX provider token, not a participant-only decision)", () => {
     expect(isPropertyComplianceBlocked(makeProperty({ Permission: "Private" }))).toBe(true);
   });
 
-  it("returns true for MlsStatus='OwnerOptOut'", () => {
-    expect(isPropertyComplianceBlocked(makeProperty({ MlsStatus: "OwnerOptOut" }))).toBe(true);
+  it("returns true for a Multi-Enum value carrying a non-IDX token and false for IDX-only values", () => {
+    expect(isPropertyComplianceBlocked(makeProperty({ Permission: "IDX,Private" }))).toBe(true);
+    expect(isPropertyComplianceBlocked(makeProperty({ Permission: "IDX" }))).toBe(false);
+    expect(isPropertyComplianceBlocked(makeProperty({ Permission: ["IDX"] as unknown as string }))).toBe(false);
+  });
+
+  it("returns false for MlsStatus='OwnerOptOut' (MlsStatus is not a permission fact)", () => {
+    expect(isPropertyComplianceBlocked(makeProperty({ MlsStatus: "OwnerOptOut" }))).toBe(false);
   });
 
   it("returns true for InternetEntireListingDisplayYN === false", () => {

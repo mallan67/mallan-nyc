@@ -111,7 +111,8 @@ const results = {
 };
 function error(section, msg) { results[section].errors.push(msg); }
 function warn(section, msg)  { results[section].warnings.push(msg); }
-function missing(msg)        { results[7].missing.push(msg); }
+// NOTE: there is no MISSING writer. results[7].missing stays an empty channel so a future population is still
+// counted by totalMissing and blocks PASS (CLI exit and HTML share the predicate below).
 function log(msg) { if (VERBOSE) console.log('  ' + msg); }
 
 const classification = { rlsBound: 0, internal: 0, unknown: 0, byFile: {}, byLayer: { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0 } };

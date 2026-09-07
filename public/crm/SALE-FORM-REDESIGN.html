@@ -1345,7 +1345,7 @@ body { font-family: Manrope, sans-serif; }
                     </div>
                     <div class="mt-2" data-p2-block="sale-special-listing-conditions">
                         <label class="field-label">Special Listing Conditions</label>
-                        <select id="saleSpecialListingConditions" class="field-input" data-rls-field="SpecialListingConditions"><option value="">Select</option><option value="AffordableHousingSubsidy">Affordable Housing Subsidy</option><option value="AllowanceFlooring">Allowance Flooring</option><option value="AllowanceRoofing">Allowance Roofing</option><option value="Auction">Auction</option><option value="BankruptcyProperty">Bankruptcy Property</option><option value="BoardApprovalNotRequired">Board Approval Not Required</option><option value="BoardApprovalRequired">Board Approval Required</option><option value="BuilderOwned">Builder Owned</option><option value="Conservatorship">Conservatorship</option><option value="CorporateListing">Corporate Listing</option><option value="Estate">Estate</option><option value="GovernmentOwned">Government Owned</option><option value="GseOwned">Gse Owned</option><option value="HudOwned">Hud Owned</option><option value="InForeclosure">In Foreclosure</option><option value="ListedAsIs">Listed As Is</option><option value="Model">Model</option><option value="None">None</option><option value="NoSmoking">No Smoking</option><option value="NoticeOfDefault">Notice Of Default</option><option value="Other">Other</option><option value="PetRestrictions">Pet Restrictions</option><option value="PreForeclosure">Pre Foreclosure</option><option value="ProbateListing">Probate Listing</option><option value="RealEstateOwned">Real Estate Owned</option><option value="Relocation">Relocation</option><option value="Section8Accepted">Section8 Accepted</option><option value="SeeAgent">See Agent</option><option value="SeeRemarks">See Remarks</option><option value="ShortSale">Short Sale</option><option value="Standard">Standard</option><option value="ThirdPartyApproval">Third Party Approval</option><option value="Trust">Trust</option><option value="VaOwned">Va Owned</option></select>
+                        <select id="saleSpecialListingConditions" multiple size="6" class="field-input" data-rls-field="SpecialListingConditions" title="Live Cotality SpecialListingConditions is a Multi-Enum: select every condition that applies"><option value="AffordableHousingSubsidy">Affordable Housing Subsidy</option><option value="AllowanceFlooring">Allowance Flooring</option><option value="AllowanceRoofing">Allowance Roofing</option><option value="Auction">Auction</option><option value="BankruptcyProperty">Bankruptcy Property</option><option value="BoardApprovalNotRequired">Board Approval Not Required</option><option value="BoardApprovalRequired">Board Approval Required</option><option value="BuilderOwned">Builder Owned</option><option value="Conservatorship">Conservatorship</option><option value="CorporateListing">Corporate Listing</option><option value="Estate">Estate</option><option value="GovernmentOwned">Government Owned</option><option value="GseOwned">Gse Owned</option><option value="HudOwned">Hud Owned</option><option value="InForeclosure">In Foreclosure</option><option value="ListedAsIs">Listed As Is</option><option value="Model">Model</option><option value="None">None</option><option value="NoSmoking">No Smoking</option><option value="NoticeOfDefault">Notice Of Default</option><option value="Other">Other</option><option value="PetRestrictions">Pet Restrictions</option><option value="PreForeclosure">Pre Foreclosure</option><option value="ProbateListing">Probate Listing</option><option value="RealEstateOwned">Real Estate Owned</option><option value="Relocation">Relocation</option><option value="Section8Accepted">Section8 Accepted</option><option value="SeeAgent">See Agent</option><option value="SeeRemarks">See Remarks</option><option value="ShortSale">Short Sale</option><option value="Standard">Standard</option><option value="ThirdPartyApproval">Third Party Approval</option><option value="Trust">Trust</option><option value="VaOwned">Va Owned</option></select>
                     </div>
                 </div>
                 <div>
@@ -7515,7 +7515,9 @@ function collectSaleFormData() {
     data.FlipTaxType = data.saleFlipTaxType || '';
     data.FlipTaxRemarks = data.saleFlipTaxRemarks || '';
     data.MaximumFinancingRemarks = data.saleMaximumFinancingRemarks || '';
-    data.SpecialListingConditions = data.saleSpecialListingConditions || '';
+    // Live Multi-Enum (34 members): every selected member travels as an array; nothing selected → not present
+    var _slc = Array.prototype.map.call(document.querySelectorAll('#saleSpecialListingConditions option:checked'), function(o) { return o.value; }).filter(Boolean);
+    data.SpecialListingConditions = _slc.length ? _slc : '';
     data.PetsAllowedComments = data.salePetsAllowedComments || '';
     data.BuildingPetsAllowedComments = data.saleBuildingPetsAllowedComments || '';
     data.ShowingInstructions = data.saleShowingInstructions || '';
@@ -9239,7 +9241,7 @@ var SALE_FIELD_MAP = [
   { rls: 'FlipTaxType', form: 'saleFlipTaxType', type: 'text', src: 'raw' },
   { rls: 'FlipTaxRemarks', form: 'saleFlipTaxRemarks', type: 'text', src: 'raw' },
   { rls: 'MaximumFinancingRemarks', form: 'saleMaximumFinancingRemarks', type: 'text', src: 'raw' },
-  { rls: 'SpecialListingConditions', form: 'saleSpecialListingConditions', type: 'text', src: 'raw' },
+  { rls: 'SpecialListingConditions', form: 'saleSpecialListingConditions', type: 'multi', src: 'raw' }, // live Multi-Enum: array round-trip
   { rls: 'PetsAllowedComments', form: 'salePetsAllowedComments', type: 'text', src: 'raw' },
   { rls: 'BuildingPetsAllowedComments', form: 'saleBuildingPetsAllowedComments', type: 'text', src: 'raw' },
   { rls: 'Possession', form: 'saleAvailableOccupancy', type: 'date', src: 'raw', fallbackRls: 'PossessionDate' },
@@ -9841,6 +9843,13 @@ function _populateSaleFormFromApi(listing) {
 
         if (f.type === 'date') {
             setVal(f.form, String(val).split('T')[0]);
+        } else if (f.type === 'multi') {
+            // Multi-Enum restore: select every stored member (array, or a legacy comma string)
+            var _multiEl = document.getElementById(f.form);
+            if (_multiEl) {
+                var _members = Array.isArray(val) ? val.map(String) : String(val).split(',').map(function(x) { return x.trim(); });
+                Array.prototype.forEach.call(_multiEl.options, function(o) { o.selected = _members.indexOf(o.value) !== -1; });
+            }
         } else if (f.type === 'bool') {
             setChecked(f.form, val === true || val === 'true');
         } else if (f.type === 'checked') {

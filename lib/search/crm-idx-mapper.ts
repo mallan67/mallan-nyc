@@ -1,5 +1,6 @@
 import { resolveListingMedia } from "@/lib/media/listing-media-resolver";
 import { computeGateColumns, derivePermissionGates, inferListingType, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
+import { derivePermissionBooleans } from "@/lib/compliance/normalizer";
 import { displayPropertyType } from "@/lib/idx/display-property-type";
 
 // Display / permission gates come from THE canonical helpers in lib/idx/trestle-mapper.ts
@@ -68,15 +69,19 @@ export function mapTrestleToCrmListing(
   const associationFeeFrequency = str(raw.AssociationFeeFrequency);
   const maintCC = associationFee !== null && associationFeeFrequency === "Monthly" ? associationFee : null;
 
+  // Provider fact (Permission tokens) and Mallan decisions (_mallanPermission → owner_opt_out / participant_only)
+  // are separate: neither is derived from the other.
   const permission = derivePermissionGates(raw);
+  const mallanDecision = derivePermissionBooleans(raw._mallanPermission);
   const gates = computeGateColumns({
     status: raw.StandardStatus,
     internetEntireListingDisplayYN: raw.InternetEntireListingDisplayYN,
     internetAddressDisplayYN: raw.InternetAddressDisplayYN,
     internetAutomatedValuationDisplayYN: raw.InternetAutomatedValuationDisplayYN,
     internetConsumerCommentYN: raw.InternetConsumerCommentYN,
-    participantOnly: permission.participantOnly,
-    ownerOptOut: permission.ownerOptOut,
+    participantOnly: mallanDecision.participant_only,
+    ownerOptOut: mallanDecision.owner_opt_out,
+    providerIdxPermitted: permission.idxPermitted,
     rls_eligible: true,
   });
   const addressDisplayYN = gates.internet_address_display_yn;
@@ -308,8 +313,8 @@ export function mapTrestleToCrmListing(
     downPaymentAssistanceCount: dpaCount,
     sponsorUnit,
     permissions: {
-      ownerOptOut: permission.ownerOptOut,
-      participantOnly: permission.participantOnly,
+      ownerOptOut: mallanDecision.owner_opt_out,
+      participantOnly: mallanDecision.participant_only,
       idxDisplay: gates.idx_display_yn,
       internetDisplay: gates.internet_entire_listing_display_yn,
       syndication: true,

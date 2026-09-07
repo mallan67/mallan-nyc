@@ -13,7 +13,7 @@ import { slimRawData } from "@/lib/compliance/raw-data-keep-fields";
 import { classifyMediaItem } from "@/lib/media/listing-media-resolver";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { LEGACY_MALLAN_FORM_CONTROL_KEYS } from "@/lib/compliance/legacy-form-keys";
-import { isCotalityStandardStatus } from "@/lib/cotality/live-contract";
+import { enumValueTokens, isCotalityStandardStatus } from "@/lib/cotality/live-contract";
 import {
   mallanStatusFromCotality,
   MALLAN_TERMINAL_STATUSES,
@@ -695,10 +695,15 @@ export interface ComputeGateColumnsInput {
   internetAutomatedValuationDisplayYN?: unknown;
   /** Per-row opt-out flag. null = blocked (fail-closed). */
   internetConsumerCommentYN?: unknown;
-  /** Already-derived from `Permission='Private'`. Pass `true` to block. */
+  /** The Mallan participant-only decision (_mallanPermission = 'Private' → participant_only). Pass `true` to block. */
   participantOnly?: unknown;
-  /** Already-derived from `Permission='OwnerOptOut'` etc. Pass `true` to block. */
+  /** The Mallan owner-opt-out decision (_mallanPermission = 'OwnerOptOut' → owner_opt_out). Pass `true` to block. */
   ownerOptOut?: unknown;
+  /**
+   * The provider fact (derivePermissionGates().idxPermitted). `false` blocks. `null` / undefined = no provider
+   * fact on the record — no effect.
+   */
+  providerIdxPermitted?: boolean | null;
   /**
    * RLS eligibility flag (`listings.rls_eligible` column). Commercial /
    * website-only listings carry `rls_eligible=false` and MUST be excluded
@@ -746,17 +751,26 @@ export interface ComputeGateColumnsResult {
 
 /** The two REBNY per-row gates that `Permission` (a source field) determines. */
 export interface PermissionGates {
-  /** The raw Permission string as read, `''` when absent/non-string. */
+  /** The provider Permission value as read (tokens re-joined with commas), `''` when absent. */
   permissions: string;
-  /** REBNY Gate 2 — Permission='Private'. */
-  participantOnly: boolean;
-  /** REBNY Gate 1 — Owner Opt-Out. */
-  ownerOptOut: boolean;
+  /** The Multi-Enum tokens (an array or a comma list on the wire; exact live members only). */
+  permissionTokens: string[];
+  /**
+   * The ONE verified interpretation of the provider fact: `true` when every token is the IDX
+   * permission the authorized IDX Plus feed serves (`'IDX'` on 591,536 / 591,536 live rows, 2026-09-06);
+   * `false` when any other token is present (fail-closed — no other member's meaning is asserted);
+   * `null` when the record carries no Permission at all (no provider fact: the authorized feed serves it on
+   * every row — 0 null / 591,536 — so an absent value is a record shape, never a permission, and has no effect).
+   */
+  idxPermitted: boolean | null;
 }
 
 /**
- * Derive the two source-determined REBNY gates from a raw Trestle Property
- * record. THE single owner of `Permission` interpretation.
+ * Read the provider Permission fact from a raw Cotality Property record and
+ * apply the ONE verified interpretation (`idxPermitted`). THE single owner of
+ * `Permission` interpretation. It derives NO Mallan decision: participant_only /
+ * owner_opt_out are Mallan / REBNY-UCBA decisions and are never read from
+ * Permission (Packet 2 contradiction-closure, 2026-09-06).
  *
  * Extracted from `mapTrestleToPrisma` 2026-08-13 with NO behavior change: the
  * expressions below are the ones that lived inline, moved verbatim. The
@@ -773,25 +787,22 @@ export interface PermissionGates {
  * "explain" its stale `idx_display_yn=false` and it would never be repaired.
  * The manifest now calls THIS function on the CURRENT provider record instead.
  *
- * Note `ownerOptOut` also consults `MlsStatus`, so a caller must supply both
- * fields to reproduce ingest's decision; supplying only `Permission` silently
- * loses the `MlsStatus='OwnerOptOut'` arm.
+ * MlsStatus is NOT consulted: the live contract has no 'OwnerOptOut' member on
+ * MlsStatus (nor on Permission), so the retired sentinel arm is gone.
  *
- * @param raw Cotality Property record — reads `Permission` and `MlsStatus`. Any other key is ignored.
+ * @param raw Cotality Property record — reads `Permission` only. Any other key is ignored.
  */
 export function derivePermissionGates(raw: Record<string, unknown>): PermissionGates {
-  // REBNY Gate 2 — "Participant Only" = Permissions enum value 'Private' per
-  // UCBA 2026 H4 / Definitions (W) and data/rebny-rls-property-lookup.csv:1643.
-  // Permission is the live field (enum verified 2026-09-05). No alias: "Permissions" is not a
-  // Cotality field (it is a Mallan form key handled by lib/compliance/normalizer.ts).
-  const permissions = typeof raw.Permission === 'string' ? raw.Permission : '';
-  const participantOnly = permissions === 'Private';
-  // REBNY Gate 1 — Owner Opt-Out via Permission enum (compliance/IDX-VOW-DISPLAY-RULES.md:31).
-  const ownerOptOut =
-    permissions === 'OwnerOptOut' ||
-    permissions === 'Owner Opt-Out' ||
-    String(raw.MlsStatus || '') === 'OwnerOptOut';
-  return { permissions, participantOnly, ownerOptOut };
+  // Property.Permission is a live Multi-Enum (ListingPermission; 20 members on the dated pull incl. IDX, Idx,
+  // Private, Public, Vow, AgentOnly, OfficeOnly, SyndicateOptOut …). No authorized Cotality / RLS feed contract
+  // in this repository proves that any member equals a Mallan business decision: 'Private' is NOT read as
+  // participant-only, and there is no 'OwnerOptOut' member (nor an MlsStatus sentinel) — those were REBNY
+  // submission-side descriptions, never provider semantics. The only verified fact is what the authorized
+  // IDX Plus feed serves: Permission 'IDX' on every live row. So the provider fact is parsed as tokens and
+  // display is permitted only when every token is that served permission; anything else fails closed.
+  const permissionTokens = enumValueTokens('Permission', raw.Permission);
+  const idxPermitted = permissionTokens.length === 0 ? null : permissionTokens.every((t) => t === 'IDX');
+  return { permissions: permissionTokens.join(','), permissionTokens, idxPermitted };
 }
 
 /**
@@ -847,11 +858,13 @@ export function computeGateColumns(
   // An UNKNOWN status ('' after normalization) is never displayable — fail-closed. The
   // pre-Packet-2 helper normalized an absent status to "Active" and therefore displayed it.
   const status_known = normalized_status !== '';
+  const provider_permitted = input.providerIdxPermitted !== false;
   const idx_display_yn =
     status_known &&
     rls_eligible &&
     !is_terminal &&
     internet_entire_listing_display_yn &&
+    provider_permitted &&
     !participant_only &&
     !owner_opt_out;
 
@@ -1000,14 +1013,13 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
   // MLS, or another non-REBNY MLS (per the parked external-inventory spec
   // Phase 2-A), the policy layer will be different and this null-handling
   // logic must be re-evaluated for that feed independently.
-  // REBNY Gate 2 — "Participant Only" = Permissions enum value 'Private' per
-  // UCBA 2026 H4 / Definitions (W) and data/rebny-rls-property-lookup.csv:1643.
-  // (The legacy field name ParticipantOnlyYN was never a Trestle field — it was
-  // transcribed from UCBA's English-language Definition (W) describing
-  // "Participant Only," not from a real Trestle schema field.)
-  // Trestle IDX Plus feed appears to pre-filter 'Private' listings, but we enforce
-  // the gate independently for defense-in-depth and REBNY audit compliance.
-  const { participantOnly, ownerOptOut } = derivePermissionGates(raw);
+  // Provider rows carry NO Mallan decision: owner_opt_out / participant_only are Mallan / REBNY-UCBA business
+  // facts (`_mallanPermission`) and are never derived from the provider's Permission (no authorized contract
+  // proves such a mapping). The provider fact itself gates display through `providerIdxPermitted`
+  // (a non-IDX token blocks; an absent fact has no effect — see derivePermissionGates).
+  const providerPermission = derivePermissionGates(raw);
+  const participantOnly = false;
+  const ownerOptOut = false;
   // Phase A (2026-05-20) — delegate the 5-column gate computation to the
   // canonical `computeGateColumns` helper above. Was an inline calculation;
   // moved to a shared helper so the W1/W2/W3 writer surfaces identified by
@@ -1030,6 +1042,7 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
     internetConsumerCommentYN: raw.InternetConsumerCommentYN,
     participantOnly,
     ownerOptOut,
+    providerIdxPermitted: providerPermission.idxPermitted,
   });
 
   // JSONB columns — pick fields by category

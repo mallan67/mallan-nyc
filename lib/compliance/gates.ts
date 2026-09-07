@@ -97,6 +97,8 @@ export interface PermissionInput {
   idx_display_yn?: unknown;
   owner_opt_out?: unknown;
   participant_only?: unknown;
+  /** The Mallan permission decision on a raw_data record. */
+  _mallanPermission?: unknown;
 
   // DTO camelCase
   standardStatus?: unknown;
@@ -113,11 +115,6 @@ function readFirst<T = unknown>(o: PermissionInput, keys: string[]): T | undefin
   return undefined;
 }
 
-function readPermissionString(o: PermissionInput): string {
-  const v = readFirst<unknown>(o, ["Permission", "Permissions", "permission", "permissions"]);
-  return typeof v === "string" ? v : "";
-}
-
 function readStatus(o: PermissionInput): StatusValue | null {
   const raw = readFirst<unknown>(o, ["StandardStatus", "MlsStatus", "standardStatus", "status"]);
   if (typeof raw !== "string") return null;
@@ -130,24 +127,31 @@ function readStatus(o: PermissionInput): StatusValue | null {
 
 // ── Core helpers ─────────────────────────────────────────────────────────
 
-/** Is this listing owner-opted-out (Gate 1)? */
+/**
+ * Gate 0 — the PROVIDER permission fact. Property.Permission is a live Multi-Enum; the only verified fact is
+ * that the authorized IDX Plus feed serves 'IDX' on every row (591,536 / 591,536, 2026-09-06). A record that
+ * carries a Permission whose tokens are not all 'IDX' is not displayable (fail-closed — no other member's
+ * meaning is asserted). A record with no Permission at all (a Mallan-authored row / a DB row) has no provider
+ * fact here and passes this gate; its Mallan decisions are read by Gates 1 and 2.
+ */
+export function isProviderPermissionPermitted(input: PermissionInput): boolean {
+  const v = readFirst<unknown>(input, ["Permission", "permission"]);
+  if (v === undefined || v === null || v === "") return true;
+  const tokens = Array.isArray(v) ? v.map(String) : String(v).split(",").map((t) => t.trim()).filter(Boolean);
+  return tokens.length > 0 && tokens.every((t) => t === "IDX");
+}
+
+/** Is this listing owner-opted-out (Gate 1)? The Mallan decision (owner_opt_out column / _mallanPermission) only. */
 export function isOwnerOptOut(input: PermissionInput): boolean {
-  const p = readPermissionString(input);
-  // Permission values per compliance/IDX-VOW-DISPLAY-RULES.md:31
-  if (p === "OwnerOptOut" || p === "Owner Opt-Out") return true;
-  // Legacy MlsStatus sentinel
-  const mls = readFirst<unknown>(input, ["MlsStatus", "status"]);
-  if (mls === "OwnerOptOut") return true;
-  // DB-cached boolean (cron-populated)
   if (affirmPermission(input.owner_opt_out)) return true;
+  if (readFirst<unknown>(input, ["_mallanPermission"]) === "OwnerOptOut") return true;
   return false;
 }
 
-/** Is this listing Participant-Only (Gate 2)? Permission='Private'. */
+/** Is this listing Participant-Only (Gate 2)? The Mallan decision (participant_only column / _mallanPermission) only. */
 export function isParticipantOnly(input: PermissionInput): boolean {
-  const p = readPermissionString(input);
-  if (p === "Private") return true;
   if (affirmPermission(input.participant_only)) return true;
+  if (readFirst<unknown>(input, ["_mallanPermission"]) === "Private") return true;
   return false;
 }
 
@@ -269,7 +273,18 @@ export function evaluateDisplayGate(
   input: PermissionInput,
   options: GateOptions = {},
 ): GateResult {
-  // Gate 1 — Owner Opt-Out (UCBA Art. I §5(A))
+  // Gate 0 — the provider permission fact (fail-closed on any non-IDX token)
+  if (!isProviderPermissionPermitted(input)) {
+    return {
+      displayable: false,
+      addressDisplayable: false,
+      comingSoon: false,
+      activeStatus: false,
+      reason: "Provider permission does not permit IDX display",
+    };
+  }
+
+  // Gate 1 — Owner Opt-Out (UCBA Art. I §5(A)) — the Mallan decision
   if (isOwnerOptOut(input)) {
     return {
       displayable: false,

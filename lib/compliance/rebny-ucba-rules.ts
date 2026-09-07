@@ -173,8 +173,8 @@ export const REBNY_UCBA_RULES = {
   ] as const,
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // 3. ENUM VALUES — From data/rebny-rls-property-lookup.csv
-  //    Only compliance-critical enums included here. Full picklists available
+  // 3. ENUM VALUES — none live here. Provider enum members come ONLY from the live Cotality contract
+  //    (lib/cotality/live-contract.ts, the dated pulls). The REBNY lookup CSV is historical reference. Full picklists
   //    in the lookup CSV for form dropdowns.
   // ═══════════════════════════════════════════════════════════════════════════
 

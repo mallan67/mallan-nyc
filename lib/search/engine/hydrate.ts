@@ -72,15 +72,16 @@ async function providerRecords(keys: readonly string[], select: readonly string[
 
 /**
  * Provider-row permission gate for the agent Search page — THE canonical interpretation
- * (derivePermissionGates: Permission 'Private' = participant-only, owner opt-out arms) plus the
- * IDX Plus display-flag convention (null is not false; only an explicit false blocks). Status is
- * a search criterion here, not a gate, so the public closed-24h rule does not apply.
- * Live 2026-09-05: 7,559 of 7,559 Active rows carry Permission 'IDX', 0 'Private', 0 null — the
- * former "must include IDX" rule and this one agree on the whole live universe.
+ * (derivePermissionGates: the provider Permission tokens must all be the served 'IDX' permission;
+ * no member is read as a Mallan owner-opt-out / participant-only decision) plus the IDX Plus
+ * display-flag convention (null is not false; only an explicit false blocks). Status is a search
+ * criterion here, not a gate, so the public closed-24h rule does not apply. A record with no
+ * Permission (a Mallan-authored row hydrated into provider shape) carries no provider fact and
+ * passes this gate; its Mallan decisions are applied by the Mallan row path.
+ * Live 2026-09-06: 591,536 of 591,536 rows carry Permission 'IDX'; 'Private' 0; null 0.
  */
 function passesGate(raw: Record<string, unknown>): boolean {
-  const { participantOnly, ownerOptOut } = derivePermissionGates(raw);
-  return !participantOnly && !ownerOptOut && raw.InternetEntireListingDisplayYN !== false;
+  return derivePermissionGates(raw).idxPermitted !== false && raw.InternetEntireListingDisplayYN !== false;
 }
 
 type MallanRow = {

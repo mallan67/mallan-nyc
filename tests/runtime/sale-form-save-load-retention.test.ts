@@ -178,7 +178,7 @@ describe('Sale form save/load retention — PR-E populate/autosave race hardenin
   // lines inside populate, pushing its single guarded applySalesFieldRules() call to
   // +23078 chars, past the old 23000 window; the next function _offerDraftRestore
   // begins at +24733, so 24000 reaches the real call but stops before that next call).
-  const populateBody = functionBody(formHtml, 'function _populateSaleFormFromApi(listing)', 24000);
+  const populateBody = functionBody(formHtml, 'function _populateSaleFormFromApi(listing)', 26000); // populate is ~25.8k chars after the SpecialListingConditions Multi-Enum restore branch (2026-09-06); the next applySalesFieldRules() outside it sits >30k chars in
 
   it('setVal inside populate gates the change-event dispatch on !_salePopulateInProgress (PR-E C9)', () => {
     // Helper is local to _populateSaleFormFromApi; assert it is gated.

@@ -114,6 +114,9 @@ describe('the reporter runs green over the canonical contracts', () => {
     expect(code).not.toMatch(/process\.exit\(\(totalErrors > 0 \|\| classification\.unknown > 0\)/);
     // an applicable conditional gap is an ERROR (never an informational MISSING)
     expect(code).toMatch(/error\(7, `\$\{data\.fname\}: \$\{rule\.code\} \(\$\{rule\.description\}\) applies to this form but cannot be satisfied/);
+    expect(code).not.toMatch(/function missing\(/);           // no MISSING writer exists
     expect(code).not.toMatch(/missing\(`/);
+    expect(code).toMatch(/totalMissing \+= miss/);             // a future population is still counted …
+    expect(code).toMatch(/const passAll = totalErrors === 0 && totalMissing === 0/); // … and still blocks
   });
 });

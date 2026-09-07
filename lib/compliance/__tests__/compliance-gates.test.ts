@@ -82,25 +82,44 @@ describe('checkDistributionGates', () => {
   // do NOT exist on the Trestle $metadata schema (verified live 2026-04-19).
   // They were transcribed from the REBNY English-language checklist, not the
   // OData schema. The live schema uses:
-  //   - `Permission` enum (values: OwnerOptOut, Private, ...) — see Gates 1 & 2
+  //   - `Permission` Multi-Enum (live ListingPermission; the authorized IDX Plus feed serves 'IDX' on
+  //     every row, verified 2026-09-06). It has NO 'OwnerOptOut' member, and no authorized feed contract
+  //     proves 'Private' means participant-only — see Gate 0 (provider permission, fail-closed on any
+  //     non-IDX token). Owner opt-out / participant-only are Mallan decisions (Gates 1 & 2) read from the
+  //     Mallan columns / `_mallanPermission`, never from the provider field.
   //   - `InternetEntireListingDisplayYN` boolean — see Gate 3
-  // See `lib/idx/trestle-mapper.ts:745-810` (checkDistributionGates) and
-  // `compliance/IDX-VOW-DISPLAY-RULES.md:31,41` for authoritative mapping.
+  // See `lib/idx/trestle-mapper.ts` (derivePermissionGates / checkDistributionGates).
 
-  it('blocks owner opt-out listings (Permission = "OwnerOptOut")', () => {
+  it('blocks a non-IDX provider Permission token (Permission = "Officeidxoptout") — no Mallan decision is derived', () => {
     const result = checkDistributionGates(
-      buildRawTrestle({ Permission: 'OwnerOptOut' })
+      buildRawTrestle({ Permission: 'Officeidxoptout' })
     );
     expect(result.displayable).toBe(false);
-    expect(result.reason).toContain('Owner opted out');
+    expect(result.reason).toContain('Provider permission does not permit IDX display');
   });
 
-  it('blocks participant-only listings (Permission = "Private")', () => {
+  it('blocks Permission = "Private" as a non-IDX provider token, NOT as participant-only', () => {
     const result = checkDistributionGates(
       buildRawTrestle({ Permission: 'Private' })
     );
     expect(result.displayable).toBe(false);
-    expect(result.reason).toContain('Participant-only');
+    expect(result.reason).toContain('Provider permission does not permit IDX display');
+    expect(result.reason).not.toContain('Participant-only');
+  });
+
+  it('blocks a Multi-Enum Permission value that carries a non-IDX token alongside IDX', () => {
+    expect(checkDistributionGates(buildRawTrestle({ Permission: 'IDX,Private' })).displayable).toBe(false);
+    expect(checkDistributionGates(buildRawTrestle({ Permission: ['IDX', 'Private'] as unknown as string })).displayable).toBe(false);
+    expect(checkDistributionGates(buildRawTrestle({ Permission: ['IDX'] as unknown as string })).displayable).toBe(true);
+  });
+
+  it('an absent Permission fact has no effect (no replacement mapping is invented)', () => {
+    expect(checkDistributionGates(buildRawTrestle({ Permission: null })).displayable).toBe(true);
+  });
+
+  it('the Mallan owner-opt-out / participant-only decisions still block, read from the Mallan side only', () => {
+    expect(checkDistributionGates(buildRawTrestle({ _mallanPermission: 'OwnerOptOut' } as never)).reason).toContain('Owner opted out');
+    expect(checkDistributionGates(buildRawTrestle({ _mallanPermission: 'Private' } as never)).reason).toContain('Participant-only');
   });
 
   it('blocks when internet display is disabled (InternetEntireListingDisplayYN = false)', () => {
@@ -964,7 +983,7 @@ describe('mapTrestleToPrisma — writer-side gate coercion', () => {
       expect(mapped.idx_display_yn).toBe(false);
     });
 
-    it('idx_display_yn is false when Permission is Private (participant-only) — even with null entire/address', () => {
+    it('idx_display_yn is false when Permission is Private (a non-IDX provider token) — even with null entire/address; participant_only is NOT derived', () => {
       const mapped = mapTrestleToPrisma(
         buildRawTrestle({
           InternetEntireListingDisplayYN: null,
@@ -973,19 +992,21 @@ describe('mapTrestleToPrisma — writer-side gate coercion', () => {
         })
       );
       expect(mapped.idx_display_yn).toBe(false);
-      expect(mapped.participant_only).toBe(true);
+      expect(mapped.participant_only).toBe(false);
+      expect(mapped.owner_opt_out).toBe(false);
     });
 
-    it('idx_display_yn is false when Permission is OwnerOptOut — even with null entire/address', () => {
+    it('idx_display_yn is false for any other non-IDX Permission token — even with null entire/address; owner_opt_out is NOT derived', () => {
       const mapped = mapTrestleToPrisma(
         buildRawTrestle({
           InternetEntireListingDisplayYN: null,
           InternetAddressDisplayYN: null,
-          Permission: 'OwnerOptOut',
+          Permission: 'Officeidxoptout',
         })
       );
       expect(mapped.idx_display_yn).toBe(false);
-      expect(mapped.owner_opt_out).toBe(true);
+      expect(mapped.owner_opt_out).toBe(false);
+      expect(mapped.participant_only).toBe(false);
     });
   });
 });
@@ -1042,18 +1063,18 @@ describe('checkDistributionGates — Trestle-live IDX Plus pre-filter semantics'
     expect(result.reason).toContain('Internet display disabled');
   });
 
-  it('still blocks when Permission = OwnerOptOut, even with null entire-listing flag', () => {
+  it('still blocks a non-IDX Permission token (Officeidxoptout), even with null entire-listing flag', () => {
     const result = checkDistributionGates(
       buildRawTrestle({
         InternetEntireListingDisplayYN: null,
-        Permission: 'OwnerOptOut',
+        Permission: 'Officeidxoptout',
       })
     );
     expect(result.displayable).toBe(false);
-    expect(result.reason).toContain('Owner opted out');
+    expect(result.reason).toContain('Provider permission does not permit IDX display');
   });
 
-  it('still blocks when Permission = Private (participant-only), even with null entire-listing flag', () => {
+  it('still blocks when Permission = Private (a non-IDX provider token), even with null entire-listing flag', () => {
     const result = checkDistributionGates(
       buildRawTrestle({
         InternetEntireListingDisplayYN: null,
@@ -1061,7 +1082,7 @@ describe('checkDistributionGates — Trestle-live IDX Plus pre-filter semantics'
       })
     );
     expect(result.displayable).toBe(false);
-    expect(result.reason).toContain('Participant-only');
+    expect(result.reason).toContain('Provider permission does not permit IDX display');
   });
 
   it('still blocks closed listings > 24 hours, even with null entire-listing flag', () => {

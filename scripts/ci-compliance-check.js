@@ -537,11 +537,23 @@ if (fs.existsSync(mapperPath)) {
   } else {
     fail('Dead Trestle field references in trestle-mapper.ts gate logic: ' + hits.map(h => h.name).join(', '));
   }
-  // Participant Only gate must be present via Permission === 'Private'
-  if (/Permission === ['"]Private['"]|permissions === ['"]Private['"]/.test(content)) {
-    pass('Gate 2 (Participant Only) checks Permission === "Private" per compliance/IDX-VOW-DISPLAY-RULES.md:41');
+  // Provider permission gate (Gate 0). Property.Permission is a live Multi-Enum PROVIDER FACT; no authorized
+  // Cotality / RLS feed contract proves that any member (e.g. 'Private') equals a Mallan decision, and the
+  // live contract has no 'OwnerOptOut' member. The ONE interpretation lives in derivePermissionGates
+  // (idxPermitted: every token is the served 'IDX' permission → true; any other token → false, fail-closed;
+  // absent → null, no effect) and must feed computeGateColumns as providerIdxPermitted. The retired
+  // `Permission === 'Private' → participant_only` / `OwnerOptOut` arms must NOT come back: participant_only
+  // and owner_opt_out are Mallan / REBNY-UCBA decisions read from the Mallan side only (Packet 2, 2026-09-06).
+  const code = content.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n');
+  const hasTokenGate = /const permissionTokens = enumValueTokens\(['"]Permission['"], raw\.Permission\)/.test(code)
+    && /permissionTokens\.every\(\(t\) => t === ['"]IDX['"]\)/.test(code)
+    && /providerIdxPermitted: providerPermission\.idxPermitted/.test(code)
+    && /input\.providerIdxPermitted !== false/.test(code);
+  const retiredArm = /Permission === ['"]Private['"]|permissions === ['"]Private['"]|['"]OwnerOptOut['"]|['"]Owner Opt-Out['"]/.test(code);
+  if (hasTokenGate && !retiredArm) {
+    pass('Gate 0 (provider Permission) is the tokenized fact from derivePermissionGates (all tokens IDX → permitted; else fail-closed) and no retired Private/OwnerOptOut arm remains');
   } else {
-    fail('Gate 2 (Participant Only) missing — must check Permission === "Private" per REBNY RLS');
+    fail('Gate 0 (provider Permission) must be derivePermissionGates.idxPermitted fed into computeGateColumns, with no Permission === "Private" / OwnerOptOut derivation of a Mallan decision' + (retiredArm ? ' — a retired arm is present' : ''));
   }
 
   // ── 18a. IDX Plus pre-filter semantics on writer-side display gates ──

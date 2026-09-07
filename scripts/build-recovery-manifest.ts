@@ -211,9 +211,11 @@ export interface LocalRow {
   idx_display_yn: boolean;
   mls_id: string | null;
   sync_status: string | null;
-  /** REBNY Gate 2 — Permission='Private'. Forces idx_display_yn=false. */
+  /** Mallan / REBNY-UCBA decision (Gate 2). NOT derived from the provider Permission; a stored true on a
+   *  Cotality-origin row is a retired derivation and is counted as a stale gate column. */
   participant_only: boolean;
-  /** REBNY Gate 1 — Permission='OwnerOptOut'. Forces idx_display_yn=false. */
+  /** Mallan / REBNY-UCBA decision (Gate 1). NOT derived from the provider Permission (the live contract has
+   *  no OwnerOptOut member); same staleness rule as participant_only. */
   owner_opt_out: boolean;
   /** false = website-only / commercial. Forces idx_display_yn=false. */
   rls_eligible: boolean;
@@ -409,15 +411,14 @@ export function providerExpectedIdxDisplay(provider: ProviderRow): boolean {
  * terminal status forces false, and each gate forces false on its own.
  */
 export function expectedIdxDisplay(provider: ProviderRow, local: LocalRow): boolean {
-  const gates = derivePermissionGates({
-    Permission: provider.Permission,
-    MlsStatus: provider.MlsStatus,
-  });
+  const gates = derivePermissionGates({ Permission: provider.Permission });
   return computeGateColumns({
     status: provider.StandardStatus,
     internetEntireListingDisplayYN: provider.InternetEntireListingDisplayYN,
-    participantOnly: gates.participantOnly,
-    ownerOptOut: gates.ownerOptOut,
+    // provider rows carry no Mallan decision; the provider fact gates display (a non-IDX token blocks)
+    participantOnly: false,
+    ownerOptOut: false,
+    providerIdxPermitted: gates.idxPermitted,
     // Local by proof, not by convenience — see the docstring.
     rls_eligible: local.rls_eligible,
   }).idx_display_yn;
@@ -434,14 +435,10 @@ export function localPermissionGatesAreStale(
   provider: ProviderRow,
   local: LocalRow,
 ): boolean {
-  const gates = derivePermissionGates({
-    Permission: provider.Permission,
-    MlsStatus: provider.MlsStatus,
-  });
-  return (
-    gates.participantOnly !== local.participant_only ||
-    gates.ownerOptOut !== local.owner_opt_out
-  );
+  // A provider row never carries a Mallan decision; a stored participant_only / owner_opt_out = true on a
+  // provider row is stale local state that no provider fact derives.
+  void provider;
+  return local.participant_only === true || local.owner_opt_out === true;
 }
 
 /**

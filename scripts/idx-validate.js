@@ -355,7 +355,7 @@ function section3() {
     pass(s, 'Property field coverage policy: no stale field reasons');
   } else {
     warning(s, `Property field coverage policy: ${stalePolicyFields.length} stale reason(s)`,
-      `These fields are no longer in the current REBNY Property CSV: ${stalePolicyFields.slice(0, 25).join(', ')}`);
+      `These fields are not on the live Cotality contract: ${stalePolicyFields.slice(0, 25).join(', ')}`);
   }
   if (mappedPolicyFields.length === 0) {
     pass(s, 'Property field coverage policy: no mapped fields still marked excluded');
@@ -367,7 +367,7 @@ function section3() {
     pass(s, 'Search-critical field policy: no stale fields');
   } else {
     warning(s, `Search-critical field policy: ${staleSearchCriticalFields.length} stale field(s)`,
-      `These fields are no longer in the current REBNY Property CSV: ${staleSearchCriticalFields.join(', ')}`);
+      `These fields are not on the live Cotality contract: ${staleSearchCriticalFields.join(', ')}`);
   }
   if (noopExcludedFields.length === 0) {
     pass(s, 'LIVE_FIELDS_NOT_SELECTED: all excluded fields are present in mapper categories');

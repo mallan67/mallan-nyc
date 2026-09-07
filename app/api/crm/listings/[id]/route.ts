@@ -421,7 +421,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     "MoveInCosts", "OngoingFees", "TenantPays",
     "MoveInCostsDescription", "OngoingFeesDescription", "TenantPaysList",
     // server-derived provider enum fields (lib/crm/listing-form-mapping.ts)
-    "StructureType", "View", "BuildingFeatures", "PetsAllowed",
+    "StructureType", "View", "BuildingFeatures", "PetsAllowed", "SpecialListingConditions",
   ];
   const updatedFeatures = { ...existingFeatures };
   for (const k of featureKeys) {

@@ -18,8 +18,9 @@
  *     stay eligible when permissions allow.
  *   - Explicit `InternetEntireListingDisplayYN=false` still forces false
  *     regardless of status.
- *   - Permission='Private' (participant-only) still forces false.
- *   - Permission='OwnerOptOut' / 'Owner Opt-Out' still forces false.
+ *   - Any non-IDX Permission token (e.g. 'Private', 'Officeidxoptout') still forces
+ *     false — as a provider fact, fail-closed; participant_only / owner_opt_out are
+ *     Mallan decisions and are NOT derived from it (Packet 2, 2026-09-06).
  *   - Regression: a closed row with all-true permissions cannot be
  *     re-flipped to true by the mapper's output.
  *
@@ -161,7 +162,7 @@ describe('C2 — permission overrides still force idx_display_yn=false', () => {
   });
 
   it.each(['Active', 'ComingSoon', 'ActiveUnderContract'])(
-    '%s + Permission=Private (participant-only) → false',
+    '%s + Permission=Private (a non-IDX provider token) → false; participant_only is NOT derived',
     (status) => {
       const raw = buildRaw({
         StandardStatus: status,
@@ -170,31 +171,32 @@ describe('C2 — permission overrides still force idx_display_yn=false', () => {
       });
       const mapped = mapTrestleToPrisma(raw);
       expect(mapped.idx_display_yn).toBe(false);
-      expect(mapped.participant_only).toBe(true);
+      expect(mapped.participant_only).toBe(false);
+      expect(mapped.owner_opt_out).toBe(false);
     },
   );
 
   it.each(['Active', 'ComingSoon', 'ActiveUnderContract'])(
-    '%s + Permission=OwnerOptOut → false',
+    '%s + Permission=Officeidxoptout (a non-IDX live member) → false; owner_opt_out is NOT derived',
     (status) => {
       const raw = buildRaw({
         StandardStatus: status,
         InternetEntireListingDisplayYN: true,
-        Permission: 'OwnerOptOut',
+        Permission: 'Officeidxoptout',
       });
       const mapped = mapTrestleToPrisma(raw);
       expect(mapped.idx_display_yn).toBe(false);
-      expect(mapped.owner_opt_out).toBe(true);
+      expect(mapped.owner_opt_out).toBe(false);
     },
   );
 
   it.each(['Active', 'ComingSoon', 'ActiveUnderContract'])(
-    '%s + Permission="Owner Opt-Out" (display variant) → false',
+    '%s + Permission="IDX,Private" (Multi-Enum carrying a non-IDX token) → false',
     (status) => {
       const raw = buildRaw({
         StandardStatus: status,
         InternetEntireListingDisplayYN: true,
-        Permission: 'Owner Opt-Out',
+        Permission: 'IDX,Private',
       });
       const mapped = mapTrestleToPrisma(raw);
       expect(mapped.idx_display_yn).toBe(false);

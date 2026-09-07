@@ -19,7 +19,6 @@ export const TERMINAL_STATUSES = [
   'Canceled',
   'Withdrawn',
   'TemporarilyOffMarket',
-  'OwnerOptOut',
 ] as const;
 
 export const PUBLIC_LISTING_GATE = {

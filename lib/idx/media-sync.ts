@@ -1,3 +1,4 @@
+import { derivePermissionGates } from "./trestle-mapper";
 // lib/idx/media-sync.ts
 //
 // Media sync service — Checkpoint 1 (cursor helpers only).
@@ -2877,20 +2878,20 @@ export async function mirrorMediaToR2(
 /**
  * Trestle Property row shape — strict subset of fields `runMediaSync()` reads.
  *
- * Compliance gates use the canonical field names from
- * `lib/idx/trestle-mapper.ts:706-721`:
- *   - `Permission` enum (singular, preferred): values `'OwnerOptOut'` /
- *     `'Owner Opt-Out'` ⟹ owner opt-out gate (REBNY Gate 1); value `'Private'`
- *     ⟹ participant-only gate (REBNY Gate 2).
- *   - `Permissions` (plural) is a legacy variant some Trestle feeds still
- *     return — we accept either.
- *   - `MlsStatus = 'OwnerOptOut'` is an alternate owner-opt-out signal.
+ * Compliance gates use the ONE provider-permission interpretation owned by
+ * `derivePermissionGates` in `lib/idx/trestle-mapper.ts`:
+ *   - `Permission` is a live Multi-Enum provider fact. Display is permitted only
+ *     when every token is the served 'IDX' permission; any other token blocks
+ *     (fail-closed, no member meaning asserted); an absent fact has no effect.
+ *     It derives NO Mallan decision: owner opt-out / participant-only are Mallan
+ *     decisions read from the Mallan side, never from this field.
+ *   - `Permissions` (plural) is NOT a provider field (Trestle returns HTTP 400
+ *     for it) and is never consulted; `MlsStatus` is a status, not a permission.
  *   - `InternetEntireListingDisplayYN` is the master internet display gate
  *     (REBNY Gate 3); false ⟹ block.
  *
  * The shapes `OwnerOptOut: boolean` and `ParticipantOnly: boolean` do NOT
- * exist on Trestle (were never real Trestle fields — see
- * `lib/idx/trestle-mapper.ts:710-712`). Do not reintroduce them.
+ * exist on Trestle (were never real Trestle fields). Do not reintroduce them.
  */
 export interface TrestleProperty {
   ListingId?: string | null;
@@ -2912,9 +2913,8 @@ export interface TrestleProperty {
  *
  * Mirrors `checkDistributionGates()` in `lib/idx/trestle-mapper.ts:706-724`
  * for the gates that are cheap to evaluate per-listing without further joins:
- *   - REBNY Gate 1 (Owner Opt-Out): `Permission`/`Permissions` enum
- *     `'OwnerOptOut'` / `'Owner Opt-Out'` OR `MlsStatus === 'OwnerOptOut'`.
- *   - REBNY Gate 2 (Participant Only): `Permission`/`Permissions` enum `'Private'`.
+ *   - the provider permission fact: `Permission` tokens must all be the served 'IDX' permission
+ *     (derivePermissionGates — no member is read as a Mallan owner-opt-out / participant-only decision).
  *   - REBNY Gate 3 (Internet Display): `InternetEntireListingDisplayYN === false`.
  *
  * Per-row Permission filtering on the Media resource and `MediaStatus='Deleted'`
@@ -2924,16 +2924,12 @@ export interface TrestleProperty {
  * defense-in-depth so a future feed-policy change cannot leak.
  */
 export function isPropertyComplianceBlocked(property: TrestleProperty): boolean {
-  const permission =
-    (typeof property.Permission === "string" ? property.Permission : "") ||
-    (typeof property.Permissions === "string" ? property.Permissions : "");
-  const ownerOptOut =
-    permission === "OwnerOptOut" ||
-    permission === "Owner Opt-Out" ||
-    String(property.MlsStatus || "") === "OwnerOptOut";
-  const participantOnly = permission === "Private";
+  // ONE interpretation of the provider fact (derivePermissionGates): a Permission whose tokens are not all the
+  // served 'IDX' permission blocks; an absent Permission has no effect (the feed serves it on every row).
+  // Owner opt-out / participant-only are Mallan decisions and are not derived here.
+  const providerBlocked = derivePermissionGates(property as Record<string, unknown>).idxPermitted === false;
   const internetDisplayBlocked = property.InternetEntireListingDisplayYN === false;
-  return ownerOptOut || participantOnly || internetDisplayBlocked;
+  return providerBlocked || internetDisplayBlocked;
 }
 
 /** Test-injectable Trestle fetchers. */
@@ -3423,8 +3419,8 @@ export const defaultFetchDeps: MediaSyncFetchDeps = {
  *   - Time budget exit ⟹ Phase 2/3/4 still run with whatever was ingested.
  *
  * Compliance:
- *   - Skips listings via `isPropertyComplianceBlocked()` — REBNY Gates 1/2/3
- *     (Owner Opt-Out, Participant Only, Internet Display).
+ *   - Skips listings via `isPropertyComplianceBlocked()` — the provider
+ *     Permission fact (Gate 0) and the Internet Display gate (Gate 3).
  *   - Per-row Permission filter and `MediaStatus='Deleted'` tombstoning are
  *     handled inside `upsertListingMedia()`.
  *
