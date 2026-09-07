@@ -578,7 +578,7 @@ It is the load-bearing discriminator for at least three gates:
 Removing it leaves no way to distinguish website-only inventory from RLS-backed inventory, and
 the address opt-out gate loses the only value two modules certify as safe to key on.
 
-**Category corrected:** Part 4 called it "TRUE COMPLIANCE". More precisely it is
+**Category corrected TWICE, then WITHDRAWN — see Part 12.** Part 4 called it
 **MALLAN-OWNED STORAGE OF A REBNY/UCBA COMPLIANCE DECISION** — not a provider fact, and not a
 compliance rule itself. The name is lawful under the vocabulary rule (RLS = compliance).
 
@@ -661,3 +661,78 @@ owner asked to retain. Still authorization-held; nothing changed.
    (Part 10).
 3. Any tightening of the status gate must be preceded by an explicit, reliable website-only
    choice at intake, or it will block legitimate independent publishing.
+
+---
+
+## PART 12 — WHAT `rls_eligible` ACTUALLY MEANS TODAY (measured)
+
+Owner challenge 2026-09-07, recorded at `docs/Backend Search/You are right. My earlier
+analysis.txt`: if two or more meanings are packed into `rls_eligible`, there is a **data-model
+defect underneath the terminology defect**. **Confirmed — four concerns, eight decision sites.**
+
+**Parts 4 and 10 are both WITHDRAWN.** Part 4 called this "TRUE COMPLIANCE"; Part 10 called it
+"Mallan-owned storage of a compliance decision". Neither is earned. The owner's distinction is
+correct: *"REBNY/UCBA imposes a business/display rule"* and *"therefore Mallan needs an
+`rls_eligible` field"* are different claims, and only the first was proven.
+
+I also missed the mirror-image error: I catalogued prefix-used-as-permission three times but
+walked past `mallan-source-identity.ts` using `rls_eligible === false` to establish
+**PROVENANCE** — the same conflation in the opposite direction.
+
+### 12.1 Every runtime reader and the decision it drives
+
+| # | Reader | Decision | Concern |
+|---|---|---|---|
+| 1 | `db-to-public-dto.ts:301` `classifyDbListing` | `=== false` returns **`'website-only'`** as a provenance label, checked *before* `agent_id`/`owner_client_id`. Comment: *"tagged exclusive (Mallan-owned) by definition"* | **PROVENANCE** |
+| 2 | `db-to-public-dto.ts:319` `filterDisplayableDbListings` | `=== false` → **`return true`**, bypassing Gates 2–5 | **DISPLAY BYPASS** |
+| 3 | `media-sync.ts:2138` | mirror-admission scope, via `isMallanExclusiveListing` (prefix **OR** `=== false`) — who may enter the `crm:` media namespace | **MEDIA OWNERSHIP** |
+| 4 | `listing-capabilities.ts:48` | `mallan-local` = *"Mallan-AUTHORED (`SL-`/`RL-` **or** `rls_eligible=false`)"* | **EDIT AUTHORITY** |
+| 5 | `campaign-distribution-gate.ts:76` | `isRlsBackedForCampaign` = `!== false` | **DISTRIBUTION** |
+| 6 | `db-address-decision.ts:71` | the only lawful address-suppression bypass | **ADDRESS DISPLAY** |
+| 7 | `rls-enforcement.ts:323` | selects the PropertyType validation branch | **VALIDATION SCOPE** |
+| 8 | `computeGateColumns` | first-class display-gate input | **DISPLAY GATE** |
+
+**Four concerns — provenance/authorship (1, 3, 4); display and address gating (2, 6, 8);
+distribution (5); validation scope (7) — all keyed off one Boolean.**
+
+### 12.2 PROVEN CODE DEFECT — display-gate bypass (LATENT, measured)
+
+`lib/idx/db-to-public-dto.ts:312-330`:
+
+```
+Gate 1: status                              <- applied
+if (l.rls_eligible === false) return true;  <- EARLY RETURN
+Gate 2: idx_display_yn                      <- BYPASSED
+Gate 3: internet_entire_listing_display_yn  <- BYPASSED
+Gate 4: owner_opt_out                       <- BYPASSED
+Gate 5: participant_only                    <- BYPASSED
+```
+
+For a website-only listing the **only** gate applied is status. **`owner_opt_out` is an owner
+instruction under UCBA Art. I §5(A) — "NO public dissemination at any time" — not an
+RLS-distribution-only rule.** Bypassing it because a listing is off-RLS is a category error.
+(`participant_only` is arguably meaningless off-RLS; `owner_opt_out` is not.)
+
+**Read-only production census — `hidden-mountain-87248164` branch `main`, SELECT only:**
+
+| Measure | Count |
+|---|---|
+| `rls_eligible = false` (website-only) | **7** |
+| …with `owner_opt_out = true` | **0** |
+| …with `participant_only = true` | **0** |
+| …opted out AND display-ready | **0 — no current exposure** |
+| `owner_opt_out = true` anywhere in `listings` | **0** |
+
+**Real code defect, zero current exposure.** It becomes live the moment an owner opts out on a
+website-only listing — precisely the inventory being published independently today.
+
+### 12.3 Not established
+
+- That the REBNY/UCBA rule requires a field **named** `rls_eligible`. The rule is real; the name,
+  the type, and its carrying of four concerns are not thereby justified.
+- That one Boolean can carry provenance, edit authority, media ownership, display bypass, address
+  suppression, distribution eligibility and validation scope unambiguously.
+
+**No refactor, rename or deletion proposed.** Per the owner document none is authorized until the
+four audits — Search contract, identity/source authority, distribution/compliance, consumer
+convergence — converge into one impact graph.
