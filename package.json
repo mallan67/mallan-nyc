@@ -136,7 +136,8 @@
     "test:geo": "node scripts/__tests__/neighborhood-expansion.test.js",
     "test:migration-discipline": "jest scripts/__tests__/migration-discipline-comment-scan.test.js",
     "trestle:probe-keyset": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/probe-property-keyset-contract.ts",
-    "idx:gap-census": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/audit-property-historical-gap.ts"
+    "idx:gap-census": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/audit-property-historical-gap.ts",
+    "prepare": "node scripts/install-git-hooks.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.50.0",
