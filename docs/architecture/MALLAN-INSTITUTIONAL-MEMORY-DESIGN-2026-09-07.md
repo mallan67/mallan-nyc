@@ -39,8 +39,18 @@ conditions).
 > "Every statement below that says Phase D/DROP is 'NOT STARTED' … is SUPERSEDED
 > and HISTORICAL."
 
-**Therefore: extend `memory/`. Do not build a parallel store.** A second store
-would violate the source-of-truth charter (CLAUDE.md §A.2).
+**Therefore: extend `memory/` rather than starting a second decision store** —
+not because a rule forbids a second store, but because the records already exist
+here and cloud sessions can read Git while they cannot read local disk.
+
+**Scope note (corrected 2026-09-07).** An earlier revision of this document
+claimed the source-of-truth charter forbids a parallel store. That was an
+overreach. The charter's "do not create parallel systems" (§1 rule 6, §13 rule 3)
+is scoped by its own header and §13.1 to the domains in Sections 3-8 — Public
+Search, CRM Search, Featured/Exclusives, Neighborhoods, Media, IDX/Trestle.
+`memory/`, `docs/`, and an out-of-repo transcript archive fall outside that
+scope. The charter does not govern them. The case for extending `memory/` rests
+on the engineering reasons above, not on that rule.
 
 ## Rejected alternative — RAG over full transcripts
 
