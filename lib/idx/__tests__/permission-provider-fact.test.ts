@@ -1,15 +1,19 @@
 /// <reference types="jest" />
 /**
- * Property.Permission is a PROVIDER FACT, never a Mallan decision (Packet 2 contradiction-closure, 2026-09-06).
+ * Property.Permission is a PROVIDER FACT with TWO proven interpretations (owner ruling 2026-09-07).
  *
- * Live Cotality (verified 2026-09-06): Permission is a Multi-Enum (ListingPermission). The authorized IDX Plus
- * feed serves 'IDX' on every row; there is NO 'OwnerOptOut' member and MlsStatus has no such member either.
- * No authorized Cotality / RLS feed contract in this repository proves that any member equals a Mallan
- * business decision, so:
- *   - the ONE interpretation is `idxPermitted`: every token is the served 'IDX' → true; any other token →
- *     false (fail-closed, no member meaning asserted); no fact → null (no effect, no replacement mapping);
- *   - participant_only / owner_opt_out are Mallan / REBNY-UCBA decisions, read only from the Mallan side
- *     (`_mallanPermission`, the stored columns) and never derived from Permission;
+ * Live Cotality (verified 2026-09-07): Permission is a Multi-Enum (ListingPermission, 18 published
+ * members, NumOccurrences = 20). The authorized IDX Plus feed serves 'IDX' on every row; there is NO
+ * 'OwnerOptOut' member and MlsStatus has no such member either. Therefore:
+ *   - DISPLAY: `idxPermitted` — every token is the served 'IDX' → true; any other token → false
+ *     (fail-closed); no fact → null (no effect, no replacement mapping);
+ *   - PARTICIPANT-ONLY: a `Private` token carries the Mallan/REBNY compliance meaning "REBNY
+ *     members / participants only", so participant_only = true. Token membership, not equality —
+ *     'IDX,Private' is participant-only. This agrees with the Mallan-side interpreter
+ *     (lib/compliance/normalizer.ts derivePermissionBooleans), which has always read it this way;
+ *   - owner_opt_out is NOT derived from Permission and is NOT implied by 'Private'. It stays a
+ *     Mallan-side decision (`_mallanPermission`, the stored column);
+ *   - NO OTHER member has a proven Mallan meaning — do not infer one;
  *   - the legacy plural `Permissions` key and the MlsStatus sentinel are not consulted anywhere.
  * Every consumer of the provider fact must agree: ingest mapper, gate columns, compliance gates, Search
  * hydration, the CRM-IDX Search mapper, media sync and the recovery manifest.
@@ -23,7 +27,7 @@ import { join } from 'path';
 
 const ROOT = join(__dirname, '../../..');
 
-describe('derivePermissionGates — tokenized provider fact with one interpretation', () => {
+describe('derivePermissionGates — tokenized provider fact, display interpretation', () => {
   it("'IDX' (the served permission) → permitted, not participant-only", () => {
     expect(derivePermissionGates({ Permission: 'IDX' })).toEqual({
       permissions: 'IDX',
@@ -33,7 +37,7 @@ describe('derivePermissionGates — tokenized provider fact with one interpretat
     });
   });
   it.each(['Private', 'Public', 'Officeidxoptout', 'AgentOnly', 'IDX,Private', 'Owner Opt-Out', 'OwnerOptOut'])(
-    '%s → NOT permitted (fail-closed; no member meaning asserted)',
+    '%s → NOT permitted for display (fail-closed; no display meaning asserted for the member)',
     (value) => {
       const g = derivePermissionGates({ Permission: value });
       expect(g.idxPermitted).toBe(false);
@@ -154,7 +158,7 @@ describe("derivePermissionGates — 'Private' is the canonical participant_only 
   });
 });
 
-describe('every consumer agrees with the one interpretation', () => {
+describe('every consumer agrees with the canonical Permission interpreter', () => {
   const base = { StandardStatus: 'Active', MlsStatus: 'Active', InternetEntireListingDisplayYN: null, InternetAddressDisplayYN: null, ModificationTimestamp: '2026-09-01T00:00:00Z' };
   it('computeGateColumns: providerIdxPermitted false blocks; null/undefined has no effect', () => {
     const open = { status: 'Active', internetEntireListing: true, internetAddressDisplay: true, participantOnly: false, ownerOptOut: false };

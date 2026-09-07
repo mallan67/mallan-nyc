@@ -695,7 +695,9 @@ export interface ComputeGateColumnsInput {
   internetAutomatedValuationDisplayYN?: unknown;
   /** Per-row opt-out flag. null = blocked (fail-closed). */
   internetConsumerCommentYN?: unknown;
-  /** The Mallan participant-only decision (_mallanPermission = 'Private' → participant_only). Pass `true` to block. */
+  /** The participant-only decision. Provider rows: Cotality Permission contains the 'Private'
+   *  token (derivePermissionGates). Mallan-authored rows: _mallanPermission === 'Private'
+   *  (lib/compliance/normalizer.ts). Both sides agree. Pass `true` to block. */
   participantOnly?: unknown;
   /** The Mallan owner-opt-out decision (_mallanPermission = 'OwnerOptOut' → owner_opt_out). Pass `true` to block. */
   ownerOptOut?: unknown;
@@ -756,7 +758,8 @@ export interface PermissionGates {
   /** The Multi-Enum tokens (an array or a comma list on the wire; exact live members only). */
   permissionTokens: string[];
   /**
-   * The ONE verified interpretation of the provider fact: `true` when every token is the IDX
+   * The DISPLAY interpretation of the provider fact (one of two — see `participantOnly`):
+   * `true` when every token is the IDX
    * permission the authorized IDX Plus feed serves (`'IDX'` on 591,536 / 591,536 live rows, 2026-09-06);
    * `false` when any other token is present (fail-closed — no other member's meaning is asserted);
    * `null` when the record carries no Permission at all (no provider fact: the authorized feed serves it on
@@ -779,11 +782,27 @@ export interface PermissionGates {
 }
 
 /**
- * Read the provider Permission fact from a raw Cotality Property record and
- * apply the ONE verified interpretation (`idxPermitted`). THE single owner of
- * `Permission` interpretation. It derives NO Mallan decision: participant_only /
- * owner_opt_out are Mallan / REBNY-UCBA decisions and are never read from
- * Permission (Packet 2 contradiction-closure, 2026-09-06).
+ * Read the provider Permission fact from a raw Cotality Property record and apply the TWO
+ * verified interpretations. THE single owner of `Permission` interpretation — no other module
+ * may form a second opinion about what a Permission token means.
+ *
+ *   1. `idxPermitted` — display permission. True only when every token is the served 'IDX'
+ *      permission; any other token fails closed; an absent fact is null and has no effect.
+ *
+ *   2. `participantOnly` — OWNER RULING 2026-09-07. Cotality `Property.Permission` containing
+ *      the `Private` token carries the Mallan/REBNY compliance meaning "REBNY members /
+ *      participants only", so `participant_only = true`. This is TOKEN MEMBERSHIP on a
+ *      Multi-Enum, not string equality. It matches the Mallan-side interpreter, which has always
+ *      read 'Private' the same way (lib/compliance/normalizer.ts derivePermissionBooleans).
+ *
+ * `owner_opt_out` is NOT derived here and is NOT implied by `Private`. The two are separate
+ * decisions. No provider fact can express owner opt-out: 'OwnerOptOut' is not one of the 18
+ * published ListingPermission members and MlsStatus carries no such sentinel (verified live
+ * 2026-09-07). It remains a Mallan-side decision (`_mallanPermission`, `listings.owner_opt_out`).
+ *
+ * NO OTHER Permission member has a proven Mallan meaning. Do not infer one. Any additional
+ * member semantics must be separately proven against the authorized Cotality contract before
+ * being read here.
  *
  * Extracted from `mapTrestleToPrisma` 2026-08-13 with NO behavior change: the
  * expressions below are the ones that lived inline, moved verbatim. The

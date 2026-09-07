@@ -274,3 +274,67 @@ Every file on the lane touching the Cotality OData surface. `client` = token sou
 - Whether `PUBLIC_LISTING_GATE` / `PORTAL_LISTING_GATE` are reachable dynamically.
 - Exact resource for B4/B5 (`pitch-packet`, `pdf`) — they authenticate but no `odata/<Resource>`
   literal was found; they may compose queries indirectly.
+
+
+---
+
+## PART 7 — `Property.Permission` = `Private` → `participant_only` (OWNER RULING 2026-09-07)
+
+### 7.1 The ruling, and what the verified contract supports
+
+| Statement | Status |
+|---|---|
+| **`Private` is a Cotality `Property.Permission` value** | **VERIFIED** against the authorized contract. `ListingPermission` publishes 18 members and `Private` is one of them. Live `Lookup` query, `ResourceName eq 'Property' and FieldName eq 'Permission'`. |
+| **Mallan interprets `Private` as REBNY members / participants only** | **OWNER RULING.** This is a Mallan/REBNY **compliance** interpretation of a provider fact — not a provider-published meaning. |
+| **`participant_only` is derived from `Permission` TOKEN MEMBERSHIP** | Implemented in `derivePermissionGates`. `Permission` is a Multi-Enum (`NumOccurrences = 20`), so `'IDX,Private'` is participant-only exactly as `'Private'` is. Equality would be structurally wrong. |
+| **`owner_opt_out` is NOT derived from `Private`** | The two are **separate decisions and must never be conflated**. `OwnerOptOut` is not a published `ListingPermission` member and `MlsStatus` carries no such sentinel (both verified live), so **no provider fact can express owner opt-out**. It remains Mallan-side only (`_mallanPermission`, `listings.owner_opt_out`). |
+| **No meaning is inferred for any other `Permission` value** | Only `IDX` (display) and `Private` (participant-only) have proven meanings. Every other member fails closed for display and carries **no** Mallan decision. Any further member semantics must be **separately proven** against the authorized Cotality contract before being read. |
+
+### 7.2 The contradiction that was closed
+
+`mapTrestleToPrisma` hardcoded `participantOnly = false` for provider rows while
+`lib/compliance/normalizer.ts derivePermissionBooleans` had always read the Mallan side as
+`participant_only: mallanPermission === 'Private'`. The same token meant participant-only on one
+side and nothing on the other. Both sides now resolve through the **one canonical interpreter**,
+`derivePermissionGates`. Corrected in `4f742c0e`; stale authority text corrected in the
+follow-up consistency pass.
+
+### 7.3 READ-ONLY stored-row census — **ZERO mismatches, no backfill required**
+
+Production `hidden-mountain-87248164`, branch `main`. `SELECT … GROUP BY` only. **No mutation.**
+
+| Measure | Count |
+|---|---|
+| `listings` rows | **26,476** |
+| rows with a `raw_data->>'Permission'` value | **22,293** (proves the JSON path resolves — the zeros below are genuine) |
+| provider says `Private` | **0** |
+| stored `participant_only = true` | **0** |
+| **mismatch: provider `Private` but stored `false`** | **0** |
+| **mismatch: provider not `Private` but stored `true`** | **0** |
+
+Every distinct stored `Permission` value:
+
+| value | rows | stored `participant_only=true` |
+|---|---|---|
+| `IDX` | 22,284 | 0 |
+| `null` | 4,183 | 0 |
+| `IDX,OfficeInactive` | **6** | 0 |
+| `IDX,SyndicateOptOut` | **3** | 0 |
+
+**Zero is proven, not assumed:** `Private` occurs in none of the four values present. Stored
+`participant_only` is `false` on all 26,476 rows and is therefore already consistent with the
+corrected rule. **No production correction is required today and none is authorized.**
+
+### 7.4 Multi-value Permission is REAL in production — validates token membership
+
+Nine stored rows carry comma-delimited Permission (`IDX,OfficeInactive` ×6,
+`IDX,SyndicateOptOut` ×3). A 4,000-row live API sample showed only `IDX`; the stored corpus
+exposes the multi-value form. **This is empirical proof that token membership — not string
+equality — is the correct implementation.** Those 9 rows also correctly fail closed for display
+(`idxPermitted = false`, since not every token is `IDX`).
+
+### 7.5 Standing constraint
+
+If `Private` ever appears in the feed, `participant_only` will be written `true` on the next sync
+through `mapTrestleToPrisma`. A stored-row reconciliation for pre-existing rows remains
+**authorization-held** and is not triggered by this census, which found nothing to reconcile.
