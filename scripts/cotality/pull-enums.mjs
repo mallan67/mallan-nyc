@@ -104,8 +104,14 @@ try {
       const collection = type.startsWith('Collection(');
       const inner = collection ? type.slice('Collection('.length, -1) : type;
       const isEnum = inner.includes('.Enums.');
+      // The provider's declared type carries its full namespace. That namespace is opaque raw
+      // provider content and must not be reproduced as Mallan vocabulary in a tracked artifact,
+      // so we record only the BARE type name. Nothing consumes this field (verified: only
+      // isEnum/isMulti are read, lib/cotality/live-contract.ts:68,73) and no information is
+      // lost — `enumType` already carries the bare enum name and `isMulti` the arity.
+      const bareType = collection ? `Collection(${inner.split('.').pop()})` : inner.split('.').pop();
       props[p[1]] = {
-        type,
+        type: bareType,
         isEnum,
         isMulti: collection || inner.includes('.Enums.Multi.'),
         enumType: isEnum ? inner.split('.').pop() : null,

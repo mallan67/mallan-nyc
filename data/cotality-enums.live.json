@@ -3,7 +3,7 @@
   "source": "https://api.cotality.com/trestle/odata/Lookup",
   "typeSource": "https://api.cotality.com/trestle/odata/$metadata",
   "method": "Lookup?$filter=ResourceName eq <resource>&$select=FieldName,LookupValue (paged to completion, @odata.count reconciled); types from $metadata EntityType declarations",
-  "pulled_at": "2026-09-06",
+  "pulled_at": "2026-09-07",
   "lookup_rows": 74521,
   "enum_count": 243,
   "enums": {
@@ -145389,4543 +145389,4543 @@
   "types": {
     "Property": {
       "AboveGradeFinishedArea": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "AboveGradeFinishedAreaSource": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.AreaSource",
+        "type": "AreaSource",
         "isEnum": true,
         "isMulti": false,
         "enumType": "AreaSource"
       },
       "AboveGradeFinishedAreaUnits": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.AreaUnits",
+        "type": "AreaUnits",
         "isEnum": true,
         "isMulti": false,
         "enumType": "AreaUnits"
       },
       "AboveGradeUnfinishedArea": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "AboveGradeUnfinishedAreaSource": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.AreaSource",
+        "type": "AreaSource",
         "isEnum": true,
         "isMulti": false,
         "enumType": "AreaSource"
       },
       "AboveGradeUnfinishedAreaUnits": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.AreaUnits",
+        "type": "AreaUnits",
         "isEnum": true,
         "isMulti": false,
         "enumType": "AreaUnits"
       },
       "AccessCode": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "AccessibilityFeatures": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.AccessibilityFeatures",
+        "type": "AccessibilityFeatures",
         "isEnum": true,
         "isMulti": true,
         "enumType": "AccessibilityFeatures"
       },
       "ActivationDate": {
-        "type": "Edm.Date",
+        "type": "Date",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "AdditionalParcelsDescription": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "AdditionalParcelsYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "AnchorsCoTenants": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Appliances": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.Appliances",
+        "type": "Appliances",
         "isEnum": true,
         "isMulti": true,
         "enumType": "Appliances"
       },
       "ArchitecturalStyle": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.ArchitecturalStyle",
+        "type": "ArchitecturalStyle",
         "isEnum": true,
         "isMulti": true,
         "enumType": "ArchitecturalStyle"
       },
       "AssociationAmenities": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.AssociationAmenities",
+        "type": "AssociationAmenities",
         "isEnum": true,
         "isMulti": true,
         "enumType": "AssociationAmenities"
       },
       "AssociationFee": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "AssociationFee2": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "AssociationFee2Frequency": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.FeeFrequency",
+        "type": "FeeFrequency",
         "isEnum": true,
         "isMulti": false,
         "enumType": "FeeFrequency"
       },
       "AssociationFee3": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "AssociationFee3Frequency": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.FeeFrequency",
+        "type": "FeeFrequency",
         "isEnum": true,
         "isMulti": false,
         "enumType": "FeeFrequency"
       },
       "AssociationFeeFrequency": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.FeeFrequency",
+        "type": "FeeFrequency",
         "isEnum": true,
         "isMulti": false,
         "enumType": "FeeFrequency"
       },
       "AssociationFeeIncludes": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.AssociationFeeIncludes",
+        "type": "AssociationFeeIncludes",
         "isEnum": true,
         "isMulti": true,
         "enumType": "AssociationFeeIncludes"
       },
       "AssociationName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "AssociationName2": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "AssociationName3": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "AssociationPhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "AssociationPhone2": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "AssociationPhone3": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "AssociationYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "AttachedGarageYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "AttributionContact": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "AvailabilityDate": {
-        "type": "Edm.Date",
+        "type": "Date",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "AvailableLeaseType": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.ExistingLeaseType",
+        "type": "ExistingLeaseType",
         "isEnum": true,
         "isMulti": true,
         "enumType": "ExistingLeaseType"
       },
       "BackOnMarketDate": {
-        "type": "Edm.Date",
+        "type": "Date",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BackOnMarketTimestamp": {
-        "type": "Edm.DateTimeOffset",
+        "type": "DateTimeOffset",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Basement": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.Basement",
+        "type": "Basement",
         "isEnum": true,
         "isMulti": true,
         "enumType": "Basement"
       },
       "BasementYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BathroomsFull": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BathroomsHalf": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BathroomsOneQuarter": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BathroomsPartial": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BathroomsThreeQuarter": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BathroomsTotalInteger": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BedroomsPossible": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BedroomsTotal": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BelowGradeFinishedArea": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BelowGradeFinishedAreaSource": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.AreaSource",
+        "type": "AreaSource",
         "isEnum": true,
         "isMulti": false,
         "enumType": "AreaSource"
       },
       "BelowGradeFinishedAreaUnits": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.AreaUnits",
+        "type": "AreaUnits",
         "isEnum": true,
         "isMulti": false,
         "enumType": "AreaUnits"
       },
       "BelowGradeUnfinishedArea": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BelowGradeUnfinishedAreaSource": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.AreaSource",
+        "type": "AreaSource",
         "isEnum": true,
         "isMulti": false,
         "enumType": "AreaSource"
       },
       "BelowGradeUnfinishedAreaUnits": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.AreaUnits",
+        "type": "AreaUnits",
         "isEnum": true,
         "isMulti": false,
         "enumType": "AreaUnits"
       },
       "BodyType": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.BodyType",
+        "type": "BodyType",
         "isEnum": true,
         "isMulti": true,
         "enumType": "BodyType"
       },
       "BuilderModel": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuilderName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuildingAreaSource": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.AreaSource",
+        "type": "AreaSource",
         "isEnum": true,
         "isMulti": false,
         "enumType": "AreaSource"
       },
       "BuildingAreaTotal": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuildingAreaUnits": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.AreaUnits",
+        "type": "AreaUnits",
         "isEnum": true,
         "isMulti": false,
         "enumType": "AreaUnits"
       },
       "BuildingFeatures": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.BuildingFeatures",
+        "type": "BuildingFeatures",
         "isEnum": true,
         "isMulti": true,
         "enumType": "BuildingFeatures"
       },
       "BuildingKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuildingKeyNumeric": {
-        "type": "Edm.Int64",
+        "type": "Int64",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuildingName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BusinessName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BusinessType": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.BusinessType",
+        "type": "BusinessType",
         "isEnum": true,
         "isMulti": true,
         "enumType": "BusinessType"
       },
       "BuyerAgentAOR": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.AOR",
+        "type": "AOR",
         "isEnum": true,
         "isMulti": false,
         "enumType": "AOR"
       },
       "BuyerAgentDesignation": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.BuyerAgentDesignation",
+        "type": "BuyerAgentDesignation",
         "isEnum": true,
         "isMulti": true,
         "enumType": "BuyerAgentDesignation"
       },
       "BuyerAgentDirectPhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerAgentEmail": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerAgentFax": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerAgentFirstName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerAgentFullName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerAgentHomePhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerAgentKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerAgentKeyNumeric": {
-        "type": "Edm.Int64",
+        "type": "Int64",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerAgentLastName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerAgentMiddleName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerAgentMlsId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerAgentMobilePhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerAgentNamePrefix": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerAgentNameSuffix": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerAgentNationalAssociationId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerAgentOfficePhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerAgentOfficePhoneExt": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerAgentPager": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerAgentPreferredPhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerAgentPreferredPhoneExt": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerAgentStateLicense": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerAgentTollFreePhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerAgentURL": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerAgentVoiceMail": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerAgentVoiceMailExt": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerBrokerageCompensation": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerBrokerageCompensationType": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.CompensationType",
+        "type": "CompensationType",
         "isEnum": true,
         "isMulti": false,
         "enumType": "CompensationType"
       },
       "BuyerFinancing": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.BuyerFinancing",
+        "type": "BuyerFinancing",
         "isEnum": true,
         "isMulti": true,
         "enumType": "BuyerFinancing"
       },
       "BuyerOfficeAOR": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.AOR",
+        "type": "AOR",
         "isEnum": true,
         "isMulti": false,
         "enumType": "AOR"
       },
       "BuyerOfficeEmail": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerOfficeFax": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerOfficeKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerOfficeKeyNumeric": {
-        "type": "Edm.Int64",
+        "type": "Int64",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerOfficeMlsId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerOfficeName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerOfficeNationalAssociationId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerOfficePhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerOfficePhoneExt": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerOfficeURL": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerTeamKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerTeamKeyNumeric": {
-        "type": "Edm.Int64",
+        "type": "Int64",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerTeamMlsId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "BuyerTeamName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CableTvExpense": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CancellationDate": {
-        "type": "Edm.Date",
+        "type": "Date",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CapRate": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CarportSpaces": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CarportYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CarrierRoute": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "City": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CityRegion": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CLIP": {
-        "type": "Edm.Int64",
+        "type": "Int64",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CloseDate": {
-        "type": "Edm.Date",
+        "type": "Date",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ClosePrice": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerAgentAOR": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.AOR",
+        "type": "AOR",
         "isEnum": true,
         "isMulti": false,
         "enumType": "AOR"
       },
       "CoBuyerAgentDesignation": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.CoBuyerAgentDesignation",
+        "type": "CoBuyerAgentDesignation",
         "isEnum": true,
         "isMulti": true,
         "enumType": "CoBuyerAgentDesignation"
       },
       "CoBuyerAgentDirectPhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerAgentEmail": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerAgentFax": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerAgentFirstName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerAgentFullName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerAgentHomePhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerAgentKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerAgentKeyNumeric": {
-        "type": "Edm.Int64",
+        "type": "Int64",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerAgentLastName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerAgentMiddleName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerAgentMlsId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerAgentMobilePhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerAgentNamePrefix": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerAgentNameSuffix": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerAgentNationalAssociationId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerAgentOfficePhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerAgentOfficePhoneExt": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerAgentPager": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerAgentPreferredPhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerAgentPreferredPhoneExt": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerAgentStateLicense": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerAgentTollFreePhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerAgentURL": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerAgentVoiceMail": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerAgentVoiceMailExt": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerOfficeAOR": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.AOR",
+        "type": "AOR",
         "isEnum": true,
         "isMulti": false,
         "enumType": "AOR"
       },
       "CoBuyerOfficeEmail": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerOfficeFax": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerOfficeKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerOfficeKeyNumeric": {
-        "type": "Edm.Int64",
+        "type": "Int64",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerOfficeMlsId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerOfficeName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerOfficeNationalAssociationId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerOfficePhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerOfficePhoneExt": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoBuyerOfficeURL": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent2AOR": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.AOR",
+        "type": "AOR",
         "isEnum": true,
         "isMulti": false,
         "enumType": "AOR"
       },
       "CoListAgent2DirectPhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent2Email": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent2FirstName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent2FullName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent2HomePhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent2Key": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent2LastName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent2MiddleName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent2MlsId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent2MobilePhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent2NationalAssociationId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent2Nickname": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent2OfficePhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent2PreferredPhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent2StateLicense": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent2URL": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent3AOR": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.AOR",
+        "type": "AOR",
         "isEnum": true,
         "isMulti": false,
         "enumType": "AOR"
       },
       "CoListAgent3DirectPhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent3Email": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent3FirstName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent3FullName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent3HomePhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent3Key": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent3LastName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent3MiddleName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent3MlsId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent3MobilePhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent3NationalAssociationId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent3Nickname": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent3OfficePhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent3PreferredPhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent3StateLicense": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgent3URL": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgentAOR": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.AOR",
+        "type": "AOR",
         "isEnum": true,
         "isMulti": false,
         "enumType": "AOR"
       },
       "CoListAgentDesignation": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.CoListAgentDesignation",
+        "type": "CoListAgentDesignation",
         "isEnum": true,
         "isMulti": true,
         "enumType": "CoListAgentDesignation"
       },
       "CoListAgentDirectPhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgentEmail": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgentFax": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgentFirstName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgentFullName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgentHomePhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgentKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgentKeyNumeric": {
-        "type": "Edm.Int64",
+        "type": "Int64",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgentLastName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgentMiddleName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgentMlsId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgentMobilePhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgentNamePrefix": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgentNameSuffix": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgentNationalAssociationId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgentNickname": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgentOfficePhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgentOfficePhoneExt": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgentPager": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgentPreferredPhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgentPreferredPhoneExt": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgentStateLicense": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgentTollFreePhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgentURL": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgentVoiceMail": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListAgentVoiceMailExt": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListOffice2AOR": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.AOR",
+        "type": "AOR",
         "isEnum": true,
         "isMulti": false,
         "enumType": "AOR"
       },
       "CoListOffice2Email": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListOffice2Key": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListOffice2MlsId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListOffice2Name": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListOffice2Phone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListOffice2URL": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListOfficeAOR": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.AOR",
+        "type": "AOR",
         "isEnum": true,
         "isMulti": false,
         "enumType": "AOR"
       },
       "CoListOfficeEmail": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListOfficeFax": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListOfficeKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListOfficeKeyNumeric": {
-        "type": "Edm.Int64",
+        "type": "Int64",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListOfficeMlsId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListOfficeName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListOfficeNationalAssociationId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListOfficePhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListOfficePhoneExt": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoListOfficeURL": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CommonInterest": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.CommonInterest",
+        "type": "CommonInterest",
         "isEnum": true,
         "isMulti": false,
         "enumType": "CommonInterest"
       },
       "CommonWalls": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.CommonWalls",
+        "type": "CommonWalls",
         "isEnum": true,
         "isMulti": true,
         "enumType": "CommonWalls"
       },
       "CommunityFeatures": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.CommunityFeatures",
+        "type": "CommunityFeatures",
         "isEnum": true,
         "isMulti": true,
         "enumType": "CommunityFeatures"
       },
       "CompensationComments": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CompSaleYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ConcessionInPrice": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ConcessionInPriceType": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.ConcessionInPriceType",
+        "type": "ConcessionInPriceType",
         "isEnum": true,
         "isMulti": false,
         "enumType": "ConcessionInPriceType"
       },
       "Concessions": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Concessions",
+        "type": "Concessions",
         "isEnum": true,
         "isMulti": false,
         "enumType": "Concessions"
       },
       "ConcessionsAmount": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ConcessionsBuyerBrokerFee": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ConcessionsClosingCosts": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ConcessionsComments": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ConcessionsFinancingCosts": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ConcessionsOtherCosts": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ConcessionsPropertyImprovementCosts": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ConstructionMaterials": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.ConstructionMaterials",
+        "type": "ConstructionMaterials",
         "isEnum": true,
         "isMulti": true,
         "enumType": "ConstructionMaterials"
       },
       "ContinentRegion": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Contingency": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ContingentDate": {
-        "type": "Edm.Date",
+        "type": "Date",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ContractStatusChangeDate": {
-        "type": "Edm.Date",
+        "type": "Date",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Cooling": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.Cooling",
+        "type": "Cooling",
         "isEnum": true,
         "isMulti": true,
         "enumType": "Cooling"
       },
       "CoolingYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CopyrightNotice": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Country": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Country",
+        "type": "Country",
         "isEnum": true,
         "isMulti": false,
         "enumType": "Country"
       },
       "CountryRegion": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CountrySubdivision": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CountyOrParish": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CoveredSpaces": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CropsIncludedYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CrossStreet": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CultivatedArea": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CumulativeDaysOnMarket": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CurrentFinancing": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.CurrentFinancing",
+        "type": "CurrentFinancing",
         "isEnum": true,
         "isMulti": true,
         "enumType": "CurrentFinancing"
       },
       "CurrentPrice": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "CurrentUse": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.CurrentOrPossibleUse",
+        "type": "CurrentOrPossibleUse",
         "isEnum": true,
         "isMulti": true,
         "enumType": "CurrentOrPossibleUse"
       },
       "DaysOnMarket": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DaysOnMarketReplication": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DaysOnMarketReplicationDate": {
-        "type": "Edm.Date",
+        "type": "Date",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DaysOnMarketReplicationIncreasingYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DelayedMarketingDate": {
-        "type": "Edm.Date",
+        "type": "Date",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DelayedMarketingYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DevelopmentStatus": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.DevelopmentStatus",
+        "type": "DevelopmentStatus",
         "isEnum": true,
         "isMulti": true,
         "enumType": "DevelopmentStatus"
       },
       "DirectionFaces": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.DirectionFaces",
+        "type": "DirectionFaces",
         "isEnum": true,
         "isMulti": false,
         "enumType": "DirectionFaces"
       },
       "Directions": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Disclaimer": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Disclosures": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.Disclosures",
+        "type": "Disclosures",
         "isEnum": true,
         "isMulti": true,
         "enumType": "Disclosures"
       },
       "DistanceToBusComments": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DistanceToBusNumeric": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DistanceToBusUnits": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.LinearUnits",
+        "type": "LinearUnits",
         "isEnum": true,
         "isMulti": false,
         "enumType": "LinearUnits"
       },
       "DistanceToElectricComments": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DistanceToElectricNumeric": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DistanceToElectricUnits": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.LinearUnits",
+        "type": "LinearUnits",
         "isEnum": true,
         "isMulti": false,
         "enumType": "LinearUnits"
       },
       "DistanceToFreewayComments": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DistanceToFreewayNumeric": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DistanceToFreewayUnits": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.LinearUnits",
+        "type": "LinearUnits",
         "isEnum": true,
         "isMulti": false,
         "enumType": "LinearUnits"
       },
       "DistanceToGasComments": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DistanceToGasNumeric": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DistanceToGasUnits": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.LinearUnits",
+        "type": "LinearUnits",
         "isEnum": true,
         "isMulti": false,
         "enumType": "LinearUnits"
       },
       "DistanceToPhoneServiceComments": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DistanceToPhoneServiceNumeric": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DistanceToPhoneServiceUnits": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.LinearUnits",
+        "type": "LinearUnits",
         "isEnum": true,
         "isMulti": false,
         "enumType": "LinearUnits"
       },
       "DistanceToPlaceofWorshipComments": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DistanceToPlaceofWorshipNumeric": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DistanceToPlaceofWorshipUnits": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.LinearUnits",
+        "type": "LinearUnits",
         "isEnum": true,
         "isMulti": false,
         "enumType": "LinearUnits"
       },
       "DistanceToSchoolBusComments": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DistanceToSchoolBusNumeric": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DistanceToSchoolBusUnits": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.LinearUnits",
+        "type": "LinearUnits",
         "isEnum": true,
         "isMulti": false,
         "enumType": "LinearUnits"
       },
       "DistanceToSchoolsComments": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DistanceToSchoolsNumeric": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DistanceToSchoolsUnits": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.LinearUnits",
+        "type": "LinearUnits",
         "isEnum": true,
         "isMulti": false,
         "enumType": "LinearUnits"
       },
       "DistanceToSewerComments": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DistanceToSewerNumeric": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DistanceToSewerUnits": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.LinearUnits",
+        "type": "LinearUnits",
         "isEnum": true,
         "isMulti": false,
         "enumType": "LinearUnits"
       },
       "DistanceToShoppingComments": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DistanceToShoppingNumeric": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DistanceToShoppingUnits": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.LinearUnits",
+        "type": "LinearUnits",
         "isEnum": true,
         "isMulti": false,
         "enumType": "LinearUnits"
       },
       "DistanceToStreetComments": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DistanceToStreetNumeric": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DistanceToStreetUnits": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.LinearUnits",
+        "type": "LinearUnits",
         "isEnum": true,
         "isMulti": false,
         "enumType": "LinearUnits"
       },
       "DistanceToWaterComments": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DistanceToWaterNumeric": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DistanceToWaterUnits": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.LinearUnits",
+        "type": "LinearUnits",
         "isEnum": true,
         "isMulti": false,
         "enumType": "LinearUnits"
       },
       "DocumentsAvailable": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.DocumentsAvailable",
+        "type": "DocumentsAvailable",
         "isEnum": true,
         "isMulti": true,
         "enumType": "DocumentsAvailable"
       },
       "DocumentsChangeTimestamp": {
-        "type": "Edm.DateTimeOffset",
+        "type": "DateTimeOffset",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DocumentsCount": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DOH1": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DOH2": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DOH3": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DoorFeatures": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.DoorFeatures",
+        "type": "DoorFeatures",
         "isEnum": true,
         "isMulti": true,
         "enumType": "DoorFeatures"
       },
       "DownPaymentAssistanceAmount": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DownPaymentAssistanceCount": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DownPaymentAssistanceYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "DualOrVariableRateCommissionYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Electric": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.Electric",
+        "type": "Electric",
         "isEnum": true,
         "isMulti": true,
         "enumType": "Electric"
       },
       "ElectricExpense": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ElectricOnPropertyYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ElementarySchool": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ElementarySchoolDistrict": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Elevation": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ElevationUnits": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.LinearUnits",
+        "type": "LinearUnits",
         "isEnum": true,
         "isMulti": false,
         "enumType": "LinearUnits"
       },
       "EntryLevel": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "EntryLocation": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "EstimatedCloseDate": {
-        "type": "Edm.Date",
+        "type": "Date",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Exclusions": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ExistingLeaseType": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.ExistingLeaseType",
+        "type": "ExistingLeaseType",
         "isEnum": true,
         "isMulti": true,
         "enumType": "ExistingLeaseType"
       },
       "ExpirationDate": {
-        "type": "Edm.Date",
+        "type": "Date",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Exposures": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.Exposures",
+        "type": "Exposures",
         "isEnum": true,
         "isMulti": true,
         "enumType": "Exposures"
       },
       "ExteriorFeatures": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.ExteriorFeatures",
+        "type": "ExteriorFeatures",
         "isEnum": true,
         "isMulti": true,
         "enumType": "ExteriorFeatures"
       },
       "FarmCreditServiceInclYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "FarmLandAreaSource": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.AreaSource",
+        "type": "AreaSource",
         "isEnum": true,
         "isMulti": false,
         "enumType": "AreaSource"
       },
       "FarmLandAreaUnits": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.AreaUnits",
+        "type": "AreaUnits",
         "isEnum": true,
         "isMulti": false,
         "enumType": "AreaUnits"
       },
       "Fencing": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.Fencing",
+        "type": "Fencing",
         "isEnum": true,
         "isMulti": true,
         "enumType": "Fencing"
       },
       "FhaEligibility": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.FhaEligibility",
+        "type": "FhaEligibility",
         "isEnum": true,
         "isMulti": false,
         "enumType": "FhaEligibility"
       },
       "FinancialDataSource": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.FinancialDataSource",
+        "type": "FinancialDataSource",
         "isEnum": true,
         "isMulti": true,
         "enumType": "FinancialDataSource"
       },
       "FireplaceFeatures": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.FireplaceFeatures",
+        "type": "FireplaceFeatures",
         "isEnum": true,
         "isMulti": true,
         "enumType": "FireplaceFeatures"
       },
       "FireplacesTotal": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "FireplaceYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Flooring": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.Flooring",
+        "type": "Flooring",
         "isEnum": true,
         "isMulti": true,
         "enumType": "Flooring"
       },
       "FloorPlansChangeTimestamp": {
-        "type": "Edm.DateTimeOffset",
+        "type": "DateTimeOffset",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "FloorPlansCount": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "FoundationArea": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "FoundationDetails": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.FoundationDetails",
+        "type": "FoundationDetails",
         "isEnum": true,
         "isMulti": true,
         "enumType": "FoundationDetails"
       },
       "FrontageLength": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "FrontageLengthRemarks": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "FrontageLengthUnit": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.FrontageLengthUnit",
+        "type": "FrontageLengthUnit",
         "isEnum": true,
         "isMulti": false,
         "enumType": "FrontageLengthUnit"
       },
       "FrontageType": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.FrontageType",
+        "type": "FrontageType",
         "isEnum": true,
         "isMulti": true,
         "enumType": "FrontageType"
       },
       "FuelExpense": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Furnished": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Furnished",
+        "type": "Furnished",
         "isEnum": true,
         "isMulti": false,
         "enumType": "Furnished"
       },
       "FurnitureReplacementExpense": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "GarageSpaces": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "GarageYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "GardenerExpense": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "GrazingPermitsBlmYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "GrazingPermitsForestServiceYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "GrazingPermitsPrivateYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "GreenBuildingVerificationType": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.GreenBuildingVerificationType",
+        "type": "GreenBuildingVerificationType",
         "isEnum": true,
         "isMulti": true,
         "enumType": "GreenBuildingVerificationType"
       },
       "GreenEnergyEfficient": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.GreenEnergyEfficient",
+        "type": "GreenEnergyEfficient",
         "isEnum": true,
         "isMulti": true,
         "enumType": "GreenEnergyEfficient"
       },
       "GreenEnergyGeneration": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.GreenEnergyGeneration",
+        "type": "GreenEnergyGeneration",
         "isEnum": true,
         "isMulti": true,
         "enumType": "GreenEnergyGeneration"
       },
       "GreenIndoorAirQuality": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.GreenIndoorAirQuality",
+        "type": "GreenIndoorAirQuality",
         "isEnum": true,
         "isMulti": true,
         "enumType": "GreenIndoorAirQuality"
       },
       "GreenLocation": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.GreenLocation",
+        "type": "GreenLocation",
         "isEnum": true,
         "isMulti": true,
         "enumType": "GreenLocation"
       },
       "GreenSustainability": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.GreenSustainability",
+        "type": "GreenSustainability",
         "isEnum": true,
         "isMulti": true,
         "enumType": "GreenSustainability"
       },
       "GreenVerificationYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "GreenWaterConservation": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.GreenWaterConservation",
+        "type": "GreenWaterConservation",
         "isEnum": true,
         "isMulti": true,
         "enumType": "GreenWaterConservation"
       },
       "GrossIncome": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "GrossScheduledIncome": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "HabitableResidenceYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "HeadBrokerMemberKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "HeadBrokerMemberMlsId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Heating": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.Heating",
+        "type": "Heating",
         "isEnum": true,
         "isMulti": true,
         "enumType": "Heating"
       },
       "HeatingYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "HighSchool": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "HighSchoolDistrict": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "HomeWarrantyYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "HorseAmenities": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.HorseAmenities",
+        "type": "HorseAmenities",
         "isEnum": true,
         "isMulti": true,
         "enumType": "HorseAmenities"
       },
       "HorseYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "HoursDaysOfOperation": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.HoursDaysOfOperation",
+        "type": "HoursDaysOfOperation",
         "isEnum": true,
         "isMulti": true,
         "enumType": "HoursDaysOfOperation"
       },
       "HoursDaysOfOperationDescription": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "HumanModifiedYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Inclusions": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "IncomeIncludes": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.IncomeIncludes",
+        "type": "IncomeIncludes",
         "isEnum": true,
         "isMulti": true,
         "enumType": "IncomeIncludes"
       },
       "InsuranceExpense": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "InteriorFeatures": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.InteriorOrRoomFeatures",
+        "type": "InteriorOrRoomFeatures",
         "isEnum": true,
         "isMulti": true,
         "enumType": "InteriorOrRoomFeatures"
       },
       "InternetAddressDisplayYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "InternetAutomatedValuationDisplayYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "InternetConsumerCommentYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "InternetEntireListingDisplayYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "IrrigationSource": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.IrrigationSource",
+        "type": "IrrigationSource",
         "isEnum": true,
         "isMulti": true,
         "enumType": "IrrigationSource"
       },
       "IrrigationWaterRightsAcres": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "IrrigationWaterRightsYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "LaborInformation": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.LaborInformation",
+        "type": "LaborInformation",
         "isEnum": true,
         "isMulti": true,
         "enumType": "LaborInformation"
       },
       "LandLeaseAmount": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "LandLeaseAmountFrequency": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.FeeFrequency",
+        "type": "FeeFrequency",
         "isEnum": true,
         "isMulti": false,
         "enumType": "FeeFrequency"
       },
       "LandLeaseExpirationDate": {
-        "type": "Edm.Date",
+        "type": "Date",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "LandLeaseYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Latitude": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "LaundryFeatures": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.LaundryFeatures",
+        "type": "LaundryFeatures",
         "isEnum": true,
         "isMulti": true,
         "enumType": "LaundryFeatures"
       },
       "LeasableArea": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "LeasableAreaUnits": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.AreaUnits",
+        "type": "AreaUnits",
         "isEnum": true,
         "isMulti": false,
         "enumType": "AreaUnits"
       },
       "LeaseAmount": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "LeaseAmountFrequency": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.FeeFrequency",
+        "type": "FeeFrequency",
         "isEnum": true,
         "isMulti": false,
         "enumType": "FeeFrequency"
       },
       "LeaseAssignableYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "LeaseConsideredYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "LeaseExpiration": {
-        "type": "Edm.Date",
+        "type": "Date",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "LeaseRenewalCompensation": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.LeaseRenewalCompensation",
+        "type": "LeaseRenewalCompensation",
         "isEnum": true,
         "isMulti": true,
         "enumType": "LeaseRenewalCompensation"
       },
       "LeaseRenewalOptionYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "LeaseTerm": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.LeaseTerm",
+        "type": "LeaseTerm",
         "isEnum": true,
         "isMulti": false,
         "enumType": "LeaseTerm"
       },
       "LeaseTermOptions": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.LeaseTerm",
+        "type": "LeaseTerm",
         "isEnum": true,
         "isMulti": true,
         "enumType": "LeaseTerm"
       },
       "Levels": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.Levels",
+        "type": "Levels",
         "isEnum": true,
         "isMulti": true,
         "enumType": "Levels"
       },
       "License1": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "License2": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "License3": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "LicensesExpense": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAgentAOR": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.AOR",
+        "type": "AOR",
         "isEnum": true,
         "isMulti": false,
         "enumType": "AOR"
       },
       "ListAgentDesignation": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.ListAgentDesignation",
+        "type": "ListAgentDesignation",
         "isEnum": true,
         "isMulti": true,
         "enumType": "ListAgentDesignation"
       },
       "ListAgentDirectPhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAgentEmail": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAgentFax": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAgentFirstName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAgentFullName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAgentHomePhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAgentKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAgentKeyNumeric": {
-        "type": "Edm.Int64",
+        "type": "Int64",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAgentLastName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAgentMiddleName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAgentMlsId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAgentMobilePhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAgentNamePrefix": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAgentNameSuffix": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAgentNationalAssociationId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAgentNickname": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAgentOfficePhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAgentOfficePhoneExt": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAgentPager": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAgentPreferredPhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAgentPreferredPhoneExt": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAgentStateLicense": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAgentTollFreePhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAgentURL": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAgentVoiceMail": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAgentVoiceMailExt": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAOR": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.AOR",
+        "type": "AOR",
         "isEnum": true,
         "isMulti": false,
         "enumType": "AOR"
       },
       "ListingAgreement": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.ListingAgreement",
+        "type": "ListingAgreement",
         "isEnum": true,
         "isMulti": false,
         "enumType": "ListingAgreement"
       },
       "ListingContractDate": {
-        "type": "Edm.Date",
+        "type": "Date",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListingId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListingKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListingKeyNumeric": {
-        "type": "Edm.Int64",
+        "type": "Int64",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListingService": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.ListingService",
+        "type": "ListingService",
         "isEnum": true,
         "isMulti": false,
         "enumType": "ListingService"
       },
       "ListingTerms": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.ListingTerms",
+        "type": "ListingTerms",
         "isEnum": true,
         "isMulti": true,
         "enumType": "ListingTerms"
       },
       "ListingURL": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListingURLDescription": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.ListingURLDescription",
+        "type": "ListingURLDescription",
         "isEnum": true,
         "isMulti": false,
         "enumType": "ListingURLDescription"
       },
       "ListOfficeAOR": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.AOR",
+        "type": "AOR",
         "isEnum": true,
         "isMulti": false,
         "enumType": "AOR"
       },
       "ListOfficeEmail": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListOfficeFax": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListOfficeKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListOfficeKeyNumeric": {
-        "type": "Edm.Int64",
+        "type": "Int64",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListOfficeMlsId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListOfficeName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListOfficeNationalAssociationId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListOfficePhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListOfficePhoneExt": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListOfficeURL": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListPrice": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListPriceLow": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListTeamKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListTeamKeyNumeric": {
-        "type": "Edm.Int64",
+        "type": "Int64",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListTeamMlsId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListTeamName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "LivingArea": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "LivingAreaSource": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.AreaSource",
+        "type": "AreaSource",
         "isEnum": true,
         "isMulti": false,
         "enumType": "AreaSource"
       },
       "LivingAreaUnits": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.AreaUnits",
+        "type": "AreaUnits",
         "isEnum": true,
         "isMulti": false,
         "enumType": "AreaUnits"
       },
       "LockBoxLocation": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "LockBoxSerialNumber": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "LockBoxType": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.LockBoxType",
+        "type": "LockBoxType",
         "isEnum": true,
         "isMulti": true,
         "enumType": "LockBoxType"
       },
       "Longitude": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "LotDimensionsSource": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.LotDimensionsSource",
+        "type": "LotDimensionsSource",
         "isEnum": true,
         "isMulti": false,
         "enumType": "LotDimensionsSource"
       },
       "LotFeatures": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.LotFeatures",
+        "type": "LotFeatures",
         "isEnum": true,
         "isMulti": true,
         "enumType": "LotFeatures"
       },
       "LotSizeAcres": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "LotSizeArea": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "LotSizeDimensions": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "LotSizeSource": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.LotSizeSource",
+        "type": "LotSizeSource",
         "isEnum": true,
         "isMulti": false,
         "enumType": "LotSizeSource"
       },
       "LotSizeSquareFeet": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "LotSizeUnits": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.LotSizeUnits",
+        "type": "LotSizeUnits",
         "isEnum": true,
         "isMulti": false,
         "enumType": "LotSizeUnits"
       },
       "MainLevelBathrooms": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "MainLevelBedrooms": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "MaintenanceExpense": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "MajorChangeTimestamp": {
-        "type": "Edm.DateTimeOffset",
+        "type": "DateTimeOffset",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "MajorChangeType": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.ChangeType",
+        "type": "ChangeType",
         "isEnum": true,
         "isMulti": false,
         "enumType": "ChangeType"
       },
       "Make": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ManagerExpense": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "MapCoordinate": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "MapCoordinateSource": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "MapURL": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "MaximumNumberOfPets": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "MaximumPetWeight": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "MiddleOrJuniorSchool": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "MiddleOrJuniorSchoolDistrict": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "MLSAreaMajor": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "MLSAreaMinor": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "MlsStatus": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.MlsStatus",
+        "type": "MlsStatus",
         "isEnum": true,
         "isMulti": false,
         "enumType": "MlsStatus"
       },
       "MobileDimUnits": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.LinearUnits",
+        "type": "LinearUnits",
         "isEnum": true,
         "isMulti": false,
         "enumType": "LinearUnits"
       },
       "MobileHomeRemainsYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "MobileLength": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "MobileWidth": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Model": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ModificationTimestamp": {
-        "type": "Edm.DateTimeOffset",
+        "type": "DateTimeOffset",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "MoveInCosts": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.MoveInCosts",
+        "type": "MoveInCosts",
         "isEnum": true,
         "isMulti": true,
         "enumType": "MoveInCosts"
       },
       "MoveInCostsAmount": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "MoveInCostsComments": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "NetOperatingIncome": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "NewConstructionYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "NewTaxesExpense": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "NumberOfBuildings": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "NumberOfFullTimeEmployees": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "NumberOfLots": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "NumberOfPads": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "NumberOfPartTimeEmployees": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "NumberOfSeparateElectricMeters": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "NumberOfSeparateGasMeters": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "NumberOfSeparateWaterMeters": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "NumberOfUnitsInCommunity": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "NumberOfUnitsLeased": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "NumberOfUnitsMoMo": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "NumberOfUnitsTotal": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "NumberOfUnitsVacant": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OccupantName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OccupantPhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OccupantType": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.OccupantType",
+        "type": "OccupantType",
         "isEnum": true,
         "isMulti": false,
         "enumType": "OccupantType"
       },
       "OffMarketDate": {
-        "type": "Edm.Date",
+        "type": "Date",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OffMarketTimestamp": {
-        "type": "Edm.DateTimeOffset",
+        "type": "DateTimeOffset",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OngoingFees": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.OngoingFees",
+        "type": "OngoingFees",
         "isEnum": true,
         "isMulti": true,
         "enumType": "OngoingFees"
       },
       "OnMarketDate": {
-        "type": "Edm.Date",
+        "type": "Date",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OnMarketTimestamp": {
-        "type": "Edm.DateTimeOffset",
+        "type": "DateTimeOffset",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OpenHouseModificationTimestamp": {
-        "type": "Edm.DateTimeOffset",
+        "type": "DateTimeOffset",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OpenParkingSpaces": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OpenParkingYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OperatingExpense": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OperatingExpenseIncludes": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.OperatingExpenseIncludes",
+        "type": "OperatingExpenseIncludes",
         "isEnum": true,
         "isMulti": true,
         "enumType": "OperatingExpenseIncludes"
       },
       "OriginalEntryTimestamp": {
-        "type": "Edm.DateTimeOffset",
+        "type": "DateTimeOffset",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginalListPrice": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginatingSystemBuyerAgentMemberKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginatingSystemBuyerOfficeKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginatingSystemBuyerTeamKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginatingSystemCoBuyerAgentMemberKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginatingSystemCoBuyerOfficeKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginatingSystemCoListAgent2MemberKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginatingSystemCoListAgent3MemberKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginatingSystemCoListAgentMemberKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginatingSystemCoListOffice2Key": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginatingSystemCoListOfficeKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginatingSystemID": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginatingSystemKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginatingSystemListAgentMemberKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginatingSystemListOfficeKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginatingSystemListTeamKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginatingSystemModificationTimestamp": {
-        "type": "Edm.DateTimeOffset",
+        "type": "DateTimeOffset",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginatingSystemName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginatingSystemSubName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OtherEquipment": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.OtherEquipment",
+        "type": "OtherEquipment",
         "isEnum": true,
         "isMulti": true,
         "enumType": "OtherEquipment"
       },
       "OtherExpense": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OtherParking": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OtherStructures": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.OtherStructures",
+        "type": "OtherStructures",
         "isEnum": true,
         "isMulti": true,
         "enumType": "OtherStructures"
       },
       "OwnerName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OwnerName2": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OwnerPays": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.OwnerPays",
+        "type": "OwnerPays",
         "isEnum": true,
         "isMulti": true,
         "enumType": "OwnerPays"
       },
       "OwnerPhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Ownership": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OwnershipType": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.OwnershipType",
+        "type": "OwnershipType",
         "isEnum": true,
         "isMulti": false,
         "enumType": "OwnershipType"
       },
       "ParcelNumber": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ParcelSubcomponent": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ParkingFeatures": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.ParkingFeatures",
+        "type": "ParkingFeatures",
         "isEnum": true,
         "isMulti": true,
         "enumType": "ParkingFeatures"
       },
       "ParkingTotal": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ParkManagerName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ParkManagerPhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ParkName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "PastureArea": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "PatioAndPorchFeatures": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.PatioAndPorchFeatures",
+        "type": "PatioAndPorchFeatures",
         "isEnum": true,
         "isMulti": true,
         "enumType": "PatioAndPorchFeatures"
       },
       "PendingTimestamp": {
-        "type": "Edm.DateTimeOffset",
+        "type": "DateTimeOffset",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Permission": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.ListingPermission",
+        "type": "ListingPermission",
         "isEnum": true,
         "isMulti": true,
         "enumType": "ListingPermission"
       },
       "PestControlExpense": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "PetDeposit": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "PetsAllowed": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.PetsAllowed",
+        "type": "PetsAllowed",
         "isEnum": true,
         "isMulti": true,
         "enumType": "PetsAllowed"
       },
       "PetsAllowedYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "PetsComments": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "PhotosChangeTimestamp": {
-        "type": "Edm.DateTimeOffset",
+        "type": "DateTimeOffset",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "PhotosCount": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "PoolExpense": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "PoolFeatures": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.PoolFeatures",
+        "type": "PoolFeatures",
         "isEnum": true,
         "isMulti": true,
         "enumType": "PoolFeatures"
       },
       "PoolPrivateYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Possession": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.Possession",
+        "type": "Possession",
         "isEnum": true,
         "isMulti": true,
         "enumType": "Possession"
       },
       "PossibleUse": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.CurrentOrPossibleUse",
+        "type": "CurrentOrPossibleUse",
         "isEnum": true,
         "isMulti": true,
         "enumType": "CurrentOrPossibleUse"
       },
       "PostalCity": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "PostalCode": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "PostalCodePlus4": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "PowerProductionType": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.PowerProductionType",
+        "type": "PowerProductionType",
         "isEnum": true,
         "isMulti": true,
         "enumType": "PowerProductionType"
       },
       "PowerProductionYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "PreviousListPrice": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "PreviousStandardStatus": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.StandardStatus",
+        "type": "StandardStatus",
         "isEnum": true,
         "isMulti": false,
         "enumType": "StandardStatus"
       },
       "PriceChangeTimestamp": {
-        "type": "Edm.DateTimeOffset",
+        "type": "DateTimeOffset",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "PrivateOfficeRemarks": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "PrivateRemarks": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ProfessionalManagementExpense": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "PropertyAttachedYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "PropertyCondition": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.PropertyCondition",
+        "type": "PropertyCondition",
         "isEnum": true,
         "isMulti": true,
         "enumType": "PropertyCondition"
       },
       "PropertySubType": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.PropertySubType",
+        "type": "PropertySubType",
         "isEnum": true,
         "isMulti": false,
         "enumType": "PropertySubType"
       },
       "PropertySubTypeAdditional": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.PropertySubTypeAdditional",
+        "type": "PropertySubTypeAdditional",
         "isEnum": true,
         "isMulti": true,
         "enumType": "PropertySubTypeAdditional"
       },
       "PropertyType": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.PropertyType",
+        "type": "PropertyType",
         "isEnum": true,
         "isMulti": false,
         "enumType": "PropertyType"
       },
       "PublicRemarks": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "PublicSurveyRange": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "PublicSurveySection": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "PublicSurveyTownship": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "PurchaseContractDate": {
-        "type": "Edm.Date",
+        "type": "Date",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "RangeArea": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "RecordSignature": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "RentControlYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "RentIncludes": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.RentIncludes",
+        "type": "RentIncludes",
         "isEnum": true,
         "isMulti": true,
         "enumType": "RentIncludes"
       },
       "RoadFrontageType": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.RoadFrontageType",
+        "type": "RoadFrontageType",
         "isEnum": true,
         "isMulti": true,
         "enumType": "RoadFrontageType"
       },
       "RoadResponsibility": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.RoadResponsibility",
+        "type": "RoadResponsibility",
         "isEnum": true,
         "isMulti": true,
         "enumType": "RoadResponsibility"
       },
       "RoadSurfaceType": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.RoadSurfaceType",
+        "type": "RoadSurfaceType",
         "isEnum": true,
         "isMulti": true,
         "enumType": "RoadSurfaceType"
       },
       "Roof": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.Roof",
+        "type": "Roof",
         "isEnum": true,
         "isMulti": true,
         "enumType": "Roof"
       },
       "RoomsTotal": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "RoomType": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.RoomType",
+        "type": "RoomType",
         "isEnum": true,
         "isMulti": true,
         "enumType": "RoomType"
       },
       "RVParkingDimensions": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "SaleOrLeaseIndicator": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.SaleOrLeaseIndicator",
+        "type": "SaleOrLeaseIndicator",
         "isEnum": true,
         "isMulti": false,
         "enumType": "SaleOrLeaseIndicator"
       },
       "SeatingCapacity": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "SecurityDeposit": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "SecurityFeatures": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.SecurityFeatures",
+        "type": "SecurityFeatures",
         "isEnum": true,
         "isMulti": true,
         "enumType": "SecurityFeatures"
       },
       "SellerConsiderConcessionYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "SeniorCommunityYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "SerialU": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "SerialX": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "SerialXX": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Sewer": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.Sewer",
+        "type": "Sewer",
         "isEnum": true,
         "isMulti": true,
         "enumType": "Sewer"
       },
       "ShowingAdvanceNotice": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ShowingAttendedYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ShowingConsiderations": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.ShowingConsiderations",
+        "type": "ShowingConsiderations",
         "isEnum": true,
         "isMulti": true,
         "enumType": "ShowingConsiderations"
       },
       "ShowingContactName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ShowingContactPhone": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ShowingContactPhoneExt": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ShowingContactType": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.ShowingContactType",
+        "type": "ShowingContactType",
         "isEnum": true,
         "isMulti": true,
         "enumType": "ShowingContactType"
       },
       "ShowingDays": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.ShowingDays",
+        "type": "ShowingDays",
         "isEnum": true,
         "isMulti": true,
         "enumType": "ShowingDays"
       },
       "ShowingEndTime": {
-        "type": "Edm.DateTimeOffset",
+        "type": "DateTimeOffset",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ShowingInstructions": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ShowingRequirements": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.ShowingRequirements",
+        "type": "ShowingRequirements",
         "isEnum": true,
         "isMulti": true,
         "enumType": "ShowingRequirements"
       },
       "ShowingServiceName": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.ShowingServiceName",
+        "type": "ShowingServiceName",
         "isEnum": true,
         "isMulti": false,
         "enumType": "ShowingServiceName"
       },
       "ShowingStartTime": {
-        "type": "Edm.DateTimeOffset",
+        "type": "DateTimeOffset",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "SignOnPropertyYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Skirt": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.Skirt",
+        "type": "Skirt",
         "isEnum": true,
         "isMulti": true,
         "enumType": "Skirt"
       },
       "SourceMlsUrl": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "SourceSystemID": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "SourceSystemKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "SourceSystemName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "SpaFeatures": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.SpaFeatures",
+        "type": "SpaFeatures",
         "isEnum": true,
         "isMulti": true,
         "enumType": "SpaFeatures"
       },
       "SpaYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "SpecialLicenses": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.SpecialLicenses",
+        "type": "SpecialLicenses",
         "isEnum": true,
         "isMulti": true,
         "enumType": "SpecialLicenses"
       },
       "SpecialListingConditions": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.SpecialListingConditions",
+        "type": "SpecialListingConditions",
         "isEnum": true,
         "isMulti": true,
         "enumType": "SpecialListingConditions"
       },
       "StandardStatus": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.StandardStatus",
+        "type": "StandardStatus",
         "isEnum": true,
         "isMulti": false,
         "enumType": "StandardStatus"
       },
       "StartShowingDate": {
-        "type": "Edm.Date",
+        "type": "Date",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "StateOrProvince": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.StateOrProvince",
+        "type": "StateOrProvince",
         "isEnum": true,
         "isMulti": false,
         "enumType": "StateOrProvince"
       },
       "StateRegion": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "StatusChangeTimestamp": {
-        "type": "Edm.DateTimeOffset",
+        "type": "DateTimeOffset",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Stories": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "StoriesTotal": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "StreetAdditionalInfo": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "StreetDirPrefix": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.StreetDirection",
+        "type": "StreetDirection",
         "isEnum": true,
         "isMulti": false,
         "enumType": "StreetDirection"
       },
       "StreetDirSuffix": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.StreetDirection",
+        "type": "StreetDirection",
         "isEnum": true,
         "isMulti": false,
         "enumType": "StreetDirection"
       },
       "StreetName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "StreetNumber": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "StreetNumberNumeric": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "StreetSuffix": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.StreetSuffix",
+        "type": "StreetSuffix",
         "isEnum": true,
         "isMulti": false,
         "enumType": "StreetSuffix"
       },
       "StreetSuffixModifier": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "StructureType": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.StructureType",
+        "type": "StructureType",
         "isEnum": true,
         "isMulti": true,
         "enumType": "StructureType"
       },
       "SubAgencyCompensation": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "SubAgencyCompensationType": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.CompensationType",
+        "type": "CompensationType",
         "isEnum": true,
         "isMulti": false,
         "enumType": "CompensationType"
       },
       "SubdivisionName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "SuppliesExpense": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "SyndicateTo": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.SyndicateTo",
+        "type": "SyndicateTo",
         "isEnum": true,
         "isMulti": true,
         "enumType": "SyndicateTo"
       },
       "SyndicationRemarks": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "TaxAnnualAmount": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "TaxAssessedValue": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "TaxBlock": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "TaxBookNumber": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "TaxLegalDescription": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "TaxLot": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "TaxMapNumber": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "TaxOtherAnnualAssessmentAmount": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "TaxParcelLetter": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "TaxStatusCurrent": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.TaxStatusCurrent",
+        "type": "TaxStatusCurrent",
         "isEnum": true,
         "isMulti": true,
         "enumType": "TaxStatusCurrent"
       },
       "TaxTract": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "TaxYear": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "TenantPays": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.TenantPays",
+        "type": "TenantPays",
         "isEnum": true,
         "isMulti": true,
         "enumType": "TenantPays"
       },
       "TenantPaysDescription": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Topography": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "TotalActualRent": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "TotalFloorPlansCount": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Township": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "TransactionBrokerCompensation": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "TransactionBrokerCompensationType": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.CompensationType",
+        "type": "CompensationType",
         "isEnum": true,
         "isMulti": false,
         "enumType": "CompensationType"
       },
       "TrashExpense": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "UnitNumber": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "UnitsFurnished": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.UnitsFurnished",
+        "type": "UnitsFurnished",
         "isEnum": true,
         "isMulti": false,
         "enumType": "UnitsFurnished"
       },
       "UnitTypeType": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.UnitTypeType",
+        "type": "UnitTypeType",
         "isEnum": true,
         "isMulti": true,
         "enumType": "UnitTypeType"
       },
       "UniversalParcelId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "UniversalPropertyId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "UniversalPropertySubId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "UnparsedAddress": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Utilities": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.Utilities",
+        "type": "Utilities",
         "isEnum": true,
         "isMulti": true,
         "enumType": "Utilities"
       },
       "UtilitiesExpense": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "VacancyAllowance": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "VacancyAllowanceRate": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Vegetation": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.Vegetation",
+        "type": "Vegetation",
         "isEnum": true,
         "isMulti": true,
         "enumType": "Vegetation"
       },
       "VideosChangeTimestamp": {
-        "type": "Edm.DateTimeOffset",
+        "type": "DateTimeOffset",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "VideosCount": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "View": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.View",
+        "type": "View",
         "isEnum": true,
         "isMulti": true,
         "enumType": "View"
       },
       "ViewYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "VirtualTourURLBranded": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "VirtualTourURLBranded2": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "VirtualTourURLBranded3": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "VirtualTourURLUnbranded": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "VirtualTourURLUnbranded2": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "VirtualTourURLUnbranded3": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "WalkScore": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "WaterBodyName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "WaterfrontFeatures": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.WaterfrontFeatures",
+        "type": "WaterfrontFeatures",
         "isEnum": true,
         "isMulti": true,
         "enumType": "WaterfrontFeatures"
       },
       "WaterfrontYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "WaterHeater": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.WaterHeater",
+        "type": "WaterHeater",
         "isEnum": true,
         "isMulti": true,
         "enumType": "WaterHeater"
       },
       "WaterSewerExpense": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "WaterSource": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.WaterSource",
+        "type": "WaterSource",
         "isEnum": true,
         "isMulti": true,
         "enumType": "WaterSource"
       },
       "WindowFeatures": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.WindowFeatures",
+        "type": "WindowFeatures",
         "isEnum": true,
         "isMulti": true,
         "enumType": "WindowFeatures"
       },
       "WithdrawnDate": {
-        "type": "Edm.Date",
+        "type": "Date",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "WoodedArea": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "WorkmansCompensationExpense": {
-        "type": "Edm.Decimal",
+        "type": "Decimal",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "X_GeocodeSource": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.GeocodeSource",
+        "type": "GeocodeSource",
         "isEnum": true,
         "isMulti": false,
         "enumType": "GeocodeSource"
       },
       "YearBuilt": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "YearBuiltDetails": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "YearBuiltEffective": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "YearBuiltSource": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.YearBuiltSource",
+        "type": "YearBuiltSource",
         "isEnum": true,
         "isMulti": false,
         "enumType": "YearBuiltSource"
       },
       "YearEstablished": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "YearsCurrentOwner": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Zoning": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ZoningDescription": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
@@ -149933,337 +149933,337 @@
     },
     "Media": {
       "ChangedByMemberID": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ChangedByMemberKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ChangedByMemberKeyNumeric": {
-        "type": "Edm.Int64",
+        "type": "Int64",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ClassName": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.ClassName",
+        "type": "ClassName",
         "isEnum": true,
         "isMulti": false,
         "enumType": "ClassName"
       },
       "HumanModifiedYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ImageHeight": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ImageOf": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.ImageOf",
+        "type": "ImageOf",
         "isEnum": true,
         "isMulti": false,
         "enumType": "ImageOf"
       },
       "ImageSizeDescription": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ImageWidth": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "InternetEntireListingDisplayYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAgentKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAOR": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.AOR",
+        "type": "AOR",
         "isEnum": true,
         "isMulti": false,
         "enumType": "AOR"
       },
       "ListingPermission": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.ListingPermission",
+        "type": "ListingPermission",
         "isEnum": true,
         "isMulti": true,
         "enumType": "ListingPermission"
       },
       "ListOfficeKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListOfficeMlsId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "LongDescription": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "MediaAlteration": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.MediaAlteration",
+        "type": "MediaAlteration",
         "isEnum": true,
         "isMulti": true,
         "enumType": "MediaAlteration"
       },
       "MediaCategory": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.MediaCategory",
+        "type": "MediaCategory",
         "isEnum": true,
         "isMulti": false,
         "enumType": "MediaCategory"
       },
       "MediaClassification": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.MediaClassification",
+        "type": "MediaClassification",
         "isEnum": true,
         "isMulti": false,
         "enumType": "MediaClassification"
       },
       "MediaHTML": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "MediaKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "MediaKeyNumeric": {
-        "type": "Edm.Int64",
+        "type": "Int64",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "MediaModificationTimestamp": {
-        "type": "Edm.DateTimeOffset",
+        "type": "DateTimeOffset",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "MediaObjectID": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "MediaStatus": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.MediaStatus",
+        "type": "MediaStatus",
         "isEnum": true,
         "isMulti": false,
         "enumType": "MediaStatus"
       },
       "MediaStatusDescription": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "MediaType": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.MediaType",
+        "type": "MediaType",
         "isEnum": true,
         "isMulti": false,
         "enumType": "MediaType"
       },
       "MediaURL": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ModificationTimestamp": {
-        "type": "Edm.DateTimeOffset",
+        "type": "DateTimeOffset",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OffMarketDate": {
-        "type": "Edm.Date",
+        "type": "Date",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Order": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginalMediaUrl": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginatingSystemID": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginatingSystemMediaKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginatingSystemName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginatingSystemResourceRecordId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginatingSystemResourceRecordKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginatingSystemSubName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Permission": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.Permission",
+        "type": "Permission",
         "isEnum": true,
         "isMulti": true,
         "enumType": "Permission"
       },
       "PreferredPhotoYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "PropertySubType": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.PropertySubType",
+        "type": "PropertySubType",
         "isEnum": true,
         "isMulti": false,
         "enumType": "PropertySubType"
       },
       "PropertySubTypeAdditional": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.PropertySubTypeAdditional",
+        "type": "PropertySubTypeAdditional",
         "isEnum": true,
         "isMulti": true,
         "enumType": "PropertySubTypeAdditional"
       },
       "PropertyType": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.PropertyType",
+        "type": "PropertyType",
         "isEnum": true,
         "isMulti": false,
         "enumType": "PropertyType"
       },
       "RecordSignature": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ResourceName": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.ResourceName",
+        "type": "ResourceName",
         "isEnum": true,
         "isMulti": false,
         "enumType": "ResourceName"
       },
       "ResourceRecordID": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ResourceRecordKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ResourceRecordKeyNumeric": {
-        "type": "Edm.Int64",
+        "type": "Int64",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ShortDescription": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "SourceSystemID": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "SourceSystemMediaKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "SourceSystemName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "SourceSystemResourceRecordKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "StandardStatus": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.StandardStatus",
+        "type": "StandardStatus",
         "isEnum": true,
         "isMulti": false,
         "enumType": "StandardStatus"
       },
       "SyndicateTo": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.SyndicateTo",
+        "type": "SyndicateTo",
         "isEnum": true,
         "isMulti": true,
         "enumType": "SyndicateTo"
       },
       "X_MediaStream": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
@@ -150271,283 +150271,283 @@
     },
     "OpenHouse": {
       "AppointmentRequiredYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "HumanModifiedYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "InternetEntireListingDisplayYN": {
-        "type": "Edm.Boolean",
+        "type": "Boolean",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAgentKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListAOR": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.AOR",
+        "type": "AOR",
         "isEnum": true,
         "isMulti": false,
         "enumType": "AOR"
       },
       "ListingId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListingKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListingKeyNumeric": {
-        "type": "Edm.Int64",
+        "type": "Int64",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListingPermission": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.ListingPermission",
+        "type": "ListingPermission",
         "isEnum": true,
         "isMulti": true,
         "enumType": "ListingPermission"
       },
       "ListOfficeKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ListOfficeMlsId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "LivestreamOpenHouseURL": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ModificationTimestamp": {
-        "type": "Edm.DateTimeOffset",
+        "type": "DateTimeOffset",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OffMarketDate": {
-        "type": "Edm.Date",
+        "type": "Date",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OpenHouseAttendedBy": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Attended",
+        "type": "Attended",
         "isEnum": true,
         "isMulti": false,
         "enumType": "Attended"
       },
       "OpenHouseDate": {
-        "type": "Edm.Date",
+        "type": "Date",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OpenHouseEndTime": {
-        "type": "Edm.DateTimeOffset",
+        "type": "DateTimeOffset",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OpenHouseId": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OpenHouseKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OpenHouseKeyNumeric": {
-        "type": "Edm.Int64",
+        "type": "Int64",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OpenHouseRemarks": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OpenHouseStartTime": {
-        "type": "Edm.DateTimeOffset",
+        "type": "DateTimeOffset",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OpenHouseStatus": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.OpenHouseStatus",
+        "type": "OpenHouseStatus",
         "isEnum": true,
         "isMulti": false,
         "enumType": "OpenHouseStatus"
       },
       "OpenHouseType": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.OpenHouseType",
+        "type": "OpenHouseType",
         "isEnum": true,
         "isMulti": false,
         "enumType": "OpenHouseType"
       },
       "OriginalEntryTimestamp": {
-        "type": "Edm.DateTimeOffset",
+        "type": "DateTimeOffset",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginatingSystemID": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginatingSystemKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginatingSystemListingKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginatingSystemName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "OriginatingSystemSubName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Permission": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.ListingPermission",
+        "type": "ListingPermission",
         "isEnum": true,
         "isMulti": true,
         "enumType": "ListingPermission"
       },
       "PropertySubType": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.PropertySubType",
+        "type": "PropertySubType",
         "isEnum": true,
         "isMulti": false,
         "enumType": "PropertySubType"
       },
       "PropertySubTypeAdditional": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.PropertySubTypeAdditional",
+        "type": "PropertySubTypeAdditional",
         "isEnum": true,
         "isMulti": true,
         "enumType": "PropertySubTypeAdditional"
       },
       "PropertyType": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.PropertyType",
+        "type": "PropertyType",
         "isEnum": true,
         "isMulti": false,
         "enumType": "PropertyType"
       },
       "RecordSignature": {
-        "type": "Edm.Int32",
+        "type": "Int32",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "Refreshments": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ShowingAgentFirstName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ShowingAgentKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ShowingAgentKeyNumeric": {
-        "type": "Edm.Int64",
+        "type": "Int64",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ShowingAgentLastName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "ShowingAgentMlsID": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "SourceSystemID": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "SourceSystemKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "SourceSystemListingKey": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "SourceSystemName": {
-        "type": "Edm.String",
+        "type": "String",
         "isEnum": false,
         "isMulti": false,
         "enumType": null
       },
       "StandardStatus": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.StandardStatus",
+        "type": "StandardStatus",
         "isEnum": true,
         "isMulti": false,
         "enumType": "StandardStatus"
       },
       "SyndicateTo": {
-        "type": "Cotality.DataStandard.RESO.DD.Enums.Multi.SyndicateTo",
+        "type": "SyndicateTo",
         "isEnum": true,
         "isMulti": true,
         "enumType": "SyndicateTo"
