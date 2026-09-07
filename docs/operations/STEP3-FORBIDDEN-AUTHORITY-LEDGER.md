@@ -1,0 +1,276 @@
+# STEP 3 — FORBIDDEN-AUTHORITY AND COMPETING-SEARCH LEDGER
+
+> **EVIDENCE ONLY — NOT product/system authority.** This file records an impact graph. It does
+> not define architecture, requirements or plan. Decisions and status belong in the canonical
+> execution-state authority. Do not turn this into a master plan.
+>
+> **Tree of record:** `search/browser-integration-2026-09-05` @ `60817b3d` (pushed, Preview READY).
+> Every Cotality name below is verified against the live authorized API. Mallan-owned concepts
+> are labelled **MALLAN**. Unverified items are labelled **UNVERIFIED** and drive nothing.
+>
+> **No Step 4 deletion is authorized by this document.**
+
+---
+
+## PART 1 — DISPLAY-GATE CONTRADICTION — **OPEN**
+
+### 1.1 Accepted as PROVEN
+
+- Mallan defines `Draft` / `Incomplete` / `Pending` / `Hold` as non-public lifecycle statuses.
+- `computeGateColumns` (`lib/idx/trestle-mapper.ts`) can write `idx_display_yn = true` for them
+  because it excludes only **terminal** statuses.
+- The canonical public DTO separately **allowlists** `Active` / `ComingSoon` /
+  `ActiveUnderContract` (`lib/idx/db-to-public-dto.ts:247`, applied `:315`) and therefore
+  rejects `Pending`.
+- **No `Pending` production mutation is authorized.** Measured read-only: Active 7,595 ·
+  Withdrawn 6,975 · Closed 6,090 · **Pending 5,799** · ComingSoon 7.
+
+### 1.2 Explicitly NOT proven — gate correction stays OPEN
+
+- ❌ That **every** consumer of `idx_display_yn` independently enforces status.
+- ❌ That `lib/compliance/public-listing-filter.ts` is safe to delete on a zero-consumer grep
+  alone. A static grep does not exclude dynamic import, string-keyed access, re-export, or
+  reference from generated/held surfaces. **Deletion requires a negative test.**
+
+### 1.3 The three enforcers (semantics differ)
+
+| Enforcer | File:line | Mechanism | `Pending` | Static consumers |
+|---|---|---|---|---|
+| `DISPLAYABLE_STATUSES` | `lib/idx/db-to-public-dto.ts:247` | **ALLOWLIST** | rejected | **4 live** |
+| `PUBLIC_LISTING_GATE` | `lib/compliance/public-listing-filter.ts:24` | **DENYLIST** `notIn TERMINAL_STATUSES` | **would pass** | 0 found — UNPROVEN |
+| `PORTAL_LISTING_GATE` | `lib/compliance/public-listing-filter.ts:40` | **no status check** | **would pass** | 0 found — UNPROVEN |
+
+Live readers of the allowlist: `app/api/listings/route.ts:444,1409` ·
+`app/api/listings/[id]/route.ts:249` · `app/api/agents/[slug]/listings/route.ts:313` ·
+`lib/open-houses/upcoming-open-houses.ts:38`.
+
+### 1.4 Collateral findings
+
+1. `public-listing-filter.ts` `TERMINAL_STATUSES` (`:13`) lists `Sold`, `Rented`, `Cancelled`,
+   `TemporarilyOffMarket` — **none is a live `StandardStatus` member** — and carries BOTH
+   `Cancelled` and `Canceled`.
+2. `DISPLAYABLE_STATUSES` allows `ActiveUnderContract`, which appears in **0 stored rows**.
+3. `STATUS_DISPLAY` (`db-to-public-dto.ts:250`) maps `Sold`, not a live member.
+
+---
+
+## PART 2 — RESO
+
+### 2.1 Distribution — 18,321 occurrences, 174 files
+
+| Category | Files | Occurrences | Nature |
+|---|---|---|---|
+| Snapshot / generated | 16 | **17,192 (94%)** | false authorities + captured provider documents |
+| CRM (**HELD**) | 30 | 598 | browser catalogue + forms |
+| Docs | 43 | 234 | terminology |
+| Scripts | 22 | 154 | tooling namespace |
+| **Application code** | **34** | **74** | see 2.2 |
+| Tests | 23 | 46 | assertions + guards |
+| Other | 6 | 23 | package.json, prisma comments |
+
+### 2.2 Application code — **72 of 74 are COMMENTS**
+
+Every occurrence in `lib/**`, `app/**`, `mcp/**` was read. Only **two** are code symbols:
+
+| # | File:line | Symbol | Responsibility | Readers | Writers | Class | Destination |
+|---|---|---|---|---|---|---|---|
+| 1 | `lib/compliance/rebny-validator.ts:40,147` | `compliance.reso: boolean` | **Date-format check** — its own comment says "RESO is vocabulary only — this is a format check, not an authority" | **NONE found.** `grep compliance.reso` → 0 hits. **Write-only field** | `:147` `reso: resoCompliant` | **TERMINOLOGY + dead output field** | Rename to what it measures (`dateFormat`) or remove. Requires negative test — a write-only field may be consumed by an untyped browser reader |
+| 2 | `mcp/trestle-fields/index.ts:170,176,192,430,654` | namespace parsing + `standardName` | Parses the provider's raw type namespace to classify enums; surfaces the provider annotation | MCP tool output | — | **RAW PROVIDER DATA at L1** | Legitimate raw-boundary parsing. The literal must be constructed programmatically so the token does not appear in the tree |
+
+**The other 72 are prose.** Representative: `lib/compliance/dto.ts:20`, `index.ts:5`,
+`rebny-validator.ts:7`, `rls-enforcement.ts:12`, `lib/crm/listing-form-mapping.ts:15` all carry
+the banner *"RESO = vocabulary only"* — a doctrine line that is itself the thing being retired.
+
+**Already removed on the lane (verify before citing older audits):**
+- `lib/idx/mapping.ts` **does not exist** — `mapRESOToInternal` is gone.
+- `lib/compliance/rebny-ucba-rules.ts:19` records that the *"RLS overrides RESO/IDX"* authority
+  order is **obsolete**; `rebny-validator.ts:20` records the *"UCBA > RLS > RESO/IDX > Internal"*
+  order is **deleted**. The 6-tier doctrine reported in a main-based audit is **already gone here**.
+
+### 2.3 The 94% — false authorities vs captured documents
+
+| Artifact | Occ. | Actual responsibility | Class | Replacement |
+|---|---|---|---|---|
+| `artifacts/metadata.xml` | 14,553 | captured `$metadata`; **PROVEN STALE** (2,005,977 B vs live 1,946,777 B) | **CAPTURED PROVIDER DOC used as authority** | Live `$metadata` via the single Cotality authority. **Cannot be refreshed** — a live pull reintroduces the token |
+| `compliance/lookups.json` | 1,994 | picklist snapshot, literal `"reso"` key per value | **FALSE AUTHORITY** | live `Lookup` via `lib/cotality/live-contract.ts` |
+| `compliance/fields.json` | 449 | field snapshot + `_meta.resoToRlsRenames` | **FALSE AUTHORITY** | same |
+| `data/rebny-rls-property-fields.csv` | 63 | 902-field snapshot | **FALSE AUTHORITY** | same |
+| `data/rebny-rls-property-lookup.csv` | 2 | picklist snapshot | **FALSE AUTHORITY** | same |
+| `artifacts/schema-audit.{md,json}` | 111 | generated by `scripts/reso/schema-audit.js` | **GENERATED OUTPUT** | delete with its generator |
+| `compliance/rules/reso-rls-renames.json` | 4 | **0 of 23 renames valid** (13 would corrupt, 5 fiction, 5 would 400) | **FALSE AUTHORITY** | **DELETE, no replacement** — Cotality returns fields under the names it returns them under |
+
+**Blocking dependency (unchanged):** `scripts/idx-validate.js` (`:203,214,336,406`) and
+`scripts/test-rls-bindings.js` (`:59,73`) READ the CSVs and `metadata.xml`, and both are in the
+required pre-commit chain. `mcp/trestle-fields/index.ts:36,331` falls back to `metadata.xml`
+silently on any non-2xx — the banned snapshot-as-authority pattern; correct behaviour is to fail
+loudly. **Snapshots cannot be deleted until those readers are migrated.**
+
+---
+
+## PART 3 — REALPLUS
+
+### 3.1 Application code: **ZERO**
+
+No `lib/**`, `app/**`, `src/**` file contains any spelling. Remaining occurrences are:
+docs/compliance prose (~90), **guard tests that assert its absence**
+(`tests/runtime/provider-authority-census.test.ts` ×8,
+`mallan-listing-architecture-guardrail.test.ts` ×1, `cotality-reference-doc-guard.test.ts` ×1),
+`public/crm/data/search-fields-schema.json` ×1 (**HELD**), `compliance/rules/active.json` ×1.
+
+The guard tests are **allies** — they must be UPDATED to keep banning the term, never deleted.
+`cotality-reference-doc-guard.test.ts` **positively asserts a doc CONTAINS the literal**, so
+stripping the doc without updating the test turns CI red.
+
+### 3.2 The derivative concept — `rebnyListingUrl`
+
+| | |
+|---|---|
+| **Definition** | `lib/crm/listing-urls.ts:77` — `const rebnyListingUrl = isActive ? publicUrl : null;` |
+| **Actual responsibility** | It **is `publicUrl`**, nulled unless status ∈ {Active, ComingSoon, ActiveUnderContract}. Carries **no distinct information**. |
+| **Cotality field?** | **NO.** No such field exists. |
+| **Mallan-owned field?** | **NO** — not a stored column. `grep -rin "real ?plus" prisma/` → 0. Computed per request. |
+| **Genuine REBNY requirement?** | The **workflow** is real: the agent needs the public listing URL to supply to REBNY for an Active listing. The **field** is not — it duplicates `publicUrl`. |
+| **Writers** | `app/api/crm/listings/route.ts:645,664` · `crm/listings/[id]/route.ts:589` · `crm/listings/[id]/status/route.ts:395` |
+| **Readers** | `public/crm/SALE-FORM-REDESIGN.html:8122-8140` — read-only copy input `#saleRebnyListingUrlInput`, rendered only when `finalStatus === 'Active'` (**the browser already re-checks Active at `:8123`**) |
+| **Tests** | `lib/crm/__tests__/listing-urls-address-gate.test.ts` (4 assertions) · `lib/crm/listing-publish-contract.ts:6` |
+| **Class** | **DUPLICATE** of `publicUrl` + status |
+| **Destination** | Browser consumes `publicUrl` and keeps its existing Active check; drop the server field |
+| **Downstream breakage** | The sale form's copy panel; `listing-publish-contract.ts`; 4 test assertions |
+| **Proof before removal** | Direct test that the form still renders the URL for Active; negative test that no response key by that name returns; **`public/crm/**` is HELD — migration must be authorized** |
+
+---
+
+## PART 4 — RLS-AS-PROVIDER
+
+### 4.1 `rls_eligible` — **PROVEN TRUE COMPLIANCE. KEEP.**
+
+`lib/compliance/rls-eligibility.ts:11-15` defines it as **UCBA Art. I §5(F)** distribution
+eligibility:
+
+- Mixed-use ≤5 units → RLS-eligible per UCBA §5(F)
+- Mixed-use >5 units → website-only
+- Pure commercial → website-only
+- Explicit opt-out (`rls_eligible=false`) → website-only
+
+| | |
+|---|---|
+| Columns | `prisma/schema.prisma:462` (`Listing`), `:2623` (`ListingSearchProjection`); indexes `:590`, `:2647` |
+| Meaning | **May this listing be distributed to REBNY RLS** — a compliance obligation |
+| Class | **TRUE COMPLIANCE (L5)** |
+| Action | **KEEP the name and the columns. No schema change. No migration.** |
+
+This is precisely the permitted meaning of RLS. Same verdict for `lib/compliance/rls-eligibility.ts`.
+
+### 4.2 `lib/compliance/rls-enforcement.ts`
+
+Write-path validation (mandatory fields, content scanning). Carries its own
+`TERMINAL_STATUSES = new Set(["Closed"])` (`:222`) — **one member only**, so `Expired`,
+`Withdrawn` and `Canceled` pass its check. Class: **TRUE COMPLIANCE with a defective status set**.
+Action: keep the module, reconcile the status set in the Part 1 gate work. **UNVERIFIED:** its
+full reader list.
+
+### 4.3 Provider-shaped RLS still to classify
+
+`lib/idx/auth.ts:2` — *"OAuth2 client credentials flow for Trestle/REBNY RLS API"* → **RLS-as-API,
+must go (comment only)**. Plus the provider-literal boundary items:
+`OriginatingSystemName = "RLS"` (591,550/591,550 rows), `OriginatingSystemSubName = "RLS_REBNY"`,
+`ListingId` prefix `RLS…`, and `app/api/cron/feed-reconcile/route.ts` `listing_id startsWith "RLS"`
+— **RAW PROVIDER DATA**, to be interpreted once at the adapter and never re-derived by consumers.
+**Do NOT rewrite provider `ListingId` values.**
+
+---
+
+## PART 5 — IDX-AS-PROVIDER
+
+### 5.1 `lib/idx/**` responsibility split (measured)
+
+| File | Lines | odata refs | fetch() | Actual responsibility | Class |
+|---|---|---|---|---|---|
+| `auth.ts` | 121 | 0 | 1 | OAuth token acquisition + cache | **CANONICAL — already the sole token authority** |
+| `fetch.ts` | 765 | 15 | 1 | second HTTP client + query builder | **DUPLICATE** → engine `provider-client.ts` |
+| `sync.ts` | 2,903 | 6 | 4 | listing ingestion | CONSUMER — keep, migrate transport |
+| `media-sync.ts` | 4,470 | 11 | 2 | media ingestion | CONSUMER — keep, migrate transport |
+| `media-pagination.ts` | 68 | 2 | 0 | media paging only | **SPECIALIZED** — distinct semantics, keep |
+| `cursor/keyset-cursor.ts` | 110 | 0 | 0 | keyset cursor | **SPECIALIZED** — keep |
+| `trestle-mapper.ts` | 1,288 | 0 | **0** | provider→Mallan mapping | **CANONICAL mapper — no HTTP, clean separation** |
+| `cotality-telemetry.ts` | 166 | 1 | 0 | telemetry | fold into the single client |
+
+**`Cotality OAuth authority = 1` is ALREADY MET** — every authenticating path imports
+`lib/idx/auth.ts`.
+
+**IDX Plus that legitimately stays:** the licence entitlement (`Trestle-11371-20`, DataSystem
+`Name` = "IDX Plus feed for Mallan Real Estate Inc"), IDX display rules, `idx_display_yn` as a
+compliance gate. **Directories are NOT to be renamed blindly** — the split above is by
+responsibility, not by folder.
+
+---
+
+## PART 6 — COMPETING PROVIDER / SEARCH PATH CENSUS
+
+Every file on the lane touching the Cotality OData surface. `client` = token source.
+`query` = who builds the OData query.
+
+### 6.1 BACKEND — actionable in this program
+
+| # | Path | Resource | Client | Query | Class | Destination | Negative test required |
+|---|---|---|---|---|---|---|---|
+| B1 | `lib/search/engine/provider-client.ts` | — | idx/auth | **engine** | **CANONICAL** | — | — |
+| B2 | `app/api/crm/sales/prospects/[id]/comps/route.ts` | Property | idx/auth | **OWN** | **DUPLICATE** | `executeSearch()` | own query builder cannot return |
+| B3 | `app/api/crm/sales/prospects/[id]/research/route.ts` | Property | idx/auth | **OWN** | **DUPLICATE** | `executeSearch()` | same |
+| B4 | `app/api/crm/sales/prospects/[id]/pitch-packet/route.ts` | — | idx/auth | **OWN** | **DUPLICATE** | `executeSearch()` | same |
+| B5 | `app/api/crm/sales/prospects/[id]/pdf/route.ts` | — | idx/auth | **OWN** | **DUPLICATE** | `executeSearch()` | same |
+| B6 | `app/api/cron/prospect-triggers/route.ts` | Property | idx/auth | **OWN** | DUPLICATE | engine client | same |
+| B7 | `app/api/cron/feed-reconcile/route.ts` | Property | idx/auth | **OWN** | CONSUMER (ingestion) | engine client; **also holds `startsWith("RLS")` → adapter** | provider-literal check cannot recur outside the adapter |
+| B8 | `app/api/buildings/search/route.ts` | Property | idx/auth | **OWN** | **OBSOLETE — `Building` is HTTP 403** | Property address fields or **MALLAN** | route cannot query a `Building` resource |
+| B9 | `lib/idx/fetch.ts` | Media, Property | idx/auth | idx/fetch | **DUPLICATE client** | engine `provider-client.ts` | second client cannot be reached |
+| B10 | `lib/idx/media-sync.ts` | Media, Property | idx/auth | **OWN** | CONSUMER | engine client | — |
+| B11 | `lib/idx/sync.ts` | Media | idx/auth | idx/fetch | CONSUMER | engine client | — |
+| B12 | `lib/idx/one-cycle-preflight.ts` | — | — | idx/fetch | CONSUMER | engine client | — |
+| B13 | `lib/idx/cotality-telemetry.ts` | — | — | idx/fetch | CONSUMER | fold in | — |
+| B14 | `lib/idx/media-pagination.ts` | — | — | idx/fetch | **SPECIALIZED — keep** | — | — |
+| B15 | `lib/search/canonical/live-truth.ts` | **Lookup** | — | OWN | **DUPLICATE vocabulary reader** | `lib/cotality/live-contract.ts` | two readers cannot coexist |
+| B16 | `lib/search/canonical/field-registry.ts` | OpenHouse | — | OWN | DUPLICATE field registry | same | same |
+| B17 | `lib/market-report/generator.ts` | — | — | idx/fetch | **OBSOLETE — type filters not live** | delete | filters cannot return |
+| B18 | `lib/listings/mallan-form-contract.ts` | — | — | OWN | **MALLAN** form contract | keep | — |
+
+### 6.2 SHARED — actionable only with public non-regression proof
+
+| # | Path | Resource | Query | Class |
+|---|---|---|---|---|
+| S1 | `app/api/media/batch/route.ts` | Media | OWN | CONSUMER |
+| S2 | `lib/open-houses/upcoming-open-houses.ts` | OpenHouse, Property | OWN | SPECIALIZED CONSUMER |
+| S3 | `app/api/open-houses/route.ts` | OpenHouse, Property | idx/fetch | CONSUMER |
+
+### 6.3 PUBLIC — evidence only, DO NOT MUTATE under this backend scope
+
+| # | Path | Resource | Query |
+|---|---|---|---|
+| P1 | `app/api/listings/route.ts` | OpenHouse | idx/fetch |
+| P2 | `app/api/listings/[id]/route.ts` | — | — |
+| P3 | `app/api/listings/similar/route.ts` | Property | idx/fetch |
+| P4 | `app/api/listings/suggest/route.ts` | — | idx/fetch |
+| P5 | `app/api/listings/building/route.ts` | Property | **OWN** |
+| P6 | `app/api/market/route.ts` | Property | **OWN** |
+| P7 | `app/api/agents/[slug]/listings/route.ts` | Media | idx/fetch |
+| P8 | `lib/buildings/public-building-data.ts` | Property | **OWN** — Building is 403 |
+| P9 | `lib/search/public-listing-trestle.ts` | — | idx/fetch |
+
+### 6.4 Authority counts on the lane
+
+| Responsibility | Target | Actual |
+|---|---|---|
+| Cotality OAuth | 1 | **1 ✅** `lib/idx/auth.ts` |
+| Cotality HTTP client | 1 | **3 families** — engine (1), `idx/fetch` (9 consumers), OWN (11) |
+| Query builder | 1 | **3 families**, 11 hand-rolled |
+| Pagination | 1 | 3 — engine `walkProvider`, `media-pagination`, `keyset-cursor` (**two are legitimately distinct**) |
+| Vocabulary reader | 1 | **2** — `cotality/live-contract.ts`, `search/canonical/live-truth.ts` |
+| Provider→Mallan mapper | 1 | **2** — `idx/trestle-mapper.ts`, `search/crm-idx-mapper.ts` (`lib/idx/mapping.ts` already gone) |
+| Backend Search executor | 1 | **1 ✅** `executeSearch()` — but 6 backend routes bypass it |
+
+### 6.5 UNVERIFIED — must not drive any deletion
+
+- Full reader set of `lib/compliance/rls-enforcement.ts`.
+- Whether `compliance.reso` is read by any untyped browser consumer.
+- Whether `PUBLIC_LISTING_GATE` / `PORTAL_LISTING_GATE` are reachable dynamically.
+- Exact resource for B4/B5 (`pitch-packet`, `pdf`) — they authenticate but no `odata/<Resource>`
+  literal was found; they may compose queries indirectly.
