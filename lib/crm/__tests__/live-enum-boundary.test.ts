@@ -18,7 +18,9 @@ const HOSTILE = '__NOT_A_LIVE_MEMBER__';
 
 /** Every live enum field the Mallan storage model persists (the write contract's provider enum surface). */
 function persistedEnumFields(): string[] {
-  return Object.keys(MALLAN_FORM_CONTRACT.persistenceMap).filter((k) => liveEnumMembers(k) !== null);
+  return Object.keys(MALLAN_FORM_CONTRACT.persistenceMap)
+    .filter((k) => !(MALLAN_FORM_CONTRACT.persistenceMap as Record<string, { removed?: boolean }>)[k]?.removed)
+    .filter((k) => liveEnumMembers(k) !== null);
 }
 
 describe('hostile direct provider enum input is refused (the exact review payload)', () => {

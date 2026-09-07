@@ -283,9 +283,15 @@ describe('live-authority binding: constants ⊆ data/cotality-enums.live.json', 
     expect(livePT.has(PROPERTY_TYPE_RENTAL)).toBe(true);
     expect(MLS_STATUS_FILTERABLE).toBe(false);
   });
-  it('Permission / ListingPermission have NO OwnerOptOut member (owner-opt-out fails closed)', () => {
+  it('Permission has NO OwnerOptOut member on ANY resource that publishes it (owner-opt-out fails closed)', () => {
+    // Keyed by FIELD, per RESOURCE — never by $metadata EnumType name. 'ListingPermission' is the TYPE
+    // Property.Permission is declared with; it is not a field and publishes no vocabulary of its own.
+    // Live 2026-09-06: Property.Permission = 18 values, Media.Permission = 7 (different casing), and
+    // neither contains OwnerOptOut. The EnumType named 'Permission' declares 20 and is not the authority.
     expect(LIVE.enums.Permission).not.toContain('OwnerOptOut');
-    expect(LIVE.enums.ListingPermission).not.toContain('OwnerOptOut');
+    expect(LIVE.resources.Media.Permission).not.toContain('OwnerOptOut');
+    expect(LIVE.enums.ListingPermission).toBeUndefined();
+    expect(LIVE.types.Property.Permission.enumType).toBe('ListingPermission');
     const guard = DEAD_OR_INVALID_VALUES.find((d) => d.value === 'OwnerOptOut');
     expect(guard?.keepAsFailClosedGuard).toBe(true);
   });

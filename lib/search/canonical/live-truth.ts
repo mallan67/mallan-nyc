@@ -14,13 +14,13 @@
  */
 
 export const LIVE_AUTHORITY = Object.freeze({
-  /** The generated, verified live mirror of the Cotality $metadata enums. */
+  /** The generated, verified live mirror of the Cotality Lookup vocabularies (per resource + field). */
   path: 'data/cotality-enums.live.json',
   /** Regeneration command — run before freezing any enum-derived constant. */
   regenerate: 'npm run cotality:pull && npm run cotality:verify',
-  source: 'https://api.cotality.com/trestle/odata/$metadata',
+  source: 'https://api.cotality.com/trestle/odata/Lookup',
   /** The pull date recorded in the live file at the time this projection was last verified. */
-  verifiedAgainstPull: '2026-09-05',
+  verifiedAgainstPull: '2026-09-06',
 });
 
 /**
