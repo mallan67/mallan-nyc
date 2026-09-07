@@ -379,7 +379,24 @@ describes the actual layer.
 `commercialOwnership` is **accepted but never read** by the function body. Documented, not
 removed, so the call sites stay untouched by this scoped change.
 
-### 8.4 PROVEN DEFECT — the fail-closed claim does not hold end to end
+### 8.4 RETRACTED — the CREATE enforcement claim was FALSE
+
+**An earlier version of this section (commit 13f14ad1) claimed the CRM CREATE path skips
+mandatory REBNY/UCBA validation. THAT WAS WRONG.** It stopped tracing at
+`validateListing(body)` and never checked what followed.
+
+**Actual CREATE flow (`app/api/crm/listings/route.ts`):**
+1. `classifyRlsEligibility(...)` — `:282`
+2. `if (rlsEligible) { validateListing(body) }` — `:294`
+3. **`assertRlsCompliantPayload(body, {listingType, isNewDevelopment, currentStatus, rlsEligible,
+   mixedUseSmallBuilding})`** — `:311`, **inside the same block**
+4. `if (!enforcement.passed) return 422` — `:318`
+
+**CREATE enforces the mandatory gate.** The missing second argument to `validateListing` proves
+nothing on its own. The test asserting otherwise has been corrected, and CREATE enforcement was
+not weakened. The BUILDING-001 citation correction in 8.4-old stands — that part was right.
+
+### 8.4b THE REAL BOUNDARY — `isCrmCreated` on PATCH and status transition
 
 **Claim in the source:** *"Fail closed: require the agent to provide NumberOfUnitsTotal … the
 field is already required for MixedUse/MultiFamily in rebny-ucba-rules.ts BUILDING-001."*
@@ -424,3 +441,80 @@ idx:validate **1,199 pass, 0 critical**; ucba:audit **0 REGRESSIONS**; rls:valid
 - Whether any consumer reads `RlsEligibilityResult.reason` as a machine value rather than prose.
 - The CREATE/PATCH enforcement gap above (reported, authorization-held).
 - Part 1 display-gate correction remains OPEN.
+
+
+---
+
+## PART 9 — THE `isCrmCreated` COMPLIANCE BOUNDARY (proven, not yet corrected)
+
+### 9.1 The two exemptions
+
+| Route | Guard | Line |
+|---|---|---|
+| CRM PATCH | `if (effectiveRlsEligible && !isDraftLike && !isCrmCreated)` | `crm/listings/[id]/route.ts:193` |
+| Status transition | `if (listing.rls_eligible && !isCrmCreated)` | `crm/listings/[id]/status/route.ts:189` |
+
+`isCrmCreated = !listing.mls_id` in both.
+
+### 9.2 The stated rationale is FALSE against the canonical model
+
+`status/route.ts:184-187` says: *"CRM-created listings (mls_id=null) are Mallan exclusives
+published to mallan.nyc only — **they never go to Trestle**, so skip the 48-field check."*
+
+`lib/listings/mallan-source-identity.ts:16-20` states the canonical model:
+
+> *"Mallan submits its exclusive to REBNY RLS (through the brokerage's REBNY submission channel,
+> OUTSIDE this system), and the listing **returns to Mallan through Cotality as an `RLS*` row**."*
+
+**Mallan-created listings DO reach REBNY RLS.** The premise is obsolete.
+
+### 9.3 ROOT CAUSE — provenance used as a proxy for destination
+
+`mls_id === null` records **where the row was created**. `rls_eligible` records **whether the
+listing is destined for REBNY RLS**. They are different facts.
+
+Both guards already test `rls_eligible` correctly. The `&& !isCrmCreated` term then **overrides**
+that declaration: a listing the classifier declared RLS-eligible has its mandatory-field gate
+skipped purely because Mallan authored it. Note `isMallanExclusiveListing()` uses a *different*
+and correct discriminator — `SL-`/`RL-` prefix **or `rls_eligible === false`**.
+
+### 9.4 Consequences (behaviour traced, not yet corrected)
+
+- **CREATE** enforces (§8.4). So a Mallan listing is compliant *at creation*.
+- **PATCH** skips → a compliant listing **can be edited into an invalid state** and saved.
+- **Status transition** skips → a Draft can reach **Active / ComingSoon without the mandatory
+  set**, because the only other guard is `listing.rls_eligible`.
+- Display consequence: `rls_eligible` is a first-class input to `computeGateColumns`, so a
+  `true` row that reaches Active becomes publicly displayable through the four live readers in
+  Part 1 §1.3.
+
+**Not corrected here.** The fix must preserve Draft editing while blocking display-ready
+transitions — the narrowest candidate is dropping `&& !isCrmCreated` from the status route and
+keeping the `isDraftLike` exemption on PATCH. That is a route change and is authorization-held.
+
+### 9.5 `lib/compliance/rls-enforcement.ts` — corrected
+
+Hard-coded catalogue at `:312-316` verified against the live contract and **replaced with
+`liveEnumMembers("PropertyType")`**:
+
+- contained **`Commercial`**, which is **NOT** a live PropertyType member (it is a live
+  *PropertySubType* — a different field);
+- **omitted 5 live members**: `BusinessOpportunity`, `DisasterReliefRental`, `HighRise`,
+  `ManufacturedInPark`, `Specialty` — so a legitimate listing carrying any of them was warned
+  "non-standard".
+
+`ucbaRef: "RESO Data Dictionary"` → `"Cotality live contract — Property.PropertyType"`. The
+module header no longer says "RESO = vocabulary only". If the live contract is unavailable the
+branch now warns **nothing** rather than guessing a vocabulary.
+
+**UNVERIFIED / untouched in this file:** `TERMINAL_STATUSES = new Set(["Closed"])` at `:222` —
+one member only, so `Expired` / `Withdrawn` / `Canceled` pass its check. Belongs to the Part 1
+terminal-status reconciliation, not to this scope.
+
+### 9.6 EVIDENCE LOST — must not be forgotten
+
+`lib/compliance/__tests__/display-gate-status-allowlist.test.ts` (untracked agent artifact,
+3 failing tests documenting the Part 1 gate defect) **no longer exists on disk**. Suites are
+green because the test is gone, **NOT** because the defect was fixed. Part 1 remains OPEN and
+now has no test pinning it. Its content is preserved in
+`docs/operations/evidence-2026-09-07/agent-display-gate-lifecycle-proposal.patch`.

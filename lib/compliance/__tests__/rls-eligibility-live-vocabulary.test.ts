@@ -184,7 +184,7 @@ describe('classification tiers', () => {
 });
 
 // ─── D. the ENFORCEMENT GAP — proven, reported, NOT fixed here ──────────────────────────────
-describe('PROVEN DEFECT — the mixed-use unit-count fail-closed claim does not hold end to end', () => {
+describe('the mixed-use unit-count citation, and where enforcement actually lives', () => {
   it('NumberOfUnitsTotal is mandatory via agentSubmitted, NOT via BUILDING-001', () => {
     const rules = require('@/lib/compliance/rebny-ucba-rules').REBNY_UCBA_RULES;
     expect(rules.requiredFields.agentSubmitted).toContain('NumberOfUnitsTotal');
@@ -202,13 +202,27 @@ describe('PROVEN DEFECT — the mixed-use unit-count fail-closed claim does not 
     expect(SRC).toMatch(/agentSubmitted/);
   });
 
-  it('the CRM CREATE path calls validateListing WITHOUT the rls context, so the required-field gate never runs', () => {
+  // CORRECTED 2026-09-07 after independent review. An earlier version of this test asserted
+  // that CREATE "skips mandatory REBNY/UCBA validation" because validateListing(body) is called
+  // with no ListingContext. That conclusion was FALSE: it stopped tracing at validateListing and
+  // ignored the hard gate immediately after it. CREATE *does* enforce.
+  it('the CRM CREATE path DOES enforce the mandatory gate via assertRlsCompliantPayload', () => {
     const post = readFileSync(join(__dirname, '../../../app/api/crm/listings/route.ts'), 'utf8');
-    // single-argument call — no ListingContext
+    // validateListing is called without a context — that alone proves nothing…
     expect(post).toMatch(/validateListing\(body\)\s*;/);
-    const validator = readFileSync(join(__dirname, '../rebny-validator.ts'), 'utf8');
-    // and the validator only runs the required/conditional gate when a context is supplied
-    expect(validator).toMatch(/if \(rls\) \{[\s\S]{0,200}assertRlsCompliantPayload/);
+    // …because the hard gate runs immediately afterwards, WITH a full ListingContext,
+    // inside the same `if (rlsEligible)` block, and returns 422 when it fails.
+    expect(post).toMatch(/assertRlsCompliantPayload\(body, \{/);
+    expect(post).toMatch(/rlsEligible,[\s\S]{0,120}mixedUseSmallBuilding: eligibility\.mixedUseSmallBuilding/);
+    expect(post).toMatch(/if \(!enforcement\.passed\)[\s\S]{0,300}status: 422/);
+  });
+
+  it('CREATE runs the gate only when the listing is RLS-eligible (website-only is exempt by design)', () => {
+    const post = readFileSync(join(__dirname, '../../../app/api/crm/listings/route.ts'), 'utf8');
+    const gateIdx = post.indexOf('assertRlsCompliantPayload(body, {');
+    const guardIdx = post.indexOf('if (rlsEligible) {');
+    expect(guardIdx).toBeGreaterThan(-1);
+    expect(gateIdx).toBeGreaterThan(guardIdx);
   });
 
   it('the CRM PATCH path skips its enforcement gate for CRM-created listings', () => {

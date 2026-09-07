@@ -9,7 +9,7 @@
  *   COTALITY LIVE CONTRACT (lib/cotality/live-contract.ts) → provider facts (fields, enum members)
  *   REBNY / UCBA (lib/compliance/rebny-ucba-rules.ts)       → compliance / business rules (this gate)
  *   MALLAN (lib/listings/mallan-form-contract.ts)           → form / workflow / storage
- *   RESO = vocabulary only. Fail closed = REJECT.
+ *   Provider vocabulary comes from the live Cotality contract only. Fail closed = REJECT.
  *
  * REBNY CHANGES ADDRESSED:
  *   - DOM reset: 90 → 30 days (UCBA 2026)
@@ -218,6 +218,7 @@ const FREE_SERVICE_PATTERNS = REBNY_UCBA_RULES.contentRules.freeService.map(
 // ─── Status Transition Rules ──────────────────────────────────────────────
 
 import { DOM_RESET_DAYS } from "./dom-tracker";
+import { liveEnumMembers } from "@/lib/cotality/live-contract";
 
 const TERMINAL_STATUSES = new Set(["Closed"]);
 
@@ -304,25 +305,31 @@ export function assertRlsCompliantPayload(
     });
   }
 
-  // PropertyType validation — REBNY RLS only accepts "Residential" or "ResidentialLease".
-  // Website-only listings (commercial, rls_eligible=false) can use any RESO PropertyType.
+  // PropertyType validation.
+  //   RLS submission (MALLAN/REBNY business rule): only "Residential" or "ResidentialLease".
+  //   Website-only (rls_eligible=false): any LIVE Cotality PropertyType member is acceptable.
+  //
+  // CORRECTED 2026-09-07: the website-only branch previously compared against a hard-coded
+  // 9-value catalogue. Verified against the live authorized contract, that list was BOTH wrong
+  // and incomplete: it contained "Commercial", which is NOT a live PropertyType member (it is a
+  // live PropertySubType — a different field), and it omitted 5 live members —
+  // BusinessOpportunity, DisasterReliefRental, HighRise, ManufacturedInPark, Specialty — so a
+  // legitimate listing carrying any of those was warned as "non-standard".
+  // The member list is now read from the live contract; no snapshot catalogue remains.
   const pt = payload.PropertyType as string | undefined;
   if (pt) {
     const RLS_PROPERTY_TYPES = ["Residential", "ResidentialLease"];
-    const RESO_PROPERTY_TYPES = [
-      "Residential", "ResidentialLease", "ResidentialIncome",
-      "Commercial", "CommercialLease", "CommercialSale",
-      "Land", "Farm", "MultiFamily",
-    ];
+    const livePropertyTypes = liveEnumMembers("PropertyType") ?? [];
     if (ctx.rlsEligible === false) {
-      // Website-only: accept any RESO type, warn on unknown
-      if (!RESO_PROPERTY_TYPES.includes(pt)) {
+      // Website-only: accept any LIVE Cotality PropertyType, warn on a non-member.
+      // If the live contract is unavailable, do not warn — never guess a vocabulary.
+      if (livePropertyTypes.length > 0 && !livePropertyTypes.includes(pt)) {
         warnings.push({
           code: "MF-004W",
           severity: "WARNING",
           field: "PropertyType",
-          message: `PropertyType "${pt}" is non-standard. Expected one of: ${RESO_PROPERTY_TYPES.join(", ")}.`,
-          ucbaRef: "RESO Data Dictionary",
+          message: `PropertyType "${pt}" is not a live Cotality PropertyType member. Expected one of: ${livePropertyTypes.join(", ")}.`,
+          ucbaRef: "Cotality live contract — Property.PropertyType",
         });
       }
     } else {
