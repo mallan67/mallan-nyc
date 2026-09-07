@@ -338,3 +338,89 @@ equality — is the correct implementation.** Those 9 rows also correctly fail c
 If `Private` ever appears in the feed, `participant_only` will be written `true` on the next sync
 through `mapTrestleToPrisma`. A stored-row reconciliation for pre-existing rows remains
 **authorization-held** and is not triggered by this census, which found nothing to reconcile.
+
+
+---
+
+## PART 8 — `lib/compliance/rls-eligibility.ts` (scoped closure)
+
+### 8.1 Provider-looking values — every one verified live before retention
+
+| Value | Field tested | Live? | Action |
+|---|---|---|---|
+| `CommercialLease`, `CommercialSale` | PropertyType | **VERIFIED** (13 members) | kept |
+| `Residential`, `ResidentialLease` | PropertyType | **VERIFIED** | kept |
+| **`Commercial`** | PropertyType | **NOT a member** | **branch REMOVED** — it *is* a live `PropertySubType`, a different field |
+| `MixedUse`, `Office`, `Retail` | PropertySubType | **VERIFIED** (76 members) | kept |
+| `Apartment`, `Condominium`, `CoOwnership`, `DeededParking`, `Duplex`, `Loft`, `MultiFamily`, `Quadruplex`, `SingleFamilyResidence`, `Timeshare`, `Townhouse`, `Triplex`, `UnimprovedLand` | PropertySubType | **VERIFIED** | kept |
+| **`Condo`** | PropertySubType | **NOT a member** | **REMOVED.** The Mallan form value `Condo` maps to `PropertySubType: Apartment` + `CommonInterest: Condominium` (`listing-form-mapping.ts:81`), so it never reaches the classifier post-mapping |
+| **`CommunityApartment`** | PropertySubType | **NOT a member** | **REMOVED.** It is a live **`CommonInterest`** member — a field confusion |
+| **`GardenApartment`, `UnitDuplex`, `UnitQuadruplex`, `UnitTriplex`** | PropertySubType | **NOT members** | **REMOVED** — and emitted nowhere in the tree |
+
+**Zero unverified provider-looking classifications remain.**
+
+### 8.2 What reaches the classifier — PROVEN
+
+Both callers reassign `body = applyServerFormMapping(...).body` **before** classifying
+(`app/api/crm/listings/route.ts:272` then `:282`; `[id]/route.ts:142` then `:146`/`:156`), and
+that mapping **refuses unknown values rather than defaulting them**. So the payload carries
+**post-server-mapping live Cotality vocabulary** — not a raw provider record and not the raw
+browser form. The `@param … (RESO field names)` docstring was wrong on both counts and now
+describes the actual layer.
+
+### 8.3 Fact ownership
+
+| Fact | Owner |
+|---|---|
+| `PropertyType`, `PropertySubType`, `NumberOfUnitsTotal` | **COTALITY** (live-verified) |
+| `listings.rls_eligible`, `commercial_sub_type` (`schema.prisma:463`), `commercial_ownership` (`:464`), InHouse listing types | **MALLAN** |
+| 5-unit threshold for professional/retail units in residential property | **REBNY/UCBA Art. I §5(F)** — verified verbatim at `data/UCBA-2026-Requirements.md:57` |
+
+`commercialOwnership` is **accepted but never read** by the function body. Documented, not
+removed, so the call sites stay untouched by this scoped change.
+
+### 8.4 PROVEN DEFECT — the fail-closed claim does not hold end to end
+
+**Claim in the source:** *"Fail closed: require the agent to provide NumberOfUnitsTotal … the
+field is already required for MixedUse/MultiFamily in rebny-ucba-rules.ts BUILDING-001."*
+
+**Both halves fail:**
+
+1. **The citation is FALSE.** BUILDING-001 requires `BuildingAreaTotal`, `TaxAnnualAmount`,
+   `LotSizeArea`, `LotSizeDimensions`. It does **not** require `NumberOfUnitsTotal`. The field
+   *is* mandatory — via `REBNY_UCBA_RULES.requiredFields.agentSubmitted`.
+2. **That mandatory set is never enforced on the CRM write paths for a CRM-created listing.**
+   - `validateListing(listing, rls?)` runs the required/conditional gate **only `if (rls)`**
+     (`rebny-validator.ts:85`).
+   - CRM **CREATE** calls `validateListing(body)` — **no context** (`listings/route.ts:294`).
+   - CRM **PATCH** calls `validateListing(merged)` — **no context** (`[id]/route.ts:240`) — and
+     its separate `assertRlsCompliantPayload` gate is skipped when `isCrmCreated`
+     (`!listing.mls_id`, `[id]/route.ts:193-194`).
+   - Only `crm/listings/[id]/validate` and `crm/compliance/audit` pass the context.
+
+**Consequence:** a CRM-created mixed-use listing with no `NumberOfUnitsTotal` classifies
+`rlsEligible = true` / `mixedUseSmallBuilding = true` and persists with `rls_eligible = true` and
+an unknown unit count. Because `rls_eligible` is a first-class input to `computeGateColumns`,
+`true` is the **more permissive** display outcome. The intent was fail-closed; the effect is
+fail-open for a building that may exceed the §5(F) 5-unit threshold.
+
+**NOT FIXED HERE — out of this file's scope.** The correction belongs in the CRM write paths
+(supplying the `rls` context, or narrowing `isCrmCreated`), which this task explicitly excluded.
+Reported for authorization.
+
+### 8.5 Files changed / proof
+
+Changed: `lib/compliance/rls-eligibility.ts`; added
+`lib/compliance/__tests__/rls-eligibility-live-vocabulary.test.ts` (41 tests).
+
+Proof: new suite **41/41**; downstream `lib/compliance` + `lib/crm` + `lib/listings` +
+crm-patch-rls-gate **614 passed / 3 failed** (the 3 are the pre-existing untracked Part 1
+`display-gate-status-allowlist.test.ts`); `tsc --noEmit` clean; compliance-check **95/0**;
+idx:validate **1,199 pass, 0 critical**; ucba:audit **0 REGRESSIONS**; rls:validate unchanged at
+**12 pre-existing errors** (the held CRM form-vocabulary defects).
+
+### 8.6 UNVERIFIED / still open
+
+- Whether any consumer reads `RlsEligibilityResult.reason` as a machine value rather than prose.
+- The CREATE/PATCH enforcement gap above (reported, authorization-held).
+- Part 1 display-gate correction remains OPEN.
