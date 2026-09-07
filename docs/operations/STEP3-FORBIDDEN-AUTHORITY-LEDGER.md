@@ -736,3 +736,80 @@ website-only listing — precisely the inventory being published independently t
 **No refactor, rename or deletion proposed.** Per the owner document none is authorized until the
 four audits — Search contract, identity/source authority, distribution/compliance, consumer
 convergence — converge into one impact graph.
+
+---
+
+## PART 13 — VISIBILITY SEMANTICS OF OWNER OPT-OUT AND PARTICIPANT-ONLY
+
+**Owner ruling 2026-09-07:** *owner opt-out means it cannot be publicly displayed, but can be
+shared privately and with other REBNY members; in Cotality API terms it is participants-only.*
+
+### 13.1 The canonical model
+
+```
+owner_opt_out = true          (Mallan / owner instruction)
+Permission contains 'Private'  (Cotality provider fact)
+        |
+        +-- PUBLIC display .................... BLOCKED
+        +-- REBNY member / authenticated agent  VISIBLE
+        +-- private sharing ................... PERMITTED
+```
+
+**Two distinct FACTS with the same VISIBILITY outcome.** They are not conflated as facts — a
+provider fact and an owner instruction have different sources, different writers and different
+authority — but both resolve to *not public, visible to members*. Neither means "globally
+inaccessible".
+
+### 13.2 RETRACTION — §10.5 was WRONG
+
+§10.5 recorded: *"Mallan display-gate columns are never applied in backend search —
+`listings.owner_opt_out` and `participant_only` are not read by `lib/search/engine/**` …
+**Compliance exposure — needs a decision.**"*
+
+**That is retracted. It is CORRECT behaviour.** Verified: `grep owner_opt_out|participant_only
+lib/search/engine/` returns nothing. The authenticated agent surface **is** the REBNY-member
+context, so those listings must remain visible there. Blocking them would be the defect.
+
+### 13.3 NEW FINDING — backend agent Search over-blocks `Private` (LATENT)
+
+`lib/search/engine/hydrate.ts:84`:
+
+```ts
+function passesGate(raw) {
+  return derivePermissionGates(raw).idxPermitted !== false
+      && raw.InternetEntireListingDisplayYN !== false;
+}
+```
+
+`derivePermissionGates` computes `idxPermitted = tokens.every(t => t === 'IDX')`, so a
+`Permission = 'Private'` row yields `idxPermitted === false` and `passesGate` returns **false** —
+the row is **excluded from backend agent Search**.
+
+Per the ruling, a participant-only listing **should be VISIBLE** to an authenticated REBNY member.
+The backend gate is therefore **over-restrictive** for exactly the population the member context
+exists to serve.
+
+**Status: LATENT, not active.** Live `Permission` is `'IDX'` on every sampled row (4,000/4,000
+live; stored corpus holds only `IDX`, `IDX,OfficeInactive`, `IDX,SyndicateOptOut`), so **zero
+`Private` rows exist today**. The defect activates the moment the feed carries one.
+
+### 13.4 The public path is the mirror image — and is genuinely wrong today
+
+Part 12 proved `filterDisplayableDbListings` (`db-to-public-dto.ts:319`) early-returns `true` for
+`rls_eligible === false`, **bypassing the owner-opt-out gate**. Under this ruling that is
+unambiguously a defect: owner opt-out blocks **public** display regardless of whether the listing
+is on RLS. Also latent — `owner_opt_out = true` appears on **0** rows.
+
+### 13.5 The corrected requirement, both directions
+
+| Surface | `owner_opt_out` / `participant_only` | Current behaviour | Verdict |
+|---|---|---|---|
+| **Public** (`filterDisplayableDbListings`, public DTO) | must BLOCK | blocks — **except** the `rls_eligible === false` early return bypasses it | **DEFECT** (Part 12) |
+| **Backend agent Search** (`engine/hydrate.ts`) | must SHOW | does not read the Mallan columns — correct; **but `passesGate` excludes provider `Private`** | **DEFECT** (13.3) |
+| Private sharing / member distribution | must PERMIT | UNVERIFIED — the sharing surfaces (`listing-sends`, campaigns, portals) have not been traced against this rule | **UNVERIFIED** |
+
+Both defects are **latent** on today's data and both are **two-sided**: a naive fix to either
+surface in isolation risks over-blocking members or under-blocking the public. They must be
+corrected together, against this single visibility model.
+
+**Nothing changed.** No refactor is authorized until the four audits converge.
