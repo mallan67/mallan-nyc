@@ -983,7 +983,7 @@ describe('mapTrestleToPrisma — writer-side gate coercion', () => {
       expect(mapped.idx_display_yn).toBe(false);
     });
 
-    it('idx_display_yn is false when Permission is Private (a non-IDX provider token) — even with null entire/address; participant_only is NOT derived', () => {
+    it('idx_display_yn is false when Permission is Private (a non-IDX provider token) — even with null entire/address; participant_only IS derived (owner ruling 2026-09-07)', () => {
       const mapped = mapTrestleToPrisma(
         buildRawTrestle({
           InternetEntireListingDisplayYN: null,
@@ -992,7 +992,7 @@ describe('mapTrestleToPrisma — writer-side gate coercion', () => {
         })
       );
       expect(mapped.idx_display_yn).toBe(false);
-      expect(mapped.participant_only).toBe(false);
+      expect(mapped.participant_only).toBe(true);
       expect(mapped.owner_opt_out).toBe(false);
     });
 

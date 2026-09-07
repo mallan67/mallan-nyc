@@ -162,7 +162,7 @@ describe('C2 — permission overrides still force idx_display_yn=false', () => {
   });
 
   it.each(['Active', 'ComingSoon', 'ActiveUnderContract'])(
-    '%s + Permission=Private (a non-IDX provider token) → false; participant_only is NOT derived',
+    '%s + Permission=Private (a non-IDX provider token) → false; participant_only IS derived (owner ruling 2026-09-07)',
     (status) => {
       const raw = buildRaw({
         StandardStatus: status,
@@ -171,7 +171,7 @@ describe('C2 — permission overrides still force idx_display_yn=false', () => {
       });
       const mapped = mapTrestleToPrisma(raw);
       expect(mapped.idx_display_yn).toBe(false);
-      expect(mapped.participant_only).toBe(false);
+      expect(mapped.participant_only).toBe(true);
       expect(mapped.owner_opt_out).toBe(false);
     },
   );

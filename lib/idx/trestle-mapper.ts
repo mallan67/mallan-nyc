@@ -763,6 +763,19 @@ export interface PermissionGates {
    * every row — 0 null / 591,536 — so an absent value is a record shape, never a permission, and has no effect).
    */
   idxPermitted: boolean | null;
+  /**
+   * REBNY participants-only. Owner ruling 2026-09-07: `Property.Permission = 'Private'` has a
+   * DEFINED Mallan compliance interpretation — REBNY members/participants only — and it sets the
+   * canonical `participant_only` decision consumed by the distribution/display gates.
+   *
+   * `Permission` is a Multi-Enum (`ListingPermission`, `NumOccurrences = 20`), so this is TOKEN
+   * MEMBERSHIP, never string equality: `'IDX,Private'` is participant-only just as `'Private'` is.
+   *
+   * This is NOT owner-opt-out and must never be conflated with it. `OwnerOptOut` is not a
+   * published `ListingPermission` member (18 live members, verified 2026-09-07), so owner opt-out
+   * remains a Mallan-side decision only (`_mallanPermission`, `listings.owner_opt_out`).
+   */
+  participantOnly: boolean;
 }
 
 /**
@@ -793,16 +806,29 @@ export interface PermissionGates {
  * @param raw Cotality Property record — reads `Permission` only. Any other key is ignored.
  */
 export function derivePermissionGates(raw: Record<string, unknown>): PermissionGates {
-  // Property.Permission is a live Multi-Enum (ListingPermission; 20 members on the dated pull incl. IDX, Idx,
-  // Private, Public, Vow, AgentOnly, OfficeOnly, SyndicateOptOut …). No authorized Cotality / RLS feed contract
-  // in this repository proves that any member equals a Mallan business decision: 'Private' is NOT read as
-  // participant-only, and there is no 'OwnerOptOut' member (nor an MlsStatus sentinel) — those were REBNY
-  // submission-side descriptions, never provider semantics. The only verified fact is what the authorized
-  // IDX Plus feed serves: Permission 'IDX' on every live row. So the provider fact is parsed as tokens and
-  // display is permitted only when every token is that served permission; anything else fails closed.
+  // Property.Permission is a live Multi-Enum (ListingPermission; 18 published members verified
+  // 2026-09-07 against the live Lookup, NumOccurrences = 20). The authorized IDX Plus feed serves
+  // 'IDX' on every live row.
+  //
+  // TWO interpretations, and only two:
+  //
+  //   1. idxPermitted — display is permitted only when every token is the served 'IDX' permission.
+  //      Anything else fails closed; no other member's display meaning is asserted.
+  //
+  //   2. participantOnly — OWNER RULING 2026-09-07: the 'Private' member has a DEFINED Mallan
+  //      compliance interpretation, REBNY members/participants only, and it sets the canonical
+  //      participant_only decision used by the distribution/display gates. This matches the
+  //      Mallan-side interpreter, which has always read 'Private' the same way
+  //      (lib/compliance/normalizer.ts derivePermissionBooleans: participant_only === 'Private').
+  //      Because Permission is multi-valued this is TOKEN MEMBERSHIP, not equality.
+  //
+  // owner_opt_out is deliberately NOT derived here and must never be conflated with participant_only:
+  // 'OwnerOptOut' is not a published ListingPermission member and MlsStatus carries no such sentinel
+  // (both verified live), so owner opt-out stays a Mallan-side decision only.
   const permissionTokens = enumValueTokens('Permission', raw.Permission);
   const idxPermitted = permissionTokens.length === 0 ? null : permissionTokens.every((t) => t === 'IDX');
-  return { permissions: permissionTokens.join(','), permissionTokens, idxPermitted };
+  const participantOnly = permissionTokens.includes('Private');
+  return { permissions: permissionTokens.join(','), permissionTokens, idxPermitted, participantOnly };
 }
 
 /**
@@ -1013,12 +1039,19 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
   // MLS, or another non-REBNY MLS (per the parked external-inventory spec
   // Phase 2-A), the policy layer will be different and this null-handling
   // logic must be re-evaluated for that feed independently.
-  // Provider rows carry NO Mallan decision: owner_opt_out / participant_only are Mallan / REBNY-UCBA business
-  // facts (`_mallanPermission`) and are never derived from the provider's Permission (no authorized contract
-  // proves such a mapping). The provider fact itself gates display through `providerIdxPermitted`
-  // (a non-IDX token blocks; an absent fact has no effect — see derivePermissionGates).
+  // participant_only IS derived from the provider fact. Owner ruling 2026-09-07:
+  // Property.Permission = 'Private' means REBNY members/participants only and sets the canonical
+  // participant_only decision. Previously this line hardcoded `false`, which contradicted the
+  // Mallan-side interpreter (lib/compliance/normalizer.ts derivePermissionBooleans) that has
+  // always read 'Private' as participant_only. Both sides now agree, through the ONE canonical
+  // Permission interpreter (derivePermissionGates).
+  //
+  // owner_opt_out remains hardcoded false for provider rows and must NOT be conflated with
+  // participant_only: 'OwnerOptOut' is not a published ListingPermission member (18 live members)
+  // and MlsStatus carries no such sentinel, so no provider fact can express it. Owner opt-out is a
+  // Mallan decision only, written from the CRM forms via `_mallanPermission`.
   const providerPermission = derivePermissionGates(raw);
-  const participantOnly = false;
+  const participantOnly = providerPermission.participantOnly;
   const ownerOptOut = false;
   // Phase A (2026-05-20) — delegate the 5-column gate computation to the
   // canonical `computeGateColumns` helper above. Was an inline calculation;

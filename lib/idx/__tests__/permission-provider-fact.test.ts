@@ -24,8 +24,13 @@ import { join } from 'path';
 const ROOT = join(__dirname, '../../..');
 
 describe('derivePermissionGates — tokenized provider fact with one interpretation', () => {
-  it("'IDX' (the served permission) → permitted", () => {
-    expect(derivePermissionGates({ Permission: 'IDX' })).toEqual({ permissions: 'IDX', permissionTokens: ['IDX'], idxPermitted: true });
+  it("'IDX' (the served permission) → permitted, not participant-only", () => {
+    expect(derivePermissionGates({ Permission: 'IDX' })).toEqual({
+      permissions: 'IDX',
+      permissionTokens: ['IDX'],
+      idxPermitted: true,
+      participantOnly: false,
+    });
   });
   it.each(['Private', 'Public', 'Officeidxoptout', 'AgentOnly', 'IDX,Private', 'Owner Opt-Out', 'OwnerOptOut'])(
     '%s → NOT permitted (fail-closed; no member meaning asserted)',
@@ -43,11 +48,102 @@ describe('derivePermissionGates — tokenized provider fact with one interpretat
   it('an absent fact is null — never a decision', () => {
     for (const v of [undefined, null, '']) expect(derivePermissionGates({ Permission: v }).idxPermitted).toBeNull();
   });
-  it('derives NO Mallan decision and ignores MlsStatus and the legacy plural key', () => {
+  it('derives NO owner-opt-out and ignores MlsStatus and the legacy plural key', () => {
     const g = derivePermissionGates({ Permission: 'IDX', MlsStatus: 'OwnerOptOut', Permissions: 'OwnerOptOut' }) as unknown as Record<string, unknown>;
     expect(g.idxPermitted).toBe(true);
-    expect(g).not.toHaveProperty('participantOnly');
+    // participant_only IS a provider-derived decision (owner ruling 2026-09-07) — but not from
+    // MlsStatus and not from the legacy plural key, and this record carries no 'Private' token.
+    expect(g.participantOnly).toBe(false);
+    // owner_opt_out is NEVER derived from the provider: no such published member exists.
     expect(g).not.toHaveProperty('ownerOptOut');
+  });
+});
+
+/**
+ * OWNER RULING 2026-09-07 — Property.Permission = 'Private' means REBNY members/participants only
+ * and sets the canonical participant_only decision. It is NOT owner-opt-out.
+ *
+ * Each verified live ListingPermission value is asserted separately, as required.
+ */
+describe("derivePermissionGates — 'Private' is the canonical participant_only decision", () => {
+  it("'Private' → participantOnly true", () => {
+    expect(derivePermissionGates({ Permission: 'Private' }).participantOnly).toBe(true);
+  });
+
+  it("'IDX' → participantOnly false", () => {
+    expect(derivePermissionGates({ Permission: 'IDX' }).participantOnly).toBe(false);
+  });
+
+  it('an ABSENT Permission → participantOnly false (no provider fact, never a decision)', () => {
+    for (const v of [undefined, null, '']) {
+      const g = derivePermissionGates({ Permission: v });
+      expect(g.participantOnly).toBe(false);
+      expect(g.idxPermitted).toBeNull();
+    }
+  });
+
+  // Multi-Enum: token membership, never equality. 'IDX,Private' IS participant-only.
+  it.each([
+    ['IDX,Private', true],
+    ['IDX, Private', true],
+    ['Private,IDX', true],
+  ])('multi-value %s → participantOnly %s', (value, expected) => {
+    expect(derivePermissionGates({ Permission: value }).participantOnly).toBe(expected);
+  });
+
+  it('array form is handled identically to the comma form', () => {
+    expect(derivePermissionGates({ Permission: ['IDX', 'Private'] }).participantOnly).toBe(true);
+    expect(derivePermissionGates({ Permission: ['IDX'] }).participantOnly).toBe(false);
+  });
+
+  // Every OTHER verified live member asserted separately: none is participant-only.
+  it.each([
+    'Public', 'VOW', 'AgentOnly', 'FirmOnly', 'OfficeOnly', 'SyndicateOptOut',
+    'ComingSoon', 'CompSold', 'History', 'PhotoOptedOut', 'Officeidxoptout',
+    'OfficeInactive', 'OfficeSuspended', 'MemberInactive',
+    'DownPaymentResourceYes', 'DownPaymentResourceNo',
+  ])("live member '%s' → participantOnly false (only 'Private' carries that meaning)", (member) => {
+    expect(derivePermissionGates({ Permission: member }).participantOnly).toBe(false);
+  });
+
+  it("every asserted member above is a real published ListingPermission member", () => {
+    const members = liveEnumMembers('Permission');
+    expect(members).not.toBeNull();
+    for (const m of ['IDX', 'Private', 'Public', 'VOW', 'AgentOnly', 'FirmOnly', 'OfficeOnly',
+      'SyndicateOptOut', 'ComingSoon', 'CompSold', 'History', 'PhotoOptedOut', 'Officeidxoptout',
+      'OfficeInactive', 'OfficeSuspended', 'MemberInactive', 'DownPaymentResourceYes',
+      'DownPaymentResourceNo']) {
+      expect(members).toContain(m);
+    }
+  });
+
+  it('participant_only is NOT owner_opt_out — the two are never conflated', () => {
+    const g = derivePermissionGates({ Permission: 'Private' });
+    expect(g.participantOnly).toBe(true);
+    expect(g).not.toHaveProperty('ownerOptOut');
+    // and no live member expresses owner opt-out at all
+    expect(liveEnumMembers('Permission')).not.toContain('OwnerOptOut');
+  });
+
+  it('mapTrestleToPrisma PERSISTS the participant_only decision (was hardcoded false)', () => {
+    const base = { ListingKey: 'K1', ListingId: 'RLS1', StandardStatus: 'Active', MlsStatus: 'Active', PropertyType: 'Residential', ListPrice: 1, ModificationTimestamp: '2026-09-01T00:00:00Z' };
+    expect(mapTrestleToPrisma({ ...base, Permission: 'Private' } as never).participant_only).toBe(true);
+    expect(mapTrestleToPrisma({ ...base, Permission: 'IDX,Private' } as never).participant_only).toBe(true);
+    expect(mapTrestleToPrisma({ ...base, Permission: 'IDX' } as never).participant_only).toBe(false);
+    expect(mapTrestleToPrisma({ ...base } as never).participant_only).toBe(false);
+  });
+
+  it('a participant-only provider row is NOT publicly displayable', () => {
+    const base = { ListingKey: 'K2', ListingId: 'RLS2', StandardStatus: 'Active', MlsStatus: 'Active', PropertyType: 'Residential', ListPrice: 1, ModificationTimestamp: '2026-09-01T00:00:00Z' };
+    expect(mapTrestleToPrisma({ ...base, Permission: 'Private' } as never).idx_display_yn).toBe(false);
+    expect(mapTrestleToPrisma({ ...base, Permission: 'IDX' } as never).idx_display_yn).toBe(true);
+  });
+
+  it('owner_opt_out stays false on provider rows — no provider fact can express it', () => {
+    const base = { ListingKey: 'K3', ListingId: 'RLS3', StandardStatus: 'Active', MlsStatus: 'Active', PropertyType: 'Residential', ListPrice: 1, ModificationTimestamp: '2026-09-01T00:00:00Z' };
+    for (const p of ['Private', 'IDX', 'Public', undefined]) {
+      expect(mapTrestleToPrisma({ ...base, Permission: p } as never).owner_opt_out).toBe(false);
+    }
   });
   it("the live member list has no 'OwnerOptOut' and 'IDX' is a member (dated pull)", () => {
     const members = liveEnumMembers('Permission');
@@ -66,14 +162,19 @@ describe('every consumer agrees with the one interpretation', () => {
     expect(computeGateColumns({ ...open, providerIdxPermitted: null }).idx_display_yn).toBe(true);
     expect(computeGateColumns({ ...open }).idx_display_yn).toBe(true);
   });
-  it('mapTrestleToPrisma: a non-IDX token blocks display, the Mallan columns stay false', () => {
+  it("mapTrestleToPrisma: 'Private' blocks display AND sets participant_only; owner_opt_out stays false", () => {
+    // UPDATED under the owner ruling 2026-09-07. This case previously asserted
+    // `participant_only === false` for a 'Private' provider row — that was the position
+    // derivePermissionGates took before 'Private' had a defined compliance interpretation.
     const raw = { ...base, ListingId: 'RLS1', ListingKey: 'K1', ListPrice: 1, PropertyType: 'Residential', Permission: 'Private' } as Record<string, unknown>;
     const m = mapTrestleToPrisma(raw);
     expect(m.idx_display_yn).toBe(false);
-    expect(m.participant_only).toBe(false);
-    expect(m.owner_opt_out).toBe(false);
+    expect(m.participant_only).toBe(true);   // REBNY members/participants only
+    expect(m.owner_opt_out).toBe(false);     // never conflated — no provider fact expresses it
     expect(mapTrestleToPrisma({ ...raw, Permission: 'IDX' }).idx_display_yn).toBe(true);
+    expect(mapTrestleToPrisma({ ...raw, Permission: 'IDX' }).participant_only).toBe(false);
     expect(mapTrestleToPrisma({ ...raw, Permission: null }).idx_display_yn).toBe(true);
+    expect(mapTrestleToPrisma({ ...raw, Permission: null }).participant_only).toBe(false);
   });
   it('compliance gates: Gate 0 is the provider fact; Gates 1/2 read the Mallan side only', () => {
     expect(isProviderPermissionPermitted({ Permission: 'IDX' })).toBe(true);
