@@ -599,3 +599,65 @@ to read `liveEnumMembers("PropertyType")`.
 
 **Still UNVERIFIED in that file:** `TERMINAL_STATUSES = new Set(["Closed"])` (`:222`) — one
 member, so `Expired` / `Withdrawn` / `Canceled` pass its check.
+
+
+---
+
+## PART 11 — INDEPENDENT MALLAN PUBLISHING (owner requirement, 2026-09-07)
+
+**Owner statement:** listings currently reach the feed from another system until the feed is
+ready for Mallan exclusives. The requirement is to **add listings and publish them on mallan.nyc
+independently — edit at will, feature them, attach open houses — without waiting for the feed
+round-trip.**
+
+### 11.1 This already works today, for website-only inventory
+
+| Capability | Mechanism | Feed dependency |
+|---|---|---|
+| Mark a listing website-only | listing type `InHouse` / `InHouseInternal` / `InHouseWebOnly` → `explicitOptOut` → `rls_eligible = false` (`crm/listings/route.ts:277`, `[id]/route.ts:150`) | none |
+| Publish / change status freely | all three RLS gates test `rls_eligible` first, so a website-only listing is **skipped** at CREATE (`:311`), PATCH (`:193`) and status (`:189`) | none |
+| Attach open houses | `local-open-house-eligible.ts:31` — a website-only Mallan listing uses a **status-only** displayable check instead of the full `evaluateDisplayGate` | none |
+| Feature on the homepage | `listings.featured` Boolean (`schema.prisma:58`) + `featured_configs` | none |
+| Coexist with the returned feed row | `select-open-houses.ts:7-9` handles the twin case — the same property as a local `SL-…` exclusive AND a returned feed row, matched by address rather than listing id | handled |
+
+**No code change is required to add, edit, feature or attach open houses to a Mallan-authored
+website-only listing.**
+
+### 11.2 The real constraint is UCBA, not the software
+
+`data/UCBA-2026-Requirements.md:51` — **Art. I Sec. 5, Simultaneous Distribution**:
+
+> *"Must disseminate to RLS **simultaneously with ANY public dissemination** or first showing,
+> whichever is earlier."*
+
+So publishing an **RLS-eligible** listing on mallan.nyc *is* public dissemination and triggers the
+simultaneous RLS submission obligation. A genuinely **website-only** listing carries no such
+obligation. The distinction is `rls_eligible`, and it is a REBNY rule — not something the code
+invented and not something the code may waive.
+
+### 11.3 CORRECTION to the Part 9 recommendation
+
+Part 9 proposed dropping `&& !isCrmCreated` from the status route. **That recommendation is
+narrowed and re-sequenced, not adopted as written.**
+
+- Website-only listings are **already** skipped by `rls_eligible === false`, so they would be
+  unaffected. The independent-publishing workflow above does not depend on `isCrmCreated`.
+- Only **RLS-eligible Mallan-authored** listings would newly be gated — which is what UCBA §5
+  requires.
+- **BUT the classifier DEFAULTS to `rls_eligible = true`** in several branches (any residential
+  subtype; `Residential`/`ResidentialLease` PropertyType; and "No PropertyType specified —
+  default RLS-eligible (Draft)"). A listing the owner intends as website-only but has not
+  explicitly marked would therefore be classified RLS-eligible and **blocked from going Active**.
+
+**Required sequencing: make the website-only choice explicit and reliable at intake FIRST, then
+tighten the status gate.** Tightening first would obstruct exactly the independent publishing the
+owner asked to retain. Still authorization-held; nothing changed.
+
+### 11.4 What must be preserved by any future change
+
+1. A Mallan-authored **website-only** listing must remain addable, editable, publishable,
+   featurable and open-house-capable **with no feed dependency and no RLS mandatory gate**.
+2. `rls_eligible` must remain the discriminator — not `mls_id`, not the `SL-`/`RL-` prefix
+   (Part 10).
+3. Any tightening of the status gate must be preceded by an explicit, reliable website-only
+   choice at intake, or it will block legitimate independent publishing.
