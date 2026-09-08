@@ -1,0 +1,24 @@
+{
+  "source": "LIVE_COTALITY",
+  "resource": "Property",
+  "field": "City",
+  "scope": null,
+  "distinct": 1,
+  "values": [
+    "New York City"
+  ],
+  "counts": {
+    "New York City": 591596
+  },
+  "sum_of_counts": 591596,
+  "non_null_total": 591596,
+  "complete": true,
+  "quota": {
+    "minuteLimit": 280,
+    "minuteAvailable": 201,
+    "hourLimit": 8400,
+    "hourAvailable": 8162,
+    "hourResetTime": 1788849395017,
+    "seenAt": 1788846143723
+  }
+}
