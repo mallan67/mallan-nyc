@@ -5,6 +5,7 @@ import {
   isPublicDisplayStatus,
   isTerminalStatus,
   getStatusDisplayLabel,
+  resolveCanonicalStatusForListing,
   getStatusTransitionError,
   buildStatusPayload,
   CRM_WORKFLOW_STATUSES,
@@ -91,6 +92,19 @@ describe('CRM status mapping — two-layer model', () => {
       expect(isTerminalStatus('Withdrawn')).toBe(true);
       expect(isTerminalStatus('Expired')).toBe(true);
       expect(isTerminalStatus('Cancelled')).toBe(true);
+      // Closed is the only terminal status the feed delivers (374,791 closed rentals alone) and Delisted is
+      // the departed-from-feed status — both terminal.
+      expect(isTerminalStatus('Closed')).toBe(true);
+      expect(isTerminalStatus('Delisted')).toBe(true);
+    });
+
+    test('the provider terminal name resolves to the Mallan close by transaction type', () => {
+      expect(resolveCanonicalStatusForListing('Closed', 'sale')).toBe('Sold');
+      expect(resolveCanonicalStatusForListing('Closed', 'rent')).toBe('Rented');
+      expect(resolveCanonicalStatusForListing('Leased', 'rent')).toBe('Rented');
+      expect(resolveCanonicalStatusForListing('Sold', 'sale')).toBe('Sold');
+      expect(resolveCanonicalStatusForListing('OfferAccepted', 'sale')).toBe('ActiveUnderContract');
+      expect(resolveCanonicalStatusForListing('Nonsense', 'sale')).toBeNull();
     });
 
     test('non-terminal statuses', () => {

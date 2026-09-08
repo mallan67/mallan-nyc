@@ -1,7 +1,10 @@
 // GET /api/cron/feed-reconcile
 // Daily cron — feed reconciliation pass.
-// Detects listings marked Active in our DB but no longer in the Trestle Active
-// feed (ghosts), and transitions them to Withdrawn with a full audit trail.
+// Detects listings stored on-market in our DB but no longer live on the Trestle
+// feed (ghosts), looks each one up live by ListingId, and transitions it to its
+// reconciled status with a full audit trail: live Closed → Closed; absent →
+// Delisted (the feed never delivers Withdrawn / Canceled / Expired / Hold, so
+// absence carries no reason — lib/listings/canonical-lifecycle.ts).
 //
 // WHY THIS EXISTS:
 // Incremental sync via ModificationTimestamp > watermark detects CHANGES but
@@ -17,7 +20,7 @@
 // SAFETY:
 //   - GHOST_ABORT_CAP: aborts if delta > 2000 (suggests Trestle fetch failure)
 //   - Per-ghost transaction (one failure doesn't block the rest)
-//   - Idempotent (re-running doesn't re-transition already-Withdrawn listings)
+//   - Idempotent (re-running doesn't re-transition already-Delisted listings)
 //   - Audit event per transition (REBNY RLS data-quality trail)
 //
 // Protected by CRON_SECRET header (Vercel Cron).
@@ -37,6 +40,9 @@ import { feedReconcileAbortEmail } from "@/lib/email/templates";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 import { buildingAndManifestInvalidationTags, listingCacheTag, safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
+import { MALLAN_TERMINAL_STATUSES } from "@/lib/listings/mallan-status";
+import { ON_MARKET_STATUSES, liveTruthFromRow, reconcileStatusDecision } from "@/lib/idx/reconcile-decision";
+import type { CotalityRow } from "@/lib/cotality/contract";
 import {
   upsertListingMedia,
   updateListingMediaSummary,
@@ -84,10 +90,11 @@ const ORPHAN_TIME_BUDGET_MS = 240_000;
 // Batch size for the orphan OData OR-filter. Keeps URLs under 8KB.
 const ORPHAN_FETCH_BATCH = 20;
 
-const TERMINAL_STATUSES = new Set([
-  "Closed", "Sold", "Leased", "Rented",
-  "Withdrawn", "Expired", "Cancelled",
-]);
+// The shared terminal vocabulary (lib/listings/mallan-status.ts) — no private copy of the status set here.
+const TERMINAL_STATUSES = MALLAN_TERMINAL_STATUSES;
+
+/** Batch size for the per-ghost live status lookup (`ListingId in (...)`). Keeps URLs small. */
+const GHOST_LOOKUP_BATCH = 50;
 
 const ACTIVE_SEED_STATUSES = new Set([
   "Active", "ActiveUnderContract", "Pending",
@@ -186,10 +193,12 @@ export async function GET(req: NextRequest) {
     // Full live on-market universe — the authority for "is this listing still live".
     const liveOnMarketIds = new Set<string>([...trestleIds, ...trestleNonActiveEligible]);
 
-    // 2. Our DB Active set + full RLS ID set (both directions of diff)
+    // 2. Our DB on-market set + full RLS ID set (both directions of diff).
+    // Every on-market stored status is a ghost candidate — Pending and ComingSoon listings leave the feed
+    // too (the previous Active-only scan never detected them; whole-corpus census 2026-09-08).
     const ourActive = await prisma.listing.findMany({
       where: {
-        status: "Active",
+        status: { in: [...ON_MARKET_STATUSES] },
         listing_id: { startsWith: "RLS" },
       },
       select: {
@@ -531,17 +540,38 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 5b. Transition each ghost
+    // 5a. Per-ghost live truth. Absence from the on-market ID snapshot is NOT a status: a ghost may be live
+    // as Closed (42 of the 6,962 rows previously mislabelled Withdrawn were), so each ghost is looked up by
+    // ListingId and decided through the direction-agnostic reconciler. A listing the provider does not
+    // return at all is departed → DEPARTED_STATUS (Delisted); the feed never delivers a reason.
+    const liveRowsById = new Map<string, CotalityRow<"Property">>();
+    for (let i = 0; i < ghosts.length; i += GHOST_LOOKUP_BATCH) {
+      const batch = ghosts.slice(i, i + GHOST_LOOKUP_BATCH);
+      const inList = batch.map((g) => `'${g.listing_id.replace(/'/g, "''")}'`).join(",");
+      const lookup = new URLSearchParams({
+        $filter: `ListingId in (${inList})`,
+        $select: "ListingId,StandardStatus",
+        $top: String(batch.length),
+      });
+      const res = await fetch(`${base}/odata/Property?${lookup.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error(`Trestle ghost lookup failed (batch ${i}): ${res.status}`);
+      const page = (await res.json()) as { value?: CotalityRow<"Property">[] };
+      for (const r of page.value ?? []) if (r.ListingId) liveRowsById.set(r.ListingId, r);
+    }
+
+    // 5b. Transition each ghost to its reconciled status
     let updated = 0;
     let errors = 0;
     let projectionFailures = 0;
     for (const g of ghosts) {
+      const decision = reconcileStatusDecision(g.status, liveTruthFromRow(liveRowsById.get(g.listing_id) ?? null));
+      if (decision.action !== "update") continue;
       try {
         await prisma.$transaction([
           prisma.listing.update({
             where: { id: g.id },
             data: {
-              status: "Withdrawn",
+              status: decision.targetStatus,
               status_changed_at: now,
               idx_display_yn: false,
               // TRESTLE CURSOR SAFETY — `modification_timestamp: now` REMOVED
@@ -564,9 +594,10 @@ export async function GET(req: NextRequest) {
               // clocks SPECIFICALLY because modification_timestamp is re-stamped
               // by idx-sync (data-retention/route.ts:270-273). MT keeps its last
               // real Trestle value, which is the honest one.
-              // Archive eligibility clock (#415): ghosts are sourced from status='Active'
-              // (all non-terminal) → Withdrawn is always a real non-terminal→terminal
-              // transition; no stable off-market date for a ghost → wall-clock `now`.
+              // Archive eligibility clock (#415): ghosts are sourced from the on-market stored
+              // statuses (all non-terminal) → the reconciled target (Delisted or a live terminal
+              // status) is always a real non-terminal→terminal transition; the feed delivers no
+              // departure date for a ghost → wall-clock `now`.
               terminal_since: now,
             },
           }),
@@ -579,9 +610,10 @@ export async function GET(req: NextRequest) {
               user_id: null,
               changes: {
                 from_status: g.status,
-                to_status: "Withdrawn",
+                to_status: decision.targetStatus,
                 listing_id: g.listing_id,
-                reason: "Not present in Trestle Active feed at reconcile time",
+                reason: decision.reason,
+                reconcile_class: decision.className,
                 cron_run_at: now.toISOString(),
               },
             },

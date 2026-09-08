@@ -20,13 +20,14 @@ const codeOnly = (src: string) => src.split("\n").filter((l) => !/^\s*(\/\/|\*|\
 const liveFields = () => new Set<string>(JSON.parse(read("data/cotality-property-fields.live.json")).fields);
 const liveEnums = () => JSON.parse(read("data/cotality-enums.live.json")).enums as Record<string, string[]>;
 
-function walk(dir: string, out: string[] = [], skip = new Set(["node_modules", ".next", "dist", ".git", "coverage", "tests", "__tests__"])): string[] {
+function walk(dir: string, out: string[] = [], skip = new Set(["node_modules", ".next", "dist", ".git", "coverage", "tests", "__tests__", "__type-tests__"])): string[] {
   const abs = path.join(ROOT, dir);
   if (!fs.existsSync(abs)) return out;
   for (const ent of fs.readdirSync(abs, { withFileTypes: true })) {
     const rel = path.join(dir, ent.name);
     if (ent.isDirectory()) { if (!skip.has(ent.name)) walk(rel, out, skip); }
-    else if (/\.(ts|tsx|js|mjs|cjs|html)$/.test(ent.name) && !/index-built\.html$/.test(ent.name)) out.push(rel.replace(/\\/g, "/"));
+    // scripts/__* are untracked local probes (.gitignore `scripts/__*`), never repo code.
+    else if (/\.(ts|tsx|js|mjs|cjs|html)$/.test(ent.name) && !/index-built\.html$/.test(ent.name) && !(dir.startsWith("scripts") && ent.name.startsWith("__"))) out.push(rel.replace(/\\/g, "/"));
   }
   return out;
 }

@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 interface PriceEvent {
   date: string;
-  eventType: 'Listed' | 'Price Change' | 'Under Contract' | 'Sold';
+  eventType: 'Listed' | 'Price Change' | 'In Contract' | 'Sold' | 'Rented';
   price: number;
   changeAmount: number | null;
   changePercent: number | null;
@@ -15,7 +15,12 @@ interface PriceHistoryProps {
   originalListPrice: number;
   previousListPrice?: number;
   closePrice: number | null;
+  /** Broker-language label (display only). */
   status: string;
+  /** Lifecycle stage from the canonical lifecycle (drives the events); falls back to the label when absent. */
+  stage?: string;
+  /** PurchaseContractDate — the contract-signed date (present on 100% of Pending sale rows). */
+  purchaseContractDate?: string;
   onMarketDate?: string;
   listingContractDate: string;
   modificationTimestamp: string;
@@ -99,28 +104,30 @@ function buildTimeline(props: PriceHistoryProps): PriceEvent[] {
     }
   }
 
-  // 4. Under Contract
-  if (
-    props.status === 'ActiveUnderContract' ||
-    props.status === 'Pending' ||
-    props.status === 'Closed'
-  ) {
+  // Stage: the canonical lifecycle stage when supplied; otherwise inferred from the broker-language label.
+  const stage = props.stage
+    ?? (props.status === 'In Contract' ? 'in_contract' : props.status === 'Sold' || props.status === 'Rented' || props.status === 'Closed' ? 'closed' : 'active');
+  const isRental = props.listingType === 'rent';
+
+  // 4. In Contract — dated by the contract-signed date (PurchaseContractDate), never by the listing-agreement
+  // date. Without it the event is still shown but dated by the last modification.
+  if (stage === 'in_contract' || stage === 'closed') {
     events.push({
-      date: props.listingContractDate || props.modificationTimestamp,
-      eventType: 'Under Contract',
+      date: props.purchaseContractDate || props.modificationTimestamp,
+      eventType: 'In Contract',
       price: props.listPrice,
       changeAmount: null,
       changePercent: null,
     });
   }
 
-  // 5. Sold
-  if (props.status === 'Closed' && props.closePrice && props.closePrice > 0) {
+  // 5. Sold / Rented — a closed rental is a lease, never a sale.
+  if (stage === 'closed' && props.closePrice && props.closePrice > 0) {
     const changeAmount = props.closePrice - props.listPrice;
     const changePercent = (changeAmount / props.listPrice) * 100;
     events.push({
       date: props.closeDate || props.modificationTimestamp,
-      eventType: 'Sold',
+      eventType: isRental ? 'Rented' : 'Sold',
       price: props.closePrice,
       changeAmount,
       changePercent,
@@ -185,10 +192,10 @@ export default function PriceHistory(props: PriceHistoryProps) {
                   dotColor = 'bg-[#C4A052]';
                   dotBorder = 'border-[#C4A052]/20';
                 }
-              } else if (event.eventType === 'Under Contract') {
+              } else if (event.eventType === 'In Contract') {
                 dotColor = 'bg-purple-500';
                 dotBorder = 'border-purple-200';
-              } else if (event.eventType === 'Sold') {
+              } else if (event.eventType === 'Sold' || event.eventType === 'Rented') {
                 dotColor = 'bg-green-500';
                 dotBorder = 'border-green-200';
               }
@@ -211,8 +218,8 @@ export default function PriceHistory(props: PriceHistoryProps) {
                       {/* Event type badge */}
                       <span className={`inline-flex items-center text-[11px] font-semibold uppercase tracking-wider ${
                         event.eventType === 'Listed' ? 'text-blue-600' :
-                        event.eventType === 'Under Contract' ? 'text-purple-600' :
-                        event.eventType === 'Sold' ? 'text-green-600' :
+                        event.eventType === 'In Contract' ? 'text-purple-600' :
+                        event.eventType === 'Sold' || event.eventType === 'Rented' ? 'text-green-600' :
                         isDecrease ? 'text-red-600' : 'text-[#C4A052]'
                       }`}>
                         {event.eventType}

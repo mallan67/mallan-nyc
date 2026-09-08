@@ -41,7 +41,7 @@ import { resolveVisibility, type Audience, type LifecycleStatus } from '../visib
 const LIVE = require('../../../data/cotality-enums.live.json') as { enums: Record<string, string[]> };
 
 const ALL_STATUSES: LifecycleStatus[] = [
-  'active', 'pending', 'temp_off_market', 'withdrawn', 'canceled', 'expired', 'closed_sold', 'closed_rented', 'unknown',
+  'active', 'in_contract', 'temp_off_market', 'withdrawn', 'canceled', 'expired', 'delisted', 'closed_sold', 'closed_rented', 'unknown',
 ];
 const ALL_SORT_KEYS: SortKey[] = [
   'price_desc', 'price_asc', 'newest', 'largest', 'beds_desc', 'neighborhood', 'new_development', 'exclusives',
@@ -196,7 +196,7 @@ describe('9. public visibility does not suppress private intelligence', () => {
     }
   });
   it('agent retains the full closed/off-market lifecycle that public blocks', () => {
-    for (const s of ['closed_sold', 'closed_rented', 'withdrawn', 'expired', 'canceled', 'temp_off_market'] as LifecycleStatus[]) {
+    for (const s of ['closed_sold', 'closed_rented', 'withdrawn', 'expired', 'canceled', 'temp_off_market', 'delisted'] as LifecycleStatus[]) {
       expect(resolveVisibility({ audience: 'agent', status: s, source: 'mls', transactionType: 'sale', usage: 'comp' }).allowed).toBe(true);
     }
   });

@@ -8,7 +8,9 @@ describe("buildPublicListingDbSearch", () => {
     const { where, orderBy } = buildPublicListingDbSearch(new URLSearchParams("type=sale"));
 
     expect(where).toMatchObject({
-      status: { in: ["Active", "ActiveUnderContract", "ComingSoon"] },
+      // Pending is the feed's in-contract status and is publicly displayable as "In Contract"
+      // (Maya 2026-09-08; lib/compliance/status.ts ACTIVE_DISPLAY_VALUES).
+      status: { in: ["Active", "ActiveUnderContract", "ComingSoon", "Pending"] },
       listing_type: "sale",
       OR: [
         {

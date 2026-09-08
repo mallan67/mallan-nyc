@@ -173,7 +173,7 @@ export const ARCHIVED_SYNC_STATUS = "archived";
  * sitemap bug, app/sitemap.ts:88-92.)
  *
  * Codex #465 round 3 — the NON-unarchive branch must ALSO freeze the display/clock fields:
- * for a non-terminal, non-canonical re-emit (Pending, alias forms, trimmed/cased variants) the
+ * for a non-terminal, non-canonical re-emit (Hold, alias forms, trimmed/cased variants) the
  * mapper can compute a displayable (truthy) idx_display_yn, and the listing DETAIL page gates through
  * isListingDisplayable() rather than the exact search filter — so letting status/idx_display_yn
  * through would render the still-archived, blob-stripped row on a direct listing URL. When the

@@ -140,7 +140,16 @@ export interface PublicListingDTO {
    *  address is suppressed). Built via buildCanonicalListingPath. Consumers
    *  MUST link to this — never `/listing/${slug}`, never `?key=`. (2026-05-28) */
   url: string;
+  /** Broker-language label (Active · Coming Soon · In Contract · Sold · Rented …) — lib/compliance/status.ts. */
   status: string;
+  /** Lifecycle signals from the retained provider evidence (lib/listings/canonical-lifecycle.ts). */
+  lifecycle?: {
+    stage: 'active' | 'coming_soon' | 'in_contract' | 'closed' | 'temp_off_market' | 'withdrawn' | 'cancelled' | 'expired' | 'delisted' | 'draft' | 'unknown';
+    inContractSince: string | null;
+    backOnMarket: boolean;
+    backOnMarketDate: string | null;
+    closedDate: string | null;
+  };
   listingType: 'sale' | 'rent';
   address: {
     streetNumber: string;

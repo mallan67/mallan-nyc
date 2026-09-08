@@ -22,6 +22,7 @@ import { Prisma } from "@prisma/client";
 
 import { AMENITY_FIELD_MAP, type AmenityFilter } from "@/lib/search/types";
 import { isMallanExclusiveListing } from "@/lib/listings/exclusive-agent-assignment";
+import { lifecycleFromStoredRow } from "@/lib/listings/canonical-lifecycle";
 // The canonical all-status fallback policy. Imported rather than reimplemented
 // so the projection cannot hold a second opinion about when the legacy media
 // JSON may still be read — see extractProjectionFeatureFlags.
@@ -406,6 +407,13 @@ export function extractProjectionFeatureFlags(listing: ListingProjectionSource):
     const pets = String(features.PetsAllowed ?? "").toLowerCase();
     flags.is_pet_friendly = !!pets && (!pets.includes("no") || pets.includes("catsok") || pets.includes("dogsok"));
   }
+
+  // Lifecycle signals from the retained provider evidence (lib/listings/canonical-lifecycle.ts): In Contract
+  // = Pending (+ PurchaseContractDate); Back on Market = Active + MajorChangeType BackOnMarket.
+  // Recorded only when true (absence = false), so rows with no signals keep their existing flag shape.
+  const lifecycle = lifecycleFromStoredRow({ status: listing.status, listing_type: listing.listing_type, raw_data: listing.raw_data });
+  if (lifecycle.inContract) flags.in_contract = true;
+  if (lifecycle.backOnMarket) flags.back_on_market = true;
 
   return Object.keys(flags).length > 0 ? flags : null;
 }

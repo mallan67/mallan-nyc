@@ -898,8 +898,9 @@ describe("archived protection", () => {
       status: "Active",
     });
     wireStore(new Map<string, Row>([["RLS100001", archived]]));
-    // A NON-canonical incoming status keeps the row archived (#465 rounds 2/3).
-    wireFeed(new Map([["RLS100001", rawRecord({ StandardStatus: "Pending", ListPrice: 999000 })]]));
+    // A non-displayable incoming status (Hold) keeps the row archived (#465 rounds 2/3);
+    // Pending unarchives since 2026-09-08 (In Contract is publicly displayable).
+    wireFeed(new Map([["RLS100001", rawRecord({ StandardStatus: "Hold", ListPrice: 999000 })]]));
 
     const report = await recoverStalePropertyListings(
       options({ execute: true, confirm: RECOVERY_CONFIRM_TOKEN, total: 1 }),
@@ -1593,10 +1594,11 @@ describe("converged is only meaningful when every candidate was examined", () =>
       status: "Active",
     });
     wireStore(new Map<string, Row>([[ID_A, archived]]));
-    // A NON-canonical incoming status keeps the row archived (#465 rounds 2/3).
+    // A non-displayable incoming status (Hold) keeps the row archived (#465 rounds 2/3);
+    // Pending unarchives since 2026-09-08 (In Contract is publicly displayable).
     wireFeed(
       new Map([
-        [ID_A, rawRecord({ ListingId: ID_A, ListingKey: "KA", StandardStatus: "Pending", ListPrice: 999000 })],
+        [ID_A, rawRecord({ ListingId: ID_A, ListingKey: "KA", StandardStatus: "Hold", ListPrice: 999000 })],
       ]),
     );
 

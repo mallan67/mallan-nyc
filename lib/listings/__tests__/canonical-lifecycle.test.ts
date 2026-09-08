@@ -1,0 +1,139 @@
+/**
+ * CANONICAL LIFECYCLE — the ONE interpretation of the feed's transaction state, pinned to the whole-corpus
+ * census of 2026-09-08 (docs/operations/evidence-2026-09-08/transaction-state/):
+ *   - the entitled feed delivers StandardStatus ∈ {Active, Pending, ComingSoon, Closed} only;
+ *   - "in contract" = StandardStatus Pending (PurchaseContractDate on 100% of Pending sale rows, MajorChangeType
+ *     Pending 5,084 / ActiveUnderContract 35); ActiveUnderContract never arrives as a status;
+ *   - Closed on a rental (ResidentialLease) is a lease, never a sale;
+ *   - Back on Market = MajorChangeType BackOnMarket (+ BackOnMarketDate) while Active;
+ *   - a listing that leaves the feed has NO provider status — Mallan records it as Delisted, never Withdrawn.
+ * Maya (2026-09-08): In Contract listings stay public; a departed listing is not labelled "Withdrawn".
+ */
+import {
+  DELISTED_STATUS,
+  PUBLIC_DISPLAY_STAGES,
+  lifecycleFromProviderRow,
+  lifecycleFromStoredRow,
+  transactionTypeFromProvider,
+} from '../canonical-lifecycle';
+
+describe('transactionTypeFromProvider — PropertyType is the sale/rental fact', () => {
+  it('Residential → sale, ResidentialLease → rental, anything else → null', () => {
+    expect(transactionTypeFromProvider('Residential')).toBe('sale');
+    expect(transactionTypeFromProvider('ResidentialLease')).toBe('rental');
+    expect(transactionTypeFromProvider('CommercialLease')).toBe('rental');
+    expect(transactionTypeFromProvider(null)).toBeNull();
+    expect(transactionTypeFromProvider('Residential Lease')).toBeNull();
+  });
+});
+
+describe('lifecycleFromProviderRow — the proven combinations', () => {
+  it('Pending sale with a PurchaseContractDate is In Contract, public, with the contract date', () => {
+    const l = lifecycleFromProviderRow({ StandardStatus: 'Pending', PropertyType: 'Residential', MajorChangeType: 'Pending', PurchaseContractDate: '2026-09-04', PendingTimestamp: '2026-09-04T00:00:00.000-00:00' })!;
+    expect(l.storageStatus).toBe('Pending');
+    expect(l.stage).toBe('in_contract');
+    expect(l.label).toBe('In Contract');
+    expect(l.transactionType).toBe('sale');
+    expect(l.inContract).toBe(true);
+    expect(l.inContractSince).toBe('2026-09-04');
+    expect(l.publiclyDisplayable).toBe(true);
+    expect(l.backOnMarket).toBe(false);
+  });
+  it('Pending rental is In Contract too (rental applications arrive as Pending)', () => {
+    const l = lifecycleFromProviderRow({ StandardStatus: 'Pending', PropertyType: 'ResidentialLease', PurchaseContractDate: '2026-08-05' })!;
+    expect(l.stage).toBe('in_contract');
+    expect(l.transactionType).toBe('rental');
+    expect(l.label).toBe('In Contract');
+  });
+  it('Pending without a PurchaseContractDate falls back to the PendingTimestamp day, never invents a date', () => {
+    expect(lifecycleFromProviderRow({ StandardStatus: 'Pending', PropertyType: 'Residential', PendingTimestamp: '2026-07-05T00:00:00.000-00:00' })!.inContractSince).toBe('2026-07-05');
+    expect(lifecycleFromProviderRow({ StandardStatus: 'Pending', PropertyType: 'Residential' })!.inContractSince).toBeNull();
+  });
+  it('ActiveUnderContract, if it ever arrives, is In Contract as well (a live member with 0 rows)', () => {
+    const l = lifecycleFromProviderRow({ StandardStatus: 'ActiveUnderContract', PropertyType: 'Residential' })!;
+    expect(l.stage).toBe('in_contract');
+    expect(l.label).toBe('In Contract');
+    expect(l.storageStatus).toBe('ActiveUnderContract');
+  });
+  it('Closed sale is Sold; Closed rental is Rented — never collapsed', () => {
+    const sale = lifecycleFromProviderRow({ StandardStatus: 'Closed', PropertyType: 'Residential', CloseDate: '2026-06-01', OffMarketDate: '2026-06-01' })!;
+    expect(sale.stage).toBe('closed');
+    expect(sale.label).toBe('Sold');
+    expect(sale.closedDate).toBe('2026-06-01');
+    expect(sale.publiclyDisplayable).toBe(false);
+    const rental = lifecycleFromProviderRow({ StandardStatus: 'Closed', PropertyType: 'ResidentialLease', CloseDate: '2026-06-01' })!;
+    expect(rental.stage).toBe('closed');
+    expect(rental.label).toBe('Rented');
+  });
+  it('Active + MajorChangeType BackOnMarket is Active with the Back on Market signal and its date', () => {
+    const l = lifecycleFromProviderRow({ StandardStatus: 'Active', PropertyType: 'Residential', MajorChangeType: 'BackOnMarket', BackOnMarketDate: '2026-04-23' })!;
+    expect(l.stage).toBe('active');
+    expect(l.label).toBe('Active');
+    expect(l.backOnMarket).toBe(true);
+    expect(l.backOnMarketDate).toBe('2026-04-23');
+    expect(l.publiclyDisplayable).toBe(true);
+  });
+  it('Active with a PurchaseContractDate stays Active but carries the accepted-offer signal (172 live rows)', () => {
+    const l = lifecycleFromProviderRow({ StandardStatus: 'Active', PropertyType: 'Residential', PurchaseContractDate: '2026-09-01' })!;
+    expect(l.stage).toBe('active');
+    expect(l.acceptedOfferSignal).toBe(true);
+    expect(l.inContract).toBe(false);
+  });
+  it('ComingSoon is Coming Soon and public', () => {
+    const l = lifecycleFromProviderRow({ StandardStatus: 'ComingSoon', PropertyType: 'Residential', ActivationDate: '2026-09-04' })!;
+    expect(l.stage).toBe('coming_soon');
+    expect(l.label).toBe('Coming Soon');
+    expect(l.publiclyDisplayable).toBe(true);
+  });
+  it('the never-delivered live members still map (Hold, Withdrawn, Canceled, Expired) — storage spelling Cancelled', () => {
+    expect(lifecycleFromProviderRow({ StandardStatus: 'Hold', PropertyType: 'Residential' })!).toMatchObject({ stage: 'temp_off_market', label: 'Temporarily Off Market', storageStatus: 'Hold', publiclyDisplayable: false });
+    expect(lifecycleFromProviderRow({ StandardStatus: 'Withdrawn', PropertyType: 'Residential' })!).toMatchObject({ stage: 'withdrawn', label: 'Withdrawn', storageStatus: 'Withdrawn' });
+    expect(lifecycleFromProviderRow({ StandardStatus: 'Canceled', PropertyType: 'Residential' })!).toMatchObject({ stage: 'cancelled', label: 'Cancelled', storageStatus: 'Cancelled' });
+    expect(lifecycleFromProviderRow({ StandardStatus: 'Expired', PropertyType: 'Residential' })!).toMatchObject({ stage: 'expired', label: 'Expired' });
+  });
+  it('refuses anything that is not a live StandardStatus member (never defaults to Active)', () => {
+    expect(lifecycleFromProviderRow({ StandardStatus: 'Sold', PropertyType: 'Residential' } as never)).toBeNull();
+    expect(lifecycleFromProviderRow({ StandardStatus: 'Off Market', PropertyType: 'Residential' } as never)).toBeNull();
+    expect(lifecycleFromProviderRow({ PropertyType: 'Residential' })).toBeNull();
+  });
+});
+
+describe('lifecycleFromStoredRow — Mallan storage vocabulary, sale/rental aware', () => {
+  it('Delisted is the departed-from-feed status: hidden, labelled Delisted, never Withdrawn', () => {
+    expect(DELISTED_STATUS).toBe('Delisted');
+    const l = lifecycleFromStoredRow({ status: 'Delisted', listing_type: 'rent' });
+    expect(l.stage).toBe('delisted');
+    expect(l.label).toBe('Delisted');
+    expect(l.publiclyDisplayable).toBe(false);
+    expect(l.label).not.toMatch(/withdrawn/i);
+  });
+  it('stored Pending is In Contract and public; stored Closed is Sold or Rented by listing_type', () => {
+    expect(lifecycleFromStoredRow({ status: 'Pending', listing_type: 'sale' })).toMatchObject({ stage: 'in_contract', label: 'In Contract', publiclyDisplayable: true });
+    expect(lifecycleFromStoredRow({ status: 'Closed', listing_type: 'sale' })).toMatchObject({ stage: 'closed', label: 'Sold' });
+    expect(lifecycleFromStoredRow({ status: 'Closed', listing_type: 'rent' })).toMatchObject({ stage: 'closed', label: 'Rented' });
+    expect(lifecycleFromStoredRow({ status: 'Sold', listing_type: 'sale' })).toMatchObject({ stage: 'closed', label: 'Sold' });
+    expect(lifecycleFromStoredRow({ status: 'Rented', listing_type: 'rent' })).toMatchObject({ stage: 'closed', label: 'Rented' });
+    expect(lifecycleFromStoredRow({ status: 'Leased', listing_type: 'rent' })).toMatchObject({ stage: 'closed', label: 'Rented' });
+  });
+  it('reads the retained provider evidence from raw_data (Back on Market, contract date)', () => {
+    const l = lifecycleFromStoredRow({ status: 'Active', listing_type: 'sale', raw_data: { MajorChangeType: 'BackOnMarket', BackOnMarketDate: '2026-04-23' } });
+    expect(l.backOnMarket).toBe(true);
+    expect(l.backOnMarketDate).toBe('2026-04-23');
+    const c = lifecycleFromStoredRow({ status: 'Pending', listing_type: 'sale', raw_data: { PurchaseContractDate: '2026-09-04' } });
+    expect(c.inContractSince).toBe('2026-09-04');
+  });
+  it('Draft / Incomplete are drafts; an unknown value is unknown and hidden', () => {
+    expect(lifecycleFromStoredRow({ status: 'Draft', listing_type: 'sale' })).toMatchObject({ stage: 'draft', publiclyDisplayable: false });
+    expect(lifecycleFromStoredRow({ status: 'Incomplete', listing_type: 'sale' })).toMatchObject({ stage: 'draft' });
+    expect(lifecycleFromStoredRow({ status: 'Off Market', listing_type: 'sale' })).toMatchObject({ stage: 'unknown', publiclyDisplayable: false, label: '' });
+    expect(lifecycleFromStoredRow({ status: '', listing_type: 'sale' })).toMatchObject({ stage: 'unknown' });
+  });
+  it('the public stages are exactly active, coming_soon and in_contract', () => {
+    expect([...PUBLIC_DISPLAY_STAGES].sort()).toEqual(['active', 'coming_soon', 'in_contract']);
+  });
+  it('no label is ever the UCBA §5(D)-prohibited "Off-Market" description (REBNY\'s own "Temporarily Off Market" status name is not that)', () => {
+    for (const status of ['Active', 'ComingSoon', 'Pending', 'ActiveUnderContract', 'Closed', 'Sold', 'Rented', 'Leased', 'Hold', 'Withdrawn', 'Cancelled', 'Expired', 'Delisted', 'Draft']) {
+      for (const lt of ['sale', 'rent'] as const) expect(lifecycleFromStoredRow({ status, listing_type: lt }).label).not.toMatch(/^off[\s-]?market$/i);
+    }
+  });
+});

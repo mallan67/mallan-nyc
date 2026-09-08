@@ -65,7 +65,7 @@ describe('Sale form save/load retention — PR-A/F backend address persistence',
   // ── Test 9: borough/neighborhood DB columns mirror structured address ──
   it('listings.borough column mirrors CityRegion when Borough is absent (PR-A C2)', () => {
     expect(patchBody).toMatch(
-      /if\s*\(\s*body\.Borough\s*!==\s*undefined\s*\)\s*update\.borough\s*=\s*String\(body\.Borough\)\s*;\s*else\s+if\s*\(\s*body\.CityRegion\s*!==\s*undefined\s*\)\s*update\.borough\s*=\s*String\(body\.CityRegion\)/,
+      /if\s*\(\s*body\.Borough\s*!==\s*undefined\s*\)\s*update\.borough\s*=\s*boroughFromCityRegion\(body\.Borough\)\s*\?\?\s*String\(body\.Borough\)\s*;\s*else\s+if\s*\(\s*body\.CityRegion\s*!==\s*undefined\s*\)\s*update\.borough\s*=\s*boroughFromCityRegion\(body\.CityRegion\)\s*\?\?\s*String\(body\.CityRegion\)/,
     );
   });
 

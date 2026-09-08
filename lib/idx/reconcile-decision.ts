@@ -15,6 +15,8 @@
  * (single source of truth) using the returned `targetStatus`.
  */
 import { TERMINAL_STATUSES, normalizeStandardStatus } from '@/lib/idx/trestle-mapper';
+import { DELISTED_STATUS, PUBLIC_DISPLAY_STAGES, lifecycleFromProviderRow } from '@/lib/listings/canonical-lifecycle';
+import type { CotalityRow } from '@/lib/cotality/contract';
 
 /** StandardStatus values that mean a listing is currently on the market. */
 export const ON_MARKET_STATUSES: ReadonlySet<string> = new Set([
@@ -56,8 +58,27 @@ export interface ReconcileDecision {
   reason: string;
 }
 
-/** Local status for "left the licensed live feed entirely" (Cotality has no such StandardStatus). */
-export const DEPARTED_STATUS = 'Withdrawn';
+/**
+ * Mallan status for "left the licensed live feed entirely". The feed never delivers Withdrawn / Canceled /
+ * Expired / Hold (whole-corpus census 2026-09-08), so absence carries NO reason: it is recorded as Delisted,
+ * never as an invented provider status. (Production had 6,962 rows labelled Withdrawn this way; 42 of them
+ * were live Closed.)
+ */
+export const DEPARTED_STATUS: string = DELISTED_STATUS;
+
+/**
+ * Live truth for one listing from the row the provider returned for its ListingId (or null when the
+ * provider returned nothing). The provider row is interpreted ONLY through the canonical lifecycle
+ * (lib/listings/canonical-lifecycle.ts — the boundary module that reads StandardStatus): a publicly
+ * displayable stage (active / coming soon / in contract) is on-market, any other recognised stage is
+ * terminal for reconciliation purposes, and no row (or no recognised status) is absent.
+ */
+export function liveTruthFromRow(row: CotalityRow<'Property'> | null | undefined): LiveTruth {
+  const lifecycle = row ? lifecycleFromProviderRow(row) : null;
+  if (!lifecycle) return { kind: 'absent' };
+  const status = normalizeStandardStatus(lifecycle.storageStatus);
+  return PUBLIC_DISPLAY_STAGES.has(lifecycle.stage) ? { kind: 'onmarket', status } : { kind: 'terminal', status };
+}
 
 /**
  * Decide the correct status for a listing given its stored `status` and its live truth.

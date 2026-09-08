@@ -166,13 +166,37 @@ const PUBLIC_DISPLAY_STATUSES: Set<CanonicalStatus> = new Set([
   'ActiveUnderContract',
 ]);
 
-const TERMINAL_STATUSES: Set<CanonicalStatus> = new Set([
+// Terminal = no further transitions expected. 'Closed' is the only terminal status the provider delivers
+// (374,791 closed rentals alone) and 'Delisted' is the departed-from-feed status; both are terminal even
+// though neither is a CRM canonical form value.
+const TERMINAL_STATUSES: Set<string> = new Set([
   'Sold',
   'Rented',
   'Withdrawn',
   'Expired',
   'Cancelled',
+  'Closed',
+  'Delisted',
 ]);
+
+/**
+ * Resolve a requested status for a specific listing. The provider's terminal name 'Closed' (and the CRM's
+ * legacy 'Leased') carry no sale/rental distinction, so they resolve by the listing's transaction type:
+ * sale → Sold, rent → Rented. Everything else follows the canonical / workflow mapping. Null = unknown.
+ */
+export function resolveCanonicalStatusForListing(requested: unknown, listingType: unknown): CanonicalStatus | null {
+  if (typeof requested !== 'string') return null;
+  const trimmed = requested.trim();
+  if (!trimmed) return null;
+  if (trimmed === 'Closed' || trimmed === 'Leased') {
+    if (listingType === 'rent' || listingType === 'rental' || trimmed === 'Leased') return 'Rented';
+    if (listingType === 'sale') return 'Sold';
+    return null;
+  }
+  if (CANONICAL_SET.has(trimmed)) return trimmed as CanonicalStatus;
+  if (trimmed === 'Incomplete') return 'Draft';
+  return mapCrmStatusToCanonicalStatus(trimmed);
+}
 
 /**
  * Normalize any CRM workflow status input to a known value.
@@ -211,7 +235,7 @@ export function isPublicDisplayStatus(status: string): boolean {
  * Whether a canonical status is terminal (no further transitions expected).
  */
 export function isTerminalStatus(status: string): boolean {
-  return TERMINAL_STATUSES.has(status as CanonicalStatus);
+  return TERMINAL_STATUSES.has(status);
 }
 
 /**

@@ -51,9 +51,10 @@ function buildRaw(overrides: Record<string, unknown>): Record<string, unknown> {
 }
 
 describe('C2 — TERMINAL_STATUSES constant', () => {
-  it('contains exactly the 8 Mallan storage terminal statuses the cron also targets (one definition: lib/listings/mallan-status.ts)', () => {
-    expect(TERMINAL_STATUSES.size).toBe(8);
+  it('contains exactly the 9 Mallan storage terminal statuses the cron also targets (one definition: lib/listings/mallan-status.ts)', () => {
+    expect(TERMINAL_STATUSES.size).toBe(9);
     expect(TERMINAL_STATUSES.has('Delete')).toBe(true); // the live Cotality 'Delete' member, stored as-is
+    expect(TERMINAL_STATUSES.has('Delisted')).toBe(true); // left the entitled feed; never an invented Withdrawn
     expect(TERMINAL_STATUSES.has('Closed')).toBe(true);
     expect(TERMINAL_STATUSES.has('Sold')).toBe(true);
     expect(TERMINAL_STATUSES.has('Leased')).toBe(true);

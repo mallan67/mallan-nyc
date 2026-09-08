@@ -26,6 +26,9 @@
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+// addressIdentityKey resolves the borough through the canonical location interpretation
+// (lib/listings/canonical-location.ts, 2026-09-08); the eval harness injects the real helper.
+import { boroughFromCityRegion } from '../../lib/listings/canonical-location';
 
 const ROUTE = readFileSync(resolve(__dirname, '../../app/api/buildings/search/route.ts'), 'utf8');
 const FORM = readFileSync(resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html'), 'utf8');
@@ -82,8 +85,9 @@ function loadHelpers() {
   );
   // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
   return new Function(
+    'boroughFromCityRegion',
     `${block}; return { SAVED_PROFILE_CONTRACT_TO_FORM, addressIdentityKey, addressOnlyKey, findRegisteredBuilding, promoteIdentity, registerBuilding, extractSavedProfileValues };`,
-  )();
+  )(boroughFromCityRegion);
 }
 const H = loadHelpers();
 

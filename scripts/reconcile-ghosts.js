@@ -2,7 +2,7 @@
 //
 // Feed reconciliation — detects listings marked Active in our DB that are no
 // longer in the Trestle Active feed (ghosts), and transitions them to
-// Withdrawn with a full audit trail.
+// Delisted (left the entitled feed; the provider delivers no status for it) with a full audit trail.
 //
 // WHY:
 // Incremental sync via `ModificationTimestamp > watermark` detects changes but
@@ -17,7 +17,7 @@
 //   2. Query our DB for all Active ListingIds
 //   3. Compute diff: in-our-DB-but-not-in-Trestle = ghosts
 //   4. Skip any ghost whose status is already terminal (defense in depth)
-//   5. Transition ghosts → Withdrawn, status_changed_at=NOW(), idx_display_yn=false
+//   5. Transition ghosts → Delisted, status_changed_at=NOW(), idx_display_yn=false
 //   6. Record each transition in audit_events for compliance trail
 //
 // SAFETY:
@@ -27,7 +27,7 @@
 //   - Only operates on RLS-prefixed listing IDs (Trestle-sourced). Internal
 //     listings (SL-/RL-prefix from agent direct submission) are untouched.
 //   - All transitions logged to audit_events — REBNY RLS requires audit trail.
-//   - Idempotent — running twice is a no-op on already-Withdrawn listings.
+//   - Idempotent — running twice is a no-op on already-Delisted listings.
 //
 // USAGE:
 //   node --env-file=.env.local scripts/reconcile-ghosts.js --verify-only
@@ -61,6 +61,7 @@ const ORPHAN_FETCH_BATCH = 20;
 const TERMINAL_STATUSES = new Set([
   "Closed", "Sold", "Leased", "Rented",
   "Withdrawn", "Expired", "Cancelled",
+  "Delisted", // departed from the licensed feed (lib/listings/canonical-lifecycle.ts)
 ]);
 
 const MODE = process.argv.find((a) => a.startsWith("--")) || "--verify-only";
@@ -185,7 +186,7 @@ async function run() {
   const { byBucket, toTransition } = await summarize(ghosts);
   console.log("\n── Ghosts by bucket ──");
   console.table([byBucket]);
-  console.log(`  → Will transition to Withdrawn: ${toTransition.length}`);
+  console.log(`  → Will transition to Delisted: ${toTransition.length}`);
   console.log(`  → Will fetch + create for orphans: ${orphans.length}`);
 
   // 4. Safety caps — abort if either direction exceeds its cap
@@ -246,11 +247,11 @@ async function run() {
         prisma.listing.update({
           where: { id: g.id },
           data: {
-            status: "Withdrawn",
+            status: "Delisted", // departed listings have no provider status (lib/listings/canonical-lifecycle.ts)
             status_changed_at: now,
             idx_display_yn: false, // belt-and-suspenders — data-retention cron also handles
             modification_timestamp: now,
-            // Archive Eligibility Clock (#415/#446): ghosts are always Active→Withdrawn with
+            // Archive Eligibility Clock (#415/#446): ghosts are always on-market→Delisted with
             // no stable off-market date, so the wall-clock `now` is the correct floor — byte-
             // identical to the wired cron twin (app/api/cron/feed-reconcile/route.ts). This
             // CommonJS runner can't import the .ts helper; `now` matches the helper's terminal
@@ -267,7 +268,7 @@ async function run() {
             user_id: null,
             changes: {
               from_status: g.status,
-              to_status: "Withdrawn",
+              to_status: "Delisted",
               listing_id: g.listing_id,
               reason: "Not present in Trestle Active feed at reconcile time",
               mode: MODE,

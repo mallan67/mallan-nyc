@@ -21,6 +21,7 @@ import { checkFeeDisclosure, isDisplayReadyStatus } from "@/lib/crm/fee-disclosu
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import { listingCapabilities, CAPABILITY_DENIED } from "@/lib/auth/listing-capabilities";
 import { canonicalStatusFromForm } from "@/lib/crm/listing-form-mapping";
+import { resolveCanonicalStatusForListing } from "@/lib/crm/status-mapping";
 
 // REBNY RLS status state machine
 // Valid transitions map: current → allowed next statuses
@@ -95,8 +96,10 @@ export async function PATCH(
   }
 
   // SERVER-OWNED conversion (Packet 2 closure): the client sends the Mallan workflow value
-  // (e.g. "OfferOut") or an already-canonical status; the server maps it. Unknown → 400.
-  const newStatus = canonicalStatusFromForm(requested);
+  // (e.g. "OfferOut") or an already-canonical status; the server maps it. The provider's terminal name
+  // 'Closed' (and legacy 'Leased') resolve by this listing's transaction type: sale → Sold, rent → Rented.
+  // Unknown → 400.
+  const newStatus = resolveCanonicalStatusForListing(requested, listing.listing_type) ?? canonicalStatusFromForm(requested);
   if (!newStatus) {
     return NextResponse.json(
       { error: `Unrecognized status: ${String(requested)}`, code: "form_mapping" },

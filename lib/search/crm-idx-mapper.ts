@@ -168,8 +168,10 @@ export function mapTrestleToCrmListing(
   // through the UCBA-safe map below; unmapped/absent → "UNKNOWN".)
   // Provider status text goes through THE normalizer first (canonical spelling); the map below
   // is Mallan's CRM display vocabulary for that canonical value.
-  // Provider rows: the live StandardStatus (MlsStatus is null on every sampled live row) normalized into
-  // Mallan's storage vocabulary. Mallan rows: their Mallan business status under the Mallan key.
+  // Provider rows: the live StandardStatus normalized into Mallan's storage vocabulary. MlsStatus is
+  // provider-suppressed (null on all 591,597 rows, census 2026-09-08) and can never carry a provider fact;
+  // it is read LAST only for legacy Mallan-authored raw_data written before Packet 2 (7 production rows).
+  // Mallan rows: their Mallan business status under the Mallan key.
   const mlsStatus = normalizeStandardStatus(str(raw._mallanStatus) ?? str(raw.StandardStatus) ?? str(raw.MlsStatus) ?? "");
   const statusMap: Record<string, string> = {
     Active: "ACTIVE",
@@ -191,17 +193,18 @@ export function mapTrestleToCrmListing(
     Rented: "RENTED",
     Leased: "RENTED",
     Delete: "DELETED",
+    // Left the entitled feed (lib/listings/canonical-lifecycle.ts) — never an invented Withdrawn.
+    Delisted: "DELISTED",
     // ── UCBA Art. I §5(D) — "Off-Market" labeling is prohibited.
-    // Some MLS feeds (or stale data sources) may emit "Off Market" /
-    // "Off-Market" / "OffMarket" in MlsStatus. Map all variants to
-    // "WITHDRAWN", the closest UCBA-compliant canonical status.
-    // Without this mapping, the prior `mlsStatus.toUpperCase()`
-    // fallback would produce "OFF MARKET" — a literal violation.
-    "Off Market": "WITHDRAWN",
-    "Off-Market": "WITHDRAWN",
-    OffMarket: "WITHDRAWN",
-    offMarket: "WITHDRAWN",
-    "off market": "WITHDRAWN",
+    // A stale data source may still emit "Off Market" / "Off-Market" / "OffMarket". Those carry no
+    // provider status; they map to the departed-from-feed sentinel, never to a fabricated Withdrawn.
+    // Without this mapping, the prior `mlsStatus.toUpperCase()` fallback would produce "OFF MARKET" — a
+    // literal violation.
+    "Off Market": "DELISTED",
+    "Off-Market": "DELISTED",
+    OffMarket: "DELISTED",
+    offMarket: "DELISTED",
+    "off market": "DELISTED",
   };
   // Unmapped values fall through to "UNKNOWN" — a SAFE default that
   // never accidentally surfaces non-canonical status text in UCBA-

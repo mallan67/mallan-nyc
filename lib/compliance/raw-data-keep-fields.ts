@@ -67,6 +67,22 @@ export const RAW_DATA_KEEP_FIELDS: readonly string[] = [
   'CloseDate',
   'ListingContractDate',
   'ExpirationDate',
+  // Lifecycle evidence (whole-corpus census 2026-09-08, lib/listings/canonical-lifecycle.ts): In Contract is
+  // Pending + PurchaseContractDate (MajorChangeType Pending/ActiveUnderContract); Back on Market is
+  // MajorChangeType BackOnMarket + BackOnMarketDate. These were selected from the feed and then stripped here,
+  // so production carried them on 0 of 26,510 rows and no reader could derive either state.
+  'MajorChangeType',
+  'MajorChangeTimestamp',
+  'PurchaseContractDate',
+  'PendingTimestamp',
+  'ContractStatusChangeDate',
+  'StatusChangeTimestamp',
+  'BackOnMarketDate',
+  'BackOnMarketTimestamp',
+  'OnMarketTimestamp',
+  'OffMarketTimestamp',
+  'OriginalEntryTimestamp',
+  'PriceChangeTimestamp',
 
   // ── Pricing (sale + rental) ────────────────────────────────────────
   // db-to-public-dto.ts pulls these for the public listing detail page,

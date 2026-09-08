@@ -24,7 +24,7 @@
 
 // Mirror of app/api/cron/data-retention/route.ts:22 TERMINAL_STATUSES (kept in sync by test).
 // Mirror of lib/listings/mallan-status.ts MALLAN_TERMINAL_STATUSES (CommonJS copy; kept in sync by tests/runtime/ops-health-archive-backlog.test.ts).
-const ARCHIVE_TERMINAL_STATUSES = ["Closed", "Sold", "Leased", "Rented", "Withdrawn", "Expired", "Cancelled", "Delete"];
+const ARCHIVE_TERMINAL_STATUSES = ["Closed", "Sold", "Leased", "Rented", "Withdrawn", "Expired", "Cancelled", "Delete", "Delisted"];
 
 const ARCHIVE_CUTOFF_DAYS = 180;
 

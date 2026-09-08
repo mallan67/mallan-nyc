@@ -26,6 +26,9 @@ import { COTALITY_STANDARD_STATUS_MEMBERS, isCotalityStandardStatus } from '@/li
 export const MALLAN_STORAGE_STATUSES = Object.freeze([
   'Draft', 'Incomplete', 'ComingSoon', 'Active', 'ActiveUnderContract', 'Pending', 'Hold',
   'Closed', 'Sold', 'Rented', 'Leased', 'Withdrawn', 'Expired', 'Cancelled', 'Delete',
+  // Left the entitled feed; the provider delivers NO status for it (Withdrawn / Canceled / Expired / Hold never
+  // arrive — whole-corpus census 2026-09-08). Recorded as Delisted, never as an invented Withdrawn.
+  'Delisted',
 ] as const);
 export type MallanStorageStatus = typeof MALLAN_STORAGE_STATUSES[number];
 const STORAGE_SET = new Set<string>(MALLAN_STORAGE_STATUSES);
@@ -40,7 +43,7 @@ export const MALLAN_ONLY_STATUSES: readonly string[] = Object.freeze(
 
 /** Terminal (no longer marketed) Mallan storage statuses — the §2.05 / retention set. */
 export const MALLAN_TERMINAL_STATUSES: ReadonlySet<string> = new Set([
-  'Closed', 'Sold', 'Leased', 'Rented', 'Withdrawn', 'Expired', 'Cancelled', 'Delete',
+  'Closed', 'Sold', 'Leased', 'Rented', 'Withdrawn', 'Expired', 'Cancelled', 'Delete', 'Delisted',
 ]);
 /** Publicly marketable Mallan storage statuses. */
 export const MALLAN_ACTIVE_STATUSES: ReadonlySet<string> = new Set(['Active', 'ActiveUnderContract', 'ComingSoon']);

@@ -1,0 +1,19 @@
+{
+  "source": "docs/operations/evidence-2026-09-08/lifecycle/stored-withdrawn-vs-live.json",
+  "generatedAt": "2026-09-08T09:51:35.467Z",
+  "executes": false,
+  "groups": {
+    "rent": {
+      "stored": 1082,
+      "toClosed": 40,
+      "toDelisted": 1042,
+      "otherLive": 0
+    },
+    "sale": {
+      "stored": 5880,
+      "toClosed": 2,
+      "toDelisted": 5878,
+      "otherLive": 0
+    }
+  }
+}

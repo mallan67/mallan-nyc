@@ -90,15 +90,18 @@ describe("S1 — mapper stops writing the redundant compliance copy", () => {
     expect(r.compliance).toEqual({}); // still no compliance copy
   });
 
-  it("a non-IDX provider Permission token still blocks display (independent of compliance JSON) but derives NO Mallan decision", () => {
-    // owner_opt_out / participant_only are Mallan decisions; the provider field only answers whether the
-    // served 'IDX' permission is present (Packet 2, 2026-09-06).
+  it("a non-IDX provider Permission token still blocks display (independent of compliance JSON); owner_opt_out is never derived, Private sets participant_only (owner ruling 2026-09-07)", () => {
+    // owner_opt_out is a Mallan decision the provider field never derives; the provider field answers
+    // whether the served 'IDX' permission is present (Packet 2, 2026-09-06). The 'Private' member has a
+    // DEFINED Mallan meaning — participant-only (owner ruling 2026-09-07, commit 4f742c0e; mapper
+    // deriveProviderPermission).
     const other = mapTrestleToPrisma(buildTrestleRow({ Permission: "Officeidxoptout" }));
     expect(other.idx_display_yn).toBe(false);
     expect(other.owner_opt_out).toBe(false);
+    expect(other.participant_only).toBe(false);
     const priv = mapTrestleToPrisma(buildTrestleRow({ Permission: "Private" }));
     expect(priv.idx_display_yn).toBe(false);
-    expect(priv.participant_only).toBe(false);
+    expect(priv.participant_only).toBe(true);
     expect(priv.compliance).toEqual({});
   });
 });

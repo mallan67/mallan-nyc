@@ -33,8 +33,10 @@ import { DISPLAYABLE_STATUSES } from '@/lib/idx/db-to-public-dto';
 // consolidate. Verified live 2026-06-23: ListOfficeMlsId '7041' = "MAllan Real Estate Inc".
 export const MALLAN_OH_OFFICE_MLS_IDS = ['7041'] as const;
 
-// Open-house-eligible statuses: Active + ActiveUnderContract. ComingSoon is excluded — a Coming Soon
-// listing must have NO public open house (UCBA Art. I §16; the showing write path also rejects it).
+// Open-house-eligible statuses: every publicly displayable status except ComingSoon — Active,
+// ActiveUnderContract and Pending (the feed's in-contract status, shown publicly as "In Contract";
+// Maya 2026-09-08). ComingSoon is excluded — a Coming Soon listing must have NO public open house
+// (UCBA Art. I §16; the showing write path also rejects it).
 export const OPEN_HOUSE_ELIGIBLE_STATUSES = DISPLAYABLE_STATUSES.filter((s) => s !== 'ComingSoon');
 
 /** A LOCAL open house is Mallan's own only when the listing is a website-only Mallan exclusive

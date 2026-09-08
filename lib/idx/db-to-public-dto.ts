@@ -20,6 +20,8 @@ import { resolveMoveInFees } from './public-dto';
 import { mapPropertyTypeToDisplay, buildAuctionPublic } from './public-dto';
 import { publicListOfficeName } from './public-attribution';
 import { locationFromStoredRow } from '@/lib/listings/canonical-location';
+import { lifecycleFromStoredRow } from '@/lib/listings/canonical-lifecycle';
+import { ACTIVE_DISPLAY_VALUES, statusDisplayLabelFor } from '@/lib/compliance/status';
 import { toPublicMediaUrl } from '@/lib/media/proxy-url-policy';
 import { composeDbPublicMedia } from '@/lib/media/db-media-composition';
 import { composeSlugStreetName, buildListingSlugFromDbRow } from '@/lib/listing-slug';
@@ -239,18 +241,12 @@ export interface DbListing {
   _count?: { listing_media?: number } | null;
 }
 
-/** RESO StandardStatus values that are publicly displayable */
-export const DISPLAYABLE_STATUSES = ['Active', 'ComingSoon', 'ActiveUnderContract'];
-
-/** Map RESO StandardStatus to user-friendly display */
-const STATUS_DISPLAY: Record<string, string> = {
-  Active: 'Active',
-  ComingSoon: 'Coming Soon',
-  ActiveUnderContract: 'Active Under Contract',
-  Closed: 'Closed',
-  Sold: 'Sold',
-  Rented: 'Rented',
-};
+/**
+ * Stored statuses that are publicly displayable. Pending is the feed's in-contract status (5,590 live rows,
+ * delivered under Permission IDX) and is shown publicly as "In Contract" (Maya 2026-09-08). Delisted (left the
+ * feed) is never displayable. Mirrors ACTIVE_DISPLAY_VALUES in lib/compliance/status.ts.
+ */
+export const DISPLAYABLE_STATUSES: readonly string[] = [...ACTIVE_DISPLAY_VALUES];
 
 // REMOVED 2026-08-07 — `DB_TRESTLE_PROXY_HOSTS` + `proxyDbMediaUrl`.
 //
@@ -485,7 +481,12 @@ export function dbListingToPublicDTO(
     mlsId: listing.listing_id,
     slug,
     url: buildCanonicalListingPath({ slug, id: listing.listing_id }),
-    status: STATUS_DISPLAY[listing.status] || listing.status,
+    // Broker-language label from the label authority, sale/rental aware (In Contract · Sold · Rented …).
+    status: statusDisplayLabelFor(listing.status, listing.listing_type) || listing.status,
+    lifecycle: (() => {
+      const l = lifecycleFromStoredRow({ status: listing.status, listing_type: listing.listing_type, raw_data: listing.raw_data });
+      return { stage: l.stage, inContractSince: l.inContractSince, backOnMarket: l.backOnMarket, backOnMarketDate: l.backOnMarketDate, closedDate: l.closedDate };
+    })(),
     listingType: listing.listing_type as 'sale' | 'rent',
     address: suppressAddress
       ? {

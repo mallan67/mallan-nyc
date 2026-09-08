@@ -30,6 +30,7 @@ import { r2PublicUrlForKeyRead } from '@/lib/images/r2';
 import { excludeMallanRlsReturnCopies } from '@/lib/listings/mallan-source-identity';
 
 import { isActiveDisplayStatus, Status } from '@/lib/compliance/status';
+import { transactionTypeFromProvider } from '@/lib/listings/canonical-lifecycle';
 import { lookupBBL, fetchAcrisSales, boroughFromPostalCode } from '@/lib/buildings/acris-building-sales';
 import { resolveVisibility } from '@/lib/search/visibility-contract';
 import { cachedPublicRead, buildingCacheTag, BUILDING_MANIFEST_TAG, manifestShardTag } from '@/lib/cache/public-cache';
@@ -929,12 +930,16 @@ async function buildBuildingPayload(
     // legacy space-formatted values. isActiveDisplayStatus accepts both.
     // For closed: only Closed/Sold (buildings history UI shows
     // completed transactions, not withdrawn/expired listings).
+    // StandardStatus is the provider's status fact; MlsStatus is provider-suppressed (null on every row,
+    // census 2026-09-08) and is never read.
     const trestleActive = allTrestleRecords.filter((r) =>
-      isActiveDisplayStatus(r.MlsStatus || r.StandardStatus || '')
+      isActiveDisplayStatus(r.StandardStatus || '')
     );
+    // Sales history = closed SALES only. A Closed ResidentialLease is a lease (lib/listings/canonical-lifecycle.ts),
+    // never a sale, and must not enter the building's sale history.
     const trestleClosed = allTrestleRecords.filter((r) => {
-      const status = String(r.MlsStatus || r.StandardStatus || '');
-      return status === Status.CLOSED || status === Status.SOLD;
+      const status = String(r.StandardStatus || '');
+      return (status === Status.CLOSED || status === Status.SOLD) && transactionTypeFromProvider(r.PropertyType) === 'sale';
     });
 
     // ── 3. Merge active units (Trestle + DB) ──

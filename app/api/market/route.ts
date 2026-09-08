@@ -197,7 +197,9 @@ export async function GET(request: Request) {
 
         // Active listings from Trestle
         const activeParams = new URLSearchParams({
-          $filter: `MlsStatus eq 'Active' and ${propertyClass}${boroughFilter}`,
+          // StandardStatus is the provider status fact; MlsStatus is provider-suppressed and its $filter is
+          // rejected (HTTP 400), which this route previously swallowed as an empty result.
+          $filter: `StandardStatus eq 'Active' and ${propertyClass}${boroughFilter}`,
           $select: selectFields,
           $top: '200',
           $count: 'true',

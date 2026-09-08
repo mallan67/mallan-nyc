@@ -219,14 +219,16 @@ describe("crm idx mapper", () => {
     const offMarketVariants = ["Off Market", "Off-Market", "OffMarket", "off market"];
 
     for (const variant of offMarketVariants) {
-      it(`maps MlsStatus "${variant}" to WITHDRAWN, never to "OFF MARKET"`, () => {
+      // A stale "Off Market" value carries no provider status; it maps to the departed-from-feed sentinel
+      // (DELISTED), never to a fabricated WITHDRAWN and never to the prohibited "OFF MARKET" text.
+      it(`maps MlsStatus "${variant}" to DELISTED, never to "OFF MARKET"`, () => {
         const listing = mapTrestleToCrmListing({
           ListingId: "X",
           MlsStatus: variant,
           InternetEntireListingDisplayYN: true,
           InternetAddressDisplayYN: true,
         }, 0);
-        expect(listing.status).toBe("WITHDRAWN");
+        expect(listing.status).toBe("DELISTED");
         expect(listing.status).not.toBe("OFF MARKET");
         expect(listing.status).not.toMatch(/OFF.MARKET/i);
       });

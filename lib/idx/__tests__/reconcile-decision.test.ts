@@ -6,6 +6,7 @@ import {
   DEPARTED_STATUS,
   type LiveTruth,
   type ReconcileClass,
+  liveTruthFromRow,
 } from '@/lib/idx/reconcile-decision';
 import { normalizeStandardStatus, TERMINAL_STATUSES } from '@/lib/idx/trestle-mapper';
 
@@ -101,8 +102,15 @@ describe('reconcileStatusDecision — EXHAUSTIVE matrix (every dbStatus × liveT
   it('hides the 127 sold-but-shown (Pending → Closed)', () => {
     expect(reconcileStatusDecision('Pending', terminal('Closed'))).toMatchObject({ action: 'update', targetStatus: 'Closed', targetIsTerminal: true, className: 'stale_to_terminal' });
   });
-  it('hides the 218 gone-but-shown (Pending → absent → Withdrawn)', () => {
-    expect(reconcileStatusDecision('Pending', absent)).toMatchObject({ action: 'update', targetStatus: 'Withdrawn', targetIsTerminal: true, className: 'stale_to_departed' });
+  it('hides the 218 gone-but-shown (Pending → absent → Delisted, never the invented Withdrawn)', () => {
+    expect(reconcileStatusDecision('Pending', absent)).toMatchObject({ action: 'update', targetStatus: 'Delisted', targetIsTerminal: true, className: 'stale_to_departed' });
+    expect(reconcileStatusDecision('Active', absent).targetStatus).toBe('Delisted');
+    expect(reconcileStatusDecision('ComingSoon', absent).targetStatus).toBe('Delisted');
+  });
+  it('a Delisted row that reappears live is un-suppressed; one that stays absent is left alone', () => {
+    expect(reconcileStatusDecision('Delisted', onmarket('Active'))).toMatchObject({ action: 'update', targetStatus: 'Active', className: 'mislabel_suppressed' });
+    expect(reconcileStatusDecision('Delisted', terminal('Closed'))).toMatchObject({ action: 'update', targetStatus: 'Closed', className: 'terminal_realign' });
+    expect(reconcileStatusDecision('Delisted', absent)).toMatchObject({ action: 'none', className: 'departed_noop' });
   });
   it('leaves the 4,921 departed alone (Withdrawn + absent)', () => {
     expect(reconcileStatusDecision('Withdrawn', absent)).toMatchObject({ action: 'none', className: 'departed_noop' });
@@ -168,5 +176,29 @@ describe('resolveIdxDisplay — a terminal target is NEVER displayable', () => {
     expect(d.targetIsTerminal).toBe(false);
     expect(resolveIdxDisplay(d, true)).toBe(true);
     expect(resolveIdxDisplay(d, false)).toBe(false);
+  });
+});
+
+describe('liveTruthFromRow — the provider row is read only through the canonical lifecycle', () => {
+  it('no row → absent (departed from the licensed feed)', () => {
+    expect(liveTruthFromRow(null)).toEqual({ kind: 'absent' });
+    expect(liveTruthFromRow(undefined)).toEqual({ kind: 'absent' });
+  });
+  it("Pending is on-market (the feed's in-contract status, publicly displayable as In Contract)", () => {
+    expect(liveTruthFromRow({ StandardStatus: 'Pending' })).toEqual({ kind: 'onmarket', status: 'Pending' });
+  });
+  it('Active / ActiveUnderContract / ComingSoon are on-market', () => {
+    for (const s of ['Active', 'ActiveUnderContract', 'ComingSoon'] as const) {
+      expect(liveTruthFromRow({ StandardStatus: s })).toEqual({ kind: 'onmarket', status: s });
+    }
+  });
+  it('Closed is terminal with the live status kept', () => {
+    expect(liveTruthFromRow({ StandardStatus: 'Closed' })).toEqual({ kind: 'terminal', status: 'Closed' });
+  });
+  it('Hold (temporarily off market) is not on-market for reconciliation', () => {
+    expect(liveTruthFromRow({ StandardStatus: 'Hold' })).toEqual({ kind: 'terminal', status: 'Hold' });
+  });
+  it('a row without a recognised StandardStatus is absent (never an invented status)', () => {
+    expect(liveTruthFromRow({ StandardStatus: null })).toEqual({ kind: 'absent' });
   });
 });

@@ -23,16 +23,20 @@ interface ActiveUnit {
   activationDate?: string | null;
 }
 
+// Labels follow the label authority (lib/compliance/status.ts): the feed's in-contract status is Pending, so it
+// reads "In Contract" (ActiveUnderContract never arrives as a status); Delisted = left the feed.
 const STATUS_LABEL_MAP: Record<string, { label: string; color: string }> = {
   Active: { label: 'Active', color: 'text-blue-600' },
+  ComingSoon: { label: 'Coming Soon', color: 'text-blue-600' },
   ActiveUnderContract: { label: 'In Contract', color: 'text-amber-600' },
-  Pending: { label: 'Pending', color: 'text-amber-600' },
+  Pending: { label: 'In Contract', color: 'text-amber-600' },
   Closed: { label: 'Closed', color: 'text-gray-500' },
+  Delisted: { label: 'Delisted', color: 'text-gray-500' },
   Withdrawn: { label: 'Withdrawn', color: 'text-gray-500' },
   Canceled: { label: 'Cancelled', color: 'text-gray-500' },
   Cancelled: { label: 'Cancelled', color: 'text-gray-500' },
   Expired: { label: 'Expired', color: 'text-gray-500' },
-  Hold: { label: 'On Hold', color: 'text-gray-500' },
+  Hold: { label: 'Temporarily Off Market', color: 'text-gray-500' },
 };
 
 function labelForStatus(raw: string | null | undefined): { label: string; color: string } {

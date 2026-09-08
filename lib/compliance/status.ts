@@ -36,6 +36,8 @@ export const Status = {
   CANCELLED: 'Cancelled',
   CLOSED: 'Closed',
   COMING_SOON: 'ComingSoon',
+  /** Left the entitled feed; the provider delivers no status for it (never an invented Withdrawn). */
+  DELISTED: 'Delisted',
   EXPIRED: 'Expired',
   HOLD: 'Hold',
   LEASED: 'Leased',
@@ -61,6 +63,8 @@ const INPUT_TO_CANONICAL: Record<string, StatusValue> = {
   'Cancelled': Status.CANCELLED,
   'Closed': Status.CLOSED,
   'ComingSoon': Status.COMING_SOON,
+  'Delisted': Status.DELISTED,
+  'DELISTED': Status.DELISTED,
   'Expired': Status.EXPIRED,
   'Hold': Status.HOLD,
   'Leased': Status.LEASED,
@@ -98,16 +102,23 @@ const INPUT_TO_CANONICAL: Record<string, StatusValue> = {
  * Kept separate from the canonical value so the DB stays in RESO format
  * while the UI gets human-friendly text.
  */
+/**
+ * Broker-language labels (Maya, 2026-09-08) on the combinations the whole-corpus census proved
+ * (lib/listings/canonical-lifecycle.ts): the feed's only in-contract status is Pending, so Pending and the
+ * never-delivered ActiveUnderContract both read "In Contract"; Closed is refined to Sold / Rented by
+ * transaction type in `statusDisplayLabelFor`. No label is ever the UCBA Art. I §5(D)-prohibited "Off-Market".
+ */
 const CANONICAL_TO_LABEL: Record<StatusValue, string> = {
   [Status.ACTIVE]: 'Active',
-  [Status.ACTIVE_UNDER_CONTRACT]: 'Under Contract',
+  [Status.ACTIVE_UNDER_CONTRACT]: 'In Contract',
   [Status.CANCELLED]: 'Cancelled',
   [Status.CLOSED]: 'Closed',
   [Status.COMING_SOON]: 'Coming Soon',
+  [Status.DELISTED]: 'Delisted',
   [Status.EXPIRED]: 'Expired',
-  [Status.HOLD]: 'On Hold',
-  [Status.LEASED]: 'Leased',
-  [Status.PENDING]: 'Pending',
+  [Status.HOLD]: 'Temporarily Off Market',
+  [Status.LEASED]: 'Rented',
+  [Status.PENDING]: 'In Contract',
   [Status.RENTED]: 'Rented',
   [Status.SOLD]: 'Sold',
   [Status.WITHDRAWN]: 'Withdrawn',
@@ -116,28 +127,26 @@ const CANONICAL_TO_LABEL: Record<StatusValue, string> = {
 /**
  * Statuses that count as "actively on market" for public search display.
  *
- * Coming Soon is included — it IS displayable (with the REBNY §16(C) badge)
- * even though it's not technically "Active" per RESO. ActiveUnderContract
- * is included because REBNY allows IDX display of listings that have
- * accepted an offer but haven't closed — typically shown with an "Under
- * Contract" badge.
- *
- * Pending is NOT included — listings in signed-contract-pending-closing
- * are usually hidden from public search by convention.
+ * Coming Soon is included — it IS displayable (with the REBNY §16(C) badge). ActiveUnderContract is
+ * included (a live member; 0 rows today). Pending IS included: it is the feed's in-contract status and the
+ * IDX Plus feed delivers it under Permission IDX (5,590 live rows, census 2026-09-08); Maya's decision is that
+ * In Contract listings appear publicly with that label.
  */
 const ACTIVE_DISPLAY_STATUSES = new Set<StatusValue>([
   Status.ACTIVE,
   Status.ACTIVE_UNDER_CONTRACT,
   Status.COMING_SOON,
+  Status.PENDING,
 ]);
 
 /**
  * Statuses that mean "listing is off-market" for REBNY UCBA Art. I §6
- * 24-hour removal enforcement.
+ * 24-hour removal enforcement. Delisted (left the feed) is terminal too.
  */
 const TERMINAL_STATUSES = new Set<StatusValue>([
   Status.CANCELLED,
   Status.CLOSED,
+  Status.DELISTED,
   Status.EXPIRED,
   Status.LEASED,
   Status.RENTED,
@@ -166,6 +175,20 @@ export function statusDisplayLabel(status: unknown): string {
   return canonical ? CANONICAL_TO_LABEL[canonical] : '';
 }
 
+/**
+ * Display label refined by transaction type: a Closed sale reads "Sold", a Closed rental reads "Rented".
+ * Unknown transaction type keeps the neutral "Closed". Unrecognized status → '' (fail-closed).
+ */
+export function statusDisplayLabelFor(status: unknown, listingType: unknown): string {
+  const canonical = normalizeStatus(status);
+  if (!canonical) return '';
+  if (canonical === Status.CLOSED) {
+    if (listingType === 'sale') return 'Sold';
+    if (listingType === 'rent' || listingType === 'rental') return 'Rented';
+  }
+  return CANONICAL_TO_LABEL[canonical];
+}
+
 /** Is this listing currently shown in public search? */
 export function isActiveDisplayStatus(status: unknown): boolean {
   const canonical = normalizeStatus(status);
@@ -188,11 +211,13 @@ export const ACTIVE_DISPLAY_VALUES: readonly StatusValue[] = Object.freeze([
   Status.ACTIVE,
   Status.ACTIVE_UNDER_CONTRACT,
   Status.COMING_SOON,
+  Status.PENDING,
 ]);
 
 export const TERMINAL_VALUES: readonly StatusValue[] = Object.freeze([
   Status.CANCELLED,
   Status.CLOSED,
+  Status.DELISTED,
   Status.EXPIRED,
   Status.LEASED,
   Status.RENTED,

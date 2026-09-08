@@ -38,7 +38,8 @@ const readFile = (p) => {
 };
 
 // Directories to skip during recursive walk
-const SKIP_DIRS = new Set(["node_modules", ".git", ".next", ".vercel", "archive"]);
+// .cache/ is local, git-ignored agent scratch — never shipped, never advertising copy.
+const SKIP_DIRS = new Set(["node_modules", ".git", ".next", ".vercel", "archive", ".cache"]);
 
 const walkFiles = (dir) => {
   const out = [];
@@ -342,6 +343,7 @@ if (prohibitedTerms.length > 0) {
     /\.test\./,
     /\.spec\./,
     /prohibited-terms\.json$/,
+    /^data\/cotality-contract\//,     // live Cotality contract snapshot (enum members + provider descriptions, e.g. NearSchools / SeniorCommunityYN) — provider vocabulary, not Mallan advertising copy; public renderers must not surface those members (Fair Housing display rule)
     /MASTER_REGISTRY\.json$/,          // Cotality/Trestle API field-dictionary / metadata reference — documents fields (e.g. SeniorCommunityYN), not advertising copy
     /compliance\/audit\/route\.ts$/,   // compliance scanner contains patterns to DETECT prohibited terms
     /rls-enforcement\.ts$/,            // RLS enforcement scanner references terms to block them
