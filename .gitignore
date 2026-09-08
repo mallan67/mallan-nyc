@@ -273,6 +273,9 @@ __pw-review*/
 # Local backup/scratch dirs
 /backups/
 
+# Search closure proof bundles: exact-SHA evidence (contract JSON is ~130 MB). Evidence is
+# reproduced by `npm run search:closure`, never committed. (2026-09-08)
+artifacts/search-closure/
 # Gate 3 terminal_since backfill touched-id logs (operational rollback artifacts, not repo history)
 artifacts/gate3-backfill-touched-*.jsonl
 # Gate 6 archive-drain touched-id logs (operational audit artifacts, not repo history)
