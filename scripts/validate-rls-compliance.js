@@ -129,7 +129,8 @@ function walk(dir) { const out = []; for (const n of fs.readdirSync(dir)) { cons
 // ═══════════════════════════════════════════════════════════════════════════
 // ELEMENT RESOLUTION — classify a form control against the canonical universe
 //   0: data-rls-ignore="true" / data-mallan-field   → INTERNAL (Mallan control; its live member, if any, is server-derived)
-//   1: data-rls-field="X"                            → BOUND to X (X must be canonical — Section 3 reports otherwise)
+//   1: data-cotality-field="X" (current name) or data-rls-field="X" (the legacy spelling the held forms still carry)
+//                                                     → BOUND to X (X must be canonical — Section 3 reports otherwise)
 //   2: internal-only id / exact canonical name / alias
 //   3: prefix normalization (sale/rental/bldg/TH …) then 2 again
 //   4: UNKNOWN (hard error)
@@ -138,7 +139,7 @@ const MALLAN_GROUPS = new Set(); // name attributes of radio / checkbox groups w
 function resolveElement(el) {
   const groupName = (el.getAttribute('name') || '').trim();
   if (el.getAttribute('data-rls-ignore') === 'true' || el.getAttribute('data-mallan-field') || (groupName && MALLAN_GROUPS.has(groupName))) { classification.byLayer[0]++; return { internal: true, layer: 0 }; }
-  const rlsAttr = el.getAttribute('data-rls-field');
+  const rlsAttr = el.getAttribute('data-cotality-field') || el.getAttribute('data-rls-field');
   if (rlsAttr) { classification.byLayer[1]++; return { field: rlsAttr, layer: 1 }; }
   const identifier = ((el.getAttribute('id') || '').trim()) || ((el.getAttribute('name') || '').trim());
   if (!identifier) return { internal: true, layer: 0 };
@@ -213,46 +214,47 @@ function passA_Discovery() {
 // ═══════════════════════════════════════════════════════════════════════════
 // SECTION 1: PICKLIST VALUES — every option / checkbox value bound to a live enum field is a live member
 // ═══════════════════════════════════════════════════════════════════════════
-// Section 1 diagnoses THREE different defects that used to share one message ("value X is not a live
-// member"). Re-targeted 2026-09-08 after checking the twelve standing errors against the live API:
+// Section 1 judges every binding by COTALITY AUTHORITY (owner ruling 2026-09-08: Cotality is the current
+// provider; REBNY/RLS is never field, mapping or vocabulary authority). Two verdicts are errors:
 //
-//   DEAD BINDING    the control is bound to a field for which REBNY's system lists NO member (e.g.
-//                   AvailableLeaseType: 23 platform members, 0 RLS-listed, 0 populated live). The control
-//                   is a Mallan concept mis-bound to a provider field. Reported once per (file, field);
-//                   its values are NOT member-checked — those errors would only send the fixer after the
-//                   wrong thing.
-//   SHAPE MISMATCH  a yes/no radio or checkbox bound to a declared MULTI enum (e.g. a "fireplace" Yes/No
-//                   radio on the 300-member InteriorFeatures). A single control cannot express a
-//                   multi-select vocabulary; a Boolean field usually exists (FireplaceYN).
-//   WRONG VALUE     the field is one REBNY uses and the value is simply not a member (e.g. CurrentUse
-//                   "Healthcare"; RLS-listed members include MedicalDental, Office). The RLS-listed
-//                   members are offered so the fix is the right value, not another guess.
+//   SHAPE MISMATCH  a yes/no radio, a bare checkbox, or a checkbox with a yes/no value bound to a declared
+//                   MULTI enum (e.g. a "fireplace" Yes/No radio on the 299-member InteriorFeatures; a bare
+//                   "syndicate" checkbox on the 28-member SyndicateTo). A single control cannot express a
+//                   multi-select vocabulary; a Boolean field usually exists (FireplaceYN) or the concept is a
+//                   Mallan decision that belongs under a Mallan key.
+//   WRONG VALUE     the value is not a live Cotality member of the bound field (e.g. CurrentUse "Healthcare";
+//                   AvailableLeaseType "StabilizedLease" — rent stabilization is a Mallan / NY concept with no
+//                   provider field). The live members are offered so the fix is a real member, not a guess.
 //
-// All three remain ERRORS: the forms are wrong in all three cases. Only the diagnosis changed.
+// One ADVISORY (a warning, never an error): the bound field is an exact current Cotality field whose vocabulary
+// REBNY's system references no member of (Lookup.SystemReferences) and which was populated 0 on the live feed at the
+// pull date (e.g. LivingAreaSource, BusinessType). The binding STANDS — it is a Cotality field — and whether REBNY's
+// input accepts the value is a business question for Maya, not a validator verdict. The former "DEAD BINDING" error
+// treated REBNY's reference list as the field authority; that is exactly what the ruling forbids.
 function validatePicklists(fileElements) {
   console.log('\n  Section 1: Picklist values (live Cotality enums) ...');
   const SKIP_VALUES = new Set(['', 'Select', 'select', '--', 'Choose', 'choose', 'All', 'Any']);
   const YES_NO = new Set(['yes', 'no', 'true', 'false', 'y', 'n', '1', '0', 'on', 'off']);
   const deadReported = new Set();
 
-  function rlsHint(field) {
+  // The live Cotality members of a field (the authority), with REBNY's referenced subset as secondary information.
+  function memberHint(field) {
+    const live = liveEnumMembers(field) || [];
     const rls = liveRlsListedMembers(field);
-    return rls && rls.length ? ` — RLS-listed ${field} members: ${rls.slice(0, 8).join(', ')}${rls.length > 8 ? '…' : ''}` : '';
+    const liveText = live.length ? ` — live Cotality ${field} members: ${live.slice(0, 8).join(', ')}${live.length > 8 ? '…' : ''}` : '';
+    const rlsText = rls && rls.length ? ` (REBNY-referenced: ${rls.slice(0, 6).join(', ')}${rls.length > 6 ? '…' : ''})` : '';
+    return liveText + rlsText;
   }
-  // Returns true (and reports once) when REBNY lists NO member of the bound field's vocabulary.
-  function deadBinding(fname, field, controlLabel) {
+  // ADVISORY (once per file + field): an exact current Cotality field that REBNY's system references no member of.
+  // Never an error — the field exists on the contract, so the binding stands under Cotality authority; the values are
+  // still member-checked below against the LIVE vocabulary.
+  function rebnyReferenceAdvisory(fname, field, controlLabel) {
     const key = `${fname}|${field}`;
-    if (deadReported.has(key)) return true;
+    if (deadReported.has(key)) return;
     const rls = liveRlsListedMembers(field);
-    if (rls === null || rls.length > 0) return false;
+    if (rls === null || rls.length > 0) return;
     deadReported.add(key);
-    // The snapshot knows VOCABULARY (which members REBNY's system lists), not POPULATION. SystemReferences
-    // has been wrong in both directions on this feed (MlsStatus listed + null everywhere; VideosCount
-    // unlisted + populated), so the message states the vocabulary fact and sends the fixer to a live
-    // count before rebinding. Measured 2026-09-08, all four such fields were 0 populated — but that is
-    // evidence for that day, not a rule the validator may assert.
-    error(1, `${fname}: ${controlLabel} is bound to "${field}", which has NO RLS-listed member on the live contract (pull ${liveContract.COTALITY_CONTRACT_PULLED_AT}) — REBNY's system lists none of this field's vocabulary. DEAD BINDING (probable): a Mallan-only concept mis-bound to a provider field. Confirm with a live count (npm run cotality:query -- query --resource=Property --filter="${field} ne null" --count=true --top=0); if 0, bind the control with data-mallan-field and declare it in lib/listings/mallan-form-contract.ts.`);
-    return true;
+    warn(1, `${fname}: ${controlLabel} is bound to "${field}" — an exact current Cotality field (declared, filterable) that REBNY's system references no member of (Lookup.SystemReferences, pull ${liveContract.COTALITY_CONTRACT_PULLED_AT}). The binding stands; whether REBNY's input accepts a value here is a business question, not a validator verdict. Live population: npm run cotality:query -- query --resource=Property --filter="${field} ne null" --count=true --top=0`);
   }
   // For a yes/no control on a Multi enum, name the Boolean field(s) that share the control's stem.
   function booleanCandidates(control) {
@@ -270,13 +272,13 @@ function validatePicklists(fileElements) {
       const r = resolveElementQuiet(sel); if (!r.field) continue;
       const members = liveEnumMembers(r.field); if (!members) continue;
       const label = `<select ${sel.getAttribute('id') ? `id="${sel.getAttribute('id')}"` : `name="${sel.getAttribute('name') || ''}"`}>`;
-      if (deadBinding(fname, r.field, label)) continue;
+      rebnyReferenceAdvisory(fname, r.field, label);
       const set = new Set(members);
       const values = [];
       for (const opt of sel.querySelectorAll('option')) {
         const val = (opt.getAttribute('value') || '').trim();
         if (SKIP_VALUES.has(val)) continue; values.push(val);
-        if (!set.has(val)) error(1, `${fname}: ${label} "${r.field}": value "${val}" is not a live Cotality ${r.field} member (WRONG VALUE)${rlsHint(r.field)}`);
+        if (!set.has(val)) error(1, `${fname}: ${label} "${r.field}": value "${val}" is not a live Cotality ${r.field} member (WRONG VALUE)${memberHint(r.field)}`);
       }
       if (config.category === 'submission') {
         const miss = members.filter((m) => !values.includes(m));
@@ -289,15 +291,23 @@ function validatePicklists(fileElements) {
       const members = liveEnumMembers(r.field); if (!members) continue;
       const type = cb.getAttribute('type');
       const ctl = `${type} ${cb.getAttribute('name') ? `name="${cb.getAttribute('name')}"` : `id="${cb.getAttribute('id') || ''}"`}`;
-      if (deadBinding(fname, r.field, ctl)) continue;
+      rebnyReferenceAdvisory(fname, r.field, ctl);
       const val = (cb.getAttribute('value') || '').trim();
+      const ynControl = /yn$/i.test((cb.getAttribute('name') || cb.getAttribute('id') || '').trim());
+      if (!val && type === 'checkbox' && ynControl && isLiveMultiField(r.field)) {
+        // A bare yes/no checkbox (…YN, value "on") on a multi-select field encodes a Mallan yes/no decision
+        // (e.g. "syndicate this listing"), which cannot be a member of the provider's portal list. A bare checkbox
+        // whose id maps to ONE member (saleBldgElevator → BuildingFeatures) is the ordinary multi-select pattern.
+        error(1, `${fname}: ${ctl} is a yes/no control with no value bound to "${r.field}", a declared MULTI enum (${members.length} members). SHAPE MISMATCH: a yes/no decision cannot express a multi-select vocabulary — declare it under a Mallan key (a Mallan business decision) or bind a member list.`);
+        continue;
+      }
       if (!val || SKIP_VALUES.has(val) || members.includes(val)) continue;
       if (isLiveMultiField(r.field) && YES_NO.has(val.toLowerCase())) {
         const yn = booleanCandidates(cb);
         error(1, `${fname}: ${ctl} value "${val}" is bound to "${r.field}", a declared MULTI enum (${members.length} members). SHAPE MISMATCH: a yes/no control cannot express a multi-select vocabulary${yn.length ? ` — a Boolean field exists on the live contract: ${yn.join(', ')}` : ''}.`);
         continue;
       }
-      error(1, `${fname}: ${ctl} "${r.field}": value "${val}" is not a live Cotality ${r.field} member (WRONG VALUE)${rlsHint(r.field)}`);
+      error(1, `${fname}: ${ctl} "${r.field}": value "${val}" is not a live Cotality ${r.field} member (WRONG VALUE)${memberHint(r.field)}`);
     }
   }
 }

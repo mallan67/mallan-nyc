@@ -58,8 +58,8 @@ export interface SearchFilters {
  * Instead they filter on BuildingFeatures, Appliances, Cooling, View, ExteriorFeatures,
  * ParkingFeatures, LaundryFeatures, PetsAllowed — all confirmed available on IDX Plus feed.
  *
- * Verified against REBNY RLS property-lookup.csv + live Trestle data 2026-03-07.
- * Where RLS and Trestle values differ, both are included for defensive matching.
+ * Every value is a live Cotality Lookup member or a declared text concept (Domain 8, 2026-09-08 —
+ * lib/search/__tests__/amenity-vocabulary.test.ts). The live contract is the only vocabulary authority.
  */
 export type AmenityFilter =
   // Lobby & Services

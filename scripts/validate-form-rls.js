@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 /**
- * validate-form-rls.js
+ * validate-form-rls.js — REBNY submission-form cross-check (CI: npm run validate:form-rls).
  *
- * Cross-validates HTML form elements, collectFormData() mappings,
- * rls-form-bindings.json, and authoritative RLS field/lookup CSVs.
+ * Cross-validates the CRM form HTML against collectFormData() and the LIVE COTALITY CONTRACT
+ * (lib/cotality/live-contract.ts): every bound field must be a live Property field and every picklist value a
+ * live Lookup member. Cotality is the only field / vocabulary authority (owner ruling 2026-09-08); the retired
+ * REBNY CSVs and the CSV-generated rls-form-bindings.json are not read and no longer exist.
  *
- * Usage:  node scripts/validate-form-rls.js
+ * Runs under tsx so the TypeScript contract loads directly:  npm run validate:form-rls
  */
 
 'use strict';
@@ -32,78 +34,26 @@ const SECTION  = (msg) => `\n${BOLD}  ── ${msg} ──${RESET}`;
 const ROOT = path.resolve(__dirname, '..');
 const SALE_HTML   = path.join(ROOT, 'public', 'crm', 'SALE-FORM-REDESIGN.html');
 const RENTAL_HTML = path.join(ROOT, 'public', 'crm', 'RENTAL-FORM-REDESIGN.html');
-const BINDINGS    = path.join(ROOT, 'data', 'rls-form-bindings.json');
-const FIELDS_CSV  = path.join(ROOT, 'data', 'rebny-rls-property-fields.csv');
-const LOOKUP_CSV  = path.join(ROOT, 'data', 'rebny-rls-property-lookup.csv');
+// The live Cotality contract — the only field / vocabulary authority.
+const liveContract = require(path.join(ROOT, 'lib', 'cotality', 'live-contract'));
+// A form control may also bind a declared Mallan-internal key (lib/listings/mallan-form-contract.ts) or a live
+// CustomProperty field (the second Cotality resource the forms collect) — the same three authorities the reporter uses.
+const { MALLAN_INTERNAL_KEYS } = require(path.join(ROOT, 'lib', 'listings', 'mallan-form-contract'));
+const CUSTOM_PROPERTY_FIELDS = new Set(Object.keys(
+    (JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'cotality-contract', 'contract.compact.json'), 'utf8')).resources.CustomProperty || {}).fields || {},
+));
+const INTERNAL_KEYS = new Set(MALLAN_INTERNAL_KEYS);
 
-// ── CSV parser (handles quoted fields with commas and escaped quotes) ──
-function parseCSVLine(line) {
-    const fields = [];
-    let current = '';
-    let inQuotes = false;
-    for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
-        if (inQuotes) {
-            if (ch === '"') {
-                if (i + 1 < line.length && line[i + 1] === '"') {
-                    current += '"';
-                    i++; // skip escaped quote
-                } else {
-                    inQuotes = false;
-                }
-            } else {
-                current += ch;
-            }
-        } else {
-            if (ch === '"') {
-                inQuotes = true;
-            } else if (ch === ',') {
-                fields.push(current);
-                current = '';
-            } else {
-                current += ch;
-            }
-        }
-    }
-    fields.push(current);
-    return fields;
+// ── The live Cotality contract — field existence and vocabularies (lib/cotality/live-contract.ts) ──
+function loadLiveFields() {
+    return liveContract.LIVE_PROPERTY_FIELDS; // Set<string> of live Property field names
 }
-
-// ── Load authoritative RLS fields from CSV ──
-function loadRLSFields() {
-    const content = fs.readFileSync(FIELDS_CSV, 'utf8');
-    const lines = content.split(/\r?\n/).filter(l => l.trim());
-    const fieldNames = new Set();
-    // Skip header (line 0)
-    for (let i = 1; i < lines.length; i++) {
-        const cols = parseCSVLine(lines[i]);
-        // Column 1 = "Attribute Name - Current System", Column 3 = "MatrixFieldName"
-        const attrName = (cols[1] || '').trim();
-        const matrixName = (cols[3] || '').trim();
-        if (matrixName) fieldNames.add(matrixName);
-        if (attrName && attrName !== matrixName) fieldNames.add(attrName);
-    }
-    return fieldNames;
-}
-
-// ── Load RLS lookup values from CSV ──
-// Returns Map: fieldName -> Set of valid values
-function loadRLSLookups() {
-    const content = fs.readFileSync(LOOKUP_CSV, 'utf8');
-    const lines = content.split(/\r?\n/).filter(l => l.trim());
-    const lookups = new Map(); // fieldName -> Set<value>
-    // Skip header rows (lines 0 and 1)
-    for (let i = 2; i < lines.length; i++) {
-        const cols = parseCSVLine(lines[i]);
-        // Column 2 = LookupName, Column 3 = Value (Current), Column 6 = MatrixWebapi_Value
-        const lookupName = (cols[2] || '').trim();
-        const valueCurrent = (cols[3] || '').trim();
-        const matrixValue = (cols[6] || '').trim();
-        if (!lookupName) continue;
-        if (!lookups.has(lookupName)) lookups.set(lookupName, new Set());
-        const valSet = lookups.get(lookupName);
-        if (valueCurrent) valSet.add(valueCurrent);
-        if (matrixValue && matrixValue !== valueCurrent) valSet.add(matrixValue);
+// Returns Map: fieldName -> Set of live Lookup members (fields without a vocabulary are absent)
+function loadLiveLookups() {
+    const lookups = new Map();
+    for (const field of liveContract.LIVE_PROPERTY_FIELDS) {
+        const members = liveContract.liveEnumMembers(field);
+        if (members && members.length) lookups.set(field, new Set(members));
     }
     return lookups;
 }
@@ -132,7 +82,8 @@ function extractHTMLElements(html) {
         const id = extractAttr(attrs, 'id');
         const name = extractAttr(attrs, 'name');
         const type = extractAttr(attrs, 'type') || (tagName === 'select' ? 'select' : tagName === 'textarea' ? 'textarea' : 'text');
-        const rlsField = extractAttr(attrs, 'data-rls-field');
+        // data-cotality-field is the current binding name; data-rls-field is the legacy spelling the held forms carry.
+        const rlsField = extractAttr(attrs, 'data-cotality-field') || extractAttr(attrs, 'data-rls-field');
         const value = extractAttr(attrs, 'value');
 
         if (id) {
@@ -325,20 +276,14 @@ function validateForm(formLabel, htmlPath, formKey, collectFuncName) {
     console.log(HEADER(formLabel));
 
     const html = fs.readFileSync(htmlPath, 'utf8');
-    const bindingsJson = JSON.parse(fs.readFileSync(BINDINGS, 'utf8'));
-    const rlsFieldNames = loadRLSFields();
-    const rlsLookups = loadRLSLookups();
+    const rlsFieldNames = loadLiveFields();
+    const rlsLookups = loadLiveLookups();
 
     // 1. Extract HTML elements
     const { allIds, allNames, allElementIds, allRlsFields, duplicateIds, selectOptionValues, radioValues } = extractHTMLElements(html);
 
     // 2. Extract collectFormData references
     const { dataKeys, elementIds, funcFound, whichDef } = extractCollectFormDataRefs(html, collectFuncName);
-
-    // 3. Load bindings for this form
-    const formBindings = (bindingsJson.files && bindingsJson.files[formKey])
-        ? bindingsJson.files[formKey].bindings || {}
-        : {};
 
     let criticalCount = 0;
     let warnCount = 0;
@@ -381,59 +326,21 @@ function validateForm(formLabel, htmlPath, formKey, collectFuncName) {
     }
 
     // ═══════════════════════════════════════════
-    // CHECK 2: Required RLS fields from bindings not mapped in collectFormData()
+    // CHECK 3: bound fields that are not live Cotality fields (Property / CustomProperty) nor declared Mallan keys
     // ═══════════════════════════════════════════
-    console.log(SECTION('2. RLS-bound fields from bindings NOT mapped in collectFormData()'));
-    if (!funcFound) {
-        console.log(WARN(`Skipped — ${collectFuncName}() not found`));
-        warnCount++;
-    } else {
-        const rlsBoundBindings = {};
-        for (const [elemId, binding] of Object.entries(formBindings)) {
-            if (binding.rlsField && !binding.internal) {
-                rlsBoundBindings[elemId] = binding.rlsField;
-            }
-        }
-
-        const unmappedRLS = [];
-        for (const [elemId, rlsField] of Object.entries(rlsBoundBindings)) {
-            // Check if either the element ID appears in collectFormData references
-            // OR the RLS field name appears in data keys
-            const mappedViaData = dataKeys.has(rlsField);
-            const referencedInFunc = elementIds.has(elemId);
-            if (!mappedViaData && !referencedInFunc) {
-                unmappedRLS.push({ elemId, rlsField });
-            }
-        }
-
-        if (unmappedRLS.length === 0) {
-            console.log(PASS('All RLS-bound fields from bindings are mapped in collectFormData()'));
-            passCount++;
-        } else {
-            for (const { elemId, rlsField } of unmappedRLS.sort((a, b) => a.rlsField.localeCompare(b.rlsField))) {
-                console.log(WARN(`RLS field "${rlsField}" (element: ${elemId}) not explicitly mapped in collectFormData()`));
-                warnCount++;
-            }
-            console.log(DIM + `  Note: The generic querySelectorAll loop may collect these via element ID/name.` + RESET);
-        }
-    }
-
-    // ═══════════════════════════════════════════
-    // CHECK 3: data-rls-field attributes that don't match RLS property fields CSV
-    // ═══════════════════════════════════════════
-    console.log(SECTION('3. data-rls-field attributes not in RLS property fields CSV'));
+    console.log(SECTION('3. bound fields that are not live Cotality fields nor declared Mallan-internal keys'));
     const invalidRlsAttrs = [];
     for (const [rlsField, elemIds] of allRlsFields) {
-        if (!rlsFieldNames.has(rlsField)) {
+        if (!rlsFieldNames.has(rlsField) && !CUSTOM_PROPERTY_FIELDS.has(rlsField) && !INTERNAL_KEYS.has(rlsField)) {
             invalidRlsAttrs.push({ rlsField, elemIds });
         }
     }
     if (invalidRlsAttrs.length === 0) {
-        console.log(PASS('All data-rls-field attributes match valid RLS property fields'));
+        console.log(PASS('All bound fields are live Cotality fields (Property / CustomProperty) or declared Mallan-internal keys'));
         passCount++;
     } else {
         for (const { rlsField, elemIds } of invalidRlsAttrs.sort((a, b) => a.rlsField.localeCompare(b.rlsField))) {
-            console.log(WARN(`data-rls-field="${rlsField}" not found in RLS fields CSV (on: ${elemIds.join(', ')})`));
+            console.log(WARN(`bound field "${rlsField}" is not a live Cotality field (Property / CustomProperty) nor a declared Mallan-internal key (on: ${elemIds.join(', ')})`));
             warnCount++;
         }
     }
@@ -441,7 +348,7 @@ function validateForm(formLabel, htmlPath, formKey, collectFuncName) {
     // ═══════════════════════════════════════════
     // CHECK 4: Picklist values in HTML that don't match RLS lookup values
     // ═══════════════════════════════════════════
-    console.log(SECTION('4. Picklist values not matching RLS lookup values'));
+    console.log(SECTION('4. picklist values that are not live Cotality members'));
     let picklistMismatches = 0;
 
     // Check select options for elements that have data-rls-field
@@ -455,7 +362,7 @@ function validateForm(formLabel, htmlPath, formKey, collectFuncName) {
             if (optionValues && optionValues.length > 0) {
                 for (const optVal of optionValues) {
                     if (optVal && !validValues.has(optVal)) {
-                        console.log(WARN(`Select "${el.id}" (${el.rlsField}): value "${optVal}" not in RLS lookups`));
+                        console.log(WARN(`Select "${el.id}" (${el.rlsField}): value "${optVal}" is not a live Cotality member`));
                         warnCount++;
                         picklistMismatches++;
                     }
@@ -470,7 +377,7 @@ function validateForm(formLabel, htmlPath, formKey, collectFuncName) {
             const validValues = rlsLookups.get(el.rlsField);
             if (!validValues) continue;
             if (el.value && !validValues.has(el.value)) {
-                console.log(WARN(`Radio/checkbox name="${el.name}" (${el.rlsField}): value "${el.value}" not in RLS lookups`));
+                console.log(WARN(`Radio/checkbox name="${el.name}" (${el.rlsField}): value "${el.value}" is not a live Cotality member`));
                 warnCount++;
                 picklistMismatches++;
             }
@@ -497,43 +404,18 @@ function validateForm(formLabel, htmlPath, formKey, collectFuncName) {
     }
 
     // ═══════════════════════════════════════════
-    // CHECK 6: Bindings JSON element IDs that don't exist in HTML
-    // ═══════════════════════════════════════════
-    console.log(SECTION('6. Bindings JSON element IDs missing from HTML'));
-    const bindingsMissing = [];
-    for (const elemId of Object.keys(formBindings)) {
-        if (!allIds.has(elemId) && !allNames.has(elemId)) {
-            bindingsMissing.push(elemId);
-        }
-    }
-    if (bindingsMissing.length === 0) {
-        console.log(PASS('All bindings JSON element IDs exist in HTML'));
-        passCount++;
-    } else {
-        for (const id of bindingsMissing.sort()) {
-            console.log(WARN(`Bindings JSON references "${id}" but not found in HTML`));
-            warnCount++;
-        }
-    }
-
-    // ═══════════════════════════════════════════
     // SUMMARY
     // ═══════════════════════════════════════════
     console.log(SECTION('Summary Statistics'));
 
-    const rlsBound = Object.values(formBindings).filter(b => b.rlsField && !b.internal).length;
-    const internalOnly = Object.values(formBindings).filter(b => b.internal).length;
-    const totalBindings = Object.keys(formBindings).length;
-
     console.log(`  Total HTML elements (input/select/textarea): ${allIds.size} unique IDs, ${allNames.size} unique names`);
     console.log(`  data-rls-field attributes in HTML: ${allRlsFields.size} unique RLS fields`);
-    console.log(`  Bindings JSON entries: ${totalBindings} (${rlsBound} RLS-bound, ${internalOnly} internal)`);
     if (funcFound) {
         console.log(`  collectFormData() data keys: ${dataKeys.size}`);
         console.log(`  collectFormData() element refs: ${elementIds.size}`);
     }
-    console.log(`  RLS fields in CSV: ${rlsFieldNames.size}`);
-    console.log(`  RLS lookup fields in CSV: ${rlsLookups.size}`);
+    console.log(`  Live Cotality Property fields: ${rlsFieldNames.size} (pull ${liveContract.COTALITY_CONTRACT_PULLED_AT})`);
+    console.log(`  Live Cotality Property fields with a vocabulary: ${rlsLookups.size}`);
     console.log('');
     if (criticalCount > 0) console.log(RED + `  ${criticalCount} CRITICAL issue(s)` + RESET);
     if (warnCount > 0) console.log(YELLOW + `  ${warnCount} WARNING(s)` + RESET);
@@ -544,13 +426,13 @@ function validateForm(formLabel, htmlPath, formKey, collectFuncName) {
 
 // ── Main ──
 console.log(`\n${BOLD}╔══════════════════════════════════════════════════════════════════════╗`);
-console.log(`║  RLS Form Validation — Cross-Reference Report                      ║`);
+console.log(`║  REBNY Form Validation — live Cotality contract cross-check         ║`);
 console.log(`╚══════════════════════════════════════════════════════════════════════╝${RESET}\n`);
 console.log(DIM + `  Date: ${new Date().toISOString()}` + RESET);
 console.log(DIM + `  Root: ${ROOT}` + RESET);
 
 // Verify files exist
-const requiredFiles = [SALE_HTML, RENTAL_HTML, BINDINGS, FIELDS_CSV, LOOKUP_CSV];
+const requiredFiles = [SALE_HTML, RENTAL_HTML];
 for (const f of requiredFiles) {
     if (!fs.existsSync(f)) {
         console.error(RED + `\n  FATAL: Required file not found: ${f}` + RESET);

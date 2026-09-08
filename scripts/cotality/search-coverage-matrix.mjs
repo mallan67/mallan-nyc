@@ -270,12 +270,13 @@ for (const [surface, rel] of Object.entries(SURFACES)) {
       if (!key || seenKeys.has(key)) continue;
       seenKeys.add(key);
       stat.keyed += 1;
-      const rls = attr(a, 'data-rls-field');
+      // The binding attribute: data-cotality-field is the current name; data-rls-field is the legacy spelling the held forms still carry.
+      const rls = attr(a, 'data-cotality-field') || attr(a, 'data-rls-field');
       const mallan = attr(a, 'data-mallan-field');
       const ignore = attr(a, 'data-rls-ignore') === 'true';
       let canonical = null;
       let via = null;
-      if (rls) { canonical = rls; via = 'data-rls-field'; stat.rlsField += 1; }
+      if (rls) { canonical = rls; via = attr(a, 'data-cotality-field') ? 'data-cotality-field' : 'data-rls-field'; stat.rlsField += 1; }
       else if (mallan) { canonical = mallan; via = 'data-mallan-field'; stat.mallanField += 1; }
       else if (ignore) { stat.ignored += 1; continue; }
       else { const m = /^(sale|rental|bldg)([A-Z_].*)$/.exec(key); if (m) { const r = resolveFormKey(m[2].replace(/^_/, '')); if (r) { canonical = r.canonical; via = r.via; stat.prefixResolved += 1; } } }
@@ -523,13 +524,13 @@ function availabilityOf(resource, field, pop) {
     evidence.push('$select → HTTP 200 (row-by-row census selected it on every row)');
     if (pop.all != null) evidence.push(`${pop.all === 0 ? 'null on all' : 'non-null on'} ${fmtN(pop.all === 0 ? supAll?.resources?.Property?.rows : pop.all)} walked rows (all statuses)`);
     else if (pop.active != null) evidence.push(`${pop.active === 0 ? 'null on all' : 'non-null on'} ${fmtN(pop.active === 0 ? supActive?.resources?.[resource]?.rows : pop.active)} walked rows`);
-    evidence.push(fact.rlsField ? 'RLS defines the field (Field.SystemReferences includes RLS)' : 'RLS does not list the field (Field.SystemReferences)');
+    evidence.push(fact.rlsField ? 'REBNY references the field (Field.SystemReferences includes RLS — a membership fact, not availability)' : 'no REBNY reference for the field (Field.SystemReferences)');
     if (observed?.resources?.[resource]?.fields?.[field]?.status === 'rejected') evidence.push('$apply=groupby → rejected (same suppression message)');
     return { class: rows === 0 ? 'SUPPRESSED' : rows == null ? 'SUPPRESSED-UNMEASURED' : 'SUPPRESSED-BUT-DELIVERED', evidence, note: 'suppression proves no values are delivered today; it does not prove the subscription can never deliver the field' };
   }
   evidence.push(`$filter \`${field} ne null\` → HTTP ${fact.probeHttp} count ${fmtN(fact.populated)}`);
   if (rows > 0) return { class: 'POPULATED', evidence };
-  if (rows === 0) { evidence.push(fact.rlsField ? 'RLS defines the field (SystemReferences includes RLS) — declared, entitled, 0 rows today' : 'RLS does not list the field — declared in the model, not used on this feed'); return { class: fact.rlsField ? 'DECLARED-EMPTY (RLS-defined)' : 'NOT-ON-FEED (not RLS-defined)', evidence }; }
+  if (rows === 0) { evidence.push(fact.rlsField ? 'declared, entitled, 0 rows today (REBNY references the field)' : 'declared in the model, 0 rows today (no REBNY reference)'); return { class: fact.rlsField ? 'DECLARED-EMPTY (REBNY-referenced)' : 'NOT-ON-FEED (no REBNY reference)', evidence }; }
   return { class: 'UNMEASURED', evidence };
 }
 function vocabularyOf(resource, field) {

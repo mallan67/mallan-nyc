@@ -143,27 +143,27 @@ function hasAnnotation(content, index, annotation) {
 // ── Shared data extractors ────────────────────────────────────────────────
 function getMapperFields() {
   const mapper = readFile('lib/idx/trestle-mapper.ts');
-  if (!mapper) return { allRls: new Set(), excluded: new Set(), select: new Set(), required: new Set(), blocks: new Map() };
+  if (!mapper) return { cotalitySelected: new Set(), excluded: new Set(), select: new Set(), required: new Set(), blocks: new Map() };
   // Both list forms: the bare array and the compile-checked `cotalityFields('Property', [...])`
   // wrapper (2026-09-08) that proves every name live against lib/cotality/generated/contract.ts.
   const blockRx = /const\s+(B\d+_\w+)\s*=\s*(?:cotalityFields\(\s*['"]Property['"]\s*,\s*)?\[([\s\S]*?)\]\)?;/g;
   const blocks = new Map();
-  const allRls = new Set();
+  const cotalitySelected = new Set();
   let blockMatch;
   while ((blockMatch = blockRx.exec(mapper)) !== null) {
     const name = blockMatch[1];
     const fields = (blockMatch[2].match(/"([^"]+)"/g) || []).map((n) => n.replace(/"/g, '')).filter((n) => /^[A-Z][A-Za-z0-9]*$/.test(n));
     blocks.set(name, fields);
-    for (const field of fields) allRls.add(field);
+    for (const field of fields) cotalitySelected.add(field);
   }
   const exMatch = mapper.match(/LIVE_FIELDS_NOT_SELECTED\s*=\s*new\s+Set<string>\(\[\s*([\s\S]*?)\]\)/);
   const excluded = new Set();
   if (exMatch) { for (const n of (exMatch[1].match(/"([^"]+)"/g) || [])) excluded.add(n.replace(/"/g, '')); }
-  const select = new Set([...allRls].filter(f => !excluded.has(f)));
+  const select = new Set([...cotalitySelected].filter(f => !excluded.has(f)));
   const reqMatch = mapper.match(/REQUIRED_COTALITY_FIELDS\s*=\s*\[\s*([\s\S]*?)\]/);
   const required = new Set();
   if (reqMatch) { for (const n of (reqMatch[1].match(/"([^"]+)"/g) || [])) required.add(n.replace(/"/g, '')); }
-  return { allRls, excluded, select, required, blocks, content: mapper };
+  return { cotalitySelected, excluded, select, required, blocks, content: mapper };
 }
 
 function getListingColumns() {
@@ -215,7 +215,7 @@ const PHANTOM_PROVIDER_NAMES = new Set(['IDXEntireListingDisplayYN', 'IDXAutomat
 // ── SECTION 1: $select Field Completeness ──
 function section1() {
   const s = startSection(1, '$select Field Completeness', 'IDX Pipeline');
-  const { select, excluded, allRls, blocks, content: mapper } = getMapperFields();
+  const { select, excluded, cotalitySelected, blocks, content: mapper } = getMapperFields();
   if (!mapper) { critical(s, 'trestle-mapper.ts', 'File not found'); return; }
 
   const expandFields = new Set(['Media','MediaURL','MediaCategory','Order','PreferredPhotoYN','ShortDescription',
@@ -227,10 +227,10 @@ function section1() {
   if (!live) { critical(s, 'live Cotality contract', 'data/cotality-property-fields.live.json / cotality-enums.live.json not found — run npm run cotality:compile'); return; }
   const systemFields = new Set(['MlsStatus','StandardStatus','ListingKey','ListingId','ModificationTimestamp','SourceSystemKey']);
   // every field the mapper selects or categorizes must exist on the live resource
-  for (const field of allRls) {
+  for (const field of cotalitySelected) {
     if (!live.liveFields.has(field)) critical(s, field, `in the mapper's Cotality field categories but NOT on the live Cotality contract (pull ${live.pulledAt})`);
   }
-  pass(s, `mapper field categories: ${allRls.size} fields, all on the live contract (pull ${live.pulledAt})`);
+  pass(s, `mapper field categories: ${cotalitySelected.size} fields, all on the live contract (pull ${live.pulledAt})`);
 
   const rawPattern = /(?:raw|normalized)\.([A-Z][A-Za-z0-9]+)/g;
   const accessed = new Set();
@@ -258,7 +258,7 @@ function section1() {
       critical(s, field, `Accessed via raw.${field} but EXCLUDED from $select and not pre-filtered. Always undefined.`);
     else if (!live.liveFields.has(field))
       critical(s, field, `Accessed via raw.${field} but NOT on the live Cotality contract. Never fetched.`);
-    else if (!allRls.has(field))
+    else if (!cotalitySelected.has(field))
       critical(s, field, `Accessed via raw.${field} but NOT in any mapper field category. Never fetched.`);
   }
 
@@ -266,7 +266,7 @@ function section1() {
     if (accessed.has(field)) continue;
     if (select.has(field)) pass(s, `${field} (via pick)`); 
     else if (excluded.has(field)) pass(s, `${field} (via pick, excluded from $select)`);
-    else if (allRls.has(field)) pass(s, `${field} (via pick)`);
+    else if (cotalitySelected.has(field)) pass(s, `${field} (via pick)`);
   }
 }
 
@@ -313,7 +313,7 @@ function section2() {
 // ═══════════════════════════════════════════════════════════════════════════
 function section3() {
   const s = startSection(3, 'Field Count Verification', 'IDX Pipeline');
-  const { allRls, excluded, select } = getMapperFields();
+  const { cotalitySelected, excluded, select } = getMapperFields();
 
   // The live contract (dated pulls) is the field universe
   const live = getLiveContract();
@@ -331,14 +331,14 @@ function section3() {
   const { searchCritical, fieldReasons } = getPropertyFieldCoveragePolicy();
   const csvPropertyFields = live.liveFields;
 
-  const mappedPropertyFields = [...csvPropertyFields].filter(f => allRls.has(f));
-  const intentionallyExcludedPropertyFields = [...csvPropertyFields].filter(f => !allRls.has(f) && fieldReasons.has(f));
-  const unclassifiedPropertyFields = [...csvPropertyFields].filter(f => !allRls.has(f) && !fieldReasons.has(f));
-  const criticalMissingPropertyFields = [...csvPropertyFields].filter(f => !allRls.has(f) && searchCritical.has(f));
+  const mappedPropertyFields = [...csvPropertyFields].filter(f => cotalitySelected.has(f));
+  const intentionallyExcludedPropertyFields = [...csvPropertyFields].filter(f => !cotalitySelected.has(f) && fieldReasons.has(f));
+  const unclassifiedPropertyFields = [...csvPropertyFields].filter(f => !cotalitySelected.has(f) && !fieldReasons.has(f));
+  const criticalMissingPropertyFields = [...csvPropertyFields].filter(f => !cotalitySelected.has(f) && searchCritical.has(f));
   const stalePolicyFields = [...fieldReasons.keys()].filter(f => !csvPropertyFields.has(f));
-  const mappedPolicyFields = [...fieldReasons.keys()].filter(f => csvPropertyFields.has(f) && allRls.has(f));
+  const mappedPolicyFields = [...fieldReasons.keys()].filter(f => csvPropertyFields.has(f) && cotalitySelected.has(f));
   const staleSearchCriticalFields = [...searchCritical].filter(f => !csvPropertyFields.has(f));
-  const noopExcludedFields = [...excluded].filter(f => !allRls.has(f));
+  const noopExcludedFields = [...excluded].filter(f => !cotalitySelected.has(f));
   const classifiedPct = (((mappedPropertyFields.length + intentionallyExcludedPropertyFields.length) / csvPropertyFields.size) * 100).toFixed(1);
 
   for (const field of criticalMissingPropertyFields) {
@@ -381,7 +381,7 @@ function section3() {
       `These exclusions no longer affect $select because the fields are not in COTALITY_PROPERTY_FIELDS: ${noopExcludedFields.slice(0, 25).join(', ')}`);
   }
 
-  pass(s, `Mapper COTALITY_PROPERTY_FIELDS: ${allRls.size} unique fields`);
+  pass(s, `Mapper COTALITY_PROPERTY_FIELDS: ${cotalitySelected.size} unique fields`);
   pass(s, `LIVE_FIELDS_NOT_SELECTED: ${excluded.size} fields`);
   pass(s, `IDX_PLUS_SELECT (fetched): ${select.size} fields`);
 

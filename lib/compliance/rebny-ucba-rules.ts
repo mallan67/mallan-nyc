@@ -48,7 +48,7 @@ export const REBNY_UCBA_RULES = {
       // Phantom fields cannot be mandatory (authority = live $metadata).
       'Concessions',
 
-      // Address (RLS canonical names — note CityRegion NOT Borough, UnParsedAddress NOT UnparsedAddress)
+      // Address (live Cotality Property field names — lib/cotality/live-contract.ts; CityRegion is the borough field)
       'StreetNumber',
       'StreetName',
       'City',

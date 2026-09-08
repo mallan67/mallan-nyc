@@ -133,7 +133,7 @@
     "scanner:verify-env": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/scanner/verify-env.ts",
     "test:scanner": "jest --config lib/scanner/jest.config.js",
     "test:corridor": "jest --config lib/geo/jest.config.js",
-    "validate:form-rls": "node scripts/validate-form-rls.js",
+    "validate:form-rls": "tsx scripts/validate-form-rls.js",
     "test:compliance": "npx jest --config lib/compliance/jest.config.js",
     "geo:fetch-names": "node scripts/fetch-rls-neighborhoods.js",
     "geo:build": "node scripts/build-rls-geojson.js",

@@ -59,10 +59,10 @@ export const MALLAN_FORM_CONTRACT = {
 
   aliasToCanonical: {
     // ── Address aliases ──
-    Borough: 'CityRegion',              // DB/display name → RLS canonical
+    Borough: 'CityRegion',              // DB/display name → live Cotality field name
     borough: 'CityRegion',              // camelCase form variant
     cityRegion: 'CityRegion',           // camelCase variant
-    Neighborhood: 'SubdivisionName',    // Common name → RLS canonical
+    Neighborhood: 'SubdivisionName',    // Common name → live Cotality field name
     neighborhood: 'SubdivisionName',    // camelCase variant
     UnParsedAddress: 'UnparsedAddress',  // A1: legacy capital-P → canonical Cotality UnparsedAddress (lowercase p, live $metadata)
     unparsedAddress: 'UnparsedAddress',
@@ -74,7 +74,7 @@ export const MALLAN_FORM_CONTRACT = {
     zip: 'PostalCode',
 
     // ── Numeric/unit aliases ──
-    Rooms: 'RoomsTotal',               // Short name → RLS canonical
+    Rooms: 'RoomsTotal',               // Short name → live Cotality field name
     rooms: 'RoomsTotal',
     beds: 'BedroomsTotal',
     fullBaths: 'BathroomsFull',
@@ -133,7 +133,7 @@ export const MALLAN_FORM_CONTRACT = {
   } as const,
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // 5. VALUE ALIASES — Normalizes incoming field VALUES to RLS enum values.
+  // 5. VALUE ALIASES — Normalizes incoming field VALUES to live Cotality Lookup members (or Mallan-internal values under a Mallan key).
   //    Form radios/selects may use display text or internal codes.
   // ═══════════════════════════════════════════════════════════════════════════
 
@@ -148,7 +148,7 @@ export const MALLAN_FORM_CONTRACT = {
       'OWNER_OPT_OUT': 'OwnerOptOut',
       'Participant Only': 'Private',
       'Participant Only Network': 'Private',
-      'ParticipantOnly': 'Private',          // Internal legacy name → RLS canonical
+      'ParticipantOnly': 'Private',          // Internal legacy name → live Cotality field name
       'PARTICIPANT_ONLY': 'Private',
       // Absence = a public listing. Values are MALLAN decisions ('OwnerOptOut' = signed Exhibit B; 'Private' =
       // participant-only); 'OwnerOptOut' is not a live Cotality Permission member and is never written under `Permission`.
@@ -206,7 +206,7 @@ export const MALLAN_FORM_CONTRACT = {
   } as const,
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // 6. CONDITIONAL RULES — From RLS CSV Requirements/Rules column
+  // 6. CONDITIONAL RULES — REBNY submission rules (business rules, lib/compliance/rebny-ucba-rules.ts owns them); field names are live Cotality names
   //    Each rule: when conditions match, these additional fields are required.
   //    85 conditional fields organized into logical rule groups.
   // ═══════════════════════════════════════════════════════════════════════════

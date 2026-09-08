@@ -330,14 +330,14 @@ function fieldDoc(f, lookup) {
   else if (f.precision != null) t += `(${f.precision}${f.scale != null ? `,${f.scale}` : ''})`;
   parts.push(t.replace(/^Cotality\.DataStandard\.RESO\.DD\.Enums\./, 'Enums.'));
   if (f.multi) parts.push('multi-enum (comma-joined member names)');
-  if (lookup) parts.push(`Lookup ${lookup.members.length} members (RLS-listed ${lookup.rls.length})`);
+  if (lookup) parts.push(`Lookup ${lookup.members.length} members (REBNY-referenced ${lookup.rls.length})`);
   if (f.filterable === true) parts.push('filterable');
   else if (f.filterable === false) parts.push('NOT filterable (provider-suppressed)');
   else parts.push('filterability unmeasured');
   if (typeof f.populated === 'number') parts.push(`populated ${fmtCount(f.populated)}`);
   else if (f.filterable === false) parts.push('population unmeasurable');
-  if (f.rlsField === true) parts.push('RLS field');
-  else if (f.rlsField === false) parts.push('not an RLS field');
+  if (f.rlsField === true) parts.push('REBNY-referenced (Field.SystemReferences)');
+  else if (f.rlsField === false) parts.push('no REBNY reference');
   if (f.reso === false) parts.push('non-RESO');
   return parts.join(' · ');
 }
@@ -409,7 +409,7 @@ export function renderContractTs(compact, lookups) {
   out.push('  readonly filterable: boolean | null;');
   out.push('  /** Live `@odata.count` of rows where the field is non-null; null = unmeasurable/unmeasured. */');
   out.push('  readonly populated: number | null;');
-  out.push('  /** Field catalogue SystemReferences includes RLS (REBNY carries the field); null = no catalogue row. */');
+  out.push('  /** REBNY reference: the Cotality Field catalogue SystemReferences includes RLS — a compliance / membership fact, never field availability (that is populated / filterable). null = no catalogue row. */');
   out.push('  readonly rlsField: boolean | null;');
   out.push('  /** Field catalogue RESOStandardYN; null = no catalogue row. */');
   out.push('  readonly reso: boolean | null;');

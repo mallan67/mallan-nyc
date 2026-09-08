@@ -57,7 +57,7 @@ export interface CotalityFieldFact {
   readonly filterable: boolean | null;
   /** Live `@odata.count` of rows where the field is non-null; null = unmeasurable/unmeasured. */
   readonly populated: number | null;
-  /** Field catalogue SystemReferences includes RLS (REBNY carries the field); null = no catalogue row. */
+  /** REBNY reference: the Cotality Field catalogue SystemReferences includes RLS — a compliance / membership fact, never field availability (that is populated / filterable). null = no catalogue row. */
   readonly rlsField: boolean | null;
   /** Field catalogue RESOStandardYN; null = no catalogue row. */
   readonly reso: boolean | null;
@@ -600,7 +600,7 @@ export type CotalityEnum_TeamMemberType = "AdministrationAssistant" | "BuyerAgen
 
 /** Building · Cotality.DataStandard.RESO.DD.Building · 1 fields · REJECTED on this subscription (HTTP 403: {"error":{"code":"Forbidden[403]. TraceId: 05ff1bee-5737-4569-abf0-142bb1c2d8ff","message":"Resource Cotality.DataStandard.RESO.DD.Building not available"}}) */
 export interface CotalityBuilding {
-  /** Edm.String(255) · filterability unmeasured · RLS field */
+  /** Edm.String(255) · filterability unmeasured · REBNY-referenced (Field.SystemReferences) */
   BuildingKey: string;
 }
 
@@ -614,289 +614,289 @@ export interface CotalityBuildingNavigations {
 
 /** CustomProperty · Cotality.DataStandard.RESO.DD.CustomProperty · 142 fields · accessible */
 export interface CotalityCustomProperty {
-  /** Edm.String(100) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(100) · filterable · populated 0 · no REBNY reference · non-RESO */
   AboveGradeBedrooms: string | null;
-  /** Edm.String(100) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(100) · filterable · populated 0 · no REBNY reference · non-RESO */
   AboveGradeFinishedAreaRange: string | null;
-  /** Enums.AreaSource · Lookup 18 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Enums.AreaSource · Lookup 18 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO */
   AboveGradeFinishedAreaRangeSource: CotalityEnum_AreaSource | null;
-  /** Enums.AreaUnits · Lookup 3 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Enums.AreaUnits · Lookup 3 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO */
   AboveGradeFinishedAreaRangeUnits: CotalityEnum_AreaUnits | null;
-  /** Edm.String(100) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(100) · filterable · populated 0 · no REBNY reference · non-RESO */
   AboveGradeUnfinishedAreaRange: string | null;
-  /** Enums.AreaSource · Lookup 18 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Enums.AreaSource · Lookup 18 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO */
   AboveGradeUnfinishedAreaRangeSource: CotalityEnum_AreaSource | null;
-  /** Enums.AreaUnits · Lookup 3 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Enums.AreaUnits · Lookup 3 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO */
   AboveGradeUnfinishedAreaRangeUnits: CotalityEnum_AreaUnits | null;
-  /** Edm.Decimal(14,2) · filterable · populated 90 · not an RLS field · non-RESO */
+  /** Edm.Decimal(14,2) · filterable · populated 90 · no REBNY reference · non-RESO */
   AdditionalFee: number | null;
-  /** Edm.String(1024) · filterable · populated 317,956 · not an RLS field · non-RESO */
+  /** Edm.String(1024) · filterable · populated 317,956 · no REBNY reference · non-RESO */
   AdditionalFeeDescription: string | null;
-  /** Enums.FeeFrequency · Lookup 16 members (RLS-listed 1) · filterable · populated 34 · not an RLS field · non-RESO */
+  /** Enums.FeeFrequency · Lookup 16 members (REBNY-referenced 1) · filterable · populated 34 · no REBNY reference · non-RESO */
   AdditionalFeeFrequency: CotalityEnum_FeeFrequency | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 2) · filterable · populated 591,609 · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 2) · filterable · populated 591,609 · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   AdditionalFeeYN: boolean | null;
-  /** Edm.String(8000) · filterable · populated 29 · RLS field · non-RESO */
+  /** Edm.String(8000) · filterable · populated 29 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   AdditionalInfo1: string | null;
-  /** Edm.String(8000) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field · non-RESO */
+  /** Edm.String(8000) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) · non-RESO */
   AdditionalInfo2: string | null;
-  /** Edm.String(8000) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field · non-RESO */
+  /** Edm.String(8000) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) · non-RESO */
   AdditionalInfo3: string | null;
-  /** Edm.Decimal(14,2) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.Decimal(14,2) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   ApplicationFee: number | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference · non-RESO */
   AssociationFeeTotal: number | null;
-  /** Enums.FeeFrequency · Lookup 16 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Enums.FeeFrequency · Lookup 16 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO */
   AssociationFeeTotalFrequency: CotalityEnum_FeeFrequency | null;
-  /** Enums.Multi.Attic · multi-enum (comma-joined member names) · Lookup 22 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO · members: CotalityEnum_Attic */
+  /** Enums.Multi.Attic · multi-enum (comma-joined member names) · Lookup 22 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO · members: CotalityEnum_Attic */
   Attic: string | null;
-  /** Enums.Multi.AvailabilityType · multi-enum (comma-joined member names) · Lookup 12 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO · members: CotalityEnum_AvailabilityType */
+  /** Enums.Multi.AvailabilityType · multi-enum (comma-joined member names) · Lookup 12 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO · members: CotalityEnum_AvailabilityType */
   AvailabilityType: string | null;
-  /** Edm.String(100) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(100) · filterable · populated 0 · no REBNY reference · non-RESO */
   BelowGradeBedrooms: string | null;
-  /** Edm.String(100) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(100) · filterable · populated 0 · no REBNY reference · non-RESO */
   BelowGradeFinishedAreaRange: string | null;
-  /** Enums.AreaSource · Lookup 18 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Enums.AreaSource · Lookup 18 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO */
   BelowGradeFinishedAreaRangeSource: CotalityEnum_AreaSource | null;
-  /** Enums.AreaUnits · Lookup 3 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Enums.AreaUnits · Lookup 3 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO */
   BelowGradeFinishedAreaRangeUnits: CotalityEnum_AreaUnits | null;
-  /** Edm.String(100) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(100) · filterable · populated 0 · no REBNY reference · non-RESO */
   BelowGradeUnfinishedAreaRange: string | null;
-  /** Enums.AreaSource · Lookup 18 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Enums.AreaSource · Lookup 18 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO */
   BelowGradeUnfinishedAreaRangeSource: CotalityEnum_AreaSource | null;
-  /** Enums.AreaUnits · Lookup 3 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Enums.AreaUnits · Lookup 3 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO */
   BelowGradeUnfinishedAreaRangeUnits: CotalityEnum_AreaUnits | null;
-  /** Edm.String(50) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(50) · filterable · populated 0 · no REBNY reference · non-RESO */
   BoatDockAccommodates: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference · non-RESO */
   BoatDockHeight: number | null;
-  /** Edm.String(1024) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(1024) · filterable · populated 0 · no REBNY reference · non-RESO */
   BoatDockSlipDescription: string | null;
-  /** Enums.Multi.BoatDockSlipFeatures · multi-enum (comma-joined member names) · Lookup 32 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO · members: CotalityEnum_BoatDockSlipFeatures */
+  /** Enums.Multi.BoatDockSlipFeatures · multi-enum (comma-joined member names) · Lookup 32 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO · members: CotalityEnum_BoatDockSlipFeatures */
   BoatDockSlipFeatures: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   BoatDockYN: boolean | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   BoatSlipYN: boolean | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference · non-RESO */
   BonusAmount: number | null;
-  /** Edm.String(100) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(100) · filterable · populated 0 · no REBNY reference · non-RESO */
   BuildingAreaTotalRange: string | null;
-  /** Enums.AreaSource · Lookup 18 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Enums.AreaSource · Lookup 18 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO */
   BuildingAreaTotalRangeSource: CotalityEnum_AreaSource | null;
-  /** Enums.AreaUnits · Lookup 3 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Enums.AreaUnits · Lookup 3 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO */
   BuildingAreaTotalRangeUnits: CotalityEnum_AreaUnits | null;
-  /** Edm.String(50) · filterable · populated 9,394 · RLS field · non-RESO */
+  /** Edm.String(50) · filterable · populated 9,394 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   BuildingSizeDimensions: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   CommunityDevelopmentDistrictYN: boolean | null;
-  /** Edm.String(50) · filterable · populated 1 · not an RLS field · non-RESO */
+  /** Edm.String(50) · filterable · populated 1 · no REBNY reference · non-RESO */
   ComplexName: string | null;
-  /** Edm.String(8000) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.String(8000) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   ConsumerRemarks: string | null;
-  /** Edm.String(100000) · filterable · populated 591,649 · not an RLS field · non-RESO */
+  /** Edm.String(100000) · filterable · populated 591,649 · no REBNY reference · non-RESO */
   CustomFields: string | null;
-  /** Edm.String(50) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(50) · filterable · populated 0 · no REBNY reference · non-RESO */
   DevelopmentName: string | null;
-  /** Edm.String(50) · filterable · populated 192,124 · RLS field · non-RESO */
+  /** Edm.String(50) · filterable · populated 192,124 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   FractionalShare: string | null;
-  /** Edm.String(255) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(255) · filterable · populated 0 · no REBNY reference · non-RESO */
   GarageArea: string | null;
-  /** Edm.String(255) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(255) · filterable · populated 0 · no REBNY reference · non-RESO */
   GarageAreaUnits: string | null;
-  /** Edm.String(25) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(25) · filterable · populated 0 · no REBNY reference · non-RESO */
   GarageDimensions: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference · non-RESO */
   GuestHouseAreaTotal: number | null;
-  /** Enums.AreaSource · Lookup 18 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Enums.AreaSource · Lookup 18 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO */
   GuestHouseAreaTotalSource: CotalityEnum_AreaSource | null;
-  /** Enums.AreaUnits · Lookup 3 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Enums.AreaUnits · Lookup 3 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO */
   GuestHouseAreaTotalUnits: CotalityEnum_AreaUnits | null;
-  /** Edm.String(1024) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(1024) · filterable · populated 0 · no REBNY reference · non-RESO */
   GuestHouseDescription: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   GuestHouseYN: boolean | null;
-  /** Enums.Multi.GulfAccessType · multi-enum (comma-joined member names) · Lookup 8 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO · members: CotalityEnum_GulfAccessType */
+  /** Enums.Multi.GulfAccessType · multi-enum (comma-joined member names) · Lookup 8 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO · members: CotalityEnum_GulfAccessType */
   GulfAccessType: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   GulfAccessYN: boolean | null;
-  /** Edm.Boolean · filterable · populated 591,649 · not an RLS field · non-RESO */
+  /** Edm.Boolean · filterable · populated 591,649 · no REBNY reference · non-RESO */
   HumanModifiedYN: boolean | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 2) · filterable · populated 591,649 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 2) · filterable · populated 591,649 · no REBNY reference · string with Lookup (see lookups.live.json) */
   InternetEntireListingDisplayYN: boolean | null;
-  /** Edm.String(150) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.String(150) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   LakeChainName: string | null;
-  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   LakeId: string | null;
-  /** Edm.String(150) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.String(150) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   LakeName: string | null;
-  /** Edm.String(150) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.String(150) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   LakeSize: string | null;
-  /** Enums.Multi.LandTenure · multi-enum (comma-joined member names) · Lookup 4 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO · members: CotalityEnum_LandTenure */
+  /** Enums.Multi.LandTenure · multi-enum (comma-joined member names) · Lookup 4 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO · members: CotalityEnum_LandTenure */
   LandTenure: string | null;
-  /** Edm.String(10) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(10) · filterable · populated 0 · no REBNY reference · non-RESO */
   Lang2_Type: string | null;
-  /** Edm.String(10) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(10) · filterable · populated 0 · no REBNY reference · non-RESO */
   Lang3_Type: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   LastMonthRentReqYN: boolean | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference · non-RESO */
   LeaseAmountPerArea: number | null;
-  /** Enums.LeaseAmountPerAreaUnit · Lookup 5 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Enums.LeaseAmountPerAreaUnit · Lookup 5 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO */
   LeaseAmountPerAreaUnit: CotalityEnum_LeaseAmountPerAreaUnit | null;
-  /** Edm.String(1200) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(1200) · filterable · populated 0 · no REBNY reference · non-RESO */
   LeaseTermsDescription: string | null;
-  /** Enums.AOR · Lookup 1127 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.AOR · Lookup 1127 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   ListAOR: CotalityLookup_CustomProperty_ListAOR | null;
-  /** Edm.String(20) · filterable · populated 591,649 · not an RLS field */
+  /** Edm.String(20) · filterable · populated 591,649 · no REBNY reference */
   ListOfficeKey: string | null;
-  /** Edm.String(25) · filterable · populated 591,649 · not an RLS field */
+  /** Edm.String(25) · filterable · populated 591,649 · no REBNY reference */
   ListOfficeMlsId: string | null;
-  /** Edm.String(60) · filterable · populated 591,649 · not an RLS field */
+  /** Edm.String(60) · filterable · populated 591,649 · no REBNY reference */
   ListingId: string | null;
-  /** Edm.String(20) · filterable · populated 591,649 · not an RLS field */
+  /** Edm.String(20) · filterable · populated 591,649 · no REBNY reference */
   ListingKey: string;
-  /** Edm.Int64 · filterable · populated 591,649 · not an RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 591,649 · no REBNY reference · non-RESO */
   ListingKeyNumeric: number | null;
-  /** Edm.String(100) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(100) · filterable · populated 0 · no REBNY reference · non-RESO */
   LivingAreaRange: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference · non-RESO */
   LivingAreaRangeHigh: number | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference · non-RESO */
   LivingAreaRangeLow: number | null;
-  /** Enums.AreaSource · Lookup 18 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Enums.AreaSource · Lookup 18 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO */
   LivingAreaRangeSource: CotalityEnum_AreaSource | null;
-  /** Enums.AreaUnits · Lookup 3 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Enums.AreaUnits · Lookup 3 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO */
   LivingAreaRangeUnits: CotalityEnum_AreaUnits | null;
-  /** Edm.String(1024) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(1024) · filterable · populated 0 · no REBNY reference · non-RESO */
   Location: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference · non-RESO */
   LotSizeAreaRangeHigh: number | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference · non-RESO */
   LotSizeAreaRangeLow: number | null;
-  /** Edm.String(100) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(100) · filterable · populated 0 · no REBNY reference · non-RESO */
   LotSizeRange: string | null;
-  /** Enums.LotSizeSource · Lookup 15 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Enums.LotSizeSource · Lookup 15 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO */
   LotSizeRangeSource: CotalityEnum_LotSizeSource | null;
-  /** Enums.LotSizeUnits · Lookup 4 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Enums.LotSizeUnits · Lookup 4 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO */
   LotSizeRangeUnits: CotalityEnum_LotSizeUnits | null;
-  /** Enums.Multi.Membership · multi-enum (comma-joined member names) · Lookup 1 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO · members: CotalityEnum_Membership */
+  /** Enums.Multi.Membership · multi-enum (comma-joined member names) · Lookup 1 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO · members: CotalityEnum_Membership */
   Membership: string | null;
-  /** Edm.String(1024) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(1024) · filterable · populated 0 · no REBNY reference · non-RESO */
   MembershipDescription: string | null;
-  /** Edm.Decimal(14,2) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.Decimal(14,2) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   MembershipFee: number | null;
-  /** Enums.FeeFrequency · Lookup 16 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Enums.FeeFrequency · Lookup 16 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO */
   MembershipFeeFrequency: CotalityEnum_FeeFrequency | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   MembershipRequiredYN: boolean | null;
-  /** Enums.Multi.MineralRights · multi-enum (comma-joined member names) · Lookup 20 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO · members: CotalityEnum_MineralRights */
+  /** Enums.Multi.MineralRights · multi-enum (comma-joined member names) · Lookup 20 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO · members: CotalityEnum_MineralRights */
   MineralRights: string | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 591,649 · not an RLS field · non-RESO */
+  /** Edm.DateTimeOffset(27) · filterable · populated 591,649 · no REBNY reference · non-RESO */
   ModificationTimestamp: string | null;
-  /** Edm.String(50) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(50) · filterable · populated 0 · no REBNY reference · non-RESO */
   MonthlyRate: string | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference · non-RESO */
   NumberOfBoatDocks: number | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference · non-RESO */
   NumberOfBoatSlips: number | null;
-  /** Edm.Date(10) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.Date(10) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   OffMarketDate: string | null;
-  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   OffSeasonRate: string | null;
-  /** Edm.String(1024) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(1024) · filterable · populated 0 · no REBNY reference · non-RESO */
   OffersDescription: string | null;
-  /** Edm.Date(10) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Date(10) · filterable · populated 0 · no REBNY reference · non-RESO */
   OffersReviewDate: string | null;
-  /** Edm.String(510) · filterable · populated 591,649 · not an RLS field */
+  /** Edm.String(510) · filterable · populated 591,649 · no REBNY reference */
   OriginatingSystemKey: string | null;
-  /** Edm.String(255) · filterable · populated 591,649 · not an RLS field */
+  /** Edm.String(255) · filterable · populated 591,649 · no REBNY reference */
   OriginatingSystemName: string | null;
-  /** Edm.String(255) · Lookup 880 members (RLS-listed 0) · filterable · populated 591,649 · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.String(255) · Lookup 880 members (REBNY-referenced 0) · filterable · populated 591,649 · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   OriginatingSystemSubName: string | null;
-  /** Edm.String(500) · filterable · populated 1 · not an RLS field · non-RESO */
+  /** Edm.String(500) · filterable · populated 1 · no REBNY reference · non-RESO */
   OtherExpenseDescription: string | null;
-  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO · members: CotalityEnum_ListingPermission */
+  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO · members: CotalityEnum_ListingPermission */
   Permission: string | null;
-  /** Enums.PotentialShortSale · Lookup 3 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Enums.PotentialShortSale · Lookup 3 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO */
   PotentialShortSale: CotalityEnum_PotentialShortSale | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference · non-RESO */
   PricePerArea: number | null;
-  /** Enums.PricePerAreaUnit · Lookup 5 members (RLS-listed 1) · filterable · populated 12 · not an RLS field · non-RESO */
+  /** Enums.PricePerAreaUnit · Lookup 5 members (REBNY-referenced 1) · filterable · populated 12 · no REBNY reference · non-RESO */
   PricePerAreaUnit: CotalityEnum_LeaseAmountPerAreaUnit | null;
-  /** Edm.String(8000) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.String(8000) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   PrivateShowingInstructions: string | null;
-  /** Edm.String(255) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(255) · filterable · populated 0 · no REBNY reference · non-RESO */
   ProjectName: string | null;
-  /** Enums.Multi.PropertyAccess · multi-enum (comma-joined member names) · Lookup 10 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO · members: CotalityEnum_PropertyAccess */
+  /** Enums.Multi.PropertyAccess · multi-enum (comma-joined member names) · Lookup 10 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO · members: CotalityEnum_PropertyAccess */
   PropertyAccess: string | null;
-  /** Enums.PropertySubType · Lookup 76 members (RLS-listed 0) · filterable · populated 591,633 */
+  /** Enums.PropertySubType · Lookup 76 members (REBNY-referenced 0) · filterable · populated 591,633 */
   PropertySubType: CotalityLookup_CustomProperty_PropertySubType | null;
-  /** Enums.Multi.PropertySubTypeAdditional · multi-enum (comma-joined member names) · Lookup 76 members (RLS-listed 0) · filterable · populated 553,713 · members: CotalityLookup_CustomProperty_PropertySubType */
+  /** Enums.Multi.PropertySubTypeAdditional · multi-enum (comma-joined member names) · Lookup 76 members (REBNY-referenced 0) · filterable · populated 553,713 · members: CotalityLookup_CustomProperty_PropertySubType */
   PropertySubTypeAdditional: string | null;
-  /** Enums.PropertyType · Lookup 13 members (RLS-listed 0) · filterable · populated 591,649 · not an RLS field */
+  /** Enums.PropertyType · Lookup 13 members (REBNY-referenced 0) · filterable · populated 591,649 · no REBNY reference */
   PropertyType: CotalityEnum_PropertyType | null;
-  /** Edm.String(4000) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(4000) · filterable · populated 0 · no REBNY reference · non-RESO */
   PublicRemarks_lang2: string | null;
-  /** Edm.String(4000) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(4000) · filterable · populated 0 · no REBNY reference · non-RESO */
   PublicRemarks_lang3: string | null;
-  /** Edm.String(8000) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.String(8000) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   RentSpreeURL: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   RentSpreeYN: boolean | null;
-  /** Enums.Multi.Restrictions · multi-enum (comma-joined member names) · Lookup 106 members (RLS-listed 2) · filterable · populated 24,129 · RLS field · non-RESO · members: CotalityLookup_CustomProperty_Restrictions */
+  /** Enums.Multi.Restrictions · multi-enum (comma-joined member names) · Lookup 106 members (REBNY-referenced 2) · filterable · populated 24,129 · REBNY-referenced (Field.SystemReferences) · non-RESO · members: CotalityLookup_CustomProperty_Restrictions */
   Restrictions: string | null;
-  /** Edm.String(150) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.String(150) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   RiverName: string | null;
-  /** Edm.String(8000) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(8000) · filterable · populated 0 · no REBNY reference · non-RESO */
   SaleOrLeaseIncludes: string | null;
-  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   SeasonRate: string | null;
-  /** Edm.String(1024) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(1024) · filterable · populated 0 · no REBNY reference · non-RESO */
   SecurityDepositDescription: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   SecurityDepositYN: boolean | null;
-  /** Edm.Int64 · filterable · populated 11,316 · not an RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 11,316 · no REBNY reference · non-RESO */
   SourceFloorPlansCount: number | null;
-  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   SourceSupplementPublicCount: number | null;
-  /** Edm.String(510) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(510) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   SourceSystemKey: string | null;
-  /** Enums.StandardStatus · Lookup 11 members (RLS-listed 11) · filterable · populated 591,649 · not an RLS field */
+  /** Enums.StandardStatus · Lookup 11 members (REBNY-referenced 11) · filterable · populated 591,649 · no REBNY reference */
   StandardStatus: CotalityEnum_StandardStatus | null;
-  /** Edm.String(100) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(100) · filterable · populated 0 · no REBNY reference · non-RESO */
   StoriesPartial: string | null;
-  /** Edm.String(100) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(100) · filterable · populated 0 · no REBNY reference · non-RESO */
   StoriesPartialTotal: string | null;
-  /** Enums.Multi.StormProtection · multi-enum (comma-joined member names) · Lookup 25 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO · members: CotalityEnum_StormProtection */
+  /** Enums.Multi.StormProtection · multi-enum (comma-joined member names) · Lookup 25 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO · members: CotalityEnum_StormProtection */
   StormProtection: string | null;
-  /** Edm.String(12) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(12) · filterable · populated 0 · no REBNY reference · non-RESO */
   TaxAssessedValueImprovement: string | null;
-  /** Edm.String(12) · filterable · populated 14 · not an RLS field · non-RESO */
+  /** Edm.String(12) · filterable · populated 14 · no REBNY reference · non-RESO */
   TaxAssessedValueLand: string | null;
-  /** Edm.String(255) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(255) · filterable · populated 0 · no REBNY reference · non-RESO */
   TaxAuthority: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference · non-RESO */
   TaxRate: number | null;
-  /** Edm.String(100) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.String(100) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   TaxYearRange: string | null;
-  /** Enums.Multi.ThirdPartyIntegrationType · multi-enum (comma-joined member names) · Lookup 4 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO · members: CotalityEnum_ThirdPartyIntegrationType */
+  /** Enums.Multi.ThirdPartyIntegrationType · multi-enum (comma-joined member names) · Lookup 4 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO · members: CotalityEnum_ThirdPartyIntegrationType */
   ThirdPartyIntegrationType: string | null;
-  /** Edm.String(300) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(300) · filterable · populated 0 · no REBNY reference · non-RESO */
   TitleCompanyAddress: string | null;
-  /** Edm.String(200) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(200) · filterable · populated 0 · no REBNY reference · non-RESO */
   TitleCompanyName: string | null;
-  /** Edm.String(16) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(16) · filterable · populated 0 · no REBNY reference · non-RESO */
   TitleCompanyPhone: string | null;
-  /** Edm.String(200) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(200) · filterable · populated 0 · no REBNY reference · non-RESO */
   TitleCompanyPreferred: string | null;
-  /** Edm.String(1024) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field · non-RESO */
+  /** Edm.String(1024) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) · non-RESO */
   UnitLocation: string | null;
-  /** Edm.String(255) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(255) · filterable · populated 0 · no REBNY reference · non-RESO */
   WaterAccessDescription: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   WaterAccessYN: boolean | null;
-  /** Edm.String(50) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(50) · filterable · populated 0 · no REBNY reference · non-RESO */
   WeeklyRate: string | null;
 }
 
@@ -932,35 +932,35 @@ export interface CotalityEnumerationNavigations {
 
 /** Field · Cotality.DataStandard.RESO.DD.Field · 15 fields · accessible */
 export interface CotalityField {
-  /** Edm.String(8000) · filterable · populated 2,249 · RLS field · non-RESO */
+  /** Edm.String(8000) · filterable · populated 2,249 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   Definition: string | null;
-  /** Edm.String(100) · filterable · populated 2,249 · RLS field · non-RESO */
+  /** Edm.String(100) · filterable · populated 2,249 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   DisplayName: string | null;
-  /** Edm.String(20) · filterable · populated 2,249 · RLS field · non-RESO */
+  /** Edm.String(20) · filterable · populated 2,249 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   FieldKey: string;
-  /** Edm.String(100) · filterable · populated 2,249 · RLS field · non-RESO */
+  /** Edm.String(100) · filterable · populated 2,249 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   FieldName: string | null;
-  /** Edm.Int64 · filterable · populated 2,152 · RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 2,152 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   Length: number | null;
-  /** Edm.String(100) · filterable · populated 619 · RLS field · non-RESO */
+  /** Edm.String(100) · filterable · populated 619 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   LookupName: string | null;
-  /** Edm.String(20) · filterable · populated 2,249 · RLS field · non-RESO */
+  /** Edm.String(20) · filterable · populated 2,249 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ModelKey: string | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 2,249 · RLS field · non-RESO */
+  /** Edm.DateTimeOffset(27) · filterable · populated 2,249 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ModificationTimestamp: string | null;
-  /** Edm.Int64 · filterable · populated 0 · RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 0 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   NumOccurrences: number | null;
-  /** Edm.Int64 · filterable · populated 136 · RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 136 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   Precision: number | null;
-  /** Edm.Boolean · filterable · populated 2,249 · RLS field · non-RESO */
+  /** Edm.Boolean · filterable · populated 2,249 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   RESOStandardYN: boolean | null;
-  /** Edm.String(100) · filterable · populated 2,249 · RLS field · non-RESO */
+  /** Edm.String(100) · filterable · populated 2,249 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ResourceName: string | null;
-  /** Edm.Int64 · filterable · populated 2,249 · RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 2,249 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   SystemReferenceCount: number | null;
-  /** Edm.String(8000) · filterable · populated 1,178 · RLS field · non-RESO */
+  /** Edm.String(8000) · filterable · populated 1,178 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   SystemReferences: string | null;
-  /** Edm.String(30) · Lookup 9 members (RLS-listed 0) · filterable · populated 2,249 · RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.String(30) · Lookup 9 members (REBNY-referenced 0) · filterable · populated 2,249 · REBNY-referenced (Field.SystemReferences) · non-RESO · string with Lookup (see lookups.live.json) */
   Type: string | null;
 }
 
@@ -970,63 +970,63 @@ export interface CotalityFieldNavigations {
 
 /** HistoryTransactional · Cotality.DataStandard.RESO.DD.HistoryTransactional · 29 fields · REJECTED on this subscription (HTTP 400: {"error":{"code":"BadRequest[400]. TraceId: 473ffe64-985f-45f2-9783-f039e1fa9f21","message":"No OriginatingSystemNames available for querying given request! This is an indication that you do not have ) */
 export interface CotalityHistoryTransactional {
-  /** Enums.ChangeType · Lookup 15 members (RLS-listed 0) · filterability unmeasured · RLS field · non-RESO */
+  /** Enums.ChangeType · Lookup 15 members (REBNY-referenced 0) · filterability unmeasured · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ChangeType: CotalityLookup_HistoryTransactional_ChangeType | null;
-  /** Edm.String(25) · filterability unmeasured · RLS field · non-RESO */
+  /** Edm.String(25) · filterability unmeasured · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ChangedByMemberID: string | null;
-  /** Edm.String(255) · filterability unmeasured · RLS field · non-RESO */
+  /** Edm.String(255) · filterability unmeasured · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ChangedByMemberKey: string | null;
-  /** Edm.String(20) · filterability unmeasured · RLS field · non-RESO */
+  /** Edm.String(20) · filterability unmeasured · REBNY-referenced (Field.SystemReferences) · non-RESO */
   FieldKey: string | null;
-  /** Edm.String(100) · filterability unmeasured · RLS field · non-RESO */
+  /** Edm.String(100) · filterability unmeasured · REBNY-referenced (Field.SystemReferences) · non-RESO */
   FieldName: string | null;
-  /** Edm.String(255) · filterability unmeasured · RLS field · non-RESO */
+  /** Edm.String(255) · filterability unmeasured · REBNY-referenced (Field.SystemReferences) · non-RESO */
   HistoryTransactionalKey: string;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 2) · filterability unmeasured · RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 2) · filterability unmeasured · REBNY-referenced (Field.SystemReferences) · non-RESO · string with Lookup (see lookups.live.json) */
   InternetEntireListingDisplayYN: boolean | null;
-  /** Enums.AOR · Lookup 1127 members (RLS-listed 0) · filterability unmeasured · RLS field · non-RESO */
+  /** Enums.AOR · Lookup 1127 members (REBNY-referenced 0) · filterability unmeasured · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ListAOR: CotalityLookup_CustomProperty_ListAOR | null;
-  /** Edm.Int64 · filterability unmeasured · RLS field · non-RESO */
+  /** Edm.Int64 · filterability unmeasured · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ListAgentKey: number | null;
-  /** Edm.String(20) · filterability unmeasured · RLS field · non-RESO */
+  /** Edm.String(20) · filterability unmeasured · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ListOfficeKey: string | null;
-  /** Edm.String(8000) · filterability unmeasured · RLS field · non-RESO */
+  /** Edm.String(8000) · filterability unmeasured · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ListingPermission: string | null;
-  /** Edm.DateTimeOffset(27) · filterability unmeasured · RLS field · non-RESO */
+  /** Edm.DateTimeOffset(27) · filterability unmeasured · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ModificationTimestamp: string | null;
-  /** Edm.String(8000) · filterability unmeasured · RLS field · non-RESO */
+  /** Edm.String(8000) · filterability unmeasured · REBNY-referenced (Field.SystemReferences) · non-RESO */
   NewValue: string | null;
-  /** Edm.Date(10) · filterability unmeasured · RLS field · non-RESO */
+  /** Edm.Date(10) · filterability unmeasured · REBNY-referenced (Field.SystemReferences) · non-RESO */
   OffMarketDate: string | null;
-  /** Edm.String(255) · filterability unmeasured · RLS field · non-RESO */
+  /** Edm.String(255) · filterability unmeasured · REBNY-referenced (Field.SystemReferences) · non-RESO */
   OriginatingSystemHistoryKey: string | null;
-  /** Edm.String(255) · filterability unmeasured · RLS field · non-RESO */
+  /** Edm.String(255) · filterability unmeasured · REBNY-referenced (Field.SystemReferences) · non-RESO */
   OriginatingSystemName: string | null;
-  /** Edm.String(255) · Lookup 880 members (RLS-listed 0) · filterability unmeasured · RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.String(255) · Lookup 880 members (REBNY-referenced 0) · filterability unmeasured · REBNY-referenced (Field.SystemReferences) · non-RESO · string with Lookup (see lookups.live.json) */
   OriginatingSystemSubName: string | null;
-  /** Edm.String(8000) · filterability unmeasured · RLS field · non-RESO */
+  /** Edm.String(8000) · filterability unmeasured · REBNY-referenced (Field.SystemReferences) · non-RESO */
   PreviousValue: string | null;
-  /** Enums.PropertySubType · Lookup 76 members (RLS-listed 0) · filterability unmeasured · RLS field · non-RESO */
+  /** Enums.PropertySubType · Lookup 76 members (REBNY-referenced 0) · filterability unmeasured · REBNY-referenced (Field.SystemReferences) · non-RESO */
   PropertySubType: CotalityLookup_CustomProperty_PropertySubType | null;
-  /** Enums.Multi.PropertySubTypeAdditional · multi-enum (comma-joined member names) · Lookup 76 members (RLS-listed 0) · filterability unmeasured · RLS field · non-RESO · members: CotalityLookup_CustomProperty_PropertySubType */
+  /** Enums.Multi.PropertySubTypeAdditional · multi-enum (comma-joined member names) · Lookup 76 members (REBNY-referenced 0) · filterability unmeasured · REBNY-referenced (Field.SystemReferences) · non-RESO · members: CotalityLookup_CustomProperty_PropertySubType */
   PropertySubTypeAdditional: string | null;
-  /** Enums.PropertyType · Lookup 13 members (RLS-listed 0) · filterability unmeasured · RLS field · non-RESO */
+  /** Enums.PropertyType · Lookup 13 members (REBNY-referenced 0) · filterability unmeasured · REBNY-referenced (Field.SystemReferences) · non-RESO */
   PropertyType: CotalityEnum_PropertyType | null;
-  /** Edm.String(100) · filterability unmeasured · RLS field · non-RESO */
+  /** Edm.String(100) · filterability unmeasured · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ResourceName: string | null;
-  /** Edm.String(255) · filterability unmeasured · RLS field · non-RESO */
+  /** Edm.String(255) · filterability unmeasured · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ResourceRecordID: string | null;
-  /** Edm.String(20) · filterability unmeasured · RLS field · non-RESO */
+  /** Edm.String(20) · filterability unmeasured · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ResourceRecordKey: string | null;
-  /** Edm.String(255) · filterability unmeasured · RLS field · non-RESO */
+  /** Edm.String(255) · filterability unmeasured · REBNY-referenced (Field.SystemReferences) · non-RESO */
   SourceSystemHistoryKey: string | null;
-  /** Edm.String(25) · filterability unmeasured · RLS field · non-RESO */
+  /** Edm.String(25) · filterability unmeasured · REBNY-referenced (Field.SystemReferences) · non-RESO */
   SourceSystemID: string | null;
-  /** Edm.String(255) · filterability unmeasured · RLS field · non-RESO */
+  /** Edm.String(255) · filterability unmeasured · REBNY-referenced (Field.SystemReferences) · non-RESO */
   SourceSystemName: string | null;
-  /** Enums.StandardStatus · Lookup 11 members (RLS-listed 11) · filterability unmeasured · RLS field · non-RESO */
+  /** Enums.StandardStatus · Lookup 11 members (REBNY-referenced 11) · filterability unmeasured · REBNY-referenced (Field.SystemReferences) · non-RESO */
   StandardStatus: CotalityEnum_StandardStatus | null;
-  /** Enums.Multi.SyndicateTo · multi-enum (comma-joined member names) · Lookup 28 members (RLS-listed 0) · filterability unmeasured · RLS field · non-RESO · members: CotalityLookup_HistoryTransactional_SyndicateTo */
+  /** Enums.Multi.SyndicateTo · multi-enum (comma-joined member names) · Lookup 28 members (REBNY-referenced 0) · filterability unmeasured · REBNY-referenced (Field.SystemReferences) · non-RESO · members: CotalityLookup_HistoryTransactional_SyndicateTo */
   SyndicateTo: string | null;
 }
 
@@ -1036,35 +1036,35 @@ export interface CotalityHistoryTransactionalNavigations {
 
 /** Lookup · Cotality.DataStandard.RESO.DD.Lookup · 15 fields · accessible */
 export interface CotalityLookup {
-  /** Edm.String(8000) · filterable · populated 191,912 · RLS field · non-RESO */
+  /** Edm.String(8000) · filterable · populated 191,912 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   Definition: string | null;
-  /** Edm.String(20) · filterable · populated 191,912 · RLS field · non-RESO */
+  /** Edm.String(20) · filterable · populated 191,912 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   FieldKey: string | null;
-  /** Edm.String(100) · filterable · populated 191,912 · RLS field · non-RESO */
+  /** Edm.String(100) · filterable · populated 191,912 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   FieldName: string | null;
-  /** Edm.String(100) · filterable · populated 191,912 · RLS field · non-RESO */
+  /** Edm.String(100) · filterable · populated 191,912 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   LegacyODataValue: string | null;
-  /** Edm.String(20) · filterable · populated 191,912 · RLS field · non-RESO */
+  /** Edm.String(20) · filterable · populated 191,912 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   LookupKey: string;
-  /** Edm.String(100) · filterable · populated 191,912 · RLS field · non-RESO */
+  /** Edm.String(100) · filterable · populated 191,912 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   LookupName: string | null;
-  /** Edm.String(100) · filterable · populated 191,912 · RLS field · non-RESO */
+  /** Edm.String(100) · filterable · populated 191,912 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   LookupValue: string | null;
-  /** Edm.String(20) · filterable · populated 191,912 · RLS field · non-RESO */
+  /** Edm.String(20) · filterable · populated 191,912 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ModelKey: string | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 191,912 · RLS field · non-RESO */
+  /** Edm.DateTimeOffset(27) · filterable · populated 191,912 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ModificationTimestamp: string | null;
-  /** Edm.String · filterable · populated 0 · RLS field · non-RESO */
+  /** Edm.String · filterable · populated 0 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   OdataOverride: string | null;
-  /** Edm.Boolean · filterable · populated 191,912 · RLS field · non-RESO */
+  /** Edm.Boolean · filterable · populated 191,912 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   RESOStandardYN: boolean | null;
-  /** Edm.String(100) · filterable · populated 191,912 · RLS field · non-RESO */
+  /** Edm.String(100) · filterable · populated 191,912 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ResourceName: string | null;
-  /** Edm.String(100) · filterable · populated 191,912 · RLS field · non-RESO */
+  /** Edm.String(100) · filterable · populated 191,912 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   StandardLookupValue: string | null;
-  /** Edm.Int64 · filterable · populated 191,912 · RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 191,912 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   SystemReferenceCount: number | null;
-  /** Edm.String(8000) · filterable · populated 81,777 · RLS field · non-RESO */
+  /** Edm.String(8000) · filterable · populated 81,777 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   SystemReferences: string | null;
 }
 
@@ -1074,115 +1074,115 @@ export interface CotalityLookupNavigations {
 
 /** Media · Cotality.DataStandard.RESO.DD.Media · 56 fields · accessible */
 export interface CotalityMedia {
-  /** Edm.String(25) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(25) · filterable · populated 0 · no REBNY reference */
   ChangedByMemberID: string | null;
-  /** Edm.String(255) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(255) · filterable · populated 0 · no REBNY reference */
   ChangedByMemberKey: string | null;
-  /** Edm.Int64 · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 0 · no REBNY reference · non-RESO */
   ChangedByMemberKeyNumeric: number | null;
-  /** Enums.ClassName · Lookup 17 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.ClassName · Lookup 17 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   ClassName: CotalityEnum_ClassName | null;
-  /** Edm.Boolean · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Boolean · filterable · populated 0 · no REBNY reference · non-RESO */
   HumanModifiedYN: boolean | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference */
   ImageHeight: number | null;
-  /** Enums.ImageOf · Lookup 92 members (RLS-listed 1) · filterable · populated 1 · not an RLS field */
+  /** Enums.ImageOf · Lookup 92 members (REBNY-referenced 1) · filterable · populated 1 · no REBNY reference */
   ImageOf: CotalityEnum_ImageOf | null;
-  /** Edm.String(50) · Lookup 3 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.String(50) · Lookup 3 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · string with Lookup (see lookups.live.json) */
   ImageSizeDescription: string | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference */
   ImageWidth: number | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 2) · filterable · populated 2,000,836 · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 2) · filterable · populated 2,000,836 · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   InternetEntireListingDisplayYN: boolean | null;
-  /** Enums.AOR · Lookup 1127 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Enums.AOR · Lookup 1127 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO */
   ListAOR: CotalityLookup_CustomProperty_ListAOR | null;
-  /** Edm.String(20) · filterable · populated 1,987,830 · not an RLS field · non-RESO */
+  /** Edm.String(20) · filterable · populated 1,987,830 · no REBNY reference · non-RESO */
   ListAgentKey: string | null;
-  /** Edm.String(20) · filterable · populated 2,000,750 · not an RLS field · non-RESO */
+  /** Edm.String(20) · filterable · populated 2,000,750 · no REBNY reference · non-RESO */
   ListOfficeKey: string | null;
-  /** Edm.String(25) · filterable · populated 2,000,836 · not an RLS field · non-RESO */
+  /** Edm.String(25) · filterable · populated 2,000,836 · no REBNY reference · non-RESO */
   ListOfficeMlsId: string | null;
-  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (RLS-listed 0) · filterable · populated 1,699,794 · not an RLS field · non-RESO · members: CotalityEnum_ListingPermission */
+  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (REBNY-referenced 0) · filterable · populated 1,699,794 · no REBNY reference · non-RESO · members: CotalityEnum_ListingPermission */
   ListingPermission: string | null;
-  /** Edm.String(1024) · filterable · populated 31,738 · RLS field */
+  /** Edm.String(1024) · filterable · populated 31,738 · REBNY-referenced (Field.SystemReferences) */
   LongDescription: string | null;
-  /** Enums.Multi.MediaAlteration · multi-enum (comma-joined member names) · Lookup 10 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO · members: CotalityEnum_MediaAlteration */
+  /** Enums.Multi.MediaAlteration · multi-enum (comma-joined member names) · Lookup 10 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO · members: CotalityEnum_MediaAlteration */
   MediaAlteration: string | null;
-  /** Enums.MediaCategory · Lookup 18 members (RLS-listed 8) · filterable · populated 2,000,897 · RLS field */
+  /** Enums.MediaCategory · Lookup 18 members (REBNY-referenced 8) · filterable · populated 2,000,897 · REBNY-referenced (Field.SystemReferences) */
   MediaCategory: CotalityEnum_MediaCategory | null;
-  /** Enums.MediaClassification · Lookup 4 members (RLS-listed 0) · filterable · populated 2,000,898 · not an RLS field · non-RESO */
+  /** Enums.MediaClassification · Lookup 4 members (REBNY-referenced 0) · filterable · populated 2,000,898 · no REBNY reference · non-RESO */
   MediaClassification: CotalityLookup_Media_MediaClassification | null;
-  /** Edm.String(8000) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(8000) · filterable · populated 0 · no REBNY reference */
   MediaHTML: string | null;
-  /** Edm.String(20) · filterable · populated 2,000,898 · RLS field */
+  /** Edm.String(20) · filterable · populated 2,000,898 · REBNY-referenced (Field.SystemReferences) */
   MediaKey: string;
-  /** Edm.Int64 · filterable · populated 2,000,898 · RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 2,000,898 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   MediaKeyNumeric: number | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 2,000,898 · RLS field */
+  /** Edm.DateTimeOffset(27) · filterable · populated 2,000,898 · REBNY-referenced (Field.SystemReferences) */
   MediaModificationTimestamp: string | null;
-  /** Edm.String(255) · filterable · populated 1,562,623 · RLS field */
+  /** Edm.String(255) · filterable · populated 1,562,623 · REBNY-referenced (Field.SystemReferences) */
   MediaObjectID: string | null;
-  /** Enums.MediaStatus · Lookup 3 members (RLS-listed 1) · filterable · populated 2,000,898 · RLS field */
+  /** Enums.MediaStatus · Lookup 3 members (REBNY-referenced 1) · filterable · populated 2,000,898 · REBNY-referenced (Field.SystemReferences) */
   MediaStatus: CotalityEnum_MediaStatus | null;
-  /** Edm.String(1024) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.String(1024) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   MediaStatusDescription: string | null;
-  /** Enums.MediaType · Lookup 22 members (RLS-listed 7) · filterable · populated 2,000,898 · RLS field */
+  /** Enums.MediaType · Lookup 22 members (REBNY-referenced 7) · filterable · populated 2,000,898 · REBNY-referenced (Field.SystemReferences) */
   MediaType: CotalityLookup_Media_MediaType | null;
-  /** Edm.String(8000) · filterable · populated 589,848 · not an RLS field */
+  /** Edm.String(8000) · filterable · populated 589,848 · no REBNY reference */
   MediaURL: string | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 2,000,898 · not an RLS field · non-RESO */
+  /** Edm.DateTimeOffset(27) · filterable · populated 2,000,898 · no REBNY reference · non-RESO */
   ModificationTimestamp: string | null;
-  /** Edm.Date(10) · filterable · populated 1,362,225 · not an RLS field · non-RESO */
+  /** Edm.Date(10) · filterable · populated 1,362,225 · no REBNY reference · non-RESO */
   OffMarketDate: string | null;
-  /** Edm.Int32 · filterable · populated 2,000,898 · RLS field */
+  /** Edm.Int32 · filterable · populated 2,000,898 · REBNY-referenced (Field.SystemReferences) */
   Order: number | null;
-  /** Edm.String(8000) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(8000) · filterable · populated 0 · no REBNY reference · non-RESO */
   OriginalMediaUrl: string | null;
-  /** Edm.String(25) · filterable · populated 1,318,099 · RLS field */
+  /** Edm.String(25) · filterable · populated 1,318,099 · REBNY-referenced (Field.SystemReferences) */
   OriginatingSystemID: string | null;
-  /** Edm.String(255) · filterable · populated 2,000,898 · RLS field */
+  /** Edm.String(255) · filterable · populated 2,000,898 · REBNY-referenced (Field.SystemReferences) */
   OriginatingSystemMediaKey: string | null;
-  /** Edm.String(255) · filterable · populated 2,000,898 · not an RLS field · non-RESO */
+  /** Edm.String(255) · filterable · populated 2,000,898 · no REBNY reference · non-RESO */
   OriginatingSystemName: string | null;
-  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   OriginatingSystemResourceRecordId: string | null;
-  /** Edm.String(255) · filterable · populated 2,000,898 · RLS field · non-RESO */
+  /** Edm.String(255) · filterable · populated 2,000,898 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   OriginatingSystemResourceRecordKey: string | null;
-  /** Edm.String(255) · Lookup 880 members (RLS-listed 0) · filterable · populated 2,000,836 · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.String(255) · Lookup 880 members (REBNY-referenced 0) · filterable · populated 2,000,836 · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   OriginatingSystemSubName: string | null;
-  /** Enums.Multi.Permission · multi-enum (comma-joined member names) · Lookup 7 members (RLS-listed 2) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · members: CotalityLookup_Media_Permission */
+  /** Enums.Multi.Permission · multi-enum (comma-joined member names) · Lookup 7 members (REBNY-referenced 2) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · members: CotalityLookup_Media_Permission */
   Permission: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 2) · filterable · populated 71,570 · RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 2) · filterable · populated 71,570 · REBNY-referenced (Field.SystemReferences) · string with Lookup (see lookups.live.json) */
   PreferredPhotoYN: boolean | null;
-  /** Enums.PropertySubType · Lookup 76 members (RLS-listed 0) · filterable · populated 2,000,293 · not an RLS field · non-RESO */
+  /** Enums.PropertySubType · Lookup 76 members (REBNY-referenced 0) · filterable · populated 2,000,293 · no REBNY reference · non-RESO */
   PropertySubType: CotalityLookup_CustomProperty_PropertySubType | null;
-  /** Enums.Multi.PropertySubTypeAdditional · multi-enum (comma-joined member names) · Lookup 76 members (RLS-listed 0) · filterable · populated 1,821,445 · not an RLS field · non-RESO · members: CotalityLookup_CustomProperty_PropertySubType */
+  /** Enums.Multi.PropertySubTypeAdditional · multi-enum (comma-joined member names) · Lookup 76 members (REBNY-referenced 0) · filterable · populated 1,821,445 · no REBNY reference · non-RESO · members: CotalityLookup_CustomProperty_PropertySubType */
   PropertySubTypeAdditional: string | null;
-  /** Enums.PropertyType · Lookup 13 members (RLS-listed 0) · filterable · populated 2,000,836 · not an RLS field · non-RESO */
+  /** Enums.PropertyType · Lookup 13 members (REBNY-referenced 0) · filterable · populated 2,000,836 · no REBNY reference · non-RESO */
   PropertyType: CotalityEnum_PropertyType | null;
-  /** Edm.Int32 · filterable · populated 2,000,898 · not an RLS field · non-RESO */
+  /** Edm.Int32 · filterable · populated 2,000,898 · no REBNY reference · non-RESO */
   RecordSignature: number | null;
-  /** Enums.ResourceName · Lookup 5 members (RLS-listed 3) · filterable · populated 2,000,898 · RLS field */
+  /** Enums.ResourceName · Lookup 5 members (REBNY-referenced 3) · filterable · populated 2,000,898 · REBNY-referenced (Field.SystemReferences) */
   ResourceName: CotalityEnum_ResourceName | null;
-  /** Edm.String(255) · filterable · populated 2,000,888 · RLS field */
+  /** Edm.String(255) · filterable · populated 2,000,888 · REBNY-referenced (Field.SystemReferences) */
   ResourceRecordID: string | null;
-  /** Edm.String(20) · filterable · populated 2,000,898 · RLS field */
+  /** Edm.String(20) · filterable · populated 2,000,898 · REBNY-referenced (Field.SystemReferences) */
   ResourceRecordKey: string | null;
-  /** Edm.Int64 · filterable · populated 2,000,898 · RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 2,000,898 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ResourceRecordKeyNumeric: number | null;
-  /** Edm.String(50) · filterable · populated 133,895 · not an RLS field */
+  /** Edm.String(50) · filterable · populated 133,895 · no REBNY reference */
   ShortDescription: string | null;
-  /** Edm.String(25) · filterable · populated 2,000,898 · RLS field */
+  /** Edm.String(25) · filterable · populated 2,000,898 · REBNY-referenced (Field.SystemReferences) */
   SourceSystemID: string | null;
-  /** Edm.String(255) · filterable · populated 1,840,948 · RLS field */
+  /** Edm.String(255) · filterable · populated 1,840,948 · REBNY-referenced (Field.SystemReferences) */
   SourceSystemMediaKey: string | null;
-  /** Edm.String(255) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(255) · filterable · populated 0 · no REBNY reference */
   SourceSystemName: string | null;
-  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field · non-RESO */
+  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) · non-RESO */
   SourceSystemResourceRecordKey: string | null;
-  /** Enums.StandardStatus · Lookup 11 members (RLS-listed 11) · filterable · populated 2,000,836 · not an RLS field · non-RESO */
+  /** Enums.StandardStatus · Lookup 11 members (REBNY-referenced 11) · filterable · populated 2,000,836 · no REBNY reference · non-RESO */
   StandardStatus: CotalityEnum_StandardStatus | null;
-  /** Enums.Multi.SyndicateTo · multi-enum (comma-joined member names) · Lookup 28 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO · members: CotalityLookup_HistoryTransactional_SyndicateTo */
+  /** Enums.Multi.SyndicateTo · multi-enum (comma-joined member names) · Lookup 28 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO · members: CotalityLookup_HistoryTransactional_SyndicateTo */
   SyndicateTo: string | null;
   /** Edm.String · NOT filterable (provider-suppressed) · population unmeasurable */
   X_MediaStream: string | null;
@@ -1196,187 +1196,187 @@ export interface CotalityMediaNavigations {
 
 /** Member · Cotality.DataStandard.RESO.DD.Member · 91 fields · accessible */
 export interface CotalityMember {
-  /** Edm.Boolean · filterable · populated 11,191 · not an RLS field · non-RESO */
+  /** Edm.Boolean · filterable · populated 11,191 · no REBNY reference · non-RESO */
   HumanModifiedYN: boolean | null;
-  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   JobTitle: string | null;
-  /** Edm.DateTimeOffset(27) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.DateTimeOffset(27) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   LastLoginTimestamp: string | null;
-  /** Enums.AOR · Lookup 1127 members (RLS-listed 1) · filterable · populated 11,191 · RLS field */
+  /** Enums.AOR · Lookup 1127 members (REBNY-referenced 1) · filterable · populated 11,191 · REBNY-referenced (Field.SystemReferences) */
   MemberAOR: CotalityLookup_Member_MemberAOR | null;
-  /** Edm.String(25) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(25) · filterable · populated 0 · no REBNY reference */
   MemberAORMlsId: string | null;
-  /** Edm.String(255) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(255) · filterable · populated 0 · no REBNY reference */
   MemberAORkey: string | null;
-  /** Edm.Int64 · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 0 · no REBNY reference · non-RESO */
   MemberAORkeyNumeric: number | null;
-  /** Edm.String(50) · filterable · populated 10,472 · RLS field */
+  /** Edm.String(50) · filterable · populated 10,472 · REBNY-referenced (Field.SystemReferences) */
   MemberAddress1: string | null;
-  /** Edm.String(50) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(50) · filterable · populated 0 · no REBNY reference */
   MemberAddress2: string | null;
-  /** Edm.String(50) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(50) · filterable · populated 0 · no REBNY reference */
   MemberAlternateId: string | null;
-  /** Edm.String(500) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(500) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   MemberAssociationComments: string | null;
-  /** Enums.BillingPreference · Lookup 3 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Enums.BillingPreference · Lookup 3 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   MemberBillingPreference: CotalityEnum_BillingPreference | null;
-  /** Edm.String(1024) · filterable · populated 1,042 · RLS field · non-RESO */
+  /** Edm.String(1024) · filterable · populated 1,042 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   MemberBio: string | null;
-  /** Edm.String(9) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(9) · filterable · populated 0 · no REBNY reference */
   MemberCarrierRoute: string | null;
-  /** Edm.String(50) · filterable · populated 10,462 · RLS field */
+  /** Edm.String(50) · filterable · populated 10,462 · REBNY-referenced (Field.SystemReferences) */
   MemberCity: string | null;
-  /** Edm.String(150) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(150) · filterable · populated 0 · no REBNY reference · non-RESO */
   MemberCityRegion: string | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference */
   MemberCommitteeCount: number | null;
-  /** Enums.Country · Lookup 246 members (RLS-listed 2) · filterable · populated 11,191 · RLS field */
+  /** Enums.Country · Lookup 246 members (REBNY-referenced 2) · filterable · populated 11,191 · REBNY-referenced (Field.SystemReferences) */
   MemberCountry: CotalityEnum_Country | null;
-  /** Edm.String(50) · Lookup 4423 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.String(50) · Lookup 4423 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · string with Lookup (see lookups.live.json) */
   MemberCountyOrParish: string | null;
-  /** Enums.Multi.MemberDesignation · multi-enum (comma-joined member names) · Lookup 93 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_MemberDesignation */
+  /** Enums.Multi.MemberDesignation · multi-enum (comma-joined member names) · Lookup 93 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_MemberDesignation */
   MemberDesignation: string | null;
-  /** Edm.String(16) · filterable · populated 11,064 · RLS field */
+  /** Edm.String(16) · filterable · populated 11,064 · REBNY-referenced (Field.SystemReferences) */
   MemberDirectPhone: string | null;
-  /** Edm.String(80) · filterable · populated 11,186 · RLS field */
+  /** Edm.String(80) · filterable · populated 11,186 · REBNY-referenced (Field.SystemReferences) */
   MemberEmail: string | null;
-  /** Edm.String(16) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(16) · filterable · populated 0 · no REBNY reference */
   MemberFax: string | null;
-  /** Edm.String(50) · filterable · populated 11,190 · RLS field */
+  /** Edm.String(50) · filterable · populated 11,190 · REBNY-referenced (Field.SystemReferences) */
   MemberFirstName: string | null;
-  /** Edm.String(150) · filterable · populated 11,191 · RLS field */
+  /** Edm.String(150) · filterable · populated 11,191 · REBNY-referenced (Field.SystemReferences) */
   MemberFullName: string | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   MemberHomePhone: string | null;
-  /** Edm.String(50) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(50) · filterable · populated 0 · no REBNY reference */
   MemberIsAssistantTo: string | null;
-  /** Edm.String(20) · filterable · populated 11,191 · RLS field */
+  /** Edm.String(20) · filterable · populated 11,191 · REBNY-referenced (Field.SystemReferences) */
   MemberKey: string;
-  /** Edm.Int64 · filterable · populated 11,191 · RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 11,191 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   MemberKeyNumeric: number | null;
-  /** Enums.Multi.Languages · multi-enum (comma-joined member names) · Lookup 212 members (RLS-listed 28) · filterable · populated 816 · RLS field · members: CotalityEnum_Languages */
+  /** Enums.Multi.Languages · multi-enum (comma-joined member names) · Lookup 212 members (REBNY-referenced 28) · filterable · populated 816 · REBNY-referenced (Field.SystemReferences) · members: CotalityEnum_Languages */
   MemberLanguages: string | null;
-  /** Edm.String(50) · filterable · populated 11,191 · RLS field */
+  /** Edm.String(50) · filterable · populated 11,191 · REBNY-referenced (Field.SystemReferences) */
   MemberLastName: string | null;
-  /** Edm.String(25) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(25) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   MemberLoginId: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · string with Lookup (see lookups.live.json) */
   MemberMailOptOutYN: boolean | null;
-  /** Edm.String(50) · filterable · populated 4,281 · RLS field */
+  /** Edm.String(50) · filterable · populated 4,281 · REBNY-referenced (Field.SystemReferences) */
   MemberMiddleName: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · string with Lookup (see lookups.live.json) */
   MemberMlsAccessYN: boolean | null;
-  /** Edm.String(25) · filterable · populated 11,191 · RLS field */
+  /** Edm.String(25) · filterable · populated 11,191 · REBNY-referenced (Field.SystemReferences) */
   MemberMlsId: string | null;
-  /** Enums.MemberMlsSecurityClass · Lookup 9 members (RLS-listed 5) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Enums.MemberMlsSecurityClass · Lookup 9 members (REBNY-referenced 5) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   MemberMlsSecurityClass: CotalityEnum_MemberMlsSecurityClass | null;
-  /** Edm.String(16) · filterable · populated 10,114 · RLS field */
+  /** Edm.String(16) · filterable · populated 10,114 · REBNY-referenced (Field.SystemReferences) */
   MemberMobilePhone: string | null;
-  /** Edm.String(10) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(10) · filterable · populated 0 · no REBNY reference */
   MemberNamePrefix: string | null;
-  /** Edm.String(10) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(10) · filterable · populated 0 · no REBNY reference */
   MemberNameSuffix: string | null;
-  /** Edm.Date(10) · filterable · populated 0 · not an RLS field */
+  /** Edm.Date(10) · filterable · populated 0 · no REBNY reference */
   MemberNationalAssociationEntryDate: string | null;
-  /** Edm.String(25) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(25) · filterable · populated 0 · no REBNY reference */
   MemberNationalAssociationId: string | null;
-  /** Edm.String(50) · filterable · populated 9,890 · RLS field */
+  /** Edm.String(50) · filterable · populated 9,890 · REBNY-referenced (Field.SystemReferences) */
   MemberNickname: string | null;
-  /** Edm.String(16) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(16) · filterable · populated 0 · no REBNY reference */
   MemberOfficePhone: string | null;
-  /** Edm.String(10) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(10) · filterable · populated 0 · no REBNY reference */
   MemberOfficePhoneExt: string | null;
-  /** Enums.MemberOtherPhoneType · Lookup 14 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.MemberOtherPhoneType · Lookup 14 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   MemberOtherPhoneType: CotalityEnum_MemberOtherPhoneType | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   MemberPager: string | null;
-  /** Edm.String(16) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(16) · filterable · populated 0 · no REBNY reference */
   MemberPhoneTTYTDD: string | null;
-  /** Edm.String(10) · filterable · populated 10,474 · RLS field */
+  /** Edm.String(10) · filterable · populated 10,474 · REBNY-referenced (Field.SystemReferences) */
   MemberPostalCode: string | null;
-  /** Edm.String(4) · filterable · populated 141 · RLS field */
+  /** Edm.String(4) · filterable · populated 141 · REBNY-referenced (Field.SystemReferences) */
   MemberPostalCodePlus4: string | null;
-  /** Enums.PreferredMail · Lookup 4 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.PreferredMail · Lookup 4 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   MemberPreferredMail: CotalityEnum_PreferredMail | null;
-  /** Enums.PreferredMedia · Lookup 3 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.PreferredMedia · Lookup 3 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   MemberPreferredMedia: CotalityEnum_BillingPreference | null;
-  /** Edm.String(16) · filterable · populated 11,064 · RLS field */
+  /** Edm.String(16) · filterable · populated 11,064 · REBNY-referenced (Field.SystemReferences) */
   MemberPreferredPhone: string | null;
-  /** Edm.String(10) · filterable · populated 29 · RLS field */
+  /** Edm.String(10) · filterable · populated 29 · REBNY-referenced (Field.SystemReferences) */
   MemberPreferredPhoneExt: string | null;
-  /** Enums.PreferredPublication · Lookup 5 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.PreferredPublication · Lookup 5 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   MemberPreferredPublication: CotalityEnum_PreferredPublication | null;
-  /** Edm.String(30) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(30) · filterable · populated 0 · no REBNY reference */
   MemberPrimaryAorId: string | null;
-  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   MemberStateLicense: string | null;
-  /** Edm.Date(10) · filterable · populated 0 · not an RLS field */
+  /** Edm.Date(10) · filterable · populated 0 · no REBNY reference */
   MemberStateLicenseExpirationDate: string | null;
-  /** Enums.StateOrProvince · Lookup 100 members (RLS-listed 1) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Enums.StateOrProvince · Lookup 100 members (REBNY-referenced 1) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   MemberStateLicenseState: CotalityEnum_StateOrProvince | null;
-  /** Edm.String(100) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(100) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   MemberStateLicenseType: string | null;
-  /** Enums.StateOrProvince · Lookup 100 members (RLS-listed 45) · filterable · populated 10,459 · RLS field */
+  /** Enums.StateOrProvince · Lookup 100 members (REBNY-referenced 45) · filterable · populated 10,459 · REBNY-referenced (Field.SystemReferences) */
   MemberStateOrProvince: CotalityEnum_StateOrProvince | null;
-  /** Enums.MemberStatus · Lookup 4 members (RLS-listed 2) · filterable · populated 11,191 · RLS field */
+  /** Enums.MemberStatus · Lookup 4 members (REBNY-referenced 2) · filterable · populated 11,191 · REBNY-referenced (Field.SystemReferences) */
   MemberStatus: CotalityEnum_MemberStatus | null;
-  /** Edm.String(50) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(50) · filterable · populated 0 · no REBNY reference · non-RESO */
   MemberStreetAdditionalInfo: string | null;
-  /** Edm.String(16) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(16) · filterable · populated 0 · no REBNY reference */
   MemberTollFreePhone: string | null;
-  /** Edm.Date(10) · filterable · populated 0 · not an RLS field */
+  /** Edm.Date(10) · filterable · populated 0 · no REBNY reference */
   MemberTransferDate: string | null;
-  /** Enums.MemberType · Lookup 23 members (RLS-listed 2) · filterable · populated 0 · not an RLS field */
+  /** Enums.MemberType · Lookup 23 members (REBNY-referenced 2) · filterable · populated 0 · no REBNY reference */
   MemberType: CotalityEnum_MemberType | null;
-  /** Edm.String(8000) · filterable · populated 773 · not an RLS field · non-RESO */
+  /** Edm.String(8000) · filterable · populated 773 · no REBNY reference · non-RESO */
   MemberUrl: string | null;
-  /** Edm.String(16) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(16) · filterable · populated 0 · no REBNY reference */
   MemberVoiceMail: string | null;
-  /** Edm.String(10) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(10) · filterable · populated 0 · no REBNY reference */
   MemberVoiceMailExt: string | null;
-  /** Edm.String(50) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(50) · filterable · populated 0 · no REBNY reference */
   MemberVotingPrecinct: string | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 11,191 · not an RLS field · non-RESO */
+  /** Edm.DateTimeOffset(27) · filterable · populated 11,191 · no REBNY reference · non-RESO */
   ModificationTimestamp: string | null;
-  /** Edm.String(20) · filterable · populated 11,191 · RLS field */
+  /** Edm.String(20) · filterable · populated 11,191 · REBNY-referenced (Field.SystemReferences) */
   OfficeKey: string | null;
-  /** Edm.Int64 · filterable · populated 11,191 · RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 11,191 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   OfficeKeyNumeric: number | null;
-  /** Edm.String(25) · filterable · populated 11,191 · RLS field */
+  /** Edm.String(25) · filterable · populated 11,191 · REBNY-referenced (Field.SystemReferences) */
   OfficeMlsId: string | null;
-  /** Edm.String(255) · filterable · populated 11,191 · RLS field */
+  /** Edm.String(255) · filterable · populated 11,191 · REBNY-referenced (Field.SystemReferences) */
   OfficeName: string | null;
-  /** Edm.String(30) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(30) · filterable · populated 0 · no REBNY reference */
   OfficeNationalAssociationId: string | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 0 · not an RLS field */
+  /** Edm.DateTimeOffset(27) · filterable · populated 0 · no REBNY reference */
   OriginalEntryTimestamp: string | null;
-  /** Edm.String(25) · filterable · populated 11,191 · RLS field */
+  /** Edm.String(25) · filterable · populated 11,191 · REBNY-referenced (Field.SystemReferences) */
   OriginatingSystemID: string | null;
-  /** Edm.String(255) · filterable · populated 11,191 · RLS field */
+  /** Edm.String(255) · filterable · populated 11,191 · REBNY-referenced (Field.SystemReferences) */
   OriginatingSystemMemberKey: string | null;
-  /** Edm.String(510) · filterable · populated 11,191 · RLS field · non-RESO */
+  /** Edm.String(510) · filterable · populated 11,191 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   OriginatingSystemMemberMlsSecurityClass: string | null;
-  /** Edm.String(255) · filterable · populated 11,191 · RLS field */
+  /** Edm.String(255) · filterable · populated 11,191 · REBNY-referenced (Field.SystemReferences) */
   OriginatingSystemName: string | null;
-  /** Edm.String(255) · filterable · populated 11,191 · RLS field · non-RESO */
+  /** Edm.String(255) · filterable · populated 11,191 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   OriginatingSystemOfficeKey: string | null;
-  /** Edm.String(255) · Lookup 880 members (RLS-listed 1) · filterable · populated 11,191 · RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.String(255) · Lookup 880 members (REBNY-referenced 1) · filterable · populated 11,191 · REBNY-referenced (Field.SystemReferences) · non-RESO · string with Lookup (see lookups.live.json) */
   OriginatingSystemSubName: string | null;
-  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (RLS-listed 1) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO · members: CotalityEnum_ListingPermission */
+  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (REBNY-referenced 1) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO · members: CotalityEnum_ListingPermission */
   Permission: string | null;
-  /** Edm.Int32 · filterable · populated 11,191 · not an RLS field · non-RESO */
+  /** Edm.Int32 · filterable · populated 11,191 · no REBNY reference · non-RESO */
   RecordSignature: number | null;
-  /** Enums.SocialMediaType · Lookup 17 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Enums.SocialMediaType · Lookup 17 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   SocialMediaType: CotalityEnum_SocialMediaType | null;
-  /** Edm.String(25) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(25) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   SourceSystemID: string | null;
-  /** Edm.String(255) · filterable · populated 11,191 · RLS field */
+  /** Edm.String(255) · filterable · populated 11,191 · REBNY-referenced (Field.SystemReferences) */
   SourceSystemMemberKey: string | null;
-  /** Edm.String(255) · filterable · populated 11,191 · RLS field */
+  /** Edm.String(255) · filterable · populated 11,191 · REBNY-referenced (Field.SystemReferences) */
   SourceSystemName: string | null;
-  /** Enums.Multi.SyndicateTo · multi-enum (comma-joined member names) · Lookup 28 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · members: CotalityLookup_HistoryTransactional_SyndicateTo */
+  /** Enums.Multi.SyndicateTo · multi-enum (comma-joined member names) · Lookup 28 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · members: CotalityLookup_HistoryTransactional_SyndicateTo */
   SyndicateTo: string | null;
-  /** Edm.String(300) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(300) · filterable · populated 0 · no REBNY reference */
   UniqueLicenseeIdentifier: string | null;
 }
 
@@ -1396,21 +1396,21 @@ export interface CotalityMemberNavigations {
 
 /** Model · Cotality.DataStandard.RESO.DD.Model · 8 fields · accessible */
 export interface CotalityModel {
-  /** Edm.String(8000) · filterable · populated 17 · RLS field · non-RESO */
+  /** Edm.String(8000) · filterable · populated 17 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   Definition: string | null;
-  /** Edm.String(20) · filterable · populated 17 · RLS field · non-RESO */
+  /** Edm.String(20) · filterable · populated 17 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ModelKey: string;
-  /** Edm.String(100) · filterable · populated 17 · RLS field · non-RESO */
+  /** Edm.String(100) · filterable · populated 17 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ModelName: string | null;
-  /** Edm.String(20) · filterable · populated 0 · RLS field · non-RESO */
+  /** Edm.String(20) · filterable · populated 0 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ModelTimestampFieldKey: string | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 17 · RLS field · non-RESO */
+  /** Edm.DateTimeOffset(27) · filterable · populated 17 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ModificationTimestamp: string | null;
-  /** Edm.String(20) · filterable · populated 17 · RLS field · non-RESO */
+  /** Edm.String(20) · filterable · populated 17 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   PrimaryKeyFieldKey: string | null;
-  /** Edm.Int64 · filterable · populated 17 · RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 17 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   SystemReferenceCount: number | null;
-  /** Edm.String(8000) · filterable · populated 17 · RLS field · non-RESO */
+  /** Edm.String(8000) · filterable · populated 17 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   SystemReferences: string | null;
 }
 
@@ -1420,165 +1420,165 @@ export interface CotalityModelNavigations {
 
 /** Office · Cotality.DataStandard.RESO.DD.Office · 80 fields · accessible */
 export interface CotalityOffice {
-  /** Edm.String(300) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(300) · filterable · populated 0 · no REBNY reference */
   BillingOfficeKey: string | null;
-  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   FranchiseAffiliation: string | null;
-  /** Edm.String(30) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(30) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   FranchiseNationalAssociationId: string | null;
-  /** Edm.Boolean · filterable · populated 578 · not an RLS field · non-RESO */
+  /** Edm.Boolean · filterable · populated 578 · no REBNY reference · non-RESO */
   HumanModifiedYN: boolean | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 2) · filterable · populated 578 · RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 2) · filterable · populated 578 · REBNY-referenced (Field.SystemReferences) · string with Lookup (see lookups.live.json) */
   IDXOfficeParticipationYN: boolean | null;
-  /** Edm.String(20) · filterable · populated 576 · RLS field */
+  /** Edm.String(20) · filterable · populated 576 · REBNY-referenced (Field.SystemReferences) */
   MainOfficeKey: string | null;
-  /** Edm.Int64 · filterable · populated 576 · RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 576 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   MainOfficeKeyNumeric: number | null;
-  /** Edm.String(25) · filterable · populated 576 · RLS field */
+  /** Edm.String(25) · filterable · populated 576 · REBNY-referenced (Field.SystemReferences) */
   MainOfficeMlsId: string | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 578 · not an RLS field · non-RESO */
+  /** Edm.DateTimeOffset(27) · filterable · populated 578 · no REBNY reference · non-RESO */
   ModificationTimestamp: string | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference */
   NumberOfBranches: number | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference */
   NumberOfNonMemberSalespersons: number | null;
-  /** Enums.AOR · Lookup 1127 members (RLS-listed 1) · filterable · populated 577 · RLS field */
+  /** Enums.AOR · Lookup 1127 members (REBNY-referenced 1) · filterable · populated 577 · REBNY-referenced (Field.SystemReferences) */
   OfficeAOR: CotalityLookup_Member_MemberAOR | null;
-  /** Edm.String(25) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(25) · filterable · populated 0 · no REBNY reference */
   OfficeAORMlsId: string | null;
-  /** Edm.String(255) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(255) · filterable · populated 0 · no REBNY reference */
   OfficeAORkey: string | null;
-  /** Edm.Int64 · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 0 · no REBNY reference · non-RESO */
   OfficeAORkeyNumeric: number | null;
-  /** Edm.String(50) · filterable · populated 546 · RLS field */
+  /** Edm.String(50) · filterable · populated 546 · REBNY-referenced (Field.SystemReferences) */
   OfficeAddress1: string | null;
-  /** Edm.String(50) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(50) · filterable · populated 0 · no REBNY reference */
   OfficeAddress2: string | null;
-  /** Edm.String(50) · filterable · populated 14 · not an RLS field */
+  /** Edm.String(50) · filterable · populated 14 · no REBNY reference */
   OfficeAlternateId: string | null;
-  /** Edm.String(500) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(500) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   OfficeAssociationComments: string | null;
-  /** Edm.String(1024) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(1024) · filterable · populated 0 · no REBNY reference · non-RESO */
   OfficeBio: string | null;
-  /** Enums.OfficeBranchType · Lookup 3 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.OfficeBranchType · Lookup 3 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   OfficeBranchType: CotalityEnum_OfficeBranchType | null;
-  /** Edm.String(20) · filterable · populated 530 · RLS field */
+  /** Edm.String(20) · filterable · populated 530 · REBNY-referenced (Field.SystemReferences) */
   OfficeBrokerKey: string | null;
-  /** Edm.Int64 · filterable · populated 530 · RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 530 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   OfficeBrokerKeyNumeric: number | null;
-  /** Edm.String(25) · filterable · populated 530 · RLS field */
+  /** Edm.String(25) · filterable · populated 530 · REBNY-referenced (Field.SystemReferences) */
   OfficeBrokerMlsId: string | null;
-  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   OfficeBrokerNationalAssociationId: string | null;
-  /** Edm.String(50) · filterable · populated 546 · RLS field */
+  /** Edm.String(50) · filterable · populated 546 · REBNY-referenced (Field.SystemReferences) */
   OfficeCity: string | null;
-  /** Edm.String(150) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(150) · filterable · populated 0 · no REBNY reference · non-RESO */
   OfficeCityRegion: string | null;
-  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   OfficeCorporateLicense: string | null;
-  /** Enums.Country · Lookup 246 members (RLS-listed 2) · filterable · populated 577 · RLS field */
+  /** Enums.Country · Lookup 246 members (REBNY-referenced 2) · filterable · populated 577 · REBNY-referenced (Field.SystemReferences) */
   OfficeCountry: CotalityEnum_Country | null;
-  /** Edm.String(50) · Lookup 4423 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.String(50) · Lookup 4423 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · string with Lookup (see lookups.live.json) */
   OfficeCountyOrParish: string | null;
-  /** Edm.String(80) · filterable · populated 42 · not an RLS field */
+  /** Edm.String(80) · filterable · populated 42 · no REBNY reference */
   OfficeEmail: string | null;
-  /** Edm.String(16) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(16) · filterable · populated 0 · no REBNY reference */
   OfficeFax: string | null;
-  /** Edm.String(20) · filterable · populated 578 · RLS field */
+  /** Edm.String(20) · filterable · populated 578 · REBNY-referenced (Field.SystemReferences) */
   OfficeKey: string;
-  /** Edm.Int64 · filterable · populated 578 · RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 578 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   OfficeKeyNumeric: number | null;
-  /** Edm.String(50) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(50) · filterable · populated 0 · no REBNY reference */
   OfficeMailAddress1: string | null;
-  /** Edm.String(50) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(50) · filterable · populated 0 · no REBNY reference */
   OfficeMailAddress2: string | null;
-  /** Edm.String(50) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(50) · filterable · populated 0 · no REBNY reference */
   OfficeMailCareOf: string | null;
-  /** Edm.String(50) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(50) · filterable · populated 0 · no REBNY reference */
   OfficeMailCity: string | null;
-  /** Enums.Country · Lookup 246 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.Country · Lookup 246 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   OfficeMailCountry: CotalityEnum_Country | null;
-  /** Edm.String(50) · Lookup 4423 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.String(50) · Lookup 4423 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · string with Lookup (see lookups.live.json) */
   OfficeMailCountyOrParish: string | null;
-  /** Edm.String(10) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(10) · filterable · populated 0 · no REBNY reference */
   OfficeMailPostalCode: string | null;
-  /** Edm.String(10) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(10) · filterable · populated 0 · no REBNY reference */
   OfficeMailPostalCodePlus4: string | null;
-  /** Enums.StateOrProvince · Lookup 100 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.StateOrProvince · Lookup 100 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   OfficeMailStateOrProvince: CotalityEnum_StateOrProvince | null;
-  /** Edm.String(20) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(20) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   OfficeManagerKey: string | null;
-  /** Edm.Int64 · NOT filterable (provider-suppressed) · population unmeasurable · RLS field · non-RESO */
+  /** Edm.Int64 · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) · non-RESO */
   OfficeManagerKeyNumeric: number | null;
-  /** Edm.String(25) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(25) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   OfficeManagerMlsId: string | null;
-  /** Edm.String(25) · filterable · populated 578 · RLS field */
+  /** Edm.String(25) · filterable · populated 578 · REBNY-referenced (Field.SystemReferences) */
   OfficeMlsId: string | null;
-  /** Edm.String(255) · filterable · populated 578 · RLS field */
+  /** Edm.String(255) · filterable · populated 578 · REBNY-referenced (Field.SystemReferences) */
   OfficeName: string | null;
-  /** Edm.String(25) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(25) · filterable · populated 0 · no REBNY reference */
   OfficeNationalAssociationId: string | null;
-  /** Edm.Date(10) · filterable · populated 0 · not an RLS field */
+  /** Edm.Date(10) · filterable · populated 0 · no REBNY reference */
   OfficeNationalAssociationIdInsertDate: string | null;
-  /** Edm.String(16) · filterable · populated 546 · RLS field */
+  /** Edm.String(16) · filterable · populated 546 · REBNY-referenced (Field.SystemReferences) */
   OfficePhone: string | null;
-  /** Edm.String(10) · filterable · populated 7 · not an RLS field */
+  /** Edm.String(10) · filterable · populated 7 · no REBNY reference */
   OfficePhoneExt: string | null;
-  /** Edm.String(10) · filterable · populated 546 · RLS field */
+  /** Edm.String(10) · filterable · populated 546 · REBNY-referenced (Field.SystemReferences) */
   OfficePostalCode: string | null;
-  /** Edm.String(4) · filterable · populated 25 · RLS field */
+  /** Edm.String(4) · filterable · populated 25 · REBNY-referenced (Field.SystemReferences) */
   OfficePostalCodePlus4: string | null;
-  /** Enums.PreferredMedia · Lookup 3 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.PreferredMedia · Lookup 3 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   OfficePreferredMedia: CotalityEnum_BillingPreference | null;
-  /** Edm.String(30) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(30) · filterable · populated 0 · no REBNY reference */
   OfficePrimaryAorId: string | null;
-  /** Enums.StateOrProvince · Lookup 100 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.StateOrProvince · Lookup 100 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   OfficePrimaryStateOrProvince: CotalityEnum_StateOrProvince | null;
-  /** Enums.StateOrProvince · Lookup 100 members (RLS-listed 43) · filterable · populated 546 · RLS field */
+  /** Enums.StateOrProvince · Lookup 100 members (REBNY-referenced 43) · filterable · populated 546 · REBNY-referenced (Field.SystemReferences) */
   OfficeStateOrProvince: CotalityEnum_StateOrProvince | null;
-  /** Enums.OfficeStatus · Lookup 2 members (RLS-listed 2) · filterable · populated 578 · RLS field */
+  /** Enums.OfficeStatus · Lookup 2 members (REBNY-referenced 2) · filterable · populated 578 · REBNY-referenced (Field.SystemReferences) */
   OfficeStatus: CotalityEnum_OfficeStatus | null;
-  /** Edm.String(50) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(50) · filterable · populated 0 · no REBNY reference · non-RESO */
   OfficeStreetAdditionalInfo: string | null;
-  /** Enums.OfficeType · Lookup 12 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.OfficeType · Lookup 12 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   OfficeType: CotalityEnum_OfficeType | null;
-  /** Edm.String(8000) · filterable · populated 383 · not an RLS field · non-RESO */
+  /** Edm.String(8000) · filterable · populated 383 · no REBNY reference · non-RESO */
   OfficeUrl: string | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 1 · not an RLS field */
+  /** Edm.DateTimeOffset(27) · filterable · populated 1 · no REBNY reference */
   OriginalEntryTimestamp: string | null;
-  /** Edm.String(25) · filterable · populated 577 · RLS field */
+  /** Edm.String(25) · filterable · populated 577 · REBNY-referenced (Field.SystemReferences) */
   OriginatingSystemID: string | null;
-  /** Edm.String(255) · filterable · populated 576 · RLS field · non-RESO */
+  /** Edm.String(255) · filterable · populated 576 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   OriginatingSystemMainOfficeKey: string | null;
-  /** Edm.String(255) · filterable · populated 578 · RLS field */
+  /** Edm.String(255) · filterable · populated 578 · REBNY-referenced (Field.SystemReferences) */
   OriginatingSystemName: string | null;
-  /** Edm.String(50) · filterable · populated 530 · RLS field · non-RESO */
+  /** Edm.String(50) · filterable · populated 530 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   OriginatingSystemOfficeBrokerKey: string | null;
-  /** Edm.String(255) · filterable · populated 578 · RLS field */
+  /** Edm.String(255) · filterable · populated 578 · REBNY-referenced (Field.SystemReferences) */
   OriginatingSystemOfficeKey: string | null;
-  /** Edm.String(50) · filterable · populated 412 · RLS field · non-RESO */
+  /** Edm.String(50) · filterable · populated 412 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   OriginatingSystemOfficeManagerKey: string | null;
-  /** Edm.String(255) · Lookup 880 members (RLS-listed 1) · filterable · populated 577 · RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.String(255) · Lookup 880 members (REBNY-referenced 1) · filterable · populated 577 · REBNY-referenced (Field.SystemReferences) · non-RESO · string with Lookup (see lookups.live.json) */
   OriginatingSystemSubName: string | null;
-  /** Edm.String(30) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(30) · filterable · populated 0 · no REBNY reference */
   OtherPhone: string | null;
-  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (RLS-listed 1) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field · non-RESO · members: CotalityEnum_ListingPermission */
+  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (REBNY-referenced 1) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) · non-RESO · members: CotalityEnum_ListingPermission */
   Permission: string | null;
-  /** Edm.Int32 · filterable · populated 578 · not an RLS field · non-RESO */
+  /** Edm.Int32 · filterable · populated 578 · no REBNY reference · non-RESO */
   RecordSignature: number | null;
-  /** Enums.SocialMediaType · Lookup 17 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Enums.SocialMediaType · Lookup 17 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   SocialMediaType: CotalityEnum_SocialMediaType | null;
-  /** Edm.String(25) · filterable · populated 578 · RLS field */
+  /** Edm.String(25) · filterable · populated 578 · REBNY-referenced (Field.SystemReferences) */
   SourceSystemID: string | null;
-  /** Edm.String(255) · filterable · populated 577 · RLS field */
+  /** Edm.String(255) · filterable · populated 577 · REBNY-referenced (Field.SystemReferences) */
   SourceSystemName: string | null;
-  /** Edm.String(255) · filterable · populated 578 · RLS field */
+  /** Edm.String(255) · filterable · populated 578 · REBNY-referenced (Field.SystemReferences) */
   SourceSystemOfficeKey: string | null;
-  /** Enums.SyndicateAgentOption · Lookup 2 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Enums.SyndicateAgentOption · Lookup 2 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   SyndicateAgentOption: CotalityEnum_SyndicateAgentOption | null;
-  /** Enums.Multi.SyndicateTo · multi-enum (comma-joined member names) · Lookup 28 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · members: CotalityLookup_HistoryTransactional_SyndicateTo */
+  /** Enums.Multi.SyndicateTo · multi-enum (comma-joined member names) · Lookup 28 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · members: CotalityLookup_HistoryTransactional_SyndicateTo */
   SyndicateTo: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · string with Lookup (see lookups.live.json) */
   VirtualOfficeWebsiteYN: boolean | null;
 }
 
@@ -1598,99 +1598,99 @@ export interface CotalityOfficeNavigations {
 
 /** OpenHouse · Cotality.DataStandard.RESO.DD.OpenHouse · 47 fields · accessible */
 export interface CotalityOpenHouse {
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 2) · filterable · populated 1,474 · RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 2) · filterable · populated 1,474 · REBNY-referenced (Field.SystemReferences) · string with Lookup (see lookups.live.json) */
   AppointmentRequiredYN: boolean | null;
-  /** Edm.Boolean · filterable · populated 1,483 · not an RLS field · non-RESO */
+  /** Edm.Boolean · filterable · populated 1,483 · no REBNY reference · non-RESO */
   HumanModifiedYN: boolean | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 2) · filterable · populated 1,483 · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 2) · filterable · populated 1,483 · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   InternetEntireListingDisplayYN: boolean | null;
-  /** Enums.AOR · Lookup 1127 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Enums.AOR · Lookup 1127 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO */
   ListAOR: CotalityLookup_CustomProperty_ListAOR | null;
-  /** Edm.String(20) · filterable · populated 1,483 · RLS field · non-RESO */
+  /** Edm.String(20) · filterable · populated 1,483 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ListAgentKey: string | null;
-  /** Edm.String(20) · filterable · populated 1,483 · not an RLS field · non-RESO */
+  /** Edm.String(20) · filterable · populated 1,483 · no REBNY reference · non-RESO */
   ListOfficeKey: string | null;
-  /** Edm.String(25) · filterable · populated 1,483 · not an RLS field · non-RESO */
+  /** Edm.String(25) · filterable · populated 1,483 · no REBNY reference · non-RESO */
   ListOfficeMlsId: string | null;
-  /** Edm.String(255) · filterable · populated 1,483 · RLS field */
+  /** Edm.String(255) · filterable · populated 1,483 · REBNY-referenced (Field.SystemReferences) */
   ListingId: string | null;
-  /** Edm.String(20) · filterable · populated 1,483 · RLS field */
+  /** Edm.String(20) · filterable · populated 1,483 · REBNY-referenced (Field.SystemReferences) */
   ListingKey: string | null;
-  /** Edm.Int64 · filterable · populated 1,483 · RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 1,483 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ListingKeyNumeric: number | null;
-  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (RLS-listed 0) · filterable · populated 604 · not an RLS field · non-RESO · members: CotalityEnum_ListingPermission */
+  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (REBNY-referenced 0) · filterable · populated 604 · no REBNY reference · non-RESO · members: CotalityEnum_ListingPermission */
   ListingPermission: string | null;
-  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   LivestreamOpenHouseURL: string | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 1,483 · not an RLS field · non-RESO */
+  /** Edm.DateTimeOffset(27) · filterable · populated 1,483 · no REBNY reference · non-RESO */
   ModificationTimestamp: string | null;
-  /** Edm.Date(10) · filterable · populated 100 · not an RLS field · non-RESO */
+  /** Edm.Date(10) · filterable · populated 100 · no REBNY reference · non-RESO */
   OffMarketDate: string | null;
-  /** Enums.Attended · Lookup 3 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.Attended · Lookup 3 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   OpenHouseAttendedBy: CotalityEnum_Attended | null;
-  /** Edm.Date(10) · filterable · populated 1,483 · RLS field */
+  /** Edm.Date(10) · filterable · populated 1,483 · REBNY-referenced (Field.SystemReferences) */
   OpenHouseDate: string | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 1,483 · RLS field */
+  /** Edm.DateTimeOffset(27) · filterable · populated 1,483 · REBNY-referenced (Field.SystemReferences) */
   OpenHouseEndTime: string | null;
-  /** Edm.String(255) · filterable · populated 1,483 · RLS field */
+  /** Edm.String(255) · filterable · populated 1,483 · REBNY-referenced (Field.SystemReferences) */
   OpenHouseId: string | null;
-  /** Edm.String(20) · filterable · populated 1,483 · RLS field */
+  /** Edm.String(20) · filterable · populated 1,483 · REBNY-referenced (Field.SystemReferences) */
   OpenHouseKey: string;
-  /** Edm.Int64 · filterable · populated 1,483 · RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 1,483 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   OpenHouseKeyNumeric: number | null;
-  /** Edm.String(12000) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(12000) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   OpenHouseRemarks: string | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 1,483 · RLS field */
+  /** Edm.DateTimeOffset(27) · filterable · populated 1,483 · REBNY-referenced (Field.SystemReferences) */
   OpenHouseStartTime: string | null;
-  /** Enums.OpenHouseStatus · Lookup 3 members (RLS-listed 3) · filterable · populated 1,483 · RLS field */
+  /** Enums.OpenHouseStatus · Lookup 3 members (REBNY-referenced 3) · filterable · populated 1,483 · REBNY-referenced (Field.SystemReferences) */
   OpenHouseStatus: CotalityEnum_OpenHouseStatus | null;
-  /** Enums.OpenHouseType · Lookup 9 members (RLS-listed 2) · filterable · populated 613 · RLS field */
+  /** Enums.OpenHouseType · Lookup 9 members (REBNY-referenced 2) · filterable · populated 613 · REBNY-referenced (Field.SystemReferences) */
   OpenHouseType: CotalityEnum_OpenHouseType | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 0 · not an RLS field */
+  /** Edm.DateTimeOffset(27) · filterable · populated 0 · no REBNY reference */
   OriginalEntryTimestamp: string | null;
-  /** Edm.String(25) · filterable · populated 14 · RLS field */
+  /** Edm.String(25) · filterable · populated 14 · REBNY-referenced (Field.SystemReferences) */
   OriginatingSystemID: string | null;
-  /** Edm.String(255) · filterable · populated 1,483 · RLS field */
+  /** Edm.String(255) · filterable · populated 1,483 · REBNY-referenced (Field.SystemReferences) */
   OriginatingSystemKey: string | null;
-  /** Edm.String(255) · filterable · populated 1,483 · RLS field · non-RESO */
+  /** Edm.String(255) · filterable · populated 1,483 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   OriginatingSystemListingKey: string | null;
-  /** Edm.String(255) · filterable · populated 1,483 · not an RLS field · non-RESO */
+  /** Edm.String(255) · filterable · populated 1,483 · no REBNY reference · non-RESO */
   OriginatingSystemName: string | null;
-  /** Edm.String(255) · Lookup 880 members (RLS-listed 0) · filterable · populated 1,483 · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.String(255) · Lookup 880 members (REBNY-referenced 0) · filterable · populated 1,483 · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   OriginatingSystemSubName: string | null;
-  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO · members: CotalityEnum_ListingPermission */
+  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO · members: CotalityEnum_ListingPermission */
   Permission: string | null;
-  /** Enums.PropertySubType · Lookup 76 members (RLS-listed 0) · filterable · populated 1,483 · not an RLS field · non-RESO */
+  /** Enums.PropertySubType · Lookup 76 members (REBNY-referenced 0) · filterable · populated 1,483 · no REBNY reference · non-RESO */
   PropertySubType: CotalityLookup_CustomProperty_PropertySubType | null;
-  /** Enums.Multi.PropertySubTypeAdditional · multi-enum (comma-joined member names) · Lookup 76 members (RLS-listed 0) · filterable · populated 1,430 · not an RLS field · non-RESO · members: CotalityLookup_CustomProperty_PropertySubType */
+  /** Enums.Multi.PropertySubTypeAdditional · multi-enum (comma-joined member names) · Lookup 76 members (REBNY-referenced 0) · filterable · populated 1,430 · no REBNY reference · non-RESO · members: CotalityLookup_CustomProperty_PropertySubType */
   PropertySubTypeAdditional: string | null;
-  /** Enums.PropertyType · Lookup 13 members (RLS-listed 0) · filterable · populated 1,483 · not an RLS field · non-RESO */
+  /** Enums.PropertyType · Lookup 13 members (REBNY-referenced 0) · filterable · populated 1,483 · no REBNY reference · non-RESO */
   PropertyType: CotalityEnum_PropertyType | null;
-  /** Edm.Int32 · filterable · populated 1,483 · not an RLS field · non-RESO */
+  /** Edm.Int32 · filterable · populated 1,483 · no REBNY reference · non-RESO */
   RecordSignature: number | null;
-  /** Edm.String(255) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(255) · filterable · populated 0 · no REBNY reference */
   Refreshments: string | null;
-  /** Edm.String(50) · filterable · populated 1,196 · RLS field */
+  /** Edm.String(50) · filterable · populated 1,196 · REBNY-referenced (Field.SystemReferences) */
   ShowingAgentFirstName: string | null;
-  /** Edm.String(255) · filterable · populated 1,373 · RLS field */
+  /** Edm.String(255) · filterable · populated 1,373 · REBNY-referenced (Field.SystemReferences) */
   ShowingAgentKey: string | null;
-  /** Edm.Int64 · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 0 · no REBNY reference · non-RESO */
   ShowingAgentKeyNumeric: number | null;
-  /** Edm.String(50) · filterable · populated 1,196 · RLS field */
+  /** Edm.String(50) · filterable · populated 1,196 · REBNY-referenced (Field.SystemReferences) */
   ShowingAgentLastName: string | null;
-  /** Edm.String(25) · filterable · populated 1,373 · RLS field */
+  /** Edm.String(25) · filterable · populated 1,373 · REBNY-referenced (Field.SystemReferences) */
   ShowingAgentMlsID: string | null;
-  /** Edm.String(25) · filterable · populated 1,483 · RLS field */
+  /** Edm.String(25) · filterable · populated 1,483 · REBNY-referenced (Field.SystemReferences) */
   SourceSystemID: string | null;
-  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   SourceSystemKey: string | null;
-  /** Edm.String(20) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.String(20) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   SourceSystemListingKey: string | null;
-  /** Edm.String(255) · filterable · populated 1,483 · RLS field */
+  /** Edm.String(255) · filterable · populated 1,483 · REBNY-referenced (Field.SystemReferences) */
   SourceSystemName: string | null;
-  /** Enums.StandardStatus · Lookup 11 members (RLS-listed 11) · filterable · populated 1,483 · not an RLS field · non-RESO */
+  /** Enums.StandardStatus · Lookup 11 members (REBNY-referenced 11) · filterable · populated 1,483 · no REBNY reference · non-RESO */
   StandardStatus: CotalityEnum_StandardStatus | null;
-  /** Enums.Multi.SyndicateTo · multi-enum (comma-joined member names) · Lookup 28 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO · members: CotalityLookup_HistoryTransactional_SyndicateTo */
+  /** Enums.Multi.SyndicateTo · multi-enum (comma-joined member names) · Lookup 28 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO · members: CotalityLookup_HistoryTransactional_SyndicateTo */
   SyndicateTo: string | null;
 }
 
@@ -1702,1519 +1702,1519 @@ export interface CotalityOpenHouseNavigations {
 
 /** Property · Cotality.DataStandard.RESO.DD.Property · 757 fields · accessible */
 export interface CotalityProperty {
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference */
   AboveGradeFinishedArea: number | null;
-  /** Enums.AreaSource · Lookup 18 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.AreaSource · Lookup 18 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   AboveGradeFinishedAreaSource: CotalityEnum_AreaSource | null;
-  /** Enums.AreaUnits · Lookup 3 members (RLS-listed 1) · filterable · populated 76 · not an RLS field */
+  /** Enums.AreaUnits · Lookup 3 members (REBNY-referenced 1) · filterable · populated 76 · no REBNY reference */
   AboveGradeFinishedAreaUnits: CotalityEnum_AreaUnits | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference */
   AboveGradeUnfinishedArea: number | null;
-  /** Enums.AreaSource · Lookup 18 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.AreaSource · Lookup 18 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   AboveGradeUnfinishedAreaSource: CotalityEnum_AreaSource | null;
-  /** Enums.AreaUnits · Lookup 3 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.AreaUnits · Lookup 3 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   AboveGradeUnfinishedAreaUnits: CotalityEnum_AreaUnits | null;
-  /** Edm.String(25) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(25) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   AccessCode: string | null;
-  /** Enums.Multi.AccessibilityFeatures · multi-enum (comma-joined member names) · Lookup 76 members (RLS-listed 25) · filterable · populated 4,802 · RLS field · members: CotalityEnum_AccessibilityFeatures */
+  /** Enums.Multi.AccessibilityFeatures · multi-enum (comma-joined member names) · Lookup 76 members (REBNY-referenced 25) · filterable · populated 4,802 · REBNY-referenced (Field.SystemReferences) · members: CotalityEnum_AccessibilityFeatures */
   AccessibilityFeatures: string | null;
-  /** Edm.Date(10) · filterable · populated 46,105 · RLS field · non-RESO */
+  /** Edm.Date(10) · filterable · populated 46,105 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ActivationDate: string | null;
-  /** Edm.String(255) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(255) · filterable · populated 0 · no REBNY reference */
   AdditionalParcelsDescription: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · string with Lookup (see lookups.live.json) */
   AdditionalParcelsYN: boolean | null;
-  /** Edm.String(1024) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(1024) · filterable · populated 0 · no REBNY reference */
   AnchorsCoTenants: string | null;
-  /** Enums.Multi.Appliances · multi-enum (comma-joined member names) · Lookup 129 members (RLS-listed 61) · filterable · populated 202,134 · RLS field · members: CotalityEnum_Appliances */
+  /** Enums.Multi.Appliances · multi-enum (comma-joined member names) · Lookup 129 members (REBNY-referenced 61) · filterable · populated 202,134 · REBNY-referenced (Field.SystemReferences) · members: CotalityEnum_Appliances */
   Appliances: string | null;
-  /** Enums.Multi.ArchitecturalStyle · multi-enum (comma-joined member names) · Lookup 135 members (RLS-listed 18) · filterable · populated 248,763 · RLS field · members: CotalityEnum_ArchitecturalStyle */
+  /** Enums.Multi.ArchitecturalStyle · multi-enum (comma-joined member names) · Lookup 135 members (REBNY-referenced 18) · filterable · populated 248,763 · REBNY-referenced (Field.SystemReferences) · members: CotalityEnum_ArchitecturalStyle */
   ArchitecturalStyle: string | null;
-  /** Enums.Multi.AssociationAmenities · multi-enum (comma-joined member names) · Lookup 137 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_AssociationAmenities */
+  /** Enums.Multi.AssociationAmenities · multi-enum (comma-joined member names) · Lookup 137 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_AssociationAmenities */
   AssociationAmenities: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 243,779 · RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 243,779 · REBNY-referenced (Field.SystemReferences) */
   AssociationFee: number | null;
-  /** Edm.Decimal(14,2) · filterable · populated 60 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 60 · no REBNY reference */
   AssociationFee2: number | null;
-  /** Enums.FeeFrequency · Lookup 16 members (RLS-listed 5) · filterable · populated 178 · not an RLS field */
+  /** Enums.FeeFrequency · Lookup 16 members (REBNY-referenced 5) · filterable · populated 178 · no REBNY reference */
   AssociationFee2Frequency: CotalityEnum_FeeFrequency | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference · non-RESO */
   AssociationFee3: number | null;
-  /** Enums.FeeFrequency · Lookup 16 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Enums.FeeFrequency · Lookup 16 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO */
   AssociationFee3Frequency: CotalityEnum_FeeFrequency | null;
-  /** Enums.FeeFrequency · Lookup 16 members (RLS-listed 4) · filterable · populated 81,884 · RLS field */
+  /** Enums.FeeFrequency · Lookup 16 members (REBNY-referenced 4) · filterable · populated 81,884 · REBNY-referenced (Field.SystemReferences) */
   AssociationFeeFrequency: CotalityEnum_FeeFrequency | null;
-  /** Enums.Multi.AssociationFeeIncludes · multi-enum (comma-joined member names) · Lookup 63 members (RLS-listed 14) · filterable · populated 4,552 · RLS field · members: CotalityEnum_AssociationFeeIncludes */
+  /** Enums.Multi.AssociationFeeIncludes · multi-enum (comma-joined member names) · Lookup 63 members (REBNY-referenced 14) · filterable · populated 4,552 · REBNY-referenced (Field.SystemReferences) · members: CotalityEnum_AssociationFeeIncludes */
   AssociationFeeIncludes: string | null;
-  /** Edm.String(50) · filterable · populated 200 · not an RLS field */
+  /** Edm.String(50) · filterable · populated 200 · no REBNY reference */
   AssociationName: string | null;
-  /** Edm.String(50) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(50) · filterable · populated 0 · no REBNY reference */
   AssociationName2: string | null;
-  /** Edm.String(50) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(50) · filterable · populated 0 · no REBNY reference · non-RESO */
   AssociationName3: string | null;
-  /** Edm.String(16) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(16) · filterable · populated 0 · no REBNY reference */
   AssociationPhone: string | null;
-  /** Edm.String(16) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(16) · filterable · populated 0 · no REBNY reference */
   AssociationPhone2: string | null;
-  /** Edm.String(16) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(16) · filterable · populated 0 · no REBNY reference · non-RESO */
   AssociationPhone3: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 2) · filterable · populated 40,139 · RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 2) · filterable · populated 40,139 · REBNY-referenced (Field.SystemReferences) · string with Lookup (see lookups.live.json) */
   AssociationYN: boolean | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 2) · filterable · populated 21,379 · RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 2) · filterable · populated 21,379 · REBNY-referenced (Field.SystemReferences) · string with Lookup (see lookups.live.json) */
   AttachedGarageYN: boolean | null;
-  /** Edm.String(120) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(120) · filterable · populated 0 · no REBNY reference · non-RESO */
   AttributionContact: string | null;
-  /** Edm.Date(10) · filterable · populated 373,040 · RLS field */
+  /** Edm.Date(10) · filterable · populated 373,040 · REBNY-referenced (Field.SystemReferences) */
   AvailabilityDate: string | null;
-  /** Enums.Multi.ExistingLeaseType · multi-enum (comma-joined member names) · Lookup 23 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_ExistingLeaseType */
+  /** Enums.Multi.ExistingLeaseType · multi-enum (comma-joined member names) · Lookup 23 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_ExistingLeaseType */
   AvailableLeaseType: string | null;
-  /** Edm.Date(10) · filterable · populated 4,354 · not an RLS field */
+  /** Edm.Date(10) · filterable · populated 4,354 · no REBNY reference */
   BackOnMarketDate: string | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 4,353 · not an RLS field · non-RESO */
+  /** Edm.DateTimeOffset(27) · filterable · populated 4,353 · no REBNY reference · non-RESO */
   BackOnMarketTimestamp: string | null;
-  /** Enums.Multi.Basement · multi-enum (comma-joined member names) · Lookup 43 members (RLS-listed 20) · filterable · populated 59,659 · RLS field · members: CotalityEnum_Basement */
+  /** Enums.Multi.Basement · multi-enum (comma-joined member names) · Lookup 43 members (REBNY-referenced 20) · filterable · populated 59,659 · REBNY-referenced (Field.SystemReferences) · members: CotalityEnum_Basement */
   Basement: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 2) · filterable · populated 65,252 · RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 2) · filterable · populated 65,252 · REBNY-referenced (Field.SystemReferences) · string with Lookup (see lookups.live.json) */
   BasementYN: boolean | null;
-  /** Edm.Int32 · filterable · populated 481,482 · RLS field */
+  /** Edm.Int32 · filterable · populated 481,482 · REBNY-referenced (Field.SystemReferences) */
   BathroomsFull: number | null;
-  /** Edm.Int32 · filterable · populated 409,765 · RLS field */
+  /** Edm.Int32 · filterable · populated 409,765 · REBNY-referenced (Field.SystemReferences) */
   BathroomsHalf: number | null;
-  /** Edm.Int32 · filterable · populated 323 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 323 · no REBNY reference */
   BathroomsOneQuarter: number | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference */
   BathroomsPartial: number | null;
-  /** Edm.Int32 · filterable · populated 258 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 258 · no REBNY reference */
   BathroomsThreeQuarter: number | null;
-  /** Edm.Int32 · filterable · populated 587,684 · RLS field */
+  /** Edm.Int32 · filterable · populated 587,684 · REBNY-referenced (Field.SystemReferences) */
   BathroomsTotalInteger: number | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference */
   BedroomsPossible: number | null;
-  /** Edm.Int32 · filterable · populated 587,737 · RLS field */
+  /** Edm.Int32 · filterable · populated 587,737 · REBNY-referenced (Field.SystemReferences) */
   BedroomsTotal: number | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference */
   BelowGradeFinishedArea: number | null;
-  /** Enums.AreaSource · Lookup 18 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.AreaSource · Lookup 18 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   BelowGradeFinishedAreaSource: CotalityEnum_AreaSource | null;
-  /** Enums.AreaUnits · Lookup 3 members (RLS-listed 1) · filterable · populated 16 · not an RLS field */
+  /** Enums.AreaUnits · Lookup 3 members (REBNY-referenced 1) · filterable · populated 16 · no REBNY reference */
   BelowGradeFinishedAreaUnits: CotalityEnum_AreaUnits | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference */
   BelowGradeUnfinishedArea: number | null;
-  /** Enums.AreaSource · Lookup 18 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.AreaSource · Lookup 18 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   BelowGradeUnfinishedAreaSource: CotalityEnum_AreaSource | null;
-  /** Enums.AreaUnits · Lookup 3 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.AreaUnits · Lookup 3 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   BelowGradeUnfinishedAreaUnits: CotalityEnum_AreaUnits | null;
-  /** Enums.Multi.BodyType · multi-enum (comma-joined member names) · Lookup 7 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_BodyType */
+  /** Enums.Multi.BodyType · multi-enum (comma-joined member names) · Lookup 7 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_BodyType */
   BodyType: string | null;
-  /** Edm.String(50) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(50) · filterable · populated 0 · no REBNY reference */
   BuilderModel: string | null;
-  /** Edm.String(50) · filterable · populated 79 · not an RLS field */
+  /** Edm.String(50) · filterable · populated 79 · no REBNY reference */
   BuilderName: string | null;
-  /** Enums.AreaSource · Lookup 18 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.AreaSource · Lookup 18 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   BuildingAreaSource: CotalityEnum_AreaSource | null;
-  /** Edm.Decimal(14,2) · filterable · populated 15,003 · RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 15,003 · REBNY-referenced (Field.SystemReferences) */
   BuildingAreaTotal: number | null;
-  /** Enums.AreaUnits · Lookup 3 members (RLS-listed 2) · filterable · populated 12,674 · RLS field */
+  /** Enums.AreaUnits · Lookup 3 members (REBNY-referenced 2) · filterable · populated 12,674 · REBNY-referenced (Field.SystemReferences) */
   BuildingAreaUnits: CotalityEnum_AreaUnits | null;
-  /** Enums.Multi.BuildingFeatures · multi-enum (comma-joined member names) · Lookup 123 members (RLS-listed 39) · filterable · populated 65,882 · RLS field · members: CotalityEnum_BuildingFeatures */
+  /** Enums.Multi.BuildingFeatures · multi-enum (comma-joined member names) · Lookup 123 members (REBNY-referenced 39) · filterable · populated 65,882 · REBNY-referenced (Field.SystemReferences) · members: CotalityEnum_BuildingFeatures */
   BuildingFeatures: string | null;
-  /** Edm.String(300) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.String(300) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   BuildingKey: string | null;
-  /** Edm.Int64 · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.Int64 · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   BuildingKeyNumeric: number | null;
-  /** Edm.String(50) · filterable · populated 221,140 · RLS field */
+  /** Edm.String(50) · filterable · populated 221,140 · REBNY-referenced (Field.SystemReferences) */
   BuildingName: string | null;
-  /** Edm.String(255) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(255) · filterable · populated 0 · no REBNY reference */
   BusinessName: string | null;
-  /** Enums.Multi.BusinessType · multi-enum (comma-joined member names) · Lookup 139 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_BusinessType */
+  /** Enums.Multi.BusinessType · multi-enum (comma-joined member names) · Lookup 139 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_BusinessType */
   BusinessType: string | null;
-  /** Enums.AOR · Lookup 1127 members (RLS-listed 1) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Enums.AOR · Lookup 1127 members (REBNY-referenced 1) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   BuyerAgentAOR: CotalityLookup_Member_MemberAOR | null;
-  /** Enums.Multi.BuyerAgentDesignation · multi-enum (comma-joined member names) · Lookup 27 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · members: CotalityEnum_BuyerAgentDesignation */
+  /** Enums.Multi.BuyerAgentDesignation · multi-enum (comma-joined member names) · Lookup 27 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · members: CotalityEnum_BuyerAgentDesignation */
   BuyerAgentDesignation: string | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   BuyerAgentDirectPhone: string | null;
-  /** Edm.String(80) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(80) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   BuyerAgentEmail: string | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   BuyerAgentFax: string | null;
-  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   BuyerAgentFirstName: string | null;
-  /** Edm.String(150) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(150) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   BuyerAgentFullName: string | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   BuyerAgentHomePhone: string | null;
-  /** Edm.String(20) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(20) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   BuyerAgentKey: string | null;
-  /** Edm.Int64 · NOT filterable (provider-suppressed) · population unmeasurable · RLS field · non-RESO */
+  /** Edm.Int64 · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) · non-RESO */
   BuyerAgentKeyNumeric: number | null;
-  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   BuyerAgentLastName: string | null;
-  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   BuyerAgentMiddleName: string | null;
-  /** Edm.String(25) · filterable · populated 100,112 · RLS field */
+  /** Edm.String(25) · filterable · populated 100,112 · REBNY-referenced (Field.SystemReferences) */
   BuyerAgentMlsId: string | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   BuyerAgentMobilePhone: string | null;
-  /** Edm.String(10) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(10) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   BuyerAgentNamePrefix: string | null;
-  /** Edm.String(10) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(10) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   BuyerAgentNameSuffix: string | null;
-  /** Edm.String(30) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(30) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   BuyerAgentNationalAssociationId: string | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   BuyerAgentOfficePhone: string | null;
-  /** Edm.String(10) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(10) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   BuyerAgentOfficePhoneExt: string | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   BuyerAgentPager: string | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   BuyerAgentPreferredPhone: string | null;
-  /** Edm.String(10) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(10) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   BuyerAgentPreferredPhoneExt: string | null;
-  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   BuyerAgentStateLicense: string | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   BuyerAgentTollFreePhone: string | null;
-  /** Edm.String(8000) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(8000) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   BuyerAgentURL: string | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   BuyerAgentVoiceMail: string | null;
-  /** Edm.String(10) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(10) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   BuyerAgentVoiceMailExt: string | null;
-  /** Edm.String(25) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field · non-RESO */
+  /** Edm.String(25) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) · non-RESO */
   BuyerBrokerageCompensation: string | null;
-  /** Enums.CompensationType · Lookup 5 members (RLS-listed 2) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field · non-RESO */
+  /** Enums.CompensationType · Lookup 5 members (REBNY-referenced 2) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) · non-RESO */
   BuyerBrokerageCompensationType: CotalityEnum_CompensationType | null;
-  /** Enums.Multi.BuyerFinancing · multi-enum (comma-joined member names) · Lookup 42 members (RLS-listed 8) · filterable · populated 184 · not an RLS field · members: CotalityEnum_BuyerFinancing */
+  /** Enums.Multi.BuyerFinancing · multi-enum (comma-joined member names) · Lookup 42 members (REBNY-referenced 8) · filterable · populated 184 · no REBNY reference · members: CotalityEnum_BuyerFinancing */
   BuyerFinancing: string | null;
-  /** Enums.AOR · Lookup 1127 members (RLS-listed 1) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Enums.AOR · Lookup 1127 members (REBNY-referenced 1) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   BuyerOfficeAOR: CotalityLookup_Member_MemberAOR | null;
-  /** Edm.String(80) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(80) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   BuyerOfficeEmail: string | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   BuyerOfficeFax: string | null;
-  /** Edm.String(20) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(20) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   BuyerOfficeKey: string | null;
-  /** Edm.Int64 · NOT filterable (provider-suppressed) · population unmeasurable · RLS field · non-RESO */
+  /** Edm.Int64 · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) · non-RESO */
   BuyerOfficeKeyNumeric: number | null;
-  /** Edm.String(25) · filterable · populated 100,463 · RLS field */
+  /** Edm.String(25) · filterable · populated 100,463 · REBNY-referenced (Field.SystemReferences) */
   BuyerOfficeMlsId: string | null;
-  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   BuyerOfficeName: string | null;
-  /** Edm.String(30) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(30) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   BuyerOfficeNationalAssociationId: string | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   BuyerOfficePhone: string | null;
-  /** Edm.String(10) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(10) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   BuyerOfficePhoneExt: string | null;
-  /** Edm.String(8000) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(8000) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   BuyerOfficeURL: string | null;
-  /** Edm.String(20) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(20) · filterable · populated 0 · no REBNY reference */
   BuyerTeamKey: string | null;
-  /** Edm.Int64 · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.Int64 · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   BuyerTeamKeyNumeric: number | null;
-  /** Edm.String(25) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(25) · filterable · populated 0 · no REBNY reference · non-RESO */
   BuyerTeamMlsId: string | null;
-  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   BuyerTeamName: string | null;
-  /** Edm.Int64 · filterable · populated 539,492 · not an RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 539,492 · no REBNY reference · non-RESO */
   CLIP: number | null;
-  /** Edm.Decimal(14,2) · filterable · populated 8 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 8 · no REBNY reference */
   CableTvExpense: number | null;
-  /** Edm.Date(10) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.Date(10) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CancellationDate: string | null;
-  /** Edm.Decimal(5,2) · filterable · populated 44 · not an RLS field */
+  /** Edm.Decimal(5,2) · filterable · populated 44 · no REBNY reference */
   CapRate: number | null;
-  /** Edm.Decimal(14,2) · filterable · populated 5 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 5 · no REBNY reference */
   CarportSpaces: number | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 1) · filterable · populated 144 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 1) · filterable · populated 144 · no REBNY reference · string with Lookup (see lookups.live.json) */
   CarportYN: boolean | null;
-  /** Edm.String(9) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(9) · filterable · populated 0 · no REBNY reference */
   CarrierRoute: string | null;
-  /** Edm.String(50) · Lookup 24515 members (RLS-listed 1) · filterable · populated 591,607 · RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.String(50) · Lookup 24515 members (REBNY-referenced 1) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) · string with Lookup (see lookups.live.json) */
   City: string | null;
-  /** Edm.String(150) · filterable · populated 591,607 · RLS field */
+  /** Edm.String(150) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) */
   CityRegion: string | null;
-  /** Edm.Date(10) · filterable · populated 578,417 · RLS field */
+  /** Edm.Date(10) · filterable · populated 578,417 · REBNY-referenced (Field.SystemReferences) */
   CloseDate: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 508,931 · RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 508,931 · REBNY-referenced (Field.SystemReferences) */
   ClosePrice: number | null;
-  /** Enums.AOR · Lookup 1127 members (RLS-listed 1) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Enums.AOR · Lookup 1127 members (REBNY-referenced 1) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerAgentAOR: CotalityLookup_Member_MemberAOR | null;
-  /** Enums.Multi.CoBuyerAgentDesignation · multi-enum (comma-joined member names) · Lookup 27 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · members: CotalityEnum_BuyerAgentDesignation */
+  /** Enums.Multi.CoBuyerAgentDesignation · multi-enum (comma-joined member names) · Lookup 27 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · members: CotalityEnum_BuyerAgentDesignation */
   CoBuyerAgentDesignation: string | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerAgentDirectPhone: string | null;
-  /** Edm.String(80) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(80) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerAgentEmail: string | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerAgentFax: string | null;
-  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerAgentFirstName: string | null;
-  /** Edm.String(150) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(150) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerAgentFullName: string | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerAgentHomePhone: string | null;
-  /** Edm.String(20) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(20) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerAgentKey: string | null;
-  /** Edm.Int64 · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.Int64 · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   CoBuyerAgentKeyNumeric: number | null;
-  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerAgentLastName: string | null;
-  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerAgentMiddleName: string | null;
-  /** Edm.String(25) · filterable · populated 3,168 · not an RLS field */
+  /** Edm.String(25) · filterable · populated 3,168 · no REBNY reference */
   CoBuyerAgentMlsId: string | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerAgentMobilePhone: string | null;
-  /** Edm.String(10) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(10) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerAgentNamePrefix: string | null;
-  /** Edm.String(10) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(10) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerAgentNameSuffix: string | null;
-  /** Edm.String(30) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(30) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerAgentNationalAssociationId: string | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerAgentOfficePhone: string | null;
-  /** Edm.String(10) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(10) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerAgentOfficePhoneExt: string | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerAgentPager: string | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerAgentPreferredPhone: string | null;
-  /** Edm.String(10) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(10) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerAgentPreferredPhoneExt: string | null;
-  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerAgentStateLicense: string | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerAgentTollFreePhone: string | null;
-  /** Edm.String(8000) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(8000) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerAgentURL: string | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerAgentVoiceMail: string | null;
-  /** Edm.String(10) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(10) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerAgentVoiceMailExt: string | null;
-  /** Enums.AOR · Lookup 1127 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Enums.AOR · Lookup 1127 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerOfficeAOR: CotalityLookup_Property_CoBuyerOfficeAOR | null;
-  /** Edm.String(80) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(80) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerOfficeEmail: string | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerOfficeFax: string | null;
-  /** Edm.String(20) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(20) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerOfficeKey: string | null;
-  /** Edm.Int64 · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.Int64 · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   CoBuyerOfficeKeyNumeric: number | null;
-  /** Edm.String(25) · filterable · populated 3,173 · not an RLS field */
+  /** Edm.String(25) · filterable · populated 3,173 · no REBNY reference */
   CoBuyerOfficeMlsId: string | null;
-  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerOfficeName: string | null;
-  /** Edm.String(30) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(30) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerOfficeNationalAssociationId: string | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerOfficePhone: string | null;
-  /** Edm.String(10) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(10) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerOfficePhoneExt: string | null;
-  /** Edm.String(8000) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(8000) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoBuyerOfficeURL: string | null;
-  /** Enums.AOR · Lookup 1127 members (RLS-listed 0) · filterable · populated 50,821 · not an RLS field · non-RESO */
+  /** Enums.AOR · Lookup 1127 members (REBNY-referenced 0) · filterable · populated 50,821 · no REBNY reference · non-RESO */
   CoListAgent2AOR: CotalityLookup_Member_MemberAOR | null;
-  /** Edm.String(16) · filterable · populated 50,831 · not an RLS field · non-RESO */
+  /** Edm.String(16) · filterable · populated 50,831 · no REBNY reference · non-RESO */
   CoListAgent2DirectPhone: string | null;
-  /** Edm.String(80) · filterable · populated 50,916 · not an RLS field · non-RESO */
+  /** Edm.String(80) · filterable · populated 50,916 · no REBNY reference · non-RESO */
   CoListAgent2Email: string | null;
-  /** Edm.String(50) · filterable · populated 50,931 · not an RLS field · non-RESO */
+  /** Edm.String(50) · filterable · populated 50,931 · no REBNY reference · non-RESO */
   CoListAgent2FirstName: string | null;
-  /** Edm.String(150) · filterable · populated 50,995 · not an RLS field · non-RESO */
+  /** Edm.String(150) · filterable · populated 50,995 · no REBNY reference · non-RESO */
   CoListAgent2FullName: string | null;
-  /** Edm.String(16) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(16) · filterable · populated 0 · no REBNY reference · non-RESO */
   CoListAgent2HomePhone: string | null;
-  /** Edm.String(50) · filterable · populated 50,994 · not an RLS field · non-RESO */
+  /** Edm.String(50) · filterable · populated 50,994 · no REBNY reference · non-RESO */
   CoListAgent2Key: string | null;
-  /** Edm.String(50) · filterable · populated 50,931 · not an RLS field · non-RESO */
+  /** Edm.String(50) · filterable · populated 50,931 · no REBNY reference · non-RESO */
   CoListAgent2LastName: string | null;
-  /** Edm.String(50) · filterable · populated 19,072 · not an RLS field · non-RESO */
+  /** Edm.String(50) · filterable · populated 19,072 · no REBNY reference · non-RESO */
   CoListAgent2MiddleName: string | null;
-  /** Edm.String(25) · filterable · populated 51,234 · not an RLS field · non-RESO */
+  /** Edm.String(25) · filterable · populated 51,234 · no REBNY reference · non-RESO */
   CoListAgent2MlsId: string | null;
-  /** Edm.String(16) · filterable · populated 48,785 · not an RLS field · non-RESO */
+  /** Edm.String(16) · filterable · populated 48,785 · no REBNY reference · non-RESO */
   CoListAgent2MobilePhone: string | null;
-  /** Edm.String(30) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(30) · filterable · populated 0 · no REBNY reference · non-RESO */
   CoListAgent2NationalAssociationId: string | null;
-  /** Edm.String(100) · filterable · populated 50,677 · not an RLS field · non-RESO */
+  /** Edm.String(100) · filterable · populated 50,677 · no REBNY reference · non-RESO */
   CoListAgent2Nickname: string | null;
-  /** Edm.String(16) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(16) · filterable · populated 0 · no REBNY reference · non-RESO */
   CoListAgent2OfficePhone: string | null;
-  /** Edm.String(16) · filterable · populated 50,779 · not an RLS field · non-RESO */
+  /** Edm.String(16) · filterable · populated 50,779 · no REBNY reference · non-RESO */
   CoListAgent2PreferredPhone: string | null;
-  /** Edm.String(50) · filterable · populated 50,697 · not an RLS field · non-RESO */
+  /** Edm.String(50) · filterable · populated 50,697 · no REBNY reference · non-RESO */
   CoListAgent2StateLicense: string | null;
-  /** Edm.String(8000) · filterable · populated 3,861 · not an RLS field · non-RESO */
+  /** Edm.String(8000) · filterable · populated 3,861 · no REBNY reference · non-RESO */
   CoListAgent2URL: string | null;
-  /** Enums.AOR · Lookup 1127 members (RLS-listed 0) · filterable · populated 7,868 · not an RLS field · non-RESO */
+  /** Enums.AOR · Lookup 1127 members (REBNY-referenced 0) · filterable · populated 7,868 · no REBNY reference · non-RESO */
   CoListAgent3AOR: CotalityLookup_Member_MemberAOR | null;
-  /** Edm.String(16) · filterable · populated 7,962 · not an RLS field · non-RESO */
+  /** Edm.String(16) · filterable · populated 7,962 · no REBNY reference · non-RESO */
   CoListAgent3DirectPhone: string | null;
-  /** Edm.String(80) · filterable · populated 7,987 · not an RLS field · non-RESO */
+  /** Edm.String(80) · filterable · populated 7,987 · no REBNY reference · non-RESO */
   CoListAgent3Email: string | null;
-  /** Edm.String(50) · filterable · populated 7,957 · not an RLS field · non-RESO */
+  /** Edm.String(50) · filterable · populated 7,957 · no REBNY reference · non-RESO */
   CoListAgent3FirstName: string | null;
-  /** Edm.String(150) · filterable · populated 7,993 · not an RLS field · non-RESO */
+  /** Edm.String(150) · filterable · populated 7,993 · no REBNY reference · non-RESO */
   CoListAgent3FullName: string | null;
-  /** Edm.String(16) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(16) · filterable · populated 0 · no REBNY reference · non-RESO */
   CoListAgent3HomePhone: string | null;
-  /** Edm.String(50) · filterable · populated 7,993 · not an RLS field · non-RESO */
+  /** Edm.String(50) · filterable · populated 7,993 · no REBNY reference · non-RESO */
   CoListAgent3Key: string | null;
-  /** Edm.String(50) · filterable · populated 7,957 · not an RLS field · non-RESO */
+  /** Edm.String(50) · filterable · populated 7,957 · no REBNY reference · non-RESO */
   CoListAgent3LastName: string | null;
-  /** Edm.String(50) · filterable · populated 3,101 · not an RLS field · non-RESO */
+  /** Edm.String(50) · filterable · populated 3,101 · no REBNY reference · non-RESO */
   CoListAgent3MiddleName: string | null;
-  /** Edm.String(25) · filterable · populated 7,994 · not an RLS field · non-RESO */
+  /** Edm.String(25) · filterable · populated 7,994 · no REBNY reference · non-RESO */
   CoListAgent3MlsId: string | null;
-  /** Edm.String(16) · filterable · populated 7,493 · not an RLS field · non-RESO */
+  /** Edm.String(16) · filterable · populated 7,493 · no REBNY reference · non-RESO */
   CoListAgent3MobilePhone: string | null;
-  /** Edm.String(30) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(30) · filterable · populated 0 · no REBNY reference · non-RESO */
   CoListAgent3NationalAssociationId: string | null;
-  /** Edm.String(100) · filterable · populated 7,828 · not an RLS field · non-RESO */
+  /** Edm.String(100) · filterable · populated 7,828 · no REBNY reference · non-RESO */
   CoListAgent3Nickname: string | null;
-  /** Edm.String(16) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(16) · filterable · populated 0 · no REBNY reference · non-RESO */
   CoListAgent3OfficePhone: string | null;
-  /** Edm.String(16) · filterable · populated 7,937 · not an RLS field · non-RESO */
+  /** Edm.String(16) · filterable · populated 7,937 · no REBNY reference · non-RESO */
   CoListAgent3PreferredPhone: string | null;
-  /** Edm.String(50) · filterable · populated 7,880 · not an RLS field · non-RESO */
+  /** Edm.String(50) · filterable · populated 7,880 · no REBNY reference · non-RESO */
   CoListAgent3StateLicense: string | null;
-  /** Edm.String(8000) · filterable · populated 716 · not an RLS field · non-RESO */
+  /** Edm.String(8000) · filterable · populated 716 · no REBNY reference · non-RESO */
   CoListAgent3URL: string | null;
-  /** Enums.AOR · Lookup 1127 members (RLS-listed 1) · filterable · populated 207,368 · RLS field */
+  /** Enums.AOR · Lookup 1127 members (REBNY-referenced 1) · filterable · populated 207,368 · REBNY-referenced (Field.SystemReferences) */
   CoListAgentAOR: CotalityLookup_Member_MemberAOR | null;
-  /** Enums.Multi.CoListAgentDesignation · multi-enum (comma-joined member names) · Lookup 27 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_BuyerAgentDesignation */
+  /** Enums.Multi.CoListAgentDesignation · multi-enum (comma-joined member names) · Lookup 27 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_BuyerAgentDesignation */
   CoListAgentDesignation: string | null;
-  /** Edm.String(16) · filterable · populated 206,739 · RLS field */
+  /** Edm.String(16) · filterable · populated 206,739 · REBNY-referenced (Field.SystemReferences) */
   CoListAgentDirectPhone: string | null;
-  /** Edm.String(80) · filterable · populated 208,274 · RLS field */
+  /** Edm.String(80) · filterable · populated 208,274 · REBNY-referenced (Field.SystemReferences) */
   CoListAgentEmail: string | null;
-  /** Edm.String(16) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(16) · filterable · populated 0 · no REBNY reference */
   CoListAgentFax: string | null;
-  /** Edm.String(50) · filterable · populated 207,355 · RLS field */
+  /** Edm.String(50) · filterable · populated 207,355 · REBNY-referenced (Field.SystemReferences) */
   CoListAgentFirstName: string | null;
-  /** Edm.String(150) · filterable · populated 208,274 · RLS field */
+  /** Edm.String(150) · filterable · populated 208,274 · REBNY-referenced (Field.SystemReferences) */
   CoListAgentFullName: string | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoListAgentHomePhone: string | null;
-  /** Edm.String(20) · filterable · populated 207,401 · RLS field */
+  /** Edm.String(20) · filterable · populated 207,401 · REBNY-referenced (Field.SystemReferences) */
   CoListAgentKey: string | null;
-  /** Edm.Int64 · filterable · populated 207,401 · RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 207,401 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   CoListAgentKeyNumeric: number | null;
-  /** Edm.String(50) · filterable · populated 207,360 · RLS field */
+  /** Edm.String(50) · filterable · populated 207,360 · REBNY-referenced (Field.SystemReferences) */
   CoListAgentLastName: string | null;
-  /** Edm.String(50) · filterable · populated 84,950 · RLS field */
+  /** Edm.String(50) · filterable · populated 84,950 · REBNY-referenced (Field.SystemReferences) */
   CoListAgentMiddleName: string | null;
-  /** Edm.String(25) · filterable · populated 208,023 · RLS field */
+  /** Edm.String(25) · filterable · populated 208,023 · REBNY-referenced (Field.SystemReferences) */
   CoListAgentMlsId: string | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   CoListAgentMobilePhone: string | null;
-  /** Edm.String(10) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(10) · filterable · populated 0 · no REBNY reference */
   CoListAgentNamePrefix: string | null;
-  /** Edm.String(10) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(10) · filterable · populated 0 · no REBNY reference */
   CoListAgentNameSuffix: string | null;
-  /** Edm.String(30) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(30) · filterable · populated 0 · no REBNY reference */
   CoListAgentNationalAssociationId: string | null;
-  /** Edm.String(100) · filterable · populated 206,954 · not an RLS field · non-RESO */
+  /** Edm.String(100) · filterable · populated 206,954 · no REBNY reference · non-RESO */
   CoListAgentNickname: string | null;
-  /** Edm.String(16) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(16) · filterable · populated 0 · no REBNY reference */
   CoListAgentOfficePhone: string | null;
-  /** Edm.String(10) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(10) · filterable · populated 0 · no REBNY reference */
   CoListAgentOfficePhoneExt: string | null;
-  /** Edm.String(16) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(16) · filterable · populated 0 · no REBNY reference */
   CoListAgentPager: string | null;
-  /** Edm.String(16) · filterable · populated 206,467 · RLS field */
+  /** Edm.String(16) · filterable · populated 206,467 · REBNY-referenced (Field.SystemReferences) */
   CoListAgentPreferredPhone: string | null;
-  /** Edm.String(10) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(10) · filterable · populated 0 · no REBNY reference */
   CoListAgentPreferredPhoneExt: string | null;
-  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   CoListAgentStateLicense: string | null;
-  /** Edm.String(16) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(16) · filterable · populated 0 · no REBNY reference */
   CoListAgentTollFreePhone: string | null;
-  /** Edm.String(8000) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(8000) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   CoListAgentURL: string | null;
-  /** Edm.String(16) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(16) · filterable · populated 0 · no REBNY reference */
   CoListAgentVoiceMail: string | null;
-  /** Edm.String(10) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(10) · filterable · populated 0 · no REBNY reference */
   CoListAgentVoiceMailExt: string | null;
-  /** Enums.AOR · Lookup 1127 members (RLS-listed 0) · filterable · populated 50,884 · not an RLS field · non-RESO */
+  /** Enums.AOR · Lookup 1127 members (REBNY-referenced 0) · filterable · populated 50,884 · no REBNY reference · non-RESO */
   CoListOffice2AOR: CotalityLookup_Member_MemberAOR | null;
-  /** Edm.String(80) · filterable · populated 6,411 · not an RLS field · non-RESO */
+  /** Edm.String(80) · filterable · populated 6,411 · no REBNY reference · non-RESO */
   CoListOffice2Email: string | null;
-  /** Edm.String(50) · filterable · populated 50,994 · not an RLS field · non-RESO */
+  /** Edm.String(50) · filterable · populated 50,994 · no REBNY reference · non-RESO */
   CoListOffice2Key: string | null;
-  /** Edm.String(25) · filterable · populated 50,994 · not an RLS field · non-RESO */
+  /** Edm.String(25) · filterable · populated 50,994 · no REBNY reference · non-RESO */
   CoListOffice2MlsId: string | null;
-  /** Edm.String(255) · filterable · populated 50,994 · not an RLS field · non-RESO */
+  /** Edm.String(255) · filterable · populated 50,994 · no REBNY reference · non-RESO */
   CoListOffice2Name: string | null;
-  /** Edm.String(16) · filterable · populated 50,927 · not an RLS field · non-RESO */
+  /** Edm.String(16) · filterable · populated 50,927 · no REBNY reference · non-RESO */
   CoListOffice2Phone: string | null;
-  /** Edm.String(8000) · filterable · populated 48,800 · not an RLS field · non-RESO */
+  /** Edm.String(8000) · filterable · populated 48,800 · no REBNY reference · non-RESO */
   CoListOffice2URL: string | null;
-  /** Enums.AOR · Lookup 1127 members (RLS-listed 0) · filterable · populated 207,183 · RLS field */
+  /** Enums.AOR · Lookup 1127 members (REBNY-referenced 0) · filterable · populated 207,183 · REBNY-referenced (Field.SystemReferences) */
   CoListOfficeAOR: CotalityLookup_Member_MemberAOR | null;
-  /** Edm.String(80) · filterable · populated 21,683 · RLS field */
+  /** Edm.String(80) · filterable · populated 21,683 · REBNY-referenced (Field.SystemReferences) */
   CoListOfficeEmail: string | null;
-  /** Edm.String(16) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(16) · filterable · populated 0 · no REBNY reference */
   CoListOfficeFax: string | null;
-  /** Edm.String(20) · filterable · populated 207,401 · RLS field */
+  /** Edm.String(20) · filterable · populated 207,401 · REBNY-referenced (Field.SystemReferences) */
   CoListOfficeKey: string | null;
-  /** Edm.Int64 · filterable · populated 207,401 · RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 207,401 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   CoListOfficeKeyNumeric: number | null;
-  /** Edm.String(25) · filterable · populated 207,401 · RLS field */
+  /** Edm.String(25) · filterable · populated 207,401 · REBNY-referenced (Field.SystemReferences) */
   CoListOfficeMlsId: string | null;
-  /** Edm.String(255) · filterable · populated 207,401 · RLS field */
+  /** Edm.String(255) · filterable · populated 207,401 · REBNY-referenced (Field.SystemReferences) */
   CoListOfficeName: string | null;
-  /** Edm.String(30) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(30) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CoListOfficeNationalAssociationId: string | null;
-  /** Edm.String(16) · filterable · populated 207,248 · RLS field */
+  /** Edm.String(16) · filterable · populated 207,248 · REBNY-referenced (Field.SystemReferences) */
   CoListOfficePhone: string | null;
-  /** Edm.String(10) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(10) · filterable · populated 0 · no REBNY reference */
   CoListOfficePhoneExt: string | null;
-  /** Edm.String(8000) · filterable · populated 199,749 · RLS field */
+  /** Edm.String(8000) · filterable · populated 199,749 · REBNY-referenced (Field.SystemReferences) */
   CoListOfficeURL: string | null;
-  /** Enums.CommonInterest · Lookup 13 members (RLS-listed 6) · filterable · populated 435,273 · RLS field */
+  /** Enums.CommonInterest · Lookup 13 members (REBNY-referenced 6) · filterable · populated 435,273 · REBNY-referenced (Field.SystemReferences) */
   CommonInterest: CotalityEnum_CommonInterest | null;
-  /** Enums.Multi.CommonWalls · multi-enum (comma-joined member names) · Lookup 6 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_CommonWalls */
+  /** Enums.Multi.CommonWalls · multi-enum (comma-joined member names) · Lookup 6 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_CommonWalls */
   CommonWalls: string | null;
-  /** Enums.Multi.CommunityFeatures · multi-enum (comma-joined member names) · Lookup 141 members (RLS-listed 2) · filterable · populated 5,999 · RLS field · members: CotalityEnum_CommunityFeatures */
+  /** Enums.Multi.CommunityFeatures · multi-enum (comma-joined member names) · Lookup 141 members (REBNY-referenced 2) · filterable · populated 5,999 · REBNY-referenced (Field.SystemReferences) · members: CotalityEnum_CommunityFeatures */
   CommunityFeatures: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · string with Lookup (see lookups.live.json) */
   CompSaleYN: boolean | null;
-  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   CompensationComments: string | null;
-  /** Edm.Decimal(14,3) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.Decimal(14,3) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   ConcessionInPrice: number | null;
-  /** Enums.ConcessionInPriceType · Lookup 2 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Enums.ConcessionInPriceType · Lookup 2 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   ConcessionInPriceType: CotalityEnum_ConcessionInPriceType | null;
-  /** Enums.Concessions · Lookup 3 members (RLS-listed 3) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Enums.Concessions · Lookup 3 members (REBNY-referenced 3) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   Concessions: CotalityEnum_Concessions | null;
-  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   ConcessionsAmount: number | null;
-  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   ConcessionsBuyerBrokerFee: number | null;
-  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   ConcessionsClosingCosts: number | null;
-  /** Edm.String(200) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(200) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   ConcessionsComments: string | null;
-  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   ConcessionsFinancingCosts: number | null;
-  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   ConcessionsOtherCosts: number | null;
-  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   ConcessionsPropertyImprovementCosts: number | null;
-  /** Enums.Multi.ConstructionMaterials · multi-enum (comma-joined member names) · Lookup 87 members (RLS-listed 14) · filterable · populated 45 · not an RLS field · members: CotalityEnum_ConstructionMaterials */
+  /** Enums.Multi.ConstructionMaterials · multi-enum (comma-joined member names) · Lookup 87 members (REBNY-referenced 14) · filterable · populated 45 · no REBNY reference · members: CotalityEnum_ConstructionMaterials */
   ConstructionMaterials: string | null;
-  /** Edm.String(150) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(150) · filterable · populated 0 · no REBNY reference */
   ContinentRegion: string | null;
-  /** Edm.String(1024) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(1024) · filterable · populated 0 · no REBNY reference */
   Contingency: string | null;
-  /** Edm.Date(10) · filterable · populated 0 · not an RLS field */
+  /** Edm.Date(10) · filterable · populated 0 · no REBNY reference */
   ContingentDate: string | null;
-  /** Edm.Date(10) · filterable · populated 591,607 · RLS field */
+  /** Edm.Date(10) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) */
   ContractStatusChangeDate: string | null;
-  /** Enums.Multi.Cooling · multi-enum (comma-joined member names) · Lookup 41 members (RLS-listed 19) · filterable · populated 205,151 · RLS field · members: CotalityEnum_Cooling */
+  /** Enums.Multi.Cooling · multi-enum (comma-joined member names) · Lookup 41 members (REBNY-referenced 19) · filterable · populated 205,151 · REBNY-referenced (Field.SystemReferences) · members: CotalityEnum_Cooling */
   Cooling: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 1) · filterable · populated 233,886 · RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 1) · filterable · populated 233,886 · REBNY-referenced (Field.SystemReferences) · string with Lookup (see lookups.live.json) */
   CoolingYN: boolean | null;
-  /** Edm.String(500) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(500) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CopyrightNotice: string | null;
-  /** Enums.Country · Lookup 246 members (RLS-listed 1) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Enums.Country · Lookup 246 members (REBNY-referenced 1) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   Country: CotalityEnum_Country | null;
-  /** Edm.String(150) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(150) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CountryRegion: string | null;
-  /** Edm.String(128) · filterable · populated 591,582 · not an RLS field · non-RESO */
+  /** Edm.String(128) · filterable · populated 591,582 · no REBNY reference · non-RESO */
   CountrySubdivision: string | null;
-  /** Edm.String(50) · Lookup 4423 members (RLS-listed 5) · filterable · populated 591,607 · RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.String(50) · Lookup 4423 members (REBNY-referenced 5) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) · string with Lookup (see lookups.live.json) */
   CountyOrParish: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference */
   CoveredSpaces: number | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · string with Lookup (see lookups.live.json) */
   CropsIncludedYN: boolean | null;
-  /** Edm.String(50) · filterable · populated 396,743 · RLS field */
+  /** Edm.String(50) · filterable · populated 396,743 · REBNY-referenced (Field.SystemReferences) */
   CrossStreet: string | null;
-  /** Edm.Decimal(14,2) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.Decimal(14,2) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   CultivatedArea: number | null;
-  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   CumulativeDaysOnMarket: number | null;
-  /** Enums.Multi.CurrentFinancing · multi-enum (comma-joined member names) · Lookup 24 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_CurrentFinancing */
+  /** Enums.Multi.CurrentFinancing · multi-enum (comma-joined member names) · Lookup 24 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_CurrentFinancing */
   CurrentFinancing: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 591,607 · not an RLS field · non-RESO */
+  /** Edm.Decimal(14,2) · filterable · populated 591,607 · no REBNY reference · non-RESO */
   CurrentPrice: number | null;
-  /** Enums.Multi.CurrentOrPossibleUse · multi-enum (comma-joined member names) · Lookup 66 members (RLS-listed 10) · filterable · populated 786 · not an RLS field · members: CotalityLookup_Property_CurrentUse */
+  /** Enums.Multi.CurrentOrPossibleUse · multi-enum (comma-joined member names) · Lookup 66 members (REBNY-referenced 10) · filterable · populated 786 · no REBNY reference · members: CotalityLookup_Property_CurrentUse */
   CurrentUse: string | null;
-  /** Edm.String(25) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(25) · filterable · populated 0 · no REBNY reference */
   DOH1: string | null;
-  /** Edm.String(25) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(25) · filterable · populated 0 · no REBNY reference */
   DOH2: string | null;
-  /** Edm.String(25) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(25) · filterable · populated 0 · no REBNY reference */
   DOH3: string | null;
-  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   DaysOnMarket: number | null;
-  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · RLS field · non-RESO */
+  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) · non-RESO */
   DaysOnMarketReplication: number | null;
-  /** Edm.Date(10) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field · non-RESO */
+  /** Edm.Date(10) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) · non-RESO */
   DaysOnMarketReplicationDate: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) · non-RESO · string with Lookup (see lookups.live.json) */
   DaysOnMarketReplicationIncreasingYN: boolean | null;
-  /** Edm.Date(10) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Date(10) · filterable · populated 0 · no REBNY reference · non-RESO */
   DelayedMarketingDate: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   DelayedMarketingYN: boolean | null;
-  /** Enums.Multi.DevelopmentStatus · multi-enum (comma-joined member names) · Lookup 19 members (RLS-listed 7) · filterable · populated 462 · not an RLS field · members: CotalityEnum_DevelopmentStatus */
+  /** Enums.Multi.DevelopmentStatus · multi-enum (comma-joined member names) · Lookup 19 members (REBNY-referenced 7) · filterable · populated 462 · no REBNY reference · members: CotalityEnum_DevelopmentStatus */
   DevelopmentStatus: string | null;
-  /** Enums.DirectionFaces · Lookup 9 members (RLS-listed 6) · filterable · populated 1,382 · not an RLS field */
+  /** Enums.DirectionFaces · Lookup 9 members (REBNY-referenced 6) · filterable · populated 1,382 · no REBNY reference */
   DirectionFaces: CotalityEnum_DirectionFaces | null;
-  /** Edm.String(1024) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(1024) · filterable · populated 0 · no REBNY reference */
   Directions: string | null;
-  /** Edm.String(500) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(500) · filterable · populated 0 · no REBNY reference */
   Disclaimer: string | null;
-  /** Enums.Multi.Disclosures · multi-enum (comma-joined member names) · Lookup 119 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · members: CotalityEnum_Disclosures */
+  /** Enums.Multi.Disclosures · multi-enum (comma-joined member names) · Lookup 119 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · members: CotalityEnum_Disclosures */
   Disclosures: string | null;
-  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToBusComments: string | null;
-  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToBusNumeric: number | null;
-  /** Enums.LinearUnits · Lookup 4 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Enums.LinearUnits · Lookup 4 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToBusUnits: CotalityEnum_LinearUnits | null;
-  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToElectricComments: string | null;
-  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToElectricNumeric: number | null;
-  /** Enums.LinearUnits · Lookup 4 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Enums.LinearUnits · Lookup 4 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToElectricUnits: CotalityEnum_LinearUnits | null;
-  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToFreewayComments: string | null;
-  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToFreewayNumeric: number | null;
-  /** Enums.LinearUnits · Lookup 4 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Enums.LinearUnits · Lookup 4 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToFreewayUnits: CotalityEnum_LinearUnits | null;
-  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToGasComments: string | null;
-  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToGasNumeric: number | null;
-  /** Enums.LinearUnits · Lookup 4 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Enums.LinearUnits · Lookup 4 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToGasUnits: CotalityEnum_LinearUnits | null;
-  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToPhoneServiceComments: string | null;
-  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToPhoneServiceNumeric: number | null;
-  /** Enums.LinearUnits · Lookup 4 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Enums.LinearUnits · Lookup 4 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToPhoneServiceUnits: CotalityEnum_LinearUnits | null;
-  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToPlaceofWorshipComments: string | null;
-  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToPlaceofWorshipNumeric: number | null;
-  /** Enums.LinearUnits · Lookup 4 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Enums.LinearUnits · Lookup 4 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToPlaceofWorshipUnits: CotalityEnum_LinearUnits | null;
-  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToSchoolBusComments: string | null;
-  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToSchoolBusNumeric: number | null;
-  /** Enums.LinearUnits · Lookup 4 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Enums.LinearUnits · Lookup 4 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToSchoolBusUnits: CotalityEnum_LinearUnits | null;
-  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToSchoolsComments: string | null;
-  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToSchoolsNumeric: number | null;
-  /** Enums.LinearUnits · Lookup 4 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Enums.LinearUnits · Lookup 4 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToSchoolsUnits: CotalityEnum_LinearUnits | null;
-  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToSewerComments: string | null;
-  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToSewerNumeric: number | null;
-  /** Enums.LinearUnits · Lookup 4 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Enums.LinearUnits · Lookup 4 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToSewerUnits: CotalityEnum_LinearUnits | null;
-  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToShoppingComments: string | null;
-  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToShoppingNumeric: number | null;
-  /** Enums.LinearUnits · Lookup 4 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Enums.LinearUnits · Lookup 4 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToShoppingUnits: CotalityEnum_LinearUnits | null;
-  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToStreetComments: string | null;
-  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToStreetNumeric: number | null;
-  /** Enums.LinearUnits · Lookup 4 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Enums.LinearUnits · Lookup 4 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToStreetUnits: CotalityEnum_LinearUnits | null;
-  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToWaterComments: string | null;
-  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToWaterNumeric: number | null;
-  /** Enums.LinearUnits · Lookup 4 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Enums.LinearUnits · Lookup 4 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   DistanceToWaterUnits: CotalityEnum_LinearUnits | null;
-  /** Enums.Multi.DocumentsAvailable · multi-enum (comma-joined member names) · Lookup 94 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_DocumentsAvailable */
+  /** Enums.Multi.DocumentsAvailable · multi-enum (comma-joined member names) · Lookup 94 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_DocumentsAvailable */
   DocumentsAvailable: string | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 366,181 · RLS field */
+  /** Edm.DateTimeOffset(27) · filterable · populated 366,181 · REBNY-referenced (Field.SystemReferences) */
   DocumentsChangeTimestamp: string | null;
-  /** Edm.Int32 · filterable · populated 591,607 · RLS field */
+  /** Edm.Int32 · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) */
   DocumentsCount: number | null;
-  /** Enums.Multi.DoorFeatures · multi-enum (comma-joined member names) · Lookup 18 members (RLS-listed 5) · filterable · populated 32 · not an RLS field · members: CotalityEnum_DoorFeatures */
+  /** Enums.Multi.DoorFeatures · multi-enum (comma-joined member names) · Lookup 18 members (REBNY-referenced 5) · filterable · populated 32 · no REBNY reference · members: CotalityEnum_DoorFeatures */
   DoorFeatures: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference · non-RESO */
   DownPaymentAssistanceAmount: number | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference · non-RESO */
   DownPaymentAssistanceCount: number | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   DownPaymentAssistanceYN: boolean | null;
-  /** Edm.Boolean · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.Boolean · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   DualOrVariableRateCommissionYN: boolean | null;
-  /** Enums.Multi.Electric · multi-enum (comma-joined member names) · Lookup 46 members (RLS-listed 4) · filterable · populated 10 · not an RLS field · members: CotalityEnum_Electric */
+  /** Enums.Multi.Electric · multi-enum (comma-joined member names) · Lookup 46 members (REBNY-referenced 4) · filterable · populated 10 · no REBNY reference · members: CotalityEnum_Electric */
   Electric: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 8 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 8 · no REBNY reference */
   ElectricExpense: number | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 2) · filterable · populated 118 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 2) · filterable · populated 118 · no REBNY reference · string with Lookup (see lookups.live.json) */
   ElectricOnPropertyYN: boolean | null;
-  /** Edm.String(50) · Lookup 1 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.String(50) · Lookup 1 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · string with Lookup (see lookups.live.json) */
   ElementarySchool: string | null;
-  /** Edm.String(50) · Lookup 1 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.String(50) · Lookup 1 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · string with Lookup (see lookups.live.json) */
   ElementarySchoolDistrict: string | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference */
   Elevation: number | null;
-  /** Enums.LinearUnits · Lookup 4 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.LinearUnits · Lookup 4 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   ElevationUnits: CotalityEnum_LinearUnits | null;
-  /** Edm.Int32 · filterable · populated 424,420 · RLS field */
+  /** Edm.Int32 · filterable · populated 424,420 · REBNY-referenced (Field.SystemReferences) */
   EntryLevel: number | null;
-  /** Edm.String(50) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(50) · filterable · populated 0 · no REBNY reference */
   EntryLocation: string | null;
-  /** Edm.Date(10) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Date(10) · filterable · populated 0 · no REBNY reference · non-RESO */
   EstimatedCloseDate: string | null;
-  /** Edm.String(1024) · filterable · populated 111,787 · RLS field */
+  /** Edm.String(1024) · filterable · populated 111,787 · REBNY-referenced (Field.SystemReferences) */
   Exclusions: string | null;
-  /** Enums.Multi.ExistingLeaseType · multi-enum (comma-joined member names) · Lookup 23 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_ExistingLeaseType */
+  /** Enums.Multi.ExistingLeaseType · multi-enum (comma-joined member names) · Lookup 23 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_ExistingLeaseType */
   ExistingLeaseType: string | null;
-  /** Edm.Date(10) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.Date(10) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   ExpirationDate: string | null;
-  /** Enums.Multi.Exposures · multi-enum (comma-joined member names) · Lookup 9 members (RLS-listed 4) · filterable · populated 338,278 · not an RLS field · non-RESO · members: CotalityEnum_DirectionFaces */
+  /** Enums.Multi.Exposures · multi-enum (comma-joined member names) · Lookup 9 members (REBNY-referenced 4) · filterable · populated 338,278 · no REBNY reference · non-RESO · members: CotalityEnum_DirectionFaces */
   Exposures: string | null;
-  /** Enums.Multi.ExteriorFeatures · multi-enum (comma-joined member names) · Lookup 152 members (RLS-listed 50) · filterable · populated 238,927 · RLS field · members: CotalityEnum_ExteriorFeatures */
+  /** Enums.Multi.ExteriorFeatures · multi-enum (comma-joined member names) · Lookup 152 members (REBNY-referenced 50) · filterable · populated 238,927 · REBNY-referenced (Field.SystemReferences) · members: CotalityEnum_ExteriorFeatures */
   ExteriorFeatures: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · string with Lookup (see lookups.live.json) */
   FarmCreditServiceInclYN: boolean | null;
-  /** Enums.AreaSource · Lookup 18 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Enums.AreaSource · Lookup 18 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   FarmLandAreaSource: CotalityEnum_AreaSource | null;
-  /** Enums.AreaUnits · Lookup 3 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Enums.AreaUnits · Lookup 3 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   FarmLandAreaUnits: CotalityEnum_AreaUnits | null;
-  /** Enums.Multi.Fencing · multi-enum (comma-joined member names) · Lookup 56 members (RLS-listed 17) · filterable · populated 44 · not an RLS field · members: CotalityEnum_Fencing */
+  /** Enums.Multi.Fencing · multi-enum (comma-joined member names) · Lookup 56 members (REBNY-referenced 17) · filterable · populated 44 · no REBNY reference · members: CotalityEnum_Fencing */
   Fencing: string | null;
-  /** Enums.FhaEligibility · Lookup 5 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.FhaEligibility · Lookup 5 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   FhaEligibility: CotalityEnum_FhaEligibility | null;
-  /** Enums.Multi.FinancialDataSource · multi-enum (comma-joined member names) · Lookup 5 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_FinancialDataSource */
+  /** Enums.Multi.FinancialDataSource · multi-enum (comma-joined member names) · Lookup 5 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_FinancialDataSource */
   FinancialDataSource: string | null;
-  /** Enums.Multi.FireplaceFeatures · multi-enum (comma-joined member names) · Lookup 79 members (RLS-listed 32) · filterable · populated 18,576 · RLS field · members: CotalityEnum_FireplaceFeatures */
+  /** Enums.Multi.FireplaceFeatures · multi-enum (comma-joined member names) · Lookup 79 members (REBNY-referenced 32) · filterable · populated 18,576 · REBNY-referenced (Field.SystemReferences) · members: CotalityEnum_FireplaceFeatures */
   FireplaceFeatures: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 1) · filterable · populated 96,628 · RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 1) · filterable · populated 96,628 · REBNY-referenced (Field.SystemReferences) · string with Lookup (see lookups.live.json) */
   FireplaceYN: boolean | null;
-  /** Edm.Int32 · filterable · populated 29,172 · RLS field */
+  /** Edm.Int32 · filterable · populated 29,172 · REBNY-referenced (Field.SystemReferences) */
   FireplacesTotal: number | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.DateTimeOffset(27) · filterable · populated 0 · no REBNY reference · non-RESO */
   FloorPlansChangeTimestamp: string | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference · non-RESO */
   FloorPlansCount: number | null;
-  /** Enums.Multi.Flooring · multi-enum (comma-joined member names) · Lookup 62 members (RLS-listed 23) · filterable · populated 25,863 · RLS field · members: CotalityEnum_Flooring */
+  /** Enums.Multi.Flooring · multi-enum (comma-joined member names) · Lookup 62 members (REBNY-referenced 23) · filterable · populated 25,863 · REBNY-referenced (Field.SystemReferences) · members: CotalityEnum_Flooring */
   Flooring: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 802 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 802 · no REBNY reference */
   FoundationArea: number | null;
-  /** Enums.Multi.FoundationDetails · multi-enum (comma-joined member names) · Lookup 27 members (RLS-listed 8) · filterable · populated 13 · not an RLS field · members: CotalityEnum_FoundationDetails */
+  /** Enums.Multi.FoundationDetails · multi-enum (comma-joined member names) · Lookup 27 members (REBNY-referenced 8) · filterable · populated 13 · no REBNY reference · members: CotalityEnum_FoundationDetails */
   FoundationDetails: string | null;
-  /** Edm.String(255) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(255) · filterable · populated 0 · no REBNY reference · non-RESO */
   FrontageLength: string | null;
-  /** Edm.String(500) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(500) · filterable · populated 0 · no REBNY reference */
   FrontageLengthRemarks: string | null;
-  /** Enums.FrontageLengthUnit · Lookup 3 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Enums.FrontageLengthUnit · Lookup 3 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO */
   FrontageLengthUnit: CotalityEnum_FrontageLengthUnit | null;
-  /** Enums.Multi.FrontageType · multi-enum (comma-joined member names) · Lookup 14 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_FrontageType */
+  /** Enums.Multi.FrontageType · multi-enum (comma-joined member names) · Lookup 14 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_FrontageType */
   FrontageType: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 8 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 8 · no REBNY reference */
   FuelExpense: number | null;
-  /** Enums.Furnished · Lookup 5 members (RLS-listed 5) · filterable · populated 95,091 · RLS field */
+  /** Enums.Furnished · Lookup 5 members (REBNY-referenced 5) · filterable · populated 95,091 · REBNY-referenced (Field.SystemReferences) */
   Furnished: CotalityEnum_Furnished | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference */
   FurnitureReplacementExpense: number | null;
-  /** Edm.Decimal(14,2) · filterable · populated 66,660 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 66,660 · no REBNY reference */
   GarageSpaces: number | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 1) · filterable · populated 547,220 · RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 1) · filterable · populated 547,220 · REBNY-referenced (Field.SystemReferences) · string with Lookup (see lookups.live.json) */
   GarageYN: boolean | null;
-  /** Edm.Decimal(14,2) · filterable · populated 8 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 8 · no REBNY reference */
   GardenerExpense: number | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · string with Lookup (see lookups.live.json) */
   GrazingPermitsBlmYN: boolean | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · string with Lookup (see lookups.live.json) */
   GrazingPermitsForestServiceYN: boolean | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · string with Lookup (see lookups.live.json) */
   GrazingPermitsPrivateYN: boolean | null;
-  /** Enums.Multi.GreenBuildingVerificationType · multi-enum (comma-joined member names) · Lookup 29 members (RLS-listed 2) · filterable · populated 5 · not an RLS field · members: CotalityEnum_GreenBuildingVerificationType */
+  /** Enums.Multi.GreenBuildingVerificationType · multi-enum (comma-joined member names) · Lookup 29 members (REBNY-referenced 2) · filterable · populated 5 · no REBNY reference · members: CotalityEnum_GreenBuildingVerificationType */
   GreenBuildingVerificationType: string | null;
-  /** Enums.Multi.GreenEnergyEfficient · multi-enum (comma-joined member names) · Lookup 25 members (RLS-listed 8) · filterable · populated 416 · not an RLS field · members: CotalityEnum_GreenEnergyEfficient */
+  /** Enums.Multi.GreenEnergyEfficient · multi-enum (comma-joined member names) · Lookup 25 members (REBNY-referenced 8) · filterable · populated 416 · no REBNY reference · members: CotalityEnum_GreenEnergyEfficient */
   GreenEnergyEfficient: string | null;
-  /** Enums.Multi.GreenEnergyGeneration · multi-enum (comma-joined member names) · Lookup 8 members (RLS-listed 1) · filterable · populated 2 · not an RLS field · members: CotalityEnum_GreenEnergyGeneration */
+  /** Enums.Multi.GreenEnergyGeneration · multi-enum (comma-joined member names) · Lookup 8 members (REBNY-referenced 1) · filterable · populated 2 · no REBNY reference · members: CotalityEnum_GreenEnergyGeneration */
   GreenEnergyGeneration: string | null;
-  /** Enums.Multi.GreenIndoorAirQuality · multi-enum (comma-joined member names) · Lookup 8 members (RLS-listed 1) · filterable · populated 1 · not an RLS field · members: CotalityEnum_GreenIndoorAirQuality */
+  /** Enums.Multi.GreenIndoorAirQuality · multi-enum (comma-joined member names) · Lookup 8 members (REBNY-referenced 1) · filterable · populated 1 · no REBNY reference · members: CotalityEnum_GreenIndoorAirQuality */
   GreenIndoorAirQuality: string | null;
-  /** Enums.Multi.GreenLocation · multi-enum (comma-joined member names) · Lookup 5 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_GreenLocation */
+  /** Enums.Multi.GreenLocation · multi-enum (comma-joined member names) · Lookup 5 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_GreenLocation */
   GreenLocation: string | null;
-  /** Enums.Multi.GreenSustainability · multi-enum (comma-joined member names) · Lookup 9 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_GreenSustainability */
+  /** Enums.Multi.GreenSustainability · multi-enum (comma-joined member names) · Lookup 9 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_GreenSustainability */
   GreenSustainability: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · string with Lookup (see lookups.live.json) */
   GreenVerificationYN: boolean | null;
-  /** Enums.Multi.GreenWaterConservation · multi-enum (comma-joined member names) · Lookup 12 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_GreenWaterConservation */
+  /** Enums.Multi.GreenWaterConservation · multi-enum (comma-joined member names) · Lookup 12 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_GreenWaterConservation */
   GreenWaterConservation: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference */
   GrossIncome: number | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference */
   GrossScheduledIncome: number | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · string with Lookup (see lookups.live.json) */
   HabitableResidenceYN: boolean | null;
-  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   HeadBrokerMemberKey: string | null;
-  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   HeadBrokerMemberMlsId: string | null;
-  /** Enums.Multi.Heating · multi-enum (comma-joined member names) · Lookup 96 members (RLS-listed 39) · filterable · populated 22,920 · RLS field · members: CotalityEnum_Heating */
+  /** Enums.Multi.Heating · multi-enum (comma-joined member names) · Lookup 96 members (REBNY-referenced 39) · filterable · populated 22,920 · REBNY-referenced (Field.SystemReferences) · members: CotalityEnum_Heating */
   Heating: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 1) · filterable · populated 38,477 · RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 1) · filterable · populated 38,477 · REBNY-referenced (Field.SystemReferences) · string with Lookup (see lookups.live.json) */
   HeatingYN: boolean | null;
-  /** Edm.String(50) · Lookup 1 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.String(50) · Lookup 1 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · string with Lookup (see lookups.live.json) */
   HighSchool: string | null;
-  /** Edm.String(50) · Lookup 1 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.String(50) · Lookup 1 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · string with Lookup (see lookups.live.json) */
   HighSchoolDistrict: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 2) · filterable · populated 6 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 2) · filterable · populated 6 · no REBNY reference · string with Lookup (see lookups.live.json) */
   HomeWarrantyYN: boolean | null;
-  /** Enums.Multi.HorseAmenities · multi-enum (comma-joined member names) · Lookup 41 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · members: CotalityEnum_HorseAmenities */
+  /** Enums.Multi.HorseAmenities · multi-enum (comma-joined member names) · Lookup 41 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · members: CotalityEnum_HorseAmenities */
   HorseAmenities: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · string with Lookup (see lookups.live.json) */
   HorseYN: boolean | null;
-  /** Enums.Multi.HoursDaysOfOperation · multi-enum (comma-joined member names) · Lookup 9 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_HoursDaysOfOperation */
+  /** Enums.Multi.HoursDaysOfOperation · multi-enum (comma-joined member names) · Lookup 9 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_HoursDaysOfOperation */
   HoursDaysOfOperation: string | null;
-  /** Edm.String(255) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(255) · filterable · populated 0 · no REBNY reference */
   HoursDaysOfOperationDescription: string | null;
-  /** Edm.Boolean · filterable · populated 591,607 · not an RLS field · non-RESO */
+  /** Edm.Boolean · filterable · populated 591,607 · no REBNY reference · non-RESO */
   HumanModifiedYN: boolean | null;
-  /** Edm.String(1024) · filterable · populated 111,868 · RLS field */
+  /** Edm.String(1024) · filterable · populated 111,868 · REBNY-referenced (Field.SystemReferences) */
   Inclusions: string | null;
-  /** Enums.Multi.IncomeIncludes · multi-enum (comma-joined member names) · Lookup 7 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_IncomeIncludes */
+  /** Enums.Multi.IncomeIncludes · multi-enum (comma-joined member names) · Lookup 7 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_IncomeIncludes */
   IncomeIncludes: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 8 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 8 · no REBNY reference */
   InsuranceExpense: number | null;
-  /** Enums.Multi.InteriorOrRoomFeatures · multi-enum (comma-joined member names) · Lookup 299 members (RLS-listed 55) · filterable · populated 144,434 · RLS field · members: CotalityLookup_Property_InteriorFeatures */
+  /** Enums.Multi.InteriorOrRoomFeatures · multi-enum (comma-joined member names) · Lookup 299 members (REBNY-referenced 55) · filterable · populated 144,434 · REBNY-referenced (Field.SystemReferences) · members: CotalityLookup_Property_InteriorFeatures */
   InteriorFeatures: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 2) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 2) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) · string with Lookup (see lookups.live.json) */
   InternetAddressDisplayYN: boolean | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 2) · filterable · populated 591,607 · RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 2) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) · string with Lookup (see lookups.live.json) */
   InternetAutomatedValuationDisplayYN: boolean | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 2) · filterable · populated 591,607 · RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 2) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) · string with Lookup (see lookups.live.json) */
   InternetConsumerCommentYN: boolean | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 2) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 2) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) · string with Lookup (see lookups.live.json) */
   InternetEntireListingDisplayYN: boolean | null;
-  /** Enums.Multi.IrrigationSource · multi-enum (comma-joined member names) · Lookup 21 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · members: CotalityEnum_IrrigationSource */
+  /** Enums.Multi.IrrigationSource · multi-enum (comma-joined member names) · Lookup 21 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · members: CotalityEnum_IrrigationSource */
   IrrigationSource: string | null;
-  /** Edm.Decimal(16,4) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.Decimal(16,4) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   IrrigationWaterRightsAcres: number | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · string with Lookup (see lookups.live.json) */
   IrrigationWaterRightsYN: boolean | null;
-  /** Enums.Multi.LaborInformation · multi-enum (comma-joined member names) · Lookup 3 members (RLS-listed 3) · filterable · populated 5 · not an RLS field · members: CotalityEnum_LaborInformation */
+  /** Enums.Multi.LaborInformation · multi-enum (comma-joined member names) · Lookup 3 members (REBNY-referenced 3) · filterable · populated 5 · no REBNY reference · members: CotalityEnum_LaborInformation */
   LaborInformation: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference */
   LandLeaseAmount: number | null;
-  /** Enums.FeeFrequency · Lookup 16 members (RLS-listed 2) · filterable · populated 1 · not an RLS field */
+  /** Enums.FeeFrequency · Lookup 16 members (REBNY-referenced 2) · filterable · populated 1 · no REBNY reference */
   LandLeaseAmountFrequency: CotalityEnum_FeeFrequency | null;
-  /** Edm.Date(10) · filterable · populated 325 · not an RLS field */
+  /** Edm.Date(10) · filterable · populated 325 · no REBNY reference */
   LandLeaseExpirationDate: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 2) · filterable · populated 70,069 · RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 2) · filterable · populated 70,069 · REBNY-referenced (Field.SystemReferences) · string with Lookup (see lookups.live.json) */
   LandLeaseYN: boolean | null;
-  /** Edm.Decimal(14,8) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.Decimal(14,8) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   Latitude: number | null;
-  /** Enums.Multi.LaundryFeatures · multi-enum (comma-joined member names) · Lookup 50 members (RLS-listed 38) · filterable · populated 393,328 · RLS field · members: CotalityEnum_LaundryFeatures */
+  /** Enums.Multi.LaundryFeatures · multi-enum (comma-joined member names) · Lookup 50 members (REBNY-referenced 38) · filterable · populated 393,328 · REBNY-referenced (Field.SystemReferences) · members: CotalityEnum_LaundryFeatures */
   LaundryFeatures: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference */
   LeasableArea: number | null;
-  /** Enums.AreaUnits · Lookup 3 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.AreaUnits · Lookup 3 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   LeasableAreaUnits: CotalityEnum_AreaUnits | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference */
   LeaseAmount: number | null;
-  /** Enums.FeeFrequency · Lookup 16 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.FeeFrequency · Lookup 16 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   LeaseAmountFrequency: CotalityEnum_FeeFrequency | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · string with Lookup (see lookups.live.json) */
   LeaseAssignableYN: boolean | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · string with Lookup (see lookups.live.json) */
   LeaseConsideredYN: boolean | null;
-  /** Edm.Date(10) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.Date(10) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   LeaseExpiration: string | null;
-  /** Enums.Multi.LeaseRenewalCompensation · multi-enum (comma-joined member names) · Lookup 5 members (RLS-listed 5) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · members: CotalityEnum_LeaseRenewalCompensation */
+  /** Enums.Multi.LeaseRenewalCompensation · multi-enum (comma-joined member names) · Lookup 5 members (REBNY-referenced 5) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · members: CotalityEnum_LeaseRenewalCompensation */
   LeaseRenewalCompensation: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · string with Lookup (see lookups.live.json) */
   LeaseRenewalOptionYN: boolean | null;
-  /** Enums.LeaseTerm · Lookup 26 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.LeaseTerm · Lookup 26 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   LeaseTerm: CotalityLookup_Property_LeaseTerm | null;
-  /** Enums.Multi.LeaseTerm · multi-enum (comma-joined member names) · Lookup 26 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO · members: CotalityLookup_Property_LeaseTerm */
+  /** Enums.Multi.LeaseTerm · multi-enum (comma-joined member names) · Lookup 26 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO · members: CotalityLookup_Property_LeaseTerm */
   LeaseTermOptions: string | null;
-  /** Enums.Multi.Levels · multi-enum (comma-joined member names) · Lookup 18 members (RLS-listed 6) · filterable · populated 5,755 · RLS field · members: CotalityEnum_Levels */
+  /** Enums.Multi.Levels · multi-enum (comma-joined member names) · Lookup 18 members (REBNY-referenced 6) · filterable · populated 5,755 · REBNY-referenced (Field.SystemReferences) · members: CotalityEnum_Levels */
   Levels: string | null;
-  /** Edm.String(25) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(25) · filterable · populated 0 · no REBNY reference */
   License1: string | null;
-  /** Edm.String(25) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(25) · filterable · populated 0 · no REBNY reference */
   License2: string | null;
-  /** Edm.String(25) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(25) · filterable · populated 0 · no REBNY reference */
   License3: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 8 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 8 · no REBNY reference */
   LicensesExpense: number | null;
-  /** Enums.AOR · Lookup 1127 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.AOR · Lookup 1127 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   ListAOR: CotalityLookup_CustomProperty_ListAOR | null;
-  /** Enums.AOR · Lookup 1127 members (RLS-listed 1) · filterable · populated 585,917 · RLS field */
+  /** Enums.AOR · Lookup 1127 members (REBNY-referenced 1) · filterable · populated 585,917 · REBNY-referenced (Field.SystemReferences) */
   ListAgentAOR: CotalityLookup_Member_MemberAOR | null;
-  /** Enums.Multi.ListAgentDesignation · multi-enum (comma-joined member names) · Lookup 27 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_BuyerAgentDesignation */
+  /** Enums.Multi.ListAgentDesignation · multi-enum (comma-joined member names) · Lookup 27 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_BuyerAgentDesignation */
   ListAgentDesignation: string | null;
-  /** Edm.String(16) · filterable · populated 580,228 · RLS field */
+  /** Edm.String(16) · filterable · populated 580,228 · REBNY-referenced (Field.SystemReferences) */
   ListAgentDirectPhone: string | null;
-  /** Edm.String(80) · filterable · populated 591,607 · RLS field */
+  /** Edm.String(80) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) */
   ListAgentEmail: string | null;
-  /** Edm.String(16) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(16) · filterable · populated 0 · no REBNY reference */
   ListAgentFax: string | null;
-  /** Edm.String(50) · filterable · populated 585,957 · RLS field */
+  /** Edm.String(50) · filterable · populated 585,957 · REBNY-referenced (Field.SystemReferences) */
   ListAgentFirstName: string | null;
-  /** Edm.String(150) · filterable · populated 591,607 · RLS field */
+  /** Edm.String(150) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) */
   ListAgentFullName: string | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   ListAgentHomePhone: string | null;
-  /** Edm.String(20) · filterable · populated 587,315 · RLS field */
+  /** Edm.String(20) · filterable · populated 587,315 · REBNY-referenced (Field.SystemReferences) */
   ListAgentKey: string | null;
-  /** Edm.Int64 · filterable · populated 587,315 · RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 587,315 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ListAgentKeyNumeric: number | null;
-  /** Edm.String(50) · filterable · populated 585,980 · RLS field */
+  /** Edm.String(50) · filterable · populated 585,980 · REBNY-referenced (Field.SystemReferences) */
   ListAgentLastName: string | null;
-  /** Edm.String(50) · filterable · populated 250,636 · RLS field */
+  /** Edm.String(50) · filterable · populated 250,636 · REBNY-referenced (Field.SystemReferences) */
   ListAgentMiddleName: string | null;
-  /** Edm.String(25) · filterable · populated 591,197 · RLS field */
+  /** Edm.String(25) · filterable · populated 591,197 · REBNY-referenced (Field.SystemReferences) */
   ListAgentMlsId: string | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   ListAgentMobilePhone: string | null;
-  /** Edm.String(10) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(10) · filterable · populated 0 · no REBNY reference */
   ListAgentNamePrefix: string | null;
-  /** Edm.String(10) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(10) · filterable · populated 0 · no REBNY reference */
   ListAgentNameSuffix: string | null;
-  /** Edm.String(30) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(30) · filterable · populated 0 · no REBNY reference */
   ListAgentNationalAssociationId: string | null;
-  /** Edm.String(100) · filterable · populated 585,639 · not an RLS field · non-RESO */
+  /** Edm.String(100) · filterable · populated 585,639 · no REBNY reference · non-RESO */
   ListAgentNickname: string | null;
-  /** Edm.String(16) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(16) · filterable · populated 0 · no REBNY reference */
   ListAgentOfficePhone: string | null;
-  /** Edm.String(10) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(10) · filterable · populated 0 · no REBNY reference */
   ListAgentOfficePhoneExt: string | null;
-  /** Edm.String(16) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(16) · filterable · populated 0 · no REBNY reference */
   ListAgentPager: string | null;
-  /** Edm.String(16) · filterable · populated 578,578 · RLS field */
+  /** Edm.String(16) · filterable · populated 578,578 · REBNY-referenced (Field.SystemReferences) */
   ListAgentPreferredPhone: string | null;
-  /** Edm.String(10) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(10) · filterable · populated 0 · no REBNY reference */
   ListAgentPreferredPhoneExt: string | null;
-  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   ListAgentStateLicense: string | null;
-  /** Edm.String(16) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(16) · filterable · populated 0 · no REBNY reference */
   ListAgentTollFreePhone: string | null;
-  /** Edm.String(8000) · filterable · populated 61,122 · RLS field */
+  /** Edm.String(8000) · filterable · populated 61,122 · REBNY-referenced (Field.SystemReferences) */
   ListAgentURL: string | null;
-  /** Edm.String(16) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(16) · filterable · populated 0 · no REBNY reference */
   ListAgentVoiceMail: string | null;
-  /** Edm.String(10) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(10) · filterable · populated 0 · no REBNY reference */
   ListAgentVoiceMailExt: string | null;
-  /** Enums.AOR · Lookup 1127 members (RLS-listed 1) · filterable · populated 591,537 · RLS field */
+  /** Enums.AOR · Lookup 1127 members (REBNY-referenced 1) · filterable · populated 591,537 · REBNY-referenced (Field.SystemReferences) */
   ListOfficeAOR: CotalityLookup_Member_MemberAOR | null;
-  /** Edm.String(80) · filterable · populated 52,567 · RLS field */
+  /** Edm.String(80) · filterable · populated 52,567 · REBNY-referenced (Field.SystemReferences) */
   ListOfficeEmail: string | null;
-  /** Edm.String(16) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(16) · filterable · populated 0 · no REBNY reference */
   ListOfficeFax: string | null;
-  /** Edm.String(20) · filterable · populated 591,607 · RLS field */
+  /** Edm.String(20) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) */
   ListOfficeKey: string | null;
-  /** Edm.Int64 · filterable · populated 591,607 · RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ListOfficeKeyNumeric: number | null;
-  /** Edm.String(25) · filterable · populated 591,607 · RLS field */
+  /** Edm.String(25) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) */
   ListOfficeMlsId: string | null;
-  /** Edm.String(255) · filterable · populated 591,607 · RLS field */
+  /** Edm.String(255) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) */
   ListOfficeName: string | null;
-  /** Edm.String(30) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(30) · filterable · populated 0 · no REBNY reference */
   ListOfficeNationalAssociationId: string | null;
-  /** Edm.String(16) · filterable · populated 591,538 · RLS field */
+  /** Edm.String(16) · filterable · populated 591,538 · REBNY-referenced (Field.SystemReferences) */
   ListOfficePhone: string | null;
-  /** Edm.String(10) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(10) · filterable · populated 0 · no REBNY reference */
   ListOfficePhoneExt: string | null;
-  /** Edm.String(8000) · filterable · populated 585,251 · RLS field */
+  /** Edm.String(8000) · filterable · populated 585,251 · REBNY-referenced (Field.SystemReferences) */
   ListOfficeURL: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 591,607 · RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) */
   ListPrice: number | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference */
   ListPriceLow: number | null;
-  /** Edm.String(20) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(20) · filterable · populated 0 · no REBNY reference */
   ListTeamKey: string | null;
-  /** Edm.Int64 · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.Int64 · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   ListTeamKeyNumeric: number | null;
-  /** Edm.String(25) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(25) · filterable · populated 0 · no REBNY reference · non-RESO */
   ListTeamMlsId: string | null;
-  /** Edm.String(50) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(50) · filterable · populated 0 · no REBNY reference */
   ListTeamName: string | null;
-  /** Enums.ListingAgreement · Lookup 11 members (RLS-listed 6) · filterable · populated 591,607 · RLS field */
+  /** Enums.ListingAgreement · Lookup 11 members (REBNY-referenced 6) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) */
   ListingAgreement: CotalityEnum_ListingAgreement | null;
-  /** Edm.Date(10) · filterable · populated 581,836 · RLS field */
+  /** Edm.Date(10) · filterable · populated 581,836 · REBNY-referenced (Field.SystemReferences) */
   ListingContractDate: string | null;
-  /** Edm.String(255) · filterable · populated 591,607 · RLS field */
+  /** Edm.String(255) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) */
   ListingId: string | null;
-  /** Edm.String(20) · filterable · populated 591,607 · RLS field */
+  /** Edm.String(20) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) */
   ListingKey: string;
-  /** Edm.Int64 · filterable · populated 591,607 · RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ListingKeyNumeric: number | null;
-  /** Enums.ListingService · Lookup 3 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.ListingService · Lookup 3 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   ListingService: CotalityEnum_ListingService | null;
-  /** Enums.Multi.ListingTerms · multi-enum (comma-joined member names) · Lookup 67 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_ListingTerms */
+  /** Enums.Multi.ListingTerms · multi-enum (comma-joined member names) · Lookup 67 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_ListingTerms */
   ListingTerms: string | null;
-  /** Edm.String(8000) · filterable · populated 582,804 · not an RLS field */
+  /** Edm.String(8000) · filterable · populated 582,804 · no REBNY reference */
   ListingURL: string | null;
-  /** Enums.ListingURLDescription · Lookup 7 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.ListingURLDescription · Lookup 7 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   ListingURLDescription: CotalityEnum_ListingURLDescription | null;
-  /** Edm.Decimal(14,2) · filterable · populated 417,652 · RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 417,652 · REBNY-referenced (Field.SystemReferences) */
   LivingArea: number | null;
-  /** Enums.AreaSource · Lookup 18 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.AreaSource · Lookup 18 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   LivingAreaSource: CotalityEnum_AreaSource | null;
-  /** Enums.AreaUnits · Lookup 3 members (RLS-listed 1) · filterable · populated 446,923 · RLS field */
+  /** Enums.AreaUnits · Lookup 3 members (REBNY-referenced 1) · filterable · populated 446,923 · REBNY-referenced (Field.SystemReferences) */
   LivingAreaUnits: CotalityEnum_AreaUnits | null;
-  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   LockBoxLocation: string | null;
-  /** Edm.String(25) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(25) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   LockBoxSerialNumber: string | null;
-  /** Enums.Multi.LockBoxType · multi-enum (comma-joined member names) · Lookup 11 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · members: CotalityEnum_LockBoxType */
+  /** Enums.Multi.LockBoxType · multi-enum (comma-joined member names) · Lookup 11 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · members: CotalityEnum_LockBoxType */
   LockBoxType: string | null;
-  /** Edm.Decimal(14,8) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.Decimal(14,8) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   Longitude: number | null;
-  /** Enums.LotDimensionsSource · Lookup 14 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.LotDimensionsSource · Lookup 14 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   LotDimensionsSource: CotalityEnum_LotDimensionsSource | null;
-  /** Enums.Multi.LotFeatures · multi-enum (comma-joined member names) · Lookup 207 members (RLS-listed 27) · filterable · populated 1,714 · not an RLS field · members: CotalityEnum_LotFeatures */
+  /** Enums.Multi.LotFeatures · multi-enum (comma-joined member names) · Lookup 207 members (REBNY-referenced 27) · filterable · populated 1,714 · no REBNY reference · members: CotalityEnum_LotFeatures */
   LotFeatures: string | null;
-  /** Edm.Decimal(16,4) · filterable · populated 0 · not an RLS field */
+  /** Edm.Decimal(16,4) · filterable · populated 0 · no REBNY reference */
   LotSizeAcres: number | null;
-  /** Edm.Decimal(16,4) · filterable · populated 60,046 · RLS field */
+  /** Edm.Decimal(16,4) · filterable · populated 60,046 · REBNY-referenced (Field.SystemReferences) */
   LotSizeArea: number | null;
-  /** Edm.String(150) · filterable · populated 237,288 · RLS field */
+  /** Edm.String(150) · filterable · populated 237,288 · REBNY-referenced (Field.SystemReferences) */
   LotSizeDimensions: string | null;
-  /** Enums.LotSizeSource · Lookup 15 members (RLS-listed 10) · filterable · populated 341 · not an RLS field */
+  /** Enums.LotSizeSource · Lookup 15 members (REBNY-referenced 10) · filterable · populated 341 · no REBNY reference */
   LotSizeSource: CotalityEnum_LotSizeSource | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference */
   LotSizeSquareFeet: number | null;
-  /** Enums.LotSizeUnits · Lookup 4 members (RLS-listed 3) · filterable · populated 35,362 · RLS field */
+  /** Enums.LotSizeUnits · Lookup 4 members (REBNY-referenced 3) · filterable · populated 35,362 · REBNY-referenced (Field.SystemReferences) */
   LotSizeUnits: CotalityEnum_LotSizeUnits | null;
-  /** Edm.String(150) · Lookup 1 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.String(150) · Lookup 1 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · string with Lookup (see lookups.live.json) */
   MLSAreaMajor: string | null;
-  /** Edm.String(150) · Lookup 1 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.String(150) · Lookup 1 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · string with Lookup (see lookups.live.json) */
   MLSAreaMinor: string | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference */
   MainLevelBathrooms: number | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference */
   MainLevelBedrooms: number | null;
-  /** Edm.Decimal(14,2) · filterable · populated 10 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 10 · no REBNY reference */
   MaintenanceExpense: number | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 591,607 · RLS field */
+  /** Edm.DateTimeOffset(27) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) */
   MajorChangeTimestamp: string | null;
-  /** Enums.ChangeType · Lookup 14 members (RLS-listed 13) · filterable · populated 588,497 · RLS field */
+  /** Enums.ChangeType · Lookup 14 members (REBNY-referenced 13) · filterable · populated 588,497 · REBNY-referenced (Field.SystemReferences) */
   MajorChangeType: CotalityLookup_Property_MajorChangeType | null;
-  /** Edm.String(50) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(50) · filterable · populated 0 · no REBNY reference */
   Make: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 8 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 8 · no REBNY reference */
   ManagerExpense: number | null;
-  /** Edm.String(25) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(25) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   MapCoordinate: string | null;
-  /** Edm.String(25) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(25) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   MapCoordinateSource: string | null;
-  /** Edm.String(8000) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(8000) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   MapURL: string | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference · non-RESO */
   MaximumNumberOfPets: number | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference · non-RESO */
   MaximumPetWeight: number | null;
-  /** Edm.String(50) · Lookup 1 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.String(50) · Lookup 1 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · string with Lookup (see lookups.live.json) */
   MiddleOrJuniorSchool: string | null;
-  /** Edm.String(50) · Lookup 1 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.String(50) · Lookup 1 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · string with Lookup (see lookups.live.json) */
   MiddleOrJuniorSchoolDistrict: string | null;
-  /** Enums.MlsStatus · Lookup 26 members (RLS-listed 9) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Enums.MlsStatus · Lookup 26 members (REBNY-referenced 9) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   MlsStatus: CotalityLookup_Property_MlsStatus | null;
-  /** Enums.LinearUnits · Lookup 4 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Enums.LinearUnits · Lookup 4 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   MobileDimUnits: CotalityEnum_LinearUnits | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · string with Lookup (see lookups.live.json) */
   MobileHomeRemainsYN: boolean | null;
-  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   MobileLength: number | null;
-  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   MobileWidth: number | null;
-  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   Model: string | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 591,607 · not an RLS field · non-RESO */
+  /** Edm.DateTimeOffset(27) · filterable · populated 591,607 · no REBNY reference · non-RESO */
   ModificationTimestamp: string | null;
-  /** Enums.Multi.MoveInCosts · multi-enum (comma-joined member names) · Lookup 13 members (RLS-listed 13) · filterable · populated 375 · not an RLS field · non-RESO · members: CotalityEnum_MoveInCosts */
+  /** Enums.Multi.MoveInCosts · multi-enum (comma-joined member names) · Lookup 13 members (REBNY-referenced 13) · filterable · populated 375 · no REBNY reference · non-RESO · members: CotalityEnum_MoveInCosts */
   MoveInCosts: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 108 · not an RLS field · non-RESO */
+  /** Edm.Decimal(14,2) · filterable · populated 108 · no REBNY reference · non-RESO */
   MoveInCostsAmount: number | null;
-  /** Edm.String(1024) · filterable · populated 381 · not an RLS field · non-RESO */
+  /** Edm.String(1024) · filterable · populated 381 · no REBNY reference · non-RESO */
   MoveInCostsComments: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 218 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 218 · no REBNY reference */
   NetOperatingIncome: number | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 2) · filterable · populated 576,590 · RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 2) · filterable · populated 576,590 · REBNY-referenced (Field.SystemReferences) · string with Lookup (see lookups.live.json) */
   NewConstructionYN: boolean | null;
-  /** Edm.Decimal(14,2) · filterable · populated 8 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 8 · no REBNY reference */
   NewTaxesExpense: number | null;
-  /** Edm.Int32 · filterable · populated 74 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 74 · no REBNY reference */
   NumberOfBuildings: number | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference */
   NumberOfFullTimeEmployees: number | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference */
   NumberOfLots: number | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference */
   NumberOfPads: number | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference */
   NumberOfPartTimeEmployees: number | null;
-  /** Edm.Int32 · filterable · populated 9 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 9 · no REBNY reference */
   NumberOfSeparateElectricMeters: number | null;
-  /** Edm.Int32 · filterable · populated 10 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 10 · no REBNY reference */
   NumberOfSeparateGasMeters: number | null;
-  /** Edm.Int32 · filterable · populated 8 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 8 · no REBNY reference */
   NumberOfSeparateWaterMeters: number | null;
-  /** Edm.Int32 · filterable · populated 8 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 8 · no REBNY reference */
   NumberOfUnitsInCommunity: number | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference */
   NumberOfUnitsLeased: number | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference */
   NumberOfUnitsMoMo: number | null;
-  /** Edm.Int32 · filterable · populated 591,607 · RLS field */
+  /** Edm.Int32 · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) */
   NumberOfUnitsTotal: number | null;
-  /** Edm.Int32 · filterable · populated 7,941 · RLS field */
+  /** Edm.Int32 · filterable · populated 7,941 · REBNY-referenced (Field.SystemReferences) */
   NumberOfUnitsVacant: number | null;
-  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   OccupantName: string | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   OccupantPhone: string | null;
-  /** Enums.OccupantType · Lookup 7 members (RLS-listed 3) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Enums.OccupantType · Lookup 7 members (REBNY-referenced 3) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   OccupantType: CotalityEnum_OccupantType | null;
-  /** Edm.Date(10) · filterable · populated 578,868 · RLS field */
+  /** Edm.Date(10) · filterable · populated 578,868 · REBNY-referenced (Field.SystemReferences) */
   OffMarketDate: string | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 579,587 · RLS field */
+  /** Edm.DateTimeOffset(27) · filterable · populated 579,587 · REBNY-referenced (Field.SystemReferences) */
   OffMarketTimestamp: string | null;
-  /** Edm.Date(10) · filterable · populated 119,571 · RLS field */
+  /** Edm.Date(10) · filterable · populated 119,571 · REBNY-referenced (Field.SystemReferences) */
   OnMarketDate: string | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 265,702 · RLS field */
+  /** Edm.DateTimeOffset(27) · filterable · populated 265,702 · REBNY-referenced (Field.SystemReferences) */
   OnMarketTimestamp: string | null;
-  /** Enums.Multi.OngoingFees · multi-enum (comma-joined member names) · Lookup 5 members (RLS-listed 1) · filterable · populated 28 · not an RLS field · non-RESO · members: CotalityEnum_OngoingFees */
+  /** Enums.Multi.OngoingFees · multi-enum (comma-joined member names) · Lookup 5 members (REBNY-referenced 1) · filterable · populated 28 · no REBNY reference · non-RESO · members: CotalityEnum_OngoingFees */
   OngoingFees: string | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.DateTimeOffset(27) · filterable · populated 0 · no REBNY reference · non-RESO */
   OpenHouseModificationTimestamp: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 16 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 16 · no REBNY reference */
   OpenParkingSpaces: number | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 2) · filterable · populated 126 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 2) · filterable · populated 126 · no REBNY reference · string with Lookup (see lookups.live.json) */
   OpenParkingYN: boolean | null;
-  /** Edm.Decimal(14,2) · filterable · populated 8 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 8 · no REBNY reference */
   OperatingExpense: number | null;
-  /** Enums.Multi.OperatingExpenseIncludes · multi-enum (comma-joined member names) · Lookup 39 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_OperatingExpenseIncludes */
+  /** Enums.Multi.OperatingExpenseIncludes · multi-enum (comma-joined member names) · Lookup 39 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_OperatingExpenseIncludes */
   OperatingExpenseIncludes: string | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 591,607 · RLS field */
+  /** Edm.DateTimeOffset(27) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) */
   OriginalEntryTimestamp: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 375,691 · RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 375,691 · REBNY-referenced (Field.SystemReferences) */
   OriginalListPrice: number | null;
-  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field · non-RESO */
+  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) · non-RESO */
   OriginatingSystemBuyerAgentMemberKey: string | null;
-  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field · non-RESO */
+  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) · non-RESO */
   OriginatingSystemBuyerOfficeKey: string | null;
-  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   OriginatingSystemBuyerTeamKey: string | null;
-  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   OriginatingSystemCoBuyerAgentMemberKey: string | null;
-  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   OriginatingSystemCoBuyerOfficeKey: string | null;
-  /** Edm.String(255) · filterable · populated 50,998 · not an RLS field · non-RESO */
+  /** Edm.String(255) · filterable · populated 50,998 · no REBNY reference · non-RESO */
   OriginatingSystemCoListAgent2MemberKey: string | null;
-  /** Edm.String(255) · filterable · populated 7,993 · not an RLS field · non-RESO */
+  /** Edm.String(255) · filterable · populated 7,993 · no REBNY reference · non-RESO */
   OriginatingSystemCoListAgent3MemberKey: string | null;
-  /** Edm.String(255) · filterable · populated 207,472 · RLS field · non-RESO */
+  /** Edm.String(255) · filterable · populated 207,472 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   OriginatingSystemCoListAgentMemberKey: string | null;
-  /** Edm.String(50) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(50) · filterable · populated 0 · no REBNY reference · non-RESO */
   OriginatingSystemCoListOffice2Key: string | null;
-  /** Edm.String(255) · filterable · populated 21,227 · RLS field · non-RESO */
+  /** Edm.String(255) · filterable · populated 21,227 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   OriginatingSystemCoListOfficeKey: string | null;
-  /** Edm.String(25) · filterable · populated 546,550 · RLS field */
+  /** Edm.String(25) · filterable · populated 546,550 · REBNY-referenced (Field.SystemReferences) */
   OriginatingSystemID: string | null;
-  /** Edm.String(255) · filterable · populated 591,607 · RLS field */
+  /** Edm.String(255) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) */
   OriginatingSystemKey: string | null;
-  /** Edm.String(255) · filterable · populated 587,646 · RLS field · non-RESO */
+  /** Edm.String(255) · filterable · populated 587,646 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   OriginatingSystemListAgentMemberKey: string | null;
-  /** Edm.String(255) · filterable · populated 589,675 · RLS field · non-RESO */
+  /** Edm.String(255) · filterable · populated 589,675 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   OriginatingSystemListOfficeKey: string | null;
-  /** Edm.String(50) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(50) · filterable · populated 0 · no REBNY reference · non-RESO */
   OriginatingSystemListTeamKey: string | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 591,607 · not an RLS field · non-RESO */
+  /** Edm.DateTimeOffset(27) · filterable · populated 591,607 · no REBNY reference · non-RESO */
   OriginatingSystemModificationTimestamp: string | null;
-  /** Edm.String(255) · filterable · populated 591,607 · RLS field */
+  /** Edm.String(255) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) */
   OriginatingSystemName: string | null;
-  /** Edm.String(255) · Lookup 880 members (RLS-listed 1) · filterable · populated 591,607 · RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.String(255) · Lookup 880 members (REBNY-referenced 1) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) · non-RESO · string with Lookup (see lookups.live.json) */
   OriginatingSystemSubName: string | null;
-  /** Enums.Multi.OtherEquipment · multi-enum (comma-joined member names) · Lookup 35 members (RLS-listed 7) · filterable · populated 72,586 · RLS field · members: CotalityEnum_OtherEquipment */
+  /** Enums.Multi.OtherEquipment · multi-enum (comma-joined member names) · Lookup 35 members (REBNY-referenced 7) · filterable · populated 72,586 · REBNY-referenced (Field.SystemReferences) · members: CotalityEnum_OtherEquipment */
   OtherEquipment: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 8 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 8 · no REBNY reference */
   OtherExpense: number | null;
-  /** Edm.String(1024) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(1024) · filterable · populated 0 · no REBNY reference */
   OtherParking: string | null;
-  /** Enums.Multi.OtherStructures · multi-enum (comma-joined member names) · Lookup 59 members (RLS-listed 12) · filterable · populated 1,632 · not an RLS field · members: CotalityEnum_OtherStructures */
+  /** Enums.Multi.OtherStructures · multi-enum (comma-joined member names) · Lookup 59 members (REBNY-referenced 12) · filterable · populated 1,632 · no REBNY reference · members: CotalityEnum_OtherStructures */
   OtherStructures: string | null;
-  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   OwnerName: string | null;
-  /** Edm.String(100) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.String(100) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   OwnerName2: string | null;
-  /** Enums.Multi.OwnerPays · multi-enum (comma-joined member names) · Lookup 39 members (RLS-listed 24) · filterable · populated 7,915 · RLS field · members: CotalityEnum_OwnerPays */
+  /** Enums.Multi.OwnerPays · multi-enum (comma-joined member names) · Lookup 39 members (REBNY-referenced 24) · filterable · populated 7,915 · REBNY-referenced (Field.SystemReferences) · members: CotalityEnum_OwnerPays */
   OwnerPays: string | null;
-  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(16) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   OwnerPhone: string | null;
-  /** Edm.String(1024) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(1024) · filterable · populated 0 · no REBNY reference */
   Ownership: string | null;
-  /** Enums.OwnershipType · Lookup 13 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.OwnershipType · Lookup 13 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   OwnershipType: CotalityEnum_OwnershipType | null;
-  /** Edm.String(50) · filterable · populated 380,705 · not an RLS field */
+  /** Edm.String(50) · filterable · populated 380,705 · no REBNY reference */
   ParcelNumber: string | null;
-  /** Edm.String(128) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(128) · filterable · populated 0 · no REBNY reference · non-RESO */
   ParcelSubcomponent: string | null;
-  /** Edm.String(50) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(50) · filterable · populated 0 · no REBNY reference */
   ParkManagerName: string | null;
-  /** Edm.String(16) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(16) · filterable · populated 0 · no REBNY reference */
   ParkManagerPhone: string | null;
-  /** Edm.String(50) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(50) · filterable · populated 0 · no REBNY reference */
   ParkName: string | null;
-  /** Enums.Multi.ParkingFeatures · multi-enum (comma-joined member names) · Lookup 204 members (RLS-listed 54) · filterable · populated 10,376 · RLS field · members: CotalityEnum_ParkingFeatures */
+  /** Enums.Multi.ParkingFeatures · multi-enum (comma-joined member names) · Lookup 204 members (REBNY-referenced 54) · filterable · populated 10,376 · REBNY-referenced (Field.SystemReferences) · members: CotalityEnum_ParkingFeatures */
   ParkingFeatures: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 237 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 237 · no REBNY reference */
   ParkingTotal: number | null;
-  /** Edm.Decimal(14,2) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.Decimal(14,2) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   PastureArea: number | null;
-  /** Enums.Multi.PatioAndPorchFeatures · multi-enum (comma-joined member names) · Lookup 53 members (RLS-listed 27) · filterable · populated 156,521 · RLS field · members: CotalityEnum_PatioAndPorchFeatures */
+  /** Enums.Multi.PatioAndPorchFeatures · multi-enum (comma-joined member names) · Lookup 53 members (REBNY-referenced 27) · filterable · populated 156,521 · REBNY-referenced (Field.SystemReferences) · members: CotalityEnum_PatioAndPorchFeatures */
   PatioAndPorchFeatures: string | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 143,221 · RLS field */
+  /** Edm.DateTimeOffset(27) · filterable · populated 143,221 · REBNY-referenced (Field.SystemReferences) */
   PendingTimestamp: string | null;
-  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (RLS-listed 3) · filterable · populated 591,607 · RLS field · non-RESO · members: CotalityEnum_ListingPermission */
+  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (REBNY-referenced 3) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) · non-RESO · members: CotalityEnum_ListingPermission */
   Permission: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 8 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 8 · no REBNY reference */
   PestControlExpense: number | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference · non-RESO */
   PetDeposit: number | null;
-  /** Enums.Multi.PetsAllowed · multi-enum (comma-joined member names) · Lookup 31 members (RLS-listed 14) · filterable · populated 586,565 · RLS field · members: CotalityEnum_PetsAllowed */
+  /** Enums.Multi.PetsAllowed · multi-enum (comma-joined member names) · Lookup 31 members (REBNY-referenced 14) · filterable · populated 586,565 · REBNY-referenced (Field.SystemReferences) · members: CotalityEnum_PetsAllowed */
   PetsAllowed: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 1) · filterable · populated 0 · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 1) · filterable · populated 0 · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   PetsAllowedYN: boolean | null;
-  /** Edm.String(500) · filterable · populated 591,607 · not an RLS field · non-RESO */
+  /** Edm.String(500) · filterable · populated 591,607 · no REBNY reference · non-RESO */
   PetsComments: string | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 591,597 · RLS field */
+  /** Edm.DateTimeOffset(27) · filterable · populated 591,597 · REBNY-referenced (Field.SystemReferences) */
   PhotosChangeTimestamp: string | null;
-  /** Edm.Int32 · filterable · populated 591,607 · RLS field */
+  /** Edm.Int32 · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) */
   PhotosCount: number | null;
-  /** Edm.Decimal(14,2) · filterable · populated 8 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 8 · no REBNY reference */
   PoolExpense: number | null;
-  /** Enums.Multi.PoolFeatures · multi-enum (comma-joined member names) · Lookup 88 members (RLS-listed 43) · filterable · populated 10,669 · not an RLS field · members: CotalityEnum_PoolFeatures */
+  /** Enums.Multi.PoolFeatures · multi-enum (comma-joined member names) · Lookup 88 members (REBNY-referenced 43) · filterable · populated 10,669 · no REBNY reference · members: CotalityEnum_PoolFeatures */
   PoolFeatures: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · string with Lookup (see lookups.live.json) */
   PoolPrivateYN: boolean | null;
-  /** Enums.Multi.Possession · multi-enum (comma-joined member names) · Lookup 39 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_Possession */
+  /** Enums.Multi.Possession · multi-enum (comma-joined member names) · Lookup 39 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_Possession */
   Possession: string | null;
-  /** Enums.Multi.CurrentOrPossibleUse · multi-enum (comma-joined member names) · Lookup 66 members (RLS-listed 1) · filterable · populated 1 · not an RLS field · members: CotalityLookup_Property_CurrentUse */
+  /** Enums.Multi.CurrentOrPossibleUse · multi-enum (comma-joined member names) · Lookup 66 members (REBNY-referenced 1) · filterable · populated 1 · no REBNY reference · members: CotalityLookup_Property_CurrentUse */
   PossibleUse: string | null;
-  /** Edm.String(50) · Lookup 20098 members (RLS-listed 65) · filterable · populated 591,064 · RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.String(50) · Lookup 20098 members (REBNY-referenced 65) · filterable · populated 591,064 · REBNY-referenced (Field.SystemReferences) · string with Lookup (see lookups.live.json) */
   PostalCity: string | null;
-  /** Edm.String(10) · filterable · populated 591,607 · RLS field */
+  /** Edm.String(10) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) */
   PostalCode: string | null;
-  /** Edm.String(4) · filterable · populated 545,701 · RLS field */
+  /** Edm.String(4) · filterable · populated 545,701 · REBNY-referenced (Field.SystemReferences) */
   PostalCodePlus4: string | null;
-  /** Enums.Multi.PowerProductionType · multi-enum (comma-joined member names) · Lookup 2 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_PowerProductionType */
+  /** Enums.Multi.PowerProductionType · multi-enum (comma-joined member names) · Lookup 2 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_PowerProductionType */
   PowerProductionType: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · string with Lookup (see lookups.live.json) */
   PowerProductionYN: boolean | null;
-  /** Edm.Decimal(14,2) · filterable · populated 219,895 · RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 219,895 · REBNY-referenced (Field.SystemReferences) */
   PreviousListPrice: number | null;
-  /** Enums.StandardStatus · Lookup 11 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Enums.StandardStatus · Lookup 11 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   PreviousStandardStatus: CotalityEnum_StandardStatus | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 361,678 · RLS field */
+  /** Edm.DateTimeOffset(27) · filterable · populated 361,678 · REBNY-referenced (Field.SystemReferences) */
   PriceChangeTimestamp: string | null;
-  /** Edm.String(4000) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(4000) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   PrivateOfficeRemarks: string | null;
-  /** Edm.String(4000) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(4000) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   PrivateRemarks: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 8 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 8 · no REBNY reference */
   ProfessionalManagementExpense: number | null;
-  /** Edm.Boolean · Lookup 4 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 4 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · string with Lookup (see lookups.live.json) */
   PropertyAttachedYN: boolean | null;
-  /** Enums.Multi.PropertyCondition · multi-enum (comma-joined member names) · Lookup 27 members (RLS-listed 4) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field · members: CotalityEnum_PropertyCondition */
+  /** Enums.Multi.PropertyCondition · multi-enum (comma-joined member names) · Lookup 27 members (REBNY-referenced 4) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) · members: CotalityEnum_PropertyCondition */
   PropertyCondition: string | null;
-  /** Enums.PropertySubType · Lookup 76 members (RLS-listed 10) · filterable · populated 591,591 · RLS field */
+  /** Enums.PropertySubType · Lookup 76 members (REBNY-referenced 10) · filterable · populated 591,591 · REBNY-referenced (Field.SystemReferences) */
   PropertySubType: CotalityLookup_CustomProperty_PropertySubType | null;
-  /** Enums.Multi.PropertySubTypeAdditional · multi-enum (comma-joined member names) · Lookup 76 members (RLS-listed 6) · filterable · populated 553,713 · RLS field · non-RESO · members: CotalityLookup_CustomProperty_PropertySubType */
+  /** Enums.Multi.PropertySubTypeAdditional · multi-enum (comma-joined member names) · Lookup 76 members (REBNY-referenced 6) · filterable · populated 553,713 · REBNY-referenced (Field.SystemReferences) · non-RESO · members: CotalityLookup_CustomProperty_PropertySubType */
   PropertySubTypeAdditional: string | null;
-  /** Enums.PropertyType · Lookup 13 members (RLS-listed 3) · filterable · populated 591,607 · RLS field */
+  /** Enums.PropertyType · Lookup 13 members (REBNY-referenced 3) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) */
   PropertyType: CotalityEnum_PropertyType | null;
-  /** Edm.String(12000) · filterable · populated 579,433 · not an RLS field */
+  /** Edm.String(12000) · filterable · populated 579,433 · no REBNY reference */
   PublicRemarks: string | null;
-  /** Edm.String(20) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(20) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   PublicSurveyRange: string | null;
-  /** Edm.String(20) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(20) · filterable · populated 0 · no REBNY reference */
   PublicSurveySection: string | null;
-  /** Edm.String(20) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(20) · filterable · populated 0 · no REBNY reference */
   PublicSurveyTownship: string | null;
-  /** Edm.Date(10) · filterable · populated 179,612 · RLS field */
+  /** Edm.Date(10) · filterable · populated 179,612 · REBNY-referenced (Field.SystemReferences) */
   PurchaseContractDate: string | null;
-  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(50) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   RVParkingDimensions: string | null;
-  /** Edm.Decimal(14,2) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.Decimal(14,2) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   RangeArea: number | null;
-  /** Edm.Int32 · filterable · populated 591,607 · not an RLS field · non-RESO */
+  /** Edm.Int32 · filterable · populated 591,607 · no REBNY reference · non-RESO */
   RecordSignature: number | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · string with Lookup (see lookups.live.json) */
   RentControlYN: boolean | null;
-  /** Enums.Multi.RentIncludes · multi-enum (comma-joined member names) · Lookup 33 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_RentIncludes */
+  /** Enums.Multi.RentIncludes · multi-enum (comma-joined member names) · Lookup 33 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_RentIncludes */
   RentIncludes: string | null;
-  /** Enums.Multi.RoadFrontageType · multi-enum (comma-joined member names) · Lookup 29 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_RoadFrontageType */
+  /** Enums.Multi.RoadFrontageType · multi-enum (comma-joined member names) · Lookup 29 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_RoadFrontageType */
   RoadFrontageType: string | null;
-  /** Enums.Multi.RoadResponsibility · multi-enum (comma-joined member names) · Lookup 5 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_RoadResponsibility */
+  /** Enums.Multi.RoadResponsibility · multi-enum (comma-joined member names) · Lookup 5 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_RoadResponsibility */
   RoadResponsibility: string | null;
-  /** Enums.Multi.RoadSurfaceType · multi-enum (comma-joined member names) · Lookup 16 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_RoadSurfaceType */
+  /** Enums.Multi.RoadSurfaceType · multi-enum (comma-joined member names) · Lookup 16 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_RoadSurfaceType */
   RoadSurfaceType: string | null;
-  /** Enums.Multi.Roof · multi-enum (comma-joined member names) · Lookup 51 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityLookup_Property_Roof */
+  /** Enums.Multi.Roof · multi-enum (comma-joined member names) · Lookup 51 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityLookup_Property_Roof */
   Roof: string | null;
-  /** Enums.Multi.RoomType · multi-enum (comma-joined member names) · Lookup 122 members (RLS-listed 7) · filterable · populated 8,296 · RLS field · members: CotalityLookup_Property_RoomType */
+  /** Enums.Multi.RoomType · multi-enum (comma-joined member names) · Lookup 122 members (REBNY-referenced 7) · filterable · populated 8,296 · REBNY-referenced (Field.SystemReferences) · members: CotalityLookup_Property_RoomType */
   RoomType: string | null;
-  /** Edm.Int32 · filterable · populated 587,737 · RLS field */
+  /** Edm.Int32 · filterable · populated 587,737 · REBNY-referenced (Field.SystemReferences) */
   RoomsTotal: number | null;
-  /** Enums.SaleOrLeaseIndicator · Lookup 6 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Enums.SaleOrLeaseIndicator · Lookup 6 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO */
   SaleOrLeaseIndicator: CotalityEnum_SaleOrLeaseIndicator | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference */
   SeatingCapacity: number | null;
-  /** Edm.Decimal(14,2) · filterable · populated 161,522 · RLS field · non-RESO */
+  /** Edm.Decimal(14,2) · filterable · populated 161,522 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   SecurityDeposit: number | null;
-  /** Enums.Multi.SecurityFeatures · multi-enum (comma-joined member names) · Lookup 84 members (RLS-listed 10) · filterable · populated 1,890 · not an RLS field · members: CotalityEnum_SecurityFeatures */
+  /** Enums.Multi.SecurityFeatures · multi-enum (comma-joined member names) · Lookup 84 members (REBNY-referenced 10) · filterable · populated 1,890 · no REBNY reference · members: CotalityEnum_SecurityFeatures */
   SecurityFeatures: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   SellerConsiderConcessionYN: boolean | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 1) · filterable · populated 8 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 1) · filterable · populated 8 · no REBNY reference · string with Lookup (see lookups.live.json) */
   SeniorCommunityYN: boolean | null;
-  /** Edm.String(25) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(25) · filterable · populated 0 · no REBNY reference */
   SerialU: string | null;
-  /** Edm.String(25) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(25) · filterable · populated 0 · no REBNY reference */
   SerialX: string | null;
-  /** Edm.String(25) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(25) · filterable · populated 0 · no REBNY reference */
   SerialXX: string | null;
-  /** Enums.Multi.Sewer · multi-enum (comma-joined member names) · Lookup 55 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_Sewer */
+  /** Enums.Multi.Sewer · multi-enum (comma-joined member names) · Lookup 55 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_Sewer */
   Sewer: string | null;
-  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.Int32 · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   ShowingAdvanceNotice: number | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · string with Lookup (see lookups.live.json) */
   ShowingAttendedYN: boolean | null;
-  /** Enums.Multi.ShowingConsiderations · multi-enum (comma-joined member names) · Lookup 14 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO · members: CotalityEnum_ShowingConsiderations */
+  /** Enums.Multi.ShowingConsiderations · multi-enum (comma-joined member names) · Lookup 14 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO · members: CotalityEnum_ShowingConsiderations */
   ShowingConsiderations: string | null;
-  /** Edm.String(40) · filterable · populated 1,130 · not an RLS field */
+  /** Edm.String(40) · filterable · populated 1,130 · no REBNY reference */
   ShowingContactName: string | null;
-  /** Edm.String(16) · filterable · populated 1,102 · not an RLS field */
+  /** Edm.String(16) · filterable · populated 1,102 · no REBNY reference */
   ShowingContactPhone: string | null;
-  /** Edm.String(10) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(10) · filterable · populated 0 · no REBNY reference */
   ShowingContactPhoneExt: string | null;
-  /** Enums.Multi.ShowingContactType · multi-enum (comma-joined member names) · Lookup 15 members (RLS-listed 1) · filterable · populated 15 · not an RLS field · members: CotalityEnum_ShowingContactType */
+  /** Enums.Multi.ShowingContactType · multi-enum (comma-joined member names) · Lookup 15 members (REBNY-referenced 1) · filterable · populated 15 · no REBNY reference · members: CotalityEnum_ShowingContactType */
   ShowingContactType: string | null;
-  /** Enums.Multi.ShowingDays · multi-enum (comma-joined member names) · Lookup 7 members (RLS-listed 7) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · members: CotalityEnum_ShowingDays */
+  /** Enums.Multi.ShowingDays · multi-enum (comma-joined member names) · Lookup 7 members (REBNY-referenced 7) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · members: CotalityEnum_ShowingDays */
   ShowingDays: string | null;
-  /** Edm.DateTimeOffset(27) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.DateTimeOffset(27) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   ShowingEndTime: string | null;
-  /** Edm.String(4000) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(4000) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   ShowingInstructions: string | null;
-  /** Enums.Multi.ShowingRequirements · multi-enum (comma-joined member names) · Lookup 40 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · members: CotalityLookup_Property_ShowingRequirements */
+  /** Enums.Multi.ShowingRequirements · multi-enum (comma-joined member names) · Lookup 40 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · members: CotalityLookup_Property_ShowingRequirements */
   ShowingRequirements: string | null;
-  /** Enums.ShowingServiceName · Lookup 11 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Enums.ShowingServiceName · Lookup 11 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   ShowingServiceName: CotalityEnum_ShowingServiceName | null;
-  /** Edm.DateTimeOffset(27) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.DateTimeOffset(27) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   ShowingStartTime: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · string with Lookup (see lookups.live.json) */
   SignOnPropertyYN: boolean | null;
-  /** Enums.Multi.Skirt · multi-enum (comma-joined member names) · Lookup 25 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_Skirt */
+  /** Enums.Multi.Skirt · multi-enum (comma-joined member names) · Lookup 25 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_Skirt */
   Skirt: string | null;
-  /** Edm.String(8000) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(8000) · filterable · populated 0 · no REBNY reference · non-RESO */
   SourceMlsUrl: string | null;
-  /** Edm.String(25) · filterable · populated 591,607 · RLS field */
+  /** Edm.String(25) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) */
   SourceSystemID: string | null;
-  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   SourceSystemKey: string | null;
-  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field */
+  /** Edm.String(255) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) */
   SourceSystemName: string | null;
-  /** Enums.Multi.SpaFeatures · multi-enum (comma-joined member names) · Lookup 24 members (RLS-listed 1) · filterable · populated 5,639 · RLS field · members: CotalityEnum_SpaFeatures */
+  /** Enums.Multi.SpaFeatures · multi-enum (comma-joined member names) · Lookup 24 members (REBNY-referenced 1) · filterable · populated 5,639 · REBNY-referenced (Field.SystemReferences) · members: CotalityEnum_SpaFeatures */
   SpaFeatures: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 2) · filterable · populated 2,208 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 2) · filterable · populated 2,208 · no REBNY reference · string with Lookup (see lookups.live.json) */
   SpaYN: boolean | null;
-  /** Enums.Multi.SpecialLicenses · multi-enum (comma-joined member names) · Lookup 19 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_SpecialLicenses */
+  /** Enums.Multi.SpecialLicenses · multi-enum (comma-joined member names) · Lookup 19 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_SpecialLicenses */
   SpecialLicenses: string | null;
-  /** Enums.Multi.SpecialListingConditions · multi-enum (comma-joined member names) · Lookup 34 members (RLS-listed 8) · filterable · populated 114,397 · RLS field · members: CotalityEnum_SpecialListingConditions */
+  /** Enums.Multi.SpecialListingConditions · multi-enum (comma-joined member names) · Lookup 34 members (REBNY-referenced 8) · filterable · populated 114,397 · REBNY-referenced (Field.SystemReferences) · members: CotalityEnum_SpecialListingConditions */
   SpecialListingConditions: string | null;
-  /** Enums.StandardStatus · Lookup 11 members (RLS-listed 9) · filterable · populated 591,607 · RLS field */
+  /** Enums.StandardStatus · Lookup 11 members (REBNY-referenced 9) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) */
   StandardStatus: CotalityEnum_StandardStatus | null;
-  /** Edm.Date(10) · filterable · populated 0 · not an RLS field */
+  /** Edm.Date(10) · filterable · populated 0 · no REBNY reference */
   StartShowingDate: string | null;
-  /** Enums.StateOrProvince · Lookup 100 members (RLS-listed 7) · filterable · populated 591,604 · RLS field */
+  /** Enums.StateOrProvince · Lookup 100 members (REBNY-referenced 7) · filterable · populated 591,604 · REBNY-referenced (Field.SystemReferences) */
   StateOrProvince: CotalityEnum_StateOrProvince | null;
-  /** Edm.String(150) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(150) · filterable · populated 0 · no REBNY reference */
   StateRegion: string | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 591,419 · RLS field */
+  /** Edm.DateTimeOffset(27) · filterable · populated 591,419 · REBNY-referenced (Field.SystemReferences) */
   StatusChangeTimestamp: string | null;
-  /** Edm.Int32 · filterable · populated 1,612 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 1,612 · no REBNY reference */
   Stories: number | null;
-  /** Edm.Int32 · filterable · populated 533,803 · RLS field */
+  /** Edm.Int32 · filterable · populated 533,803 · REBNY-referenced (Field.SystemReferences) */
   StoriesTotal: number | null;
-  /** Edm.String(50) · filterable · populated 394,632 · RLS field */
+  /** Edm.String(50) · filterable · populated 394,632 · REBNY-referenced (Field.SystemReferences) */
   StreetAdditionalInfo: string | null;
-  /** Enums.StreetDirection · Lookup 10 members (RLS-listed 4) · filterable · populated 266,957 · RLS field */
+  /** Enums.StreetDirection · Lookup 10 members (REBNY-referenced 4) · filterable · populated 266,957 · REBNY-referenced (Field.SystemReferences) */
   StreetDirPrefix: CotalityEnum_StreetDirection | null;
-  /** Enums.StreetDirection · Lookup 10 members (RLS-listed 5) · filterable · populated 13,415 · RLS field */
+  /** Enums.StreetDirection · Lookup 10 members (REBNY-referenced 5) · filterable · populated 13,415 · REBNY-referenced (Field.SystemReferences) */
   StreetDirSuffix: CotalityEnum_StreetDirection | null;
-  /** Edm.String(50) · filterable · populated 591,607 · RLS field */
+  /** Edm.String(50) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) */
   StreetName: string | null;
-  /** Edm.String(25) · filterable · populated 591,607 · RLS field */
+  /** Edm.String(25) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) */
   StreetNumber: string | null;
-  /** Edm.Int32 · filterable · populated 561,696 · RLS field */
+  /** Edm.Int32 · filterable · populated 561,696 · REBNY-referenced (Field.SystemReferences) */
   StreetNumberNumeric: number | null;
-  /** Enums.StreetSuffix · Lookup 298 members (RLS-listed 31) · filterable · populated 580,305 · RLS field */
+  /** Enums.StreetSuffix · Lookup 298 members (REBNY-referenced 31) · filterable · populated 580,305 · REBNY-referenced (Field.SystemReferences) */
   StreetSuffix: CotalityEnum_StreetSuffix | null;
-  /** Edm.String(25) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(25) · filterable · populated 0 · no REBNY reference */
   StreetSuffixModifier: string | null;
-  /** Enums.Multi.StructureType · multi-enum (comma-joined member names) · Lookup 23 members (RLS-listed 11) · filterable · populated 97,624 · RLS field · members: CotalityEnum_StructureType */
+  /** Enums.Multi.StructureType · multi-enum (comma-joined member names) · Lookup 23 members (REBNY-referenced 11) · filterable · populated 97,624 · REBNY-referenced (Field.SystemReferences) · members: CotalityEnum_StructureType */
   StructureType: string | null;
-  /** Edm.String(25) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(25) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   SubAgencyCompensation: string | null;
-  /** Enums.CompensationType · Lookup 5 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Enums.CompensationType · Lookup 5 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   SubAgencyCompensationType: CotalityEnum_CompensationType | null;
-  /** Edm.String(150) · filterable · populated 591,607 · RLS field */
+  /** Edm.String(150) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) */
   SubdivisionName: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 8 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 8 · no REBNY reference */
   SuppliesExpense: number | null;
-  /** Enums.Multi.SyndicateTo · multi-enum (comma-joined member names) · Lookup 28 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityLookup_HistoryTransactional_SyndicateTo */
+  /** Enums.Multi.SyndicateTo · multi-enum (comma-joined member names) · Lookup 28 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityLookup_HistoryTransactional_SyndicateTo */
   SyndicateTo: string | null;
-  /** Edm.String(4000) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(4000) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   SyndicationRemarks: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 97,625 · RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 97,625 · REBNY-referenced (Field.SystemReferences) */
   TaxAnnualAmount: number | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference */
   TaxAssessedValue: number | null;
-  /** Edm.String(25) · filterable · populated 591,607 · RLS field */
+  /** Edm.String(25) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) */
   TaxBlock: string | null;
-  /** Edm.String(25) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(25) · filterable · populated 0 · no REBNY reference */
   TaxBookNumber: string | null;
-  /** Edm.String(6000) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(6000) · filterable · populated 0 · no REBNY reference */
   TaxLegalDescription: string | null;
-  /** Edm.String(25) · filterable · populated 266,897 · RLS field */
+  /** Edm.String(25) · filterable · populated 266,897 · REBNY-referenced (Field.SystemReferences) */
   TaxLot: string | null;
-  /** Edm.String(25) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(25) · filterable · populated 0 · no REBNY reference */
   TaxMapNumber: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference */
   TaxOtherAnnualAssessmentAmount: number | null;
-  /** Edm.String(25) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(25) · filterable · populated 0 · no REBNY reference */
   TaxParcelLetter: string | null;
-  /** Enums.Multi.TaxStatusCurrent · multi-enum (comma-joined member names) · Lookup 3 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_TaxStatusCurrent */
+  /** Enums.Multi.TaxStatusCurrent · multi-enum (comma-joined member names) · Lookup 3 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_TaxStatusCurrent */
   TaxStatusCurrent: string | null;
-  /** Edm.String(25) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(25) · filterable · populated 0 · no REBNY reference */
   TaxTract: string | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference */
   TaxYear: number | null;
-  /** Enums.Multi.TenantPays · multi-enum (comma-joined member names) · Lookup 61 members (RLS-listed 16) · filterable · populated 261 · not an RLS field · members: CotalityEnum_TenantPays */
+  /** Enums.Multi.TenantPays · multi-enum (comma-joined member names) · Lookup 61 members (REBNY-referenced 16) · filterable · populated 261 · no REBNY reference · members: CotalityEnum_TenantPays */
   TenantPays: string | null;
-  /** Edm.String(1024) · filterable · populated 276 · not an RLS field · non-RESO */
+  /** Edm.String(1024) · filterable · populated 276 · no REBNY reference · non-RESO */
   TenantPaysDescription: string | null;
-  /** Edm.String(768) · Lookup 26 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.String(768) · Lookup 26 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · string with Lookup (see lookups.live.json) */
   Topography: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference */
   TotalActualRent: number | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference · non-RESO */
   TotalFloorPlansCount: number | null;
-  /** Edm.String(50) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(50) · filterable · populated 0 · no REBNY reference */
   Township: string | null;
-  /** Edm.String(25) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(25) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   TransactionBrokerCompensation: string | null;
-  /** Enums.CompensationType · Lookup 5 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Enums.CompensationType · Lookup 5 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   TransactionBrokerCompensationType: CotalityEnum_CompensationType | null;
-  /** Edm.Decimal(14,2) · filterable · populated 8 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 8 · no REBNY reference */
   TrashExpense: number | null;
-  /** Edm.String(25) · filterable · populated 582,428 · RLS field */
+  /** Edm.String(25) · filterable · populated 582,428 · REBNY-referenced (Field.SystemReferences) */
   UnitNumber: string | null;
-  /** Enums.Multi.UnitTypeType · multi-enum (comma-joined member names) · Lookup 22 members (RLS-listed 2) · filterable · populated 148 · not an RLS field · members: CotalityEnum_UnitTypeType */
+  /** Enums.Multi.UnitTypeType · multi-enum (comma-joined member names) · Lookup 22 members (REBNY-referenced 2) · filterable · populated 148 · no REBNY reference · members: CotalityEnum_UnitTypeType */
   UnitTypeType: string | null;
-  /** Enums.UnitsFurnished · Lookup 7 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.UnitsFurnished · Lookup 7 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   UnitsFurnished: CotalityEnum_UnitsFurnished | null;
-  /** Edm.String(255) · filterable · populated 545,161 · not an RLS field · non-RESO */
+  /** Edm.String(255) · filterable · populated 545,161 · no REBNY reference · non-RESO */
   UniversalParcelId: string | null;
-  /** Edm.String(128) · filterable · populated 380,699 · not an RLS field */
+  /** Edm.String(128) · filterable · populated 380,699 · no REBNY reference */
   UniversalPropertyId: string | null;
-  /** Edm.String(128) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(128) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   UniversalPropertySubId: string | null;
-  /** Edm.String(255) · filterable · populated 591,607 · RLS field */
+  /** Edm.String(255) · filterable · populated 591,607 · REBNY-referenced (Field.SystemReferences) */
   UnparsedAddress: string | null;
-  /** Enums.Multi.Utilities · multi-enum (comma-joined member names) · Lookup 41 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_Utilities */
+  /** Enums.Multi.Utilities · multi-enum (comma-joined member names) · Lookup 41 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_Utilities */
   Utilities: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference · non-RESO */
   UtilitiesExpense: number | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference */
   VacancyAllowance: number | null;
-  /** Edm.Decimal(5,2) · filterable · populated 0 · not an RLS field */
+  /** Edm.Decimal(5,2) · filterable · populated 0 · no REBNY reference */
   VacancyAllowanceRate: number | null;
-  /** Enums.Multi.Vegetation · multi-enum (comma-joined member names) · Lookup 19 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · members: CotalityEnum_Vegetation */
+  /** Enums.Multi.Vegetation · multi-enum (comma-joined member names) · Lookup 19 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · members: CotalityEnum_Vegetation */
   Vegetation: string | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 329,062 · RLS field */
+  /** Edm.DateTimeOffset(27) · filterable · populated 329,062 · REBNY-referenced (Field.SystemReferences) */
   VideosChangeTimestamp: string | null;
-  /** Edm.Int32 · filterable · populated 485,075 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 485,075 · no REBNY reference */
   VideosCount: number | null;
-  /** Enums.Multi.View · multi-enum (comma-joined member names) · Lookup 85 members (RLS-listed 29) · filterable · populated 138,934 · RLS field · members: CotalityEnum_View */
+  /** Enums.Multi.View · multi-enum (comma-joined member names) · Lookup 85 members (REBNY-referenced 29) · filterable · populated 138,934 · REBNY-referenced (Field.SystemReferences) · members: CotalityEnum_View */
   View: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 1) · filterable · populated 163,138 · RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 1) · filterable · populated 163,138 · REBNY-referenced (Field.SystemReferences) · string with Lookup (see lookups.live.json) */
   ViewYN: boolean | null;
-  /** Edm.String(8000) · filterable · populated 13,879 · RLS field */
+  /** Edm.String(8000) · filterable · populated 13,879 · REBNY-referenced (Field.SystemReferences) */
   VirtualTourURLBranded: string | null;
-  /** Edm.String(8000) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(8000) · filterable · populated 0 · no REBNY reference · non-RESO */
   VirtualTourURLBranded2: string | null;
-  /** Edm.String(8000) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(8000) · filterable · populated 0 · no REBNY reference · non-RESO */
   VirtualTourURLBranded3: string | null;
-  /** Edm.String(8000) · filterable · populated 26,372 · RLS field */
+  /** Edm.String(8000) · filterable · populated 26,372 · REBNY-referenced (Field.SystemReferences) */
   VirtualTourURLUnbranded: string | null;
-  /** Edm.String(8000) · filterable · populated 2,382 · not an RLS field · non-RESO */
+  /** Edm.String(8000) · filterable · populated 2,382 · no REBNY reference · non-RESO */
   VirtualTourURLUnbranded2: string | null;
-  /** Edm.String(8000) · filterable · populated 354 · not an RLS field · non-RESO */
+  /** Edm.String(8000) · filterable · populated 354 · no REBNY reference · non-RESO */
   VirtualTourURLUnbranded3: string | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference */
   WalkScore: number | null;
-  /** Edm.String(50) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(50) · filterable · populated 0 · no REBNY reference */
   WaterBodyName: string | null;
-  /** Enums.Multi.WaterHeater · multi-enum (comma-joined member names) · Lookup 25 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO · members: CotalityEnum_WaterHeater */
+  /** Enums.Multi.WaterHeater · multi-enum (comma-joined member names) · Lookup 25 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO · members: CotalityEnum_WaterHeater */
   WaterHeater: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 10,392 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 10,392 · no REBNY reference */
   WaterSewerExpense: number | null;
-  /** Enums.Multi.WaterSource · multi-enum (comma-joined member names) · Lookup 39 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityEnum_WaterSource */
+  /** Enums.Multi.WaterSource · multi-enum (comma-joined member names) · Lookup 39 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityEnum_WaterSource */
   WaterSource: string | null;
-  /** Enums.Multi.WaterfrontFeatures · multi-enum (comma-joined member names) · Lookup 77 members (RLS-listed 1) · filterable · populated 5 · not an RLS field · members: CotalityEnum_WaterfrontFeatures */
+  /** Enums.Multi.WaterfrontFeatures · multi-enum (comma-joined member names) · Lookup 77 members (REBNY-referenced 1) · filterable · populated 5 · no REBNY reference · members: CotalityEnum_WaterfrontFeatures */
   WaterfrontFeatures: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 2) · filterable · populated 98 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 2) · filterable · populated 98 · no REBNY reference · string with Lookup (see lookups.live.json) */
   WaterfrontYN: boolean | null;
-  /** Enums.Multi.WindowFeatures · multi-enum (comma-joined member names) · Lookup 55 members (RLS-listed 17) · filterable · populated 15,977 · RLS field · members: CotalityEnum_WindowFeatures */
+  /** Enums.Multi.WindowFeatures · multi-enum (comma-joined member names) · Lookup 55 members (REBNY-referenced 17) · filterable · populated 15,977 · REBNY-referenced (Field.SystemReferences) · members: CotalityEnum_WindowFeatures */
   WindowFeatures: string | null;
-  /** Edm.Date(10) · filterable · populated 22 · RLS field */
+  /** Edm.Date(10) · filterable · populated 22 · REBNY-referenced (Field.SystemReferences) */
   WithdrawnDate: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference */
   WoodedArea: number | null;
-  /** Edm.Decimal(14,2) · filterable · populated 8 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 8 · no REBNY reference */
   WorkmansCompensationExpense: number | null;
-  /** Enums.GeocodeSource · Lookup 10 members (RLS-listed 4) · NOT filterable (provider-suppressed) · population unmeasurable · RLS field · non-RESO */
+  /** Enums.GeocodeSource · Lookup 10 members (REBNY-referenced 4) · NOT filterable (provider-suppressed) · population unmeasurable · REBNY-referenced (Field.SystemReferences) · non-RESO */
   X_GeocodeSource: CotalityEnum_GeocodeSource | null;
-  /** Edm.Int32 · filterable · populated 485,638 · RLS field */
+  /** Edm.Int32 · filterable · populated 485,638 · REBNY-referenced (Field.SystemReferences) */
   YearBuilt: number | null;
-  /** Edm.String(1024) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(1024) · filterable · populated 0 · no REBNY reference */
   YearBuiltDetails: string | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference */
   YearBuiltEffective: number | null;
-  /** Enums.YearBuiltSource · Lookup 8 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.YearBuiltSource · Lookup 8 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   YearBuiltSource: CotalityEnum_YearBuiltSource | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference */
   YearEstablished: number | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference */
   YearsCurrentOwner: number | null;
-  /** Edm.String(25) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(25) · filterable · populated 0 · no REBNY reference */
   Zoning: string | null;
-  /** Edm.String(255) · filterable · populated 27,455 · RLS field */
+  /** Edm.String(255) · filterable · populated 27,455 · REBNY-referenced (Field.SystemReferences) */
   ZoningDescription: string | null;
 }
 
@@ -3252,83 +3252,83 @@ export interface CotalityPropertyNavigations {
 
 /** PropertyGreenVerification · Cotality.DataStandard.RESO.DD.PropertyGreenVerification · 39 fields · REJECTED on this subscription (HTTP 404: "Page not found") */
 export interface CotalityPropertyGreenVerification {
-  /** Edm.String(255) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.String(255) · filterability unmeasured · no REBNY reference · non-RESO */
   GreenBuildingVerificationKey: string;
-  /** Edm.Int64 · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.Int64 · filterability unmeasured · no REBNY reference · non-RESO */
   GreenBuildingVerificationKeyNumeric: number | null;
-  /** Enums.GreenBuildingVerificationType · Lookup 29 members (RLS-listed 0) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Enums.GreenBuildingVerificationType · Lookup 29 members (REBNY-referenced 0) · filterability unmeasured · no REBNY reference · non-RESO */
   GreenBuildingVerificationType: CotalityEnum_GreenBuildingVerificationType | null;
-  /** Edm.String(50) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.String(50) · filterability unmeasured · no REBNY reference · non-RESO */
   GreenVerificationBody: string | null;
-  /** Edm.Int32 · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.Int32 · filterability unmeasured · no REBNY reference · non-RESO */
   GreenVerificationMetric: number | null;
-  /** Edm.String(50) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.String(50) · filterability unmeasured · no REBNY reference · non-RESO */
   GreenVerificationRating: string | null;
-  /** Enums.GreenVerificationSource · Lookup 10 members (RLS-listed 0) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Enums.GreenVerificationSource · Lookup 10 members (REBNY-referenced 0) · filterability unmeasured · no REBNY reference · non-RESO */
   GreenVerificationSource: CotalityEnum_GreenVerificationSource | null;
-  /** Enums.GreenVerificationStatus · Lookup 4 members (RLS-listed 0) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Enums.GreenVerificationStatus · Lookup 4 members (REBNY-referenced 0) · filterability unmeasured · no REBNY reference · non-RESO */
   GreenVerificationStatus: CotalityEnum_GreenVerificationStatus | null;
-  /** Edm.String(8000) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.String(8000) · filterability unmeasured · no REBNY reference · non-RESO */
   GreenVerificationURL: string | null;
-  /** Edm.String(25) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.String(25) · filterability unmeasured · no REBNY reference · non-RESO */
   GreenVerificationVersion: string | null;
-  /** Edm.Int32 · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.Int32 · filterability unmeasured · no REBNY reference · non-RESO */
   GreenVerificationYear: number | null;
-  /** Edm.Boolean · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.Boolean · filterability unmeasured · no REBNY reference · non-RESO */
   HumanModifiedYN: boolean | null;
-  /** Edm.Int32 · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.Int32 · filterability unmeasured · no REBNY reference · non-RESO */
   InputEntryOrder: number | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 2) · filterability unmeasured · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 2) · filterability unmeasured · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   InternetEntireListingDisplayYN: boolean | null;
-  /** Enums.AOR · Lookup 1127 members (RLS-listed 0) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Enums.AOR · Lookup 1127 members (REBNY-referenced 0) · filterability unmeasured · no REBNY reference · non-RESO */
   ListAOR: CotalityLookup_CustomProperty_ListAOR | null;
-  /** Edm.String(20) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.String(20) · filterability unmeasured · no REBNY reference · non-RESO */
   ListAgentKey: string | null;
-  /** Edm.String(20) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.String(20) · filterability unmeasured · no REBNY reference · non-RESO */
   ListOfficeKey: string | null;
-  /** Edm.String(25) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.String(25) · filterability unmeasured · no REBNY reference · non-RESO */
   ListOfficeMlsId: string | null;
-  /** Edm.String(255) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.String(255) · filterability unmeasured · no REBNY reference · non-RESO */
   ListingId: string | null;
-  /** Edm.String(20) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.String(20) · filterability unmeasured · no REBNY reference · non-RESO */
   ListingKey: string | null;
-  /** Edm.Int64 · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.Int64 · filterability unmeasured · no REBNY reference · non-RESO */
   ListingKeyNumeric: number | null;
-  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (RLS-listed 0) · filterability unmeasured · not an RLS field · non-RESO · members: CotalityEnum_ListingPermission */
+  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (REBNY-referenced 0) · filterability unmeasured · no REBNY reference · non-RESO · members: CotalityEnum_ListingPermission */
   ListingPermission: string | null;
-  /** Edm.DateTimeOffset(27) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.DateTimeOffset(27) · filterability unmeasured · no REBNY reference · non-RESO */
   ModificationTimestamp: string | null;
-  /** Edm.Date(10) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.Date(10) · filterability unmeasured · no REBNY reference · non-RESO */
   OffMarketDate: string | null;
-  /** Edm.String(60) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.String(60) · filterability unmeasured · no REBNY reference · non-RESO */
   OriginalEntryTimestamp: string | null;
-  /** Edm.String(255) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.String(255) · filterability unmeasured · no REBNY reference · non-RESO */
   OriginatingSystemGreenBuildingVerificationKey: string | null;
-  /** Edm.String(25) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.String(25) · filterability unmeasured · no REBNY reference · non-RESO */
   OriginatingSystemID: string | null;
-  /** Edm.String(255) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.String(255) · filterability unmeasured · no REBNY reference · non-RESO */
   OriginatingSystemKey: string | null;
-  /** Edm.String(255) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.String(255) · filterability unmeasured · no REBNY reference · non-RESO */
   OriginatingSystemListingKey: string | null;
-  /** Edm.String(255) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.String(255) · filterability unmeasured · no REBNY reference · non-RESO */
   OriginatingSystemName: string | null;
-  /** Edm.String(255) · Lookup 880 members (RLS-listed 0) · filterability unmeasured · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.String(255) · Lookup 880 members (REBNY-referenced 0) · filterability unmeasured · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   OriginatingSystemSubName: string | null;
-  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (RLS-listed 0) · filterability unmeasured · not an RLS field · non-RESO · members: CotalityEnum_ListingPermission */
+  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (REBNY-referenced 0) · filterability unmeasured · no REBNY reference · non-RESO · members: CotalityEnum_ListingPermission */
   Permission: string | null;
-  /** Enums.PropertySubType · Lookup 76 members (RLS-listed 0) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Enums.PropertySubType · Lookup 76 members (REBNY-referenced 0) · filterability unmeasured · no REBNY reference · non-RESO */
   PropertySubType: CotalityLookup_CustomProperty_PropertySubType | null;
-  /** Enums.Multi.PropertySubTypeAdditional · multi-enum (comma-joined member names) · Lookup 76 members (RLS-listed 0) · filterability unmeasured · not an RLS field · non-RESO · members: CotalityLookup_CustomProperty_PropertySubType */
+  /** Enums.Multi.PropertySubTypeAdditional · multi-enum (comma-joined member names) · Lookup 76 members (REBNY-referenced 0) · filterability unmeasured · no REBNY reference · non-RESO · members: CotalityLookup_CustomProperty_PropertySubType */
   PropertySubTypeAdditional: string | null;
-  /** Enums.PropertyType · Lookup 13 members (RLS-listed 0) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Enums.PropertyType · Lookup 13 members (REBNY-referenced 0) · filterability unmeasured · no REBNY reference · non-RESO */
   PropertyType: CotalityEnum_PropertyType | null;
-  /** Edm.Int32 · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.Int32 · filterability unmeasured · no REBNY reference · non-RESO */
   RecordSignature: number | null;
-  /** Edm.String(25) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.String(25) · filterability unmeasured · no REBNY reference · non-RESO */
   SourceSystemID: string | null;
-  /** Enums.StandardStatus · Lookup 11 members (RLS-listed 11) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Enums.StandardStatus · Lookup 11 members (REBNY-referenced 11) · filterability unmeasured · no REBNY reference · non-RESO */
   StandardStatus: CotalityEnum_StandardStatus | null;
-  /** Enums.Multi.SyndicateTo · multi-enum (comma-joined member names) · Lookup 28 members (RLS-listed 0) · filterability unmeasured · not an RLS field · non-RESO · members: CotalityLookup_HistoryTransactional_SyndicateTo */
+  /** Enums.Multi.SyndicateTo · multi-enum (comma-joined member names) · Lookup 28 members (REBNY-referenced 0) · filterability unmeasured · no REBNY reference · non-RESO · members: CotalityLookup_HistoryTransactional_SyndicateTo */
   SyndicateTo: string | null;
 }
 
@@ -3338,83 +3338,83 @@ export interface CotalityPropertyGreenVerificationNavigations {
 
 /** PropertyRooms · Cotality.DataStandard.RESO.DD.PropertyRooms · 39 fields · accessible */
 export interface CotalityPropertyRooms {
-  /** Edm.Boolean · filterable · populated 86 · not an RLS field · non-RESO */
+  /** Edm.Boolean · filterable · populated 86 · no REBNY reference · non-RESO */
   HumanModifiedYN: boolean | null;
-  /** Edm.Int32 · filterable · populated 86 · RLS field · non-RESO */
+  /** Edm.Int32 · filterable · populated 86 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   InputEntryOrder: number | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 2) · filterable · populated 86 · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 2) · filterable · populated 86 · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   InternetEntireListingDisplayYN: boolean | null;
-  /** Enums.AOR · Lookup 1127 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Enums.AOR · Lookup 1127 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO */
   ListAOR: CotalityLookup_CustomProperty_ListAOR | null;
-  /** Edm.String(20) · filterable · populated 86 · not an RLS field · non-RESO */
+  /** Edm.String(20) · filterable · populated 86 · no REBNY reference · non-RESO */
   ListAgentKey: string | null;
-  /** Edm.String(20) · filterable · populated 86 · not an RLS field · non-RESO */
+  /** Edm.String(20) · filterable · populated 86 · no REBNY reference · non-RESO */
   ListOfficeKey: string | null;
-  /** Edm.String(25) · filterable · populated 86 · not an RLS field · non-RESO */
+  /** Edm.String(25) · filterable · populated 86 · no REBNY reference · non-RESO */
   ListOfficeMlsId: string | null;
-  /** Edm.String(255) · filterable · populated 86 · RLS field */
+  /** Edm.String(255) · filterable · populated 86 · REBNY-referenced (Field.SystemReferences) */
   ListingId: string | null;
-  /** Edm.String(20) · filterable · populated 86 · RLS field */
+  /** Edm.String(20) · filterable · populated 86 · REBNY-referenced (Field.SystemReferences) */
   ListingKey: string | null;
-  /** Edm.Int64 · filterable · populated 86 · RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 86 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ListingKeyNumeric: number | null;
-  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (RLS-listed 0) · filterable · populated 86 · not an RLS field · non-RESO · members: CotalityEnum_ListingPermission */
+  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (REBNY-referenced 0) · filterable · populated 86 · no REBNY reference · non-RESO · members: CotalityEnum_ListingPermission */
   ListingPermission: string | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 86 · not an RLS field · non-RESO */
+  /** Edm.DateTimeOffset(27) · filterable · populated 86 · no REBNY reference · non-RESO */
   ModificationTimestamp: string | null;
-  /** Edm.Date(10) · filterable · populated 81 · not an RLS field · non-RESO */
+  /** Edm.Date(10) · filterable · populated 81 · no REBNY reference · non-RESO */
   OffMarketDate: string | null;
-  /** Edm.String(255) · filterable · populated 86 · RLS field · non-RESO */
+  /** Edm.String(255) · filterable · populated 86 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   OriginatingSystemListingKey: string | null;
-  /** Edm.String(255) · filterable · populated 86 · not an RLS field · non-RESO */
+  /** Edm.String(255) · filterable · populated 86 · no REBNY reference · non-RESO */
   OriginatingSystemName: string | null;
-  /** Edm.String(255) · Lookup 880 members (RLS-listed 0) · filterable · populated 86 · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.String(255) · Lookup 880 members (REBNY-referenced 0) · filterable · populated 86 · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   OriginatingSystemSubName: string | null;
-  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO · members: CotalityEnum_ListingPermission */
+  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO · members: CotalityEnum_ListingPermission */
   Permission: string | null;
-  /** Enums.PropertySubType · Lookup 76 members (RLS-listed 0) · filterable · populated 86 · not an RLS field · non-RESO */
+  /** Enums.PropertySubType · Lookup 76 members (REBNY-referenced 0) · filterable · populated 86 · no REBNY reference · non-RESO */
   PropertySubType: CotalityLookup_CustomProperty_PropertySubType | null;
-  /** Enums.Multi.PropertySubTypeAdditional · multi-enum (comma-joined member names) · Lookup 76 members (RLS-listed 0) · filterable · populated 21 · not an RLS field · non-RESO · members: CotalityLookup_CustomProperty_PropertySubType */
+  /** Enums.Multi.PropertySubTypeAdditional · multi-enum (comma-joined member names) · Lookup 76 members (REBNY-referenced 0) · filterable · populated 21 · no REBNY reference · non-RESO · members: CotalityLookup_CustomProperty_PropertySubType */
   PropertySubTypeAdditional: string | null;
-  /** Enums.PropertyType · Lookup 13 members (RLS-listed 0) · filterable · populated 86 · not an RLS field · non-RESO */
+  /** Enums.PropertyType · Lookup 13 members (REBNY-referenced 0) · filterable · populated 86 · no REBNY reference · non-RESO */
   PropertyType: CotalityEnum_PropertyType | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference · non-RESO */
   RecordSignature: number | null;
-  /** Edm.Decimal(14,2) · filterable · populated 44 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 44 · no REBNY reference */
   RoomArea: number | null;
-  /** Enums.AreaSource · Lookup 18 members (RLS-listed 1) · filterable · populated 44 · not an RLS field */
+  /** Enums.AreaSource · Lookup 18 members (REBNY-referenced 1) · filterable · populated 44 · no REBNY reference */
   RoomAreaSource: CotalityEnum_AreaSource | null;
-  /** Enums.AreaUnits · Lookup 3 members (RLS-listed 1) · filterable · populated 44 · not an RLS field */
+  /** Enums.AreaUnits · Lookup 3 members (REBNY-referenced 1) · filterable · populated 44 · no REBNY reference */
   RoomAreaUnits: CotalityEnum_AreaUnits | null;
-  /** Edm.String(1024) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(1024) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   RoomDescription: string | null;
-  /** Edm.String(50) · filterable · populated 0 · not an RLS field */
+  /** Edm.String(50) · filterable · populated 0 · no REBNY reference */
   RoomDimensions: string | null;
-  /** Enums.Multi.InteriorOrRoomFeatures · multi-enum (comma-joined member names) · Lookup 303 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · members: CotalityLookup_PropertyRooms_RoomFeatures */
+  /** Enums.Multi.InteriorOrRoomFeatures · multi-enum (comma-joined member names) · Lookup 303 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · members: CotalityLookup_PropertyRooms_RoomFeatures */
   RoomFeatures: string | null;
-  /** Enums.Multi.Flooring · multi-enum (comma-joined member names) · Lookup 62 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO · members: CotalityEnum_Flooring */
+  /** Enums.Multi.Flooring · multi-enum (comma-joined member names) · Lookup 62 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO · members: CotalityEnum_Flooring */
   RoomFlooring: string | null;
-  /** Edm.String(20) · filterable · populated 86 · RLS field */
+  /** Edm.String(20) · filterable · populated 86 · REBNY-referenced (Field.SystemReferences) */
   RoomKey: string;
-  /** Edm.Int64 · filterable · populated 86 · RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 86 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   RoomKeyNumeric: number | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference */
   RoomLength: number | null;
-  /** Enums.AreaSource · Lookup 18 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.AreaSource · Lookup 18 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   RoomLengthWidthSource: CotalityEnum_AreaSource | null;
-  /** Enums.LinearUnits · Lookup 4 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.LinearUnits · Lookup 4 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   RoomLengthWidthUnits: CotalityEnum_LinearUnits | null;
-  /** Enums.RoomLevel · Lookup 15 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.RoomLevel · Lookup 15 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   RoomLevel: CotalityEnum_RoomLevel | null;
-  /** Enums.RoomType · Lookup 122 members (RLS-listed 6) · filterable · populated 74 · not an RLS field */
+  /** Enums.RoomType · Lookup 122 members (REBNY-referenced 6) · filterable · populated 74 · no REBNY reference */
   RoomType: CotalityLookup_Property_RoomType | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference */
   RoomWidth: number | null;
-  /** Edm.String(25) · filterable · populated 86 · RLS field · non-RESO */
+  /** Edm.String(25) · filterable · populated 86 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   SourceSystemID: string | null;
-  /** Enums.StandardStatus · Lookup 11 members (RLS-listed 11) · filterable · populated 86 · not an RLS field · non-RESO */
+  /** Enums.StandardStatus · Lookup 11 members (REBNY-referenced 11) · filterable · populated 86 · no REBNY reference · non-RESO */
   StandardStatus: CotalityEnum_StandardStatus | null;
-  /** Enums.Multi.SyndicateTo · multi-enum (comma-joined member names) · Lookup 28 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO · members: CotalityLookup_HistoryTransactional_SyndicateTo */
+  /** Enums.Multi.SyndicateTo · multi-enum (comma-joined member names) · Lookup 28 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO · members: CotalityLookup_HistoryTransactional_SyndicateTo */
   SyndicateTo: string | null;
 }
 
@@ -3426,109 +3426,109 @@ export interface CotalityPropertyRoomsNavigations {
 
 /** PropertyUnitTypes · Cotality.DataStandard.RESO.DD.PropertyUnitTypes · 52 fields · accessible */
 export interface CotalityPropertyUnitTypes {
-  /** Edm.Boolean · filterable · populated 1 · not an RLS field · non-RESO */
+  /** Edm.Boolean · filterable · populated 1 · no REBNY reference · non-RESO */
   HumanModifiedYN: boolean | null;
-  /** Edm.Int32 · filterable · populated 1 · RLS field · non-RESO */
+  /** Edm.Int32 · filterable · populated 1 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   InputEntryOrder: number | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 2) · filterable · populated 1 · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 2) · filterable · populated 1 · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   InternetEntireListingDisplayYN: boolean | null;
-  /** Enums.AOR · Lookup 1127 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Enums.AOR · Lookup 1127 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO */
   ListAOR: CotalityLookup_CustomProperty_ListAOR | null;
-  /** Edm.String(20) · filterable · populated 1 · not an RLS field · non-RESO */
+  /** Edm.String(20) · filterable · populated 1 · no REBNY reference · non-RESO */
   ListAgentKey: string | null;
-  /** Edm.String(20) · filterable · populated 1 · not an RLS field · non-RESO */
+  /** Edm.String(20) · filterable · populated 1 · no REBNY reference · non-RESO */
   ListOfficeKey: string | null;
-  /** Edm.String(25) · filterable · populated 1 · not an RLS field · non-RESO */
+  /** Edm.String(25) · filterable · populated 1 · no REBNY reference · non-RESO */
   ListOfficeMlsId: string | null;
-  /** Edm.String(255) · filterable · populated 1 · RLS field */
+  /** Edm.String(255) · filterable · populated 1 · REBNY-referenced (Field.SystemReferences) */
   ListingId: string | null;
-  /** Edm.String(20) · filterable · populated 1 · RLS field */
+  /** Edm.String(20) · filterable · populated 1 · REBNY-referenced (Field.SystemReferences) */
   ListingKey: string | null;
-  /** Edm.Int64 · filterable · populated 1 · RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 1 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   ListingKeyNumeric: number | null;
-  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (RLS-listed 0) · filterable · populated 1 · not an RLS field · non-RESO · members: CotalityEnum_ListingPermission */
+  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (REBNY-referenced 0) · filterable · populated 1 · no REBNY reference · non-RESO · members: CotalityEnum_ListingPermission */
   ListingPermission: string | null;
-  /** Edm.DateTimeOffset(27) · filterable · populated 1 · not an RLS field · non-RESO */
+  /** Edm.DateTimeOffset(27) · filterable · populated 1 · no REBNY reference · non-RESO */
   ModificationTimestamp: string | null;
-  /** Edm.Date(10) · filterable · populated 1 · not an RLS field · non-RESO */
+  /** Edm.Date(10) · filterable · populated 1 · no REBNY reference · non-RESO */
   OffMarketDate: string | null;
-  /** Edm.String(255) · filterable · populated 1 · RLS field · non-RESO */
+  /** Edm.String(255) · filterable · populated 1 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   OriginatingSystemListingKey: string | null;
-  /** Edm.String(255) · filterable · populated 1 · not an RLS field · non-RESO */
+  /** Edm.String(255) · filterable · populated 1 · no REBNY reference · non-RESO */
   OriginatingSystemName: string | null;
-  /** Edm.String(255) · Lookup 880 members (RLS-listed 0) · filterable · populated 1 · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.String(255) · Lookup 880 members (REBNY-referenced 0) · filterable · populated 1 · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   OriginatingSystemSubName: string | null;
-  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (RLS-listed 0) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO · members: CotalityEnum_ListingPermission */
+  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (REBNY-referenced 0) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO · members: CotalityEnum_ListingPermission */
   Permission: string | null;
-  /** Enums.PropertySubType · Lookup 76 members (RLS-listed 0) · filterable · populated 1 · not an RLS field · non-RESO */
+  /** Enums.PropertySubType · Lookup 76 members (REBNY-referenced 0) · filterable · populated 1 · no REBNY reference · non-RESO */
   PropertySubType: CotalityLookup_CustomProperty_PropertySubType | null;
-  /** Enums.Multi.PropertySubTypeAdditional · multi-enum (comma-joined member names) · Lookup 76 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO · members: CotalityLookup_CustomProperty_PropertySubType */
+  /** Enums.Multi.PropertySubTypeAdditional · multi-enum (comma-joined member names) · Lookup 76 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO · members: CotalityLookup_CustomProperty_PropertySubType */
   PropertySubTypeAdditional: string | null;
-  /** Enums.PropertyType · Lookup 13 members (RLS-listed 0) · filterable · populated 1 · not an RLS field · non-RESO */
+  /** Enums.PropertyType · Lookup 13 members (REBNY-referenced 0) · filterable · populated 1 · no REBNY reference · non-RESO */
   PropertyType: CotalityEnum_PropertyType | null;
-  /** Edm.Int32 · filterable · populated 1 · not an RLS field · non-RESO */
+  /** Edm.Int32 · filterable · populated 1 · no REBNY reference · non-RESO */
   RecordSignature: number | null;
-  /** Edm.String(25) · filterable · populated 1 · RLS field · non-RESO */
+  /** Edm.String(25) · filterable · populated 1 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   SourceSystemID: string | null;
-  /** Enums.StandardStatus · Lookup 11 members (RLS-listed 11) · filterable · populated 1 · not an RLS field · non-RESO */
+  /** Enums.StandardStatus · Lookup 11 members (REBNY-referenced 11) · filterable · populated 1 · no REBNY reference · non-RESO */
   StandardStatus: CotalityEnum_StandardStatus | null;
-  /** Enums.Multi.SyndicateTo · multi-enum (comma-joined member names) · Lookup 28 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO · members: CotalityLookup_HistoryTransactional_SyndicateTo */
+  /** Enums.Multi.SyndicateTo · multi-enum (comma-joined member names) · Lookup 28 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO · members: CotalityLookup_HistoryTransactional_SyndicateTo */
   SyndicateTo: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference */
   UnitTypeActualRent: number | null;
-  /** Edm.String(50) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(50) · filterable · populated 0 · no REBNY reference · non-RESO */
   UnitTypeActualRentRange: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference · non-RESO */
   UnitTypeArea: number | null;
-  /** Enums.AreaSource · Lookup 18 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Enums.AreaSource · Lookup 18 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO */
   UnitTypeAreaSource: CotalityEnum_AreaSource | null;
-  /** Enums.AreaUnits · Lookup 3 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Enums.AreaUnits · Lookup 3 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO */
   UnitTypeAreaUnits: CotalityEnum_AreaUnits | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference */
   UnitTypeBathsTotal: number | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference */
   UnitTypeBedsTotal: number | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference · non-RESO */
   UnitTypeDeposit: number | null;
-  /** Edm.String(1024) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field */
+  /** Edm.String(1024) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference */
   UnitTypeDescription: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   UnitTypeFireplaceYN: boolean | null;
-  /** Enums.Furnished · Lookup 5 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.Furnished · Lookup 5 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   UnitTypeFurnished: CotalityEnum_Furnished | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · string with Lookup (see lookups.live.json) */
   UnitTypeGarageAttachedYN: boolean | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference */
   UnitTypeGarageSpaces: number | null;
-  /** Edm.String(20) · filterable · populated 1 · RLS field */
+  /** Edm.String(20) · filterable · populated 1 · REBNY-referenced (Field.SystemReferences) */
   UnitTypeKey: string;
-  /** Edm.Int64 · filterable · populated 1 · RLS field · non-RESO */
+  /** Edm.Int64 · filterable · populated 1 · REBNY-referenced (Field.SystemReferences) · non-RESO */
   UnitTypeKeyNumeric: number | null;
-  /** Edm.DateTimeOffset(27) · NOT filterable (provider-suppressed) · population unmeasurable · not an RLS field · non-RESO */
+  /** Edm.DateTimeOffset(27) · NOT filterable (provider-suppressed) · population unmeasurable · no REBNY reference · non-RESO */
   UnitTypeLeaseExpires: string | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   UnitTypeLeasedYN: boolean | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   UnitTypeMonthToMonthYN: boolean | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference · non-RESO */
   UnitTypeNumFullBaths: number | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference · non-RESO */
   UnitTypeNumHalfBaths: number | null;
-  /** Enums.Multi.UnitTypeOccupantType · multi-enum (comma-joined member names) · Lookup 7 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO · members: CotalityEnum_OccupantType */
+  /** Enums.Multi.UnitTypeOccupantType · multi-enum (comma-joined member names) · Lookup 7 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO · members: CotalityEnum_OccupantType */
   UnitTypeOccupantType: string | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference · non-RESO */
   UnitTypePetDeposit: number | null;
-  /** Edm.Boolean · Lookup 2 members (RLS-listed 0) · filterable · populated 0 · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.Boolean · Lookup 2 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   UnitTypePetDepositPerPetYN: boolean | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference */
   UnitTypeProForma: number | null;
-  /** Edm.Decimal(14,2) · filterable · populated 0 · not an RLS field */
+  /** Edm.Decimal(14,2) · filterable · populated 0 · no REBNY reference */
   UnitTypeTotalRent: number | null;
-  /** Enums.UnitTypeType · Lookup 22 members (RLS-listed 0) · filterable · populated 0 · not an RLS field */
+  /** Enums.UnitTypeType · Lookup 22 members (REBNY-referenced 0) · filterable · populated 0 · no REBNY reference */
   UnitTypeType: CotalityEnum_UnitTypeType | null;
-  /** Edm.String(25) · filterable · populated 0 · not an RLS field · non-RESO */
+  /** Edm.String(25) · filterable · populated 0 · no REBNY reference · non-RESO */
   UnitTypeUnitNum: string | null;
-  /** Edm.Int32 · filterable · populated 0 · not an RLS field */
+  /** Edm.Int32 · filterable · populated 0 · no REBNY reference */
   UnitTypeUnitsTotal: number | null;
 }
 
@@ -3540,63 +3540,63 @@ export interface CotalityPropertyUnitTypesNavigations {
 
 /** TeamMembers · Cotality.DataStandard.RESO.DD.TeamMembers · 29 fields · REJECTED on this subscription (HTTP 400: {"error":{"code":"BadRequest[400]. TraceId: 8163a982-8722-44ce-b3ee-cfe56e1830d8","message":"No OriginatingSystemNames available for querying given request! This is an indication that you do not have ) */
 export interface CotalityTeamMembers {
-  /** Edm.Boolean · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.Boolean · filterability unmeasured · no REBNY reference · non-RESO */
   HumanModifiedYN: boolean | null;
-  /** Edm.String(20) · filterability unmeasured · not an RLS field */
+  /** Edm.String(20) · filterability unmeasured · no REBNY reference */
   MemberKey: string | null;
-  /** Edm.Int64 · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.Int64 · filterability unmeasured · no REBNY reference · non-RESO */
   MemberKeyNumeric: number | null;
-  /** Edm.String(25) · filterability unmeasured · not an RLS field */
+  /** Edm.String(25) · filterability unmeasured · no REBNY reference */
   MemberLoginId: string | null;
-  /** Edm.String(25) · filterability unmeasured · not an RLS field */
+  /** Edm.String(25) · filterability unmeasured · no REBNY reference */
   MemberMlsId: string | null;
-  /** Enums.MemberStatus · Lookup 3 members (RLS-listed 0) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Enums.MemberStatus · Lookup 3 members (REBNY-referenced 0) · filterability unmeasured · no REBNY reference · non-RESO */
   MemberStatus: CotalityLookup_TeamMembers_MemberStatus | null;
-  /** Edm.DateTimeOffset(27) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.DateTimeOffset(27) · filterability unmeasured · no REBNY reference · non-RESO */
   ModificationTimestamp: string | null;
-  /** Edm.String(20) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.String(20) · filterability unmeasured · no REBNY reference · non-RESO */
   OfficeKey: string | null;
-  /** Edm.DateTimeOffset(27) · filterability unmeasured · not an RLS field */
+  /** Edm.DateTimeOffset(27) · filterability unmeasured · no REBNY reference */
   OriginalEntryTimestamp: string | null;
-  /** Edm.String(25) · filterability unmeasured · not an RLS field */
+  /** Edm.String(25) · filterability unmeasured · no REBNY reference */
   OriginatingSystemID: string | null;
-  /** Edm.String(255) · filterability unmeasured · not an RLS field */
+  /** Edm.String(255) · filterability unmeasured · no REBNY reference */
   OriginatingSystemKey: string | null;
-  /** Edm.String(255) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.String(255) · filterability unmeasured · no REBNY reference · non-RESO */
   OriginatingSystemMemberKey: string | null;
-  /** Edm.String(255) · filterability unmeasured · not an RLS field */
+  /** Edm.String(255) · filterability unmeasured · no REBNY reference */
   OriginatingSystemName: string | null;
-  /** Edm.String(255) · Lookup 34 members (RLS-listed 0) · filterability unmeasured · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.String(255) · Lookup 34 members (REBNY-referenced 0) · filterability unmeasured · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   OriginatingSystemSubName: string | null;
-  /** Edm.String(255) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.String(255) · filterability unmeasured · no REBNY reference · non-RESO */
   OriginatingSystemTeamKey: string | null;
-  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (RLS-listed 0) · filterability unmeasured · not an RLS field · non-RESO · members: CotalityEnum_ListingPermission */
+  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (REBNY-referenced 0) · filterability unmeasured · no REBNY reference · non-RESO · members: CotalityEnum_ListingPermission */
   Permission: string | null;
-  /** Edm.Int32 · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.Int32 · filterability unmeasured · no REBNY reference · non-RESO */
   RecordSignature: number | null;
-  /** Edm.String(25) · filterability unmeasured · not an RLS field */
+  /** Edm.String(25) · filterability unmeasured · no REBNY reference */
   SourceSystemID: string | null;
-  /** Edm.String(255) · filterability unmeasured · not an RLS field */
+  /** Edm.String(255) · filterability unmeasured · no REBNY reference */
   SourceSystemKey: string | null;
-  /** Edm.String(255) · filterability unmeasured · not an RLS field */
+  /** Edm.String(255) · filterability unmeasured · no REBNY reference */
   SourceSystemName: string | null;
-  /** Edm.String(255) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.String(255) · filterability unmeasured · no REBNY reference · non-RESO */
   StandardName: string | null;
-  /** Enums.TeamImpersonationLevel · Lookup 2 members (RLS-listed 0) · filterability unmeasured · not an RLS field */
+  /** Enums.TeamImpersonationLevel · Lookup 2 members (REBNY-referenced 0) · filterability unmeasured · no REBNY reference */
   TeamImpersonationLevel: CotalityEnum_TeamImpersonationLevel | null;
-  /** Edm.String(20) · filterability unmeasured · not an RLS field */
+  /** Edm.String(20) · filterability unmeasured · no REBNY reference */
   TeamKey: string | null;
-  /** Edm.Int64 · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.Int64 · filterability unmeasured · no REBNY reference · non-RESO */
   TeamKeyNumeric: number | null;
-  /** Edm.String(20) · filterability unmeasured · not an RLS field */
+  /** Edm.String(20) · filterability unmeasured · no REBNY reference */
   TeamMemberKey: string;
-  /** Edm.Int64 · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.Int64 · filterability unmeasured · no REBNY reference · non-RESO */
   TeamMemberKeyNumeric: number | null;
-  /** Edm.String(25) · filterability unmeasured · not an RLS field */
+  /** Edm.String(25) · filterability unmeasured · no REBNY reference */
   TeamMemberNationalAssociationId: string | null;
-  /** Edm.String(50) · filterability unmeasured · not an RLS field */
+  /** Edm.String(50) · filterability unmeasured · no REBNY reference */
   TeamMemberStateLicense: string | null;
-  /** Enums.TeamMemberType · Lookup 11 members (RLS-listed 0) · filterability unmeasured · not an RLS field */
+  /** Enums.TeamMemberType · Lookup 11 members (REBNY-referenced 0) · filterability unmeasured · no REBNY reference */
   TeamMemberType: CotalityEnum_TeamMemberType | null;
 }
 
@@ -3606,101 +3606,101 @@ export interface CotalityTeamMembersNavigations {
 
 /** Teams · Cotality.DataStandard.RESO.DD.Teams · 48 fields · REJECTED on this subscription (HTTP 400: {"error":{"code":"BadRequest[400]. TraceId: 5f9d1669-28eb-4c20-ae9c-2aaf9aff2e4a","message":"No OriginatingSystemNames available for querying given request! This is an indication that you do not have ) */
 export interface CotalityTeams {
-  /** Edm.Boolean · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.Boolean · filterability unmeasured · no REBNY reference · non-RESO */
   HumanModifiedYN: boolean | null;
-  /** Edm.DateTimeOffset(27) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.DateTimeOffset(27) · filterability unmeasured · no REBNY reference · non-RESO */
   ModificationTimestamp: string | null;
-  /** Edm.String(20) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.String(20) · filterability unmeasured · no REBNY reference · non-RESO */
   OfficeKey: string | null;
-  /** Edm.DateTimeOffset(27) · filterability unmeasured · not an RLS field */
+  /** Edm.DateTimeOffset(27) · filterability unmeasured · no REBNY reference */
   OriginalEntryTimestamp: string | null;
-  /** Edm.String(25) · filterability unmeasured · not an RLS field */
+  /** Edm.String(25) · filterability unmeasured · no REBNY reference */
   OriginatingSystemID: string | null;
-  /** Edm.String(255) · filterability unmeasured · not an RLS field */
+  /** Edm.String(255) · filterability unmeasured · no REBNY reference */
   OriginatingSystemKey: string | null;
-  /** Edm.String(255) · filterability unmeasured · not an RLS field */
+  /** Edm.String(255) · filterability unmeasured · no REBNY reference */
   OriginatingSystemName: string | null;
-  /** Edm.String(255) · Lookup 34 members (RLS-listed 0) · filterability unmeasured · not an RLS field · non-RESO · string with Lookup (see lookups.live.json) */
+  /** Edm.String(255) · Lookup 34 members (REBNY-referenced 0) · filterability unmeasured · no REBNY reference · non-RESO · string with Lookup (see lookups.live.json) */
   OriginatingSystemSubName: string | null;
-  /** Edm.String(255) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.String(255) · filterability unmeasured · no REBNY reference · non-RESO */
   OriginatingSystemTeamLeadKey: string | null;
-  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (RLS-listed 0) · filterability unmeasured · not an RLS field · non-RESO · members: CotalityEnum_ListingPermission */
+  /** Enums.Multi.ListingPermission · multi-enum (comma-joined member names) · Lookup 18 members (REBNY-referenced 0) · filterability unmeasured · no REBNY reference · non-RESO · members: CotalityEnum_ListingPermission */
   Permission: string | null;
-  /** Edm.Int32 · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.Int32 · filterability unmeasured · no REBNY reference · non-RESO */
   RecordSignature: number | null;
-  /** Enums.SocialMediaType · Lookup 17 members (RLS-listed 0) · filterability unmeasured · not an RLS field */
+  /** Enums.SocialMediaType · Lookup 17 members (REBNY-referenced 0) · filterability unmeasured · no REBNY reference */
   SocialMediaType: CotalityEnum_SocialMediaType | null;
-  /** Edm.String(8000) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.String(8000) · filterability unmeasured · no REBNY reference · non-RESO */
   SocialMediaTypeUrl: string | null;
-  /** Edm.String(25) · filterability unmeasured · not an RLS field */
+  /** Edm.String(25) · filterability unmeasured · no REBNY reference */
   SourceSystemID: string | null;
-  /** Edm.String(255) · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.String(255) · filterability unmeasured · no REBNY reference · non-RESO */
   SourceSystemKey: string | null;
-  /** Edm.String(255) · filterability unmeasured · not an RLS field */
+  /** Edm.String(255) · filterability unmeasured · no REBNY reference */
   SourceSystemName: string | null;
-  /** Edm.String(50) · filterability unmeasured · not an RLS field */
+  /** Edm.String(50) · filterability unmeasured · no REBNY reference */
   TeamAddress1: string | null;
-  /** Edm.String(50) · filterability unmeasured · not an RLS field */
+  /** Edm.String(50) · filterability unmeasured · no REBNY reference */
   TeamAddress2: string | null;
-  /** Edm.String(9) · filterability unmeasured · not an RLS field */
+  /** Edm.String(9) · filterability unmeasured · no REBNY reference */
   TeamCarrierRoute: string | null;
-  /** Edm.String(50) · filterability unmeasured · not an RLS field */
+  /** Edm.String(50) · filterability unmeasured · no REBNY reference */
   TeamCity: string | null;
-  /** Enums.Country · Lookup 246 members (RLS-listed 0) · filterability unmeasured · not an RLS field */
+  /** Enums.Country · Lookup 246 members (REBNY-referenced 0) · filterability unmeasured · no REBNY reference */
   TeamCountry: CotalityEnum_Country | null;
-  /** Edm.String(50) · Lookup 4423 members (RLS-listed 0) · filterability unmeasured · not an RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.String(50) · Lookup 4423 members (REBNY-referenced 0) · filterability unmeasured · no REBNY reference · string with Lookup (see lookups.live.json) */
   TeamCountyOrParish: string | null;
-  /** Edm.String(1024) · filterability unmeasured · not an RLS field */
+  /** Edm.String(1024) · filterability unmeasured · no REBNY reference */
   TeamDescription: string | null;
-  /** Edm.String(16) · filterability unmeasured · not an RLS field */
+  /** Edm.String(16) · filterability unmeasured · no REBNY reference */
   TeamDirectPhone: string | null;
-  /** Edm.String(80) · filterability unmeasured · not an RLS field */
+  /** Edm.String(80) · filterability unmeasured · no REBNY reference */
   TeamEmail: string | null;
-  /** Edm.String(16) · filterability unmeasured · not an RLS field */
+  /** Edm.String(16) · filterability unmeasured · no REBNY reference */
   TeamFax: string | null;
-  /** Edm.String(20) · filterability unmeasured · not an RLS field */
+  /** Edm.String(20) · filterability unmeasured · no REBNY reference */
   TeamKey: string;
-  /** Edm.Int64 · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.Int64 · filterability unmeasured · no REBNY reference · non-RESO */
   TeamKeyNumeric: number | null;
-  /** Edm.String(20) · filterability unmeasured · not an RLS field */
+  /** Edm.String(20) · filterability unmeasured · no REBNY reference */
   TeamLeadKey: string | null;
-  /** Edm.Int64 · filterability unmeasured · not an RLS field · non-RESO */
+  /** Edm.Int64 · filterability unmeasured · no REBNY reference · non-RESO */
   TeamLeadKeyNumeric: number | null;
-  /** Edm.String(25) · filterability unmeasured · not an RLS field */
+  /** Edm.String(25) · filterability unmeasured · no REBNY reference */
   TeamLeadLoginId: string | null;
-  /** Edm.String(25) · filterability unmeasured · not an RLS field */
+  /** Edm.String(25) · filterability unmeasured · no REBNY reference */
   TeamLeadMlsId: string | null;
-  /** Edm.String(25) · filterability unmeasured · not an RLS field */
+  /** Edm.String(25) · filterability unmeasured · no REBNY reference */
   TeamLeadNationalAssociationId: string | null;
-  /** Edm.String(50) · filterability unmeasured · not an RLS field */
+  /** Edm.String(50) · filterability unmeasured · no REBNY reference */
   TeamLeadStateLicense: string | null;
-  /** Enums.StateOrProvince · Lookup 100 members (RLS-listed 0) · filterability unmeasured · not an RLS field */
+  /** Enums.StateOrProvince · Lookup 100 members (REBNY-referenced 0) · filterability unmeasured · no REBNY reference */
   TeamLeadStateLicenseState: CotalityEnum_StateOrProvince | null;
-  /** Edm.String(16) · filterability unmeasured · not an RLS field */
+  /** Edm.String(16) · filterability unmeasured · no REBNY reference */
   TeamMobilePhone: string | null;
-  /** Edm.String(255) · filterability unmeasured · not an RLS field */
+  /** Edm.String(255) · filterability unmeasured · no REBNY reference */
   TeamName: string | null;
-  /** Edm.String(16) · filterability unmeasured · not an RLS field */
+  /** Edm.String(16) · filterability unmeasured · no REBNY reference */
   TeamOfficePhone: string | null;
-  /** Edm.String(10) · filterability unmeasured · not an RLS field */
+  /** Edm.String(10) · filterability unmeasured · no REBNY reference */
   TeamOfficePhoneExt: string | null;
-  /** Edm.String(10) · filterability unmeasured · not an RLS field */
+  /** Edm.String(10) · filterability unmeasured · no REBNY reference */
   TeamPostalCode: string | null;
-  /** Edm.String(4) · filterability unmeasured · not an RLS field */
+  /** Edm.String(4) · filterability unmeasured · no REBNY reference */
   TeamPostalCodePlus4: string | null;
-  /** Edm.String(16) · filterability unmeasured · not an RLS field */
+  /** Edm.String(16) · filterability unmeasured · no REBNY reference */
   TeamPreferredPhone: string | null;
-  /** Edm.String(10) · filterability unmeasured · not an RLS field */
+  /** Edm.String(10) · filterability unmeasured · no REBNY reference */
   TeamPreferredPhoneExt: string | null;
-  /** Enums.StateOrProvince · Lookup 100 members (RLS-listed 0) · filterability unmeasured · not an RLS field */
+  /** Enums.StateOrProvince · Lookup 100 members (REBNY-referenced 0) · filterability unmeasured · no REBNY reference */
   TeamStateOrProvince: CotalityEnum_StateOrProvince | null;
-  /** Enums.TeamStatus · Lookup 2 members (RLS-listed 2) · filterability unmeasured · not an RLS field */
+  /** Enums.TeamStatus · Lookup 2 members (REBNY-referenced 2) · filterability unmeasured · no REBNY reference */
   TeamStatus: CotalityEnum_OfficeStatus | null;
-  /** Edm.String(16) · filterability unmeasured · not an RLS field */
+  /** Edm.String(16) · filterability unmeasured · no REBNY reference */
   TeamTollFreePhone: string | null;
-  /** Edm.String(16) · filterability unmeasured · not an RLS field */
+  /** Edm.String(16) · filterability unmeasured · no REBNY reference */
   TeamVoiceMail: string | null;
-  /** Edm.String(10) · filterability unmeasured · not an RLS field */
+  /** Edm.String(10) · filterability unmeasured · no REBNY reference */
   TeamVoiceMailExt: string | null;
 }
 

@@ -1,5 +1,5 @@
 // lib/idx/fetch.ts
-// OData v4 listing fetch from Trestle/REBNY RLS.
+// OData v4 listing fetch from the Cotality (Trestle) Web API — the current provider.
 // Handles pagination via @odata.nextLink. Selects IDX Plus Property fields.
 
 import { getAccessToken, invalidateToken } from "./auth";
