@@ -231,9 +231,10 @@ describe('buildings/search $select is metadata-valid (no phantom Cotality fields
     return names;
   })();
 
-  // The route's OData $select array (const SELECT = [ '...', ... ].join(','))
+  // The route's OData $select list — contract-typed since 2026-09-08:
+  //   const SELECT = cotalityFields('Property', [ '...', ... ]).join(',')
   const selectFields = (() => {
-    const block = (routeSrc.match(/const SELECT = \[([\s\S]*?)\]\.join\(','\)/) || ['', ''])[1];
+    const block = (routeSrc.match(/const SELECT = cotalityFields\('Property', \[([\s\S]*?)\]\)\.join\(','\)/) || ['', ''])[1];
     return [...block.matchAll(/'([A-Za-z0-9]+)'/g)].map((m) => m[1]);
   })();
 

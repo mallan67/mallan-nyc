@@ -6,6 +6,7 @@ import { requireAgentOrBroker, isAuthError } from '@/lib/auth';
 import { sanitizeOData } from '@/lib/sanitize';
 import { getAccessToken } from '@/lib/idx/auth';
 import { canonicalizeDirection, canonicalizeSuffix, canonicalizeStreetName } from '@/lib/address/nyc-address-normalizer';
+import { cotalityFields } from '@/lib/cotality/contract';
 
 const TRESTLE_URL = process.env.TRESTLE_API_URL || 'https://api.cotality.com/trestle';
 
@@ -762,7 +763,7 @@ export async function GET(request: NextRequest) {
         const token = await getAccessToken();
         const cleanNum = sanitizeOData(parsed.streetNumber);
 
-        const SELECT = [
+        const SELECT = cotalityFields('Property', [
           'ListingId', 'BuildingName', 'YearBuilt', 'StoriesTotal',
           'NumberOfUnitsInCommunity', 'CommonInterest', 'OwnershipType',
           'PropertyType', 'PropertySubType', 'StructureType',
@@ -803,14 +804,13 @@ export async function GET(request: NextRequest) {
           // fields (Building*-prefixed members = building-level); building facts +
           // association; BuildingKeyNumeric for cross-unit aggregation.
           'BuildingKeyNumeric', 'BuildingAreaTotal', 'BuildingAreaUnits', 'BuildingAreaSource',
-          'YearBuiltDetails', 'YearBuiltSource',
-          'NumberOfUnitsInCommunity', 'PropertyCondition', 'OwnershipType', 'PropertyAttachedYN',
+          'PropertyCondition', 'PropertyAttachedYN',
           'AssociationYN', 'AssociationPhone', 'AssociationFee2',
           // All SIX amenity feature fields the resolver unions must be fetched —
           // AssociationAmenities was missing, so association-only amenities
           // (Concierge/IndoorPool) never filled on the Cotality path. (Codex #301)
           'ExteriorFeatures', 'CommunityFeatures', 'AccessibilityFeatures', 'AssociationAmenities',
-        ].join(',');
+        ]).join(',');
 
         const filterParts = [`startswith(StreetNumber,'${cleanNum}')`];
         if (parsed.streetDirPrefix) {

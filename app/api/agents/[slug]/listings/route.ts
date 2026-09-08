@@ -12,6 +12,7 @@ import { AGENT_TYPED_SELECT } from '@/lib/listings/agent-info-resolver';
 import { preferCrmExclusiveOverIdxDuplicate } from '@/lib/listings/dedupe-crm-vs-idx';
 import { mapAgentCardMedia } from '@/lib/idx/agent-card-media';
 import { getOpenHouseIndex, findNextOpenHouse } from '@/lib/open-houses/upcoming-open-houses';
+import { MEDIA_SELECT_FIELDS } from '@/lib/media/listing-media-resolver';
 
 /**
  * GET /api/agents/[slug]/listings
@@ -378,7 +379,7 @@ async function batchFetchPhotos(listings: PublicListingDTO[], providerKeyById: M
     const mediaFilter = `(${filterParts.join(' or ')}) and Order le 3 and MediaStatus ne 'Deleted'`;
     const mediaParams = new URLSearchParams();
     mediaParams.set('$filter', mediaFilter);
-    mediaParams.set('$select', 'ResourceRecordKey,ResourceRecordID,MediaURL,MediaType,MediaCategory,Order,PreferredPhotoYN,MediaStatus');
+    mediaParams.set('$select', MEDIA_SELECT_FIELDS.join(','));
     mediaParams.set('$orderby', 'Order asc');
     // Codex #389: classification happens CLIENT-side (mapAgentCardMedia keeps
     // only canonical Photos), so the page needs headroom for the non-photo

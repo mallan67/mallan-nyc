@@ -1568,6 +1568,7 @@ export default async function ListingPage({ params }: Props) {
                 status={listing.status}
                 stage={listing.lifecycle?.stage}
                 purchaseContractDate={listing.lifecycle?.inContractSince ?? undefined}
+                priceChangeTimestamp={listing.lifecycle?.priceChangeTimestamp ?? undefined}
                 onMarketDate={listing.onMarketDate}
                 listingContractDate={listing.listingContractDate}
                 modificationTimestamp={listing.modificationTimestamp}

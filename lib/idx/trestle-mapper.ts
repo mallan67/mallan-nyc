@@ -55,6 +55,9 @@ const B1_ADDRESS = cotalityFields('Property', [
   "PostalCode", "StateOrProvince", "CountyOrParish", "Country",
   "CrossStreet", "Directions", "Latitude", "Longitude",
   "MapCoordinate",
+  // Retained by the raw_data keep-list; a keep-list entry is inert unless the field is requested
+  // (tests: lib/idx/__tests__/sync-select-covers-runtime.test.ts). UnparsedAddress: populated 591,607.
+  "UnparsedAddress", "MLSAreaMajor",
 ]);
 
 // B2: Classification (18 fields)
@@ -107,7 +110,9 @@ const B4_STATUS_DATES = cotalityFields('Property', [
   // sale possession.
   "OriginalListPrice", "PreviousListPrice",
   "ListPriceLow", "ListPrice",
-  
+  // Lifecycle timestamps the canonical lifecycle reads (lib/listings/canonical-lifecycle.ts):
+  // PriceChangeTimestamp dates the last price change (populated 361,678); OnMarketTimestamp (265,702).
+  "PriceChangeTimestamp", "OnMarketTimestamp",
 ]);
 
 // B5: Pricing Extras (8 fields)
@@ -324,7 +329,9 @@ export const B26_MEDIA = cotalityFields('Property', [
   "VirtualTourURLBranded", "VirtualTourURLUnbranded", "VirtualTourURLUnbranded2", "VirtualTourURLUnbranded3",
   "DocumentsAvailable", "DocumentsCount", "DocumentsChangeTimestamp",
   "MapURL",
-  
+  // Every VirtualTourURL* carrier the contract declares is requested and retained — the runtime card
+  // and search selects already serve them; zero rows today is not an unsupported contract.
+  "VirtualTourURLBranded2", "VirtualTourURLBranded3",
 ]);
 
 // B27: Rental-Specific
@@ -349,6 +356,8 @@ const B27_RENTAL = cotalityFields('Property', [
   // MoveInCostsComments (Edm.String) are all live Property fields (2026-06-04).
   "MoveInCosts", "MoveInCostsAmount", "MoveInCostsComments",
   "OngoingFees", "TenantPaysDescription",
+  // Served by the runtime search select (rental terms); persisted so the DB path shows the same fact (7,915 rows).
+  "OwnerPays",
 ]);
 
 // (The FARE Act fee fields AdditionalFee / AdditionalFeeDescription / AdditionalFeeYN / FeeFrequency live on the

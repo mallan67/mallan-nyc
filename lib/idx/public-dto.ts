@@ -149,6 +149,8 @@ export interface PublicListingDTO {
     backOnMarket: boolean;
     backOnMarketDate: string | null;
     closedDate: string | null;
+    /** PriceChangeTimestamp verbatim — dates the last price change; null when the provider delivered none. */
+    priceChangeTimestamp: string | null;
   };
   listingType: 'sale' | 'rent';
   address: {

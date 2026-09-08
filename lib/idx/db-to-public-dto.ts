@@ -485,7 +485,7 @@ export function dbListingToPublicDTO(
     status: statusDisplayLabelFor(listing.status, listing.listing_type) || listing.status,
     lifecycle: (() => {
       const l = lifecycleFromStoredRow({ status: listing.status, listing_type: listing.listing_type, raw_data: listing.raw_data });
-      return { stage: l.stage, inContractSince: l.inContractSince, backOnMarket: l.backOnMarket, backOnMarketDate: l.backOnMarketDate, closedDate: l.closedDate };
+      return { stage: l.stage, inContractSince: l.inContractSince, backOnMarket: l.backOnMarket, backOnMarketDate: l.backOnMarketDate, closedDate: l.closedDate, priceChangeTimestamp: l.priceChangeTimestamp };
     })(),
     listingType: listing.listing_type as 'sale' | 'rent',
     address: suppressAddress

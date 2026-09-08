@@ -38,6 +38,23 @@
 import { isMallanExclusiveListing } from '@/lib/listings/exclusive-agent-assignment';
 import { toPublicMediaUrl } from '@/lib/media/proxy-url-policy';
 import { isCrmMediaKey } from '@/lib/media/crm-media';
+import { cotalityFields } from '@/lib/cotality/contract';
+
+/**
+ * THE one Media select the program sends (Domain 2, 2026-09-08). Compile-checked against the live Media
+ * resource; the union of every field the media interpreters read (classifyMediaItem / resolveListingMedia
+ * below, lib/idx/media-sync.ts upsertListingMedia). Every provider Media query — sync, media lane, search
+ * hydration, media batch, agent cards, building units, ghost reconciliation — sends this list, never a
+ * narrower local literal: the census of 2026-09-08 found four sites that starved classifyMediaItem of
+ * MediaClassification / ShortDescription and silently degraded to URL-shape heuristics.
+ * (tests/runtime/provider-select-authority.test.ts · lib/media/__tests__/media-select-fields.test.ts)
+ * MediaType is deliberately absent: it is the file format, never consulted for classification.
+ */
+export const MEDIA_SELECT_FIELDS = cotalityFields('Media', [
+  'ResourceRecordKey', 'ResourceRecordID', 'MediaKey', 'MediaURL', 'MediaCategory', 'MediaClassification',
+  'ShortDescription', 'Order', 'PreferredPhotoYN', 'MediaStatus', 'Permission', 'ModificationTimestamp',
+  'MediaModificationTimestamp',
+]);
 
 export type MediaClass = 'photo' | 'floorplan' | 'video' | 'virtualTour' | 'unknown';
 

@@ -36,3 +36,10 @@ describe('public DTO — status label and lifecycle', () => {
     expect(DISPLAYABLE_STATUSES).not.toContain('Withdrawn');
   });
 });
+
+describe('public DTO — price change date', () => {
+  it('a price change is dated by PriceChangeTimestamp, never approximated from the modification time', () => {
+    const dto = dbListingToPublicDTO({ ...BASE, raw_data: { PriceChangeTimestamp: '2026-08-30T14:02:11Z' } } as DbListing)!;
+    expect(dto.lifecycle).toMatchObject({ priceChangeTimestamp: '2026-08-30T14:02:11Z' });
+  });
+});

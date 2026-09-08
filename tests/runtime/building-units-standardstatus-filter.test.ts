@@ -24,8 +24,8 @@ describe('/api/listings/building — StandardStatus filter (no MlsStatus 400)', 
     expect(src).not.toMatch(/MlsStatus\s+eq\s+'/);
   });
 
-  it('filters active units on StandardStatus eq \'Active\'', () => {
-    expect(src).toMatch(/StandardStatus eq 'Active'/);
+  it('filters sibling units on the one active-display set (ACTIVE_DISPLAY_VALUES — Active, ActiveUnderContract, ComingSoon, Pending), on StandardStatus', () => {
+    expect(src).toMatch(/ACTIVE_DISPLAY_VALUES\.map\(\(s\) => `StandardStatus eq '\$\{s\}'`\)/);
   });
 
   it('filters closed sales on StandardStatus eq \'Closed\'', () => {

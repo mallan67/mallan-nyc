@@ -8,10 +8,8 @@ const MEDIA_LANE_PROPERTY_SELECT = cotalityFields("Property", [
   "ListingId", "ListingKey", "ListingKeyNumeric", "PhotosChangeTimestamp", "ModificationTimestamp",
   "StandardStatus", "Permission", "MlsStatus", "InternetEntireListingDisplayYN", "InternetAddressDisplayYN",
 ]);
-const MEDIA_LANE_MEDIA_SELECT = cotalityFields("Media", [
-  "MediaKey", "ResourceRecordKey", "ResourceRecordID", "MediaURL", "MediaCategory", "MediaClassification",
-  "MediaStatus", "Permission", "Order", "PreferredPhotoYN", "ModificationTimestamp", "MediaModificationTimestamp",
-]);
+// The Media select is the one MEDIA_SELECT_FIELDS (lib/media/listing-media-resolver.ts), read at the call site;
+// UpsertListingMediaInput's names are a subset of it.
 // lib/idx/media-sync.ts
 //
 // Media sync service — Checkpoint 1 (cursor helpers only).
@@ -44,7 +42,7 @@ const MEDIA_LANE_MEDIA_SELECT = cotalityFields("Media", [
 import prisma from "@/lib/prisma";
 // Canonical media classification — REUSED here so the persisted summary and the
 // public reader cannot disagree. Do not reimplement it in this module.
-import { classifyMediaItem } from "@/lib/media/listing-media-resolver";
+import { classifyMediaItem, MEDIA_SELECT_FIELDS } from "@/lib/media/listing-media-resolver";
 // THE one R2 policy/retry interpreter. The semantic constants are OWNED there so
 // this module can consume the interpreter without a circular import — that cycle
 // is exactly why the URL-refresh decision below ended up doing its own
@@ -3353,7 +3351,7 @@ async function defaultFetchMedia(resourceRecordKey: string): Promise<UpsertListi
   const escaped = resourceRecordKey.replace(/'/g, "''");
   const params = new URLSearchParams();
   params.set("$filter", `ResourceRecordKey eq '${escaped}'`);
-  params.set("$select", MEDIA_LANE_MEDIA_SELECT.join(","));
+  params.set("$select", MEDIA_SELECT_FIELDS.join(","));
   params.set("$orderby", "Order asc");
   // Per-page size; the rest of a high-photo listing is followed via @odata.nextLink.
   params.set("$top", String(DEFAULT_MEDIA_PAGE_SIZE));

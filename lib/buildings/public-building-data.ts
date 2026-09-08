@@ -17,7 +17,7 @@
  * already serialized through NextResponse.json — no Date/BigInt/Decimal
  * instances), so the #523→#528 serialization hazard does not apply.
  */
-import { getPrimaryPhoto, classifyMediaItem } from '@/lib/media/listing-media-resolver';
+import { getPrimaryPhoto, classifyMediaItem, MEDIA_SELECT_FIELDS } from '@/lib/media/listing-media-resolver';
 import prisma from '@/lib/prisma';
 import { sanitizeOData } from '@/lib/sanitize';
 import { getAccessToken } from '@/lib/idx/auth';
@@ -823,7 +823,7 @@ async function buildBuildingPayload(
       // Order 0. With $top=1 a floorplan-first listing returned only that row and
       // getPhotoUrl (no media[0] fallback) yielded null — the unit lost its
       // thumbnail. 10 rows clears any realistic run of leading floorplans. (Codex #482)
-      const MEDIA_EXPAND = "Media($select=MediaURL,MediaCategory,Order,PreferredPhotoYN;$top=10;$orderby=Order)";
+      const MEDIA_EXPAND = `Media($select=${MEDIA_SELECT_FIELDS.join(',')};$top=10;$orderby=Order)`;
       const allParams = new URLSearchParams({
         $filter: addressFilter,
         $select: BUILDING_SELECT,

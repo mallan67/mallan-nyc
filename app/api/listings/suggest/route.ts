@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { fetchFromTrestle } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
-import { locationFromProviderRow } from '@/lib/listings/canonical-location';
+import { locationFromProviderRow, CANONICAL_LOCATION_SELECT_FIELDS } from '@/lib/listings/canonical-location';
 import { isMallanRlsReturnCopy } from "@/lib/listings/mallan-source-identity";
 import {
   classifySuggestQuery,
@@ -16,6 +16,7 @@ import brooklynData from '@/data/brooklyn-neighborhoods.json';
 import queensData from '@/data/queens-neighborhoods.json';
 import bronxData from '@/data/bronx-neighborhoods.json';
 import statenIslandData from '@/data/staten-island-neighborhoods.json';
+import { cotalityFields } from '@/lib/cotality/contract';
 
 type NeighborhoodRow = { slug?: string; id?: string; name: string };
 
@@ -78,7 +79,7 @@ function checkRateLimit(ip: string): boolean {
  * against future drift. Next.js App Router ignores non-handler exports
  * from route files at runtime.
  */
-export const SUGGEST_SELECT_FIELDS = [
+export const SUGGEST_SELECT_FIELDS = cotalityFields('Property', [
   // Identifiers
   'ListingId',
   'ListingKey',
@@ -101,15 +102,14 @@ export const SUGGEST_SELECT_FIELDS = [
   'StreetName',
   'StreetSuffix',
   'StreetDirSuffix',
-  'PostalCode',
-  'CountyOrParish',
-  'CityRegion',
-  // The neighborhood (canonical location 2026-09-08) for zip suggestion labels.
-  'SubdivisionName',
+  // The canonical location reads CityRegion / SubdivisionName / CountyOrParish / City / PostalCity /
+  // PostalCode (lib/listings/canonical-location.ts locationFromProviderRow) — the interpreter declares its
+  // own select; City and PostalCity were read but never requested before 2026-09-08.
+  ...CANONICAL_LOCATION_SELECT_FIELDS,
   // Used by the text-search OData filter (BuildingName) — kept in select so
   // future label use does not break.
   'BuildingName',
-];
+]);
 
 export type SuggestionType = 'address' | 'neighborhood' | 'zip' | 'agent' | 'listing';
 

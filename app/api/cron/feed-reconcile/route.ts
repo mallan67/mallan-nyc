@@ -42,7 +42,7 @@ import { buildingAndManifestInvalidationTags, listingCacheTag, safeRevalidateTag
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import { MALLAN_TERMINAL_STATUSES } from "@/lib/listings/mallan-status";
 import { ON_MARKET_STATUSES, liveTruthFromRow, reconcileStatusDecision } from "@/lib/idx/reconcile-decision";
-import type { CotalityRow } from "@/lib/cotality/contract";
+import { cotalityFields, type CotalityRow } from "@/lib/cotality/contract";
 import {
   upsertListingMedia,
   updateListingMediaSummary,
@@ -58,6 +58,7 @@ import {
 // The template handles its own escaping internally; aliasing to _escapeHtml
 // satisfies ESLint's unused-vars rule (allowed prefix /^_/u).
 import { escapeHtml as _escapeHtml } from "@/lib/sanitize";
+import { MEDIA_SELECT_FIELDS } from "@/lib/media/listing-media-resolver";
 
 // P1C6b: 300s (was 120). Chunked orphan catch-up math at chunk=300:
 // ~15 $expand batches (~25s) + ~300 creates with avg 13.1 media rows (probe
@@ -95,6 +96,8 @@ const TERMINAL_STATUSES = MALLAN_TERMINAL_STATUSES;
 
 /** Batch size for the per-ghost live status lookup (`ListingId in (...)`). Keeps URLs small. */
 const GHOST_LOOKUP_BATCH = 50;
+/** Identity + live status only — the per-ghost live lookup (contract-typed; lib/idx/reconcile-decision.ts reads the row). */
+const GHOST_LOOKUP_SELECT = cotalityFields("Property", ["ListingId", "StandardStatus"]);
 
 const ACTIVE_SEED_STATUSES = new Set([
   "Active", "ActiveUnderContract", "Pending",
@@ -391,7 +394,7 @@ export async function GET(req: NextRequest) {
         .map((id) => `ListingId eq '${id.replace(/'/g, "''")}'`)
         .join(" or ");
       // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
-      const mediaExpand = `Media($filter=MediaStatus ne 'Deleted';$orderby=Order)`;
+      const mediaExpand = `Media($select=${MEDIA_SELECT_FIELDS.join(",")};$filter=MediaStatus ne 'Deleted';$orderby=Order)`;
       const url = `${base}/odata/Property?$filter=${encodeURIComponent(filter)}&$expand=${encodeURIComponent(mediaExpand)}&$top=${ORPHAN_FETCH_BATCH}`;
       try {
         const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
@@ -550,7 +553,7 @@ export async function GET(req: NextRequest) {
       const inList = batch.map((g) => `'${g.listing_id.replace(/'/g, "''")}'`).join(",");
       const lookup = new URLSearchParams({
         $filter: `ListingId in (${inList})`,
-        $select: "ListingId,StandardStatus",
+        $select: GHOST_LOOKUP_SELECT.join(","),
         $top: String(batch.length),
       });
       const res = await fetch(`${base}/odata/Property?${lookup.toString()}`, { headers: { Authorization: `Bearer ${token}` } });

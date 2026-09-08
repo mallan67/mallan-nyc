@@ -16,6 +16,7 @@
     "lib/compliance/gates.ts",
     "lib/media/listing-media-resolver.ts",
     "lib/media/media-sync-service.ts",
+    "lib/open-houses/upcoming-open-houses.ts",
     "lib/search/engine/provider-query.ts",
     "lib/search/engine/provider-client.ts",
     "lib/search/engine/select.ts",

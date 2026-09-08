@@ -63,6 +63,8 @@ export interface ListingLifecycle {
   closedDate: string | null;
   /** Active with a PurchaseContractDate — an accepted offer not yet marked Pending by the provider. */
   acceptedOfferSignal: boolean;
+  /** PriceChangeTimestamp verbatim (the provider dates the last price change; 361,678 rows carry it); null when none. */
+  priceChangeTimestamp: string | null;
 }
 
 /** Stages a public consumer may see (Maya 2026-09-08: In Contract stays public). */
@@ -143,9 +145,9 @@ function labelFor(stage: LifecycleStage, transactionType: TransactionType | null
   return STAGE_LABEL.closed;
 }
 
-type LifecycleEvidence = Pick<CotalityRow<'Property'>, 'MajorChangeType' | 'PurchaseContractDate' | 'PendingTimestamp' | 'BackOnMarketDate' | 'CloseDate'>;
+type LifecycleEvidence = Pick<CotalityRow<'Property'>, 'MajorChangeType' | 'PurchaseContractDate' | 'PendingTimestamp' | 'BackOnMarketDate' | 'CloseDate' | 'PriceChangeTimestamp'>;
 
-function signals(stage: LifecycleStage, raw: LifecycleEvidence): Pick<ListingLifecycle, 'inContract' | 'inContractSince' | 'backOnMarket' | 'backOnMarketDate' | 'closedDate' | 'acceptedOfferSignal'> {
+function signals(stage: LifecycleStage, raw: LifecycleEvidence): Pick<ListingLifecycle, 'inContract' | 'inContractSince' | 'backOnMarket' | 'backOnMarketDate' | 'closedDate' | 'acceptedOfferSignal' | 'priceChangeTimestamp'> {
   const purchaseContractDate = day(raw.PurchaseContractDate);
   const inContract = stage === 'in_contract';
   const backOnMarket = stage === 'active' && raw.MajorChangeType === 'BackOnMarket';
@@ -156,6 +158,7 @@ function signals(stage: LifecycleStage, raw: LifecycleEvidence): Pick<ListingLif
     backOnMarketDate: backOnMarket ? day(raw.BackOnMarketDate) : null,
     closedDate: stage === 'closed' ? day(raw.CloseDate) : null,
     acceptedOfferSignal: stage === 'active' && purchaseContractDate !== null,
+    priceChangeTimestamp: str(raw.PriceChangeTimestamp),
   };
 }
 

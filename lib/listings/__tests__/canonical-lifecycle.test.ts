@@ -137,3 +137,18 @@ describe('lifecycleFromStoredRow — Mallan storage vocabulary, sale/rental awar
     }
   });
 });
+
+describe('price change timestamp — the provider dates the last price change (PriceChangeTimestamp, populated 361,678 rows)', () => {
+  it('a stored row carries the provider timestamp verbatim', () => {
+    const l = lifecycleFromStoredRow({ status: 'Active', listing_type: 'sale', raw_data: { PriceChangeTimestamp: '2026-08-30T14:02:11Z' } });
+    expect(l.priceChangeTimestamp).toBe('2026-08-30T14:02:11Z');
+  });
+  it('null when the provider delivered none — never approximated from another timestamp', () => {
+    const l = lifecycleFromStoredRow({ status: 'Active', listing_type: 'sale', raw_data: { ModificationTimestamp: '2026-09-01T00:00:00Z' } });
+    expect(l.priceChangeTimestamp).toBeNull();
+  });
+  it('a provider row carries it too', () => {
+    const l = lifecycleFromProviderRow({ StandardStatus: 'Active', PropertyType: 'Residential', PriceChangeTimestamp: '2026-08-30T14:02:11Z' });
+    expect(l?.priceChangeTimestamp).toBe('2026-08-30T14:02:11Z');
+  });
+});

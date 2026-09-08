@@ -38,9 +38,18 @@ describe('trestle-mapper.ts — every B<n> category list is compile-checked', ()
 });
 
 describe('Media $select literals are compile-checked', () => {
-  it('lib/idx/fetch.ts builds both Media selects from cotalityFields("Media", [...])', () => {
+  // Since 2026-09-08 (Domain 2) the one Media select is MEDIA_SELECT_FIELDS, built with
+  // cotalityFields('Media', [...]) in lib/media/listing-media-resolver.ts and imported by every Media query site.
+  it('lib/media/listing-media-resolver.ts builds MEDIA_SELECT_FIELDS from cotalityFields("Media", [...])', () => {
+    const src = read('lib/media/listing-media-resolver.ts');
+    expect(src).toMatch(/export const MEDIA_SELECT_FIELDS\s*=\s*cotalityFields\(["']Media["'],\s*\[/);
+  });
+
+  it('lib/idx/fetch.ts sends MEDIA_SELECT_FIELDS for both Media queries (no local list, no bare literal)', () => {
     const src = read('lib/idx/fetch.ts');
-    expect(src).toMatch(/cotalityFields\(["']Media["'],\s*\[/);
+    expect(src).toMatch(/import \{ MEDIA_SELECT_FIELDS \} from "@\/lib\/media\/listing-media-resolver"/);
+    expect((src.match(/MEDIA_SELECT_FIELDS\.join\(","\)/g) || []).length).toBeGreaterThanOrEqual(2);
+    expect(src).not.toMatch(/cotalityFields\(["']Media["'],\s*\[/);
     // No bare comma-joined Media select literal may remain.
     expect(src).not.toMatch(/"\$select",\s*"MediaKey,MediaURL/);
     expect(src).not.toMatch(/Media\(\$select=MediaURL,MediaCategory/);
@@ -51,15 +60,20 @@ describe('Media $select literals are compile-checked', () => {
     expect(src).toMatch(/export const SEARCH_SELECT_FIELDS\s*=\s*cotalityFields\(["']Property["'],\s*\[/);
   });
 
-  it('lib/search/engine/hydrate.ts builds MEDIA_SELECT from cotalityFields("Media", [...])', () => {
+  it('lib/search/engine/hydrate.ts sends MEDIA_SELECT_FIELDS (no local Media list)', () => {
     const src = read('lib/search/engine/hydrate.ts');
-    expect(src).toMatch(/const MEDIA_SELECT\s*=\s*cotalityFields\(["']Media["'],\s*\[/);
+    expect(src).toMatch(/import \{ MEDIA_SELECT_FIELDS \} from '@\/lib\/media\/listing-media-resolver'/);
+    expect(src).toMatch(/resource: 'Media', select: MEDIA_SELECT_FIELDS,/);
+    expect(src).not.toMatch(/cotalityFields\(["']Media["'],\s*\[/);
   });
 
   it('lib/idx/media-sync.ts builds its $select lists from cotalityFields', () => {
     const src = read('lib/idx/media-sync.ts');
     const bareSelects = [...src.matchAll(/"\$select",\s*\n?\s*"([A-Za-z,]+)"/g)].map((m) => m[1]);
     expect(bareSelects).toEqual([]);
-    expect(src).toMatch(/cotalityFields\(["']Media["'],\s*\[/);
+    // Property lane select stays local and typed; the Media select is the shared MEDIA_SELECT_FIELDS.
+    expect(src).toMatch(/cotalityFields\(["']Property["'],\s*\[/);
+    expect(src).toMatch(/params\.set\("\$select", MEDIA_SELECT_FIELDS\.join\(","\)\)/);
+    expect(src).not.toMatch(/cotalityFields\(["']Media["'],\s*\[/);
   });
 });

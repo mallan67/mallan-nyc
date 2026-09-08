@@ -21,6 +21,8 @@ interface PriceHistoryProps {
   stage?: string;
   /** PurchaseContractDate — the contract-signed date (present on 100% of Pending sale rows). */
   purchaseContractDate?: string;
+  /** PriceChangeTimestamp — the provider's date of the LAST price change (361,678 rows carry it). */
+  priceChangeTimestamp?: string;
   onMarketDate?: string;
   listingContractDate: string;
   modificationTimestamp: string;
@@ -75,7 +77,8 @@ function buildTimeline(props: PriceHistoryProps): PriceEvent[] {
     const changeAmount = props.previousListPrice - originalPrice;
     const changePercent = (changeAmount / originalPrice) * 100;
     events.push({
-      // Approximate date — we don't have the exact timestamp from Trestle
+      // The provider dates only the LAST price change (PriceChangeTimestamp); an earlier change to the
+      // previous price has no delivered date, so the last modification stands in for it.
       date: props.modificationTimestamp,
       eventType: 'Price Change',
       price: props.previousListPrice,
@@ -95,7 +98,8 @@ function buildTimeline(props: PriceHistoryProps): PriceEvent[] {
     // Only add if we haven't already added this as the previous price change
     if (props.listPrice !== props.previousListPrice) {
       events.push({
-        date: props.modificationTimestamp,
+        // The current price is the last change — dated by the provider's PriceChangeTimestamp when delivered.
+        date: props.priceChangeTimestamp || props.modificationTimestamp,
         eventType: 'Price Change',
         price: props.listPrice,
         changeAmount,

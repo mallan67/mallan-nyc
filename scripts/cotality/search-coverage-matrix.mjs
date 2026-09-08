@@ -35,6 +35,8 @@ const arg = (n, d = null) => { const h = argv.find((a) => a.startsWith(`--${n}=`
 const outBase = path.resolve(ROOT, arg('out', 'docs/operations/evidence-2026-09-08/search-coverage-matrix'));
 const EVIDENCE = path.join(ROOT, 'docs/operations/evidence-2026-09-08');
 const loadJson = (p) => (existsSync(p) ? JSON.parse(readFileSync(p, 'utf8')) : null);
+// A file listed by readdir can vanish before it is read (a running test suite writes and deletes probe files); skip it.
+const safeRead = (p) => { try { return readFileSync(p, 'utf8'); } catch (e) { if (e && e.code === 'ENOENT') return ''; throw e; } };
 const fmtN = (n) => (n == null ? 'n/a' : Number(n).toLocaleString('en-US'));
 const uniq = (a) => [...new Set(a)];
 const lowerFirst = (s) => s.charAt(0).toLowerCase() + s.slice(1);
@@ -254,7 +256,7 @@ for (const [surface, rel] of Object.entries(SURFACES)) {
   const map = new Map();
   const stat = { file: rel, controls: 0, keyed: 0, rlsField: 0, mallanField: 0, ignored: 0, prefixResolved: 0, resolved: 0, unresolved: [], viewer: null };
   if (existsSync(p)) {
-    const text = readFileSync(p, 'utf8');
+    const text = safeRead(p);
     const attr = (s, name) => { const m = new RegExp(`\\s${name}="([^"]*)"`).exec(s); return m ? m[1] : null; };
     const ids = new Set([...text.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]));
     const seenKeys = new Set();
@@ -472,7 +474,7 @@ const testFiles = [];
     else if (/\.test\.(ts|tsx|js|mjs)$/.test(e) || full.includes(`${path.sep}__tests__${path.sep}`)) testFiles.push(full);
   }
 })(ROOT);
-const testText = testFiles.map((f) => ({ file: path.relative(ROOT, f).replace(/\\/g, '/'), text: readFileSync(f, 'utf8') }));
+const testText = testFiles.map((f) => ({ file: path.relative(ROOT, f).replace(/\\/g, '/'), text: safeRead(f) }));
 function testsFor(field, columns, canonicalKeys) {
   const re = new RegExp(`\\b${field}\\b`);
   const direct = testText.filter((t) => re.test(t.text)).map((t) => t.file);

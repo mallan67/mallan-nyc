@@ -10,7 +10,7 @@ import prisma from '@/lib/prisma';
 import { geocodeListings } from '@/lib/geo/geocode';
 import { filterDisplayableDbListings, dbListingToPublicDTO, classifyDbListing, type DbListing } from '@/lib/idx/db-to-public-dto';
 import { preferCrmExclusiveOverIdxDuplicate } from '@/lib/listings/dedupe-crm-vs-idx';
-import { getOpenHouseIndex, findNextOpenHouse } from '@/lib/open-houses/upcoming-open-houses';
+import { getOpenHouseIndex, findNextOpenHouse, OPEN_HOUSE_PUBLIC_FILTER } from '@/lib/open-houses/upcoming-open-houses';
 import { buildSearchDisplayWhere, SEARCH_DISPLAY_GATE, ADDRESS_DISCLOSED_GATE } from '@/lib/search/listing-access-decision';
 import {
   applyPublicListingPostFilters,
@@ -512,7 +512,7 @@ export async function GET(request: Request) {
 
                 const ohParams = new URLSearchParams();
                 ohParams.set('$select', 'ListingKey');
-                ohParams.set('$filter', `${ohDateFilter} and OpenHouseStatus eq 'Active'`);
+                ohParams.set('$filter', `${ohDateFilter} and ${OPEN_HOUSE_PUBLIC_FILTER}`);
                 ohParams.set('$top', '500');
                 const ohRes = await fetch(`${TRESTLE_API}/odata/OpenHouse?${ohParams.toString()}`, {
                   headers: { Authorization: `Bearer ${ohToken}`, Accept: 'application/json' },
@@ -957,7 +957,7 @@ export async function GET(request: Request) {
 
             const ohParams = new URLSearchParams();
             ohParams.set('$select', 'ListingKey');
-            ohParams.set('$filter', `${ohDateFilter} and OpenHouseStatus eq 'Active'`);
+            ohParams.set('$filter', `${ohDateFilter} and ${OPEN_HOUSE_PUBLIC_FILTER}`);
             ohParams.set('$top', '500');
             const ohRes = await fetch(`${TRESTLE_API}/odata/OpenHouse?${ohParams.toString()}`, {
               headers: { Authorization: `Bearer ${ohToken}`, Accept: 'application/json' },

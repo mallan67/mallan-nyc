@@ -17,7 +17,7 @@ import { derivePermissionGates } from '@/lib/idx/trestle-mapper';
 import { cotalityStandardStatusForMallan } from '@/lib/listings/mallan-status';
 import { escapeOData } from './provider-query';
 import { queryProvider, walkProvider } from './provider-client';
-import { cotalityFields } from '@/lib/cotality/contract';
+import { MEDIA_SELECT_FIELDS } from '@/lib/media/listing-media-resolver';
 import type { UniverseRow } from './universe';
 
 export interface HydrateOptions {
@@ -39,9 +39,8 @@ export interface HydratedPage {
   gateExcluded: string[];
 }
 
-// Compile-checked against the live Media resource (lib/cotality/contract.ts): a name not declared in
-// $metadata is a type error, never a runtime 400.
-const MEDIA_SELECT = cotalityFields('Media', ['ResourceRecordKey', 'ResourceRecordID', 'MediaKey', 'MediaCategory', 'MediaType', 'Order', 'MediaURL', 'MediaStatus', 'PreferredPhotoYN']);
+// The Media select is the one MEDIA_SELECT_FIELDS (lib/media/listing-media-resolver.ts), read at the call site:
+// classifyMediaItem reads MediaClassification and ShortDescription too — the previous local list starved it.
 
 function inList(values: readonly string[]): string {
   return values.map((v) => `'${escapeOData(v)}'`).join(',');
@@ -55,7 +54,7 @@ async function providerRecords(keys: readonly string[], select: readonly string[
   const [rows, media] = await Promise.all([
     queryProvider<Record<string, unknown>>({ resource: 'Property', select, filter: `ListingKey in (${inList(keys)})`, top: keys.length }),
     withMedia ? walkProvider<MediaRow>({
-      resource: 'Media', select: MEDIA_SELECT,
+      resource: 'Media', select: MEDIA_SELECT_FIELDS,
       filter: `ResourceRecordKey in (${inList(keys)}) and MediaStatus eq 'Active'`,
       orderby: 'ResourceRecordKey asc,Order asc', top: 1000,
     }, 5) : Promise.resolve({ rows: [] as MediaRow[], complete: true }),

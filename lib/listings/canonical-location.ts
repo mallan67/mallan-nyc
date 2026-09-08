@@ -21,7 +21,7 @@
  * This module is INSIDE the Cotality interpretation boundary (data/cotality-contract/boundary.json).
  * Every other reader consumes its output; none re-derives a borough from a county, a city, or a name.
  */
-import type { CotalityRow } from '@/lib/cotality/contract';
+import { cotalityFields, type CotalityRow } from '@/lib/cotality/contract';
 
 /** Live CityRegion vocabulary — measured on every row 2026-09-08 (evidence: location/CityRegion.json). */
 export const PROVIDER_CITY_REGION_VALUES = Object.freeze(['Bronx', 'Brooklyn', 'Manhattan', 'Queens', 'StatenIsland'] as const);
@@ -114,6 +114,9 @@ export interface CanonicalLocation {
   postalCity: string | null;
   postalCode: string | null;
 }
+
+/** The provider fields the canonical location reads — the one location select for any Property query that needs it. */
+export const CANONICAL_LOCATION_SELECT_FIELDS = cotalityFields('Property', ['CityRegion', 'SubdivisionName', 'CountyOrParish', 'City', 'PostalCity', 'PostalCode']);
 
 /** The canonical location facts of one provider row. Typed against the live contract. */
 export function locationFromProviderRow(raw: CotalityRow<'Property'>): CanonicalLocation {
