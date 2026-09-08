@@ -17,7 +17,7 @@ import { derivePermissionGates } from '@/lib/idx/trestle-mapper';
 import { cotalityStandardStatusForMallan } from '@/lib/listings/mallan-status';
 import { escapeOData } from './provider-query';
 import { queryProvider, walkProvider } from './provider-client';
-import { MEDIA_SELECT_FIELDS } from '@/lib/media/listing-media-resolver';
+import { MEDIA_SELECT_FIELDS, PROPERTY_MEDIA_FILTER } from '@/lib/media/listing-media-resolver';
 import type { UniverseRow } from './universe';
 
 /** Who receives the rows: an authenticated REBNY participant (Mallan agent / broker) or the public. */
@@ -60,7 +60,8 @@ async function providerRecords(keys: readonly string[], select: readonly string[
     queryProvider<Record<string, unknown>>({ resource: 'Property', select, filter: `ListingKey in (${inList(keys)})`, top: keys.length }),
     withMedia ? walkProvider<MediaRow>({
       resource: 'Media', select: MEDIA_SELECT_FIELDS,
-      filter: `ResourceRecordKey in (${inList(keys)}) and MediaStatus eq 'Active'`,
+      // Owner-scoped (Maya 2026-09-08): a key alone does not prove a Media row belongs to the listing.
+      filter: `ResourceRecordKey in (${inList(keys)}) and ${PROPERTY_MEDIA_FILTER} and MediaStatus eq 'Active'`,
       orderby: 'ResourceRecordKey asc,Order asc', top: 1000,
     }, 5) : Promise.resolve({ rows: [] as MediaRow[], complete: true }),
   ]);

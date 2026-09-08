@@ -39,6 +39,7 @@ import { isMallanExclusiveListing } from '@/lib/listings/exclusive-agent-assignm
 import { toPublicMediaUrl } from '@/lib/media/proxy-url-policy';
 import { isCrmMediaKey } from '@/lib/media/crm-media';
 import { cotalityFields } from '@/lib/cotality/contract';
+import type { CotalityEnum_ResourceName } from '@/lib/cotality/generated/contract';
 
 /**
  * THE one Media select the program sends (Domain 2, 2026-09-08). Compile-checked against the live Media
@@ -54,7 +55,41 @@ export const MEDIA_SELECT_FIELDS = cotalityFields('Media', [
   'ResourceRecordKey', 'ResourceRecordID', 'MediaKey', 'MediaURL', 'MediaCategory', 'MediaClassification',
   'ShortDescription', 'Order', 'PreferredPhotoYN', 'MediaStatus', 'Permission', 'ModificationTimestamp',
   'MediaModificationTimestamp',
+  // The owner axis (Maya 2026-09-08): every Media row names its owning resource; the resolver proves it per row.
+  'ResourceName',
 ]);
+
+/**
+ * MEDIA OWNERS (Maya 2026-09-08). On the live feed `Media.ResourceName` is one of the five published members below
+ * (live rows 2026-09-08: Property 2,002,862 · Building 62 · Member / Office / Contacts 0) and `ResourceRecordKey`
+ * links to the owning resource. MEMBER = agent photos (never a listing photo); PROPERTY = listing photos / floor plans /
+ * videos / tours / documents with ordering and primary-photo semantics; BUILDING = building media (never copied into a
+ * unit). The array is typed against the generated contract, so a member the provider stops publishing fails
+ * `npm run type-check`.
+ */
+export const MEDIA_OWNERS: readonly CotalityEnum_ResourceName[] = Object.freeze(['Property', 'Building', 'Member', 'Office', 'Contacts']);
+export type MediaOwner = CotalityEnum_ResourceName;
+const OWNER_SET: ReadonlySet<string> = new Set(MEDIA_OWNERS);
+
+/** The owner a provider Media row names — the exact member or null (absent / not a member); never inferred from a key shape. */
+export function mediaOwnerOf(raw: unknown): MediaOwner | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const v = (raw as Record<string, unknown>).ResourceName;
+  return typeof v === 'string' && OWNER_SET.has(v) ? (v as MediaOwner) : null;
+}
+/** The owner predicate for a top-level /odata/Media query (ResourceName is filterable live). */
+export function mediaOwnerFilter(owner: MediaOwner): string {
+  return `ResourceName eq '${owner}'`;
+}
+/** Every listing-media query is Property-scoped: a key alone does not prove the owner. */
+export const PROPERTY_MEDIA_FILTER = mediaOwnerFilter('Property');
+/** Split rows by owner without discarding any context; rows that name no owner land under `unknown`. */
+export function partitionMediaByOwner(items: unknown): Record<MediaOwner | 'unknown', unknown[]> {
+  const out: Record<MediaOwner | 'unknown', unknown[]> = { Property: [], Building: [], Member: [], Office: [], Contacts: [], unknown: [] };
+  if (!Array.isArray(items)) return out;
+  for (const raw of items) out[mediaOwnerOf(raw) ?? 'unknown'].push(raw);
+  return out;
+}
 
 export type MediaClass = 'photo' | 'floorplan' | 'video' | 'virtualTour' | 'unknown';
 
@@ -119,6 +154,8 @@ export interface ResolvedMedia {
   isPrimary: boolean;
   /** PreferredPhotoYN was true on the source row (Trestle's hint for hero photo). */
   preferred?: boolean;
+  /** The owning resource. A listing gallery only ever carries Property rows; a table / legacy row is Property by construction. */
+  owner: MediaOwner;
 }
 
 export interface ResolveListingMediaOptions {
@@ -353,6 +390,11 @@ export function resolveListingMedia(items: unknown, options: ResolveListingMedia
     .map((raw, idx) => {
       if (!raw || typeof raw !== 'object') return null;
       const m = raw as Record<string, unknown>;
+      // Owner (Maya 2026-09-08): a listing gallery is PROPERTY media. A row that names another owner (Building /
+      // Member / Office / Contacts) is never rendered as a listing photo; a row without ResourceName (a listing_media
+      // table row, legacy JSON) is Property by construction.
+      const owner = mediaOwnerOf(raw);
+      if (owner && owner !== 'Property') return null;
       const rawUrl = String(m.MediaURL ?? m.mediaUrl ?? m.url ?? '').trim();
       if (!rawUrl) return null;
       // Distinct small variant for the thumbnail strip; defaults to the full URL
@@ -381,6 +423,7 @@ export function resolveListingMedia(items: unknown, options: ResolveListingMedia
         providerOrder: preferred && klass === 'photo' ? -1 : orderNum,
         idx,
         preferred,
+        owner: (owner ?? 'Property') as MediaOwner,
       };
     })
     .filter((x): x is NonNullable<typeof x> => x !== null);
@@ -421,6 +464,7 @@ export function resolveListingMedia(items: unknown, options: ResolveListingMedia
     providerOrder: d.providerOrder,
     isPrimary: i === 0,
     preferred: d.preferred,
+    owner: d.owner,
   }));
 }
 
@@ -431,6 +475,8 @@ export interface DtoMedia {
   mediaType: string;
   order: number;
   isPrimary: boolean;
+  /** The owning resource (always Property for a listing gallery) — the context is carried, never flattened. */
+  owner: MediaOwner;
 }
 
 /**
@@ -447,6 +493,7 @@ export function toDtoMedia(resolved: ResolvedMedia[]): DtoMedia[] {
     mediaType: m.mediaType,
     order: i,
     isPrimary: m.isPrimary,
+    owner: m.owner,
   }));
 }
 

@@ -12,7 +12,7 @@ import { AGENT_TYPED_SELECT } from '@/lib/listings/agent-info-resolver';
 import { preferCrmExclusiveOverIdxDuplicate } from '@/lib/listings/dedupe-crm-vs-idx';
 import { mapAgentCardMedia } from '@/lib/idx/agent-card-media';
 import { getOpenHouseIndex, findNextOpenHouse } from '@/lib/open-houses/upcoming-open-houses';
-import { MEDIA_SELECT_FIELDS } from '@/lib/media/listing-media-resolver';
+import { MEDIA_SELECT_FIELDS, PROPERTY_MEDIA_FILTER } from '@/lib/media/listing-media-resolver';
 
 /**
  * GET /api/agents/[slug]/listings
@@ -376,7 +376,8 @@ async function batchFetchPhotos(listings: PublicListingDTO[], providerKeyById: M
       filterParts.push(providerKey ? `ResourceRecordKey eq '${escaped}'` : `ResourceRecordID eq '${escaped}'`);
     }
     // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
-    const mediaFilter = `(${filterParts.join(' or ')}) and Order le 3 and MediaStatus ne 'Deleted'`;
+    // Listing (Property) media for the agent's cards — never Member media (agent portraits are Mallan-owned files).
+    const mediaFilter = `(${filterParts.join(' or ')}) and ${PROPERTY_MEDIA_FILTER} and Order le 3 and MediaStatus ne 'Deleted'`;
     const mediaParams = new URLSearchParams();
     mediaParams.set('$filter', mediaFilter);
     mediaParams.set('$select', MEDIA_SELECT_FIELDS.join(','));

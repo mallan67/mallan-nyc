@@ -42,7 +42,7 @@ const MEDIA_LANE_PROPERTY_SELECT = cotalityFields("Property", [
 import prisma from "@/lib/prisma";
 // Canonical media classification — REUSED here so the persisted summary and the
 // public reader cannot disagree. Do not reimplement it in this module.
-import { classifyMediaItem, MEDIA_SELECT_FIELDS } from "@/lib/media/listing-media-resolver";
+import { classifyMediaItem, MEDIA_SELECT_FIELDS, PROPERTY_MEDIA_FILTER } from "@/lib/media/listing-media-resolver";
 // THE one R2 policy/retry interpreter. The semantic constants are OWNED there so
 // this module can consume the interpreter without a circular import — that cycle
 // is exactly why the URL-refresh decision below ended up doing its own
@@ -504,6 +504,8 @@ export interface UpsertListingMediaInput {
   MediaKey?: string | null;
   ResourceRecordKey?: string | null;
   ResourceRecordID?: string | null;
+  /** The owning resource (Media.ResourceName). listing_media stores Property rows only; another owner is counted, never written. */
+  ResourceName?: string | null;
   MediaURL?: string | null;
   MediaCategory?: string | null;
   MediaClassification?: string | null;
@@ -555,7 +557,7 @@ export interface UpsertListingMediaOptions {
  * Input ledger (every incoming `mediaRows` row lands in exactly one bucket) —
  * for a fully-successful listing:
  *   `mediaRows.length` = inserted + updatedChanged + skippedUnchanged
- *                        + skippedInvalid + deleteSignalsReceived
+ *                        + skippedInvalid + skippedForeignOwner + deleteSignalsReceived
  *
  * Physical DB-row writes:
  *   physical_writes = inserted + updatedChanged + tombstonedExplicit
@@ -578,6 +580,8 @@ export interface UpsertListingMediaResult {
   skippedUnchanged: number;
   /** Input rows rejected before any DB work (no MediaKey, non-Public Permission, no MediaURL). */
   skippedInvalid: number;
+  /** Input rows whose ResourceName names another owner (Building / Member / Office / Contacts) — never a listing photo (Maya 2026-09-08). */
+  skippedForeignOwner: number;
   /** Incoming rows carrying `MediaStatus='Deleted'` — counted per INPUT row (duplicates included; not yet a write). */
   deleteSignalsReceived: number;
   /** DB rows actually flipped to `deleted` by the explicit-delete `updateMany` (deduped media_keys; unmatched signals flip zero). */
@@ -1051,6 +1055,7 @@ export async function upsertListingMedia(
   const photosChangeTsSnapshot = parseDate(options.photosChangeTsSnapshot ?? null);
 
   let skippedInvalid = 0;
+  let skippedForeignOwner = 0;
   let deleteSignalsReceived = 0;
   const explicitDeleteKeys = new Set<string>();
   const mapped: MappedMediaRow[] = [];
@@ -1059,6 +1064,14 @@ export async function upsertListingMedia(
     const mediaKey = raw.MediaKey ? String(raw.MediaKey) : null;
     if (!mediaKey) {
       skippedInvalid++;
+      continue;
+    }
+
+    // Owner (Maya 2026-09-08): listing_media stores PROPERTY media only. A Building / Member / Office / Contacts row
+    // that arrives under a listing's key is never written as a listing photo — counted, not flattened. A row without
+    // ResourceName (legacy callers, table-shaped rows) is Property by construction.
+    if (raw.ResourceName != null && String(raw.ResourceName) !== "Property") {
+      skippedForeignOwner++;
       continue;
     }
 
@@ -1376,6 +1389,7 @@ export async function upsertListingMedia(
     updatedChanged,
     skippedUnchanged,
     skippedInvalid,
+    skippedForeignOwner,
     deleteSignalsReceived,
     tombstonedExplicit,
     tombstonedVanished,
@@ -3350,7 +3364,8 @@ async function defaultFetchMedia(resourceRecordKey: string): Promise<UpsertListi
   const TRESTLE_API = process.env.TRESTLE_API_URL || "https://api.cotality.com/trestle";
   const escaped = resourceRecordKey.replace(/'/g, "''");
   const params = new URLSearchParams();
-  params.set("$filter", `ResourceRecordKey eq '${escaped}'`);
+  // Owner-scoped (Maya 2026-09-08): listing_media stores Property media only.
+  params.set("$filter", `ResourceRecordKey eq '${escaped}' and ${PROPERTY_MEDIA_FILTER}`);
   params.set("$select", MEDIA_SELECT_FIELDS.join(","));
   params.set("$orderby", "Order asc");
   // Per-page size; the rest of a high-photo listing is followed via @odata.nextLink.

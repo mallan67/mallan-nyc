@@ -11,7 +11,7 @@ import { paginateMedia } from "./media-pagination";
 // this module cannot grow a second, drifting copy of it.
 import { keysetFilter } from "./cursor/keyset-cursor";
 import { IDX_PLUS_SELECT_FIELDS } from "./trestle-mapper";
-import { MEDIA_SELECT_FIELDS } from "@/lib/media/listing-media-resolver";
+import { MEDIA_SELECT_FIELDS, PROPERTY_MEDIA_FILTER } from "@/lib/media/listing-media-resolver";
 import {
   recordCotalityHttp,
   recordPropertyRequest,
@@ -608,7 +608,8 @@ export async function fetchListingMedia(
   for (const keyFilter of keyFieldsToTry) {
     const params = new URLSearchParams();
     // MediaStatus filter: exclude tombstoned photos retained by Trestle as historical records.
-    params.set("$filter", `${keyFilter} and MediaStatus ne 'Deleted'`);
+    // Owner-scoped (Maya 2026-09-08): listing media is Property media; a key alone does not prove the owner.
+    params.set("$filter", `${keyFilter} and ${PROPERTY_MEDIA_FILTER} and MediaStatus ne 'Deleted'`);
     // MediaKey is selected so callers have a stable logical identity per asset
     // (duplicate detection cannot rely on a signed/ordered MediaURL).
     params.set("$select", MEDIA_SELECT_FIELDS.join(","));

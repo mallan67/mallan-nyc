@@ -21,6 +21,7 @@ const READ_BY_INTERPRETERS = [
   'Permission',
   'ModificationTimestamp',
   'MediaModificationTimestamp',
+  'ResourceName', // the owner axis (mediaOwnerOf; Maya 2026-09-08)
 ] as const;
 
 describe('MEDIA_SELECT_FIELDS — the one Media select', () => {
