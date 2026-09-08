@@ -24,6 +24,9 @@ import {
   COMMON_INTEREST_MEMBERS as LIVE_COMMON_INTEREST,
   STRUCTURE_TYPE_MEMBERS as LIVE_STRUCTURE_TYPE,
   CITY_REGION_VALUES as LIVE_CITY_REGION,
+  FURNISHED_MEMBERS as LIVE_FURNISHED,
+  PETS_ALLOWED_MEMBERS as LIVE_PETS_ALLOWED,
+  PETS_FRIENDLY_MEMBERS,
 } from '../canonical/live-truth';
 
 /**
@@ -46,6 +49,13 @@ export const STANDARD_STATUS_MEMBERS: readonly Member[] = members(LIVE_STANDARD_
 export const PROPERTY_TYPE_MEMBERS: readonly Member[] = members(LIVE_PROPERTY_TYPE);
 export const COMMON_INTEREST_MEMBERS: readonly Member[] = members(LIVE_COMMON_INTEREST);
 export const STRUCTURE_TYPE_MEMBERS: readonly Member[] = members(LIVE_STRUCTURE_TYPE);
+/** Rental-only vocabularies (Domain 6, 2026-09-08): Furnished (`eq`), PetsAllowed (Multi, `has`). */
+export const FURNISHED_MEMBERS: readonly Member[] = members(LIVE_FURNISHED);
+export const PETS_ALLOWED_MEMBERS: readonly Member[] = members(LIVE_PETS_ALLOWED);
+/** Parameters that only a rental search may carry; on a sale search they are refused by name, never ignored. */
+export const RENTAL_ONLY_PARAMS: ReadonlySet<string> = new Set([
+  'furnished', 'Furnished', 'pets', 'PetsAllowed', 'availableBy', 'AvailabilityDate', 'maxDeposit', 'SecurityDeposit',
+]);
 
 /** CityRegion is a plain string field (no lookup); values bound in canonical/live-truth. `StatenIsland` has no space. */
 export const CITY_REGION_VALUES = LIVE_CITY_REGION;
@@ -77,6 +87,14 @@ export interface SearchCriteria {
   structureType: readonly string[];
   postalCode: readonly string[];
   listingId: readonly string[];
+  /** Rental-only: Furnished LookupValues (executed with `eq`, OR-joined). Empty on a sale search. */
+  furnished: readonly string[];
+  /** Rental-only: PetsAllowed LookupValues (Multi enum, executed with `has`, OR-joined). Empty on a sale search. */
+  petsAllowed: readonly string[];
+  /** Rental-only: AvailabilityDate upper bound (YYYY-MM-DD; `AvailabilityDate le`). */
+  availableBy?: string;
+  /** Rental-only: SecurityDeposit upper bound (`SecurityDeposit le`). */
+  securityDepositMax?: number;
   sort: SortKey;
   limit: number;
   offset: number;
@@ -97,6 +115,8 @@ export const EXECUTED_PARAMS = new Set([
   'type', 'status', 'StandardStatus', 'minPrice', 'maxPrice', 'beds', 'minBeds', 'maxBeds', 'minBaths', 'maxBaths',
   'borough', 'CityRegion', 'neighborhood', 'SubdivisionName', 'ownership', 'CommonInterest', 'StructureType',
   'zip', 'PostalCode', 'listingId', 'ListingId', 'sort', 'limit', 'skip', 'offset',
+  // rental-only (Domain 6): refused by name on a sale search
+  'furnished', 'Furnished', 'pets', 'PetsAllowed', 'availableBy', 'AvailabilityDate', 'maxDeposit', 'SecurityDeposit',
 ]);
 const TRANSPORT_PARAMS = new Set(['_', '_t', 't', 'cb', 'v', 'page', 'inlineMedia', 'mediaMode', 'countMeaning']);
 
@@ -209,6 +229,37 @@ export function criteriaFromParams(params: URLSearchParams): CriteriaResult {
 
   const listingId = list(params.get('listingId'), params.get('ListingId'));
   for (const id of listingId) if (!/^[A-Za-z0-9-]+$/.test(id)) bad('listingId', id, 'malformed listing id');
+  // ── Rental-only criteria (Domain 6, 2026-09-08). A sale search carrying one is refused by name. ──
+  const furnished: string[] = [];
+  const petsAllowed: string[] = [];
+  let availableBy: string | undefined;
+  let securityDepositMax: number | undefined;
+  const rentalOnlyPresent: Array<[string, string]> = [];
+  for (const p of RENTAL_ONLY_PARAMS) { const v = params.get(p); if (!isBlank(v)) rentalOnlyPresent.push([p, String(v)]); }
+  if (workflow !== 'rental') {
+    for (const [p, v] of rentalOnlyPresent) bad(p, v, 'rental-only criterion');
+  } else {
+    for (const raw of list(params.get('furnished'), params.get('Furnished'))) {
+      // `furnished=true` is the CRM wire form for "furnished units" — the live member 'Furnished'.
+      const t = /^(true|yes|1)$/i.test(raw) ? 'Furnished' : resolveMember(raw, FURNISHED_MEMBERS);
+      if (t) { if (!furnished.includes(t)) furnished.push(t); } else bad('furnished', raw, 'not a live Furnished member');
+    }
+    for (const raw of list(params.get('pets'), params.get('PetsAllowed'))) {
+      if (/^(friendly|true|yes|1)$/i.test(raw)) { for (const m of PETS_FRIENDLY_MEMBERS) if (!petsAllowed.includes(m)) petsAllowed.push(m); continue; }
+      const t = resolveMember(raw, PETS_ALLOWED_MEMBERS);
+      if (t) { if (!petsAllowed.includes(t)) petsAllowed.push(t); } else bad('pets', raw, 'not a live PetsAllowed member');
+    }
+    const availRaw = params.get('availableBy') ?? params.get('AvailabilityDate');
+    if (!isBlank(availRaw)) {
+      const s = String(availRaw).trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(s))) availableBy = s; else bad('availableBy', s, 'must be a YYYY-MM-DD date');
+    }
+    const depositRaw = num(params.get('maxDeposit') ?? params.get('SecurityDeposit'));
+    if (depositRaw !== undefined) {
+      if (Number.isNaN(depositRaw) || depositRaw < 0) bad('maxDeposit', String(params.get('maxDeposit') ?? params.get('SecurityDeposit') ?? ''), 'must be a non-negative number');
+      else securityDepositMax = depositRaw;
+    }
+  }
 
   let sort: SortKey = DEFAULT_SORT;
   const sortRaw = params.get('sort');
@@ -226,7 +277,8 @@ export function criteriaFromParams(params: URLSearchParams): CriteriaResult {
 
   const criteria: SearchCriteria = {
     workflow, standardStatus, priceMin, priceMax, bedsMin, bedsMax, bathsMin, bathsMax,
-    cityRegion, subdivisionName, commonInterest, structureType, postalCode, listingId, sort, limit, offset,
+    cityRegion, subdivisionName, commonInterest, structureType, postalCode, listingId,
+    furnished, petsAllowed, availableBy, securityDepositMax, sort, limit, offset,
   };
   return { ok: true, criteria: criteria as SaleCriteria | RentalCriteria };
 }

@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-08T12:11:49.134Z",
+ "generated": "2026-09-08T12:36:49.435Z",
  "contract": {
   "evidence_sha256": null,
   "metadata_sha256": "a60bcbbdccc9da852a8da53acc178fc90d7159c42f59f58babb2d09ab7a6bbae",
@@ -13783,29 +13783,30 @@
    "surface": "Rental Search",
    "claim": "public/legacy paths apply the furnished filter without a rental gate (`?type=sale&furnished=true` narrows the sale universe)",
    "cite": "lib/search/public-listing-trestle.ts:332; lib/search/public-listing-db.ts:402-405; lib/search/types.ts:183",
-   "status": "PATTERN PRESENT (gating not mechanically assessed)"
+   "status": "NOT REPRODUCED",
+   "detail": "trestle 1/1 guarded · db 1/1 guarded"
   },
   {
    "id": "sale-negative-membership",
    "surface": "Sale Search",
    "claim": "the public Trestle path builds the sale universe as `PropertyType ne 'ResidentialLease'` while the engine and the registry use positive membership `eq 'Residential'`",
    "cite": "lib/search/public-listing-trestle.ts:153-157; lib/search/engine/provider-query.ts:28-31,84; lib/search/canonical/field-registry.ts:131",
-   "status": "CONFIRMED (static)"
+   "status": "NOT REPRODUCED"
   },
   {
    "id": "no-fee-phantom",
    "surface": "Rental Search",
    "claim": "AMENITY_FIELD_MAP 'no-fee' targets ListingTerms values that are not published members, on a field with 0 rows",
    "cite": "lib/search/types.ts:149; live Lookup ListingTerms",
-   "status": "CONFIRMED (live vocabulary)",
-   "detail": "ListingTerms=NoFee, ListingTerms=OwnerPays · ListingTerms populated 0"
+   "status": "NOT REPRODUCED",
+   "detail": " · ListingTerms populated 0"
   },
   {
    "id": "engine-no-rental-criteria",
    "surface": "Rental Search",
    "claim": "the Search engine has no rental-specific criterion: rental fields are selected for hydration but never filterable (furnished/pets/lease terms refused as unsupported params)",
    "cite": "lib/search/engine/criteria.ts:96-100,153-156; lib/search/engine/select.ts:39-44",
-   "status": "CONFIRMED (static)"
+   "status": "NOT REPRODUCED"
   },
   {
    "id": "market-mlsstatus-filter",
@@ -13954,13 +13955,6 @@
    "fieldPopulated": 144434
   },
   {
-   "key": "pet-friendly",
-   "field": "PetsAllowed",
-   "value": "UnitYes",
-   "fieldDeclared": true,
-   "fieldPopulated": 586565
-  },
-  {
    "key": "park-views",
    "field": "View",
    "value": "Park",
@@ -13973,20 +13967,6 @@
    "value": "Park",
    "fieldDeclared": true,
    "fieldPopulated": 138934
-  },
-  {
-   "key": "no-fee",
-   "field": "ListingTerms",
-   "value": "NoFee",
-   "fieldDeclared": true,
-   "fieldPopulated": 0
-  },
-  {
-   "key": "no-fee",
-   "field": "ListingTerms",
-   "value": "OwnerPays",
-   "fieldDeclared": true,
-   "fieldPopulated": 0
   }
  ],
  "domains": [
@@ -14341,7 +14321,7 @@
    "notInSyncSelect": [
     "PetsComments"
    ],
-   "consumers": 15,
+   "consumers": 16,
    "columns": {
     "saleSearch": 1,
     "rentalSearch": 1,
@@ -14533,7 +14513,7 @@
     "OtherEquipment",
     "SeniorCommunityYN"
    ],
-   "consumers": 45,
+   "consumers": 46,
    "columns": {
     "saleSearch": 7,
     "rentalSearch": 7,
@@ -14572,8 +14552,8 @@
    "notInSyncSelect": [],
    "consumers": 13,
    "columns": {
-    "saleSearch": 1,
-    "rentalSearch": 1,
+    "saleSearch": 2,
+    "rentalSearch": 2,
     "saleForm": 3,
     "rentalForm": 12,
     "saleTools": 0,
@@ -15165,7 +15145,7 @@
     "NOT-ON-FEED (not RLS-defined)": 1
    },
    "notInSyncSelect": [],
-   "consumers": 38,
+   "consumers": 39,
    "columns": {
     "saleSearch": 9,
     "rentalSearch": 9,
@@ -15323,8 +15303,8 @@
    ],
    "consumers": 187,
    "columns": {
-    "saleSearch": 49,
-    "rentalSearch": 49,
+    "saleSearch": 50,
+    "rentalSearch": 50,
     "saleForm": 55,
     "rentalForm": 59,
     "saleTools": 40,
@@ -15399,8 +15379,8 @@
    ],
    "consumers": 211,
    "columns": {
-    "saleSearch": 61,
-    "rentalSearch": 61,
+    "saleSearch": 60,
+    "rentalSearch": 60,
     "saleForm": 61,
     "rentalForm": 68,
     "saleTools": 48,
@@ -15666,8 +15646,8 @@
    "notInSyncSelect": [],
    "consumers": 150,
    "columns": {
-    "saleSearch": 43,
-    "rentalSearch": 43,
+    "saleSearch": 44,
+    "rentalSearch": 44,
     "saleForm": 76,
     "rentalForm": 94,
     "saleTools": 32,
@@ -15684,7 +15664,7 @@
    "kind": "business",
    "primaryFields": 0,
    "primaryPopulated": 0,
-   "servedFields": 119,
+   "servedFields": 118,
    "servedPopulated": 91,
    "verdictPrimary": "NO-POPULATED-FIELDS",
    "verdictServed": "DEFECT",
@@ -15697,14 +15677,14 @@
    },
    "availability": {
     "POPULATED": 91,
-    "NOT-ON-FEED (not RLS-defined)": 16,
+    "NOT-ON-FEED (not RLS-defined)": 15,
     "SUPPRESSED": 12
    },
    "notInSyncSelect": [],
    "consumers": 211,
    "columns": {
-    "saleSearch": 62,
-    "rentalSearch": 62,
+    "saleSearch": 63,
+    "rentalSearch": 63,
     "saleForm": 47,
     "rentalForm": 56,
     "saleTools": 46,
@@ -15740,8 +15720,8 @@
    "notInSyncSelect": [],
    "consumers": 209,
    "columns": {
-    "saleSearch": 45,
-    "rentalSearch": 45,
+    "saleSearch": 46,
+    "rentalSearch": 46,
     "saleForm": 33,
     "rentalForm": 42,
     "saleTools": 43,
@@ -15873,36 +15853,36 @@
    "kind": "business",
    "primaryFields": 0,
    "primaryPopulated": 0,
-   "servedFields": 99,
-   "servedPopulated": 83,
+   "servedFields": 100,
+   "servedPopulated": 84,
    "verdictPrimary": "NO-POPULATED-FIELDS",
    "verdictServed": "DEFECT",
    "counts": {
     "COMPLETE": 6,
     "UNVERIFIED": 37,
     "DEFECT": 1,
-    "PARTIAL": 38,
+    "PARTIAL": 39,
     "MISSING": 1
    },
    "availability": {
-    "POPULATED": 83,
+    "POPULATED": 84,
     "NOT-ON-FEED (not RLS-defined)": 6,
     "SUPPRESSED": 10
    },
    "notInSyncSelect": [],
    "consumers": 209,
    "columns": {
-    "saleSearch": 62,
-    "rentalSearch": 62,
+    "saleSearch": 63,
+    "rentalSearch": 63,
     "saleForm": 47,
-    "rentalForm": 48,
+    "rentalForm": 49,
     "saleTools": 46,
     "rentalTools": 44,
     "cma": 25,
     "reporting": 27,
     "publicVisibility": 52,
     "memberVisibility": 35,
-    "compliance": 42
+    "compliance": 43
    }
   },
   {
@@ -20484,14 +20464,14 @@
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/search/types.ts:130"
+        "lib/search/types.ts:132"
        ]
       },
       "Dryer": {
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/search/types.ts:131"
+        "lib/search/types.ts:133"
        ]
       },
       "None": {
@@ -20514,28 +20494,28 @@
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/search/types.ts:131"
+        "lib/search/types.ts:133"
        ]
       },
       "WasherDryer": {
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/search/types.ts:131"
+        "lib/search/types.ts:133"
        ]
       },
       "WasherDryerAllowed": {
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/search/types.ts:131"
+        "lib/search/types.ts:133"
        ]
       },
       "WasherDryerStacked": {
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/search/types.ts:131"
+        "lib/search/types.ts:133"
        ]
       }
      },
@@ -20726,8 +20706,8 @@
      "projection": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:130",
-       "lib/search/types.ts:131"
+       "lib/search/types.ts:132",
+       "lib/search/types.ts:133"
       ]
      },
      "criterion": {
@@ -20748,15 +20728,15 @@
      "saleSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:130",
-       "lib/search/types.ts:131"
+       "lib/search/types.ts:132",
+       "lib/search/types.ts:133"
       ]
      },
      "rentalSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:130",
-       "lib/search/types.ts:131"
+       "lib/search/types.ts:132",
+       "lib/search/types.ts:133"
       ]
      },
      "saleForm": {
@@ -20959,7 +20939,7 @@
      {
       "stage": "projection",
       "file": "lib/search/types.ts",
-      "line": 130,
+      "line": 132,
       "node": "provider:Property.Appliances",
       "tier": "string-literal",
       "workflow": "both"
@@ -20967,7 +20947,7 @@
      {
       "stage": "projection",
       "file": "lib/search/types.ts",
-      "line": 131,
+      "line": 133,
       "node": "provider:Property.Appliances",
       "tier": "string-literal",
       "workflow": "both"
@@ -27820,6 +27800,7 @@
     "Rental Form",
     "Rental Search",
     "Rental Tools",
+    "Sale Search",
     "Search results"
    ],
    "mallan": {
@@ -27869,8 +27850,12 @@
       "sites": []
      },
      "criterion": {
-      "status": "MISSING",
-      "sites": []
+      "status": "PASS",
+      "sites": [
+       "lib/search/engine/criteria.ts:57",
+       "lib/search/engine/criteria.ts:119",
+       "lib/search/engine/criteria.ts:252"
+      ]
      },
      "amenityMap": {
       "status": "MISSING",
@@ -27881,12 +27866,18 @@
       "sites": []
      },
      "saleSearch": {
-      "status": "MISSING",
-      "sites": []
+      "status": "PASS",
+      "sites": [
+       "lib/search/engine/criteria.ts:119",
+       "lib/search/engine/criteria.ts:252"
+      ]
      },
      "rentalSearch": {
-      "status": "MISSING",
-      "sites": []
+      "status": "PASS",
+      "sites": [
+       "lib/search/engine/criteria.ts:57",
+       "lib/search/engine/criteria.ts:119"
+      ]
      },
      "saleForm": {
       "status": "MISSING",
@@ -27958,7 +27949,7 @@
      "publicConsumer": {
       "status": "REACHABLE",
       "sites": [],
-      "via": "lib/open-houses/upcoming-open-houses.ts ← lib/idx/db-to-public-dto.ts"
+      "via": "app/api/idx/ensure-listing/route.ts ← lib/search/engine/criteria.ts"
      },
      "complianceRule": {
       "status": "PASS",
@@ -27980,6 +27971,8 @@
       "files": [
        "lib/compliance/__tests__/raw-data-keep-fields.test.ts",
        "lib/compliance/__tests__/rebny-validator-thin-wrapper.test.ts",
+       "lib/search/__tests__/engine-rental-criteria.test.ts",
+       "lib/search/__tests__/rental-vocabulary-authority.test.ts",
        "tests/runtime/rls-form-bindings-canonical.test.ts"
       ]
      },
@@ -28013,7 +28006,7 @@
       "status": "UNVERIFIED"
      },
      "searchPath": {
-      "status": "MISSING"
+      "status": "PASS"
      },
      "publicBehavior": {
       "status": "UNVERIFIED"
@@ -28034,8 +28027,8 @@
      "mapping": "PASS",
      "storage": "PASS",
      "reload": "MISSING",
-     "saleSearch": "MISSING",
-     "rentalSearch": "MISSING",
+     "saleSearch": "PASS",
+     "rentalSearch": "PASS",
      "saleForm": "MISSING",
      "rentalForm": "PASS",
      "saleTools": "MISSING",
@@ -28060,7 +28053,6 @@
      "directTest"
     ],
     "missingStatic": [
-     "rentalSearch",
      "rentalTools"
     ],
     "defects": [],
@@ -28071,7 +28063,7 @@
     "deadPath": false,
     "editable": true,
     "canonicalKeys": [],
-    "consumers": 5,
+    "consumers": 8,
     "consumerSites": [
      {
       "stage": "complianceRule",
@@ -28096,6 +28088,30 @@
       "node": "provider:Property.AvailabilityDate",
       "tier": "string-literal",
       "workflow": null
+     },
+     {
+      "stage": "criterion",
+      "file": "lib/search/engine/criteria.ts",
+      "line": 57,
+      "node": "provider:Property.AvailabilityDate",
+      "tier": "string-literal",
+      "workflow": "rental"
+     },
+     {
+      "stage": "criterion",
+      "file": "lib/search/engine/criteria.ts",
+      "line": 119,
+      "node": "provider:Property.AvailabilityDate",
+      "tier": "string-literal",
+      "workflow": "both"
+     },
+     {
+      "stage": "criterion",
+      "file": "lib/search/engine/criteria.ts",
+      "line": 252,
+      "node": "provider:Property.AvailabilityDate",
+      "tier": "string-literal",
+      "workflow": "sale"
      },
      {
       "stage": "select",
@@ -28364,6 +28380,7 @@
      "directTest": {
       "status": "PASS",
       "files": [
+       "lib/search/__tests__/engine-rental-criteria.test.ts",
        "tests/runtime/cotality-vocabulary-source-authority.test.ts"
       ]
      },
@@ -38485,8 +38502,8 @@
        "sites": [
         "lib/idx/trestle-mapper.ts:284",
         "lib/buildings/public-building-data.ts:99",
-        "lib/search/types.ts:130",
-        "lib/search/types.ts:131",
+        "lib/search/types.ts:132",
+        "lib/search/types.ts:133",
         "lib/buildings/upsert.ts:241"
        ]
       },
@@ -38495,7 +38512,7 @@
        "coOccurring": 3,
        "sites": [
         "app/api/buildings/search/route.ts:368",
-        "lib/search/types.ts:126",
+        "lib/search/types.ts:128",
         "lib/crm/listing-form-mapping.ts:174"
        ]
       },
@@ -38518,7 +38535,7 @@
        "coOccurring": 3,
        "sites": [
         "app/api/buildings/search/route.ts:374",
-        "lib/search/types.ts:127",
+        "lib/search/types.ts:129",
         "lib/crm/listing-form-mapping.ts:177"
        ]
       },
@@ -38527,7 +38544,7 @@
        "coOccurring": 3,
        "sites": [
         "app/api/buildings/search/route.ts:370",
-        "lib/search/types.ts:125",
+        "lib/search/types.ts:127",
         "lib/crm/listing-form-mapping.ts:173"
        ]
       },
@@ -38536,7 +38553,7 @@
        "coOccurring": 3,
        "sites": [
         "app/api/buildings/search/route.ts:371",
-        "lib/search/types.ts:122",
+        "lib/search/types.ts:124",
         "lib/crm/listing-form-mapping.ts:172"
        ]
       },
@@ -38554,7 +38571,7 @@
         "lib/buildings/public-building-data.ts:221",
         "lib/buildings/public-building-data.ts:280",
         "app/api/buildings/search/route.ts:364",
-        "lib/search/types.ts:114",
+        "lib/search/types.ts:116",
         "app/listing/[...slug]/page.tsx:1015",
         "app/listing/[...slug]/page.tsx:1103"
        ]
@@ -38586,7 +38603,7 @@
        "coOccurring": 3,
        "sites": [
         "app/api/buildings/search/route.ts:361",
-        "lib/search/types.ts:124",
+        "lib/search/types.ts:126",
         "lib/crm/listing-form-mapping.ts:170"
        ]
       },
@@ -38595,7 +38612,7 @@
        "coOccurring": 3,
        "sites": [
         "app/api/buildings/search/route.ts:362",
-        "lib/search/types.ts:116",
+        "lib/search/types.ts:118",
         "lib/crm/listing-form-mapping.ts:171"
        ]
       },
@@ -38632,7 +38649,7 @@
        "coOccurring": 2,
        "sites": [
         "app/api/buildings/search/route.ts:362",
-        "lib/search/types.ts:116"
+        "lib/search/types.ts:118"
        ]
       },
       "IndoorPool": {
@@ -38640,7 +38657,7 @@
        "coOccurring": 2,
        "sites": [
         "app/api/buildings/search/route.ts:363",
-        "lib/search/types.ts:117"
+        "lib/search/types.ts:119"
        ]
       },
       "LivingArea": {
@@ -38680,7 +38697,7 @@
        "typed": 0,
        "coOccurring": 3,
        "sites": [
-        "lib/search/types.ts:208",
+        "lib/search/types.ts:212",
         "lib/crm/listing-form-mapping.ts:60",
         "lib/search/public-listing-db.ts:204"
        ]
@@ -38712,8 +38729,8 @@
        "coOccurring": 3,
        "sites": [
         "app/api/buildings/search/route.ts:376",
-        "lib/search/types.ts:134",
-        "lib/search/types.ts:209"
+        "lib/search/types.ts:136",
+        "lib/search/types.ts:213"
        ]
       },
       "RecreationRoom": {
@@ -38729,7 +38746,7 @@
        "sites": [
         "lib/buildings/public-building-data.ts:229",
         "app/api/buildings/search/route.ts:365",
-        "lib/search/types.ts:119",
+        "lib/search/types.ts:121",
         "app/listing/[...slug]/page.tsx:1024",
         "app/listing/[...slug]/page.tsx:1143"
        ]
@@ -38746,7 +38763,7 @@
        "coOccurring": 2,
        "sites": [
         "app/api/buildings/search/route.ts:365",
-        "lib/search/types.ts:118"
+        "lib/search/types.ts:120"
        ]
       },
       "SteamRoom": {
@@ -38754,7 +38771,7 @@
        "coOccurring": 2,
        "sites": [
         "app/api/buildings/search/route.ts:365",
-        "lib/search/types.ts:120"
+        "lib/search/types.ts:122"
        ]
       },
       "Storage": {
@@ -38763,7 +38780,7 @@
        "sites": [
         "lib/buildings/public-building-data.ts:233",
         "app/api/buildings/search/route.ts:367",
-        "lib/search/types.ts:127",
+        "lib/search/types.ts:129",
         "lib/crm/listing-form-mapping.ts:175",
         "app/listing/[...slug]/page.tsx:1029",
         "app/listing/[...slug]/page.tsx:1111"
@@ -38773,7 +38790,7 @@
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/search/types.ts:116"
+        "lib/search/types.ts:118"
        ]
       }
      },
@@ -38935,16 +38952,16 @@
      "projection": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:114",
        "lib/search/types.ts:116",
-       "lib/search/types.ts:117",
        "lib/search/types.ts:118",
        "lib/search/types.ts:119",
        "lib/search/types.ts:120",
+       "lib/search/types.ts:121",
        "lib/search/types.ts:122",
-       "lib/search/types.ts:125",
-       "lib/search/types.ts:126",
-       "lib/search/types.ts:127"
+       "lib/search/types.ts:124",
+       "lib/search/types.ts:127",
+       "lib/search/types.ts:128",
+       "lib/search/types.ts:129"
       ]
      },
      "criterion": {
@@ -38974,31 +38991,31 @@
      "saleSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:114",
        "lib/search/types.ts:116",
-       "lib/search/types.ts:117",
        "lib/search/types.ts:118",
        "lib/search/types.ts:119",
        "lib/search/types.ts:120",
+       "lib/search/types.ts:121",
        "lib/search/types.ts:122",
-       "lib/search/types.ts:125",
-       "lib/search/types.ts:126",
-       "lib/search/types.ts:127"
+       "lib/search/types.ts:124",
+       "lib/search/types.ts:127",
+       "lib/search/types.ts:128",
+       "lib/search/types.ts:129"
       ]
      },
      "rentalSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:114",
        "lib/search/types.ts:116",
-       "lib/search/types.ts:117",
        "lib/search/types.ts:118",
        "lib/search/types.ts:119",
        "lib/search/types.ts:120",
+       "lib/search/types.ts:121",
        "lib/search/types.ts:122",
-       "lib/search/types.ts:125",
-       "lib/search/types.ts:126",
-       "lib/search/types.ts:127"
+       "lib/search/types.ts:124",
+       "lib/search/types.ts:127",
+       "lib/search/types.ts:128",
+       "lib/search/types.ts:129"
       ]
      },
      "saleForm": {
@@ -39318,23 +39335,7 @@
      {
       "stage": "projection",
       "file": "lib/search/types.ts",
-      "line": 114,
-      "node": "provider:Property.BuildingFeatures",
-      "tier": "string-literal",
-      "workflow": "both"
-     },
-     {
-      "stage": "projection",
-      "file": "lib/search/types.ts",
       "line": 116,
-      "node": "provider:Property.BuildingFeatures",
-      "tier": "string-literal",
-      "workflow": "both"
-     },
-     {
-      "stage": "projection",
-      "file": "lib/search/types.ts",
-      "line": 117,
       "node": "provider:Property.BuildingFeatures",
       "tier": "string-literal",
       "workflow": "both"
@@ -39366,6 +39367,14 @@
      {
       "stage": "projection",
       "file": "lib/search/types.ts",
+      "line": 121,
+      "node": "provider:Property.BuildingFeatures",
+      "tier": "string-literal",
+      "workflow": "both"
+     },
+     {
+      "stage": "projection",
+      "file": "lib/search/types.ts",
       "line": 122,
       "node": "provider:Property.BuildingFeatures",
       "tier": "string-literal",
@@ -39374,15 +39383,7 @@
      {
       "stage": "projection",
       "file": "lib/search/types.ts",
-      "line": 125,
-      "node": "provider:Property.BuildingFeatures",
-      "tier": "string-literal",
-      "workflow": "both"
-     },
-     {
-      "stage": "projection",
-      "file": "lib/search/types.ts",
-      "line": 126,
+      "line": 124,
       "node": "provider:Property.BuildingFeatures",
       "tier": "string-literal",
       "workflow": "both"
@@ -39391,6 +39392,22 @@
       "stage": "projection",
       "file": "lib/search/types.ts",
       "line": 127,
+      "node": "provider:Property.BuildingFeatures",
+      "tier": "string-literal",
+      "workflow": "both"
+     },
+     {
+      "stage": "projection",
+      "file": "lib/search/types.ts",
+      "line": 128,
+      "node": "provider:Property.BuildingFeatures",
+      "tier": "string-literal",
+      "workflow": "both"
+     },
+     {
+      "stage": "projection",
+      "file": "lib/search/types.ts",
+      "line": 129,
       "node": "provider:Property.BuildingFeatures",
       "tier": "string-literal",
       "workflow": "both"
@@ -58481,8 +58498,8 @@
      "projection": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:140",
-       "lib/search/types.ts:141",
+       "lib/search/types.ts:145",
+       "lib/search/types.ts:146",
        "lib/search/listing-search-projection.ts:258",
        "lib/search/listing-search-projection.ts:266",
        "lib/search/listing-search-projection.ts:474"
@@ -58503,8 +58520,8 @@
      "saleSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:140",
-       "lib/search/types.ts:141",
+       "lib/search/types.ts:145",
+       "lib/search/types.ts:146",
        "lib/search/listing-search-projection.ts:258",
        "lib/search/listing-search-projection.ts:266",
        "lib/search/listing-search-projection.ts:474"
@@ -58513,8 +58530,8 @@
      "rentalSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:140",
-       "lib/search/types.ts:141",
+       "lib/search/types.ts:145",
+       "lib/search/types.ts:146",
        "lib/search/listing-search-projection.ts:258",
        "lib/search/listing-search-projection.ts:266",
        "lib/search/listing-search-projection.ts:474"
@@ -58990,7 +59007,7 @@
      {
       "stage": "projection",
       "file": "lib/search/types.ts",
-      "line": 140,
+      "line": 145,
       "node": "provider:Property.City",
       "tier": "string-literal",
       "workflow": "both"
@@ -58998,7 +59015,7 @@
      {
       "stage": "projection",
       "file": "lib/search/types.ts",
-      "line": 141,
+      "line": 146,
       "node": "provider:Property.City",
       "tier": "string-literal",
       "workflow": "both"
@@ -59567,8 +59584,8 @@
      "criterion": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/criteria.ts:98",
-       "lib/search/engine/criteria.ts:189",
+       "lib/search/engine/criteria.ts:116",
+       "lib/search/engine/criteria.ts:209",
        "lib/search/canonical/field-registry.ts:125",
        "lib/search/public-listing-db.ts:270",
        "app/api/listings/route.ts:355",
@@ -59589,8 +59606,8 @@
      "saleSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/criteria.ts:98",
-       "lib/search/engine/criteria.ts:189",
+       "lib/search/engine/criteria.ts:116",
+       "lib/search/engine/criteria.ts:209",
        "lib/search/canonical/field-registry.ts:125",
        "lib/search/public-listing-db.ts:270",
        "lib/search/public-listing-db.ts:270",
@@ -59602,8 +59619,8 @@
      "rentalSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/criteria.ts:98",
-       "lib/search/engine/criteria.ts:189",
+       "lib/search/engine/criteria.ts:116",
+       "lib/search/engine/criteria.ts:209",
        "lib/search/canonical/field-registry.ts:125",
        "lib/search/public-listing-db.ts:270",
        "lib/search/public-listing-db.ts:270",
@@ -60186,7 +60203,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/engine/criteria.ts",
-      "line": 98,
+      "line": 116,
       "node": "provider:Property.CityRegion",
       "tier": "string-literal",
       "workflow": "both"
@@ -60194,7 +60211,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/engine/criteria.ts",
-      "line": 189,
+      "line": 209,
       "node": "provider:Property.CityRegion",
       "tier": "string-literal",
       "workflow": "both"
@@ -108970,10 +108987,11 @@
       },
       "Other": {
        "typed": 0,
-       "coOccurring": 3,
+       "coOccurring": 4,
        "sites": [
         "lib/search/canonical/live-truth.ts:61",
         "lib/search/canonical/live-truth.ts:90",
+        "lib/search/canonical/live-truth.ts:123",
         "lib/search/canonical/ownership.ts:26"
        ]
       },
@@ -109111,9 +109129,9 @@
      "criterion": {
       "status": "PASS",
       "sites": [
-       "lib/search/canonical/live-truth.ts:110",
-       "lib/search/engine/criteria.ts:98",
-       "lib/search/engine/criteria.ts:198",
+       "lib/search/canonical/live-truth.ts:142",
+       "lib/search/engine/criteria.ts:116",
+       "lib/search/engine/criteria.ts:218",
        "lib/search/canonical/field-registry.ts:167",
        "app/api/listings/route.ts:875"
       ]
@@ -109129,9 +109147,9 @@
      "saleSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/canonical/live-truth.ts:110",
-       "lib/search/engine/criteria.ts:98",
-       "lib/search/engine/criteria.ts:198",
+       "lib/search/canonical/live-truth.ts:142",
+       "lib/search/engine/criteria.ts:116",
+       "lib/search/engine/criteria.ts:218",
        "lib/search/canonical/field-registry.ts:167",
        "app/api/listings/route.ts:875"
       ]
@@ -109139,9 +109157,9 @@
      "rentalSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/canonical/live-truth.ts:110",
-       "lib/search/engine/criteria.ts:98",
-       "lib/search/engine/criteria.ts:198",
+       "lib/search/canonical/live-truth.ts:142",
+       "lib/search/engine/criteria.ts:116",
+       "lib/search/engine/criteria.ts:218",
        "lib/search/canonical/field-registry.ts:167",
        "app/api/listings/route.ts:875"
       ]
@@ -109561,7 +109579,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/canonical/live-truth.ts",
-      "line": 110,
+      "line": 142,
       "node": "provider:Property.CommonInterest",
       "tier": "string-literal",
       "workflow": "both"
@@ -109569,7 +109587,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/engine/criteria.ts",
-      "line": 98,
+      "line": 116,
       "node": "provider:Property.CommonInterest",
       "tier": "string-literal",
       "workflow": "both"
@@ -109577,7 +109595,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/engine/criteria.ts",
-      "line": 198,
+      "line": 218,
       "node": "provider:Property.CommonInterest",
       "tier": "string-literal",
       "workflow": "both"
@@ -116205,7 +116223,7 @@
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/search/types.ts:129"
+        "lib/search/types.ts:131"
        ]
       },
       "Electric": {
@@ -116339,7 +116357,7 @@
      "projection": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:129"
+       "lib/search/types.ts:131"
       ]
      },
      "criterion": {
@@ -116359,13 +116377,13 @@
      "saleSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:129"
+       "lib/search/types.ts:131"
       ]
      },
      "rentalSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:129"
+       "lib/search/types.ts:131"
       ]
      },
      "saleForm": {
@@ -116598,7 +116616,7 @@
      {
       "stage": "projection",
       "file": "lib/search/types.ts",
-      "line": 129,
+      "line": 131,
       "node": "provider:Property.Cooling",
       "tier": "string-literal",
       "workflow": "both"
@@ -124236,15 +124254,23 @@
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/search/canonical/live-truth.ts:113"
+        "lib/search/canonical/live-truth.ts:145"
        ]
       },
       "Other": {
        "typed": 0,
-       "coOccurring": 2,
+       "coOccurring": 3,
        "sites": [
         "lib/search/canonical/live-truth.ts:61",
-        "lib/search/canonical/live-truth.ts:90"
+        "lib/search/canonical/live-truth.ts:90",
+        "lib/search/canonical/live-truth.ts:123"
+       ]
+      },
+      "SeeRemarks": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/canonical/live-truth.ts:123"
        ]
       }
      },
@@ -124258,7 +124284,6 @@
       "RemodeledUpgraded",
       "ResalePreviouslyOwned",
       "RoughGrade",
-      "SeeRemarks",
       "SitePlanApproved",
       "SitePlanFiled",
       "StreetsInstalled",
@@ -143261,8 +143286,8 @@
      "projection": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:121",
-       "lib/search/types.ts:132"
+       "lib/search/types.ts:123",
+       "lib/search/types.ts:134"
       ]
      },
      "criterion": {
@@ -143283,15 +143308,15 @@
      "saleSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:121",
-       "lib/search/types.ts:132"
+       "lib/search/types.ts:123",
+       "lib/search/types.ts:134"
       ]
      },
      "rentalSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:121",
-       "lib/search/types.ts:132"
+       "lib/search/types.ts:123",
+       "lib/search/types.ts:134"
       ]
      },
      "saleForm": {
@@ -143513,7 +143538,7 @@
      {
       "stage": "projection",
       "file": "lib/search/types.ts",
-      "line": 121,
+      "line": 123,
       "node": "provider:Property.ExteriorFeatures",
       "tier": "string-literal",
       "workflow": "both"
@@ -143521,7 +143546,7 @@
      {
       "stage": "projection",
       "file": "lib/search/types.ts",
-      "line": 132,
+      "line": 134,
       "node": "provider:Property.ExteriorFeatures",
       "tier": "string-literal",
       "workflow": "both"
@@ -149871,7 +149896,7 @@
      "mallanHandled": {
       "Furnished": {
        "typed": 0,
-       "coOccurring": 13,
+       "coOccurring": 18,
        "sites": [
         "lib/compliance/raw-data-keep-fields.ts:239",
         "lib/idx/trestle-mapper.ts:287",
@@ -149881,25 +149906,39 @@
         "lib/idx/card-fields.ts:58"
        ]
       },
-      "Negotiable": {
+      "FurnishedOrUnfurnished": {
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/compliance/rebny-ucba-rules.ts:416"
+        "lib/search/canonical/live-truth.ts:109"
+       ]
+      },
+      "Negotiable": {
+       "typed": 0,
+       "coOccurring": 3,
+       "sites": [
+        "lib/compliance/rebny-ucba-rules.ts:416",
+        "lib/search/canonical/live-truth.ts:109",
+        "lib/search/canonical/live-truth.ts:122"
        ]
       },
       "Partially": {
        "typed": 0,
+       "coOccurring": 2,
+       "sites": [
+        "lib/compliance/rebny-ucba-rules.ts:416",
+        "lib/search/canonical/live-truth.ts:109"
+       ]
+      },
+      "Unfurnished": {
+       "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/compliance/rebny-ucba-rules.ts:416"
+        "lib/search/canonical/live-truth.ts:109"
        ]
       }
      },
-     "declaredNotHandled": [
-      "FurnishedOrUnfurnished",
-      "Unfurnished"
-     ]
+     "declaredNotHandled": []
     },
     "accessPath": {
      "path": "Property scalar",
@@ -149976,6 +150015,11 @@
      "criterion": {
       "status": "PASS",
       "sites": [
+       "lib/search/canonical/live-truth.ts:109",
+       "lib/search/engine/criteria.ts:57",
+       "lib/search/engine/criteria.ts:119",
+       "lib/search/engine/criteria.ts:242",
+       "lib/search/engine/criteria.ts:244",
        "lib/search/nyc-dictionary.ts:349",
        "lib/search/canonical/field-registry.ts:189"
       ]
@@ -149991,6 +150035,10 @@
      "saleSearch": {
       "status": "PASS",
       "sites": [
+       "lib/search/canonical/live-truth.ts:109",
+       "lib/search/engine/criteria.ts:119",
+       "lib/search/engine/criteria.ts:242",
+       "lib/search/engine/criteria.ts:244",
        "lib/search/nyc-dictionary.ts:349",
        "lib/search/canonical/field-registry.ts:189",
        "lib/search/listing-search-projection.ts:404"
@@ -149999,6 +150047,9 @@
      "rentalSearch": {
       "status": "PASS",
       "sites": [
+       "lib/search/canonical/live-truth.ts:109",
+       "lib/search/engine/criteria.ts:57",
+       "lib/search/engine/criteria.ts:119",
        "lib/search/nyc-dictionary.ts:349",
        "lib/search/canonical/field-registry.ts:189",
        "lib/search/listing-search-projection.ts:404"
@@ -150085,7 +150136,7 @@
      "publicConsumer": {
       "status": "REACHABLE",
       "sites": [],
-      "via": "lib/open-houses/upcoming-open-houses.ts ← lib/idx/db-to-public-dto.ts"
+      "via": "app/api/idx/ensure-listing/route.ts ← lib/search/canonical/live-truth.ts"
      },
      "complianceRule": {
       "status": "PASS",
@@ -150106,11 +150157,13 @@
       "status": "PASS",
       "files": [
        "lib/crm/__tests__/live-enum-boundary.test.ts",
+       "lib/search/__tests__/engine-rental-criteria.test.ts",
        "lib/search/__tests__/listing-search-projection.test.ts",
        "lib/search/__tests__/natural-language-parser.test.ts",
        "lib/search/__tests__/nyc-dictionary.test.ts",
        "lib/search/__tests__/public-listing-db.test.ts",
        "lib/search/__tests__/public-listing-trestle.test.ts",
+       "lib/search/__tests__/rental-vocabulary-authority.test.ts",
        "tests/runtime/crm-listing-round-trip.test.ts",
        "tests/runtime/crm-patch-contract-parity.test.ts"
       ]
@@ -150199,7 +150252,7 @@
     "deadPath": false,
     "editable": true,
     "canonicalKeys": [],
-    "consumers": 17,
+    "consumers": 22,
     "consumerSites": [
      {
       "stage": "complianceRule",
@@ -150224,6 +150277,46 @@
       "node": "provider:Property.Furnished",
       "tier": "string-literal",
       "workflow": null
+     },
+     {
+      "stage": "criterion",
+      "file": "lib/search/canonical/live-truth.ts",
+      "line": 109,
+      "node": "provider:Property.Furnished",
+      "tier": "string-literal",
+      "workflow": "both"
+     },
+     {
+      "stage": "criterion",
+      "file": "lib/search/engine/criteria.ts",
+      "line": 57,
+      "node": "provider:Property.Furnished",
+      "tier": "string-literal",
+      "workflow": "rental"
+     },
+     {
+      "stage": "criterion",
+      "file": "lib/search/engine/criteria.ts",
+      "line": 119,
+      "node": "provider:Property.Furnished",
+      "tier": "string-literal",
+      "workflow": "both"
+     },
+     {
+      "stage": "criterion",
+      "file": "lib/search/engine/criteria.ts",
+      "line": 242,
+      "node": "provider:Property.Furnished",
+      "tier": "string-literal",
+      "workflow": "sale"
+     },
+     {
+      "stage": "criterion",
+      "file": "lib/search/engine/criteria.ts",
+      "line": 244,
+      "node": "provider:Property.Furnished",
+      "tier": "string-literal",
+      "workflow": "sale"
      },
      {
       "stage": "select",
@@ -161173,18 +161266,18 @@
      "projection": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:143",
-       "lib/search/types.ts:144",
-       "lib/search/types.ts:145",
-       "lib/search/types.ts:146",
-       "lib/search/types.ts:147",
-       "lib/search/types.ts:148"
+       "lib/search/types.ts:148",
+       "lib/search/types.ts:149",
+       "lib/search/types.ts:150",
+       "lib/search/types.ts:151",
+       "lib/search/types.ts:152",
+       "lib/search/types.ts:153"
       ]
      },
      "criterion": {
       "status": "PASS",
       "sites": [
-       "lib/search/canonical/live-truth.ts:115"
+       "lib/search/canonical/live-truth.ts:147"
       ]
      },
      "amenityMap": {
@@ -161206,25 +161299,25 @@
      "saleSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:143",
-       "lib/search/types.ts:144",
-       "lib/search/types.ts:145",
-       "lib/search/types.ts:146",
-       "lib/search/types.ts:147",
        "lib/search/types.ts:148",
-       "lib/search/canonical/live-truth.ts:115"
+       "lib/search/types.ts:149",
+       "lib/search/types.ts:150",
+       "lib/search/types.ts:151",
+       "lib/search/types.ts:152",
+       "lib/search/types.ts:153",
+       "lib/search/canonical/live-truth.ts:147"
       ]
      },
      "rentalSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:143",
-       "lib/search/types.ts:144",
-       "lib/search/types.ts:145",
-       "lib/search/types.ts:146",
-       "lib/search/types.ts:147",
        "lib/search/types.ts:148",
-       "lib/search/canonical/live-truth.ts:115"
+       "lib/search/types.ts:149",
+       "lib/search/types.ts:150",
+       "lib/search/types.ts:151",
+       "lib/search/types.ts:152",
+       "lib/search/types.ts:153",
+       "lib/search/canonical/live-truth.ts:147"
       ]
      },
      "saleForm": {
@@ -161468,47 +161561,47 @@
      {
       "stage": "projection",
       "file": "lib/search/types.ts",
-      "line": 143,
-      "node": "provider:Property.InteriorFeatures",
-      "tier": "string-literal",
-      "workflow": "both"
-     },
-     {
-      "stage": "projection",
-      "file": "lib/search/types.ts",
-      "line": 144,
-      "node": "provider:Property.InteriorFeatures",
-      "tier": "string-literal",
-      "workflow": "both"
-     },
-     {
-      "stage": "projection",
-      "file": "lib/search/types.ts",
-      "line": 145,
-      "node": "provider:Property.InteriorFeatures",
-      "tier": "string-literal",
-      "workflow": "both"
-     },
-     {
-      "stage": "projection",
-      "file": "lib/search/types.ts",
-      "line": 146,
-      "node": "provider:Property.InteriorFeatures",
-      "tier": "string-literal",
-      "workflow": "both"
-     },
-     {
-      "stage": "projection",
-      "file": "lib/search/types.ts",
-      "line": 147,
-      "node": "provider:Property.InteriorFeatures",
-      "tier": "string-literal",
-      "workflow": "both"
-     },
-     {
-      "stage": "projection",
-      "file": "lib/search/types.ts",
       "line": 148,
+      "node": "provider:Property.InteriorFeatures",
+      "tier": "string-literal",
+      "workflow": "both"
+     },
+     {
+      "stage": "projection",
+      "file": "lib/search/types.ts",
+      "line": 149,
+      "node": "provider:Property.InteriorFeatures",
+      "tier": "string-literal",
+      "workflow": "both"
+     },
+     {
+      "stage": "projection",
+      "file": "lib/search/types.ts",
+      "line": 150,
+      "node": "provider:Property.InteriorFeatures",
+      "tier": "string-literal",
+      "workflow": "both"
+     },
+     {
+      "stage": "projection",
+      "file": "lib/search/types.ts",
+      "line": 151,
+      "node": "provider:Property.InteriorFeatures",
+      "tier": "string-literal",
+      "workflow": "both"
+     },
+     {
+      "stage": "projection",
+      "file": "lib/search/types.ts",
+      "line": 152,
+      "node": "provider:Property.InteriorFeatures",
+      "tier": "string-literal",
+      "workflow": "both"
+     },
+     {
+      "stage": "projection",
+      "file": "lib/search/types.ts",
+      "line": 153,
       "node": "provider:Property.InteriorFeatures",
       "tier": "string-literal",
       "workflow": "both"
@@ -161516,7 +161609,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/canonical/live-truth.ts",
-      "line": 115,
+      "line": 147,
       "node": "provider:Property.InteriorFeatures",
       "tier": "string-literal",
       "workflow": "both"
@@ -171139,7 +171232,7 @@
        "coOccurring": 2,
        "sites": [
         "lib/buildings/public-building-data.ts:268",
-        "lib/search/types.ts:123"
+        "lib/search/types.ts:125"
        ]
       },
       "CommonOnFloor": {
@@ -171147,7 +171240,7 @@
        "coOccurring": 2,
        "sites": [
         "lib/buildings/public-building-data.ts:268",
-        "lib/search/types.ts:123"
+        "lib/search/types.ts:125"
        ]
       },
       "InUnit": {
@@ -171162,7 +171255,7 @@
        "coOccurring": 2,
        "sites": [
         "lib/buildings/public-building-data.ts:268",
-        "lib/search/types.ts:123"
+        "lib/search/types.ts:125"
        ]
       },
       "None": {
@@ -171286,7 +171379,7 @@
      "projection": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:123"
+       "lib/search/types.ts:125"
       ]
      },
      "criterion": {
@@ -171306,13 +171399,13 @@
      "saleSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:123"
+       "lib/search/types.ts:125"
       ]
      },
      "rentalSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:123"
+       "lib/search/types.ts:125"
       ]
      },
      "saleForm": {
@@ -171556,7 +171649,7 @@
      {
       "stage": "projection",
       "file": "lib/search/types.ts",
-      "line": 123,
+      "line": 125,
       "node": "provider:Property.LaundryFeatures",
       "tier": "string-literal",
       "workflow": "both"
@@ -172371,7 +172464,8 @@
      "directTest": {
       "status": "PASS",
       "files": [
-       "lib/compliance/__tests__/raw-data-keep-fields.test.ts"
+       "lib/compliance/__tests__/raw-data-keep-fields.test.ts",
+       "lib/search/__tests__/engine-rental-criteria.test.ts"
       ]
      },
      "negativeTest": {
@@ -174454,8 +174548,10 @@
       "sites": []
      },
      "directTest": {
-      "status": "MISSING",
-      "files": []
+      "status": "PASS",
+      "files": [
+       "lib/search/__tests__/engine-rental-criteria.test.ts"
+      ]
      },
      "negativeTest": {
       "status": "MISSING",
@@ -174533,8 +174629,7 @@
      "resultDto",
      "publicConsumer",
      "rentalTools",
-     "complianceRule",
-     "directTest"
+     "complianceRule"
     ],
     "defects": [],
     "unverified": [],
@@ -195876,7 +195971,7 @@
      "criterion": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/provider-query.ts:126",
+       "lib/search/engine/provider-query.ts:135",
        "lib/search/engine/universe.ts:148",
        "lib/search/canonical/field-registry.ts:139",
        "lib/search/engine/universe.ts:88",
@@ -195902,7 +195997,7 @@
      "sorting": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/provider-query.ts:126",
+       "lib/search/engine/provider-query.ts:135",
        "lib/search/public-listing-db.ts:191",
        "lib/search/public-listing-db.ts:236",
        "lib/search/public-listing-db.ts:237",
@@ -195915,8 +196010,8 @@
      "saleSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/provider-query.ts:126",
-       "lib/search/engine/provider-query.ts:126",
+       "lib/search/engine/provider-query.ts:135",
+       "lib/search/engine/provider-query.ts:135",
        "lib/search/engine/universe.ts:148",
        "lib/search/canonical/field-registry.ts:139",
        "lib/search/engine/universe.ts:88",
@@ -195945,8 +196040,8 @@
      "rentalSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/provider-query.ts:126",
-       "lib/search/engine/provider-query.ts:126",
+       "lib/search/engine/provider-query.ts:135",
+       "lib/search/engine/provider-query.ts:135",
        "lib/search/engine/universe.ts:148",
        "lib/search/canonical/field-registry.ts:139",
        "lib/search/engine/universe.ts:88",
@@ -196740,7 +196835,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/engine/provider-query.ts",
-      "line": 126,
+      "line": 135,
       "node": "provider:Property.ListPrice",
       "tier": "string-literal",
       "workflow": "both"
@@ -196748,7 +196843,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/engine/provider-query.ts",
-      "line": 126,
+      "line": 135,
       "node": "provider:Property.ListPrice",
       "tier": "string-literal",
       "workflow": "both"
@@ -199977,7 +200072,7 @@
      "criterion": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/provider-query.ts:126",
+       "lib/search/engine/provider-query.ts:135",
        "lib/search/engine/universe.ts:149",
        "lib/search/canonical/field-registry.ts:151",
        "lib/search/engine/universe.ts:88",
@@ -199993,15 +200088,15 @@
      "sorting": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/provider-query.ts:126",
+       "lib/search/engine/provider-query.ts:135",
        "lib/search/public-listing-db.ts:322"
       ]
      },
      "saleSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/provider-query.ts:126",
-       "lib/search/engine/provider-query.ts:126",
+       "lib/search/engine/provider-query.ts:135",
+       "lib/search/engine/provider-query.ts:135",
        "lib/search/engine/universe.ts:149",
        "lib/search/canonical/field-registry.ts:151",
        "lib/search/engine/universe.ts:88",
@@ -200014,8 +200109,8 @@
      "rentalSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/provider-query.ts:126",
-       "lib/search/engine/provider-query.ts:126",
+       "lib/search/engine/provider-query.ts:135",
+       "lib/search/engine/provider-query.ts:135",
        "lib/search/engine/universe.ts:149",
        "lib/search/canonical/field-registry.ts:151",
        "lib/search/engine/universe.ts:88",
@@ -200310,7 +200405,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/engine/provider-query.ts",
-      "line": 126,
+      "line": 135,
       "node": "provider:Property.ListingContractDate",
       "tier": "string-literal",
       "workflow": "both"
@@ -200318,7 +200413,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/engine/provider-query.ts",
-      "line": 126,
+      "line": 135,
       "node": "provider:Property.ListingContractDate",
       "tier": "string-literal",
       "workflow": "both"
@@ -200639,9 +200734,9 @@
      "criterion": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/criteria.ts:99",
-       "lib/search/engine/criteria.ts:210",
-       "lib/search/engine/provider-query.ts:126",
+       "lib/search/engine/criteria.ts:117",
+       "lib/search/engine/criteria.ts:230",
+       "lib/search/engine/provider-query.ts:135",
        "lib/search/engine/universe.ts:147",
        "app/api/listings/suggest/route.ts:84",
        "lib/search/canonical/field-registry.ts:116",
@@ -200663,7 +200758,7 @@
      "sorting": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/provider-query.ts:126",
+       "lib/search/engine/provider-query.ts:135",
        "lib/search/public-listing-db.ts:226",
        "lib/search/public-listing-db.ts:227"
       ]
@@ -200671,10 +200766,10 @@
      "saleSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/criteria.ts:99",
-       "lib/search/engine/criteria.ts:210",
-       "lib/search/engine/provider-query.ts:126",
-       "lib/search/engine/provider-query.ts:126",
+       "lib/search/engine/criteria.ts:117",
+       "lib/search/engine/criteria.ts:230",
+       "lib/search/engine/provider-query.ts:135",
+       "lib/search/engine/provider-query.ts:135",
        "lib/search/engine/universe.ts:147",
        "app/api/listings/suggest/route.ts:84",
        "lib/search/canonical/field-registry.ts:116",
@@ -200694,10 +200789,10 @@
      "rentalSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/criteria.ts:99",
-       "lib/search/engine/criteria.ts:210",
-       "lib/search/engine/provider-query.ts:126",
-       "lib/search/engine/provider-query.ts:126",
+       "lib/search/engine/criteria.ts:117",
+       "lib/search/engine/criteria.ts:230",
+       "lib/search/engine/provider-query.ts:135",
+       "lib/search/engine/provider-query.ts:135",
        "lib/search/engine/universe.ts:147",
        "app/api/listings/suggest/route.ts:84",
        "lib/search/canonical/field-registry.ts:116",
@@ -201815,7 +201910,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/engine/criteria.ts",
-      "line": 99,
+      "line": 117,
       "node": "provider:Property.ListingId",
       "tier": "string-literal",
       "workflow": "both"
@@ -201823,7 +201918,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/engine/criteria.ts",
-      "line": 210,
+      "line": 230,
       "node": "provider:Property.ListingId",
       "tier": "string-literal",
       "workflow": "both"
@@ -201831,7 +201926,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/engine/provider-query.ts",
-      "line": 126,
+      "line": 135,
       "node": "provider:Property.ListingId",
       "tier": "string-literal",
       "workflow": "both"
@@ -201839,7 +201934,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/engine/provider-query.ts",
-      "line": 126,
+      "line": 135,
       "node": "provider:Property.ListingId",
       "tier": "string-literal",
       "workflow": "both"
@@ -204950,7 +205045,7 @@
      "criterion": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/provider-query.ts:126",
+       "lib/search/engine/provider-query.ts:135",
        "lib/search/engine/universe.ts:146",
        "lib/search/engine/universe.ts:147",
        "app/api/idx/search/route.ts:71",
@@ -204976,7 +205071,7 @@
      "sorting": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/provider-query.ts:126",
+       "lib/search/engine/provider-query.ts:135",
        "lib/search/public-listing-db.ts:226",
        "lib/search/public-listing-db.ts:227"
       ]
@@ -204984,8 +205079,8 @@
      "saleSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/provider-query.ts:126",
-       "lib/search/engine/provider-query.ts:126",
+       "lib/search/engine/provider-query.ts:135",
+       "lib/search/engine/provider-query.ts:135",
        "lib/search/engine/universe.ts:146",
        "lib/search/engine/universe.ts:147",
        "app/api/idx/search/route.ts:71",
@@ -205011,8 +205106,8 @@
      "rentalSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/provider-query.ts:126",
-       "lib/search/engine/provider-query.ts:126",
+       "lib/search/engine/provider-query.ts:135",
+       "lib/search/engine/provider-query.ts:135",
        "lib/search/engine/universe.ts:146",
        "lib/search/engine/universe.ts:147",
        "app/api/idx/search/route.ts:71",
@@ -205975,7 +206070,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/engine/provider-query.ts",
-      "line": 126,
+      "line": 135,
       "node": "provider:Property.ListingKey",
       "tier": "string-literal",
       "workflow": "both"
@@ -205983,7 +206078,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/engine/provider-query.ts",
-      "line": 126,
+      "line": 135,
       "node": "provider:Property.ListingKey",
       "tier": "string-literal",
       "workflow": "both"
@@ -209813,10 +209908,7 @@
     "name": "Financial & carrying costs",
     "category": "display"
    },
-   "domainsServed": [
-    "Rental Search",
-    "Sale Search"
-   ],
+   "domainsServed": [],
    "mallan": {
     "stage": {
      "rawSelection": {
@@ -209843,36 +209935,28 @@
       "note": "not a Mallan-editable field (no persistenceMap entry)"
      },
      "projection": {
-      "status": "PASS",
-      "sites": [
-       "lib/search/types.ts:149"
-      ]
+      "status": "MISSING",
+      "sites": []
      },
      "criterion": {
       "status": "MISSING",
       "sites": []
      },
      "amenityMap": {
-      "status": "PASS",
-      "keys": [
-       "no-fee: NoFee|OwnerPays"
-      ]
+      "status": "MISSING",
+      "keys": []
      },
      "sorting": {
       "status": "MISSING",
       "sites": []
      },
      "saleSearch": {
-      "status": "PASS",
-      "sites": [
-       "lib/search/types.ts:149"
-      ]
+      "status": "MISSING",
+      "sites": []
      },
      "rentalSearch": {
-      "status": "PASS",
-      "sites": [
-       "lib/search/types.ts:149"
-      ]
+      "status": "MISSING",
+      "sites": []
      },
      "saleForm": {
       "status": "MISSING",
@@ -209899,23 +209983,20 @@
       "sites": []
      },
      "resultCard": {
-      "status": "REACHABLE",
-      "sites": [],
-      "via": "app/components/SearchChips.tsx ← lib/search/types.ts"
+      "status": "MISSING",
+      "sites": []
      },
      "listingWorkspace": {
-      "status": "REACHABLE",
-      "sites": [],
-      "via": "app/api/crm/convert/route.ts ← lib/search/types.ts"
+      "status": "MISSING",
+      "sites": []
      },
      "savedSearch": {
       "status": "MISSING",
       "sites": []
      },
      "alerts": {
-      "status": "REACHABLE",
-      "sites": [],
-      "via": "lib/search/alert-delivery-history.ts ← lib/search/types.ts"
+      "status": "MISSING",
+      "sites": []
      },
      "cma": {
       "status": "MISSING",
@@ -209934,9 +210015,8 @@
       "sites": []
      },
      "publicConsumer": {
-      "status": "REACHABLE",
-      "sites": [],
-      "via": "app/api/idx/ensure-listing/route.ts ← lib/search/types.ts"
+      "status": "MISSING",
+      "sites": []
      },
      "complianceRule": {
       "status": "MISSING",
@@ -209951,8 +210031,10 @@
       "sites": []
      },
      "directTest": {
-      "status": "MISSING",
-      "files": []
+      "status": "PASS",
+      "files": [
+       "lib/search/__tests__/engine-rental-criteria.test.ts"
+      ]
      },
      "negativeTest": {
       "status": "MISSING",
@@ -209979,7 +210061,7 @@
       "status": "UNVERIFIED"
      },
      "searchPath": {
-      "status": "PASS"
+      "status": "MISSING"
      },
      "publicBehavior": {
       "status": "UNVERIFIED"
@@ -210000,8 +210082,8 @@
      "mapping": "MISSING",
      "storage": "MISSING",
      "reload": "N/A",
-     "saleSearch": "PASS",
-     "rentalSearch": "PASS",
+     "saleSearch": "MISSING",
+     "rentalSearch": "MISSING",
      "saleForm": "MISSING",
      "rentalForm": "MISSING",
      "saleTools": "MISSING",
@@ -210009,7 +210091,7 @@
      "cma": "MISSING",
      "reporting": "MISSING",
      "memberVisibility": "MISSING",
-     "publicVisibility": "REACHABLE",
+     "publicVisibility": "MISSING",
      "compliance": "MISSING",
      "runtimeProof": "UNVERIFIED"
     },
@@ -210026,28 +210108,17 @@
      "mapper",
      "persistence",
      "resultDto",
-     "saleForm",
-     "directTest"
+     "publicConsumer",
+     "saleForm"
     ],
     "defects": [],
-    "unverified": [
-     "publicConsumer"
-    ],
+    "unverified": [],
     "verdict": "MISSING",
-    "deadPath": true,
+    "deadPath": false,
     "editable": false,
     "canonicalKeys": [],
-    "consumers": 1,
-    "consumerSites": [
-     {
-      "stage": "projection",
-      "file": "lib/search/types.ts",
-      "line": 149,
-      "node": "provider:Property.ListingTerms",
-      "tier": "string-literal",
-      "workflow": "both"
-     }
-    ],
+    "consumers": 0,
+    "consumerSites": [],
     "wiredForSync": false
    }
   },
@@ -223788,7 +223859,7 @@
      "criterion": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/provider-query.ts:126",
+       "lib/search/engine/provider-query.ts:135",
        "lib/search/engine/universe.ts:150",
        "lib/search/public-listing-db.ts:332",
        "lib/search/public-listing-db.ts:339",
@@ -223803,7 +223874,7 @@
      "sorting": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/provider-query.ts:126",
+       "lib/search/engine/provider-query.ts:135",
        "lib/search/public-listing-db.ts:332",
        "lib/search/public-listing-db.ts:339"
       ]
@@ -223811,8 +223882,8 @@
      "saleSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/provider-query.ts:126",
-       "lib/search/engine/provider-query.ts:126",
+       "lib/search/engine/provider-query.ts:135",
+       "lib/search/engine/provider-query.ts:135",
        "lib/search/engine/universe.ts:150",
        "lib/search/public-listing-db.ts:332",
        "lib/search/public-listing-db.ts:332",
@@ -223825,8 +223896,8 @@
      "rentalSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/provider-query.ts:126",
-       "lib/search/engine/provider-query.ts:126",
+       "lib/search/engine/provider-query.ts:135",
+       "lib/search/engine/provider-query.ts:135",
        "lib/search/engine/universe.ts:150",
        "lib/search/public-listing-db.ts:332",
        "lib/search/public-listing-db.ts:332",
@@ -224301,7 +224372,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/engine/provider-query.ts",
-      "line": 126,
+      "line": 135,
       "node": "provider:Property.ModificationTimestamp",
       "tier": "string-literal",
       "workflow": "both"
@@ -224309,7 +224380,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/engine/provider-query.ts",
-      "line": 126,
+      "line": 135,
       "node": "provider:Property.ModificationTimestamp",
       "tier": "string-literal",
       "workflow": "both"
@@ -241831,26 +241902,11 @@
      },
      "filterRejectedMembers": [],
      "mallanHandled": {
-      "Garage": {
-       "typed": 0,
-       "coOccurring": 1,
-       "sites": [
-        "lib/search/types.ts:134"
-       ]
-      },
       "Sewer": {
        "typed": 0,
        "coOccurring": 1,
        "sites": [
         "lib/idx/trestle-mapper.ts:215"
-       ]
-      },
-      "Water": {
-       "typed": 0,
-       "coOccurring": 2,
-       "sites": [
-        "lib/search/types.ts:139",
-        "lib/search/types.ts:141"
        ]
       }
      },
@@ -241864,6 +241920,7 @@
       "EarthquakeInsurance",
       "Electricity",
       "ExteriorMaintenance",
+      "Garage",
       "Gardener",
       "Gas",
       "GroundsCare",
@@ -241890,7 +241947,8 @@
       "Supplies",
       "Taxes",
       "Telephone",
-      "TrashCollection"
+      "TrashCollection",
+      "Water"
      ]
     },
     "accessPath": {
@@ -241908,7 +241966,6 @@
     "Rental Form",
     "Rental Search",
     "Rental Tools",
-    "Sale Search",
     "Search results"
    ],
    "mallan": {
@@ -241944,10 +242001,8 @@
       "note": "not a Mallan-editable field (no persistenceMap entry)"
      },
      "projection": {
-      "status": "PASS",
-      "sites": [
-       "lib/search/types.ts:149"
-      ]
+      "status": "MISSING",
+      "sites": []
      },
      "criterion": {
       "status": "MISSING",
@@ -241962,16 +242017,12 @@
       "sites": []
      },
      "saleSearch": {
-      "status": "PASS",
-      "sites": [
-       "lib/search/types.ts:149"
-      ]
+      "status": "MISSING",
+      "sites": []
      },
      "rentalSearch": {
-      "status": "PASS",
-      "sites": [
-       "lib/search/types.ts:149"
-      ]
+      "status": "MISSING",
+      "sites": []
      },
      "saleForm": {
       "status": "MISSING",
@@ -242002,9 +242053,8 @@
       ]
      },
      "resultCard": {
-      "status": "REACHABLE",
-      "sites": [],
-      "via": "app/components/SearchChips.tsx ← lib/search/types.ts"
+      "status": "MISSING",
+      "sites": []
      },
      "listingWorkspace": {
       "status": "PASS",
@@ -242020,7 +242070,7 @@
      "alerts": {
       "status": "REACHABLE",
       "sites": [],
-      "via": "lib/search/alert-delivery-history.ts ← lib/search/types.ts"
+      "via": "app/api/cron/search-alerts/route.ts ← lib/search/engine/select.ts"
      },
      "cma": {
       "status": "MISSING",
@@ -242039,9 +242089,8 @@
       "sites": []
      },
      "publicConsumer": {
-      "status": "REACHABLE",
-      "sites": [],
-      "via": "app/api/idx/ensure-listing/route.ts ← lib/search/types.ts"
+      "status": "MISSING",
+      "sites": []
      },
      "complianceRule": {
       "status": "MISSING",
@@ -242088,7 +242137,7 @@
       "status": "UNVERIFIED"
      },
      "searchPath": {
-      "status": "PASS"
+      "status": "MISSING"
      },
      "publicBehavior": {
       "status": "UNVERIFIED"
@@ -242109,8 +242158,8 @@
      "mapping": "PASS",
      "storage": "PASS",
      "reload": "N/A",
-     "saleSearch": "PASS",
-     "rentalSearch": "PASS",
+     "saleSearch": "MISSING",
+     "rentalSearch": "MISSING",
      "saleForm": "MISSING",
      "rentalForm": "PASS",
      "saleTools": "MISSING",
@@ -242118,7 +242167,7 @@
      "cma": "MISSING",
      "reporting": "MISSING",
      "memberVisibility": "MISSING",
-     "publicVisibility": "REACHABLE",
+     "publicVisibility": "MISSING",
      "compliance": "MISSING",
      "runtimeProof": "UNVERIFIED"
     },
@@ -242135,27 +242184,19 @@
      "directTest"
     ],
     "missingStatic": [
+     "rentalSearch",
+     "publicConsumer",
      "rentalTools",
      "complianceRule"
     ],
     "defects": [],
-    "unverified": [
-     "publicConsumer"
-    ],
+    "unverified": [],
     "verdict": "PARTIAL",
     "deadPath": false,
     "editable": false,
     "canonicalKeys": [],
-    "consumers": 4,
+    "consumers": 3,
     "consumerSites": [
-     {
-      "stage": "projection",
-      "file": "lib/search/types.ts",
-      "line": 149,
-      "node": "provider:Property.OwnerPays",
-      "tier": "string-literal",
-      "workflow": "both"
-     },
      {
       "stage": "select",
       "file": "lib/search/engine/select.ts",
@@ -245555,7 +245596,7 @@
      "projection": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:134"
+       "lib/search/types.ts:136"
       ]
      },
      "criterion": {
@@ -245577,14 +245618,14 @@
      "saleSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:134",
+       "lib/search/types.ts:136",
        "lib/search/canonical/field-registry.ts:183"
       ]
      },
      "rentalSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:134",
+       "lib/search/types.ts:136",
        "lib/search/canonical/field-registry.ts:183"
       ]
      },
@@ -245810,7 +245851,7 @@
      {
       "stage": "projection",
       "file": "lib/search/types.ts",
-      "line": 134,
+      "line": 136,
       "node": "provider:Property.ParkingFeatures",
       "tier": "string-literal",
       "workflow": "both"
@@ -247553,7 +247594,7 @@
      "criterion": {
       "status": "PASS",
       "sites": [
-       "lib/search/canonical/live-truth.ts:114",
+       "lib/search/canonical/live-truth.ts:146",
        "app/api/listings/suggest/route.ts:89",
        "lib/search/canonical/field-registry.ts:198",
        "app/api/listings/route.ts:385",
@@ -247580,7 +247621,7 @@
      "saleSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/canonical/live-truth.ts:114",
+       "lib/search/canonical/live-truth.ts:146",
        "app/api/listings/suggest/route.ts:89",
        "lib/search/canonical/field-registry.ts:198",
        "app/api/listings/route.ts:385",
@@ -247598,7 +247639,7 @@
      "rentalSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/canonical/live-truth.ts:114",
+       "lib/search/canonical/live-truth.ts:146",
        "app/api/listings/suggest/route.ts:89",
        "lib/search/canonical/field-registry.ts:198",
        "app/api/listings/route.ts:385",
@@ -248171,7 +248212,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/canonical/live-truth.ts",
-      "line": 114,
+      "line": 146,
       "node": "provider:Property.Permission",
       "tier": "string-literal",
       "workflow": "both"
@@ -249674,7 +249715,8 @@
     "Compliance",
     "Rental Form",
     "Rental Search",
-    "Rental Tools"
+    "Rental Tools",
+    "Sale Search"
    ],
    "mallan": {
     "stage": {
@@ -249710,8 +249752,10 @@
       "sites": []
      },
      "criterion": {
-      "status": "MISSING",
-      "sites": []
+      "status": "PASS",
+      "sites": [
+       "lib/search/canonical/live-truth.ts:123"
+      ]
      },
      "amenityMap": {
       "status": "MISSING",
@@ -249722,12 +249766,16 @@
       "sites": []
      },
      "saleSearch": {
-      "status": "MISSING",
-      "sites": []
+      "status": "PASS",
+      "sites": [
+       "lib/search/canonical/live-truth.ts:123"
+      ]
      },
      "rentalSearch": {
-      "status": "MISSING",
-      "sites": []
+      "status": "PASS",
+      "sites": [
+       "lib/search/canonical/live-truth.ts:123"
+      ]
      },
      "saleForm": {
       "status": "MISSING",
@@ -249758,16 +249806,19 @@
       "sites": []
      },
      "listingWorkspace": {
-      "status": "MISSING",
-      "sites": []
+      "status": "REACHABLE",
+      "sites": [],
+      "via": "app/api/crm/saved-searches/route.ts ← lib/search/canonical/live-truth.ts"
      },
      "savedSearch": {
-      "status": "MISSING",
-      "sites": []
+      "status": "REACHABLE",
+      "sites": [],
+      "via": "lib/search/engine/saved-search.ts ← lib/search/canonical/live-truth.ts"
      },
      "alerts": {
-      "status": "MISSING",
-      "sites": []
+      "status": "REACHABLE",
+      "sites": [],
+      "via": "lib/search/alert-delivery-history.ts ← lib/search/canonical/live-truth.ts"
      },
      "cma": {
       "status": "MISSING",
@@ -249786,8 +249837,9 @@
       "sites": []
      },
      "publicConsumer": {
-      "status": "MISSING",
-      "sites": []
+      "status": "REACHABLE",
+      "sites": [],
+      "via": "app/api/idx/ensure-listing/route.ts ← lib/search/canonical/live-truth.ts"
      },
      "complianceRule": {
       "status": "MISSING",
@@ -249830,7 +249882,7 @@
       "status": "UNVERIFIED"
      },
      "searchPath": {
-      "status": "MISSING"
+      "status": "PASS"
      },
      "publicBehavior": {
       "status": "UNVERIFIED"
@@ -249851,8 +249903,8 @@
      "mapping": "PASS",
      "storage": "PASS",
      "reload": "N/A",
-     "saleSearch": "MISSING",
-     "rentalSearch": "MISSING",
+     "saleSearch": "PASS",
+     "rentalSearch": "PASS",
      "saleForm": "MISSING",
      "rentalForm": "MISSING",
      "saleTools": "MISSING",
@@ -249860,7 +249912,7 @@
      "cma": "MISSING",
      "reporting": "MISSING",
      "memberVisibility": "MISSING",
-     "publicVisibility": "MISSING",
+     "publicVisibility": "REACHABLE",
      "compliance": "MISSING",
      "runtimeProof": "UNVERIFIED"
     },
@@ -249876,21 +249928,29 @@
      "directTest"
     ],
     "missingStatic": [
-     "saleSearch",
-     "rentalSearch",
      "resultDto",
      "resultCard",
-     "publicConsumer",
      "directTest"
     ],
     "defects": [],
-    "unverified": [],
+    "unverified": [
+     "publicConsumer"
+    ],
     "verdict": "PARTIAL",
     "deadPath": true,
     "editable": false,
     "canonicalKeys": [],
-    "consumers": 0,
-    "consumerSites": [],
+    "consumers": 1,
+    "consumerSites": [
+     {
+      "stage": "criterion",
+      "file": "lib/search/canonical/live-truth.ts",
+      "line": 123,
+      "node": "provider:Property.PetDeposit",
+      "tier": "string-literal",
+      "workflow": "both"
+     }
+    ],
     "wiredForSync": true
    }
   },
@@ -250034,140 +250094,264 @@
      },
      "filterRejectedMembers": [],
      "mallanHandled": {
+      "BirdsOk": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/canonical/live-truth.ts:120"
+       ]
+      },
       "BreedRestrictions": {
        "typed": 0,
-       "coOccurring": 3,
+       "coOccurring": 5,
        "sites": [
         "lib/compliance/rebny-ucba-rules.ts:531",
-        "lib/search/types.ts:136",
-        "lib/listings/mallan-form-contract.ts:197"
+        "lib/search/types.ts:141",
+        "lib/listings/mallan-form-contract.ts:197",
+        "lib/search/canonical/live-truth.ts:120",
+        "lib/search/canonical/live-truth.ts:132"
        ]
       },
       "BuildingBreedRestrictions": {
        "typed": 0,
-       "coOccurring": 2,
+       "coOccurring": 3,
        "sites": [
         "app/api/buildings/search/route.ts:385",
-        "lib/compliance/rebny-ucba-rules.ts:521"
+        "lib/compliance/rebny-ucba-rules.ts:521",
+        "lib/search/canonical/live-truth.ts:120"
+       ]
+      },
+      "BuildingCatsOk": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/canonical/live-truth.ts:120"
+       ]
+      },
+      "BuildingDogsOk": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/canonical/live-truth.ts:120"
        ]
       },
       "BuildingNo": {
        "typed": 0,
-       "coOccurring": 1,
+       "coOccurring": 2,
        "sites": [
-        "app/api/buildings/search/route.ts:383"
+        "app/api/buildings/search/route.ts:383",
+        "lib/search/canonical/live-truth.ts:120"
        ]
       },
       "BuildingNumberLimit": {
        "typed": 0,
-       "coOccurring": 2,
+       "coOccurring": 3,
        "sites": [
         "app/api/buildings/search/route.ts:386",
-        "lib/compliance/rebny-ucba-rules.ts:521"
+        "lib/compliance/rebny-ucba-rules.ts:521",
+        "lib/search/canonical/live-truth.ts:121"
        ]
       },
       "BuildingSizeLimit": {
        "typed": 0,
-       "coOccurring": 2,
+       "coOccurring": 3,
        "sites": [
         "app/api/buildings/search/route.ts:386",
-        "lib/compliance/rebny-ucba-rules.ts:521"
+        "lib/compliance/rebny-ucba-rules.ts:521",
+        "lib/search/canonical/live-truth.ts:121"
        ]
       },
       "BuildingYes": {
        "typed": 0,
+       "coOccurring": 2,
+       "sites": [
+        "app/api/buildings/search/route.ts:383",
+        "lib/search/canonical/live-truth.ts:121"
+       ]
+      },
+      "Call": {
+       "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "app/api/buildings/search/route.ts:383"
+        "lib/search/canonical/live-truth.ts:121"
        ]
       },
       "CatsOk": {
        "typed": 0,
-       "coOccurring": 2,
+       "coOccurring": 4,
        "sites": [
-        "lib/search/types.ts:136",
-        "lib/listings/mallan-form-contract.ts:195"
+        "lib/search/types.ts:141",
+        "lib/listings/mallan-form-contract.ts:195",
+        "lib/search/canonical/live-truth.ts:121",
+        "lib/search/canonical/live-truth.ts:132"
+       ]
+      },
+      "ChickensOk": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/canonical/live-truth.ts:121"
+       ]
+      },
+      "Conditional": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/canonical/live-truth.ts:121"
        ]
       },
       "DogsOk": {
        "typed": 0,
-       "coOccurring": 2,
+       "coOccurring": 4,
        "sites": [
-        "lib/search/types.ts:136",
-        "lib/listings/mallan-form-contract.ts:196"
+        "lib/search/types.ts:141",
+        "lib/listings/mallan-form-contract.ts:196",
+        "lib/search/canonical/live-truth.ts:121",
+        "lib/search/canonical/live-truth.ts:132"
+       ]
+      },
+      "FishOk": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/canonical/live-truth.ts:122"
        ]
       },
       "Negotiable": {
        "typed": 0,
-       "coOccurring": 1,
+       "coOccurring": 3,
        "sites": [
-        "lib/compliance/rebny-ucba-rules.ts:416"
+        "lib/compliance/rebny-ucba-rules.ts:416",
+        "lib/search/canonical/live-truth.ts:109",
+        "lib/search/canonical/live-truth.ts:122"
        ]
       },
       "No": {
        "typed": 0,
-       "coOccurring": 3,
+       "coOccurring": 4,
        "sites": [
         "lib/listings/mallan-form-contract.ts:188",
         "lib/listings/mallan-form-contract.ts:194",
+        "lib/search/canonical/live-truth.ts:122",
         "lib/search/crm-idx-mapper.ts:146"
+       ]
+      },
+      "NoBreedRestrictions": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/canonical/live-truth.ts:122"
+       ]
+      },
+      "NoDogs": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/canonical/live-truth.ts:122"
+       ]
+      },
+      "NoPetRestrictions": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/canonical/live-truth.ts:122"
+       ]
+      },
+      "NoSizeLimit": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/canonical/live-truth.ts:122"
        ]
       },
       "NumberLimit": {
        "typed": 0,
-       "coOccurring": 3,
+       "coOccurring": 5,
        "sites": [
         "lib/compliance/rebny-ucba-rules.ts:531",
-        "lib/search/types.ts:136",
-        "lib/listings/mallan-form-contract.ts:199"
+        "lib/search/types.ts:141",
+        "lib/listings/mallan-form-contract.ts:199",
+        "lib/search/canonical/live-truth.ts:122",
+        "lib/search/canonical/live-truth.ts:132"
+       ]
+      },
+      "Other": {
+       "typed": 0,
+       "coOccurring": 3,
+       "sites": [
+        "lib/search/canonical/live-truth.ts:61",
+        "lib/search/canonical/live-truth.ts:90",
+        "lib/search/canonical/live-truth.ts:123"
+       ]
+      },
+      "OwnerOnly": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/canonical/live-truth.ts:123"
        ]
       },
       "PetDeposit": {
        "typed": 0,
+       "coOccurring": 2,
+       "sites": [
+        "lib/idx/trestle-mapper.ts:354",
+        "lib/search/canonical/live-truth.ts:123"
+       ]
+      },
+      "PetFee": {
+       "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/idx/trestle-mapper.ts:354"
+        "lib/search/canonical/live-truth.ts:123"
+       ]
+      },
+      "PetRestrictions": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/canonical/live-truth.ts:123"
+       ]
+      },
+      "ReptileOk": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/canonical/live-truth.ts:123"
+       ]
+      },
+      "SeeRemarks": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/canonical/live-truth.ts:123"
        ]
       },
       "SizeLimit": {
        "typed": 0,
-       "coOccurring": 3,
+       "coOccurring": 5,
        "sites": [
         "lib/compliance/rebny-ucba-rules.ts:531",
-        "lib/search/types.ts:136",
-        "lib/listings/mallan-form-contract.ts:198"
+        "lib/search/types.ts:141",
+        "lib/listings/mallan-form-contract.ts:198",
+        "lib/search/canonical/live-truth.ts:123",
+        "lib/search/canonical/live-truth.ts:132"
        ]
       },
       "Yes": {
        "typed": 0,
-       "coOccurring": 4,
+       "coOccurring": 7,
        "sites": [
         "lib/compliance/rebny-ucba-rules.ts:403",
+        "lib/search/types.ts:141",
         "lib/listings/mallan-form-contract.ts:187",
         "lib/listings/mallan-form-contract.ts:193",
-        "lib/search/crm-idx-mapper.ts:145"
+        "lib/search/canonical/live-truth.ts:123",
+        "lib/search/canonical/live-truth.ts:132"
        ]
       }
      },
-     "declaredNotHandled": [
-      "BirdsOk",
-      "BuildingCatsOk",
-      "BuildingDogsOk",
-      "Call",
-      "ChickensOk",
-      "Conditional",
-      "FishOk",
-      "NoBreedRestrictions",
-      "NoDogs",
-      "NoPetRestrictions",
-      "NoSizeLimit",
-      "Other",
-      "OwnerOnly",
-      "PetFee",
-      "PetRestrictions",
-      "ReptileOk",
-      "SeeRemarks"
-     ]
+     "declaredNotHandled": []
     },
     "accessPath": {
      "path": "Property scalar",
@@ -250244,49 +250428,56 @@
      "projection": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:136",
+       "lib/search/types.ts:141",
        "lib/search/listing-search-projection.ts:407"
       ]
      },
      "criterion": {
       "status": "PASS",
       "sites": [
+       "lib/search/engine/criteria.ts:57",
+       "lib/search/engine/criteria.ts:119",
+       "lib/search/engine/criteria.ts:247",
        "lib/search/canonical/field-registry.ts:186",
-       "lib/search/public-listing-db.ts:430",
+       "lib/search/public-listing-db.ts:431",
        "app/api/listings/route.ts:827"
       ]
      },
      "amenityMap": {
       "status": "PASS",
       "keys": [
-       "pet-friendly: UnitYes|CatsOk|DogsOk|NumberLimit|SizeLimit|BreedRestrictions"
+       "pet-friendly: Yes|CatsOk|DogsOk|NumberLimit|SizeLimit|BreedRestrictions"
       ]
      },
      "sorting": {
       "status": "PASS",
       "sites": [
-       "lib/search/public-listing-db.ts:430"
+       "lib/search/public-listing-db.ts:431"
       ]
      },
      "saleSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:136",
+       "lib/search/types.ts:141",
+       "lib/search/engine/criteria.ts:119",
+       "lib/search/engine/criteria.ts:247",
        "lib/search/canonical/field-registry.ts:186",
        "lib/search/listing-search-projection.ts:407",
-       "lib/search/public-listing-db.ts:430",
-       "lib/search/public-listing-db.ts:430",
+       "lib/search/public-listing-db.ts:431",
+       "lib/search/public-listing-db.ts:431",
        "app/api/listings/route.ts:827"
       ]
      },
      "rentalSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:136",
+       "lib/search/types.ts:141",
+       "lib/search/engine/criteria.ts:57",
+       "lib/search/engine/criteria.ts:119",
        "lib/search/canonical/field-registry.ts:186",
        "lib/search/listing-search-projection.ts:407",
-       "lib/search/public-listing-db.ts:430",
-       "lib/search/public-listing-db.ts:430",
+       "lib/search/public-listing-db.ts:431",
+       "lib/search/public-listing-db.ts:431",
        "app/api/listings/route.ts:827"
       ]
      },
@@ -250400,10 +250591,12 @@
        "lib/compliance/__tests__/compliance-gates.test.ts",
        "lib/compliance/__tests__/townhouse-building-001.test.ts",
        "lib/crm/__tests__/live-enum-boundary.test.ts",
+       "lib/search/__tests__/engine-rental-criteria.test.ts",
        "lib/search/__tests__/listing-search-projection.test.ts",
        "lib/search/__tests__/projection-write-suppression.test.ts",
        "lib/search/__tests__/public-listing-db.test.ts",
        "lib/search/__tests__/public-listing-trestle.test.ts",
+       "lib/search/__tests__/rental-vocabulary-authority.test.ts",
        "tests/runtime/building-cotality-full-subset.test.ts",
        "tests/runtime/building-identity-profile.test.ts",
        "tests/runtime/building-payload-parity.test.ts",
@@ -250419,6 +250612,7 @@
       "status": "PASS",
       "files": [
        "lib/crm/__tests__/live-enum-boundary.test.ts",
+       "lib/search/__tests__/engine-rental-criteria.test.ts",
        "lib/search/__tests__/listing-search-projection.test.ts",
        "lib/search/__tests__/projection-write-suppression.test.ts",
        "lib/search/__tests__/public-listing-trestle.test.ts",
@@ -250515,7 +250709,7 @@
     "deadPath": false,
     "editable": true,
     "canonicalKeys": [],
-    "consumers": 20,
+    "consumers": 23,
     "consumerSites": [
      {
       "stage": "publicConsumer",
@@ -250560,7 +250754,7 @@
      {
       "stage": "projection",
       "file": "lib/search/types.ts",
-      "line": 136,
+      "line": 141,
       "node": "provider:Property.PetsAllowed",
       "tier": "string-literal",
       "workflow": "both"
@@ -250572,6 +250766,30 @@
       "node": "provider:Property.PetsAllowed",
       "tier": "string-literal",
       "workflow": null
+     },
+     {
+      "stage": "criterion",
+      "file": "lib/search/engine/criteria.ts",
+      "line": 57,
+      "node": "provider:Property.PetsAllowed",
+      "tier": "string-literal",
+      "workflow": "rental"
+     },
+     {
+      "stage": "criterion",
+      "file": "lib/search/engine/criteria.ts",
+      "line": 119,
+      "node": "provider:Property.PetsAllowed",
+      "tier": "string-literal",
+      "workflow": "both"
+     },
+     {
+      "stage": "criterion",
+      "file": "lib/search/engine/criteria.ts",
+      "line": 247,
+      "node": "provider:Property.PetsAllowed",
+      "tier": "string-literal",
+      "workflow": "sale"
      },
      {
       "stage": "select",
@@ -250624,7 +250842,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 430,
+      "line": 431,
       "node": "listings.features.PetsAllowed",
       "tier": "name-matched",
       "workflow": "both"
@@ -250632,7 +250850,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 430,
+      "line": 431,
       "node": "listings.features.PetsAllowed",
       "tier": "name-matched",
       "workflow": "both"
@@ -254695,8 +254913,8 @@
      "criterion": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/criteria.ts:99",
-       "lib/search/engine/criteria.ts:207",
+       "lib/search/engine/criteria.ts:117",
+       "lib/search/engine/criteria.ts:227",
        "lib/search/canonical/field-registry.ts:126",
        "app/api/listings/suggest/route.ts:321",
        "app/api/listings/suggest/route.ts:446",
@@ -254724,8 +254942,8 @@
      "saleSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/criteria.ts:99",
-       "lib/search/engine/criteria.ts:207",
+       "lib/search/engine/criteria.ts:117",
+       "lib/search/engine/criteria.ts:227",
        "lib/search/canonical/field-registry.ts:126",
        "lib/search/listing-search-projection.ts:473",
        "app/api/listings/suggest/route.ts:321",
@@ -254745,8 +254963,8 @@
      "rentalSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/criteria.ts:99",
-       "lib/search/engine/criteria.ts:207",
+       "lib/search/engine/criteria.ts:117",
+       "lib/search/engine/criteria.ts:227",
        "lib/search/canonical/field-registry.ts:126",
        "lib/search/listing-search-projection.ts:473",
        "app/api/listings/suggest/route.ts:321",
@@ -255342,7 +255560,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/engine/criteria.ts",
-      "line": 99,
+      "line": 117,
       "node": "provider:Property.PostalCode",
       "tier": "string-literal",
       "workflow": "both"
@@ -255350,7 +255568,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/engine/criteria.ts",
-      "line": 207,
+      "line": 227,
       "node": "provider:Property.PostalCode",
       "tier": "string-literal",
       "workflow": "both"
@@ -259903,10 +260121,11 @@
       },
       "Other": {
        "typed": 0,
-       "coOccurring": 2,
+       "coOccurring": 3,
        "sites": [
         "lib/search/canonical/live-truth.ts:61",
-        "lib/search/canonical/live-truth.ts:90"
+        "lib/search/canonical/live-truth.ts:90",
+        "lib/search/canonical/live-truth.ts:123"
        ]
       },
       "Quadruplex": {
@@ -260157,8 +260376,8 @@
      "criterion": {
       "status": "PASS",
       "sites": [
-       "lib/search/canonical/live-truth.ts:112",
-       "lib/search/canonical/live-truth.ts:113",
+       "lib/search/canonical/live-truth.ts:144",
+       "lib/search/canonical/live-truth.ts:145",
        "lib/search/canonical/field-registry.ts:170",
        "app/api/listings/route.ts:874",
        "lib/search/engine/universe.ts:88",
@@ -260184,8 +260403,8 @@
      "saleSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/canonical/live-truth.ts:112",
-       "lib/search/canonical/live-truth.ts:113",
+       "lib/search/canonical/live-truth.ts:144",
+       "lib/search/canonical/live-truth.ts:145",
        "lib/search/canonical/field-registry.ts:170",
        "app/api/listings/route.ts:874",
        "lib/search/engine/universe.ts:88",
@@ -260202,8 +260421,8 @@
      "rentalSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/canonical/live-truth.ts:112",
-       "lib/search/canonical/live-truth.ts:113",
+       "lib/search/canonical/live-truth.ts:144",
+       "lib/search/canonical/live-truth.ts:145",
        "lib/search/canonical/field-registry.ts:170",
        "app/api/listings/route.ts:874",
        "lib/search/engine/universe.ts:88",
@@ -260749,7 +260968,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/canonical/live-truth.ts",
-      "line": 112,
+      "line": 144,
       "node": "provider:Property.PropertySubType",
       "tier": "string-literal",
       "workflow": "both"
@@ -260757,7 +260976,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/canonical/live-truth.ts",
-      "line": 113,
+      "line": 145,
       "node": "provider:Property.PropertySubType",
       "tier": "string-literal",
       "workflow": "both"
@@ -262080,7 +262299,7 @@
      "criterion": {
       "status": "PASS",
       "sites": [
-       "lib/search/canonical/live-truth.ts:111",
+       "lib/search/canonical/live-truth.ts:143",
        "lib/search/canonical/field-registry.ts:131",
        "lib/search/canonical/field-registry.ts:132",
        "lib/search/public-listing-db.ts:198",
@@ -262107,7 +262326,7 @@
      "saleSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/canonical/live-truth.ts:111",
+       "lib/search/canonical/live-truth.ts:143",
        "lib/search/canonical/field-registry.ts:131",
        "lib/search/canonical/field-registry.ts:132",
        "lib/search/public-listing-db.ts:198",
@@ -262122,7 +262341,7 @@
      "rentalSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/canonical/live-truth.ts:111",
+       "lib/search/canonical/live-truth.ts:143",
        "lib/search/canonical/field-registry.ts:131",
        "lib/search/canonical/field-registry.ts:132",
        "lib/search/public-listing-db.ts:199",
@@ -262452,6 +262671,7 @@
        "lib/search/__tests__/crm-idx-mapper-fallbacks.test.ts",
        "lib/search/__tests__/crm-idx-mapper.test.ts",
        "lib/search/__tests__/engine-provider-query.test.ts",
+       "lib/search/__tests__/public-listing-trestle.test.ts",
        "tests/runtime/crm-patch-typed-attribution-preserve.test.ts",
        "tests/runtime/provider-authority-census.test.ts",
        "tests/runtime/provider-status-domain-census.test.ts"
@@ -262849,7 +263069,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/canonical/live-truth.ts",
-      "line": 111,
+      "line": 143,
       "node": "provider:Property.PropertyType",
       "tier": "string-literal",
       "workflow": "both"
@@ -264169,7 +264389,7 @@
      "criterion": {
       "status": "PASS",
       "sites": [
-       "lib/search/public-listing-db.ts:459",
+       "lib/search/public-listing-db.ts:460",
        "app/api/listings/route.ts:859"
       ]
      },
@@ -264180,15 +264400,15 @@
      "sorting": {
       "status": "PASS",
       "sites": [
-       "lib/search/public-listing-db.ts:459"
+       "lib/search/public-listing-db.ts:460"
       ]
      },
      "saleSearch": {
       "status": "PASS",
       "sites": [
        "lib/search/listing-search-projection.ts:255",
-       "lib/search/public-listing-db.ts:459",
-       "lib/search/public-listing-db.ts:459",
+       "lib/search/public-listing-db.ts:460",
+       "lib/search/public-listing-db.ts:460",
        "app/api/listings/route.ts:859"
       ]
      },
@@ -264196,8 +264416,8 @@
       "status": "PASS",
       "sites": [
        "lib/search/listing-search-projection.ts:255",
-       "lib/search/public-listing-db.ts:459",
-       "lib/search/public-listing-db.ts:459",
+       "lib/search/public-listing-db.ts:460",
+       "lib/search/public-listing-db.ts:460",
        "app/api/listings/route.ts:859"
       ]
      },
@@ -264611,7 +264831,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 459,
+      "line": 460,
       "node": "listings.features.PublicRemarks",
       "tier": "name-matched",
       "workflow": "both"
@@ -264619,7 +264839,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 459,
+      "line": 460,
       "node": "listings.features.PublicRemarks",
       "tier": "name-matched",
       "workflow": "both"
@@ -270337,7 +270557,8 @@
     "Compliance",
     "Rental Form",
     "Rental Search",
-    "Rental Tools"
+    "Rental Tools",
+    "Sale Search"
    ],
    "mallan": {
     "stage": {
@@ -270373,8 +270594,13 @@
       "sites": []
      },
      "criterion": {
-      "status": "MISSING",
-      "sites": []
+      "status": "PASS",
+      "sites": [
+       "lib/search/engine/criteria.ts:57",
+       "lib/search/engine/criteria.ts:119",
+       "lib/search/engine/criteria.ts:257",
+       "lib/search/engine/criteria.ts:259"
+      ]
      },
      "amenityMap": {
       "status": "MISSING",
@@ -270385,12 +270611,19 @@
       "sites": []
      },
      "saleSearch": {
-      "status": "MISSING",
-      "sites": []
+      "status": "PASS",
+      "sites": [
+       "lib/search/engine/criteria.ts:119",
+       "lib/search/engine/criteria.ts:257",
+       "lib/search/engine/criteria.ts:259"
+      ]
      },
      "rentalSearch": {
-      "status": "MISSING",
-      "sites": []
+      "status": "PASS",
+      "sites": [
+       "lib/search/engine/criteria.ts:57",
+       "lib/search/engine/criteria.ts:119"
+      ]
      },
      "saleForm": {
       "status": "MISSING",
@@ -270423,16 +270656,19 @@
       "sites": []
      },
      "listingWorkspace": {
-      "status": "MISSING",
-      "sites": []
+      "status": "REACHABLE",
+      "sites": [],
+      "via": "app/api/crm/saved-searches/route.ts ← lib/search/engine/criteria.ts"
      },
      "savedSearch": {
-      "status": "MISSING",
-      "sites": []
+      "status": "REACHABLE",
+      "sites": [],
+      "via": "lib/search/engine/saved-search.ts ← lib/search/engine/criteria.ts"
      },
      "alerts": {
-      "status": "MISSING",
-      "sites": []
+      "status": "REACHABLE",
+      "sites": [],
+      "via": "lib/search/alert-delivery-history.ts ← lib/search/engine/criteria.ts"
      },
      "cma": {
       "status": "MISSING",
@@ -270451,8 +270687,9 @@
       "sites": []
      },
      "publicConsumer": {
-      "status": "MISSING",
-      "sites": []
+      "status": "REACHABLE",
+      "sites": [],
+      "via": "app/api/idx/ensure-listing/route.ts ← lib/search/engine/criteria.ts"
      },
      "complianceRule": {
       "status": "MISSING",
@@ -270467,8 +270704,11 @@
       "sites": []
      },
      "directTest": {
-      "status": "MISSING",
-      "files": []
+      "status": "PASS",
+      "files": [
+       "lib/search/__tests__/engine-rental-criteria.test.ts",
+       "lib/search/__tests__/rental-vocabulary-authority.test.ts"
+      ]
      },
      "negativeTest": {
       "status": "MISSING",
@@ -270495,7 +270735,7 @@
       "status": "UNVERIFIED"
      },
      "searchPath": {
-      "status": "MISSING"
+      "status": "PASS"
      },
      "publicBehavior": {
       "status": "UNVERIFIED"
@@ -270516,8 +270756,8 @@
      "mapping": "PASS",
      "storage": "PASS",
      "reload": "N/A",
-     "saleSearch": "MISSING",
-     "rentalSearch": "MISSING",
+     "saleSearch": "PASS",
+     "rentalSearch": "PASS",
      "saleForm": "MISSING",
      "rentalForm": "PASS",
      "saleTools": "MISSING",
@@ -270525,7 +270765,7 @@
      "cma": "MISSING",
      "reporting": "MISSING",
      "memberVisibility": "MISSING",
-     "publicVisibility": "MISSING",
+     "publicVisibility": "REACHABLE",
      "compliance": "MISSING",
      "runtimeProof": "UNVERIFIED"
     },
@@ -270542,21 +270782,53 @@
      "directTest"
     ],
     "missingStatic": [
-     "rentalSearch",
      "resultDto",
-     "publicConsumer",
      "rentalTools",
-     "complianceRule",
-     "directTest"
+     "complianceRule"
     ],
     "defects": [],
-    "unverified": [],
+    "unverified": [
+     "publicConsumer"
+    ],
     "verdict": "PARTIAL",
     "deadPath": false,
     "editable": false,
     "canonicalKeys": [],
-    "consumers": 0,
-    "consumerSites": [],
+    "consumers": 4,
+    "consumerSites": [
+     {
+      "stage": "criterion",
+      "file": "lib/search/engine/criteria.ts",
+      "line": 57,
+      "node": "provider:Property.SecurityDeposit",
+      "tier": "string-literal",
+      "workflow": "rental"
+     },
+     {
+      "stage": "criterion",
+      "file": "lib/search/engine/criteria.ts",
+      "line": 119,
+      "node": "provider:Property.SecurityDeposit",
+      "tier": "string-literal",
+      "workflow": "both"
+     },
+     {
+      "stage": "criterion",
+      "file": "lib/search/engine/criteria.ts",
+      "line": 257,
+      "node": "provider:Property.SecurityDeposit",
+      "tier": "string-literal",
+      "workflow": "sale"
+     },
+     {
+      "stage": "criterion",
+      "file": "lib/search/engine/criteria.ts",
+      "line": 259,
+      "node": "provider:Property.SecurityDeposit",
+      "tier": "string-literal",
+      "workflow": "sale"
+     }
+    ],
     "wiredForSync": true
    }
   },
@@ -280299,9 +280571,9 @@
      "criterion": {
       "status": "PASS",
       "sites": [
-       "lib/search/canonical/live-truth.ts:109",
-       "lib/search/engine/criteria.ts:97",
-       "lib/search/engine/criteria.ts:165",
+       "lib/search/canonical/live-truth.ts:141",
+       "lib/search/engine/criteria.ts:115",
+       "lib/search/engine/criteria.ts:185",
        "app/api/listings/suggest/route.ts:87",
        "lib/search/canonical/field-registry.ts:135",
        "lib/search/public-listing-db.ts:178",
@@ -280335,9 +280607,9 @@
      "saleSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/canonical/live-truth.ts:109",
-       "lib/search/engine/criteria.ts:97",
-       "lib/search/engine/criteria.ts:165",
+       "lib/search/canonical/live-truth.ts:141",
+       "lib/search/engine/criteria.ts:115",
+       "lib/search/engine/criteria.ts:185",
        "app/api/listings/suggest/route.ts:87",
        "lib/search/canonical/field-registry.ts:135",
        "lib/search/public-listing-db.ts:178",
@@ -280362,9 +280634,9 @@
      "rentalSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/canonical/live-truth.ts:109",
-       "lib/search/engine/criteria.ts:97",
-       "lib/search/engine/criteria.ts:165",
+       "lib/search/canonical/live-truth.ts:141",
+       "lib/search/engine/criteria.ts:115",
+       "lib/search/engine/criteria.ts:185",
        "app/api/listings/suggest/route.ts:87",
        "lib/search/canonical/field-registry.ts:135",
        "lib/search/public-listing-db.ts:178",
@@ -282110,7 +282382,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/canonical/live-truth.ts",
-      "line": 109,
+      "line": 141,
       "node": "provider:Property.StandardStatus",
       "tier": "string-literal",
       "workflow": "both"
@@ -282118,7 +282390,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/engine/criteria.ts",
-      "line": 97,
+      "line": 115,
       "node": "provider:Property.StandardStatus",
       "tier": "string-literal",
       "workflow": "both"
@@ -282126,7 +282398,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/engine/criteria.ts",
-      "line": 165,
+      "line": 185,
       "node": "provider:Property.StandardStatus",
       "tier": "string-literal",
       "workflow": "both"
@@ -300107,10 +300379,11 @@
       },
       "Other": {
        "typed": 0,
-       "coOccurring": 2,
+       "coOccurring": 3,
        "sites": [
         "lib/search/canonical/live-truth.ts:61",
-        "lib/search/canonical/live-truth.ts:90"
+        "lib/search/canonical/live-truth.ts:90",
+        "lib/search/canonical/live-truth.ts:123"
        ]
       },
       "Quadruplex": {
@@ -300229,9 +300502,9 @@
      "criterion": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/criteria.ts:98",
-       "lib/search/engine/criteria.ts:202",
-       "lib/search/engine/criteria.ts:204",
+       "lib/search/engine/criteria.ts:116",
+       "lib/search/engine/criteria.ts:222",
+       "lib/search/engine/criteria.ts:224",
        "lib/search/canonical/field-registry.ts:171"
       ]
      },
@@ -300246,18 +300519,18 @@
      "saleSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/criteria.ts:98",
-       "lib/search/engine/criteria.ts:202",
-       "lib/search/engine/criteria.ts:204",
+       "lib/search/engine/criteria.ts:116",
+       "lib/search/engine/criteria.ts:222",
+       "lib/search/engine/criteria.ts:224",
        "lib/search/canonical/field-registry.ts:171"
       ]
      },
      "rentalSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/criteria.ts:98",
-       "lib/search/engine/criteria.ts:202",
-       "lib/search/engine/criteria.ts:204",
+       "lib/search/engine/criteria.ts:116",
+       "lib/search/engine/criteria.ts:222",
+       "lib/search/engine/criteria.ts:224",
        "lib/search/canonical/field-registry.ts:171"
       ]
      },
@@ -300551,7 +300824,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/engine/criteria.ts",
-      "line": 98,
+      "line": 116,
       "node": "provider:Property.StructureType",
       "tier": "string-literal",
       "workflow": "both"
@@ -300559,7 +300832,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/engine/criteria.ts",
-      "line": 202,
+      "line": 222,
       "node": "provider:Property.StructureType",
       "tier": "string-literal",
       "workflow": "both"
@@ -300567,7 +300840,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/engine/criteria.ts",
-      "line": 204,
+      "line": 224,
       "node": "provider:Property.StructureType",
       "tier": "string-literal",
       "workflow": "both"
@@ -301427,8 +301700,8 @@
      "criterion": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/criteria.ts:98",
-       "lib/search/engine/criteria.ts:194",
+       "lib/search/engine/criteria.ts:116",
+       "lib/search/engine/criteria.ts:214",
        "lib/search/canonical/field-registry.ts:124",
        "lib/search/public-listing-db.ts:287",
        "lib/search/public-listing-db.ts:335",
@@ -301451,8 +301724,8 @@
      "saleSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/criteria.ts:98",
-       "lib/search/engine/criteria.ts:194",
+       "lib/search/engine/criteria.ts:116",
+       "lib/search/engine/criteria.ts:214",
        "lib/search/canonical/field-registry.ts:124",
        "lib/search/public-listing-db.ts:287",
        "lib/search/public-listing-db.ts:287",
@@ -301466,8 +301739,8 @@
      "rentalSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/engine/criteria.ts:98",
-       "lib/search/engine/criteria.ts:194",
+       "lib/search/engine/criteria.ts:116",
+       "lib/search/engine/criteria.ts:214",
        "lib/search/canonical/field-registry.ts:124",
        "lib/search/public-listing-db.ts:287",
        "lib/search/public-listing-db.ts:287",
@@ -302143,7 +302416,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/engine/criteria.ts",
-      "line": 98,
+      "line": 116,
       "node": "provider:Property.SubdivisionName",
       "tier": "string-literal",
       "workflow": "both"
@@ -302151,7 +302424,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/engine/criteria.ts",
-      "line": 194,
+      "line": 214,
       "node": "provider:Property.SubdivisionName",
       "tier": "string-literal",
       "workflow": "both"
@@ -317832,16 +318105,16 @@
         "lib/idx/trestle-mapper.ts:1297",
         "lib/idx/trestle-mapper.ts:1325",
         "lib/compliance/rebny-ucba-rules.ts:52",
-        "lib/search/types.ts:140",
-        "lib/search/types.ts:141"
+        "lib/search/types.ts:145",
+        "lib/search/types.ts:146"
        ]
       },
       "CityLights": {
        "typed": 0,
        "coOccurring": 2,
        "sites": [
-        "lib/search/types.ts:140",
-        "lib/search/types.ts:141"
+        "lib/search/types.ts:145",
+        "lib/search/types.ts:146"
        ]
       },
       "Courtyard": {
@@ -317856,15 +318129,15 @@
        "typed": 0,
        "coOccurring": 2,
        "sites": [
-        "lib/search/types.ts:140",
-        "lib/search/types.ts:141"
+        "lib/search/types.ts:145",
+        "lib/search/types.ts:146"
        ]
       },
       "Garden": {
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/search/types.ts:132"
+        "lib/search/types.ts:134"
        ]
       },
       "Neighborhood": {
@@ -317890,8 +318163,8 @@
        "typed": 0,
        "coOccurring": 2,
        "sites": [
-        "lib/search/types.ts:138",
-        "lib/search/types.ts:141"
+        "lib/search/types.ts:143",
+        "lib/search/types.ts:146"
        ]
       },
       "Pool": {
@@ -317899,7 +318172,7 @@
        "coOccurring": 4,
        "sites": [
         "lib/buildings/public-building-data.ts:262",
-        "lib/search/types.ts:117",
+        "lib/search/types.ts:119",
         "app/listing/[...slug]/page.tsx:1080",
         "app/components/ListingSidePanel.tsx:250"
        ]
@@ -317920,8 +318193,8 @@
        "typed": 0,
        "coOccurring": 2,
        "sites": [
-        "lib/search/types.ts:139",
-        "lib/search/types.ts:141"
+        "lib/search/types.ts:144",
+        "lib/search/types.ts:146"
        ]
       },
       "SeeRemarks": {
@@ -317935,8 +318208,8 @@
        "typed": 0,
        "coOccurring": 2,
        "sites": [
-        "lib/search/types.ts:140",
-        "lib/search/types.ts:141"
+        "lib/search/types.ts:145",
+        "lib/search/types.ts:146"
        ]
       },
       "Street": {
@@ -317950,8 +318223,8 @@
        "typed": 0,
        "coOccurring": 2,
        "sites": [
-        "lib/search/types.ts:139",
-        "lib/search/types.ts:141"
+        "lib/search/types.ts:144",
+        "lib/search/types.ts:146"
        ]
       }
      },
@@ -318097,10 +318370,10 @@
      "projection": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:138",
-       "lib/search/types.ts:139",
-       "lib/search/types.ts:140",
-       "lib/search/types.ts:141"
+       "lib/search/types.ts:143",
+       "lib/search/types.ts:144",
+       "lib/search/types.ts:145",
+       "lib/search/types.ts:146"
       ]
      },
      "criterion": {
@@ -318123,19 +318396,19 @@
      "saleSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:138",
-       "lib/search/types.ts:139",
-       "lib/search/types.ts:140",
-       "lib/search/types.ts:141"
+       "lib/search/types.ts:143",
+       "lib/search/types.ts:144",
+       "lib/search/types.ts:145",
+       "lib/search/types.ts:146"
       ]
      },
      "rentalSearch": {
       "status": "PASS",
       "sites": [
-       "lib/search/types.ts:138",
-       "lib/search/types.ts:139",
-       "lib/search/types.ts:140",
-       "lib/search/types.ts:141"
+       "lib/search/types.ts:143",
+       "lib/search/types.ts:144",
+       "lib/search/types.ts:145",
+       "lib/search/types.ts:146"
       ]
      },
      "saleForm": {
@@ -318464,7 +318737,7 @@
      {
       "stage": "projection",
       "file": "lib/search/types.ts",
-      "line": 138,
+      "line": 143,
       "node": "provider:Property.View",
       "tier": "string-literal",
       "workflow": "both"
@@ -318472,7 +318745,7 @@
      {
       "stage": "projection",
       "file": "lib/search/types.ts",
-      "line": 139,
+      "line": 144,
       "node": "provider:Property.View",
       "tier": "string-literal",
       "workflow": "both"
@@ -318480,7 +318753,7 @@
      {
       "stage": "projection",
       "file": "lib/search/types.ts",
-      "line": 140,
+      "line": 145,
       "node": "provider:Property.View",
       "tier": "string-literal",
       "workflow": "both"
@@ -318488,7 +318761,7 @@
      {
       "stage": "projection",
       "file": "lib/search/types.ts",
-      "line": 141,
+      "line": 146,
       "node": "provider:Property.View",
       "tier": "string-literal",
       "workflow": "both"
@@ -330104,7 +330377,7 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:150"
        ]
       },
@@ -330115,22 +330388,22 @@
       "sorting": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126"
+        "lib/search/engine/provider-query.ts:135"
        ]
       },
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:150"
        ]
       },
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:150"
        ]
       },
@@ -330538,7 +330811,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ModificationTimestamp",
        "tier": "string-literal",
        "workflow": "both"
@@ -330546,7 +330819,7 @@
       {
        "stage": "sorting",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ModificationTimestamp",
        "tier": "string-literal",
        "workflow": "both"
@@ -335792,7 +336065,7 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:111",
+        "lib/search/canonical/live-truth.ts:143",
         "lib/search/canonical/field-registry.ts:131",
         "lib/search/canonical/field-registry.ts:132"
        ]
@@ -335808,7 +336081,7 @@
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:111",
+        "lib/search/canonical/live-truth.ts:143",
         "lib/search/canonical/field-registry.ts:131",
         "lib/search/canonical/field-registry.ts:132"
        ]
@@ -335816,7 +336089,7 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:111",
+        "lib/search/canonical/live-truth.ts:143",
         "lib/search/canonical/field-registry.ts:131",
         "lib/search/canonical/field-registry.ts:132"
        ]
@@ -336026,6 +336299,7 @@
         "lib/search/__tests__/crm-idx-mapper-fallbacks.test.ts",
         "lib/search/__tests__/crm-idx-mapper.test.ts",
         "lib/search/__tests__/engine-provider-query.test.ts",
+        "lib/search/__tests__/public-listing-trestle.test.ts",
         "tests/runtime/crm-patch-typed-attribution-preserve.test.ts",
         "tests/runtime/provider-authority-census.test.ts",
         "tests/runtime/provider-status-domain-census.test.ts"
@@ -336356,7 +336630,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/canonical/live-truth.ts",
-       "line": 111,
+       "line": 143,
        "node": "provider:Property.PropertyType",
        "tier": "string-literal",
        "workflow": "both"
@@ -336696,9 +336970,9 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:109",
-        "lib/search/engine/criteria.ts:97",
-        "lib/search/engine/criteria.ts:165",
+        "lib/search/canonical/live-truth.ts:141",
+        "lib/search/engine/criteria.ts:115",
+        "lib/search/engine/criteria.ts:185",
         "app/api/listings/suggest/route.ts:87",
         "lib/search/canonical/field-registry.ts:135"
        ]
@@ -336714,9 +336988,9 @@
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:109",
-        "lib/search/engine/criteria.ts:97",
-        "lib/search/engine/criteria.ts:165",
+        "lib/search/canonical/live-truth.ts:141",
+        "lib/search/engine/criteria.ts:115",
+        "lib/search/engine/criteria.ts:185",
         "app/api/listings/suggest/route.ts:87",
         "lib/search/canonical/field-registry.ts:135"
        ]
@@ -336724,9 +336998,9 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:109",
-        "lib/search/engine/criteria.ts:97",
-        "lib/search/engine/criteria.ts:165",
+        "lib/search/canonical/live-truth.ts:141",
+        "lib/search/engine/criteria.ts:115",
+        "lib/search/engine/criteria.ts:185",
         "app/api/listings/suggest/route.ts:87",
         "lib/search/canonical/field-registry.ts:135"
        ]
@@ -337193,7 +337467,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/canonical/live-truth.ts",
-       "line": 109,
+       "line": 141,
        "node": "provider:Property.StandardStatus",
        "tier": "string-literal",
        "workflow": "both"
@@ -337201,7 +337475,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/criteria.ts",
-       "line": 97,
+       "line": 115,
        "node": "provider:Property.StandardStatus",
        "tier": "string-literal",
        "workflow": "both"
@@ -337209,7 +337483,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/criteria.ts",
-       "line": 165,
+       "line": 185,
        "node": "provider:Property.StandardStatus",
        "tier": "string-literal",
        "workflow": "both"
@@ -338056,8 +338330,8 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:112",
-        "lib/search/canonical/live-truth.ts:113",
+        "lib/search/canonical/live-truth.ts:144",
+        "lib/search/canonical/live-truth.ts:145",
         "lib/search/canonical/field-registry.ts:170",
         "app/api/listings/route.ts:874"
        ]
@@ -338073,8 +338347,8 @@
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:112",
-        "lib/search/canonical/live-truth.ts:113",
+        "lib/search/canonical/live-truth.ts:144",
+        "lib/search/canonical/live-truth.ts:145",
         "lib/search/canonical/field-registry.ts:170",
         "app/api/listings/route.ts:874"
        ]
@@ -338082,8 +338356,8 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:112",
-        "lib/search/canonical/live-truth.ts:113",
+        "lib/search/canonical/live-truth.ts:144",
+        "lib/search/canonical/live-truth.ts:145",
         "lib/search/canonical/field-registry.ts:170",
         "app/api/listings/route.ts:874"
        ]
@@ -338551,7 +338825,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/canonical/live-truth.ts",
-       "line": 112,
+       "line": 144,
        "node": "provider:Property.PropertySubType",
        "tier": "string-literal",
        "workflow": "both"
@@ -338559,7 +338833,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/canonical/live-truth.ts",
-       "line": 113,
+       "line": 145,
        "node": "provider:Property.PropertySubType",
        "tier": "string-literal",
        "workflow": "both"
@@ -348940,7 +349214,7 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:114",
+        "lib/search/canonical/live-truth.ts:146",
         "app/api/listings/suggest/route.ts:89",
         "lib/search/canonical/field-registry.ts:198"
        ]
@@ -348956,7 +349230,7 @@
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:114",
+        "lib/search/canonical/live-truth.ts:146",
         "app/api/listings/suggest/route.ts:89",
         "lib/search/canonical/field-registry.ts:198"
        ]
@@ -348964,7 +349238,7 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:114",
+        "lib/search/canonical/live-truth.ts:146",
         "app/api/listings/suggest/route.ts:89",
         "lib/search/canonical/field-registry.ts:198"
        ]
@@ -349310,7 +349584,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/canonical/live-truth.ts",
-       "line": 114,
+       "line": 146,
        "node": "provider:Property.Permission",
        "tier": "string-literal",
        "workflow": "both"
@@ -352134,9 +352408,9 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/criteria.ts:99",
-        "lib/search/engine/criteria.ts:210",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/criteria.ts:117",
+        "lib/search/engine/criteria.ts:230",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:147",
         "app/api/listings/suggest/route.ts:84",
         "lib/search/canonical/field-registry.ts:116",
@@ -352151,16 +352425,16 @@
       "sorting": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126"
+        "lib/search/engine/provider-query.ts:135"
        ]
       },
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/criteria.ts:99",
-        "lib/search/engine/criteria.ts:210",
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/criteria.ts:117",
+        "lib/search/engine/criteria.ts:230",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:147",
         "app/api/listings/suggest/route.ts:84",
         "lib/search/canonical/field-registry.ts:116",
@@ -352171,10 +352445,10 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/criteria.ts:99",
-        "lib/search/engine/criteria.ts:210",
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/criteria.ts:117",
+        "lib/search/engine/criteria.ts:230",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:147",
         "app/api/listings/suggest/route.ts:84",
         "lib/search/canonical/field-registry.ts:116",
@@ -352864,7 +353138,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/criteria.ts",
-       "line": 99,
+       "line": 117,
        "node": "provider:Property.ListingId",
        "tier": "string-literal",
        "workflow": "both"
@@ -352872,7 +353146,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/criteria.ts",
-       "line": 210,
+       "line": 230,
        "node": "provider:Property.ListingId",
        "tier": "string-literal",
        "workflow": "both"
@@ -352880,7 +353154,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ListingId",
        "tier": "string-literal",
        "workflow": "both"
@@ -352888,7 +353162,7 @@
       {
        "stage": "sorting",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ListingId",
        "tier": "string-literal",
        "workflow": "both"
@@ -353521,7 +353795,7 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:146",
         "lib/search/engine/universe.ts:147",
         "app/api/idx/search/route.ts:71",
@@ -353540,14 +353814,14 @@
       "sorting": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126"
+        "lib/search/engine/provider-query.ts:135"
        ]
       },
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:146",
         "lib/search/engine/universe.ts:147",
         "app/api/idx/search/route.ts:71",
@@ -353564,8 +353838,8 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:146",
         "lib/search/engine/universe.ts:147",
         "app/api/idx/search/route.ts:71",
@@ -354067,7 +354341,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ListingKey",
        "tier": "string-literal",
        "workflow": "both"
@@ -354075,7 +354349,7 @@
       {
        "stage": "sorting",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ListingKey",
        "tier": "string-literal",
        "workflow": "both"
@@ -355565,7 +355839,7 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:150"
        ]
       },
@@ -355576,22 +355850,22 @@
       "sorting": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126"
+        "lib/search/engine/provider-query.ts:135"
        ]
       },
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:150"
        ]
       },
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:150"
        ]
       },
@@ -356000,7 +356274,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ModificationTimestamp",
        "tier": "string-literal",
        "workflow": "both"
@@ -356008,7 +356282,7 @@
       {
        "stage": "sorting",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ModificationTimestamp",
        "tier": "string-literal",
        "workflow": "both"
@@ -359629,8 +359903,8 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:112",
-        "lib/search/canonical/live-truth.ts:113",
+        "lib/search/canonical/live-truth.ts:144",
+        "lib/search/canonical/live-truth.ts:145",
         "lib/search/canonical/field-registry.ts:170",
         "app/api/listings/route.ts:874"
        ]
@@ -359646,8 +359920,8 @@
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:112",
-        "lib/search/canonical/live-truth.ts:113",
+        "lib/search/canonical/live-truth.ts:144",
+        "lib/search/canonical/live-truth.ts:145",
         "lib/search/canonical/field-registry.ts:170",
         "app/api/listings/route.ts:874"
        ]
@@ -359655,8 +359929,8 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:112",
-        "lib/search/canonical/live-truth.ts:113",
+        "lib/search/canonical/live-truth.ts:144",
+        "lib/search/canonical/live-truth.ts:145",
         "lib/search/canonical/field-registry.ts:170",
         "app/api/listings/route.ts:874"
        ]
@@ -360124,7 +360398,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/canonical/live-truth.ts",
-       "line": 112,
+       "line": 144,
        "node": "provider:Property.PropertySubType",
        "tier": "string-literal",
        "workflow": "both"
@@ -360132,7 +360406,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/canonical/live-truth.ts",
-       "line": 113,
+       "line": 145,
        "node": "provider:Property.PropertySubType",
        "tier": "string-literal",
        "workflow": "both"
@@ -360566,7 +360840,7 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:111",
+        "lib/search/canonical/live-truth.ts:143",
         "lib/search/canonical/field-registry.ts:131",
         "lib/search/canonical/field-registry.ts:132"
        ]
@@ -360582,7 +360856,7 @@
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:111",
+        "lib/search/canonical/live-truth.ts:143",
         "lib/search/canonical/field-registry.ts:131",
         "lib/search/canonical/field-registry.ts:132"
        ]
@@ -360590,7 +360864,7 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:111",
+        "lib/search/canonical/live-truth.ts:143",
         "lib/search/canonical/field-registry.ts:131",
         "lib/search/canonical/field-registry.ts:132"
        ]
@@ -360800,6 +361074,7 @@
         "lib/search/__tests__/crm-idx-mapper-fallbacks.test.ts",
         "lib/search/__tests__/crm-idx-mapper.test.ts",
         "lib/search/__tests__/engine-provider-query.test.ts",
+        "lib/search/__tests__/public-listing-trestle.test.ts",
         "tests/runtime/crm-patch-typed-attribution-preserve.test.ts",
         "tests/runtime/provider-authority-census.test.ts",
         "tests/runtime/provider-status-domain-census.test.ts"
@@ -361130,7 +361405,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/canonical/live-truth.ts",
-       "line": 111,
+       "line": 143,
        "node": "provider:Property.PropertyType",
        "tier": "string-literal",
        "workflow": "both"
@@ -362235,9 +362510,9 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:109",
-        "lib/search/engine/criteria.ts:97",
-        "lib/search/engine/criteria.ts:165",
+        "lib/search/canonical/live-truth.ts:141",
+        "lib/search/engine/criteria.ts:115",
+        "lib/search/engine/criteria.ts:185",
         "app/api/listings/suggest/route.ts:87",
         "lib/search/canonical/field-registry.ts:135"
        ]
@@ -362253,9 +362528,9 @@
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:109",
-        "lib/search/engine/criteria.ts:97",
-        "lib/search/engine/criteria.ts:165",
+        "lib/search/canonical/live-truth.ts:141",
+        "lib/search/engine/criteria.ts:115",
+        "lib/search/engine/criteria.ts:185",
         "app/api/listings/suggest/route.ts:87",
         "lib/search/canonical/field-registry.ts:135"
        ]
@@ -362263,9 +362538,9 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:109",
-        "lib/search/engine/criteria.ts:97",
-        "lib/search/engine/criteria.ts:165",
+        "lib/search/canonical/live-truth.ts:141",
+        "lib/search/engine/criteria.ts:115",
+        "lib/search/engine/criteria.ts:185",
         "app/api/listings/suggest/route.ts:87",
         "lib/search/canonical/field-registry.ts:135"
        ]
@@ -362732,7 +363007,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/canonical/live-truth.ts",
-       "line": 109,
+       "line": 141,
        "node": "provider:Property.StandardStatus",
        "tier": "string-literal",
        "workflow": "both"
@@ -362740,7 +363015,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/criteria.ts",
-       "line": 97,
+       "line": 115,
        "node": "provider:Property.StandardStatus",
        "tier": "string-literal",
        "workflow": "both"
@@ -362748,7 +363023,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/criteria.ts",
-       "line": 165,
+       "line": 185,
        "node": "provider:Property.StandardStatus",
        "tier": "string-literal",
        "workflow": "both"
@@ -369828,7 +370103,7 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:114",
+        "lib/search/canonical/live-truth.ts:146",
         "app/api/listings/suggest/route.ts:89",
         "lib/search/canonical/field-registry.ts:198"
        ]
@@ -369844,7 +370119,7 @@
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:114",
+        "lib/search/canonical/live-truth.ts:146",
         "app/api/listings/suggest/route.ts:89",
         "lib/search/canonical/field-registry.ts:198"
        ]
@@ -369852,7 +370127,7 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:114",
+        "lib/search/canonical/live-truth.ts:146",
         "app/api/listings/suggest/route.ts:89",
         "lib/search/canonical/field-registry.ts:198"
        ]
@@ -370199,7 +370474,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/canonical/live-truth.ts",
-       "line": 114,
+       "line": 146,
        "node": "provider:Property.Permission",
        "tier": "string-literal",
        "workflow": "both"
@@ -373472,9 +373747,9 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/criteria.ts:99",
-        "lib/search/engine/criteria.ts:210",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/criteria.ts:117",
+        "lib/search/engine/criteria.ts:230",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:147",
         "app/api/listings/suggest/route.ts:84",
         "lib/search/canonical/field-registry.ts:116",
@@ -373489,16 +373764,16 @@
       "sorting": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126"
+        "lib/search/engine/provider-query.ts:135"
        ]
       },
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/criteria.ts:99",
-        "lib/search/engine/criteria.ts:210",
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/criteria.ts:117",
+        "lib/search/engine/criteria.ts:230",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:147",
         "app/api/listings/suggest/route.ts:84",
         "lib/search/canonical/field-registry.ts:116",
@@ -373509,10 +373784,10 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/criteria.ts:99",
-        "lib/search/engine/criteria.ts:210",
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/criteria.ts:117",
+        "lib/search/engine/criteria.ts:230",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:147",
         "app/api/listings/suggest/route.ts:84",
         "lib/search/canonical/field-registry.ts:116",
@@ -374203,7 +374478,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/criteria.ts",
-       "line": 99,
+       "line": 117,
        "node": "provider:Property.ListingId",
        "tier": "string-literal",
        "workflow": "both"
@@ -374211,7 +374486,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/criteria.ts",
-       "line": 210,
+       "line": 230,
        "node": "provider:Property.ListingId",
        "tier": "string-literal",
        "workflow": "both"
@@ -374219,7 +374494,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ListingId",
        "tier": "string-literal",
        "workflow": "both"
@@ -374227,7 +374502,7 @@
       {
        "stage": "sorting",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ListingId",
        "tier": "string-literal",
        "workflow": "both"
@@ -374856,7 +375131,7 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:146",
         "lib/search/engine/universe.ts:147",
         "app/api/idx/search/route.ts:71",
@@ -374875,14 +375150,14 @@
       "sorting": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126"
+        "lib/search/engine/provider-query.ts:135"
        ]
       },
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:146",
         "lib/search/engine/universe.ts:147",
         "app/api/idx/search/route.ts:71",
@@ -374899,8 +375174,8 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:146",
         "lib/search/engine/universe.ts:147",
         "app/api/idx/search/route.ts:71",
@@ -375403,7 +375678,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ListingKey",
        "tier": "string-literal",
        "workflow": "both"
@@ -375411,7 +375686,7 @@
       {
        "stage": "sorting",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ListingKey",
        "tier": "string-literal",
        "workflow": "both"
@@ -376901,7 +377176,7 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:150"
        ]
       },
@@ -376912,22 +377187,22 @@
       "sorting": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126"
+        "lib/search/engine/provider-query.ts:135"
        ]
       },
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:150"
        ]
       },
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:150"
        ]
       },
@@ -377336,7 +377611,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ModificationTimestamp",
        "tier": "string-literal",
        "workflow": "both"
@@ -377344,7 +377619,7 @@
       {
        "stage": "sorting",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ModificationTimestamp",
        "tier": "string-literal",
        "workflow": "both"
@@ -378434,7 +378709,7 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:111",
+        "lib/search/canonical/live-truth.ts:143",
         "lib/search/canonical/field-registry.ts:131",
         "lib/search/canonical/field-registry.ts:132"
        ]
@@ -378450,7 +378725,7 @@
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:111",
+        "lib/search/canonical/live-truth.ts:143",
         "lib/search/canonical/field-registry.ts:131",
         "lib/search/canonical/field-registry.ts:132"
        ]
@@ -378458,7 +378733,7 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:111",
+        "lib/search/canonical/live-truth.ts:143",
         "lib/search/canonical/field-registry.ts:131",
         "lib/search/canonical/field-registry.ts:132"
        ]
@@ -378668,6 +378943,7 @@
         "lib/search/__tests__/crm-idx-mapper-fallbacks.test.ts",
         "lib/search/__tests__/crm-idx-mapper.test.ts",
         "lib/search/__tests__/engine-provider-query.test.ts",
+        "lib/search/__tests__/public-listing-trestle.test.ts",
         "tests/runtime/crm-patch-typed-attribution-preserve.test.ts",
         "tests/runtime/provider-authority-census.test.ts",
         "tests/runtime/provider-status-domain-census.test.ts"
@@ -378998,7 +379274,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/canonical/live-truth.ts",
-       "line": 111,
+       "line": 143,
        "node": "provider:Property.PropertyType",
        "tier": "string-literal",
        "workflow": "both"
@@ -379338,9 +379614,9 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:109",
-        "lib/search/engine/criteria.ts:97",
-        "lib/search/engine/criteria.ts:165",
+        "lib/search/canonical/live-truth.ts:141",
+        "lib/search/engine/criteria.ts:115",
+        "lib/search/engine/criteria.ts:185",
         "app/api/listings/suggest/route.ts:87",
         "lib/search/canonical/field-registry.ts:135"
        ]
@@ -379356,9 +379632,9 @@
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:109",
-        "lib/search/engine/criteria.ts:97",
-        "lib/search/engine/criteria.ts:165",
+        "lib/search/canonical/live-truth.ts:141",
+        "lib/search/engine/criteria.ts:115",
+        "lib/search/engine/criteria.ts:185",
         "app/api/listings/suggest/route.ts:87",
         "lib/search/canonical/field-registry.ts:135"
        ]
@@ -379366,9 +379642,9 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:109",
-        "lib/search/engine/criteria.ts:97",
-        "lib/search/engine/criteria.ts:165",
+        "lib/search/canonical/live-truth.ts:141",
+        "lib/search/engine/criteria.ts:115",
+        "lib/search/engine/criteria.ts:185",
         "app/api/listings/suggest/route.ts:87",
         "lib/search/canonical/field-registry.ts:135"
        ]
@@ -379835,7 +380111,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/canonical/live-truth.ts",
-       "line": 109,
+       "line": 141,
        "node": "provider:Property.StandardStatus",
        "tier": "string-literal",
        "workflow": "both"
@@ -379843,7 +380119,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/criteria.ts",
-       "line": 97,
+       "line": 115,
        "node": "provider:Property.StandardStatus",
        "tier": "string-literal",
        "workflow": "both"
@@ -379851,7 +380127,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/criteria.ts",
-       "line": 165,
+       "line": 185,
        "node": "provider:Property.StandardStatus",
        "tier": "string-literal",
        "workflow": "both"
@@ -380416,8 +380692,8 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:112",
-        "lib/search/canonical/live-truth.ts:113",
+        "lib/search/canonical/live-truth.ts:144",
+        "lib/search/canonical/live-truth.ts:145",
         "lib/search/canonical/field-registry.ts:170",
         "app/api/listings/route.ts:874"
        ]
@@ -380433,8 +380709,8 @@
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:112",
-        "lib/search/canonical/live-truth.ts:113",
+        "lib/search/canonical/live-truth.ts:144",
+        "lib/search/canonical/live-truth.ts:145",
         "lib/search/canonical/field-registry.ts:170",
         "app/api/listings/route.ts:874"
        ]
@@ -380442,8 +380718,8 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:112",
-        "lib/search/canonical/live-truth.ts:113",
+        "lib/search/canonical/live-truth.ts:144",
+        "lib/search/canonical/live-truth.ts:145",
         "lib/search/canonical/field-registry.ts:170",
         "app/api/listings/route.ts:874"
        ]
@@ -380911,7 +381187,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/canonical/live-truth.ts",
-       "line": 112,
+       "line": 144,
        "node": "provider:Property.PropertySubType",
        "tier": "string-literal",
        "workflow": "both"
@@ -380919,7 +381195,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/canonical/live-truth.ts",
-       "line": 113,
+       "line": 145,
        "node": "provider:Property.PropertySubType",
        "tier": "string-literal",
        "workflow": "both"
@@ -408997,7 +409273,7 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:114",
+        "lib/search/canonical/live-truth.ts:146",
         "app/api/listings/suggest/route.ts:89",
         "lib/search/canonical/field-registry.ts:198"
        ]
@@ -409013,7 +409289,7 @@
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:114",
+        "lib/search/canonical/live-truth.ts:146",
         "app/api/listings/suggest/route.ts:89",
         "lib/search/canonical/field-registry.ts:198"
        ]
@@ -409021,7 +409297,7 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:114",
+        "lib/search/canonical/live-truth.ts:146",
         "app/api/listings/suggest/route.ts:89",
         "lib/search/canonical/field-registry.ts:198"
        ]
@@ -409368,7 +409644,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/canonical/live-truth.ts",
-       "line": 114,
+       "line": 146,
        "node": "provider:Property.Permission",
        "tier": "string-literal",
        "workflow": "both"
@@ -419626,9 +419902,9 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/criteria.ts:99",
-        "lib/search/engine/criteria.ts:210",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/criteria.ts:117",
+        "lib/search/engine/criteria.ts:230",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:147",
         "app/api/listings/suggest/route.ts:84",
         "lib/search/canonical/field-registry.ts:116",
@@ -419643,16 +419919,16 @@
       "sorting": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126"
+        "lib/search/engine/provider-query.ts:135"
        ]
       },
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/criteria.ts:99",
-        "lib/search/engine/criteria.ts:210",
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/criteria.ts:117",
+        "lib/search/engine/criteria.ts:230",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:147",
         "app/api/listings/suggest/route.ts:84",
         "lib/search/canonical/field-registry.ts:116",
@@ -419663,10 +419939,10 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/criteria.ts:99",
-        "lib/search/engine/criteria.ts:210",
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/criteria.ts:117",
+        "lib/search/engine/criteria.ts:230",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:147",
         "app/api/listings/suggest/route.ts:84",
         "lib/search/canonical/field-registry.ts:116",
@@ -420357,7 +420633,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/criteria.ts",
-       "line": 99,
+       "line": 117,
        "node": "provider:Property.ListingId",
        "tier": "string-literal",
        "workflow": "both"
@@ -420365,7 +420641,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/criteria.ts",
-       "line": 210,
+       "line": 230,
        "node": "provider:Property.ListingId",
        "tier": "string-literal",
        "workflow": "both"
@@ -420373,7 +420649,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ListingId",
        "tier": "string-literal",
        "workflow": "both"
@@ -420381,7 +420657,7 @@
       {
        "stage": "sorting",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ListingId",
        "tier": "string-literal",
        "workflow": "both"
@@ -421010,7 +421286,7 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:146",
         "lib/search/engine/universe.ts:147",
         "app/api/idx/search/route.ts:71",
@@ -421029,14 +421305,14 @@
       "sorting": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126"
+        "lib/search/engine/provider-query.ts:135"
        ]
       },
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:146",
         "lib/search/engine/universe.ts:147",
         "app/api/idx/search/route.ts:71",
@@ -421053,8 +421329,8 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:146",
         "lib/search/engine/universe.ts:147",
         "app/api/idx/search/route.ts:71",
@@ -421557,7 +421833,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ListingKey",
        "tier": "string-literal",
        "workflow": "both"
@@ -421565,7 +421841,7 @@
       {
        "stage": "sorting",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ListingKey",
        "tier": "string-literal",
        "workflow": "both"
@@ -423377,7 +423653,7 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:150"
        ]
       },
@@ -423388,22 +423664,22 @@
       "sorting": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126"
+        "lib/search/engine/provider-query.ts:135"
        ]
       },
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:150"
        ]
       },
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:150"
        ]
       },
@@ -423812,7 +424088,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ModificationTimestamp",
        "tier": "string-literal",
        "workflow": "both"
@@ -423820,7 +424096,7 @@
       {
        "stage": "sorting",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ModificationTimestamp",
        "tier": "string-literal",
        "workflow": "both"
@@ -425064,8 +425340,8 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:112",
-        "lib/search/canonical/live-truth.ts:113",
+        "lib/search/canonical/live-truth.ts:144",
+        "lib/search/canonical/live-truth.ts:145",
         "lib/search/canonical/field-registry.ts:170",
         "app/api/listings/route.ts:874"
        ]
@@ -425081,8 +425357,8 @@
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:112",
-        "lib/search/canonical/live-truth.ts:113",
+        "lib/search/canonical/live-truth.ts:144",
+        "lib/search/canonical/live-truth.ts:145",
         "lib/search/canonical/field-registry.ts:170",
         "app/api/listings/route.ts:874"
        ]
@@ -425090,8 +425366,8 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:112",
-        "lib/search/canonical/live-truth.ts:113",
+        "lib/search/canonical/live-truth.ts:144",
+        "lib/search/canonical/live-truth.ts:145",
         "lib/search/canonical/field-registry.ts:170",
         "app/api/listings/route.ts:874"
        ]
@@ -425559,7 +425835,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/canonical/live-truth.ts",
-       "line": 112,
+       "line": 144,
        "node": "provider:Property.PropertySubType",
        "tier": "string-literal",
        "workflow": "both"
@@ -425567,7 +425843,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/canonical/live-truth.ts",
-       "line": 113,
+       "line": 145,
        "node": "provider:Property.PropertySubType",
        "tier": "string-literal",
        "workflow": "both"
@@ -426001,7 +426277,7 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:111",
+        "lib/search/canonical/live-truth.ts:143",
         "lib/search/canonical/field-registry.ts:131",
         "lib/search/canonical/field-registry.ts:132"
        ]
@@ -426017,7 +426293,7 @@
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:111",
+        "lib/search/canonical/live-truth.ts:143",
         "lib/search/canonical/field-registry.ts:131",
         "lib/search/canonical/field-registry.ts:132"
        ]
@@ -426025,7 +426301,7 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:111",
+        "lib/search/canonical/live-truth.ts:143",
         "lib/search/canonical/field-registry.ts:131",
         "lib/search/canonical/field-registry.ts:132"
        ]
@@ -426235,6 +426511,7 @@
         "lib/search/__tests__/crm-idx-mapper-fallbacks.test.ts",
         "lib/search/__tests__/crm-idx-mapper.test.ts",
         "lib/search/__tests__/engine-provider-query.test.ts",
+        "lib/search/__tests__/public-listing-trestle.test.ts",
         "tests/runtime/crm-patch-typed-attribution-preserve.test.ts",
         "tests/runtime/provider-authority-census.test.ts",
         "tests/runtime/provider-status-domain-census.test.ts"
@@ -426565,7 +426842,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/canonical/live-truth.ts",
-       "line": 111,
+       "line": 143,
        "node": "provider:Property.PropertyType",
        "tier": "string-literal",
        "workflow": "both"
@@ -427652,9 +427929,9 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:109",
-        "lib/search/engine/criteria.ts:97",
-        "lib/search/engine/criteria.ts:165",
+        "lib/search/canonical/live-truth.ts:141",
+        "lib/search/engine/criteria.ts:115",
+        "lib/search/engine/criteria.ts:185",
         "app/api/listings/suggest/route.ts:87",
         "lib/search/canonical/field-registry.ts:135"
        ]
@@ -427670,9 +427947,9 @@
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:109",
-        "lib/search/engine/criteria.ts:97",
-        "lib/search/engine/criteria.ts:165",
+        "lib/search/canonical/live-truth.ts:141",
+        "lib/search/engine/criteria.ts:115",
+        "lib/search/engine/criteria.ts:185",
         "app/api/listings/suggest/route.ts:87",
         "lib/search/canonical/field-registry.ts:135"
        ]
@@ -427680,9 +427957,9 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:109",
-        "lib/search/engine/criteria.ts:97",
-        "lib/search/engine/criteria.ts:165",
+        "lib/search/canonical/live-truth.ts:141",
+        "lib/search/engine/criteria.ts:115",
+        "lib/search/engine/criteria.ts:185",
         "app/api/listings/suggest/route.ts:87",
         "lib/search/canonical/field-registry.ts:135"
        ]
@@ -428149,7 +428426,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/canonical/live-truth.ts",
-       "line": 109,
+       "line": 141,
        "node": "provider:Property.StandardStatus",
        "tier": "string-literal",
        "workflow": "both"
@@ -428157,7 +428434,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/criteria.ts",
-       "line": 97,
+       "line": 115,
        "node": "provider:Property.StandardStatus",
        "tier": "string-literal",
        "workflow": "both"
@@ -428165,7 +428442,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/criteria.ts",
-       "line": 165,
+       "line": 185,
        "node": "provider:Property.StandardStatus",
        "tier": "string-literal",
        "workflow": "both"
@@ -433325,7 +433602,7 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:114",
+        "lib/search/canonical/live-truth.ts:146",
         "app/api/listings/suggest/route.ts:89",
         "lib/search/canonical/field-registry.ts:198"
        ]
@@ -433341,7 +433618,7 @@
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:114",
+        "lib/search/canonical/live-truth.ts:146",
         "app/api/listings/suggest/route.ts:89",
         "lib/search/canonical/field-registry.ts:198"
        ]
@@ -433349,7 +433626,7 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:114",
+        "lib/search/canonical/live-truth.ts:146",
         "app/api/listings/suggest/route.ts:89",
         "lib/search/canonical/field-registry.ts:198"
        ]
@@ -433696,7 +433973,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/canonical/live-truth.ts",
-       "line": 114,
+       "line": 146,
        "node": "provider:Property.Permission",
        "tier": "string-literal",
        "workflow": "both"
@@ -439391,9 +439668,9 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/criteria.ts:99",
-        "lib/search/engine/criteria.ts:210",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/criteria.ts:117",
+        "lib/search/engine/criteria.ts:230",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:147",
         "app/api/listings/suggest/route.ts:84",
         "lib/search/canonical/field-registry.ts:116",
@@ -439408,16 +439685,16 @@
       "sorting": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126"
+        "lib/search/engine/provider-query.ts:135"
        ]
       },
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/criteria.ts:99",
-        "lib/search/engine/criteria.ts:210",
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/criteria.ts:117",
+        "lib/search/engine/criteria.ts:230",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:147",
         "app/api/listings/suggest/route.ts:84",
         "lib/search/canonical/field-registry.ts:116",
@@ -439428,10 +439705,10 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/criteria.ts:99",
-        "lib/search/engine/criteria.ts:210",
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/criteria.ts:117",
+        "lib/search/engine/criteria.ts:230",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:147",
         "app/api/listings/suggest/route.ts:84",
         "lib/search/canonical/field-registry.ts:116",
@@ -440122,7 +440399,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/criteria.ts",
-       "line": 99,
+       "line": 117,
        "node": "provider:Property.ListingId",
        "tier": "string-literal",
        "workflow": "both"
@@ -440130,7 +440407,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/criteria.ts",
-       "line": 210,
+       "line": 230,
        "node": "provider:Property.ListingId",
        "tier": "string-literal",
        "workflow": "both"
@@ -440138,7 +440415,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ListingId",
        "tier": "string-literal",
        "workflow": "both"
@@ -440146,7 +440423,7 @@
       {
        "stage": "sorting",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ListingId",
        "tier": "string-literal",
        "workflow": "both"
@@ -440775,7 +441052,7 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:146",
         "lib/search/engine/universe.ts:147",
         "app/api/idx/search/route.ts:71",
@@ -440794,14 +441071,14 @@
       "sorting": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126"
+        "lib/search/engine/provider-query.ts:135"
        ]
       },
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:146",
         "lib/search/engine/universe.ts:147",
         "app/api/idx/search/route.ts:71",
@@ -440818,8 +441095,8 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:146",
         "lib/search/engine/universe.ts:147",
         "app/api/idx/search/route.ts:71",
@@ -441322,7 +441599,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ListingKey",
        "tier": "string-literal",
        "workflow": "both"
@@ -441330,7 +441607,7 @@
       {
        "stage": "sorting",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ListingKey",
        "tier": "string-literal",
        "workflow": "both"
@@ -443142,7 +443419,7 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:150"
        ]
       },
@@ -443153,22 +443430,22 @@
       "sorting": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126"
+        "lib/search/engine/provider-query.ts:135"
        ]
       },
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:150"
        ]
       },
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:150"
        ]
       },
@@ -443577,7 +443854,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ModificationTimestamp",
        "tier": "string-literal",
        "workflow": "both"
@@ -443585,7 +443862,7 @@
       {
        "stage": "sorting",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ModificationTimestamp",
        "tier": "string-literal",
        "workflow": "both"
@@ -445134,8 +445411,8 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:112",
-        "lib/search/canonical/live-truth.ts:113",
+        "lib/search/canonical/live-truth.ts:144",
+        "lib/search/canonical/live-truth.ts:145",
         "lib/search/canonical/field-registry.ts:170",
         "app/api/listings/route.ts:874"
        ]
@@ -445151,8 +445428,8 @@
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:112",
-        "lib/search/canonical/live-truth.ts:113",
+        "lib/search/canonical/live-truth.ts:144",
+        "lib/search/canonical/live-truth.ts:145",
         "lib/search/canonical/field-registry.ts:170",
         "app/api/listings/route.ts:874"
        ]
@@ -445160,8 +445437,8 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:112",
-        "lib/search/canonical/live-truth.ts:113",
+        "lib/search/canonical/live-truth.ts:144",
+        "lib/search/canonical/live-truth.ts:145",
         "lib/search/canonical/field-registry.ts:170",
         "app/api/listings/route.ts:874"
        ]
@@ -445629,7 +445906,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/canonical/live-truth.ts",
-       "line": 112,
+       "line": 144,
        "node": "provider:Property.PropertySubType",
        "tier": "string-literal",
        "workflow": "both"
@@ -445637,7 +445914,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/canonical/live-truth.ts",
-       "line": 113,
+       "line": 145,
        "node": "provider:Property.PropertySubType",
        "tier": "string-literal",
        "workflow": "both"
@@ -446071,7 +446348,7 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:111",
+        "lib/search/canonical/live-truth.ts:143",
         "lib/search/canonical/field-registry.ts:131",
         "lib/search/canonical/field-registry.ts:132"
        ]
@@ -446087,7 +446364,7 @@
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:111",
+        "lib/search/canonical/live-truth.ts:143",
         "lib/search/canonical/field-registry.ts:131",
         "lib/search/canonical/field-registry.ts:132"
        ]
@@ -446095,7 +446372,7 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:111",
+        "lib/search/canonical/live-truth.ts:143",
         "lib/search/canonical/field-registry.ts:131",
         "lib/search/canonical/field-registry.ts:132"
        ]
@@ -446305,6 +446582,7 @@
         "lib/search/__tests__/crm-idx-mapper-fallbacks.test.ts",
         "lib/search/__tests__/crm-idx-mapper.test.ts",
         "lib/search/__tests__/engine-provider-query.test.ts",
+        "lib/search/__tests__/public-listing-trestle.test.ts",
         "tests/runtime/crm-patch-typed-attribution-preserve.test.ts",
         "tests/runtime/provider-authority-census.test.ts",
         "tests/runtime/provider-status-domain-census.test.ts"
@@ -446635,7 +446913,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/canonical/live-truth.ts",
-       "line": 111,
+       "line": 143,
        "node": "provider:Property.PropertyType",
        "tier": "string-literal",
        "workflow": "both"
@@ -447473,9 +447751,9 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:109",
-        "lib/search/engine/criteria.ts:97",
-        "lib/search/engine/criteria.ts:165",
+        "lib/search/canonical/live-truth.ts:141",
+        "lib/search/engine/criteria.ts:115",
+        "lib/search/engine/criteria.ts:185",
         "app/api/listings/suggest/route.ts:87",
         "lib/search/canonical/field-registry.ts:135"
        ]
@@ -447491,9 +447769,9 @@
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:109",
-        "lib/search/engine/criteria.ts:97",
-        "lib/search/engine/criteria.ts:165",
+        "lib/search/canonical/live-truth.ts:141",
+        "lib/search/engine/criteria.ts:115",
+        "lib/search/engine/criteria.ts:185",
         "app/api/listings/suggest/route.ts:87",
         "lib/search/canonical/field-registry.ts:135"
        ]
@@ -447501,9 +447779,9 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:109",
-        "lib/search/engine/criteria.ts:97",
-        "lib/search/engine/criteria.ts:165",
+        "lib/search/canonical/live-truth.ts:141",
+        "lib/search/engine/criteria.ts:115",
+        "lib/search/engine/criteria.ts:185",
         "app/api/listings/suggest/route.ts:87",
         "lib/search/canonical/field-registry.ts:135"
        ]
@@ -447970,7 +448248,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/canonical/live-truth.ts",
-       "line": 109,
+       "line": 141,
        "node": "provider:Property.StandardStatus",
        "tier": "string-literal",
        "workflow": "both"
@@ -447978,7 +448256,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/criteria.ts",
-       "line": 97,
+       "line": 115,
        "node": "provider:Property.StandardStatus",
        "tier": "string-literal",
        "workflow": "both"
@@ -447986,7 +448264,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/criteria.ts",
-       "line": 165,
+       "line": 185,
        "node": "provider:Property.StandardStatus",
        "tier": "string-literal",
        "workflow": "both"
@@ -451373,7 +451651,7 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:114",
+        "lib/search/canonical/live-truth.ts:146",
         "app/api/listings/suggest/route.ts:89",
         "lib/search/canonical/field-registry.ts:198"
        ]
@@ -451389,7 +451667,7 @@
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:114",
+        "lib/search/canonical/live-truth.ts:146",
         "app/api/listings/suggest/route.ts:89",
         "lib/search/canonical/field-registry.ts:198"
        ]
@@ -451397,7 +451675,7 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:114",
+        "lib/search/canonical/live-truth.ts:146",
         "app/api/listings/suggest/route.ts:89",
         "lib/search/canonical/field-registry.ts:198"
        ]
@@ -451744,7 +452022,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/canonical/live-truth.ts",
-       "line": 114,
+       "line": 146,
        "node": "provider:Property.Permission",
        "tier": "string-literal",
        "workflow": "both"
@@ -464740,7 +465018,7 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:150"
        ]
       },
@@ -464751,22 +465029,22 @@
       "sorting": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126"
+        "lib/search/engine/provider-query.ts:135"
        ]
       },
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:150"
        ]
       },
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:150"
        ]
       },
@@ -465175,7 +465453,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ModificationTimestamp",
        "tier": "string-literal",
        "workflow": "both"
@@ -465183,7 +465461,7 @@
       {
        "stage": "sorting",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ModificationTimestamp",
        "tier": "string-literal",
        "workflow": "both"
@@ -486082,7 +486360,7 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:114",
+        "lib/search/canonical/live-truth.ts:146",
         "app/api/listings/suggest/route.ts:89",
         "lib/search/canonical/field-registry.ts:198"
        ]
@@ -486098,7 +486376,7 @@
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:114",
+        "lib/search/canonical/live-truth.ts:146",
         "app/api/listings/suggest/route.ts:89",
         "lib/search/canonical/field-registry.ts:198"
        ]
@@ -486106,7 +486384,7 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:114",
+        "lib/search/canonical/live-truth.ts:146",
         "app/api/listings/suggest/route.ts:89",
         "lib/search/canonical/field-registry.ts:198"
        ]
@@ -486453,7 +486731,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/canonical/live-truth.ts",
-       "line": 114,
+       "line": 146,
        "node": "provider:Property.Permission",
        "tier": "string-literal",
        "workflow": "both"
@@ -488420,7 +488698,7 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:150"
        ]
       },
@@ -488431,22 +488709,22 @@
       "sorting": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126"
+        "lib/search/engine/provider-query.ts:135"
        ]
       },
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:150"
        ]
       },
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/engine/provider-query.ts:126",
-        "lib/search/engine/provider-query.ts:126",
+        "lib/search/engine/provider-query.ts:135",
+        "lib/search/engine/provider-query.ts:135",
         "lib/search/engine/universe.ts:150"
        ]
       },
@@ -488855,7 +489133,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ModificationTimestamp",
        "tier": "string-literal",
        "workflow": "both"
@@ -488863,7 +489141,7 @@
       {
        "stage": "sorting",
        "file": "lib/search/engine/provider-query.ts",
-       "line": 126,
+       "line": 135,
        "node": "provider:Property.ModificationTimestamp",
        "tier": "string-literal",
        "workflow": "both"
@@ -511526,7 +511804,7 @@
       "criterion": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:114",
+        "lib/search/canonical/live-truth.ts:146",
         "app/api/listings/suggest/route.ts:89",
         "lib/search/canonical/field-registry.ts:198"
        ]
@@ -511542,7 +511820,7 @@
       "saleSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:114",
+        "lib/search/canonical/live-truth.ts:146",
         "app/api/listings/suggest/route.ts:89",
         "lib/search/canonical/field-registry.ts:198"
        ]
@@ -511550,7 +511828,7 @@
       "rentalSearch": {
        "status": "PASS",
        "sites": [
-        "lib/search/canonical/live-truth.ts:114",
+        "lib/search/canonical/live-truth.ts:146",
         "app/api/listings/suggest/route.ts:89",
         "lib/search/canonical/field-registry.ts:198"
        ]
@@ -511897,7 +512175,7 @@
       {
        "stage": "criterion",
        "file": "lib/search/canonical/live-truth.ts",
-       "line": 114,
+       "line": 146,
        "node": "provider:Property.Permission",
        "tier": "string-literal",
        "workflow": "both"
@@ -523063,8 +523341,8 @@
    "population": 373040,
    "mapped": "PASS",
    "persisted": "PASS",
-   "saleSearch": "MISSING",
-   "rentalSearch": "MISSING",
+   "saleSearch": "PASS",
+   "rentalSearch": "PASS",
    "saleForm": "MISSING",
    "rentalForm": "PASS",
    "saleTools": "MISSING",
@@ -528893,17 +529171,17 @@
    "population": 0,
    "mapped": "MISSING",
    "persisted": "MISSING",
-   "saleSearch": "PASS",
-   "rentalSearch": "PASS",
+   "saleSearch": "MISSING",
+   "rentalSearch": "MISSING",
    "saleForm": "MISSING",
    "rentalForm": "MISSING",
    "saleTools": "MISSING",
    "rentalTools": "MISSING",
    "cma": "MISSING",
    "reporting": "MISSING",
-   "publicVisibility": "REACHABLE",
+   "publicVisibility": "MISSING",
    "compliance": "MISSING",
-   "neverSurfaces": false
+   "neverSurfaces": true
   },
   {
    "feed": "IDX Plus",
@@ -530785,15 +531063,15 @@
    "population": 7915,
    "mapped": "PASS",
    "persisted": "PASS",
-   "saleSearch": "PASS",
-   "rentalSearch": "PASS",
+   "saleSearch": "MISSING",
+   "rentalSearch": "MISSING",
    "saleForm": "MISSING",
    "rentalForm": "PASS",
    "saleTools": "MISSING",
    "rentalTools": "MISSING",
    "cma": "MISSING",
    "reporting": "MISSING",
-   "publicVisibility": "REACHABLE",
+   "publicVisibility": "MISSING",
    "compliance": "MISSING",
    "neverSurfaces": false
   },
@@ -531093,15 +531371,15 @@
    "population": 0,
    "mapped": "PASS",
    "persisted": "PASS",
-   "saleSearch": "MISSING",
-   "rentalSearch": "MISSING",
+   "saleSearch": "PASS",
+   "rentalSearch": "PASS",
    "saleForm": "MISSING",
    "rentalForm": "MISSING",
    "saleTools": "MISSING",
    "rentalTools": "MISSING",
    "cma": "MISSING",
    "reporting": "MISSING",
-   "publicVisibility": "MISSING",
+   "publicVisibility": "REACHABLE",
    "compliance": "MISSING",
    "neverSurfaces": false
   },
@@ -531929,15 +532207,15 @@
    "population": 161522,
    "mapped": "PASS",
    "persisted": "PASS",
-   "saleSearch": "MISSING",
-   "rentalSearch": "MISSING",
+   "saleSearch": "PASS",
+   "rentalSearch": "PASS",
    "saleForm": "MISSING",
    "rentalForm": "PASS",
    "saleTools": "MISSING",
    "rentalTools": "MISSING",
    "cma": "MISSING",
    "reporting": "MISSING",
-   "publicVisibility": "MISSING",
+   "publicVisibility": "REACHABLE",
    "compliance": "MISSING",
    "neverSurfaces": false
   },

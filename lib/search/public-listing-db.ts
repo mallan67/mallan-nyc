@@ -403,8 +403,9 @@ export function applyPublicListingPostFilters<T extends PublicPostFilterListing>
     result = result.filter((l) => l.yearBuilt != null && l.yearBuilt >= 1947);
   }
 
-  // furnished — rental-only filter; matches DTO furnished === "Furnished".
-  if (params.get("furnished") === "true") {
+  // furnished — rental-only filter; matches DTO furnished === "Furnished". Never narrows a sale search
+  // (Domain 6, 2026-09-08).
+  if (params.get("furnished") === "true" && params.get("type") === "rent") {
     result = result.filter((l) => (l.furnished || "").toLowerCase() === "furnished");
   }
 

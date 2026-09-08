@@ -222,13 +222,22 @@ describe("applyPublicListingPostFilters", () => {
     expect(postWar.map((l) => l.id)).toEqual(["b", "c"]);
   });
 
-  it("filters by furnished only when the DTO value matches Furnished", () => {
+  it("filters by furnished only when the DTO value matches Furnished, on a rental search", () => {
     const result = applyPublicListingPostFilters(
       listings,
       featuresById,
-      new URLSearchParams("furnished=true"),
+      new URLSearchParams("type=rent&furnished=true"),
     );
     expect(result.map((l) => l.id)).toEqual(["a"]);
+  });
+
+  it("furnished is a rental-only criterion — a sale search is not narrowed by it (Domain 6, 2026-09-08)", () => {
+    const result = applyPublicListingPostFilters(
+      listings,
+      featuresById,
+      new URLSearchParams("type=sale&furnished=true"),
+    );
+    expect(result.map((l) => l.id)).toEqual(["a", "b", "c"]);
   });
 
   it("ANDs amenity filters across DTO + features JSON, with pet-friendly handling negative values", () => {

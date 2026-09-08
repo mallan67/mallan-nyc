@@ -108,6 +108,15 @@ export function buildProviderQuery(c: SearchCriteria): ProviderQuery {
   if (zips) parts.push(zips);
   const ids = or(c.listingId.map((id) => `ListingId eq '${escapeOData(id)}'`));
   if (ids) parts.push(ids);
+  // Rental-only criteria (Domain 6, 2026-09-08) — every form below was accepted live with a count.
+  if (c.workflow === 'rental') {
+    const furnished = or(c.furnished.map((m) => `Furnished eq '${escapeOData(m)}'`));
+    if (furnished) parts.push(furnished);
+    const pets = or(c.petsAllowed.map((m) => `PetsAllowed has '${escapeOData(m)}'`));
+    if (pets) parts.push(pets);
+    if (c.availableBy) parts.push(`AvailabilityDate le ${c.availableBy}`);
+    if (c.securityDepositMax != null) parts.push(`SecurityDeposit le ${c.securityDepositMax}`);
+  }
 
   return { filter: parts.join(' and '), orderby: orderbyFor(c.sort), suppressedOfficeIds: MALLAN_LIST_OFFICE_MLS_IDS };
 }

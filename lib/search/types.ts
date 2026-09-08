@@ -97,8 +97,10 @@ export type AmenityFilter =
   | 'fireplace'
   | 'natural-light'
   | 'renovated'
-  | 'quiet'
-  | 'no-fee';
+  | 'quiet';
+  // 'no-fee' retired 2026-09-08: it targeted ListingTerms members that are not published and a field with 0
+  // rows on this feed. Under the FARE Act (NYC LL 119/2024) a rental whose landlord does not pay the broker is
+  // InternetEntireListingDisplayYN = false and never reaches IDX display, so every rental shown is landlord-paid.
 
 /**
  * Maps each amenity filter to the Trestle field + values it searches.
@@ -133,7 +135,10 @@ export const AMENITY_FIELD_MAP: Record<AmenityFilter, { field: string; values: s
   // Parking
   'garage':        { field: 'ParkingFeatures', values: ['Garage'], label: 'Garage/Parking', group: 'Parking' },
   // Pets
-  'pet-friendly':  { field: 'PetsAllowed', values: ['UnitYes', 'CatsOk', 'DogsOk', 'NumberLimit', 'SizeLimit', 'BreedRestrictions'], label: 'Pet Friendly', group: 'Pets' },
+  // The unit-level positive PetsAllowed members — live members, all populated on Active rentals (2026-09-08).
+  // 'UnitYes' was never a live member (the live token is 'Yes'). Same set as PETS_FRIENDLY_MEMBERS
+  // (the live-truth module of the canonical package).
+  'pet-friendly':  { field: 'PetsAllowed', values: ['Yes', 'CatsOk', 'DogsOk', 'NumberLimit', 'SizeLimit', 'BreedRestrictions'], label: 'Pet Friendly', group: 'Pets' },
   // Views
   'park-views':    { field: 'View', values: ['Park', 'ParkGreenbelt'], label: 'Park Views', group: 'Views' },
   'river-views':   { field: 'View', values: ['River', 'Water'], label: 'River Views', group: 'Views' },
@@ -146,7 +151,6 @@ export const AMENITY_FIELD_MAP: Record<AmenityFilter, { field: string; values: s
   'natural-light': { field: 'InteriorFeatures', values: ['NaturalLight'], label: 'Natural Light', group: 'Unit Features' },
   'renovated':     { field: 'InteriorFeatures', values: ['Renovated', 'GutRenovated', 'NewlyRenovated'], label: 'Renovated', group: 'Unit Features' },
   'quiet':         { field: 'InteriorFeatures', values: ['Quiet'], label: 'Quiet', group: 'Unit Features' },
-  'no-fee':        { field: 'ListingTerms', values: ['NoFee', 'OwnerPays'], label: 'No Fee', group: 'Rental' },
 };
 
 /** Tab configuration — maps UI tab to API params and available filter sections */

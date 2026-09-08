@@ -101,6 +101,38 @@ export const CITY_REGION_VALUES = Object.freeze(['Manhattan', 'Brooklyn', 'Queen
 export const PERMISSION_PRIVATE = 'Private';
 
 /**
+ * Furnished — ALL 5 live members (data/cotality-enums.live.json). Live 2026-09-08 on the 939 Active
+ * rentals: populated on 938; observed members Furnished / Partially / Negotiable / Unfurnished
+ * (FurnishedOrUnfurnished declared, 0 observed). A rental-only criterion; executed as `Furnished eq`.
+ */
+export const FURNISHED_MEMBERS = Object.freeze([
+  'Furnished', 'FurnishedOrUnfurnished', 'Negotiable', 'Partially', 'Unfurnished',
+] as const);
+
+/**
+ * PetsAllowed — ALL 31 live members (Multi enum; executed with `has`). Live 2026-09-08 on Active rentals:
+ * populated on 939 / 939; unit-level positives Yes 620 · CatsOk 98 · DogsOk 81 · SizeLimit 41 · NumberLimit 20 ·
+ * BreedRestrictions 18; building-level BuildingYes 752 · BuildingCatsOk 40 · BuildingDogsOk 34; negatives No 267 ·
+ * BuildingNo 135. The remaining members are declared and 0 observed — still valid criteria (a zero today is not
+ * an unsupported contract).
+ */
+export const PETS_ALLOWED_MEMBERS = Object.freeze([
+  'BirdsOk', 'BreedRestrictions', 'BuildingBreedRestrictions', 'BuildingCatsOk', 'BuildingDogsOk', 'BuildingNo',
+  'BuildingNumberLimit', 'BuildingSizeLimit', 'BuildingYes', 'Call', 'CatsOk', 'ChickensOk', 'Conditional', 'DogsOk',
+  'FishOk', 'Negotiable', 'No', 'NoBreedRestrictions', 'NoDogs', 'NoPetRestrictions', 'NoSizeLimit', 'NumberLimit',
+  'Other', 'OwnerOnly', 'PetDeposit', 'PetFee', 'PetRestrictions', 'ReptileOk', 'SeeRemarks', 'SizeLimit', 'Yes',
+] as const);
+
+/**
+ * Mallan's "pet-friendly" shorthand (`pets=friendly`) — POLICY, not vocabulary: the unit-level members that say
+ * the UNIT accepts a pet (with or without limits). Building-level members describe the building's rule, not the
+ * unit's, and are not implied. All six are live members and all six are populated on Active rentals (above).
+ */
+export const PETS_FRIENDLY_MEMBERS = Object.freeze([
+  'Yes', 'CatsOk', 'DogsOk', 'NumberLimit', 'SizeLimit', 'BreedRestrictions',
+] as const);
+
+/**
  * Values the repo has historically hardcoded that live truth CONTRADICTS. Diagnostics/tests flag them.
  * `keepAsFailClosedGuard` = may remain ONLY as a documented fail-closed legacy/compliance guard,
  * never as live search logic.

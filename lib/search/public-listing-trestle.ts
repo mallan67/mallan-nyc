@@ -152,7 +152,11 @@ function buildStatusFilterPart(params: URLSearchParams): string {
 
 function buildListingTypeFilterPart(params: URLSearchParams): string | null {
   const listingType = params.get("type");
-  if (listingType === "sale" || listingType === "buy") return "PropertyType ne 'ResidentialLease'";
+  // Positive membership — the one sale-universe rule shared with the engine and the registry
+  // (the live-truth module, PROPERTY_TYPE_SALE). Live 2026-09-08 the feed carries exactly
+  // Residential (215,520) and ResidentialLease (376,079), so the two forms agree today; the positive form
+  // cannot widen if the provider adds a type.
+  if (listingType === "sale" || listingType === "buy") return "PropertyType eq 'Residential'";
   if (listingType === "rent") return "PropertyType eq 'ResidentialLease'";
   return null;
 }
@@ -329,7 +333,8 @@ export function buildPublicListingTrestleFilter(params: URLSearchParams): string
   if (yearBuilt === "pre-war") filterParts.push("YearBuilt le 1946");
   else if (yearBuilt === "post-war") filterParts.push("YearBuilt ge 1947");
 
-  if (params.get("furnished") === "true") filterParts.push("Furnished eq 'Furnished'");
+  // furnished is a rental-only criterion (Domain 6, 2026-09-08): it never narrows a sale search.
+  if (params.get("furnished") === "true" && params.get("type") === "rent") filterParts.push("Furnished eq 'Furnished'");
 
   const addressParam = params.get("address");
   if (addressParam) {

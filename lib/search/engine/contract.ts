@@ -12,10 +12,11 @@
  * The browser must never carry a hand-maintained copy of these lists.
  */
 
-import { LIVE_AUTHORITY } from '../canonical/live-truth';
+import { LIVE_AUTHORITY, PETS_FRIENDLY_MEMBERS } from '../canonical/live-truth';
 import {
   EXECUTED_PARAMS, STANDARD_STATUS_MEMBERS, PROPERTY_TYPE_MEMBERS, COMMON_INTEREST_MEMBERS,
   STRUCTURE_TYPE_MEMBERS, CITY_REGION_VALUES, DEFAULT_SORT, DEFAULT_PAGE, MAX_PAGE, type Member,
+  FURNISHED_MEMBERS, PETS_ALLOWED_MEMBERS, RENTAL_ONLY_PARAMS,
 } from './criteria';
 
 export interface ContractMember { token: string; label: string }
@@ -28,7 +29,14 @@ export interface SearchContract {
     PropertyType: ContractMember[];
     CommonInterest: ContractMember[];
     StructureType: ContractMember[];
+    /** Rental-only vocabularies (Domain 6, 2026-09-08). */
+    Furnished: ContractMember[];
+    PetsAllowed: ContractMember[];
   };
+  /** The unit-level PetsAllowed members `pets=friendly` expands to (policy). */
+  petsFriendlyMembers: string[];
+  /** Parameters only a rental search may carry; a sale search carrying one is refused by name. */
+  rentalOnlyParams: string[];
   cityRegion: string[];
   sortKeys: string[];
   defaultSort: string;
@@ -48,7 +56,11 @@ export function searchContract(): SearchContract {
       PropertyType: toMembers(PROPERTY_TYPE_MEMBERS),
       CommonInterest: toMembers(COMMON_INTEREST_MEMBERS),
       StructureType: toMembers(STRUCTURE_TYPE_MEMBERS),
+      Furnished: toMembers(FURNISHED_MEMBERS),
+      PetsAllowed: toMembers(PETS_ALLOWED_MEMBERS),
     },
+    petsFriendlyMembers: [...PETS_FRIENDLY_MEMBERS],
+    rentalOnlyParams: [...RENTAL_ONLY_PARAMS].sort(),
     cityRegion: [...CITY_REGION_VALUES],
     sortKeys: ['price_desc', 'price_asc', 'newest'],
     defaultSort: DEFAULT_SORT,
