@@ -207,7 +207,7 @@ function walkPrismaArgs(program, node, model, onHit) {
 
 // ── HOP 1: mapper dataflow ─────────────────────────────────────────────────
 
-function stringArray(node) {
+export function stringArray(node) {
   if (!node || !ts.isArrayLiteralExpression(node)) return null;
   const out = [];
   for (const e of node.elements) if (ts.isStringLiteralLike(e)) out.push({ name: e.text, node: e });
@@ -215,7 +215,7 @@ function stringArray(node) {
 }
 
 /** `const NAME = cotalityFields('Property', [...])` and plain string arrays at top level. */
-function topLevelLists(sf) {
+export function topLevelLists(sf) {
   const lists = new Map();
   for (const st of sf.statements) {
     if (!ts.isVariableStatement(st)) continue;

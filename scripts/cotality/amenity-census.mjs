@@ -36,20 +36,30 @@ for (const f of fields) {
   const members = lookups.Property?.[f]?.members || [];
   const nonNull = await count(and(scope, `${f} ne null`));
   const counts = {};
+  // A member the Lookup catalogue publishes but the $metadata EnumType does not declare makes the
+  // provider's OData parser reject the filter (400 "ConvertToTypeIfNeeded"). That is a contract fact
+  // in its own right — recorded per member, never fatal.
+  const rejected = {};
   for (const m of members) {
-    counts[m] = await count(and(scope, fact.multi ? `${f} has '${esc(m)}'` : `${f} eq '${esc(m)}'`));
+    try {
+      counts[m] = await count(and(scope, fact.multi ? `${f} has '${esc(m)}'` : `${f} eq '${esc(m)}'`));
+    } catch (error) {
+      if (Number(error?.status) === 400) { rejected[m] = `HTTP 400 — filter on this member rejected (Lookup-published, not an EnumType member)`; continue; }
+      throw error;
+    }
   }
   const used = Object.entries(counts).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
-  out.fields[f] = { type: fact.type, multi: fact.multi, rlsField: fact.rlsField, nonNull, members: members.length, membersUsed: used.length, counts: Object.fromEntries(used) };
-  console.error(`[amenity-census] ${f}: nonNull=${nonNull} members=${members.length} used=${used.length}`);
+  out.fields[f] = { type: fact.type, multi: fact.multi, rlsField: fact.rlsField, nonNull, members: members.length, membersUsed: used.length, counts: Object.fromEntries(used), rejectedMembers: rejected };
+  console.error(`[amenity-census] ${f}: nonNull=${nonNull} members=${members.length} used=${used.length} rejected=${Object.keys(rejected).length}`);
 }
 
-// CustomFields keys on every listing in scope.
+// CustomFields keys on every listing in scope (skipped with --no-customfields when only the member census is wanted).
 const keys = new Map();
 let rows = 0;
 let withCustom = 0;
 let last = null;
-while (true) {
+const skipCustomFields = argv.includes('--no-customfields');
+while (!skipCustomFields) {
   const filter = and(scope, last == null ? null : `ListingKey gt '${esc(last)}'`);
   const json = await client.query('Property', { '$select': 'ListingKey', '$expand': 'CustomProperty($select=CustomFields)', '$filter': filter, '$orderby': 'ListingKey asc', '$top': 1000 });
   const batch = Array.isArray(json.value) ? json.value : [];
