@@ -103,6 +103,12 @@ export function mapTrestleToCrmListing(
     mediaType: m.mediaType,
   }));
   const photoCount = Number(raw.PhotosCount) || images.length;
+  // Every 3D/video carrier the provider publishes on the Property row (live 2026-09-08: the Media
+  // subsection has 0 Video / 0 VirtualTour rows; these fields are the only source).
+  const virtualTourUrls = [
+    raw.VirtualTourURLUnbranded, raw.VirtualTourURLUnbranded2, raw.VirtualTourURLUnbranded3,
+    raw.VirtualTourURLBranded, raw.VirtualTourURLBranded2, raw.VirtualTourURLBranded3,
+  ].map(str).filter((u): u is string => u !== null);
 
   const customProps = Array.isArray(raw.CustomProperty)
     ? raw.CustomProperty[0] as Record<string, unknown> | undefined
@@ -298,11 +304,10 @@ export function mapTrestleToCrmListing(
     crossStreet: String(raw.CrossStreet || ""),
     floor: null,
     description: String(raw.PublicRemarks || ""),
-    virtualTourUrl: raw.VirtualTourURLUnbranded
-      ? String(raw.VirtualTourURLUnbranded)
-      : raw.VirtualTourURLBranded
-        ? String(raw.VirtualTourURLBranded)
-        : null,
+    // The Cotality fields by their live names, unbranded first (UCBA §5(C)). VirtualTourURLUnbranded2/3
+    // (2,382 / 354 live rows) were ignored here before.
+    virtualTourUrl: virtualTourUrls[0] ?? null,
+    virtualTourUrls,
     idxDisplayYN: gates.idx_display_yn,
     internetDisplayYN: gates.internet_entire_listing_display_yn,
     addressDisplayYN,

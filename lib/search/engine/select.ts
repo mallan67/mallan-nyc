@@ -28,7 +28,10 @@ export const SEARCH_SELECT_FIELDS = cotalityFields('Property', [
   // Agent / office
   "ListAgentMlsId", "ListAgentFullName", "ListAgentEmail", "ListAgentDirectPhone", "ListOfficeMlsId", "ListOfficeName",
   // Media
-  "PhotosCount", "VirtualTourURLBranded", "VirtualTourURLUnbranded",
+  // EVERY 3D/video carrier (live 2026-09-08: the Media subsection has 0 tour/video rows; these are the only source).
+  "PhotosCount", "VideosCount",
+  "VirtualTourURLBranded", "VirtualTourURLBranded2", "VirtualTourURLBranded3",
+  "VirtualTourURLUnbranded", "VirtualTourURLUnbranded2", "VirtualTourURLUnbranded3",
   // Remarks
   "PublicRemarks",
   // Display / permission

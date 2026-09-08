@@ -121,6 +121,13 @@ export interface ListingProjectionSource {
    * `DbMediaCompositionInput.hadRelationalRows` (lib/media/db-media-composition.ts:55-67).
    */
   hadRelationalRows?: boolean;
+  /**
+   * The stored provider payload (keep-list slimmed). The 3D/video facet reads its
+   * VirtualTourURL* carriers: exhaustive live census 2026-09-08 — the Media subsection has 0 Video /
+   * 0 VirtualTour rows in any status, so a facet derived from media rows alone was false on every one
+   * of the 26,501 projection rows while 3,262 listings carried a tour URL.
+   */
+  raw_data?: Record<string, unknown> | null;
 }
 
 /**
@@ -380,6 +387,17 @@ export function extractProjectionFeatureFlags(listing: ListingProjectionSource):
     flags.has_video = hasVideo;
     flags.has_virtual_tour = hasVirtualTour;
   }
+
+  // The provider's 3D/video carriers are these Property fields (live 2026-09-08, every row: Unbranded 26,371 ·
+  // Unbranded2 2,382 · Unbranded3 354 · Branded 13,878; the Media subsection has 0 tour/video rows). A tour
+  // URL proves a tour; it NEVER proves a video (has_video stays a Media-row fact — classifying a URL by its
+  // host would be a Mallan invention, not a provider fact).
+  const rawData = (listing.raw_data ?? {}) as Record<string, unknown>;
+  const hasTourUrl = [
+    rawData.VirtualTourURLUnbranded, rawData.VirtualTourURLUnbranded2, rawData.VirtualTourURLUnbranded3,
+    rawData.VirtualTourURLBranded, rawData.VirtualTourURLBranded2, rawData.VirtualTourURLBranded3,
+  ].some((v) => typeof v === "string" && v.trim().length > 0);
+  if (hasTourUrl) flags.has_virtual_tour = true;
 
   if (features) {
     const furnished = String(features.Furnished ?? "").toLowerCase();
@@ -770,6 +788,8 @@ export async function dualWriteProjectionForListingId(
       // unfiltered; filtering it would make it agree with `listing_media` above
       // and answer nothing.
       _count: { select: { listing_media: true } },
+      // The provider's 3D/video carriers (VirtualTourURL*) live in the stored payload.
+      raw_data: true,
     },
   })) as Record<string, unknown> | null;
 
@@ -820,6 +840,7 @@ export async function dualWriteProjectionForListingId(
       typeof (listing._count as { listing_media?: number } | undefined)?.listing_media === "number"
         ? (listing._count as { listing_media: number }).listing_media > 0
         : undefined,
+    raw_data: (listing.raw_data as Record<string, unknown> | null | undefined) ?? null,
   };
 
   const projection = buildListingSearchProjectionFromListing(input);

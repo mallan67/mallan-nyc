@@ -12,7 +12,11 @@
  *   3. Distribution gates that rely on excluded fields handle undefined safely
  *      (Trestle IDX feed pre-filters non-displayable listings).
  */
-export const CARD_SELECT_FIELDS = [
+import { cotalityFields } from "@/lib/cotality/contract";
+
+// Compile-checked against the live Property resource (lib/cotality/contract.ts): a name not declared in
+// $metadata is a type error, never a runtime 400.
+export const CARD_SELECT_FIELDS = cotalityFields("Property", [
   // Address
   "StreetNumber", "StreetName", "StreetDirPrefix", "StreetDirSuffix",
   "StreetSuffix", "UnitNumber", "City", "CityRegion", "PostalCity",
@@ -41,8 +45,11 @@ export const CARD_SELECT_FIELDS = [
   "AssociationFee", "AssociationFeeFrequency", "TaxAnnualAmount",
   // Agent/Office
   "ListAgentFullName", "ListOfficeName",
-  // Media — PhotosChangeTimestamp is high-level trigger for media changes (Trestle guidance 2026-04-07)
-  "PhotosCount", "PhotosChangeTimestamp", "VirtualTourURLBranded", "VirtualTourURLUnbranded",
+  // Media — PhotosChangeTimestamp is high-level trigger for media changes (Trestle guidance 2026-04-07).
+  // EVERY 3D/video carrier (live 2026-09-08: the Media subsection has 0 tour/video rows; these fields are the only source).
+  "PhotosCount", "PhotosChangeTimestamp", "VideosCount",
+  "VirtualTourURLBranded", "VirtualTourURLBranded2", "VirtualTourURLBranded3",
+  "VirtualTourURLUnbranded", "VirtualTourURLUnbranded2", "VirtualTourURLUnbranded3",
   // Remarks
   "PublicRemarks",
   // Display gates
@@ -50,4 +57,4 @@ export const CARD_SELECT_FIELDS = [
   // Rental
   "PetsAllowed", "Furnished",
   "MoveInCosts", "OngoingFees", "TenantPays", "TenantPaysDescription",
-];
+]);

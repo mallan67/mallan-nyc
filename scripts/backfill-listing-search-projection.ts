@@ -107,6 +107,8 @@ async function buildProjectionInput(
     address: (listing.address ?? {}) as Record<string, unknown>,
     features: (listing.features ?? {}) as Record<string, unknown>,
     media: Array.isArray(listing.media) ? (listing.media as unknown[]) : [],
+    // The provider's 3D/video carriers (VirtualTourURL*) for has_virtual_tour.
+    raw_data: (listing.raw_data ?? null) as Record<string, unknown> | null,
   };
 }
 
@@ -149,6 +151,7 @@ async function fetchBatch(lastId: bigint | null, take: number) {
       address: true,
       features: true,
       media: true,
+      raw_data: true,
     },
   });
 }

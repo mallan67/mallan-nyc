@@ -22,6 +22,9 @@
     "lib/search/engine/hydrate.ts",
     "lib/search/listing-search-projection.ts",
     "lib/listings/agent-info-typed-columns.ts",
-    "lib/listings/canonical-location.ts"
+    "lib/listings/canonical-location.ts",
+    "lib/search/crm-idx-mapper.ts",
+    "lib/idx/db-to-public-dto.ts",
+    "lib/idx/card-fields.ts"
   ]
 }

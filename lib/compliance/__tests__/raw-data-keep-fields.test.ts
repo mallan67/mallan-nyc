@@ -93,6 +93,14 @@ describe('RAW_DATA_KEEP_FIELDS', () => {
     }
   });
 
+  it('keeps every live 3D/video carrier (2026-09-08 live: Unbranded 26,371 · Unbranded2 2,382 · Unbranded3 354 · Branded 13,878 · VideosCount>0 31,505)', () => {
+    // The Media subsection carries 0 Video / 0 VirtualTour rows on this feed; tours and videos exist ONLY
+    // as these Property fields. Dropping Unbranded2/3 lost 2,736 tour URLs before storage.
+    for (const f of ['VirtualTourURLUnbranded', 'VirtualTourURLUnbranded2', 'VirtualTourURLUnbranded3', 'VirtualTourURLBranded', 'VideosCount']) {
+      expect(RAW_DATA_KEEP_SET.has(f)).toBe(true);
+    }
+  });
+
   it('keep set has no duplicates', () => {
     expect(RAW_DATA_KEEP_FIELDS.length).toBe(RAW_DATA_KEEP_SET.size);
   });

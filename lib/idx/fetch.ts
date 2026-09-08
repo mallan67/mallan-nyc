@@ -44,7 +44,7 @@ export interface TrestleFetchOptions {
   /** OData $filter expression (e.g., "StandardStatus eq 'Active'") */
   filter?: string;
   /** Override $select (defaults to IDX Plus Property fields) */
-  select?: string[];
+  select?: readonly string[];
   /** Max records per page (default 200) */
   top?: number;
   /** Skip N records */

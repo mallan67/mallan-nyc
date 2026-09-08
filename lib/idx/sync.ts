@@ -1093,6 +1093,9 @@ export async function syncListings(
         address: mapped.address as Record<string, unknown>,
         features: mapped.features as Record<string, unknown>,
         media: mapped.media as unknown[],
+        // The provider's 3D/video carriers (VirtualTourURL*) ride in the keep-list-slimmed payload; the
+        // projection's has_virtual_tour reads them there (the Media subsection has 0 tour rows on this feed).
+        raw_data: mapped.raw_data as Record<string, unknown>,
         // Canonical media flags come from the stored relational rows, NOT from
         // `mapped.media` (which is [] on the incremental path — see the widened
         // select above). `undefined` on a CREATE, where no stored row exists yet
@@ -2585,6 +2588,9 @@ export async function syncAgentHistory(
         address: mapped.address as Record<string, unknown>,
         features: mapped.features as Record<string, unknown>,
         media: mapped.media as unknown[],
+        // The provider's 3D/video carriers (VirtualTourURL*) ride in the keep-list-slimmed payload; the
+        // projection's has_virtual_tour reads them there (the Media subsection has 0 tour rows on this feed).
+        raw_data: mapped.raw_data as Record<string, unknown>,
       };
       // Phase 3 (surface B, agent-history path): full-material projection
       // compare before writing — see syncListings.

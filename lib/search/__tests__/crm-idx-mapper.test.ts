@@ -445,3 +445,17 @@ describe("crm idx mapper", () => {
     });
   });
 });
+
+describe("virtualTourUrl — every provider carrier (2026-09-08 live: Unbranded2 2,382 rows and Unbranded3 354 were dropped before)", () => {
+  const base = { ListingKey: "k", PropertyType: "Residential", StandardStatus: "Active", ListPrice: 1 };
+  it("falls through Unbranded → Unbranded2 → Unbranded3 → Branded (unbranded preferred, UCBA §5(C))", () => {
+    expect(mapTrestleToCrmListing({ ...base, VirtualTourURLUnbranded2: "https://t/2", VirtualTourURLBranded: "https://t/b" }, 0).virtualTourUrl).toBe("https://t/2");
+    expect(mapTrestleToCrmListing({ ...base, VirtualTourURLUnbranded3: "https://t/3", VirtualTourURLBranded: "https://t/b" }, 0).virtualTourUrl).toBe("https://t/3");
+    expect(mapTrestleToCrmListing({ ...base, VirtualTourURLBranded: "https://t/b" }, 0).virtualTourUrl).toBe("https://t/b");
+    expect(mapTrestleToCrmListing(base, 0).virtualTourUrl).toBeNull();
+  });
+  it("exposes every carrier in order as virtualTourUrls", () => {
+    const l = mapTrestleToCrmListing({ ...base, VirtualTourURLUnbranded: "https://t/1", VirtualTourURLUnbranded3: "https://t/3", VirtualTourURLBranded: "https://t/b" }, 0);
+    expect(l.virtualTourUrls).toEqual(["https://t/1", "https://t/3", "https://t/b"]);
+  });
+});

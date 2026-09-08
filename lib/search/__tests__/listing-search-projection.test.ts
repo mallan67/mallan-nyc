@@ -707,3 +707,47 @@ describe("buildProjectionUpsertPayload (PR 5B dual-write)", () => {
     expect(create.rls_eligible).toBe(false);
   });
 });
+
+describe("feature_flags.has_virtual_tour / has_video — the provider's carriers (2026-09-08, exhaustive live census)", () => {
+  // Media subsection: Photo 1,417,173 + FloorPlan 583,809 = every row; Video / BrandedVirtualTour /
+  // UnbrandedVirtualTour = 0 in ANY status. 3D/video exist ONLY as Property.VirtualTourURL* (26,371 /
+  // 2,382 / 354 / 13,878 rows). A facet derived from Media rows alone is false on every listing.
+  const withRows = { ...baseSale, mediaTypes: ["Photo"], hadRelationalRows: true };
+
+  it("is true when any stored VirtualTourURL* carrier is present, even with only Photo media rows", () => {
+    for (const key of ["VirtualTourURLUnbranded", "VirtualTourURLUnbranded2", "VirtualTourURLUnbranded3", "VirtualTourURLBranded"]) {
+      const flags = extractProjectionFeatureFlags({ ...withRows, raw_data: { [key]: "https://example.test/tour" } });
+      expect(flags?.has_virtual_tour).toBe(true);
+    }
+  });
+
+  it("is false when no carrier and no tour media row exists; blank strings are not a tour", () => {
+    expect(extractProjectionFeatureFlags({ ...withRows, raw_data: {} })?.has_virtual_tour).toBe(false);
+    expect(extractProjectionFeatureFlags({ ...withRows, raw_data: { VirtualTourURLUnbranded: "  " } })?.has_virtual_tour).toBe(false);
+  });
+
+  it("a tour Media row still counts (the RLS-listed category, 0 rows today)", () => {
+    expect(extractProjectionFeatureFlags({ ...baseSale, mediaTypes: ["VirtualTour"], hadRelationalRows: true, raw_data: {} })?.has_virtual_tour).toBe(true);
+  });
+
+  it("has_video is NEVER inferred from a tour URL host — only a Video media row proves a video", () => {
+    const flags = extractProjectionFeatureFlags({ ...withRows, raw_data: { VirtualTourURLUnbranded: "https://www.youtube.com/watch?v=abc" } });
+    expect(flags?.has_video).toBe(false);
+    expect(flags?.has_virtual_tour).toBe(true);
+  });
+
+  it("dualWriteProjectionForListingId selects raw_data and writes has_virtual_tour from it", async () => {
+    const upsert = jest.fn(async () => ({}));
+    const listingFindUnique = jest.fn(async () => ({
+      listing_id: "RLS20059088", status: "Active", listing_type: "sale", address: {}, features: {}, media: [],
+      raw_data: { VirtualTourURLUnbranded2: "https://my.matterport.com/show/?m=x" },
+      listing_media: [{ media_type: "Photo" }], _count: { listing_media: 3 },
+    }));
+    const prisma = { listing: { findUnique: listingFindUnique }, listingSearchProjection: { findUnique: jest.fn(async () => null), upsert } } as unknown as DualWriteProjectionPrisma;
+    await dualWriteProjectionForListingId(prisma, "RLS20059088");
+    const args = listingFindUnique.mock.calls[0][0] as { select: Record<string, unknown> };
+    expect(args.select.raw_data).toBe(true);
+    const create = (upsert.mock.calls[0][0] as ListingSearchProjectionUpsertPayload).create as unknown as Record<string, unknown>;
+    expect((create.feature_flags as Record<string, boolean>).has_virtual_tour).toBe(true);
+  });
+});

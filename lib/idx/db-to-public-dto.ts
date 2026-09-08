@@ -607,8 +607,9 @@ export function dbListingToPublicDTO(
     // Days on Market
     daysOnMarket: rawData.DaysOnMarket != null ? Number(rawData.DaysOnMarket) : undefined,
     cumulativeDaysOnMarket: rawData.CumulativeDaysOnMarket != null ? Number(rawData.CumulativeDaysOnMarket) : undefined,
-    // Virtual tour + video — host-split (YouTube/Vimeo → video; Matterport/3D → tour),
-    // unbranded preferred over branded (UCBA Art. I §5(C)). See tourUrlsForDto.
+    // Virtual tour + video — the Cotality fields, read by their live names. VirtualTourURLUnbranded2/3 are
+    // now KEPT in raw_data (they were dropped by the keep-list, so these reads were always empty). Host-split
+    // (YouTube/Vimeo → video; Matterport/3D → tour), unbranded preferred over branded (UCBA Art. I §5(C)).
     ...tourUrlsForDto(
       [rawData.VirtualTourURLUnbranded, rawData.VirtualTourURLUnbranded2, rawData.VirtualTourURLUnbranded3],
       rawData.VirtualTourURLBranded,

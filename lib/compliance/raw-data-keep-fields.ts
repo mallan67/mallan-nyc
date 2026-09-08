@@ -190,8 +190,18 @@ export const RAW_DATA_KEEP_FIELDS: readonly string[] = [
   // on BOTH sides so a legacy row and a canonical slim row compare EQUAL — that
   // is what prevents a one-time whole-table rewrite storm on first deploy.
   'PhotosCount',
+  // EVERY 3D/video carrier (exhaustive live census 2026-09-08): the Media subsection has 0 Video /
+  // 0 VirtualTour rows in any status; tours and videos exist ONLY here. Unbranded 26,371 · Unbranded2
+  // 2,382 · Unbranded3 354 · Branded 13,878 · Branded2/3 declared 0. Unbranded2/3 were fetched by the
+  // mapper and DROPPED here, so the public DTO's reads of them were always empty. VideosCount (31,505
+  // rows > 0; RESO: "videos or virtual tours") is kept as the provider's count fact — never a video source.
   'VirtualTourURLBranded',
+  'VirtualTourURLBranded2',
+  'VirtualTourURLBranded3',
   'VirtualTourURLUnbranded',
+  'VirtualTourURLUnbranded2',
+  'VirtualTourURLUnbranded3',
+  'VideosCount',
 
   // ── Sale/rental specifics (form populate; agents re-edit) ──────────
   'AssociationFee',
