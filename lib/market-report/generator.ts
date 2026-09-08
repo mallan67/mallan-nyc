@@ -18,6 +18,7 @@
  */
 import { createHash } from "node:crypto";
 import { fetchFromTrestle } from "@/lib/idx/fetch";
+import { cityRegionForBorough } from "@/lib/listings/canonical-location";
 import Anthropic from "@anthropic-ai/sdk";
 
 const anthropic = new Anthropic({
@@ -123,6 +124,25 @@ const TYPE_FILTERS: Record<string, string> = {
   "Townhouse": "PropertySubType eq 'SingleFamilyTownhouse' or PropertySubType eq 'Townhouse'",
 };
 
+/**
+ * The market report's location clause (appended to the status/type filter).
+ *
+ * Canonical location (Maya, 2026-09-08, exhaustive live evidence): borough = `CityRegion`,
+ * neighborhood = `SubdivisionName`. The previous clause filtered neighborhoods on `MLSAreaMajor`,
+ * which is empty on every one of 591,596 live rows (REBNY does not use it), and boroughs through a
+ * county table — a second interpretation of the same provider fact.
+ */
+export function marketReportLocationFilter(borough?: string, neighborhoods?: string[]): string {
+  let clause = "";
+  const cityRegion = cityRegionForBorough(borough);
+  if (cityRegion) clause += ` and CityRegion eq '${cityRegion}'`;
+  if (neighborhoods && neighborhoods.length > 0) {
+    const nhFilter = neighborhoods.map((n) => `SubdivisionName eq '${n.replace(/'/g, "''")}'`).join(" or ");
+    clause += ` and (${nhFilter})`;
+  }
+  return clause;
+}
+
 async function fetchTrestleStats(
   listingType: string,
   propertyType: string,
@@ -136,25 +156,7 @@ async function fetchTrestleStats(
     ? "StandardStatus eq 'Active' and PropertyType eq 'ResidentialLease'" // camelCase live value, no space (invariant 7)
     : "StandardStatus eq 'Active' and PropertyType eq 'Residential'";
 
-  let filter = `${statusFilter} and (${typeFilter})`;
-
-  // Borough filter
-  if (borough) {
-    const boroughMap: Record<string, string> = {
-      'Manhattan': 'New York', 'Brooklyn': 'Kings', 'Queens': 'Queens',
-      'Bronx': 'Bronx', 'Staten Island': 'Richmond',
-    };
-    const county = boroughMap[borough] || borough;
-    filter += ` and CountyOrParish eq '${county}'`;
-  }
-
-  // Neighborhood filter
-  if (neighborhoods && neighborhoods.length > 0) {
-    const nhFilter = neighborhoods
-      .map((n) => `MLSAreaMajor eq '${n.replace(/'/g, "''")}'`)
-      .join(" or ");
-    filter += ` and (${nhFilter})`;
-  }
+  const filter = `${statusFilter} and (${typeFilter})${marketReportLocationFilter(borough, neighborhoods)}`;
 
   try {
     const result = await fetchFromTrestle({
@@ -167,7 +169,7 @@ async function fetchTrestleStats(
         "BedroomsTotal", "BathroomsFull", "BathroomsHalf",
         "LivingArea", "DaysOnMarket", "CumulativeDaysOnMarket",
         "StreetNumber", "StreetName", "UnitNumber",
-        "MLSAreaMajor", "PropertySubType",
+        "SubdivisionName", "PropertySubType",
         "AssociationFee", "ListOfficeName",
         "ModificationTimestamp", "OnMarketDate",
       ],

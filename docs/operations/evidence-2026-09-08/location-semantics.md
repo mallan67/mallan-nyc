@@ -103,13 +103,29 @@ Neighborhood identity = (`CityRegion`, `SubdivisionName`).
 - `lib/compliance/reso-mapper.ts` (borough from `City`) exists on `main`; it was deleted on this lane by `f0ff8302`/`d6444b00` — not a reader here.
 - Stored corpus (DB, 11,126 provider rows with `mls_id`; 26,510 rows total, of which 15,384 RLS-prefixed rows have `mls_id` NULL — pre-2026-08-13 syncs without `ListingKey`): `borough` == normalized `CityRegion` on every row that has CityRegion (the 33 mismatches are rows whose raw_data lacks it); `neighborhood` == `SubdivisionName` likewise; the `CityRegion` fallback into `neighborhood` fired 0 times; stored `MLSAreaMajor` non-null 0.
 
-## 7. Proposed declaration (for Maya — the semantic layer is hers)
+## 7. Declaration — Maya, 2026-09-08 ("write up the location evidence and fix the readers") — IMPLEMENTED
 
-- `listings.borough` ← `CityRegion` (display "Staten Island" for `StatenIsland`); `CountyOrParish` kept as its own fact (`county`), never a borough source.
-- `listings.neighborhood` ← `SubdivisionName` only; no `CityRegion` fallback (it would write a borough into the neighborhood column).
-- Neighborhood vocabulary and Search criteria keyed by (borough, neighborhood).
-- `city` ← `City`; `postal_city` ← `PostalCity`; never a fabricated 'New York'.
-- Comps: neighborhood filter on `SubdivisionName`, borough filter on `CityRegion`.
-- Impact (mechanical): `listings.borough` 26 typed reader sites, `listings.neighborhood` 42 — the exact list is in the authority's impact output for `CityRegion`/`SubdivisionName`.
+The one interpretation lives in `lib/listings/canonical-location.ts` (inside the Cotality boundary):
+
+- `listings.borough` ← `CityRegion` (`boroughFromCityRegion`; "Staten Island" for `StatenIsland`); `CountyOrParish` is its own fact (`county`), never a borough source. Absent CityRegion → unknown (null), never inferred.
+- `listings.neighborhood` ← `SubdivisionName` only (`neighborhoodFromSubdivisionName`); no `CityRegion` fallback.
+- Neighborhood identity = (borough, neighborhood).
+- `city` ← `City`; `postal_city` ← `PostalCity`; never a fabricated 'New York'. The borough→county table (`COUNTY_BY_BOROUGH`) is NYC geography used only to fill `county` for Mallan-authored rows without `CountyOrParish`.
+- `$filter` literals through `cityRegionForBorough` (Mallan "Staten Island" → live `StatenIsland`).
+
+Readers fixed (tests first: `lib/listings/__tests__/canonical-location.test.ts`, `tests/runtime/location-readers.test.ts`):
+
+| Reader | Before | After |
+|---|---|---|
+| `lib/idx/trestle-mapper.ts` | `inferBorough` from `CountyOrParish`/`City`; neighborhood fell back to `CityRegion` | `boroughFromCityRegion`, `neighborhoodFromSubdivisionName` |
+| `lib/comps/fetch-comps.ts` | `CityRegion eq '<neighborhood>'` (0 rows), `CountyOrParish eq '<borough>'` (0 rows) | `areaCompsLocationFilter`: `SubdivisionName` / `PostalCode` / `CityRegion` |
+| `lib/search/public-listing-trestle.ts` | borough → `CountyOrParish` via a county table | `CityRegion eq` via `cityRegionForBorough` |
+| `lib/market-report/generator.ts` | neighborhoods on `MLSAreaMajor` (empty on all rows); borough via a county table | `marketReportLocationFilter`: `CityRegion` / `SubdivisionName`; `$select` no longer asks for `MLSAreaMajor` |
+| `lib/idx/db-to-public-dto.ts` | `city` defaulted to 'New York'; `county` from a borough table with 'New York' default | `city` from the row only; `county` = `CountyOrParish`, else the canonical borough's county, else empty; neighborhood column-first |
+| `app/api/listings/suggest/route.ts` | borough from the county map; zip labels showed the BOROUGH as "neighborhood" | `boroughFromCityRegion`; `SubdivisionName` (added to `$select`) |
+| `lib/search/crm-idx-mapper.ts` | `borough: raw.CityRegion` verbatim ("StatenIsland") | canonical borough |
+| `lib/buildings/upsert.ts`, `app/api/buildings/search/route.ts`, `app/api/crm/listings/[id]/route.ts` | raw `CityRegion` / form value stored verbatim | normalized through `boroughFromCityRegion` (unrecognised values kept for correction) |
+
+Not touched (correct already): `lib/listings/mallan-form-contract.ts` aliases (Borough→CityRegion, Neighborhood→SubdivisionName); `lib/compliance/rebny-validator.ts` (reads CityRegion as borough); `lib/search/engine/criteria.ts` (borough labels → live CityRegion literals). `lib/compliance/reso-mapper.ts` exists only on `main`.
 
 Evidence files: `docs/operations/evidence-2026-09-08/location/*.json` (reconciled value sets and the full census).

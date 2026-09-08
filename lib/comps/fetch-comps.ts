@@ -11,6 +11,7 @@
 
 import { fetchFromTrestle } from "@/lib/idx/fetch";
 import { CARD_SELECT_FIELDS } from "@/lib/idx/card-fields";
+import { cityRegionForBorough } from "@/lib/listings/canonical-location";
 import type { CompCriteria, CompListing, CompResults, BuildingCompCriteria, AreaCompCriteria } from "./types";
 
 // Trestle status values mapped from our display names
@@ -146,6 +147,28 @@ async function fetchBuildingComps(
 }
 
 /**
+ * The area-comps location clause — neighborhoods, else zip, else borough, else null (no comps).
+ *
+ * Canonical location (Maya, 2026-09-08, exhaustive live evidence): a neighborhood is
+ * `SubdivisionName` and a borough is `CityRegion`. The previous clauses were
+ * `CityRegion eq '<neighborhood>'` (0 live rows for 'Upper East Side'; 51,664 on SubdivisionName)
+ * and `CountyOrParish eq '<borough>'` (0 live rows for 'Manhattan' and 'Brooklyn' — the county field
+ * holds county names), so area comps by neighborhood never matched.
+ */
+export function areaCompsLocationFilter(
+  ctx: Pick<ListingContext, "postal_code" | "borough">,
+  criteria: Pick<AreaCompCriteria, "neighborhoods">,
+): string | null {
+  if (criteria.neighborhoods.length > 0) {
+    const clauses = criteria.neighborhoods.map((n) => `SubdivisionName eq '${esc(n)}'`);
+    return clauses.length === 1 ? clauses[0] : `(${clauses.join(" or ")})`;
+  }
+  if (ctx.postal_code) return `PostalCode eq '${esc(ctx.postal_code)}'`;
+  const cityRegion = cityRegionForBorough(ctx.borough);
+  return cityRegion ? `CityRegion eq '${cityRegion}'` : null;
+}
+
+/**
  * Fetch area comps — same neighborhood(s), similar property type, matched by criteria.
  */
 async function fetchAreaComps(
@@ -154,19 +177,9 @@ async function fetchAreaComps(
 ): Promise<CompListing[]> {
   const filters: string[] = [];
 
-  // Neighborhood filter
-  if (criteria.neighborhoods.length > 0) {
-    const nhoodClauses = criteria.neighborhoods.map(
-      (n) => `CityRegion eq '${esc(n)}'`
-    );
-    filters.push(nhoodClauses.length === 1 ? nhoodClauses[0] : `(${nhoodClauses.join(" or ")})`);
-  } else if (ctx.postal_code) {
-    filters.push(`PostalCode eq '${esc(ctx.postal_code)}'`);
-  } else if (ctx.borough) {
-    filters.push(`CountyOrParish eq '${esc(ctx.borough)}'`);
-  } else {
-    return [];
-  }
+  const location = areaCompsLocationFilter(ctx, criteria);
+  if (!location) return [];
+  filters.push(location);
 
   // Property type — match same general type
   if (ctx.property_type) {

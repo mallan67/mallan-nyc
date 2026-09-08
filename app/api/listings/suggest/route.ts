@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { fetchFromTrestle } from '@/lib/idx/fetch';
 import { checkDistributionGates } from '@/lib/idx/trestle-mapper';
+import { locationFromProviderRow } from '@/lib/listings/canonical-location';
 import { isMallanRlsReturnCopy } from "@/lib/listings/mallan-source-identity";
 import {
   classifySuggestQuery,
@@ -103,6 +104,8 @@ export const SUGGEST_SELECT_FIELDS = [
   'PostalCode',
   'CountyOrParish',
   'CityRegion',
+  // The neighborhood (canonical location 2026-09-08) for zip suggestion labels.
+  'SubdivisionName',
   // Used by the text-search OData filter (BuildingName) — kept in select so
   // future label use does not break.
   'BuildingName',
@@ -309,13 +312,8 @@ export async function GET(request: Request) {
           const fullAddress = `${streetNumber} ${streetName}`.trim();
           const listingId = String(raw.ListingId || '');
 
-          const county = String(raw.CountyOrParish || '').toLowerCase();
-          let borough = String(raw.CountyOrParish || '');
-          if (county.includes('new york')) borough = 'Manhattan';
-          else if (county.includes('kings')) borough = 'Brooklyn';
-          else if (county.includes('queens')) borough = 'Queens';
-          else if (county.includes('bronx')) borough = 'Bronx';
-          else if (county.includes('richmond')) borough = 'Staten Island';
+          // Canonical location (2026-09-08): the borough is CityRegion; the county is not a borough source.
+          const borough = locationFromProviderRow(raw).borough ?? '';
 
           suggestions.push({
             type: 'listing',
@@ -449,15 +447,11 @@ export async function GET(request: Request) {
             if (seen.has(key)) continue;
             seen.add(key);
 
-            const county = String(raw.CountyOrParish || '').toLowerCase();
-            let borough = String(raw.CountyOrParish || '');
-            if (county.includes('new york')) borough = 'Manhattan';
-            else if (county.includes('kings')) borough = 'Brooklyn';
-            else if (county.includes('queens')) borough = 'Queens';
-            else if (county.includes('bronx')) borough = 'Bronx';
-            else if (county.includes('richmond')) borough = 'Staten Island';
-
-            const neighborhood = String(raw.CityRegion || '');
+            // Canonical location (2026-09-08): borough = CityRegion; neighborhood = SubdivisionName.
+            // The zip label used to show the BOROUGH as the "neighborhood".
+            const location = locationFromProviderRow(raw);
+            const borough = location.borough ?? '';
+            const neighborhood = location.neighborhood ?? '';
 
             if (isZip) {
               suggestions.push({

@@ -17,6 +17,9 @@ import { enumValueTokens, isCotalityStandardStatus } from "@/lib/cotality/live-c
 // Compile-checked field lists: every name below must be a field the live $metadata declares on
 // Property, or `npm run type-check` fails. See lib/cotality/contract.ts (generated contract).
 import { cotalityFields } from "@/lib/cotality/contract";
+// THE canonical location interpretation (Maya, 2026-09-08, exhaustive live evidence):
+// borough ← CityRegion, neighborhood ← SubdivisionName, county ← CountyOrParish. No inference.
+import { boroughFromCityRegion, neighborhoodFromSubdivisionName } from "@/lib/listings/canonical-location";
 import {
   mallanStatusFromCotality,
   MALLAN_TERMINAL_STATUSES,
@@ -507,22 +510,6 @@ export function inferListingType(raw: Record<string, unknown>): "sale" | "rent" 
 }
 
 /**
- * Determine borough from address fields (NYC-specific).
- */
-function inferBorough(raw: Record<string, unknown>): string | null {
-  const county = String(raw.CountyOrParish || "").toLowerCase();
-  const city = String(raw.City || "").toLowerCase();
-
-  if (county.includes("new york") || city === "manhattan") return "Manhattan";
-  if (county.includes("kings") || city === "brooklyn") return "Brooklyn";
-  if (county.includes("queens") || city === "queens") return "Queens";
-  if (county.includes("bronx") || city === "bronx") return "Bronx";
-  if (county.includes("richmond") || city === "staten island") return "Staten Island";
-
-  return null;
-}
-
-/**
  * Mallan storage statuses that mean "no longer publicly displayable" (lib/listings/mallan-status.ts).
  *
  * Mirrors the data-retention cron predicate at
@@ -1004,11 +991,12 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
   const bathroomsHalf = raw.BathroomsHalf != null ? Number(raw.BathroomsHalf) : null;
   const livingArea = raw.LivingArea != null ? String(raw.LivingArea) : null; // String for Prisma Decimal precision
 
-  const borough = inferBorough(raw);
-  // SubdivisionName = real neighborhood (UWS, Tribeca, etc.)
-  // CityRegion = borough (Manhattan, Brooklyn, etc.) — NOT neighborhood
-  const neighborhood = raw.SubdivisionName ? String(raw.SubdivisionName) :
-    (raw.CityRegion && raw.CityRegion !== borough ? String(raw.CityRegion) : null);
+  // Canonical location (lib/listings/canonical-location.ts). Live, every row, 2026-09-08:
+  // CityRegion = exactly the five boroughs (→ borough; the county is a separate fact and disagrees
+  // on 35 rows, so it is never a borough source); SubdivisionName = the neighborhood, with NO
+  // CityRegion fallback (that wrote a borough into the neighborhood column).
+  const borough = boroughFromCityRegion(raw.CityRegion);
+  const neighborhood = neighborhoodFromSubdivisionName(raw.SubdivisionName);
 
   // Distribution gates — canonical fields per compliance/IDX-VOW-DISPLAY-RULES.md
   // IDXEntireListingDisplayYN does NOT exist on Trestle (verified 2026-04-19 against

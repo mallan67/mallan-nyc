@@ -3,6 +3,7 @@
 // Ownership enforced: agent can only access their own listings.
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { boroughFromCityRegion } from "@/lib/listings/canonical-location";
 import {
   requireAgentOrBroker,
   isAuthError,
@@ -266,8 +267,10 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // sends Borough→CityRegion + Neighborhood→SubdivisionName). Before this fix
   // PATCH only mirrored when body sent the canonical names, so column-side
   // borough/neighborhood drifted on every edit-save (gap report 2026-05-28 C2).
-  if (body.Borough !== undefined) update.borough = String(body.Borough);
-  else if (body.CityRegion !== undefined) update.borough = String(body.CityRegion);
+  // Canonical borough (lib/listings/canonical-location.ts): "StatenIsland" and "Staten Island" both
+  // store "Staten Island"; an unrecognised value is kept verbatim for correction, never silently dropped.
+  if (body.Borough !== undefined) update.borough = boroughFromCityRegion(body.Borough) ?? String(body.Borough);
+  else if (body.CityRegion !== undefined) update.borough = boroughFromCityRegion(body.CityRegion) ?? String(body.CityRegion);
   if (body.Neighborhood !== undefined) update.neighborhood = String(body.Neighborhood);
   else if (body.SubdivisionName !== undefined) update.neighborhood = String(body.SubdivisionName);
   if (body.City !== undefined) update.city = String(body.City);

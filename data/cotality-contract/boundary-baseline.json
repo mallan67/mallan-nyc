@@ -1,11 +1,11 @@
 {
   "format": "mallan-cotality-boundary-baseline/v1",
-  "written_at": "2026-09-08T04:21:25.822Z",
+  "written_at": "2026-09-08T06:10:39.102Z",
   "rule": "This list may only shrink. A key is file::field of a raw Cotality read outside data/cotality-contract/boundary.json.",
   "counts": {
     "files": 64,
-    "keys": 640,
-    "sites": 979
+    "keys": 636,
+    "sites": 972
   },
   "keys": [
     "app/api/buildings/search/route.ts::AssociationFee",
@@ -182,8 +182,6 @@
     "app/api/listings/similar/route.ts::StreetNumber",
     "app/api/listings/similar/route.ts::StreetSuffix",
     "app/api/listings/similar/route.ts::UnitNumber",
-    "app/api/listings/suggest/route.ts::CityRegion",
-    "app/api/listings/suggest/route.ts::CountyOrParish",
     "app/api/listings/suggest/route.ts::InternetAddressDisplayYN",
     "app/api/listings/suggest/route.ts::ListOfficeMlsId",
     "app/api/listings/suggest/route.ts::ListingId",
@@ -453,7 +451,6 @@
     "lib/idx/db-to-public-dto.ts::AvailabilityDate",
     "lib/idx/db-to-public-dto.ts::BuildingFeatures",
     "lib/idx/db-to-public-dto.ts::BuildingName",
-    "lib/idx/db-to-public-dto.ts::City",
     "lib/idx/db-to-public-dto.ts::CloseDate",
     "lib/idx/db-to-public-dto.ts::ClosePrice",
     "lib/idx/db-to-public-dto.ts::CommonInterest",
@@ -490,7 +487,6 @@
     "lib/idx/db-to-public-dto.ts::StreetName",
     "lib/idx/db-to-public-dto.ts::StreetNumber",
     "lib/idx/db-to-public-dto.ts::StreetSuffix",
-    "lib/idx/db-to-public-dto.ts::SubdivisionName",
     "lib/idx/db-to-public-dto.ts::TaxAnnualAmount",
     "lib/idx/db-to-public-dto.ts::TaxYear",
     "lib/idx/db-to-public-dto.ts::TenantPays",

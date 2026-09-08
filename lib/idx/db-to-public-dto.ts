@@ -19,6 +19,7 @@ import type { PublicListingDTO } from './public-dto';
 import { resolveMoveInFees } from './public-dto';
 import { mapPropertyTypeToDisplay, buildAuctionPublic } from './public-dto';
 import { publicListOfficeName } from './public-attribution';
+import { locationFromStoredRow } from '@/lib/listings/canonical-location';
 import { toPublicMediaUrl } from '@/lib/media/proxy-url-policy';
 import { composeDbPublicMedia } from '@/lib/media/db-media-composition';
 import { composeSlugStreetName, buildListingSlugFromDbRow } from '@/lib/listing-slug';
@@ -34,16 +35,11 @@ import {
 import { normalizeStreetCase } from './normalize-street-case';
 import { resolveListingAgentInfo } from '@/lib/listings/agent-info-resolver';
 
-/** Borough → County mapping (reverse of display-adapter) */
-const BOROUGH_TO_COUNTY: Record<string, string> = {
-  manhattan: 'New York',
-  brooklyn: 'Kings',
-  queens: 'Queens',
-  bronx: 'Bronx',
-  'staten island': 'Richmond',
-};
-
 interface DbAddress {
+  /** Provider county (CountyOrParish) — its own fact, never a borough source. */
+  CountyOrParish?: string;
+  /** Provider borough carrier (CityRegion); the canonical column `borough` is preferred. */
+  CityRegion?: string;
   street?: string;
   StreetNumber?: string;
   StreetDirPrefix?: string;
@@ -375,12 +371,15 @@ export function dbListingToPublicDTO(
   ].filter(Boolean).join(' ') || '';
   const streetName = normalizeStreetCase(streetNameRaw);
   const unitNumber = addr.UnitNumber || null;
-  const city = addr.City || camel('city') || listing.borough || 'New York';
+  // Canonical location (Maya, 2026-09-08, exhaustive live evidence — lib/listings/canonical-location.ts).
+  // The DTO consumes facts: city only from the row (never an invented 'New York'); county = the stored
+  // CountyOrParish, else the canonical borough's county (NYC geography for Mallan rows), else unknown;
+  // neighborhood = the canonical column, then the stored SubdivisionName / legacy form key.
+  const location = locationFromStoredRow({ borough: listing.borough, neighborhood: listing.neighborhood, address: addr });
+  const city = location.city ?? '';
   const postalCode = addr.PostalCode || camel('postalCode');
-  const borough = (addr.Borough || listing.borough || '').toLowerCase();
-  const county = BOROUGH_TO_COUNTY[borough] || borough || 'New York';
-  // Neighborhood: SubdivisionName (Trestle) > Neighborhood (legacy) > DB column
-  const neighborhood = addr.SubdivisionName || addr.Neighborhood || listing.neighborhood || undefined;
+  const county = location.county ?? '';
+  const neighborhood = location.neighborhood ?? undefined;
 
   // CRM-created exclusives always show address — IDX gate is for RLS-distributed only.
   // Use listing_id prefix (always selected, always present) instead of mls_id

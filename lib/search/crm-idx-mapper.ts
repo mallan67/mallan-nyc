@@ -1,4 +1,5 @@
 import { resolveListingMedia } from "@/lib/media/listing-media-resolver";
+import { boroughFromCityRegion } from "@/lib/listings/canonical-location";
 import { computeGateColumns, derivePermissionGates, inferListingType, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
 import { derivePermissionBooleans } from "@/lib/compliance/normalizer";
 import { displayPropertyType } from "@/lib/idx/display-property-type";
@@ -264,9 +265,9 @@ export function mapTrestleToCrmListing(
     propertyType: mapDisplayPropertyType(raw),
     propertySubType: String(raw.PropertySubType || ""),
     neighborhood: String(raw.SubdivisionName || ""),
-    // CityRegion is the live borough carrier (Validator 2026-09-05). CountyOrParish is the
-    // county field, not a borough; a missing borough is unknown — never Manhattan.
-    borough: str(raw.CityRegion),
+    // CityRegion is the borough (canonical location, 2026-09-08) rendered in Mallan's form
+    // ("Staten Island"); a missing borough is unknown — never Manhattan, never the county.
+    borough: boroughFromCityRegion(raw.CityRegion),
     zip: String(raw.PostalCode || ""),
     yearBuilt,
     era,

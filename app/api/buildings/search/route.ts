@@ -1,6 +1,7 @@
 // Cotality ref: docs/architecture/COTALITY-COMPLETE-REFERENCE.md §18 (CRM Building Lookup)
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { boroughFromCityRegion } from '@/lib/listings/canonical-location';
 import { requireAgentOrBroker, isAuthError } from '@/lib/auth';
 import { sanitizeOData } from '@/lib/sanitize';
 import { getAccessToken } from '@/lib/idx/auth';
@@ -139,7 +140,8 @@ function addressIdentityKey(rec: Record<string, unknown>): string {
   // Don't duplicate a direction already embedded in StreetName (e.g. "E 46TH").
   const nameHasDir = dir && name.toUpperCase().startsWith(dir.toUpperCase() + ' ');
   const addrPart = `${num} ${dir && !nameHasDir ? dir + ' ' : ''}${name} ${suffix}`.replace(/\s+/g, ' ').trim();
-  const borough = String(rec.CityRegion ?? '').trim();
+  // Canonical borough so a DB address ("Staten Island") and a Cotality record ("StatenIsland") key alike.
+  const borough = boroughFromCityRegion(rec.CityRegion) ?? String(rec.CityRegion ?? '').trim();
   const zip = String(rec.PostalCode ?? '').trim();
   // Borough + zip incorporated when present, else plain full address (fallback).
   return `${addrPart}|${borough}|${zip}`.toUpperCase();

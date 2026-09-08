@@ -109,7 +109,8 @@ describe('10–12: no invented status, borough or property type', () => {
   test('11. missing borough → null, never Manhattan; CountyOrParish is not a borough', () => {
     expect(sale({}).borough).toBeNull();
     expect(sale({ CountyOrParish: 'New York' }).borough).toBeNull();
-    expect(sale({ CityRegion: 'StatenIsland' }).borough).toBe('StatenIsland');
+    // Canonical location (2026-09-08): the live CityRegion literal renders in Mallan's borough form.
+    expect(sale({ CityRegion: 'StatenIsland' }).borough).toBe('Staten Island');
   });
   test('12. missing property type → null, never Residential; listing type is the provider fact or null', () => {
     const l = mapTrestleToCrmListing({ ListingKey: 'k', StandardStatus: 'Active' }, 0);

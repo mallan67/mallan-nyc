@@ -6,7 +6,7 @@
  *   - status / listing-type / commercial / price / beds / baths / sqft
  *   - propertySubTypes / new-development / ownershipTypes / propertyType
  *   - yearBuilt / furnished / address / keywords
- *   - borough → CountyOrParish, neighborhood → ZIP, zipCodes
+ *   - borough → CityRegion (canonical location 2026-09-08), neighborhood → ZIP, zipCodes
  *   - safe OData string escaping
  *
  * Intentionally NOT owned by this helper:
@@ -24,6 +24,7 @@
  */
 
 import { lookupNeighborhoodZips } from "@/lib/geo/neighborhood-zips";
+import { cityRegionForBorough } from "@/lib/listings/canonical-location";
 
 const ALLOWED_STATUSES = ["Active", "ComingSoon", "ActiveUnderContract"];
 const DEFAULT_STATUS_CLAUSE =
@@ -43,15 +44,6 @@ const COMMON_INTEREST_MAP: Record<string, string> = {
   Condop: "Condop",
 };
 
-// NYC borough names → REBNY CountyOrParish values. Trestle stores the county
-// name (e.g. "New York" for Manhattan), not the borough name.
-const BOROUGH_TO_COUNTY: Record<string, string> = {
-  manhattan: "New York",
-  brooklyn: "Kings",
-  queens: "Queens",
-  bronx: "Bronx",
-  "staten island": "Richmond",
-};
 
 // New-development heuristics live in PublicRemarks because NewConstructionYN
 // and NewDevelopmentYN are NOT exposed on IDX Plus and PropertySubType pushes
@@ -283,8 +275,10 @@ function buildNeighborhoodFilterPart(params: URLSearchParams): string | null {
 function buildBoroughFilterPart(params: URLSearchParams): string | null {
   const borough = params.get("borough");
   if (!borough) return null;
-  const countyValue = BOROUGH_TO_COUNTY[borough.toLowerCase()] || borough;
-  return `CountyOrParish eq '${escapeOData(countyValue)}'`;
+  // The borough IS CityRegion on this feed (canonical location, 2026-09-08 — exactly the five boroughs
+  // on every live row; CountyOrParish is the county and disagrees on 35 rows). An unrecognised value is
+  // sent as asked and matches nothing, rather than being silently widened.
+  return `CityRegion eq '${escapeOData(cityRegionForBorough(borough) ?? borough)}'`;
 }
 
 function buildKeywordsFilterParts(params: URLSearchParams): string[] {
