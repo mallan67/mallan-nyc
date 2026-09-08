@@ -144,7 +144,9 @@ function hasAnnotation(content, index, annotation) {
 function getMapperFields() {
   const mapper = readFile('lib/idx/trestle-mapper.ts');
   if (!mapper) return { allRls: new Set(), excluded: new Set(), select: new Set(), required: new Set(), blocks: new Map() };
-  const blockRx = /const\s+(B\d+_\w+)\s*=\s*\[([\s\S]*?)\];/g;
+  // Both list forms: the bare array and the compile-checked `cotalityFields('Property', [...])`
+  // wrapper (2026-09-08) that proves every name live against lib/cotality/generated/contract.ts.
+  const blockRx = /const\s+(B\d+_\w+)\s*=\s*(?:cotalityFields\(\s*['"]Property['"]\s*,\s*)?\[([\s\S]*?)\]\)?;/g;
   const blocks = new Map();
   const allRls = new Set();
   let blockMatch;
