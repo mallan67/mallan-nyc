@@ -325,11 +325,14 @@ async function fetchTrestleUpcoming(): Promise<UpcomingEntry[]> {
       const propRaw = r.Property;
       const prop = ((Array.isArray(propRaw) ? propRaw[0] : propRaw) || {}) as Record<string, unknown>;
       // idxPlusPreFiltered: REBNY pre-filtered feed — null IELD = displayable (fail-OPEN).
-      if (!evaluateDisplayGate(prop, { idxPlusPreFiltered: true }).displayable) continue;
+      const gate = evaluateDisplayGate(prop, { idxPlusPreFiltered: true });
+      if (!gate.displayable) continue;
       const listingId = String(r.ListingId || r.ListingKey || '');
       out.push({
         listingId,
-        addressKey: normalizeAddressKey({ streetNumber: prop.StreetNumber, streetName: prop.StreetName, unitNumber: prop.UnitNumber }),
+        // An address-suppressed listing (InternetAddressDisplayYN false) never emits an address key; the twin
+        // merge then falls back to listingId, exactly as app/api/open-houses/route.ts does.
+        addressKey: gate.addressDisplayable ? normalizeAddressKey({ streetNumber: prop.StreetNumber, streetName: prop.StreetName, unitNumber: prop.UnitNumber }) : '',
         date: String(r.OpenHouseDate || '').split('T')[0],
         startTime: formatEasternTime(r.OpenHouseStartTime as string),
         endTime: formatEasternTime(r.OpenHouseEndTime as string),

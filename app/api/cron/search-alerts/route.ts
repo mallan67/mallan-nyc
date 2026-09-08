@@ -208,7 +208,10 @@ export async function GET(req: NextRequest) {
         }
 
         // 5. Hydrate. The template has no image, so no media is fetched for these rows.
-        const hydrated = await hydrateRows(capped, { select: SEARCH_SELECT_FIELDS, media: false });
+        // Audience: an agent-only alert is delivered to a REBNY participant; a lead-linked alert or a
+        // public subscriber is the public, so participants-only rows never reach them.
+        const audience = search.agent && !search.lead ? "member" : "public";
+        const hydrated = await hydrateRows(capped, { select: SEARCH_SELECT_FIELDS, media: false, audience });
         runDelta.hydrationMissing = hydrated.missing.length;
         runDelta.gateExcluded = hydrated.gateExcluded.length;
         let toDeliver = hydrated.listings;

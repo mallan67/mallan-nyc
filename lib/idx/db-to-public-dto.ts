@@ -305,18 +305,20 @@ export function filterDisplayableDbListings(listings: DbListing[]): DbListing[] 
   return listings.filter((l) => {
     // Gate 1: Must be an active/displayable status
     if (!DISPLAYABLE_STATUSES.includes(l.status)) return false;
-    // Website-only listings (commercial, rls_eligible=false) bypass RLS gates.
-    // `rls_eligible` is a real internal boolean, not a Trestle permission flag,
-    // so the literal `=== false` check is intentional here.
+    // The Mallan decisions bind on EVERY row, website-only included: owner opt-out (UCBA Art. I §5(A) —
+    // no public dissemination at any time) and participants-only are not RLS flags, so they can never be
+    // bypassed by provenance (STEP3 ledger §13.4: the early return below used to skip them).
+    if (l.owner_opt_out) return false;
+    if (l.participant_only) return false;
+    // Website-only listings (commercial, rls_eligible=false) are not RLS inventory, so the IDX gates the
+    // feed enforces do not bind. `rls_eligible` is a real internal boolean, not a Trestle permission
+    // flag, so the literal `=== false` check is intentional here.
     if (l.rls_eligible === false) return true;
     // Gate 2: IDX display must be enabled (fail-closed: null/undefined → deny)
     if (!affirmPermission(l.idx_display_yn)) return false;
     // Gate 3: Internet display must be enabled (fail-closed)
     if (!affirmPermission(l.internet_entire_listing_display_yn)) return false;
-    // Gate 4: Owner must not have opted out
-    if (l.owner_opt_out) return false;
-    // Gate 5: Must not be participant-only
-    if (l.participant_only) return false;
+    // Gates 4 + 5 (owner opt-out, participant-only) were applied above, before the provenance split.
     return true;
   });
 }

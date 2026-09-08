@@ -26,6 +26,12 @@ describe("buildPublicListingDbSearch", () => {
     expect(orderBy).toEqual({ list_price: "desc" });
   });
 
+  it("website-only rows still honour the Mallan decisions (owner opt-out, participants-only) — STEP3 §13.4", () => {
+    const { where } = buildPublicListingDbSearch(new URLSearchParams("type=sale"));
+    const websiteOnly = (where.OR as Array<Record<string, unknown>>).find((b) => b.rls_eligible === false)!;
+    expect(websiteOnly).toMatchObject({ owner_opt_out: false, participant_only: false });
+  });
+
   it("translates public filter params into DB filters", () => {
     const { where, orderBy } = buildPublicListingDbSearch(new URLSearchParams({
       minPrice: "1000000",

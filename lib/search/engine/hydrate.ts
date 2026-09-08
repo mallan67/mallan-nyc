@@ -20,11 +20,16 @@ import { queryProvider, walkProvider } from './provider-client';
 import { MEDIA_SELECT_FIELDS } from '@/lib/media/listing-media-resolver';
 import type { UniverseRow } from './universe';
 
+/** Who receives the rows: an authenticated REBNY participant (Mallan agent / broker) or the public. */
+export type SearchAudience = 'public' | 'member';
+
 export interface HydrateOptions {
   /** The route's own select list, passed in so the engine never imports the route. */
   select: readonly string[];
   /** Fetch provider media for the page (default true). The alert cron passes false: its email has no image. */
   media?: boolean;
+  /** The audience the rows are for — decides the participants-only gate. Undeclared = the public (fail-closed). */
+  audience?: SearchAudience;
 }
 
 export interface HydratedPage {
@@ -73,17 +78,30 @@ async function providerRecords(keys: readonly string[], select: readonly string[
 }
 
 /**
- * Provider-row permission gate for the agent Search page — THE canonical interpretation
- * (derivePermissionGates: the provider Permission tokens must all be the served 'IDX' permission;
- * no member is read as a Mallan owner-opt-out / participant-only decision) plus the IDX Plus
- * display-flag convention (null is not false; only an explicit false blocks). Status is a search
- * criterion here, not a gate, so the public closed-24h rule does not apply. A record with no
- * Permission (a Mallan-authored row hydrated into provider shape) carries no provider fact and
- * passes this gate; its Mallan decisions are applied by the Mallan row path.
- * Live 2026-09-06: 591,536 of 591,536 rows carry Permission 'IDX'; 'Private' 0; null 0.
+ * Provider-row permission gate, per audience — THE canonical interpretation (derivePermissionGates) plus
+ * the IDX Plus display-flag convention (null is not false; only an explicit false blocks). Status is a
+ * search criterion here, not a gate, so the public closed-24h rule does not apply. A record with no
+ * Permission (a Mallan-authored row hydrated into provider shape) carries no provider fact and passes;
+ * its Mallan decisions are applied by the Mallan row path.
+ *
+ *   public  — every token must be the served 'IDX' permission; a participants-only row ('Private':
+ *             "private and should have limited distribution", Trestle metadata/enumerations/P-S) is blocked.
+ *   member  — an authenticated REBNY participant may see a participants-only row (STEP3 ledger §13.3 —
+ *             the previous gate excluded it from the one audience it exists for). Any other non-IDX token
+ *             (SyndicateOptOut, OfficeInactive, …) has no definition on the provider docs and stays
+ *             fail-closed for every audience until its meaning is proven.
+ *
+ * Live 2026-09-08 (whole corpus): every row carries 'IDX'; 'Private' 0; on-market rows with an extra token:
+ * Pending 'IDX,SyndicateOptOut' 2, all else 0.
  */
-function passesGate(raw: Record<string, unknown>): boolean {
-  return derivePermissionGates(raw).idxPermitted !== false && raw.InternetEntireListingDisplayYN !== false;
+export function providerRowPassesGate(raw: Record<string, unknown>, audience: SearchAudience = 'public'): boolean {
+  if (raw.InternetEntireListingDisplayYN === false) return false;
+  const p = derivePermissionGates(raw);
+  if (audience === 'member') {
+    const onlyIdxOrPrivate = p.permissionTokens.every((t) => t === 'IDX' || t === 'Private');
+    return p.idxPermitted !== false || (p.participantOnly && onlyIdxOrPrivate);
+  }
+  return p.idxPermitted !== false && !p.participantOnly;
 }
 
 type MallanRow = {
@@ -176,7 +194,7 @@ export async function hydratePage(page: readonly UniverseRow[], o: HydrateOption
   page.forEach((row, i) => {
     const raw = row.source === 'provider' ? prov.records.get(row.listingKey as string) : mal.get(row.listingId);
     if (!raw) { missing.push(row.listingKey ?? row.listingId); return; }
-    if (row.source === 'provider' && !passesGate(raw)) { gateExcluded.push(row.listingKey as string); return; }
+    if (row.source === 'provider' && !providerRowPassesGate(raw, o.audience ?? 'public')) { gateExcluded.push(row.listingKey as string); return; }
     const dto = mapTrestleToCrmListing(raw, i);
     dto._source = row.source === 'provider' ? 'idx' : 'mallan';
     dto._identity = { source: row.source, listingId: row.listingId, listingKey: row.listingKey };

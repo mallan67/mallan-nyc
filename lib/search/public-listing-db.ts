@@ -183,6 +183,10 @@ export function buildPublicListingDbSearch(params: URLSearchParams): PublicListi
       },
       {
         rls_eligible: false,
+        // The Mallan decisions bind on website-only rows too (STEP3 ledger §13.4): owner opt-out is never
+        // publicly disseminated, participants-only never reaches the public.
+        owner_opt_out: false,
+        participant_only: false,
         status: { in: ALLOWED_PUBLIC_STATUSES },
         list_price: { gt: 0 },
         address: { not: Prisma.DbNull },

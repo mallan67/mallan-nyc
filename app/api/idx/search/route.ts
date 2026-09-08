@@ -54,7 +54,8 @@ export async function GET(req: NextRequest) {
     }
     const c = parsed.criteria;
     const { limit, offset } = c;
-    const run = await executeSearch(c, { select: SEARCH_SELECT_FIELDS });
+    // Authenticated agent / broker search — a REBNY participant may see participants-only rows.
+    const run = await executeSearch(c, { select: SEARCH_SELECT_FIELDS, audience: "member" });
     const { universe, hydrated, page, universeFromCache, countMeaning } = run;
 
     const response = {

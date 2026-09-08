@@ -72,7 +72,8 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
       // No body is fine — use defaults
     }
 
-    const run = await executeSearch({ ...resolved.criteria, limit, offset }, { select: SEARCH_SELECT_FIELDS });
+    // Authenticated agent / broker execution — a REBNY participant may see participants-only rows.
+    const run = await executeSearch({ ...resolved.criteria, limit, offset }, { select: SEARCH_SELECT_FIELDS, audience: "member" });
 
     await prisma.savedSearch.update({
       where: { id: BigInt(id) },

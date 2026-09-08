@@ -15,6 +15,7 @@ import { hydratePage, type HydratedPage } from './hydrate';
 import { SEARCH_SELECT_FIELDS } from './select';
 import { pageOf, settleUniverse, type SettledUniverse, type UniverseRow } from './universe';
 import type { SearchCriteria } from './criteria';
+import type { SearchAudience } from './hydrate';
 
 // Settled-universe cache: keyed by criteria WITHOUT paging, short-lived. Per function instance.
 const UNIVERSE_TTL_MS = 60_000;
@@ -57,6 +58,8 @@ export interface ExecuteOptions {
   select?: readonly string[];
   media?: boolean;
   cache?: boolean;
+  /** Who receives the rows (participants-only gate). Undeclared = the public (fail-closed). */
+  audience?: SearchAudience;
 }
 
 export interface ExecutedSearch {
@@ -76,7 +79,7 @@ export interface ExecutedSearch {
 export async function executeSearch(c: SearchCriteria, o: ExecuteOptions = {}): Promise<ExecutedSearch> {
   const { universe, fromCache } = await settledUniverseFor(c, o.cache !== false);
   const page = pageOf(universe, c.offset, c.limit);
-  const hydrated = await hydratePage(page, { select: o.select ?? SEARCH_SELECT_FIELDS, media: o.media !== false });
+  const hydrated = await hydratePage(page, { select: o.select ?? SEARCH_SELECT_FIELDS, media: o.media !== false, audience: o.audience });
   const pageShort = hydrated.missing.length + hydrated.gateExcluded.length;
   const countMeaning = universe.countMeaning === 'exact' && pageShort === 0 ? 'exact' : 'lower_bound';
   return {
@@ -116,5 +119,5 @@ export function rowsModifiedSince(u: SettledUniverse, since: Date): { rows: Univ
 
 /** Hydrate an explicit row set (e.g. the capped alert delivery) into the shared DTO. */
 export async function hydrateRows(rows: readonly UniverseRow[], o: ExecuteOptions = {}): Promise<HydratedPage> {
-  return hydratePage(rows, { select: o.select ?? SEARCH_SELECT_FIELDS, media: o.media !== false });
+  return hydratePage(rows, { select: o.select ?? SEARCH_SELECT_FIELDS, media: o.media !== false, audience: o.audience });
 }
