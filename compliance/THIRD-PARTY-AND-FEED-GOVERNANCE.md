@@ -1,8 +1,8 @@
-> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/search/checkpoints/2026-09-05-carry-forward-after-validators.md` §5.
+> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/operations/evidence-2026-09-08/provider-system/REMOVAL-2026-09-08.md`.
 
 # Third-Party & Feed Governance
 
-> **Feed:** REBNY RLS via Trestle (Cotality) | **LMP:** RealPlus (listing input to RLS) | **IDX Display:** Trestle IDX Plus WebAPI (read-only on mallan.nyc)
+> **Feed:** Cotality (Trestle) IDX Plus Web API | **REBNY RLS submission:** outside this system | **IDX Display:** Trestle IDX Plus WebAPI (read-only on mallan.nyc)
 > **Brokerage:** Mallan Real Estate Inc. | **License:** #10991205323
 
 ---
@@ -84,10 +84,10 @@ These field/value names are what the live `api.cotality.com/trestle` feed return
 
 - mallan.nyc uses IDX Plus feed for: **(1) public website listing display, (2) internal backend dashboard with client management, and (3) reporting**
 - mallan.nyc does NOT submit listings to the RLS and is NOT an LMP
-- RealPlus is the LMP (listing input to RLS). REBNY does not grant LMP licenses to individual brokers.
+- REBNY RLS submission happens outside this system (REBNY does not grant listing-input licenses to individual brokers).
 - mallan.nyc reads listings via Trestle IDX Plus WebAPI (Trestle-11371-20) — **IDX-released fields and IDX-eligible inventory only (not full-market search)**
-- All client communication (emails, portals, CRM) runs through mallan.nyc directly — client data never passes through RealPlus or third parties
-- Agents use RealPlus for full RLS inventory search and listing submission
+- All client communication (emails, portals, CRM) runs through mallan.nyc directly — client data never passes through REBNY's submission system or third parties
+- Full RLS inventory search and listing submission happen outside this system
 
 ### Capabilities
 
@@ -188,7 +188,7 @@ REBNY confirmed (Michaela Parker, mparker@rebny.com, 2026-03-27) that the IDX Pl
 
 ### Direct Data License (Future Option)
 
-A direct data license (like Compass) would upgrade from IDX Plus to full RLS read access through the same Trestle API. This would add PrivateRemarks, ShowingInstructions, and non-IDX-eligible listings to the CRM. Not currently needed for authorized CRM use, but would eliminate the need for RealPlus for agent search.
+A direct data license (like Compass) would upgrade from IDX Plus to full RLS read access through the same Trestle API. This would add PrivateRemarks, ShowingInstructions, and non-IDX-eligible listings to the CRM. Not currently needed for authorized CRM use, but would remove the need for an outside RLS search tool for agents.
 
 ### Connect NYC (Separate Product)
 

@@ -3325,7 +3325,7 @@ function toggleSection(header) {
                     </div>
 
                 <!-- GENERAL SEARCH SECTION -->
-                <div id="generalSearchSection" class="search-type-section" data-rls-ignore="true">
+                <div id="generalSearchSection" class="search-type-section" data-mallan-ignore="true">
 
                     <!-- Sales / Rentals / Buildings + Actions - single unified bar -->
                     <div class="bg-white rounded-xl shadow-sm border mb-4 overflow-hidden">
@@ -19500,7 +19500,7 @@ function manageShowToast(msg) {
             view:           'View',                      // RLS: View. Conditional: ViewYN=true
 
             // ── Classification ──
-            status:         'MlsStatus',                 // RLS: MlsStatus (REBNY detailed status). RESO "StandardStatus" renamed to "MlsStatus" by RLS
+            status:         'StandardStatus',            // the live status the feed delivers (MlsStatus is provider-suppressed: null on every row)
             ownership:      'CommonInterest',            // RLS: CommonInterest
             propertyType:   'PropertyType',              // RLS: PropertyType (Residential | ResidentialLease)
             propertySubType:'PropertySubType',           // RLS: PropertySubType
@@ -19512,7 +19512,7 @@ function manageShowToast(msg) {
 
             // ── IDs ──
             lid:            'ListingId',                 // Trestle: ListingId (Matrix-generated RLS number). Read-only
-            wid:            'SourceSystemKey',            // RLS: SourceSystemKey (LMP's listing ID). RESO "ListingKey" renamed to "SourceSystemKey" by RLS
+            wid:            'SourceSystemKey',            // the source system's listing id (a live field distinct from ListingKey)
 
             // ── Dates & DOM ──
             dom:            'DaysOnMarket',              // RLS: DaysOnMarket (system). Reset after 30 days W/C (UCBA 2026)
@@ -19565,7 +19565,7 @@ function manageShowToast(msg) {
         // Photos, videos, documents, floor plans are stored as separate Media records
         // linked to the listing via ResourceRecordKey → ListingKey.
         //
-        // Trestle Media fields (from media-fields.csv):
+        // Live Cotality Media fields (MEDIA_SELECT_FIELDS in lib/media/listing-media-resolver.ts):
         //   MediaKey (PK), MediaURL, MediaType (Jpeg/Png/etc),
         //   MediaCategory (Photo/Video/FloorPlan/Document),
         //   MediaClassification (Photo/Document/Video),

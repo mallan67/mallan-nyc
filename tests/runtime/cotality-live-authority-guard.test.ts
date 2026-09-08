@@ -107,30 +107,12 @@ describe('Cotality live authority guard', () => {
     }
   });
 
-  // ─────────────────────────────────────────────────────────────────────────────────────────────
-  // KNOWN OPEN — recorded, not yet enforced.
-  //
-  // mcp/trestle-fields/index.ts on this lane falls back to artifacts/metadata.xml when live
-  // retrieval fails (index.ts:36, :330-333) while its tool description tells every model
-  // "Data is always current — fetched live" (:371). The snapshot is dated 2026-06-04. That is the
-  // exact false-green this guard exists to prevent, inside the designated verification tool.
-  //
-  // The d19 lane's MCP (217 lines) has no fallback and delegates to query-live.mjs; adopting it
-  // is a change to the verification authority and is Maya's decision. Until it is made, the
-  // assertion below is a TODO so the suite is neither green-by-omission nor red-on-a-held-item.
-  // When the MCP is corrected, promote this to a real `it` with:
-  //   expect(text(mcp)).not.toContain('metadata.xml');
-  //   expect(text(mcp)).not.toContain('local_fallback');
-  //   expect(text(mcp)).toContain('scripts/cotality/query-live.mjs');
-  // ─────────────────────────────────────────────────────────────────────────────────────────────
-  it.todo('MCP trestle-fields does not fall back to a local metadata snapshot (held: Maya decision)');
-
-  it('documents the MCP snapshot fallback rather than hiding it', () => {
-    // Guard on the guard: if someone removes the fallback WITHOUT promoting the todo above, or
-    // the MCP file moves, this makes the drift visible instead of silently passing.
+  it('MCP trestle-fields never falls back to a local metadata snapshot (live-only authority; corrected 2026-09-08)', () => {
     expect(existsSync(mcp)).toBe(true);
-    const hasFallback = codeOnly(text(mcp)).includes('local_fallback');
-    // Today: true. When this flips to false, promote the todo to a real assertion.
-    expect(typeof hasFallback).toBe('boolean');
+    const src = text(mcp);
+    expect(src).not.toContain('metadata.xml');
+    expect(src).not.toContain('local_fallback');
+    expect(codeOnly(src)).not.toMatch(/existsSync|readFileSync/);
+    expect(src).toContain('$metadata');
   });
 });

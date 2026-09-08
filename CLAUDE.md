@@ -112,7 +112,7 @@ Guardrail docs: `docs/engineering/pr-verification-checklist.md` + `docs/engineer
 npm run type-check          # 0 TypeScript errors required
 npm run rls:validate        # 10-section REBNY RLS validator
 npm run compliance-check    # 93+ rules — BLOCKER+STRICT must be 0 failures
-npm run ucba:audit          # 145-rule UCBA — REGRESSIONS must be 0
+npm run ucba:audit          # 46-rule UCBA checklist — REGRESSIONS must be 0
 npm run idx:validate        # 32-section IDX Plus — 0 critical
 npm run crm:test            # if public/crm/** touched (172/172 smoke)
 npm run ops:health          # before major deploys (see NEON.md)
@@ -132,12 +132,8 @@ CI runs the same chain via `.github/workflows/pr-check.yml`. Don't merge with re
 | REBNY skill (auto-loaded at session start) | `.claude/skills/rebny-compliance/SKILL.md` |
 | Neon / Prisma / DB rules | `NEON.md` |
 | Repo source-of-truth charter | `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md` |
-| Trestle field registry (all 12 resources, ~1,364 fields) | `data/RLS-FIELD-REGISTRY.md` |
-| IDX Plus field CSV (902 fields, 7 resources) | `data/rebny-rls-property-fields.csv` |
-| Picklist values (2,066 lookups) | `data/rebny-rls-property-lookup.csv` |
-| UCBA 2026 rules (extracted from 56-page PDF) | `data/UCBA-2026-Requirements.md` |
-| Syndication research (RLS feeds, vendors, costs, providers) | `data/RLS-Syndication-Research.md` |
-| Trestle live OData $metadata | `artifacts/metadata.xml` |
+| **Cotality live provider contract** — the ONLY field / enum / permission authority | `lib/cotality/live-contract.ts` · `lib/cotality/generated/contract.ts` · `data/cotality-contract/**` · `data/cotality-enums.live.json` (regenerate from the live feed: `npm run cotality:authority -- refresh`; prove: `node scripts/cotality/generate-contract-types.mjs --check`) |
+| UCBA 2026 rules (extracted from 56-page PDF) | `data/UCBA-2026-Requirements.md` (REBNY business rules — never a field authority) |
 | Master refactor plan (10-PR backend rebuild) | `memory/REFACTOR-2026-04-25.md` |
 | Most recent comprehensive audit | `docs/audits/exclusive-launch-readiness-audit-2026-05-20.md` |
 | Post-reconciliation tightening audit (Phase A scope rationale) | `docs/idx/post-reconciliation-tightening-audit-2026-05-20.md` |
@@ -178,7 +174,7 @@ Codex is a **static code-path reviewer only.** Codex reads the repo; it does **n
 
 **J.3 — Codex is NOT authority for Class B / C / D.** Do not act on, repeat, or write into a PR any Codex claim that: a field exists / is populated live on IDX Plus · a field moved to another resource · a REBNY/Trestle rule changed · production DB / env state is correct. For B/C/D, Codex output is a **hypothesis to verify**, never a conclusion.
 
-**J.4 — B/C/D require independent proof.** One of: `npm run trestle:audit-server` · `npm run trestle:diff` · `npm run trestle:probe` / a live `$metadata` query · a refreshed `artifacts/metadata.xml` **plus** a live proof capture · a dated REBNY/Trestle notice (Class C) · a read-only runtime/Vercel/Neon proof as applicable (Class D). No PR CI check queries live Cotality — live verification is a manual step Claude performs.
+**J.4 — B/C/D require independent proof.** One of: `npm run trestle:audit-server` · `npm run trestle:diff` · `npm run trestle:probe` / `npm run cotality:query` (a live `$metadata` or row query) · `npm run cotality:authority -- refresh` (recompiles the committed contract from the live feed) **plus** a live proof capture · a dated REBNY/Trestle notice (Class C) · a read-only runtime/Vercel/Neon proof as applicable (Class D). No PR CI check queries live Cotality — live verification is a manual step Claude performs.
 
 **J.5 — Every Cotality field change must trace end-to-end** (each link confirmed, not assumed): live field exists → selected from Trestle → route-local select lists checked → mapped → `raw_data` preserved if needed → public DTO **DB path** checked → public DTO **Trestle-direct path** checked → rendered if public → form save/hydrate checked if CRM → legacy fallback zero-safe if numeric → tests added.
 

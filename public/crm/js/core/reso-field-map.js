@@ -52,7 +52,7 @@
             view:           'View',                      // RLS: View. Conditional: ViewYN=true
 
             // ── Classification ──
-            status:         'MlsStatus',                 // RLS: MlsStatus (REBNY detailed status). RESO "StandardStatus" renamed to "MlsStatus" by RLS
+            status:         'StandardStatus',            // the live status the feed delivers (MlsStatus is provider-suppressed: null on every row)
             ownership:      'CommonInterest',            // RLS: CommonInterest
             propertyType:   'PropertyType',              // RLS: PropertyType (Residential | ResidentialLease)
             propertySubType:'PropertySubType',           // RLS: PropertySubType
@@ -64,7 +64,7 @@
 
             // ── IDs ──
             lid:            'ListingId',                 // Trestle: ListingId (Matrix-generated RLS number). Read-only
-            wid:            'SourceSystemKey',            // RLS: SourceSystemKey (LMP's listing ID). RESO "ListingKey" renamed to "SourceSystemKey" by RLS
+            wid:            'SourceSystemKey',            // the source system's listing id (a live field distinct from ListingKey)
 
             // ── Dates & DOM ──
             dom:            'DaysOnMarket',              // RLS: DaysOnMarket (system). Reset after 30 days W/C (UCBA 2026)
@@ -117,7 +117,7 @@
         // Photos, videos, documents, floor plans are stored as separate Media records
         // linked to the listing via ResourceRecordKey → ListingKey.
         //
-        // Trestle Media fields (from media-fields.csv):
+        // Live Cotality Media fields (MEDIA_SELECT_FIELDS in lib/media/listing-media-resolver.ts):
         //   MediaKey (PK), MediaURL, MediaType (Jpeg/Png/etc),
         //   MediaCategory (Photo/Video/FloorPlan/Document),
         //   MediaClassification (Photo/Document/Video),

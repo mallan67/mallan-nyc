@@ -1673,7 +1673,7 @@
             "public/crm/SALE-FORM-REDESIGN.html"
           ],
           "verifyPattern": "NumberOfShares|saleUnitShares",
-          "verifyDescription": "Check field exists WITHOUT data-rls-ignore AND is mapped in payload builder to NumberOfShares",
+          "verifyDescription": "Check field exists WITHOUT data-mallan-ignore AND is mapped in payload builder to NumberOfShares",
           "validation_v2": {
             "validation_mode": "pattern",
             "ci_policy": "must_pass",

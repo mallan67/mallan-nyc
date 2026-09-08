@@ -44,7 +44,7 @@ const HTML_FILES = {
     gateIds: [
       'saleInternetEntireListingDisplayYN', 'saleInternetAddressDisplayYN',
     ],
-    mustContain: ['data-rls-field', 'Fair Housing'],
+    mustContain: ['data-cotality-field', 'Fair Housing'],
   },
   'RENTAL-FORM-REDESIGN.html': {
     role: 'Rental Listing Submission',
@@ -57,7 +57,7 @@ const HTML_FILES = {
     gateIds: [
       'rentalInternetEntireListingDisplayYN', 'rentalInternetAddressDisplayYN',
     ],
-    mustContain: ['data-rls-field', 'Fair Housing'],
+    mustContain: ['data-cotality-field', 'Fair Housing'],
   },
   'SALE-FORM-WITH-TOOLS.html': {
     role: 'Sale Listing Viewer',
@@ -84,7 +84,7 @@ const HTML_FILES = {
       'navSales', 'navRentals', 'navBuildings', 'navCMA',
     ],
     gateIds: [],
-    mustContain: ['data-rls-ignore', 'updateFilterCount', 'data-show-on'],
+    mustContain: ['data-mallan-ignore', 'updateFilterCount', 'data-show-on'],
   },
   'dashboard.html': {
     role: 'CRM Dashboard',
@@ -273,15 +273,17 @@ for (const file of COMPLIANCE_FILES) {
 console.log('\n═══ TEST 6: Data Files ═══\n');
 
 const DATA_FILES = [
-  'data/rebny-rls-property-fields.csv',
-  'data/rebny-rls-property-lookup.csv',
-  'data/rls-form-bindings.json',
-  'data/RLS-FIELD-REGISTRY.md',
+  // the live Cotality contract (the only provider field / vocabulary authority)
+  'data/cotality-contract/contract.compact.json',
+  'data/cotality-contract/lookups.live.json',
+  'data/cotality-enums.live.json',
+  // Mallan form-control configuration (UI classification, never a field authority)
+  'data/mallan-form-control-aliases.json',
+  'data/mallan-form-ui-only-ids.json',
+  // REBNY / UCBA / Mallan rule files
   'compliance/rules/active.json',
-  'compliance/rules/rls-required.json',
   'compliance/rules/export-policy.json',
   'compliance/rules/status-rules.json',
-  'compliance/fields.json',
 ];
 
 for (const file of DATA_FILES) {

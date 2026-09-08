@@ -86,12 +86,16 @@ describe('9: nullable numerics never become fabricated zero', () => {
     expect(l.originalPrice).toBeNull();
     expect(l.priceChange).toBeNull();
   });
-  test('explicit zeros are preserved as zeros', () => {
-    const l = sale({ RoomsTotal: 0, BedroomsTotal: 0, DaysOnMarket: 0, CumulativeDaysOnMarket: 0 });
+  test('explicit zeros are preserved as zeros; the provider DaysOnMarket never feeds the market clock (two clocks, 2026-09-08)', () => {
+    const l = sale({ RoomsTotal: 0, BedroomsTotal: 0, DaysOnMarket: 0, CumulativeDaysOnMarket: 0, _mallanDaysOnMarket: 0, _mallanCumulativeDaysOnMarket: 0 });
     expect(l.rooms).toBe(0);
     expect(l.beds).toBe(0);
-    expect(l.dom).toBe(0);
+    expect(l.dom).toBe(0);  // the Mallan clock value, a real zero
     expect(l.cdom).toBe(0);
+    // the provider's DaysOnMarket is filter-suppressed on this feed (null on every sampled row): a bare 0 there is
+    // not a clock fact, and a row with no contract dates and no Mallan clock has no DOM (null, never a fabricated 0)
+    expect(sale({ DaysOnMarket: 0, CumulativeDaysOnMarket: 0 }).dom).toBeNull();
+    expect(sale({ DaysOnMarket: 0, CumulativeDaysOnMarket: 0 }).cdom).toBeNull();
   });
   test('original price only when both prices are known and differ; price change derived only then', () => {
     expect(sale({ ListPrice: 900000, OriginalListPrice: 950000 })).toMatchObject({ originalPrice: 950000, priceChange: 'down' });

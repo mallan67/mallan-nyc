@@ -10,18 +10,17 @@
  *
  * Building: enforce "matches live Cotality $metadata, no phantom marked as a
  * Cotality field" + auto-fill the AssociationFee/Frequency the lookup returns.
- * Verified against artifacts/metadata.xml (refreshed 2026-05-30):
+ * Verified against the live Cotality contract (committed snapshot data/cotality-contract/**; first verified 2026-05-30):
  *   - ElevatorsTotal  → NOT in Cotality (phantom) → internal-only.
  *   - NewDevelopmentYN → NOT in Cotality (phantom) → internal-only.
  *   - NewConstructionYN, AssociationFee, AssociationFeeFrequency → REAL → kept.
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { hasContractField } from './cotality-contract-facts';
 
 const FORM_PATH = resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html');
-const META_PATH = resolve(__dirname, '../../artifacts/metadata.xml');
 const formHtml = readFileSync(FORM_PATH, 'utf8');
-const metadata = readFileSync(META_PATH, 'utf8');
 
 function extractFn(src: string, name: string): string {
   const sig = `function ${name}(`;
@@ -36,7 +35,7 @@ function extractFn(src: string, name: string): string {
   }
   throw new Error(`unbalanced braces for ${name}`);
 }
-const hasCotalityField = (f: string) => new RegExp(`Property Name="${f}"`).test(metadata);
+const hasCotalityField = (f: string) => hasContractField(f); // the committed live Cotality contract
 
 describe('Cotality authority — phantom vs real (no guessing)', () => {
   it('phantom commission/building fields are NOT in live $metadata', () => {
@@ -75,12 +74,12 @@ describe('Commission collision fix', () => {
 
 describe('Building — phantom fields reclassified internal (match Cotality)', () => {
   it('saleBldgNumElevators is no longer tagged as Cotality ElevatorsTotal', () => {
-    expect(formHtml).toMatch(/id="saleBldgNumElevators"[^>]*data-rls-ignore="true"[^>]*data-removed-field="ElevatorsTotal"/);
-    expect(formHtml).not.toMatch(/id="saleBldgNumElevators"[^>]*data-rls-field="ElevatorsTotal"/);
+    expect(formHtml).toMatch(/id="saleBldgNumElevators"[^>]*data-mallan-ignore="true"[^>]*data-removed-field="ElevatorsTotal"/);
+    expect(formHtml).not.toMatch(/id="saleBldgNumElevators"[^>]*data-cotality-field="ElevatorsTotal"/);
   });
   it('saleBldgNewDevelopment is no longer tagged as Cotality (was duplicating NewConstructionYN)', () => {
-    expect(formHtml).toMatch(/id="saleBldgNewDevelopment"[^>]*data-rls-ignore="true"[^>]*data-removed-field="NewDevelopmentYN"/);
-    expect(formHtml).not.toMatch(/id="saleBldgNewDevelopment"[^>]*data-rls-field="NewConstructionYN"/);
+    expect(formHtml).toMatch(/id="saleBldgNewDevelopment"[^>]*data-mallan-ignore="true"[^>]*data-removed-field="NewDevelopmentYN"/);
+    expect(formHtml).not.toMatch(/id="saleBldgNewDevelopment"[^>]*data-cotality-field="NewConstructionYN"/);
   });
   it('collect emits ElevatorsTotal / NewDevelopmentYN under their DECLARED Mallan-internal names (REBNY-required submission facts, never provider fields); NewConstructionYN (live) still emitted', () => {
     // Packet 2 convergence (2026-09-06): both are REBNY_UCBA_RULES.requiredFields and declared MALLAN_INTERNAL_KEYS;

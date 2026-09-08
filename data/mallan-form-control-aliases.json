@@ -182,7 +182,7 @@
   "Hardwood": "InteriorFeatures",
   "HighCeilings": "InteriorFeatures",
   "Fireplace": "InteriorFeatures",
-  "fireplace": "InteriorFeatures",
+  "fireplace": "FireplaceYN",
   "ExposedBrick": "InteriorFeatures",
   "Prewar": "InteriorFeatures",
   "SmartHome": "InteriorFeatures",

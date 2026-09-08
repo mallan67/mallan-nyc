@@ -1,4 +1,4 @@
-> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/search/checkpoints/2026-09-05-carry-forward-after-validators.md` §5.
+> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/operations/evidence-2026-09-08/provider-system/REMOVAL-2026-09-08.md`.
 
 # Cotality/Trestle Operational Contract
 
@@ -12,7 +12,7 @@
 | System | Role |
 |---|---|
 | **Cotality/Trestle** | External MLS data provider. REBNY IDX Plus feed via OData v4 (`https://api.cotality.com/trestle`). Read-only consumption. |
-| **RealPlus/RLS** | Listing-entry source for official REBNY/RLS listings. Maya enters listings into RealPlus; they appear in the Cotality feed. |
+| **REBNY RLS submission (outside this system)** | Listing-entry source for official REBNY listings. Mallan's listings are entered into REBNY's system outside mallan.nyc and then appear in the Cotality feed. |
 | **mallan.nyc** | Consumes Cotality data for public display, search, building reference, and media. Does NOT write back to Trestle. |
 | **InHouse/local web** | Mallan-created website-only records (`SL-*` IDs). Not on RLS. Must be manually reconciled when an official `RLS*` feed record arrives. |
 
@@ -70,13 +70,13 @@
 
 ### Member / Office
 
-Referenced in `data/RLS-FIELD-REGISTRY.md` but not actively queried in current routes. Available at `/odata/Member` and `/odata/Office`.
+Declared on the live contract (`data/cotality-contract/contract.compact.json` resources Member / Office) but not actively queried in current routes. Available at `/odata/Member` and `/odata/Office`.
 
 ---
 
 ## 4. Address/building lookup contract
 
-### RESO structured address fields (from `artifacts/metadata.xml`)
+### RESO structured address fields (from the live Cotality contract)
 
 | Field | Type | Example | Purpose |
 |---|---|---|---|

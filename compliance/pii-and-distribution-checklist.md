@@ -56,12 +56,10 @@ All 6 gates are enforced at the API layer. UI may only DISPLAY gate status (read
 
 | Requirement | Status |
 |-------------|--------|
-| Total RLS fields | 902 |
-| Required fields | 41 |
-| Conditional fields | 86 |
-| RESO-to-RLS renames | 23 |
-| Picklist values | 2,066 across 117 lookups |
-| Field mapping source of truth | `data/rebny-rls-property-fields.csv` (mallan-nyc) |
+| Field universe | the live Cotality contract (`lib/cotality/generated/contract.ts`, compiled from the feed) |
+| Required / conditional fields | `REBNY_UCBA_RULES` (lib/compliance/rebny-ucba-rules.ts) |
+| Picklist values | the live Cotality vocabularies (`data/cotality-contract/lookups.live.json`) |
+| Field mapping source of truth | `lib/cotality/generated/contract.ts` (field existence / type) + `lib/listings/mallan-form-contract.ts` (form bindings) |
 | Validator | `npm run rls:validate` — 10 sections, 0 UNKNOWN required |
 
 ---

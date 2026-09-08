@@ -43,7 +43,7 @@ describe('the RLS validator consumes the canonical contracts and recreates none 
     }
   });
   it('the alias / UI-id configs stay Mallan UI configuration: every accepted alias target is canonical', () => {
-    const aliases = JSON.parse(readFileSync(join(ROOT, 'data/rls-field-aliases.json'), 'utf8')) as Record<string, string>;
+    const aliases = JSON.parse(readFileSync(join(ROOT, 'data/mallan-form-control-aliases.json'), 'utf8')) as Record<string, string>;
     for (const target of Object.values(aliases)) expect(['SyndicateYN', 'IDXEntireListingDisplayYN', 'ParticipantOnlyYN']).not.toContain(target);
     expect(code).toMatch(/PHANTOMS\.has\(target\)/);
     expect(code).toMatch(/isCanonical\(target\)/);

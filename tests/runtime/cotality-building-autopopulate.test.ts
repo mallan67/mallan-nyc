@@ -21,6 +21,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { contractFields } from './cotality-contract-facts';
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const read = (p: string) => fs.readFileSync(path.join(REPO_ROOT, p), 'utf8');
@@ -216,20 +217,12 @@ describe('form init wires Cotality neighborhood loader', () => {
 // exist on the live Cotality `Property` entity. An unknown field makes Trestle
 // reject the whole query with HTTP 400 (no 4xx retry), silently killing the
 // Cotality building lookup. This test fails if future code reintroduces a
-// phantom field. Source of truth: artifacts/metadata.xml.
+// phantom field. Source of truth: the live Cotality contract (committed snapshot data/cotality-contract/**).
 // ──────────────────────────────────────────────────────────────────────────
 describe('buildings/search $select is metadata-valid (no phantom Cotality fields)', () => {
   const routeSrc = read('app/api/buildings/search/route.ts');
-  const metadata = read('artifacts/metadata.xml');
-
-  // EDM property names on the Cotality Property entity (the `"` anchors away
-  // from PropertyRooms / PropertyUnitTypes / PropertyGreenVerification).
-  const propertyFields = (() => {
-    const block = (metadata.match(/<EntityType Name="Property"[\s\S]*?<\/EntityType>/) || [''])[0];
-    const names = new Set<string>();
-    for (const m of block.matchAll(/<Property Name="([^"]+)"/g)) names.add(m[1]);
-    return names;
-  })();
+  // The entitled field names of the live Cotality Property resource.
+  const propertyFields = contractFields('Property');
 
   // The route's OData $select list — contract-typed since 2026-09-08:
   //   const SELECT = cotalityFields('Property', [ '...', ... ]).join(',')

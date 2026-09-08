@@ -47,7 +47,7 @@ describe('Media $select literals are compile-checked', () => {
 
   it('lib/idx/fetch.ts sends MEDIA_SELECT_FIELDS for both Media queries (no local list, no bare literal)', () => {
     const src = read('lib/idx/fetch.ts');
-    expect(src).toMatch(/import \{ MEDIA_SELECT_FIELDS \} from "@\/lib\/media\/listing-media-resolver"/);
+    expect(src).toMatch(/import \{ MEDIA_SELECT_FIELDS(?:, [A-Z_]+)* \} from "@\/lib\/media\/listing-media-resolver"/);
     expect((src.match(/MEDIA_SELECT_FIELDS\.join\(","\)/g) || []).length).toBeGreaterThanOrEqual(2);
     expect(src).not.toMatch(/cotalityFields\(["']Media["'],\s*\[/);
     // No bare comma-joined Media select literal may remain.
@@ -62,7 +62,7 @@ describe('Media $select literals are compile-checked', () => {
 
   it('lib/search/engine/hydrate.ts sends MEDIA_SELECT_FIELDS (no local Media list)', () => {
     const src = read('lib/search/engine/hydrate.ts');
-    expect(src).toMatch(/import \{ MEDIA_SELECT_FIELDS \} from '@\/lib\/media\/listing-media-resolver'/);
+    expect(src).toMatch(/import \{ MEDIA_SELECT_FIELDS(?:, [A-Z_]+)* \} from '@\/lib\/media\/listing-media-resolver'/);
     expect(src).toMatch(/resource: 'Media', select: MEDIA_SELECT_FIELDS,/);
     expect(src).not.toMatch(/cotalityFields\(["']Media["'],\s*\[/);
   });

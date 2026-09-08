@@ -1,4 +1,4 @@
-> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/search/checkpoints/2026-09-05-carry-forward-after-validators.md` §5.
+> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/operations/evidence-2026-09-08/provider-system/REMOVAL-2026-09-08.md`.
 
 # Master Project Tree v3.3 — Mallan Real Estate Inc.
 
@@ -23,10 +23,10 @@
 | File | Role | Who Views / Uses | Key Detail |
 |------|------|-----------------|------------|
 | `dashboard.html` | **CRM HUB** | Broker (admin), Agents (own section), Clients (own portal) | 6 portals, opens external files via `window.open()` |
-| `index-built.html` | **IDX SEARCH** | Each agent from their OWN Broker/Agent Admin | Each agent's OWN PRIVATE search via IDX Plus (read-only). Not shared. Not guaranteed to match full RealPlus/LMP inventory. |
-| `SALE-FORM-REDESIGN.html` | **SUBMISSION** | Listing Agent | Agent creates/edits OWN exclusive sale listing (CRM internal — RLS submission is via RealPlus/LMP, not mallan.nyc) |
+| `index-built.html` | **IDX SEARCH** | Each agent from their OWN Broker/Agent Admin | Each agent's OWN PRIVATE search via IDX Plus (read-only). Not shared. Not guaranteed to match the full RLS inventory. |
+| `SALE-FORM-REDESIGN.html` | **SUBMISSION** | Listing Agent | Agent creates/edits OWN exclusive sale listing (CRM internal — REBNY RLS submission happens outside this system) |
 | `SALE-FORM-WITH-TOOLS.html` | **VIEW ONLY** | Agents + Buyers (buyers see masked listing agent info) | Read-only listing display + Transit, Print, Email tools |
-| `RENTAL-FORM-REDESIGN.html` | **SUBMISSION** | Listing Agent | Agent creates/edits OWN exclusive rental listing (CRM internal — RLS submission is via RealPlus/LMP, not mallan.nyc) |
+| `RENTAL-FORM-REDESIGN.html` | **SUBMISSION** | Listing Agent | Agent creates/edits OWN exclusive rental listing (CRM internal — REBNY RLS submission happens outside this system) |
 | `RENTAL-FORM-WITH-TOOLS.html` | **VIEW ONLY** | Agents + Renters (renters see masked listing agent info) | Read-only listing display + Transit, Print, Email tools |
 | `BUYER-DEAL-FORM.html` | **INTERNAL COMMISSION REQUEST** | Agent only (submits to broker, can check status, can edit errors) | Buyer's agent → broker. Internal only. Not client-facing. No buyer/tenant visibility into commission splits or status. |
 | `TENANT-DEAL-FORM.html` | **INTERNAL COMMISSION REQUEST** | Agent only (submits to broker, can check status, can edit errors) | Renter's agent → broker. Internal only. Not client-facing. No buyer/tenant visibility into commission splits or status. |
@@ -52,7 +52,7 @@
 
 ## HARD RULES (ENFORCED — NO ASSUMPTIONS)
 
-1. **REDESIGN = SUBMISSION** — listing agent creates/edits OWN exclusive listing in CRM (RLS submission is via RealPlus/LMP, not mallan.nyc)
+1. **REDESIGN = SUBMISSION** — listing agent creates/edits OWN exclusive listing in CRM (REBNY RLS submission happens outside this system)
 2. **WITH-TOOLS = VIEW ONLY** — agents + buyers/renters view listings (buyers/renters see masked listing agent info)
 3. **DEAL FORMS = INTERNAL COMMISSION REQUEST** — agent → broker only. Agent can check status and edit errors. NOT client-facing. No buyer/tenant visibility into commission splits or status.
 4. **Search is PER AGENT** — each agent searches from their own portal. Private. Not shared. Agent A cannot access Agent B's search histories, saved searches, clients, or deals (enforced at API + DB row-level scope in Phase 2/3). **No global / brokerage-wide search exists.**
@@ -333,7 +333,7 @@ Convert WITH-TOOLS files from submission forms to read-only viewers.
 ### Depends on: Phase 0 complete
 
 - [ ] **BLK D-01:** Canonical data model — 5 schemas + 1 financial ledger:
-  1. **Listing** — all 902 IDX Plus fields, status state machine, distribution gates
+  1. **Listing** — the live Cotality contract's fields, status state machine, distribution gates
   2. **Agent** — license, team, brokerage association, portal access
   3. **Client** (Lead) — dedupe, consent, source tracking, agent ownership
   4. **Deal** (Transaction) — listing link, parties, timeline, status
@@ -343,7 +343,7 @@ Convert WITH-TOOLS files from submission forms to read-only viewers.
   - [ ] D-01b: Consent timestamp on every client record (`consent_captured_at`) — required before storing/displaying PII
   - [ ] D-01c: `agent_id` foreign key on all client records (ownership enforcement)
   - [ ] D-01d: Client intake form as required build artifact (captures consent + contact + source)
-- [ ] **BLK D-02:** Database schema (PostgreSQL + Prisma) — all 902 IDX Plus fields mapped
+- [ ] **BLK D-02:** Database schema (PostgreSQL + Prisma) — the live Cotality contract's fields mapped
 - [ ] **BLK D-03:** Enum dictionary — all 1,993 REBNY lookup values normalized
 - [ ] **BLK D-04:** State machine schemas — listing lifecycle (17 states), deal pipeline, commission request (pending/approved/denied/paid)
 - [ ] **BLK D-05:** RBAC matrix — field-level visibility per portal type (broker sees all, agent sees own, buyer/renter sees masked listing agent)
@@ -404,7 +404,7 @@ Convert WITH-TOOLS files from submission forms to read-only viewers.
 
 > **Single source of truth:** enforcement logic lives in backend compliance engine only. Frontend reads gate state — never computes it.
 
-- [ ] **HI I-05:** CRM listing data entry (REDESIGN forms store internally — actual RLS submission is via RealPlus/LMP)
+- [ ] **HI I-05:** CRM listing data entry (REDESIGN forms store internally — actual REBNY RLS submission happens outside this system)
 - [ ] **HI I-06:** IDX/VOW feed consumption (search results for agents)
 - [ ] **HI I-07:** Commission request API (agent → broker internal workflow) — submission, broker decision, status updates
 - [ ] **MED I-08:** Syndication controls (SyndicateYN, 3 Trestle opt-in portals)
@@ -453,7 +453,7 @@ This rule applies to all branches targeting production.
 - No agent/company lookup
 - Complete CRM data blackout
 
-Note: mallan.nyc does NOT submit listings to the RLS. RLS submission is via RealPlus (LMP). However, Trestle migration failure still breaks all IDX read operations.
+Note: mallan.nyc does NOT submit listings to the RLS. REBNY RLS submission happens outside this system. However, Trestle migration failure still breaks all IDX read operations.
 
 This is an **existential system dependency**.
 
@@ -468,7 +468,7 @@ This is an **existential system dependency**.
 ### Depends on: Phase 3 APIs
 
 - [ ] **BLK F-01:** Connect remaining CRM functions to live APIs (listings from Trestle API + PostgreSQL)
-- [ ] **BLK F-02:** Connect submission forms (REDESIGN) to CRM listing storage API (RLS submission is via RealPlus/LMP)
+- [ ] **BLK F-02:** Connect submission forms (REDESIGN) to CRM listing storage API (REBNY RLS submission happens outside this system)
 - [ ] **BLK F-03:** Connect viewer forms (WITH-TOOLS) to listing data API
 - [ ] **BLK F-04:** Connect search (index-built) to IDX feed API — **WARNING: search currently enforces only 4/6 distribution gates (Gates 4+5 missing). Must implement Gates 4 (Syndication) and 5 (Coming Soon) BEFORE connecting to live feed.**
 - [ ] **BLK F-05:** Connect commission request forms to commission API — **WARNING: commission forms currently have minimal validation (only address + name). Must add full validation (all required fields, edge cases, error handling) BEFORE API wiring or governance breaks.**
@@ -527,7 +527,7 @@ This is an **existential system dependency**.
 |---|------|-------|--------|
 | 1 | Canonical data model finalized | 1 | [ ] |
 | 2 | Database schema deployed | 1 | [ ] |
-| 3 | All 902 IDX Plus fields mapped | 1 | [ ] |
+| 3 | The live Cotality contract's fields mapped | 1 | [ ] |
 | 4 | RBAC matrix enforced (6 portal types) | 2 | [ ] |
 | 5 | 6 login types working | 2 | [ ] |
 | 6 | Agent data isolation verified (row-level DB scope) | 2 | [ ] |
@@ -536,7 +536,7 @@ This is an **existential system dependency**.
 | 9 | OAuth 2.0 flow working — token refresh against new host | 3 | [ ] |
 | 10 | Server-side only MLS access verified | 3 | [ ] |
 | 11 | 6 distribution gates enforced server-side | 3 | [ ] |
-| 12 | Submission forms connected to CRM listing storage (RLS submission via RealPlus/LMP) | 4 | [ ] |
+| 12 | Submission forms connected to CRM listing storage (REBNY RLS submission happens outside this system) | 4 | [ ] |
 | 13 | Viewer forms receiving live data | 4 | [ ] |
 | 14 | Search connected to IDX feed | 4 | [ ] |
 | 15 | Commission request workflow end-to-end (submission → broker decision → status updates) | 4 | [ ] |
@@ -571,9 +571,9 @@ This is an **existential system dependency**.
 |------|-------|------|
 | `dashboard.html` | 31,489 | CRM Hub — 6 portals |
 | `index-built.html` | 30,845 | IDX Search — agent's own private search |
-| `SALE-FORM-REDESIGN.html` | 7,903 | Sale Submission — CRM internal (RLS submission via RealPlus/LMP) |
+| `SALE-FORM-REDESIGN.html` | 7,903 | Sale Submission — CRM internal (REBNY RLS submission happens outside this system) |
 | `SALE-FORM-WITH-TOOLS.html` | 8,696 | Sale Viewer — agents + buyers (masked listing agent for buyers) |
-| `RENTAL-FORM-REDESIGN.html` | 6,988 | Rental Submission — CRM internal (RLS submission via RealPlus/LMP) |
+| `RENTAL-FORM-REDESIGN.html` | 6,988 | Rental Submission — CRM internal (REBNY RLS submission happens outside this system) |
 | `RENTAL-FORM-WITH-TOOLS.html` | 7,720 | Rental Viewer — agents + renters (masked listing agent for renters) |
 | `BUYER-DEAL-FORM.html` | 1,618 | Commission Request — buyer's agent → broker (internal, no client visibility) |
 | `TENANT-DEAL-FORM.html` | 1,143 | Commission Request — renter's agent → broker (internal, no client visibility) |
@@ -583,8 +583,8 @@ This is an **existential system dependency**.
 |------|---------|
 | `MASTER-PROJECT-TREE-v3.3.md` | THIS file — roles, portals, progress, phases, go-live gates, enforcement |
 | `CLAUDE.md` | Project instructions for Claude Code agents |
-| `compliance/fields.json` | 902 IDX Plus fields — machine-readable |
-| `compliance/lookups.json` | 114 picklists, 1,993 REBNY values |
+| `data/cotality-contract/contract.compact.json` | The live Cotality contract — fields, measured facts (machine-readable) |
+| `data/cotality-contract/lookups.live.json` | The live vocabularies |
 
 ---
 

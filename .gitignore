@@ -287,3 +287,27 @@ playwright-report/
 tests/e2e/_artifacts/
 # Cotality live-contract evidence bundles (100+ MB; the committed authority is data/cotality-contract/*.json + lib/cotality/generated/)
 artifacts/cotality-contract/
+
+# ── the old provider reference system was removed 2026-09-08 (Cotality live contract is the only authority) — never re-add
+/data/rebny-rls-property-fields.csv
+/data/rebny-rls-property-lookup.csv
+/data/rebny-idx-plus-*.xlsx
+/data/RLS-FIELD-REGISTRY.md
+/data/MASTER_REGISTRY.json
+/data/FIELD_REGISTRY.json
+/data/SEARCH_CONTROL_MAP.json
+/data/rls-form-bindings.json
+/data/rls-crm-overlays.json
+/data/Trestle_Data_Dictionary.xml
+/artifacts/metadata.xml
+/artifacts/*metadata*.xml
+/artifacts/reso-drift/
+/artifacts/reso-snapshots/
+/artifacts/schema-audit.*
+/artifacts/api-route-catalog.*
+/artifacts/compare-report.json
+/compare-report.json
+/compliance/fields.json
+/compliance/lookups.json
+/compliance/rules/rls-required.json
+/compliance/rules/reso-rls-renames.json

@@ -1,4 +1,4 @@
-> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/search/checkpoints/2026-09-05-carry-forward-after-validators.md` §5.
+> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/operations/evidence-2026-09-08/provider-system/REMOVAL-2026-09-08.md`.
 
 # Compliance Canonical Index — mallan.nyc
 
@@ -31,9 +31,9 @@
 **COTALITY LIVE CONTRACT → provider facts · REBNY / UCBA → compliance / business rules · MALLAN → form / workflow / storage · RESO = vocabulary only.** (Packet 2 closure, 2026-09-06: `lib/cotality/live-contract.ts`, `lib/compliance/rebny-ucba-rules.ts`, `lib/listings/mallan-form-contract.ts`.) When sources disagree about whether a field exists, what it is named, or whether it may be displayed, resolve in this order:
 
 1. **UCBA 2026 governs compliance.** REBNY co-brokerage rules set the outer bound for what may be collected, displayed, and syndicated.
-2. **IDX Plus / the live Cotality feed / the refreshed CSVs define displayable field truth.** The live `api.cotality.com/trestle` feed and the CSVs regenerated from it (`data/rebny-rls-property-fields.csv`, `data/rebny-rls-property-lookup.csv`) are the field-name / field-existence authority. Static markdown field snapshots are not.
+2. **The live Cotality contract defines field truth.** Field existence, types, vocabularies and permissions come only from the live `api.cotality.com/trestle` contract as compiled into `lib/cotality/live-contract.ts` · `lib/cotality/generated/contract.ts` · `data/cotality-contract/**` · `data/cotality-enums.live.json`. No CSV, workbook, registry or snapshot is a field authority (the former REBNY CSVs were removed 2026-09-08).
 3. **REBNY / RLS compliance rules override generic vendor or default assumptions** where they apply (e.g., display-gate null-handling is REBNY-specific, not a generic vendor default).
-4. **Cotality/Trestle exposes the live RESO-shaped OData model;** use the live `$metadata` (snapshot at `artifacts/metadata.xml`) to fill field / model gaps. RESO is the shape of the model — not an external authority, version, or certification.
+4. **Cotality/Trestle exposes the live RESO-shaped OData model;** use the live `$metadata` (as compiled into `data/cotality-contract/**`) to fill field / model gaps. RESO is the shape of the model — not an external authority, version, or certification.
 5. **Internal-only fields must not affect public display or compliance** — they are excluded from the display / syndication path.
 6. **Unknown or unverified display eligibility fails closed to non-display.** If you cannot prove a field is displayable, do not display it.
 
@@ -44,7 +44,7 @@
 | | |
 |---|---|
 | **Canonical** | `data/UCBA-2026-Requirements.md` (extracted from the 56-page UCBA 2026 PDF) |
-| **Backup** | `.claude/skills/rebny-compliance/SKILL.md` §3; `compliance/rules/ucba-audit-checklist.json` (machine-readable checklist of all 145 rules) |
+| **Backup** | `.claude/skills/rebny-compliance/SKILL.md` §3; `compliance/rules/ucba-audit-checklist.json` (machine-readable checklist; 46 rules) |
 | **Validator** | `npm run ucba:audit` (runs `scripts/ucba-compliance-audit.js`) — current baseline: 46 PASS / 0 FAIL / 0 REGRESSIONS |
 | **When to read** | Any work touching listings, listing-agent / agent state, commission calculation, protected-period, expiration, status transitions, broker-approval gates, leads, deals |
 | **Fail-closed** | If a UCBA rule is unclear, STOP. Penalty schedule is $500 / $2K / $10K / 30-day RLS suspension; one quarterly >5% rejection rate = $10,000 fine; 3 quarterly fines in a year = 30-day suspension. |
@@ -54,27 +54,27 @@
 | | |
 |---|---|
 | **Canonical** | `.claude/skills/rebny-compliance/SKILL.md` §2 (the 6 distribution gates); `lib/idx/trestle-mapper.ts` (the writer-side implementation — `TERMINAL_STATUSES`, `normalizeStandardStatus`, `computeGateColumns` post-PR-#165) |
-| **Backup** | `data/RLS-FIELD-REGISTRY.md`; `data/UCBA-2026-Requirements.md`; `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md` (the canonical incident report) |
+| **Backup** | `data/UCBA-2026-Requirements.md`; `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md` (the canonical incident report) |
 | **Validator** | `npm run rls:validate` (10-section validator: fields, renames, gates, masking, coverage); `npm run compliance-check` |
 | **When to read** | Any IDX / listing-display / feed / projection / search-result change |
 | **Fail-closed** | The 6 gates (Owner Opt-Out, Participant Only, Internet Entire Display, Address Display, Terminal Status §2.05, Coming Soon badge) are non-negotiable. If a field is null and you don't know whether it's REBNY-pre-filtered or per-row opt-out, STOP — wrong assumption corrupted 7,594 rows in 2026-04-30. |
 
-## 3. IDX Plus (REBNY-released field subset, ~902 fields)
+## 3. IDX Plus (the REBNY-released field subset, as delivered by the live Cotality contract)
 
 | | |
 |---|---|
-| **Canonical** | `data/rebny-rls-property-fields.csv` (all 902 fields across 7 REBNY-specified resources: Property 527, CustomProperty 106, Member 72, Office 66, Media 46, PropertyUnitTypes 46, OpenHouse 39) |
-| **Backup** | `data/rebny-rls-property-lookup.csv` (2,066 picklist values); `data/RLS-FIELD-REGISTRY.md`; `.claude/skills/rebny-compliance/SKILL.md` §2; `artifacts/metadata.xml` (live Trestle OData metadata) |
+| **Canonical** | `lib/cotality/live-contract.ts` · `lib/cotality/generated/contract.ts` · `data/cotality-contract/**` · `data/cotality-enums.live.json` — the live contract: per-resource field lists with measured filterability / population, published vocabularies, entitlement (compile: `npm run cotality:authority -- refresh`) |
+| **Backup** | `.claude/skills/rebny-compliance/SKILL.md` §2 (the distribution gates); `docs/operations/evidence-2026-09-08/**` (dated live censuses) |
 | **Validator** | `npm run idx:validate` (32-section validator) — current baseline 1278 pass / 0 critical |
 | **When to read** | Any Trestle OData $select, $expand, or $filter change; any new field on Listing model or projection; mapper change |
-| **Fail-closed** | IDX Plus does NOT include `IDXEntireListingDisplayYN`, `ParticipantOnlyYN`, `VOW*` gate fields, `SyndicateYN`, `FirstShowingDate`, `MoveInCostsAmountTotal`, `PossessionDate`, `YearRenovated`. If you see those in code, they are phantom fields — verify against the CSV before referencing. **`Latitude`/`Longitude` are NOT phantom** — they exist in Trestle `$metadata` but are **always null on IDX Plus**, so they are not usable for map/transit filtering (do not build Lat/Lng filters; geocoordinates come from the separate geocode backfill). |
+| **Fail-closed** | IDX Plus does NOT include `IDXEntireListingDisplayYN`, `ParticipantOnlyYN`, `VOW*` gate fields, `SyndicateYN`, `FirstShowingDate`, `MoveInCostsAmountTotal`, `PossessionDate`, `YearRenovated`. If you see those in code, they are phantom fields — verify against the live contract before referencing (`hasContractField` in `tests/runtime/cotality-contract-facts.ts`, `LIVE_PROPERTY_FIELDS` in `lib/cotality/live-contract.ts`, or `npm run cotality:query`). **`Latitude`/`Longitude` are NOT phantom** — they exist in Trestle `$metadata` but are **always null on IDX Plus**, so they are not usable for map/transit filtering (do not build Lat/Lng filters; geocoordinates come from the separate geocode backfill). |
 
 ## 4. Trestle / Cotality Web API (the runtime feed serving REBNY IDX Plus)
 
 | | |
 |---|---|
 | **Canonical** | `lib/idx/auth.ts` (OAuth2 client_credentials, token cache, 8s timeout); `lib/idx/fetch.ts` (OData fetch + pagination + AbortController + retry); `lib/idx/trestle-mapper.ts` (the mapper); `.claude/skills/rebny-compliance/SKILL.md` Trestle Media API Rules §4 |
-| **Backup** | `data/RLS-FIELD-REGISTRY.md`; `artifacts/metadata.xml` (live $metadata); `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md` (three-layer model: REBNY policy / Cotality serving / RESO certification) |
+| **Backup** | `memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md` (three-layer model: REBNY policy / Cotality serving / RESO certification) |
 | **Validator** | `tests/runtime/idx-suggest-select-fields.test.ts`, `tests/runtime/idx-fetch-expand-media.test.ts`, `tests/runtime/idx-sync-max-records.test.ts`, `tests/runtime/idx-sync-cursor-modification-timestamp.test.ts`, `tests/runtime/idx-sync-diagnostic-audit-events.test.ts`, `lib/idx/__tests__/*` |
 | **When to read** | New OData query, new endpoint, new $expand, new $select field, new Media query, new $filter; auth/token changes; rate-limit/throttle work |
 | **Fail-closed** | API base = `https://api.cotality.com/trestle`. Old hosts `api-trestle.corelogic.com` + `api-prod.corelogic.com` deprecated hard 2026-03-31 (media proxy allowlists all 3 during transition). Media `Media/All` endpoint deprecated — query `/odata/Media` with `$filter=ResourceRecordKey eq '...'` (see §8 below). HTTP 400 on `InternetEntireListingDisplayYN` / `InternetAddressDisplayYN` `$filter` is the canonical signal of REBNY provider-level pre-filter. |
@@ -154,7 +154,7 @@
 | | |
 |---|---|
 | **Canonical** | `app/listing/[...slug]/page.tsx` (rental FARE disclosure block); `lib/idx/trestle-mapper.ts` fields. Canonical FARE public-display fields are the **live Property** fields `MoveInCosts`, `MoveInCostsAmount`, `MoveInCostsComments`, `OngoingFees`, `TenantPays`, `TenantPaysDescription`; `AdditionalFee*` / `FeeFrequency` are **legacy CustomProperty fallback**. |
-| **Backup** | `.claude/skills/rebny-compliance/SKILL.md` §5; `data/UCBA-2026-Requirements.md`; `data/RLS-Syndication-Research.md` (Standard Active / Non-Syndicated rental category) |
+| **Backup** | `.claude/skills/rebny-compliance/SKILL.md` §5; `data/UCBA-2026-Requirements.md` (Standard Active / Non-Syndicated rental categories, Aug 1 2025) |
 | **Validator** | `npm run compliance-check` (FARE Act section grep). **GAP NOTE 2026-05-20:** the source-grep validator passes, but the live-page rendering on production rentals was verified MISSING in `docs/audits/exclusive-launch-readiness-audit-2026-05-20.md` A4 — a rendering-conditional bug, not a missing file. New PR required. |
 | **When to read** | Any rental listing display path; any new rental-fee CRM form; any rental syndication work |
 | **Fail-closed** | Tenant cannot be required to pay broker fee unless tenant specifically engaged the broker. If landlord does NOT pay → `InternetEntireListingDisplayYN = False` → excluded from IDX/VOW/syndication. DCWP penalties: §20-699.21 $1,000–$1,800; §20-699.22 up to $2,000 per violation. Litigation status: REBNY 2nd Circuit appeal pending (filed July 2025); law in force and enforceable. |
@@ -203,8 +203,8 @@
 
 | | |
 |---|---|
-| **Canonical** | `public/crm/SALE-FORM-REDESIGN.html` + `public/crm/RENTAL-FORM-REDESIGN.html` (CRM internal — actual RLS submission is via RealPlus/LMP, not mallan.nyc); `lib/compliance/rls-enforcement.ts:assertRlsCompliantPayload` (write-time fail-closed gate) |
-| **Backup** | `lib/compliance/rebny-validator.ts` (10-section validator); `data/rebny-rls-property-fields.csv` (902 IDX Plus fields); `data/rebny-rls-property-lookup.csv` (2,066 picklist values) |
+| **Canonical** | `public/crm/SALE-FORM-REDESIGN.html` + `public/crm/RENTAL-FORM-REDESIGN.html` (CRM internal — REBNY RLS submission happens outside this system); `lib/compliance/rls-enforcement.ts:assertRlsCompliantPayload` (write-time fail-closed gate) |
+| **Backup** | `lib/compliance/rebny-validator.ts` (10-section validator); `lib/cotality/live-contract.ts` (field existence and live vocabularies); `lib/listings/mallan-form-contract.ts` (the Mallan form bindings) |
 | **Validator** | `npm run rls:validate`; `npm run crm:test` (172/172 smoke); CRM POST returns HTTP 422 on `!passed` (see `app/api/crm/listings/route.ts:191-207`) |
 | **When to read** | Any field added/removed/renamed on the sale or rental form; any picklist value change; any new mandatory-field rule; any new content-restriction scanner pattern |
 | **Fail-closed** | All 6 distribution gates evaluated at CRM-write time. Fair Housing scanner runs on all free-text fields. Sale form has 18 commercial sub-types + 5 ownership types with "mallan.nyc only" warning banner for commercial. Rental form must include all FARE Act fee fields. Currently 1 warning: rental form missing `ComingSoon` enum value in `MlsStatus` picklist (`docs/audits/exclusive-launch-readiness-audit-2026-05-20.md` C1). |

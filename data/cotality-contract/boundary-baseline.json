@@ -1,11 +1,11 @@
 {
   "format": "mallan-cotality-boundary-baseline/v1",
-  "written_at": "2026-09-08T12:52:08.094Z",
+  "written_at": "2026-09-08T19:09:19.811Z",
   "rule": "This list may only shrink. A key is file::field of a raw Cotality read outside data/cotality-contract/boundary.json.",
   "counts": {
     "files": 61,
-    "keys": 486,
-    "sites": 799
+    "keys": 482,
+    "sites": 794
   },
   "keys": [
     "app/api/buildings/search/route.ts::AssociationFee",
@@ -192,7 +192,6 @@
     "app/api/listings/suggest/route.ts::StreetSuffix",
     "app/api/market/route.ts::CityRegion",
     "app/api/market/route.ts::ClosePrice",
-    "app/api/market/route.ts::DaysOnMarket",
     "app/api/market/route.ts::ListPrice",
     "app/api/market/route.ts::LivingArea",
     "app/api/market/route.ts::ModificationTimestamp",
@@ -395,7 +394,6 @@
     "lib/comps/fetch-comps.ts::BuildingName",
     "lib/comps/fetch-comps.ts::CloseDate",
     "lib/comps/fetch-comps.ts::ClosePrice",
-    "lib/comps/fetch-comps.ts::DaysOnMarket",
     "lib/comps/fetch-comps.ts::ListAgentFullName",
     "lib/comps/fetch-comps.ts::ListOfficeName",
     "lib/comps/fetch-comps.ts::ListPrice",
@@ -461,8 +459,6 @@
     "lib/market-report/generator.ts::AssociationFee",
     "lib/market-report/generator.ts::BathroomsFull",
     "lib/market-report/generator.ts::BedroomsTotal",
-    "lib/market-report/generator.ts::CumulativeDaysOnMarket",
-    "lib/market-report/generator.ts::DaysOnMarket",
     "lib/market-report/generator.ts::ListOfficeName",
     "lib/market-report/generator.ts::ListPrice",
     "lib/market-report/generator.ts::LivingArea",

@@ -331,9 +331,9 @@ export function assertRetryPolicy(budgets: AuditBudgets, identity: RunIdentity):
 // coverage audit: Cotality's real MediaCategory enum includes Document,
 // Disclosure, Map, Survey, Other, AgentPhoto, OfficePhoto, etc., and
 // MediaType includes Pdf/Docx/Xlsx/... — none of which are LISTING photos.
-// So the audit uses its OWN explicit allowlists (transcribed from the
-// committed local artifacts/metadata.xml — a read-only file, not a live
-// network $metadata request) and NEVER defaults to Photo.
+// So the audit uses its OWN explicit allowlists (transcribed from the live
+// Cotality MediaCategory / MediaType vocabularies — CotalityEnum_MediaCategory in
+// lib/cotality/generated/contract.ts — not a live network request) and NEVER defaults to Photo.
 
 export type AuditMediaClass = 'Photo' | 'FloorPlan' | 'Video' | 'VirtualTour' | 'Document' | 'Other' | 'unknown';
 

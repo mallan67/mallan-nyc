@@ -1,5 +1,4 @@
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { contractNames } from '../../../tests/runtime/cotality-contract-facts';
 import { IDX_PLUS_SELECT_FIELDS, COTALITY_PROPERTY_FIELDS } from '../trestle-mapper';
 import { RAW_DATA_KEEP_SET } from '@/lib/compliance/raw-data-keep-fields';
 
@@ -19,8 +18,7 @@ import { RAW_DATA_KEEP_SET } from '@/lib/compliance/raw-data-keep-fields';
 const LIVE = ['MoveInCostsAmount', 'MoveInCostsComments'];
 
 describe('MoveInCosts* ingestion chain (live → select → raw_data)', () => {
-  const xml = readFileSync(resolve(__dirname, '../../../artifacts/metadata.xml'), 'utf-8');
-  const liveNames = new Set([...xml.matchAll(/Name="([A-Za-z0-9_]+)"/g)].map((m) => m[1]));
+  const liveNames = contractNames(); // the committed live Cotality contract
 
   it('1. live in Cotality $metadata', () => {
     for (const f of LIVE) expect(liveNames.has(f)).toBe(true);

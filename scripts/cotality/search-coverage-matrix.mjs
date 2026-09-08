@@ -80,7 +80,6 @@ const PROVIDER_DOCS = [
   ['Enumerations P-S / M-O', 'https://trestle-documentation.corelogic.com/metadata/enumerations/P-S/', 'StandardStatus has 11 members; Permission members incl. IDX, VOW, Private, Public, OfficeOnly, FirmOnly, AgentOnly, OfficeInactive, OfficeIDXOptOUT, PhotoOptedOut, History; MediaCategory incl. Video, UnbrandedVirtualTour, BrandedVirtualTour.'],
   ['REBNY RLS FAQ / technical solutions', 'https://www.rebny.com/rls-faqs/', 'Feeds: IDX, VOW, Broker Exclusive, Back Office, CMA, Analytics; Trestle aggregates and normalizes RLS data; IDXEntireListingDisplayYN=No → VOW only; owner opt-out via UCBA Exhibit B; Broker A may opt the firm out of IDX.'],
   ['DataSystem (live)', 'https://api.cotality.com/trestle/odata/DataSystem', 'ID Trestle-11371-20 "IDX Plus feed for Mallan Real Estate Inc", TransportVersion 1.0.0, DataDictionaryVersion 2.0 (read live 2026-09-08).'],
-  ['IDX Plus workbook', 'data/rebny-idx-plus-3.15.26.xlsx (REBNY, 2026-03-15)', 'One sheet, 902 rows: Date Feed · Resource · Standard Name · Standard Type. Mirrored (plus 321 live-discovered fields) in data/rebny-rls-property-fields.csv. Discovery aid only — never an authority.'],
 ];
 
 // ── Primary semantics (declared policy; ONE per field) ──────────────────────
@@ -249,8 +248,8 @@ const SURFACES = {
   saleTools: 'public/crm/SALE-FORM-WITH-TOOLS.html', rentalTools: 'public/crm/RENTAL-FORM-WITH-TOOLS.html',
 };
 // Binding authority inside the HTML (asserted by tests/runtime/rls-form-bindings-canonical.test.ts): the runtime
-// serializer keys a control by `id || name`; `data-rls-field="<Canonical>"` binds it to a canonical field,
-// `data-mallan-field` to a Mallan decision key, `data-rls-ignore="true"` marks Mallan-only UI. A control with none
+// serializer keys a control by `id || name`; `data-cotality-field="<Canonical>"` binds it to a canonical field,
+// `data-mallan-field` to a Mallan decision key, `data-mallan-ignore="true"` marks Mallan-only UI. A control with none
 // of those is resolved through the prefix rule as a last resort. WITH-TOOLS pages carry `data-rls-viewer="true"`.
 const surfaceControls = {}; // surface -> Map<canonical, controls[]>
 const surfaceStats = {};
@@ -270,13 +269,13 @@ for (const [surface, rel] of Object.entries(SURFACES)) {
       if (!key || seenKeys.has(key)) continue;
       seenKeys.add(key);
       stat.keyed += 1;
-      // The binding attribute: data-cotality-field is the current name; data-rls-field is the legacy spelling the held forms still carry.
-      const rls = attr(a, 'data-cotality-field') || attr(a, 'data-rls-field');
+      // The binding attribute (the legacy data-rls-field spelling was replaced 2026-09-08).
+      const rls = attr(a, 'data-cotality-field');
       const mallan = attr(a, 'data-mallan-field');
-      const ignore = attr(a, 'data-rls-ignore') === 'true';
+      const ignore = attr(a, 'data-mallan-ignore') === 'true';
       let canonical = null;
       let via = null;
-      if (rls) { canonical = rls; via = attr(a, 'data-cotality-field') ? 'data-cotality-field' : 'data-rls-field'; stat.rlsField += 1; }
+      if (rls) { canonical = rls; via = 'data-cotality-field'; stat.rlsField += 1; }
       else if (mallan) { canonical = mallan; via = 'data-mallan-field'; stat.mallanField += 1; }
       else if (ignore) { stat.ignored += 1; continue; }
       else { const m = /^(sale|rental|bldg)([A-Z_].*)$/.exec(key); if (m) { const r = resolveFormKey(m[2].replace(/^_/, '')); if (r) { canonical = r.canonical; via = r.via; stat.prefixResolved += 1; } } }
@@ -777,32 +776,12 @@ const STATIC_DEFECTS = [
   { id: 'market-mlsstatus-filter', surface: 'Reports', claim: "app/api/market/route.ts filters `MlsStatus eq 'Active'` — a provider-suppressed field whose $filter the provider rejects; the failure is swallowed", cite: 'app/api/market/route.ts:200; contract Property.MlsStatus filterable:false', check: () => ({ status: /MlsStatus eq 'Active'/.test(srcText('app/api/market/route.ts')) && P.MlsStatus?.filterable === false ? 'CONFIRMED (static + contract)' : 'NOT REPRODUCED' }) },
   { id: 'manage-listings-closed-rejected', surface: 'Sale Tools / Rental Tools', claim: "Manage Listings posts status 'Closed' (display Sold/Leased → resoMap) to PATCH /status, whose canonical vocabulary has no 'Closed' — the request is rejected after the UI already announced success", cite: 'public/crm/js/manage/manage-listings.js:1105-1114; app/api/crm/listings/[id]/status/route.ts:99-104; lib/crm/status-mapping.ts', check: () => { const js = readFileSync(path.join(ROOT, 'public/crm/js/manage/manage-listings.js'), 'utf8'); const sm = srcText('lib/crm/status-mapping.ts'); const canon = /CANONICAL_STATUSES[^;]*?\[([^\]]*)\]/s.exec(sm); const members = canon ? [...canon[1].matchAll(/['"]([A-Za-z]+)['"]/g)].map((m) => m[1]) : []; return { status: /['"]Sold['"]:\s*['"]Closed['"]/.test(js) && members.length && !members.includes('Closed') ? 'CONFIRMED (static)' : 'NOT REPRODUCED', detail: `canonical statuses: ${members.join(', ')}` }; } },
   { id: 'compliance-allowed-phantoms', surface: 'Compliance', claim: 'the CRM compliance console ALLOWED list names fields that are not on the live contract', cite: 'public/crm/js/compliance/compliance-gates-and-output.js:1539', check: () => { const js = readFileSync(path.join(ROOT, 'public/crm/js/compliance/compliance-gates-and-output.js'), 'utf8'); const m = /var ALLOWED = \[([^\]]*)\]/s.exec(js); const names = m ? [...m[1].matchAll(/['"]([^'"]+)['"]/g)].map((x) => x[1]) : []; const cotalityLike = names.filter((n) => /^[A-Z][A-Za-z0-9]+$/.test(n)); const phantom = cotalityLike.filter((n) => !providerFieldsAll.has(n) && !INTERNAL.has(n)); return { status: phantom.length ? 'CONFIRMED (static + contract)' : 'NOT REPRODUCED', detail: `${names.length} names, ${phantom.length} not on the contract or Mallan-internal: ${phantom.join(', ')}` }; } },
-  { id: 'rental-rules-status-vocabulary', surface: 'Rental Form', claim: 'rental-field-rules.js branches on status values that the provider vocabulary does not publish (PermOffMarket, TempOffMarket, LeasedThruUs, Cancelled)', cite: 'public/crm/js/compliance/rental-field-rules.js:106-125; Lookup StandardStatus / MlsStatus', check: () => { const js = readFileSync(path.join(ROOT, 'public/crm/js/compliance/rental-field-rules.js'), 'utf8'); const vocab = new Set([...(lookups.Property?.StandardStatus?.members || []), ...(lookups.Property?.MlsStatus?.members || [])]); const used = uniq([...js.matchAll(/['"](PermOffMarket|TempOffMarket|LeasedThruUs|Cancelled|Leased|Expired|Withdrawn)['"]/g)].map((m) => m[1])); const off = used.filter((u) => !vocab.has(u)); return { status: off.length ? 'CONFIRMED (static + vocabulary)' : 'NOT REPRODUCED', detail: `used: ${used.join(', ')}; not published: ${off.join(', ')}` }; } },
+  { id: 'rental-rules-status-vocabulary', surface: 'Rental Form', claim: 'rental-field-rules.js branched on status values that the provider vocabulary does not publish (PermOffMarket, TempOffMarket, LeasedThruUs, Cancelled)', cite: 'public/crm/js/compliance/rental-field-rules.js (removed 2026-09-08 — loaded by no page; the form-shared.js sibling likewise)', check: () => { const gone = !existsSync(path.join(ROOT, 'public/crm/js/compliance/rental-field-rules.js')) && !existsSync(path.join(ROOT, 'public/crm/js/compliance/form-shared.js')); const loaded = /rental-field-rules|form-shared\.js/.test(readFileSync(path.join(ROOT, 'public/crm/RENTAL-FORM-REDESIGN.html'), 'utf8')); return { status: gone && !loaded ? 'RESOLVED (dead rule files removed; the rental form branches on the Mallan status vocabulary only)' : 'CONFIRMED (static)', detail: `files removed: ${gone}; referenced by the rental form: ${loaded}` }; } },
   { id: 'rent-vs-buy-synthetic-price', surface: 'Rental Tools', claim: 'the public rental detail page feeds RentVsBuyCalculator a synthetic purchase price (monthly rent × 250) and zeroed carrying costs although associationFee/taxAnnualAmount are on the same DTO', cite: 'app/listing/[...slug]/page.tsx:1866-1872', check: () => ({ status: /listPrice \* 250/.test(srcText('app/listing/[...slug]/page.tsx')) ? 'CONFIRMED (static)' : 'NOT REPRODUCED' }) },
   { id: 'crm-calculators-no-category-guard', surface: 'Sale Tools / Rental Tools', claim: 'public/crm/js/output/calculators.js applies sale arithmetic (mansion/transfer tax, mortgage) to any listing without checking listingCategory', cite: 'public/crm/js/output/calculators.js:54-115', check: () => { const js = readFileSync(path.join(ROOT, 'public/crm/js/output/calculators.js'), 'utf8'); return { status: /MANSION_TAX|getMansionTax/.test(js) && !/listingCategory|listing_type|listingType/.test(js) ? 'CONFIRMED (static)' : 'NOT REPRODUCED' }; } },
   { id: 'status-vocabularies-multiplied', surface: 'Lifecycle', claim: 'at least four independent status vocabularies exist on the tool path (mallan-status.ts, status-mapping.ts, status route STATUS_TRANSITIONS, manage-listings statusMap/resoMap)', cite: 'lib/listings/mallan-status.ts; lib/crm/status-mapping.ts; app/api/crm/listings/[id]/status/route.ts:27-39; public/crm/js/manage/manage-listings.js:45,714,1105', check: () => { const n = [/STATUS_TRANSITIONS/.test(srcText('app/api/crm/listings/[id]/status/route.ts')), /CANONICAL_STATUSES/.test(srcText('lib/crm/status-mapping.ts')), /MALLAN_/.test(srcText('lib/listings/mallan-status.ts')), /resoMap/.test(readFileSync(path.join(ROOT, 'public/crm/js/manage/manage-listings.js'), 'utf8'))].filter(Boolean).length; return { status: n >= 4 ? 'CONFIRMED (static)' : 'NOT REPRODUCED', detail: `${n} vocabularies located` }; } },
 ];
 for (const d of STATIC_DEFECTS) { try { Object.assign(d, d.check()); } catch (e) { d.status = `CHECK ERROR: ${e.message}`; } delete d.check; }
-
-// ── IDX Plus cross-check (discovery aid) ────────────────────────────────────
-const idxRows = [];
-{
-  const p = path.join(ROOT, 'data/rebny-rls-property-fields.csv');
-  if (existsSync(p)) {
-    const RM = { 'Custom Property': 'CustomProperty', 'Open House': 'OpenHouse', 'Property UnitTypes': 'PropertyUnitTypes', Property: 'Property', Media: 'Media', Member: 'Member', Office: 'Office' };
-    for (const ln of readFileSync(p, 'utf8').split(/\r?\n/).filter(Boolean).slice(1)) {
-      const c = ln.split(',');
-      const name = c[1]; const resource = RM[c[5]] || c[5]; const feed = c[c.length - 1];
-      const row = resource === 'Property' ? propertyRows.find((r) => r.field === name) : (navFieldRows[resource] || []).find((r) => r.field === name);
-      const entitled = Boolean(RES[resource]?.fields?.[name]);
-      const inCatalogue = Boolean(catalogueRow(resource, name));
-      const v = row?.mallan.verdicts;
-      idxRows.push({ feed, resource, name, standardType: c[6], classification: entitled ? 'exact Cotality match' : inCatalogue ? 'catalogue-only (not entitled)' : 'not found', availability: row?.provider.availability.class || 'n/a', population: row?.provider.rows ?? null,
-        mapped: v ? v.mapping : '—', persisted: v ? v.storage : '—', saleSearch: v ? v.saleSearch : '—', rentalSearch: v ? v.rentalSearch : '—', saleForm: v ? v.saleForm : '—', rentalForm: v ? v.rentalForm : '—', saleTools: v ? v.saleTools : '—', rentalTools: v ? v.rentalTools : '—', cma: v ? v.cma : '—', reporting: v ? v.reporting : '—', publicVisibility: v ? v.publicVisibility : '—', compliance: v ? v.compliance : '—',
-        neverSurfaces: row ? row.mallan.consumers === 0 && row.mallan.stage.mapper.status === 'MISSING' && row.mallan.stage.saleForm.status === 'MISSING' && row.mallan.stage.rentalForm.status === 'MISSING' : null });
-    }
-  }
-}
 
 // ── Domains (many-to-many) ─────────────────────────────────────────────────
 function aggregate(rows) {
@@ -896,7 +875,7 @@ md.push('## C. CRM surfaces — how the four HTML surfaces bind to the contract'
 md.push('');
 md.push('Controls are named `sale<Key>` / `rental<Key>`; `<Key>` is resolved through `MALLAN_FORM_CONTRACT.aliasToCanonical` (parsed from the AST), then as a live Cotality Property/CustomProperty field, then as a Mallan-internal key. Unresolved controls are listed so nothing is assumed.');
 md.push('');
-md.push('| Surface | File | Controls | Keyed (id or name) | data-rls-field | data-mallan-field | data-rls-ignore | Prefix-resolved | Cotality fields bound | Unresolved (first 12) | Viewer hydration targets missing |');
+md.push('| Surface | File | Controls | Keyed (id or name) | data-cotality-field | data-mallan-field | data-mallan-ignore | Prefix-resolved | Cotality fields bound | Unresolved (first 12) | Viewer hydration targets missing |');
 md.push('|---|---|---|---|---|---|---|---|---|---|---|');
 for (const [s, st] of Object.entries(surfaceStats)) md.push(`| ${s} | \`${st.file}\` | ${st.controls} | ${st.keyed} | ${st.rlsField} | ${st.mallanField} | ${st.ignored} | ${st.prefixResolved} | ${[...surfaceControls[s].keys()].filter((k) => P[k] || CP[k]).length} | ${st.unresolved.slice(0, 12).map((u) => `\`${u}\``).join(', ')}${st.unresolved.length > 12 ? ` +${st.unresolved.length - 12}` : ''} | ${st.viewer ? `${st.viewer.missingTargets.length} of ${st.viewer.targets}` : '—'} |`);
 md.push('');
@@ -1032,21 +1011,7 @@ else {
   md.push('');
 }
 
-md.push('## K. IDX Plus workbook cross-check (discovery aid, not authority)');
-md.push('');
-if (!idxRows.length) md.push('data/rebny-rls-property-fields.csv not found.');
-else {
-  const byClass = {}; for (const r of idxRows) byClass[r.classification] = (byClass[r.classification] || 0) + 1;
-  const never = idxRows.filter((r) => r.neverSurfaces === true);
-  md.push(`${fmtN(idxRows.length)} rows (${idxRows.filter((r) => r.feed === 'IDX Plus').length} IDX Plus + ${idxRows.filter((r) => r.feed !== 'IDX Plus').length} live-discovered). Classification: ${Object.entries(byClass).map(([k, v]) => `${k} ${v}`).join(' · ')}. Rows that exist in the entitled contract but never surface anywhere in Mallan (no mapper, no form, no consumer): **${never.length}**${never.length ? ' — ' + fmtList(never.map((r) => `${r.resource}.${r.name}`), 60) : ''}.`);
-  md.push('');
-  md.push('| Feed | Resource | Standard name | Classification | Availability | Population | Mapped | Persisted | Sale Srch | Rent Srch | Sale Form | Rent Form | Sale Tools | Rent Tools | CMA | Rep | Public | Compl |');
-  md.push('|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|');
-  for (const r of idxRows) md.push(`| ${r.feed} | ${r.resource} | \`${r.name}\` | ${r.classification} | ${r.availability} | ${fmtN(r.population)} | ${S(r.mapped)} | ${S(r.persisted)} | ${S(r.saleSearch)} | ${S(r.rentalSearch)} | ${S(r.saleForm)} | ${S(r.rentalForm)} | ${S(r.saleTools)} | ${S(r.rentalTools)} | ${S(r.cma)} | ${S(r.reporting)} | ${S(r.publicVisibility)} | ${S(r.compliance)} |`);
-  md.push('');
-}
-
-md.push('## L. Declared policy tables (not provider truth)');
+md.push('## K. Declared policy tables (not provider truth)');
 md.push('');
 md.push('Primary semantics: ' + PRIMARY.map(([n, c, re]) => `**${n}** [${c}] \`${re.source.slice(0, 60)}${re.source.length > 60 ? '…' : ''}\``).join('; '));
 md.push('');
@@ -1065,7 +1030,7 @@ writeFileSync(`${outBase}.json`, JSON.stringify({
   generated: new Date().toISOString(), contract: compact.fingerprint,
   inputs: { catalogue: catalogue?.pulled || null, amenity: amenity?.finished || null, enumCensus: enumCensus?.finished || null, observed: observed?.finished || null, suppressedActive: supActive?.finished || null, suppressedAll: supAll?.finished || null, navActive: navActive?.finished || null, navAll: navAll?.finished || null, navCap: navCap?.generated || null, transactionState: txn?.finished || null, production: production?.source || null },
   graph, authorities, surfaces: { stats: surfaceStats, controls: Object.fromEntries(Object.entries(surfaceControls).map(([s, m]) => [s, Object.fromEntries(m)])) }, formContract: FORM_CONTRACT, staticDefects: STATIC_DEFECTS, amenityPhantoms,
-  domains: domainViews, fields: propertyRows, subsections: navFieldRows, customFields: customKeys, idxPlus: idxRows, behaviour: BEHAVIOR_REGISTER, production: PRODUCTION_PROOF,
+  domains: domainViews, fields: propertyRows, subsections: navFieldRows, customFields: customKeys, behaviour: BEHAVIOR_REGISTER, production: PRODUCTION_PROOF,
   policy: { primary: PRIMARY.map(([n, c, re]) => ({ name: n, category: c, pattern: re.source })), required: REQUIRED, toolScope: TOOL_SCOPE.map(([re, s]) => ({ pattern: re.source, scope: s })), serves: SERVES.map(([re, d]) => ({ pattern: re.source, domains: d })) },
 }, null, 1) + '\n');
-process.stdout.write(JSON.stringify({ wrote: [`${outBase}.md`, `${outBase}.json`], domains: domainViews.filter((d) => d.kind === 'semantic').map((d) => ({ name: d.name, populated: d.primaryPopulated, verdict: d.verdictPrimary, counts: d.counts, columns: d.columns })), surfaces: surfaceStats, navigations: Object.fromEntries(Object.entries(graph.propertyNavigations).map(([n, g]) => [n, { exhaustiveAll: g.exhaustive.all?.rowsWithPayload ?? null }])), idxPlus: idxRows.length, authorities: authorities.length }, null, 2) + '\n');
+process.stdout.write(JSON.stringify({ wrote: [`${outBase}.md`, `${outBase}.json`], domains: domainViews.filter((d) => d.kind === 'semantic').map((d) => ({ name: d.name, populated: d.primaryPopulated, verdict: d.verdictPrimary, counts: d.counts, columns: d.columns })), surfaces: surfaceStats, navigations: Object.fromEntries(Object.entries(graph.propertyNavigations).map(([n, g]) => [n, { exhaustiveAll: g.exhaustive.all?.rowsWithPayload ?? null }])), authorities: authorities.length }, null, 2) + '\n');

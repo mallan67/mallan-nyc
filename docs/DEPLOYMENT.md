@@ -114,7 +114,7 @@ These MUST NOT be removed or weakened:
 - Footer: REBNY RLS attribution (required by REBNY)
 - Footer: IDX compliance statement
 - `lib/compliance/rebny-validator.ts` validates listing data
-- `lib/compliance/rls-rules.json` contains field rules
+- `lib/compliance/rebny-ucba-rules.ts` carries the REBNY / UCBA required and conditional rules; field existence and vocabularies are the live Cotality contract (`lib/cotality/live-contract.ts`)
 
 ### NY State Advertising
 - License number displayed in footer

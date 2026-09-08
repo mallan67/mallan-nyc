@@ -1,8 +1,8 @@
-> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/search/checkpoints/2026-09-05-carry-forward-after-validators.md` §5.
+> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/operations/evidence-2026-09-08/provider-system/REMOVAL-2026-09-08.md`.
 
 # IDX & VOW Display Rules
 
-> **Feed:** REBNY RLS via Trestle (Cotality) | **LMP:** RealPlus (listing input to RLS) | **IDX Display:** Trestle IDX Plus WebAPI — public display + internal CRM + reporting (REBNY confirmed 2026-03-27). IDX-eligible inventory only, not full-market search.
+> **Feed:** Cotality (Trestle) IDX Plus Web API | **REBNY RLS submission:** outside this system | **IDX Display:** Trestle IDX Plus WebAPI — public display + internal CRM + reporting (REBNY confirmed 2026-03-27). IDX-eligible inventory only, not full-market search.
 > **Brokerage:** Mallan Real Estate Inc. | **License:** #10991205323
 
 ---
@@ -207,20 +207,20 @@ VOW (Virtual Office Website) provides more data than IDX but requires consumer r
 | CancelledDate | NO | Trestle-only. |
 | ExpirationDate | NO | Explicitly "Hidden" per UCBA Exhibit A — never display. |
 | PropertyCondition | NO | Agent-only per UCBA — with disclaimer if shown to agents. |
-| Extended agent info (direct phone, email) | YES (in CSV) | But REBNY checklist prohibits seller/occupant contact info. Agent PII display is for attribution only. |
+| Extended agent info (direct phone, email) | YES (live fields) | But REBNY checklist prohibits seller/occupant contact info. Agent PII display is for attribution only. |
 
 ### Fields IN IDX Plus Spec (CAN display publicly)
 
 | Field | Verified Source |
 |-------|----------------|
-| ClosePrice | IDX Plus CSV line 406 |
-| CloseDate | IDX Plus CSV line 405 |
-| OriginalListPrice | IDX Plus CSV line 694 |
-| PreviousListPrice | IDX Plus CSV line 742 |
-| ListingContractDate | IDX Plus CSV line 622 |
-| PurchaseContractDate | IDX Plus CSV line 752 |
-| BuyerFinancing | IDX Plus CSV line 393 |
-| WithdrawnDate | IDX Plus CSV line 847 |
+| ClosePrice | live Cotality contract — declared Property field (`data/cotality-contract/contract.compact.json`) |
+| CloseDate | live Cotality contract — declared Property field |
+| OriginalListPrice | live Cotality contract — declared Property field |
+| PreviousListPrice | live Cotality contract — declared Property field |
+| ListingContractDate | live Cotality contract — declared Property field |
+| PurchaseContractDate | live Cotality contract — declared Property field |
+| BuyerFinancing | live Cotality contract — declared Property field |
+| WithdrawnDate | live Cotality contract — declared Property field |
 
 ---
 

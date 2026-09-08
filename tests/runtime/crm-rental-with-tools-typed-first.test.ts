@@ -40,7 +40,9 @@ describe("Item A/B — viewer object populates the RENDERED keys typed-first", (
       withTools.match(
         /listingAgentName: apiData\.list_agent_full_name \|\| \(apiData\.agent_info \|\| \{\}\)\.ListAgentFullName \|\| ''/g,
       ) || [];
-    expect(m.length).toBe(2);
+    // ONE projection since 2026-09-08 (viewerListingFromApi), called by BOTH viewer blocks
+    expect(m.length).toBe(1);
+    expect((withTools.match(/= viewerListingFromApi\(apiData, (?:VIEWER_LISTING_ID|id)\)/g) || []).length).toBe(2);
   });
 
   // Regression guard for Codex #423: the prior patch wrote the UNUSED `listingAgent` key,
@@ -56,7 +58,9 @@ describe("Item A/B — viewer object populates the RENDERED keys typed-first", (
       withTools.match(
         /listingCompany: apiData\.list_office_name \|\| \(apiData\.agent_info \|\| \{\}\)\.ListOfficeName \|\| ''/g,
       ) || [];
-    expect(m.length).toBe(2);
+    // ONE projection since 2026-09-08 (viewerListingFromApi), called by BOTH viewer blocks
+    expect(m.length).toBe(1);
+    expect((withTools.match(/= viewerListingFromApi\(apiData, (?:VIEWER_LISTING_ID|id)\)/g) || []).length).toBe(2);
   });
 
   it("no rendered agent/company key is agent_info-first", () => {

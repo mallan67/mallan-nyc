@@ -1,13 +1,13 @@
-> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/search/checkpoints/2026-09-05-carry-forward-after-validators.md` §5.
+> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/operations/evidence-2026-09-08/provider-system/REMOVAL-2026-09-08.md`.
 
 # Compliance Library — Mallan Real Estate Inc.
 
 > **Brokerage:** Mallan Real Estate Inc. | **License:** #10991205323
 > **Agent:** Maya Allan | **License:** #10311201806
 > **Jurisdiction:** New York State / NYC | **Feed:** REBNY RLS via Trestle (Cotality)
-> **LMP:** RealPlus (listing input to RLS — external to mallan.nyc) | **IDX Display:** Trestle IDX Plus WebAPI (public display + internal CRM + reporting) | **Stage:** Live Production
+> **REBNY RLS submission:** outside this system (REBNY does not grant listing input to individual brokers) | **IDX Display:** Trestle IDX Plus WebAPI (public display + internal CRM + reporting) | **Stage:** Live Production
 >
-> **IDX SCOPE (Confirmed by REBNY 2026-03-27):** IDX feed powers: (1) public website listing display, (2) internal backend dashboard with client management, and (3) reporting. Client data stays on mallan.nyc — never passes through RealPlus or third parties. IDX feed is limited to the IDX-released field set and IDX-eligible inventory only — it is NOT full-market search. Agents use RealPlus for full RLS inventory and listing submission. mallan.nyc does NOT submit listings to the RLS and is NOT an LMP.
+> **IDX SCOPE (Confirmed by REBNY 2026-03-27):** IDX feed powers: (1) public website listing display, (2) internal backend dashboard with client management, and (3) reporting. Client data stays on mallan.nyc — never passes through RealPlus or third parties. IDX feed is limited to the IDX-released field set and IDX-eligible inventory only — it is NOT full-market search. Full RLS inventory search and listing submission happen outside this system. mallan.nyc does NOT submit listings to the RLS and is NOT an LMP.
 
 ---
 
@@ -47,8 +47,7 @@ The former "FIELD AUTHORITY ORDER … RLS overrides RESO/IDX … RESO/IDX fills 
 
 | File | Contents | Use |
 |------|----------|-----|
-| [`fields.json`](fields.json) | 902 IDX Plus fields — required/conditional/optional, editable, searchable, categories | Form validation, field mapping |
-| [`lookups.json`](lookups.json) | 114 picklist fields, 1,993 official REBNY values | Dropdown validation, data quality |
+| the live Cotality contract (`lib/cotality/live-contract.ts`, `data/cotality-contract/**`) | Field existence, measured facts, live vocabularies | Form validation, field mapping, dropdown validation |
 
 ### Canonical enforcement rules (machine-readable)
 
@@ -58,9 +57,8 @@ The former "FIELD AUTHORITY ORDER … RLS overrides RESO/IDX … RESO/IDX fills 
 | File | Contents | Source |
 |------|----------|--------|
 | [`rules/active.json`](rules/active.json) | Single pointer to all enforced rule files, field data, and validator scripts | All below |
-| [`rules/rls-required.json`](rules/rls-required.json) | 52 always-required fields + 14 conditional groups + 11 cross-field validations | UCBA 2026 Exhibit A + RLS CSV |
+| `lib/compliance/rebny-ucba-rules.ts` (`REBNY_UCBA_RULES.requiredFields` / `conditionalRules`) | Always-required fields + conditional groups | UCBA 2026 Exhibit A |
 | [`rules/export-policy.json`](rules/export-policy.json) | 8 distribution profiles, 6 gates, display cascade, never-export list, close-only fields, syndication portals | UCBA 2026 + REBNY RLS Rules |
-| [`rules/reso-rls-renames.json`](rules/reso-rls-renames.json) | 23 RESO → RLS name mappings (foreign keys, case diffs, renames, splits) | RLS CSV |
 | [`rules/status-rules.json`](rules/status-rules.json) | 9 status definitions, valid/invalid transitions, DOM rules, 5 timing SLAs | UCBA 2026 Art. I |
 | [`rules/content-restrictions.json`](rules/content-restrictions.json) | 11 content restriction rules + 4 scanner definitions (Fair Housing, Agent Info, Off-Market, Compensation) | UCBA 2026 Art. I, III, VIII + Exhibit C |
 | [`rules/ucba-audit-checklist.json`](rules/ucba-audit-checklist.json) | **Machine-readable UCBA 2026 audit checklist** — 145 verifiable rules with file paths, regex patterns, and verdicts. Used by `scripts/ucba-compliance-audit.js` for regression detection. | UCBA 2026 (all sections) |
@@ -97,6 +95,6 @@ The former "FIELD AUTHORITY ORDER … RLS overrides RESO/IDX … RESO/IDX fills 
 |----------|---------|
 | REBNY RLS Support | rlssupport@rebny.com / 212-616-5270 |
 | Trestle/Cotality Support | trestlesupport@cotality.com |
-| LMP (RealPlus) | Listing input to RLS (REBNY does not grant LMP to individual brokers) |
+| REBNY RLS submission | Outside this system (REBNY does not grant listing input to individual brokers) |
 | mallan.nyc IDX Display | Trestle IDX Plus WebAPI (Trestle-11371-20) — read-only |
 | Direct Data License | rlssupport@rebny.com |

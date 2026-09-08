@@ -65,7 +65,7 @@ describe('form-control resolution on the canonical universe', () => {
   });
 
   it('a Mallan status control is a Mallan control — never MlsStatus (Mallan workflow and provider status are separate domains)', () => {
-    const r = resolve('<select id="saleStatus" data-rls-ignore="true" data-mallan-field="_crmWorkflowStatus"></select>');
+    const r = resolve('<select id="saleStatus" data-mallan-ignore="true" data-mallan-field="_crmWorkflowStatus"></select>');
     expect(r.internal).toBe(true);
     expect(r.field).toBeUndefined();
     expect(MALLAN_FORM_CONTRACT.aliasToCanonical.status).toBe('_mallanStatus');
@@ -80,9 +80,9 @@ describe('form-control resolution on the canonical universe', () => {
     expect(resolve(`<input id="${id}">`).unknown).toBe(true);
   });
 
-  it('attribute precedence: data-rls-field binds, data-rls-ignore / data-mallan-field classify as Mallan', () => {
-    expect(resolve('<select data-rls-field="StandardStatus" id="saleCalcTerm"></select>').field).toBe('StandardStatus');
-    expect(resolve('<input data-rls-ignore="true" id="saleBorough">').internal).toBe(true);
+  it('attribute precedence: data-cotality-field binds, data-mallan-ignore / data-mallan-field classify as Mallan', () => {
+    expect(resolve('<select data-cotality-field="StandardStatus" id="saleCalcTerm"></select>').field).toBe('StandardStatus');
+    expect(resolve('<input data-mallan-ignore="true" id="saleBorough">').internal).toBe(true);
     expect(resolve('<input data-mallan-field="PropertyType" name="salePropertyType" type="radio">').internal).toBe(true);
   });
 
@@ -96,12 +96,12 @@ describe('form-control resolution on the canonical universe', () => {
 });
 
 describe('Mallan UI configuration stays configuration', () => {
-  it('rls-field-aliases.json has 200+ entries and no phantom target', () => {
+  it('mallan-form-control-aliases.json has 200+ entries and no phantom target', () => {
     const entries = Object.entries(reporter.RAW_ALIASES);
     expect(entries.length).toBeGreaterThanOrEqual(200);
     for (const [, target] of entries) expect(reporter.PHANTOMS.has(target)).toBe(false);
   });
-  it('rls-internal-only.json has 400+ UI-control ids', () => {
+  it('mallan-form-ui-only-ids.json has 400+ UI-control ids', () => {
     expect(reporter.INTERNAL_ONLY_IDS.size).toBeGreaterThanOrEqual(400);
   });
   it('viewer surfaces are viewers; submission surfaces are not', () => {
@@ -117,7 +117,7 @@ describe('Mallan UI configuration stays configuration', () => {
   it('both submission forms carry bound controls at the expected scale', () => {
     const sale = readFileSync(join(ROOT, 'public/crm/SALE-FORM-REDESIGN.html'), 'utf8');
     const rental = readFileSync(join(ROOT, 'public/crm/RENTAL-FORM-REDESIGN.html'), 'utf8');
-    expect((sale.match(/data-rls-field="/g) || []).length).toBeGreaterThanOrEqual(150);
-    expect((rental.match(/data-rls-field="/g) || []).length).toBeGreaterThanOrEqual(200);
+    expect((sale.match(/data-cotality-field="/g) || []).length).toBeGreaterThanOrEqual(150);
+    expect((rental.match(/data-cotality-field="/g) || []).length).toBeGreaterThanOrEqual(200);
   });
 });

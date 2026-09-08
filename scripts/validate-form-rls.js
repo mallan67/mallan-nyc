@@ -5,7 +5,7 @@
  * Cross-validates the CRM form HTML against collectFormData() and the LIVE COTALITY CONTRACT
  * (lib/cotality/live-contract.ts): every bound field must be a live Property field and every picklist value a
  * live Lookup member. Cotality is the only field / vocabulary authority (owner ruling 2026-09-08); the retired
- * REBNY CSVs and the CSV-generated rls-form-bindings.json are not read and no longer exist.
+ * REBNY CSVs and the CSV-generated bindings artifact were removed (2026-09-08) and are not read.
  *
  * Runs under tsx so the TypeScript contract loads directly:  npm run validate:form-rls
  */
@@ -82,8 +82,8 @@ function extractHTMLElements(html) {
         const id = extractAttr(attrs, 'id');
         const name = extractAttr(attrs, 'name');
         const type = extractAttr(attrs, 'type') || (tagName === 'select' ? 'select' : tagName === 'textarea' ? 'textarea' : 'text');
-        // data-cotality-field is the current binding name; data-rls-field is the legacy spelling the held forms carry.
-        const rlsField = extractAttr(attrs, 'data-cotality-field') || extractAttr(attrs, 'data-rls-field');
+        // data-cotality-field is the binding name (the legacy data-rls-field spelling was replaced 2026-09-08).
+        const rlsField = extractAttr(attrs, 'data-cotality-field');
         const value = extractAttr(attrs, 'value');
 
         if (id) {
@@ -122,7 +122,7 @@ function extractHTMLElements(html) {
     const allIds = new Set(elements.filter(e => e.id).map(e => e.id));
     // Collect all unique names
     const allNames = new Set(elements.filter(e => e.name).map(e => e.name));
-    // Collect all data-rls-field values
+    // Collect all data-cotality-field values
     const allRlsFields = new Map(); // rlsField -> [elementIds]
     for (const el of elements) {
         if (el.rlsField) {
@@ -351,7 +351,7 @@ function validateForm(formLabel, htmlPath, formKey, collectFuncName) {
     console.log(SECTION('4. picklist values that are not live Cotality members'));
     let picklistMismatches = 0;
 
-    // Check select options for elements that have data-rls-field
+    // Check select options for elements that have data-cotality-field
     for (const el of extractHTMLElements(html).elements) {
         if (el.rlsField && el.id) {
             const validValues = rlsLookups.get(el.rlsField);
@@ -371,7 +371,7 @@ function validateForm(formLabel, htmlPath, formKey, collectFuncName) {
         }
     }
 
-    // Check radio/checkbox values for groups with data-rls-field
+    // Check radio/checkbox values for groups with data-cotality-field
     for (const el of extractHTMLElements(html).elements) {
         if (el.rlsField && el.name && (el.type === 'radio' || el.type === 'checkbox')) {
             const validValues = rlsLookups.get(el.rlsField);
@@ -409,7 +409,7 @@ function validateForm(formLabel, htmlPath, formKey, collectFuncName) {
     console.log(SECTION('Summary Statistics'));
 
     console.log(`  Total HTML elements (input/select/textarea): ${allIds.size} unique IDs, ${allNames.size} unique names`);
-    console.log(`  data-rls-field attributes in HTML: ${allRlsFields.size} unique RLS fields`);
+    console.log(`  data-cotality-field attributes in HTML: ${allRlsFields.size} unique RLS fields`);
     if (funcFound) {
         console.log(`  collectFormData() data keys: ${dataKeys.size}`);
         console.log(`  collectFormData() element refs: ${elementIds.size}`);

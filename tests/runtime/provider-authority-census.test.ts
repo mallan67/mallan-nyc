@@ -235,10 +235,12 @@ describe("RESO / RLS are vocabulary and compliance, never a provider", () => {
     expect(exists("lib/compliance/reso-mapper.ts")).toBe(false);
     expect(offenders(activeFiles(), /reso-mapper|mapListingToRESO|mapRESOToListing|canExportToRESO/)).toEqual([]);
   });
-  it("the RESO script suite is a read-only diagnostic kit against the live API, not a mapper", () => {
-    expect(read("scripts/reso/README.md")).toMatch(/read-only diagnostic kit/);
-    expect(read("scripts/reso/lib/trestle-client.js")).toMatch(/api\.cotality\.com\/trestle/);
-    expect(walk("scripts/reso").filter((f) => /mapListingToRESO|mapRESOToListing|prisma\.listing\.(create|upsert|update)/.test(codeOnly(read(f))))).toEqual([]);
+  it("the RESO-named diagnostic toolkit is gone (removed 2026-09-08); the Cotality authority CLI is the only provider diagnostic reader", () => {
+    expect(exists("scripts/reso")).toBe(false);
+    expect(exists("scripts/cotality/authority/cli.mjs")).toBe(true);
+    const pkg = JSON.parse(read("package.json")) as { scripts: Record<string, string> };
+    expect(Object.keys(pkg.scripts).filter((k) => k.startsWith("reso:"))).toEqual([]);
+    expect(pkg.scripts["trestle:diff"]).toMatch(/scripts\/cotality\/authority\/cli\.mjs detect/);
   });
   it("the provider mapper carries no RLS-named contract constant; REBNY/UCBA remain as compliance context only", () => {
     const src = read("lib/idx/trestle-mapper.ts");

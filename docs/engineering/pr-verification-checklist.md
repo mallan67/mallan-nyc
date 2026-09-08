@@ -291,7 +291,7 @@ grep -rln 'CLAUDE\.md' --exclude-dir=node_modules --exclude-dir=.next \
 | `MALLAN-NYC-CRM-PROJECT.md` |
 | `MASTER-PROJECT-TREE-v3.3.md` |
 | `CRM-ENHANCEMENT-SPEC.md` |
-| `SALE-FORM-MASTER-REFERENCE.md` |
+| `lib/cotality/generated/contract.ts` (field facts) + `lib/listings/mallan-form-contract.ts` (form bindings) |
 | `memory/REFACTOR-2026-04-25.md` |
 | `memory/AUDITOR-LOG.md` |
 | `memory/HOLD-EXTERNAL-INVENTORY-2026-04-30.md` |

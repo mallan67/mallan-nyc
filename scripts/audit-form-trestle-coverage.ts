@@ -5,19 +5,19 @@
 // against LIVE Trestle metadata. Reports four classes of finding per
 // (file × resource):
 //
-//   1. STALE_BINDING     — data-rls-field points at a field that no
+//   1. STALE_BINDING     — data-cotality-field points at a field that no
 //                           longer exists on live Trestle. Validation
 //                           was never going to catch this without a
 //                           live check.
 //   2. UNBOUND_INPUT     — a form <input>/<select>/<textarea> exists
 //                           with an id matching a live Trestle field
-//                           but no data-rls-field attribute is set,
+//                           but no data-cotality-field attribute is set,
 //                           so the existing validator skips it.
 //   3. UNCOVERED_FIELD   — the live Trestle resource has a field that
 //                           NO form in the codebase binds to. May be
 //                           intentional (agents don't fill it) or a
 //                           gap (we should be collecting it).
-//   4. ORPHAN_BINDING    — data-rls-field set, but no matching live
+//   4. ORPHAN_BINDING    — data-cotality-field set, but no matching live
 //                           Trestle resource has that field. Either
 //                           cross-resource lookup or stale name.
 //
@@ -52,7 +52,7 @@ if (!CLIENT_ID || !CLIENT_SECRET) {
 const RESOURCES = ['Property', 'CustomProperty', 'Member', 'Office', 'Media', 'PropertyUnitTypes', 'OpenHouse'];
 
 // Files we audit. Include both submission forms AND search forms — the
-// search forms typically don't have data-rls-field today (which is the
+// search forms typically don't have data-cotality-field today (which is the
 // gap), so the audit also reports their input ids vs Trestle fields.
 const FORM_FILES = [
   // Submission forms
@@ -143,20 +143,20 @@ function surveyForm(filePath: string): FormSurvey | null {
     unboundInputs: [],
   };
 
-  // Collect data-rls-field bindings
-  const bound = root.querySelectorAll('[data-rls-field]');
+  // Collect data-cotality-field bindings
+  const bound = root.querySelectorAll('[data-cotality-field]');
   for (const el of bound) {
-    const field = el.getAttribute('data-rls-field') || '';
+    const field = el.getAttribute('data-cotality-field') || '';
     if (!field) continue;
     survey.bindings.set(field, (survey.bindings.get(field) || 0) + 1);
   }
 
-  // Collect form-control elements lacking a binding (excluding data-rls-ignore)
+  // Collect form-control elements lacking a binding (excluding data-mallan-ignore)
   const inputs = root.querySelectorAll('input, select, textarea');
   survey.totalInputs = inputs.length;
   for (const el of inputs) {
-    if (el.getAttribute('data-rls-ignore') === 'true') continue;
-    if (el.getAttribute('data-rls-field')) continue;
+    if (el.getAttribute('data-mallan-ignore') === 'true') continue;
+    if (el.getAttribute('data-cotality-field')) continue;
     const id = el.getAttribute('id') || '';
     const name = el.getAttribute('name') || '';
     const type = el.tagName.toLowerCase() + (el.getAttribute('type') ? `[type=${el.getAttribute('type')}]` : '');
@@ -278,7 +278,7 @@ async function main() {
               file: s.file,
               resource: hit.resource,
               field: hit.field,
-              detail: `<${inp.type}> id="${inp.id}" matches live Trestle ${hit.resource}.${hit.field} but has no data-rls-field`,
+              detail: `<${inp.type}> id="${inp.id}" matches live Trestle ${hit.resource}.${hit.field} but has no data-cotality-field`,
             });
             break;
           }
@@ -353,7 +353,7 @@ async function main() {
 
   const stale = findings.filter((f) => f.kind === 'ORPHAN_BINDING');
   if (stale.length > 0) {
-    console.log('── ORPHAN BINDINGS (data-rls-field name not on any live resource) ─');
+    console.log('── ORPHAN BINDINGS (data-cotality-field name not on any live resource) ─');
     for (const f of stale.slice(0, 50)) {
       console.log(`  ✗ ${path.basename(f.file || '?').padEnd(36)} ${f.field}`);
     }
@@ -363,7 +363,7 @@ async function main() {
 
   const unbound = findings.filter((f) => f.kind === 'UNBOUND_INPUT');
   if (unbound.length > 0) {
-    console.log('── UNBOUND INPUTS (id matches a live field but no data-rls-field) ─');
+    console.log('── UNBOUND INPUTS (id matches a live field but no data-cotality-field) ─');
     for (const f of unbound.slice(0, 30)) {
       console.log(`  ◐ ${path.basename(f.file || '?').padEnd(36)} ${f.detail}`);
     }

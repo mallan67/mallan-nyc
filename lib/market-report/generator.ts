@@ -1,7 +1,7 @@
 /**
  * Manhattan Market Report Builder
  *
- * Pulls REAL listing data from Trestle RLS feed, computes market statistics,
+ * Pulls REAL listing data from the Cotality (Trestle) IDX Plus feed, computes market statistics,
  * generates AI narrative using Claude.
  *
  * Data source: Trestle API (same feed as IDX search)
@@ -359,7 +359,7 @@ REQUIREMENTS:
 9. Do NOT make specific price predictions — describe current conditions and momentum
 10. End with a brief market outlook paragraph
 11. Do NOT include greetings, signatures, subject lines, or marketing language
-12. This data is from the actual REBNY RLS feed — present it with confidence
+12. This data is from the live Cotality (REBNY IDX Plus) feed — present it with confidence
 
 Write the narrative now:`;
 

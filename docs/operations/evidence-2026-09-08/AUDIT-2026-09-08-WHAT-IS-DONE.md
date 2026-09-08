@@ -1,57 +1,106 @@
-# Audit 2026-09-08 — what is actually done on the Cotality convergence (branch `search/browser-integration-2026-09-05`)
+# Audit 2026-09-08 — what is actually done (branch `search/browser-integration-2026-09-05`)
 
 Authority: the live Cotality (Trestle) IDX Plus feed `Trestle-11371-20`, measured — not a repo constant, not a
 prior report. Every "fixed" below has a test that failed before the change. Nothing was pushed; nothing in
-production was mutated; no schema, env, cron or `public/crm/**` file changed.
+production was mutated; no schema, env, cron or `.github/workflows/**` file changed.
 
-## 1. The nine domains, in the order they were executed
+## 1. The four owner rulings (the morning of 2026-09-08)
 
-| # | Domain | What the live feed proved | What was wrong in Mallan | Done (commit) | Still Maya's |
-|---|---|---|---|---|---|
-| 1 | Lifecycle / status | The feed delivers only Active / Pending / ComingSoon / Closed; never Withdrawn / Cancelled / Expired / Hold. Pending is the in-contract status (PurchaseContractDate on 100% of Pending sales). OffMarketDate == CloseDate on every Closed row. | 6,962 production rows labelled **Withdrawn** by the reconciler on mere absence (42 of them live Closed). In Contract hidden publicly. Closed rentals rendered "Sold". Lifecycle timestamps stripped from raw_data. Five status vocabularies. | One lifecycle authority (`lib/listings/canonical-lifecycle.ts`): In Contract public with that label, Sold / Rented by transaction type, **Delisted** for departed, every reader converged; per-ghost live lookup before any status write; dry-run correction plan. `92f13cf8` | The word "Delisted" (UCBA §5(D) rules out "Off-Market"); the DOM accrual set; open houses on In Contract listings; authorize the production correction (rent 40→Closed / 1,042→Delisted; sale 2→Closed / 5,878→Delisted). |
-| 2 | One selection authority | 44 `$select` sites; four Media sites selected fewer fields than the shared classifier reads; the persisted select missed populated fields the runtime served (OwnerPays, PriceChangeTimestamp …). | Five Media select shapes, three byte-identical OpenHouse literals, an un-selected Media expand, a 24%-lossy price-change date. | `MEDIA_SELECT_FIELDS`, `OPEN_HOUSE_*`, `CANONICAL_LOCATION_SELECT_FIELDS` live with their interpreters; every site consumes them; persisted ⊇ runtime; price changes dated by PriceChangeTimestamp; ratchets. `2341308c` | `lib/idx/sync.ts` keeps three literal Media selects (IDX-sync hold). |
-| 3 | Permissions / visibility | Every row carries Permission `IDX`; `Private` 0; extra tokens on 2 live Pending rows (`IDX,SyndicateOptOut`). Trestle defines IDX ("okay for IDX use") and Private ("limited distribution"), not SyndicateOptOut / OfficeInactive. | Website-only rows bypassed owner-opt-out / participants-only (ledger §13.4); the engine gate hid participants-only rows from the authenticated agent search while serving the public through the same engine (§13.3); open-house address keys for address-suppressed listings. | Mallan decisions bind on every public row; audience-aware engine gate; callers declare their audience; address key gated. `d4c7e69f` | Whether `SyndicateOptOut` / `OfficeInactive` withdraw IDX display (ask REBNY): 2 live + 4 stored Pending rows stay hidden until then. |
-| 4 | Agent / office attribution | Every buyer-side scalar suppressed except the MlsIds; BuyerAgent / BuyerOffice navigations carry a payload on Closed rows only; CoListAgent2/3 and CoListOffice2 populated as scalars. | `agent_id` (stamped on third-party rows where a Mallan agent was the buyer) was read as ownership — "Exclusive listing by Mallan" + the other brokerage's agent contact card (34 rows, all Closed and hidden). Co-list 2/3 selected and discarded. | Canonical identity in the provenance classifier; neutral third-party fallback; co-list 2/3 and buyer-office ids retained. `505c638b` | Nothing renders a buyer-side name; wiring the navigations is a product decision, recorded as available. |
-| 5 | Forms | — | Edit-save (PATCH) never ran the normalizer and bucketed through route-local lists: 45 contract keys (Furnished, LeaseType, FlipTax …) left only in raw_data on edit; no real round-trip test. | PATCH runs the same normalizer and persistence map as create; a handler-level POST → GET → PATCH → GET round trip. `2ce63dc2` | `public/crm/**` (held): the 20 `rls:validate` form-binding errors, 45 / 38 phantom viewer targets, the never-loaded agent dropdowns. |
-| 6 | Rental workflow | On 939 Active rentals: Furnished 938, PetsAllowed 939, AvailabilityDate 939, SecurityDeposit 289; LeaseTerm / ListingTerms / LeaseAmount 0. Every filter form accepted live. | The engine refused every rental criterion (the CRM sends `furnished` and could not narrow); public paths applied furnished to sale searches; negative sale universe; 'no-fee' targeted a 0-row field; 'pet-friendly' named a non-member. | Rental-only criteria (furnished, pets, availableBy, maxDeposit) contract-typed, refused by name on a sale search, published on the contract, inherited by saved searches and alerts. `3d9aac24` | The meaning of `pets=friendly` (unit-level positives). The CRM shell still sends only `furnished`. |
-| 7 | CMA / comps | 14,942 sale closings in 12 months by CloseDate; a 3-month modification window kept only 11,311 of them. | Comps windowed by ModificationTimestamp; the comp-eligibility authority unwired; the DB CMA engine filtered a column the Listing model does not declare. | CloseDate windows, eligibility authority wired (ownership segmentation when the subject's class is known), `terminal_since` for the DB engine. `fe8567fd` | Cross-class comps by default? CMA / comps still keep their own provider mapping (engine reuse needs building-scope criteria first). |
-| 8 | Amenities / media / coordinates | 15 amenity values were not published members. Latitude / Longitude are **suppressed** on this feed. Tour URLs on 4.5% / 2.3% of rows. | Phantom amenity members; `has_virtual_tour` 0 in the stored projection although 3,271 rows carry a tour URL. | Every amenity value a live member or a declared text concept (ratchet). `abaea50a` | Coordinates come only from Mallan's geocoder; the projection backfill (production data step) for the tour flag. |
-| 9 | CustomFields | CustomProperty payload on every row; `CustomFields` = 61 NYC/REBNY keys as a JSON string; `$expand=CustomProperty($select=CustomFields)` accepted live. | Never ingested — `custom_fields` NULL on all 26,552 production rows. | The mapper parses the payload losslessly when the row carries it. `abaea50a` | The one line in the held sync: `expandCustomProperty: true`. |
+| Ruling | What changed | Commit |
+|---|---|---|
+| 1 — Cotality is the current provider; RLS is the old framing | The validators judge field existence and vocabulary by the live contract only; REBNY's reference list (`Lookup.SystemReferences`) became an advisory; the 20 `rls:validate` errors were classified (none a REBNY compliance binding). Then, the same day: the whole old RLS / RESO / RealPlus reference system was removed and the 16 binding defects corrected (§2, §3). | `6c041c77`, this commit |
+| 2 — "Delisted" is not a status; the word is **Off Market** | Presence is a fact (`listings.sync_status = 'off_feed'`, `terminal_since` = the off-feed clock); the last verified provider status is preserved; nothing manufactures Withdrawn / Cancelled / Expired / Hold; `lifecycleFromStoredRow` renders `off_market` for an on-market provider stage that left the feed; the reconciler, the retention archive and every public / CRM reader converged; `lifecycle/off-market-correction-plan.sql` (dry run) restores the 6,962 mislabelled production rows | `78e559e1` |
+| 3 — DOM is two clocks | `lib/compliance/dom-tracker.ts` is the one rule: the market clock (later of `OnMarketDate` / `ActivationDate` → contract signed = `PurchaseContractDate` on Pending / Closed, rental fallback `CloseDate`; never `PendingTimestamp`) and the Coming Soon clock (`ContractStatusChangeDate` → `ActivationDate`, 14-day rule); accruing set {Active, ActiveUnderContract}; the provider's `DaysOnMarket` (null on every sampled row) never feeds a clock; UCBA rules, reports, CMA, mapper and DTOs consume the one rule (`dom-one-rule-wiring` ratchet) | `78e559e1` |
+| 4 — Media has different owners | `Media.ResourceName` + `ResourceRecordKey` decide the owner (Property / Building / Member / Office / Contacts); listing galleries take Property media only; the sync counts and skips foreign owners; the resolver, hydrate, fetch, media batch and agent-listing routes converged (`media-owner-wiring` ratchet) | `a5f28289` |
 
-Each domain has its note under `docs/operations/evidence-2026-09-08/<domain>/` with the live counts, the census
-JSON where a read-only agent census was run (selection, attribution), and the decisions.
+## 2. The old provider reference system is gone and cannot come back
 
-## 2. The audit after all nine domains
+`docs/operations/evidence-2026-09-08/provider-system/REMOVAL-2026-09-08.md` lists every file removed (the REBNY
+CSVs / workbook / registries, the `$metadata` snapshot, the RESO drift / audit artifacts, the bindings and rename
+JSON, `compliance/fields.json` / `lookups.json` / `rls-required.json`, the master-reference doc, every generator and
+validator that read them, the RESO toolkit, the dead CRM rule files), every consumer re-based on the live contract
+(ten snapshot tests → `tests/runtime/cotality-contract-facts.ts`; the MCP field tool live-only; `idx-validate`,
+the coverage matrix, the smoke test, the guardrails, `compliance/rules/active.json`, the enum-compliance test), the
+form-binding rename (`data-rls-field` → `data-cotality-field`, `data-rls-ignore` → `data-mallan-ignore`, ≈1,900
+attributes; the legacy spelling is a validator ERROR; `data-rls-viewer` stays, pinned by the held workflow), the
+`package.json` commands removed and `trestle:diff` repointed at `cotality:authority detect`, and the agent
+instructions / pointer docs (`CLAUDE.md`, `AGENTS.md`, the REBNY skill, four agents, the compliance index, the
+charter, the Cotality references, README, project docs, `compliance/*.md`) that now name the live contract as the
+only field authority. RealPlus is nowhere a current system.
+
+The proof: `tests/runtime/no-legacy-provider-system.test.ts` (69 assertions) — no removed file exists, nothing
+under the code / config / test / form / agent-instruction roots names one, no command runs one, no script reads or
+writes a provider catalogue CSV / workbook / XML, the MCP has no fallback, the six CRM surfaces carry the current
+binding names only, the rule manifest and the agent instructions point at the live contract.
+
+## 3. The four CRM forms round-trip, proven in a real DOM
+
+`docs/operations/evidence-2026-09-08/forms/DOMAIN-FORMS-ROUNDTRIP.md`. `tests/runtime/crm-form-dom-roundtrip.test.ts`
+loads each page into jsdom, fills every editable control, saves through the REAL `POST` / `PATCH` handlers
+(enforcement gate included), reloads through the page's own loader and compares every control — create → save →
+reload → edit → save → reload — for the sale and rental entry forms, and opens each WITH-TOOLS viewer the way the
+CRM does.
+
+- Rental entry form: restored 57 of 266 saved controls on edit; eight checkbox groups lost their selection at
+  save; the address went out under a legacy key the enforcement gate cannot see (every RLS-eligible rental blocked);
+  furnished terms, units, new-construction, two gates and the activation date were never sent; a blank lot size (0)
+  triggered REBNY AREA-UNITS-003 on every apartment; `6+` bedrooms, `Incomplete`, participant-only, the display
+  intent and the exclusive expiry reloaded wrong. All fixed; the two binding defects corrected.
+- Sale entry form (Maya's working form — changes are additive): five modal-sourced facts went to the server empty
+  (a required co-op field among them); three Yes/No selects were typed as booleans (tax abatement could never be
+  true); the first-showing time was lost; 30+ townhouse figures and the building-profile selects never came back;
+  "East" street directions were refused by the live-enum boundary since 2026-09-06 (422 on save, both forms). All
+  fixed; the four binding defects corrected (CurrentUse members, FireplaceYN + the FIREPLACE-001 details, the
+  syndication intent key).
+- Once the proof ran as an RLS-eligible condo (the enforcement gate live), both entry forms showed why an
+  RLS-eligible save had been failing: the REBNY-mandatory `YearBuilt`, `ElevatorsTotal`, `SubdivisionName`
+  (sale) and `TaxLot`, `YearBuilt` (rental) were mapped before the building modal was collected and went out
+  empty; `ListAgentMlsId` went out empty from both forms (the session identity sits outside the collector's
+  container); the sale form never sent `LivingAreaUnits` and did not cascade the subordinate gates under opt-out;
+  and the DG-003 gate read the provider permission key the 2026-09-06 mapping removes, blocking every owner-opt-out
+  sale. All fixed with tests (`rls-enforcement-mallan-permission.test.ts` red → green).
+- The two viewers had never executed: a literal `</script>` in a string and an unterminated string (both in HEAD)
+  killed their scripts, and the boot blanked the page before the API answered. Fixed; one projection per page; every
+  saved fact restored onto the 338 / 417 shared controls; 60 phantom hydrate targets removed.
+
+## 4. The audit after everything
 
 | Check | Result | What it proves |
 |---|---|---|
-| `npx tsc --noEmit` | 0 errors | the program type-checks against the generated live contract |
+| `npx tsc --noEmit --incremental false` | 0 errors | the program type-checks against the generated live contract |
+| `npm run rls:validate` | **0 errors**, 53 advisories, 0 missing (was 20 → 16 → 0) | every form binding is a live Cotality field or a declared Mallan key with live values; a legacy attribute would be an error |
+| `npm run validate:form-rls` (CI) | exit 0 | the CI cross-check on the two entry forms |
 | `npm run compliance-check` | 95 pass / 0 fail | static rules (BLOCKER + STRICT) |
 | `npm run ucba:audit` | 46 pass / 0 fail / 0 regressions | the UCBA checklist |
 | `npm run idx:validate` | 0 critical / 6 warnings | static IDX pipeline checks |
 | `node scripts/ci/guardrails.mjs` | PASS | prohibited terms, deprecated hosts |
-| `npm run rls:validate` | **FAIL — 20 errors, all pre-existing form bindings in the held `public/crm` forms** (dead bindings LivingAreaSource / BusinessType / SyndicateTo / AvailableLeaseType; CurrentUse "Healthcare" / "Professional" not live; fireplace radio bound to the multi-select) | needs form edits Maya must approve (Domain 5 note lists each) |
-| Cotality boundary ratchet | 486 file::field keys (baseline shrunk from 497), 0 new | no new raw provider read outside the boundary |
-| Select-authority ratchet | green (literal multi-field selects only in the held sync module) | one selection authority per resource |
-| Jest (runtime + lib projects: tests/runtime, lib/idx, lib/compliance, lib/search, lib/listings, lib/crm, lib/buildings, lib/open-houses, lib/retention, lib/media) | **7,827 passed · 1 failed** (452 suites pass; 6 skipped) | the 1 failure is the RLS reporter suite — the 20 held form errors above |
-| Search coverage matrix (regenerated after every domain) | static-defect register: 18 items → **7 remain CONFIRMED**, all in held `public/crm/**` JavaScript or recorded as the next refactor (`cma-own-provider-mapping`, `status-vocabularies-multiplied` — the modules still exist, now derived from one lifecycle); 0 amenity phantoms; 0 behaviour defects; every business domain **PARTIAL** (none DEFECT) | what is mechanically proven vs still UNVERIFIED |
+| `npm run crm:test` | 37 / 37 | the CRM smoke suite (built page rebuilt with `npm run crm:build`) |
+| Jest, every project | **490 suites / 8,530 tests passed · 0 failed** (6 suites / 32 tests skipped) | including the no-legacy ratchet (70 assertions), the DOM round-trip proof (RLS-eligible, gate live) and the DG-003 test |
+| Adversarial verification (six read-only lenses + a skeptic per finding) | 24 findings confirmed on the first pass, every one fixed before the commit (`provider-system/REMOVAL-2026-09-08.md` §4b); the held workflow prose and the memory files are the recorded residuals | the tree was reviewed against the ruling, not only against the tests I wrote |
+| Cotality boundary ratchet | 482 file::field keys (baseline regenerated), 0 new | no new raw provider read outside the boundary |
+| Select-authority ratchet | green | one selection authority per resource |
+| Search coverage matrix (regenerated) | static-defect register: `rental-rules-status-vocabulary` RESOLVED, `no-round-trip-test` and `patch-bypasses-contract` NOT REPRODUCED; still CONFIRMED and recorded: `viewer-phantom-targets` (15 UI-container ids per viewer, not listing facts), `manage-listings-closed-rejected`, `compliance-allowed-phantoms`, `rent-vs-buy-synthetic-price`, `crm-calculators-no-category-guard`, `status-vocabularies-multiplied`, `cma-own-provider-mapping` (the next refactor) | the register never hides a defect |
 
-## 3. What did not change, and why
+Each check proves what its row says and nothing else: none of them queries the live feed; the live facts in §1
+were measured with `npm run cotality:query` during the session and are dated in the domain notes.
 
-- `public/crm/**` (forms, viewers, dashboard JS), `lib/idx/sync.ts`, `.github/workflows/**`, `.claude/**`, schema,
-  env, crons, production data — all held. The domain notes name the exact line each hold blocks.
-- The mapper's "every Permission token must be IDX" rule — the provider documents no meaning for the extra tokens.
-- Nothing pushed: **26 local commits** ahead of `origin/search/browser-integration-2026-09-05` (the 17 audit /
-  authority commits from before this session plus the 9 domain commits).
+## 5. What did not change, and why
 
-## 4. Decisions Maya owns (one list)
+- `lib/idx/sync.ts` (held), `.github/workflows/**` (read-only: `trestle-live-audit.yml:170` still *mentions* the
+  removed CSV refresher in a comment; the command it runs is the authority CLI), `.claude/settings.local.json`,
+  schema, env, crons, production data.
+- Dated evidence, audits and handoffs keep their historical text; they are history, not pointers.
+- Nothing pushed: this branch is local commits ahead of `origin/search/browser-integration-2026-09-05`.
 
-1. "Delisted" as the word for a listing that left the feed (UCBA §5(D) rules out "Off-Market").
-2. The DOM accrual set: {Active, ActiveUnderContract} (dom-tracker) vs {…, Pending} (sync / UCBA rules).
-3. Open houses on In Contract listings are publicly eligible (consistent with ActiveUnderContract).
-4. Whether `SyndicateOptOut` / `OfficeInactive` withdraw IDX display permission — ask rlssupport@rebny.com.
-5. `pets=friendly` = the unit accepts a pet (Yes / CatsOk / DogsOk / NumberLimit / SizeLimit / BreedRestrictions).
-6. Comps: cross-ownership-class comps by default, or the strict segmentation now in force.
-7. Authorize the production correction plan (`lifecycle/delisted-correction-plan.sql`, dry run) and the projection backfill.
-8. Release the holds that block the last lines: the CRM form bindings (20 `rls:validate` errors), `expandCustomProperty: true` in the sync, the three literal Media selects in the sync.
-9. "push" — nothing has been pushed.
+## 6. Decisions Maya owns (one list)
+
+1. Authorize the production correction plan for the 6,962 Off Market rows (`lifecycle/off-market-correction-plan.sql`, dry run) and the projection backfill.
+2. Back-on-market interval policy for the market clock (a listing that returns after an off-feed gap: continue or restart).
+3. Public rendering of DOM (which clock, if any, the public listing page shows).
+4. Pending-rental contract semantics: 8 of 354 live Pending rentals carry no `PurchaseContractDate` (the fallback is `CloseDate` on Closed).
+5. Whether `SyndicateOptOut` / `OfficeInactive` withdraw IDX display permission — ask rlssupport@rebny.com.
+6. The advisories: `LivingAreaSource`, `BusinessType`, `SyndicateTo`, `AvailableLeaseType` are exact Cotality fields REBNY's input references no member of — whether REBNY accepts them is a business question.
+7. The viewers show the entry forms' shared controls; 67 sale / 27 rental entry-only controls are not on the viewers by design — add or leave.
+8. The real save of tomorrow's rental listing against production is the one step the proof cannot run here.
+9. Release the held sync lines (`expandCustomProperty: true`, the three literal Media selects) when ready.
+10. "push" — nothing has been pushed.

@@ -857,7 +857,7 @@ export const REBNY_UCBA_RULES = {
   // ═══════════════════════════════════════════════════════════════════════════
   // 10. VOW (Virtual Office Website) DISPLAY RULES
   //     VOW = client portal requiring login. Shows more data than IDX.
-  //     Source: UCBA 2026; RLS-Syndication-Research.md
+  //     Source: UCBA 2026 (Art. I §5 / Exhibit A syndication consent)
   // ═══════════════════════════════════════════════════════════════════════════
 
   vowDisplayRules: {

@@ -122,7 +122,7 @@ Extract into 9 groups following the load order.
 | `js/compliance/date-validators.js` | `validateDates()` |
 | `js/compliance/form-validation.js` | REBNY required fields, auto-save, validation |
 | `js/compliance/status-validation.js` | `STATUS_TRANSITIONS`, `validateStatusChange()` |
-| `js/compliance/rental-field-rules.js` | `resolveRentalListingSubtype()`, `applyRentalFieldRules()` |
+| ~~the rental field-rules script under `js/compliance/`~~ | removed 2026-09-08 (loaded by no page; branched on statuses the provider never published) |
 
 ### Group 3: Search
 | File | Content |

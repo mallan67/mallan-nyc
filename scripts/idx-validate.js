@@ -320,13 +320,6 @@ function section3() {
   if (!live) { critical(s, 'live Cotality contract', 'pulls not found — run npm run cotality:compile'); return; }
   pass(s, `Live Cotality Property fields: ${live.liveFields.size} (pull ${live.pulledAt}) · enum fields: ${Object.keys(live.liveEnums).length}`);
 
-  // OData $metadata snapshot: REFERENCE only (it over-declares what the licence grants; never capability proof)
-  const meta = readFile('artifacts/metadata.xml');
-  if (meta) {
-    const propCount = (meta.match(/<Property\s+Name="/g) || []).length;
-    pass(s, `OData $metadata snapshot (reference, not authority): ${propCount} declared property definitions`);
-  }
-
   // Mapper coverage of the LIVE Property fields
   const { searchCritical, fieldReasons } = getPropertyFieldCoveragePolicy();
   const csvPropertyFields = live.liveFields;
@@ -1227,7 +1220,7 @@ function section28() {
     // Count checkboxes WITH data-field vs WITHOUT
     const allCheckboxes = (indexBuilt.match(/<input[^>]*type=["']checkbox["'][^>]*>/gi) || []);
     const withDataField = allCheckboxes.filter(cb => /data-field/i.test(cb));
-    const withoutDataField = allCheckboxes.filter(cb => !/data-field/i.test(cb) && !/data-rls-ignore/i.test(cb));
+    const withoutDataField = allCheckboxes.filter(cb => !/data-field/i.test(cb) && !/data-mallan-ignore/i.test(cb));
     const searchCheckboxes = withoutDataField.filter(cb =>
       !/consent|agree|terms|privacy|cookie|sidebar|modal|toggle|select-all|portal|setting|notify|pref|rsvp|status-|mls-status|comp-|grid-|form-|manage-|oh-/i.test(cb)); // exclude non-search checkboxes
 

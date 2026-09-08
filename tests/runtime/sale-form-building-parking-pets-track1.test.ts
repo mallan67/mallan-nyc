@@ -1,7 +1,7 @@
 /// <reference types="jest" />
 /**
  * Track 1 — building auto-fill for the real-Cotality parking / laundry /
- * documents / pets fields. Authority: live $metadata (artifacts/metadata.xml).
+ * documents / pets fields. Authority: the live Cotality contract (committed snapshot: data/cotality-contract/**).
  *
  * Added (all verified in live metadata): GarageYN, AttachedGarageYN,
  * GarageSpaces, OpenParkingSpaces, CoveredSpaces, ParkingFeatures,
@@ -19,11 +19,11 @@
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { hasContractField } from './cotality-contract-facts';
 
 const FORM = readFileSync(resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html'), 'utf8');
 const ROUTE = readFileSync(resolve(__dirname, '../../app/api/buildings/search/route.ts'), 'utf8');
-const META = readFileSync(resolve(__dirname, '../../artifacts/metadata.xml'), 'utf8');
-const hasField = (f: string) => new RegExp(`Property Name="${f}"`).test(META);
+const hasField = (f: string) => hasContractField(f); // the committed live Cotality contract
 
 function extractFn(src: string, name: string): string {
   const sig = `function ${name}(`;

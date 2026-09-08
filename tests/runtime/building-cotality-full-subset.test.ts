@@ -12,15 +12,13 @@
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { hasContractField, enumHasMember as contractEnumHasMember } from './cotality-contract-facts';
 
 const ROUTE = readFileSync(resolve(__dirname, '../../app/api/buildings/search/route.ts'), 'utf8');
 const FORM = readFileSync(resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html'), 'utf8');
-const META = readFileSync(resolve(__dirname, '../../artifacts/metadata.xml'), 'utf8');
-const hasField = (f: string) => new RegExp(`Property Name="${f}"`).test(META);
-const enumHasMember = (en: string, m: string) => {
-  const block = META.match(new RegExp(`<EnumType Name="${en}"[\\s\\S]*?</EnumType>`));
-  return !!block && new RegExp(`Member Name="${m}"`).test(block[0]);
-};
+// Field / vocabulary facts: the committed live Cotality contract (tests/runtime/cotality-contract-facts.ts)
+const hasField = (f: string) => hasContractField(f);
+const enumHasMember = (en: string, m: string) => contractEnumHasMember(en, m);
 
 function sliceFn(src: string, name: string): string {
   const start = src.indexOf(`function ${name}(`);

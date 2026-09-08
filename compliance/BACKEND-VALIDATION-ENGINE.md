@@ -1,8 +1,8 @@
-> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/search/checkpoints/2026-09-05-carry-forward-after-validators.md` §5.
+> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/operations/evidence-2026-09-08/provider-system/REMOVAL-2026-09-08.md`.
 
 # Backend Validation Engine
 
-> **Feed:** REBNY RLS via Trestle (Cotality) | **LMP:** RealPlus (listing input to RLS) | **IDX Display:** Trestle IDX Plus WebAPI (read-only on mallan.nyc)
+> **Feed:** Cotality (Trestle) IDX Plus Web API | **REBNY RLS submission:** outside this system | **IDX Display:** Trestle IDX Plus WebAPI (read-only on mallan.nyc)
 > **Brokerage:** Mallan Real Estate Inc. | **License:** #10991205323
 
 ---
@@ -38,7 +38,7 @@ Layer 3: RLS rejection (Trestle)     → Post-submission, must handle gracefully
 
 ### Always Required (41 Fields)
 
-Validate ALL of these are present and non-empty before RLS submission. See `compliance/fields.json` for the complete list with field names and categories.
+Validate ALL of these are present and non-empty before RLS submission. The required set is `REBNY_UCBA_RULES.requiredFields` (lib/compliance/rebny-ucba-rules.ts); field existence is the live Cotality contract (lib/cotality/live-contract.ts).
 
 Key mandatory fields:
 - **Address:** StreetNumber, StreetName, City, CityRegion, CountyOrParish, StateOrProvince, PostalCode, PostalCity, UnParsedAddress, SubdivisionName
@@ -217,9 +217,9 @@ if (quarterly_rejection_rate > 5%) → RED alert — $10,000 fine imminent
 
 ## 9. Picklist Validation
 
-Use `compliance/lookups.json` (114 lookup fields, 1,993 values) for server-side validation:
+Use the live Cotality vocabularies (`liveEnumMembers` in `lib/cotality/live-contract.ts`; `data/cotality-enums.live.json`) for server-side validation:
 
-- Every picklist field MUST contain only official REBNY values
+- Every picklist field MUST contain only live Cotality members
 - Unknown/custom values = rejection
 - Multi-select fields: validate each selected value individually
 - Case-sensitive matching per RLS rules

@@ -38,10 +38,20 @@ AvailableLeaseType — exact Cotality fields REBNY references no member of — a
 is a REBNY/RLS compliance binding (c); none is an obsolete RESO binding by name — every bound field name is an exact
 current Cotality field; the obsolete part is the value vocabulary (CurrentUse, AvailableLeaseType) or the control shape.
 
-## 3. Held
+## 3. Corrected (2026-09-08, later the same day)
 
-`public/crm/**` is held: the rebinding (FireplaceYN), the value maps (CurrentUse), the Mallan keys (syndication
-consent, rent stabilization) and the attribute rename (`data-rls-field` → `data-cotality-field`) are the form edits Maya
-must release. Until then `rls:validate` exits 1 with the 16 Cotality verdicts and `validate:form-rls` (CI) exits 0
-with the same four value verdicts as warnings (`tests/runtime/rls-validator-canonical-reporter.test.ts` "exits 0"
-stays red for the same reason — a held-form fact, not a validator defect).
+Maya released the forms ("the remaining 16 errors are Cotality/Mallan form-binding defects and need correction").
+Every row above is now a Cotality binding or a declared Mallan key:
+
+| Control | Correction |
+|---|---|
+| `saleCurrentUse` (×2) | values are the live members `MedicalDental` / `Investment` / `Office`; the radio emits `CurrentUse` (live multi-select, first member); legacy `Healthcare` / `Professional` rows remap on reload |
+| `fireplace` (×2) | binds `FireplaceYN`, emits the Boolean; REBNY FIREPLACE-001 then requires `FireplacesTotal` + `FireplaceFeatures`, so the sale form gained both controls (live members) |
+| `saleSyndicateYN` / `rentalSyndicateYN` (×4) | `data-mallan-field="_mallanSyndicationIntent"` — a declared Mallan decision key (`MALLAN_INTERNAL_KEYS`, persisted raw); `SyndicateTo` receives only verified members |
+| `rentalLeaseType` (×2) | `data-mallan-field="LeaseType"` — the declared Mallan key the collector already emitted |
+| `LivingAreaSource`, `BusinessType`, `SyndicateTo`, `AvailableLeaseType` advisories | unchanged: exact Cotality fields REBNY references no member of — a business question for Maya, not an error |
+
+`npm run rls:validate`: **0 errors, 53 advisories, 0 missing**; `npm run validate:form-rls`: exit 0. The binding
+attributes themselves were renamed the same day (`data-cotality-field` / `data-mallan-ignore`; the legacy spelling is
+a validator ERROR) — see `../provider-system/REMOVAL-2026-09-08.md`; the round-trip proof of the four forms is in
+`DOMAIN-FORMS-ROUNDTRIP.md`.

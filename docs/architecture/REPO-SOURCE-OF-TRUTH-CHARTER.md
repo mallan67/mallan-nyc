@@ -1,4 +1,4 @@
-> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/search/checkpoints/2026-09-05-carry-forward-after-validators.md` §5.
+> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/operations/evidence-2026-09-08/provider-system/REMOVAL-2026-09-08.md`.
 
 # Repo Source-of-Truth Charter
 
@@ -348,11 +348,8 @@ The data flow has three distinct layers. Conflating them is how compliance bugs 
 | RLS validator | `lib/compliance/rebny-validator.ts` | 10-section validator (CI-gateable) |
 | REBNY / UCBA rules | `lib/compliance/rebny-ucba-rules.ts` | Compliance contract (required-under-condition, Coming Soon, content, display, DOM rules) applied AFTER the live Cotality field contract (`lib/cotality/live-contract.ts`); Mallan persistence + form aliases in `lib/listings/mallan-form-contract.ts`; status domains in `lib/listings/mallan-status.ts` |
 | Compliance DTO sanitizer | `lib/compliance/dto.ts` | Public/portal/CRM tier sanitizer |
-| RLS field CSV | `data/rebny-rls-property-fields.csv` | 902+ REBNY IDX Plus fields. Replaced 2026-03-19. |
-| RLS lookup CSV | `data/rebny-rls-property-lookup.csv` | 2,066+ picklist values |
-| RLS field registry doc | `data/RLS-FIELD-REGISTRY.md` | Human-readable registry |
+| Cotality live contract | `lib/cotality/live-contract.ts` · `lib/cotality/generated/contract.ts` · `data/cotality-contract/**` | The only field / vocabulary / permission authority — compiled from the live feed, checked by `generate-contract-types.mjs --check`. (The REBNY CSVs and the hand-written registry were removed 2026-09-08.) |
 | UCBA rules | `data/UCBA-2026-Requirements.md` | Extracted from PDF |
-| Trestle metadata snapshot | `artifacts/metadata.xml` | Full Trestle OData metadata |
 
 **Rules:**
 
@@ -374,10 +371,7 @@ The following files are **generated**. Do not hand-edit:
 | `public/crm/index-built.html` | `node public/crm/build.js` | After any change to `public/crm/{index.html, html/, css/, js/}`. CI fails if drifted. |
 | `public/crm/data/validator-results.json` | `npm run idx:validate` | Daily / on demand. Consumed by CRM System Health dashboard. |
 | `.idx-validate/run-history.local.json` | `npm run idx:validate` | Validator run history (local-only, gitignored). |
-| `data/MASTER_REGISTRY.json` | `node scripts/generate-master-registry.js` | When schema/CSV changes. |
-| `data/FIELD_REGISTRY.json` | (generator script in scripts/) | When schema/CSV changes. |
-| `artifacts/reso-drift/latest.json` | `npm run reso:drift` | Regularly. |
-| `artifacts/schema-audit.json` | `npm run reso:schema-audit` | On demand. |
+| `lib/cotality/generated/contract.ts` + `data/cotality-contract/**` | `npm run cotality:authority -- refresh` (live) · `node scripts/cotality/generate-contract-types.mjs --check` (prove) | When the live feed changes (`npm run trestle:diff` = `cotality:authority detect`, daily). |
 
 **Rules:**
 
@@ -485,7 +479,7 @@ If you are an AI/Codex/Claude session reading this charter:
 | `CLAUDE.md` (top of repo) | Per-session AI rules. Points here at the top. |
 | `NEON.md` (top of repo) | DB / Prisma / migration discipline. Read before any schema change. |
 | `MASTER-PROJECT-TREE-v3.3.md` | Codebase reference. Larger and older than this charter; treat as background context, not authoritative. |
-| `data/RLS-FIELD-REGISTRY.md` | Trestle field registry. Authoritative for field names. |
+| `lib/cotality/live-contract.ts` | The live Cotality contract. Authoritative for field names, types and vocabularies. |
 | `data/UCBA-2026-Requirements.md` | UCBA rules. Authoritative for compliance. |
 | `.claude/skills/rebny-compliance/SKILL.md` | REBNY compliance gate. Read at session start. |
 

@@ -8,7 +8,7 @@
  * NEVER be filled from building-level annual taxes (`saleBldgAnnualTaxes`) — building tax is
  * not the unit's tax, and auto-filling it would create a false listing value.
  *
- * `TaxAnnualAmount` is a CONFIRMED-LIVE Cotality field (artifacts/metadata.xml); it is NOT
+ * `TaxAnnualAmount` is a CONFIRMED-LIVE Cotality field (live contract); it is NOT
  * renamed here. The matching harness in this repo is source-structure assertion (no jsdom).
  */
 import { readFileSync } from 'fs';

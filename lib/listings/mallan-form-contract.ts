@@ -27,6 +27,9 @@ export const PROVIDER_DECISION_FIELDS: readonly string[] = Object.freeze(['MlsSt
 export const MALLAN_INTERNAL_KEYS: readonly string[] = [
   // Mallan decisions
   '_mallanStatus', '_crmWorkflowStatus', '_mallanPermission',
+  // the agent's syndication intent (the forms' "syndicate this listing" box). There is no provider Yes/No: the live
+  // SyndicateTo multi-select carries only verified portal members — the intent is a Mallan decision.
+  '_mallanSyndicationIntent',
   // the agent's IDX-display control → the idx_display_yn column (there is NO provider field for it:
   // IDXEntireListingDisplayYN was never on the live resource — verified 400 "Could not find a property")
   '_mallanIdxDisplay',
@@ -138,6 +141,14 @@ export const MALLAN_FORM_CONTRACT = {
   // ═══════════════════════════════════════════════════════════════════════════
 
   valueAliases: {
+    // The forms' address parsers emit the direction the agent typed ("400 East 90th Street" → "East"); the live
+    // StreetDirPrefix vocabulary is the abbreviation (E EW N NE NS NW S SE SW W — live 2026-09-08). Without this
+    // verified mapping the live-enum boundary refused every East / West address on save (422 form_mapping).
+    StreetDirPrefix: {
+      North: 'N', South: 'S', East: 'E', West: 'W',
+      Northeast: 'NE', Northwest: 'NW', Southeast: 'SE', Southwest: 'SW',
+      NORTH: 'N', SOUTH: 'S', EAST: 'E', WEST: 'W',
+    },
     _mallanPermission: {
       // Form radio values (from SALE/RENTAL-FORM-REDESIGN.html)
       'RLS-Owner-OptOut': 'OwnerOptOut',
@@ -294,6 +305,7 @@ export const MALLAN_FORM_CONTRACT = {
     InternetAutomatedValuationDisplayYN: { raw: true },
     InternetConsumerCommentYN: { raw: true },
     SyndicateTo: { raw: true },
+    _mallanSyndicationIntent: { raw: true },
 
     // ── Dates → top-level columns + raw ──
     OriginalEntryTimestamp: { raw: true },
@@ -391,6 +403,7 @@ export const MALLAN_FORM_CONTRACT = {
 
     // ── Physical features → features bucket ──
     PropertyCondition: { features: true, raw: true },
+    CurrentUse: { features: true, raw: true }, // live multi-select (the sale form's current-use radio)
     Flooring: { features: true, raw: true },
     Heating: { features: true, raw: true },
     Cooling: { features: true, raw: true },

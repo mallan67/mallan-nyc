@@ -54,7 +54,9 @@ describe("Codex #429 P2 — sale viewer hydrates the RENDERED keys typed-first",
       saleViewer.match(
         /listingAgentName: apiData\.list_agent_full_name \|\| \(apiData\.agent_info \|\| \{\}\)\.ListAgentFullName \|\| ''/g,
       ) || [];
-    expect(m.length).toBe(2);
+    // ONE projection since 2026-09-08 (viewerListingFromApi), called by BOTH viewer blocks
+    expect(m.length).toBe(1);
+    expect((saleViewer.match(/= viewerListingFromApi\(apiData, (?:VIEWER_LISTING_ID|id)\)/g) || []).length).toBe(2);
   });
 
   it("object sets listingCompany typed-first in BOTH viewer blocks", () => {
@@ -62,7 +64,9 @@ describe("Codex #429 P2 — sale viewer hydrates the RENDERED keys typed-first",
       saleViewer.match(
         /listingCompany: apiData\.list_office_name \|\| \(apiData\.agent_info \|\| \{\}\)\.ListOfficeName \|\| ''/g,
       ) || [];
-    expect(m.length).toBe(2);
+    // ONE projection since 2026-09-08 (viewerListingFromApi), called by BOTH viewer blocks
+    expect(m.length).toBe(1);
+    expect((saleViewer.match(/= viewerListingFromApi\(apiData, (?:VIEWER_LISTING_ID|id)\)/g) || []).length).toBe(2);
   });
 
   // Regression guard for the #423-style no-op: the prior object wrote the UNUSED `listingAgent`

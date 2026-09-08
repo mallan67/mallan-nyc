@@ -26,7 +26,7 @@ describe('SpecialListingConditions keeps its live Multi-Enum cardinality', () =>
     const sel = parse(form).querySelector('#saleSpecialListingConditions')!;
     expect(sel).not.toBeNull();
     expect(sel.getAttribute('multiple')).not.toBeUndefined();
-    expect(sel.getAttribute('data-rls-field')).toBe('SpecialListingConditions');
+    expect(sel.getAttribute('data-cotality-field')).toBe('SpecialListingConditions');
     const values = sel.querySelectorAll('option').map((o) => o.getAttribute('value')).filter(Boolean);
     expect(new Set(values)).toEqual(new Set(members));
     expect(values.length).toBe(members.length);

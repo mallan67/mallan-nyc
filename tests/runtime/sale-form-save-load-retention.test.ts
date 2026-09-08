@@ -81,7 +81,7 @@ describe('Sale form save/load retention — PR-A/F backend address persistence',
 
 describe('Sale form save/load retention — PR-B saleStatus overwrite removed', () => {
   // ── Test 7: populate does NOT unconditionally overwrite saleStatus with canonical ──
-  const populateBody = functionBody(formHtml, 'function _populateSaleFormFromApi(listing)', 20000);
+  const populateBody = functionBody(formHtml, 'function _populateSaleFormFromApi(listing)', 26000);
 
   it('populate restores saleStatus via the workflow-priority chain (raw._crmWorkflowStatus first)', () => {
     expect(populateBody).toMatch(
@@ -114,7 +114,7 @@ describe('Sale form save/load retention — PR-B saleStatus overwrite removed', 
 
 describe('Sale form save/load retention — PR-C _crmWorkflowStatus persisted from every save path', () => {
   // ── Test 5 + 6: draft + autosave both persist _crmWorkflowStatus ──
-  const collectBody = functionBody(formHtml, 'function collectSaleFormData()', 24000);
+  const collectBody = functionBody(formHtml, 'function collectSaleFormData()', 30000);
 
   it('collectSaleFormData assigns _crmWorkflowStatus from saleStatus (PR-C C5)', () => {
     expect(collectBody).toMatch(/data\._crmWorkflowStatus\s*=\s*data\.saleStatus/);
@@ -133,7 +133,7 @@ describe('Sale form save/load retention — PR-C _crmWorkflowStatus persisted fr
 
 describe('Sale form save/load retention — PR-D checkbox-array collector', () => {
   // ── Tests 1-4: Heating, Cooling, SyndicateTo, saleCommSubtype as arrays ──
-  const collectBody = functionBody(formHtml, 'function collectSaleFormData()', 24000);
+  const collectBody = functionBody(formHtml, 'function collectSaleFormData()', 30000);
 
   it('Test 1 — Heating is derived as an array from name="saleHeating":checked (PR-D C1)', () => {
     expect(collectBody).toMatch(/data\.Heating\s*=\s*\[\]/);
@@ -177,7 +177,7 @@ describe('Sale form save/load retention — PR-E populate/autosave race hardenin
   // lines inside populate, pushing its single guarded applySalesFieldRules() call to
   // +23078 chars, past the old 23000 window; the next function _offerDraftRestore
   // begins at +24733, so 24000 reaches the real call but stops before that next call).
-  const populateBody = functionBody(formHtml, 'function _populateSaleFormFromApi(listing)', 26000); // populate is ~25.8k chars after the SpecialListingConditions Multi-Enum restore branch (2026-09-06); the next applySalesFieldRules() outside it sits >30k chars in
+  const populateBody = extractFunction(formHtml, 'function _populateSaleFormFromApi(listing)'); // brace-matched (2026-09-08); was a 26000-char window — populate is ~25.8k chars after the SpecialListingConditions Multi-Enum restore branch (2026-09-06); the next applySalesFieldRules() outside it sits >30k chars in
 
   it('setVal inside populate gates the change-event dispatch on !_salePopulateInProgress (PR-E C9)', () => {
     // Helper is local to _populateSaleFormFromApi; assert it is gated.
@@ -233,8 +233,8 @@ describe('Sale form save/load retention — PR-E populate/autosave race hardenin
 describe('Sale form save/load retention — collect/populate shape parity (cross-cutting)', () => {
   // Round-trip-shape sanity. If anyone ever changes collect to emit a key the
   // populate side cannot read (or vice-versa), this catches it.
-  const collectBody = functionBody(formHtml, 'function collectSaleFormData()', 24000);
-  const populateBody = functionBody(formHtml, 'function _populateSaleFormFromApi(listing)', 20000);
+  const collectBody = functionBody(formHtml, 'function collectSaleFormData()', 30000);
+  const populateBody = functionBody(formHtml, 'function _populateSaleFormFromApi(listing)', 26000);
 
   it('every checkbox-array group collect emits has a populate-side restorer in SALE_CHECKBOX_ARRAY_MAP', () => {
     // Heating/Cooling/saleCommSubtype groups newly added by PR-D must have
@@ -584,7 +584,7 @@ describe('Sale form save/update hotfix — wiring guards (static)', () => {
   });
 
   it('_populateSaleFormFromApi invokes the neighborhood dynamic-restore', () => {
-    const populateBody = functionBody(formHtml, 'function _populateSaleFormFromApi(listing)', 22000);
+    const populateBody = functionBody(formHtml, 'function _populateSaleFormFromApi(listing)', 28000);
     expect(populateBody).toMatch(/_restoreSaleNeighborhoodSelect\(/);
   });
 

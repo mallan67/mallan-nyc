@@ -15,10 +15,10 @@
 //   legacy phantom names    → lib/compliance/legacy-form-keys.ts (never on the live resource).
 //
 // Mallan UI configuration (NOT authority — form-control classification only):
-//   data/rls-field-aliases.json   form-control id → the field it collects (every target must be a
+//   data/mallan-form-control-aliases.json   form-control id → the field it collects (every target must be a
 //                                 live field or a declared Mallan-internal key; anything else is a
 //                                 Mallan control and is reported)
-//   data/rls-internal-only.json   form-control ids that are UI (buttons, search widgets) — not facts
+//   data/mallan-form-ui-only-ids.json   form-control ids that are UI (buttons, search widgets) — not facts
 //
 // The REBNY CSVs (data/rebny-rls-property-*.csv) are historical reference material and are NOT read.
 // RESO is vocabulary only: there is no RESO→RLS rename table and no CSV-derived rule set here.
@@ -53,8 +53,8 @@ const isCanonical = (name) => LIVE_FIELDS.has(name) || INTERNAL_KEYS.has(name);
 const isMallanDecisionKey = (name) => name.startsWith('_');
 
 // ── Mallan UI configuration (form-control classification, validated against the contracts) ──
-const RAW_ALIASES = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data', 'rls-field-aliases.json'), 'utf8'));
-const INTERNAL_ONLY_IDS = new Set(JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data', 'rls-internal-only.json'), 'utf8')));
+const RAW_ALIASES = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data', 'mallan-form-control-aliases.json'), 'utf8'));
+const INTERNAL_ONLY_IDS = new Set(JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'data', 'mallan-form-ui-only-ids.json'), 'utf8')));
 const FIELD_ALIASES = {};
 const ALIAS_NOTES = [];
 for (const [id, target] of Object.entries(RAW_ALIASES)) {
@@ -128,8 +128,8 @@ function walk(dir) { const out = []; for (const n of fs.readdirSync(dir)) { cons
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ELEMENT RESOLUTION — classify a form control against the canonical universe
-//   0: data-rls-ignore="true" / data-mallan-field   → INTERNAL (Mallan control; its live member, if any, is server-derived)
-//   1: data-cotality-field="X" (current name) or data-rls-field="X" (the legacy spelling the held forms still carry)
+//   0: data-mallan-ignore="true" / data-mallan-field   → INTERNAL (Mallan control; its live member, if any, is server-derived)
+//   1: data-cotality-field="X" → BOUND to X (the legacy data-rls-field spelling is a Section 1 ERROR since 2026-09-08)
 //                                                     → BOUND to X (X must be canonical — Section 3 reports otherwise)
 //   2: internal-only id / exact canonical name / alias
 //   3: prefix normalization (sale/rental/bldg/TH …) then 2 again
@@ -138,8 +138,8 @@ function walk(dir) { const out = []; for (const n of fs.readdirSync(dir)) { cons
 const MALLAN_GROUPS = new Set(); // name attributes of radio / checkbox groups where any member is a Mallan control
 function resolveElement(el) {
   const groupName = (el.getAttribute('name') || '').trim();
-  if (el.getAttribute('data-rls-ignore') === 'true' || el.getAttribute('data-mallan-field') || (groupName && MALLAN_GROUPS.has(groupName))) { classification.byLayer[0]++; return { internal: true, layer: 0 }; }
-  const rlsAttr = el.getAttribute('data-cotality-field') || el.getAttribute('data-rls-field');
+  if (el.getAttribute('data-mallan-ignore') === 'true' || el.getAttribute('data-mallan-field') || (groupName && MALLAN_GROUPS.has(groupName))) { classification.byLayer[0]++; return { internal: true, layer: 0 }; }
+  const rlsAttr = el.getAttribute('data-cotality-field');
   if (rlsAttr) { classification.byLayer[1]++; return { field: rlsAttr, layer: 1 }; }
   const identifier = ((el.getAttribute('id') || '').trim()) || ((el.getAttribute('name') || '').trim());
   if (!identifier) return { internal: true, layer: 0 };
@@ -183,9 +183,14 @@ function passA_Discovery() {
   for (const [fileKey, config] of Object.entries(FILE_CONFIG)) {
     const loaded = loadDOM(config.path); if (!loaded) continue;
     const { dom, raw } = loaded; const fname = shortName(config.path);
+    // The legacy provider-named binding attributes were replaced 2026-09-08; one left behind is a recreate path.
+    for (const legacy of ['data-rls-field=', 'data-rls-ignore=']) {
+      const n = raw.split(legacy).length - 1;
+      if (n) error(1, `${fname}: ${n} legacy "${legacy.slice(0, -1)}" attribute(s) — the current names are data-cotality-field / data-mallan-ignore (the RLS provider framing was replaced by the live Cotality contract)`);
+    }
     for (const el of dom.querySelectorAll('input[type="radio"], input[type="checkbox"]')) {
       const n = (el.getAttribute('name') || '').trim();
-      if (n && (el.getAttribute('data-rls-ignore') === 'true' || el.getAttribute('data-mallan-field'))) MALLAN_GROUPS.add(n);
+      if (n && (el.getAttribute('data-mallan-ignore') === 'true' || el.getAttribute('data-mallan-field'))) MALLAN_GROUPS.add(n);
     }
     const elements = []; const seen = new Set();
     for (const el of dom.querySelectorAll('input, select, textarea')) {
@@ -365,8 +370,8 @@ function validateFieldNameClaims(fileElements) {
       if (result.phantomControl) warn(3, `${data.fname}: control "${identifier}" is named after the retired "${result.phantomControl}" — treated as a Mallan control (rename when convenient)`);
     }
   }
-  for (const note of ALIAS_NOTES) warn(3, `rls-field-aliases.json: ${note}`);
-  for (const id of INTERNAL_ONLY_IDS) if (LIVE_FIELDS.has(id)) warn(3, `rls-internal-only.json: "${id}" is also a live Cotality field name — the control is treated as Mallan UI`);
+  for (const note of ALIAS_NOTES) warn(3, `mallan-form-control-aliases.json: ${note}`);
+  for (const id of INTERNAL_ONLY_IDS) if (LIVE_FIELDS.has(id)) warn(3, `mallan-form-ui-only-ids.json: "${id}" is also a live Cotality field name — the control is treated as Mallan UI`);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -613,8 +618,8 @@ function main() {
   console.log(`  MALLAN CONTROL (UI / Mallan fact):         ${classification.internal}`);
   console.log(`  UNKNOWN:       ${classification.unknown} elements (MUST be 0 for CI pass)\n`);
   console.log('  Resolution layers:');
-  console.log(`    Layer 0 (data-rls-ignore / data-mallan-field): ${classification.byLayer[0]}`);
-  console.log(`    Layer 1 (data-rls-field):                     ${classification.byLayer[1]}`);
+  console.log(`    Layer 0 (data-mallan-ignore / data-mallan-field): ${classification.byLayer[0]}`);
+  console.log(`    Layer 1 (data-cotality-field):                ${classification.byLayer[1]}`);
   console.log(`    Layer 2 (exact / alias / UI id):              ${classification.byLayer[2]}`);
   console.log(`    Layer 3 (prefix strip):                       ${classification.byLayer[3]}`);
   console.log(`    Layer 4 (UNKNOWN/FAIL):                       ${classification.byLayer[4]}\n`);

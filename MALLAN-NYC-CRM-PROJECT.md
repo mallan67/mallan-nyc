@@ -1,4 +1,4 @@
-> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/search/checkpoints/2026-09-05-carry-forward-after-validators.md` §5.
+> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/operations/evidence-2026-09-08/provider-system/REMOVAL-2026-09-08.md`.
 
 # MALLAN NYC CRM - Master Project Document
 ## Ultra-Luxury Real Estate CRM Platform
@@ -59,7 +59,7 @@ This project integrates **REBNY Residential Listing Service (RLS) IDX data** und
 - MLS/IDX data may be accessed only via **authorized server-side connections** using credentials issued through Cotality/Trestle (formerly CoreLogic)
 - IDX data may be used for: **(1) public website listing display, (2) internal backend dashboard with client management, and (3) reporting** — confirmed by REBNY (Michaela Parker, mparker@rebny.com, 2026-03-27)
 - IDX feed is limited to the **IDX-released field set and IDX-eligible listing inventory only** — it is NOT full-market search
-- Client data stays on mallan.nyc — never passes through RealPlus or third parties
+- Client data stays on mallan.nyc — never passes through REBNY's submission system or third parties
 - Data may be **cached locally** for performance and compliance purposes
 - Media (photos) are accessed via **approved MLS media URLs** unless otherwise authorized
 
@@ -133,16 +133,15 @@ All UI must work on: Desktop (1920px+), Laptop (1366px), Tablet (768px-1024px), 
 ## DATA SOURCE
 
 **Primary Data Feed:** REBNY RLS via Cotality/Trestle (formerly CoreLogic)
-**Data Dictionary:** `C:\Users\MayaAllan\Desktop\mallan nyc web\Trestle fields\Data_Migration_2025_RLS_Data_Rules.xlsx`
+**Data Dictionary:** `lib/cotality/generated/contract.ts` (generated from the live api.cotality.com/trestle $metadata + Field / Lookup catalogues; `data/cotality-contract/**`)
 **Total Available Fields:** 902 IDX Plus fields across 7 resources (Property 527, CustomProperty 106, Member 72, Office 66, Media 46, PropertyUnitTypes 46, OpenHouse 39)
 **Picklist Values:** 2,066 lookup values
 
 ### Extracted Data Files
 | File | Contents |
 |------|----------|
-| `data/rebny-rls-property-fields.csv` | All 902 IDX Plus fields with descriptions |
-| `data/rebny-rls-property-lookup.csv` | All 2,066 picklist values |
-| `data/rebny-all-fields.txt` | Field names only (alphabetical) |
+| `data/cotality-contract/contract.compact.json` | The live Cotality contract (fields, measured facts) |
+| `data/cotality-contract/lookups.live.json` | The live vocabularies |
 
 ---
 
@@ -654,9 +653,7 @@ mallan-nyc/
 ├── MALLAN-NYC-CRM-PROJECT.md    # This document (master reference)
 ├── CRM-ENHANCEMENT-SPEC.md      # Detailed enhancement specifications
 ├── data/
-│   ├── rebny-rls-property-fields.csv   # All 902 IDX Plus fields
-│   ├── rebny-rls-property-lookup.csv   # All 2,066 picklist values
-│   ├── rebny-all-fields.txt            # Field names only
+│   ├── cotality-contract/              # The live Cotality contract snapshot (compiled from the feed)
 │   └── trestle-dictionary/             # Original Trestle exports
 └── scripts/                     # Any helper scripts
 

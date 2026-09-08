@@ -6,8 +6,9 @@ Live Cotality field/enum lookup for the RLS resources. Parses the **live**
 system's Cotality `idx-sync` cadence unless Cotality specifies otherwise — and exposes 4 tools:
 `trestle_lookup_field`, `trestle_list_fields`, `trestle_get_picklist`, `trestle_validate_field`.
 
-Source of truth is the **live Cotality API only**. If the live fetch fails it falls back to
-`artifacts/metadata.xml` (a current-format snapshot), never a hardcoded field list.
+Source of truth is the **live Cotality API only**. If the live fetch fails the tool FAILS LOUDLY —
+there is no snapshot fallback and no hardcoded field list (an unverifiable answer is reported as such,
+never served from a stale copy).
 
 ## ⚠️ HARD RULE — rebuild + reload after any change
 

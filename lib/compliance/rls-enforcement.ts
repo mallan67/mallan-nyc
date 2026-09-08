@@ -385,7 +385,9 @@ export function assertRlsCompliantPayload(
 
   // Sale+Permissions=Null cannot set InternetEntireListingDisplayYN=false (RLS Data Rule)
   if (ctx.listingType === "sale") {
-    const permissions = payload.Permission ?? payload.Permissions; // A2: canonical + legacy
+    // The Mallan permission decision (`_mallanPermission`, written by the server form mapping, which deletes the
+    // provider-named keys before this gate runs); Permission / Permissions only for a legacy client.
+    const permissions = payload._mallanPermission ?? payload.Permission ?? payload.Permissions;
     if (
       (!permissions || permissions === "" || permissions === null) &&
       payload.InternetEntireListingDisplayYN === false

@@ -40,7 +40,7 @@ website." It has downstream consumers: search, CRM, portal, media, compliance, a
    display gates, media, or public text: read `docs/compliance/COMPLIANCE-CANONICAL-INDEX.md` first.
 7. **Cotality is the sole authority — always live, never a copy, never a spot-check** (Maya law,
    2026-07-05). Every listing **status, field name, and picklist value** must be verified against the
-   **live Cotality API** (`api.cotality.com/trestle` `$metadata`), NOT a snapshot (`artifacts/metadata.xml`),
+   **live Cotality API** (`api.cotality.com/trestle` `$metadata`), NOT a snapshot (no metadata snapshot is kept in the repository — the committed contract under `data/cotality-contract/` is compiled from the live feed and checked against it),
    NOT a hand-copied set, NOT another agent's list. The single generated source is
    `data/cotality-enums.live.json` (regenerate with `npm run cotality:pull`; the drift guard
    `npm run cotality:verify` fails if it or any code set diverges from live). If a status/field value is

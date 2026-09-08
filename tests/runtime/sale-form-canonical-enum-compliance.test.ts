@@ -14,8 +14,8 @@
  *     mappings; untranslatable labels go to saleBuildingFeaturesInternal)
  *
  * This file is the regression guard. It cross-checks every canonical
- * write in collectSaleFormData against the REBNY normalized registry
- * (data/rebny-rls-property-lookup.csv). If any future PR adds a new
+ * write in collectSaleFormData against the live Cotality vocabularies
+ * (data/cotality-enums.live.json, the dated live pull). If any future PR adds a new
  * canonical write whose form values diverge from the registered enum,
  * CI fails before the bad data ships to production.
  *
@@ -29,29 +29,20 @@
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { MALLAN_INTERNAL_KEYS } from '../../lib/listings/mallan-form-contract';
 
 const FORM_PATH = resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html');
-const LOOKUP_PATH = resolve(__dirname, '../../data/rebny-rls-property-lookup.csv');
 const LIVE_ENUMS_PATH = resolve(__dirname, '../../data/cotality-enums.live.json');
 
 const formHtml = readFileSync(FORM_PATH, 'utf8');
-const lookupCsv = readFileSync(LOOKUP_PATH, 'utf8');
-// AUTHORITY: the dated live Cotality pull for every field that is an enum on the live resource; the
-// REBNY CSV is a SNAPSHOT used only for submission-form fields that are not live enum fields.
+// AUTHORITY: the dated live Cotality pull — the only vocabulary source (no CSV snapshot exists; removed 2026-09-08).
 const liveEnums = JSON.parse(readFileSync(LIVE_ENUMS_PATH, 'utf8')).enums as Record<string, string[]>;
 
 // ── Helpers ──
 
-/** Enum values for a canonical field: live Cotality members first; the REBNY CSV only for non-live submission fields. */
+/** Live Cotality members of a canonical field (empty when the live field publishes no vocabulary). */
 function rebnyEnum(field: string): Set<string> {
-  if (Array.isArray(liveEnums[field]) && liveEnums[field].length) return new Set(liveEnums[field]);
-  const values = new Set<string>();
-  const re = new RegExp(`,Property,${field},([^,]+),`, 'g');
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(lookupCsv)) !== null) {
-    values.add(m[1]);
-  }
-  return values;
+  return new Set(Array.isArray(liveEnums[field]) ? liveEnums[field] : []);
 }
 
 /** Extract `value="..."` attributes from all <input> tags with a given `name`. */
@@ -88,13 +79,31 @@ describe('Canonical-array writes that match the REBNY enum directly', () => {
   const directCanonical: Array<{ formName: string; canonical: string }> = [
     { formName: 'saleHeating', canonical: 'Heating' },
     { formName: 'saleCooling', canonical: 'Cooling' },
-    { formName: 'saleBldgHeating', canonical: 'BuildingHeating' },
-    { formName: 'saleBldgCooling', canonical: 'BuildingCooling' },
     { formName: 'salePetsAllowed', canonical: 'PetsAllowed' },
-    { formName: 'saleBuildingPetsAllowed', canonical: 'BuildingPetsAllowed' },
-    { formName: 'saleAttendanceType', canonical: 'AttendanceType' },
-    { formName: 'saleBuildingLaundryFeatures', canonical: 'BuildingLaundryFeatures' },
   ];
+
+  // Mallan-internal multi-selects — Mallan storage, never sent to Cotality (BuildingHeating,
+  // BuildingCooling, BuildingPetsAllowed, AttendanceType, BuildingLaundryFeatures are NOT live fields).
+  // Their vocabulary is Mallan's own; where the values mirror a live Cotality vocabulary (building
+  // heating / cooling mirror the live Heating / Cooling members) they must stay live members.
+  const mallanInternal: Array<{ formName: string; key: string; declared: boolean; liveMirror: string | null }> = [
+    { formName: 'saleBldgHeating', key: 'saleBldgHeating', declared: false, liveMirror: 'Heating' },
+    { formName: 'saleBldgCooling', key: 'saleBldgCooling', declared: false, liveMirror: 'Cooling' },
+    { formName: 'saleBuildingPetsAllowed', key: 'BuildingPetsAllowed', declared: true, liveMirror: null },
+    { formName: 'saleAttendanceType', key: 'AttendanceType', declared: true, liveMirror: null },
+    { formName: 'saleBuildingLaundryFeatures', key: 'BuildingLaundryFeatures', declared: true, liveMirror: null },
+  ];
+  it.each(mallanInternal.map((m) => [m.formName, m.key, m.declared, m.liveMirror]))(
+    'name="%s" is a Mallan-internal write to "%s" (declared internal: %s; live mirror: %s)',
+    (formName, key, declared, liveMirror) => {
+      const formVals = formValuesForName(formName as string);
+      expect(formVals.length).toBeGreaterThan(0);
+      expect(formHtml).toContain(`data.${key} = [];`);
+      if (declared) expect(MALLAN_INTERNAL_KEYS.includes(key as string)).toBe(true);
+      expect(rebnyEnum(key as string).size).toBe(0); // not a live field — no live vocabulary
+      if (liveMirror) expect(formVals.filter((v) => !rebnyEnum(liveMirror as string).has(v))).toEqual([]);
+    },
+  );
 
   it.each(directCanonical.map(({ formName, canonical }) => [formName, canonical]))(
     'every form value for name="%s" exists in REBNY enum "%s"',
@@ -187,7 +196,7 @@ describe('BuildingFeatures translation table — Herringbone-class PR #270 fix',
     expect(populateBody).toMatch(/raw\.saleBuildingFeaturesInternal/);
   });
 
-  it('non-amenity inputs no longer carry data-rls-field="BuildingFeatures" mis-tag', () => {
+  it('non-amenity inputs no longer carry data-cotality-field="BuildingFeatures" mis-tag', () => {
     // The 9 mis-tagged inputs (Historic / LEED / Conversion + 5 policies +
     // 1 Yes/No radio) must NOT be tagged BuildingFeatures anymore — they
     // have their own SALE_FIELD_MAP / SALE_RADIO_MAP entries.
@@ -198,7 +207,7 @@ describe('BuildingFeatures translation table — Herringbone-class PR #270 fix',
     ];
     for (const id of misTaggedIds) {
       const tag = formHtml.match(new RegExp(`<input[^>]*id="${id}"[^>]*>`, ''))?.[0] || '';
-      expect({ id, stillTagged: /data-rls-field="BuildingFeatures"/.test(tag) }).toEqual({
+      expect({ id, stillTagged: /data-cotality-field="BuildingFeatures"/.test(tag) }).toEqual({
         id,
         stillTagged: false,
       });
@@ -207,7 +216,7 @@ describe('BuildingFeatures translation table — Herringbone-class PR #270 fix',
 
   it('only the 19 SALE_BUILDING_FEATURE_IDS amenity checkboxes carry the BuildingFeatures tag', () => {
     // Count occurrences in HTML inputs (excludes the JS query string).
-    const inputMatches = formHtml.match(/<input[^>]*data-rls-field="BuildingFeatures"[^>]*>/g) || [];
+    const inputMatches = formHtml.match(/<input[^>]*data-cotality-field="BuildingFeatures"[^>]*>/g) || [];
     expect(inputMatches.length).toBe(19);
   });
 });
@@ -229,11 +238,11 @@ describe('Flooring — demoted to Mallan internal (Codex PR #270 review)', () =>
     expect(codeOnly).not.toMatch(/data\.Flooring\s*=\s*\[\]/);
   });
 
-  it('Flooring inputs are marked data-rls-ignore (legacy validator attribute, Mallan internal)', () => {
+  it('Flooring inputs are marked data-mallan-ignore (legacy validator attribute, Mallan internal)', () => {
     const flooringInputs = formHtml.match(/<input[^>]*name="saleFlooring"[^>]*>/g) || [];
     expect(flooringInputs.length).toBe(5);
     for (const tag of flooringInputs) {
-      expect(tag).toContain('data-rls-ignore="true"');
+      expect(tag).toContain('data-mallan-ignore="true"');
     }
   });
 

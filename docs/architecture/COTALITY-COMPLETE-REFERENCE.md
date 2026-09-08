@@ -1,4 +1,4 @@
-> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/search/checkpoints/2026-09-05-carry-forward-after-validators.md` §5.
+> **HISTORICAL NOTE (2026-09-05, Search Consolidation Packet 2):** any mention of **RealPlus** in this document describes a former submission tool and is retained as history only. RealPlus has no role in Mallan's application architecture. Cotality/Trestle (`api.cotality.com/trestle`) is the only provider and feed authority; REBNY RLS submission happens outside this system. See `docs/operations/evidence-2026-09-08/provider-system/REMOVAL-2026-09-08.md`.
 
 # Cotality IDX Plus Web API — Complete Reference
 
@@ -171,7 +171,7 @@ There is no dedicated building database, address master, geocoding service, or p
 
 ## 3. The Address Model
 
-**Implementation:** Verified against `artifacts/metadata.xml` (live Trestle `$metadata`)
+**Implementation:** Verified against the live Cotality contract (`lib/cotality/generated/contract.ts`, compiled from the live `$metadata`)
 
 Cotality uses RESO-standard structured address fields. The address is decomposed, NOT stored as a single string.
 
@@ -507,7 +507,7 @@ TERMINAL_STATUSES = new Set(['Closed', 'Sold', 'Leased', 'Rented', 'Withdrawn', 
 
 `normalizeStandardStatus()` in `trestle-mapper.ts` handles:
 - Case folding: `"active"` → `"Active"`, `"CLOSED"` → `"Closed"`
-- Alias resolution: `"canceled"` (single L) → `"Cancelled"` (double L, RESO canonical)
+- Alias resolution: `"canceled"` (single L) → `"Cancelled"` (double L — the live Cotality member spelling)
 - Trim: `" Active "` → `"Active"`
 - Unknown values preserved (not silently coerced)
 
@@ -1202,11 +1202,7 @@ The CRM building lookup route (`/api/buildings/search`) returns `{ buildings: []
 | `app/api/cron/idx-sync/route.ts` | Incremental sync cron |
 | `app/api/cron/media-sync/route.ts` | Media → R2 cron |
 | `docs/architecture/COTALITY-TRESTLE-OPERATIONAL-CONTRACT.md` | Operational contract |
-| `artifacts/metadata.xml` + `data/rebny-rls-property-fields.csv` | Live Cotality field catalog (from `api.cotality.com/trestle`) |
-| `data/RLS-FIELD-REGISTRY.md` | IDX Plus field registry |
-| `data/rebny-rls-property-fields.csv` | 902 IDX Plus fields (CSV) |
-| `data/rebny-rls-property-lookup.csv` | 2,066 picklist values |
-| `artifacts/metadata.xml` | Live Trestle OData $metadata snapshot |
+| `lib/cotality/generated/contract.ts` + `data/cotality-contract/**` | The live Cotality field / vocabulary contract, compiled from `api.cotality.com/trestle` (the former CSV, registry and $metadata snapshot were removed 2026-09-08) |
 
 ---
 
