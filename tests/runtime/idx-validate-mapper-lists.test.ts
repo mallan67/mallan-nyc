@@ -24,4 +24,15 @@ describe('idx:validate reads the compile-checked mapper lists', () => {
     const line = out.split('\n').find((l) => /\[\s*1\/\d+\]\s*\$select Field Completeness/.test(l)) || '';
     expect(line).toMatch(/\s0✗/);
   });
+
+  it('the secrets scan does not mistake the generated contract’s sha256 fingerprints for API keys', () => {
+    // lib/cotality/generated/contract.ts carries metadata/content sha256 digests (64 lowercase hex).
+    // A digest is not a key; the 40+-char base64 heuristic must skip pure-hex sha256 values.
+    expect(out).not.toMatch(/lib\/cotality\/generated\/contract\.ts: Potential hardcoded API key/);
+  });
+
+  it('idx:validate is at the CLAUDE.md baseline — 0 critical', () => {
+    const total = out.split('\n').find((l) => /^\s*TOTAL:/.test(l)) || '';
+    expect(total).toMatch(/\s0 critical/);
+  });
 });

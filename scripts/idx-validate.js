@@ -733,6 +733,16 @@ function section13() {
         // Skip Sentry DSN (public), test files
         if (file.includes('sentry') && name.includes('base64')) continue;
         if (file.includes('test') || file.includes('__tests__')) continue;
+        // Not every long quoted token is a key. The generated Cotality contract
+        // (lib/cotality/generated/contract.ts) carries sha256 digests (exactly 64 lowercase hex) and
+        // long PascalCase enum members ("AmeliaIslandNassauCountyAssocOfRealtorsInc" — the 1,110-member
+        // AOR vocabulary). A digest is a fingerprint and a purely alphabetic identifier has no key
+        // entropy; only a match that is neither counts as a potential key.
+        if (name.includes('base64')) {
+          const hits = content.match(new RegExp(rx.source, 'g')) || [];
+          const keyLike = hits.filter((h) => !/^['"][0-9a-f]{64}['"]$/.test(h) && !/^['"][A-Za-z]+['"]$/.test(h));
+          if (hits.length && keyLike.length === 0) continue;
+        }
         critical(s, `${file}: ${name}`, 'Remove hardcoded secret, use env var');
         secretsFound++;
       }
