@@ -80,7 +80,7 @@ function getNextWeekend(): { sat: string; mon: string } {
  * branches below, which already emit that label.
  */
 export function computeDbEnvelopeSource(
-  listings: ReadonlyArray<Pick<DbListing, 'agent_id' | 'owner_client_id' | 'rls_eligible'>>,
+  listings: ReadonlyArray<Pick<DbListing, 'agent_id' | 'owner_client_id' | 'rls_eligible' | 'listing_id'>>,
 ): 'db+idx' | 'db+exclusive' | 'db+mixed' {
   if (listings.length === 0) return 'db+exclusive';
   let hasThirdParty = false;

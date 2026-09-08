@@ -159,6 +159,9 @@ const B9_COLIST_AGENT = cotalityFields('Property', [
   "CoListAgentDirectPhone", "CoListAgentURL",
   "CoListOfficeMlsId", "CoListOfficeKey", "CoListOfficeName",
   "CoListOfficePhone",
+  // The second co-list office is a populated scalar (50,994 rows) even though the CoListAgent navigation
+  // returns only the first co-list agent (navigation census 2026-09-08).
+  "CoListOffice2Key", "CoListOffice2MlsId", "CoListOffice2Name",
   "CoListAgent2Key", "CoListAgent2FirstName",
   "CoListAgent2LastName", "CoListAgent2FullName",
   "CoListAgent3Key", "CoListAgent3FirstName",

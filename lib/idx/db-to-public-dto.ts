@@ -36,6 +36,7 @@ import {
 
 import { normalizeStreetCase } from './normalize-street-case';
 import { resolveListingAgentInfo } from '@/lib/listings/agent-info-resolver';
+import { isMallanExclusiveListing } from '@/lib/listings/exclusive-agent-assignment';
 
 interface DbAddress {
   /** Provider county (CountyOrParish) — its own fact, never a borough source. */
@@ -264,8 +265,10 @@ const proxyDbMediaUrl = toPublicMediaUrl;
 /**
  * Provenance of a DB-cached listing row.
  *
- * - `mallan-exclusive`: owned by a Mallan client (`owner_client_id` non-null)
- *   or carried by a Mallan agent (`agent_id` non-null). True Mallan exclusive.
+ * - `mallan-exclusive`: CRM-authored (SL-/RL- listing_id — the canonical Mallan identity,
+ *   lib/listings/exclusive-agent-assignment.ts) or owned by a Mallan client (`owner_client_id`).
+ *   `agent_id` alone is NOT ownership: `syncAgentHistory` stamps it on third-party feed rows where a
+ *   Mallan agent represented the BUYER (BuyerAgentMlsId match — 34 such rows in production 2026-09-08).
  * - `website-only`: commercial / off-RLS listing (`rls_eligible === false`).
  *   Bypasses REBNY distribution gates; surfaced only on mallan.nyc.
  * - `third-party-idx`: synced from REBNY RLS via Trestle/IDX Plus with no
@@ -287,13 +290,18 @@ export type DbListingProvenance =
  * consumer can reuse the same predicate.
  */
 export function classifyDbListing(listing: Pick<DbListing,
-  'agent_id' | 'owner_client_id' | 'rls_eligible'>): DbListingProvenance {
+  'agent_id' | 'owner_client_id' | 'rls_eligible' | 'listing_id'>): DbListingProvenance {
   // Website-only check first: commercial rows opt out of RLS entirely and
   // are tagged exclusive (Mallan-owned) by definition.
   if (listing.rls_eligible === false) return 'website-only';
-  if (listing.agent_id != null || listing.owner_client_id != null) {
+  // The canonical Mallan identity (a CRM-authored SL-/RL- id) or a Mallan client owner. Never `agent_id`
+  // alone: a synced third-party row carries it when a Mallan agent was the buyer, and reading that as
+  // ownership would publish a false claim of brokerage AND the third-party list agent's contact card
+  // (Domain 4, 2026-09-08 — tests/runtime/attribution-authority.test.ts, c1-classification.test.ts).
+  if (isMallanExclusiveListing({ listing_id: listing.listing_id, rls_eligible: listing.rls_eligible })) {
     return 'mallan-exclusive';
   }
+  if (listing.owner_client_id != null) return 'mallan-exclusive';
   return 'third-party-idx';
 }
 

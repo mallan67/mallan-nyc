@@ -9,8 +9,10 @@
  *      `rls_eligible` true. Must yield `_source: 'db+idx'` and
  *      `disclaimerRequired: true`. This is the cohort that the production
  *      DB query counted at 10,484 / 10,484 rows before the fix landed.
- *   2. Mallan-authored — at least one of `agent_id` / `owner_client_id`
- *      non-null. Must yield `_source: 'exclusive'`,
+ *   2. Mallan-authored — a CRM-authored SL-/RL- listing_id (the canonical Mallan
+ *      identity) or a Mallan client owner (`owner_client_id`). `agent_id` alone is
+ *      NOT ownership: syncAgentHistory stamps it on third-party feed rows where a
+ *      Mallan agent was the BUYER (Domain 4, 2026-09-08). Must yield `_source: 'exclusive'`,
  *      `disclaimerRequired: false`, and the "Exclusive listing by Mallan
  *      Real Estate Inc." attribution.
  *   3. Website-only — `rls_eligible === false`. Same DTO surface as Mallan
@@ -73,10 +75,15 @@ describe('classifyDbListing — provenance predicate', () => {
     expect(classifyDbListing(BASE)).toBe('third-party-idx');
   });
 
-  it('classifies a row with agent_id set as mallan-exclusive', () => {
+  it('agent_id alone is NOT ownership — a third-party row a Mallan agent bought stays third-party-idx', () => {
     expect(
       classifyDbListing({ ...BASE, agent_id: '42', owner_client_id: null }),
-    ).toBe('mallan-exclusive');
+    ).toBe('third-party-idx');
+  });
+
+  it('classifies a CRM-authored SL-/RL- listing as mallan-exclusive', () => {
+    expect(classifyDbListing({ ...BASE, listing_id: 'SL-0001' })).toBe('mallan-exclusive');
+    expect(classifyDbListing({ ...BASE, listing_id: 'RL-0002' })).toBe('mallan-exclusive');
   });
 
   it('classifies a row with owner_client_id set as mallan-exclusive', () => {
@@ -97,8 +104,8 @@ describe('classifyDbListing — provenance predicate', () => {
     expect(
       classifyDbListing({
         ...BASE,
-        agent_id: BigInt(42),
-        owner_client_id: null,
+        agent_id: null,
+        owner_client_id: BigInt(7),
       }),
     ).toBe('mallan-exclusive');
   });
@@ -142,6 +149,7 @@ describe('dbListingToPublicDTO — provenance-driven _source + _displayComplianc
   it('mallan-authored row emits _source=exclusive, disclaimerRequired=false', () => {
     const dto = dbListingToPublicDTO({
       ...BASE,
+      listing_id: 'SL-0001', // CRM-authored — the ownership signal; agent_id alone is not
       agent_id: '42',
       agent_info: {
         ListOfficeName: 'Mallan Real Estate Inc.',
@@ -153,6 +161,13 @@ describe('dbListingToPublicDTO — provenance-driven _source + _displayComplianc
     expect(dto._displayCompliance.attributionText).toBe(
       'Exclusive listing by Mallan Real Estate Inc.',
     );
+  });
+
+  it('a third-party row stamped with agent_id (a Mallan agent was the buyer) keeps the courtesy line and never gets the exclusive card', () => {
+    const dto = dbListingToPublicDTO({ ...BASE, agent_id: '42' });
+    expect(dto._source).toBe('db+idx');
+    expect(dto._displayCompliance.attributionText).toBe('Listing courtesy of Compass');
+    expect(dto._assignedAgent).toBeUndefined();
   });
 
   it('owner-client-linked row also emits _source=exclusive', () => {

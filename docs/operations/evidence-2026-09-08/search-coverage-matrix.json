@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-08T11:19:00.569Z",
+ "generated": "2026-09-08T11:52:34.276Z",
  "contract": {
   "evidence_sha256": null,
   "metadata_sha256": "a60bcbbdccc9da852a8da53acc178fc90d7159c42f59f58babb2d09ab7a6bbae",
@@ -3645,6 +3645,12 @@
     "ListOfficeMlsId",
     "CoListAgentFullName",
     "CoListOfficeName",
+    "CoListAgent2FullName",
+    "CoListAgent3FullName",
+    "CoListOffice2Name",
+    "CoListOffice2MlsId",
+    "BuyerOfficeMlsId",
+    "CoBuyerOfficeMlsId",
     "Media",
     "PhotosCount",
     "VirtualTourURLBranded",
@@ -3920,6 +3926,9 @@
     "CoListOfficeKey",
     "CoListOfficeName",
     "CoListOfficePhone",
+    "CoListOffice2Key",
+    "CoListOffice2MlsId",
+    "CoListOffice2Name",
     "CoListAgent2Key",
     "CoListAgent2FirstName",
     "CoListAgent2LastName",
@@ -14435,8 +14444,8 @@
     "COMPLETE": 0,
     "UNVERIFIED": 2,
     "DEFECT": 0,
-    "PARTIAL": 10,
-    "MISSING": 68
+    "PARTIAL": 16,
+    "MISSING": 62
    },
    "availability": {
     "SUPPRESSED": 85,
@@ -14471,9 +14480,6 @@
     "CoListAgentPreferredPhone",
     "CoListOffice2AOR",
     "CoListOffice2Email",
-    "CoListOffice2Key",
-    "CoListOffice2MlsId",
-    "CoListOffice2Name",
     "CoListOffice2Phone",
     "CoListOffice2URL",
     "CoListOfficeAOR",
@@ -14516,8 +14522,8 @@
     "COMPLETE": 0,
     "UNVERIFIED": 2,
     "DEFECT": 0,
-    "PARTIAL": 10,
-    "MISSING": 68
+    "PARTIAL": 16,
+    "MISSING": 62
    },
    "availability": {
     "SUPPRESSED": 80,
@@ -14552,9 +14558,6 @@
     "CoListAgentPreferredPhone",
     "CoListOffice2AOR",
     "CoListOffice2Email",
-    "CoListOffice2Key",
-    "CoListOffice2MlsId",
-    "CoListOffice2Name",
     "CoListOffice2Phone",
     "CoListOffice2URL",
     "CoListOfficeAOR",
@@ -14633,8 +14636,8 @@
     "COMPLETE": 0,
     "UNVERIFIED": 2,
     "DEFECT": 0,
-    "PARTIAL": 10,
-    "MISSING": 68
+    "PARTIAL": 16,
+    "MISSING": 62
    },
    "availability": {
     "SUPPRESSED": 80,
@@ -14669,9 +14672,6 @@
     "CoListAgentPreferredPhone",
     "CoListOffice2AOR",
     "CoListOffice2Email",
-    "CoListOffice2Key",
-    "CoListOffice2MlsId",
-    "CoListOffice2Name",
     "CoListOffice2Phone",
     "CoListOffice2URL",
     "CoListOfficeAOR",
@@ -14750,8 +14750,8 @@
     "COMPLETE": 3,
     "UNVERIFIED": 35,
     "DEFECT": 1,
-    "PARTIAL": 34,
-    "MISSING": 68
+    "PARTIAL": 40,
+    "MISSING": 62
    },
    "availability": {
     "POPULATED": 141,
@@ -14786,9 +14786,6 @@
     "CoListAgentPreferredPhone",
     "CoListOffice2AOR",
     "CoListOffice2Email",
-    "CoListOffice2Key",
-    "CoListOffice2MlsId",
-    "CoListOffice2Name",
     "CoListOffice2Phone",
     "CoListOffice2URL",
     "CoListOfficeAOR",
@@ -14831,8 +14828,8 @@
     "COMPLETE": 5,
     "UNVERIFIED": 31,
     "DEFECT": 1,
-    "PARTIAL": 56,
-    "MISSING": 69
+    "PARTIAL": 62,
+    "MISSING": 63
    },
    "availability": {
     "POPULATED": 162,
@@ -14867,9 +14864,6 @@
     "CoListAgentPreferredPhone",
     "CoListOffice2AOR",
     "CoListOffice2Email",
-    "CoListOffice2Key",
-    "CoListOffice2MlsId",
-    "CoListOffice2Name",
     "CoListOffice2Phone",
     "CoListOffice2URL",
     "CoListOfficeAOR",
@@ -15137,8 +15131,8 @@
     "COMPLETE": 7,
     "UNVERIFIED": 35,
     "DEFECT": 1,
-    "PARTIAL": 54,
-    "MISSING": 71
+    "PARTIAL": 60,
+    "MISSING": 65
    },
    "availability": {
     "POPULATED": 168,
@@ -15173,9 +15167,6 @@
     "CoListAgentPreferredPhone",
     "CoListOffice2AOR",
     "CoListOffice2Email",
-    "CoListOffice2Key",
-    "CoListOffice2MlsId",
-    "CoListOffice2Name",
     "CoListOffice2Phone",
     "CoListOffice2URL",
     "CoListOfficeAOR",
@@ -15332,8 +15323,8 @@
     "COMPLETE": 4,
     "UNVERIFIED": 33,
     "DEFECT": 1,
-    "PARTIAL": 35,
-    "MISSING": 68
+    "PARTIAL": 41,
+    "MISSING": 62
    },
    "availability": {
     "POPULATED": 141,
@@ -15368,9 +15359,6 @@
     "CoListAgentPreferredPhone",
     "CoListOffice2AOR",
     "CoListOffice2Email",
-    "CoListOffice2Key",
-    "CoListOffice2MlsId",
-    "CoListOffice2Name",
     "CoListOffice2Phone",
     "CoListOffice2URL",
     "CoListOfficeAOR",
@@ -17851,7 +17839,7 @@
        "typed": 0,
        "coOccurring": 6,
        "sites": [
-        "lib/idx/trestle-mapper.ts:221",
+        "lib/idx/trestle-mapper.ts:224",
         "lib/buildings/public-building-data.ts:93",
         "app/api/buildings/search/route.ts:358",
         "app/api/buildings/search/route.ts:812",
@@ -18472,7 +18460,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:407",
+       "lib/idx/db-to-public-dto.ts:415",
        "lib/search/crm-idx-mapper.ts:228"
       ]
      },
@@ -18781,7 +18769,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 407,
+      "line": 415,
       "node": "listings.raw_data.ActivationDate",
       "tier": "name-matched",
       "workflow": null
@@ -20358,7 +20346,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:587"
+       "lib/idx/db-to-public-dto.ts:595"
       ]
      },
      "resultCard": {
@@ -20561,7 +20549,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 587,
+      "line": 595,
       "node": "listings.features.Appliances",
       "tier": "name-matched",
       "workflow": null
@@ -21187,7 +21175,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:582",
+       "lib/idx/db-to-public-dto.ts:590",
        "lib/search/crm-idx-mapper.ts:338"
       ]
      },
@@ -21345,7 +21333,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 582,
+      "line": 590,
       "node": "listings.features.ArchitecturalStyle",
       "tier": "name-matched",
       "workflow": null
@@ -21789,7 +21777,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:592",
+       "lib/idx/db-to-public-dto.ts:600",
        "lib/search/crm-idx-mapper.ts:348"
       ]
      },
@@ -22000,7 +21988,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 592,
+      "line": 600,
       "node": "listings.features.AssociationAmenities",
       "tier": "name-matched",
       "workflow": null
@@ -22196,7 +22184,7 @@
       "status": "PASS",
       "sites": [
        "lib/search/engine/hydrate.ts:153",
-       "lib/idx/db-to-public-dto.ts:601",
+       "lib/idx/db-to-public-dto.ts:609",
        "lib/search/crm-idx-mapper.ts:69"
       ]
      },
@@ -22527,7 +22515,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 601,
+      "line": 609,
       "node": "listings.features.AssociationFee",
       "tier": "name-matched",
       "workflow": null
@@ -24023,7 +24011,7 @@
       "status": "PASS",
       "sites": [
        "lib/search/engine/hydrate.ts:154",
-       "lib/idx/db-to-public-dto.ts:602",
+       "lib/idx/db-to-public-dto.ts:610",
        "lib/search/crm-idx-mapper.ts:70"
       ]
      },
@@ -24267,7 +24255,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 602,
+      "line": 610,
       "node": "listings.features.AssociationFeeFrequency",
       "tier": "name-matched",
       "workflow": null
@@ -24508,7 +24496,7 @@
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/idx/trestle-mapper.ts:282"
+        "lib/idx/trestle-mapper.ts:285"
        ]
       },
       "None": {
@@ -24522,7 +24510,7 @@
        "typed": 0,
        "coOccurring": 2,
        "sites": [
-        "lib/idx/trestle-mapper.ts:209",
+        "lib/idx/trestle-mapper.ts:212",
         "lib/buildings/upsert.ts:244"
        ]
       },
@@ -24530,7 +24518,7 @@
        "typed": 0,
        "coOccurring": 2,
        "sites": [
-        "lib/idx/trestle-mapper.ts:212",
+        "lib/idx/trestle-mapper.ts:215",
         "lib/buildings/upsert.ts:249"
        ]
       },
@@ -27502,7 +27490,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:609"
+       "lib/idx/db-to-public-dto.ts:617"
       ]
      },
      "resultCard": {
@@ -27695,7 +27683,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 609,
+      "line": 617,
       "node": "listings.raw_data.AvailabilityDate",
       "tier": "name-matched",
       "workflow": null
@@ -28818,7 +28806,7 @@
        "typed": 0,
        "coOccurring": 3,
        "sites": [
-        "lib/idx/trestle-mapper.ts:848",
+        "lib/idx/trestle-mapper.ts:851",
         "lib/compliance/rebny-ucba-rules.ts:774",
         "lib/compliance/rebny-ucba-rules.ts:887"
        ]
@@ -38064,7 +38052,7 @@
        "typed": 0,
        "coOccurring": 6,
        "sites": [
-        "lib/idx/trestle-mapper.ts:281",
+        "lib/idx/trestle-mapper.ts:284",
         "lib/buildings/public-building-data.ts:99",
         "lib/search/types.ts:130",
         "lib/search/types.ts:131",
@@ -38229,7 +38217,7 @@
        "typed": 0,
        "coOccurring": 5,
        "sites": [
-        "lib/idx/trestle-mapper.ts:195",
+        "lib/idx/trestle-mapper.ts:198",
         "lib/buildings/public-building-data.ts:83",
         "lib/search/engine/select.ts:23",
         "lib/buildings/upsert.ts:328",
@@ -38664,7 +38652,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:584",
+       "lib/idx/db-to-public-dto.ts:592",
        "lib/search/crm-idx-mapper.ts:343"
       ]
      },
@@ -39003,7 +38991,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 584,
+      "line": 592,
       "node": "listings.features.BuildingFeatures",
       "tier": "name-matched",
       "workflow": null
@@ -39824,7 +39812,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:581",
+       "lib/idx/db-to-public-dto.ts:589",
        "lib/search/crm-idx-mapper.ts:283"
       ]
      },
@@ -40195,7 +40183,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 581,
+      "line": 589,
       "node": "listings.features.BuildingName",
       "tier": "name-matched",
       "workflow": null
@@ -40203,7 +40191,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 581,
+      "line": 589,
       "node": "listings.address.BuildingName",
       "tier": "name-matched",
       "workflow": null
@@ -45889,6 +45877,7 @@
       "status": "PASS",
       "files": [
        "lib/search/__tests__/public-listing-db.test.ts",
+       "tests/runtime/attribution-authority.test.ts",
        "tests/runtime/audit-fix-a.test.ts",
        "tests/runtime/email-tier-a.test.ts",
        "tests/runtime/listing-capability-model.test.ts",
@@ -45904,6 +45893,7 @@
      "integrationTest": {
       "status": "PASS",
       "files": [
+       "tests/runtime/attribution-authority.test.ts",
        "tests/runtime/audit-fix-a.test.ts",
        "tests/runtime/email-tier-a.test.ts",
        "tests/runtime/listing-capability-model.test.ts",
@@ -50559,7 +50549,7 @@
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/idx/trestle-mapper.ts:848"
+        "lib/idx/trestle-mapper.ts:851"
        ]
       }
      },
@@ -53431,17 +53421,22 @@
       "runtime": [],
       "other": [],
       "all": [
+       "RAW_DATA_KEEP_FIELDS@lib/compliance/raw-data-keep-fields.ts",
        "B10_BUYER_AGENT@lib/idx/trestle-mapper.ts"
       ]
      },
      "mapper": {
-      "status": "MISSING",
-      "bindings": []
+      "status": "PASS",
+      "bindings": [
+       "listings.raw_data.BuyerOfficeMlsId (RAW_DATA_KEEP_FIELDS)"
+      ]
      },
      "persistence": {
-      "status": "MISSING",
+      "status": "PASS",
       "structured": [],
-      "raw": [],
+      "raw": [
+       "listings.raw_data.BuyerOfficeMlsId"
+      ],
       "formContract": null
      },
      "reload": {
@@ -53545,8 +53540,10 @@
       "sites": []
      },
      "directTest": {
-      "status": "MISSING",
-      "files": []
+      "status": "PASS",
+      "files": [
+       "tests/runtime/attribution-authority.test.ts"
+      ]
      },
      "negativeTest": {
       "status": "MISSING",
@@ -53554,8 +53551,10 @@
       "basis": "heuristic: field within 3 lines of a negative matcher"
      },
      "integrationTest": {
-      "status": "MISSING",
-      "files": []
+      "status": "PASS",
+      "files": [
+       "tests/runtime/attribution-authority.test.ts"
+      ]
      },
      "downstreamTest": {
       "status": "MISSING",
@@ -53591,8 +53590,8 @@
     "verdicts": {
      "providerContract": "declared · catalogue LookupName — · RLS-defined",
      "providerAccess": "POPULATED",
-     "mapping": "MISSING",
-     "storage": "MISSING",
+     "mapping": "PASS",
+     "storage": "PASS",
      "reload": "N/A",
      "saleSearch": "MISSING",
      "rentalSearch": "MISSING",
@@ -53619,24 +53618,21 @@
      "directTest"
     ],
     "missingStatic": [
-     "mapper",
-     "persistence",
      "resultDto",
      "publicConsumer",
      "complianceRule",
      "cma",
-     "reports",
-     "directTest"
+     "reports"
     ],
     "defects": [],
     "unverified": [],
-    "verdict": "MISSING",
+    "verdict": "PARTIAL",
     "deadPath": false,
     "editable": false,
     "canonicalKeys": [],
     "consumers": 0,
     "consumerSites": [],
-    "wiredForSync": false
+    "wiredForSync": true
    }
   },
   {
@@ -61437,7 +61433,7 @@
       "status": "PASS",
       "sites": [
        "lib/compliance/dto.ts:117",
-       "lib/idx/db-to-public-dto.ts:576",
+       "lib/idx/db-to-public-dto.ts:584",
        "lib/search/crm-idx-mapper.ts:318"
       ]
      },
@@ -61901,7 +61897,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 576,
+      "line": 584,
       "node": "listings.raw_data.CloseDate",
       "tier": "name-matched",
       "workflow": null
@@ -62176,7 +62172,7 @@
       "status": "PASS",
       "sites": [
        "lib/compliance/dto.ts:116",
-       "lib/idx/db-to-public-dto.ts:537"
+       "lib/idx/db-to-public-dto.ts:545"
       ]
      },
      "resultCard": {
@@ -62607,7 +62603,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 537,
+      "line": 545,
       "node": "listings.features.ClosePrice",
       "tier": "name-matched",
       "workflow": null
@@ -62615,7 +62611,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 537,
+      "line": 545,
       "node": "listings.raw_data.ClosePrice",
       "tier": "name-matched",
       "workflow": null
@@ -73769,17 +73765,22 @@
       "runtime": [],
       "other": [],
       "all": [
+       "RAW_DATA_KEEP_FIELDS@lib/compliance/raw-data-keep-fields.ts",
        "B11_COBUYER_AGENT@lib/idx/trestle-mapper.ts"
       ]
      },
      "mapper": {
-      "status": "MISSING",
-      "bindings": []
+      "status": "PASS",
+      "bindings": [
+       "listings.raw_data.CoBuyerOfficeMlsId (RAW_DATA_KEEP_FIELDS)"
+      ]
      },
      "persistence": {
-      "status": "MISSING",
+      "status": "PASS",
       "structured": [],
-      "raw": [],
+      "raw": [
+       "listings.raw_data.CoBuyerOfficeMlsId"
+      ],
       "formContract": null
      },
      "reload": {
@@ -73888,8 +73889,10 @@
       "sites": []
      },
      "directTest": {
-      "status": "MISSING",
-      "files": []
+      "status": "PASS",
+      "files": [
+       "tests/runtime/attribution-authority.test.ts"
+      ]
      },
      "negativeTest": {
       "status": "MISSING",
@@ -73897,8 +73900,10 @@
       "basis": "heuristic: field within 3 lines of a negative matcher"
      },
      "integrationTest": {
-      "status": "MISSING",
-      "files": []
+      "status": "PASS",
+      "files": [
+       "tests/runtime/attribution-authority.test.ts"
+      ]
      },
      "downstreamTest": {
       "status": "MISSING",
@@ -73934,8 +73939,8 @@
     "verdicts": {
      "providerContract": "declared · catalogue LookupName — · not RLS-defined",
      "providerAccess": "POPULATED",
-     "mapping": "MISSING",
-     "storage": "MISSING",
+     "mapping": "PASS",
+     "storage": "PASS",
      "reload": "N/A",
      "saleSearch": "MISSING",
      "rentalSearch": "MISSING",
@@ -73962,17 +73967,14 @@
      "directTest"
     ],
     "missingStatic": [
-     "mapper",
-     "persistence",
      "resultDto",
      "publicConsumer",
      "cma",
-     "reports",
-     "directTest"
+     "reports"
     ],
     "defects": [],
     "unverified": [],
-    "verdict": "MISSING",
+    "verdict": "PARTIAL",
     "deadPath": false,
     "editable": false,
     "canonicalKeys": [],
@@ -73987,7 +73989,7 @@
       "workflow": null
      }
     ],
-    "wiredForSync": false
+    "wiredForSync": true
    }
   },
   {
@@ -78744,17 +78746,22 @@
       "runtime": [],
       "other": [],
       "all": [
+       "RAW_DATA_KEEP_FIELDS@lib/compliance/raw-data-keep-fields.ts",
        "B9_COLIST_AGENT@lib/idx/trestle-mapper.ts"
       ]
      },
      "mapper": {
-      "status": "MISSING",
-      "bindings": []
+      "status": "PASS",
+      "bindings": [
+       "listings.raw_data.CoListAgent2FullName (RAW_DATA_KEEP_FIELDS)"
+      ]
      },
      "persistence": {
-      "status": "MISSING",
+      "status": "PASS",
       "structured": [],
-      "raw": [],
+      "raw": [
+       "listings.raw_data.CoListAgent2FullName"
+      ],
       "formContract": null
      },
      "reload": {
@@ -78858,8 +78865,10 @@
       "sites": []
      },
      "directTest": {
-      "status": "MISSING",
-      "files": []
+      "status": "PASS",
+      "files": [
+       "tests/runtime/attribution-authority.test.ts"
+      ]
      },
      "negativeTest": {
       "status": "MISSING",
@@ -78867,8 +78876,10 @@
       "basis": "heuristic: field within 3 lines of a negative matcher"
      },
      "integrationTest": {
-      "status": "MISSING",
-      "files": []
+      "status": "PASS",
+      "files": [
+       "tests/runtime/attribution-authority.test.ts"
+      ]
      },
      "downstreamTest": {
       "status": "MISSING",
@@ -78904,8 +78915,8 @@
     "verdicts": {
      "providerContract": "declared · catalogue LookupName — · not RLS-defined",
      "providerAccess": "POPULATED",
-     "mapping": "MISSING",
-     "storage": "MISSING",
+     "mapping": "PASS",
+     "storage": "PASS",
      "reload": "N/A",
      "saleSearch": "MISSING",
      "rentalSearch": "MISSING",
@@ -78932,24 +78943,21 @@
      "directTest"
     ],
     "missingStatic": [
-     "mapper",
-     "persistence",
      "resultDto",
      "publicConsumer",
      "complianceRule",
      "cma",
-     "reports",
-     "directTest"
+     "reports"
     ],
     "defects": [],
     "unverified": [],
-    "verdict": "MISSING",
+    "verdict": "PARTIAL",
     "deadPath": false,
     "editable": false,
     "canonicalKeys": [],
     "consumers": 0,
     "consumerSites": [],
-    "wiredForSync": false
+    "wiredForSync": true
    }
   },
   {
@@ -85511,17 +85519,22 @@
       "runtime": [],
       "other": [],
       "all": [
+       "RAW_DATA_KEEP_FIELDS@lib/compliance/raw-data-keep-fields.ts",
        "B9_COLIST_AGENT@lib/idx/trestle-mapper.ts"
       ]
      },
      "mapper": {
-      "status": "MISSING",
-      "bindings": []
+      "status": "PASS",
+      "bindings": [
+       "listings.raw_data.CoListAgent3FullName (RAW_DATA_KEEP_FIELDS)"
+      ]
      },
      "persistence": {
-      "status": "MISSING",
+      "status": "PASS",
       "structured": [],
-      "raw": [],
+      "raw": [
+       "listings.raw_data.CoListAgent3FullName"
+      ],
       "formContract": null
      },
      "reload": {
@@ -85625,8 +85638,10 @@
       "sites": []
      },
      "directTest": {
-      "status": "MISSING",
-      "files": []
+      "status": "PASS",
+      "files": [
+       "tests/runtime/attribution-authority.test.ts"
+      ]
      },
      "negativeTest": {
       "status": "MISSING",
@@ -85634,8 +85649,10 @@
       "basis": "heuristic: field within 3 lines of a negative matcher"
      },
      "integrationTest": {
-      "status": "MISSING",
-      "files": []
+      "status": "PASS",
+      "files": [
+       "tests/runtime/attribution-authority.test.ts"
+      ]
      },
      "downstreamTest": {
       "status": "MISSING",
@@ -85671,8 +85688,8 @@
     "verdicts": {
      "providerContract": "declared · catalogue LookupName — · not RLS-defined",
      "providerAccess": "POPULATED",
-     "mapping": "MISSING",
-     "storage": "MISSING",
+     "mapping": "PASS",
+     "storage": "PASS",
      "reload": "N/A",
      "saleSearch": "MISSING",
      "rentalSearch": "MISSING",
@@ -85699,24 +85716,21 @@
      "directTest"
     ],
     "missingStatic": [
-     "mapper",
-     "persistence",
      "resultDto",
      "publicConsumer",
      "complianceRule",
      "cma",
-     "reports",
-     "directTest"
+     "reports"
     ],
     "defects": [],
     "unverified": [],
-    "verdict": "MISSING",
+    "verdict": "PARTIAL",
     "deadPath": false,
     "editable": false,
     "canonicalKeys": [],
     "consumers": 0,
     "consumerSites": [],
-    "wiredForSync": false
+    "wiredForSync": true
    }
   },
   {
@@ -101777,11 +101791,13 @@
    "mallan": {
     "stage": {
      "rawSelection": {
-      "status": "MISSING",
-      "sync": false,
+      "status": "PASS",
+      "sync": true,
       "runtime": [],
       "other": [],
-      "all": []
+      "all": [
+       "B9_COLIST_AGENT@lib/idx/trestle-mapper.ts"
+      ]
      },
      "mapper": {
       "status": "MISSING",
@@ -101968,7 +101984,6 @@
      "directTest"
     ],
     "missingStatic": [
-     "rawSelection",
      "mapper",
      "persistence",
      "resultDto",
@@ -102041,20 +102056,27 @@
    "mallan": {
     "stage": {
      "rawSelection": {
-      "status": "MISSING",
-      "sync": false,
+      "status": "PASS",
+      "sync": true,
       "runtime": [],
       "other": [],
-      "all": []
+      "all": [
+       "RAW_DATA_KEEP_FIELDS@lib/compliance/raw-data-keep-fields.ts",
+       "B9_COLIST_AGENT@lib/idx/trestle-mapper.ts"
+      ]
      },
      "mapper": {
-      "status": "MISSING",
-      "bindings": []
+      "status": "PASS",
+      "bindings": [
+       "listings.raw_data.CoListOffice2MlsId (RAW_DATA_KEEP_FIELDS)"
+      ]
      },
      "persistence": {
-      "status": "MISSING",
+      "status": "PASS",
       "structured": [],
-      "raw": [],
+      "raw": [
+       "listings.raw_data.CoListOffice2MlsId"
+      ],
       "formContract": null
      },
      "reload": {
@@ -102158,8 +102180,10 @@
       "sites": []
      },
      "directTest": {
-      "status": "MISSING",
-      "files": []
+      "status": "PASS",
+      "files": [
+       "tests/runtime/attribution-authority.test.ts"
+      ]
      },
      "negativeTest": {
       "status": "MISSING",
@@ -102167,8 +102191,10 @@
       "basis": "heuristic: field within 3 lines of a negative matcher"
      },
      "integrationTest": {
-      "status": "MISSING",
-      "files": []
+      "status": "PASS",
+      "files": [
+       "tests/runtime/attribution-authority.test.ts"
+      ]
      },
      "downstreamTest": {
       "status": "MISSING",
@@ -102204,8 +102230,8 @@
     "verdicts": {
      "providerContract": "declared · catalogue LookupName — · not RLS-defined",
      "providerAccess": "POPULATED",
-     "mapping": "MISSING",
-     "storage": "MISSING",
+     "mapping": "PASS",
+     "storage": "PASS",
      "reload": "N/A",
      "saleSearch": "MISSING",
      "rentalSearch": "MISSING",
@@ -102232,25 +102258,21 @@
      "directTest"
     ],
     "missingStatic": [
-     "rawSelection",
-     "mapper",
-     "persistence",
      "resultDto",
      "publicConsumer",
      "complianceRule",
      "cma",
-     "reports",
-     "directTest"
+     "reports"
     ],
     "defects": [],
     "unverified": [],
-    "verdict": "MISSING",
+    "verdict": "PARTIAL",
     "deadPath": false,
     "editable": false,
     "canonicalKeys": [],
     "consumers": 0,
     "consumerSites": [],
-    "wiredForSync": false
+    "wiredForSync": true
    }
   },
   {
@@ -102305,20 +102327,27 @@
    "mallan": {
     "stage": {
      "rawSelection": {
-      "status": "MISSING",
-      "sync": false,
+      "status": "PASS",
+      "sync": true,
       "runtime": [],
       "other": [],
-      "all": []
+      "all": [
+       "RAW_DATA_KEEP_FIELDS@lib/compliance/raw-data-keep-fields.ts",
+       "B9_COLIST_AGENT@lib/idx/trestle-mapper.ts"
+      ]
      },
      "mapper": {
-      "status": "MISSING",
-      "bindings": []
+      "status": "PASS",
+      "bindings": [
+       "listings.raw_data.CoListOffice2Name (RAW_DATA_KEEP_FIELDS)"
+      ]
      },
      "persistence": {
-      "status": "MISSING",
+      "status": "PASS",
       "structured": [],
-      "raw": [],
+      "raw": [
+       "listings.raw_data.CoListOffice2Name"
+      ],
       "formContract": null
      },
      "reload": {
@@ -102422,8 +102451,10 @@
       "sites": []
      },
      "directTest": {
-      "status": "MISSING",
-      "files": []
+      "status": "PASS",
+      "files": [
+       "tests/runtime/attribution-authority.test.ts"
+      ]
      },
      "negativeTest": {
       "status": "MISSING",
@@ -102431,8 +102462,10 @@
       "basis": "heuristic: field within 3 lines of a negative matcher"
      },
      "integrationTest": {
-      "status": "MISSING",
-      "files": []
+      "status": "PASS",
+      "files": [
+       "tests/runtime/attribution-authority.test.ts"
+      ]
      },
      "downstreamTest": {
       "status": "MISSING",
@@ -102468,8 +102501,8 @@
     "verdicts": {
      "providerContract": "declared · catalogue LookupName — · not RLS-defined",
      "providerAccess": "POPULATED",
-     "mapping": "MISSING",
-     "storage": "MISSING",
+     "mapping": "PASS",
+     "storage": "PASS",
      "reload": "N/A",
      "saleSearch": "MISSING",
      "rentalSearch": "MISSING",
@@ -102496,25 +102529,21 @@
      "directTest"
     ],
     "missingStatic": [
-     "rawSelection",
-     "mapper",
-     "persistence",
      "resultDto",
      "publicConsumer",
      "complianceRule",
      "cma",
-     "reports",
-     "directTest"
+     "reports"
     ],
     "defects": [],
     "unverified": [],
-    "verdict": "MISSING",
+    "verdict": "PARTIAL",
     "deadPath": false,
     "editable": false,
     "canonicalKeys": [],
     "consumers": 0,
     "consumerSites": [],
-    "wiredForSync": false
+    "wiredForSync": true
    }
   },
   {
@@ -108734,7 +108763,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:539",
+       "lib/idx/db-to-public-dto.ts:547",
        "lib/search/crm-idx-mapper.ts:30",
        "lib/search/crm-idx-mapper.ts:273"
       ]
@@ -109209,7 +109238,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 539,
+      "line": 547,
       "node": "listings.features.CommonInterest",
       "tier": "name-matched",
       "workflow": null
@@ -110409,7 +110438,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:591"
+       "lib/idx/db-to-public-dto.ts:599"
       ]
      },
      "resultCard": {
@@ -110603,7 +110632,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 591,
+      "line": 599,
       "node": "listings.features.CommunityFeatures",
       "tier": "name-matched",
       "workflow": null
@@ -115961,7 +115990,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:597"
+       "lib/idx/db-to-public-dto.ts:605"
       ]
      },
      "resultCard": {
@@ -116191,7 +116220,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 597,
+      "line": 605,
       "node": "listings.features.Cooling",
       "tier": "name-matched",
       "workflow": null
@@ -119638,7 +119667,7 @@
       "status": "PASS",
       "sites": [
        "lib/compliance/dto.ts:126",
-       "lib/idx/db-to-public-dto.ts:612",
+       "lib/idx/db-to-public-dto.ts:620",
        "lib/search/crm-idx-mapper.ts:290"
       ]
      },
@@ -119892,7 +119921,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 612,
+      "line": 620,
       "node": "listings.raw_data.CumulativeDaysOnMarket",
       "tier": "name-matched",
       "workflow": null
@@ -121968,7 +121997,7 @@
       "status": "PASS",
       "sites": [
        "lib/compliance/dto.ts:125",
-       "lib/idx/db-to-public-dto.ts:611",
+       "lib/idx/db-to-public-dto.ts:619",
        "lib/search/crm-idx-mapper.ts:289"
       ]
      },
@@ -122292,7 +122321,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 611,
+      "line": 619,
       "node": "listings.raw_data.DaysOnMarket",
       "tier": "name-matched",
       "workflow": null
@@ -142906,7 +142935,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:586",
+       "lib/idx/db-to-public-dto.ts:594",
        "lib/search/crm-idx-mapper.ts:342"
       ]
      },
@@ -143133,7 +143162,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 586,
+      "line": 594,
       "node": "listings.features.ExteriorFeatures",
       "tier": "name-matched",
       "workflow": null
@@ -145305,7 +145334,7 @@
        "typed": 0,
        "coOccurring": 2,
        "sites": [
-        "lib/idx/trestle-mapper.ts:211",
+        "lib/idx/trestle-mapper.ts:214",
         "lib/compliance/rebny-ucba-rules.ts:555"
        ]
       },
@@ -147149,7 +147178,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:598"
+       "lib/idx/db-to-public-dto.ts:606"
       ]
      },
      "resultCard": {
@@ -147342,7 +147371,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 598,
+      "line": 606,
       "node": "listings.features.Flooring",
       "tier": "name-matched",
       "workflow": null
@@ -147771,7 +147800,7 @@
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/idx/trestle-mapper.ts:211"
+        "lib/idx/trestle-mapper.ts:214"
        ]
       }
      },
@@ -149467,9 +149496,9 @@
        "typed": 0,
        "coOccurring": 13,
        "sites": [
-        "lib/compliance/raw-data-keep-fields.ts:230",
-        "lib/idx/trestle-mapper.ts:284",
-        "lib/idx/trestle-mapper.ts:350",
+        "lib/compliance/raw-data-keep-fields.ts:239",
+        "lib/idx/trestle-mapper.ts:287",
+        "lib/idx/trestle-mapper.ts:353",
         "lib/compliance/rebny-ucba-rules.ts:279",
         "lib/compliance/rebny-ucba-rules.ts:416",
         "lib/idx/card-fields.ts:58"
@@ -149625,7 +149654,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:608"
+       "lib/idx/db-to-public-dto.ts:616"
       ]
      },
      "resultCard": {
@@ -149872,7 +149901,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 608,
+      "line": 616,
       "node": "listings.features.Furnished",
       "tier": "name-matched",
       "workflow": null
@@ -152443,7 +152472,7 @@
        "typed": 0,
        "coOccurring": 3,
        "sites": [
-        "lib/idx/trestle-mapper.ts:281",
+        "lib/idx/trestle-mapper.ts:284",
         "lib/buildings/public-building-data.ts:99",
         "lib/buildings/upsert.ts:241"
        ]
@@ -152452,7 +152481,7 @@
        "typed": 0,
        "coOccurring": 2,
        "sites": [
-        "lib/idx/trestle-mapper.ts:209",
+        "lib/idx/trestle-mapper.ts:212",
         "lib/buildings/upsert.ts:244"
        ]
       }
@@ -156362,7 +156391,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:596"
+       "lib/idx/db-to-public-dto.ts:604"
       ]
      },
      "resultCard": {
@@ -156589,7 +156618,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 596,
+      "line": 604,
       "node": "listings.features.Heating",
       "tier": "name-matched",
       "workflow": null
@@ -160883,7 +160912,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:585"
+       "lib/idx/db-to-public-dto.ts:593"
       ]
      },
      "resultCard": {
@@ -161136,7 +161165,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 585,
+      "line": 593,
       "node": "listings.features.InteriorFeatures",
       "tier": "name-matched",
       "workflow": null
@@ -170089,8 +170118,8 @@
       "status": "PASS",
       "sites": [
        "lib/compliance/dto.ts:200",
-       "lib/idx/db-to-public-dto.ts:526",
-       "lib/idx/db-to-public-dto.ts:527",
+       "lib/idx/db-to-public-dto.ts:534",
+       "lib/idx/db-to-public-dto.ts:535",
        "lib/search/crm-idx-mapper.ts:305"
       ]
      },
@@ -170350,7 +170379,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 526,
+      "line": 534,
       "node": "listings.address.Latitude",
       "tier": "name-matched",
       "workflow": null
@@ -170358,7 +170387,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 527,
+      "line": 535,
       "node": "listings.address.Latitude",
       "tier": "name-matched",
       "workflow": null
@@ -170921,7 +170950,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:588",
+       "lib/idx/db-to-public-dto.ts:596",
        "lib/search/crm-idx-mapper.ts:344"
       ]
      },
@@ -171152,7 +171181,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 588,
+      "line": 596,
       "node": "listings.features.LaundryFeatures",
       "tier": "name-matched",
       "workflow": null
@@ -171883,7 +171912,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:606"
+       "lib/idx/db-to-public-dto.ts:614"
       ]
      },
      "resultCard": {
@@ -172054,7 +172083,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 606,
+      "line": 614,
       "node": "listings.raw_data.LeaseAmount",
       "tier": "name-matched",
       "workflow": null
@@ -172247,7 +172276,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:607"
+       "lib/idx/db-to-public-dto.ts:615"
       ]
      },
      "resultCard": {
@@ -172418,7 +172447,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 607,
+      "line": 615,
       "node": "listings.raw_data.LeaseAmountFrequency",
       "tier": "name-matched",
       "workflow": null
@@ -213142,8 +213171,8 @@
       "status": "PASS",
       "sites": [
        "lib/compliance/dto.ts:202",
-       "lib/idx/db-to-public-dto.ts:530",
-       "lib/idx/db-to-public-dto.ts:531",
+       "lib/idx/db-to-public-dto.ts:538",
+       "lib/idx/db-to-public-dto.ts:539",
        "lib/search/crm-idx-mapper.ts:306"
       ]
      },
@@ -213404,7 +213433,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 530,
+      "line": 538,
       "node": "listings.address.Longitude",
       "tier": "name-matched",
       "workflow": null
@@ -213412,7 +213441,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 531,
+      "line": 539,
       "node": "listings.address.Longitude",
       "tier": "name-matched",
       "workflow": null
@@ -214988,7 +215017,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:548"
+       "lib/idx/db-to-public-dto.ts:556"
       ]
      },
      "resultCard": {
@@ -215172,7 +215201,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 548,
+      "line": 556,
       "node": "listings.features.LotSizeArea",
       "tier": "name-matched",
       "workflow": null
@@ -224366,14 +224395,14 @@
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/idx/trestle-mapper.ts:351"
+        "lib/idx/trestle-mapper.ts:354"
        ]
       },
       "SecurityDeposit": {
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/idx/trestle-mapper.ts:352"
+        "lib/idx/trestle-mapper.ts:355"
        ]
       }
      },
@@ -224502,7 +224531,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:622"
+       "lib/idx/db-to-public-dto.ts:630"
       ]
      },
      "resultCard": {
@@ -224696,7 +224725,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 622,
+      "line": 630,
       "node": "listings.features.MoveInCosts",
       "tier": "name-matched",
       "workflow": null
@@ -231504,7 +231533,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:575",
+       "lib/idx/db-to-public-dto.ts:583",
        "lib/search/crm-idx-mapper.ts:228"
       ]
      },
@@ -231805,7 +231834,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 575,
+      "line": 583,
       "node": "listings.raw_data.OnMarketDate",
       "tier": "name-matched",
       "workflow": null
@@ -232337,7 +232366,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:625"
+       "lib/idx/db-to-public-dto.ts:633"
       ]
      },
      "resultCard": {
@@ -232525,7 +232554,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 625,
+      "line": 633,
       "node": "listings.features.OngoingFees",
       "tier": "name-matched",
       "workflow": null
@@ -234430,7 +234459,7 @@
       "sites": [
        "lib/compliance/dto.ts:118",
        "lib/search/engine/hydrate.ts:157",
-       "lib/idx/db-to-public-dto.ts:535",
+       "lib/idx/db-to-public-dto.ts:543",
        "lib/search/crm-idx-mapper.ts:154"
       ]
      },
@@ -234685,7 +234714,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 535,
+      "line": 543,
       "node": "listings.raw_data.OriginalListPrice",
       "tier": "name-matched",
       "workflow": null
@@ -241427,7 +241456,7 @@
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/idx/trestle-mapper.ts:212"
+        "lib/idx/trestle-mapper.ts:215"
        ]
       },
       "Water": {
@@ -245192,7 +245221,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:593"
+       "lib/idx/db-to-public-dto.ts:601"
       ]
      },
      "resultCard": {
@@ -245422,7 +245451,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 593,
+      "line": 601,
       "node": "listings.features.ParkingFeatures",
       "tier": "name-matched",
       "workflow": null
@@ -247002,7 +247031,7 @@
         "lib/compliance/status.ts:65",
         "lib/open-houses/upcoming-open-houses.ts:41",
         "lib/listings/canonical-lifecycle.ts:90",
-        "lib/idx/db-to-public-dto.ts:404",
+        "lib/idx/db-to-public-dto.ts:412",
         "lib/compliance/rebny-ucba-rules.ts:140"
        ]
       },
@@ -247011,7 +247040,7 @@
        "coOccurring": 4,
        "sites": [
         "lib/compliance/gates.ts:141",
-        "lib/idx/trestle-mapper.ts:847",
+        "lib/idx/trestle-mapper.ts:850",
         "lib/search/engine/hydrate.ts:101",
         "lib/search/engine/hydrate.ts:163"
        ]
@@ -247021,7 +247050,7 @@
        "coOccurring": 17,
        "sites": [
         "lib/compliance/gates.ts:154",
-        "lib/idx/trestle-mapper.ts:848",
+        "lib/idx/trestle-mapper.ts:851",
         "lib/compliance/rebny-ucba-rules.ts:774",
         "lib/compliance/rebny-ucba-rules.ts:887",
         "lib/compliance/rls-enforcement.ts:412",
@@ -249713,7 +249742,7 @@
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/idx/trestle-mapper.ts:351"
+        "lib/idx/trestle-mapper.ts:354"
        ]
       },
       "SizeLimit": {
@@ -249912,8 +249941,8 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:599",
-       "lib/idx/db-to-public-dto.ts:600"
+       "lib/idx/db-to-public-dto.ts:607",
+       "lib/idx/db-to-public-dto.ts:608"
       ]
      },
      "resultCard": {
@@ -250196,7 +250225,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 599,
+      "line": 607,
       "node": "listings.features.PetsAllowed",
       "tier": "name-matched",
       "workflow": null
@@ -250204,7 +250233,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 600,
+      "line": 608,
       "node": "listings.features.PetsAllowed",
       "tier": "name-matched",
       "workflow": null
@@ -252281,7 +252310,7 @@
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/idx/trestle-mapper.ts:848"
+        "lib/idx/trestle-mapper.ts:851"
        ]
       }
      },
@@ -252472,7 +252501,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:594",
+       "lib/idx/db-to-public-dto.ts:602",
        "lib/search/crm-idx-mapper.ts:346"
       ]
      },
@@ -252656,7 +252685,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 594,
+      "line": 602,
       "node": "listings.features.PoolFeatures",
       "tier": "name-matched",
       "workflow": null
@@ -254414,7 +254443,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:378",
+       "lib/idx/db-to-public-dto.ts:386",
        "lib/search/engine/hydrate.ts:149",
        "lib/search/crm-idx-mapper.ts:280",
        "lib/search/engine/hydrate.ts:176"
@@ -255097,7 +255126,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 378,
+      "line": 386,
       "node": "listings.address.PostalCode",
       "tier": "name-matched",
       "workflow": null
@@ -256423,7 +256452,7 @@
       "status": "PASS",
       "sites": [
        "lib/compliance/dto.ts:119",
-       "lib/idx/db-to-public-dto.ts:536"
+       "lib/idx/db-to-public-dto.ts:544"
       ]
      },
      "resultCard": {
@@ -256621,7 +256650,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 536,
+      "line": 544,
       "node": "listings.raw_data.PreviousListPrice",
       "tier": "name-matched",
       "workflow": null
@@ -261552,7 +261581,7 @@
        "coOccurring": 21,
        "sites": [
         "lib/listings/canonical-lifecycle.ts:128",
-        "lib/idx/db-to-public-dto.ts:541",
+        "lib/idx/db-to-public-dto.ts:549",
         "lib/compliance/rebny-ucba-rules.ts:152",
         "lib/compliance/rebny-ucba-rules.ts:197",
         "lib/compliance/rebny-ucba-rules.ts:213",
@@ -263854,8 +263883,8 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:568",
-       "lib/idx/db-to-public-dto.ts:569",
+       "lib/idx/db-to-public-dto.ts:576",
+       "lib/idx/db-to-public-dto.ts:577",
        "lib/search/crm-idx-mapper.ts:309"
       ]
      },
@@ -264210,7 +264239,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 568,
+      "line": 576,
       "node": "listings.features.PublicRemarks",
       "tier": "name-matched",
       "workflow": null
@@ -264266,7 +264295,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 569,
+      "line": 577,
       "node": "listings.raw_data.PublicRemarks",
       "tier": "name-matched",
       "workflow": null
@@ -270607,7 +270636,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:589",
+       "lib/idx/db-to-public-dto.ts:597",
        "lib/search/crm-idx-mapper.ts:345"
       ]
      },
@@ -270794,7 +270823,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 589,
+      "line": 597,
       "node": "listings.features.SecurityFeatures",
       "tier": "name-matched",
       "workflow": null
@@ -278289,7 +278318,7 @@
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/idx/trestle-mapper.ts:848"
+        "lib/idx/trestle-mapper.ts:851"
        ]
       },
       "Sauna": {
@@ -278420,7 +278449,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:595"
+       "lib/idx/db-to-public-dto.ts:603"
       ]
      },
      "resultCard": {
@@ -278593,7 +278622,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 595,
+      "line": 603,
       "node": "listings.features.SpaFeatures",
       "tier": "name-matched",
       "workflow": null
@@ -291002,8 +291031,8 @@
         "lib/address/nyc-address-normalizer.ts:192",
         "lib/address/nyc-address-normalizer.ts:209",
         "app/sitemap.ts:133",
-        "lib/idx/db-to-public-dto.ts:504",
-        "lib/idx/db-to-public-dto.ts:514"
+        "lib/idx/db-to-public-dto.ts:512",
+        "lib/idx/db-to-public-dto.ts:522"
        ]
       }
      },
@@ -292641,7 +292670,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:550"
+       "lib/idx/db-to-public-dto.ts:558"
       ]
      },
      "resultCard": {
@@ -292903,7 +292932,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 550,
+      "line": 558,
       "node": "listings.features.StoriesTotal",
       "tier": "name-matched",
       "workflow": null
@@ -293559,7 +293588,7 @@
       "status": "PASS",
       "sites": [
        "lib/compliance/dto.ts:427",
-       "lib/idx/db-to-public-dto.ts:364",
+       "lib/idx/db-to-public-dto.ts:372",
        "lib/search/crm-idx-mapper.ts:47"
       ]
      },
@@ -294052,7 +294081,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 364,
+      "line": 372,
       "node": "listings.address.StreetDirPrefix",
       "tier": "name-matched",
       "workflow": null
@@ -294424,7 +294453,7 @@
       "status": "PASS",
       "sites": [
        "lib/compliance/dto.ts:430",
-       "lib/idx/db-to-public-dto.ts:368",
+       "lib/idx/db-to-public-dto.ts:376",
        "lib/search/crm-idx-mapper.ts:50"
       ]
      },
@@ -294803,7 +294832,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 368,
+      "line": 376,
       "node": "listings.address.StreetDirSuffix",
       "tier": "name-matched",
       "workflow": null
@@ -295123,7 +295152,7 @@
       "sites": [
        "lib/compliance/dto.ts:194",
        "lib/compliance/dto.ts:428",
-       "lib/idx/db-to-public-dto.ts:366",
+       "lib/idx/db-to-public-dto.ts:374",
        "lib/search/crm-idx-mapper.ts:48"
       ]
      },
@@ -295957,7 +295986,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 366,
+      "line": 374,
       "node": "listings.address.StreetName",
       "tier": "name-matched",
       "workflow": null
@@ -296435,7 +296464,7 @@
       "sites": [
        "lib/compliance/dto.ts:192",
        "lib/compliance/dto.ts:426",
-       "lib/idx/db-to-public-dto.ts:363",
+       "lib/idx/db-to-public-dto.ts:371",
        "lib/search/crm-idx-mapper.ts:46"
       ]
      },
@@ -297266,7 +297295,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 363,
+      "line": 371,
       "node": "listings.address.StreetNumber",
       "tier": "name-matched",
       "workflow": null
@@ -298641,7 +298670,7 @@
       "status": "PASS",
       "sites": [
        "lib/compliance/dto.ts:429",
-       "lib/idx/db-to-public-dto.ts:367",
+       "lib/idx/db-to-public-dto.ts:375",
        "lib/search/crm-idx-mapper.ts:49"
       ]
      },
@@ -299127,7 +299156,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 367,
+      "line": 375,
       "node": "listings.address.StreetSuffix",
       "tier": "name-matched",
       "workflow": null
@@ -305484,7 +305513,7 @@
       "status": "PASS",
       "sites": [
        "lib/search/engine/hydrate.ts:155",
-       "lib/idx/db-to-public-dto.ts:603",
+       "lib/idx/db-to-public-dto.ts:611",
        "lib/search/crm-idx-mapper.ts:62"
       ]
      },
@@ -305774,7 +305803,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 603,
+      "line": 611,
       "node": "listings.features.TaxAnnualAmount",
       "tier": "name-matched",
       "workflow": null
@@ -308766,7 +308795,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:604"
+       "lib/idx/db-to-public-dto.ts:612"
       ]
      },
      "resultCard": {
@@ -308912,7 +308941,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 604,
+      "line": 612,
       "node": "listings.features.TaxYear",
       "tier": "name-matched",
       "workflow": null
@@ -309137,21 +309166,21 @@
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/idx/trestle-mapper.ts:351"
+        "lib/idx/trestle-mapper.ts:354"
        ]
       },
       "Roof": {
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/idx/trestle-mapper.ts:209"
+        "lib/idx/trestle-mapper.ts:212"
        ]
       },
       "Sewer": {
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/idx/trestle-mapper.ts:212"
+        "lib/idx/trestle-mapper.ts:215"
        ]
       }
      },
@@ -309322,7 +309351,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:626"
+       "lib/idx/db-to-public-dto.ts:634"
       ]
      },
      "resultCard": {
@@ -309510,7 +309539,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 626,
+      "line": 634,
       "node": "listings.features.TenantPays",
       "tier": "name-matched",
       "workflow": null
@@ -309650,7 +309679,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:627"
+       "lib/idx/db-to-public-dto.ts:635"
       ]
      },
      "resultCard": {
@@ -309817,7 +309846,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 627,
+      "line": 635,
       "node": "listings.features.TenantPaysDescription",
       "tier": "name-matched",
       "workflow": null
@@ -311874,7 +311903,7 @@
       "sites": [
        "lib/compliance/dto.ts:196",
        "lib/compliance/dto.ts:431",
-       "lib/idx/db-to-public-dto.ts:371",
+       "lib/idx/db-to-public-dto.ts:379",
        "lib/search/crm-idx-mapper.ts:250"
       ]
      },
@@ -312683,7 +312712,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 371,
+      "line": 379,
       "node": "listings.address.UnitNumber",
       "tier": "name-matched",
       "workflow": null
@@ -317573,8 +317602,8 @@
        "coOccurring": 11,
        "sites": [
         "lib/idx/trestle-mapper.ts:54",
-        "lib/idx/trestle-mapper.ts:1294",
-        "lib/idx/trestle-mapper.ts:1322",
+        "lib/idx/trestle-mapper.ts:1297",
+        "lib/idx/trestle-mapper.ts:1325",
         "lib/compliance/rebny-ucba-rules.ts:52",
         "lib/search/types.ts:140",
         "lib/search/types.ts:141"
@@ -319365,7 +319394,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:618",
+       "lib/idx/db-to-public-dto.ts:626",
        "lib/search/crm-idx-mapper.ts:110"
       ]
      },
@@ -319551,7 +319580,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 618,
+      "line": 626,
       "node": "listings.raw_data.VirtualTourURLBranded",
       "tier": "name-matched",
       "workflow": null
@@ -320390,7 +320419,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:617",
+       "lib/idx/db-to-public-dto.ts:625",
        "lib/search/crm-idx-mapper.ts:109"
       ]
      },
@@ -320581,7 +320610,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 617,
+      "line": 625,
       "node": "listings.raw_data.VirtualTourURLUnbranded",
       "tier": "name-matched",
       "workflow": null
@@ -320769,7 +320798,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:617",
+       "lib/idx/db-to-public-dto.ts:625",
        "lib/search/crm-idx-mapper.ts:109"
       ]
      },
@@ -320950,7 +320979,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 617,
+      "line": 625,
       "node": "listings.raw_data.VirtualTourURLUnbranded2",
       "tier": "name-matched",
       "workflow": null
@@ -321120,7 +321149,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:617",
+       "lib/idx/db-to-public-dto.ts:625",
        "lib/search/crm-idx-mapper.ts:109"
       ]
      },
@@ -321300,7 +321329,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 617,
+      "line": 625,
       "node": "listings.raw_data.VirtualTourURLUnbranded3",
       "tier": "name-matched",
       "workflow": null
@@ -325431,7 +325460,7 @@
      "resultDto": {
       "status": "PASS",
       "sites": [
-       "lib/idx/db-to-public-dto.ts:549",
+       "lib/idx/db-to-public-dto.ts:557",
        "lib/search/crm-idx-mapper.ts:58"
       ]
      },
@@ -325733,7 +325762,7 @@
      {
       "stage": "resultDto",
       "file": "lib/idx/db-to-public-dto.ts",
-      "line": 549,
+      "line": 557,
       "node": "listings.features.YearBuilt",
       "tier": "name-matched",
       "workflow": null
@@ -381006,7 +381035,7 @@
       "resultDto": {
        "status": "PASS",
        "sites": [
-        "lib/idx/db-to-public-dto.ts:628"
+        "lib/idx/db-to-public-dto.ts:636"
        ]
       },
       "resultCard": {
@@ -381154,7 +381183,7 @@
       {
        "stage": "resultDto",
        "file": "lib/idx/db-to-public-dto.ts",
-       "line": 628,
+       "line": 636,
        "node": "provider:Property.AdditionalFeeYN",
        "tier": "name-matched",
        "workflow": null
@@ -381799,7 +381828,7 @@
        "sites": [
         "lib/idx/public-dto.ts:353",
         "lib/idx/public-dto.ts:354",
-        "lib/idx/db-to-public-dto.ts:630"
+        "lib/idx/db-to-public-dto.ts:638"
        ]
       },
       "resultCard": {
@@ -381966,7 +381995,7 @@
       {
        "stage": "resultDto",
        "file": "lib/idx/db-to-public-dto.ts",
-       "line": 630,
+       "line": 638,
        "node": "provider:Property.AdditionalFeeDescription",
        "tier": "name-matched",
        "workflow": null
@@ -383342,7 +383371,7 @@
        "sites": [
         "lib/idx/public-dto.ts:344",
         "lib/idx/public-dto.ts:345",
-        "lib/idx/db-to-public-dto.ts:629"
+        "lib/idx/db-to-public-dto.ts:637"
        ]
       },
       "resultCard": {
@@ -383508,7 +383537,7 @@
       {
        "stage": "resultDto",
        "file": "lib/idx/db-to-public-dto.ts",
-       "line": 629,
+       "line": 637,
        "node": "provider:Property.AdditionalFee",
        "tier": "name-matched",
        "workflow": null
@@ -523461,8 +523490,8 @@
    "classification": "exact Cotality match",
    "availability": "POPULATED",
    "population": 100463,
-   "mapped": "MISSING",
-   "persisted": "MISSING",
+   "mapped": "PASS",
+   "persisted": "PASS",
    "saleSearch": "MISSING",
    "rentalSearch": "MISSING",
    "saleForm": "MISSING",
@@ -523473,7 +523502,7 @@
    "reporting": "MISSING",
    "publicVisibility": "MISSING",
    "compliance": "MISSING",
-   "neverSurfaces": true
+   "neverSurfaces": false
   },
   {
    "feed": "IDX Plus",
@@ -523791,8 +523820,8 @@
    "classification": "exact Cotality match",
    "availability": "POPULATED",
    "population": 3173,
-   "mapped": "MISSING",
-   "persisted": "MISSING",
+   "mapped": "PASS",
+   "persisted": "PASS",
    "saleSearch": "MISSING",
    "rentalSearch": "MISSING",
    "saleForm": "MISSING",
@@ -523901,8 +523930,8 @@
    "classification": "exact Cotality match",
    "availability": "POPULATED",
    "population": 50995,
-   "mapped": "MISSING",
-   "persisted": "MISSING",
+   "mapped": "PASS",
+   "persisted": "PASS",
    "saleSearch": "MISSING",
    "rentalSearch": "MISSING",
    "saleForm": "MISSING",
@@ -523913,7 +523942,7 @@
    "reporting": "MISSING",
    "publicVisibility": "MISSING",
    "compliance": "MISSING",
-   "neverSurfaces": true
+   "neverSurfaces": false
   },
   {
    "feed": "IDX Plus",
@@ -524275,8 +524304,8 @@
    "classification": "exact Cotality match",
    "availability": "POPULATED",
    "population": 7993,
-   "mapped": "MISSING",
-   "persisted": "MISSING",
+   "mapped": "PASS",
+   "persisted": "PASS",
    "saleSearch": "MISSING",
    "rentalSearch": "MISSING",
    "saleForm": "MISSING",
@@ -524287,7 +524316,7 @@
    "reporting": "MISSING",
    "publicVisibility": "MISSING",
    "compliance": "MISSING",
-   "neverSurfaces": true
+   "neverSurfaces": false
   },
   {
    "feed": "IDX Plus",
@@ -525155,8 +525184,8 @@
    "classification": "exact Cotality match",
    "availability": "POPULATED",
    "population": 50994,
-   "mapped": "MISSING",
-   "persisted": "MISSING",
+   "mapped": "PASS",
+   "persisted": "PASS",
    "saleSearch": "MISSING",
    "rentalSearch": "MISSING",
    "saleForm": "MISSING",
@@ -525167,7 +525196,7 @@
    "reporting": "MISSING",
    "publicVisibility": "MISSING",
    "compliance": "MISSING",
-   "neverSurfaces": true
+   "neverSurfaces": false
   },
   {
    "feed": "IDX Plus",
@@ -525177,8 +525206,8 @@
    "classification": "exact Cotality match",
    "availability": "POPULATED",
    "population": 50994,
-   "mapped": "MISSING",
-   "persisted": "MISSING",
+   "mapped": "PASS",
+   "persisted": "PASS",
    "saleSearch": "MISSING",
    "rentalSearch": "MISSING",
    "saleForm": "MISSING",
@@ -525189,7 +525218,7 @@
    "reporting": "MISSING",
    "publicVisibility": "MISSING",
    "compliance": "MISSING",
-   "neverSurfaces": true
+   "neverSurfaces": false
   },
   {
    "feed": "IDX Plus",

@@ -179,6 +179,15 @@ export const RAW_DATA_KEEP_FIELDS: readonly string[] = [
   'ListOfficeMlsId',
   'CoListAgentFullName',
   'CoListOfficeName',
+  // Co-list agents 2 / 3 and the second co-list office are populated scalars (50,994 / 7,993 rows; the
+  // CoListAgent navigation returns only the first). The buyer-side OFFICE ids are the only buyer-side facts
+  // the feed delivers besides the private agent id (Domain 4, 2026-09-08).
+  'CoListAgent2FullName',
+  'CoListAgent3FullName',
+  'CoListOffice2Name',
+  'CoListOffice2MlsId',
+  'BuyerOfficeMlsId',
+  'CoBuyerOfficeMlsId',
 
   // ── Media metadata (compliance audit photo count + virtual tour) ───
   // The compliance audit route does `raw.Media ?? raw.photos ?? []` to
