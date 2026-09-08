@@ -11,6 +11,7 @@ import { paginateMedia } from "./media-pagination";
 // this module cannot grow a second, drifting copy of it.
 import { keysetFilter } from "./cursor/keyset-cursor";
 import { IDX_PLUS_SELECT_FIELDS } from "./trestle-mapper";
+import { cotalityFields } from "@/lib/cotality/contract";
 import {
   recordCotalityHttp,
   recordPropertyRequest,
@@ -18,6 +19,18 @@ import {
   recordRetry,
   parseRetryAfterSeconds,
 } from "./cotality-telemetry";
+
+// Media $select lists — compile-checked against the live Media resource (lib/cotality/contract.ts):
+// a name not declared in $metadata is a type error, never a runtime 400.
+const EXPAND_MEDIA_SELECT = cotalityFields("Media", [
+  "MediaURL", "MediaCategory", "Order", "PreferredPhotoYN", "ShortDescription",
+  "ModificationTimestamp", "ResourceRecordKey", "MediaStatus",
+]);
+// MediaKey is selected so callers have a stable logical identity per asset
+// (duplicate detection cannot rely on a signed/ordered MediaURL).
+const LISTING_MEDIA_SELECT = cotalityFields("Media", [
+  "MediaKey", "MediaURL", "MediaType", "MediaCategory", "Order", "ShortDescription", "PreferredPhotoYN", "MediaStatus",
+]);
 
 // Derive Trestle property endpoint from centralized TRESTLE_API_URL.
 // Env validation is deferred to call-time — no top-level throws (Vercel serverless safety).
@@ -128,7 +141,7 @@ export async function fetchFromTrestle(
       // Caller has explicitly opted in despite Trestle's known rejection
       // pattern. If a 400 fires here, fall back to `fetchListingMedia()`
       // rather than re-enabling this by default.
-      expandParts.push("Media($select=MediaURL,MediaCategory,Order,PreferredPhotoYN,ShortDescription,ModificationTimestamp,ResourceRecordKey,MediaStatus;$filter=MediaStatus ne 'Deleted';$top=8;$orderby=Order)");
+      expandParts.push(`Media($select=${EXPAND_MEDIA_SELECT.join(",")};$filter=MediaStatus ne 'Deleted';$top=8;$orderby=Order)`);
     }
     if (options.expandCustomProperty === true) {
       // Bare expand only — the previous inner `$select` (with
@@ -606,7 +619,7 @@ export async function fetchListingMedia(
     params.set("$filter", `${keyFilter} and MediaStatus ne 'Deleted'`);
     // MediaKey is selected so callers have a stable logical identity per asset
     // (duplicate detection cannot rely on a signed/ordered MediaURL).
-    params.set("$select", "MediaKey,MediaURL,MediaType,MediaCategory,Order,ShortDescription,PreferredPhotoYN,MediaStatus");
+    params.set("$select", LISTING_MEDIA_SELECT.join(","));
     params.set("$orderby", "Order asc");
     // PER-PAGE size only — the rest is followed via @odata.nextLink below.
     params.set("$top", "50");

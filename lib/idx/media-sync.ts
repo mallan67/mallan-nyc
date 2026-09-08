@@ -1,4 +1,17 @@
 import { derivePermissionGates } from "./trestle-mapper";
+import { cotalityFields } from "@/lib/cotality/contract";
+
+// $select lists for the media lane — compile-checked against the live contract
+// (lib/cotality/contract.ts): a name not declared in $metadata for that resource is a type error.
+// `Permissions` (plural) is NOT a Trestle IDX Plus Property field; `Permission` (singular) is.
+const MEDIA_LANE_PROPERTY_SELECT = cotalityFields("Property", [
+  "ListingId", "ListingKey", "ListingKeyNumeric", "PhotosChangeTimestamp", "ModificationTimestamp",
+  "StandardStatus", "Permission", "MlsStatus", "InternetEntireListingDisplayYN", "InternetAddressDisplayYN",
+]);
+const MEDIA_LANE_MEDIA_SELECT = cotalityFields("Media", [
+  "MediaKey", "ResourceRecordKey", "ResourceRecordID", "MediaURL", "MediaCategory", "MediaClassification",
+  "MediaStatus", "Permission", "Order", "PreferredPhotoYN", "ModificationTimestamp", "MediaModificationTimestamp",
+]);
 // lib/idx/media-sync.ts
 //
 // Media sync service — Checkpoint 1 (cursor helpers only).
@@ -3276,10 +3289,7 @@ export function buildPropertyQuery(cursor: PropertyQueryCursor, top: number): UR
   params.set("$filter", `${timeClause} and ${statuses}`);
   // `Permissions` (plural) is NOT a Trestle IDX Plus Property field — see the
   // doc comment above. Do NOT add it back. `Permission` (singular) is canonical.
-  params.set(
-    "$select",
-    "ListingId,ListingKey,ListingKeyNumeric,PhotosChangeTimestamp,ModificationTimestamp,StandardStatus,Permission,MlsStatus,InternetEntireListingDisplayYN,InternetAddressDisplayYN",
-  );
+  params.set("$select", MEDIA_LANE_PROPERTY_SELECT.join(","));
   params.set("$orderby", "PhotosChangeTimestamp asc,ListingKey asc");
   params.set("$top", String(top));
   return params;
@@ -3343,10 +3353,7 @@ async function defaultFetchMedia(resourceRecordKey: string): Promise<UpsertListi
   const escaped = resourceRecordKey.replace(/'/g, "''");
   const params = new URLSearchParams();
   params.set("$filter", `ResourceRecordKey eq '${escaped}'`);
-  params.set(
-    "$select",
-    "MediaKey,ResourceRecordKey,ResourceRecordID,MediaURL,MediaCategory,MediaClassification,MediaStatus,Permission,Order,PreferredPhotoYN,ModificationTimestamp,MediaModificationTimestamp",
-  );
+  params.set("$select", MEDIA_LANE_MEDIA_SELECT.join(","));
   params.set("$orderby", "Order asc");
   // Per-page size; the rest of a high-photo listing is followed via @odata.nextLink.
   params.set("$top", String(DEFAULT_MEDIA_PAGE_SIZE));

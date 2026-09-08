@@ -14,6 +14,9 @@ import { classifyMediaItem } from "@/lib/media/listing-media-resolver";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { LEGACY_MALLAN_FORM_CONTROL_KEYS } from "@/lib/compliance/legacy-form-keys";
 import { enumValueTokens, isCotalityStandardStatus } from "@/lib/cotality/live-contract";
+// Compile-checked field lists: every name below must be a field the live $metadata declares on
+// Property, or `npm run type-check` fails. See lib/cotality/contract.ts (generated contract).
+import { cotalityFields } from "@/lib/cotality/contract";
 import {
   mallanStatusFromCotality,
   MALLAN_TERMINAL_STATUSES,
@@ -43,16 +46,16 @@ export class UnrepresentableProviderRecordError extends Error {
 // ═══════════════════════════════════════════════════════════
 
 // B1: Address (25 fields)
-const B1_ADDRESS = [
+const B1_ADDRESS = cotalityFields('Property', [
   "StreetNumber", "StreetName", "StreetDirPrefix", "StreetDirSuffix",
   "StreetSuffix", "UnitNumber", "City", "CityRegion", "SubdivisionName", "PostalCity",
   "PostalCode", "StateOrProvince", "CountyOrParish", "Country",
   "CrossStreet", "Directions", "Latitude", "Longitude",
   "MapCoordinate",
-];
+]);
 
 // B2: Classification (18 fields)
-const B2_CLASSIFICATION = [
+const B2_CLASSIFICATION = cotalityFields('Property', [
   // `ListingKey` is REQUIRED by the Property keyset cursor (2026-08-13).
   //
   // `SourceSystemKey` alone is not enough. The former alias table mapped
@@ -73,19 +76,19 @@ const B2_CLASSIFICATION = [
   "NumberOfUnitsVacant", "NumberOfUnitsLeased", "NumberOfBuildings",
   "StoriesTotal", "NumberOfSeparateElectricMeters", "NumberOfSeparateGasMeters",
   "NumberOfSeparateWaterMeters", "BusinessType",
-];
+]);
 
 // B3: Listing Agreement (13 fields)
-const B3_LISTING_AGREEMENT = [
+const B3_LISTING_AGREEMENT = cotalityFields('Property', [
   "ListingAgreement", "ListingContractDate", "ExpirationDate",
   "OriginalEntryTimestamp", "ListingService", "MlsStatus",
   "InternetEntireListingDisplayYN", "InternetAddressDisplayYN",
   "SyndicationRemarks",
   "Permission", // Owner opt-out detection — required by checkDistributionGates() (singular, not )
-];
+]);
 
 // B4: Status & Dates (32 fields)
-const B4_STATUS_DATES = [
+const B4_STATUS_DATES = cotalityFields('Property', [
   "StandardStatus",
   "ModificationTimestamp", "StatusChangeTimestamp",
   "ActivationDate", "OnMarketDate",
@@ -102,14 +105,14 @@ const B4_STATUS_DATES = [
   "OriginalListPrice", "PreviousListPrice",
   "ListPriceLow", "ListPrice",
   
-];
+]);
 
 // B5: Pricing Extras (8 fields)
-const B5_PRICING = [
+const B5_PRICING = cotalityFields('Property', [
   "SpecialListingConditions", "Concessions",
   "ConcessionsAmount", "ConcessionsComments",
   "LeaseAmount", "LeaseAmountFrequency",
-];
+]);
 
 // B6: Display Flags / Distribution
 // Live-Trestle truth (verified 2026-04-19 against $metadata):
@@ -118,31 +121,31 @@ const B5_PRICING = [
 //     enum on the Property resource (handled in checkDistributionGates).
 //   - InternetEntireListingDisplayYN/InternetAddressDisplayYN are listed in
 //     B3_LISTING_AGREEMENT (master gate + address gate).
-const B6_DISPLAY_FLAGS = [
+const B6_DISPLAY_FLAGS = cotalityFields('Property', [
   "InternetAutomatedValuationDisplayYN", "InternetConsumerCommentYN",
   "SyndicateTo",
   "ListingURL",
-];
+]);
 
 // B7: Remarks (8 fields)
-const B7_REMARKS = [
+const B7_REMARKS = cotalityFields('Property', [
   "PublicRemarks", "PrivateRemarks", "SyndicationRemarks",
   "ShowingInstructions", "ListingTerms",
   "Disclaimer", "CopyrightNotice", "PropertyCondition",
-];
+]);
 
 // B8: List Agent & Office (18 fields)
-const B8_LIST_AGENT = [
+const B8_LIST_AGENT = cotalityFields('Property', [
   "ListAgentMlsId", "ListAgentKey", "ListAgentFirstName",
   "ListAgentLastName", "ListAgentFullName", "ListAgentEmail",
   "ListAgentDirectPhone", "ListAgentOfficePhone", "ListAgentURL",
   "ListOfficeMlsId", "ListOfficeKey", "ListOfficeName",
   "ListOfficePhone", "ListOfficeURL", "ListOfficeEmail",
   "ListTeamMlsId", "ListTeamKey", "ListTeamName",
-];
+]);
 
 // B9: Co-List Agents (24 fields)
-const B9_COLIST_AGENT = [
+const B9_COLIST_AGENT = cotalityFields('Property', [
   "CoListAgentMlsId", "CoListAgentKey", "CoListAgentFirstName",
   "CoListAgentLastName", "CoListAgentFullName", "CoListAgentEmail",
   "CoListAgentDirectPhone", "CoListAgentURL",
@@ -153,10 +156,10 @@ const B9_COLIST_AGENT = [
   "CoListAgent3Key", "CoListAgent3FirstName",
   "CoListAgent3LastName", "CoListAgent3FullName",
   
-];
+]);
 
 // B10: Buyer Agent & Office (18 fields)
-const B10_BUYER_AGENT = [
+const B10_BUYER_AGENT = cotalityFields('Property', [
   "BuyerAgentMlsId", "BuyerAgentKey", "BuyerAgentFirstName",
   "BuyerAgentLastName", "BuyerAgentFullName", "BuyerAgentEmail",
   "BuyerAgentDirectPhone", "BuyerAgentURL",
@@ -164,20 +167,20 @@ const B10_BUYER_AGENT = [
   "BuyerOfficePhone", "BuyerOfficeURL",
   "BuyerTeamMlsId", "BuyerTeamKey", "BuyerTeamName",
   "BuyerAgentOfficePhone", "BuyerOfficeEmail",
-];
+]);
 
 // B11: Co-Buyer Agent (14 fields)
-const B11_COBUYER_AGENT = [
+const B11_COBUYER_AGENT = cotalityFields('Property', [
   "CoBuyerAgentMlsId", "CoBuyerAgentKey", "CoBuyerAgentFirstName",
   "CoBuyerAgentLastName", "CoBuyerAgentFullName", "CoBuyerAgentEmail",
   "CoBuyerAgentDirectPhone", "CoBuyerAgentURL",
   "CoBuyerOfficeMlsId", "CoBuyerOfficeKey", "CoBuyerOfficeName",
   "CoBuyerOfficePhone",
   
-];
+]);
 
 // B12: Unit Rooms & Size (25 fields)
-const B12_UNIT_ROOMS = [
+const B12_UNIT_ROOMS = cotalityFields('Property', [
   "BedroomsTotal", "BathroomsFull", "BathroomsHalf",
   "BathroomsOneQuarter", "BathroomsThreeQuarter",
   "BathroomsPartial", "BathroomsTotalInteger",
@@ -188,10 +191,10 @@ const B12_UNIT_ROOMS = [
   "BuildingAreaTotal", "BuildingAreaSource", "BuildingAreaUnits",
   "RoomsTotal",
   "Levels", "Stories", "EntryLevel",
-];
+]);
 
 // B13: Building Details (23 fields)
-const B13_BUILDING = [
+const B13_BUILDING = cotalityFields('Property', [
   "BuildingName", "BuilderName", 
   "YearBuilt", "YearBuiltSource", "YearBuiltDetails",
   "ArchitecturalStyle", "ConstructionMaterials",
@@ -201,10 +204,10 @@ const B13_BUILDING = [
   "ElectricOnPropertyYN", "Sewer", "WaterSource",
   "OtherStructures",
   "BuildingKeyNumeric", "BasementYN", "FoundationArea", "FoundationDetails",
-];
+]);
 
 // B14: Building Amenities (20 fields)
-const B14_BUILDING_AMENITIES = [
+const B14_BUILDING_AMENITIES = cotalityFields('Property', [
   "BuildingFeatures",
   "AssociationAmenities", "CommunityFeatures",
   "SecurityFeatures", "AccessibilityFeatures",
@@ -212,10 +215,10 @@ const B14_BUILDING_AMENITIES = [
   "LaundryFeatures",
   "WalkScore",
   "CommonWalls",
-];
+]);
 
 // B15: Financial — Unit (14 fields)
-const B15_FINANCIAL_UNIT = [
+const B15_FINANCIAL_UNIT = cotalityFields('Property', [
   "AssociationFee", "AssociationFeeFrequency",
   "AssociationFee2", "AssociationFee2Frequency",
   "AssociationFeeIncludes", "AssociationName", "AssociationYN",
@@ -225,34 +228,34 @@ const B15_FINANCIAL_UNIT = [
   "DownPaymentAssistanceAmount", "DownPaymentAssistanceCount",
   "TaxAnnualAmount", "TaxYear", "TaxBlock", "TaxLot",
   "TaxMapNumber",
-];
+]);
 
 // B16: Financial — Building (10 fields)
-const B16_FINANCIAL_BUILDING = [
+const B16_FINANCIAL_BUILDING = cotalityFields('Property', [
   "GrossIncome", "GrossScheduledIncome", "NetOperatingIncome",
   "OperatingExpense", "OperatingExpenseIncludes",
   "IncomeIncludes", "NumberOfUnitsTotal",
   "CapRate",
-];
+]);
 
 // B17: Expenses (16 fields)
-const B17_EXPENSES = [
+const B17_EXPENSES = cotalityFields('Property', [
   "ElectricExpense", "FuelExpense", "GardenerExpense",
   "InsuranceExpense", "MaintenanceExpense", "ManagerExpense",
   "NewTaxesExpense", "OtherExpense", "PestControlExpense",
   "ProfessionalManagementExpense", "SuppliesExpense",
   "TrashExpense", "VacancyAllowance", "WaterSewerExpense",
   "WorkmansCompensationExpense",
-];
+]);
 
 // B18: Concessions (4 fields)
-const B18_CONCESSIONS = [
+const B18_CONCESSIONS = cotalityFields('Property', [
   "Concessions", "ConcessionsAmount", "ConcessionsComments",
   "SpecialListingConditions",
-];
+]);
 
 // B19: Lot & Land (15 fields)
-const B19_LOT_LAND = [
+const B19_LOT_LAND = cotalityFields('Property', [
   "LotSizeArea", "LotSizeUnits", "LotSizeSource",
   "LotSizeDimensions", "LotDimensionsSource",
   "LotFeatures", "FrontageLength", 
@@ -261,65 +264,65 @@ const B19_LOT_LAND = [
   "Topography", "Vegetation", "WaterfrontFeatures",
   "LandLeaseYN", "LandLeaseAmount", "LandLeaseAmountFrequency", "LandLeaseExpirationDate",
   "ZoningDescription",
-];
+]);
 
 // B20: Unit Features (19 fields)
-const B20_UNIT_FEATURES = [
+const B20_UNIT_FEATURES = cotalityFields('Property', [
   "InteriorFeatures", "ExteriorFeatures", "Flooring",
   "WindowFeatures", "FireplaceYN", "FireplaceFeatures",
   "FireplacesTotal", "Appliances", "PatioAndPorchFeatures",
   "Fencing", "View", "ViewYN",
   "Exposures",
   "Furnished", "PropertyCondition", "CurrentUse",
-];
+]);
 
 // B21: Parking (8 fields)
-const B21_PARKING = [
+const B21_PARKING = cotalityFields('Property', [
   "ParkingFeatures", "ParkingTotal", "GarageSpaces",
   "GarageYN", "AttachedGarageYN", "CarportSpaces", "CarportYN",
   "OpenParkingSpaces", "OpenParkingYN",
-];
+]);
 
 // B22: Outdoor & Pets (8 fields)
-const B22_OUTDOOR_PETS = [
+const B22_OUTDOOR_PETS = cotalityFields('Property', [
   "PetsAllowed",
-];
+]);
 
 // B23: Showings (8 fields)
-const B23_SHOWINGS = [
+const B23_SHOWINGS = cotalityFields('Property', [
   "ShowingContactName", "ShowingContactPhone",
   "ShowingContactPhoneExt", "ShowingContactType",
   "ShowingInstructions", "ShowingRequirements",
   "LockBoxType", "LockBoxLocation",
-];
+]);
 
 // B24: New Development (6 fields)
-const B24_NEW_DEV = [
+const B24_NEW_DEV = cotalityFields('Property', [
   "NewConstructionYN",
   "DevelopmentStatus", "BuilderName",
   "BuilderModel", "GreenBuildingVerificationType",
-];
+]);
 
 // B25: Green / Energy (8 fields)
-const B25_GREEN = [
+const B25_GREEN = cotalityFields('Property', [
   "GreenEnergyEfficient", "GreenEnergyGeneration",
   "GreenWaterConservation", "GreenIndoorAirQuality",
   "GreenSustainability", "GreenBuildingVerificationType",
   "PowerProductionType",
-];
+]);
 
 // B26: Media — Property-level media metadata (counts, timestamps, tour URLs).
 // NOTE: photo/video/floorplan ITEM urls do NOT live on Property — they come from
 // the Media resource (MediaURL/OriginalMediaUrl, classified by MediaCategory).
 // Exported for the live-parity guard test (media-fields-live-parity.test.ts).
-export const B26_MEDIA = [
+export const B26_MEDIA = cotalityFields('Property', [
   "PhotosCount", "PhotosChangeTimestamp",
   "VideosCount",
   "VirtualTourURLBranded", "VirtualTourURLUnbranded", "VirtualTourURLUnbranded2", "VirtualTourURLUnbranded3",
   "DocumentsAvailable", "DocumentsCount", "DocumentsChangeTimestamp",
   "MapURL",
   
-];
+]);
 
 // B27: Rental-Specific
 // Live-Trestle truth (verified 2026-04-19; MoveInCosts* re-verified 2026-06-04):
@@ -329,7 +332,7 @@ export const B26_MEDIA = [
 //     Property fields as of 2026-06-04 (the cached snapshot had lagged). Both are
 //     selected here alongside the MoveInCosts multi-select picklist.
 //   - MoveInCostsAmountTotal still does NOT exist on Trestle — kept out (phantom).
-const B27_RENTAL = [
+const B27_RENTAL = cotalityFields('Property', [
   "LeaseAmount", "LeaseAmountFrequency",
   "LeaseTerm",
   "AvailabilityDate",
@@ -343,7 +346,7 @@ const B27_RENTAL = [
   // MoveInCostsComments (Edm.String) are all live Property fields (2026-06-04).
   "MoveInCosts", "MoveInCostsAmount", "MoveInCostsComments",
   "OngoingFees", "TenantPaysDescription",
-];
+]);
 
 // (The FARE Act fee fields AdditionalFee / AdditionalFeeDescription / AdditionalFeeYN / FeeFrequency live on the
 // Cotality CustomProperty resource, not on Property — they are read through the CustomProperty expansion,
@@ -351,7 +354,7 @@ const B27_RENTAL = [
 
 // B28: (empty in REBNY — reserved)
 // B29: Other / Misc (12 fields)
-const B29_OTHER = [
+const B29_OTHER = cotalityFields('Property', [
   "Disclaimer", "CopyrightNotice",
   "OriginatingSystemID", "OriginatingSystemName",
   "OriginatingSystemKey", "SourceSystemName",
@@ -360,7 +363,7 @@ const B29_OTHER = [
   "PreviousStandardStatus",
   "CountyOrParish",
   "WaterfrontYN",
-];
+]);
 /** Every live Cotality Property field Mallan reads, deduplicated (union of the categories above). */
 export const COTALITY_PROPERTY_FIELDS: string[] = [...new Set([
   ...B1_ADDRESS, ...B2_CLASSIFICATION, ...B3_LISTING_AGREEMENT,
@@ -468,7 +471,7 @@ function stripPrivateFields(raw: Record<string, unknown>): Record<string, unknow
 /** Pick specific keys from an object. */
 function pick(
   raw: Record<string, unknown>,
-  keys: string[]
+  keys: readonly string[]
 ): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const key of keys) {

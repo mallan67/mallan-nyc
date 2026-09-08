@@ -17,6 +17,7 @@ import { derivePermissionGates } from '@/lib/idx/trestle-mapper';
 import { cotalityStandardStatusForMallan } from '@/lib/listings/mallan-status';
 import { escapeOData } from './provider-query';
 import { queryProvider, walkProvider } from './provider-client';
+import { cotalityFields } from '@/lib/cotality/contract';
 import type { UniverseRow } from './universe';
 
 export interface HydrateOptions {
@@ -38,7 +39,9 @@ export interface HydratedPage {
   gateExcluded: string[];
 }
 
-const MEDIA_SELECT = Object.freeze(['ResourceRecordKey', 'ResourceRecordID', 'MediaKey', 'MediaCategory', 'MediaType', 'Order', 'MediaURL', 'MediaStatus', 'PreferredPhotoYN'] as const);
+// Compile-checked against the live Media resource (lib/cotality/contract.ts): a name not declared in
+// $metadata is a type error, never a runtime 400.
+const MEDIA_SELECT = cotalityFields('Media', ['ResourceRecordKey', 'ResourceRecordID', 'MediaKey', 'MediaCategory', 'MediaType', 'Order', 'MediaURL', 'MediaStatus', 'PreferredPhotoYN']);
 
 function inList(values: readonly string[]): string {
   return values.map((v) => `'${escapeOData(v)}'`).join(',');
