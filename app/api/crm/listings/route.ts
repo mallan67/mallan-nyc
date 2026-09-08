@@ -13,6 +13,7 @@ import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-ma
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { AGENT_TYPED_SELECT } from "@/lib/listings/agent-info-resolver";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
+import { lifecycleFromStoredRow } from "@/lib/listings/canonical-lifecycle";
 import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { buildPublishContract } from "@/lib/crm/listing-publish-contract";
 import { applyServerFormMapping } from "@/lib/crm/listing-form-mapping";
@@ -131,6 +132,7 @@ export async function GET(req: NextRequest) {
         cumulative_days_on_market: true,
         expiration_date: true,
         sync_status: true,
+        terminal_since: true,
         modification_timestamp: true,
         created_at: true,
         updated_at: true,
@@ -169,6 +171,9 @@ export async function GET(req: NextRequest) {
       hadRelationalRows:
         typeof _count?.listing_media === "number" ? _count.listing_media > 0 : undefined,
     });
+    // The broker-facing lifecycle state (lib/listings/canonical-lifecycle.ts): `status` stays the last verified
+    // provider status; a row recorded off the current feed reads "Off Market" here (Maya 2026-09-08).
+    const lifecycle = lifecycleFromStoredRow({ status: l.status, listing_type: l.listing_type, sync_status: l.sync_status, terminal_since: l.terminal_since });
     return {
       ...rest,
       id: l.id.toString(),
@@ -176,6 +181,7 @@ export async function GET(req: NextRequest) {
       assigned_agent_id: l.agent_id?.toString() ?? null,
       list_price: l.list_price.toString(),
       living_area: l.living_area?.toString() ?? null,
+      lifecycle: { stage: lifecycle.stage, label: lifecycle.label, providerStage: lifecycle.providerStage, presence: lifecycle.presence, offFeedSince: lifecycle.offFeedSince },
       media,
     };
   });

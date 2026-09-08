@@ -20,6 +20,8 @@
  * provider authority.
  */
 
+import { DOM_ACCRUING_STATUSES, DOM_RESET_DAYS, DOM_RESET_ELIGIBLE_STATUSES } from './dom-tracker';
+
 export const REBNY_UCBA_RULES = {
 
   requiredFields: {
@@ -880,14 +882,19 @@ export const REBNY_UCBA_RULES = {
   // 10. DOM (DAYS ON MARKET) — UCBA 2026 rules
   // ═══════════════════════════════════════════════════════════════════════════
 
+  // ONE rule, DERIVED from lib/compliance/dom-tracker.ts (Maya 2026-09-08): the market clock runs while Active /
+  // ActiveUnderContract (the CRM "Offer Accepted") and stops at the signed contract — the CRM "Contract Signed" is
+  // canonical Pending. REBNY's own DaysOnMarket accrues through Pending, but it is not delivered on this feed and it
+  // is not Mallan's clock. Coming Soon runs a separate clock (comingSoonDom); it never merges into market DOM.
   domRules: {
-    resetDays: 30,  // Was 90, changed to 30 per UCBA 2026
-    accruingStatuses: ['Active', 'ActiveUnderContract', 'Pending'] as const,  // UCBA: Pending accrues DOM
-    pausingStatuses: ['Hold'] as const,  // UCBA: Temporarily Off Market pauses DOM
+    resetDays: DOM_RESET_DAYS,  // UCBA 2026 (was 90)
+    accruingStatuses: [...DOM_ACCRUING_STATUSES] as readonly string[],
+    stopsAt: 'Pending' as const,  // contract signed
+    pausingStatuses: ['Hold'] as const,  // UCBA: Temporarily Off Market pauses DOM (never resets it)
     suppressingPermissions: ['OwnerOptOut', 'Private'] as const,
-    suppressingStatuses: ['ComingSoon'] as const,
+    suppressingStatuses: ['ComingSoon'] as const,  // its own clock
     resetOnClose: true,  // UCBA Art. I Sec. 11: DOM resets on sold/rented (Closed)
-    resetTrigger: 'Withdrawn or Canceled for >= 30 consecutive days, then re-activated',
+    resetTrigger: `${[...DOM_RESET_ELIGIBLE_STATUSES].join(' or ')} for >= ${DOM_RESET_DAYS} consecutive days, then re-activated`,
   },
 
   // ═══════════════════════════════════════════════════════════════════════════

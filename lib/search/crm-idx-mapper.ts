@@ -3,6 +3,9 @@ import { boroughFromCityRegion } from "@/lib/listings/canonical-location";
 import { computeGateColumns, derivePermissionGates, inferListingType, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
 import { derivePermissionBooleans } from "@/lib/compliance/normalizer";
 import { displayPropertyType } from "@/lib/idx/display-property-type";
+import { lifecycleFromProviderRow } from "@/lib/listings/canonical-lifecycle";
+import { comingSoonDom, marketDom } from "@/lib/compliance/dom-tracker";
+import type { CotalityRow } from "@/lib/cotality/contract";
 
 // Display / permission gates come from THE canonical helpers in lib/idx/trestle-mapper.ts
 // (computeGateColumns with the IDX Plus pre-filter convention, derivePermissionGates for the
@@ -41,6 +44,7 @@ export function classifyMediaCategory(media: Record<string, unknown>): string {
 export function mapTrestleToCrmListing(
   raw: Record<string, unknown>,
   index: number,
+  asOf: Date | string = new Date(),
 ): Record<string, unknown> {
   const streetParts = [
     raw.StreetNumber,
@@ -193,18 +197,15 @@ export function mapTrestleToCrmListing(
     Rented: "RENTED",
     Leased: "RENTED",
     Delete: "DELETED",
-    // Left the entitled feed (lib/listings/canonical-lifecycle.ts) — never an invented Withdrawn.
-    Delisted: "DELISTED",
-    // ── UCBA Art. I §5(D) — "Off-Market" labeling is prohibited.
-    // A stale data source may still emit "Off Market" / "Off-Market" / "OffMarket". Those carry no
-    // provider status; they map to the departed-from-feed sentinel, never to a fabricated Withdrawn.
-    // Without this mapping, the prior `mlsStatus.toUpperCase()` fallback would produce "OFF MARKET" — a
-    // literal violation.
-    "Off Market": "DELISTED",
-    "Off-Market": "DELISTED",
-    OffMarket: "DELISTED",
-    offMarket: "DELISTED",
-    "off market": "DELISTED",
+    // The Mallan presence state (lib/listings/canonical-lifecycle.ts): off the current feed with no verified
+    // reason, broker-facing "Off Market" (Maya 2026-09-08). A stale spelling from an older data source maps to the
+    // same CRM token — never to a fabricated Withdrawn and never to raw uppercase free text (the prior
+    // `mlsStatus.toUpperCase()` fallback produced "OFF MARKET").
+    "Off Market": "OFF_MARKET",
+    "Off-Market": "OFF_MARKET",
+    OffMarket: "OFF_MARKET",
+    offMarket: "OFF_MARKET",
+    "off market": "OFF_MARKET",
   };
   // Unmapped values fall through to "UNKNOWN" — a SAFE default that
   // never accidentally surfaces non-canonical status text in UCBA-
@@ -230,6 +231,12 @@ export function mapTrestleToCrmListing(
       comingSoonDate = String(dateRaw).split("T")[0];
     }
   }
+
+  // DOM — ONE rule (lib/compliance/dom-tracker.ts): the Mallan market clock from the provider's contract-event
+  // dates (the provider's DaysOnMarket is null on every sampled row of this feed). A Mallan-authored row without
+  // provider dates carries its stored clock under the Mallan key (lib/search/engine/hydrate.ts), never a provider field.
+  const lifecycle = lifecycleFromProviderRow(raw as CotalityRow<"Property">);
+  const market = lifecycle ? marketDom(lifecycle, asOf) : null;
 
   const fullBaths =
     raw.BathroomsFull != null && Number.isFinite(Number(raw.BathroomsFull))
@@ -286,8 +293,10 @@ export function mapTrestleToCrmListing(
     listingType: str(raw.ListingAgreement),
     lid: String(raw.ListingId || ""),
     wid: raw.SourceSystemKey ? String(raw.SourceSystemKey) : null,
-    dom: num(raw.DaysOnMarket),
-    cdom: num(raw.CumulativeDaysOnMarket),
+    dom: market?.days ?? num(raw._mallanDaysOnMarket),
+    cdom: num(raw._mallanCumulativeDaysOnMarket),
+    domClock: market ? { start: market.start, end: market.end, endReason: market.endReason, unverified: market.unverified } : null,
+    comingSoonDom: lifecycle ? comingSoonDom(lifecycle, asOf) : null,
     listedDate: raw.ListingContractDate
       ? new Date(String(raw.ListingContractDate)).toLocaleDateString("en-US")
       : "",

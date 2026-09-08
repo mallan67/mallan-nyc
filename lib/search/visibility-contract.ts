@@ -35,8 +35,9 @@ export type LifecycleStatus =
   | 'withdrawn'
   | 'canceled'
   | 'expired'
-  // Left the entitled feed; no provider status delivered (lib/listings/canonical-lifecycle.ts).
-  | 'delisted'
+  // Off the current feed with no verified reason — the Mallan presence state, never a provider status
+  // (lib/listings/canonical-lifecycle.ts). Blocked publicly; agents keep the preserved provider facts.
+  | 'off_market'
   | 'closed_sold'
   | 'closed_rented'
   // Fail-closed fallback for an unrecognized/blank provider status. Blocked for
@@ -116,7 +117,7 @@ export function resolveVisibility(input: VisibilityInput): VisibilityDecision {
     case 'closed_rented':
       return decide(false, input, 'public: closed rentals are not public sale history');
     default:
-      // temp_off_market | withdrawn | canceled | expired | delisted | unknown
+      // temp_off_market | withdrawn | canceled | expired | off_market | unknown
       return decide(false, input, `public: ${status} not publicly displayed`);
   }
 }
@@ -143,8 +144,11 @@ export function toLifecycleStatus(standardStatus: string, transactionType: Trans
       // The feed's in-contract status is Pending; ActiveUnderContract is a live member with 0 rows. Both are
       // In Contract and publicly displayable (lib/listings/canonical-lifecycle.ts, Maya 2026-09-08).
       return 'in_contract';
-    case 'delisted':
-      return 'delisted';
+    case 'off market':
+    case 'off_market':
+    case 'off-market':
+      // The Mallan presence state (never a provider status): off the feed, no verified reason.
+      return 'off_market';
     case 'hold':
     case 'temp off market':
     case 'temporarily off market':

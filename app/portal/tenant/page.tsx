@@ -157,7 +157,8 @@ function statusBadge(status: string): { bg: string; text: string; label: string 
     Contract:     { bg: 'bg-purple-100', text: 'text-purple-800', label: 'In Contract' },
     Rented:       { bg: 'bg-green-100',  text: 'text-green-800',  label: 'Rented' },
     ComingSoon:   { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Coming Soon — No Showings Until Listed' },
-    Closed:       { bg: 'bg-gray-100',   text: 'text-gray-600',   label: 'Off Market' },
+    // A closed rental is Rented (label authority); "Off Market" is reserved for the Mallan presence state.
+    Closed:       { bg: 'bg-green-100',  text: 'text-green-800',  label: 'Rented' },
     Withdrawn:    { bg: 'bg-gray-100',   text: 'text-gray-600',   label: 'Withdrawn' },
     Expired:      { bg: 'bg-gray-100',   text: 'text-gray-600',   label: 'Expired' },
   };

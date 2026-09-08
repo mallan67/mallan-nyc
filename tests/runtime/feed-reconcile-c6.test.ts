@@ -227,8 +227,13 @@ describe('P1C6 — eligible-orphan import (RED on main: Active-only diff)', () =
     await call();
     expect(ghostTransitions).toHaveLength(1);
     const t = ghostTransitions[0] as { where: { id: unknown }; data: Record<string, unknown> };
-    // A departed listing has no provider status; Mallan records Delisted, never the invented Withdrawn.
-    expect(t.data.status).toBe('Delisted');
+    // A departed listing has no verified provider reason: its provider status is PRESERVED and the presence fact is
+    // recorded (sync_status off_feed → the Mallan Off Market state). Never Delisted / Withdrawn / any manufactured status.
+    expect(t.data.status).toBe('Active');
+    expect(t.data.sync_status).toBe('off_feed');
+    expect(t.data.idx_display_yn).toBe(false);
+    expect(t.data.status_changed_at).toBeUndefined();
+    expect(t.data.terminal_since).toBeInstanceOf(Date);
     expect(t.where.id).toBe(8n); // RLS-DEPARTED — NOT RLS-GHOST (id 7n, spared)
   });
 

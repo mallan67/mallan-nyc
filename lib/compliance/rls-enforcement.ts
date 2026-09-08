@@ -217,7 +217,7 @@ const FREE_SERVICE_PATTERNS = REBNY_UCBA_RULES.contentRules.freeService.map(
 
 // ─── Status Transition Rules ──────────────────────────────────────────────
 
-import { DOM_RESET_DAYS } from "./dom-tracker";
+import { DOM_RESET_DAYS, DOM_RESET_ELIGIBLE_STATUSES } from "./dom-tracker";
 import { liveEnumMembers } from "@/lib/cotality/live-contract";
 
 const TERMINAL_STATUSES = new Set(["Closed"]);
@@ -522,12 +522,9 @@ export function assertRlsCompliantPayload(
     }
   }
 
-  // DOM reset info (30 days per UCBA 2026)
-  if (
-    ctx.previousStatus === "Withdrawn" ||
-    ctx.previousStatus === "Cancelled" ||
-    ctx.previousStatus === "TemporarilyOffMarket"
-  ) {
+  // DOM reset info (30 days per UCBA 2026) — ONE rule (lib/compliance/dom-tracker.ts): only Withdrawn / Cancelled
+  // are reset-eligible; Hold (Temporarily Off Market) pauses the clock and never resets it.
+  if (ctx.previousStatus && DOM_RESET_ELIGIBLE_STATUSES.has(ctx.previousStatus)) {
     if (ctx.statusChangedAt) {
       const elapsed = Math.floor(
         (Date.now() - ctx.statusChangedAt.getTime()) / (1000 * 60 * 60 * 24)

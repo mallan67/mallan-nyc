@@ -4,6 +4,8 @@
  */
 
 import prisma from '@/lib/prisma';
+import { lifecycleFromStoredRow } from '@/lib/listings/canonical-lifecycle';
+import { marketDom } from '@/lib/compliance/dom-tracker';
 import type { Prisma } from '@prisma/client';
 import { canDisplayListingAddress, SEARCH_DISPLAY_GATE } from '@/lib/search/listing-access-decision';
 
@@ -110,6 +112,11 @@ export async function findComps(
       living_area: true,
       status: true,
       days_on_market: true,
+      // The lifecycle inputs for the market clock (lib/compliance/dom-tracker.ts): provider dates in raw_data + presence.
+      listing_type: true,
+      raw_data: true,
+      sync_status: true,
+      terminal_since: true,
       internet_address_display_yn: true,
       internet_entire_listing_display_yn: true,
     },
@@ -194,7 +201,9 @@ export async function findComps(
       bathrooms: l.bathrooms_full,
       living_area: l.living_area ? Number(l.living_area) : null,
       status: l.status,
-      days_on_market: l.days_on_market,
+      // ONE DOM rule: the market clock from the provider's contract-event dates; the stored accrual only when the row
+      // carries none (a closed row's stored clock is reset to 0 on close — never a comp's market days).
+      days_on_market: marketDom(lifecycleFromStoredRow(l), new Date()).days ?? l.days_on_market,
       similarity_score: Math.min(100, similarity),
       adjustments,
       adjusted_price: Math.round(adjustedPrice),

@@ -12,6 +12,7 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 import { resolveListingAgentInfo, AGENT_TYPED_SELECT, ResolvableListingAgent } from "@/lib/listings/agent-info-resolver";
 import { MALLAN_TERMINAL_STATUSES } from "@/lib/listings/mallan-status";
+import { OFF_FEED_SYNC_STATUS } from "@/lib/listings/canonical-lifecycle";
 
 /** THE terminal set (Mallan storage vocabulary) — one definition in lib/listings/mallan-status.ts; the cron route and the monitor derive from it. */
 export const ARCHIVE_TERMINAL_STATUSES = [...MALLAN_TERMINAL_STATUSES] as readonly string[];
@@ -45,7 +46,9 @@ export function archiveEligibilityWhere({ now, clock }: { now: Date; clock: Arch
   const dateEligibility =
     clock === "terminal_since" ? { terminal_since: { lt: cutoff } } : { status_changed_at: { lt: cutoff } };
   return {
-    status: { in: [...ARCHIVE_TERMINAL_STATUSES] },
+    // A terminal provider status, OR a row recorded off the feed (its provider status is preserved on-market,
+    // the presence fact is what left the marketed set — lib/listings/canonical-lifecycle.ts).
+    OR: [{ status: { in: [...ARCHIVE_TERMINAL_STATUSES] } }, { sync_status: OFF_FEED_SYNC_STATUS }],
     sync_status: { not: "archived" },
     ...dateEligibility,
   };

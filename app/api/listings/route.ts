@@ -387,6 +387,9 @@ export async function GET(request: Request) {
                 internet_address_display_yn: true,
                 owner_opt_out: true,
                 participant_only: true,
+                // The Mallan presence fact + its clock (lib/listings/canonical-lifecycle.ts): a row off the feed is never public.
+                sync_status: true,
+                terminal_since: true,
                 listing_contract_date: true,
                 modification_timestamp: true,
                 created_at: true,

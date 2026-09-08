@@ -90,27 +90,32 @@ afterAll(() => {
 });
 
 describe("data-retention T+180 archive eligibility", () => {
-  it("flag OFF (default): keeps the narrow predicate — NULL-dated rows stay EXCLUDED (no OR)", async () => {
+  // The population (Maya 2026-09-08): a terminal provider status OR a row recorded off the feed (its provider status
+  // is preserved on-market; the presence fact sync_status=off_feed is what left the marketed set). The date branch
+  // stays a single clock — the OR is the population, never a date coalesce.
+  const isPopulation = (or: unknown) => expect(or).toEqual([{ status: { in: expect.any(Array) } }, { sync_status: "off_feed" }]);
+
+  it("flag OFF (default): keeps the narrow date predicate — NULL-dated rows stay EXCLUDED (no date OR)", async () => {
     await runCron();
     const where = archiveWhere();
-    // Narrow predicate: status_changed_at filter present, no OR/backlog branch.
-    expect(where.OR).toBeUndefined();
+    // Narrow predicate: status_changed_at filter present; the only OR is the population.
+    isPopulation(where.OR);
     expect(where.status_changed_at).toBeDefined();
     expect((where.status_changed_at as Record<string, unknown>).lt).toBeInstanceOf(Date);
   });
 
-  it("flag ON (PR-2): ages off the stable terminal_since clock — single { terminal_since: { lt } }, no OR", async () => {
+  it("flag ON (PR-2): ages off the stable terminal_since clock — single { terminal_since: { lt } }, no date OR", async () => {
     process.env.ARCHIVE_T180_BACKLOG_ENABLED = "true";
     await runCron();
     const where = archiveWhere();
-    // Stable clock: a single terminal_since < cutoff date branch (no OR, no coalesce).
-    expect(where.OR).toBeUndefined();
+    // Stable clock: a single terminal_since < cutoff date branch (no date OR, no coalesce).
+    isPopulation(where.OR);
     expect((where.terminal_since as Record<string, unknown>).lt).toBeInstanceOf(Date);
     // contaminated clocks are gone from the eligibility branch
     expect(where.status_changed_at).toBeUndefined();
     expect(where.modification_timestamp).toBeUndefined();
-    // terminal-status + archived filters preserved
-    expect(where.status).toBeDefined();
+    // population (inside the OR) + archived filter preserved
+    expect(where.status).toBeUndefined();
     expect(where.sync_status).toEqual({ not: "archived" });
   });
 
@@ -121,8 +126,9 @@ describe("data-retention T+180 archive eligibility", () => {
     process.env.ARCHIVE_T180_BACKLOG_ENABLED = "true";
     await runCron();
     const where = archiveWhere();
-    expect(Object.keys(where)).toEqual(expect.arrayContaining(["status", "sync_status", "terminal_since"]));
-    expect(where.OR).toBeUndefined();
+    expect(Object.keys(where)).toEqual(expect.arrayContaining(["OR", "sync_status", "terminal_since"]));
+    expect(where.status_changed_at).toBeUndefined();
+    isPopulation(where.OR);
   });
 
   it("anti-updated_at / anti-modification_timestamp: the archive predicate references neither (flag ON)", async () => {

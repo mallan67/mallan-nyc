@@ -156,8 +156,10 @@ export function mallanRecord(r: MallanRow): Record<string, unknown> {
     RoomsTotal: rawNum(rd.RoomsTotal),
     OriginalListPrice: rawNum(rd.OriginalListPrice),
     ListingAgreement: rawStr(rd.ListingAgreement),
-    DaysOnMarket: r.days_on_market ?? null,
-    CumulativeDaysOnMarket: r.cumulative_days_on_market ?? null,
+    // The Mallan stored clock rides under Mallan keys — never under the provider's DaysOnMarket (the mapper computes
+    // provider rows from their contract-event dates; lib/compliance/dom-tracker.ts).
+    _mallanDaysOnMarket: r.days_on_market ?? null,
+    _mallanCumulativeDaysOnMarket: r.cumulative_days_on_market ?? null,
     ListAgentFullName: r.list_agent_full_name, ListOfficeName: r.list_office_name ?? 'Mallan Real Estate Inc.', ListOfficeMlsId: null,
     // Mallan-authored: Mallan decides display for its own listing.
     InternetAddressDisplayYN: true, InternetEntireListingDisplayYN: true, Permission: 'IDX',

@@ -145,7 +145,7 @@ describe('guardArchivedRehydration — ACTIVE re-emit unarchives (Codex #465, RE
     },
   );
 
-  it.each(['Closed', 'Expired', 'Withdrawn', 'Delisted', 'Hold'])(
+  it.each(['Closed', 'Expired', 'Withdrawn', 'Hold'])(
     'archived + re-emit status %s (non-active-display) → strip preserved + display fields frozen (no unarchive, no churn, no direct-URL exposure)',
     (status) => {
       const out = guardArchivedRehydration(activePayload(status), { sync_status: 'archived' });

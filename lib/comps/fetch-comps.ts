@@ -18,6 +18,9 @@ import { cityRegionForBorough } from "@/lib/listings/canonical-location";
 import { compEligibility } from "@/lib/search/canonical/comp-eligibility";
 import { statusGroup } from "@/lib/search/canonical/status";
 import { ownershipClass, commonInterestOf } from "@/lib/search/canonical/ownership";
+import { lifecycleFromProviderRow } from "@/lib/listings/canonical-lifecycle";
+import { marketDom } from "@/lib/compliance/dom-tracker";
+import type { CotalityRow } from "@/lib/cotality/contract";
 import type { CompCriteria, CompListing, CompResults, BuildingCompCriteria, AreaCompCriteria } from "./types";
 
 // Trestle status values mapped from our display names
@@ -130,7 +133,9 @@ function mapToCompListing(r: Record<string, unknown>): CompListing {
     list_price: listPrice,
     close_price: closePrice,
     close_date: r.CloseDate ? String(r.CloseDate) : null,
-    days_on_market: r.DaysOnMarket != null ? Number(r.DaysOnMarket) : null,
+    // Mallan market DOM from the provider's contract-event dates (ONE rule: lib/compliance/dom-tracker.ts); the
+    // provider's DaysOnMarket is null on every sampled row of this feed. Null when the clock cannot be verified.
+    days_on_market: (() => { const l = lifecycleFromProviderRow(r as CotalityRow<"Property">); return l ? marketDom(l, new Date()).days : null; })(),
     price_per_sqft: sqft && sqft > 0 ? Math.round((closePrice || listPrice) / sqft) : null,
     building_name: String(r.BuildingName || ""),
     listing_agent: String(r.ListAgentFullName || ""),

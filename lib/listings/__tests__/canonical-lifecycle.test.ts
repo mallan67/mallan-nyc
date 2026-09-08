@@ -6,11 +6,14 @@
  *     Pending 5,084 / ActiveUnderContract 35); ActiveUnderContract never arrives as a status;
  *   - Closed on a rental (ResidentialLease) is a lease, never a sale;
  *   - Back on Market = MajorChangeType BackOnMarket (+ BackOnMarketDate) while Active;
- *   - a listing that leaves the feed has NO provider status — Mallan records it as Delisted, never Withdrawn.
+ *   - a listing that leaves the feed has NO verified provider reason — Mallan keeps its last verified provider status
+ *     and records the presence fact (sync_status off_feed); the broker-facing Mallan state is Off Market (Maya). Never an
+ *     invented Withdrawn / Canceled / Expired / Hold, and never a new canonical status.
  * Maya (2026-09-08): In Contract listings stay public; a departed listing is not labelled "Withdrawn".
  */
 import {
-  DELISTED_STATUS,
+  OFF_FEED_SYNC_STATUS,
+  OFF_MARKET_LABEL,
   PUBLIC_DISPLAY_STAGES,
   lifecycleFromProviderRow,
   lifecycleFromStoredRow,
@@ -45,8 +48,11 @@ describe('lifecycleFromProviderRow — the proven combinations', () => {
     expect(l.transactionType).toBe('rental');
     expect(l.label).toBe('In Contract');
   });
-  it('Pending without a PurchaseContractDate falls back to the PendingTimestamp day, never invents a date', () => {
-    expect(lifecycleFromProviderRow({ StandardStatus: 'Pending', PropertyType: 'Residential', PendingTimestamp: '2026-07-05T00:00:00.000-00:00' })!.inContractSince).toBe('2026-07-05');
+  it('Pending without a PurchaseContractDate has no contract-signed date — PendingTimestamp is the status change, exposed separately, never a contract date', () => {
+    const p = lifecycleFromProviderRow({ StandardStatus: 'Pending', PropertyType: 'Residential', PendingTimestamp: '2026-07-05T00:00:00.000-00:00' })!;
+    expect(p.inContractSince).toBeNull();
+    expect(p.contractEvents.pendingDate).toBe('2026-07-05');
+    expect(p.contractEvents.purchaseContractDate).toBeNull();
     expect(lifecycleFromProviderRow({ StandardStatus: 'Pending', PropertyType: 'Residential' })!.inContractSince).toBeNull();
   });
   it('ActiveUnderContract, if it ever arrives, is In Contract as well (a live member with 0 rows)', () => {
@@ -99,13 +105,31 @@ describe('lifecycleFromProviderRow — the proven combinations', () => {
 });
 
 describe('lifecycleFromStoredRow — Mallan storage vocabulary, sale/rental aware', () => {
-  it('Delisted is the departed-from-feed status: hidden, labelled Delisted, never Withdrawn', () => {
-    expect(DELISTED_STATUS).toBe('Delisted');
-    const l = lifecycleFromStoredRow({ status: 'Delisted', listing_type: 'rent' });
-    expect(l.stage).toBe('delisted');
-    expect(l.label).toBe('Delisted');
+  it('off the feed with no verified reason: the last provider status is preserved, the Mallan state is Off Market, hidden', () => {
+    expect(OFF_FEED_SYNC_STATUS).toBe('off_feed');
+    expect(OFF_MARKET_LABEL).toBe('Off Market');
+    const l = lifecycleFromStoredRow({ status: 'Active', listing_type: 'rent', sync_status: 'off_feed', terminal_since: new Date('2026-09-01T03:30:00Z') });
+    expect(l.stage).toBe('off_market');
+    expect(l.label).toBe('Off Market');
     expect(l.publiclyDisplayable).toBe(false);
-    expect(l.label).not.toMatch(/withdrawn/i);
+    expect(l.storageStatus).toBe('Active'); // the raw provider fact is never rewritten
+    expect(l.providerStage).toBe('active');
+    expect(l.presence).toBe('off_feed');
+    expect(l.offFeedSince).toBe('2026-09-01');
+    expect(l.label).not.toMatch(/withdrawn|cancel|expired|hold/i);
+  });
+  it('a Pending row that left the feed keeps its last verified in-contract fact under the Off Market state', () => {
+    const l = lifecycleFromStoredRow({ status: 'Pending', listing_type: 'sale', sync_status: 'off_feed', raw_data: { PurchaseContractDate: '2026-08-01' } });
+    expect(l).toMatchObject({ stage: 'off_market', providerStage: 'in_contract', inContract: true, inContractSince: '2026-08-01', publiclyDisplayable: false });
+  });
+  it('a synced row is on the feed; a terminal row is never Off Market; an archived on-market row can only have come from Off Market', () => {
+    expect(lifecycleFromStoredRow({ status: 'Active', listing_type: 'sale', sync_status: 'synced' })).toMatchObject({ stage: 'active', presence: 'on_feed', offFeedSince: null });
+    expect(lifecycleFromStoredRow({ status: 'Closed', listing_type: 'sale', sync_status: 'archived' })).toMatchObject({ stage: 'closed', label: 'Sold' });
+    expect(lifecycleFromStoredRow({ status: 'Active', listing_type: 'sale', sync_status: 'archived' })).toMatchObject({ stage: 'off_market', presence: 'off_feed' });
+    expect(lifecycleFromStoredRow({ status: 'Active', listing_type: 'sale' })).toMatchObject({ stage: 'active', presence: 'unknown' });
+  });
+  it('no stored status spells a manufactured departure: "Delisted" is unknown, not a stage', () => {
+    expect(lifecycleFromStoredRow({ status: 'Delisted', listing_type: 'sale' })).toMatchObject({ stage: 'unknown', label: '' });
   });
   it('stored Pending is In Contract and public; stored Closed is Sold or Rented by listing_type', () => {
     expect(lifecycleFromStoredRow({ status: 'Pending', listing_type: 'sale' })).toMatchObject({ stage: 'in_contract', label: 'In Contract', publiclyDisplayable: true });
@@ -131,8 +155,8 @@ describe('lifecycleFromStoredRow — Mallan storage vocabulary, sale/rental awar
   it('the public stages are exactly active, coming_soon and in_contract', () => {
     expect([...PUBLIC_DISPLAY_STAGES].sort()).toEqual(['active', 'coming_soon', 'in_contract']);
   });
-  it('no label is ever the UCBA §5(D)-prohibited "Off-Market" description (REBNY\'s own "Temporarily Off Market" status name is not that)', () => {
-    for (const status of ['Active', 'ComingSoon', 'Pending', 'ActiveUnderContract', 'Closed', 'Sold', 'Rented', 'Leased', 'Hold', 'Withdrawn', 'Cancelled', 'Expired', 'Delisted', 'Draft']) {
+  it('no PROVIDER-status label is the bare "Off Market" — that state comes only from the Mallan presence fact (broker-facing, Maya 2026-09-08)', () => {
+    for (const status of ['Active', 'ComingSoon', 'Pending', 'ActiveUnderContract', 'Closed', 'Sold', 'Rented', 'Leased', 'Hold', 'Withdrawn', 'Cancelled', 'Expired', 'Draft']) {
       for (const lt of ['sale', 'rent'] as const) expect(lifecycleFromStoredRow({ status, listing_type: lt }).label).not.toMatch(/^off[\s-]?market$/i);
     }
   });

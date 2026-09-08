@@ -2,8 +2,9 @@
  * lib/compliance/status.ts is the declared label authority. Pinned to the 2026-09-08 lifecycle census and
  * Maya's decisions: In Contract is the label for the provider's Pending (and ActiveUnderContract), In Contract
  * listings are public (the IDX Plus feed delivers 5,590 Pending rows), Closed reads Sold / Rented by
- * transaction type, and a listing that left the feed is Delisted — a terminal, non-public status that is
- * never spelled "Withdrawn" and never "Off-Market" (UCBA Art. I §5(D)).
+ * transaction type, and a listing that left the feed keeps its last provider status: there is NO departed status in
+ * this vocabulary. The Mallan Off Market state lives on the presence fact (lib/listings/canonical-lifecycle.ts,
+ * Maya 2026-09-08); no provider-status label ever spells it.
  */
 import {
   ACTIVE_DISPLAY_VALUES,
@@ -16,16 +17,17 @@ import {
   statusDisplayLabelFor,
 } from '../status';
 
-describe('vocabulary — Delisted exists, is terminal, is not public', () => {
-  it('Status.DELISTED = "Delisted" and normalizes from its input forms', () => {
-    expect(Status.DELISTED).toBe('Delisted');
-    expect(normalizeStatus('Delisted')).toBe('Delisted');
-    expect(normalizeStatus('DELISTED')).toBe('Delisted');
-  });
-  it('Delisted is terminal and never an active-display status', () => {
-    expect(isTerminalStatus('Delisted')).toBe(true);
-    expect(TERMINAL_VALUES).toContain('Delisted');
+describe('vocabulary — no manufactured departure status exists', () => {
+  it('"Delisted" is not a status: it does not normalize, is not terminal, is not displayable', () => {
+    expect((Status as Record<string, string>).DELISTED).toBeUndefined();
+    expect(normalizeStatus('Delisted')).toBeNull();
+    expect(isTerminalStatus('Delisted')).toBe(false);
+    expect(TERMINAL_VALUES).not.toContain('Delisted');
     expect(isActiveDisplayStatus('Delisted')).toBe(false);
+  });
+  it('"Off Market" is not a status either — it is the Mallan presence state, never a provider value', () => {
+    expect(normalizeStatus('Off Market')).toBeNull();
+    expect(statusDisplayLabelFor('Off Market', 'sale')).toBe('');
   });
 });
 
@@ -37,7 +39,7 @@ describe('public display — In Contract (Pending) is displayable', () => {
   });
   it('Active, ComingSoon and ActiveUnderContract remain displayable; Closed and Delisted are not', () => {
     for (const s of ['Active', 'ComingSoon', 'ActiveUnderContract']) expect(isActiveDisplayStatus(s)).toBe(true);
-    for (const s of ['Closed', 'Delisted', 'Withdrawn', 'Expired', 'Cancelled', 'Hold']) expect(isActiveDisplayStatus(s)).toBe(false);
+    for (const s of ['Closed', 'Withdrawn', 'Expired', 'Cancelled', 'Hold']) expect(isActiveDisplayStatus(s)).toBe(false);
   });
 });
 
@@ -59,8 +61,7 @@ describe('labels — broker language on proven provider combinations', () => {
     expect(statusDisplayLabelFor('Closed', null)).toBe('Closed');
     expect(statusDisplayLabel('Closed')).toBe('Closed');
   });
-  it('Delisted reads "Delisted"; Hold reads "Temporarily Off Market"; no label is the prohibited "Off-Market"', () => {
-    expect(statusDisplayLabelFor('Delisted', 'sale')).toBe('Delisted');
+  it('Hold reads REBNY\'s own "Temporarily Off Market"; no provider-status label is the bare "Off Market"', () => {
     expect(statusDisplayLabelFor('Hold', 'sale')).toBe('Temporarily Off Market');
     for (const s of Object.values(Status)) for (const lt of ['sale', 'rent', null] as const) expect(statusDisplayLabelFor(s, lt)).not.toMatch(/^off[\s-]?market$/i);
   });

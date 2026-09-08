@@ -15,7 +15,7 @@ import {
 } from '../../lib/search/visibility-contract';
 
 const ALL_STATUSES: LifecycleStatus[] = [
-  'active', 'in_contract', 'temp_off_market', 'withdrawn', 'canceled', 'expired', 'delisted', 'closed_sold', 'closed_rented', 'unknown',
+  'active', 'in_contract', 'temp_off_market', 'withdrawn', 'canceled', 'expired', 'off_market', 'closed_sold', 'closed_rented', 'unknown',
 ];
 
 const V = (audience: Audience, status: LifecycleStatus, source: Source, transactionType: 'sale' | 'rental' = 'sale') =>
@@ -29,9 +29,9 @@ describe('resolveVisibility — public audience', () => {
     expect(V('public', 'in_contract', 'mls').allowed).toBe(true);
   });
 
-  it('BLOCKS a delisted listing (left the feed, reason not delivered) publicly', () => {
-    expect(V('public', 'delisted', 'mls').allowed).toBe(false);
-    expect(V('agent', 'delisted', 'mls').allowed).toBe(true);
+  it('BLOCKS an Off Market listing (off the feed, reason not delivered) publicly; agents still see it', () => {
+    expect(V('public', 'off_market', 'mls').allowed).toBe(false);
+    expect(V('agent', 'off_market', 'mls').allowed).toBe(true);
   });
 
   it('allows ACRIS closed_sold publicly', () => {
@@ -113,7 +113,9 @@ describe('toLifecycleStatus — provider StandardStatus → lifecycle (sold ≠ 
     // Pending and ActiveUnderContract are both In Contract (the feed's in-contract status is Pending).
     expect(toLifecycleStatus('Active Under Contract', 'sale')).toBe('in_contract');
     expect(toLifecycleStatus('Pending', 'sale')).toBe('in_contract');
-    expect(toLifecycleStatus('Delisted', 'sale')).toBe('delisted');
+    expect(toLifecycleStatus('Off Market', 'sale')).toBe('off_market');
+    expect(toLifecycleStatus('off_market', 'sale')).toBe('off_market');
+    expect(toLifecycleStatus('Delisted', 'sale')).toBe('unknown');
     expect(toLifecycleStatus('Hold', 'sale')).toBe('temp_off_market');
     expect(toLifecycleStatus('Withdrawn', 'sale')).toBe('withdrawn');
     expect(toLifecycleStatus('Cancelled', 'sale')).toBe('canceled');

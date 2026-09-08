@@ -31,7 +31,7 @@ a listing that has **left the feed is not called "Withdrawn"**.
 | `Hold` | `temp_off_market` | `Hold` | Temporarily Off Market | no | not delivered today (0 rows) |
 | `Withdrawn` / `Canceled` / `Expired` | `withdrawn` / `cancelled` / `expired` | `Withdrawn` / `Cancelled` / `Expired` | same words | no | **only when the provider says so** (0 rows today) or a Mallan broker action (CRM) |
 | `Incomplete` | `draft` | `Draft` | Draft | no | Mallan-authored drafts |
-| **absent from the licensed feed** (no row for the ListingId) | `delisted` | **`Delisted`** | Delisted | no | terminal; not DOM-reset-eligible; replaces the invented "Withdrawn". Chosen instead of "Off Market" because UCBA Art. I §5(D) forbids describing an exclusive as "Off-Market" (existing code comments). **Maya to confirm the word.** |
+| **absent from the current feed** (no row for the ListingId) | provider stage preserved; display stage `off_market` | **unchanged** (the last verified provider status stays in `status`; the presence fact `sync_status = off_feed` is recorded) | **Off Market** (broker-facing Mallan state, Maya 2026-09-08) | no | never a manufactured Withdrawn / Canceled / Expired / Hold and never a new canonical status; a verified provider state that arrives later replaces the presence fact. (Superseded 2026-09-08: the first pass minted a `Delisted` status — ruled out by the owner.) |
 
 Module: `lib/listings/canonical-lifecycle.ts` (a boundary module — the only place that reads `StandardStatus`,
 `PropertyType`, `MajorChangeType`, `PurchaseContractDate`, `PendingTimestamp`, `BackOnMarketDate`, `CloseDate` for
@@ -39,18 +39,31 @@ this purpose). Every consumer below derives from it.
 
 ## 3. Consumers converged (each with a test that failed first)
 
-- **Storage vocabulary** — `lib/listings/mallan-status.ts` (+ `Delisted` in storage and terminal sets),
-  `lib/compliance/status.ts` (labels In Contract / Temporarily Off Market / Rented / Delisted; Pending in the
-  active-display set; `statusDisplayLabelFor(status, listingType)`), `lib/crm/status-mapping.ts`
-  (`resolveCanonicalStatusForListing`: Closed → Sold / Rented by transaction type), `lib/search/crm-idx-mapper.ts`
-  (Off-Market variants → DELISTED; `MlsStatus` only as the last legacy fallback).
+- **Storage vocabulary** — `lib/listings/mallan-status.ts` (no departed status: departure is the presence fact
+  `sync_status = off_feed`), `lib/compliance/status.ts` (labels In Contract / Temporarily Off Market / Rented; Pending
+  in the active-display set; `statusDisplayLabelFor(status, listingType)`; no provider-status label is the bare
+  "Off Market"), `lib/crm/status-mapping.ts` (`resolveCanonicalStatusForListing`: Closed → Sold / Rented by
+  transaction type), `lib/search/crm-idx-mapper.ts` (Off-Market spellings → the CRM token OFF_MARKET; `MlsStatus`
+  only as the last legacy fallback).
+- **Presence (owner ruling 2026-09-08)** — `lib/listings/canonical-lifecycle.ts`: `OFF_FEED_SYNC_STATUS = 'off_feed'`,
+  `OFF_MARKET_LABEL = 'Off Market'`, `lifecycleFromStoredRow({ status, sync_status, terminal_since, … })` returns
+  `providerStage` (the raw fact), `presence`, `offFeedSince` and the display `stage` (`off_market` when an on-market
+  provider stage is off the feed). The raw provider fact and the Mallan display state are two fields, never one.
 - **Reconciliation** — `lib/idx/reconcile-decision.ts` (`liveTruthFromRow` reads the provider row only through
-  the lifecycle; `DEPARTED_STATUS = Delisted`), `app/api/cron/feed-reconcile/route.ts` (per-ghost live lookup by
-  `ListingId in (...)` before any status write; on-market set from `ON_MARKET_STATUSES`), `scripts/reconcile-ghosts.js`,
-  `scripts/archive-backlog-predicate.js` (terminal mirror + `Delisted`).
+  the lifecycle; `reconcileStatusDecision(dbStatus, live, dbSyncStatus)` returns `targetSyncStatus` — `off_feed` for
+  an absent on-market row with the status PRESERVED, `synced` when live truth puts a row back on the feed;
+  `resolveIdxDisplay` is false for off_feed), `app/api/cron/feed-reconcile/route.ts` (per-ghost live lookup by
+  `ListingId in (...)`; rows already off_feed are excluded from the scan; `status_changed_at` only when the status
+  changed; `terminal_since` when the row leaves the marketed set), `scripts/reconcile-ghosts.js` (same writes),
+  `lib/retention/archive-terminals.ts` / `app/api/cron/data-retention/route.ts` / `scripts/archive-backlog-predicate.js`
+  (archive population = terminal status OR off_feed).
 - **Public read path** — `lib/idx/db-to-public-dto.ts` (label by transaction type; new `lifecycle` block: stage,
   inContractSince, backOnMarket, backOnMarketDate, closedDate), `lib/idx/public-dto.ts`,
-  `lib/search/visibility-contract.ts` (`in_contract` public; `delisted` blocked), `lib/search/canonical/status.ts`,
+  `lib/search/visibility-contract.ts` (`in_contract` public; `off_market` blocked publicly, visible to agents),
+  `lib/search/canonical/status.ts`, `lib/idx/db-to-public-dto.ts` (`filterDisplayableDbListings` reads the presence
+  fact; the DTO `status` reads "Off Market" and `lifecycle` carries `providerStage` / `presence` / `offFeedSince`),
+  `app/api/crm/listings/route.ts` (the CRM list carries `lifecycle` — the broker-facing state — beside the preserved
+  `status`), `app/portal/tenant/page.tsx` (a closed rental reads "Rented", not "Off Market"),
   `lib/search/listing-search-projection.ts` (`in_contract` / `back_on_market` flags),
   `lib/compliance/raw-data-keep-fields.ts` (the ten lifecycle fields kept).
 - **Rendering** — `app/listing/[...slug]/page.tsx`, `app/components/PriceHistory.tsx` (In Contract dated by
@@ -62,9 +75,13 @@ this purpose). Every consumer below derives from it.
 
 ## 4. Production data correction — dry run only, NOT executed
 
-`lifecycle/delisted-correction-plan.sql` / `.json` (generated by `scripts/lifecycle/delisted-correction-plan.mjs`
-from the live check): rentals 40 → `Closed`, 1,042 → `Delisted`; sales 2 → `Closed`, 5,878 → `Delisted`; the search
-projection mirrored. Requires Maya's explicit authorization (production mutation is held).
+`lifecycle/off-market-correction-plan.sql` / `.json` (generated by `scripts/lifecycle/off-market-correction-plan.mjs`
+from the live check): rentals 40 → `Closed`, 1,042 → status RESTORED from `raw_data.StandardStatus` + `sync_status =
+off_feed`; sales 2 → `Closed`, 5,878 → the same restore; the search projection mirrored. Production read-only count
+(2026-09-08, canonical branch): of the 6,937 stored Withdrawn rows, 6,728 retain provider Active and 199 retain Pending
+in raw_data, 4 retain Closed (in the live-Closed group), and 6 sale rows carry no provider row (5 `pending`, 1
+`archived`) — those 6 are listed for manual review, never updated. Requires Maya's explicit authorization (production
+mutation is held).
 
 ## 5. Validators after Domain 1
 
@@ -81,7 +98,7 @@ projection mirrored. Requires Maya's explicit authorization (production mutation
 
 ## 6. Decisions Maya still owns
 
-1. The word for "left the feed": **`Delisted`** (chosen; UCBA §5(D) forbids "Off-Market" for an exclusive) — confirm or rename.
+1. ~~The word for "left the feed"~~ — **ruled 2026-09-08: Off Market**, a Mallan presence state, not a status (implemented above).
 2. **DOM accrual set** — `lib/compliance/dom-tracker.ts` accrues on {Active, ActiveUnderContract}; `lib/idx/sync.ts` /
    `rebny-ucba-rules` accrue on {Active, ActiveUnderContract, Pending}. One UCBA reading must win; not changed here.
 3. Open houses on **In Contract** listings are publicly eligible (consistent with ActiveUnderContract). Say if REBNY practice differs.

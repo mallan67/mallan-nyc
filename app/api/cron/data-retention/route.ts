@@ -18,6 +18,7 @@ import { Prisma } from "@prisma/client";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 import { buildingAndManifestInvalidationTags, listingCacheTag, newRevalidationCounters, safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
 import { ARCHIVE_SELECT, archiveOneListing } from "@/lib/retention/archive-terminals";
+import { OFF_FEED_SYNC_STATUS } from "@/lib/listings/canonical-lifecycle";
 import { archiveControlState, archiveWritesEnabled } from "@/lib/retention/archive-controls";
 import { purgeExpiredDiagnostics } from "@/lib/retention/system-diagnostic-cleanup";
 
@@ -286,7 +287,10 @@ export async function GET(req: NextRequest) {
       : { status_changed_at: { lt: oneEightyDayCutoff } };
 
     const archiveWhere: Prisma.ListingWhereInput = {
-      status: { in: [...TERMINAL_STATUSES] },
+      // A terminal provider status OR a row recorded off the feed (its provider status is preserved on-market;
+      // the presence fact is what left the marketed set) — identical to lib/retention/archive-terminals.ts
+      // archiveEligibilityWhere and the monitor mirror scripts/archive-backlog-predicate.js.
+      OR: [{ status: { in: [...TERMINAL_STATUSES] } }, { sync_status: OFF_FEED_SYNC_STATUS }],
       sync_status: { not: "archived" },
       ...eligibilityWhere,
     };

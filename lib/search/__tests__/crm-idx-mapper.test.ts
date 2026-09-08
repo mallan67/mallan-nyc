@@ -219,18 +219,18 @@ describe("crm idx mapper", () => {
     const offMarketVariants = ["Off Market", "Off-Market", "OffMarket", "off market"];
 
     for (const variant of offMarketVariants) {
-      // A stale "Off Market" value carries no provider status; it maps to the departed-from-feed sentinel
-      // (DELISTED), never to a fabricated WITHDRAWN and never to the prohibited "OFF MARKET" text.
-      it(`maps MlsStatus "${variant}" to DELISTED, never to "OFF MARKET"`, () => {
+      // A stale "Off Market" spelling in Mallan-authored data names the Mallan Off Market state (the broker-facing
+      // CRM token OFF_MARKET, Maya 2026-09-08) — never a fabricated WITHDRAWN and never raw uppercase free text.
+      it(`maps MlsStatus "${variant}" to the OFF_MARKET token, never to raw "OFF MARKET" text`, () => {
         const listing = mapTrestleToCrmListing({
           ListingId: "X",
           MlsStatus: variant,
           InternetEntireListingDisplayYN: true,
           InternetAddressDisplayYN: true,
         }, 0);
-        expect(listing.status).toBe("DELISTED");
+        expect(listing.status).toBe("OFF_MARKET");
         expect(listing.status).not.toBe("OFF MARKET");
-        expect(listing.status).not.toMatch(/OFF.MARKET/i);
+        expect(listing.status).not.toBe("DELISTED");
       });
     }
 

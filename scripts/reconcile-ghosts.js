@@ -1,8 +1,9 @@
 // scripts/reconcile-ghosts.js
 //
 // Feed reconciliation — detects listings marked Active in our DB that are no
-// longer in the Trestle Active feed (ghosts), and transitions them to
-// Delisted (left the entitled feed; the provider delivers no status for it) with a full audit trail.
+// longer in the Cotality (Trestle) Active feed (ghosts), and records the presence fact
+// sync_status = off_feed (the Mallan Off Market state) with a full audit trail. The provider
+// status is PRESERVED — absence carries no verified reason, so none is manufactured (Maya 2026-09-08).
 //
 // WHY:
 // Incremental sync via `ModificationTimestamp > watermark` detects changes but
@@ -17,7 +18,7 @@
 //   2. Query our DB for all Active ListingIds
 //   3. Compute diff: in-our-DB-but-not-in-Trestle = ghosts
 //   4. Skip any ghost whose status is already terminal (defense in depth)
-//   5. Transition ghosts → Delisted, status_changed_at=NOW(), idx_display_yn=false
+//   5. Record ghosts off the feed → sync_status=off_feed, idx_display_yn=false (status untouched)
 //   6. Record each transition in audit_events for compliance trail
 //
 // SAFETY:
@@ -27,7 +28,7 @@
 //   - Only operates on RLS-prefixed listing IDs (Trestle-sourced). Internal
 //     listings (SL-/RL-prefix from agent direct submission) are untouched.
 //   - All transitions logged to audit_events — REBNY RLS requires audit trail.
-//   - Idempotent — running twice is a no-op on already-Delisted listings.
+//   - Idempotent — rows already recorded off the feed are excluded from the scan.
 //
 // USAGE:
 //   node --env-file=.env.local scripts/reconcile-ghosts.js --verify-only
@@ -61,8 +62,11 @@ const ORPHAN_FETCH_BATCH = 20;
 const TERMINAL_STATUSES = new Set([
   "Closed", "Sold", "Leased", "Rented",
   "Withdrawn", "Expired", "Cancelled",
-  "Delisted", // departed from the licensed feed (lib/listings/canonical-lifecycle.ts)
 ]);
+
+// The Mallan presence fact (mirror of lib/listings/canonical-lifecycle.ts OFF_FEED_SYNC_STATUS — this CommonJS
+// runner cannot import the TypeScript constant; tests/runtime/archive-terminal-since-clock.test.ts pins the spelling).
+const OFF_FEED_SYNC_STATUS = "off_feed";
 
 const MODE = process.argv.find((a) => a.startsWith("--")) || "--verify-only";
 
@@ -155,6 +159,7 @@ async function run() {
   const ourActive = await prisma.listing.findMany({
     where: {
       status: "Active",
+      sync_status: { not: OFF_FEED_SYNC_STATUS }, // already recorded off the feed → not a ghost candidate
       listing_id: { startsWith: "RLS" },
     },
     select: {
@@ -186,7 +191,7 @@ async function run() {
   const { byBucket, toTransition } = await summarize(ghosts);
   console.log("\n── Ghosts by bucket ──");
   console.table([byBucket]);
-  console.log(`  → Will transition to Delisted: ${toTransition.length}`);
+  console.log(`  → Will record off the feed (Off Market, status preserved): ${toTransition.length}`);
   console.log(`  → Will fetch + create for orphans: ${orphans.length}`);
 
   // 4. Safety caps — abort if either direction exceeds its cap
@@ -247,15 +252,13 @@ async function run() {
         prisma.listing.update({
           where: { id: g.id },
           data: {
-            status: "Delisted", // departed listings have no provider status (lib/listings/canonical-lifecycle.ts)
-            status_changed_at: now,
+            // The provider status is PRESERVED; only the presence fact is recorded (lib/listings/canonical-lifecycle.ts).
+            sync_status: OFF_FEED_SYNC_STATUS,
             idx_display_yn: false, // belt-and-suspenders — data-retention cron also handles
             modification_timestamp: now,
-            // Archive Eligibility Clock (#415/#446): ghosts are always on-market→Delisted with
-            // no stable off-market date, so the wall-clock `now` is the correct floor — byte-
-            // identical to the wired cron twin (app/api/cron/feed-reconcile/route.ts). This
-            // CommonJS runner can't import the .ts helper; `now` matches the helper's terminal
-            // fallback exactly, so no refactor is needed.
+            // Archive Eligibility Clock (#415/#446): a ghost leaves the marketed set with no stable
+            // off-market date, so the wall-clock `now` is the correct floor — byte-identical to the
+            // wired cron twin (app/api/cron/feed-reconcile/route.ts).
             terminal_since: now,
           },
         }),
@@ -268,9 +271,10 @@ async function run() {
             user_id: null,
             changes: {
               from_status: g.status,
-              to_status: "Delisted",
+              to_status: g.status, // preserved — absence is a presence fact, not a status
+              to_sync_status: OFF_FEED_SYNC_STATUS,
               listing_id: g.listing_id,
-              reason: "Not present in Trestle Active feed at reconcile time",
+              reason: "Not present in the current Cotality Active feed at reconcile time (Off Market)",
               mode: MODE,
             },
           },

@@ -21,6 +21,7 @@ import { mapPropertyTypeToDisplay, buildAuctionPublic } from './public-dto';
 import { publicListOfficeName } from './public-attribution';
 import { locationFromStoredRow } from '@/lib/listings/canonical-location';
 import { lifecycleFromStoredRow } from '@/lib/listings/canonical-lifecycle';
+import { comingSoonDom, contractSignedDate, marketDom } from '@/lib/compliance/dom-tracker';
 import { ACTIVE_DISPLAY_VALUES, statusDisplayLabelFor } from '@/lib/compliance/status';
 import { toPublicMediaUrl } from '@/lib/media/proxy-url-policy';
 import { composeDbPublicMedia } from '@/lib/media/db-media-composition';
@@ -217,6 +218,10 @@ export interface DbListing {
   created_at: string | Date;
   updated_at: string | Date;
   raw_data?: unknown;
+  /** The Mallan presence fact (lib/listings/canonical-lifecycle.ts): 'off_feed' = off the current feed, status preserved. */
+  sync_status?: string | null;
+  /** Archive clock; the off-feed day when sync_status is off_feed. */
+  terminal_since?: string | Date | null;
   // Auction (UCBA Art. I exception path) — schema added in PR #50.
   // All five are nullable on the model; presence is gated by the validator
   // (AU-001..AU-005) at the write path. Surfaced publicly via auction object.
@@ -244,8 +249,9 @@ export interface DbListing {
 
 /**
  * Stored statuses that are publicly displayable. Pending is the feed's in-contract status (5,590 live rows,
- * delivered under Permission IDX) and is shown publicly as "In Contract" (Maya 2026-09-08). Delisted (left the
- * feed) is never displayable. Mirrors ACTIVE_DISPLAY_VALUES in lib/compliance/status.ts.
+ * delivered under Permission IDX) and is shown publicly as "In Contract" (Maya 2026-09-08). A row that is off the
+ * feed is never displayable whatever its preserved status — filterDisplayableDbListings reads the presence fact.
+ * Mirrors ACTIVE_DISPLAY_VALUES in lib/compliance/status.ts.
  */
 export const DISPLAYABLE_STATUSES: readonly string[] = [...ACTIVE_DISPLAY_VALUES];
 
@@ -313,6 +319,9 @@ export function filterDisplayableDbListings(listings: DbListing[]): DbListing[] 
   return listings.filter((l) => {
     // Gate 1: Must be an active/displayable status
     if (!DISPLAYABLE_STATUSES.includes(l.status)) return false;
+    // Gate 1b: presence — a row recorded off the current feed keeps its last provider status but is never public
+    // (the Mallan Off Market state, lib/listings/canonical-lifecycle.ts).
+    if (!lifecycleFromStoredRow({ status: l.status, listing_type: l.listing_type, sync_status: l.sync_status, terminal_since: l.terminal_since }).publiclyDisplayable) return false;
     // The Mallan decisions bind on EVERY row, website-only included: owner opt-out (UCBA Art. I §5(A) —
     // no public dissemination at any time) and participants-only are not RLS flags, so they can never be
     // bypassed by provenance (STEP3 ledger §13.4: the early return below used to skip them).
@@ -486,17 +495,18 @@ export function dbListingToPublicDTO(
     hadFeedRelationalRows: opts?.hadFeedRelationalRows,
   });
 
+  // ONE lifecycle read: the provider status + the Mallan presence fact (lib/listings/canonical-lifecycle.ts).
+  const lifecycle = lifecycleFromStoredRow({ status: listing.status, listing_type: listing.listing_type, raw_data: listing.raw_data, sync_status: listing.sync_status, terminal_since: listing.terminal_since });
   return {
     id: listing.listing_id,
     mlsId: listing.listing_id,
     slug,
     url: buildCanonicalListingPath({ slug, id: listing.listing_id }),
-    // Broker-language label from the label authority, sale/rental aware (In Contract · Sold · Rented …).
-    status: statusDisplayLabelFor(listing.status, listing.listing_type) || listing.status,
-    lifecycle: (() => {
-      const l = lifecycleFromStoredRow({ status: listing.status, listing_type: listing.listing_type, raw_data: listing.raw_data });
-      return { stage: l.stage, inContractSince: l.inContractSince, backOnMarket: l.backOnMarket, backOnMarketDate: l.backOnMarketDate, closedDate: l.closedDate, priceChangeTimestamp: l.priceChangeTimestamp };
-    })(),
+    // Broker-language label from the label authority, sale/rental aware (In Contract · Sold · Rented …); the Mallan
+    // Off Market state when the row is off the feed (its preserved provider status is not the display label).
+    status: (lifecycle.stage === 'off_market' ? lifecycle.label : statusDisplayLabelFor(listing.status, listing.listing_type)) || listing.status,
+    // The two Mallan clocks (lib/compliance/dom-tracker.ts) beside the preserved provider contract events.
+    lifecycle: { providerStage: lifecycle.providerStage, presence: lifecycle.presence, offFeedSince: lifecycle.offFeedSince, contractSignedDate: contractSignedDate(lifecycle), marketDom: marketDom(lifecycle, new Date()), comingSoonDom: comingSoonDom(lifecycle, new Date()), contractEvents: lifecycle.contractEvents, stage: lifecycle.stage, inContractSince: lifecycle.inContractSince, backOnMarket: lifecycle.backOnMarket, backOnMarketDate: lifecycle.backOnMarketDate, closedDate: lifecycle.closedDate, priceChangeTimestamp: lifecycle.priceChangeTimestamp },
     listingType: listing.listing_type as 'sale' | 'rent',
     address: suppressAddress
       ? {
@@ -616,6 +626,8 @@ export function dbListingToPublicDTO(
     furnished: features.Furnished ? String(features.Furnished) : undefined,
     availabilityDate: rawData.AvailabilityDate ? String(rawData.AvailabilityDate) : undefined,
     // Days on Market
+    // Provider facts (REBNY's own DaysOnMarket / CumulativeDaysOnMarket): null on every sampled row of this feed
+    // (2026-09-08); preserved as delivered, never Mallan's clock (that is lifecycle.marketDom / comingSoonDom).
     daysOnMarket: rawData.DaysOnMarket != null ? Number(rawData.DaysOnMarket) : undefined,
     cumulativeDaysOnMarket: rawData.CumulativeDaysOnMarket != null ? Number(rawData.CumulativeDaysOnMarket) : undefined,
     // Virtual tour + video — the Cotality fields, read by their live names. VirtualTourURLUnbranded2/3 are

@@ -92,10 +92,10 @@ describe('CRM status mapping — two-layer model', () => {
       expect(isTerminalStatus('Withdrawn')).toBe(true);
       expect(isTerminalStatus('Expired')).toBe(true);
       expect(isTerminalStatus('Cancelled')).toBe(true);
-      // Closed is the only terminal status the feed delivers (374,791 closed rentals alone) and Delisted is
-      // the departed-from-feed status — both terminal.
+      // Closed is the only terminal status the feed delivers (374,791 closed rentals alone). Departure from the
+      // feed is a presence fact (sync_status off_feed → Off Market), never a status — so no such status is terminal.
       expect(isTerminalStatus('Closed')).toBe(true);
-      expect(isTerminalStatus('Delisted')).toBe(true);
+      expect(isTerminalStatus('Delisted')).toBe(false);
     });
 
     test('the provider terminal name resolves to the Mallan close by transaction type', () => {

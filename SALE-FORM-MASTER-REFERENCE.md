@@ -107,8 +107,8 @@
 ### DOM Tracking (I62-I66) — Art. I, Sec. 11
 | I# | Field | RESO Field(s) | Section |
 |---|---|---|---|
-| I62 | Days on Market | DaysOnMarket | B4 |
-| I63 | DOM Start Date | OriginalEntryTimestamp | B4 |
+| I62 | Days on Market | computed — the Mallan market clock (`lib/compliance/dom-tracker.ts`); the provider's DaysOnMarket is null on this feed | B4 |
+| I63 | DOM Start Date | the later of OnMarketDate and ActivationDate (market clock start; owner ruling 2026-09-08) | B4 |
 | I64 | DOM Accrual Status | (CRM workflow field) | B4 |
 | I65 | Consecutive Off-Market Days | (CRM workflow field) | B4 |
 | I66 | DOM Reset History | (CRM audit field) | B4 |
@@ -206,7 +206,7 @@
 | 6 | **Offer Out** | YES | YES | YES |
 | 7 | **Offer Thru Us** | YES | YES | YES |
 | 8 | **Offer Accepted** | YES | YES | YES |
-| 9 | **Contract Signed** | YES | YES | YES |
+| 9 | **Contract Signed** | YES | YES | Stops (the market clock ends at the signed contract — owner ruling 2026-09-08) |
 | 10 | **Board Approved** | YES | YES | YES |
 | 11 | **Sold** | YES (update) | Remove in 24hrs | Stops (resets) |
 | 12 | **Perm Off Market** | YES (update) | Remove | Paused (resets after 30d) |

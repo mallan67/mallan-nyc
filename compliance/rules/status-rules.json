@@ -22,7 +22,8 @@
       "allowedTransitions": ["Pending", "TemporarilyOffMarket", "Withdrawn", "Cancelled", "Closed"]
     },
     "Pending": {
-      "domAccrues": true,
+      "domAccrues": false,
+      "domNote": "Contract signed stops the Mallan market clock — ONE rule, lib/compliance/dom-tracker.ts (owner ruling 2026-09-08). REBNY's own DaysOnMarket accrues through Pending but is not delivered on this feed.",
       "publicDisplay": true,
       "restrictions": [],
       "requiredFields": ["PurchaseContractDate"],
@@ -81,7 +82,11 @@
     { "from": "ComingSoon", "to": "Closed", "reason": "Must go Active first" }
   ],
   "domRules": {
-    "startsAt": "RLS submission timestamp (not listing contract date)",
+    "authority": "lib/compliance/dom-tracker.ts — ONE rule (owner ruling 2026-09-08); this file mirrors it and decides nothing",
+    "marketClock": "from the later of OnMarketDate and ActivationDate (First Showing Date) until the contract is signed: Sale = PurchaseContractDate on a Pending/Closed row; Rental = PurchaseContractDate on a Pending/Closed row, else the Leased (Close) date",
+    "comingSoonClock": "separate: from ContractStatusChangeDate (the day the status became Coming Soon) to the as-of day, with the countdown to ActivationDate; never merged into the market clock",
+    "accruingStatuses": ["Active", "ActiveUnderContract"],
+    "stopsAt": "Pending",
     "resetTrigger": "30 consecutive days in Withdrawn or Cancelled",
     "resetsOnClose": true,
     "noAccrual": ["ComingSoon", "ParticipantOnly", "TemporarilyOffMarket"],

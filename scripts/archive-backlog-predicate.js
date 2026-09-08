@@ -24,7 +24,9 @@
 
 // Mirror of app/api/cron/data-retention/route.ts:22 TERMINAL_STATUSES (kept in sync by test).
 // Mirror of lib/listings/mallan-status.ts MALLAN_TERMINAL_STATUSES (CommonJS copy; kept in sync by tests/runtime/ops-health-archive-backlog.test.ts).
-const ARCHIVE_TERMINAL_STATUSES = ["Closed", "Sold", "Leased", "Rented", "Withdrawn", "Expired", "Cancelled", "Delete", "Delisted"];
+const ARCHIVE_TERMINAL_STATUSES = ["Closed", "Sold", "Leased", "Rented", "Withdrawn", "Expired", "Cancelled", "Delete"];
+// Mirror of lib/listings/canonical-lifecycle.ts OFF_FEED_SYNC_STATUS (the presence fact; kept in sync by test).
+const OFF_FEED_SYNC_STATUS = "off_feed";
 
 const ARCHIVE_CUTOFF_DAYS = 180;
 
@@ -49,7 +51,8 @@ function buildArchiveBacklogWhere({ flagEnabled, now }) {
     : { status_changed_at: { lt: cutoff } };
 
   return {
-    status: { in: ARCHIVE_TERMINAL_STATUSES },
+    // terminal provider status OR recorded off the feed (provider status preserved) — mirrors the archiver.
+    OR: [{ status: { in: ARCHIVE_TERMINAL_STATUSES } }, { sync_status: OFF_FEED_SYNC_STATUS }],
     sync_status: { not: 'archived' },
     ...dateEligibility,
   };
@@ -57,6 +60,7 @@ function buildArchiveBacklogWhere({ flagEnabled, now }) {
 
 module.exports = {
   ARCHIVE_TERMINAL_STATUSES,
+  OFF_FEED_SYNC_STATUS,
   ARCHIVE_CUTOFF_DAYS,
   buildArchiveBacklogWhere,
 };

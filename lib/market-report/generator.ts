@@ -19,6 +19,9 @@
 import { createHash } from "node:crypto";
 import { fetchFromTrestle } from "@/lib/idx/fetch";
 import { cityRegionForBorough } from "@/lib/listings/canonical-location";
+import { lifecycleFromProviderRow } from "@/lib/listings/canonical-lifecycle";
+import { marketDom } from "@/lib/compliance/dom-tracker";
+import type { CotalityRow } from "@/lib/cotality/contract";
 import Anthropic from "@anthropic-ai/sdk";
 
 const anthropic = new Anthropic({
@@ -80,7 +83,7 @@ export interface MarketReportSection {
     beds: number;
     baths: number;
     sqft: number | null;
-    dom: number;
+    dom: number | null;
     type: string;
     company: string;
   }[];
@@ -167,11 +170,14 @@ async function fetchTrestleStats(
       select: [
         "ListingId", "ListPrice", "ClosePrice", "OriginalListPrice",
         "BedroomsTotal", "BathroomsFull", "BathroomsHalf",
-        "LivingArea", "DaysOnMarket", "CumulativeDaysOnMarket",
+        "LivingArea",
         "StreetNumber", "StreetName", "UnitNumber",
-        "SubdivisionName", "PropertySubType",
+        "SubdivisionName", "PropertySubType", "PropertyType", "StandardStatus",
         "AssociationFee", "ListOfficeName",
-        "ModificationTimestamp", "OnMarketDate",
+        "ModificationTimestamp",
+        // Contract-event dates for the market clock (lib/compliance/dom-tracker.ts); the provider's DaysOnMarket is
+        // null on every sampled row of this feed and is not requested.
+        "OnMarketDate", "ActivationDate", "ContractStatusChangeDate", "PurchaseContractDate", "PendingTimestamp", "BackOnMarketDate", "MajorChangeType", "CloseDate",
       ],
       orderby: "ListPrice desc",
     });
@@ -213,9 +219,12 @@ async function fetchTrestleStats(
       ? Math.round(sqftPrices.reduce((s, p) => s + p, 0) / sqftPrices.length)
       : 0;
 
+    // ONE DOM rule: the Mallan market clock from each row's contract-event dates; rows without a verified clock are
+    // left out (never a 0 that drags the average).
+    const now = new Date();
     const domValues = listings
-      .map((l) => Number(l.DaysOnMarket) || Number(l.CumulativeDaysOnMarket) || 0)
-      .filter((d) => d >= 0);
+      .map((l) => { const lc = lifecycleFromProviderRow(l as CotalityRow<"Property">); return lc ? marketDom(lc, now).days : null; })
+      .filter((d): d is number => d !== null && d >= 0);
     const avgDom = domValues.length > 0
       ? Math.round(domValues.reduce((s, d) => s + d, 0) / domValues.length)
       : 0;
@@ -242,7 +251,8 @@ async function fetchTrestleStats(
       beds: Number(l.BedroomsTotal) || 0,
       baths: Number(l.BathroomsFull) || 0,
       sqft: Number(l.LivingArea) || null,
-      dom: Number(l.DaysOnMarket) || 0,
+      // The Mallan market clock (lib/compliance/dom-tracker.ts); null when the row carries no verified clock.
+      dom: (() => { const lc = lifecycleFromProviderRow(l as CotalityRow<"Property">); return lc ? marketDom(lc, new Date()).days : null; })(),
       type: String(l.PropertySubType || propertyType),
       company: String(l.ListOfficeName || ''),
     }));

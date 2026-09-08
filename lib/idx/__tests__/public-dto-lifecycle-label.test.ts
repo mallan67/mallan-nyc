@@ -2,7 +2,7 @@
  * The public DTO carries the broker-language status label from the label authority, sale/rental aware, plus the
  * lifecycle signals the census proved. Pending (In Contract) is publicly displayable (Maya, 2026-09-08).
  */
-import { DISPLAYABLE_STATUSES, dbListingToPublicDTO, type DbListing } from '../db-to-public-dto';
+import { DISPLAYABLE_STATUSES, dbListingToPublicDTO, filterDisplayableDbListings, type DbListing } from '../db-to-public-dto';
 
 const BASE: DbListing = {
   id: '1', listing_id: 'RLS20059088', status: 'Active', listing_type: 'sale', property_type: 'Residential', property_sub_type: 'Condo',
@@ -31,9 +31,14 @@ describe('public DTO — status label and lifecycle', () => {
     expect(dto.status).toBe('Active');
     expect(dto.lifecycle).toMatchObject({ stage: 'active', backOnMarket: true, backOnMarketDate: '2026-04-23' });
   });
-  it('Delisted is not displayable and never rendered as Withdrawn', () => {
+  it('a row that is off the feed is never publicly displayable, even with its preserved provider status Active', () => {
     expect(DISPLAYABLE_STATUSES).not.toContain('Delisted');
     expect(DISPLAYABLE_STATUSES).not.toContain('Withdrawn');
+    expect(filterDisplayableDbListings([{ ...BASE, sync_status: 'off_feed' } as DbListing])).toEqual([]);
+    expect(filterDisplayableDbListings([{ ...BASE, sync_status: 'synced' } as DbListing])).toHaveLength(1);
+    const dto = dbListingToPublicDTO({ ...BASE, sync_status: 'off_feed', terminal_since: new Date('2026-09-02T03:30:00Z') } as DbListing)!;
+    expect(dto.status).toBe('Off Market');
+    expect(dto.lifecycle).toMatchObject({ stage: 'off_market', providerStage: 'active', offFeedSince: '2026-09-02' });
   });
 });
 

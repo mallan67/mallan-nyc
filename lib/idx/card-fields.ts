@@ -29,6 +29,8 @@ export const CARD_SELECT_FIELDS = cotalityFields("Property", [
   // Status & Dates
   "StandardStatus", "MlsStatus", "ModificationTimestamp",
   "ListingContractDate", "OnMarketDate",
+  // Contract-event dates for the two DOM clocks (lib/compliance/dom-tracker.ts) and the lifecycle signals.
+  "ActivationDate", "ContractStatusChangeDate", "PurchaseContractDate", "PendingTimestamp", "BackOnMarketDate", "MajorChangeType",
   "DaysOnMarket", "CumulativeDaysOnMarket",
   "OriginalListPrice", "PreviousListPrice",
   "AvailabilityDate",

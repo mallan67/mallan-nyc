@@ -167,8 +167,8 @@ const PUBLIC_DISPLAY_STATUSES: Set<CanonicalStatus> = new Set([
 ]);
 
 // Terminal = no further transitions expected. 'Closed' is the only terminal status the provider delivers
-// (374,791 closed rentals alone) and 'Delisted' is the departed-from-feed status; both are terminal even
-// though neither is a CRM canonical form value.
+// (374,791 closed rentals alone); it is terminal even though it is not a CRM canonical form value. Departure from
+// the feed is a presence fact (sync_status off_feed → Off Market), never a status.
 const TERMINAL_STATUSES: Set<string> = new Set([
   'Sold',
   'Rented',
@@ -176,7 +176,6 @@ const TERMINAL_STATUSES: Set<string> = new Set([
   'Expired',
   'Cancelled',
   'Closed',
-  'Delisted',
 ]);
 
 /**

@@ -144,7 +144,20 @@ export interface PublicListingDTO {
   status: string;
   /** Lifecycle signals from the retained provider evidence (lib/listings/canonical-lifecycle.ts). */
   lifecycle?: {
-    stage: 'active' | 'coming_soon' | 'in_contract' | 'closed' | 'temp_off_market' | 'withdrawn' | 'cancelled' | 'expired' | 'delisted' | 'draft' | 'unknown';
+    stage: 'active' | 'coming_soon' | 'in_contract' | 'closed' | 'temp_off_market' | 'withdrawn' | 'cancelled' | 'expired' | 'off_market' | 'draft' | 'unknown';
+    /** Stage of the last verified provider status; differs from `stage` only when the row is off the feed (Off Market). */
+    providerStage: 'active' | 'coming_soon' | 'in_contract' | 'closed' | 'temp_off_market' | 'withdrawn' | 'cancelled' | 'expired' | 'off_market' | 'draft' | 'unknown';
+    /** The Mallan presence fact; 'off_feed' rows are never publicly displayable. */
+    presence: 'on_feed' | 'off_feed' | 'unknown';
+    offFeedSince: string | null;
+    /** The contract-signed date per the one DOM rule (lib/compliance/dom-tracker.ts); null when not delivered. */
+    contractSignedDate: string | null;
+    /** Market DOM — on market → contract signed (Mallan's clock, never the provider's DaysOnMarket). */
+    marketDom: { start: string | null; end: string | null; endReason: 'contract_signed' | 'off_feed' | 'as_of' | null; days: number | null; unverified: string | null };
+    /** Coming Soon DOM — the separate pre-market clock; null unless the row is Coming Soon. */
+    comingSoonDom: { start: string | null; activation: string | null; days: number | null; daysUntilActivation: number | null; exceedsFourteenDays: boolean } | null;
+    /** The provider's contract-event dates, verbatim (YYYY-MM-DD) and separate from every clock. */
+    contractEvents: Record<'onMarketDate' | 'activationDate' | 'listingContractDate' | 'originalEntryDate' | 'contractStatusChangeDate' | 'purchaseContractDate' | 'pendingDate' | 'backOnMarketDate' | 'closeDate' | 'offMarketDate', string | null>;
     inContractSince: string | null;
     backOnMarket: boolean;
     backOnMarketDate: string | null;

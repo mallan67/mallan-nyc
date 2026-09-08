@@ -2,9 +2,10 @@
 // Daily cron — feed reconciliation pass.
 // Detects listings stored on-market in our DB but no longer live on the Trestle
 // feed (ghosts), looks each one up live by ListingId, and transitions it to its
-// reconciled status with a full audit trail: live Closed → Closed; absent →
-// Delisted (the feed never delivers Withdrawn / Canceled / Expired / Hold, so
-// absence carries no reason — lib/listings/canonical-lifecycle.ts).
+// reconciled state with a full audit trail: live Closed → Closed; absent →
+// provider status PRESERVED + presence fact sync_status = off_feed (the Mallan
+// Off Market state; the feed never delivers Withdrawn / Canceled / Expired /
+// Hold, so absence carries no reason — lib/listings/canonical-lifecycle.ts).
 //
 // WHY THIS EXISTS:
 // Incremental sync via ModificationTimestamp > watermark detects CHANGES but
@@ -20,7 +21,7 @@
 // SAFETY:
 //   - GHOST_ABORT_CAP: aborts if delta > 2000 (suggests Trestle fetch failure)
 //   - Per-ghost transaction (one failure doesn't block the rest)
-//   - Idempotent (re-running doesn't re-transition already-Delisted listings)
+//   - Idempotent (rows already recorded off the feed are excluded from the scan)
 //   - Audit event per transition (REBNY RLS data-quality trail)
 //
 // Protected by CRON_SECRET header (Vercel Cron).
@@ -42,6 +43,8 @@ import { buildingAndManifestInvalidationTags, listingCacheTag, safeRevalidateTag
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import { MALLAN_TERMINAL_STATUSES } from "@/lib/listings/mallan-status";
 import { ON_MARKET_STATUSES, liveTruthFromRow, reconcileStatusDecision } from "@/lib/idx/reconcile-decision";
+import { OFF_FEED_SYNC_STATUS, lifecycleFromProviderRow } from "@/lib/listings/canonical-lifecycle";
+import { DOM_ACCRUING_STATUSES, marketClockStart } from "@/lib/compliance/dom-tracker";
 import { cotalityFields, type CotalityRow } from "@/lib/cotality/contract";
 import {
   upsertListingMedia,
@@ -99,9 +102,17 @@ const GHOST_LOOKUP_BATCH = 50;
 /** Identity + live status only — the per-ghost live lookup (contract-typed; lib/idx/reconcile-decision.ts reads the row). */
 const GHOST_LOOKUP_SELECT = cotalityFields("Property", ["ListingId", "StandardStatus"]);
 
-const ACTIVE_SEED_STATUSES = new Set([
-  "Active", "ActiveUnderContract", "Pending",
-]);
+/**
+ * ONE DOM rule (lib/compliance/dom-tracker.ts): an imported row's clock starts on the provider's on-market day (the
+ * later of OnMarketDate and ActivationDate) — never the import wall-clock. A row without one seeds the wall-clock
+ * only while its status is in the accruing set; anything else seeds nothing.
+ */
+function firstActiveDateFor(raw: CotalityRow<"Property">, mappedStatus: string, now: Date): Date | null {
+  const lifecycle = lifecycleFromProviderRow(raw);
+  const start = lifecycle ? marketClockStart(lifecycle.contractEvents) : null;
+  if (start) return new Date(`${start}T00:00:00.000Z`);
+  return DOM_ACCRUING_STATUSES.has(mappedStatus) ? now : null;
+}
 
 /** Fetch every Active ListingId from Trestle, paginated. */
 async function fetchTrestleActiveIds(token: string): Promise<Set<string>> {
@@ -202,12 +213,16 @@ export async function GET(req: NextRequest) {
     const ourActive = await prisma.listing.findMany({
       where: {
         status: { in: [...ON_MARKET_STATUSES] },
+        // Rows already recorded off the feed keep their provider status; they are excluded here (bounded,
+        // idempotent). A returning listing is un-marked by the incremental sync (the mapper writes 'synced').
+        sync_status: { not: OFF_FEED_SYNC_STATUS },
         listing_id: { startsWith: "RLS" },
       },
       select: {
         id: true,
         listing_id: true,
         status: true,
+        sync_status: true,
         address: true, // Building-Neon-wake: ghost withdrawal derives the exact building tag
       },
     });
@@ -440,7 +455,7 @@ export async function GET(req: NextRequest) {
                   compliance: mapped.compliance as Prisma.InputJsonValue,
                   raw_data: mapped.raw_data as Prisma.InputJsonValue,
                   status_changed_at: now,
-                  first_active_date: ACTIVE_SEED_STATUSES.has(mapped.status) ? now : null,
+                  first_active_date: firstActiveDateFor(raw as unknown as CotalityRow<"Property">, mapped.status, now),
                   ...terminalSinceCreate,
                 },
               }),
@@ -546,7 +561,8 @@ export async function GET(req: NextRequest) {
     // 5a. Per-ghost live truth. Absence from the on-market ID snapshot is NOT a status: a ghost may be live
     // as Closed (42 of the 6,962 rows previously mislabelled Withdrawn were), so each ghost is looked up by
     // ListingId and decided through the direction-agnostic reconciler. A listing the provider does not
-    // return at all is departed → DEPARTED_STATUS (Delisted); the feed never delivers a reason.
+    // return at all is off the feed → provider status preserved + sync_status off_feed (Off Market); the feed
+    // never delivers a reason, so none is manufactured.
     const liveRowsById = new Map<string, CotalityRow<"Property">>();
     for (let i = 0; i < ghosts.length; i += GHOST_LOOKUP_BATCH) {
       const batch = ghosts.slice(i, i + GHOST_LOOKUP_BATCH);
@@ -567,15 +583,18 @@ export async function GET(req: NextRequest) {
     let errors = 0;
     let projectionFailures = 0;
     for (const g of ghosts) {
-      const decision = reconcileStatusDecision(g.status, liveTruthFromRow(liveRowsById.get(g.listing_id) ?? null));
+      const decision = reconcileStatusDecision(g.status, liveTruthFromRow(liveRowsById.get(g.listing_id) ?? null), g.sync_status);
       if (decision.action !== "update") continue;
       try {
         await prisma.$transaction([
           prisma.listing.update({
             where: { id: g.id },
             data: {
+              // The provider status is written only when live truth changed it; an absent listing keeps its last
+              // verified status and gets the presence fact instead (Maya 2026-09-08: Off Market, never a manufactured status).
               status: decision.targetStatus,
-              status_changed_at: now,
+              ...(decision.targetStatus !== g.status ? { status_changed_at: now } : {}),
+              ...(decision.targetSyncStatus ? { sync_status: decision.targetSyncStatus } : {}),
               idx_display_yn: false,
               // TRESTLE CURSOR SAFETY — `modification_timestamp: now` REMOVED
               // (post-correction audit, 2026-08-09).
@@ -597,11 +616,9 @@ export async function GET(req: NextRequest) {
               // clocks SPECIFICALLY because modification_timestamp is re-stamped
               // by idx-sync (data-retention/route.ts:270-273). MT keeps its last
               // real Trestle value, which is the honest one.
-              // Archive eligibility clock (#415): ghosts are sourced from the on-market stored
-              // statuses (all non-terminal) → the reconciled target (Delisted or a live terminal
-              // status) is always a real non-terminal→terminal transition; the feed delivers no
-              // departure date for a ghost → wall-clock `now`.
-              terminal_since: now,
+              // Archive eligibility clock (#415): stamped when the row leaves the marketed set — a live
+              // terminal status, or the presence fact off_feed (no departure date is delivered → wall-clock `now`).
+              ...(decision.targetIsTerminal || decision.targetSyncStatus === OFF_FEED_SYNC_STATUS ? { terminal_since: now } : {}),
             },
           }),
           prisma.auditEvent.create({
@@ -614,6 +631,8 @@ export async function GET(req: NextRequest) {
               changes: {
                 from_status: g.status,
                 to_status: decision.targetStatus,
+                from_sync_status: g.sync_status,
+                to_sync_status: decision.targetSyncStatus,
                 listing_id: g.listing_id,
                 reason: decision.reason,
                 reconcile_class: decision.className,

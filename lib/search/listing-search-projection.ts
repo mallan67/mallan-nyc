@@ -60,6 +60,8 @@ export interface ListingProjectionSource {
 
   // Filter columns
   status?: string | null;
+  /** The Mallan presence fact (lib/listings/canonical-lifecycle.ts); optional — absent means unknown. */
+  sync_status?: string | null;
   listing_type?: string | null;
   property_type?: string | null;
   property_sub_type?: string | null;
@@ -411,9 +413,11 @@ export function extractProjectionFeatureFlags(listing: ListingProjectionSource):
   // Lifecycle signals from the retained provider evidence (lib/listings/canonical-lifecycle.ts): In Contract
   // = Pending (+ PurchaseContractDate); Back on Market = Active + MajorChangeType BackOnMarket.
   // Recorded only when true (absence = false), so rows with no signals keep their existing flag shape.
-  const lifecycle = lifecycleFromStoredRow({ status: listing.status, listing_type: listing.listing_type, raw_data: listing.raw_data });
+  const lifecycle = lifecycleFromStoredRow({ status: listing.status, listing_type: listing.listing_type, raw_data: listing.raw_data, sync_status: listing.sync_status });
   if (lifecycle.inContract) flags.in_contract = true;
   if (lifecycle.backOnMarket) flags.back_on_market = true;
+  // Presence: recorded off the current feed (the Mallan Off Market state; provider status preserved in mls_status).
+  if (lifecycle.presence === 'off_feed') flags.off_feed = true;
 
   return Object.keys(flags).length > 0 ? flags : null;
 }

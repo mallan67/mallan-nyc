@@ -46,7 +46,7 @@ export function lifecycleToGroup(status: LifecycleStatus): StatusGroup {
     case 'withdrawn':
     case 'canceled':
     case 'expired':
-    case 'delisted': return 'off_market';
+    case 'off_market': return 'off_market';
     case 'unknown':
     default: return 'unavailable';
   }

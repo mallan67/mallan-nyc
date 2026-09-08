@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { getCurrentDom } from "@/lib/compliance/dom-tracker";
+import { lifecycleFromStoredRow } from "@/lib/listings/canonical-lifecycle";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
@@ -67,13 +68,15 @@ export async function GET(req: NextRequest) {
     // and a participant-only listing kept accruing displayed DOM. The provider
     // `Permission` multi-value string is tokenized once in lib/idx/trestle-mapper.ts
     // and persisted as `participant_only`; that is the only source here.
+    // ONE DOM rule (lib/compliance/dom-tracker.ts): a feed row's market clock from its contract-event dates; the
+    // stored accrual only for a Mallan-authored row that carries none.
     const dom = getCurrentDom({
       status: l.status || "Active",
       participant_only: l.participant_only,
       status_changed_at: l.status_changed_at,
       first_active_date: l.first_active_date,
       days_on_market: l.days_on_market || 0,
-    });
+    }, { lifecycle: lifecycleFromStoredRow(l) });
 
     return {
       ...l,

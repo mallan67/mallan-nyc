@@ -36,8 +36,6 @@ export const Status = {
   CANCELLED: 'Cancelled',
   CLOSED: 'Closed',
   COMING_SOON: 'ComingSoon',
-  /** Left the entitled feed; the provider delivers no status for it (never an invented Withdrawn). */
-  DELISTED: 'Delisted',
   EXPIRED: 'Expired',
   HOLD: 'Hold',
   LEASED: 'Leased',
@@ -63,8 +61,6 @@ const INPUT_TO_CANONICAL: Record<string, StatusValue> = {
   'Cancelled': Status.CANCELLED,
   'Closed': Status.CLOSED,
   'ComingSoon': Status.COMING_SOON,
-  'Delisted': Status.DELISTED,
-  'DELISTED': Status.DELISTED,
   'Expired': Status.EXPIRED,
   'Hold': Status.HOLD,
   'Leased': Status.LEASED,
@@ -106,7 +102,8 @@ const INPUT_TO_CANONICAL: Record<string, StatusValue> = {
  * Broker-language labels (Maya, 2026-09-08) on the combinations the whole-corpus census proved
  * (lib/listings/canonical-lifecycle.ts): the feed's only in-contract status is Pending, so Pending and the
  * never-delivered ActiveUnderContract both read "In Contract"; Closed is refined to Sold / Rented by
- * transaction type in `statusDisplayLabelFor`. No label is ever the UCBA Art. I §5(D)-prohibited "Off-Market".
+ * transaction type in `statusDisplayLabelFor`. No provider-status label is the bare "Off Market": that is the Mallan
+ * presence state (lib/listings/canonical-lifecycle.ts), never a status. Departure from the feed is not a status here.
  */
 const CANONICAL_TO_LABEL: Record<StatusValue, string> = {
   [Status.ACTIVE]: 'Active',
@@ -114,7 +111,6 @@ const CANONICAL_TO_LABEL: Record<StatusValue, string> = {
   [Status.CANCELLED]: 'Cancelled',
   [Status.CLOSED]: 'Closed',
   [Status.COMING_SOON]: 'Coming Soon',
-  [Status.DELISTED]: 'Delisted',
   [Status.EXPIRED]: 'Expired',
   [Status.HOLD]: 'Temporarily Off Market',
   [Status.LEASED]: 'Rented',
@@ -141,12 +137,12 @@ const ACTIVE_DISPLAY_STATUSES = new Set<StatusValue>([
 
 /**
  * Statuses that mean "listing is off-market" for REBNY UCBA Art. I §6
- * 24-hour removal enforcement. Delisted (left the feed) is terminal too.
+ * 24-hour removal enforcement. (A row off the feed keeps its provider status; its removal rides on the
+ * presence fact, not on this set.)
  */
 const TERMINAL_STATUSES = new Set<StatusValue>([
   Status.CANCELLED,
   Status.CLOSED,
-  Status.DELISTED,
   Status.EXPIRED,
   Status.LEASED,
   Status.RENTED,
@@ -217,7 +213,6 @@ export const ACTIVE_DISPLAY_VALUES: readonly StatusValue[] = Object.freeze([
 export const TERMINAL_VALUES: readonly StatusValue[] = Object.freeze([
   Status.CANCELLED,
   Status.CLOSED,
-  Status.DELISTED,
   Status.EXPIRED,
   Status.LEASED,
   Status.RENTED,
