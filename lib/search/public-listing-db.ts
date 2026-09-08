@@ -48,6 +48,9 @@ const AMENITY_FIELD_TO_DTO: Record<string, string> = {
   ParkingFeatures: "parkingFeatures",
   LaundryFeatures: "laundryFeatures",
   PetsAllowed: "petsAllowed",
+  FireplaceFeatures: "fireplaceFeatures",
+  // Text amenities (renovated / quiet / natural light) match the public remarks — no provider member exists.
+  PublicRemarks: "publicRemarks",
 };
 
 function appendAnd(where: Prisma.ListingWhereInput, condition: Prisma.ListingWhereInput): void {

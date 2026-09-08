@@ -219,7 +219,10 @@ function section1() {
   if (!mapper) { critical(s, 'trestle-mapper.ts', 'File not found'); return; }
 
   const expandFields = new Set(['Media','MediaURL','MediaCategory','Order','PreferredPhotoYN','ShortDescription',
-    'DownPaymentAssistanceAmount','DownPaymentAssistanceCount','AdditionalFee','AdditionalFeeDescription','AdditionalFeeYN','FeeFrequency']);
+    'DownPaymentAssistanceAmount','DownPaymentAssistanceCount','AdditionalFee','AdditionalFeeDescription','AdditionalFeeYN','FeeFrequency',
+    // CustomProperty is a navigation ($expand=CustomProperty($select=CustomFields)); CustomFields is its JSON payload —
+    // read by customFieldsFromProviderRow, never a Property $select field (Domain 9, 2026-09-08).
+    'CustomProperty','CustomFields']);
   const live = getLiveContract();
   if (!live) { critical(s, 'live Cotality contract', 'data/cotality-property-fields.live.json / cotality-enums.live.json not found — run npm run cotality:compile'); return; }
   const systemFields = new Set(['MlsStatus','StandardStatus','ListingKey','ListingId','ModificationTimestamp','SourceSystemKey']);

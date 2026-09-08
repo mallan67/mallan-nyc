@@ -162,8 +162,11 @@ const toolScopeOf = (file) => { for (const [re, s] of TOOL_SCOPE) if (re.test(fi
 
 // Behaviour register: documented findings with a citation whose code pattern is re-verified at generation time.
 const BEHAVIOR_REGISTER = [
-  { field: 'Permission', stage: 'memberBehavior', status: 'DEFECT', cite: 'docs/operations/STEP3-FORBIDDEN-AUTHORITY-LEDGER.md §13.3', pattern: ['lib/search/engine/hydrate.ts', /idxPermitted !== false/], note: 'authenticated backend Search excludes Permission=Private rows; latent (0 Private rows live)' },
-  { field: 'Permission', stage: 'publicBehavior', status: 'DEFECT', cite: 'docs/operations/STEP3-FORBIDDEN-AUTHORITY-LEDGER.md §13.4', pattern: ['lib/idx/db-to-public-dto.ts', /rls_eligible === false\) return 'website-only'/], note: 'public displayability bypasses the Mallan owner-opt-out gate for rls_eligible=false rows; latent (0 opt-out rows)' },
+  // Domain 3 (2026-09-08): ledger §13.3 / §13.4 fixed — the engine gate is audience-aware (a participants-only
+  // row is shown to an authenticated member, blocked for the public) and the Mallan decisions bind on every
+  // public row, website-only included. Cited to the tests that prove it.
+  { field: 'Permission', stage: 'memberBehavior', status: 'PASS', cite: 'lib/search/__tests__/hydrate-audience-gate.test.ts (Domain 3, 2026-09-08)', pattern: ['lib/search/__tests__/hydrate-audience-gate.test.ts', /a Private \(participants-only\) row is blocked for the public and shown to an authenticated member/], note: 'providerRowPassesGate(raw, audience): member sees Private; public does not; other non-IDX tokens fail closed for everyone' },
+  { field: 'Permission', stage: 'publicBehavior', status: 'PASS', cite: 'lib/idx/__tests__/public-display-mallan-decisions.test.ts (Domain 3, 2026-09-08)', pattern: ['lib/idx/__tests__/public-display-mallan-decisions.test.ts', /a website-only row with owner_opt_out is never publicly displayable/], note: 'owner_opt_out / participant_only bind before the provenance split in filterDisplayableDbListings and in the public DB builder' },
   { field: 'Permission', stage: 'privateSharingBehavior', status: 'UNVERIFIED', cite: 'docs/operations/STEP3-FORBIDDEN-AUTHORITY-LEDGER.md §13.5', note: 'listing-sends, campaigns and portals not traced against the visibility model' },
   { field: 'InternetEntireListingDisplayYN', stage: 'publicBehavior', status: 'PASS', cite: 'lib/compliance/__tests__/compliance-gates.test.ts (fail-open lock, 2026-05-01)', pattern: ['lib/compliance/__tests__/compliance-gates.test.ts', /InternetEntireListingDisplayYN/], note: 'test-proven fail-open (!== false); provider nulls the field on every row' },
   { field: 'InternetAddressDisplayYN', stage: 'publicBehavior', status: 'PASS', cite: 'lib/compliance/__tests__/compliance-gates.test.ts', pattern: ['lib/compliance/__tests__/compliance-gates.test.ts', /InternetAddressDisplayYN/], note: 'test-proven fail-open' },
@@ -462,7 +465,16 @@ const amenityMapFields = new Map();
   while ((m = re.exec(block))) { const values = [...m[3].matchAll(/['"]([^'"]+)['"]/g)].map((x) => x[1]); for (const f of m[2].split(',').map((s) => s.trim())) { if (!amenityMapFields.has(f)) amenityMapFields.set(f, []); amenityMapFields.get(f).push({ key: m[1], values }); } }
 }
 // AMENITY_FIELD_MAP values that are not published members of the live vocabulary (phantom members) — mechanical.
-const amenityPhantoms = [...amenityMapFields].flatMap(([f, arr]) => arr.flatMap((a) => a.values.filter((v) => !(lookups.Property?.[f]?.members || []).includes(v)).map((v) => ({ key: a.key, field: f, value: v, fieldDeclared: Boolean(P[f]), fieldPopulated: P[f]?.populated ?? null }))));
+// A value binds when it is a member of ANY field the amenity targets (the public DB path matches each value
+// across every listed field); a field with no live Lookup (PublicRemarks) is a TEXT concept with no vocabulary
+// to bind — declared as such in lib/search/types.ts (Domain 8, 2026-09-08).
+const amenityEntries = new Map();
+for (const [f, arr] of amenityMapFields) for (const a of arr) { const e = amenityEntries.get(a.key) || { fields: [], values: a.values }; if (!e.fields.includes(f)) e.fields.push(f); amenityEntries.set(a.key, e); }
+const amenityPhantoms = [...amenityEntries].flatMap(([key, e]) => {
+  const enumFields = e.fields.filter((f) => (lookups.Property?.[f]?.members || []).length > 0);
+  if (enumFields.length === 0) return [];
+  return e.values.filter((v) => !enumFields.some((f) => (lookups.Property[f].members || []).includes(v))).map((v) => ({ key, field: e.fields.join(','), value: v, fieldDeclared: e.fields.some((f) => Boolean(P[f])), fieldPopulated: P[enumFields[0]]?.populated ?? null }));
+});
 
 // Tests.
 const testFiles = [];

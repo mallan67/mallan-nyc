@@ -109,8 +109,10 @@ if (clientTrestleCalls.length === 0) {
 
 // ── 2. No client components importing from lib/idx/ (except display-adapter which is safe) ──
 const USE_CLIENT = /['"]use client['"]/;
-// Match lib/idx imports EXCEPT display-adapter (pure display utility, no API calls)
-const IDX_IMPORT_UNSAFE = /from\s+['"]@\/lib\/idx\/(?!display-adapter)/;
+// Match lib/idx imports EXCEPT the pure display utilities with no API calls: display-adapter and
+// public-attribution (the one public broker-attribution policy owner — zero imports; a client card that renders
+// the courtesy line must use it rather than a hard-coded brokerage name, Domain 4 2026-09-08).
+const IDX_IMPORT_UNSAFE = /from\s+['"]@\/lib\/idx\/(?!display-adapter|public-attribution)/;
 const allTsx = findFiles(path.join(ROOT, 'app'), '.tsx');
 const clientIdxImports = allTsx.filter(f => {
   const content = fs.readFileSync(f, 'utf8');

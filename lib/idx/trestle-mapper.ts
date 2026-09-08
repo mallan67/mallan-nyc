@@ -26,6 +26,7 @@ import {
   MALLAN_ACTIVE_STATUSES,
   MALLAN_LIFECYCLE_STATUSES,
 } from "@/lib/listings/mallan-status";
+import type { Prisma } from "@prisma/client";
 
 /**
  * A provider record that Mallan storage cannot represent honestly. Thrown by
@@ -931,6 +932,31 @@ export function computeGateColumns(
  * Map a raw Trestle record to our Prisma Listing shape.
  * Returns the data object ready for prisma.listing.upsert().
  */
+/**
+ * CustomProperty.CustomFields — the NYC/REBNY facts the feed carries on the CustomProperty resource (61 keys on
+ * every row, census 2026-09-08: BuildingTaxLot, CertificateOfOccupancyYN, GuarantorsAcceptedYN, FlipTaxRemarks,
+ * MaximumFinancingRemarks, TaxAbatementComments, BuildingRules …). On the wire it is a JSON STRING inside the
+ * expanded CustomProperty payload (`$expand=CustomProperty($select=CustomFields)` — accepted live on all
+ * 591,641 rows). Parsed losslessly for the `custom_fields` column; null when the row was not expanded or the
+ * string is not JSON (fail-closed — never a fabricated fact).
+ */
+export function customFieldsFromProviderRow(raw: Record<string, unknown>): Record<string, unknown> | null {
+  const cp = raw.CustomProperty;
+  const first = Array.isArray(cp) ? cp[0] : cp;
+  if (!first || typeof first !== 'object') return null;
+  const cf = (first as Record<string, unknown>).CustomFields;
+  if (cf && typeof cf === 'object' && !Array.isArray(cf)) return cf as Record<string, unknown>;
+  if (typeof cf === 'string' && cf.trim()) {
+    try {
+      const parsed: unknown = JSON.parse(cf);
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
   listing_id: string;
   mls_id: string | null;
@@ -959,6 +985,8 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
   media: unknown;
   compliance: Record<string, unknown>;
   agent_info: Record<string, unknown>;
+  /** CustomProperty.CustomFields (61 NYC/REBNY keys) when the row carried the CustomProperty expansion; absent otherwise. */
+  custom_fields?: Prisma.InputJsonValue;
   // Phase A2 typed agent columns (mirror agent_info JSON; added A1, dual-written here)
   list_agent_full_name: string | null;
   list_office_name: string | null;
@@ -1192,6 +1220,8 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
 
   // Phase A: typed agent columns mirror the agent_info JSON (shared producer seam).
   const typedAgentCols = typedAgentColumnsFromJson(agentInfo as Record<string, unknown>);
+  // Present only when the row carried the CustomProperty expansion — an unexpanded sync never writes the column.
+  const customFields = customFieldsFromProviderRow(raw);
 
   return {
     listing_id: listingId,
@@ -1221,6 +1251,7 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
     media,
     compliance,
     agent_info: agentInfo,
+    ...(customFields ? { custom_fields: customFields as Prisma.InputJsonValue } : {}),
     // Phase A2 (agent_info normalization, #410/#411): dual-write the 8 typed agent
     // columns, each mirroring the agent_info JSON above. agent_info JSON is UNCHANGED.
     // PII boundary: list_agent_email/list_agent_direct_phone are stored here but their

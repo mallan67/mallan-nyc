@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-08T13:01:40.258Z",
+ "generated": "2026-09-08T13:20:34.612Z",
  "contract": {
   "evidence_sha256": null,
   "metadata_sha256": "a60bcbbdccc9da852a8da53acc178fc90d7159c42f59f58babb2d09ab7a6bbae",
@@ -461,6 +461,7 @@
      }
     },
     "runtimePulls": [
+     "lib/idx/trestle-mapper.ts",
      "lib/idx/fetch.ts"
     ]
    },
@@ -2475,6 +2476,7 @@
     ],
     "emptyFollowUps": [],
     "runtimeExpands": [
+     "lib/idx/trestle-mapper.ts",
      "lib/idx/fetch.ts"
     ]
    },
@@ -4385,6 +4387,16 @@
     "ModificationTimestamp"
    ],
    "kind": "array",
+   "role": "sync"
+  },
+  {
+   "file": "lib/idx/trestle-mapper.ts",
+   "name": "$expand=CustomProperty@939",
+   "resource": "CustomProperty",
+   "fields": [
+    "CustomFields"
+   ],
+   "kind": "literal",
    "role": "sync"
   },
   {
@@ -13862,113 +13874,7 @@
    "detail": "4 vocabularies located"
   }
  ],
- "amenityPhantoms": [
-  {
-   "key": "elevator",
-   "field": "BuildingFeatures",
-   "value": "Elevator",
-   "fieldDeclared": true,
-   "fieldPopulated": 65882
-  },
-  {
-   "key": "roof-deck",
-   "field": "ExteriorFeatures",
-   "value": "RoofDeck",
-   "fieldDeclared": true,
-   "fieldPopulated": 238927
-  },
-  {
-   "key": "laundry-room",
-   "field": "LaundryFeatures",
-   "value": "OnCommonFloor",
-   "fieldDeclared": true,
-   "fieldPopulated": 393328
-  },
-  {
-   "key": "elevator",
-   "field": "InteriorFeatures",
-   "value": "Elevators",
-   "fieldDeclared": true,
-   "fieldPopulated": 144434
-  },
-  {
-   "key": "walk-in-closet",
-   "field": "InteriorFeatures",
-   "value": "WalkInCloset",
-   "fieldDeclared": true,
-   "fieldPopulated": 144434
-  },
-  {
-   "key": "high-ceilings",
-   "field": "InteriorFeatures",
-   "value": "HighCeiling",
-   "fieldDeclared": true,
-   "fieldPopulated": 144434
-  },
-  {
-   "key": "fireplace",
-   "field": "InteriorFeatures",
-   "value": "WoodBurningFireplace",
-   "fieldDeclared": true,
-   "fieldPopulated": 144434
-  },
-  {
-   "key": "fireplace",
-   "field": "InteriorFeatures",
-   "value": "DecorativeFireplace",
-   "fieldDeclared": true,
-   "fieldPopulated": 144434
-  },
-  {
-   "key": "natural-light",
-   "field": "InteriorFeatures",
-   "value": "NaturalLight",
-   "fieldDeclared": true,
-   "fieldPopulated": 144434
-  },
-  {
-   "key": "renovated",
-   "field": "InteriorFeatures",
-   "value": "Renovated",
-   "fieldDeclared": true,
-   "fieldPopulated": 144434
-  },
-  {
-   "key": "renovated",
-   "field": "InteriorFeatures",
-   "value": "GutRenovated",
-   "fieldDeclared": true,
-   "fieldPopulated": 144434
-  },
-  {
-   "key": "renovated",
-   "field": "InteriorFeatures",
-   "value": "NewlyRenovated",
-   "fieldDeclared": true,
-   "fieldPopulated": 144434
-  },
-  {
-   "key": "quiet",
-   "field": "InteriorFeatures",
-   "value": "Quiet",
-   "fieldDeclared": true,
-   "fieldPopulated": 144434
-  },
-  {
-   "key": "park-views",
-   "field": "View",
-   "value": "Park",
-   "fieldDeclared": true,
-   "fieldPopulated": 138934
-  },
-  {
-   "key": "views",
-   "field": "View",
-   "value": "Park",
-   "fieldDeclared": true,
-   "fieldPopulated": 138934
-  }
- ],
+ "amenityPhantoms": [],
  "domains": [
   {
    "name": "Tours & video",
@@ -14051,12 +13957,12 @@
    "primaryPopulated": 3,
    "servedFields": 16,
    "servedPopulated": 12,
-   "verdictPrimary": "DEFECT",
+   "verdictPrimary": "UNVERIFIED",
    "verdictServed": "PARTIAL",
    "counts": {
     "COMPLETE": 0,
-    "UNVERIFIED": 5,
-    "DEFECT": 1,
+    "UNVERIFIED": 6,
+    "DEFECT": 0,
     "PARTIAL": 9,
     "MISSING": 0
    },
@@ -14076,8 +13982,8 @@
     "rentalTools": 7,
     "cma": 6,
     "reporting": 6,
-    "publicVisibility": 5,
-    "memberVisibility": 5,
+    "publicVisibility": 6,
+    "memberVisibility": 6,
     "compliance": 11
    }
   },
@@ -14515,8 +14421,8 @@
    ],
    "consumers": 46,
    "columns": {
-    "saleSearch": 7,
-    "rentalSearch": 7,
+    "saleSearch": 8,
+    "rentalSearch": 8,
     "saleForm": 9,
     "rentalForm": 16,
     "saleTools": 4,
@@ -14591,10 +14497,10 @@
     "Electric",
     "LicensesExpense"
    ],
-   "consumers": 21,
+   "consumers": 22,
    "columns": {
-    "saleSearch": 2,
-    "rentalSearch": 2,
+    "saleSearch": 3,
+    "rentalSearch": 3,
     "saleForm": 6,
     "rentalForm": 2,
     "saleTools": 1,
@@ -14839,7 +14745,7 @@
     "HomeWarrantyYN",
     "Inclusions"
    ],
-   "consumers": 23,
+   "consumers": 24,
    "columns": {
     "saleSearch": 1,
     "rentalSearch": 1,
@@ -15168,11 +15074,11 @@
    "servedFields": 265,
    "servedPopulated": 141,
    "verdictPrimary": "NO-POPULATED-FIELDS",
-   "verdictServed": "DEFECT",
+   "verdictServed": "PARTIAL",
    "counts": {
     "COMPLETE": 3,
-    "UNVERIFIED": 35,
-    "DEFECT": 1,
+    "UNVERIFIED": 36,
+    "DEFECT": 0,
     "PARTIAL": 40,
     "MISSING": 62
    },
@@ -15233,8 +15139,8 @@
     "rentalTools": 41,
     "cma": 25,
     "reporting": 24,
-    "publicVisibility": 47,
-    "memberVisibility": 38,
+    "publicVisibility": 48,
+    "memberVisibility": 39,
     "compliance": 36
    }
   },
@@ -15246,11 +15152,11 @@
    "servedFields": 308,
    "servedPopulated": 162,
    "verdictPrimary": "NO-POPULATED-FIELDS",
-   "verdictServed": "DEFECT",
+   "verdictServed": "PARTIAL",
    "counts": {
     "COMPLETE": 5,
-    "UNVERIFIED": 31,
-    "DEFECT": 1,
+    "UNVERIFIED": 32,
+    "DEFECT": 0,
     "PARTIAL": 62,
     "MISSING": 63
    },
@@ -15303,16 +15209,16 @@
    ],
    "consumers": 188,
    "columns": {
-    "saleSearch": 50,
-    "rentalSearch": 50,
+    "saleSearch": 51,
+    "rentalSearch": 51,
     "saleForm": 55,
     "rentalForm": 59,
     "saleTools": 40,
     "rentalTools": 38,
     "cma": 20,
     "reporting": 24,
-    "publicVisibility": 49,
-    "memberVisibility": 38,
+    "publicVisibility": 50,
+    "memberVisibility": 39,
     "compliance": 61
    }
   },
@@ -15360,11 +15266,11 @@
    "servedFields": 153,
    "servedPopulated": 115,
    "verdictPrimary": "NO-POPULATED-FIELDS",
-   "verdictServed": "DEFECT",
+   "verdictServed": "PARTIAL",
    "counts": {
     "COMPLETE": 7,
-    "UNVERIFIED": 36,
-    "DEFECT": 1,
+    "UNVERIFIED": 37,
+    "DEFECT": 0,
     "PARTIAL": 67,
     "MISSING": 4
    },
@@ -15379,16 +15285,16 @@
    ],
    "consumers": 212,
    "columns": {
-    "saleSearch": 60,
-    "rentalSearch": 60,
+    "saleSearch": 61,
+    "rentalSearch": 61,
     "saleForm": 61,
     "rentalForm": 68,
     "saleTools": 48,
     "rentalTools": 45,
     "cma": 25,
     "reporting": 27,
-    "publicVisibility": 61,
-    "memberVisibility": 38,
+    "publicVisibility": 62,
+    "memberVisibility": 39,
     "compliance": 52
    }
   },
@@ -15436,11 +15342,11 @@
    "servedFields": 26,
    "servedPopulated": 20,
    "verdictPrimary": "NO-POPULATED-FIELDS",
-   "verdictServed": "DEFECT",
+   "verdictServed": "PARTIAL",
    "counts": {
     "COMPLETE": 3,
-    "UNVERIFIED": 4,
-    "DEFECT": 1,
+    "UNVERIFIED": 5,
+    "DEFECT": 0,
     "PARTIAL": 11,
     "MISSING": 1
    },
@@ -15450,7 +15356,7 @@
     "NOT-ON-FEED (not RLS-defined)": 4
    },
    "notInSyncSelect": [],
-   "consumers": 185,
+   "consumers": 186,
    "columns": {
     "saleSearch": 17,
     "rentalSearch": 17,
@@ -15460,8 +15366,8 @@
     "rentalTools": 14,
     "cma": 8,
     "reporting": 8,
-    "publicVisibility": 7,
-    "memberVisibility": 9,
+    "publicVisibility": 8,
+    "memberVisibility": 10,
     "compliance": 7
    }
   },
@@ -15473,11 +15379,11 @@
    "servedFields": 19,
    "servedPopulated": 14,
    "verdictPrimary": "NO-POPULATED-FIELDS",
-   "verdictServed": "DEFECT",
+   "verdictServed": "PARTIAL",
    "counts": {
     "COMPLETE": 4,
-    "UNVERIFIED": 1,
-    "DEFECT": 1,
+    "UNVERIFIED": 2,
+    "DEFECT": 0,
     "PARTIAL": 7,
     "MISSING": 1
    },
@@ -15497,8 +15403,8 @@
     "rentalTools": 6,
     "cma": 6,
     "reporting": 5,
-    "publicVisibility": 4,
-    "memberVisibility": 4,
+    "publicVisibility": 5,
+    "memberVisibility": 5,
     "compliance": 3
    }
   },
@@ -15510,11 +15416,11 @@
    "servedFields": 63,
    "servedPopulated": 47,
    "verdictPrimary": "NO-POPULATED-FIELDS",
-   "verdictServed": "DEFECT",
+   "verdictServed": "PARTIAL",
    "counts": {
     "COMPLETE": 3,
-    "UNVERIFIED": 23,
-    "DEFECT": 1,
+    "UNVERIFIED": 24,
+    "DEFECT": 0,
     "PARTIAL": 14,
     "MISSING": 6
    },
@@ -15536,8 +15442,8 @@
     "rentalTools": 31,
     "cma": 22,
     "reporting": 22,
-    "publicVisibility": 24,
-    "memberVisibility": 44,
+    "publicVisibility": 25,
+    "memberVisibility": 45,
     "compliance": 27
    }
   },
@@ -15549,11 +15455,11 @@
    "servedFields": 310,
    "servedPopulated": 168,
    "verdictPrimary": "NO-POPULATED-FIELDS",
-   "verdictServed": "DEFECT",
+   "verdictServed": "PARTIAL",
    "counts": {
     "COMPLETE": 7,
-    "UNVERIFIED": 35,
-    "DEFECT": 1,
+    "UNVERIFIED": 36,
+    "DEFECT": 0,
     "PARTIAL": 60,
     "MISSING": 65
    },
@@ -15609,16 +15515,16 @@
    ],
    "consumers": 205,
    "columns": {
-    "saleSearch": 54,
-    "rentalSearch": 54,
+    "saleSearch": 55,
+    "rentalSearch": 55,
     "saleForm": 54,
     "rentalForm": 54,
     "saleTools": 44,
     "rentalTools": 41,
     "cma": 24,
     "reporting": 25,
-    "publicVisibility": 85,
-    "memberVisibility": 36,
+    "publicVisibility": 86,
+    "memberVisibility": 37,
     "compliance": 47
    }
   },
@@ -15664,35 +15570,37 @@
    "kind": "business",
    "primaryFields": 0,
    "primaryPopulated": 0,
-   "servedFields": 118,
-   "servedPopulated": 91,
+   "servedFields": 120,
+   "servedPopulated": 93,
    "verdictPrimary": "NO-POPULATED-FIELDS",
-   "verdictServed": "DEFECT",
+   "verdictServed": "PARTIAL",
    "counts": {
     "COMPLETE": 6,
-    "UNVERIFIED": 37,
-    "DEFECT": 1,
-    "PARTIAL": 46,
-    "MISSING": 1
+    "UNVERIFIED": 38,
+    "DEFECT": 0,
+    "PARTIAL": 47,
+    "MISSING": 2
    },
    "availability": {
-    "POPULATED": 91,
+    "POPULATED": 93,
     "NOT-ON-FEED (not RLS-defined)": 15,
     "SUPPRESSED": 12
    },
-   "notInSyncSelect": [],
+   "notInSyncSelect": [
+    "Electric"
+   ],
    "consumers": 212,
    "columns": {
-    "saleSearch": 63,
-    "rentalSearch": 63,
+    "saleSearch": 65,
+    "rentalSearch": 65,
     "saleForm": 47,
     "rentalForm": 56,
     "saleTools": 46,
     "rentalTools": 44,
     "cma": 25,
     "reporting": 27,
-    "publicVisibility": 52,
-    "memberVisibility": 35,
+    "publicVisibility": 54,
+    "memberVisibility": 36,
     "compliance": 43
    }
   },
@@ -15704,11 +15612,11 @@
    "servedFields": 83,
    "servedPopulated": 62,
    "verdictPrimary": "NO-POPULATED-FIELDS",
-   "verdictServed": "DEFECT",
+   "verdictServed": "PARTIAL",
    "counts": {
     "COMPLETE": 5,
-    "UNVERIFIED": 26,
-    "DEFECT": 1,
+    "UNVERIFIED": 27,
+    "DEFECT": 0,
     "PARTIAL": 29,
     "MISSING": 1
    },
@@ -15728,8 +15636,8 @@
     "rentalTools": 44,
     "cma": 25,
     "reporting": 25,
-    "publicVisibility": 31,
-    "memberVisibility": 30,
+    "publicVisibility": 32,
+    "memberVisibility": 31,
     "compliance": 30
    }
   },
@@ -15741,11 +15649,11 @@
    "servedFields": 265,
    "servedPopulated": 141,
    "verdictPrimary": "NO-POPULATED-FIELDS",
-   "verdictServed": "DEFECT",
+   "verdictServed": "PARTIAL",
    "counts": {
     "COMPLETE": 4,
-    "UNVERIFIED": 33,
-    "DEFECT": 1,
+    "UNVERIFIED": 34,
+    "DEFECT": 0,
     "PARTIAL": 41,
     "MISSING": 62
    },
@@ -15806,8 +15714,8 @@
     "rentalTools": 39,
     "cma": 21,
     "reporting": 28,
-    "publicVisibility": 47,
-    "memberVisibility": 36,
+    "publicVisibility": 48,
+    "memberVisibility": 37,
     "compliance": 38
    }
   },
@@ -15853,35 +15761,37 @@
    "kind": "business",
    "primaryFields": 0,
    "primaryPopulated": 0,
-   "servedFields": 100,
-   "servedPopulated": 84,
+   "servedFields": 102,
+   "servedPopulated": 86,
    "verdictPrimary": "NO-POPULATED-FIELDS",
-   "verdictServed": "DEFECT",
+   "verdictServed": "PARTIAL",
    "counts": {
     "COMPLETE": 6,
-    "UNVERIFIED": 37,
-    "DEFECT": 1,
-    "PARTIAL": 39,
-    "MISSING": 1
+    "UNVERIFIED": 38,
+    "DEFECT": 0,
+    "PARTIAL": 40,
+    "MISSING": 2
    },
    "availability": {
-    "POPULATED": 84,
+    "POPULATED": 86,
     "NOT-ON-FEED (not RLS-defined)": 6,
     "SUPPRESSED": 10
    },
-   "notInSyncSelect": [],
+   "notInSyncSelect": [
+    "Electric"
+   ],
    "consumers": 210,
    "columns": {
-    "saleSearch": 63,
-    "rentalSearch": 63,
+    "saleSearch": 65,
+    "rentalSearch": 65,
     "saleForm": 47,
     "rentalForm": 49,
     "saleTools": 46,
     "rentalTools": 44,
     "cma": 25,
     "reporting": 27,
-    "publicVisibility": 52,
-    "memberVisibility": 35,
+    "publicVisibility": 54,
+    "memberVisibility": 36,
     "compliance": 43
    }
   },
@@ -15893,11 +15803,11 @@
    "servedFields": 62,
    "servedPopulated": 53,
    "verdictPrimary": "NO-POPULATED-FIELDS",
-   "verdictServed": "DEFECT",
+   "verdictServed": "PARTIAL",
    "counts": {
     "COMPLETE": 5,
-    "UNVERIFIED": 25,
-    "DEFECT": 1,
+    "UNVERIFIED": 26,
+    "DEFECT": 0,
     "PARTIAL": 21,
     "MISSING": 1
    },
@@ -15917,8 +15827,8 @@
     "rentalTools": 43,
     "cma": 25,
     "reporting": 27,
-    "publicVisibility": 32,
-    "memberVisibility": 30,
+    "publicVisibility": 33,
+    "memberVisibility": 31,
     "compliance": 30
    }
   },
@@ -16005,11 +15915,11 @@
    "servedFields": 18,
    "servedPopulated": 14,
    "verdictPrimary": "NO-POPULATED-FIELDS",
-   "verdictServed": "DEFECT",
+   "verdictServed": "PARTIAL",
    "counts": {
     "COMPLETE": 3,
-    "UNVERIFIED": 9,
-    "DEFECT": 1,
+    "UNVERIFIED": 10,
+    "DEFECT": 0,
     "PARTIAL": 0,
     "MISSING": 1
    },
@@ -16028,8 +15938,8 @@
     "rentalTools": 13,
     "cma": 13,
     "reporting": 13,
-    "publicVisibility": 10,
-    "memberVisibility": 10,
+    "publicVisibility": 11,
+    "memberVisibility": 11,
     "compliance": 10
    }
   }
@@ -18262,7 +18172,7 @@
        "typed": 0,
        "coOccurring": 6,
        "sites": [
-        "lib/idx/trestle-mapper.ts:224",
+        "lib/idx/trestle-mapper.ts:225",
         "lib/buildings/public-building-data.ts:93",
         "app/api/buildings/search/route.ts:358",
         "app/api/buildings/search/route.ts:812",
@@ -21347,7 +21257,7 @@
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/idx/trestle-mapper.ts:55"
+        "lib/idx/trestle-mapper.ts:56"
        ]
       }
      },
@@ -24901,7 +24811,7 @@
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/idx/trestle-mapper.ts:285"
+        "lib/idx/trestle-mapper.ts:286"
        ]
       },
       "None": {
@@ -24915,7 +24825,7 @@
        "typed": 0,
        "coOccurring": 2,
        "sites": [
-        "lib/idx/trestle-mapper.ts:212",
+        "lib/idx/trestle-mapper.ts:213",
         "lib/buildings/upsert.ts:244"
        ]
       },
@@ -24923,7 +24833,7 @@
        "typed": 0,
        "coOccurring": 2,
        "sites": [
-        "lib/idx/trestle-mapper.ts:215",
+        "lib/idx/trestle-mapper.ts:216",
         "lib/buildings/upsert.ts:249"
        ]
       },
@@ -29248,7 +29158,7 @@
        "typed": 0,
        "coOccurring": 3,
        "sites": [
-        "lib/idx/trestle-mapper.ts:851",
+        "lib/idx/trestle-mapper.ts:852",
         "lib/compliance/rebny-ucba-rules.ts:774",
         "lib/compliance/rebny-ucba-rules.ts:887"
        ]
@@ -29968,9 +29878,9 @@
       "status": "PASS",
       "sites": [
        "lib/search/engine/universe.ts:88",
-       "lib/search/public-listing-db.ts:252",
-       "lib/search/public-listing-db.ts:254",
+       "lib/search/public-listing-db.ts:255",
        "lib/search/public-listing-db.ts:257",
+       "lib/search/public-listing-db.ts:260",
        "app/api/listings/route.ts:352",
        "app/api/listings/route.ts:1337"
       ]
@@ -29982,21 +29892,21 @@
      "sorting": {
       "status": "PASS",
       "sites": [
-       "lib/search/public-listing-db.ts:252",
-       "lib/search/public-listing-db.ts:254",
-       "lib/search/public-listing-db.ts:257"
+       "lib/search/public-listing-db.ts:255",
+       "lib/search/public-listing-db.ts:257",
+       "lib/search/public-listing-db.ts:260"
       ]
      },
      "saleSearch": {
       "status": "PASS",
       "sites": [
        "lib/search/engine/universe.ts:88",
-       "lib/search/public-listing-db.ts:252",
-       "lib/search/public-listing-db.ts:252",
-       "lib/search/public-listing-db.ts:254",
-       "lib/search/public-listing-db.ts:254",
+       "lib/search/public-listing-db.ts:255",
+       "lib/search/public-listing-db.ts:255",
        "lib/search/public-listing-db.ts:257",
        "lib/search/public-listing-db.ts:257",
+       "lib/search/public-listing-db.ts:260",
+       "lib/search/public-listing-db.ts:260",
        "app/api/listings/route.ts:352",
        "app/api/listings/route.ts:1337"
       ]
@@ -30005,12 +29915,12 @@
       "status": "PASS",
       "sites": [
        "lib/search/engine/universe.ts:88",
-       "lib/search/public-listing-db.ts:252",
-       "lib/search/public-listing-db.ts:252",
-       "lib/search/public-listing-db.ts:254",
-       "lib/search/public-listing-db.ts:254",
+       "lib/search/public-listing-db.ts:255",
+       "lib/search/public-listing-db.ts:255",
        "lib/search/public-listing-db.ts:257",
        "lib/search/public-listing-db.ts:257",
+       "lib/search/public-listing-db.ts:260",
+       "lib/search/public-listing-db.ts:260",
        "app/api/listings/route.ts:352",
        "app/api/listings/route.ts:1337"
       ]
@@ -30733,7 +30643,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 252,
+      "line": 255,
       "node": "listings.bathrooms_full",
       "tier": "typed",
       "workflow": "both"
@@ -30741,23 +30651,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 252,
-      "node": "listings.bathrooms_full",
-      "tier": "typed",
-      "workflow": "both"
-     },
-     {
-      "stage": "criterion",
-      "file": "lib/search/public-listing-db.ts",
-      "line": 254,
-      "node": "listings.bathrooms_full",
-      "tier": "typed",
-      "workflow": "both"
-     },
-     {
-      "stage": "sorting",
-      "file": "lib/search/public-listing-db.ts",
-      "line": 254,
+      "line": 255,
       "node": "listings.bathrooms_full",
       "tier": "typed",
       "workflow": "both"
@@ -30774,6 +30668,22 @@
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
       "line": 257,
+      "node": "listings.bathrooms_full",
+      "tier": "typed",
+      "workflow": "both"
+     },
+     {
+      "stage": "criterion",
+      "file": "lib/search/public-listing-db.ts",
+      "line": 260,
+      "node": "listings.bathrooms_full",
+      "tier": "typed",
+      "workflow": "both"
+     },
+     {
+      "stage": "sorting",
+      "file": "lib/search/public-listing-db.ts",
+      "line": 260,
       "node": "listings.bathrooms_full",
       "tier": "typed",
       "workflow": "both"
@@ -31038,7 +30948,7 @@
       "status": "PASS",
       "sites": [
        "lib/search/engine/universe.ts:88",
-       "lib/search/public-listing-db.ts:255",
+       "lib/search/public-listing-db.ts:258",
        "app/api/listings/route.ts:353",
        "app/api/listings/route.ts:1338"
       ]
@@ -31050,15 +30960,15 @@
      "sorting": {
       "status": "PASS",
       "sites": [
-       "lib/search/public-listing-db.ts:255"
+       "lib/search/public-listing-db.ts:258"
       ]
      },
      "saleSearch": {
       "status": "PASS",
       "sites": [
        "lib/search/engine/universe.ts:88",
-       "lib/search/public-listing-db.ts:255",
-       "lib/search/public-listing-db.ts:255",
+       "lib/search/public-listing-db.ts:258",
+       "lib/search/public-listing-db.ts:258",
        "app/api/listings/route.ts:353",
        "app/api/listings/route.ts:1338"
       ]
@@ -31067,8 +30977,8 @@
       "status": "PASS",
       "sites": [
        "lib/search/engine/universe.ts:88",
-       "lib/search/public-listing-db.ts:255",
-       "lib/search/public-listing-db.ts:255",
+       "lib/search/public-listing-db.ts:258",
+       "lib/search/public-listing-db.ts:258",
        "app/api/listings/route.ts:353",
        "app/api/listings/route.ts:1338"
       ]
@@ -31624,7 +31534,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 255,
+      "line": 258,
       "node": "listings.bathrooms_half",
       "tier": "typed",
       "workflow": "both"
@@ -31632,7 +31542,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 255,
+      "line": 258,
       "node": "listings.bathrooms_half",
       "tier": "typed",
       "workflow": "both"
@@ -33393,10 +33303,10 @@
       "status": "PASS",
       "sites": [
        "lib/search/canonical/field-registry.ts:155",
-       "lib/search/public-listing-db.ts:244",
-       "lib/search/public-listing-db.ts:245",
-       "lib/search/public-listing-db.ts:246",
-       "lib/search/public-listing-db.ts:328",
+       "lib/search/public-listing-db.ts:247",
+       "lib/search/public-listing-db.ts:248",
+       "lib/search/public-listing-db.ts:249",
+       "lib/search/public-listing-db.ts:331",
        "app/api/listings/route.ts:351",
        "app/api/listings/route.ts:1305",
        "app/api/listings/route.ts:1336"
@@ -33409,24 +33319,24 @@
      "sorting": {
       "status": "PASS",
       "sites": [
-       "lib/search/public-listing-db.ts:244",
-       "lib/search/public-listing-db.ts:245",
-       "lib/search/public-listing-db.ts:246",
-       "lib/search/public-listing-db.ts:328"
+       "lib/search/public-listing-db.ts:247",
+       "lib/search/public-listing-db.ts:248",
+       "lib/search/public-listing-db.ts:249",
+       "lib/search/public-listing-db.ts:331"
       ]
      },
      "saleSearch": {
       "status": "PASS",
       "sites": [
        "lib/search/canonical/field-registry.ts:155",
-       "lib/search/public-listing-db.ts:244",
-       "lib/search/public-listing-db.ts:244",
-       "lib/search/public-listing-db.ts:245",
-       "lib/search/public-listing-db.ts:245",
-       "lib/search/public-listing-db.ts:246",
-       "lib/search/public-listing-db.ts:246",
-       "lib/search/public-listing-db.ts:328",
-       "lib/search/public-listing-db.ts:328",
+       "lib/search/public-listing-db.ts:247",
+       "lib/search/public-listing-db.ts:247",
+       "lib/search/public-listing-db.ts:248",
+       "lib/search/public-listing-db.ts:248",
+       "lib/search/public-listing-db.ts:249",
+       "lib/search/public-listing-db.ts:249",
+       "lib/search/public-listing-db.ts:331",
+       "lib/search/public-listing-db.ts:331",
        "app/api/listings/route.ts:351",
        "app/api/listings/route.ts:1305",
        "app/api/listings/route.ts:1336"
@@ -33436,14 +33346,14 @@
       "status": "PASS",
       "sites": [
        "lib/search/canonical/field-registry.ts:155",
-       "lib/search/public-listing-db.ts:244",
-       "lib/search/public-listing-db.ts:244",
-       "lib/search/public-listing-db.ts:245",
-       "lib/search/public-listing-db.ts:245",
-       "lib/search/public-listing-db.ts:246",
-       "lib/search/public-listing-db.ts:246",
-       "lib/search/public-listing-db.ts:328",
-       "lib/search/public-listing-db.ts:328",
+       "lib/search/public-listing-db.ts:247",
+       "lib/search/public-listing-db.ts:247",
+       "lib/search/public-listing-db.ts:248",
+       "lib/search/public-listing-db.ts:248",
+       "lib/search/public-listing-db.ts:249",
+       "lib/search/public-listing-db.ts:249",
+       "lib/search/public-listing-db.ts:331",
+       "lib/search/public-listing-db.ts:331",
        "app/api/listings/route.ts:351",
        "app/api/listings/route.ts:1305",
        "app/api/listings/route.ts:1336"
@@ -34242,7 +34152,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 244,
+      "line": 247,
       "node": "listings.bedrooms_total",
       "tier": "typed",
       "workflow": "both"
@@ -34250,7 +34160,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 244,
+      "line": 247,
       "node": "listings.bedrooms_total",
       "tier": "typed",
       "workflow": "both"
@@ -34258,7 +34168,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 245,
+      "line": 248,
       "node": "listings.bedrooms_total",
       "tier": "typed",
       "workflow": "both"
@@ -34266,7 +34176,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 245,
+      "line": 248,
       "node": "listings.bedrooms_total",
       "tier": "typed",
       "workflow": "both"
@@ -34274,7 +34184,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 246,
+      "line": 249,
       "node": "listings.bedrooms_total",
       "tier": "typed",
       "workflow": "both"
@@ -34282,7 +34192,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 246,
+      "line": 249,
       "node": "listings.bedrooms_total",
       "tier": "typed",
       "workflow": "both"
@@ -34290,7 +34200,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 328,
+      "line": 331,
       "node": "listings.bedrooms_total",
       "tier": "typed",
       "workflow": "both"
@@ -34298,7 +34208,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 328,
+      "line": 331,
       "node": "listings.bedrooms_total",
       "tier": "typed",
       "workflow": "both"
@@ -38500,7 +38410,7 @@
        "typed": 0,
        "coOccurring": 5,
        "sites": [
-        "lib/idx/trestle-mapper.ts:284",
+        "lib/idx/trestle-mapper.ts:285",
         "lib/buildings/public-building-data.ts:99",
         "lib/search/types.ts:132",
         "lib/search/types.ts:133",
@@ -38664,7 +38574,7 @@
        "typed": 0,
        "coOccurring": 6,
        "sites": [
-        "lib/idx/trestle-mapper.ts:198",
+        "lib/idx/trestle-mapper.ts:199",
         "lib/buildings/public-building-data.ts:83",
         "lib/listings/mallan-form-contract.ts:82",
         "lib/search/engine/select.ts:23",
@@ -38697,9 +38607,9 @@
        "typed": 0,
        "coOccurring": 3,
        "sites": [
-        "lib/search/types.ts:212",
+        "lib/search/types.ts:216",
         "lib/crm/listing-form-mapping.ts:60",
-        "lib/search/public-listing-db.ts:204"
+        "lib/search/public-listing-db.ts:207"
        ]
       },
       "OnSiteManagement": {
@@ -38730,7 +38640,7 @@
        "sites": [
         "app/api/buildings/search/route.ts:376",
         "lib/search/types.ts:136",
-        "lib/search/types.ts:213"
+        "lib/search/types.ts:217"
        ]
       },
       "RecreationRoom": {
@@ -39186,6 +39096,7 @@
       "status": "PASS",
       "files": [
        "lib/crm/__tests__/live-enum-boundary.test.ts",
+       "lib/search/__tests__/amenity-vocabulary.test.ts",
        "lib/search/__tests__/listing-search-projection.test.ts",
        "lib/search/__tests__/public-listing-trestle.test.ts",
        "tests/runtime/building-cotality-full-subset.test.ts",
@@ -50996,7 +50907,7 @@
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/idx/trestle-mapper.ts:851"
+        "lib/idx/trestle-mapper.ts:852"
        ]
       }
      },
@@ -59587,7 +59498,7 @@
        "lib/search/engine/criteria.ts:116",
        "lib/search/engine/criteria.ts:209",
        "lib/search/canonical/field-registry.ts:125",
-       "lib/search/public-listing-db.ts:270",
+       "lib/search/public-listing-db.ts:273",
        "app/api/listings/route.ts:355",
        "app/api/listings/route.ts:1308",
        "app/api/listings/route.ts:1340"
@@ -59600,7 +59511,7 @@
      "sorting": {
       "status": "PASS",
       "sites": [
-       "lib/search/public-listing-db.ts:270"
+       "lib/search/public-listing-db.ts:273"
       ]
      },
      "saleSearch": {
@@ -59609,8 +59520,8 @@
        "lib/search/engine/criteria.ts:116",
        "lib/search/engine/criteria.ts:209",
        "lib/search/canonical/field-registry.ts:125",
-       "lib/search/public-listing-db.ts:270",
-       "lib/search/public-listing-db.ts:270",
+       "lib/search/public-listing-db.ts:273",
+       "lib/search/public-listing-db.ts:273",
        "app/api/listings/route.ts:355",
        "app/api/listings/route.ts:1308",
        "app/api/listings/route.ts:1340"
@@ -59622,8 +59533,8 @@
        "lib/search/engine/criteria.ts:116",
        "lib/search/engine/criteria.ts:209",
        "lib/search/canonical/field-registry.ts:125",
-       "lib/search/public-listing-db.ts:270",
-       "lib/search/public-listing-db.ts:270",
+       "lib/search/public-listing-db.ts:273",
+       "lib/search/public-listing-db.ts:273",
        "app/api/listings/route.ts:355",
        "app/api/listings/route.ts:1308",
        "app/api/listings/route.ts:1340"
@@ -60467,7 +60378,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 270,
+      "line": 273,
       "node": "listings.borough",
       "tier": "typed",
       "workflow": "both"
@@ -60475,7 +60386,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 270,
+      "line": 273,
       "node": "listings.borough",
       "tier": "typed",
       "workflow": "both"
@@ -116257,9 +116168,17 @@
       },
       "Electric": {
        "typed": 0,
+       "coOccurring": 2,
+       "sites": [
+        "lib/search/types.ts:152",
+        "lib/buildings/upsert.ts:247"
+       ]
+      },
+      "Gas": {
+       "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/buildings/upsert.ts:247"
+        "lib/search/types.ts:152"
        ]
       },
       "None": {
@@ -116293,7 +116212,6 @@
       "ExhaustFan",
       "ForcedAir",
       "Full",
-      "Gas",
       "Geothermal",
       "HeatPump",
       "HighEfficiency",
@@ -138583,7 +138501,9 @@
    },
    "domainsServed": [
     "Listing workspace",
-    "Public display"
+    "Public display",
+    "Rental Search",
+    "Sale Search"
    ],
    "mallan": {
     "stage": {
@@ -138609,8 +138529,10 @@
       "note": "not a Mallan-editable field (no persistenceMap entry)"
      },
      "projection": {
-      "status": "MISSING",
-      "sites": []
+      "status": "PASS",
+      "sites": [
+       "lib/search/types.ts:152"
+      ]
      },
      "criterion": {
       "status": "MISSING",
@@ -138625,12 +138547,16 @@
       "sites": []
      },
      "saleSearch": {
-      "status": "MISSING",
-      "sites": []
+      "status": "PASS",
+      "sites": [
+       "lib/search/types.ts:152"
+      ]
      },
      "rentalSearch": {
-      "status": "MISSING",
-      "sites": []
+      "status": "PASS",
+      "sites": [
+       "lib/search/types.ts:152"
+      ]
      },
      "saleForm": {
       "status": "MISSING",
@@ -138657,8 +138583,9 @@
       "sites": []
      },
      "resultCard": {
-      "status": "MISSING",
-      "sites": []
+      "status": "REACHABLE",
+      "sites": [],
+      "via": "app/components/SearchChips.tsx ← lib/search/types.ts"
      },
      "listingWorkspace": {
       "status": "PASS",
@@ -138672,8 +138599,9 @@
       "sites": []
      },
      "alerts": {
-      "status": "MISSING",
-      "sites": []
+      "status": "REACHABLE",
+      "sites": [],
+      "via": "lib/search/alert-delivery-history.ts ← lib/search/types.ts"
      },
      "cma": {
       "status": "MISSING",
@@ -138742,7 +138670,7 @@
       "status": "UNVERIFIED"
      },
      "searchPath": {
-      "status": "MISSING"
+      "status": "PASS"
      },
      "publicBehavior": {
       "status": "UNVERIFIED"
@@ -138763,8 +138691,8 @@
      "mapping": "MISSING",
      "storage": "MISSING",
      "reload": "N/A",
-     "saleSearch": "MISSING",
-     "rentalSearch": "MISSING",
+     "saleSearch": "PASS",
+     "rentalSearch": "PASS",
      "saleForm": "MISSING",
      "rentalForm": "MISSING",
      "saleTools": "MISSING",
@@ -138798,8 +138726,16 @@
     "deadPath": false,
     "editable": false,
     "canonicalKeys": [],
-    "consumers": 3,
+    "consumers": 4,
     "consumerSites": [
+     {
+      "stage": "projection",
+      "file": "lib/search/types.ts",
+      "line": 152,
+      "node": "provider:Property.Electric",
+      "tier": "string-literal",
+      "workflow": "both"
+     },
      {
       "stage": "publicConsumer",
       "file": "lib/buildings/upsert.ts",
@@ -143326,7 +143262,7 @@
      "amenityMap": {
       "status": "PASS",
       "keys": [
-       "roof-deck: RoofDeck|BuildingRoofDeck",
+       "roof-deck: BuildingRoofDeck|Deck",
        "outdoor-space: Balcony|BuildingBalcony|PrivateOutdoorSpaceOver60Sqft|PrivateOutdoorSpaceUnder60Sqft|PrivateYard|Garden"
       ]
      },
@@ -145771,15 +145707,129 @@
        "typed": 0,
        "coOccurring": 2,
        "sites": [
-        "lib/idx/trestle-mapper.ts:214",
+        "lib/idx/trestle-mapper.ts:215",
         "lib/compliance/rebny-ucba-rules.ts:555"
+       ]
+      },
+      "Circulating": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/types.ts:152"
+       ]
+      },
+      "Decorative": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/types.ts:152"
+       ]
+      },
+      "DoubleSided": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/types.ts:152"
+       ]
+      },
+      "Electric": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/types.ts:152"
+       ]
+      },
+      "EpaCertifiedWoodStove": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/types.ts:152"
+       ]
+      },
+      "Gas": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/types.ts:152"
+       ]
+      },
+      "GlassDoors": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/types.ts:152"
+       ]
+      },
+      "Heatilator": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/types.ts:152"
+       ]
+      },
+      "Insert": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/types.ts:152"
        ]
       },
       "Loft": {
        "typed": 0,
+       "coOccurring": 3,
+       "sites": [
+        "lib/compliance/rebny-ucba-rules.ts:508",
+        "lib/search/types.ts:206",
+        "lib/search/public-listing-db.ts:24"
+       ]
+      },
+      "Masonry": {
+       "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/compliance/rebny-ucba-rules.ts:508"
+        "lib/search/types.ts:152"
+       ]
+      },
+      "Metal": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/types.ts:152"
+       ]
+      },
+      "Propane": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/types.ts:152"
+       ]
+      },
+      "Stone": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/types.ts:152"
+       ]
+      },
+      "Ventless": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/types.ts:152"
+       ]
+      },
+      "WoodBurning": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/types.ts:152"
+       ]
+      },
+      "WoodBurningStove": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/types.ts:152"
        ]
       }
      },
@@ -145790,16 +145840,11 @@
       "BonusRoom",
       "Brass",
       "Ceramic",
-      "Circulating",
       "Coal",
       "Custom",
-      "Decorative",
       "Den",
       "DiningRoom",
-      "DoubleSided",
-      "Electric",
       "Entrance",
-      "EpaCertifiedWoodStove",
       "EpaQualifiedFireplace",
       "FactoryBuilt",
       "FamilyLivingGreatRoom",
@@ -145808,16 +145853,12 @@
       "FireplaceEquipment",
       "FireplaceScreen",
       "FreeStanding",
-      "Gas",
       "GasLog",
       "GasStarter",
-      "GlassDoors",
       "Grate",
       "GreatRoom",
       "GuestAccommodations",
       "HearthRoom",
-      "Heatilator",
-      "Insert",
       "KeepingRoom",
       "Kitchen",
       "Kiva",
@@ -145829,9 +145870,7 @@
       "MainLevel",
       "Mantle",
       "Marble",
-      "Masonry",
       "MasterBedroom",
-      "Metal",
       "MultiSided",
       "Multiple",
       "None",
@@ -145842,14 +145881,12 @@
       "Outside",
       "PelletStove",
       "PrimaryBedroom",
-      "Propane",
       "RaisedHearth",
       "RecreationRoom",
       "RoughIn",
       "SealedCombustion",
       "SeeRemarks",
       "SeeThrough",
-      "Stone",
       "Stove",
       "SunRoom",
       "Three",
@@ -145857,9 +145894,6 @@
       "Two",
       "UpperLevel",
       "Vented",
-      "Ventless",
-      "WoodBurning",
-      "WoodBurningStove",
       "ZeroClearance"
      ]
     },
@@ -145873,7 +145907,9 @@
     "category": "searchable"
    },
    "domainsServed": [
-    "Compliance"
+    "Compliance",
+    "Rental Search",
+    "Sale Search"
    ],
    "mallan": {
     "stage": {
@@ -145917,19 +145953,21 @@
       "sites": []
      },
      "amenityMap": {
-      "status": "MISSING",
-      "keys": []
+      "status": "PASS",
+      "keys": [
+       "fireplace: Fireplace|WoodBurning|Decorative|Gas|Electric|Masonry|Stone|Insert|GlassDoors|DoubleSided|Ventless|Propane|WoodBurningStove|EpaCertifiedWoodStove|Heatilator|Circulating|Metal"
+      ]
      },
      "sorting": {
       "status": "MISSING",
       "sites": []
      },
      "saleSearch": {
-      "status": "MISSING",
+      "status": "PASS",
       "sites": []
      },
      "rentalSearch": {
-      "status": "MISSING",
+      "status": "PASS",
       "sites": []
      },
      "saleForm": {
@@ -146010,12 +146048,16 @@
       "sites": []
      },
      "directTest": {
-      "status": "MISSING",
-      "files": []
+      "status": "PASS",
+      "files": [
+       "lib/search/__tests__/amenity-vocabulary.test.ts"
+      ]
      },
      "negativeTest": {
-      "status": "MISSING",
-      "files": [],
+      "status": "PASS",
+      "files": [
+       "lib/search/__tests__/amenity-vocabulary.test.ts"
+      ],
       "basis": "heuristic: field within 3 lines of a negative matcher"
      },
      "integrationTest": {
@@ -146038,7 +146080,7 @@
       "status": "UNVERIFIED"
      },
      "searchPath": {
-      "status": "MISSING"
+      "status": "PASS"
      },
      "publicBehavior": {
       "status": "UNVERIFIED"
@@ -146059,8 +146101,8 @@
      "mapping": "PASS",
      "storage": "PASS",
      "reload": "MISSING",
-     "saleSearch": "MISSING",
-     "rentalSearch": "MISSING",
+     "saleSearch": "PASS",
+     "rentalSearch": "PASS",
      "saleForm": "MISSING",
      "rentalForm": "MISSING",
      "saleTools": "MISSING",
@@ -146084,12 +146126,9 @@
      "directTest"
     ],
     "missingStatic": [
-     "saleSearch",
-     "rentalSearch",
      "resultDto",
      "resultCard",
-     "publicConsumer",
-     "directTest"
+     "publicConsumer"
     ],
     "defects": [],
     "unverified": [],
@@ -148231,7 +148270,7 @@
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/idx/trestle-mapper.ts:214"
+        "lib/idx/trestle-mapper.ts:215"
        ]
       }
      },
@@ -149928,8 +149967,8 @@
        "coOccurring": 18,
        "sites": [
         "lib/compliance/raw-data-keep-fields.ts:239",
-        "lib/idx/trestle-mapper.ts:287",
-        "lib/idx/trestle-mapper.ts:353",
+        "lib/idx/trestle-mapper.ts:288",
+        "lib/idx/trestle-mapper.ts:354",
         "lib/compliance/rebny-ucba-rules.ts:279",
         "lib/compliance/rebny-ucba-rules.ts:416",
         "lib/idx/card-fields.ts:58"
@@ -152977,7 +153016,7 @@
        "typed": 0,
        "coOccurring": 3,
        "sites": [
-        "lib/idx/trestle-mapper.ts:284",
+        "lib/idx/trestle-mapper.ts:285",
         "lib/buildings/public-building-data.ts:99",
         "lib/buildings/upsert.ts:241"
        ]
@@ -152986,7 +153025,7 @@
        "typed": 0,
        "coOccurring": 2,
        "sites": [
-        "lib/idx/trestle-mapper.ts:212",
+        "lib/idx/trestle-mapper.ts:213",
         "lib/buildings/upsert.ts:244"
        ]
       }
@@ -161296,11 +161335,7 @@
       "status": "PASS",
       "sites": [
        "lib/search/types.ts:148",
-       "lib/search/types.ts:149",
-       "lib/search/types.ts:150",
-       "lib/search/types.ts:151",
-       "lib/search/types.ts:152",
-       "lib/search/types.ts:153"
+       "lib/search/types.ts:149"
       ]
      },
      "criterion": {
@@ -161313,12 +161348,9 @@
       "status": "PASS",
       "keys": [
        "elevator: Elevators|Elevator",
-       "walk-in-closet: WalkInClosets|WalkInCloset",
-       "high-ceilings: HighCeilings|HighCeiling",
-       "fireplace: WoodBurningFireplace|DecorativeFireplace|Fireplace",
-       "natural-light: NaturalLight",
-       "renovated: Renovated|GutRenovated|NewlyRenovated",
-       "quiet: Quiet"
+       "walk-in-closet: WalkInClosets",
+       "high-ceilings: HighCeilings",
+       "fireplace: Fireplace|WoodBurning|Decorative|Gas|Electric|Masonry|Stone|Insert|GlassDoors|DoubleSided|Ventless|Propane|WoodBurningStove|EpaCertifiedWoodStove|Heatilator|Circulating|Metal"
       ]
      },
      "sorting": {
@@ -161330,10 +161362,6 @@
       "sites": [
        "lib/search/types.ts:148",
        "lib/search/types.ts:149",
-       "lib/search/types.ts:150",
-       "lib/search/types.ts:151",
-       "lib/search/types.ts:152",
-       "lib/search/types.ts:153",
        "lib/search/canonical/live-truth.ts:147"
       ]
      },
@@ -161342,10 +161370,6 @@
       "sites": [
        "lib/search/types.ts:148",
        "lib/search/types.ts:149",
-       "lib/search/types.ts:150",
-       "lib/search/types.ts:151",
-       "lib/search/types.ts:152",
-       "lib/search/types.ts:153",
        "lib/search/canonical/live-truth.ts:147"
       ]
      },
@@ -161475,6 +161499,7 @@
       "status": "PASS",
       "files": [
        "lib/compliance/__tests__/raw-data-keep-fields.test.ts",
+       "lib/search/__tests__/amenity-vocabulary.test.ts",
        "lib/search/__tests__/listing-search-projection.test.ts",
        "lib/search/__tests__/public-listing-db.test.ts",
        "lib/search/__tests__/public-listing-trestle.test.ts",
@@ -161486,6 +161511,7 @@
       "status": "PASS",
       "files": [
        "lib/compliance/__tests__/raw-data-keep-fields.test.ts",
+       "lib/search/__tests__/amenity-vocabulary.test.ts",
        "tests/runtime/cotality-vocabulary-source-authority.test.ts"
       ],
       "basis": "heuristic: field within 3 lines of a negative matcher"
@@ -161569,7 +161595,7 @@
     "deadPath": false,
     "editable": true,
     "canonicalKeys": [],
-    "consumers": 13,
+    "consumers": 9,
     "consumerSites": [
      {
       "stage": "publicConsumer",
@@ -161599,38 +161625,6 @@
       "stage": "projection",
       "file": "lib/search/types.ts",
       "line": 149,
-      "node": "provider:Property.InteriorFeatures",
-      "tier": "string-literal",
-      "workflow": "both"
-     },
-     {
-      "stage": "projection",
-      "file": "lib/search/types.ts",
-      "line": 150,
-      "node": "provider:Property.InteriorFeatures",
-      "tier": "string-literal",
-      "workflow": "both"
-     },
-     {
-      "stage": "projection",
-      "file": "lib/search/types.ts",
-      "line": 151,
-      "node": "provider:Property.InteriorFeatures",
-      "tier": "string-literal",
-      "workflow": "both"
-     },
-     {
-      "stage": "projection",
-      "file": "lib/search/types.ts",
-      "line": 152,
-      "node": "provider:Property.InteriorFeatures",
-      "tier": "string-literal",
-      "workflow": "both"
-     },
-     {
-      "stage": "projection",
-      "file": "lib/search/types.ts",
-      "line": 153,
       "node": "provider:Property.InteriorFeatures",
       "tier": "string-literal",
       "workflow": "both"
@@ -171242,18 +171236,34 @@
      },
      "filterRejectedMembers": [],
      "mallanHandled": {
-      "BuildingInside": {
+      "BuildingInBasement": {
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/buildings/public-building-data.ts:268"
+        "lib/search/types.ts:125"
+       ]
+      },
+      "BuildingInHall": {
+       "typed": 0,
+       "coOccurring": 1,
+       "sites": [
+        "lib/search/types.ts:125"
+       ]
+      },
+      "BuildingInside": {
+       "typed": 0,
+       "coOccurring": 2,
+       "sites": [
+        "lib/buildings/public-building-data.ts:268",
+        "lib/search/types.ts:125"
        ]
       },
       "BuildingMultipleLocations": {
        "typed": 0,
-       "coOccurring": 1,
+       "coOccurring": 2,
        "sites": [
-        "lib/buildings/public-building-data.ts:268"
+        "lib/buildings/public-building-data.ts:268",
+        "lib/search/types.ts:125"
        ]
       },
       "CommonArea": {
@@ -171298,8 +171308,6 @@
      "declaredNotHandled": [
       "AccessibleUtilitiesOrLaundry",
       "BuildingCoinOperated",
-      "BuildingInBasement",
-      "BuildingInHall",
       "BuildingLowerLevel",
       "BuildingMainLevel",
       "BuildingNone",
@@ -171418,7 +171426,7 @@
      "amenityMap": {
       "status": "PASS",
       "keys": [
-       "laundry-room: LaundryRoom|OnCommonFloor|CommonOnFloor|CommonArea"
+       "laundry-room: LaundryRoom|CommonOnFloor|CommonArea|BuildingInBasement|BuildingInHall|BuildingInside|BuildingMultipleLocations"
       ]
      },
      "sorting": {
@@ -171546,6 +171554,7 @@
      "directTest": {
       "status": "PASS",
       "files": [
+       "lib/search/__tests__/amenity-vocabulary.test.ts",
        "tests/runtime/building-cotality-full-subset.test.ts",
        "tests/runtime/building-profile-architecture.test.ts",
        "tests/runtime/crm-listing-round-trip.test.ts",
@@ -196004,13 +196013,13 @@
        "lib/search/engine/universe.ts:148",
        "lib/search/canonical/field-registry.ts:139",
        "lib/search/engine/universe.ts:88",
-       "lib/search/public-listing-db.ts:191",
-       "lib/search/public-listing-db.ts:236",
-       "lib/search/public-listing-db.ts:237",
-       "lib/search/public-listing-db.ts:238",
-       "lib/search/public-listing-db.ts:313",
+       "lib/search/public-listing-db.ts:194",
+       "lib/search/public-listing-db.ts:239",
+       "lib/search/public-listing-db.ts:240",
+       "lib/search/public-listing-db.ts:241",
        "lib/search/public-listing-db.ts:316",
        "lib/search/public-listing-db.ts:319",
+       "lib/search/public-listing-db.ts:322",
        "app/api/listings/route.ts:350",
        "app/api/listings/route.ts:1292",
        "app/api/listings/route.ts:1300",
@@ -196027,13 +196036,13 @@
       "status": "PASS",
       "sites": [
        "lib/search/engine/provider-query.ts:135",
-       "lib/search/public-listing-db.ts:191",
-       "lib/search/public-listing-db.ts:236",
-       "lib/search/public-listing-db.ts:237",
-       "lib/search/public-listing-db.ts:238",
-       "lib/search/public-listing-db.ts:313",
+       "lib/search/public-listing-db.ts:194",
+       "lib/search/public-listing-db.ts:239",
+       "lib/search/public-listing-db.ts:240",
+       "lib/search/public-listing-db.ts:241",
        "lib/search/public-listing-db.ts:316",
-       "lib/search/public-listing-db.ts:319"
+       "lib/search/public-listing-db.ts:319",
+       "lib/search/public-listing-db.ts:322"
       ]
      },
      "saleSearch": {
@@ -196044,20 +196053,20 @@
        "lib/search/engine/universe.ts:148",
        "lib/search/canonical/field-registry.ts:139",
        "lib/search/engine/universe.ts:88",
-       "lib/search/public-listing-db.ts:191",
-       "lib/search/public-listing-db.ts:191",
-       "lib/search/public-listing-db.ts:236",
-       "lib/search/public-listing-db.ts:236",
-       "lib/search/public-listing-db.ts:237",
-       "lib/search/public-listing-db.ts:237",
-       "lib/search/public-listing-db.ts:238",
-       "lib/search/public-listing-db.ts:238",
-       "lib/search/public-listing-db.ts:313",
-       "lib/search/public-listing-db.ts:313",
+       "lib/search/public-listing-db.ts:194",
+       "lib/search/public-listing-db.ts:194",
+       "lib/search/public-listing-db.ts:239",
+       "lib/search/public-listing-db.ts:239",
+       "lib/search/public-listing-db.ts:240",
+       "lib/search/public-listing-db.ts:240",
+       "lib/search/public-listing-db.ts:241",
+       "lib/search/public-listing-db.ts:241",
        "lib/search/public-listing-db.ts:316",
        "lib/search/public-listing-db.ts:316",
        "lib/search/public-listing-db.ts:319",
        "lib/search/public-listing-db.ts:319",
+       "lib/search/public-listing-db.ts:322",
+       "lib/search/public-listing-db.ts:322",
        "app/api/listings/route.ts:350",
        "app/api/listings/route.ts:1292",
        "app/api/listings/route.ts:1300",
@@ -196074,20 +196083,20 @@
        "lib/search/engine/universe.ts:148",
        "lib/search/canonical/field-registry.ts:139",
        "lib/search/engine/universe.ts:88",
-       "lib/search/public-listing-db.ts:191",
-       "lib/search/public-listing-db.ts:191",
-       "lib/search/public-listing-db.ts:236",
-       "lib/search/public-listing-db.ts:236",
-       "lib/search/public-listing-db.ts:237",
-       "lib/search/public-listing-db.ts:237",
-       "lib/search/public-listing-db.ts:238",
-       "lib/search/public-listing-db.ts:238",
-       "lib/search/public-listing-db.ts:313",
-       "lib/search/public-listing-db.ts:313",
+       "lib/search/public-listing-db.ts:194",
+       "lib/search/public-listing-db.ts:194",
+       "lib/search/public-listing-db.ts:239",
+       "lib/search/public-listing-db.ts:239",
+       "lib/search/public-listing-db.ts:240",
+       "lib/search/public-listing-db.ts:240",
+       "lib/search/public-listing-db.ts:241",
+       "lib/search/public-listing-db.ts:241",
        "lib/search/public-listing-db.ts:316",
        "lib/search/public-listing-db.ts:316",
        "lib/search/public-listing-db.ts:319",
        "lib/search/public-listing-db.ts:319",
+       "lib/search/public-listing-db.ts:322",
+       "lib/search/public-listing-db.ts:322",
        "app/api/listings/route.ts:350",
        "app/api/listings/route.ts:1292",
        "app/api/listings/route.ts:1300",
@@ -196358,6 +196367,7 @@
        "lib/idx/__tests__/changed-raw-data-keys.test.ts",
        "lib/idx/__tests__/commit7-write-matrix.test.ts",
        "lib/idx/__tests__/csv-residue.test.ts",
+       "lib/idx/__tests__/custom-fields-ingestion.test.ts",
        "lib/idx/__tests__/forbidden-now-live-drift.test.ts",
        "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
        "lib/idx/__tests__/media-classification-p1c3.test.ts",
@@ -197345,7 +197355,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 191,
+      "line": 194,
       "node": "listings.list_price",
       "tier": "typed",
       "workflow": "both"
@@ -197353,7 +197363,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 191,
+      "line": 194,
       "node": "listings.list_price",
       "tier": "typed",
       "workflow": "both"
@@ -197361,7 +197371,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 236,
+      "line": 239,
       "node": "listings.list_price",
       "tier": "typed",
       "workflow": "both"
@@ -197369,7 +197379,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 236,
+      "line": 239,
       "node": "listings.list_price",
       "tier": "typed",
       "workflow": "both"
@@ -197377,7 +197387,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 237,
+      "line": 240,
       "node": "listings.list_price",
       "tier": "typed",
       "workflow": "both"
@@ -197385,7 +197395,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 237,
+      "line": 240,
       "node": "listings.list_price",
       "tier": "typed",
       "workflow": "both"
@@ -197393,7 +197403,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 238,
+      "line": 241,
       "node": "listings.list_price",
       "tier": "typed",
       "workflow": "both"
@@ -197401,23 +197411,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 238,
-      "node": "listings.list_price",
-      "tier": "typed",
-      "workflow": "both"
-     },
-     {
-      "stage": "criterion",
-      "file": "lib/search/public-listing-db.ts",
-      "line": 313,
-      "node": "listings.list_price",
-      "tier": "typed",
-      "workflow": "both"
-     },
-     {
-      "stage": "sorting",
-      "file": "lib/search/public-listing-db.ts",
-      "line": 313,
+      "line": 241,
       "node": "listings.list_price",
       "tier": "typed",
       "workflow": "both"
@@ -197450,6 +197444,22 @@
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
       "line": 319,
+      "node": "listings.list_price",
+      "tier": "typed",
+      "workflow": "both"
+     },
+     {
+      "stage": "criterion",
+      "file": "lib/search/public-listing-db.ts",
+      "line": 322,
+      "node": "listings.list_price",
+      "tier": "typed",
+      "workflow": "both"
+     },
+     {
+      "stage": "sorting",
+      "file": "lib/search/public-listing-db.ts",
+      "line": 322,
       "node": "listings.list_price",
       "tier": "typed",
       "workflow": "both"
@@ -200106,7 +200116,7 @@
        "lib/search/engine/universe.ts:149",
        "lib/search/canonical/field-registry.ts:151",
        "lib/search/engine/universe.ts:88",
-       "lib/search/public-listing-db.ts:322",
+       "lib/search/public-listing-db.ts:325",
        "app/api/listings/route.ts:390",
        "app/api/listings/route.ts:1365"
       ]
@@ -200119,7 +200129,7 @@
       "status": "PASS",
       "sites": [
        "lib/search/engine/provider-query.ts:135",
-       "lib/search/public-listing-db.ts:322"
+       "lib/search/public-listing-db.ts:325"
       ]
      },
      "saleSearch": {
@@ -200130,8 +200140,8 @@
        "lib/search/engine/universe.ts:149",
        "lib/search/canonical/field-registry.ts:151",
        "lib/search/engine/universe.ts:88",
-       "lib/search/public-listing-db.ts:322",
-       "lib/search/public-listing-db.ts:322",
+       "lib/search/public-listing-db.ts:325",
+       "lib/search/public-listing-db.ts:325",
        "app/api/listings/route.ts:390",
        "app/api/listings/route.ts:1365"
       ]
@@ -200144,8 +200154,8 @@
        "lib/search/engine/universe.ts:149",
        "lib/search/canonical/field-registry.ts:151",
        "lib/search/engine/universe.ts:88",
-       "lib/search/public-listing-db.ts:322",
-       "lib/search/public-listing-db.ts:322",
+       "lib/search/public-listing-db.ts:325",
+       "lib/search/public-listing-db.ts:325",
        "app/api/listings/route.ts:390",
        "app/api/listings/route.ts:1365"
       ]
@@ -200555,7 +200565,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 322,
+      "line": 325,
       "node": "listings.listing_contract_date",
       "tier": "typed",
       "workflow": "both"
@@ -200563,7 +200573,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 322,
+      "line": 325,
       "node": "listings.listing_contract_date",
       "tier": "typed",
       "workflow": "both"
@@ -200773,8 +200783,8 @@
        "app/api/listings/suggest/route.ts:313",
        "app/api/listings/suggest/route.ts:425",
        "lib/search/engine/universe.ts:88",
-       "lib/search/public-listing-db.ts:226",
-       "lib/search/public-listing-db.ts:227",
+       "lib/search/public-listing-db.ts:229",
+       "lib/search/public-listing-db.ts:230",
        "app/api/listings/route.ts:345",
        "app/api/listings/route.ts:1044",
        "app/api/listings/route.ts:1047",
@@ -200789,8 +200799,8 @@
       "status": "PASS",
       "sites": [
        "lib/search/engine/provider-query.ts:135",
-       "lib/search/public-listing-db.ts:226",
-       "lib/search/public-listing-db.ts:227"
+       "lib/search/public-listing-db.ts:229",
+       "lib/search/public-listing-db.ts:230"
       ]
      },
      "saleSearch": {
@@ -200806,10 +200816,10 @@
        "app/api/listings/suggest/route.ts:313",
        "app/api/listings/suggest/route.ts:425",
        "lib/search/engine/universe.ts:88",
-       "lib/search/public-listing-db.ts:226",
-       "lib/search/public-listing-db.ts:226",
-       "lib/search/public-listing-db.ts:227",
-       "lib/search/public-listing-db.ts:227",
+       "lib/search/public-listing-db.ts:229",
+       "lib/search/public-listing-db.ts:229",
+       "lib/search/public-listing-db.ts:230",
+       "lib/search/public-listing-db.ts:230",
        "app/api/listings/route.ts:345",
        "app/api/listings/route.ts:1044",
        "app/api/listings/route.ts:1047",
@@ -200829,10 +200839,10 @@
        "app/api/listings/suggest/route.ts:313",
        "app/api/listings/suggest/route.ts:425",
        "lib/search/engine/universe.ts:88",
-       "lib/search/public-listing-db.ts:226",
-       "lib/search/public-listing-db.ts:226",
-       "lib/search/public-listing-db.ts:227",
-       "lib/search/public-listing-db.ts:227",
+       "lib/search/public-listing-db.ts:229",
+       "lib/search/public-listing-db.ts:229",
+       "lib/search/public-listing-db.ts:230",
+       "lib/search/public-listing-db.ts:230",
        "app/api/listings/route.ts:345",
        "app/api/listings/route.ts:1044",
        "app/api/listings/route.ts:1047",
@@ -201320,6 +201330,7 @@
        "lib/compliance/__tests__/trestle-mapper-shed.test.ts",
        "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
        "lib/idx/__tests__/commit7-write-matrix.test.ts",
+       "lib/idx/__tests__/custom-fields-ingestion.test.ts",
        "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
        "lib/idx/__tests__/listing-change-classification.test.ts",
        "lib/idx/__tests__/media-classification-p1c3.test.ts",
@@ -203437,7 +203448,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 226,
+      "line": 229,
       "node": "listings.listing_id",
       "tier": "typed",
       "workflow": "both"
@@ -203445,7 +203456,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 226,
+      "line": 229,
       "node": "listings.listing_id",
       "tier": "typed",
       "workflow": "both"
@@ -203453,7 +203464,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 227,
+      "line": 230,
       "node": "listings.listing_id",
       "tier": "typed",
       "workflow": "both"
@@ -203461,7 +203472,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 227,
+      "line": 230,
       "node": "listings.listing_id",
       "tier": "typed",
       "workflow": "both"
@@ -205087,8 +205098,8 @@
        "app/api/listings/suggest/route.ts:85",
        "lib/search/canonical/field-registry.ts:115",
        "lib/search/engine/universe.ts:88",
-       "lib/search/public-listing-db.ts:226",
-       "lib/search/public-listing-db.ts:227",
+       "lib/search/public-listing-db.ts:229",
+       "lib/search/public-listing-db.ts:230",
        "app/api/listings/route.ts:345",
        "app/api/listings/route.ts:1044",
        "app/api/listings/route.ts:1047",
@@ -205103,8 +205114,8 @@
       "status": "PASS",
       "sites": [
        "lib/search/engine/provider-query.ts:135",
-       "lib/search/public-listing-db.ts:226",
-       "lib/search/public-listing-db.ts:227"
+       "lib/search/public-listing-db.ts:229",
+       "lib/search/public-listing-db.ts:230"
       ]
      },
      "saleSearch": {
@@ -205124,10 +205135,10 @@
        "lib/search/listing-search-projection.ts:465",
        "lib/search/listing-search-projection.ts:465",
        "lib/search/engine/universe.ts:88",
-       "lib/search/public-listing-db.ts:226",
-       "lib/search/public-listing-db.ts:226",
-       "lib/search/public-listing-db.ts:227",
-       "lib/search/public-listing-db.ts:227",
+       "lib/search/public-listing-db.ts:229",
+       "lib/search/public-listing-db.ts:229",
+       "lib/search/public-listing-db.ts:230",
+       "lib/search/public-listing-db.ts:230",
        "app/api/listings/route.ts:345",
        "app/api/listings/route.ts:1044",
        "app/api/listings/route.ts:1047",
@@ -205151,10 +205162,10 @@
        "lib/search/listing-search-projection.ts:465",
        "lib/search/listing-search-projection.ts:465",
        "lib/search/engine/universe.ts:88",
-       "lib/search/public-listing-db.ts:226",
-       "lib/search/public-listing-db.ts:226",
-       "lib/search/public-listing-db.ts:227",
-       "lib/search/public-listing-db.ts:227",
+       "lib/search/public-listing-db.ts:229",
+       "lib/search/public-listing-db.ts:229",
+       "lib/search/public-listing-db.ts:230",
+       "lib/search/public-listing-db.ts:230",
        "app/api/listings/route.ts:345",
        "app/api/listings/route.ts:1044",
        "app/api/listings/route.ts:1047",
@@ -205626,6 +205637,7 @@
        "lib/compliance/__tests__/trestle-mapper-shed.test.ts",
        "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
        "lib/idx/__tests__/changed-raw-data-keys.test.ts",
+       "lib/idx/__tests__/custom-fields-ingestion.test.ts",
        "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
        "lib/idx/__tests__/incremental-filter.test.ts",
        "lib/idx/__tests__/listing-change-classification.test.ts",
@@ -207486,7 +207498,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 226,
+      "line": 229,
       "node": "listings.listing_id",
       "tier": "typed",
       "workflow": "both"
@@ -207494,7 +207506,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 226,
+      "line": 229,
       "node": "listings.listing_id",
       "tier": "typed",
       "workflow": "both"
@@ -207502,7 +207514,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 227,
+      "line": 230,
       "node": "listings.listing_id",
       "tier": "typed",
       "workflow": "both"
@@ -207510,7 +207522,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 227,
+      "line": 230,
       "node": "listings.listing_id",
       "tier": "typed",
       "workflow": "both"
@@ -210840,10 +210852,10 @@
       "status": "PASS",
       "sites": [
        "lib/search/canonical/field-registry.ts:158",
-       "lib/search/public-listing-db.ts:263",
-       "lib/search/public-listing-db.ts:264",
-       "lib/search/public-listing-db.ts:265",
-       "lib/search/public-listing-db.ts:325",
+       "lib/search/public-listing-db.ts:266",
+       "lib/search/public-listing-db.ts:267",
+       "lib/search/public-listing-db.ts:268",
+       "lib/search/public-listing-db.ts:328",
        "app/api/listings/route.ts:354",
        "app/api/listings/route.ts:1339"
       ]
@@ -210855,24 +210867,24 @@
      "sorting": {
       "status": "PASS",
       "sites": [
-       "lib/search/public-listing-db.ts:263",
-       "lib/search/public-listing-db.ts:264",
-       "lib/search/public-listing-db.ts:265",
-       "lib/search/public-listing-db.ts:325"
+       "lib/search/public-listing-db.ts:266",
+       "lib/search/public-listing-db.ts:267",
+       "lib/search/public-listing-db.ts:268",
+       "lib/search/public-listing-db.ts:328"
       ]
      },
      "saleSearch": {
       "status": "PASS",
       "sites": [
        "lib/search/canonical/field-registry.ts:158",
-       "lib/search/public-listing-db.ts:263",
-       "lib/search/public-listing-db.ts:263",
-       "lib/search/public-listing-db.ts:264",
-       "lib/search/public-listing-db.ts:264",
-       "lib/search/public-listing-db.ts:265",
-       "lib/search/public-listing-db.ts:265",
-       "lib/search/public-listing-db.ts:325",
-       "lib/search/public-listing-db.ts:325",
+       "lib/search/public-listing-db.ts:266",
+       "lib/search/public-listing-db.ts:266",
+       "lib/search/public-listing-db.ts:267",
+       "lib/search/public-listing-db.ts:267",
+       "lib/search/public-listing-db.ts:268",
+       "lib/search/public-listing-db.ts:268",
+       "lib/search/public-listing-db.ts:328",
+       "lib/search/public-listing-db.ts:328",
        "app/api/listings/route.ts:354",
        "app/api/listings/route.ts:1339"
       ]
@@ -210881,14 +210893,14 @@
       "status": "PASS",
       "sites": [
        "lib/search/canonical/field-registry.ts:158",
-       "lib/search/public-listing-db.ts:263",
-       "lib/search/public-listing-db.ts:263",
-       "lib/search/public-listing-db.ts:264",
-       "lib/search/public-listing-db.ts:264",
-       "lib/search/public-listing-db.ts:265",
-       "lib/search/public-listing-db.ts:265",
-       "lib/search/public-listing-db.ts:325",
-       "lib/search/public-listing-db.ts:325",
+       "lib/search/public-listing-db.ts:266",
+       "lib/search/public-listing-db.ts:266",
+       "lib/search/public-listing-db.ts:267",
+       "lib/search/public-listing-db.ts:267",
+       "lib/search/public-listing-db.ts:268",
+       "lib/search/public-listing-db.ts:268",
+       "lib/search/public-listing-db.ts:328",
+       "lib/search/public-listing-db.ts:328",
        "app/api/listings/route.ts:354",
        "app/api/listings/route.ts:1339"
       ]
@@ -211792,7 +211804,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 263,
+      "line": 266,
       "node": "listings.living_area",
       "tier": "typed",
       "workflow": "both"
@@ -211800,7 +211812,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 263,
+      "line": 266,
       "node": "listings.living_area",
       "tier": "typed",
       "workflow": "both"
@@ -211808,7 +211820,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 264,
+      "line": 267,
       "node": "listings.living_area",
       "tier": "typed",
       "workflow": "both"
@@ -211816,7 +211828,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 264,
+      "line": 267,
       "node": "listings.living_area",
       "tier": "typed",
       "workflow": "both"
@@ -211824,7 +211836,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 265,
+      "line": 268,
       "node": "listings.living_area",
       "tier": "typed",
       "workflow": "both"
@@ -211832,7 +211844,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 265,
+      "line": 268,
       "node": "listings.living_area",
       "tier": "typed",
       "workflow": "both"
@@ -211840,7 +211852,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 325,
+      "line": 328,
       "node": "listings.living_area",
       "tier": "typed",
       "workflow": "both"
@@ -211848,7 +211860,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 325,
+      "line": 328,
       "node": "listings.living_area",
       "tier": "typed",
       "workflow": "both"
@@ -221920,6 +221932,7 @@
        "lib/compliance/__tests__/trestle-mapper-shed.test.ts",
        "lib/crm/__tests__/fee-disclosure.test.ts",
        "lib/crm/__tests__/listing-form-mapping.test.ts",
+       "lib/idx/__tests__/custom-fields-ingestion.test.ts",
        "lib/idx/__tests__/media-sync-orchestration.test.ts",
        "lib/idx/__tests__/media-sync-rc5.test.ts",
        "lib/idx/__tests__/permission-provider-fact.test.ts",
@@ -223893,8 +223906,8 @@
       "sites": [
        "lib/search/engine/provider-query.ts:135",
        "lib/search/engine/universe.ts:150",
-       "lib/search/public-listing-db.ts:332",
-       "lib/search/public-listing-db.ts:339",
+       "lib/search/public-listing-db.ts:335",
+       "lib/search/public-listing-db.ts:342",
        "app/api/listings/route.ts:391",
        "app/api/listings/route.ts:1366"
       ]
@@ -223907,8 +223920,8 @@
       "status": "PASS",
       "sites": [
        "lib/search/engine/provider-query.ts:135",
-       "lib/search/public-listing-db.ts:332",
-       "lib/search/public-listing-db.ts:339"
+       "lib/search/public-listing-db.ts:335",
+       "lib/search/public-listing-db.ts:342"
       ]
      },
      "saleSearch": {
@@ -223917,10 +223930,10 @@
        "lib/search/engine/provider-query.ts:135",
        "lib/search/engine/provider-query.ts:135",
        "lib/search/engine/universe.ts:150",
-       "lib/search/public-listing-db.ts:332",
-       "lib/search/public-listing-db.ts:332",
-       "lib/search/public-listing-db.ts:339",
-       "lib/search/public-listing-db.ts:339",
+       "lib/search/public-listing-db.ts:335",
+       "lib/search/public-listing-db.ts:335",
+       "lib/search/public-listing-db.ts:342",
+       "lib/search/public-listing-db.ts:342",
        "app/api/listings/route.ts:391",
        "app/api/listings/route.ts:1366"
       ]
@@ -223931,10 +223944,10 @@
        "lib/search/engine/provider-query.ts:135",
        "lib/search/engine/provider-query.ts:135",
        "lib/search/engine/universe.ts:150",
-       "lib/search/public-listing-db.ts:332",
-       "lib/search/public-listing-db.ts:332",
-       "lib/search/public-listing-db.ts:339",
-       "lib/search/public-listing-db.ts:339",
+       "lib/search/public-listing-db.ts:335",
+       "lib/search/public-listing-db.ts:335",
+       "lib/search/public-listing-db.ts:342",
+       "lib/search/public-listing-db.ts:342",
        "app/api/listings/route.ts:391",
        "app/api/listings/route.ts:1366"
       ]
@@ -224085,6 +224098,7 @@
        "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
        "lib/idx/__tests__/changed-raw-data-keys.test.ts",
        "lib/idx/__tests__/commit7-write-matrix.test.ts",
+       "lib/idx/__tests__/custom-fields-ingestion.test.ts",
        "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
        "lib/idx/__tests__/incremental-filter.test.ts",
        "lib/idx/__tests__/listing-change-classification.test.ts",
@@ -224631,7 +224645,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 332,
+      "line": 335,
       "node": "listings.modification_timestamp",
       "tier": "typed",
       "workflow": "both"
@@ -224639,7 +224653,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 332,
+      "line": 335,
       "node": "listings.modification_timestamp",
       "tier": "typed",
       "workflow": "both"
@@ -224647,7 +224661,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 339,
+      "line": 342,
       "node": "listings.modification_timestamp",
       "tier": "typed",
       "workflow": "both"
@@ -224655,7 +224669,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 339,
+      "line": 342,
       "node": "listings.modification_timestamp",
       "tier": "typed",
       "workflow": "both"
@@ -224905,14 +224919,14 @@
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/idx/trestle-mapper.ts:354"
+        "lib/idx/trestle-mapper.ts:355"
        ]
       },
       "SecurityDeposit": {
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/idx/trestle-mapper.ts:355"
+        "lib/idx/trestle-mapper.ts:356"
        ]
       }
      },
@@ -241943,7 +241957,7 @@
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/idx/trestle-mapper.ts:215"
+        "lib/idx/trestle-mapper.ts:216"
        ]
       }
      },
@@ -247501,7 +247515,7 @@
        "coOccurring": 4,
        "sites": [
         "lib/compliance/gates.ts:141",
-        "lib/idx/trestle-mapper.ts:850",
+        "lib/idx/trestle-mapper.ts:851",
         "lib/search/engine/hydrate.ts:101",
         "lib/search/engine/hydrate.ts:163"
        ]
@@ -247511,7 +247525,7 @@
        "coOccurring": 17,
        "sites": [
         "lib/compliance/gates.ts:154",
-        "lib/idx/trestle-mapper.ts:851",
+        "lib/idx/trestle-mapper.ts:852",
         "lib/compliance/rebny-ucba-rules.ts:774",
         "lib/compliance/rebny-ucba-rules.ts:887",
         "lib/compliance/rls-enforcement.ts:412",
@@ -247640,7 +247654,7 @@
        "app/api/listings/route.ts:1361",
        "app/api/listings/route.ts:387",
        "app/api/listings/route.ts:1362",
-       "lib/search/public-listing-db.ts:189",
+       "lib/search/public-listing-db.ts:192",
        "app/api/listings/route.ts:389",
        "app/api/listings/route.ts:1364"
       ]
@@ -247652,7 +247666,7 @@
      "sorting": {
       "status": "PASS",
       "sites": [
-       "lib/search/public-listing-db.ts:189"
+       "lib/search/public-listing-db.ts:192"
       ]
      },
      "saleSearch": {
@@ -247667,8 +247681,8 @@
        "app/api/listings/route.ts:1361",
        "app/api/listings/route.ts:387",
        "app/api/listings/route.ts:1362",
-       "lib/search/public-listing-db.ts:189",
-       "lib/search/public-listing-db.ts:189",
+       "lib/search/public-listing-db.ts:192",
+       "lib/search/public-listing-db.ts:192",
        "app/api/listings/route.ts:389",
        "app/api/listings/route.ts:1364"
       ]
@@ -247685,8 +247699,8 @@
        "app/api/listings/route.ts:1361",
        "app/api/listings/route.ts:387",
        "app/api/listings/route.ts:1362",
-       "lib/search/public-listing-db.ts:189",
-       "lib/search/public-listing-db.ts:189",
+       "lib/search/public-listing-db.ts:192",
+       "lib/search/public-listing-db.ts:192",
        "app/api/listings/route.ts:389",
        "app/api/listings/route.ts:1364"
       ]
@@ -248100,15 +248114,15 @@
       "status": "PASS"
      },
      "publicBehavior": {
-      "status": "DEFECT",
-      "cite": "docs/operations/STEP3-FORBIDDEN-AUTHORITY-LEDGER.md §13.4",
-      "note": "public displayability bypasses the Mallan owner-opt-out gate for rls_eligible=false rows; latent (0 opt-out rows)",
+      "status": "PASS",
+      "cite": "lib/idx/__tests__/public-display-mallan-decisions.test.ts (Domain 3, 2026-09-08)",
+      "note": "owner_opt_out / participant_only bind before the provenance split in filterDisplayableDbListings and in the public DB builder",
       "citationVerified": true
      },
      "memberBehavior": {
-      "status": "DEFECT",
-      "cite": "docs/operations/STEP3-FORBIDDEN-AUTHORITY-LEDGER.md §13.3",
-      "note": "authenticated backend Search excludes Permission=Private rows; latent (0 Private rows live)",
+      "status": "PASS",
+      "cite": "lib/search/__tests__/hydrate-audience-gate.test.ts (Domain 3, 2026-09-08)",
+      "note": "providerRowPassesGate(raw, audience): member sees Private; public does not; other non-IDX tokens fail closed for everyone",
       "citationVerified": true
      },
      "privateSharingBehavior": {
@@ -248135,8 +248149,8 @@
      "rentalTools": "PASS",
      "cma": "PASS",
      "reporting": "PASS",
-     "memberVisibility": "DEFECT",
-     "publicVisibility": "DEFECT",
+     "memberVisibility": "PASS",
+     "publicVisibility": "PASS",
      "compliance": "PASS",
      "runtimeProof": "UNVERIFIED"
     },
@@ -248153,14 +248167,11 @@
      "directTest"
     ],
     "missingStatic": [],
-    "defects": [
-     "publicBehavior",
-     "memberBehavior"
-    ],
+    "defects": [],
     "unverified": [
      "privateSharingBehavior"
     ],
-    "verdict": "DEFECT",
+    "verdict": "UNVERIFIED",
     "deadPath": false,
     "editable": false,
     "canonicalKeys": [],
@@ -249193,7 +249204,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 189,
+      "line": 192,
       "node": "listings.participant_only",
       "tier": "typed",
       "workflow": "both"
@@ -249201,7 +249212,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 189,
+      "line": 192,
       "node": "listings.participant_only",
       "tier": "typed",
       "workflow": "both"
@@ -250332,7 +250343,7 @@
        "typed": 0,
        "coOccurring": 2,
        "sites": [
-        "lib/idx/trestle-mapper.ts:354",
+        "lib/idx/trestle-mapper.ts:355",
         "lib/search/canonical/live-truth.ts:123"
        ]
       },
@@ -250476,7 +250487,7 @@
        "lib/search/engine/criteria.ts:119",
        "lib/search/engine/criteria.ts:247",
        "lib/search/canonical/field-registry.ts:186",
-       "lib/search/public-listing-db.ts:431",
+       "lib/search/public-listing-db.ts:434",
        "app/api/listings/route.ts:827"
       ]
      },
@@ -250489,7 +250500,7 @@
      "sorting": {
       "status": "PASS",
       "sites": [
-       "lib/search/public-listing-db.ts:431"
+       "lib/search/public-listing-db.ts:434"
       ]
      },
      "saleSearch": {
@@ -250500,8 +250511,8 @@
        "lib/search/engine/criteria.ts:247",
        "lib/search/canonical/field-registry.ts:186",
        "lib/search/listing-search-projection.ts:407",
-       "lib/search/public-listing-db.ts:431",
-       "lib/search/public-listing-db.ts:431",
+       "lib/search/public-listing-db.ts:434",
+       "lib/search/public-listing-db.ts:434",
        "app/api/listings/route.ts:827"
       ]
      },
@@ -250513,8 +250524,8 @@
        "lib/search/engine/criteria.ts:119",
        "lib/search/canonical/field-registry.ts:186",
        "lib/search/listing-search-projection.ts:407",
-       "lib/search/public-listing-db.ts:431",
-       "lib/search/public-listing-db.ts:431",
+       "lib/search/public-listing-db.ts:434",
+       "lib/search/public-listing-db.ts:434",
        "app/api/listings/route.ts:827"
       ]
      },
@@ -250879,7 +250890,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 431,
+      "line": 434,
       "node": "listings.features.PetsAllowed",
       "tier": "name-matched",
       "workflow": "both"
@@ -250887,7 +250898,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 431,
+      "line": 434,
       "node": "listings.features.PetsAllowed",
       "tier": "name-matched",
       "workflow": "both"
@@ -252940,7 +252951,7 @@
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/idx/trestle-mapper.ts:851"
+        "lib/idx/trestle-mapper.ts:852"
        ]
       }
      },
@@ -254959,8 +254970,8 @@
        "app/api/listings/suggest/route.ts:461",
        "app/api/listings/suggest/route.ts:464",
        "app/api/listings/suggest/route.ts:469",
-       "lib/search/public-listing-db.ts:282",
-       "lib/search/public-listing-db.ts:295",
+       "lib/search/public-listing-db.ts:285",
+       "lib/search/public-listing-db.ts:298",
        "app/api/listings/route.ts:357",
        "app/api/listings/route.ts:1316"
       ]
@@ -254972,8 +254983,8 @@
      "sorting": {
       "status": "PASS",
       "sites": [
-       "lib/search/public-listing-db.ts:282",
-       "lib/search/public-listing-db.ts:295"
+       "lib/search/public-listing-db.ts:285",
+       "lib/search/public-listing-db.ts:298"
       ]
      },
      "saleSearch": {
@@ -254989,10 +255000,10 @@
        "app/api/listings/suggest/route.ts:461",
        "app/api/listings/suggest/route.ts:464",
        "app/api/listings/suggest/route.ts:469",
-       "lib/search/public-listing-db.ts:282",
-       "lib/search/public-listing-db.ts:282",
-       "lib/search/public-listing-db.ts:295",
-       "lib/search/public-listing-db.ts:295",
+       "lib/search/public-listing-db.ts:285",
+       "lib/search/public-listing-db.ts:285",
+       "lib/search/public-listing-db.ts:298",
+       "lib/search/public-listing-db.ts:298",
        "app/api/listings/route.ts:357",
        "app/api/listings/route.ts:1316"
       ]
@@ -255010,10 +255021,10 @@
        "app/api/listings/suggest/route.ts:461",
        "app/api/listings/suggest/route.ts:464",
        "app/api/listings/suggest/route.ts:469",
-       "lib/search/public-listing-db.ts:282",
-       "lib/search/public-listing-db.ts:282",
-       "lib/search/public-listing-db.ts:295",
-       "lib/search/public-listing-db.ts:295",
+       "lib/search/public-listing-db.ts:285",
+       "lib/search/public-listing-db.ts:285",
+       "lib/search/public-listing-db.ts:298",
+       "lib/search/public-listing-db.ts:298",
        "app/api/listings/route.ts:357",
        "app/api/listings/route.ts:1316"
       ]
@@ -256013,7 +256024,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 282,
+      "line": 285,
       "node": "listings.postal_code",
       "tier": "typed",
       "workflow": "both"
@@ -256021,7 +256032,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 282,
+      "line": 285,
       "node": "listings.postal_code",
       "tier": "typed",
       "workflow": "both"
@@ -256029,7 +256040,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 295,
+      "line": 298,
       "node": "listings.postal_code",
       "tier": "typed",
       "workflow": "both"
@@ -256037,7 +256048,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 295,
+      "line": 298,
       "node": "listings.postal_code",
       "tier": "typed",
       "workflow": "both"
@@ -260031,7 +260042,7 @@
        "sites": [
         "lib/search/listing-search-projection.ts:36",
         "lib/crm/listing-form-mapping.ts:64",
-        "lib/search/public-listing-db.ts:204",
+        "lib/search/public-listing-db.ts:207",
         "lib/search/canonical/field-registry.ts:132"
        ]
       },
@@ -260095,7 +260106,7 @@
        "sites": [
         "lib/search/listing-search-projection.ts:39",
         "lib/search/canonical/live-truth.ts:90",
-        "lib/search/public-listing-db.ts:204",
+        "lib/search/public-listing-db.ts:207",
         "lib/search/public-listing-trestle.ts:36"
        ]
       },
@@ -260129,7 +260140,7 @@
         "lib/compliance/rls-eligibility.ts:33",
         "lib/crm/listing-form-mapping.ts:55",
         "lib/search/canonical/live-truth.ts:90",
-        "lib/search/public-listing-db.ts:204"
+        "lib/search/public-listing-db.ts:207"
        ]
       },
       "MultiFamily": {
@@ -260153,7 +260164,7 @@
         "lib/compliance/rls-eligibility.ts:34",
         "lib/crm/listing-form-mapping.ts:60",
         "lib/search/canonical/live-truth.ts:90",
-        "lib/search/public-listing-db.ts:204"
+        "lib/search/public-listing-db.ts:207"
        ]
       },
       "Other": {
@@ -260196,7 +260207,7 @@
         "lib/compliance/rls-eligibility.ts:35",
         "lib/crm/listing-form-mapping.ts:61",
         "lib/search/canonical/live-truth.ts:91",
-        "lib/search/public-listing-db.ts:204"
+        "lib/search/public-listing-db.ts:207"
        ]
       },
       "SingleFamilyResidence": {
@@ -260418,9 +260429,9 @@
        "lib/search/canonical/field-registry.ts:170",
        "app/api/listings/route.ts:874",
        "lib/search/engine/universe.ts:88",
-       "lib/search/public-listing-db.ts:204",
-       "lib/search/public-listing-db.ts:310",
-       "lib/search/public-listing-db.ts:338",
+       "lib/search/public-listing-db.ts:207",
+       "lib/search/public-listing-db.ts:313",
+       "lib/search/public-listing-db.ts:341",
        "app/api/listings/route.ts:349",
        "app/api/listings/route.ts:1334"
       ]
@@ -260432,9 +260443,9 @@
      "sorting": {
       "status": "PASS",
       "sites": [
-       "lib/search/public-listing-db.ts:204",
-       "lib/search/public-listing-db.ts:310",
-       "lib/search/public-listing-db.ts:338"
+       "lib/search/public-listing-db.ts:207",
+       "lib/search/public-listing-db.ts:313",
+       "lib/search/public-listing-db.ts:341"
       ]
      },
      "saleSearch": {
@@ -260445,12 +260456,12 @@
        "lib/search/canonical/field-registry.ts:170",
        "app/api/listings/route.ts:874",
        "lib/search/engine/universe.ts:88",
-       "lib/search/public-listing-db.ts:204",
-       "lib/search/public-listing-db.ts:204",
-       "lib/search/public-listing-db.ts:310",
-       "lib/search/public-listing-db.ts:310",
-       "lib/search/public-listing-db.ts:338",
-       "lib/search/public-listing-db.ts:338",
+       "lib/search/public-listing-db.ts:207",
+       "lib/search/public-listing-db.ts:207",
+       "lib/search/public-listing-db.ts:313",
+       "lib/search/public-listing-db.ts:313",
+       "lib/search/public-listing-db.ts:341",
+       "lib/search/public-listing-db.ts:341",
        "app/api/listings/route.ts:349",
        "app/api/listings/route.ts:1334"
       ]
@@ -260463,12 +260474,12 @@
        "lib/search/canonical/field-registry.ts:170",
        "app/api/listings/route.ts:874",
        "lib/search/engine/universe.ts:88",
-       "lib/search/public-listing-db.ts:204",
-       "lib/search/public-listing-db.ts:204",
-       "lib/search/public-listing-db.ts:310",
-       "lib/search/public-listing-db.ts:310",
-       "lib/search/public-listing-db.ts:338",
-       "lib/search/public-listing-db.ts:338",
+       "lib/search/public-listing-db.ts:207",
+       "lib/search/public-listing-db.ts:207",
+       "lib/search/public-listing-db.ts:313",
+       "lib/search/public-listing-db.ts:313",
+       "lib/search/public-listing-db.ts:341",
+       "lib/search/public-listing-db.ts:341",
        "app/api/listings/route.ts:349",
        "app/api/listings/route.ts:1334"
       ]
@@ -261229,7 +261240,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 204,
+      "line": 207,
       "node": "listings.property_sub_type",
       "tier": "typed",
       "workflow": "both"
@@ -261237,7 +261248,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 204,
+      "line": 207,
       "node": "listings.property_sub_type",
       "tier": "typed",
       "workflow": "both"
@@ -261245,7 +261256,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 310,
+      "line": 313,
       "node": "listings.property_sub_type",
       "tier": "typed",
       "workflow": "both"
@@ -261253,7 +261264,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 310,
+      "line": 313,
       "node": "listings.property_sub_type",
       "tier": "typed",
       "workflow": "both"
@@ -261261,7 +261272,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 338,
+      "line": 341,
       "node": "listings.property_sub_type",
       "tier": "typed",
       "workflow": "both"
@@ -261269,7 +261280,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 338,
+      "line": 341,
       "node": "listings.property_sub_type",
       "tier": "typed",
       "workflow": "both"
@@ -262339,8 +262350,8 @@
        "lib/search/canonical/live-truth.ts:143",
        "lib/search/canonical/field-registry.ts:131",
        "lib/search/canonical/field-registry.ts:132",
-       "lib/search/public-listing-db.ts:198",
-       "lib/search/public-listing-db.ts:199",
+       "lib/search/public-listing-db.ts:201",
+       "lib/search/public-listing-db.ts:202",
        "app/api/listings/route.ts:347",
        "app/api/listings/route.ts:1296",
        "app/api/listings/route.ts:1297",
@@ -262356,8 +262367,8 @@
      "sorting": {
       "status": "PASS",
       "sites": [
-       "lib/search/public-listing-db.ts:198",
-       "lib/search/public-listing-db.ts:199"
+       "lib/search/public-listing-db.ts:201",
+       "lib/search/public-listing-db.ts:202"
       ]
      },
      "saleSearch": {
@@ -262366,8 +262377,8 @@
        "lib/search/canonical/live-truth.ts:143",
        "lib/search/canonical/field-registry.ts:131",
        "lib/search/canonical/field-registry.ts:132",
-       "lib/search/public-listing-db.ts:198",
-       "lib/search/public-listing-db.ts:198",
+       "lib/search/public-listing-db.ts:201",
+       "lib/search/public-listing-db.ts:201",
        "app/api/listings/route.ts:347",
        "app/api/listings/route.ts:1296",
        "app/api/listings/route.ts:1332",
@@ -262381,8 +262392,8 @@
        "lib/search/canonical/live-truth.ts:143",
        "lib/search/canonical/field-registry.ts:131",
        "lib/search/canonical/field-registry.ts:132",
-       "lib/search/public-listing-db.ts:199",
-       "lib/search/public-listing-db.ts:199",
+       "lib/search/public-listing-db.ts:202",
+       "lib/search/public-listing-db.ts:202",
        "app/api/listings/route.ts:347",
        "app/api/listings/route.ts:1297",
        "app/api/listings/route.ts:1332",
@@ -262653,6 +262664,7 @@
        "lib/crm/__tests__/listing-form-mapping.test.ts",
        "lib/crm/__tests__/live-enum-boundary.test.ts",
        "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
+       "lib/idx/__tests__/custom-fields-ingestion.test.ts",
        "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
        "lib/idx/__tests__/incremental-filter.test.ts",
        "lib/idx/__tests__/media-classification-p1c3.test.ts",
@@ -263467,7 +263479,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 198,
+      "line": 201,
       "node": "listings.listing_type",
       "tier": "typed",
       "workflow": "sale"
@@ -263475,7 +263487,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 198,
+      "line": 201,
       "node": "listings.listing_type",
       "tier": "typed",
       "workflow": "sale"
@@ -263483,7 +263495,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 199,
+      "line": 202,
       "node": "listings.listing_type",
       "tier": "typed",
       "workflow": "rental"
@@ -263491,7 +263503,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 199,
+      "line": 202,
       "node": "listings.listing_type",
       "tier": "typed",
       "workflow": "rental"
@@ -264421,41 +264433,54 @@
      "projection": {
       "status": "PASS",
       "sites": [
+       "lib/search/types.ts:155",
+       "lib/search/types.ts:156",
+       "lib/search/types.ts:157",
        "lib/search/listing-search-projection.ts:255"
       ]
      },
      "criterion": {
       "status": "PASS",
       "sites": [
-       "lib/search/public-listing-db.ts:460",
+       "lib/search/public-listing-db.ts:463",
        "app/api/listings/route.ts:859"
       ]
      },
      "amenityMap": {
-      "status": "MISSING",
-      "keys": []
+      "status": "PASS",
+      "keys": [
+       "natural-light: natural light|sun-drenched|sun drenched|sun-filled|light-filled|sunny",
+       "renovated: renovated|renovation",
+       "quiet: quiet"
+      ]
      },
      "sorting": {
       "status": "PASS",
       "sites": [
-       "lib/search/public-listing-db.ts:460"
+       "lib/search/public-listing-db.ts:463"
       ]
      },
      "saleSearch": {
       "status": "PASS",
       "sites": [
+       "lib/search/types.ts:155",
+       "lib/search/types.ts:156",
+       "lib/search/types.ts:157",
        "lib/search/listing-search-projection.ts:255",
-       "lib/search/public-listing-db.ts:460",
-       "lib/search/public-listing-db.ts:460",
+       "lib/search/public-listing-db.ts:463",
+       "lib/search/public-listing-db.ts:463",
        "app/api/listings/route.ts:859"
       ]
      },
      "rentalSearch": {
       "status": "PASS",
       "sites": [
+       "lib/search/types.ts:155",
+       "lib/search/types.ts:156",
+       "lib/search/types.ts:157",
        "lib/search/listing-search-projection.ts:255",
-       "lib/search/public-listing-db.ts:460",
-       "lib/search/public-listing-db.ts:460",
+       "lib/search/public-listing-db.ts:463",
+       "lib/search/public-listing-db.ts:463",
        "app/api/listings/route.ts:859"
       ]
      },
@@ -264599,6 +264624,7 @@
        "lib/idx/__tests__/listing-change-classification.test.ts",
        "lib/idx/__tests__/pct-deprecation.test.ts",
        "lib/idx/__tests__/phase3-write-suppression-comparators.test.ts",
+       "lib/search/__tests__/amenity-vocabulary.test.ts",
        "lib/search/__tests__/listing-search-projection.test.ts",
        "lib/search/__tests__/projection-write-suppression.test.ts",
        "lib/search/__tests__/public-listing-db.test.ts",
@@ -264720,7 +264746,7 @@
     "canonicalKeys": [
      "description"
     ],
-    "consumers": 37,
+    "consumers": 40,
     "consumerSites": [
      {
       "stage": "publicConsumer",
@@ -264803,6 +264829,30 @@
       "workflow": null
      },
      {
+      "stage": "projection",
+      "file": "lib/search/types.ts",
+      "line": 155,
+      "node": "provider:Property.PublicRemarks",
+      "tier": "string-literal",
+      "workflow": "both"
+     },
+     {
+      "stage": "projection",
+      "file": "lib/search/types.ts",
+      "line": 156,
+      "node": "provider:Property.PublicRemarks",
+      "tier": "string-literal",
+      "workflow": "both"
+     },
+     {
+      "stage": "projection",
+      "file": "lib/search/types.ts",
+      "line": 157,
+      "node": "provider:Property.PublicRemarks",
+      "tier": "string-literal",
+      "workflow": "both"
+     },
+     {
       "stage": "listingWorkspace",
       "file": "lib/listings/mallan-form-contract.ts",
       "line": 121,
@@ -264869,7 +264919,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 460,
+      "line": 463,
       "node": "listings.features.PublicRemarks",
       "tier": "name-matched",
       "workflow": "both"
@@ -264877,7 +264927,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 460,
+      "line": 463,
       "node": "listings.features.PublicRemarks",
       "tier": "name-matched",
       "workflow": "both"
@@ -278975,7 +279025,7 @@
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/idx/trestle-mapper.ts:851"
+        "lib/idx/trestle-mapper.ts:852"
        ]
       },
       "Sauna": {
@@ -280614,10 +280664,10 @@
        "lib/search/engine/criteria.ts:185",
        "app/api/listings/suggest/route.ts:87",
        "lib/search/canonical/field-registry.ts:135",
-       "lib/search/public-listing-db.ts:178",
-       "lib/search/public-listing-db.ts:190",
-       "lib/search/public-listing-db.ts:300",
-       "lib/search/public-listing-db.ts:304",
+       "lib/search/public-listing-db.ts:181",
+       "lib/search/public-listing-db.ts:193",
+       "lib/search/public-listing-db.ts:303",
+       "lib/search/public-listing-db.ts:307",
        "app/api/listings/route.ts:346",
        "app/api/listings/route.ts:1289",
        "app/api/listings/route.ts:1331",
@@ -280636,10 +280686,10 @@
      "sorting": {
       "status": "PASS",
       "sites": [
-       "lib/search/public-listing-db.ts:178",
-       "lib/search/public-listing-db.ts:190",
-       "lib/search/public-listing-db.ts:300",
-       "lib/search/public-listing-db.ts:304"
+       "lib/search/public-listing-db.ts:181",
+       "lib/search/public-listing-db.ts:193",
+       "lib/search/public-listing-db.ts:303",
+       "lib/search/public-listing-db.ts:307"
       ]
      },
      "saleSearch": {
@@ -280650,14 +280700,14 @@
        "lib/search/engine/criteria.ts:185",
        "app/api/listings/suggest/route.ts:87",
        "lib/search/canonical/field-registry.ts:135",
-       "lib/search/public-listing-db.ts:178",
-       "lib/search/public-listing-db.ts:178",
-       "lib/search/public-listing-db.ts:190",
-       "lib/search/public-listing-db.ts:190",
-       "lib/search/public-listing-db.ts:300",
-       "lib/search/public-listing-db.ts:300",
-       "lib/search/public-listing-db.ts:304",
-       "lib/search/public-listing-db.ts:304",
+       "lib/search/public-listing-db.ts:181",
+       "lib/search/public-listing-db.ts:181",
+       "lib/search/public-listing-db.ts:193",
+       "lib/search/public-listing-db.ts:193",
+       "lib/search/public-listing-db.ts:303",
+       "lib/search/public-listing-db.ts:303",
+       "lib/search/public-listing-db.ts:307",
+       "lib/search/public-listing-db.ts:307",
        "app/api/listings/route.ts:346",
        "app/api/listings/route.ts:1289",
        "app/api/listings/route.ts:1331",
@@ -280677,14 +280727,14 @@
        "lib/search/engine/criteria.ts:185",
        "app/api/listings/suggest/route.ts:87",
        "lib/search/canonical/field-registry.ts:135",
-       "lib/search/public-listing-db.ts:178",
-       "lib/search/public-listing-db.ts:178",
-       "lib/search/public-listing-db.ts:190",
-       "lib/search/public-listing-db.ts:190",
-       "lib/search/public-listing-db.ts:300",
-       "lib/search/public-listing-db.ts:300",
-       "lib/search/public-listing-db.ts:304",
-       "lib/search/public-listing-db.ts:304",
+       "lib/search/public-listing-db.ts:181",
+       "lib/search/public-listing-db.ts:181",
+       "lib/search/public-listing-db.ts:193",
+       "lib/search/public-listing-db.ts:193",
+       "lib/search/public-listing-db.ts:303",
+       "lib/search/public-listing-db.ts:303",
+       "lib/search/public-listing-db.ts:307",
+       "lib/search/public-listing-db.ts:307",
        "app/api/listings/route.ts:346",
        "app/api/listings/route.ts:1289",
        "app/api/listings/route.ts:1331",
@@ -281868,6 +281918,7 @@
        "lib/crm/__tests__/listing-form-mapping.test.ts",
        "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
        "lib/idx/__tests__/commit7-write-matrix.test.ts",
+       "lib/idx/__tests__/custom-fields-ingestion.test.ts",
        "lib/idx/__tests__/forbidden-now-live-drift.test.ts",
        "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
        "lib/idx/__tests__/listing-change-classification.test.ts",
@@ -283159,7 +283210,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 178,
+      "line": 181,
       "node": "listings.status",
       "tier": "typed",
       "workflow": "both"
@@ -283167,7 +283218,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 178,
+      "line": 181,
       "node": "listings.status",
       "tier": "typed",
       "workflow": "both"
@@ -283175,7 +283226,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 190,
+      "line": 193,
       "node": "listings.status",
       "tier": "typed",
       "workflow": "both"
@@ -283183,7 +283234,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 190,
+      "line": 193,
       "node": "listings.status",
       "tier": "typed",
       "workflow": "both"
@@ -283191,7 +283242,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 300,
+      "line": 303,
       "node": "listings.status",
       "tier": "typed",
       "workflow": "both"
@@ -283199,7 +283250,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 300,
+      "line": 303,
       "node": "listings.status",
       "tier": "typed",
       "workflow": "both"
@@ -283207,7 +283258,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 304,
+      "line": 307,
       "node": "listings.status",
       "tier": "typed",
       "workflow": "both"
@@ -283215,7 +283266,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 304,
+      "line": 307,
       "node": "listings.status",
       "tier": "typed",
       "workflow": "both"
@@ -295666,8 +295717,8 @@
      "criterion": {
       "status": "PASS",
       "sites": [
-       "lib/search/public-listing-db.ts:157",
-       "lib/search/public-listing-db.ts:167",
+       "lib/search/public-listing-db.ts:160",
+       "lib/search/public-listing-db.ts:170",
        "app/api/listings/suggest/route.ts:102",
        "app/api/listings/suggest/route.ts:310",
        "app/api/listings/suggest/route.ts:437"
@@ -295680,18 +295731,18 @@
      "sorting": {
       "status": "PASS",
       "sites": [
-       "lib/search/public-listing-db.ts:157",
-       "lib/search/public-listing-db.ts:167"
+       "lib/search/public-listing-db.ts:160",
+       "lib/search/public-listing-db.ts:170"
       ]
      },
      "saleSearch": {
       "status": "PASS",
       "sites": [
        "lib/search/listing-search-projection.ts:258",
-       "lib/search/public-listing-db.ts:157",
-       "lib/search/public-listing-db.ts:157",
-       "lib/search/public-listing-db.ts:167",
-       "lib/search/public-listing-db.ts:167",
+       "lib/search/public-listing-db.ts:160",
+       "lib/search/public-listing-db.ts:160",
+       "lib/search/public-listing-db.ts:170",
+       "lib/search/public-listing-db.ts:170",
        "app/api/listings/suggest/route.ts:102",
        "app/api/listings/suggest/route.ts:310",
        "app/api/listings/suggest/route.ts:437"
@@ -295701,10 +295752,10 @@
       "status": "PASS",
       "sites": [
        "lib/search/listing-search-projection.ts:258",
-       "lib/search/public-listing-db.ts:157",
-       "lib/search/public-listing-db.ts:157",
-       "lib/search/public-listing-db.ts:167",
-       "lib/search/public-listing-db.ts:167",
+       "lib/search/public-listing-db.ts:160",
+       "lib/search/public-listing-db.ts:160",
+       "lib/search/public-listing-db.ts:170",
+       "lib/search/public-listing-db.ts:170",
        "app/api/listings/suggest/route.ts:102",
        "app/api/listings/suggest/route.ts:310",
        "app/api/listings/suggest/route.ts:437"
@@ -296452,7 +296503,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 157,
+      "line": 160,
       "node": "provider:Property.StreetName",
       "tier": "string-literal",
       "workflow": "both"
@@ -296460,7 +296511,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 157,
+      "line": 160,
       "node": "provider:Property.StreetName",
       "tier": "string-literal",
       "workflow": "both"
@@ -296468,7 +296519,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 167,
+      "line": 170,
       "node": "provider:Property.StreetName",
       "tier": "string-literal",
       "workflow": "both"
@@ -296476,7 +296527,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 167,
+      "line": 170,
       "node": "provider:Property.StreetName",
       "tier": "string-literal",
       "workflow": "both"
@@ -296981,7 +297032,7 @@
      "criterion": {
       "status": "PASS",
       "sites": [
-       "lib/search/public-listing-db.ts:145",
+       "lib/search/public-listing-db.ts:148",
        "app/api/listings/suggest/route.ts:100",
        "app/api/listings/suggest/route.ts:309",
        "app/api/listings/suggest/route.ts:436"
@@ -296994,15 +297045,15 @@
      "sorting": {
       "status": "PASS",
       "sites": [
-       "lib/search/public-listing-db.ts:145"
+       "lib/search/public-listing-db.ts:148"
       ]
      },
      "saleSearch": {
       "status": "PASS",
       "sites": [
        "lib/search/listing-search-projection.ts:258",
-       "lib/search/public-listing-db.ts:145",
-       "lib/search/public-listing-db.ts:145",
+       "lib/search/public-listing-db.ts:148",
+       "lib/search/public-listing-db.ts:148",
        "app/api/listings/suggest/route.ts:100",
        "app/api/listings/suggest/route.ts:309",
        "app/api/listings/suggest/route.ts:436"
@@ -297012,8 +297063,8 @@
       "status": "PASS",
       "sites": [
        "lib/search/listing-search-projection.ts:258",
-       "lib/search/public-listing-db.ts:145",
-       "lib/search/public-listing-db.ts:145",
+       "lib/search/public-listing-db.ts:148",
+       "lib/search/public-listing-db.ts:148",
        "app/api/listings/suggest/route.ts:100",
        "app/api/listings/suggest/route.ts:309",
        "app/api/listings/suggest/route.ts:436"
@@ -297757,7 +297808,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 145,
+      "line": 148,
       "node": "provider:Property.StreetNumber",
       "tier": "string-literal",
       "workflow": "both"
@@ -297765,7 +297816,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 145,
+      "line": 148,
       "node": "provider:Property.StreetNumber",
       "tier": "string-literal",
       "workflow": "both"
@@ -301744,8 +301795,8 @@
        "lib/search/engine/criteria.ts:116",
        "lib/search/engine/criteria.ts:214",
        "lib/search/canonical/field-registry.ts:124",
-       "lib/search/public-listing-db.ts:287",
-       "lib/search/public-listing-db.ts:335",
+       "lib/search/public-listing-db.ts:290",
+       "lib/search/public-listing-db.ts:338",
        "app/api/listings/route.ts:356",
        "app/api/listings/route.ts:1318",
        "app/api/listings/route.ts:1341"
@@ -301758,8 +301809,8 @@
      "sorting": {
       "status": "PASS",
       "sites": [
-       "lib/search/public-listing-db.ts:287",
-       "lib/search/public-listing-db.ts:335"
+       "lib/search/public-listing-db.ts:290",
+       "lib/search/public-listing-db.ts:338"
       ]
      },
      "saleSearch": {
@@ -301768,10 +301819,10 @@
        "lib/search/engine/criteria.ts:116",
        "lib/search/engine/criteria.ts:214",
        "lib/search/canonical/field-registry.ts:124",
-       "lib/search/public-listing-db.ts:287",
-       "lib/search/public-listing-db.ts:287",
-       "lib/search/public-listing-db.ts:335",
-       "lib/search/public-listing-db.ts:335",
+       "lib/search/public-listing-db.ts:290",
+       "lib/search/public-listing-db.ts:290",
+       "lib/search/public-listing-db.ts:338",
+       "lib/search/public-listing-db.ts:338",
        "app/api/listings/route.ts:356",
        "app/api/listings/route.ts:1318",
        "app/api/listings/route.ts:1341"
@@ -301783,10 +301834,10 @@
        "lib/search/engine/criteria.ts:116",
        "lib/search/engine/criteria.ts:214",
        "lib/search/canonical/field-registry.ts:124",
-       "lib/search/public-listing-db.ts:287",
-       "lib/search/public-listing-db.ts:287",
-       "lib/search/public-listing-db.ts:335",
-       "lib/search/public-listing-db.ts:335",
+       "lib/search/public-listing-db.ts:290",
+       "lib/search/public-listing-db.ts:290",
+       "lib/search/public-listing-db.ts:338",
+       "lib/search/public-listing-db.ts:338",
        "app/api/listings/route.ts:356",
        "app/api/listings/route.ts:1318",
        "app/api/listings/route.ts:1341"
@@ -302713,7 +302764,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 287,
+      "line": 290,
       "node": "listings.neighborhood",
       "tier": "typed",
       "workflow": "both"
@@ -302721,7 +302772,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 287,
+      "line": 290,
       "node": "listings.neighborhood",
       "tier": "typed",
       "workflow": "both"
@@ -302729,7 +302780,7 @@
      {
       "stage": "criterion",
       "file": "lib/search/public-listing-db.ts",
-      "line": 335,
+      "line": 338,
       "node": "listings.neighborhood",
       "tier": "typed",
       "workflow": "both"
@@ -302737,7 +302788,7 @@
      {
       "stage": "sorting",
       "file": "lib/search/public-listing-db.ts",
-      "line": 335,
+      "line": 338,
       "node": "listings.neighborhood",
       "tier": "typed",
       "workflow": "both"
@@ -309741,21 +309792,21 @@
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/idx/trestle-mapper.ts:354"
+        "lib/idx/trestle-mapper.ts:355"
        ]
       },
       "Roof": {
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/idx/trestle-mapper.ts:212"
+        "lib/idx/trestle-mapper.ts:213"
        ]
       },
       "Sewer": {
        "typed": 0,
        "coOccurring": 1,
        "sites": [
-        "lib/idx/trestle-mapper.ts:215"
+        "lib/idx/trestle-mapper.ts:216"
        ]
       }
      },
@@ -318142,9 +318193,9 @@
        "typed": 0,
        "coOccurring": 10,
        "sites": [
-        "lib/idx/trestle-mapper.ts:54",
-        "lib/idx/trestle-mapper.ts:1297",
-        "lib/idx/trestle-mapper.ts:1325",
+        "lib/idx/trestle-mapper.ts:55",
+        "lib/idx/trestle-mapper.ts:1328",
+        "lib/idx/trestle-mapper.ts:1356",
         "lib/compliance/rebny-ucba-rules.ts:52",
         "lib/search/types.ts:145",
         "lib/search/types.ts:146"
@@ -318424,10 +318475,10 @@
      "amenityMap": {
       "status": "PASS",
       "keys": [
-       "park-views: Park|ParkGreenbelt",
+       "park-views: ParkGreenbelt",
        "river-views: River|Water",
        "skyline-views: City|CityLights|Skyline|Downtown",
-       "views: Park|ParkGreenbelt|River|Water|City|CityLights|Skyline|Downtown"
+       "views: ParkGreenbelt|River|Water|City|CityLights|Skyline|Downtown"
       ]
      },
      "sorting": {
@@ -330568,6 +330619,7 @@
         "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
         "lib/idx/__tests__/changed-raw-data-keys.test.ts",
         "lib/idx/__tests__/commit7-write-matrix.test.ts",
+        "lib/idx/__tests__/custom-fields-ingestion.test.ts",
         "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
         "lib/idx/__tests__/incremental-filter.test.ts",
         "lib/idx/__tests__/listing-change-classification.test.ts",
@@ -336288,6 +336340,7 @@
         "lib/crm/__tests__/listing-form-mapping.test.ts",
         "lib/crm/__tests__/live-enum-boundary.test.ts",
         "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
+        "lib/idx/__tests__/custom-fields-ingestion.test.ts",
         "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
         "lib/idx/__tests__/incremental-filter.test.ts",
         "lib/idx/__tests__/media-classification-p1c3.test.ts",
@@ -337186,6 +337239,7 @@
         "lib/crm/__tests__/listing-form-mapping.test.ts",
         "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
         "lib/idx/__tests__/commit7-write-matrix.test.ts",
+        "lib/idx/__tests__/custom-fields-ingestion.test.ts",
         "lib/idx/__tests__/forbidden-now-live-drift.test.ts",
         "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
         "lib/idx/__tests__/listing-change-classification.test.ts",
@@ -349492,15 +349546,15 @@
        "status": "PASS"
       },
       "publicBehavior": {
-       "status": "DEFECT",
-       "cite": "docs/operations/STEP3-FORBIDDEN-AUTHORITY-LEDGER.md §13.4",
-       "note": "public displayability bypasses the Mallan owner-opt-out gate for rls_eligible=false rows; latent (0 opt-out rows)",
+       "status": "PASS",
+       "cite": "lib/idx/__tests__/public-display-mallan-decisions.test.ts (Domain 3, 2026-09-08)",
+       "note": "owner_opt_out / participant_only bind before the provenance split in filterDisplayableDbListings and in the public DB builder",
        "citationVerified": true
       },
       "memberBehavior": {
-       "status": "DEFECT",
-       "cite": "docs/operations/STEP3-FORBIDDEN-AUTHORITY-LEDGER.md §13.3",
-       "note": "authenticated backend Search excludes Permission=Private rows; latent (0 Private rows live)",
+       "status": "PASS",
+       "cite": "lib/search/__tests__/hydrate-audience-gate.test.ts (Domain 3, 2026-09-08)",
+       "note": "providerRowPassesGate(raw, audience): member sees Private; public does not; other non-IDX tokens fail closed for everyone",
        "citationVerified": true
       },
       "privateSharingBehavior": {
@@ -352694,6 +352748,7 @@
         "lib/compliance/__tests__/trestle-mapper-shed.test.ts",
         "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
         "lib/idx/__tests__/commit7-write-matrix.test.ts",
+        "lib/idx/__tests__/custom-fields-ingestion.test.ts",
         "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
         "lib/idx/__tests__/listing-change-classification.test.ts",
         "lib/idx/__tests__/media-classification-p1c3.test.ts",
@@ -354046,6 +354101,7 @@
         "lib/compliance/__tests__/trestle-mapper-shed.test.ts",
         "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
         "lib/idx/__tests__/changed-raw-data-keys.test.ts",
+        "lib/idx/__tests__/custom-fields-ingestion.test.ts",
         "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
         "lib/idx/__tests__/incremental-filter.test.ts",
         "lib/idx/__tests__/listing-change-classification.test.ts",
@@ -356038,6 +356094,7 @@
         "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
         "lib/idx/__tests__/changed-raw-data-keys.test.ts",
         "lib/idx/__tests__/commit7-write-matrix.test.ts",
+        "lib/idx/__tests__/custom-fields-ingestion.test.ts",
         "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
         "lib/idx/__tests__/incremental-filter.test.ts",
         "lib/idx/__tests__/listing-change-classification.test.ts",
@@ -361071,6 +361128,7 @@
         "lib/crm/__tests__/listing-form-mapping.test.ts",
         "lib/crm/__tests__/live-enum-boundary.test.ts",
         "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
+        "lib/idx/__tests__/custom-fields-ingestion.test.ts",
         "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
         "lib/idx/__tests__/incremental-filter.test.ts",
         "lib/idx/__tests__/media-classification-p1c3.test.ts",
@@ -362734,6 +362792,7 @@
         "lib/crm/__tests__/listing-form-mapping.test.ts",
         "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
         "lib/idx/__tests__/commit7-write-matrix.test.ts",
+        "lib/idx/__tests__/custom-fields-ingestion.test.ts",
         "lib/idx/__tests__/forbidden-now-live-drift.test.ts",
         "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
         "lib/idx/__tests__/listing-change-classification.test.ts",
@@ -370389,15 +370448,15 @@
        "status": "PASS"
       },
       "publicBehavior": {
-       "status": "DEFECT",
-       "cite": "docs/operations/STEP3-FORBIDDEN-AUTHORITY-LEDGER.md §13.4",
-       "note": "public displayability bypasses the Mallan owner-opt-out gate for rls_eligible=false rows; latent (0 opt-out rows)",
+       "status": "PASS",
+       "cite": "lib/idx/__tests__/public-display-mallan-decisions.test.ts (Domain 3, 2026-09-08)",
+       "note": "owner_opt_out / participant_only bind before the provenance split in filterDisplayableDbListings and in the public DB builder",
        "citationVerified": true
       },
       "memberBehavior": {
-       "status": "DEFECT",
-       "cite": "docs/operations/STEP3-FORBIDDEN-AUTHORITY-LEDGER.md §13.3",
-       "note": "authenticated backend Search excludes Permission=Private rows; latent (0 Private rows live)",
+       "status": "PASS",
+       "cite": "lib/search/__tests__/hydrate-audience-gate.test.ts (Domain 3, 2026-09-08)",
+       "note": "providerRowPassesGate(raw, audience): member sees Private; public does not; other non-IDX tokens fail closed for everyone",
        "citationVerified": true
       },
       "privateSharingBehavior": {
@@ -372439,9 +372498,11 @@
        "sync": false,
        "runtime": [],
        "other": [
+        "$expand=CustomProperty@939@lib/idx/trestle-mapper.ts",
         "$expand=CustomProperty@71@lib/idx/fetch.ts"
        ],
        "all": [
+        "$expand=CustomProperty@939@lib/idx/trestle-mapper.ts",
         "$expand=CustomProperty@71@lib/idx/fetch.ts"
        ]
       },
@@ -372563,6 +372624,7 @@
       "directTest": {
        "status": "PASS",
        "files": [
+        "lib/idx/__tests__/custom-fields-ingestion.test.ts",
         "lib/search/__tests__/crm-idx-mapper.test.ts",
         "tests/runtime/idx-fetch-expand-media.test.ts"
        ]
@@ -372570,6 +372632,7 @@
       "negativeTest": {
        "status": "PASS",
        "files": [
+        "lib/idx/__tests__/custom-fields-ingestion.test.ts",
         "lib/search/__tests__/crm-idx-mapper.test.ts"
        ],
        "basis": "heuristic: field within 3 lines of a negative matcher"
@@ -374041,6 +374104,7 @@
         "lib/compliance/__tests__/trestle-mapper-shed.test.ts",
         "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
         "lib/idx/__tests__/commit7-write-matrix.test.ts",
+        "lib/idx/__tests__/custom-fields-ingestion.test.ts",
         "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
         "lib/idx/__tests__/listing-change-classification.test.ts",
         "lib/idx/__tests__/media-classification-p1c3.test.ts",
@@ -375390,6 +375454,7 @@
         "lib/compliance/__tests__/trestle-mapper-shed.test.ts",
         "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
         "lib/idx/__tests__/changed-raw-data-keys.test.ts",
+        "lib/idx/__tests__/custom-fields-ingestion.test.ts",
         "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
         "lib/idx/__tests__/incremental-filter.test.ts",
         "lib/idx/__tests__/listing-change-classification.test.ts",
@@ -377383,6 +377448,7 @@
         "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
         "lib/idx/__tests__/changed-raw-data-keys.test.ts",
         "lib/idx/__tests__/commit7-write-matrix.test.ts",
+        "lib/idx/__tests__/custom-fields-ingestion.test.ts",
         "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
         "lib/idx/__tests__/incremental-filter.test.ts",
         "lib/idx/__tests__/listing-change-classification.test.ts",
@@ -378948,6 +379014,7 @@
         "lib/crm/__tests__/listing-form-mapping.test.ts",
         "lib/crm/__tests__/live-enum-boundary.test.ts",
         "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
+        "lib/idx/__tests__/custom-fields-ingestion.test.ts",
         "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
         "lib/idx/__tests__/incremental-filter.test.ts",
         "lib/idx/__tests__/media-classification-p1c3.test.ts",
@@ -379846,6 +379913,7 @@
         "lib/crm/__tests__/listing-form-mapping.test.ts",
         "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
         "lib/idx/__tests__/commit7-write-matrix.test.ts",
+        "lib/idx/__tests__/custom-fields-ingestion.test.ts",
         "lib/idx/__tests__/forbidden-now-live-drift.test.ts",
         "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
         "lib/idx/__tests__/listing-change-classification.test.ts",
@@ -409567,15 +409635,15 @@
        "status": "PASS"
       },
       "publicBehavior": {
-       "status": "DEFECT",
-       "cite": "docs/operations/STEP3-FORBIDDEN-AUTHORITY-LEDGER.md §13.4",
-       "note": "public displayability bypasses the Mallan owner-opt-out gate for rls_eligible=false rows; latent (0 opt-out rows)",
+       "status": "PASS",
+       "cite": "lib/idx/__tests__/public-display-mallan-decisions.test.ts (Domain 3, 2026-09-08)",
+       "note": "owner_opt_out / participant_only bind before the provenance split in filterDisplayableDbListings and in the public DB builder",
        "citationVerified": true
       },
       "memberBehavior": {
-       "status": "DEFECT",
-       "cite": "docs/operations/STEP3-FORBIDDEN-AUTHORITY-LEDGER.md §13.3",
-       "note": "authenticated backend Search excludes Permission=Private rows; latent (0 Private rows live)",
+       "status": "PASS",
+       "cite": "lib/search/__tests__/hydrate-audience-gate.test.ts (Domain 3, 2026-09-08)",
+       "note": "providerRowPassesGate(raw, audience): member sees Private; public does not; other non-IDX tokens fail closed for everyone",
        "citationVerified": true
       },
       "privateSharingBehavior": {
@@ -420204,6 +420272,7 @@
         "lib/compliance/__tests__/trestle-mapper-shed.test.ts",
         "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
         "lib/idx/__tests__/commit7-write-matrix.test.ts",
+        "lib/idx/__tests__/custom-fields-ingestion.test.ts",
         "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
         "lib/idx/__tests__/listing-change-classification.test.ts",
         "lib/idx/__tests__/media-classification-p1c3.test.ts",
@@ -421553,6 +421622,7 @@
         "lib/compliance/__tests__/trestle-mapper-shed.test.ts",
         "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
         "lib/idx/__tests__/changed-raw-data-keys.test.ts",
+        "lib/idx/__tests__/custom-fields-ingestion.test.ts",
         "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
         "lib/idx/__tests__/incremental-filter.test.ts",
         "lib/idx/__tests__/listing-change-classification.test.ts",
@@ -423868,6 +423938,7 @@
         "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
         "lib/idx/__tests__/changed-raw-data-keys.test.ts",
         "lib/idx/__tests__/commit7-write-matrix.test.ts",
+        "lib/idx/__tests__/custom-fields-ingestion.test.ts",
         "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
         "lib/idx/__tests__/incremental-filter.test.ts",
         "lib/idx/__tests__/listing-change-classification.test.ts",
@@ -426524,6 +426595,7 @@
         "lib/crm/__tests__/listing-form-mapping.test.ts",
         "lib/crm/__tests__/live-enum-boundary.test.ts",
         "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
+        "lib/idx/__tests__/custom-fields-ingestion.test.ts",
         "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
         "lib/idx/__tests__/incremental-filter.test.ts",
         "lib/idx/__tests__/media-classification-p1c3.test.ts",
@@ -428169,6 +428241,7 @@
         "lib/crm/__tests__/listing-form-mapping.test.ts",
         "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
         "lib/idx/__tests__/commit7-write-matrix.test.ts",
+        "lib/idx/__tests__/custom-fields-ingestion.test.ts",
         "lib/idx/__tests__/forbidden-now-live-drift.test.ts",
         "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
         "lib/idx/__tests__/listing-change-classification.test.ts",
@@ -433904,15 +433977,15 @@
        "status": "PASS"
       },
       "publicBehavior": {
-       "status": "DEFECT",
-       "cite": "docs/operations/STEP3-FORBIDDEN-AUTHORITY-LEDGER.md §13.4",
-       "note": "public displayability bypasses the Mallan owner-opt-out gate for rls_eligible=false rows; latent (0 opt-out rows)",
+       "status": "PASS",
+       "cite": "lib/idx/__tests__/public-display-mallan-decisions.test.ts (Domain 3, 2026-09-08)",
+       "note": "owner_opt_out / participant_only bind before the provenance split in filterDisplayableDbListings and in the public DB builder",
        "citationVerified": true
       },
       "memberBehavior": {
-       "status": "DEFECT",
-       "cite": "docs/operations/STEP3-FORBIDDEN-AUTHORITY-LEDGER.md §13.3",
-       "note": "authenticated backend Search excludes Permission=Private rows; latent (0 Private rows live)",
+       "status": "PASS",
+       "cite": "lib/search/__tests__/hydrate-audience-gate.test.ts (Domain 3, 2026-09-08)",
+       "note": "providerRowPassesGate(raw, audience): member sees Private; public does not; other non-IDX tokens fail closed for everyone",
        "citationVerified": true
       },
       "privateSharingBehavior": {
@@ -439978,6 +440051,7 @@
         "lib/compliance/__tests__/trestle-mapper-shed.test.ts",
         "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
         "lib/idx/__tests__/commit7-write-matrix.test.ts",
+        "lib/idx/__tests__/custom-fields-ingestion.test.ts",
         "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
         "lib/idx/__tests__/listing-change-classification.test.ts",
         "lib/idx/__tests__/media-classification-p1c3.test.ts",
@@ -441327,6 +441401,7 @@
         "lib/compliance/__tests__/trestle-mapper-shed.test.ts",
         "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
         "lib/idx/__tests__/changed-raw-data-keys.test.ts",
+        "lib/idx/__tests__/custom-fields-ingestion.test.ts",
         "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
         "lib/idx/__tests__/incremental-filter.test.ts",
         "lib/idx/__tests__/listing-change-classification.test.ts",
@@ -443642,6 +443717,7 @@
         "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
         "lib/idx/__tests__/changed-raw-data-keys.test.ts",
         "lib/idx/__tests__/commit7-write-matrix.test.ts",
+        "lib/idx/__tests__/custom-fields-ingestion.test.ts",
         "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
         "lib/idx/__tests__/incremental-filter.test.ts",
         "lib/idx/__tests__/listing-change-classification.test.ts",
@@ -446605,6 +446681,7 @@
         "lib/crm/__tests__/listing-form-mapping.test.ts",
         "lib/crm/__tests__/live-enum-boundary.test.ts",
         "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
+        "lib/idx/__tests__/custom-fields-ingestion.test.ts",
         "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
         "lib/idx/__tests__/incremental-filter.test.ts",
         "lib/idx/__tests__/media-classification-p1c3.test.ts",
@@ -448001,6 +448078,7 @@
         "lib/crm/__tests__/listing-form-mapping.test.ts",
         "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
         "lib/idx/__tests__/commit7-write-matrix.test.ts",
+        "lib/idx/__tests__/custom-fields-ingestion.test.ts",
         "lib/idx/__tests__/forbidden-now-live-drift.test.ts",
         "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
         "lib/idx/__tests__/listing-change-classification.test.ts",
@@ -451961,15 +452039,15 @@
        "status": "PASS"
       },
       "publicBehavior": {
-       "status": "DEFECT",
-       "cite": "docs/operations/STEP3-FORBIDDEN-AUTHORITY-LEDGER.md §13.4",
-       "note": "public displayability bypasses the Mallan owner-opt-out gate for rls_eligible=false rows; latent (0 opt-out rows)",
+       "status": "PASS",
+       "cite": "lib/idx/__tests__/public-display-mallan-decisions.test.ts (Domain 3, 2026-09-08)",
+       "note": "owner_opt_out / participant_only bind before the provenance split in filterDisplayableDbListings and in the public DB builder",
        "citationVerified": true
       },
       "memberBehavior": {
-       "status": "DEFECT",
-       "cite": "docs/operations/STEP3-FORBIDDEN-AUTHORITY-LEDGER.md §13.3",
-       "note": "authenticated backend Search excludes Permission=Private rows; latent (0 Private rows live)",
+       "status": "PASS",
+       "cite": "lib/search/__tests__/hydrate-audience-gate.test.ts (Domain 3, 2026-09-08)",
+       "note": "providerRowPassesGate(raw, audience): member sees Private; public does not; other non-IDX tokens fail closed for everyone",
        "citationVerified": true
       },
       "privateSharingBehavior": {
@@ -465249,6 +465327,7 @@
         "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
         "lib/idx/__tests__/changed-raw-data-keys.test.ts",
         "lib/idx/__tests__/commit7-write-matrix.test.ts",
+        "lib/idx/__tests__/custom-fields-ingestion.test.ts",
         "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
         "lib/idx/__tests__/incremental-filter.test.ts",
         "lib/idx/__tests__/listing-change-classification.test.ts",
@@ -486673,15 +486752,15 @@
        "status": "PASS"
       },
       "publicBehavior": {
-       "status": "DEFECT",
-       "cite": "docs/operations/STEP3-FORBIDDEN-AUTHORITY-LEDGER.md §13.4",
-       "note": "public displayability bypasses the Mallan owner-opt-out gate for rls_eligible=false rows; latent (0 opt-out rows)",
+       "status": "PASS",
+       "cite": "lib/idx/__tests__/public-display-mallan-decisions.test.ts (Domain 3, 2026-09-08)",
+       "note": "owner_opt_out / participant_only bind before the provenance split in filterDisplayableDbListings and in the public DB builder",
        "citationVerified": true
       },
       "memberBehavior": {
-       "status": "DEFECT",
-       "cite": "docs/operations/STEP3-FORBIDDEN-AUTHORITY-LEDGER.md §13.3",
-       "note": "authenticated backend Search excludes Permission=Private rows; latent (0 Private rows live)",
+       "status": "PASS",
+       "cite": "lib/search/__tests__/hydrate-audience-gate.test.ts (Domain 3, 2026-09-08)",
+       "note": "providerRowPassesGate(raw, audience): member sees Private; public does not; other non-IDX tokens fail closed for everyone",
        "citationVerified": true
       },
       "privateSharingBehavior": {
@@ -488932,6 +489011,7 @@
         "lib/idx/__tests__/c1-mapping-idx-plus.test.ts",
         "lib/idx/__tests__/changed-raw-data-keys.test.ts",
         "lib/idx/__tests__/commit7-write-matrix.test.ts",
+        "lib/idx/__tests__/custom-fields-ingestion.test.ts",
         "lib/idx/__tests__/idx-entire-listing-display-live-parity.test.ts",
         "lib/idx/__tests__/incremental-filter.test.ts",
         "lib/idx/__tests__/listing-change-classification.test.ts",
@@ -512120,15 +512200,15 @@
        "status": "PASS"
       },
       "publicBehavior": {
-       "status": "DEFECT",
-       "cite": "docs/operations/STEP3-FORBIDDEN-AUTHORITY-LEDGER.md §13.4",
-       "note": "public displayability bypasses the Mallan owner-opt-out gate for rls_eligible=false rows; latent (0 opt-out rows)",
+       "status": "PASS",
+       "cite": "lib/idx/__tests__/public-display-mallan-decisions.test.ts (Domain 3, 2026-09-08)",
+       "note": "owner_opt_out / participant_only bind before the provenance split in filterDisplayableDbListings and in the public DB builder",
        "citationVerified": true
       },
       "memberBehavior": {
-       "status": "DEFECT",
-       "cite": "docs/operations/STEP3-FORBIDDEN-AUTHORITY-LEDGER.md §13.3",
-       "note": "authenticated backend Search excludes Permission=Private rows; latent (0 Private rows live)",
+       "status": "PASS",
+       "cite": "lib/search/__tests__/hydrate-audience-gate.test.ts (Domain 3, 2026-09-08)",
+       "note": "providerRowPassesGate(raw, audience): member sees Private; public does not; other non-IDX tokens fail closed for everyone",
        "citationVerified": true
       },
       "privateSharingBehavior": {
@@ -526860,8 +526940,8 @@
    "population": 10,
    "mapped": "MISSING",
    "persisted": "MISSING",
-   "saleSearch": "MISSING",
-   "rentalSearch": "MISSING",
+   "saleSearch": "PASS",
+   "rentalSearch": "PASS",
    "saleForm": "MISSING",
    "rentalForm": "MISSING",
    "saleTools": "MISSING",
@@ -527234,8 +527314,8 @@
    "population": 18576,
    "mapped": "PASS",
    "persisted": "PASS",
-   "saleSearch": "MISSING",
-   "rentalSearch": "MISSING",
+   "saleSearch": "PASS",
+   "rentalSearch": "PASS",
    "saleForm": "MISSING",
    "rentalForm": "MISSING",
    "saleTools": "MISSING",
@@ -531422,7 +531502,7 @@
    "rentalTools": "PASS",
    "cma": "PASS",
    "reporting": "PASS",
-   "publicVisibility": "DEFECT",
+   "publicVisibility": "PASS",
    "compliance": "PASS",
    "neverSurfaces": false
   },
@@ -542431,25 +542511,25 @@
   {
    "field": "Permission",
    "stage": "memberBehavior",
-   "status": "DEFECT",
-   "cite": "docs/operations/STEP3-FORBIDDEN-AUTHORITY-LEDGER.md §13.3",
+   "status": "PASS",
+   "cite": "lib/search/__tests__/hydrate-audience-gate.test.ts (Domain 3, 2026-09-08)",
    "pattern": [
-    "lib/search/engine/hydrate.ts",
+    "lib/search/__tests__/hydrate-audience-gate.test.ts",
     {}
    ],
-   "note": "authenticated backend Search excludes Permission=Private rows; latent (0 Private rows live)",
+   "note": "providerRowPassesGate(raw, audience): member sees Private; public does not; other non-IDX tokens fail closed for everyone",
    "citationVerified": true
   },
   {
    "field": "Permission",
    "stage": "publicBehavior",
-   "status": "DEFECT",
-   "cite": "docs/operations/STEP3-FORBIDDEN-AUTHORITY-LEDGER.md §13.4",
+   "status": "PASS",
+   "cite": "lib/idx/__tests__/public-display-mallan-decisions.test.ts (Domain 3, 2026-09-08)",
    "pattern": [
-    "lib/idx/db-to-public-dto.ts",
+    "lib/idx/__tests__/public-display-mallan-decisions.test.ts",
     {}
    ],
-   "note": "public displayability bypasses the Mallan owner-opt-out gate for rls_eligible=false rows; latent (0 opt-out rows)",
+   "note": "owner_opt_out / participant_only bind before the provenance split in filterDisplayableDbListings and in the public DB builder",
    "citationVerified": true
   },
   {

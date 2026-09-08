@@ -120,9 +120,9 @@ export const AMENITY_FIELD_MAP: Record<AmenityFilter, { field: string; values: s
   'spa':           { field: 'BuildingFeatures', values: ['SpaHotTub'], label: 'Spa', group: 'Building Amenities' },
   'sauna':         { field: 'BuildingFeatures', values: ['Sauna'], label: 'Sauna', group: 'Building Amenities' },
   'steam-room':    { field: 'BuildingFeatures', values: ['SteamRoom'], label: 'Steam Room', group: 'Building Amenities' },
-  'roof-deck':     { field: 'ExteriorFeatures', values: ['RoofDeck', 'BuildingRoofDeck'], label: 'Roof Deck', group: 'Building Amenities' },
+  'roof-deck':     { field: 'ExteriorFeatures', values: ['BuildingRoofDeck', 'Deck'], label: 'Roof Deck', group: 'Building Amenities' },
   'playroom':      { field: 'BuildingFeatures', values: ['CommonPlayroom'], label: "Children's Playroom", group: 'Building Amenities' },
-  'laundry-room':  { field: 'LaundryFeatures', values: ['LaundryRoom', 'OnCommonFloor', 'CommonOnFloor', 'CommonArea'], label: 'Laundry Room', group: 'Building Amenities' },
+  'laundry-room':  { field: 'LaundryFeatures', values: ['LaundryRoom', 'CommonOnFloor', 'CommonArea', 'BuildingInBasement', 'BuildingInHall', 'BuildingInside', 'BuildingMultipleLocations'], label: 'Laundry Room', group: 'Building Amenities' },
   'elevator':      { field: 'BuildingFeatures,InteriorFeatures', values: ['Elevators', 'Elevator'], label: 'Elevator', group: 'Building Amenities' },
   'lounge':        { field: 'BuildingFeatures', values: ['CommonLounge'], label: "Residents' Lounge", group: 'Building Amenities' },
   'bike-storage':  { field: 'BuildingFeatures', values: ['BikeStorage'], label: 'Bike Storage', group: 'Building Amenities' },
@@ -140,17 +140,21 @@ export const AMENITY_FIELD_MAP: Record<AmenityFilter, { field: string; values: s
   // (the live-truth module of the canonical package).
   'pet-friendly':  { field: 'PetsAllowed', values: ['Yes', 'CatsOk', 'DogsOk', 'NumberLimit', 'SizeLimit', 'BreedRestrictions'], label: 'Pet Friendly', group: 'Pets' },
   // Views
-  'park-views':    { field: 'View', values: ['Park', 'ParkGreenbelt'], label: 'Park Views', group: 'Views' },
+  'park-views':    { field: 'View', values: ['ParkGreenbelt'], label: 'Park Views', group: 'Views' },
   'river-views':   { field: 'View', values: ['River', 'Water'], label: 'River Views', group: 'Views' },
   'skyline-views': { field: 'View', values: ['City', 'CityLights', 'Skyline', 'Downtown'], label: 'Skyline Views', group: 'Views' },
-  'views':         { field: 'View', values: ['Park', 'ParkGreenbelt', 'River', 'Water', 'City', 'CityLights', 'Skyline', 'Downtown'], label: 'Views', group: 'Views' },
+  'views':         { field: 'View', values: ['ParkGreenbelt', 'River', 'Water', 'City', 'CityLights', 'Skyline', 'Downtown'], label: 'Views', group: 'Views' },
   // Additional unit features
-  'walk-in-closet': { field: 'InteriorFeatures', values: ['WalkInClosets', 'WalkInCloset'], label: 'Walk-in Closet', group: 'Unit Features' },
-  'high-ceilings': { field: 'InteriorFeatures', values: ['HighCeilings', 'HighCeiling'], label: 'High Ceilings', group: 'Unit Features' },
-  'fireplace':     { field: 'InteriorFeatures', values: ['WoodBurningFireplace', 'DecorativeFireplace', 'Fireplace'], label: 'Fireplace', group: 'Unit Features' },
-  'natural-light': { field: 'InteriorFeatures', values: ['NaturalLight'], label: 'Natural Light', group: 'Unit Features' },
-  'renovated':     { field: 'InteriorFeatures', values: ['Renovated', 'GutRenovated', 'NewlyRenovated'], label: 'Renovated', group: 'Unit Features' },
-  'quiet':         { field: 'InteriorFeatures', values: ['Quiet'], label: 'Quiet', group: 'Unit Features' },
+  'walk-in-closet': { field: 'InteriorFeatures', values: ['WalkInClosets'], label: 'Walk-in Closet', group: 'Unit Features' },
+  'high-ceilings': { field: 'InteriorFeatures', values: ['HighCeilings'], label: 'High Ceilings', group: 'Unit Features' },
+  // A fireplace is the InteriorFeatures member 'Fireplace' or any FireplaceFeatures member but 'None' (the
+  // observed members on the feed, 2026-09-08). 'WoodBurningFireplace' / 'DecorativeFireplace' were never members.
+  'fireplace':     { field: 'InteriorFeatures,FireplaceFeatures', values: ['Fireplace', 'WoodBurning', 'Decorative', 'Gas', 'Electric', 'Masonry', 'Stone', 'Insert', 'GlassDoors', 'DoubleSided', 'Ventless', 'Propane', 'WoodBurningStove', 'EpaCertifiedWoodStove', 'Heatilator', 'Circulating', 'Metal'], label: 'Fireplace', group: 'Unit Features' },
+  // TEXT concepts — the provider vocabulary has no member for them (InteriorFeatures never published
+  // 'NaturalLight', 'Renovated', 'Quiet'; census 2026-09-08). They match the listing's PublicRemarks text.
+  'natural-light': { field: 'PublicRemarks', values: ['natural light', 'sun-drenched', 'sun drenched', 'sun-filled', 'light-filled', 'sunny'], label: 'Natural Light', group: 'Unit Features' },
+  'renovated':     { field: 'PublicRemarks', values: ['renovated', 'renovation'], label: 'Renovated', group: 'Unit Features' },
+  'quiet':         { field: 'PublicRemarks', values: ['quiet'], label: 'Quiet', group: 'Unit Features' },
 };
 
 /** Tab configuration — maps UI tab to API params and available filter sections */
