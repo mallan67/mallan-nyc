@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-08T12:36:49.435Z",
+ "generated": "2026-09-08T13:01:40.258Z",
  "contract": {
   "evidence_sha256": null,
   "metadata_sha256": "a60bcbbdccc9da852a8da53acc178fc90d7159c42f59f58babb2d09ab7a6bbae",
@@ -13729,7 +13729,7 @@
    "surface": "CMA",
    "claim": "lib/cma/engine.ts filters prisma.listing by `contract_closed`, a Deal column that model Listing does not declare (Prisma validation error at runtime; the `as Prisma.ListingWhereInput` cast hides it)",
    "cite": "lib/cma/engine.ts:93-99; prisma/schema.prisma:165 (Deal), :437 (Listing)",
-   "status": "CONFIRMED (static)",
+   "status": "NOT REPRODUCED",
    "detail": "engine references contract_closed: true; Listing model declares it: false"
   },
   {
@@ -13737,15 +13737,15 @@
    "surface": "CMA",
    "claim": "lib/comps/fetch-comps.ts windows comps by `ModificationTimestamp gt`, so a listing closed years ago but touched recently is admitted as a closed comp",
    "cite": "lib/comps/fetch-comps.ts:36-40,126,191; lib/search/canonical/comp-eligibility.ts:5-9",
-   "status": "CONFIRMED (static pattern)"
+   "status": "NOT REPRODUCED"
   },
   {
    "id": "comp-eligibility-unwired",
    "surface": "CMA",
    "claim": "lib/search/canonical/comp-eligibility.ts (CloseDate windowing) has no importer in lib/cma, lib/comps, lib/market-report, lib/seller-report or lib/pitch-packet",
    "cite": "import graph",
-   "status": "CONFIRMED (import graph)",
-   "detail": "importers: lib/search/canonical/index.ts"
+   "status": "NOT REPRODUCED",
+   "detail": "importers: lib/comps/fetch-comps.ts, lib/search/canonical/index.ts"
   },
   {
    "id": "cma-own-provider-mapping",
@@ -14759,7 +14759,7 @@
     "PossibleUse",
     "PropertySubTypeAdditional"
    ],
-   "consumers": 81,
+   "consumers": 82,
    "columns": {
     "saleSearch": 5,
     "rentalSearch": 5,
@@ -15031,7 +15031,7 @@
     "SUPPRESSED": 4
    },
    "notInSyncSelect": [],
-   "consumers": 185,
+   "consumers": 186,
    "columns": {
     "saleSearch": 17,
     "rentalSearch": 17,
@@ -15223,7 +15223,7 @@
     "ListOfficeAOR",
     "ListOfficeKeyNumeric"
    ],
-   "consumers": 204,
+   "consumers": 205,
    "columns": {
     "saleSearch": 50,
     "rentalSearch": 50,
@@ -15301,7 +15301,7 @@
     "ListOfficeAOR",
     "ListOfficeKeyNumeric"
    ],
-   "consumers": 187,
+   "consumers": 188,
    "columns": {
     "saleSearch": 50,
     "rentalSearch": 50,
@@ -15377,7 +15377,7 @@
     "BuyerFinancing",
     "Electric"
    ],
-   "consumers": 211,
+   "consumers": 212,
    "columns": {
     "saleSearch": 60,
     "rentalSearch": 60,
@@ -15607,7 +15607,7 @@
     "ListOfficeKeyNumeric",
     "NumberOfUnitsInCommunity"
    ],
-   "consumers": 204,
+   "consumers": 205,
    "columns": {
     "saleSearch": 54,
     "rentalSearch": 54,
@@ -15644,7 +15644,7 @@
     "SUPPRESSED": 17
    },
    "notInSyncSelect": [],
-   "consumers": 150,
+   "consumers": 151,
    "columns": {
     "saleSearch": 44,
     "rentalSearch": 44,
@@ -15681,7 +15681,7 @@
     "SUPPRESSED": 12
    },
    "notInSyncSelect": [],
-   "consumers": 211,
+   "consumers": 212,
    "columns": {
     "saleSearch": 63,
     "rentalSearch": 63,
@@ -15718,7 +15718,7 @@
     "NOT-ON-FEED (not RLS-defined)": 14
    },
    "notInSyncSelect": [],
-   "consumers": 209,
+   "consumers": 210,
    "columns": {
     "saleSearch": 46,
     "rentalSearch": 46,
@@ -15796,7 +15796,7 @@
     "ListOfficeAOR",
     "ListOfficeKeyNumeric"
    ],
-   "consumers": 204,
+   "consumers": 205,
    "columns": {
     "saleSearch": 50,
     "rentalSearch": 50,
@@ -15833,7 +15833,7 @@
     "SUPPRESSED": 15
    },
    "notInSyncSelect": [],
-   "consumers": 148,
+   "consumers": 149,
    "columns": {
     "saleSearch": 44,
     "rentalSearch": 44,
@@ -15870,7 +15870,7 @@
     "SUPPRESSED": 10
    },
    "notInSyncSelect": [],
-   "consumers": 209,
+   "consumers": 210,
    "columns": {
     "saleSearch": 63,
     "rentalSearch": 63,
@@ -15907,7 +15907,7 @@
     "NOT-ON-FEED (not RLS-defined)": 4
    },
    "notInSyncSelect": [],
-   "consumers": 202,
+   "consumers": 203,
    "columns": {
     "saleSearch": 44,
     "rentalSearch": 44,
@@ -15943,7 +15943,7 @@
     "SUPPRESSED": 6
    },
    "notInSyncSelect": [],
-   "consumers": 172,
+   "consumers": 173,
    "columns": {
     "saleSearch": 24,
     "rentalSearch": 24,
@@ -15982,7 +15982,7 @@
    "notInSyncSelect": [
     "BuyerFinancing"
    ],
-   "consumers": 210,
+   "consumers": 211,
    "columns": {
     "saleSearch": 56,
     "rentalSearch": 56,
@@ -30041,7 +30041,7 @@
        "lib/open-houses/upcoming-open-houses.ts:57",
        "lib/market-report/generator.ts:169",
        "lib/market-report/generator.ts:243",
-       "lib/cma/engine.ts:105",
+       "lib/cma/engine.ts:109",
        "app/api/crm/listing-sends/route.ts:88"
       ],
       "controls": []
@@ -30052,7 +30052,7 @@
        "lib/open-houses/upcoming-open-houses.ts:57",
        "lib/market-report/generator.ts:169",
        "lib/market-report/generator.ts:243",
-       "lib/cma/engine.ts:105",
+       "lib/cma/engine.ts:109",
        "app/api/crm/listing-sends/route.ts:88"
       ],
       "controls": []
@@ -30109,7 +30109,7 @@
      "cma": {
       "status": "PASS",
       "sites": [
-       "lib/cma/engine.ts:105"
+       "lib/cma/engine.ts:109"
       ]
      },
      "reports": {
@@ -30621,7 +30621,7 @@
      {
       "stage": "cma",
       "file": "lib/cma/engine.ts",
-      "line": 105,
+      "line": 109,
       "node": "listings.bathrooms_full",
       "tier": "typed",
       "workflow": null
@@ -30629,7 +30629,7 @@
      {
       "stage": "saleTools",
       "file": "lib/cma/engine.ts",
-      "line": 105,
+      "line": 109,
       "node": "listings.bathrooms_full",
       "tier": "typed",
       "workflow": null
@@ -30637,7 +30637,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/cma/engine.ts",
-      "line": 105,
+      "line": 109,
       "node": "listings.bathrooms_full",
       "tier": "typed",
       "workflow": null
@@ -32662,14 +32662,14 @@
      "saleTools": {
       "status": "PASS",
       "sites": [
-       "lib/comps/fetch-comps.ts:78"
+       "lib/comps/fetch-comps.ts:128"
       ],
       "controls": []
      },
      "rentalTools": {
       "status": "PASS",
       "sites": [
-       "lib/comps/fetch-comps.ts:78"
+       "lib/comps/fetch-comps.ts:128"
       ],
       "controls": []
      },
@@ -32714,7 +32714,7 @@
      "cma": {
       "status": "PASS",
       "sites": [
-       "lib/comps/fetch-comps.ts:78"
+       "lib/comps/fetch-comps.ts:128"
       ]
      },
      "reports": {
@@ -32855,7 +32855,7 @@
      {
       "stage": "cma",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 78,
+      "line": 128,
       "node": "provider:Property.BathroomsTotalInteger",
       "tier": "name-matched",
       "workflow": null
@@ -32863,7 +32863,7 @@
      {
       "stage": "saleTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 78,
+      "line": 128,
       "node": "provider:Property.BathroomsTotalInteger",
       "tier": "name-matched",
       "workflow": null
@@ -32871,7 +32871,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 78,
+      "line": 128,
       "node": "provider:Property.BathroomsTotalInteger",
       "tier": "name-matched",
       "workflow": null
@@ -33475,8 +33475,8 @@
        "lib/open-houses/upcoming-open-houses.ts:57",
        "lib/market-report/generator.ts:169",
        "lib/market-report/generator.ts:242",
-       "lib/comps/fetch-comps.ts:77",
-       "lib/cma/engine.ts:104",
+       "lib/comps/fetch-comps.ts:127",
+       "lib/cma/engine.ts:108",
        "app/api/crm/listing-sends/route.ts:87"
       ],
       "controls": []
@@ -33487,8 +33487,8 @@
        "lib/open-houses/upcoming-open-houses.ts:57",
        "lib/market-report/generator.ts:169",
        "lib/market-report/generator.ts:242",
-       "lib/comps/fetch-comps.ts:77",
-       "lib/cma/engine.ts:104",
+       "lib/comps/fetch-comps.ts:127",
+       "lib/cma/engine.ts:108",
        "app/api/crm/listing-sends/route.ts:87"
       ],
       "controls": []
@@ -33556,8 +33556,8 @@
      "cma": {
       "status": "PASS",
       "sites": [
-       "lib/comps/fetch-comps.ts:77",
-       "lib/cma/engine.ts:104"
+       "lib/comps/fetch-comps.ts:127",
+       "lib/cma/engine.ts:108"
       ]
      },
      "reports": {
@@ -33930,7 +33930,7 @@
      {
       "stage": "cma",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 77,
+      "line": 127,
       "node": "provider:Property.BedroomsTotal",
       "tier": "name-matched",
       "workflow": null
@@ -33938,7 +33938,7 @@
      {
       "stage": "saleTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 77,
+      "line": 127,
       "node": "provider:Property.BedroomsTotal",
       "tier": "name-matched",
       "workflow": null
@@ -33946,7 +33946,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 77,
+      "line": 127,
       "node": "provider:Property.BedroomsTotal",
       "tier": "name-matched",
       "workflow": null
@@ -34138,7 +34138,7 @@
      {
       "stage": "cma",
       "file": "lib/cma/engine.ts",
-      "line": 104,
+      "line": 108,
       "node": "listings.bedrooms_total",
       "tier": "typed",
       "workflow": null
@@ -34146,7 +34146,7 @@
      {
       "stage": "saleTools",
       "file": "lib/cma/engine.ts",
-      "line": 104,
+      "line": 108,
       "node": "listings.bedrooms_total",
       "tier": "typed",
       "workflow": null
@@ -34154,7 +34154,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/cma/engine.ts",
-      "line": 104,
+      "line": 108,
       "node": "listings.bedrooms_total",
       "tier": "typed",
       "workflow": null
@@ -40254,14 +40254,14 @@
      "saleTools": {
       "status": "PASS",
       "sites": [
-       "lib/comps/fetch-comps.ts:85"
+       "lib/comps/fetch-comps.ts:135"
       ],
       "controls": []
      },
      "rentalTools": {
       "status": "PASS",
       "sites": [
-       "lib/comps/fetch-comps.ts:85"
+       "lib/comps/fetch-comps.ts:135"
       ],
       "controls": []
      },
@@ -40284,7 +40284,7 @@
        "app/api/crm/sales/prospects/[id]/comps/route.ts:119",
        "app/api/crm/sales/prospects/[id]/research/route.ts:637",
        "app/api/crm/sales/prospects/[id]/research/route.ts:746",
-       "app/api/crm/sales/comps/route.ts:50",
+       "app/api/crm/sales/comps/route.ts:52",
        "public/crm/js/compliance/compliance-gates-and-output.js:1539",
        "public/crm/js/core/reso-field-map.js:59",
        "public/crm/js/render/grid-column-defs.js:36"
@@ -40303,7 +40303,7 @@
      "cma": {
       "status": "PASS",
       "sites": [
-       "lib/comps/fetch-comps.ts:85"
+       "lib/comps/fetch-comps.ts:135"
       ]
      },
      "reports": {
@@ -40526,7 +40526,7 @@
      {
       "stage": "cma",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 85,
+      "line": 135,
       "node": "provider:Property.BuildingName",
       "tier": "name-matched",
       "workflow": null
@@ -40534,7 +40534,7 @@
      {
       "stage": "saleTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 85,
+      "line": 135,
       "node": "provider:Property.BuildingName",
       "tier": "name-matched",
       "workflow": null
@@ -40542,7 +40542,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 85,
+      "line": 135,
       "node": "provider:Property.BuildingName",
       "tier": "name-matched",
       "workflow": null
@@ -40678,7 +40678,7 @@
      {
       "stage": "listingWorkspace",
       "file": "app/api/crm/sales/comps/route.ts",
-      "line": 50,
+      "line": 52,
       "node": "listings.address.BuildingName",
       "tier": "name-matched",
       "workflow": null
@@ -61852,7 +61852,7 @@
       "status": "PASS",
       "sites": [
        "lib/open-houses/upcoming-open-houses.ts:59",
-       "lib/comps/fetch-comps.ts:82"
+       "lib/comps/fetch-comps.ts:132"
       ],
       "controls": []
      },
@@ -61860,7 +61860,7 @@
       "status": "PASS",
       "sites": [
        "lib/open-houses/upcoming-open-houses.ts:59",
-       "lib/comps/fetch-comps.ts:82"
+       "lib/comps/fetch-comps.ts:132"
       ],
       "controls": []
      },
@@ -61912,7 +61912,7 @@
      "cma": {
       "status": "PASS",
       "sites": [
-       "lib/comps/fetch-comps.ts:82"
+       "lib/comps/fetch-comps.ts:132"
       ]
      },
      "reports": {
@@ -61968,8 +61968,10 @@
        "lib/compliance/__tests__/raw-data-keep-fields.test.ts",
        "lib/compliance/__tests__/raw-data-keep-lifecycle.test.ts",
        "lib/listings/__tests__/canonical-lifecycle.test.ts",
+       "lib/search/__tests__/canonical-a1-contract.test.ts",
        "lib/search/__tests__/canonical-contract.test.ts",
        "tests/runtime/building-payload-parity.test.ts",
+       "tests/runtime/comps-close-date-window.test.ts",
        "tests/runtime/gate6-drain-archive-backlog.test.ts",
        "tests/runtime/idx-suggest-select-fields.test.ts",
        "tests/runtime/open-houses-trestle-address-key.test.ts",
@@ -61983,6 +61985,7 @@
        "lib/compliance/__tests__/compliance-gates.test.ts",
        "lib/compliance/__tests__/raw-data-keep-fields.test.ts",
        "lib/listings/__tests__/canonical-lifecycle.test.ts",
+       "tests/runtime/comps-close-date-window.test.ts",
        "tests/runtime/s1-compliance-repoint.test.ts",
        "tests/runtime/terminal-since-helper.test.ts"
       ],
@@ -61992,6 +61995,7 @@
       "status": "PASS",
       "files": [
        "tests/runtime/building-payload-parity.test.ts",
+       "tests/runtime/comps-close-date-window.test.ts",
        "tests/runtime/gate6-drain-archive-backlog.test.ts",
        "tests/runtime/idx-suggest-select-fields.test.ts",
        "tests/runtime/open-houses-trestle-address-key.test.ts",
@@ -62188,7 +62192,7 @@
      {
       "stage": "cma",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 82,
+      "line": 132,
       "node": "provider:Property.CloseDate",
       "tier": "name-matched",
       "workflow": null
@@ -62196,7 +62200,7 @@
      {
       "stage": "saleTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 82,
+      "line": 132,
       "node": "provider:Property.CloseDate",
       "tier": "name-matched",
       "workflow": null
@@ -62204,7 +62208,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 82,
+      "line": 132,
       "node": "provider:Property.CloseDate",
       "tier": "name-matched",
       "workflow": null
@@ -62591,7 +62595,7 @@
       "status": "PASS",
       "sites": [
        "lib/market-report/generator.ts:168",
-       "lib/comps/fetch-comps.ts:68"
+       "lib/comps/fetch-comps.ts:118"
       ],
       "controls": []
      },
@@ -62599,7 +62603,7 @@
       "status": "PASS",
       "sites": [
        "lib/market-report/generator.ts:168",
-       "lib/comps/fetch-comps.ts:68"
+       "lib/comps/fetch-comps.ts:118"
       ],
       "controls": []
      },
@@ -62650,7 +62654,7 @@
      "cma": {
       "status": "PASS",
       "sites": [
-       "lib/comps/fetch-comps.ts:68"
+       "lib/comps/fetch-comps.ts:118"
       ]
      },
      "reports": {
@@ -62886,7 +62890,7 @@
      {
       "stage": "cma",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 68,
+      "line": 118,
       "node": "provider:Property.ClosePrice",
       "tier": "name-matched",
       "workflow": null
@@ -62894,7 +62898,7 @@
      {
       "stage": "saleTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 68,
+      "line": 118,
       "node": "provider:Property.ClosePrice",
       "tier": "name-matched",
       "workflow": null
@@ -62902,7 +62906,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 68,
+      "line": 118,
       "node": "provider:Property.ClosePrice",
       "tier": "name-matched",
       "workflow": null
@@ -108911,8 +108915,8 @@
        "typed": 0,
        "coOccurring": 2,
        "sites": [
-        "lib/search/canonical/live-truth.ts:60",
-        "lib/search/canonical/ownership.ts:25"
+        "lib/search/canonical/ownership.ts:25",
+        "lib/search/canonical/live-truth.ts:60"
        ]
       },
       "CoOwnership": {
@@ -108920,8 +108924,8 @@
        "coOccurring": 3,
        "sites": [
         "lib/compliance/rebny-ucba-rules.ts:497",
-        "lib/search/canonical/live-truth.ts:60",
-        "lib/search/canonical/ownership.ts:25"
+        "lib/search/canonical/ownership.ts:25",
+        "lib/search/canonical/live-truth.ts:60"
        ]
       },
       "CommunityApartment": {
@@ -108929,8 +108933,8 @@
        "coOccurring": 3,
        "sites": [
         "lib/listings/mallan-form-contract.ts:163",
-        "lib/search/canonical/live-truth.ts:60",
-        "lib/search/canonical/ownership.ts:25"
+        "lib/search/canonical/ownership.ts:25",
+        "lib/search/canonical/live-truth.ts:60"
        ]
       },
       "Condominium": {
@@ -108961,16 +108965,16 @@
        "typed": 0,
        "coOccurring": 2,
        "sites": [
-        "lib/search/canonical/live-truth.ts:60",
-        "lib/search/canonical/ownership.ts:25"
+        "lib/search/canonical/ownership.ts:25",
+        "lib/search/canonical/live-truth.ts:60"
        ]
       },
       "Leasehold": {
        "typed": 0,
        "coOccurring": 2,
        "sites": [
-        "lib/search/canonical/live-truth.ts:61",
-        "lib/search/canonical/ownership.ts:26"
+        "lib/search/canonical/ownership.ts:26",
+        "lib/search/canonical/live-truth.ts:61"
        ]
       },
       "None": {
@@ -108989,10 +108993,10 @@
        "typed": 0,
        "coOccurring": 4,
        "sites": [
+        "lib/search/canonical/ownership.ts:26",
         "lib/search/canonical/live-truth.ts:61",
         "lib/search/canonical/live-truth.ts:90",
-        "lib/search/canonical/live-truth.ts:123",
-        "lib/search/canonical/ownership.ts:26"
+        "lib/search/canonical/live-truth.ts:123"
        ]
       },
       "PlannedDevelopment": {
@@ -109000,8 +109004,8 @@
        "coOccurring": 3,
        "sites": [
         "lib/listings/mallan-form-contract.ts:162",
-        "lib/search/canonical/live-truth.ts:61",
-        "lib/search/canonical/ownership.ts:26"
+        "lib/search/canonical/ownership.ts:26",
+        "lib/search/canonical/live-truth.ts:61"
        ]
       },
       "RentalBuilding": {
@@ -109012,8 +109016,8 @@
         "lib/listings/mallan-form-contract.ts:161",
         "lib/crm/listing-form-mapping.ts:84",
         "lib/crm/listing-form-mapping.ts:127",
-        "lib/search/canonical/live-truth.ts:59",
-        "lib/search/canonical/live-truth.ts:66"
+        "lib/search/canonical/ownership.ts:60",
+        "lib/search/canonical/live-truth.ts:59"
        ]
       },
       "StockCooperative": {
@@ -109033,8 +109037,8 @@
        "coOccurring": 3,
        "sites": [
         "lib/compliance/rebny-ucba-rules.ts:509",
-        "lib/search/canonical/live-truth.ts:61",
-        "lib/search/canonical/ownership.ts:26"
+        "lib/search/canonical/ownership.ts:26",
+        "lib/search/canonical/live-truth.ts:61"
        ]
       }
      },
@@ -109129,6 +109133,8 @@
      "criterion": {
       "status": "PASS",
       "sites": [
+       "lib/search/canonical/ownership.ts:45",
+       "lib/search/canonical/ownership.ts:48",
        "lib/search/canonical/live-truth.ts:142",
        "lib/search/engine/criteria.ts:116",
        "lib/search/engine/criteria.ts:218",
@@ -109147,6 +109153,8 @@
      "saleSearch": {
       "status": "PASS",
       "sites": [
+       "lib/search/canonical/ownership.ts:45",
+       "lib/search/canonical/ownership.ts:48",
        "lib/search/canonical/live-truth.ts:142",
        "lib/search/engine/criteria.ts:116",
        "lib/search/engine/criteria.ts:218",
@@ -109157,6 +109165,8 @@
      "rentalSearch": {
       "status": "PASS",
       "sites": [
+       "lib/search/canonical/ownership.ts:45",
+       "lib/search/canonical/ownership.ts:48",
        "lib/search/canonical/live-truth.ts:142",
        "lib/search/engine/criteria.ts:116",
        "lib/search/engine/criteria.ts:218",
@@ -109321,6 +109331,7 @@
        "tests/runtime/building-manifest-cache-size.test.ts",
        "tests/runtime/building-manifest-warm-behavior.test.ts",
        "tests/runtime/building-payload-parity.test.ts",
+       "tests/runtime/comps-close-date-window.test.ts",
        "tests/runtime/cotality-building-autopopulate.test.ts",
        "tests/runtime/crm-form-field-roundtrip.test.ts",
        "tests/runtime/neon-quiet-distinct-buildings.test.ts",
@@ -109342,6 +109353,7 @@
        "lib/search/__tests__/engine-provider-query.test.ts",
        "lib/search/__tests__/public-listing-trestle.test.ts",
        "lib/search/__tests__/saved-search-contract.test.ts",
+       "tests/runtime/comps-close-date-window.test.ts",
        "tests/runtime/provider-authority-census.test.ts"
       ],
       "basis": "heuristic: field within 3 lines of a negative matcher"
@@ -109353,6 +109365,7 @@
        "tests/runtime/building-manifest-cache-size.test.ts",
        "tests/runtime/building-manifest-warm-behavior.test.ts",
        "tests/runtime/building-payload-parity.test.ts",
+       "tests/runtime/comps-close-date-window.test.ts",
        "tests/runtime/cotality-building-autopopulate.test.ts",
        "tests/runtime/crm-form-field-roundtrip.test.ts",
        "tests/runtime/neon-quiet-distinct-buildings.test.ts",
@@ -109438,7 +109451,7 @@
     "canonicalKeys": [
      "ownership"
     ],
-    "consumers": 52,
+    "consumers": 54,
     "consumerSites": [
      {
       "stage": "publicConsumer",
@@ -109575,6 +109588,22 @@
       "node": "provider:Property.CommonInterest",
       "tier": "string-literal",
       "workflow": null
+     },
+     {
+      "stage": "criterion",
+      "file": "lib/search/canonical/ownership.ts",
+      "line": 45,
+      "node": "provider:Property.CommonInterest",
+      "tier": "name-matched",
+      "workflow": "both"
+     },
+     {
+      "stage": "criterion",
+      "file": "lib/search/canonical/ownership.ts",
+      "line": 48,
+      "node": "provider:Property.CommonInterest",
+      "tier": "name-matched",
+      "workflow": "both"
      },
      {
       "stage": "criterion",
@@ -122390,7 +122419,7 @@
        "lib/market-report/generator.ts:170",
        "lib/market-report/generator.ts:217",
        "lib/market-report/generator.ts:245",
-       "lib/comps/fetch-comps.ts:83"
+       "lib/comps/fetch-comps.ts:133"
       ],
       "controls": []
      },
@@ -122400,7 +122429,7 @@
        "lib/market-report/generator.ts:170",
        "lib/market-report/generator.ts:217",
        "lib/market-report/generator.ts:245",
-       "lib/comps/fetch-comps.ts:83"
+       "lib/comps/fetch-comps.ts:133"
       ],
       "controls": []
      },
@@ -122444,7 +122473,7 @@
      "cma": {
       "status": "PASS",
       "sites": [
-       "lib/comps/fetch-comps.ts:83"
+       "lib/comps/fetch-comps.ts:133"
       ]
      },
      "reports": {
@@ -122684,7 +122713,7 @@
      {
       "stage": "cma",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 83,
+      "line": 133,
       "node": "provider:Property.DaysOnMarket",
       "tier": "name-matched",
       "workflow": null
@@ -122692,7 +122721,7 @@
      {
       "stage": "saleTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 83,
+      "line": 133,
       "node": "provider:Property.DaysOnMarket",
       "tier": "name-matched",
       "workflow": null
@@ -122700,7 +122729,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 83,
+      "line": 133,
       "node": "provider:Property.DaysOnMarket",
       "tier": "name-matched",
       "workflow": null
@@ -161868,10 +161897,10 @@
        "lib/open-houses/upcoming-open-houses.ts:58",
        "app/api/crm/listing-sends/route.ts:128",
        "lib/open-houses/upcoming-open-houses.ts:369",
-       "lib/cma/engine.ts:110",
+       "lib/cma/engine.ts:114",
        "app/api/crm/listing-sends/route.ts:129",
        "lib/open-houses/upcoming-open-houses.ts:370",
-       "lib/cma/engine.ts:109"
+       "lib/cma/engine.ts:113"
       ],
       "controls": []
      },
@@ -161881,10 +161910,10 @@
        "lib/open-houses/upcoming-open-houses.ts:58",
        "app/api/crm/listing-sends/route.ts:128",
        "lib/open-houses/upcoming-open-houses.ts:369",
-       "lib/cma/engine.ts:110",
+       "lib/cma/engine.ts:114",
        "app/api/crm/listing-sends/route.ts:129",
        "lib/open-houses/upcoming-open-houses.ts:370",
-       "lib/cma/engine.ts:109"
+       "lib/cma/engine.ts:113"
       ],
       "controls": []
      },
@@ -161973,8 +162002,8 @@
      "cma": {
       "status": "PASS",
       "sites": [
-       "lib/cma/engine.ts:110",
-       "lib/cma/engine.ts:109"
+       "lib/cma/engine.ts:114",
+       "lib/cma/engine.ts:113"
       ]
      },
      "reports": {
@@ -162748,7 +162777,7 @@
      {
       "stage": "cma",
       "file": "lib/cma/engine.ts",
-      "line": 110,
+      "line": 114,
       "node": "listings.internet_entire_listing_display_yn",
       "tier": "typed",
       "workflow": null
@@ -162756,7 +162785,7 @@
      {
       "stage": "saleTools",
       "file": "lib/cma/engine.ts",
-      "line": 110,
+      "line": 114,
       "node": "listings.internet_entire_listing_display_yn",
       "tier": "typed",
       "workflow": null
@@ -162764,7 +162793,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/cma/engine.ts",
-      "line": 110,
+      "line": 114,
       "node": "listings.internet_entire_listing_display_yn",
       "tier": "typed",
       "workflow": null
@@ -163004,7 +163033,7 @@
      {
       "stage": "cma",
       "file": "lib/cma/engine.ts",
-      "line": 109,
+      "line": 113,
       "node": "listings.internet_address_display_yn",
       "tier": "typed",
       "workflow": null
@@ -163012,7 +163041,7 @@
      {
       "stage": "saleTools",
       "file": "lib/cma/engine.ts",
-      "line": 109,
+      "line": 113,
       "node": "listings.internet_address_display_yn",
       "tier": "typed",
       "workflow": null
@@ -163020,7 +163049,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/cma/engine.ts",
-      "line": 109,
+      "line": 113,
       "node": "listings.internet_address_display_yn",
       "tier": "typed",
       "workflow": null
@@ -163584,10 +163613,10 @@
       "sites": [
        "app/api/crm/listing-sends/route.ts:128",
        "lib/open-houses/upcoming-open-houses.ts:369",
-       "lib/cma/engine.ts:110",
+       "lib/cma/engine.ts:114",
        "app/api/crm/listing-sends/route.ts:129",
        "lib/open-houses/upcoming-open-houses.ts:370",
-       "lib/cma/engine.ts:109"
+       "lib/cma/engine.ts:113"
       ],
       "controls": []
      },
@@ -163596,10 +163625,10 @@
       "sites": [
        "app/api/crm/listing-sends/route.ts:128",
        "lib/open-houses/upcoming-open-houses.ts:369",
-       "lib/cma/engine.ts:110",
+       "lib/cma/engine.ts:114",
        "app/api/crm/listing-sends/route.ts:129",
        "lib/open-houses/upcoming-open-houses.ts:370",
-       "lib/cma/engine.ts:109"
+       "lib/cma/engine.ts:113"
       ],
       "controls": []
      },
@@ -163681,8 +163710,8 @@
      "cma": {
       "status": "PASS",
       "sites": [
-       "lib/cma/engine.ts:110",
-       "lib/cma/engine.ts:109"
+       "lib/cma/engine.ts:114",
+       "lib/cma/engine.ts:113"
       ]
      },
      "reports": {
@@ -164247,7 +164276,7 @@
      {
       "stage": "cma",
       "file": "lib/cma/engine.ts",
-      "line": 110,
+      "line": 114,
       "node": "listings.internet_entire_listing_display_yn",
       "tier": "typed",
       "workflow": null
@@ -164255,7 +164284,7 @@
      {
       "stage": "saleTools",
       "file": "lib/cma/engine.ts",
-      "line": 110,
+      "line": 114,
       "node": "listings.internet_entire_listing_display_yn",
       "tier": "typed",
       "workflow": null
@@ -164263,7 +164292,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/cma/engine.ts",
-      "line": 110,
+      "line": 114,
       "node": "listings.internet_entire_listing_display_yn",
       "tier": "typed",
       "workflow": null
@@ -164503,7 +164532,7 @@
      {
       "stage": "cma",
       "file": "lib/cma/engine.ts",
-      "line": 109,
+      "line": 113,
       "node": "listings.internet_address_display_yn",
       "tier": "typed",
       "workflow": null
@@ -164511,7 +164540,7 @@
      {
       "stage": "saleTools",
       "file": "lib/cma/engine.ts",
-      "line": 109,
+      "line": 113,
       "node": "listings.internet_address_display_yn",
       "tier": "typed",
       "workflow": null
@@ -164519,7 +164548,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/cma/engine.ts",
-      "line": 109,
+      "line": 113,
       "node": "listings.internet_address_display_yn",
       "tier": "typed",
       "workflow": null
@@ -165034,10 +165063,10 @@
       "sites": [
        "app/api/crm/listing-sends/route.ts:128",
        "lib/open-houses/upcoming-open-houses.ts:369",
-       "lib/cma/engine.ts:110",
+       "lib/cma/engine.ts:114",
        "app/api/crm/listing-sends/route.ts:129",
        "lib/open-houses/upcoming-open-houses.ts:370",
-       "lib/cma/engine.ts:109"
+       "lib/cma/engine.ts:113"
       ],
       "controls": []
      },
@@ -165046,10 +165075,10 @@
       "sites": [
        "app/api/crm/listing-sends/route.ts:128",
        "lib/open-houses/upcoming-open-houses.ts:369",
-       "lib/cma/engine.ts:110",
+       "lib/cma/engine.ts:114",
        "app/api/crm/listing-sends/route.ts:129",
        "lib/open-houses/upcoming-open-houses.ts:370",
-       "lib/cma/engine.ts:109"
+       "lib/cma/engine.ts:113"
       ],
       "controls": []
      },
@@ -165131,8 +165160,8 @@
      "cma": {
       "status": "PASS",
       "sites": [
-       "lib/cma/engine.ts:110",
-       "lib/cma/engine.ts:109"
+       "lib/cma/engine.ts:114",
+       "lib/cma/engine.ts:113"
       ]
      },
      "reports": {
@@ -165692,7 +165721,7 @@
      {
       "stage": "cma",
       "file": "lib/cma/engine.ts",
-      "line": 110,
+      "line": 114,
       "node": "listings.internet_entire_listing_display_yn",
       "tier": "typed",
       "workflow": null
@@ -165700,7 +165729,7 @@
      {
       "stage": "saleTools",
       "file": "lib/cma/engine.ts",
-      "line": 110,
+      "line": 114,
       "node": "listings.internet_entire_listing_display_yn",
       "tier": "typed",
       "workflow": null
@@ -165708,7 +165737,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/cma/engine.ts",
-      "line": 110,
+      "line": 114,
       "node": "listings.internet_entire_listing_display_yn",
       "tier": "typed",
       "workflow": null
@@ -165948,7 +165977,7 @@
      {
       "stage": "cma",
       "file": "lib/cma/engine.ts",
-      "line": 109,
+      "line": 113,
       "node": "listings.internet_address_display_yn",
       "tier": "typed",
       "workflow": null
@@ -165956,7 +165985,7 @@
      {
       "stage": "saleTools",
       "file": "lib/cma/engine.ts",
-      "line": 109,
+      "line": 113,
       "node": "listings.internet_address_display_yn",
       "tier": "typed",
       "workflow": null
@@ -165964,7 +165993,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/cma/engine.ts",
-      "line": 109,
+      "line": 113,
       "node": "listings.internet_address_display_yn",
       "tier": "typed",
       "workflow": null
@@ -166514,10 +166543,10 @@
        "lib/open-houses/upcoming-open-houses.ts:58",
        "app/api/crm/listing-sends/route.ts:128",
        "lib/open-houses/upcoming-open-houses.ts:369",
-       "lib/cma/engine.ts:110",
+       "lib/cma/engine.ts:114",
        "app/api/crm/listing-sends/route.ts:129",
        "lib/open-houses/upcoming-open-houses.ts:370",
-       "lib/cma/engine.ts:109"
+       "lib/cma/engine.ts:113"
       ],
       "controls": []
      },
@@ -166527,10 +166556,10 @@
        "lib/open-houses/upcoming-open-houses.ts:58",
        "app/api/crm/listing-sends/route.ts:128",
        "lib/open-houses/upcoming-open-houses.ts:369",
-       "lib/cma/engine.ts:110",
+       "lib/cma/engine.ts:114",
        "app/api/crm/listing-sends/route.ts:129",
        "lib/open-houses/upcoming-open-houses.ts:370",
-       "lib/cma/engine.ts:109"
+       "lib/cma/engine.ts:113"
       ],
       "controls": []
      },
@@ -166631,8 +166660,8 @@
      "cma": {
       "status": "PASS",
       "sites": [
-       "lib/cma/engine.ts:110",
-       "lib/cma/engine.ts:109"
+       "lib/cma/engine.ts:114",
+       "lib/cma/engine.ts:113"
       ]
      },
      "reports": {
@@ -167460,7 +167489,7 @@
      {
       "stage": "cma",
       "file": "lib/cma/engine.ts",
-      "line": 110,
+      "line": 114,
       "node": "listings.internet_entire_listing_display_yn",
       "tier": "typed",
       "workflow": null
@@ -167468,7 +167497,7 @@
      {
       "stage": "saleTools",
       "file": "lib/cma/engine.ts",
-      "line": 110,
+      "line": 114,
       "node": "listings.internet_entire_listing_display_yn",
       "tier": "typed",
       "workflow": null
@@ -167476,7 +167505,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/cma/engine.ts",
-      "line": 110,
+      "line": 114,
       "node": "listings.internet_entire_listing_display_yn",
       "tier": "typed",
       "workflow": null
@@ -167716,7 +167745,7 @@
      {
       "stage": "cma",
       "file": "lib/cma/engine.ts",
-      "line": 109,
+      "line": 113,
       "node": "listings.internet_address_display_yn",
       "tier": "typed",
       "workflow": null
@@ -167724,7 +167753,7 @@
      {
       "stage": "saleTools",
       "file": "lib/cma/engine.ts",
-      "line": 109,
+      "line": 113,
       "node": "listings.internet_address_display_yn",
       "tier": "typed",
       "workflow": null
@@ -167732,7 +167761,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/cma/engine.ts",
-      "line": 109,
+      "line": 113,
       "node": "listings.internet_address_display_yn",
       "tier": "typed",
       "workflow": null
@@ -183443,14 +183472,14 @@
      "saleTools": {
       "status": "PASS",
       "sites": [
-       "lib/comps/fetch-comps.ts:86"
+       "lib/comps/fetch-comps.ts:136"
       ],
       "controls": []
      },
      "rentalTools": {
       "status": "PASS",
       "sites": [
-       "lib/comps/fetch-comps.ts:86"
+       "lib/comps/fetch-comps.ts:136"
       ],
       "controls": []
      },
@@ -183495,7 +183524,7 @@
      "cma": {
       "status": "PASS",
       "sites": [
-       "lib/comps/fetch-comps.ts:86"
+       "lib/comps/fetch-comps.ts:136"
       ]
      },
      "reports": {
@@ -183755,7 +183784,7 @@
      {
       "stage": "cma",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 86,
+      "line": 136,
       "node": "provider:Property.ListAgentFullName",
       "tier": "name-matched",
       "workflow": null
@@ -183763,7 +183792,7 @@
      {
       "stage": "saleTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 86,
+      "line": 136,
       "node": "provider:Property.ListAgentFullName",
       "tier": "name-matched",
       "workflow": null
@@ -183771,7 +183800,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 86,
+      "line": 136,
       "node": "provider:Property.ListAgentFullName",
       "tier": "name-matched",
       "workflow": null
@@ -194103,7 +194132,7 @@
        "lib/open-houses/upcoming-open-houses.ts:58",
        "lib/market-report/generator.ts:173",
        "lib/market-report/generator.ts:247",
-       "lib/comps/fetch-comps.ts:87",
+       "lib/comps/fetch-comps.ts:137",
        "lib/syndication/eligibility.ts:313"
       ],
       "controls": []
@@ -194114,7 +194143,7 @@
        "lib/open-houses/upcoming-open-houses.ts:58",
        "lib/market-report/generator.ts:173",
        "lib/market-report/generator.ts:247",
-       "lib/comps/fetch-comps.ts:87",
+       "lib/comps/fetch-comps.ts:137",
        "lib/syndication/eligibility.ts:313"
       ],
       "controls": []
@@ -194160,7 +194189,7 @@
      "cma": {
       "status": "PASS",
       "sites": [
-       "lib/comps/fetch-comps.ts:87"
+       "lib/comps/fetch-comps.ts:137"
       ]
      },
      "reports": {
@@ -194531,7 +194560,7 @@
      {
       "stage": "cma",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 87,
+      "line": 137,
       "node": "provider:Property.ListOfficeName",
       "tier": "name-matched",
       "workflow": null
@@ -194539,7 +194568,7 @@
      {
       "stage": "saleTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 87,
+      "line": 137,
       "node": "provider:Property.ListOfficeName",
       "tier": "name-matched",
       "workflow": null
@@ -194547,7 +194576,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 87,
+      "line": 137,
       "node": "provider:Property.ListOfficeName",
       "tier": "name-matched",
       "workflow": null
@@ -196091,8 +196120,8 @@
        "lib/market-report/generator.ts:210",
        "lib/market-report/generator.ts:211",
        "lib/market-report/generator.ts:241",
-       "lib/comps/fetch-comps.ts:66",
-       "lib/cma/engine.ts:103",
+       "lib/comps/fetch-comps.ts:116",
+       "lib/cma/engine.ts:107",
        "app/api/crm/listing-sends/route.ts:86",
        "lib/seller-report/load-report.ts:170",
        "lib/seller-report/load-report.ts:172",
@@ -196109,8 +196138,8 @@
        "lib/market-report/generator.ts:210",
        "lib/market-report/generator.ts:211",
        "lib/market-report/generator.ts:241",
-       "lib/comps/fetch-comps.ts:66",
-       "lib/cma/engine.ts:103",
+       "lib/comps/fetch-comps.ts:116",
+       "lib/cma/engine.ts:107",
        "app/api/crm/listing-sends/route.ts:86",
        "app/api/crm/showings/route.ts:57"
       ],
@@ -196218,8 +196247,8 @@
      "cma": {
       "status": "PASS",
       "sites": [
-       "lib/comps/fetch-comps.ts:66",
-       "lib/cma/engine.ts:103"
+       "lib/comps/fetch-comps.ts:116",
+       "lib/cma/engine.ts:107"
       ]
      },
      "reports": {
@@ -196425,6 +196454,7 @@
        "tests/runtime/building-manifest-cache-size.test.ts",
        "tests/runtime/building-manifest-warm-behavior.test.ts",
        "tests/runtime/building-neon-wake-contracts.test.ts",
+       "tests/runtime/comps-close-date-window.test.ts",
        "tests/runtime/crm-listing-send-fair-housing.test.ts",
        "tests/runtime/crm-media-canonical-readers.test.ts",
        "tests/runtime/crm-publication-featured-exclusive.test.ts",
@@ -196763,7 +196793,7 @@
      {
       "stage": "cma",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 66,
+      "line": 116,
       "node": "provider:Property.ListPrice",
       "tier": "name-matched",
       "workflow": null
@@ -196771,7 +196801,7 @@
      {
       "stage": "saleTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 66,
+      "line": 116,
       "node": "provider:Property.ListPrice",
       "tier": "name-matched",
       "workflow": null
@@ -196779,7 +196809,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 66,
+      "line": 116,
       "node": "provider:Property.ListPrice",
       "tier": "name-matched",
       "workflow": null
@@ -197043,7 +197073,7 @@
      {
       "stage": "cma",
       "file": "lib/cma/engine.ts",
-      "line": 103,
+      "line": 107,
       "node": "listings.list_price",
       "tier": "typed",
       "workflow": null
@@ -197051,7 +197081,7 @@
      {
       "stage": "saleTools",
       "file": "lib/cma/engine.ts",
-      "line": 103,
+      "line": 107,
       "node": "listings.list_price",
       "tier": "typed",
       "workflow": null
@@ -197059,7 +197089,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/cma/engine.ts",
-      "line": 103,
+      "line": 107,
       "node": "listings.list_price",
       "tier": "typed",
       "workflow": null
@@ -200828,9 +200858,9 @@
        "lib/open-houses/upcoming-open-houses.ts:294",
        "lib/open-houses/upcoming-open-houses.ts:330",
        "lib/market-report/generator.ts:168",
-       "lib/comps/fetch-comps.ts:71",
+       "lib/comps/fetch-comps.ts:121",
        "lib/open-houses/upcoming-open-houses.ts:363",
-       "lib/cma/engine.ts:101",
+       "lib/cma/engine.ts:105",
        "app/api/crm/listing-sends/route.ts:81",
        "app/api/crm/listing-sends/route.ts:84",
        "app/api/crm/showings/route.ts:55",
@@ -200853,9 +200883,9 @@
        "lib/open-houses/upcoming-open-houses.ts:294",
        "lib/open-houses/upcoming-open-houses.ts:330",
        "lib/market-report/generator.ts:168",
-       "lib/comps/fetch-comps.ts:71",
+       "lib/comps/fetch-comps.ts:121",
        "lib/open-houses/upcoming-open-houses.ts:363",
-       "lib/cma/engine.ts:101",
+       "lib/cma/engine.ts:105",
        "app/api/crm/listing-sends/route.ts:81",
        "app/api/crm/listing-sends/route.ts:84",
        "app/api/crm/showings/route.ts:55",
@@ -200958,7 +200988,7 @@
        "app/api/crm/rentals/listings/route.ts:56",
        "app/api/crm/sales/comps/route.ts:27",
        "app/api/crm/sales/comps/route.ts:29",
-       "app/api/crm/sales/comps/route.ts:74",
+       "app/api/crm/sales/comps/route.ts:76",
        "app/api/crm/sales/comps/criteria/route.ts:40",
        "app/api/crm/sales/comps/criteria/route.ts:58",
        "app/api/crm/sales/listings/route.ts:45",
@@ -201092,8 +201122,8 @@
      "cma": {
       "status": "PASS",
       "sites": [
-       "lib/comps/fetch-comps.ts:71",
-       "lib/cma/engine.ts:101"
+       "lib/comps/fetch-comps.ts:121",
+       "lib/cma/engine.ts:105"
       ]
      },
      "reports": {
@@ -201449,6 +201479,7 @@
        "tests/runtime/building-manifest-warm-behavior.test.ts",
        "tests/runtime/building-neon-wake-contracts.test.ts",
        "tests/runtime/codex-risk-p0.test.ts",
+       "tests/runtime/comps-close-date-window.test.ts",
        "tests/runtime/crm-listing-publish-contract.test.ts",
        "tests/runtime/crm-listing-round-trip.test.ts",
        "tests/runtime/crm-listing-send-fair-housing.test.ts",
@@ -201830,7 +201861,7 @@
      {
       "stage": "cma",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 71,
+      "line": 121,
       "node": "provider:Property.ListingId",
       "tier": "name-matched",
       "workflow": null
@@ -201838,7 +201869,7 @@
      {
       "stage": "saleTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 71,
+      "line": 121,
       "node": "provider:Property.ListingId",
       "tier": "name-matched",
       "workflow": null
@@ -201846,7 +201877,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 71,
+      "line": 121,
       "node": "provider:Property.ListingId",
       "tier": "name-matched",
       "workflow": null
@@ -202478,7 +202509,7 @@
      {
       "stage": "cma",
       "file": "lib/cma/engine.ts",
-      "line": 101,
+      "line": 105,
       "node": "listings.listing_id",
       "tier": "typed",
       "workflow": null
@@ -202486,7 +202517,7 @@
      {
       "stage": "saleTools",
       "file": "lib/cma/engine.ts",
-      "line": 101,
+      "line": 105,
       "node": "listings.listing_id",
       "tier": "typed",
       "workflow": null
@@ -202494,7 +202525,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/cma/engine.ts",
-      "line": 101,
+      "line": 105,
       "node": "listings.listing_id",
       "tier": "typed",
       "workflow": null
@@ -203078,7 +203109,7 @@
      {
       "stage": "listingWorkspace",
       "file": "app/api/crm/sales/comps/route.ts",
-      "line": 74,
+      "line": 76,
       "node": "listings.listing_id",
       "tier": "typed",
       "workflow": null
@@ -205147,7 +205178,7 @@
        "lib/open-houses/upcoming-open-houses.ts:56",
        "lib/open-houses/upcoming-open-houses.ts:330",
        "lib/open-houses/upcoming-open-houses.ts:363",
-       "lib/cma/engine.ts:101",
+       "lib/cma/engine.ts:105",
        "app/api/crm/listing-sends/route.ts:81",
        "app/api/crm/listing-sends/route.ts:84",
        "app/api/crm/showings/route.ts:55",
@@ -205169,7 +205200,7 @@
        "lib/open-houses/upcoming-open-houses.ts:56",
        "lib/open-houses/upcoming-open-houses.ts:330",
        "lib/open-houses/upcoming-open-houses.ts:363",
-       "lib/cma/engine.ts:101",
+       "lib/cma/engine.ts:105",
        "app/api/crm/listing-sends/route.ts:81",
        "app/api/crm/listing-sends/route.ts:84",
        "app/api/crm/showings/route.ts:55",
@@ -205262,7 +205293,7 @@
        "app/api/crm/rentals/listings/route.ts:56",
        "app/api/crm/sales/comps/route.ts:27",
        "app/api/crm/sales/comps/route.ts:29",
-       "app/api/crm/sales/comps/route.ts:74",
+       "app/api/crm/sales/comps/route.ts:76",
        "app/api/crm/sales/comps/criteria/route.ts:40",
        "app/api/crm/sales/comps/criteria/route.ts:58",
        "app/api/crm/sales/listings/route.ts:45",
@@ -205416,7 +205447,7 @@
      "cma": {
       "status": "PASS",
       "sites": [
-       "lib/cma/engine.ts:101"
+       "lib/cma/engine.ts:105"
       ]
      },
      "reports": {
@@ -205764,6 +205795,7 @@
        "tests/runtime/building-manifest-warm-behavior.test.ts",
        "tests/runtime/building-neon-wake-contracts.test.ts",
        "tests/runtime/codex-risk-p0.test.ts",
+       "tests/runtime/comps-close-date-window.test.ts",
        "tests/runtime/crm-listing-publish-contract.test.ts",
        "tests/runtime/crm-listing-round-trip.test.ts",
        "tests/runtime/crm-listing-send-fair-housing.test.ts",
@@ -206526,7 +206558,7 @@
      {
       "stage": "cma",
       "file": "lib/cma/engine.ts",
-      "line": 101,
+      "line": 105,
       "node": "listings.listing_id",
       "tier": "typed",
       "workflow": null
@@ -206534,7 +206566,7 @@
      {
       "stage": "saleTools",
       "file": "lib/cma/engine.ts",
-      "line": 101,
+      "line": 105,
       "node": "listings.listing_id",
       "tier": "typed",
       "workflow": null
@@ -206542,7 +206574,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/cma/engine.ts",
-      "line": 101,
+      "line": 105,
       "node": "listings.listing_id",
       "tier": "typed",
       "workflow": null
@@ -207126,7 +207158,7 @@
      {
       "stage": "listingWorkspace",
       "file": "app/api/crm/sales/comps/route.ts",
-      "line": 74,
+      "line": 76,
       "node": "listings.listing_id",
       "tier": "typed",
       "workflow": null
@@ -210891,8 +210923,8 @@
        "lib/market-report/generator.ts:210",
        "lib/market-report/generator.ts:211",
        "lib/market-report/generator.ts:244",
-       "lib/comps/fetch-comps.ts:67",
-       "lib/cma/engine.ts:106",
+       "lib/comps/fetch-comps.ts:117",
+       "lib/cma/engine.ts:110",
        "app/api/crm/listing-sends/route.ts:89"
       ],
       "controls": []
@@ -210905,8 +210937,8 @@
        "lib/market-report/generator.ts:210",
        "lib/market-report/generator.ts:211",
        "lib/market-report/generator.ts:244",
-       "lib/comps/fetch-comps.ts:67",
-       "lib/cma/engine.ts:106",
+       "lib/comps/fetch-comps.ts:117",
+       "lib/cma/engine.ts:110",
        "app/api/crm/listing-sends/route.ts:89"
       ],
       "controls": []
@@ -210976,8 +211008,8 @@
      "cma": {
       "status": "PASS",
       "sites": [
-       "lib/comps/fetch-comps.ts:67",
-       "lib/cma/engine.ts:106"
+       "lib/comps/fetch-comps.ts:117",
+       "lib/cma/engine.ts:110"
       ]
      },
      "reports": {
@@ -211384,7 +211416,7 @@
      {
       "stage": "cma",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 67,
+      "line": 117,
       "node": "provider:Property.LivingArea",
       "tier": "name-matched",
       "workflow": null
@@ -211392,7 +211424,7 @@
      {
       "stage": "saleTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 67,
+      "line": 117,
       "node": "provider:Property.LivingArea",
       "tier": "name-matched",
       "workflow": null
@@ -211400,7 +211432,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 67,
+      "line": 117,
       "node": "provider:Property.LivingArea",
       "tier": "name-matched",
       "workflow": null
@@ -211608,7 +211640,7 @@
      {
       "stage": "cma",
       "file": "lib/cma/engine.ts",
-      "line": 106,
+      "line": 110,
       "node": "listings.living_area",
       "tier": "typed",
       "workflow": null
@@ -211616,7 +211648,7 @@
      {
       "stage": "saleTools",
       "file": "lib/cma/engine.ts",
-      "line": 106,
+      "line": 110,
       "node": "listings.living_area",
       "tier": "typed",
       "workflow": null
@@ -211624,7 +211656,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/cma/engine.ts",
-      "line": 106,
+      "line": 110,
       "node": "listings.living_area",
       "tier": "typed",
       "workflow": null
@@ -223922,7 +223954,7 @@
       "sites": [
        "lib/market-report/generator.ts:174",
        "lib/market-report/generator.ts:234",
-       "lib/cma/engine.ts:113"
+       "lib/cma/engine.ts:117"
       ],
       "controls": []
      },
@@ -223931,7 +223963,7 @@
       "sites": [
        "lib/market-report/generator.ts:174",
        "lib/market-report/generator.ts:234",
-       "lib/cma/engine.ts:113"
+       "lib/cma/engine.ts:117"
       ],
       "controls": []
      },
@@ -223981,7 +224013,7 @@
      "cma": {
       "status": "PASS",
       "sites": [
-       "lib/cma/engine.ts:113"
+       "lib/cma/engine.ts:117"
       ]
      },
      "reports": {
@@ -224076,6 +224108,7 @@
        "lib/search/__tests__/projection-write-suppression.test.ts",
        "tests/runtime/agent-info-phase-c-stop-json-writes.test.ts",
        "tests/runtime/backfill-empty-media-reachability.test.ts",
+       "tests/runtime/comps-close-date-window.test.ts",
        "tests/runtime/cotality-contract-helpers.test.ts",
        "tests/runtime/ensure-listing-cursor-safety.test.ts",
        "tests/runtime/idx-keyset-cursor.test.ts",
@@ -224112,6 +224145,7 @@
        "lib/idx/__tests__/pct-deprecation.test.ts",
        "lib/idx/__tests__/permission-provider-fact.test.ts",
        "lib/listings/__tests__/canonical-lifecycle.test.ts",
+       "tests/runtime/comps-close-date-window.test.ts",
        "tests/runtime/idx-keyset-cursor.test.ts",
        "tests/runtime/idx-property-cursor-contract.test.ts",
        "tests/runtime/provider-status-domain-census.test.ts",
@@ -224124,6 +224158,7 @@
       "files": [
        "tests/runtime/agent-info-phase-c-stop-json-writes.test.ts",
        "tests/runtime/backfill-empty-media-reachability.test.ts",
+       "tests/runtime/comps-close-date-window.test.ts",
        "tests/runtime/cotality-contract-helpers.test.ts",
        "tests/runtime/ensure-listing-cursor-safety.test.ts",
        "tests/runtime/idx-keyset-cursor.test.ts",
@@ -224484,7 +224519,7 @@
      {
       "stage": "cma",
       "file": "lib/cma/engine.ts",
-      "line": 113,
+      "line": 117,
       "node": "listings.modification_timestamp",
       "tier": "typed",
       "workflow": null
@@ -224492,7 +224527,7 @@
      {
       "stage": "saleTools",
       "file": "lib/cma/engine.ts",
-      "line": 113,
+      "line": 117,
       "node": "listings.modification_timestamp",
       "tier": "typed",
       "workflow": null
@@ -224500,7 +224535,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/cma/engine.ts",
-      "line": 113,
+      "line": 117,
       "node": "listings.modification_timestamp",
       "tier": "typed",
       "workflow": null
@@ -231450,6 +231485,7 @@
       "files": [
        "lib/compliance/__tests__/raw-data-keep-lifecycle.test.ts",
        "lib/listings/__tests__/canonical-lifecycle.test.ts",
+       "tests/runtime/comps-close-date-window.test.ts",
        "tests/runtime/terminal-since-helper.test.ts"
       ]
      },
@@ -231463,6 +231499,7 @@
      "integrationTest": {
       "status": "PASS",
       "files": [
+       "tests/runtime/comps-close-date-window.test.ts",
        "tests/runtime/terminal-since-helper.test.ts"
       ]
      },
@@ -247670,10 +247707,10 @@
        "lib/open-houses/upcoming-open-houses.ts:58",
        "app/api/crm/listing-sends/route.ts:128",
        "lib/open-houses/upcoming-open-houses.ts:369",
-       "lib/cma/engine.ts:110",
+       "lib/cma/engine.ts:114",
        "app/api/crm/listing-sends/route.ts:129",
        "lib/open-houses/upcoming-open-houses.ts:370",
-       "lib/cma/engine.ts:109",
+       "lib/cma/engine.ts:113",
        "lib/open-houses/upcoming-open-houses.ts:368",
        "app/api/crm/listing-sends/route.ts:131"
       ],
@@ -247685,10 +247722,10 @@
        "lib/open-houses/upcoming-open-houses.ts:58",
        "app/api/crm/listing-sends/route.ts:128",
        "lib/open-houses/upcoming-open-houses.ts:369",
-       "lib/cma/engine.ts:110",
+       "lib/cma/engine.ts:114",
        "app/api/crm/listing-sends/route.ts:129",
        "lib/open-houses/upcoming-open-houses.ts:370",
-       "lib/cma/engine.ts:109",
+       "lib/cma/engine.ts:113",
        "lib/open-houses/upcoming-open-houses.ts:368",
        "app/api/crm/listing-sends/route.ts:131"
       ],
@@ -247787,8 +247824,8 @@
      "cma": {
       "status": "PASS",
       "sites": [
-       "lib/cma/engine.ts:110",
-       "lib/cma/engine.ts:109"
+       "lib/cma/engine.ts:114",
+       "lib/cma/engine.ts:113"
       ]
      },
      "reports": {
@@ -248532,7 +248569,7 @@
      {
       "stage": "cma",
       "file": "lib/cma/engine.ts",
-      "line": 110,
+      "line": 114,
       "node": "listings.internet_entire_listing_display_yn",
       "tier": "typed",
       "workflow": null
@@ -248540,7 +248577,7 @@
      {
       "stage": "saleTools",
       "file": "lib/cma/engine.ts",
-      "line": 110,
+      "line": 114,
       "node": "listings.internet_entire_listing_display_yn",
       "tier": "typed",
       "workflow": null
@@ -248548,7 +248585,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/cma/engine.ts",
-      "line": 110,
+      "line": 114,
       "node": "listings.internet_entire_listing_display_yn",
       "tier": "typed",
       "workflow": null
@@ -248788,7 +248825,7 @@
      {
       "stage": "cma",
       "file": "lib/cma/engine.ts",
-      "line": 109,
+      "line": 113,
       "node": "listings.internet_address_display_yn",
       "tier": "typed",
       "workflow": null
@@ -248796,7 +248833,7 @@
      {
       "stage": "saleTools",
       "file": "lib/cma/engine.ts",
-      "line": 109,
+      "line": 113,
       "node": "listings.internet_address_display_yn",
       "tier": "typed",
       "workflow": null
@@ -248804,7 +248841,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/cma/engine.ts",
-      "line": 109,
+      "line": 113,
       "node": "listings.internet_address_display_yn",
       "tier": "typed",
       "workflow": null
@@ -252064,14 +252101,14 @@
      "saleTools": {
       "status": "PASS",
       "sites": [
-       "lib/comps/fetch-comps.ts:88"
+       "lib/comps/fetch-comps.ts:138"
       ],
       "controls": []
      },
      "rentalTools": {
       "status": "PASS",
       "sites": [
-       "lib/comps/fetch-comps.ts:88"
+       "lib/comps/fetch-comps.ts:138"
       ],
       "controls": []
      },
@@ -252108,7 +252145,7 @@
      "cma": {
       "status": "PASS",
       "sites": [
-       "lib/comps/fetch-comps.ts:88"
+       "lib/comps/fetch-comps.ts:138"
       ]
      },
      "reports": {
@@ -252253,7 +252290,7 @@
      {
       "stage": "cma",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 88,
+      "line": 138,
       "node": "provider:Property.PhotosCount",
       "tier": "name-matched",
       "workflow": null
@@ -252261,7 +252298,7 @@
      {
       "stage": "saleTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 88,
+      "line": 138,
       "node": "provider:Property.PhotosCount",
       "tier": "name-matched",
       "workflow": null
@@ -252269,7 +252306,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 88,
+      "line": 138,
       "node": "provider:Property.PhotosCount",
       "tier": "name-matched",
       "workflow": null
@@ -262377,7 +262414,7 @@
       "status": "PASS",
       "sites": [
        "lib/open-houses/upcoming-open-houses.ts:57",
-       "lib/comps/fetch-comps.ts:76",
+       "lib/comps/fetch-comps.ts:126",
        "app/api/crm/listing-sends/route.ts:91",
        "lib/seller-report/load-report.ts:168",
        "app/api/crm/showings/route.ts:59",
@@ -262389,7 +262426,7 @@
       "status": "PASS",
       "sites": [
        "lib/open-houses/upcoming-open-houses.ts:57",
-       "lib/comps/fetch-comps.ts:76",
+       "lib/comps/fetch-comps.ts:126",
        "app/api/crm/listing-sends/route.ts:91",
        "app/api/crm/showings/route.ts:59",
        "app/api/crm/listing-sends/route.ts:92"
@@ -262521,7 +262558,7 @@
      "cma": {
       "status": "PASS",
       "sites": [
-       "lib/comps/fetch-comps.ts:76"
+       "lib/comps/fetch-comps.ts:126"
       ]
      },
      "reports": {
@@ -262768,6 +262805,7 @@
        "lib/scanner/contact/__tests__/aggregator.test.ts",
        "lib/scanner/__tests__/acris-filter.test.ts",
        "tests/runtime/building-identity-profile.test.ts",
+       "tests/runtime/comps-close-date-window.test.ts",
        "tests/runtime/in-house-listing-gates.test.ts",
        "tests/runtime/open-houses-local-address-casing.test.ts",
        "tests/runtime/portal-owner-listing-authorization.test.ts"
@@ -263029,7 +263067,7 @@
      {
       "stage": "cma",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 76,
+      "line": 126,
       "node": "provider:Property.PropertyType",
       "tier": "name-matched",
       "workflow": null
@@ -263037,7 +263075,7 @@
      {
       "stage": "saleTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 76,
+      "line": 126,
       "node": "provider:Property.PropertyType",
       "tier": "name-matched",
       "workflow": null
@@ -263045,7 +263083,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 76,
+      "line": 126,
       "node": "provider:Property.PropertyType",
       "tier": "name-matched",
       "workflow": null
@@ -280372,14 +280410,14 @@
        "sites": [
         "lib/compliance/status.ts:81",
         "lib/listings/mallan-status.ts:92",
+        "lib/search/canonical/status.ts:35",
         "lib/search/canonical/live-truth.ts:38",
-        "lib/scanner/trestle-off-market-filter.ts:60",
-        "lib/search/canonical/status.ts:35"
+        "lib/scanner/trestle-off-market-filter.ts:60"
        ]
       },
       "Closed": {
        "typed": 0,
-       "coOccurring": 25,
+       "coOccurring": 26,
        "sites": [
         "lib/compliance/status.ts:37",
         "lib/compliance/status.ts:64",
@@ -280672,19 +280710,19 @@
       "status": "PASS",
       "sites": [
        "lib/open-houses/upcoming-open-houses.ts:59",
-       "lib/comps/fetch-comps.ts:75",
+       "lib/comps/fetch-comps.ts:125",
        "lib/open-houses/upcoming-open-houses.ts:364",
-       "lib/cma/engine.ts:107",
+       "lib/cma/engine.ts:111",
        "app/api/crm/listing-sends/route.ts:90",
        "lib/seller-report/load-report.ts:167",
        "app/api/crm/showings/route.ts:58",
        "lib/listing-auditor/auditor.ts:210",
        "app/api/crm/listing-sends/route.ts:128",
        "lib/open-houses/upcoming-open-houses.ts:369",
-       "lib/cma/engine.ts:110",
+       "lib/cma/engine.ts:114",
        "app/api/crm/listing-sends/route.ts:129",
        "lib/open-houses/upcoming-open-houses.ts:370",
-       "lib/cma/engine.ts:109",
+       "lib/cma/engine.ts:113",
        "public/crm/js/campaigns/listing-campaign.js:79",
        "public/crm/js/listing/toolbar-functions.js:135",
        "public/crm/js/listing/toolbar-functions.js:139",
@@ -280740,18 +280778,18 @@
       "status": "PASS",
       "sites": [
        "lib/open-houses/upcoming-open-houses.ts:59",
-       "lib/comps/fetch-comps.ts:75",
+       "lib/comps/fetch-comps.ts:125",
        "lib/open-houses/upcoming-open-houses.ts:364",
-       "lib/cma/engine.ts:107",
+       "lib/cma/engine.ts:111",
        "app/api/crm/listing-sends/route.ts:90",
        "app/api/crm/showings/route.ts:58",
        "lib/listing-auditor/auditor.ts:210",
        "app/api/crm/listing-sends/route.ts:128",
        "lib/open-houses/upcoming-open-houses.ts:369",
-       "lib/cma/engine.ts:110",
+       "lib/cma/engine.ts:114",
        "app/api/crm/listing-sends/route.ts:129",
        "lib/open-houses/upcoming-open-houses.ts:370",
-       "lib/cma/engine.ts:109",
+       "lib/cma/engine.ts:113",
        "public/crm/js/campaigns/listing-campaign.js:79",
        "public/crm/js/listing/toolbar-functions.js:135",
        "public/crm/js/listing/toolbar-functions.js:139",
@@ -281678,10 +281716,10 @@
      "cma": {
       "status": "PASS",
       "sites": [
-       "lib/comps/fetch-comps.ts:75",
-       "lib/cma/engine.ts:107",
-       "lib/cma/engine.ts:110",
-       "lib/cma/engine.ts:109"
+       "lib/comps/fetch-comps.ts:125",
+       "lib/cma/engine.ts:111",
+       "lib/cma/engine.ts:114",
+       "lib/cma/engine.ts:113"
       ]
      },
      "reports": {
@@ -281857,6 +281895,7 @@
        "tests/runtime/building-address-filter.test.ts",
        "tests/runtime/building-payload-parity.test.ts",
        "tests/runtime/building-units-standardstatus-filter.test.ts",
+       "tests/runtime/comps-close-date-window.test.ts",
        "tests/runtime/cotality-authority.test.ts",
        "tests/runtime/cotality-contract-helpers.test.ts",
        "tests/runtime/cotality-vocabulary-source-authority.test.ts",
@@ -281901,6 +281940,7 @@
        "lib/search/__tests__/crm-idx-mapper.test.ts",
        "lib/search/__tests__/engine-provider-query.test.ts",
        "lib/search/__tests__/public-listing-trestle.test.ts",
+       "tests/runtime/comps-close-date-window.test.ts",
        "tests/runtime/cotality-vocabulary-source-authority.test.ts",
        "tests/runtime/open-houses-gate.test.ts",
        "tests/runtime/provider-authority-census.test.ts",
@@ -281917,6 +281957,7 @@
        "tests/runtime/building-address-filter.test.ts",
        "tests/runtime/building-payload-parity.test.ts",
        "tests/runtime/building-units-standardstatus-filter.test.ts",
+       "tests/runtime/comps-close-date-window.test.ts",
        "tests/runtime/cotality-authority.test.ts",
        "tests/runtime/cotality-contract-helpers.test.ts",
        "tests/runtime/cotality-vocabulary-source-authority.test.ts",
@@ -282358,7 +282399,7 @@
      {
       "stage": "cma",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 75,
+      "line": 125,
       "node": "provider:Property.StandardStatus",
       "tier": "name-matched",
       "workflow": null
@@ -282366,7 +282407,7 @@
      {
       "stage": "saleTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 75,
+      "line": 125,
       "node": "provider:Property.StandardStatus",
       "tier": "name-matched",
       "workflow": null
@@ -282374,7 +282415,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 75,
+      "line": 125,
       "node": "provider:Property.StandardStatus",
       "tier": "name-matched",
       "workflow": null
@@ -282606,7 +282647,7 @@
      {
       "stage": "cma",
       "file": "lib/cma/engine.ts",
-      "line": 107,
+      "line": 111,
       "node": "listings.status",
       "tier": "typed",
       "workflow": null
@@ -282614,7 +282655,7 @@
      {
       "stage": "saleTools",
       "file": "lib/cma/engine.ts",
-      "line": 107,
+      "line": 111,
       "node": "listings.status",
       "tier": "typed",
       "workflow": null
@@ -282622,7 +282663,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/cma/engine.ts",
-      "line": 107,
+      "line": 111,
       "node": "listings.status",
       "tier": "typed",
       "workflow": null
@@ -283646,7 +283687,7 @@
      {
       "stage": "cma",
       "file": "lib/cma/engine.ts",
-      "line": 110,
+      "line": 114,
       "node": "listings.internet_entire_listing_display_yn",
       "tier": "typed",
       "workflow": null
@@ -283654,7 +283695,7 @@
      {
       "stage": "saleTools",
       "file": "lib/cma/engine.ts",
-      "line": 110,
+      "line": 114,
       "node": "listings.internet_entire_listing_display_yn",
       "tier": "typed",
       "workflow": null
@@ -283662,7 +283703,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/cma/engine.ts",
-      "line": 110,
+      "line": 114,
       "node": "listings.internet_entire_listing_display_yn",
       "tier": "typed",
       "workflow": null
@@ -283902,7 +283943,7 @@
      {
       "stage": "cma",
       "file": "lib/cma/engine.ts",
-      "line": 109,
+      "line": 113,
       "node": "listings.internet_address_display_yn",
       "tier": "typed",
       "workflow": null
@@ -283910,7 +283951,7 @@
      {
       "stage": "saleTools",
       "file": "lib/cma/engine.ts",
-      "line": 109,
+      "line": 113,
       "node": "listings.internet_address_display_yn",
       "tier": "typed",
       "workflow": null
@@ -283918,7 +283959,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/cma/engine.ts",
-      "line": 109,
+      "line": 113,
       "node": "listings.internet_address_display_yn",
       "tier": "typed",
       "workflow": null
@@ -294162,7 +294203,7 @@
       "sites": [
        "lib/open-houses/upcoming-open-houses.ts:56",
        "lib/open-houses/upcoming-open-houses.ts:202",
-       "lib/comps/fetch-comps.ts:72",
+       "lib/comps/fetch-comps.ts:122",
        "lib/open-houses/rsvp-address-match.ts:166"
       ],
       "controls": []
@@ -294172,7 +294213,7 @@
       "sites": [
        "lib/open-houses/upcoming-open-houses.ts:56",
        "lib/open-houses/upcoming-open-houses.ts:202",
-       "lib/comps/fetch-comps.ts:72",
+       "lib/comps/fetch-comps.ts:122",
        "lib/open-houses/rsvp-address-match.ts:166"
       ],
       "controls": []
@@ -294216,7 +294257,7 @@
      "cma": {
       "status": "PASS",
       "sites": [
-       "lib/comps/fetch-comps.ts:72"
+       "lib/comps/fetch-comps.ts:122"
       ]
      },
      "reports": {
@@ -294545,7 +294586,7 @@
      {
       "stage": "cma",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 72,
+      "line": 122,
       "node": "provider:Property.StreetDirPrefix",
       "tier": "name-matched",
       "workflow": null
@@ -294553,7 +294594,7 @@
      {
       "stage": "saleTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 72,
+      "line": 122,
       "node": "provider:Property.StreetDirPrefix",
       "tier": "name-matched",
       "workflow": null
@@ -294561,7 +294602,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 72,
+      "line": 122,
       "node": "provider:Property.StreetDirPrefix",
       "tier": "name-matched",
       "workflow": null
@@ -295018,7 +295059,7 @@
       "sites": [
        "lib/open-houses/upcoming-open-houses.ts:56",
        "lib/open-houses/upcoming-open-houses.ts:205",
-       "lib/comps/fetch-comps.ts:72",
+       "lib/comps/fetch-comps.ts:122",
        "lib/open-houses/rsvp-address-match.ts:169"
       ],
       "controls": []
@@ -295028,7 +295069,7 @@
       "sites": [
        "lib/open-houses/upcoming-open-houses.ts:56",
        "lib/open-houses/upcoming-open-houses.ts:205",
-       "lib/comps/fetch-comps.ts:72",
+       "lib/comps/fetch-comps.ts:122",
        "lib/open-houses/rsvp-address-match.ts:169"
       ],
       "controls": []
@@ -295067,7 +295108,7 @@
      "cma": {
       "status": "PASS",
       "sites": [
-       "lib/comps/fetch-comps.ts:72"
+       "lib/comps/fetch-comps.ts:122"
       ]
      },
      "reports": {
@@ -295303,7 +295344,7 @@
      {
       "stage": "cma",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 72,
+      "line": 122,
       "node": "provider:Property.StreetDirSuffix",
       "tier": "name-matched",
       "workflow": null
@@ -295311,7 +295352,7 @@
      {
       "stage": "saleTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 72,
+      "line": 122,
       "node": "provider:Property.StreetDirSuffix",
       "tier": "name-matched",
       "workflow": null
@@ -295319,7 +295360,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 72,
+      "line": 122,
       "node": "provider:Property.StreetDirSuffix",
       "tier": "name-matched",
       "workflow": null
@@ -295701,9 +295742,9 @@
        "lib/open-houses/upcoming-open-houses.ts:335",
        "lib/market-report/generator.ts:171",
        "lib/market-report/generator.ts:240",
-       "lib/comps/fetch-comps.ts:72",
+       "lib/comps/fetch-comps.ts:122",
        "lib/open-houses/rsvp-address-match.ts:159",
-       "lib/cma/engine.ts:182",
+       "lib/cma/engine.ts:186",
        "lib/listing-auditor/auditor.ts:100"
       ],
       "controls": []
@@ -295716,9 +295757,9 @@
        "lib/open-houses/upcoming-open-houses.ts:335",
        "lib/market-report/generator.ts:171",
        "lib/market-report/generator.ts:240",
-       "lib/comps/fetch-comps.ts:72",
+       "lib/comps/fetch-comps.ts:122",
        "lib/open-houses/rsvp-address-match.ts:159",
-       "lib/cma/engine.ts:182",
+       "lib/cma/engine.ts:186",
        "lib/listing-auditor/auditor.ts:100"
       ],
       "controls": []
@@ -295748,7 +295789,7 @@
        "lib/listings/dedupe-crm-vs-idx.ts:272",
        "lib/listings/dedupe-crm-vs-idx.ts:320",
        "lib/crm/listing-urls.ts:49",
-       "app/api/crm/sales/comps/route.ts:52",
+       "app/api/crm/sales/comps/route.ts:54",
        "lib/listing-auditor/auditor.ts:100",
        "public/crm/js/core/data-loader.js:227",
        "public/crm/js/dashboard/panels.js:9485",
@@ -295772,8 +295813,8 @@
      "cma": {
       "status": "PASS",
       "sites": [
-       "lib/comps/fetch-comps.ts:72",
-       "lib/cma/engine.ts:182"
+       "lib/comps/fetch-comps.ts:122",
+       "lib/cma/engine.ts:186"
       ]
      },
      "reports": {
@@ -296355,7 +296396,7 @@
      {
       "stage": "cma",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 72,
+      "line": 122,
       "node": "provider:Property.StreetName",
       "tier": "name-matched",
       "workflow": null
@@ -296363,7 +296404,7 @@
      {
       "stage": "saleTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 72,
+      "line": 122,
       "node": "provider:Property.StreetName",
       "tier": "name-matched",
       "workflow": null
@@ -296371,7 +296412,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 72,
+      "line": 122,
       "node": "provider:Property.StreetName",
       "tier": "name-matched",
       "workflow": null
@@ -296587,7 +296628,7 @@
      {
       "stage": "cma",
       "file": "lib/cma/engine.ts",
-      "line": 182,
+      "line": 186,
       "node": "listings.address.StreetName",
       "tier": "name-matched",
       "workflow": null
@@ -296595,7 +296636,7 @@
      {
       "stage": "saleTools",
       "file": "lib/cma/engine.ts",
-      "line": 182,
+      "line": 186,
       "node": "listings.address.StreetName",
       "tier": "name-matched",
       "workflow": null
@@ -296603,7 +296644,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/cma/engine.ts",
-      "line": 182,
+      "line": 186,
       "node": "listings.address.StreetName",
       "tier": "name-matched",
       "workflow": null
@@ -296619,7 +296660,7 @@
      {
       "stage": "listingWorkspace",
       "file": "app/api/crm/sales/comps/route.ts",
-      "line": 52,
+      "line": 54,
       "node": "listings.address.StreetName",
       "tier": "name-matched",
       "workflow": null
@@ -297007,9 +297048,9 @@
        "lib/seller-report/load-report.ts:42",
        "lib/market-report/generator.ts:171",
        "lib/market-report/generator.ts:240",
-       "lib/comps/fetch-comps.ts:72",
+       "lib/comps/fetch-comps.ts:122",
        "lib/open-houses/rsvp-address-match.ts:158",
-       "lib/cma/engine.ts:182",
+       "lib/cma/engine.ts:186",
        "lib/listing-auditor/auditor.ts:100"
       ],
       "controls": []
@@ -297022,9 +297063,9 @@
        "lib/open-houses/upcoming-open-houses.ts:335",
        "lib/market-report/generator.ts:171",
        "lib/market-report/generator.ts:240",
-       "lib/comps/fetch-comps.ts:72",
+       "lib/comps/fetch-comps.ts:122",
        "lib/open-houses/rsvp-address-match.ts:158",
-       "lib/cma/engine.ts:182",
+       "lib/cma/engine.ts:186",
        "lib/listing-auditor/auditor.ts:100"
       ],
       "controls": []
@@ -297051,7 +297092,7 @@
        "lib/listings/dedupe-crm-vs-idx.ts:270",
        "lib/listings/dedupe-crm-vs-idx.ts:318",
        "lib/crm/listing-urls.ts:46",
-       "app/api/crm/sales/comps/route.ts:51",
+       "app/api/crm/sales/comps/route.ts:53",
        "lib/listing-auditor/auditor.ts:100",
        "public/crm/js/core/data-loader.js:227",
        "public/crm/js/dashboard/panels.js:9485",
@@ -297075,8 +297116,8 @@
      "cma": {
       "status": "PASS",
       "sites": [
-       "lib/comps/fetch-comps.ts:72",
-       "lib/cma/engine.ts:182"
+       "lib/comps/fetch-comps.ts:122",
+       "lib/cma/engine.ts:186"
       ]
      },
      "reports": {
@@ -297660,7 +297701,7 @@
      {
       "stage": "cma",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 72,
+      "line": 122,
       "node": "provider:Property.StreetNumber",
       "tier": "name-matched",
       "workflow": null
@@ -297668,7 +297709,7 @@
      {
       "stage": "saleTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 72,
+      "line": 122,
       "node": "provider:Property.StreetNumber",
       "tier": "name-matched",
       "workflow": null
@@ -297676,7 +297717,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 72,
+      "line": 122,
       "node": "provider:Property.StreetNumber",
       "tier": "name-matched",
       "workflow": null
@@ -297900,7 +297941,7 @@
      {
       "stage": "cma",
       "file": "lib/cma/engine.ts",
-      "line": 182,
+      "line": 186,
       "node": "listings.address.StreetNumber",
       "tier": "name-matched",
       "workflow": null
@@ -297908,7 +297949,7 @@
      {
       "stage": "saleTools",
       "file": "lib/cma/engine.ts",
-      "line": 182,
+      "line": 186,
       "node": "listings.address.StreetNumber",
       "tier": "name-matched",
       "workflow": null
@@ -297916,7 +297957,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/cma/engine.ts",
-      "line": 182,
+      "line": 186,
       "node": "listings.address.StreetNumber",
       "tier": "name-matched",
       "workflow": null
@@ -297932,7 +297973,7 @@
      {
       "stage": "listingWorkspace",
       "file": "app/api/crm/sales/comps/route.ts",
-      "line": 51,
+      "line": 53,
       "node": "listings.address.StreetNumber",
       "tier": "name-matched",
       "workflow": null
@@ -299216,7 +299257,7 @@
       "sites": [
        "lib/open-houses/upcoming-open-houses.ts:56",
        "lib/open-houses/upcoming-open-houses.ts:204",
-       "lib/comps/fetch-comps.ts:72",
+       "lib/comps/fetch-comps.ts:122",
        "lib/open-houses/rsvp-address-match.ts:168"
       ],
       "controls": []
@@ -299226,7 +299267,7 @@
       "sites": [
        "lib/open-houses/upcoming-open-houses.ts:56",
        "lib/open-houses/upcoming-open-houses.ts:204",
-       "lib/comps/fetch-comps.ts:72",
+       "lib/comps/fetch-comps.ts:122",
        "lib/open-houses/rsvp-address-match.ts:168"
       ],
       "controls": []
@@ -299272,7 +299313,7 @@
      "cma": {
       "status": "PASS",
       "sites": [
-       "lib/comps/fetch-comps.ts:72"
+       "lib/comps/fetch-comps.ts:122"
       ]
      },
      "reports": {
@@ -299592,7 +299633,7 @@
      {
       "stage": "cma",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 72,
+      "line": 122,
       "node": "provider:Property.StreetSuffix",
       "tier": "name-matched",
       "workflow": null
@@ -299600,7 +299641,7 @@
      {
       "stage": "saleTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 72,
+      "line": 122,
       "node": "provider:Property.StreetSuffix",
       "tier": "name-matched",
       "workflow": null
@@ -299608,7 +299649,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 72,
+      "line": 122,
       "node": "provider:Property.StreetSuffix",
       "tier": "name-matched",
       "workflow": null
@@ -312408,7 +312449,7 @@
        "lib/seller-report/load-report.ts:52",
        "lib/market-report/generator.ts:171",
        "lib/market-report/generator.ts:240",
-       "lib/comps/fetch-comps.ts:74"
+       "lib/comps/fetch-comps.ts:124"
       ],
       "controls": []
      },
@@ -312420,7 +312461,7 @@
        "lib/open-houses/upcoming-open-houses.ts:335",
        "lib/market-report/generator.ts:171",
        "lib/market-report/generator.ts:240",
-       "lib/comps/fetch-comps.ts:74"
+       "lib/comps/fetch-comps.ts:124"
       ],
       "controls": []
      },
@@ -312482,7 +312523,7 @@
      "cma": {
       "status": "PASS",
       "sites": [
-       "lib/comps/fetch-comps.ts:74"
+       "lib/comps/fetch-comps.ts:124"
       ]
      },
      "reports": {
@@ -313008,7 +313049,7 @@
      {
       "stage": "cma",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 74,
+      "line": 124,
       "node": "provider:Property.UnitNumber",
       "tier": "name-matched",
       "workflow": null
@@ -313016,7 +313057,7 @@
      {
       "stage": "saleTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 74,
+      "line": 124,
       "node": "provider:Property.UnitNumber",
       "tier": "name-matched",
       "workflow": null
@@ -313024,7 +313065,7 @@
      {
       "stage": "rentalTools",
       "file": "lib/comps/fetch-comps.ts",
-      "line": 74,
+      "line": 124,
       "node": "provider:Property.UnitNumber",
       "tier": "name-matched",
       "workflow": null
@@ -330550,6 +330591,7 @@
         "lib/search/__tests__/projection-write-suppression.test.ts",
         "tests/runtime/agent-info-phase-c-stop-json-writes.test.ts",
         "tests/runtime/backfill-empty-media-reachability.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/cotality-contract-helpers.test.ts",
         "tests/runtime/ensure-listing-cursor-safety.test.ts",
         "tests/runtime/idx-keyset-cursor.test.ts",
@@ -330586,6 +330628,7 @@
         "lib/idx/__tests__/pct-deprecation.test.ts",
         "lib/idx/__tests__/permission-provider-fact.test.ts",
         "lib/listings/__tests__/canonical-lifecycle.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/idx-keyset-cursor.test.ts",
         "tests/runtime/idx-property-cursor-contract.test.ts",
         "tests/runtime/provider-status-domain-census.test.ts",
@@ -330598,6 +330641,7 @@
        "files": [
         "tests/runtime/agent-info-phase-c-stop-json-writes.test.ts",
         "tests/runtime/backfill-empty-media-reachability.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/cotality-contract-helpers.test.ts",
         "tests/runtime/ensure-listing-cursor-safety.test.ts",
         "tests/runtime/idx-keyset-cursor.test.ts",
@@ -336118,7 +336162,7 @@
        "status": "PASS",
        "sites": [
         "lib/open-houses/upcoming-open-houses.ts:57",
-        "lib/comps/fetch-comps.ts:76"
+        "lib/comps/fetch-comps.ts:126"
        ],
        "controls": []
       },
@@ -336126,7 +336170,7 @@
        "status": "PASS",
        "sites": [
         "lib/open-houses/upcoming-open-houses.ts:57",
-        "lib/comps/fetch-comps.ts:76"
+        "lib/comps/fetch-comps.ts:126"
        ],
        "controls": []
       },
@@ -336176,7 +336220,7 @@
       "cma": {
        "status": "PASS",
        "sites": [
-        "lib/comps/fetch-comps.ts:76"
+        "lib/comps/fetch-comps.ts:126"
        ]
       },
       "reports": {
@@ -336590,7 +336634,7 @@
       {
        "stage": "cma",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 76,
+       "line": 126,
        "node": "provider:Property.PropertyType",
        "tier": "name-matched",
        "workflow": null
@@ -336598,7 +336642,7 @@
       {
        "stage": "saleTools",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 76,
+       "line": 126,
        "node": "provider:Property.PropertyType",
        "tier": "name-matched",
        "workflow": null
@@ -336606,7 +336650,7 @@
       {
        "stage": "rentalTools",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 76,
+       "line": 126,
        "node": "provider:Property.PropertyType",
        "tier": "name-matched",
        "workflow": null
@@ -337019,7 +337063,7 @@
        "status": "PASS",
        "sites": [
         "lib/open-houses/upcoming-open-houses.ts:59",
-        "lib/comps/fetch-comps.ts:75"
+        "lib/comps/fetch-comps.ts:125"
        ],
        "controls": []
       },
@@ -337027,7 +337071,7 @@
        "status": "PASS",
        "sites": [
         "lib/open-houses/upcoming-open-houses.ts:59",
-        "lib/comps/fetch-comps.ts:75"
+        "lib/comps/fetch-comps.ts:125"
        ],
        "controls": []
       },
@@ -337076,7 +337120,7 @@
       "cma": {
        "status": "PASS",
        "sites": [
-        "lib/comps/fetch-comps.ts:75"
+        "lib/comps/fetch-comps.ts:125"
        ]
       },
       "reports": {
@@ -337169,6 +337213,7 @@
         "tests/runtime/building-address-filter.test.ts",
         "tests/runtime/building-payload-parity.test.ts",
         "tests/runtime/building-units-standardstatus-filter.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/cotality-authority.test.ts",
         "tests/runtime/cotality-contract-helpers.test.ts",
         "tests/runtime/cotality-vocabulary-source-authority.test.ts",
@@ -337213,6 +337258,7 @@
         "lib/search/__tests__/crm-idx-mapper.test.ts",
         "lib/search/__tests__/engine-provider-query.test.ts",
         "lib/search/__tests__/public-listing-trestle.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/cotality-vocabulary-source-authority.test.ts",
         "tests/runtime/open-houses-gate.test.ts",
         "tests/runtime/provider-authority-census.test.ts",
@@ -337229,6 +337275,7 @@
         "tests/runtime/building-address-filter.test.ts",
         "tests/runtime/building-payload-parity.test.ts",
         "tests/runtime/building-units-standardstatus-filter.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/cotality-authority.test.ts",
         "tests/runtime/cotality-contract-helpers.test.ts",
         "tests/runtime/cotality-vocabulary-source-authority.test.ts",
@@ -337443,7 +337490,7 @@
       {
        "stage": "cma",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 75,
+       "line": 125,
        "node": "provider:Property.StandardStatus",
        "tier": "name-matched",
        "workflow": null
@@ -337451,7 +337498,7 @@
       {
        "stage": "saleTools",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 75,
+       "line": 125,
        "node": "provider:Property.StandardStatus",
        "tier": "name-matched",
        "workflow": null
@@ -337459,7 +337506,7 @@
       {
        "stage": "rentalTools",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 75,
+       "line": 125,
        "node": "provider:Property.StandardStatus",
        "tier": "name-matched",
        "workflow": null
@@ -340940,6 +340987,7 @@
        "files": [
         "lib/compliance/__tests__/raw-data-keep-lifecycle.test.ts",
         "lib/listings/__tests__/canonical-lifecycle.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/terminal-since-helper.test.ts"
        ]
       },
@@ -340953,6 +341001,7 @@
       "integrationTest": {
        "status": "PASS",
        "files": [
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/terminal-since-helper.test.ts"
        ]
       },
@@ -352475,7 +352524,7 @@
         "lib/open-houses/upcoming-open-houses.ts:294",
         "lib/open-houses/upcoming-open-houses.ts:330",
         "lib/market-report/generator.ts:168",
-        "lib/comps/fetch-comps.ts:71"
+        "lib/comps/fetch-comps.ts:121"
        ],
        "controls": []
       },
@@ -352488,7 +352537,7 @@
         "lib/open-houses/upcoming-open-houses.ts:294",
         "lib/open-houses/upcoming-open-houses.ts:330",
         "lib/market-report/generator.ts:168",
-        "lib/comps/fetch-comps.ts:71"
+        "lib/comps/fetch-comps.ts:121"
        ],
        "controls": []
       },
@@ -352542,7 +352591,7 @@
       "cma": {
        "status": "PASS",
        "sites": [
-        "lib/comps/fetch-comps.ts:71"
+        "lib/comps/fetch-comps.ts:121"
        ]
       },
       "reports": {
@@ -353058,7 +353107,7 @@
       {
        "stage": "cma",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 71,
+       "line": 121,
        "node": "provider:Property.ListingId",
        "tier": "name-matched",
        "workflow": null
@@ -353066,7 +353115,7 @@
       {
        "stage": "saleTools",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 71,
+       "line": 121,
        "node": "provider:Property.ListingId",
        "tier": "name-matched",
        "workflow": null
@@ -353074,7 +353123,7 @@
       {
        "stage": "rentalTools",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 71,
+       "line": 121,
        "node": "provider:Property.ListingId",
        "tier": "name-matched",
        "workflow": null
@@ -356012,6 +356061,7 @@
         "lib/search/__tests__/projection-write-suppression.test.ts",
         "tests/runtime/agent-info-phase-c-stop-json-writes.test.ts",
         "tests/runtime/backfill-empty-media-reachability.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/cotality-contract-helpers.test.ts",
         "tests/runtime/ensure-listing-cursor-safety.test.ts",
         "tests/runtime/idx-keyset-cursor.test.ts",
@@ -356048,6 +356098,7 @@
         "lib/idx/__tests__/pct-deprecation.test.ts",
         "lib/idx/__tests__/permission-provider-fact.test.ts",
         "lib/listings/__tests__/canonical-lifecycle.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/idx-keyset-cursor.test.ts",
         "tests/runtime/idx-property-cursor-contract.test.ts",
         "tests/runtime/provider-status-domain-census.test.ts",
@@ -356060,6 +356111,7 @@
        "files": [
         "tests/runtime/agent-info-phase-c-stop-json-writes.test.ts",
         "tests/runtime/backfill-empty-media-reachability.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/cotality-contract-helpers.test.ts",
         "tests/runtime/ensure-listing-cursor-safety.test.ts",
         "tests/runtime/idx-keyset-cursor.test.ts",
@@ -360893,7 +360945,7 @@
        "status": "PASS",
        "sites": [
         "lib/open-houses/upcoming-open-houses.ts:57",
-        "lib/comps/fetch-comps.ts:76"
+        "lib/comps/fetch-comps.ts:126"
        ],
        "controls": []
       },
@@ -360901,7 +360953,7 @@
        "status": "PASS",
        "sites": [
         "lib/open-houses/upcoming-open-houses.ts:57",
-        "lib/comps/fetch-comps.ts:76"
+        "lib/comps/fetch-comps.ts:126"
        ],
        "controls": []
       },
@@ -360951,7 +361003,7 @@
       "cma": {
        "status": "PASS",
        "sites": [
-        "lib/comps/fetch-comps.ts:76"
+        "lib/comps/fetch-comps.ts:126"
        ]
       },
       "reports": {
@@ -361365,7 +361417,7 @@
       {
        "stage": "cma",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 76,
+       "line": 126,
        "node": "provider:Property.PropertyType",
        "tier": "name-matched",
        "workflow": null
@@ -361373,7 +361425,7 @@
       {
        "stage": "saleTools",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 76,
+       "line": 126,
        "node": "provider:Property.PropertyType",
        "tier": "name-matched",
        "workflow": null
@@ -361381,7 +361433,7 @@
       {
        "stage": "rentalTools",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 76,
+       "line": 126,
        "node": "provider:Property.PropertyType",
        "tier": "name-matched",
        "workflow": null
@@ -362559,7 +362611,7 @@
        "status": "PASS",
        "sites": [
         "lib/open-houses/upcoming-open-houses.ts:59",
-        "lib/comps/fetch-comps.ts:75"
+        "lib/comps/fetch-comps.ts:125"
        ],
        "controls": []
       },
@@ -362567,7 +362619,7 @@
        "status": "PASS",
        "sites": [
         "lib/open-houses/upcoming-open-houses.ts:59",
-        "lib/comps/fetch-comps.ts:75"
+        "lib/comps/fetch-comps.ts:125"
        ],
        "controls": []
       },
@@ -362616,7 +362668,7 @@
       "cma": {
        "status": "PASS",
        "sites": [
-        "lib/comps/fetch-comps.ts:75"
+        "lib/comps/fetch-comps.ts:125"
        ]
       },
       "reports": {
@@ -362709,6 +362761,7 @@
         "tests/runtime/building-address-filter.test.ts",
         "tests/runtime/building-payload-parity.test.ts",
         "tests/runtime/building-units-standardstatus-filter.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/cotality-authority.test.ts",
         "tests/runtime/cotality-contract-helpers.test.ts",
         "tests/runtime/cotality-vocabulary-source-authority.test.ts",
@@ -362753,6 +362806,7 @@
         "lib/search/__tests__/crm-idx-mapper.test.ts",
         "lib/search/__tests__/engine-provider-query.test.ts",
         "lib/search/__tests__/public-listing-trestle.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/cotality-vocabulary-source-authority.test.ts",
         "tests/runtime/open-houses-gate.test.ts",
         "tests/runtime/provider-authority-census.test.ts",
@@ -362769,6 +362823,7 @@
         "tests/runtime/building-address-filter.test.ts",
         "tests/runtime/building-payload-parity.test.ts",
         "tests/runtime/building-units-standardstatus-filter.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/cotality-authority.test.ts",
         "tests/runtime/cotality-contract-helpers.test.ts",
         "tests/runtime/cotality-vocabulary-source-authority.test.ts",
@@ -362983,7 +363038,7 @@
       {
        "stage": "cma",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 75,
+       "line": 125,
        "node": "provider:Property.StandardStatus",
        "tier": "name-matched",
        "workflow": null
@@ -362991,7 +363046,7 @@
       {
        "stage": "saleTools",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 75,
+       "line": 125,
        "node": "provider:Property.StandardStatus",
        "tier": "name-matched",
        "workflow": null
@@ -362999,7 +363054,7 @@
       {
        "stage": "rentalTools",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 75,
+       "line": 125,
        "node": "provider:Property.StandardStatus",
        "tier": "name-matched",
        "workflow": null
@@ -365931,6 +365986,7 @@
        "files": [
         "lib/compliance/__tests__/raw-data-keep-lifecycle.test.ts",
         "lib/listings/__tests__/canonical-lifecycle.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/terminal-since-helper.test.ts"
        ]
       },
@@ -365944,6 +366000,7 @@
       "integrationTest": {
        "status": "PASS",
        "files": [
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/terminal-since-helper.test.ts"
        ]
       },
@@ -373814,7 +373871,7 @@
         "lib/open-houses/upcoming-open-houses.ts:294",
         "lib/open-houses/upcoming-open-houses.ts:330",
         "lib/market-report/generator.ts:168",
-        "lib/comps/fetch-comps.ts:71"
+        "lib/comps/fetch-comps.ts:121"
        ],
        "controls": []
       },
@@ -373827,7 +373884,7 @@
         "lib/open-houses/upcoming-open-houses.ts:294",
         "lib/open-houses/upcoming-open-houses.ts:330",
         "lib/market-report/generator.ts:168",
-        "lib/comps/fetch-comps.ts:71"
+        "lib/comps/fetch-comps.ts:121"
        ],
        "controls": []
       },
@@ -373881,7 +373938,7 @@
       "cma": {
        "status": "PASS",
        "sites": [
-        "lib/comps/fetch-comps.ts:71"
+        "lib/comps/fetch-comps.ts:121"
        ]
       },
       "reports": {
@@ -374398,7 +374455,7 @@
       {
        "stage": "cma",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 71,
+       "line": 121,
        "node": "provider:Property.ListingId",
        "tier": "name-matched",
        "workflow": null
@@ -374406,7 +374463,7 @@
       {
        "stage": "saleTools",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 71,
+       "line": 121,
        "node": "provider:Property.ListingId",
        "tier": "name-matched",
        "workflow": null
@@ -374414,7 +374471,7 @@
       {
        "stage": "rentalTools",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 71,
+       "line": 121,
        "node": "provider:Property.ListingId",
        "tier": "name-matched",
        "workflow": null
@@ -377349,6 +377406,7 @@
         "lib/search/__tests__/projection-write-suppression.test.ts",
         "tests/runtime/agent-info-phase-c-stop-json-writes.test.ts",
         "tests/runtime/backfill-empty-media-reachability.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/cotality-contract-helpers.test.ts",
         "tests/runtime/ensure-listing-cursor-safety.test.ts",
         "tests/runtime/idx-keyset-cursor.test.ts",
@@ -377385,6 +377443,7 @@
         "lib/idx/__tests__/pct-deprecation.test.ts",
         "lib/idx/__tests__/permission-provider-fact.test.ts",
         "lib/listings/__tests__/canonical-lifecycle.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/idx-keyset-cursor.test.ts",
         "tests/runtime/idx-property-cursor-contract.test.ts",
         "tests/runtime/provider-status-domain-census.test.ts",
@@ -377397,6 +377456,7 @@
        "files": [
         "tests/runtime/agent-info-phase-c-stop-json-writes.test.ts",
         "tests/runtime/backfill-empty-media-reachability.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/cotality-contract-helpers.test.ts",
         "tests/runtime/ensure-listing-cursor-safety.test.ts",
         "tests/runtime/idx-keyset-cursor.test.ts",
@@ -378762,7 +378822,7 @@
        "status": "PASS",
        "sites": [
         "lib/open-houses/upcoming-open-houses.ts:57",
-        "lib/comps/fetch-comps.ts:76"
+        "lib/comps/fetch-comps.ts:126"
        ],
        "controls": []
       },
@@ -378770,7 +378830,7 @@
        "status": "PASS",
        "sites": [
         "lib/open-houses/upcoming-open-houses.ts:57",
-        "lib/comps/fetch-comps.ts:76"
+        "lib/comps/fetch-comps.ts:126"
        ],
        "controls": []
       },
@@ -378820,7 +378880,7 @@
       "cma": {
        "status": "PASS",
        "sites": [
-        "lib/comps/fetch-comps.ts:76"
+        "lib/comps/fetch-comps.ts:126"
        ]
       },
       "reports": {
@@ -379234,7 +379294,7 @@
       {
        "stage": "cma",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 76,
+       "line": 126,
        "node": "provider:Property.PropertyType",
        "tier": "name-matched",
        "workflow": null
@@ -379242,7 +379302,7 @@
       {
        "stage": "saleTools",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 76,
+       "line": 126,
        "node": "provider:Property.PropertyType",
        "tier": "name-matched",
        "workflow": null
@@ -379250,7 +379310,7 @@
       {
        "stage": "rentalTools",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 76,
+       "line": 126,
        "node": "provider:Property.PropertyType",
        "tier": "name-matched",
        "workflow": null
@@ -379663,7 +379723,7 @@
        "status": "PASS",
        "sites": [
         "lib/open-houses/upcoming-open-houses.ts:59",
-        "lib/comps/fetch-comps.ts:75"
+        "lib/comps/fetch-comps.ts:125"
        ],
        "controls": []
       },
@@ -379671,7 +379731,7 @@
        "status": "PASS",
        "sites": [
         "lib/open-houses/upcoming-open-houses.ts:59",
-        "lib/comps/fetch-comps.ts:75"
+        "lib/comps/fetch-comps.ts:125"
        ],
        "controls": []
       },
@@ -379720,7 +379780,7 @@
       "cma": {
        "status": "PASS",
        "sites": [
-        "lib/comps/fetch-comps.ts:75"
+        "lib/comps/fetch-comps.ts:125"
        ]
       },
       "reports": {
@@ -379813,6 +379873,7 @@
         "tests/runtime/building-address-filter.test.ts",
         "tests/runtime/building-payload-parity.test.ts",
         "tests/runtime/building-units-standardstatus-filter.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/cotality-authority.test.ts",
         "tests/runtime/cotality-contract-helpers.test.ts",
         "tests/runtime/cotality-vocabulary-source-authority.test.ts",
@@ -379857,6 +379918,7 @@
         "lib/search/__tests__/crm-idx-mapper.test.ts",
         "lib/search/__tests__/engine-provider-query.test.ts",
         "lib/search/__tests__/public-listing-trestle.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/cotality-vocabulary-source-authority.test.ts",
         "tests/runtime/open-houses-gate.test.ts",
         "tests/runtime/provider-authority-census.test.ts",
@@ -379873,6 +379935,7 @@
         "tests/runtime/building-address-filter.test.ts",
         "tests/runtime/building-payload-parity.test.ts",
         "tests/runtime/building-units-standardstatus-filter.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/cotality-authority.test.ts",
         "tests/runtime/cotality-contract-helpers.test.ts",
         "tests/runtime/cotality-vocabulary-source-authority.test.ts",
@@ -380087,7 +380150,7 @@
       {
        "stage": "cma",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 75,
+       "line": 125,
        "node": "provider:Property.StandardStatus",
        "tier": "name-matched",
        "workflow": null
@@ -380095,7 +380158,7 @@
       {
        "stage": "saleTools",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 75,
+       "line": 125,
        "node": "provider:Property.StandardStatus",
        "tier": "name-matched",
        "workflow": null
@@ -380103,7 +380166,7 @@
       {
        "stage": "rentalTools",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 75,
+       "line": 125,
        "node": "provider:Property.StandardStatus",
        "tier": "name-matched",
        "workflow": null
@@ -408771,6 +408834,7 @@
        "files": [
         "lib/compliance/__tests__/raw-data-keep-lifecycle.test.ts",
         "lib/listings/__tests__/canonical-lifecycle.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/terminal-since-helper.test.ts"
        ]
       },
@@ -408784,6 +408848,7 @@
       "integrationTest": {
        "status": "PASS",
        "files": [
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/terminal-since-helper.test.ts"
        ]
       },
@@ -419969,7 +420034,7 @@
         "lib/open-houses/upcoming-open-houses.ts:294",
         "lib/open-houses/upcoming-open-houses.ts:330",
         "lib/market-report/generator.ts:168",
-        "lib/comps/fetch-comps.ts:71"
+        "lib/comps/fetch-comps.ts:121"
        ],
        "controls": []
       },
@@ -419982,7 +420047,7 @@
         "lib/open-houses/upcoming-open-houses.ts:294",
         "lib/open-houses/upcoming-open-houses.ts:330",
         "lib/market-report/generator.ts:168",
-        "lib/comps/fetch-comps.ts:71"
+        "lib/comps/fetch-comps.ts:121"
        ],
        "controls": []
       },
@@ -420036,7 +420101,7 @@
       "cma": {
        "status": "PASS",
        "sites": [
-        "lib/comps/fetch-comps.ts:71"
+        "lib/comps/fetch-comps.ts:121"
        ]
       },
       "reports": {
@@ -420553,7 +420618,7 @@
       {
        "stage": "cma",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 71,
+       "line": 121,
        "node": "provider:Property.ListingId",
        "tier": "name-matched",
        "workflow": null
@@ -420561,7 +420626,7 @@
       {
        "stage": "saleTools",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 71,
+       "line": 121,
        "node": "provider:Property.ListingId",
        "tier": "name-matched",
        "workflow": null
@@ -420569,7 +420634,7 @@
       {
        "stage": "rentalTools",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 71,
+       "line": 121,
        "node": "provider:Property.ListingId",
        "tier": "name-matched",
        "workflow": null
@@ -423826,6 +423891,7 @@
         "lib/search/__tests__/projection-write-suppression.test.ts",
         "tests/runtime/agent-info-phase-c-stop-json-writes.test.ts",
         "tests/runtime/backfill-empty-media-reachability.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/cotality-contract-helpers.test.ts",
         "tests/runtime/ensure-listing-cursor-safety.test.ts",
         "tests/runtime/idx-keyset-cursor.test.ts",
@@ -423862,6 +423928,7 @@
         "lib/idx/__tests__/pct-deprecation.test.ts",
         "lib/idx/__tests__/permission-provider-fact.test.ts",
         "lib/listings/__tests__/canonical-lifecycle.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/idx-keyset-cursor.test.ts",
         "tests/runtime/idx-property-cursor-contract.test.ts",
         "tests/runtime/provider-status-domain-census.test.ts",
@@ -423874,6 +423941,7 @@
        "files": [
         "tests/runtime/agent-info-phase-c-stop-json-writes.test.ts",
         "tests/runtime/backfill-empty-media-reachability.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/cotality-contract-helpers.test.ts",
         "tests/runtime/ensure-listing-cursor-safety.test.ts",
         "tests/runtime/idx-keyset-cursor.test.ts",
@@ -426330,7 +426398,7 @@
        "status": "PASS",
        "sites": [
         "lib/open-houses/upcoming-open-houses.ts:57",
-        "lib/comps/fetch-comps.ts:76"
+        "lib/comps/fetch-comps.ts:126"
        ],
        "controls": []
       },
@@ -426338,7 +426406,7 @@
        "status": "PASS",
        "sites": [
         "lib/open-houses/upcoming-open-houses.ts:57",
-        "lib/comps/fetch-comps.ts:76"
+        "lib/comps/fetch-comps.ts:126"
        ],
        "controls": []
       },
@@ -426388,7 +426456,7 @@
       "cma": {
        "status": "PASS",
        "sites": [
-        "lib/comps/fetch-comps.ts:76"
+        "lib/comps/fetch-comps.ts:126"
        ]
       },
       "reports": {
@@ -426802,7 +426870,7 @@
       {
        "stage": "cma",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 76,
+       "line": 126,
        "node": "provider:Property.PropertyType",
        "tier": "name-matched",
        "workflow": null
@@ -426810,7 +426878,7 @@
       {
        "stage": "saleTools",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 76,
+       "line": 126,
        "node": "provider:Property.PropertyType",
        "tier": "name-matched",
        "workflow": null
@@ -426818,7 +426886,7 @@
       {
        "stage": "rentalTools",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 76,
+       "line": 126,
        "node": "provider:Property.PropertyType",
        "tier": "name-matched",
        "workflow": null
@@ -427978,7 +428046,7 @@
        "status": "PASS",
        "sites": [
         "lib/open-houses/upcoming-open-houses.ts:59",
-        "lib/comps/fetch-comps.ts:75"
+        "lib/comps/fetch-comps.ts:125"
        ],
        "controls": []
       },
@@ -427986,7 +428054,7 @@
        "status": "PASS",
        "sites": [
         "lib/open-houses/upcoming-open-houses.ts:59",
-        "lib/comps/fetch-comps.ts:75"
+        "lib/comps/fetch-comps.ts:125"
        ],
        "controls": []
       },
@@ -428035,7 +428103,7 @@
       "cma": {
        "status": "PASS",
        "sites": [
-        "lib/comps/fetch-comps.ts:75"
+        "lib/comps/fetch-comps.ts:125"
        ]
       },
       "reports": {
@@ -428128,6 +428196,7 @@
         "tests/runtime/building-address-filter.test.ts",
         "tests/runtime/building-payload-parity.test.ts",
         "tests/runtime/building-units-standardstatus-filter.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/cotality-authority.test.ts",
         "tests/runtime/cotality-contract-helpers.test.ts",
         "tests/runtime/cotality-vocabulary-source-authority.test.ts",
@@ -428172,6 +428241,7 @@
         "lib/search/__tests__/crm-idx-mapper.test.ts",
         "lib/search/__tests__/engine-provider-query.test.ts",
         "lib/search/__tests__/public-listing-trestle.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/cotality-vocabulary-source-authority.test.ts",
         "tests/runtime/open-houses-gate.test.ts",
         "tests/runtime/provider-authority-census.test.ts",
@@ -428188,6 +428258,7 @@
         "tests/runtime/building-address-filter.test.ts",
         "tests/runtime/building-payload-parity.test.ts",
         "tests/runtime/building-units-standardstatus-filter.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/cotality-authority.test.ts",
         "tests/runtime/cotality-contract-helpers.test.ts",
         "tests/runtime/cotality-vocabulary-source-authority.test.ts",
@@ -428402,7 +428473,7 @@
       {
        "stage": "cma",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 75,
+       "line": 125,
        "node": "provider:Property.StandardStatus",
        "tier": "name-matched",
        "workflow": null
@@ -428410,7 +428481,7 @@
       {
        "stage": "saleTools",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 75,
+       "line": 125,
        "node": "provider:Property.StandardStatus",
        "tier": "name-matched",
        "workflow": null
@@ -428418,7 +428489,7 @@
       {
        "stage": "rentalTools",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 75,
+       "line": 125,
        "node": "provider:Property.StandardStatus",
        "tier": "name-matched",
        "workflow": null
@@ -428866,6 +428937,7 @@
        "files": [
         "lib/compliance/__tests__/raw-data-keep-lifecycle.test.ts",
         "lib/listings/__tests__/canonical-lifecycle.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/terminal-since-helper.test.ts"
        ]
       },
@@ -428879,6 +428951,7 @@
       "integrationTest": {
        "status": "PASS",
        "files": [
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/terminal-since-helper.test.ts"
        ]
       },
@@ -439735,7 +439808,7 @@
         "lib/open-houses/upcoming-open-houses.ts:294",
         "lib/open-houses/upcoming-open-houses.ts:330",
         "lib/market-report/generator.ts:168",
-        "lib/comps/fetch-comps.ts:71"
+        "lib/comps/fetch-comps.ts:121"
        ],
        "controls": []
       },
@@ -439748,7 +439821,7 @@
         "lib/open-houses/upcoming-open-houses.ts:294",
         "lib/open-houses/upcoming-open-houses.ts:330",
         "lib/market-report/generator.ts:168",
-        "lib/comps/fetch-comps.ts:71"
+        "lib/comps/fetch-comps.ts:121"
        ],
        "controls": []
       },
@@ -439802,7 +439875,7 @@
       "cma": {
        "status": "PASS",
        "sites": [
-        "lib/comps/fetch-comps.ts:71"
+        "lib/comps/fetch-comps.ts:121"
        ]
       },
       "reports": {
@@ -440319,7 +440392,7 @@
       {
        "stage": "cma",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 71,
+       "line": 121,
        "node": "provider:Property.ListingId",
        "tier": "name-matched",
        "workflow": null
@@ -440327,7 +440400,7 @@
       {
        "stage": "saleTools",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 71,
+       "line": 121,
        "node": "provider:Property.ListingId",
        "tier": "name-matched",
        "workflow": null
@@ -440335,7 +440408,7 @@
       {
        "stage": "rentalTools",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 71,
+       "line": 121,
        "node": "provider:Property.ListingId",
        "tier": "name-matched",
        "workflow": null
@@ -443592,6 +443665,7 @@
         "lib/search/__tests__/projection-write-suppression.test.ts",
         "tests/runtime/agent-info-phase-c-stop-json-writes.test.ts",
         "tests/runtime/backfill-empty-media-reachability.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/cotality-contract-helpers.test.ts",
         "tests/runtime/ensure-listing-cursor-safety.test.ts",
         "tests/runtime/idx-keyset-cursor.test.ts",
@@ -443628,6 +443702,7 @@
         "lib/idx/__tests__/pct-deprecation.test.ts",
         "lib/idx/__tests__/permission-provider-fact.test.ts",
         "lib/listings/__tests__/canonical-lifecycle.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/idx-keyset-cursor.test.ts",
         "tests/runtime/idx-property-cursor-contract.test.ts",
         "tests/runtime/provider-status-domain-census.test.ts",
@@ -443640,6 +443715,7 @@
        "files": [
         "tests/runtime/agent-info-phase-c-stop-json-writes.test.ts",
         "tests/runtime/backfill-empty-media-reachability.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/cotality-contract-helpers.test.ts",
         "tests/runtime/ensure-listing-cursor-safety.test.ts",
         "tests/runtime/idx-keyset-cursor.test.ts",
@@ -444190,6 +444266,7 @@
        "files": [
         "lib/compliance/__tests__/raw-data-keep-lifecycle.test.ts",
         "lib/listings/__tests__/canonical-lifecycle.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/terminal-since-helper.test.ts"
        ]
       },
@@ -444203,6 +444280,7 @@
       "integrationTest": {
        "status": "PASS",
        "files": [
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/terminal-since-helper.test.ts"
        ]
       },
@@ -446401,7 +446479,7 @@
        "status": "PASS",
        "sites": [
         "lib/open-houses/upcoming-open-houses.ts:57",
-        "lib/comps/fetch-comps.ts:76"
+        "lib/comps/fetch-comps.ts:126"
        ],
        "controls": []
       },
@@ -446409,7 +446487,7 @@
        "status": "PASS",
        "sites": [
         "lib/open-houses/upcoming-open-houses.ts:57",
-        "lib/comps/fetch-comps.ts:76"
+        "lib/comps/fetch-comps.ts:126"
        ],
        "controls": []
       },
@@ -446459,7 +446537,7 @@
       "cma": {
        "status": "PASS",
        "sites": [
-        "lib/comps/fetch-comps.ts:76"
+        "lib/comps/fetch-comps.ts:126"
        ]
       },
       "reports": {
@@ -446873,7 +446951,7 @@
       {
        "stage": "cma",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 76,
+       "line": 126,
        "node": "provider:Property.PropertyType",
        "tier": "name-matched",
        "workflow": null
@@ -446881,7 +446959,7 @@
       {
        "stage": "saleTools",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 76,
+       "line": 126,
        "node": "provider:Property.PropertyType",
        "tier": "name-matched",
        "workflow": null
@@ -446889,7 +446967,7 @@
       {
        "stage": "rentalTools",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 76,
+       "line": 126,
        "node": "provider:Property.PropertyType",
        "tier": "name-matched",
        "workflow": null
@@ -447800,7 +447878,7 @@
        "status": "PASS",
        "sites": [
         "lib/open-houses/upcoming-open-houses.ts:59",
-        "lib/comps/fetch-comps.ts:75"
+        "lib/comps/fetch-comps.ts:125"
        ],
        "controls": []
       },
@@ -447808,7 +447886,7 @@
        "status": "PASS",
        "sites": [
         "lib/open-houses/upcoming-open-houses.ts:59",
-        "lib/comps/fetch-comps.ts:75"
+        "lib/comps/fetch-comps.ts:125"
        ],
        "controls": []
       },
@@ -447857,7 +447935,7 @@
       "cma": {
        "status": "PASS",
        "sites": [
-        "lib/comps/fetch-comps.ts:75"
+        "lib/comps/fetch-comps.ts:125"
        ]
       },
       "reports": {
@@ -447950,6 +448028,7 @@
         "tests/runtime/building-address-filter.test.ts",
         "tests/runtime/building-payload-parity.test.ts",
         "tests/runtime/building-units-standardstatus-filter.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/cotality-authority.test.ts",
         "tests/runtime/cotality-contract-helpers.test.ts",
         "tests/runtime/cotality-vocabulary-source-authority.test.ts",
@@ -447994,6 +448073,7 @@
         "lib/search/__tests__/crm-idx-mapper.test.ts",
         "lib/search/__tests__/engine-provider-query.test.ts",
         "lib/search/__tests__/public-listing-trestle.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/cotality-vocabulary-source-authority.test.ts",
         "tests/runtime/open-houses-gate.test.ts",
         "tests/runtime/provider-authority-census.test.ts",
@@ -448010,6 +448090,7 @@
         "tests/runtime/building-address-filter.test.ts",
         "tests/runtime/building-payload-parity.test.ts",
         "tests/runtime/building-units-standardstatus-filter.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/cotality-authority.test.ts",
         "tests/runtime/cotality-contract-helpers.test.ts",
         "tests/runtime/cotality-vocabulary-source-authority.test.ts",
@@ -448224,7 +448305,7 @@
       {
        "stage": "cma",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 75,
+       "line": 125,
        "node": "provider:Property.StandardStatus",
        "tier": "name-matched",
        "workflow": null
@@ -448232,7 +448313,7 @@
       {
        "stage": "saleTools",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 75,
+       "line": 125,
        "node": "provider:Property.StandardStatus",
        "tier": "name-matched",
        "workflow": null
@@ -448240,7 +448321,7 @@
       {
        "stage": "rentalTools",
        "file": "lib/comps/fetch-comps.ts",
-       "line": 75,
+       "line": 125,
        "node": "provider:Property.StandardStatus",
        "tier": "name-matched",
        "workflow": null
@@ -465191,6 +465272,7 @@
         "lib/search/__tests__/projection-write-suppression.test.ts",
         "tests/runtime/agent-info-phase-c-stop-json-writes.test.ts",
         "tests/runtime/backfill-empty-media-reachability.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/cotality-contract-helpers.test.ts",
         "tests/runtime/ensure-listing-cursor-safety.test.ts",
         "tests/runtime/idx-keyset-cursor.test.ts",
@@ -465227,6 +465309,7 @@
         "lib/idx/__tests__/pct-deprecation.test.ts",
         "lib/idx/__tests__/permission-provider-fact.test.ts",
         "lib/listings/__tests__/canonical-lifecycle.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/idx-keyset-cursor.test.ts",
         "tests/runtime/idx-property-cursor-contract.test.ts",
         "tests/runtime/provider-status-domain-census.test.ts",
@@ -465239,6 +465322,7 @@
        "files": [
         "tests/runtime/agent-info-phase-c-stop-json-writes.test.ts",
         "tests/runtime/backfill-empty-media-reachability.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/cotality-contract-helpers.test.ts",
         "tests/runtime/ensure-listing-cursor-safety.test.ts",
         "tests/runtime/idx-keyset-cursor.test.ts",
@@ -488871,6 +488955,7 @@
         "lib/search/__tests__/projection-write-suppression.test.ts",
         "tests/runtime/agent-info-phase-c-stop-json-writes.test.ts",
         "tests/runtime/backfill-empty-media-reachability.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/cotality-contract-helpers.test.ts",
         "tests/runtime/ensure-listing-cursor-safety.test.ts",
         "tests/runtime/idx-keyset-cursor.test.ts",
@@ -488907,6 +488992,7 @@
         "lib/idx/__tests__/pct-deprecation.test.ts",
         "lib/idx/__tests__/permission-provider-fact.test.ts",
         "lib/listings/__tests__/canonical-lifecycle.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/idx-keyset-cursor.test.ts",
         "tests/runtime/idx-property-cursor-contract.test.ts",
         "tests/runtime/provider-status-domain-census.test.ts",
@@ -488919,6 +489005,7 @@
        "files": [
         "tests/runtime/agent-info-phase-c-stop-json-writes.test.ts",
         "tests/runtime/backfill-empty-media-reachability.test.ts",
+        "tests/runtime/comps-close-date-window.test.ts",
         "tests/runtime/cotality-contract-helpers.test.ts",
         "tests/runtime/ensure-listing-cursor-safety.test.ts",
         "tests/runtime/idx-keyset-cursor.test.ts",

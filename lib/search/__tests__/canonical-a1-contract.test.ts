@@ -327,6 +327,8 @@ describe('A1 · the canonical package is wired to EXACTLY the Search executor vo
       }
     }
 
-    expect(offenders.sort()).toEqual(['lib/search/engine/contract.ts', 'lib/search/engine/criteria.ts']);
+    // lib/comps/fetch-comps.ts is the designated consumer of the comp-eligibility AUTHORITY the package hosts
+    // (CloseDate windowing + ownership segmentation, Domain 7 2026-09-08) — not a second vocabulary reader.
+    expect(offenders.sort()).toEqual(['lib/comps/fetch-comps.ts', 'lib/search/engine/contract.ts', 'lib/search/engine/criteria.ts']);
   }, 60000);
 });

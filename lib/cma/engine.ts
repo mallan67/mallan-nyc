@@ -90,9 +90,13 @@ export async function findComps(
   }
 
   // Sold or active
+  // Closed comps are windowed by the stable closing date. `terminal_since` is stamped from OffMarketDate, and
+  // OffMarketDate == CloseDate on every Closed row of the whole corpus (census 2026-09-08). The previous filter
+  // named `contract_closed`, a Deal column the Listing model does not declare — a Prisma validation error at
+  // runtime that the cast below hid (Domain 7).
   where.OR = [
     { status: 'Active' },
-    { status: 'Closed', contract_closed: { gte: since } },
+    { status: 'Closed', terminal_since: { gte: since } },
   ];
 
   const listings = await prisma.listing.findMany({

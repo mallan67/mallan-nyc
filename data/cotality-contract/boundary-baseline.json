@@ -1,11 +1,11 @@
 {
   "format": "mallan-cotality-boundary-baseline/v1",
-  "written_at": "2026-09-08T07:00:34.404Z",
+  "written_at": "2026-09-08T12:52:08.094Z",
   "rule": "This list may only shrink. A key is file::field of a raw Cotality read outside data/cotality-contract/boundary.json.",
   "counts": {
-    "files": 62,
-    "keys": 497,
-    "sites": 810
+    "files": 61,
+    "keys": 486,
+    "sites": 799
   },
   "keys": [
     "app/api/buildings/search/route.ts::AssociationFee",
@@ -70,7 +70,6 @@
     "app/api/crm/listings/[id]/route.ts::PropertySubType",
     "app/api/crm/listings/[id]/route.ts::PropertyType",
     "app/api/crm/listings/[id]/route.ts::SubdivisionName",
-    "app/api/crm/listings/[id]/route.ts::UnparsedAddress",
     "app/api/crm/listings/[id]/status/route.ts::ActivationDate",
     "app/api/crm/listings/[id]/status/route.ts::ClosePrice",
     "app/api/crm/listings/reset-sync/route.ts::ExpirationDate",
@@ -473,16 +472,6 @@
     "lib/market-report/generator.ts::StreetName",
     "lib/market-report/generator.ts::StreetNumber",
     "lib/market-report/generator.ts::UnitNumber",
-    "lib/open-houses/upcoming-open-houses.ts::AppointmentRequiredYN",
-    "lib/open-houses/upcoming-open-houses.ts::ListingId",
-    "lib/open-houses/upcoming-open-houses.ts::ListingKey",
-    "lib/open-houses/upcoming-open-houses.ts::OpenHouseDate",
-    "lib/open-houses/upcoming-open-houses.ts::OpenHouseEndTime",
-    "lib/open-houses/upcoming-open-houses.ts::OpenHouseRemarks",
-    "lib/open-houses/upcoming-open-houses.ts::OpenHouseStartTime",
-    "lib/open-houses/upcoming-open-houses.ts::StreetName",
-    "lib/open-houses/upcoming-open-houses.ts::StreetNumber",
-    "lib/open-houses/upcoming-open-houses.ts::UnitNumber",
     "lib/retention/archive-terminals.ts::CloseDate",
     "lib/retention/archive-terminals.ts::ClosePrice",
     "lib/retention/archive-terminals.ts::ListAgentFullName",

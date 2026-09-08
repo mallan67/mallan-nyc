@@ -37,6 +37,8 @@ export async function GET(req: NextRequest) {
       postal_code: true,
       property_type: true,
       address: true,
+      features: true,
+      raw_data: true,
       comp_criteria: true,
     },
   });
@@ -86,6 +88,9 @@ export async function GET(req: NextRequest) {
       borough: listing.borough,
       postal_code: listing.postal_code,
       property_type: listing.property_type,
+      // The subject's ownership class segments its comps — co-op comps for a co-op (read by the canonical
+      // ownership interpreter from the row's buckets; this route touches no provider name).
+      subject: { features: listing.features, raw_data: listing.raw_data },
     },
     criteria,
   );

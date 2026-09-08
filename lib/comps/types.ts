@@ -49,6 +49,8 @@ export interface CompListing {
   listing_agent: string;
   listing_office: string;
   photo_count: number;
+  /** Live CommonInterest of the comp (ownership segmentation); null when the provider delivered none. */
+  common_interest: string | null;
 }
 
 export interface CompResults {
