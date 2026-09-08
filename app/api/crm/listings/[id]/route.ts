@@ -14,7 +14,7 @@ import { assertRlsCompliantPayload } from "@/lib/compliance/rls-enforcement";
 import { classifyRlsEligibility } from "@/lib/compliance/rls-eligibility";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { sanitizeForCRM } from "@/lib/compliance/dto";
-import { derivePermissionBooleans } from "@/lib/compliance/normalizer";
+import { derivePermissionBooleans, normalizePayload, buildPersistenceRecord } from "@/lib/compliance/normalizer";
 import { applyServerFormMapping } from "@/lib/crm/listing-form-mapping";
 import { coerceStrictBool } from "@/lib/compliance/gates";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
@@ -141,6 +141,19 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     );
   }
   body = formMapping.body;
+
+  // The SAME contract as create-save (app/api/crm/listings/route.ts): strip the NAR-removed fields, rename
+  // the Mallan form aliases to the stored field names, normalize form values, fold the legacy permission
+  // booleans into `_mallanPermission` (Domain 5, 2026-09-08 — edit-save and create-save used to persist
+  // through different rules). PATCH is partial: the create-time InternetEntireListingDisplayYN default is
+  // not applied to an edit that did not send the field.
+  const sentInternetEntireListingDisplay = body.InternetEntireListingDisplayYN !== undefined;
+  const { normalized } = normalizePayload(body);
+  if (!sentInternetEntireListingDisplay) delete normalized.InternetEntireListingDisplayYN;
+  body = normalized;
+  // The bucket routing of every stored fact (address / features / agent_info) — the form contract's
+  // persistenceMap, not a route-local key list.
+  const persistence = buildPersistenceRecord(body);
 
   // Merge existing raw_data with updates for validation
   const existingRaw = (listing.raw_data as Record<string, unknown>) ?? {};
@@ -384,20 +397,10 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // fields landed only in raw_data on PATCH — the structured address bucket
   // stayed stale and the building-validator re-fired on every edit-save
   // (gap report 2026-05-28 §1.3, root cause C2).
-  const addressKeys = [
-    "StreetNumber", "StreetDirPrefix", "StreetName", "StreetSuffix",
-    "StreetDirSuffix", "UnitNumber",
-    "City", "StateOrProvince", "PostalCode", "Borough",
-    "Neighborhood", "BuildingName", "UnparsedAddress",
-    // Alias keys the CRM sale form emits via collectSaleFormData (these are
-    // the same fields under different RESO/REBNY names — see
-    // lib/compliance/normalizer.ts aliasToCanonical).
-    "CityRegion", "SubdivisionName", "CountyOrParish", "PostalCity",
-  ];
-  const updatedAddress = { ...existingAddress };
-  for (const k of addressKeys) {
-    if (body[k] !== undefined) updatedAddress[k] = body[k];
-  }
+  // Address bucket = the contract's persistenceMap address keys present in this (normalized) body.
+  // Aliases (Borough → CityRegion, Neighborhood → SubdivisionName, UnParsedAddress → UnparsedAddress …)
+  // were renamed by normalizePayload above, so only canonical keys can land here.
+  const updatedAddress = { ...existingAddress, ...persistence.address };
   // UnparsedAddress case normalization: the CRM sale form's
   // collectSaleFormData emits `UnParsedAddress` (capital P, the spelling on
   // Trestle's $metadata for OData $orderby), while existing Trestle-mapped
@@ -407,29 +410,13 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // get the fresh value on every edit. Without this, the structured bucket
   // kept the stale UnparsedAddress while raw_data.UnParsedAddress drifted
   // separately (gap report 2026-05-28 §1.3, root cause C2 + PR-F).
-  if (body.UnParsedAddress !== undefined && body.UnparsedAddress === undefined) {
-    updatedAddress.UnparsedAddress = body.UnParsedAddress;
-  }
   update.address = updatedAddress as Prisma.InputJsonValue;
 
-  const featureKeys = [
-    "YearBuilt", "StoriesTotal", "Rooms", "LivingAreaUnits",
-    "Flooring", "Heating", "Cooling", "ParkingFeatures",
-    "LaundryFeatures", "Appliances", "InteriorFeatures",
-    "ExteriorFeatures", "PublicRemarks", "PrivateRemarks",
-    "ShowingInstructions", "CommonInterest", "AssociationFee",
-    "RealEstateTax", "TaxAnnualAmount", "NewDevelopmentYN",
-    "BathroomsTotal",
-    // FARE Act fee facts (live multi-selects + the Mallan free-text keys they are derived from)
-    "MoveInCosts", "OngoingFees", "TenantPays",
-    "MoveInCostsDescription", "OngoingFeesDescription", "TenantPaysList",
-    // server-derived provider enum fields (lib/crm/listing-form-mapping.ts)
-    "StructureType", "View", "BuildingFeatures", "PetsAllowed", "SpecialListingConditions",
-  ];
-  const updatedFeatures = { ...existingFeatures };
-  for (const k of featureKeys) {
-    if (body[k] !== undefined) updatedFeatures[k] = body[k];
-  }
+  // Features bucket = the contract's persistenceMap features keys present in this body — the same
+  // routing create-save uses. (The previous route-local list missed 45 contract keys — Furnished,
+  // LeaseType, MinLeaseMonths, FlipTax*, TaxAbatement*, FireplaceYN … — which then survived an edit-save
+  // only in raw_data.)
+  const updatedFeatures = { ...existingFeatures, ...persistence.features };
   update.features = updatedFeatures as Prisma.InputJsonValue;
 
   const agentKeys = [

@@ -15,6 +15,7 @@
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { MALLAN_FORM_CONTRACT } from '@/lib/listings/mallan-form-contract';
 
 const FORM_PATH = resolve(__dirname, '../../public/crm/SALE-FORM-REDESIGN.html');
 const ROUTE_PATH = resolve(__dirname, '../../app/api/crm/listings/[id]/route.ts');
@@ -40,26 +41,24 @@ describe('Sale form save/load retention — PR-A/F backend address persistence',
   // ── Test 8: PATCH stores alias keys in structured address bucket ──
   const patchBody = functionBody(routeTs, 'export async function PATCH', 25000);
 
-  it('addressKeys includes CityRegion (PR-A C2)', () => {
-    expect(patchBody).toMatch(/['"]CityRegion['"]/);
+  // Domain 5 (2026-09-08): PATCH no longer keeps a route-local address allowlist. The address bucket is the
+  // form contract's persistenceMap (the same routing create-save uses), applied to the normalized body —
+  // so the PR-A C2 guarantee (alias keys land in the structured address bucket) is now the contract's.
+  const pm = (MALLAN_FORM_CONTRACT as unknown as { persistenceMap: Record<string, { address?: boolean }>; aliasToCanonical: Record<string, string> }).persistenceMap;
+  const aliases = (MALLAN_FORM_CONTRACT as unknown as { aliasToCanonical: Record<string, string> }).aliasToCanonical;
+
+  it('PATCH routes the address bucket through the contract persistenceMap (PR-A C2, one contract both ways)', () => {
+    expect(patchBody).toMatch(/const persistence = buildPersistenceRecord\(body\)/);
+    expect(patchBody).toMatch(/const updatedAddress = \{ \.\.\.existingAddress, \.\.\.persistence\.address \}/);
   });
 
-  it('addressKeys includes SubdivisionName (PR-A C2)', () => {
-    expect(patchBody).toMatch(/['"]SubdivisionName['"]/);
+  it.each(['CityRegion', 'SubdivisionName', 'CountyOrParish', 'PostalCity'])('the contract routes %s to the address bucket (PR-A C2)', (key) => {
+    expect(pm[key]?.address).toBe(true);
   });
 
-  it('addressKeys includes CountyOrParish (PR-A C2)', () => {
-    expect(patchBody).toMatch(/['"]CountyOrParish['"]/);
-  });
-
-  it('addressKeys includes PostalCity (PR-A C2)', () => {
-    expect(patchBody).toMatch(/['"]PostalCity['"]/);
-  });
-
-  it('UnParsedAddress (capital P) is normalized to UnparsedAddress (lowercase p) in the address bucket (PR-F)', () => {
-    expect(patchBody).toMatch(
-      /body\.UnParsedAddress\s*!==\s*undefined[\s\S]*?body\.UnparsedAddress\s*===\s*undefined[\s\S]*?updatedAddress\.UnparsedAddress\s*=\s*body\.UnParsedAddress/,
-    );
+  it('UnParsedAddress (capital P) is normalized to UnparsedAddress (lowercase p) before bucketing (PR-F)', () => {
+    expect(aliases.UnParsedAddress).toBe('UnparsedAddress');
+    expect(patchBody).toMatch(/const \{ normalized \} = normalizePayload\(body\)/);
   });
 
   // ── Test 9: borough/neighborhood DB columns mirror structured address ──
@@ -75,8 +74,8 @@ describe('Sale form save/load retention — PR-A/F backend address persistence',
     );
   });
 
-  it('UnparsedAddress (lowercase p) remains in addressKeys for Trestle-sourced rows (no regression)', () => {
-    expect(patchBody).toMatch(/['"]UnparsedAddress['"]/);
+  it('UnparsedAddress (lowercase p) is an address-bucket key of the contract (no regression)', () => {
+    expect(pm.UnparsedAddress?.address).toBe(true);
   });
 });
 

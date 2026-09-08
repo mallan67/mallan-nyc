@@ -49,6 +49,8 @@ export const MALLAN_INTERNAL_KEYS: readonly string[] = [
   'AdditionalFeeYN', 'AdditionalFee', 'AdditionalFeeDescription', 'AdditionalFeeFrequency', 'MaxLeaseMonths',
   'MaximumFinancingAmount', 'TaxDeductionPercent', 'GuarantorsAcceptedYN', 'BuildingSmokeFreeYN', 'CommercialUnitsYN',
   'LandmarkStatusYN', 'CapitalReservesTotal', 'CapitalReservesYN',
+  // The viewer's carrying-cost figure (public/crm/js/core/data-loader.js reads features.RealEstateTax)
+  'RealEstateTax',
   // Mallan auction facts bound under their storage column names
   'auction_yn', 'auction_type', 'auction_start_date', 'auction_end_date', 'auction_terms_url',
 ];
@@ -326,6 +328,13 @@ export const MALLAN_FORM_CONTRACT = {
     // ── Building info → features bucket ──
     AttendanceType: { features: true, raw: true },
     BuildingLaundryFeatures: { features: true, raw: true },
+    // Live multi-selects the forms bind and the viewers read from the features bucket; create-save never
+    // bucketed them while edit-save did (Domain 5, 2026-09-08) — one routing for both now.
+    ParkingFeatures: { features: true, raw: true },
+    LaundryFeatures: { features: true, raw: true },
+    BuildingFeatures: { features: true, raw: true },
+    // Mallan carrying-cost fact (not a live Property field; TaxAnnualAmount is the live one)
+    RealEstateTax: { features: true, raw: true },
     BuildingPetsAllowed: { features: true, raw: true },
     BuildingPetsAllowedComments: { features: true, raw: true },
     PetsAllowed: { features: true, raw: true },

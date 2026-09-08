@@ -47,9 +47,11 @@ describe('SpecialListingConditions keeps its live Multi-Enum cardinality', () =>
     ]);
   });
 
-  it('persistence: the PATCH route carries the array into features (and raw via the contract)', () => {
-    expect(route).toMatch(/"SpecialListingConditions",?\s*\]/);
-    expect(route).toMatch(/if \(body\[k\] !== undefined\) updatedFeatures\[k\] = body\[k\];/);
+  it('persistence: the PATCH route carries the array into features through the contract persistenceMap (Domain 5, 2026-09-08)', () => {
+    // PATCH no longer keeps a route-local features list: the contract routes every bucket for edit-save
+    // exactly as it does for create-save.
+    expect(route).toMatch(/const persistence = buildPersistenceRecord\(body\)/);
+    expect(route).toMatch(/const updatedFeatures = \{ \.\.\.existingFeatures, \.\.\.persistence\.features \}/);
     expect(MALLAN_FORM_CONTRACT.persistenceMap.SpecialListingConditions).toEqual({ features: true, raw: true });
   });
 
