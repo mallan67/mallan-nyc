@@ -59,13 +59,17 @@ export async function GET(req: NextRequest) {
       : String(l.address || "");
 
     // UCBA Art. I §11 DOM: honors stored days_on_market + 30-day reset rule +
-    // ComingSoon / Participant-Only suppression. Do NOT replace with (now - created_at).
-    const permissions = typeof l.compliance === "object" && l.compliance !== null
-      ? (l.compliance as Record<string, unknown>).Permissions as string | null | undefined
-      : null;
+    // ComingSoon / participant-only suppression. Do NOT replace with (now - created_at).
+    //
+    // Participant-only comes from the TYPED canonical column. This used to read
+    // `l.compliance.Permissions`, a key measured on 0 of 26,497 production rows
+    // (read-only census 2026-09-07) — so suppression received null on every row
+    // and a participant-only listing kept accruing displayed DOM. The provider
+    // `Permission` multi-value string is tokenized once in lib/idx/trestle-mapper.ts
+    // and persisted as `participant_only`; that is the only source here.
     const dom = getCurrentDom({
       status: l.status || "Active",
-      permissions: permissions ?? null,
+      participant_only: l.participant_only,
       status_changed_at: l.status_changed_at,
       first_active_date: l.first_active_date,
       days_on_market: l.days_on_market || 0,

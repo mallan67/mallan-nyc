@@ -625,18 +625,6 @@ export function assertWriteAuthorized(options: RecoveryOptions, env: RecoveryEnv
 
 // ── Per-row recovery ────────────────────────────────────────────────────────
 
-/**
- * Trestle exposes `Permission` (singular) or the legacy `Permissions`. Mirrors
- * `readTrestlePermissions` at lib/idx/sync.ts:252, which is module-private. This
- * is a two-key field read, not a mapper — the mapping itself stays in
- * mapTrestleToPrisma.
- */
-function readTrestlePermissions(raw: Record<string, unknown>): string | null {
-  if (typeof raw.Permission === "string") return raw.Permission;
-  if (typeof raw.Permissions === "string") return raw.Permissions;
-  return null;
-}
-
 interface RowResult {
   outcome: RowOutcome;
   fetched: boolean;
@@ -724,12 +712,14 @@ export async function recoverOneListing(
           status_changed_at: existing.status_changed_at,
           first_active_date: existing.first_active_date,
           days_on_market: existing.days_on_market,
-          // Historical permissions are not persisted — conservative, matches
-          // lib/idx/sync.ts:803.
-          permissions: null,
+          // Canonical typed visibility fact (see lib/compliance/dom-tracker.ts
+          // header). The local `readTrestlePermissions` copy that used to feed a
+          // raw provider string here has been removed — provider Permission is
+          // tokenized once, in mapTrestleToPrisma.
+          participant_only: existing.participant_only,
         },
         mapped.status,
-        readTrestlePermissions(raw),
+        mapped.participant_only,
       )
     : {};
 

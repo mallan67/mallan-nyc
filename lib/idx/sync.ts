@@ -249,12 +249,6 @@ export function archivedSafeMediaWhere(listingId: string): Prisma.ListingWhereIn
  * Trestle raw record exposes Permission (singular) or legacy Permissions.
  * Read whichever is present; null if neither.
  */
-function readTrestlePermissions(raw: Record<string, unknown>): string | null {
-  if (typeof raw.Permission === "string") return raw.Permission;
-  if (typeof raw.Permissions === "string") return raw.Permissions;
-  return null;
-}
-
 // ── IDX-sync diagnostic AuditEvent helpers ──────────────────────────
 //
 // Why this exists (2026-05-15): on 2026-05-15 the IDX cron entered a
@@ -774,7 +768,6 @@ export async function syncListings(
         },
       });
 
-      const newPermissions = readTrestlePermissions(raw);
       let statusTransition: {
         status_changed_at?: Date;
         first_active_date?: Date | null;
@@ -790,10 +783,16 @@ export async function syncListings(
             status_changed_at: existing.status_changed_at,
             first_active_date: existing.first_active_date,
             days_on_market: existing.days_on_market,
-            permissions: null, // historical permissions not persisted; conservative
+            // Canonical typed visibility fact, persisted by the mapper from the
+            // tokenized provider Permission. This previously passed `null` with
+            // the note "historical permissions not persisted" — that was wrong:
+            // `participant_only` IS persisted and IS in LISTING_SYNC_COMPARE_SELECT
+            // (lib/idx/write-suppression.ts:461), so the prior interval's accrual
+            // state was being discarded on every transition.
+            participant_only: existing.participant_only,
           },
           mapped.status,
-          newPermissions,
+          mapped.participant_only,
         );
       } else if (existing && existing.status_changed_at === null) {
         // Same status but NULL timestamp (pre-Phase-1 legacy row). Don't

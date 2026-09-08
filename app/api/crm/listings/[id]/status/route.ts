@@ -215,6 +215,9 @@ export async function PATCH(
   const domUpdate = computeDomTransition(
     {
       status: currentStatus,
+      // UCBA 2026 Art. I §11 carve-out: a participant-only listing accrues no
+      // DOM even while Active. Canonical typed column — never a provider string.
+      participant_only: listing.participant_only,
       status_changed_at: listing.status_changed_at,
       first_active_date: listing.first_active_date,
       days_on_market: listing.days_on_market,
