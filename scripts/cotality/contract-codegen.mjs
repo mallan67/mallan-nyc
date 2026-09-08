@@ -1,6 +1,7 @@
 // Cotality contract code generation — PURE functions (no I/O, no network).
 //
-//   compactFromBundle(bundle)      evidence bundle (compile-live-contract.mjs) -> { compact, lookups }
+//   compactFromParts(parts)        metadata + catalogue + facts -> { compact, lookups }   (ONE assembly path)
+//   compactFromBundle(bundle)      evidence bundle (compile-live-contract.mjs) -> compactFromParts
 //   renderContractTs(compact, lookups) -> the TypeScript source of lib/cotality/generated/contract.ts
 //
 // WHY (Maya, 2026-09-08): an agent's knowledge of the provider is whatever is in its context when it
@@ -11,11 +12,27 @@
 // phantom field, a misspelling, a British spelling of an enum member, or a `$filter` on a suppressed
 // field then fails `npm run type-check` for every agent, forever, without anyone having to know.
 //
-// Facts come ONLY from the bundle: $metadata (existence, types, nullability, navigation), the Field
+// Facts come ONLY from the provider: $metadata (existence, types, nullability, navigation), the Field
 // catalogue (RESO-standard flag, REBNY/RLS system reference), the Lookup catalogue (published members,
 // RLS-listed members, definitions) and the live probes (filterable, populated, entitlement). Nothing
 // is inferred from a name. A field the provider suppresses from $filter cannot be counted through
 // $filter either, so its population is recorded as null = UNMEASURABLE, never guessed.
+
+import { createHash } from 'node:crypto';
+
+/** Sorted-key canonical form so identical content hashes identically regardless of arrival order. */
+export function canonical(value) {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort().map((k) => [k, canonical(value[k])]));
+  return value;
+}
+export function sha256(value) {
+  return createHash('sha256').update(JSON.stringify(canonical(value))).digest('hex');
+}
+/** The $metadata fingerprint — ONE formula shared by the compiler and the incremental authority. */
+export function metadataSha(parsedMetadata) {
+  return sha256({ entitySets: parsedMetadata.entitySets, resources: parsedMetadata.resources, enums: parsedMetadata.enums });
+}
 
 const EDM_TO_TS = {
   'Edm.String': 'string',
@@ -49,111 +66,140 @@ function modeOf(bundle) {
   return bundle?.fingerprint?.mode || bundle?.acquisition?.mode || 'schema-only';
 }
 
+/** Entitlement per resource from light/full field probes: accessible iff at least one field probe succeeded. */
+export function accessFromProbes(resourceName, fieldNames, probeIndex) {
+  let supported = 0;
+  const rejectedHttp = new Map();
+  let firstError = null;
+  let probed = 0;
+  for (const f of fieldNames) {
+    const p = probeIndex.get(`${resourceName}.${f}`);
+    if (!p?.filterNonNull) continue;
+    probed += 1;
+    if (p.filterNonNull.state === 'SUPPORTED') supported += 1;
+    else {
+      const h = p.filterNonNull.httpStatus ?? 0;
+      rejectedHttp.set(h, (rejectedHttp.get(h) || 0) + 1);
+      if (!firstError) firstError = String(p.filterNonNull.error || '').slice(0, 200) || null;
+    }
+  }
+  if (probed === 0) return { state: 'unmeasured', http: null, error: null };
+  if (supported > 0) return { state: 'accessible', http: 200, error: null };
+  const modal = [...rejectedHttp.entries()].sort((a, b) => b[1] - a[1])[0];
+  return { state: 'rejected', http: modal ? modal[0] : null, error: firstError };
+}
+
+/** Per-field measured facts from light/full probes, keyed `Resource.Field`. */
+export function factsFromProbes(fieldProbes, accessByResource) {
+  const facts = new Map();
+  for (const p of fieldProbes) {
+    const access = accessByResource[p.resource];
+    let filterable = null;
+    let populated = null;
+    let probeHttp = null;
+    if (p.filterNonNull && access?.state === 'accessible') {
+      probeHttp = p.filterNonNull.httpStatus ?? null;
+      if (p.filterNonNull.state === 'SUPPORTED') {
+        filterable = true;
+        populated = typeof p.filterNonNull.count === 'number' ? p.filterNonNull.count : null;
+      } else if (p.filterNonNull.state === 'PROVIDER_REJECTED') {
+        filterable = false;
+        populated = null; // UNMEASURABLE through $filter — never guessed
+      }
+    }
+    facts.set(`${p.resource}.${p.field}`, { filterable, populated, probeHttp });
+  }
+  return facts;
+}
+
+/** Navigation ($expand) verdicts from relationship probes, keyed `Resource.Navigation`. */
+export function navFactsFromProbes(relProbes) {
+  const facts = new Map();
+  for (const r of relProbes) {
+    facts.set(`${r.resource}.${r.relationship}`, {
+      expand: r.evidence?.state ?? null,
+      http: r.evidence?.httpStatus ?? null,
+      payloadPresent: r.evidence?.relationshipPayloadPresent ?? null,
+    });
+  }
+  return facts;
+}
+
 /**
- * Build the compact snapshot + the lookup snapshot from a compile-live-contract.mjs bundle.
- * Both are deterministic for a given bundle (sorted keys, no timestamps other than the bundle's own).
+ * Compact raw Lookup catalogue rows into per-(resource, field) vocabularies. Member definitions are
+ * kept for resources this subscription can read; a rejected resource is recorded by NAME only
+ * (Building alone carries 78k rows of city definitions). Keys use $metadata spelling.
  */
-export function compactFromBundle(bundle) {
-  if (!bundle?.metadata?.resources) throw new Error('compactFromBundle: bundle has no metadata.resources');
-  const mode = modeOf(bundle);
-  const meta = bundle.metadata;
-  const fieldRows = bundle.catalogs?.field?.value?.rows ?? [];
-  const lookupRows = bundle.catalogs?.lookup?.value?.rows ?? [];
-  const fieldProbes = bundle.probes?.fields ?? [];
-  const relProbes = bundle.probes?.relationships ?? [];
-
-  // Field catalogue by normalized resource + field.
-  const catalog = new Map();
-  for (const row of fieldRows) catalog.set(`${normalizeResourceName(row.ResourceName)}.${row.FieldName}`, row);
-
-  // Lookup catalogue by normalized resource + field -> rows.
-  const lookupIndex = new Map();
+export function compactLookupRows(lookupRows, accessByResource) {
+  const index = new Map();
   for (const row of lookupRows) {
     const key = `${normalizeResourceName(row.ResourceName)}.${row.FieldName}`;
-    if (!lookupIndex.has(key)) lookupIndex.set(key, []);
-    lookupIndex.get(key).push(row);
+    if (!index.has(key)) index.set(key, []);
+    index.get(key).push(row);
   }
+  const lookups = {};
+  for (const [key, rows] of index) {
+    const dot = key.indexOf('.');
+    const resourceName = key.slice(0, dot);
+    const field = key.slice(dot + 1);
+    const members = [...new Set(rows.map((r) => String(r.LookupValue)))].sort();
+    const rls = [...new Set(rows.filter((r) => hasRls(r.SystemReferences)).map((r) => String(r.LookupValue)))].sort();
+    const definitions = {};
+    if (accessByResource[resourceName]?.state !== 'rejected') {
+      for (const r of rows) {
+        const v = String(r.LookupValue);
+        const d = r.Definition == null ? '' : String(r.Definition).trim();
+        if (d && d !== v && !definitions[v]) definitions[v] = d;
+      }
+    }
+    if (!lookups[resourceName]) lookups[resourceName] = {};
+    lookups[resourceName][field] = { members, rls, definitions };
+  }
+  return lookups;
+}
 
-  // Probes by resource + field / relationship.
-  const probeIndex = new Map();
-  for (const p of fieldProbes) probeIndex.set(`${p.resource}.${p.field}`, p);
-  const relIndex = new Map();
-  for (const r of relProbes) relIndex.set(`${r.resource}.${r.relationship}`, r);
+/**
+ * Build the compact snapshot + the lookup snapshot from PARTS. This is the one assembly path: the
+ * full evidence bundle (compactFromBundle) and the incremental authority refresh both feed it.
+ *   metadata         parsed $metadata (live-client parseMetadataXml)
+ *   fieldRows        Field catalogue rows (complete)
+ *   lookups          per-(resource, field) vocabularies (compactLookupRows output, possibly merged)
+ *   fieldFacts       Map 'Resource.Field' -> { filterable, populated, probeHttp }
+ *   navFacts         Map 'Resource.Navigation' -> { expand, http, payloadPresent }
+ *   accessByResource { Resource: { state, http, error } }
+ * Deterministic: sorted keys; no timestamps other than the fingerprint's own.
+ */
+export function compactFromParts({ mode, fingerprint, metadata, fieldRows, lookups: lookupsIn, fieldFacts, navFacts, accessByResource }) {
+  if (!metadata?.resources) throw new Error('compactFromParts: no metadata.resources');
+  const catalog = new Map();
+  for (const row of fieldRows || []) catalog.set(`${normalizeResourceName(row.ResourceName)}.${row.FieldName}`, row);
 
   const resources = {};
   const lookups = {};
-  const resourceNames = Object.keys(meta.resources).sort();
+  const resourceNames = Object.keys(metadata.resources).sort();
   let fieldCount = 0;
   let navigationCount = 0;
 
   for (const resourceName of resourceNames) {
-    const resource = meta.resources[resourceName];
+    const resource = metadata.resources[resourceName];
     const fieldNames = Object.keys(resource.fields).sort();
     const navNames = Object.keys(resource.navigation || {}).sort();
-
-    // Entitlement: accessible iff at least one field probe succeeded. All-rejected -> rejected with
-    // the modal HTTP status. No probes -> unmeasured (schema-only bundle).
-    let supported = 0;
-    const rejectedHttp = new Map();
-    let firstError = null;
-    let probed = 0;
-    for (const f of fieldNames) {
-      const p = probeIndex.get(`${resourceName}.${f}`);
-      if (!p?.filterNonNull) continue;
-      probed += 1;
-      if (p.filterNonNull.state === 'SUPPORTED') supported += 1;
-      else {
-        const h = p.filterNonNull.httpStatus ?? 0;
-        rejectedHttp.set(h, (rejectedHttp.get(h) || 0) + 1);
-        if (!firstError) firstError = String(p.filterNonNull.error || '').slice(0, 200) || null;
-      }
-    }
-    let access;
-    if (probed === 0) access = { state: 'unmeasured', http: null, error: null };
-    else if (supported > 0) access = { state: 'accessible', http: 200, error: null };
-    else {
-      const modal = [...rejectedHttp.entries()].sort((a, b) => b[1] - a[1])[0];
-      access = { state: 'rejected', http: modal ? modal[0] : null, error: firstError };
-    }
+    const access = accessByResource[resourceName] || { state: 'unmeasured', http: null, error: null };
 
     const fields = {};
     for (const f of fieldNames) {
       const info = resource.fields[f];
       const cat = catalog.get(`${resourceName}.${f}`) || null;
-      const lk = lookupIndex.get(`${resourceName}.${f}`) || null;
-      const p = probeIndex.get(`${resourceName}.${f}`) || null;
-
-      let filterable = null;
-      let populated = null;
-      let probeHttp = null;
-      if (p?.filterNonNull && access.state === 'accessible') {
-        probeHttp = p.filterNonNull.httpStatus ?? null;
-        if (p.filterNonNull.state === 'SUPPORTED') {
-          filterable = true;
-          populated = typeof p.filterNonNull.count === 'number' ? p.filterNonNull.count : null;
-        } else if (p.filterNonNull.state === 'PROVIDER_REJECTED') {
-          filterable = false;
-          populated = null; // UNMEASURABLE through $filter — never guessed
-        }
-      }
-
+      const lk = lookupsIn?.[resourceName]?.[f] || null;
+      const fact = (access.state === 'accessible' && fieldFacts.get(`${resourceName}.${f}`)) || { filterable: null, populated: null, probeHttp: null };
       if (lk) {
-        const members = [...new Set(lk.map((r) => String(r.LookupValue)))].sort();
-        const rls = [...new Set(lk.filter((r) => hasRls(r.SystemReferences)).map((r) => String(r.LookupValue)))].sort();
-        // Member definitions are kept for resources this subscription can read; a rejected resource's
-        // vocabulary is recorded by NAME only (Building alone carries 78k rows of city definitions).
-        const definitions = {};
-        if (access.state !== 'rejected') {
-          for (const r of lk) {
-            const v = String(r.LookupValue);
-            const d = r.Definition == null ? '' : String(r.Definition).trim();
-            if (d && d !== v && !definitions[v]) definitions[v] = d;
-          }
-        }
         if (!lookups[resourceName]) lookups[resourceName] = {};
-        lookups[resourceName][f] = { members, rls, definitions };
+        lookups[resourceName][f] = {
+          members: [...lk.members].sort(),
+          rls: [...lk.rls].sort(),
+          definitions: access.state === 'rejected' ? {} : { ...lk.definitions },
+        };
       }
-
       fields[f] = {
         type: info.rawType,
         nullable: info.nullable !== false,
@@ -162,10 +208,10 @@ export function compactFromBundle(bundle) {
         scale: info.scale ?? null,
         enum: info.enumName ?? null,
         multi: Boolean(info.multiEnum),
-        lookup: lk ? lk.length : null,
-        filterable,
-        populated,
-        probeHttp,
+        lookup: lk ? lk.members.length : null,
+        filterable: fact.filterable ?? null,
+        populated: fact.populated ?? null,
+        probeHttp: fact.probeHttp ?? null,
         rlsField: cat ? hasRls(cat.SystemReferences) : null,
         reso: cat ? cat.RESOStandardYN === true : null,
       };
@@ -175,42 +221,45 @@ export function compactFromBundle(bundle) {
     const navigation = {};
     for (const n of navNames) {
       const nav = resource.navigation[n];
-      const r = relIndex.get(`${resourceName}.${n}`) || null;
+      const r = navFacts.get(`${resourceName}.${n}`) || null;
       navigation[n] = {
         target: nav.target,
         collection: Boolean(nav.collection),
-        expand: r?.evidence?.state ?? null,
-        http: r?.evidence?.httpStatus ?? null,
-        payloadPresent: r?.evidence?.relationshipPayloadPresent ?? null,
+        expand: r?.expand ?? null,
+        http: r?.http ?? null,
+        payloadPresent: r?.payloadPresent ?? null,
       };
       navigationCount += 1;
     }
 
     resources[resourceName] = {
-      entityType: meta.entitySets?.[resourceName] ?? null,
-      access,
+      entityType: metadata.entitySets?.[resourceName] ?? null,
+      access: { state: access.state, http: access.http ?? null, error: access.error ?? null },
       fields,
       navigation,
     };
   }
 
   const enumTypes = {};
-  for (const name of Object.keys(meta.enums || {}).sort()) {
-    enumTypes[name] = (meta.enums[name] || []).map((m) => String(m.name));
+  for (const name of Object.keys(metadata.enums || {}).sort()) {
+    enumTypes[name] = (metadata.enums[name] || []).map((m) => String(m.name));
   }
 
-  const fp = bundle.fingerprint || {};
+  const fp = fingerprint || {};
   const compact = {
     format: 'mallan-cotality-contract-compact/v1',
     warning: 'GENERATED from the live Cotality API by scripts/cotality/generate-contract-types.mjs. Do NOT hand-edit. Regenerate: npm run cotality:compile:light && npm run cotality:generate',
     fingerprint: {
       evidence_sha256: fp.evidence_sha256 ?? null,
-      metadata_sha256: fp.metadata_sha256 ?? null,
+      metadata_sha256: fp.metadata_sha256 ?? metadataSha(metadata),
       catalog_sha256: fp.catalog_sha256 ?? null,
       probe_sha256: fp.probe_sha256 ?? null,
-      provider_base: fp.provider_base ?? bundle.acquisition?.base ?? null,
-      acquired_at: fp.acquired_at ?? bundle.acquisition?.finishedAt ?? null,
+      // Path-independent identity of THIS snapshot's content (resources + vocabularies + enum types).
+      content_sha256: null,
+      provider_base: fp.provider_base ?? null,
+      acquired_at: fp.acquired_at ?? null,
       repo_git_sha: fp.repo_git_sha ?? null,
+      source: fp.source ?? 'bundle',
     },
     probe_mode: mode,
     resourceCount: resourceNames.length,
@@ -219,7 +268,44 @@ export function compactFromBundle(bundle) {
     resources,
     enumTypes,
   };
+  compact.fingerprint.content_sha256 = sha256({ resources, enumTypes, lookups });
   return { compact, lookups };
+}
+
+/** Build the compact snapshot + the lookup snapshot from a compile-live-contract.mjs bundle. */
+export function compactFromBundle(bundle) {
+  if (!bundle?.metadata?.resources) throw new Error('compactFromBundle: bundle has no metadata.resources');
+  const mode = modeOf(bundle);
+  const meta = bundle.metadata;
+  const fieldProbes = bundle.probes?.fields ?? [];
+  const relProbes = bundle.probes?.relationships ?? [];
+  const probeIndex = new Map();
+  for (const p of fieldProbes) probeIndex.set(`${p.resource}.${p.field}`, p);
+  const accessByResource = {};
+  for (const resourceName of Object.keys(meta.resources)) {
+    accessByResource[resourceName] = accessFromProbes(resourceName, Object.keys(meta.resources[resourceName].fields), probeIndex);
+  }
+  const lookups = compactLookupRows(bundle.catalogs?.lookup?.value?.rows ?? [], accessByResource);
+  const fp = bundle.fingerprint || {};
+  return compactFromParts({
+    mode,
+    fingerprint: {
+      evidence_sha256: fp.evidence_sha256 ?? null,
+      metadata_sha256: fp.metadata_sha256 ?? null,
+      catalog_sha256: fp.catalog_sha256 ?? null,
+      probe_sha256: fp.probe_sha256 ?? null,
+      provider_base: fp.provider_base ?? bundle.acquisition?.base ?? null,
+      acquired_at: fp.acquired_at ?? bundle.acquisition?.finishedAt ?? null,
+      repo_git_sha: fp.repo_git_sha ?? null,
+      source: 'bundle',
+    },
+    metadata: meta,
+    fieldRows: bundle.catalogs?.field?.value?.rows ?? [],
+    lookups,
+    fieldFacts: factsFromProbes(fieldProbes, accessByResource),
+    navFacts: navFactsFromProbes(relProbes),
+    accessByResource,
+  });
 }
 
 // ── TypeScript rendering ────────────────────────────────────────────────────
@@ -276,6 +362,7 @@ export function renderContractTs(compact, lookups) {
   out.push(`// probe_mode    ${compact.probe_mode}`);
   out.push(`// metadata_sha  ${fp.metadata_sha256}`);
   out.push(`// evidence_sha  ${fp.evidence_sha256}`);
+  out.push(`// content_sha   ${fp.content_sha256} (source: ${fp.source})`);
   out.push(`// resources     ${compact.resourceCount} · fields ${compact.fieldCount} · navigations ${compact.navigationCount}`);
   out.push('//');
   out.push('// RULES FOR EVERY READER (human or agent):');
@@ -298,6 +385,8 @@ export function renderContractTs(compact, lookups) {
   out.push(`  catalog_sha256: ${JSON.stringify(fp.catalog_sha256)},`);
   out.push(`  probe_sha256: ${JSON.stringify(fp.probe_sha256)},`);
   out.push(`  evidence_sha256: ${JSON.stringify(fp.evidence_sha256)},`);
+  out.push(`  content_sha256: ${JSON.stringify(fp.content_sha256)},`);
+  out.push(`  source: ${JSON.stringify(fp.source)},`);
   out.push(`  resourceCount: ${compact.resourceCount},`);
   out.push(`  fieldCount: ${compact.fieldCount},`);
   out.push(`  navigationCount: ${compact.navigationCount},`);
@@ -332,14 +421,14 @@ export function renderContractTs(compact, lookups) {
   const unionDecls = [];
   const enumTypeKeys = new Map(); // enumTypeName -> key
   for (const [name, members] of Object.entries(compact.enumTypes)) {
-    const key = [...members].sort().join(' ');
+    const key = [...members].sort().join(' ');
     enumTypeKeys.set(name, key);
   }
   function unionTypeFor(resourceName, fieldName, f) {
     const lk = lookups[resourceName]?.[fieldName] || null;
     const members = lk ? lk.members : f.enum ? compact.enumTypes[f.enum] || [] : null;
     if (!members) return null;
-    const key = [...members].sort().join(' ');
+    const key = [...members].sort().join(' ');
     if (unionByKey.has(key)) return unionByKey.get(key);
     let typeName;
     if (f.enum && enumTypeKeys.get(f.enum) === key) typeName = `CotalityEnum_${f.enum}`;

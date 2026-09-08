@@ -6,9 +6,11 @@
     "metadata_sha256": "a60bcbbdccc9da852a8da53acc178fc90d7159c42f59f58babb2d09ab7a6bbae",
     "catalog_sha256": "35b5d81e96affbeea2777f9aaefd9703c002861ecb6770390b74a3a3d0b24293",
     "probe_sha256": "786f5fd08b8f58d1c4d7c74ac7f71eb76fd61c03ef28c7d2e507113cd34a0373",
+    "content_sha256": "9115497c2598b2047535235e3740a67c4a53fc5a6c23f92128e0264aa374822c",
     "provider_base": "https://api.cotality.com/trestle",
     "acquired_at": "2026-09-08T03:32:52.480Z",
-    "repo_git_sha": "20bce5bee85ced4813157e5d889b9b6f9cf2ce97"
+    "repo_git_sha": "20bce5bee85ced4813157e5d889b9b6f9cf2ce97",
+    "source": "bundle"
   },
   "probe_mode": "light",
   "resourceCount": 17,
@@ -2577,7 +2579,7 @@
       "access": {
         "state": "rejected",
         "http": 400,
-        "error": "{\"error\":{\"code\":\"BadRequest[400]. TraceId: 3a4826b5-bad9-4255-b2bc-282641842a64\",\"message\":\"No OriginatingSystemNames available for querying given request! This is an indication that you do not have "
+        "error": "{\"error\":{\"code\":\"BadRequest[400]. TraceId: 473ffe64-985f-45f2-9783-f039e1fa9f21\",\"message\":\"No OriginatingSystemNames available for querying given request! This is an indication that you do not have "
       },
       "fields": {
         "ChangeType": {

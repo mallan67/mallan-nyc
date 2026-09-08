@@ -1,0 +1,16 @@
+{
+  "format": "mallan-cotality-authority-state/v1",
+  "watermarks": {
+    "field": "2026-09-06T21:41:25.347Z",
+    "lookup": "2026-09-04T22:29:39.933Z",
+    "model": "2026-09-04T08:45:33.297Z"
+  },
+  "metadata_sha256": "a60bcbbdccc9da852a8da53acc178fc90d7159c42f59f58babb2d09ab7a6bbae",
+  "content_sha256": "9115497c2598b2047535235e3740a67c4a53fc5a6c23f92128e0264aa374822c",
+  "probe_mode": "light",
+  "acquired_at": "2026-09-08T03:32:52.480Z",
+  "capabilities_verified_at": "2026-09-08T03:32:52.480Z",
+  "source": "bundle",
+  "updated_at": "2026-09-08T04:16:10.751Z",
+  "repo_git_sha": "f13f658145b9a4c2d2f75ce112fb7dd5c97911da"
+}

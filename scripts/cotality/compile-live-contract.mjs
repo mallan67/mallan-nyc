@@ -24,6 +24,7 @@ import { createHash } from 'node:crypto';
 import { execSync } from 'node:child_process';
 import path from 'node:path';
 import { createCotalityClient, mapLimit, PROBE_STATE } from './live-client.mjs';
+import { metadataSha } from './contract-codegen.mjs';
 
 const args = new Set(process.argv.slice(2));
 const full = args.has('--full');
@@ -142,12 +143,12 @@ function canonical(value) {
 function sha256(value) { return createHash('sha256').update(JSON.stringify(canonical(value))).digest('hex'); }
 function gitSha() { try { return execSync('git rev-parse HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); } catch { return null; } }
 function gitDirty() { try { return execSync('git status --porcelain --untracked-files=no', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim().length > 0; } catch { return null; } }
-const metadataSha = sha256({ entitySets: metadata.entitySets, resources: metadata.resources, enums: metadata.enums });
+const metadataShaValue = metadataSha(metadata); // ONE formula, shared with the incremental authority
 const catalogSha = sha256({ field: fieldCatalog.value?.rows ?? null, lookup: lookupCatalog.value?.rows ?? null, model: modelCatalog.value?.rows ?? null });
 const probeSha = (full || light) ? sha256({ fields: fieldEvidence, relationships: relationshipEvidence }) : null;
 const fingerprint = {
-  evidence_sha256: sha256({ metadataSha, catalogSha, probeSha }),
-  metadata_sha256: metadataSha,
+  evidence_sha256: sha256({ metadataSha: metadataShaValue, catalogSha, probeSha }),
+  metadata_sha256: metadataShaValue,
   catalog_sha256: catalogSha,
   probe_sha256: probeSha,
   repo_git_sha: gitSha(),

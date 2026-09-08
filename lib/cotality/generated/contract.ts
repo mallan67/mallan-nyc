@@ -10,6 +10,7 @@
 // probe_mode    light
 // metadata_sha  a60bcbbdccc9da852a8da53acc178fc90d7159c42f59f58babb2d09ab7a6bbae
 // evidence_sha  0c62605128b8183fbd47a5a2d4ccc7c3653a2bc175dc31b3179178fd8587f59a
+// content_sha   9115497c2598b2047535235e3740a67c4a53fc5a6c23f92128e0264aa374822c (source: bundle)
 // resources     17 · fields 1456 · navigations 31
 //
 // RULES FOR EVERY READER (human or agent):
@@ -32,6 +33,8 @@ export const COTALITY_CONTRACT = {
   catalog_sha256: "35b5d81e96affbeea2777f9aaefd9703c002861ecb6770390b74a3a3d0b24293",
   probe_sha256: "786f5fd08b8f58d1c4d7c74ac7f71eb76fd61c03ef28c7d2e507113cd34a0373",
   evidence_sha256: "0c62605128b8183fbd47a5a2d4ccc7c3653a2bc175dc31b3179178fd8587f59a",
+  content_sha256: "9115497c2598b2047535235e3740a67c4a53fc5a6c23f92128e0264aa374822c",
+  source: "bundle",
   resourceCount: 17,
   fieldCount: 1456,
   navigationCount: 31,
@@ -965,7 +968,7 @@ export interface CotalityField {
 export interface CotalityFieldNavigations {
 }
 
-/** HistoryTransactional · Cotality.DataStandard.RESO.DD.HistoryTransactional · 29 fields · REJECTED on this subscription (HTTP 400: {"error":{"code":"BadRequest[400]. TraceId: 3a4826b5-bad9-4255-b2bc-282641842a64","message":"No OriginatingSystemNames available for querying given request! This is an indication that you do not have ) */
+/** HistoryTransactional · Cotality.DataStandard.RESO.DD.HistoryTransactional · 29 fields · REJECTED on this subscription (HTTP 400: {"error":{"code":"BadRequest[400]. TraceId: 473ffe64-985f-45f2-9783-f039e1fa9f21","message":"No OriginatingSystemNames available for querying given request! This is an indication that you do not have ) */
 export interface CotalityHistoryTransactional {
   /** Enums.ChangeType · Lookup 15 members (RLS-listed 0) · filterability unmeasured · RLS field · non-RESO */
   ChangeType: CotalityLookup_HistoryTransactional_ChangeType | null;
