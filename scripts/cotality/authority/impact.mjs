@@ -249,6 +249,13 @@ function resolveFunctionDecl(checker, expr) {
   return null;
 }
 
+/** `(x as T)`, `(x)`, `x!` → x. Call arguments are routinely cast; the identity underneath is what binds. */
+function unwrapExpr(e) {
+  let x = e;
+  while (x && (ts.isAsExpression(x) || ts.isParenthesizedExpression(x) || ts.isNonNullExpression(x) || ts.isTypeAssertionExpression?.(x) || ts.isSatisfiesExpression?.(x))) x = x.expression;
+  return x;
+}
+
 function localsOf(fn) {
   const locals = new Map();
   const visit = (n) => {
@@ -422,9 +429,10 @@ export function analyzeMapper(ctx) {
         const decl = resolveFunctionDecl(checker, n.expression);
         if (decl) {
           const pnames = paramNames(decl);
-          n.arguments.forEach((arg, i) => {
+          n.arguments.forEach((rawArg, i) => {
             const pname = pnames[i];
             if (!pname) return;
+            const arg = unwrapExpr(rawArg);
             if (ts.isIdentifier(arg) && rawAliases.has(arg.text)) {
               for (const [k, node] of keysAccessedOnParam(decl, pname)) refs.set(k, node);
             } else if (ts.isIdentifier(arg) && jsonKeysOfLocal.has(arg.text)) {
@@ -457,7 +465,7 @@ export function analyzeMapper(ctx) {
           const summary = returnSummary(decl);
           for (const [col, byParam] of summary) {
             for (const [i, keys] of byParam) {
-              const arg = init.arguments[i];
+              const arg = unwrapExpr(init.arguments[i]);
               if (!arg || !ts.isIdentifier(arg)) continue;
               if (rawAliases.has(arg.text)) for (const k of keys) add(k, `listings.${col}`, p, `spread ${init.expression.getText(sf)}`);
               else if (jsonKeysOfLocal.has(arg.text)) for (const k of keys) if (jsonKeysOfLocal.get(arg.text).has(k)) add(k, `listings.${col}`, p, `spread ${init.expression.getText(sf)}`);
@@ -469,12 +477,12 @@ export function analyzeMapper(ctx) {
     }
     let col = null;
     let expr = null;
-    if (ts.isShorthandPropertyAssignment(p)) { col = p.name.text; expr = locals.get(col) || null; }
-    else if (ts.isPropertyAssignment(p) && (ts.isIdentifier(p.name) || ts.isStringLiteralLike(p.name))) { col = p.name.text; expr = p.initializer; }
+    let localName = null;
+    if (ts.isShorthandPropertyAssignment(p)) { col = p.name.text; localName = col; expr = locals.get(col) || null; }
+    else if (ts.isPropertyAssignment(p) && (ts.isIdentifier(p.name) || ts.isStringLiteralLike(p.name))) { col = p.name.text; expr = p.initializer; if (ts.isIdentifier(expr)) localName = expr.text; }
     if (!col || !expr) continue;
 
-    // JSON column fed by pick lists → per-key nodes.
-    const localName = ts.isIdentifier(expr) ? expr.text : null;
+    // JSON column fed by pick lists → per-key nodes (`features,` shorthand or `agent_info: agentInfo`).
     if (jsonColumns.has(col) && localName && jsonKeysOfLocal.has(localName)) {
       for (const [k, node] of jsonKeysOfLocal.get(localName)) add(k, `listings.${col}.${k}`, node, `pick → ${col}`);
       continue;
