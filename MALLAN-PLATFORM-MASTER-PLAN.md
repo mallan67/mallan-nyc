@@ -336,6 +336,33 @@ Where entitlement permits, mapping must account for the relevant provider resour
 
 No UI or business rule may invent a provider field, status, expand, picklist, meaning or permission. Field-level source precedence must be explicit and tested when more than one authorized source can supply the same displayed fact.
 
+### 4.5.1 Provider status, transition evidence and Mallan display state
+
+Mallan must keep three status concepts separate:
+
+```text
+COTALITY CURRENT PROVIDER STATE
+≠
+COTALITY TRANSITION / EVENT EVIDENCE
+≠
+MALLAN BROKER-FACING DISPLAY STATE
+```
+
+Current Cotality `StandardStatus` and transition/event fields are interpreted from the live authorized Cotality contract and current observed feed behavior; Mallan never manufactures a provider status from absence.
+
+Durable rules:
+
+- `Pending` is the provider current state used for the listings Mallan presents as **In Contract** under the verified current mapping; Mallan must not wait for `ActiveUnderContract` merely because that value exists in provider metadata.
+- `Closed` requires Sale/Rental context before presentation: a verified closed Sale is **Sold**; a verified closed Rental is **Rented/Leased** according to the governed Mallan wording.
+- `BackOnMarket` is transition/event evidence on the applicable current listing state; it is not a second current listing status.
+- price-change and contract-event dates remain transition/history evidence and may not replace the current provider state.
+- if a listing disappears from the current Cotality feed and Cotality does not provide a verified reason/current state, Mallan preserves the last verified provider state/history and may present the Mallan broker-facing state **Off Market**.
+- disappearance alone may never be converted to provider `Withdrawn`, `Canceled`, `Expired`, `Hold` or any other invented reason.
+- **`Delisted` is not a canonical Mallan status.**
+- if Cotality later supplies a verified current reason/state, Mallan uses that verified provider fact and retains the prior history.
+
+Provider values may exist in metadata without appearing in a given current feed population. Metadata existence does not authorize Mallan to infer a value that was not actually observed for the listing.
+
 ## 4.6 Supplemental / private inventory
 
 Professional Agent Search may include authorized supplemental sale/new-development opportunities that are absent from the current Cotality universe. StreetEasy sale references remain an explicit supported research source when Mallan is authorized to use the relevant facts; automated scraping/extraction is never assumed.
@@ -520,6 +547,32 @@ Agent Search must preserve the full verified professional criteria families requ
 - transportation/location intelligence only from verified provider facts or a named Mallan derivation.
 
 The exact field/picklist registry lives outside this Master and is verified against the current authorized Cotality contract. A difficult criterion is corrected or explicitly refused; it is not silently deleted or ignored.
+
+### 5.6.1 DOM has two governed clocks
+
+Mallan does not collapse Coming Soon time and normal market time into one Days on Market value.
+
+#### Coming Soon DOM
+
+Coming Soon has its own clock, derived only from verified Cotality Coming Soon/activation facts such as `StandardStatus = ComingSoon`, `ActivationDate` and any other exact provider timestamp whose semantics are proven for this use.
+
+Coming Soon time is preserved separately and does not accrue into normal market DOM unless the governed Mallan business rule explicitly says so.
+
+#### Market DOM
+
+Mallan market DOM runs:
+
+```text
+VERIFIED ON-MARKET / LISTED DATE
+→
+ACTUAL CONTRACT-SIGNED POINT
+```
+
+The implementation must prove the exact Cotality field or deterministic combination that represents the contract-signed point separately for Sale and Rental before ending the clock.
+
+`OnMarketDate`, `OnMarketTimestamp`, `PurchaseContractDate`, `ContractStatusChangeDate`, `PendingTimestamp` and other provider event dates remain separately preserved source facts. No implementation may automatically redefine `PurchaseContractDate` as “contract signed” without verified Cotality semantics for the applicable Sale/Rental workflow.
+
+There is one governed Coming Soon DOM rule and one governed market DOM rule. Multiple readers may not maintain conflicting accrual/end-point logic.
 
 ## 5.7 Saved Search and client memory
 
@@ -962,19 +1015,48 @@ A future public paid-access option remains **held** until source, reproduction, 
 
 ## 11.7 Media
 
-Media is canonical to Building/Property/Listing with:
+Media preserves the owning resource declared by the verified source. Cotality `Media.ResourceName` / `Media.ResourceRecordKey` ownership is not flattened into one generic listing-photo collection.
+
+At minimum:
+
+```text
+MEMBER
+→ AGENT / MEMBER PHOTOS
+
+PROPERTY
+→ LISTING / UNIT MEDIA
+
+BUILDING
+→ BUILDING / AMENITY MEDIA
+```
+
+Where the current authorized Cotality contract exposes other owners such as Office or Contacts, Mallan preserves that ownership/provenance if encountered; their existence does not automatically create a new Mallan product feature.
+
+Property/listing media may include, where the exact provider category/type and rights support it:
+
+- listing/unit photos;
+- floor plans;
+- video/tours;
+- documents;
+- ordering;
+- primary-photo semantics.
+
+Building media may be displayed inside a listing/property experience as a clearly separate Building section, but it remains Building-owned. It is not copied onto every unit and reclassified as Property-owned listing media.
+
+Agent/Member media remains attached to the governed Agent/Member identity and must not enter listing-photo ordering.
+
+Every media record retains:
 
 - source/provenance;
+- owning resource identity;
 - rights/permission;
-- media type;
-- ordering;
+- media category/type;
+- ordering where applicable;
 - audience eligibility.
-
-Building/amenity media, unit media and floor plans remain distinct.
 
 Do not copy/rehost external media merely because it is publicly viewable.
 
-Media corrections must be traced across Listing Workspace, Search, client share, reports, marketing, public pages, caches and storage.
+Media corrections must be traced across Member/Agent profile, Building, Listing Workspace, Search, client share, reports, marketing, public pages, caches and storage without flattening ownership.
 
 ---
 
@@ -1407,7 +1489,8 @@ Attorneys, law firms, lenders, mortgage professionals, managing agents and simil
 
 - **New York law / NYS DOS / Fair Housing / advertising law** govern legal brokerage conduct.
 - **REBNY / RLS / UCBA** govern applicable brokerage participation, cooperation, listing-use and display rules.
-- **Cotality / Trestle** is the current provider implementation contract for the provider data Mallan is entitled to use.
+- **Cotality / Trestle** is the current provider implementation contract and current provider authority for Cotality-served fields, statuses, resources, picklists, media ownership and provider-event semantics within Mallan's entitlement.
+- **REBNY / RLS** is not a provider API, field/status vocabulary or mapping authority; it remains a separately applicable brokerage/compliance/use/display authority.
 - **NYS Attorney General offering-plan records** govern their own filed documents and Schedule A facts.
 - **Mallan** is authoritative for Mallan-authored business records, local workflow state and brokerage decisions.
 - **Other supplemental sources** are authoritative only within their verified source scope and rights.
@@ -1889,6 +1972,19 @@ Agent administration is not done until identity, license title, authentication, 
 
 Public publication is not done until canonical URL, structured data, address-display eligibility, attribution, media rights, role/title truth, compliant contextual rendering and durable inquiry capture are proven.
 
+## 26.8 Provider lifecycle / DOM / Media
+
+Provider lifecycle interpretation is not done until:
+
+- current Cotality provider state, provider transition/event evidence and Mallan display wording remain separate;
+- `Pending` → Mallan **In Contract** behavior is proven against the current authorized Cotality contract/feed mapping;
+- Closed Sale vs Closed Rental renders Sold vs Rented/Leased correctly;
+- unresolved feed disappearance preserves provider history and uses Mallan **Off Market** without manufacturing a provider reason;
+- no canonical `Delisted` status exists;
+- Coming Soon DOM and market DOM are separate and have one owner each;
+- the actual Sale and Rental contract-signed endpoint used for market DOM is provider-verified;
+- Member/Agent, Property/Listing and Building Media ownership remains distinct from source through storage and every consumer.
+
 ---
 
 # 27. PRODUCTION RECOVERY AND EXECUTION CONTROL
@@ -2000,8 +2096,15 @@ Targets, alert thresholds and current measurements belong in execution/operation
 ## 27.8 Mutation boundaries
 
 Production/schema/migration/backfill, destructive data/R2, environment/credential, force-push/rebase of shared work and manual Production deployment remain explicit Maya authorization boundaries. A held mutation freezes only that mutation; safe independent work continues.
+
 ## 27.9 Execution-state boundary
 
 `MALLAN-CONTINUOUS-EXECUTION-STATE.md` owns the current active layer, branch/head, PR, blockers, test/runtime/provider evidence, controlled holds and next exact action. This Master owns durable business architecture and proof rules. If the execution state conflicts with this Master on architecture, the Master wins; if the Master contains temporary status, move that status out rather than treating it as durable architecture.
+
+## 27.14 Permanent independent verification structure
+
+The independent-verification model in §§27.2–27.4 is permanent, not a temporary recovery tactic. It applies across Listing intake, Search, CMA, Media, Open House, Map, Saved Search, Reports, CRM, authorization, compliance, Neon/R2 and every later material capability.
+
+Builder implementation evidence, data/structural evidence and independent black-box runtime evidence remain separately labeled. A capability may not be self-certified by the Builder, and a verifier/validator may not silently become a second Builder. Exact-head/environment binding and Golden Thread + breadth-matrix proof remain mandatory where applicable.
 
 ---
