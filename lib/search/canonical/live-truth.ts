@@ -19,8 +19,14 @@ export const LIVE_AUTHORITY = Object.freeze({
   /** Regeneration command — run before freezing any enum-derived constant. */
   regenerate: 'npm run cotality:pull && npm run cotality:verify',
   source: 'https://api.cotality.com/trestle/odata/Lookup',
-  /** The pull date recorded in the live file at the time this projection was last verified. */
-  verifiedAgainstPull: '2026-09-06',
+  /**
+   * The pull date recorded in the live file at the time this projection was last verified.
+   * 2026-09-08: re-verified against that day's pull (which added `rls_listed`; every member set below
+   * is byte-identical to the 2026-09-06 and 2026-09-07 pulls — vocabulary-authority.test.ts asserts
+   * set equality, so this stamp may only move when those assertions pass). The 2026-09-07 re-pull
+   * (60817b3d) moved the file without moving this stamp, which is why the guard was red at HEAD.
+   */
+  verifiedAgainstPull: '2026-09-08',
 });
 
 /**

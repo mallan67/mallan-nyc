@@ -45,6 +45,8 @@ const formMapping = require(path.join(REPO_ROOT, 'lib', 'crm', 'listing-form-map
 
 const LIVE_FIELDS = liveContract.LIVE_PROPERTY_FIELDS;               // Set<string>
 const liveEnumMembers = liveContract.liveEnumMembers;                // (field) => string[] | null
+const isLiveMultiField = liveContract.isLiveMultiField;              // (field) => boolean — declared Multi enum / collection
+const liveRlsListedMembers = liveContract.liveRlsListedMembers;      // (field) => string[] | null — members REBNY's system lists
 const INTERNAL_KEYS = new Set(MALLAN_INTERNAL_KEYS);
 const PHANTOMS = LEGACY_MALLAN_FORM_CONTROL_KEYS;                    // Set<string>
 const isCanonical = (name) => LIVE_FIELDS.has(name) || INTERNAL_KEYS.has(name);
@@ -211,32 +213,91 @@ function passA_Discovery() {
 // ═══════════════════════════════════════════════════════════════════════════
 // SECTION 1: PICKLIST VALUES — every option / checkbox value bound to a live enum field is a live member
 // ═══════════════════════════════════════════════════════════════════════════
+// Section 1 diagnoses THREE different defects that used to share one message ("value X is not a live
+// member"). Re-targeted 2026-09-08 after checking the twelve standing errors against the live API:
+//
+//   DEAD BINDING    the control is bound to a field for which REBNY's system lists NO member (e.g.
+//                   AvailableLeaseType: 23 platform members, 0 RLS-listed, 0 populated live). The control
+//                   is a Mallan concept mis-bound to a provider field. Reported once per (file, field);
+//                   its values are NOT member-checked — those errors would only send the fixer after the
+//                   wrong thing.
+//   SHAPE MISMATCH  a yes/no radio or checkbox bound to a declared MULTI enum (e.g. a "fireplace" Yes/No
+//                   radio on the 300-member InteriorFeatures). A single control cannot express a
+//                   multi-select vocabulary; a Boolean field usually exists (FireplaceYN).
+//   WRONG VALUE     the field is one REBNY uses and the value is simply not a member (e.g. CurrentUse
+//                   "Healthcare"; RLS-listed members include MedicalDental, Office). The RLS-listed
+//                   members are offered so the fix is the right value, not another guess.
+//
+// All three remain ERRORS: the forms are wrong in all three cases. Only the diagnosis changed.
 function validatePicklists(fileElements) {
   console.log('\n  Section 1: Picklist values (live Cotality enums) ...');
   const SKIP_VALUES = new Set(['', 'Select', 'select', '--', 'Choose', 'choose', 'All', 'Any']);
+  const YES_NO = new Set(['yes', 'no', 'true', 'false', 'y', 'n', '1', '0', 'on', 'off']);
+  const deadReported = new Set();
+
+  function rlsHint(field) {
+    const rls = liveRlsListedMembers(field);
+    return rls && rls.length ? ` — RLS-listed ${field} members: ${rls.slice(0, 8).join(', ')}${rls.length > 8 ? '…' : ''}` : '';
+  }
+  // Returns true (and reports once) when REBNY lists NO member of the bound field's vocabulary.
+  function deadBinding(fname, field, controlLabel) {
+    const key = `${fname}|${field}`;
+    if (deadReported.has(key)) return true;
+    const rls = liveRlsListedMembers(field);
+    if (rls === null || rls.length > 0) return false;
+    deadReported.add(key);
+    // The snapshot knows VOCABULARY (which members REBNY's system lists), not POPULATION. SystemReferences
+    // has been wrong in both directions on this feed (MlsStatus listed + null everywhere; VideosCount
+    // unlisted + populated), so the message states the vocabulary fact and sends the fixer to a live
+    // count before rebinding. Measured 2026-09-08, all four such fields were 0 populated — but that is
+    // evidence for that day, not a rule the validator may assert.
+    error(1, `${fname}: ${controlLabel} is bound to "${field}", which has NO RLS-listed member on the live contract (pull ${liveContract.COTALITY_CONTRACT_PULLED_AT}) — REBNY's system lists none of this field's vocabulary. DEAD BINDING (probable): a Mallan-only concept mis-bound to a provider field. Confirm with a live count (npm run cotality:query -- query --resource=Property --filter="${field} ne null" --count=true --top=0); if 0, bind the control with data-mallan-field and declare it in lib/listings/mallan-form-contract.ts.`);
+    return true;
+  }
+  // For a yes/no control on a Multi enum, name the Boolean field(s) that share the control's stem.
+  function booleanCandidates(control) {
+    const raw = ((control.getAttribute('name') || control.getAttribute('id') || '').trim());
+    const stem = raw.replace(/^(sale|rental|bldg|th)/i, '').toLowerCase();
+    if (!stem) return [];
+    return [...LIVE_FIELDS].filter((f) => /YN$/.test(f) && f.toLowerCase().startsWith(stem)).slice(0, 3);
+  }
+
   for (const data of Object.values(fileElements)) {
     const { dom, fname, config } = data;
     if (config.category === 'search') continue;
+
     for (const sel of dom.querySelectorAll('select')) {
       const r = resolveElementQuiet(sel); if (!r.field) continue;
       const members = liveEnumMembers(r.field); if (!members) continue;
+      const label = `<select ${sel.getAttribute('id') ? `id="${sel.getAttribute('id')}"` : `name="${sel.getAttribute('name') || ''}"`}>`;
+      if (deadBinding(fname, r.field, label)) continue;
       const set = new Set(members);
       const values = [];
       for (const opt of sel.querySelectorAll('option')) {
         const val = (opt.getAttribute('value') || '').trim();
         if (SKIP_VALUES.has(val)) continue; values.push(val);
-        if (!set.has(val)) error(1, `${fname}: <select> "${r.field}": value "${val}" is not a live Cotality ${r.field} member`);
+        if (!set.has(val)) error(1, `${fname}: ${label} "${r.field}": value "${val}" is not a live Cotality ${r.field} member (WRONG VALUE)${rlsHint(r.field)}`);
       }
       if (config.category === 'submission') {
         const miss = members.filter((m) => !values.includes(m));
         if (miss.length > 0) warn(1, `${fname}: "${r.field}": ${miss.length} live member${miss.length > 1 ? 's' : ''} not offered: ${miss.slice(0, 5).join(', ')}${miss.length > 5 ? '…' : ''}`);
       }
     }
+
     for (const cb of dom.querySelectorAll('input[type="checkbox"], input[type="radio"]')) {
       const r = resolveElementQuiet(cb); if (!r.field) continue;
       const members = liveEnumMembers(r.field); if (!members) continue;
+      const type = cb.getAttribute('type');
+      const ctl = `${type} ${cb.getAttribute('name') ? `name="${cb.getAttribute('name')}"` : `id="${cb.getAttribute('id') || ''}"`}`;
+      if (deadBinding(fname, r.field, ctl)) continue;
       const val = (cb.getAttribute('value') || '').trim();
-      if (val && !SKIP_VALUES.has(val) && !members.includes(val)) error(1, `${fname}: ${cb.getAttribute('type')} "${r.field}": value "${val}" is not a live Cotality ${r.field} member`);
+      if (!val || SKIP_VALUES.has(val) || members.includes(val)) continue;
+      if (isLiveMultiField(r.field) && YES_NO.has(val.toLowerCase())) {
+        const yn = booleanCandidates(cb);
+        error(1, `${fname}: ${ctl} value "${val}" is bound to "${r.field}", a declared MULTI enum (${members.length} members). SHAPE MISMATCH: a yes/no control cannot express a multi-select vocabulary${yn.length ? ` — a Boolean field exists on the live contract: ${yn.join(', ')}` : ''}.`);
+        continue;
+      }
+      error(1, `${fname}: ${ctl} "${r.field}": value "${val}" is not a live Cotality ${r.field} member (WRONG VALUE)${rlsHint(r.field)}`);
     }
   }
 }

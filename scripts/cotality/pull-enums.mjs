@@ -126,13 +126,18 @@ try {
 
 const resources = {};
 const types = {};
+const rlsListed = {};
 let totalRows = 0;
 for (const resource of RESOURCES) {
   let result;
   try {
     result = await pageAll('Lookup', {
       $filter: `ResourceName eq '${resource}'`,
-      $select: 'FieldName,LookupValue',
+      // SystemReferences = the MLS systems whose vocabulary carries this member (platform-wide catalogue).
+      // Recorded so consumers can tell "REBNY's system lists this" from "some other MLS does". It is a
+      // vocabulary fact, NOT a population fact: MlsStatus is RLS-listed and 100% null on this feed;
+      // VideosCount is not RLS-listed and populated on 31,498 rows (measured 2026-09-08).
+      $select: 'FieldName,LookupValue,SystemReferences',
       $top: String(PAGE),
       $count: 'true',
     });
@@ -141,15 +146,23 @@ for (const resource of RESOURCES) {
     process.exit(2);
   }
   const byField = {};
+  const rlsByField = {};
   for (const row of result.rows) {
     const field = row.FieldName;
     const value = row.LookupValue;
     if (typeof field !== 'string' || !field || typeof value !== 'string' || !value) continue;
     (byField[field] ||= new Set()).add(value);
+    (rlsByField[field] ||= new Set());
+    if (String(row.SystemReferences || '').split(',').includes('RLS')) rlsByField[field].add(value);
   }
   const ordered = {};
-  for (const field of Object.keys(byField).sort()) ordered[field] = [...byField[field]].sort();
+  const orderedRls = {};
+  for (const field of Object.keys(byField).sort()) {
+    ordered[field] = [...byField[field]].sort();
+    orderedRls[field] = [...rlsByField[field]].sort();
+  }
   resources[resource] = ordered;
+  rlsListed[resource] = orderedRls;
   types[resource] = declaredTypes[resource] || {};
   if (!Object.keys(types[resource]).length) {
     console.error(`[cotality:pull] ${resource}: no declared types found in $metadata — refusing to write a vocabulary with no type information.`);
@@ -168,7 +181,11 @@ const doc = {
     'TYPES come from $metadata: `types[resource][field].isEnum` says whether the value space is a CLOSED ' +
     'vocabulary. A field can publish a Lookup vocabulary without being an enum (every *YN boolean gets ' +
     '["false","true"]; City gets its observed values) — those document the field, they do not enumerate ' +
-    'it, and must never be member-checked. Verify with `npm run cotality:verify`.',
+    'it, and must never be member-checked. Verify with `npm run cotality:verify`. ' +
+    '`rls_listed[resource][field]` = the subset of members whose Lookup SystemReferences includes RLS ' +
+    '(REBNY\'s system lists it in its vocabulary). A field with an EMPTY rls_listed list is one REBNY does ' +
+    'not use; a form control bound to it is a Mallan concept mis-bound to a provider field. This is a ' +
+    'VOCABULARY fact only — never proof of population (MlsStatus is RLS-listed and null on every row).',
   source: `${BASE}/odata/Lookup`,
   typeSource: `${BASE}/odata/$metadata`,
   method: "Lookup?$filter=ResourceName eq <resource>&$select=FieldName,LookupValue (paged to completion, @odata.count reconciled); types from $metadata EntityType declarations",
@@ -178,6 +195,7 @@ const doc = {
   enums: resources.Property,
   resources,
   types,
+  rls_listed: rlsListed,
 };
 writeFileSync(dest, JSON.stringify(doc, null, 2) + '\n');
 console.log(`cotality:pull — wrote ${doc.enum_count} Property field vocabularies (+ ${RESOURCES.slice(1).join(', ')}) to ${dest}`);

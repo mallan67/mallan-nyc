@@ -25,6 +25,11 @@ type EnumPull = {
   resources?: Record<string, Record<string, string[]>>;
   /** Declared type per resource + field, from $metadata (authoritative for TYPE, never for values). */
   types?: Record<string, Record<string, { type: string; isEnum: boolean; isMulti: boolean; enumType: string | null }>>;
+  /**
+   * Per resource + field: the members whose Lookup `SystemReferences` includes RLS — i.e. REBNY's own
+   * system carries them in its vocabulary. Absent on pulls made before 2026-09-08.
+   */
+  rls_listed?: Record<string, Record<string, string[]>>;
 };
 
 const FIELDS = fieldPull as unknown as FieldPull;
@@ -82,6 +87,26 @@ export function livePublishedValues(field: string, resource: string = 'Property'
   const table = resource === 'Property' ? ENUMS.enums : ENUMS.resources?.[resource];
   const m = table?.[field];
   return Array.isArray(m) ? m : null;
+}
+
+/**
+ * The members of a field's vocabulary that REBNY's system (SystemReferences contains RLS) carries.
+ *   []    → the field publishes a vocabulary but REBNY lists none of it: REBNY does not use the field.
+ *           A form control bound to it is a Mallan concept mis-bound to a provider field.
+ *   null  → unknown: the field publishes no vocabulary, or the pull predates rls_listed (2026-09-08).
+ * This is a VOCABULARY fact, never a population fact. Measured 2026-09-08: MlsStatus is RLS-listed and
+ * null on every row; VideosCount is not RLS-listed and populated on 31,498 rows. Do not infer either
+ * direction from it — population comes from a live count, nothing else.
+ */
+export function liveRlsListedMembers(field: string, resource: string = 'Property'): readonly string[] | null {
+  const m = ENUMS.rls_listed?.[resource]?.[field];
+  return Array.isArray(m) ? m : null;
+}
+
+/** Does REBNY's system list at least one member of this field's vocabulary? null when unknown. */
+export function isLiveRlsListedField(field: string, resource: string = 'Property'): boolean | null {
+  const m = liveRlsListedMembers(field, resource);
+  return m === null ? null : m.length > 0;
 }
 
 /** Every resource whose published vocabularies are carried in the dated pull. */
