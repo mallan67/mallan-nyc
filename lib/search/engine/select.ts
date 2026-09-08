@@ -1,10 +1,13 @@
+import { cotalityFields } from '@/lib/cotality/contract';
 /**
  * Fields selected for a hydrated Search page. Shared by every consumer of the Search
  * executor (live Agent Search, Saved Search execute, the alert cron). Every entry must
  * exist on live Cotality Property; `idx:validate` reads this list through the Search route's
  * re-export and `cotality:verify` checks it against live $metadata.
  */
-export const SEARCH_SELECT_FIELDS = [
+// Compile-checked against the live Property resource (lib/cotality/contract.ts): a name not declared in
+// $metadata is a type error, never a runtime 400.
+export const SEARCH_SELECT_FIELDS = cotalityFields('Property', [
   // Address
   "StreetNumber", "StreetName", "StreetDirPrefix", "StreetDirSuffix", "StreetSuffix", "UnitNumber",
   "City", "CityRegion", "SubdivisionName", "PostalCity", "PostalCode", "StateOrProvince", "CountyOrParish", "CrossStreet",
@@ -37,4 +40,4 @@ export const SEARCH_SELECT_FIELDS = [
   "StructureType", "BusinessType", "AccessibilityFeatures", "ExteriorFeatures", "BuildingFeatures", "LaundryFeatures",
   "SecurityFeatures", "PoolFeatures", "PetsAllowedYN", "AvailableLeaseType", "ExistingLeaseType", "ConstructionMaterials",
   "PriceChangeTimestamp", "PatioAndPorchFeatures", "AssociationAmenities", "CurrentFinancing",
-];
+]);

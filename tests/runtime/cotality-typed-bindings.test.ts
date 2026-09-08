@@ -46,6 +46,11 @@ describe('Media $select literals are compile-checked', () => {
     expect(src).not.toMatch(/Media\(\$select=MediaURL,MediaCategory/);
   });
 
+  it('lib/search/engine/select.ts builds SEARCH_SELECT_FIELDS from cotalityFields("Property", [...])', () => {
+    const src = read('lib/search/engine/select.ts');
+    expect(src).toMatch(/export const SEARCH_SELECT_FIELDS\s*=\s*cotalityFields\(["']Property["'],\s*\[/);
+  });
+
   it('lib/search/engine/hydrate.ts builds MEDIA_SELECT from cotalityFields("Media", [...])', () => {
     const src = read('lib/search/engine/hydrate.ts');
     expect(src).toMatch(/const MEDIA_SELECT\s*=\s*cotalityFields\(["']Media["'],\s*\[/);
