@@ -27,7 +27,12 @@ import { createCotalityClient, mapLimit, PROBE_STATE } from './live-client.mjs';
 
 const args = new Set(process.argv.slice(2));
 const full = args.has('--full');
-const schemaOnly = args.has('--schema-only') || !full;
+// --light (2026-09-08): one `ne null` count probe per declared field + every relationship. Feeds
+// scripts/cotality/generate-contract-types.mjs with filterable/populated facts at ~1,500 requests
+// instead of --full's ~6,000, which would consume most of the shared hourly quota the production
+// sync also draws from. Mode is recorded in the fingerprint; a light bundle never claims full evidence.
+const light = !full && args.has('--light');
+const schemaOnly = !full && !light;
 const outArg = process.argv.slice(2).find((arg) => arg.startsWith('--out='));
 const outPath = path.resolve(outArg ? outArg.slice('--out='.length) : 'artifacts/cotality-contract/latest.json');
 const concurrencyArg = process.argv.slice(2).find((arg) => arg.startsWith('--concurrency='));
@@ -71,7 +76,8 @@ async function optional(label, work) {
 
 const client = createCotalityClient();
 const startedAt = now();
-console.error(`[cotality:contract] start ${startedAt} mode=${full ? 'full' : 'schema-only'} concurrency=${concurrency}`);
+const mode = full ? 'full' : light ? 'light' : 'schema-only';
+console.error(`[cotality:contract] start ${startedAt} mode=${mode} concurrency=${concurrency}`);
 
 const metadataResult = await client.metadata();
 const metadata = metadataResult.parsed;
@@ -104,11 +110,11 @@ for (const resource of resources) {
 
 let fieldEvidence = [];
 let relationshipEvidence = [];
-if (full) {
-  console.error(`[cotality:contract] probing ${fieldRows.length} fields`);
+if (full || light) {
+  console.error(`[cotality:contract] probing ${fieldRows.length} fields (${mode})`);
   fieldEvidence = await mapLimit(fieldRows, concurrency, async ({ resource, field, fieldInfo }, index) => {
-    if ((index + 1) % 100 === 0) console.error(`[cotality:contract] fields ${index + 1}/${fieldRows.length}`);
-    const evidence = await client.probeField(resource, field, fieldInfo);
+    if ((index + 1) % 100 === 0) console.error(`[cotality:contract] fields ${index + 1}/${fieldRows.length} quota=${JSON.stringify(client.quota())}`);
+    const evidence = await client.probeField(resource, field, fieldInfo, { light });
     return { ...evidence, rawType: fieldInfo.rawType, nullable: fieldInfo.nullable, enumName: fieldInfo.enumName, multiEnum: fieldInfo.multiEnum };
   });
 
@@ -138,7 +144,7 @@ function gitSha() { try { return execSync('git rev-parse HEAD', { stdio: ['ignor
 function gitDirty() { try { return execSync('git status --porcelain --untracked-files=no', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim().length > 0; } catch { return null; } }
 const metadataSha = sha256({ entitySets: metadata.entitySets, resources: metadata.resources, enums: metadata.enums });
 const catalogSha = sha256({ field: fieldCatalog.value?.rows ?? null, lookup: lookupCatalog.value?.rows ?? null, model: modelCatalog.value?.rows ?? null });
-const probeSha = full ? sha256({ fields: fieldEvidence, relationships: relationshipEvidence }) : null;
+const probeSha = (full || light) ? sha256({ fields: fieldEvidence, relationships: relationshipEvidence }) : null;
 const fingerprint = {
   evidence_sha256: sha256({ metadataSha, catalogSha, probeSha }),
   metadata_sha256: metadataSha,
@@ -147,7 +153,7 @@ const fingerprint = {
   repo_git_sha: gitSha(),
   repo_dirty: gitDirty(),
   provider_base: client.base,
-  mode: full ? 'full' : 'schema-only',
+  mode,
   acquired_at: finishedAt,
   quota_seen: client.quota(),
 };
@@ -160,7 +166,7 @@ const bundle = {
     base: client.base,
     startedAt,
     finishedAt,
-    mode: full ? 'full' : 'schema-only',
+    mode,
     concurrency,
   },
   metadata: {
@@ -195,10 +201,10 @@ const bundle = {
     evidence_sha256: fingerprint.evidence_sha256,
     repo_git_sha: fingerprint.repo_git_sha,
     fieldSelectStates: full ? summarizeStates(fieldEvidence, (x) => x.select?.state) : null,
-    fieldNonNullFilterStates: full ? summarizeStates(fieldEvidence, (x) => x.filterNonNull?.state) : null,
+    fieldNonNullFilterStates: (full || light) ? summarizeStates(fieldEvidence, (x) => x.filterNonNull?.state) : null,
     fieldOrderStates: full ? summarizeStates(fieldEvidence, (x) => x.sort?.state) : null,
     fieldOperatorStates: full ? summarizeStates(fieldEvidence, (x) => x.operator?.state) : null,
-    relationshipStates: full ? summarizeStates(relationshipEvidence, (x) => x.evidence?.state) : null,
+    relationshipStates: (full || light) ? summarizeStates(relationshipEvidence, (x) => x.evidence?.state) : null,
     allCatalogsComplete,
   },
 };

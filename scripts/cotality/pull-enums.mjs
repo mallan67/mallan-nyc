@@ -147,10 +147,17 @@ for (const resource of RESOURCES) {
   }
   const byField = {};
   const rlsByField = {};
+  // EXISTENCE GATE (2026-09-08): the Lookup catalogue is platform-wide and carries rows for names that
+  // are NOT fields on this subscription (`PermissionPrivate`, `SyndicationDuplicateYN` — present in
+  // Field/Lookup, absent from $metadata, unselectable). A vocabulary is recorded only for a field the
+  // live $metadata declares; catalogue-only names are logged and dropped, never emitted as truth.
+  const declared = declaredTypes[resource] || {};
+  const catalogueOnly = new Set();
   for (const row of result.rows) {
     const field = row.FieldName;
     const value = row.LookupValue;
     if (typeof field !== 'string' || !field || typeof value !== 'string' || !value) continue;
+    if (!Object.prototype.hasOwnProperty.call(declared, field)) { catalogueOnly.add(field); continue; }
     (byField[field] ||= new Set()).add(value);
     (rlsByField[field] ||= new Set());
     if (String(row.SystemReferences || '').split(',').includes('RLS')) rlsByField[field].add(value);
@@ -170,7 +177,7 @@ for (const resource of RESOURCES) {
   }
   totalRows += result.rows.length;
   const enumFields = Object.keys(ordered).filter((f) => types[resource][f]?.isEnum).length;
-  console.log(`[cotality:pull] ${resource}: ${result.rows.length} Lookup rows (${result.pages} pages) → ${Object.keys(ordered).length} fields publish a vocabulary, ${enumFields} of them declared enum`);
+  console.log(`[cotality:pull] ${resource}: ${result.rows.length} Lookup rows (${result.pages} pages) → ${Object.keys(ordered).length} fields publish a vocabulary, ${enumFields} of them declared enum${catalogueOnly.size ? `; DROPPED ${catalogueOnly.size} catalogue-only names absent from $metadata: ${[...catalogueOnly].sort().join(', ')}` : ''}`);
 }
 
 const doc = {

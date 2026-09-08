@@ -5,7 +5,7 @@
   "method": "Lookup?$filter=ResourceName eq <resource>&$select=FieldName,LookupValue (paged to completion, @odata.count reconciled); types from $metadata EntityType declarations",
   "pulled_at": "2026-09-08",
   "lookup_rows": 74521,
-  "enum_count": 243,
+  "enum_count": 241,
   "enums": {
     "AboveGradeFinishedAreaSource": [
       "Appraiser",
@@ -48031,26 +48031,6 @@
       "SyndicateOptOut",
       "VOW"
     ],
-    "PermissionPrivate": [
-      "BLXBrokerExclusive",
-      "BLXOnMLS",
-      "BLXPreMarket",
-      "BLXPrivate",
-      "ComingSoon",
-      "CompSold",
-      "DelayedMarketing",
-      "DownPaymentResourceYes",
-      "ExemptListing",
-      "MembersOnlyNo",
-      "MembersOnlyYes",
-      "NonRealtor",
-      "None",
-      "OfficeExclusive",
-      "OfficeSuspended",
-      "OneHomeSyndication",
-      "RatePlugYes",
-      "Withheld"
-    ],
     "PetsAllowed": [
       "BirdsOk",
       "BreedRestrictions",
@@ -69768,10 +69748,6 @@
       "Texasrealestatecom",
       "ZillowGroup",
       "ZillowTrulia"
-    ],
-    "SyndicationDuplicateYN": [
-      "false",
-      "true"
     ],
     "TaxStatusCurrent": [
       "Personal",
@@ -118321,26 +118297,6 @@
         "SyndicateOptOut",
         "VOW"
       ],
-      "PermissionPrivate": [
-        "BLXBrokerExclusive",
-        "BLXOnMLS",
-        "BLXPreMarket",
-        "BLXPrivate",
-        "ComingSoon",
-        "CompSold",
-        "DelayedMarketing",
-        "DownPaymentResourceYes",
-        "ExemptListing",
-        "MembersOnlyNo",
-        "MembersOnlyYes",
-        "NonRealtor",
-        "None",
-        "OfficeExclusive",
-        "OfficeSuspended",
-        "OneHomeSyndication",
-        "RatePlugYes",
-        "Withheld"
-      ],
       "PetsAllowed": [
         "BirdsOk",
         "BreedRestrictions",
@@ -140059,10 +140015,6 @@
         "ZillowGroup",
         "ZillowTrulia"
       ],
-      "SyndicationDuplicateYN": [
-        "false",
-        "true"
-      ],
       "TaxStatusCurrent": [
         "Personal",
         "PersonalAndReal",
@@ -142815,26 +142767,6 @@
         "Public",
         "Vow"
       ],
-      "PermissionPrivate": [
-        "BLXBrokerExclusive",
-        "BLXOnMLS",
-        "BLXPreMarket",
-        "BLXPrivate",
-        "ComingSoon",
-        "CompSold",
-        "DelayedMarketing",
-        "DownPaymentResourceYes",
-        "ExemptListing",
-        "MembersOnlyNo",
-        "MembersOnlyYes",
-        "NonRealtor",
-        "None",
-        "OfficeExclusive",
-        "OfficeSuspended",
-        "OneHomeSyndication",
-        "RatePlugYes",
-        "Withheld"
-      ],
       "PreferredPhotoYN": [
         "false",
         "true"
@@ -143059,10 +142991,6 @@
         "Texasrealestatecom",
         "ZillowGroup",
         "ZillowTrulia"
-      ],
-      "SyndicationDuplicateYN": [
-        "false",
-        "true"
       ]
     },
     "OpenHouse": {
@@ -145146,26 +145074,6 @@
         "SyndicateOptOut",
         "VOW"
       ],
-      "PermissionPrivate": [
-        "BLXBrokerExclusive",
-        "BLXOnMLS",
-        "BLXPreMarket",
-        "BLXPrivate",
-        "ComingSoon",
-        "CompSold",
-        "DelayedMarketing",
-        "DownPaymentResourceYes",
-        "ExemptListing",
-        "MembersOnlyNo",
-        "MembersOnlyYes",
-        "NonRealtor",
-        "None",
-        "OfficeExclusive",
-        "OfficeSuspended",
-        "OneHomeSyndication",
-        "RatePlugYes",
-        "Withheld"
-      ],
       "PropertySubType": [
         "Acreage",
         "Agriculture",
@@ -145379,10 +145287,6 @@
         "Texasrealestatecom",
         "ZillowGroup",
         "ZillowTrulia"
-      ],
-      "SyndicationDuplicateYN": [
-        "false",
-        "true"
       ]
     }
   },
@@ -151648,10 +151552,6 @@
         "Private",
         "SyndicateOptOut"
       ],
-      "PermissionPrivate": [
-        "MembersOnlyYes",
-        "Withheld"
-      ],
       "PetsAllowed": [
         "BreedRestrictions",
         "BuildingBreedRestrictions",
@@ -151973,7 +151873,6 @@
       ],
       "SubAgencyCompensationType": [],
       "SyndicateTo": [],
-      "SyndicationDuplicateYN": [],
       "TaxStatusCurrent": [],
       "TenantPays": [
         "AllUtilities",
@@ -152113,7 +152012,6 @@
         "Private",
         "Public"
       ],
-      "PermissionPrivate": [],
       "PreferredPhotoYN": [
         "false",
         "true"
@@ -152139,8 +152037,7 @@
         "Pending",
         "Withdrawn"
       ],
-      "SyndicateTo": [],
-      "SyndicationDuplicateYN": []
+      "SyndicateTo": []
     },
     "OpenHouse": {
       "AppointmentRequiredYN": [
@@ -152165,7 +152062,6 @@
       ],
       "OriginatingSystemSubName": [],
       "Permission": [],
-      "PermissionPrivate": [],
       "PropertySubType": [],
       "PropertySubTypeAdditional": [],
       "PropertyType": [],
@@ -152182,8 +152078,7 @@
         "Pending",
         "Withdrawn"
       ],
-      "SyndicateTo": [],
-      "SyndicationDuplicateYN": []
+      "SyndicateTo": []
     }
   }
 }

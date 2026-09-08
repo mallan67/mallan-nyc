@@ -56,8 +56,31 @@ async function getJson(url) {
   return res.json();
 }
 
+/**
+ * EXISTENCE GATE (2026-09-08): the Lookup catalogue is platform-wide and carries rows for names that are
+ * NOT fields on this subscription (`PermissionPrivate`, `SyndicationDuplicateYN`: in Field/Lookup, absent
+ * from $metadata, unselectable). pull-enums.mjs drops those; verify must apply the same gate or it reports
+ * catalogue-only names as "vocabularies the committed file lacks" forever.
+ */
+const declaredFields = {};
+try {
+  const metaRes = await fetch(`${BASE}/odata/$metadata`, { headers: { authorization: `Bearer ${token}` } });
+  if (!metaRes.ok) throw new Error(`HTTP ${metaRes.status}`);
+  const xml = await metaRes.text();
+  for (const m of xml.matchAll(/<EntityType\s+Name="([^"]+)"[^>]*>([\s\S]*?)<\/EntityType>/g)) {
+    const names = new Set();
+    for (const p of m[2].matchAll(/<Property\s+Name="([^"]+)"/g)) names.add(p[1]);
+    declaredFields[m[1]] = names;
+  }
+} catch (e) {
+  console.error(`[cotality:verify] UNVERIFIED — could not read $metadata: ${e?.message || e}`);
+  process.exit(2);
+}
+
 /** Page Lookup to completion for one resource. Never returns a partial vocabulary. */
 async function liveVocabulary(resource) {
+  const declared = declaredFields[resource];
+  if (!declared || declared.size === 0) throw new Error(`${resource}: no fields declared in $metadata`);
   const qs = new URLSearchParams({
     $filter: `ResourceName eq '${resource}'`,
     $select: 'FieldName,LookupValue',
@@ -81,10 +104,13 @@ async function liveVocabulary(resource) {
   }
   if (odataCount != null && odataCount !== rows.length) throw new Error(`${resource}: @odata.count ${odataCount} vs ${rows.length} rows`);
   const byField = {};
+  const catalogueOnly = new Set();
   for (const row of rows) {
     if (typeof row.FieldName !== 'string' || typeof row.LookupValue !== 'string' || !row.FieldName || !row.LookupValue) continue;
+    if (!declared.has(row.FieldName)) { catalogueOnly.add(row.FieldName); continue; }
     (byField[row.FieldName] ||= new Set()).add(row.LookupValue);
   }
+  if (catalogueOnly.size) console.error(`[cotality:verify] ${resource}: ignoring ${catalogueOnly.size} catalogue-only names absent from $metadata: ${[...catalogueOnly].sort().join(', ')}`);
   return Object.fromEntries(Object.keys(byField).sort().map((f) => [f, [...byField[f]].sort()]));
 }
 

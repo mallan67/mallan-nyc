@@ -285,3 +285,5 @@ artifacts/gate6-archive-touched-*.jsonl
 test-results/
 playwright-report/
 tests/e2e/_artifacts/
+# Cotality live-contract evidence bundles (100+ MB; the committed authority is data/cotality-contract/*.json + lib/cotality/generated/)
+artifacts/cotality-contract/

@@ -437,17 +437,24 @@ export function createCotalityClient(options = {}) {
     }
   }
 
-  async function probeField(resource, field, fieldInfo = null) {
+  // LIGHT probe (added 2026-09-08): one request per field — `$filter=<field> ne null&$count=true&$top=0`.
+  // It answers the two facts the generated contract enforces (filterable: HTTP 200 vs provider 400;
+  // populated: @odata.count) at ~1/4 of the full probe's quota cost. select/sort/operator stay null
+  // (UNMEASURED, never assumed) so a light bundle cannot be mistaken for a full one.
+  async function probeField(resource, field, fieldInfo = null, { light = false } = {}) {
     assertResource(resource);
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(field)) throw new Error(`Invalid Cotality field name: ${field}`);
     if (fieldInfo == null) fieldInfo = await resolveFieldInfo(resource, field);
+
+    const filterNonNull = await probe(resource, { '$select': field, '$count': 'true', '$top': 0, '$filter': `${field} ne null` }, 'filter_non_null');
+    if (light) return { resource, field, declared: Boolean(fieldInfo), select: null, filterNonNull, sort: null, operator: null };
 
     const evidence = {
       resource,
       field,
       declared: Boolean(fieldInfo),
       select: await probe(resource, { '$select': field, '$top': 1 }, 'select'),
-      filterNonNull: await probe(resource, { '$select': field, '$count': 'true', '$top': 0, '$filter': `${field} ne null` }, 'filter_non_null'),
+      filterNonNull,
       sort: await probe(resource, { '$select': field, '$top': 1, '$orderby': field }, 'orderby'),
       operator: null,
     };
