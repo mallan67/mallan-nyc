@@ -300,7 +300,8 @@ export async function refresh(client, state, previous, { force = false } = {}) {
 const CHANGE_ORDER = [
   'resource-added', 'resource-removed', 'access-changed', 'field-added', 'field-removed', 'type-changed',
   'nullable-changed', 'filterable-changed', 'population-zeroed', 'population-restored', 'member-added',
-  'member-removed', 'rls-listed-changed', 'navigation-added', 'navigation-removed', 'navigation-changed',
+  'member-removed', 'observed-value-added', 'observed-value-removed', 'rls-listed-changed',
+  'navigation-added', 'navigation-removed', 'navigation-changed',
 ];
 
 function sortChanges(changes) {
@@ -344,8 +345,15 @@ export function diffContracts(oldC, oldL, newC, newL) {
       if (ol || nl) {
         const om = new Set(ol?.members || []);
         const nm = new Set(nl?.members || []);
-        for (const m of [...nm].sort()) if (!om.has(m)) changes.push({ kind: 'member-added', resource: res, field: f, member: m });
-        for (const m of [...om].sort()) if (!nm.has(m)) changes.push({ kind: 'member-removed', resource: res, field: f, member: m });
+        // An ENUM field's Lookup is its closed vocabulary — a member change is a contract change.
+        // A plain string field (City, PostalCity, CountyOrParish …) publishes an OBSERVED-value catalogue,
+        // platform-wide (City: 24,514 values; this feed uses one). Such a change is recorded as
+        // `observed-value-*` and blocks only when Mallan code literally names the value (impact.mjs).
+        const isEnum = Boolean(nf.enum);
+        const addedKind = isEnum ? 'member-added' : 'observed-value-added';
+        const removedKind = isEnum ? 'member-removed' : 'observed-value-removed';
+        for (const m of [...nm].sort()) if (!om.has(m)) changes.push({ kind: addedKind, resource: res, field: f, member: m });
+        for (const m of [...om].sort()) if (!nm.has(m)) changes.push({ kind: removedKind, resource: res, field: f, member: m });
         // RLS-listing is compared over the members BOTH snapshots publish: a removed/added member already
         // reports as its own change, and its RLS flag going with it is a consequence, not a second cause.
         const common = [...om].filter((m) => nm.has(m));
@@ -376,15 +384,21 @@ function clone(v) {
 
 /**
  * Specs (space-separated):
- *   remove-member <Res>.<Field> <Member>     add-member <Res>.<Field> <Member>
+ *   remove-member <Res>.<Field> <Member…>    add-member <Res>.<Field> <Member…>   (spaces allowed)
  *   remove-field <Res>.<Field>               suppress <Res>.<Field>   (filterable → false)
  *   zero <Res>.<Field>  (populated → 0)      drift <Res>.<Field>      (populated + 1: NOT a change)
- *   reject-resource <Res>                     rename-member <Res>.<Field> <Old> <New>
+ *   reject-resource <Res>                     rename-member <Res>.<Field> <Old> -> <New>
  */
 export function applySimulatedChange(compact, lookups, spec) {
   const c = clone(compact);
   const l = clone(lookups);
-  const [op, target, a, b] = String(spec).trim().split(/\s+/);
+  // `<op> <Res>.<Field> <rest>` — the rest is the member (spaces allowed: "New York City");
+  // rename-member takes `<old> -> <new>`.
+  const trimmed = String(spec).trim();
+  const op = trimmed.split(/\s+/)[0];
+  const target = trimmed.split(/\s+/)[1] || '';
+  const rest = trimmed.slice(trimmed.indexOf(target) + target.length).trim();
+  const [a, b] = op === 'rename-member' ? rest.split(/\s*->\s*/) : [rest, undefined];
   const [res, field] = String(target || '').split('.');
   const r = c.resources[res];
   if (!r) throw new Error(`simulate: unknown resource ${res}`);
@@ -526,7 +540,11 @@ export function healthDocument({ state, compact, impact = null, detection = null
 /** The human-facing BLOCKED report, exactly in the shape Maya specified. */
 export function renderReport(impact) {
   const lines = [];
-  if (impact.state !== 'BLOCKED') { lines.push(`STATE: ${impact.state}`); return lines.join('\n'); }
+  if (impact.state !== 'BLOCKED') {
+    lines.push(`STATE: ${impact.state}`);
+    for (const c of impact.observed_changes || []) lines.push(`  observed (non-blocking): ${c.resource}.${c.field} [${c.member}] — ${c.kind}; no Mallan code names this value`);
+    return lines.join('\n');
+  }
   lines.push('COTALITY CHANGE DETECTED');
   for (const c of impact.changes) lines.push(`  ${c.resource}${c.field ? `.${c.field}` : ''}${c.navigation ? `/${c.navigation}` : ''}${c.member ? ` [${c.member}]` : ''} — ${c.kind}`);
   lines.push('');

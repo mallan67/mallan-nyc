@@ -4,7 +4,7 @@
   "typeSource": "https://api.cotality.com/trestle/odata/$metadata",
   "method": "Lookup?$filter=ResourceName eq <resource>&$select=FieldName,LookupValue (paged to completion, @odata.count reconciled); types from $metadata EntityType declarations",
   "pulled_at": "2026-09-08",
-  "lookup_rows": 74521,
+  "lookup_rows": 74522,
   "enum_count": 241,
   "enums": {
     "AboveGradeFinishedAreaSource": [
@@ -10336,6 +10336,7 @@
       "Espita",
       "Esplen",
       "Espyville",
+      "Espíritu Santo",
       "Esquimalt",
       "Essa",
       "Essa Twp",
@@ -80602,6 +80603,7 @@
         "Espita",
         "Esplen",
         "Espyville",
+        "Espíritu Santo",
         "Esquimalt",
         "Essa",
         "Essa Twp",

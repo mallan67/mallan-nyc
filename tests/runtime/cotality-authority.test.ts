@@ -85,6 +85,35 @@ describe('authority CLI — diff is exact (pure, offline)', () => {
     const r = simulate('reject-resource OpenHouse');
     expect(r.changes).toEqual([{ kind: 'access-changed', resource: 'OpenHouse' }]);
   });
+
+  it('a member change on a plain STRING field with an observed-value lookup is observed-value-*, not member-*', () => {
+    // Property.City is Edm.String; its Lookup is a platform-wide catalogue of observed values (24,514),
+    // of which this feed uses one ("New York City"). Live 2026-09-08 Cotality added "Espíritu Santo" — now in the
+    // committed snapshot, so the simulation adds a value that does not exist.
+    const r = simulate('add-member Property.City Testville Nowhere');
+    expect(r.changes).toEqual([{ kind: 'observed-value-added', resource: 'Property', field: 'City', member: 'Testville Nowhere' }]);
+  });
+});
+
+describe('authority CLI — observed values block only when Mallan code names them', () => {
+  it('a new observed City value nobody names → HEALTHY, recorded as observed', () => {
+    const out = mkdtempSync(path.join(tmpdir(), 'authority-'));
+    const json = execFileSync('node', [CLI, 'simulate', '--change=add-member Property.City Testville Nowhere', `--out=${out}`], { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+    const r = JSON.parse(json) as Impact & { observed_changes: Change[]; blocking_changes: Change[] };
+    expect(r.state).toBe('HEALTHY');
+    expect(r.blocking_changes).toEqual([]);
+    expect(r.observed_changes.map((c) => c.member)).toEqual(['Testville Nowhere']);
+  }, 300_000);
+
+  it('removing the one City value this feed uses, which Mallan code names literally → BLOCKED', () => {
+    const out = mkdtempSync(path.join(tmpdir(), 'authority-'));
+    const json = execFileSync('node', [CLI, 'simulate', '--change=remove-member Property.City New York City', `--out=${out}`], { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+    const r = JSON.parse(json) as Impact & { blocking_changes: Change[] };
+    // Mechanically found: lib/pitch-packet/template.ts and app/api/open-houses/route.ts name the literal.
+    expect(r.state).toBe('BLOCKED');
+    expect(r.blocking_changes).toEqual([{ kind: 'observed-value-removed', resource: 'Property', field: 'City', member: 'New York City' }]);
+    expect(r.affected.some((a) => a.node === 'member:New York City' && a.sites.length > 0)).toBe(true);
+  }, 300_000);
 });
 
 describe('authority CLI — mechanical impact (TypeScript program, no agent edges)', () => {

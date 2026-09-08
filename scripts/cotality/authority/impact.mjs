@@ -753,8 +753,16 @@ export function computeImpact({ changes, compact, ctx = null, crmJs = true }) {
   // Provider nodes touched by the change set.
   const providerFields = new Set();
   const members = new Set();
+  const observed = [];
   for (const c of changes) {
     if (c.resource !== 'Property') continue; // v1: Property bindings via the mapper; other resources are reported as provider-level
+    if (c.kind === 'observed-value-added' || c.kind === 'observed-value-removed') {
+      // A new/removed OBSERVED value on a plain string field does not change the field or its readers;
+      // it matters only where Mallan code literally names that value. Search the literal, not the field.
+      observed.push(c);
+      members.add(c.member);
+      continue;
+    }
     if (c.field) providerFields.add(c.field);
     if (c.member) members.add(c.member);
     if (c.kind === 'access-changed' || c.kind === 'resource-removed') for (const f of Object.keys(compact.resources[c.resource]?.fields || {})) providerFields.add(f);
@@ -808,10 +816,16 @@ export function computeImpact({ changes, compact, ctx = null, crmJs = true }) {
   // surface imports a module that reads the node — a Saved Search that runs through a changed engine
   // is affected without reading the column itself). Both lists are kept so the proof stays visible.
   const blocked = [...new Set([...allDirect, ...allTransitive])].sort();
-  const state = changes.length ? 'BLOCKED' : 'HEALTHY';
+  // An observed-value change blocks only when a reader literally names the value (a member literal hit,
+  // typed or string, or a CRM-JS word match); otherwise it is recorded and the state stays HEALTHY.
+  const observedNamed = observed.filter((c) => affected.some((a) => a.node === `member:${c.member}` || a.node === `crm-js:${c.member}`));
+  const blockingChanges = changes.filter((c) => !(c.kind === 'observed-value-added' || c.kind === 'observed-value-removed') || observedNamed.includes(c));
+  const state = blockingChanges.length ? 'BLOCKED' : 'HEALTHY';
   return {
     state,
     changes,
+    blocking_changes: blockingChanges,
+    observed_changes: observed.filter((c) => !observedNamed.includes(c)),
     affected,
     unbound: unbound.sort(),
     non_property_changes: nonProperty,

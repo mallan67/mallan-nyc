@@ -6,11 +6,11 @@
 // (published members), per-field live probes (filterable, populated, entitlement).
 //
 // provider      https://api.cotality.com/trestle
-// acquired_at   2026-09-08T03:32:52.480Z
+// acquired_at   2026-09-08T06:26:36.364Z
 // probe_mode    light
 // metadata_sha  a60bcbbdccc9da852a8da53acc178fc90d7159c42f59f58babb2d09ab7a6bbae
-// evidence_sha  0c62605128b8183fbd47a5a2d4ccc7c3653a2bc175dc31b3179178fd8587f59a
-// content_sha   9115497c2598b2047535235e3740a67c4a53fc5a6c23f92128e0264aa374822c (source: bundle)
+// evidence_sha  null
+// content_sha   b53030c5be60fa8ddec1f31ef145c18180b8e256cb97cd2a78c91c36766e0a89 (source: incremental)
 // resources     17 · fields 1456 · navigations 31
 //
 // RULES FOR EVERY READER (human or agent):
@@ -27,14 +27,14 @@
 
 export const COTALITY_CONTRACT = {
   provider_base: "https://api.cotality.com/trestle",
-  acquired_at: "2026-09-08T03:32:52.480Z",
+  acquired_at: "2026-09-08T06:26:36.364Z",
   probe_mode: "light",
   metadata_sha256: "a60bcbbdccc9da852a8da53acc178fc90d7159c42f59f58babb2d09ab7a6bbae",
-  catalog_sha256: "35b5d81e96affbeea2777f9aaefd9703c002861ecb6770390b74a3a3d0b24293",
-  probe_sha256: "786f5fd08b8f58d1c4d7c74ac7f71eb76fd61c03ef28c7d2e507113cd34a0373",
-  evidence_sha256: "0c62605128b8183fbd47a5a2d4ccc7c3653a2bc175dc31b3179178fd8587f59a",
-  content_sha256: "9115497c2598b2047535235e3740a67c4a53fc5a6c23f92128e0264aa374822c",
-  source: "bundle",
+  catalog_sha256: null,
+  probe_sha256: null,
+  evidence_sha256: null,
+  content_sha256: "b53030c5be60fa8ddec1f31ef145c18180b8e256cb97cd2a78c91c36766e0a89",
+  source: "incremental",
   resourceCount: 17,
   fieldCount: 1456,
   navigationCount: 31,
@@ -1932,7 +1932,7 @@ export interface CotalityProperty {
   CarportYN: boolean | null;
   /** Edm.String(9) · filterable · populated 0 · not an RLS field */
   CarrierRoute: string | null;
-  /** Edm.String(50) · Lookup 24514 members (RLS-listed 1) · filterable · populated 591,607 · RLS field · string with Lookup (see lookups.live.json) */
+  /** Edm.String(50) · Lookup 24515 members (RLS-listed 1) · filterable · populated 591,607 · RLS field · string with Lookup (see lookups.live.json) */
   City: string | null;
   /** Edm.String(150) · filterable · populated 591,607 · RLS field */
   CityRegion: string | null;
@@ -4465,7 +4465,7 @@ export const COTALITY_FIELD_FACTS = {
     CarportSpaces: { type: "Edm.Decimal", nullable: true, enum: null, multi: false, lookup: null, filterable: true, populated: 5, rlsField: false, reso: true },
     CarportYN: { type: "Edm.Boolean", nullable: true, enum: null, multi: false, lookup: 2, filterable: true, populated: 144, rlsField: false, reso: true },
     CarrierRoute: { type: "Edm.String", nullable: true, enum: null, multi: false, lookup: null, filterable: true, populated: 0, rlsField: false, reso: true },
-    City: { type: "Edm.String", nullable: true, enum: null, multi: false, lookup: 24514, filterable: true, populated: 591607, rlsField: true, reso: true },
+    City: { type: "Edm.String", nullable: true, enum: null, multi: false, lookup: 24515, filterable: true, populated: 591607, rlsField: true, reso: true },
     CityRegion: { type: "Edm.String", nullable: true, enum: null, multi: false, lookup: null, filterable: true, populated: 591607, rlsField: true, reso: true },
     CloseDate: { type: "Edm.Date", nullable: true, enum: null, multi: false, lookup: null, filterable: true, populated: 578417, rlsField: true, reso: true },
     ClosePrice: { type: "Edm.Decimal", nullable: true, enum: null, multi: false, lookup: null, filterable: true, populated: 508931, rlsField: true, reso: true },
