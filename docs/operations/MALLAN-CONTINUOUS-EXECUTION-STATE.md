@@ -40,14 +40,21 @@ Branch:
 
 `agent/publish-mallan-platform-master-plan-2026-08-04`
 
-The Master/governance branch has been consolidated on 2026-09-08:
+The Master/governance branch was consolidated on 2026-09-08 and then corrected for the current Cotality lifecycle/media rulings:
 
-- Master reduced to 27 stable durable sections without temporary PR/SHA/recovery narrative;
-- `AI-START-HERE.md`, `AGENTS.md`, `CLAUDE.md` and `docs/claude-instructions/CURRENT.md` now explicitly subordinate to the Master;
+- Master remains 27 stable durable top-level sections;
+- `AI-START-HERE.md`, `AGENTS.md`, `CLAUDE.md` and `docs/claude-instructions/CURRENT.md` are subordinate to the Master;
 - requirement ledger is a stable proof/index layer, not another plan;
 - Compliance Canonical Index is a specialized implementation registry, not a competing architecture;
-- the temporary September 2 Master staging insert and duplicate recovery-program document were retired;
-- PR body was rewritten to describe durable authority rather than stale implementation heads.
+- temporary September 2 Master staging/recovery duplicates were retired;
+- PR body describes durable authority rather than stale implementation heads;
+- Master now explicitly separates Cotality current provider state, Cotality transition/event evidence and Mallan broker-facing display wording;
+- `Pending` is the current provider state used for Mallan **In Contract** under the verified current mapping;
+- unresolved provider disappearance uses Mallan **Off Market** without manufacturing Withdrawn/Canceled/Expired/Hold;
+- `Delisted` is not a canonical Mallan status;
+- Coming Soon DOM and normal market DOM are separate clocks;
+- market DOM ends only at a provider-verified Sale/Rental contract-signed point;
+- Cotality Member/Property/Building Media ownership stays distinct end to end.
 
 **Merge boundary:** #595 is substantially diverged from `main`; do not merge blindly. Perform one controlled reconciliation against then-current `main`, preserving current-main governance/code and proving the final docs tree before merge.
 
@@ -61,24 +68,22 @@ These are lane pointers, not architecture.
 
 ## Search — PR #618
 
-Fresh GitHub metadata:
+Fresh GitHub metadata at the last verified checkpoint:
 
 - `OPEN · DRAFT · UNMERGED · MERGEABLE`
 - head: `d19c03cdd3c12826d02f04d6462e2edbcc8186ef`
 - branch: `fix/neon-p0-event-driven-wake-2026-08-16`
 - base: `fix/neon-r2-closure-clean-2026-08-19`
 
-PR #618 is a very large historical Search branch. Do not deploy/merge it wholesale merely because it contains accepted work, and do not rewrite accepted Search contracts from zero. Current Search implementation work must conform to Master §5/§6 and preserve proven contracts while converging into bounded release candidates.
+PR #618 is a very large historical Search branch. Do not deploy/merge it wholesale merely because it contains accepted work, and do not rewrite accepted Search contracts from zero. Current Search implementation work must conform to Master §4–§6 and preserve proven contracts while converging into bounded release candidates.
 
 ## Neon/R2 — PR #620
 
-Fresh GitHub metadata:
+Fresh GitHub metadata at the last verified checkpoint:
 
 - `OPEN · DRAFT · UNMERGED · MERGEABLE`
-- head reported by current GitHub metadata: `82d55a3c2ce357edd34dd5ee7ae66fed853d9ceb`
 - branch: `fix/neon-r2-closure-clean-2026-08-19`
-
-The PR body contains older frozen-head prose that does not match the current metadata. Treat current Git metadata as branch identity and historical body details as evidence only.
+- GitHub branch metadata, not old PR-body prose, defines the current head.
 
 No Production deployment, R2 deletion, migration/index or direct DB mutation is authorized by this status file.
 
@@ -88,15 +93,35 @@ Fresh GitHub metadata confirms:
 
 - `OPEN · DRAFT · UNMERGED · MERGEABLE`
 - scope is bounded Agent lifecycle / canonical CRM → database → public-profile behavior;
-- PR body explicitly says permanent deletion is outside this PR and exact-head re-verification is required for its latest frozen candidate.
+- permanent deletion is outside that PR;
+- exact-head re-verification is required for any current acceptance claim.
 
 Before any new Agent mutation, refresh the exact current head from GitHub and do not transfer acceptance from an older head.
+
+## 2026-09-08 local Cotality convergence work — USER-PROVIDED / LOCAL-ONLY EVIDENCE
+
+User-provided local execution evidence reports a large body of Cotality/status/forms/rentals/CMA/amenity/media work, approximately 27 local commits ahead of its published origin, with no push and no Production mutation at the time of the report.
+
+Reported local findings/fixes included:
+
+- status/lifecycle reconciliation;
+- field-selection convergence;
+- audience visibility;
+- listing attribution;
+- form create/edit normalization;
+- rental criteria execution;
+- CMA comp-window/eligibility corrections;
+- amenity and CustomFields mapping.
+
+The same report claimed "all nine domains are done." **That conclusion is NOT accepted as current proof.** Maya then issued four owner rulings that materially change the policy those local fixes/tests were measured against. Therefore all affected local status/DOM/Media/form conclusions are `REOPENED — OWNER POLICY CORRECTION` until the local code, tests, coverage matrix and audit are recomputed.
+
+Do not push or merge that local work based on the prior green matrix alone.
 
 ---
 
 # 4. Master-consolidation system-impact findings
 
-The 2026-09-08 Master cleanup changed **governance/target contracts only**, not runtime code. It therefore cannot by itself change Production behavior. It does expose current implementation gaps that future work must reconcile.
+The 2026-09-08 Master cleanup/correction changes **governance/target contracts only**, not runtime code. It therefore cannot by itself change Production behavior. It exposes current implementation gaps that future work must reconcile.
 
 ## 4.1 Listing writer / legacy external-platform coupling
 
@@ -104,7 +129,7 @@ Current `main` still carries a `realPlusUrl` field through listing URL/publish c
 
 Impact:
 
-- this is now implementation debt against Master §21's rule that a legacy external listing-input platform is not Mallan architecture;
+- this is implementation debt against Master §21's rule that a legacy external listing-input platform is not Mallan architecture;
 - do **not** delete/rename it casually in this docs PR;
 - the Listing writer lane must census every writer/reader/test/UI consumer, determine whether the field has any legitimate current business meaning, and retire/re-map it without breaking public URL, status, Featured/Exclusive or address-display behavior.
 
@@ -128,7 +153,7 @@ Required closure:
 
 ## 4.3 Public contextual rendering
 
-Master §23 now requires:
+Master §23 requires:
 
 `CANONICAL RECORD → BUSINESS/PROPERTY TYPE → AUDIENCE → BUSINESS RULE → COMPLIANCE/RIGHTS → COMPONENT ELIGIBILITY → RENDER`.
 
@@ -139,7 +164,7 @@ Impact:
 
 ## 4.4 Lease lifecycle / relationship plan
 
-Master §19 now requires an approximately six-month Landlord + Tenant decision review plus response-driven 90/60/30 follow-up and explicit next-action state.
+Master §19 requires an approximately six-month Landlord + Tenant decision review plus response-driven 90/60/30 follow-up and explicit next-action state.
 
 Impact:
 
@@ -176,6 +201,92 @@ Priority impact surfaces include:
 - lease-expiration workflow creation.
 
 This does **not** authorize a new event-sourcing platform. First census existing transaction/idempotency/audit/workflow capabilities and establish the minimum canonical mechanism.
+
+## 4.7 Cotality listing lifecycle / status correction — REOPENED IMPLEMENTATION CONTRACT
+
+The current durable rule is now Master §4.5.1 and §26.8.
+
+Required system behavior:
+
+```text
+COTALITY CURRENT PROVIDER STATE
+≠
+COTALITY TRANSITION / EVENT EVIDENCE
+≠
+MALLAN DISPLAY WORDING
+```
+
+Implementation must prove across ingestion/reconciliation, storage/projection, Agent Search, Consumer Search, Listing detail, CMA, reports, alerts and marketing:
+
+- current Cotality `Pending` maps to Mallan **In Contract** under the verified current mapping;
+- `ActiveUnderContract` may exist in metadata but is not inferred merely because the enum exists;
+- `Closed` Sale renders Sold, while `Closed` Rental renders Rented/Leased under governed wording;
+- `BackOnMarket` remains provider transition/event evidence rather than a competing current-status owner;
+- provider disappearance alone never writes Withdrawn/Canceled/Expired/Hold;
+- unresolved disappearance preserves last verified provider history and uses Mallan broker-facing **Off Market**;
+- no new canonical `Delisted` state exists;
+- a later verified Cotality reason/current state supersedes the unresolved display state without erasing history.
+
+Any code/test/audit that encoded "disappeared = Withdrawn" or canonical `Delisted` is invalid against the current Master and must be corrected before the affected domain can close.
+
+## 4.8 DOM correction — TWO CLOCKS
+
+Master §5.6.1 now governs DOM.
+
+Required implementation:
+
+### Coming Soon DOM
+
+Separate clock using only verified Cotality Coming Soon/activation facts.
+
+### Market DOM
+
+```text
+VERIFIED ON-MARKET / LISTED DATE
+→
+ACTUAL CONTRACT-SIGNED POINT
+```
+
+Before implementation closes, prove the exact Cotality field or deterministic combination that represents the contract-signed point separately for Sale and Rental.
+
+Do **not** silently define `PurchaseContractDate` as contract signed. Preserve `OnMarketDate`, `OnMarketTimestamp`, `PurchaseContractDate`, `ContractStatusChangeDate`, `PendingTimestamp` and other provider events as separate facts.
+
+There must be one owner for Coming Soon DOM and one owner for market DOM. Conflicting reader-local DOM formulas are a defect.
+
+## 4.9 Cotality Media ownership correction
+
+Master §11.7 now requires source ownership to survive ingestion/storage/consumption:
+
+```text
+MEMBER → AGENT / MEMBER PHOTOS
+PROPERTY → LISTING / UNIT MEDIA
+BUILDING → BUILDING / AMENITY MEDIA
+```
+
+Where Cotality exposes Office or Contacts as Media owners, preserve their source ownership if encountered without automatically inventing a Mallan feature.
+
+Required closure:
+
+- Agent/Member photos never enter listing-photo ordering;
+- Property/listing photos/floor plans/video/etc. remain Property-owned;
+- Building media can be shown in a Building section but is not copied onto each unit as listing-owned Media;
+- `ResourceName` / `ResourceRecordKey` ownership is retained through mapper/storage/cache/client/public transformation;
+- Search, Listing detail, reports, marketing and public rendering do not flatten Member/Property/Building media into one collection.
+
+## 4.10 "RLS" provider wording correction
+
+Cotality/Trestle is the current provider API/mapping/status/media authority within entitlement.
+
+REBNY/RLS/UCBA remains separately applicable business/compliance/use/display authority.
+
+Therefore any implementation/test/report phrase such as "RLS provider field," "RLS status enum," or "RLS API mapping" must be classified:
+
+- current Cotality provider contract;
+- legitimate REBNY/RLS compliance rule;
+- Mallan business field;
+- obsolete legacy/provider wording.
+
+In particular, the reported 20 held form-binding errors must be classified individually rather than accepted wholesale as "RLS form errors." The forms ultimately bind to current Cotality fields and Mallan canonical business fields, while genuine REBNY/RLS rules remain compliance gates.
 
 ---
 
@@ -229,15 +340,26 @@ A held mutation freezes only that mutation. Safe independent design, read-only v
 
 For #595:
 
-1. complete exact-head CI/review after the documentation consolidation;
+1. complete exact-head CI/review after the documentation consolidation and today's Cotality lifecycle correction;
 2. do not mark Ready/merge while checks are still in progress or while branch/main divergence is unreconciled;
 3. reconcile #595 once against then-current `main` without reintroducing old competing authority files/prose;
 4. verify the resulting tree still changes governance/docs only and retains all 27 Master sections;
 5. obtain Maya's final business review before merge.
 
-For implementation lanes:
+For the local 2026-09-08 Cotality convergence work:
 
-1. continue the already-owned active Search/Agent/Neon work from fresh branch state rather than this docs branch;
-2. incorporate the new Master impact gaps above into the appropriate existing implementation lane/dependency graph;
-3. do not open standalone projects for `realPlusUrl`, Lead identity, lease workflow, tax administration or idempotency until the complete readers/writers and canonical owner are established;
+1. do not push based on the prior "all nine domains done" conclusion;
+2. re-run the affected status/lifecycle/DOM/Media/form policy against the corrected Master;
+3. classify all 20 reported form bindings by current Cotality vs legitimate REBNY/RLS compliance vs Mallan business field vs obsolete binding;
+4. prove no canonical `Delisted` state and no disappearance→Withdrawn inference survives;
+5. prove separate Coming Soon and market DOM owners/endpoints;
+6. prove Member/Property/Building Media ownership end to end;
+7. regenerate the final audit/coverage matrix after those corrections;
+8. only then decide whether the local branch is fit to push for review.
+
+For other implementation lanes:
+
+1. continue already-owned Search/Agent/Neon work from fresh branch state rather than this docs branch;
+2. incorporate the Master impact gaps above into the appropriate existing implementation lane/dependency graph;
+3. do not open standalone duplicate projects for legacy URL cleanup, Lead identity, lease workflow, tax administration or idempotency until the complete readers/writers and canonical owner are established;
 4. never treat updating #595 as proof that the corresponding runtime behavior has been implemented.
