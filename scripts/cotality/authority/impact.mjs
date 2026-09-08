@@ -549,9 +549,10 @@ export function findReaders(ctx, { columns, jsonKeys, providerFields, members, m
         }
       }
       if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer && assertedLocals.has(n.name.text)) walkPrismaArgs(program, n.initializer, assertedLocals.get(n.name.text), onPrismaHit);
-      // obj.col — typed column read
-      if (ts.isPropertyAccessExpression(n)) {
-        const name = n.name.text;
+      // obj.col — typed column read  (obj['X'] with a string literal is the same read)
+      const elementKey = ts.isElementAccessExpression(n) && ts.isStringLiteralLike(n.argumentExpression) ? n.argumentExpression.text : null;
+      if (ts.isPropertyAccessExpression(n) || elementKey) {
+        const name = elementKey ?? n.name.text;
         if (colSet.has(name)) {
           const m = prismaModelOfAccess(checker, n.expression, name);
           if (m === model) push(`listings.${name}`, n, 'typed');
@@ -682,6 +683,61 @@ export function transitiveImporters(importers, file) {
     for (const i of importers.get(f) || []) if (!seen.has(i)) { seen.add(i); stack.push(i); }
   }
   return seen;
+}
+
+// ── Boundary census ────────────────────────────────────────────────────────
+
+/**
+ * Every raw-Cotality READ (property / element access named exactly a live field, on a payload alias,
+ * a Prisma-typed JSON container, or a contract-typed row) in lib/ and app/ OUTSIDE the declared
+ * boundary. Bare string literals are not counted (labels, select lists — the latter are already
+ * compile-checked); public/crm/js is reported separately (held path) and not part of the ratchet.
+ */
+export function boundaryCensus({ compact, boundary, ctx = null }) {
+  ctx = ctx || createProgram();
+  const providerFields = new Set();
+  for (const [res, r] of Object.entries(compact.resources)) {
+    if (r.access.state !== 'accessible') continue;
+    for (const f of Object.keys(r.fields)) providerFields.add(f);
+    void res;
+  }
+  const containers = Object.keys(CONTAINER_ALIASES);
+  const jsonKeys = [];
+  for (const f of Object.keys(compact.resources.Property?.fields || {})) for (const c of containers) jsonKeys.push(`${c}.${f}`);
+  const readers = findReaders(ctx, { columns: [], jsonKeys, providerFields: [...providerFields], members: [] });
+
+  const inBoundary = (file) => boundary.some((b) => (b.endsWith('/') ? file.startsWith(b) : file === b));
+  const byKey = new Map();
+  for (const [node, sites] of readers) {
+    let field = null;
+    let container = null;
+    let m;
+    if ((m = /^provider:Property\.(.+)$/.exec(node))) field = m[1];
+    else if ((m = /^listings\.([a-z_]+)\.(.+)$/.exec(node))) { container = m[1]; field = m[2]; }
+    else continue;
+    for (const s of sites) {
+      if (s.tier === 'string-literal' || s.tier === 'crm-js') continue;
+      if (inBoundary(s.file)) continue;
+      const key = `${s.file}::${field}`;
+      if (!byKey.has(key)) byKey.set(key, { key, file: s.file, field, container, tiers: new Set(), lines: new Set() });
+      const e = byKey.get(key);
+      e.tiers.add(s.tier);
+      e.lines.add(s.line);
+    }
+  }
+  const violations = [...byKey.values()]
+    .map((e) => ({ key: e.key, file: e.file, field: e.field, container: e.container, tier: e.tiers.has('typed') ? 'typed' : 'name-matched', sites: e.lines.size, lines: [...e.lines].sort((a, b) => a - b) }))
+    .sort((a, b) => (a.key < b.key ? -1 : 1));
+  const files = new Set(violations.map((v) => v.file));
+  const crm = crmJsReaders([...providerFields]);
+  let crmSites = 0;
+  for (const sites of crm.values()) crmSites += sites.length;
+  return {
+    boundary,
+    violations,
+    counts: { files: files.size, keys: violations.length, sites: violations.reduce((n, v) => n + v.sites, 0) },
+    crm_js: { fields: crm.size, sites: crmSites, note: 'public/crm/** is held; reported, not ratcheted' },
+  };
 }
 
 // ── Assemble ───────────────────────────────────────────────────────────────

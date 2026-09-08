@@ -1,0 +1,26 @@
+{
+  "format": "mallan-cotality-boundary/v1",
+  "rule": "Only these modules may read raw Cotality field names (payload property accesses, JSON-key reads on features/address/agent_info/raw_data/media, field-name string literals). Every other module consumes Mallan canonical facts. Enforced by tests/runtime/cotality-boundary.test.ts via scripts/cotality/authority/cli.mjs boundary.",
+  "boundary": [
+    "lib/cotality/",
+    "lib/search/canonical/",
+    "lib/idx/trestle-mapper.ts",
+    "lib/idx/fetch.ts",
+    "lib/idx/sync.ts",
+    "lib/idx/media-sync.ts",
+    "lib/idx/media-pagination.ts",
+    "lib/idx/cursor/",
+    "lib/idx/auth.ts",
+    "lib/idx/write-suppression.ts",
+    "lib/compliance/raw-data-keep-fields.ts",
+    "lib/compliance/gates.ts",
+    "lib/media/listing-media-resolver.ts",
+    "lib/media/media-sync-service.ts",
+    "lib/search/engine/provider-query.ts",
+    "lib/search/engine/provider-client.ts",
+    "lib/search/engine/select.ts",
+    "lib/search/engine/hydrate.ts",
+    "lib/search/listing-search-projection.ts",
+    "lib/listings/agent-info-typed-columns.ts"
+  ]
+}

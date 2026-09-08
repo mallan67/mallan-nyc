@@ -149,6 +149,25 @@ async function main() {
     process.exit(impact.state === 'BLOCKED' ? 1 : 0);
   }
 
+  if (command === 'boundary') {
+    const boundaryPath = path.join(ROOT, 'data/cotality-contract/boundary.json');
+    const baselinePath = path.join(ROOT, 'data/cotality-contract/boundary-baseline.json');
+    const declared = readJson(boundaryPath);
+    const { compact } = readSnapshot();
+    const { boundaryCensus } = await import('./impact.mjs');
+    const census = boundaryCensus({ compact, boundary: declared.boundary });
+    if (flag('write-baseline')) {
+      const previous = existsSync(baselinePath) ? readJson(baselinePath) : null;
+      const keys = census.violations.map((v) => v.key);
+      if (previous && keys.some((k) => !previous.keys.includes(k)) && !flag('allow-growth')) {
+        fail(1, `baseline may only shrink: ${keys.filter((k) => !previous.keys.includes(k)).length} new key(s) — repair them instead (or pass --allow-growth with Maya's authorization)`);
+      }
+      writeJson(baselinePath, { format: 'mallan-cotality-boundary-baseline/v1', written_at: new Date().toISOString(), rule: 'This list may only shrink. A key is file::field of a raw Cotality read outside data/cotality-contract/boundary.json.', counts: census.counts, keys });
+    }
+    out(census);
+    return;
+  }
+
   if (command === 'report') {
     const file = argv.find((a) => !a.startsWith('--')) || PATHS.health;
     const health = readJson(path.resolve(file));
