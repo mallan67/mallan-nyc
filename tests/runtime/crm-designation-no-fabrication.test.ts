@@ -362,9 +362,28 @@ async function renderPanel(
   vm.runInContext(src(PANELS), ctx, { filename: 'panels.js' });
 
   sandbox.Panels[panel]();
-  // Let the Promise.all chain settle.
+
+  // Wait for the panel to actually RENDER, not for a fixed number of ticks.
+  //
+  // This used to be two `setTimeout(r, 0)` awaits. That is enough when the suite runs alone and not
+  // enough when ~60 suites compete for CPU: the panel's own Promise.all data load had not resolved,
+  // `content.innerHTML` was read EMPTY, and assertions that scan the rendered row for a licence
+  // designation found nothing. It failed only in broad runs and never in isolation — a timing flake,
+  // not shared state (each call builds its own JSDOM and its own vm context, so the six concurrent
+  // renders in the "every role" test are genuinely independent).
+  //
+  // Poll for the rendered output instead, with a bound so a genuinely broken panel still fails fast
+  // rather than hanging.
+  for (let i = 0; i < 200 && content.innerHTML.trim() === ''; i++) {
+    await new Promise((r) => setTimeout(r, 5));
+  }
+  // One more turn so any post-render microtask (badge updates, counts) lands too.
   await new Promise((r) => setTimeout(r, 0));
-  await new Promise((r) => setTimeout(r, 0));
+
+  // An empty render is a real failure, not something to assert around silently.
+  if (content.innerHTML.trim() === '') {
+    throw new Error(`renderPanel('${panel}') produced no output — the panel did not render.`);
+  }
   return { html: content.innerHTML, sandbox, doc, content };
 }
 
