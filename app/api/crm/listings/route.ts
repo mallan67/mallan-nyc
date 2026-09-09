@@ -3,7 +3,6 @@
 // POST: Create a new listing (runs compliance validation + RLS enforcement gate).
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { MALLAN_LIST_OFFICE_MLS_IDS } from "@/lib/listings/mallan-source-identity";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { validateListing } from "@/lib/compliance/rebny-validator";
@@ -49,28 +48,43 @@ export async function GET(req: NextRequest) {
   const CRM_HIDDEN = storageStatusesFor(["Withdrawn", "Canceled"]);
   const crmCreated = { mls_id: null, listing_id: { startsWith: "SL-" }, status: { notIn: CRM_HIDDEN } };
   const crmCreatedRental = { mls_id: null, listing_id: { startsWith: "RL-" }, status: { notIn: CRM_HIDDEN } };
-  // Mallan's OWN closed REBNY listings, pulled from the Cotality-synced rows. The ownership predicate is
-  // the LIST-SIDE office identity, because that is what makes a listing Mallan's.
+  // THE SIGNED-IN AGENT'S OWN closed REBNY listings, from the Cotality-synced rows.
   //
-  // This arm previously had NO ownership predicate at all, so it matched every closed row in the licensed
-  // feed: 2,395 closings qualified for "My Listings" when 32 are Mallan's (verified read-only 2026-09-09).
-  // That is why the screen filled with listings that were never hers.
+  // The ownership predicate is the LIST-SIDE AGENT identity: listings.list_agent_mls_id joined to the
+  // agent's REBNY member id (agents.trestle_mls_id). "My Listings" means MINE, not the brokerage's -
+  // Mallan has other agents and their listings must not appear under Maya's.
   //
-  // `agent_id` is deliberately NOT the signal here. syncAgentHistory stamps it from BOTH list-side and
-  // BUYER-side matches, so a Mallan agent who represented the buyer would pull another brokerage's listing
-  // into Mallan's inventory. Identity is source-field only (lib/listings/mallan-source-identity.ts).
-  const mallanOffices = [...MALLAN_LIST_OFFICE_MLS_IDS];
-  const trestleClosed = {
-    mls_id: { not: null },
-    status: { in: TRESTLE_CLOSED },
-    OR: [
-      { list_office_mls_id: { in: mallanOffices } },
-      { co_list_office_mls_id: { in: mallanOffices } },
-    ],
-  };
+  // Two earlier versions of this arm were wrong:
+  //   * no ownership predicate at all - it matched EVERY closed row in the licensed feed (2,395 rows
+  //     qualified, verified read-only 2026-09-09, of which 32 are Maya's);
+  //   * scoped by list OFFICE (7041) - correct for the brokerage, wrong for one agent. Today both give
+  //     the same 32 only because Maya is the sole Mallan agent with closings in the feed; it would break
+  //     the moment another Mallan agent closes one. Brokerage-wide inventory is Company Listings' job.
+  //
+  // `agent_id` is deliberately NOT the signal: syncAgentHistory stamps it from BOTH list-side and
+  // BUYER-side matches, so an agent who represented the buyer would pull another brokerage's listing into
+  // their own inventory. Identity is source-field only (lib/listings/mallan-source-identity.ts).
+  //
+  // FAIL CLOSED: an agent with no REBNY member id can have no Cotality-sourced listings, so the arm is
+  // omitted entirely rather than widened to the office.
+  const viewer = await prisma.agent.findUnique({
+    where: { id: auth.userId },
+    select: { trestle_mls_id: true },
+  });
+  const viewerMlsId = viewer?.trestle_mls_id?.trim() || null;
+  const trestleClosed = viewerMlsId
+    ? {
+        mls_id: { not: null },
+        status: { in: TRESTLE_CLOSED },
+        OR: [
+          { list_agent_mls_id: viewerMlsId },
+          { co_list_agent_mls_id: viewerMlsId },
+        ],
+      }
+    : null;
 
   const where: Record<string, unknown> = {
-    OR: [crmCreated, crmCreatedRental, trestleClosed],
+    OR: trestleClosed ? [crmCreated, crmCreatedRental, trestleClosed] : [crmCreated, crmCreatedRental],
   };
 
   // Ownership: agent sees only their own, broker sees all
