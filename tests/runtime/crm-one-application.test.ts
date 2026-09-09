@@ -135,6 +135,47 @@ describe('only the canonical application owns a route table', () => {
   });
 });
 
+describe('one routing authority — a second hashchange owner cannot appear', () => {
+  /** Every shipped CRM file that registers a hashchange listener. */
+  const hashOwners = (() => {
+    const out: string[] = [];
+    const walk = (dir: string, rel: string) => {
+      for (const e of readdirSync(resolve(CRM, dir), { withFileTypes: true })) {
+        const childRel = rel ? `${rel}/${e.name}` : e.name;
+        if (e.isDirectory()) { walk(`${dir}/${e.name}`, childRel); continue; }
+        if (!/\.(js|html)$/.test(e.name)) continue;
+        if (childRel === 'index-built.html') continue; // generated from the sources already counted
+        const src = readFileSync(resolve(CRM, dir, e.name), 'utf8');
+        if (/addEventListener\(\s*['"]hashchange['"]/.test(src) || /onhashchange\s*=/.test(src)) out.push(childRel);
+      }
+    };
+    walk('.', '');
+    return out.sort();
+  })();
+
+  it('only the authority, its standalone fallback, and the retired shell own a hashchange listener', () => {
+    // js/core/crm-routing.js        THE authority - the only registration in the canonical app.
+    // js/init/init-hash-routing.js  keeps a fallback for loading standalone; it registers nothing
+    //                               when the authority is present (proven behaviourally in
+    //                               crm-single-routing-authority.test.ts).
+    // js/dashboard/router.js        the retired shell's own router; it goes when the shell does.
+    expect(hashOwners).toEqual([
+      'js/core/crm-routing.js',
+      'js/dashboard/router.js',
+      'js/init/init-hash-routing.js',
+    ]);
+  });
+
+  it('a new file cannot quietly become a second router', () => {
+    const ALLOWED = new Set(['js/core/crm-routing.js', 'js/init/init-hash-routing.js', 'js/dashboard/router.js']);
+    const strays = hashOwners.filter((f) => !ALLOWED.has(f));
+    expect({
+      strays,
+      why: 'Hash routing has ONE owner: js/core/crm-routing.js. Register brokerage panels with CrmRouting.registerPanel() instead of adding a listener — two routers over one address bar is how Search, listing detail and back/forward break.',
+    }).toEqual({ strays: [], why: expect.any(String) });
+  });
+});
+
 describe('the retired shell may only shrink', () => {
   it('its route count never grows', () => {
     const app = read(`${QUARANTINE_DIR}/app.js`.replace('public/crm/', 'public/crm/'));
