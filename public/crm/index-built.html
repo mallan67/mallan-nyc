@@ -14754,10 +14754,16 @@ function renderManageSection(mode) {
 
     // Apply the filter: a token filter compares tokens, a workflow filter compares the agent's saved word.
     var listings = baseListings;
+    // A listing whose status could not be resolved is still INVENTORY. It must never be filtered away:
+    // the default status filter is 'Active', and an unresolved row matches no token, so it silently
+    // disappeared and the agent saw an empty portfolio instead of their own listings. Presentation cannot
+    // erase identity. The row is kept and rendered with an explicit "Status unavailable" warning; we still
+    // refuse to invent a Cotality status for it (fail-closed on MEANING, fail-open on EXISTENCE).
+    var _statusUnresolved = function(l) { return !l.statusToken; };
     if (currentManageWorkflowFilter) {
-        listings = listings.filter(function(l) { return l.workflowWord === currentManageWorkflowFilter; });
+        listings = listings.filter(function(l) { return l.workflowWord === currentManageWorkflowFilter || _statusUnresolved(l); });
     } else if (currentManageStatusFilter !== 'All') {
-        listings = listings.filter(function(l) { return l.statusToken === currentManageStatusFilter; });
+        listings = listings.filter(function(l) { return l.statusToken === currentManageStatusFilter || _statusUnresolved(l); });
     }
 
 
@@ -14961,6 +14967,51 @@ function manageExportTable() {
     // CSV export integration point \u2014 wire to /api/crm/listings/export when ready.
     manageShowToast('Export queued.');
 }
+
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════
+// CANONICAL MOUNT — the ONE My Listings implementation, mounted wherever a consumer needs it.
+//
+// The dashboard used to run a SECOND listing manager (Panels.myListings in dashboard/panels.js) while this
+// one, ~1,240 lines, was unreachable from normal navigation. That old screen also merged
+// /api/crm/past-deals into the listing set, which is why My Listings reported 140 closed sales that were
+// historical transactions rather than managed listings.
+//
+// The markup is FETCHED from public/crm/html/manage-listings.html - the same partial the search build
+// inlines - rather than copied into dashboard.html. Copying it would recreate the duplicate this deletion
+// exists to remove.
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════
+function mountManageListings(container, mode) {
+  var host = container || (typeof CRM !== 'undefined' && CRM.getContent ? CRM.getContent() : null);
+  if (!host) return Promise.resolve(false);
+  if (typeof CRM !== 'undefined' && CRM.setPanelTitle) CRM.setPanelTitle('My Listings');
+  host.innerHTML = '<div class="p-6 text-sm text-gray-500">Loading listings...</div>';
+
+  return fetch('/crm/html/manage-listings.html', { credentials: 'include' })
+    .then(function (r) { if (!r.ok) throw new Error('manage-listings markup ' + r.status); return r.text(); })
+    .then(function (html) {
+      host.innerHTML = html;
+      // The partial ships hidden because the search build shows one section at a time; as a mounted panel
+      // it IS the content, so reveal it rather than leaving a blank screen.
+      var section = host.querySelector('#section-manage');
+      if (section) section.style.display = '';
+      return new Promise(function (resolve) {
+        if (typeof loadMyListingsFromAPI !== 'function') { resolve(false); return; }
+        loadMyListingsFromAPI(function () {
+          try { renderManageSection(mode || (typeof currentManageMode !== 'undefined' ? currentManageMode : 'sale')); }
+          catch (e) { console.error('[manage-listings] render failed', e); }
+          resolve(true);
+        });
+      });
+    })
+    .catch(function (e) {
+      console.error('[manage-listings] mount failed', e);
+      host.innerHTML = '<div class="p-6 text-sm text-red-600">My Listings could not load. ' +
+        'This is a failure, not an empty portfolio - reload or report it.</div>';
+      return false;
+    });
+}
+if (typeof window !== 'undefined') window.mountManageListings = mountManageListings;
 
 </script>
 <script>
