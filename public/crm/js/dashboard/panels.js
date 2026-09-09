@@ -13,6 +13,55 @@ var Panels = (function () {
 
   function _container() { return CRM.getContent(); }
 
+  // ── Status vocabulary: the SERVER's mapping, one per transaction ───────────────────────────────────────
+  // Owner ruling (Maya, 2026-09-08): the stored status IS the live Cotality StandardStatus token; the broker
+  // word ("Sold" on a sale, "Rented" on a rental, "In Contract" on a sale's Pending) is a LABEL applied per
+  // transaction. This module therefore holds no status vocabulary of its own - it renders the labels
+  // GET /api/crm/status-options?type=sale|rental sends, and a token it cannot resolve reads
+  // "Status unavailable" rather than a fabricated "Active".
+  var _listingStatusOptions = { sale: null, rent: null };
+  var _listingStatusLoading = { sale: false, rent: false };
+
+  function _loadListingStatusOptions(transaction, cb) {
+    if (_listingStatusOptions[transaction]) { if (cb) cb(); return; }
+    if (_listingStatusLoading[transaction]) return;
+    if (typeof MallanAPI === 'undefined' || typeof MallanAPI._fetch !== 'function') return;
+    _listingStatusLoading[transaction] = true;
+    MallanAPI._fetch('/api/crm/status-options?type=' + (transaction === 'sale' ? 'sale' : 'rental')).then(function (data) {
+      _listingStatusOptions[transaction] = data;
+      _listingStatusLoading[transaction] = false;
+      if (cb) cb();
+    }).catch(function () { _listingStatusLoading[transaction] = false; });
+  }
+
+  /** This transaction's label for a live StandardStatus token, or null while the mapping is still loading. */
+  function _listingStatusLabel(transaction, token) {
+    var opts = _listingStatusOptions[transaction];
+    if (!opts || !opts.canonical || !token) return null;
+    for (var i = 0; i < opts.canonical.length; i++) {
+      if (opts.canonical[i].token === token) return opts.canonical[i].label;
+    }
+    return null;
+  }
+
+  /**
+   * The token + printable label a listing row carries, straight from the server projection.
+   * When a row arrives without a label (an older endpoint), the label is looked up in ITS OWN transaction's
+   * server mapping - which is fetched on first miss so the next paint has it. Nothing is invented: a row whose
+   * state cannot be resolved reads "Status unavailable", never "Active".
+   */
+  function _rowStatus(l) {
+    var pres = l && l.status_presentation;
+    var token = (pres && (pres.token || pres.status)) || (l && l.status) || null;
+    var label = (pres && pres.label) || (l && l.status_label) || null;
+    if (!label) {
+      var transaction = (l && l._isRental) ? 'rent' : 'sale';
+      label = _listingStatusLabel(transaction, token);
+      if (!label && token) _loadListingStatusOptions(transaction);
+    }
+    return { token: token, label: label || 'Status unavailable' };
+  }
+
   // ── Client normalizer — delegates to shared ClientNormalizer ──
   function _normalizeClient(cl) { return ClientNormalizer.normalize(cl); }
   function _normalizeClients(clients) { return ClientNormalizer.normalizeAll(clients); }
@@ -808,18 +857,23 @@ var Panels = (function () {
     var listings = a._allListings || [];
     var filterStatus = (agentIdx !== undefined && _rosterListingFilter[agentIdx]) ? _rosterListingFilter[agentIdx] : '';
 
-    // RLS-aligned status counts
+    // An agent's roster mixes sales and rentals, so these pills are the NEUTRAL provider tokens: a broker word
+    // ("Sold" / "Rented") belongs to one transaction and cannot label a mixed count. Canceled carries the
+    // provider's one-L spelling. Each listing row prints its OWN per-transaction label (see _rowStatus).
+    function _rosterCount(token) {
+      return listings.filter(function (l) { return _rowStatus(l).token === token; }).length;
+    }
     var statusDefs = [
-      { key: '',                    label: 'All',                         count: listings.length },
-      { key: 'Active',              label: 'Active',                      count: listings.filter(function (l) { return l.status === 'Active'; }).length },
-      { key: 'Pending',             label: 'Pending',                     count: listings.filter(function (l) { return l.status === 'Pending'; }).length },
-      { key: 'ActiveUnderContract', label: 'In Contract',                 count: listings.filter(function (l) { return l.status === 'ActiveUnderContract'; }).length },
-      { key: 'Closed',              label: 'Closed',                      count: listings.filter(function (l) { return l.status === 'Closed'; }).length },
-      { key: 'ComingSoon',          label: 'Coming Soon',                 count: listings.filter(function (l) { return l.status === 'ComingSoon'; }).length },
-      { key: 'Hold',                label: 'Hold (Temp Off Market)',      count: listings.filter(function (l) { return l.status === 'Hold'; }).length },
-      { key: 'Withdrawn',           label: 'Withdrawn (Perm Off Market)', count: listings.filter(function (l) { return l.status === 'Withdrawn'; }).length },
-      { key: 'Expired',             label: 'Expired',                     count: listings.filter(function (l) { return l.status === 'Expired'; }).length },
-      { key: 'Canceled',            label: 'Canceled',                    count: listings.filter(function (l) { return l.status === 'Canceled'; }).length },
+      { key: '',                    label: 'All',                   count: listings.length },
+      { key: 'Active',              label: 'Active',                count: _rosterCount('Active') },
+      { key: 'Pending',             label: 'Pending',               count: _rosterCount('Pending') },
+      { key: 'ActiveUnderContract', label: 'Active Under Contract', count: _rosterCount('ActiveUnderContract') },
+      { key: 'Closed',              label: 'Closed',                count: _rosterCount('Closed') },
+      { key: 'ComingSoon',          label: 'Coming Soon',           count: _rosterCount('ComingSoon') },
+      { key: 'Hold',                label: 'Hold',                  count: _rosterCount('Hold') },
+      { key: 'Withdrawn',           label: 'Withdrawn',             count: _rosterCount('Withdrawn') },
+      { key: 'Expired',             label: 'Expired',               count: _rosterCount('Expired') },
+      { key: 'Canceled',            label: 'Canceled',              count: _rosterCount('Canceled') },
     ];
 
     var html = '<div class="flex flex-wrap gap-1 mb-3">';
@@ -835,7 +889,7 @@ var Panels = (function () {
     // Apply filter
     var filtered = listings;
     if (filterStatus) {
-      filtered = listings.filter(function (l) { return l.status === filterStatus; });
+      filtered = listings.filter(function (l) { return _rowStatus(l).token === filterStatus; });
     }
 
     if (filtered.length === 0) {
@@ -861,7 +915,9 @@ var Panels = (function () {
           '<td class="px-3 py-2 text-xs hidden md:table-cell">' + E(neighborhood) + '</td>' +
           '<td class="px-3 py-2 text-xs">' + E(typeLabel) + (subType ? ' <span class="text-gray-400">· ' + E(subType) + '</span>' : '') + '</td>' +
           '<td class="px-3 py-2 text-sm font-bold">' + $(price) + '</td>' +
-          '<td class="px-3 py-2">' + UI.statusBadge(l.status || 'active') + '</td>' +
+          // The SERVER's per-transaction label (a sale's Closed reads "Sold", a rental's "Rented"); the token
+          // drives the chip class only, and an unresolved row reads "Status unavailable", never "active".
+          '<td class="px-3 py-2">' + UI.statusBadge(_rowStatus(l).token, _rowStatus(l).label) + '</td>' +
           '<td class="px-3 py-2 text-xs hidden sm:table-cell">' + (l.cumulative_dom || l.days_on_market || '-') + '</td>' +
           '<td class="px-3 py-2"><button class="text-gold hover:underline text-xs font-semibold" onclick="Router.navigate(\'/workspace/listing/' + E(l.id || l.listing_id) + '/overview\')">View</button></td>' +
         '</tr>';
@@ -5819,7 +5875,9 @@ var Panels = (function () {
           '<td class="px-3 py-2"><span class="text-sm font-medium cursor-pointer hover:text-gold" onclick="Router.navigate(\'/workspace/listing/' + lid + '/overview\')">' + E(addr) + '</span></td>' +
           '<td class="px-3 py-2"><span style="display:inline-block;padding:1px 6px;font-size:10px;font-weight:700;border-radius:4px;background:' + typeBg + '15;color:' + typeBg + '">' + E(l._typeBadge) + '</span></td>' +
           '<td class="px-3 py-2 text-sm font-bold">' + (price ? $(price) : '-') + '</td>' +
-          '<td class="px-3 py-2">' + UI.statusBadge(l.status || 'active') + '</td>' +
+          // The SERVER's per-transaction label (a sale's Closed reads "Sold", a rental's "Rented"); the token
+          // drives the chip class only, and an unresolved row reads "Status unavailable", never "active".
+          '<td class="px-3 py-2">' + UI.statusBadge(_rowStatus(l).token, _rowStatus(l).label) + '</td>' +
           '<td class="px-3 py-2 text-xs">' + E(l._agentName) + '</td>' +
           '<td class="px-3 py-2 text-center"><span class="text-sm ' + domClass + '">' + dom + '</span></td>' +
           '<td class="px-3 py-2 text-center"><span style="display:inline-block;padding:1px 6px;font-size:10px;font-weight:700;border-radius:4px;background:' + (syncBg[l._syncFreshness] || syncBg.outdated) + ';color:' + (syncColors[l._syncFreshness] || syncColors.outdated) + '">' + E(l._syncLabel) + '</span></td>' +
@@ -9497,436 +9555,15 @@ var Panels = (function () {
   }
 
   // ─── My Listings ─────────────────────────────────────────────────────
-  var _myListingsData = [];
-  var _myListingsType = 'sale'; // 'sale' or 'rental'
-  var _myListingsStatus = 'all';
+  // ── My Listings: DELETED 2026-09-09 ─────────────────────────────────────────────────────────────
+  // The old implementation lived here (myListings, _renderMyListings, _switchMyListings*, _deleteListing,
+  // _addOpenHouse, _submitOpenHouse). It was a SECOND listing manager competing with
+  // public/crm/js/manage/manage-listings.js, and production navigation pointed at this one while the
+  // canonical manager was unreachable. It also merged /api/crm/past-deals into the listing set, so My
+  // Listings reported historical transactions as managed inventory.
+  // There is no wrapper, alias or fallback here on purpose: one business function, one implementation.
+  // Canonical entry: window.mountManageListings() in public/crm/js/manage/manage-listings.js.
 
-  function myListings() {
-    CRM.setPanelTitle('My Listings');
-    var c = _container(); c.innerHTML = UI.loading();
-
-    // Load from BOTH DB (all statuses including closed/expired) AND past deals
-    Promise.all([
-      MallanAPI.listings.list({ limit: 500 }).catch(function () { return { listings: [] }; }),
-      MallanAPI._fetch('/api/crm/past-deals?limit=200').catch(function () { return { deals: [] }; }),
-    ]).then(function (r) {
-      var dbListings = r[0].listings || [];
-      var pastDeals = r[1].deals || [];
-
-      // Merge: DB listings are primary, past deals fill in closed/sold/rented history
-      var seenIds = {};
-      _myListingsData = [];
-
-      dbListings.forEach(function (l) {
-        var lid = l.id || l.listing_id;
-        if (lid) seenIds[lid] = true;
-        _myListingsData.push(l);
-      });
-
-      // Add past deals that aren't already in DB listings
-      pastDeals.forEach(function (d) {
-        var lid = d.trestle_listing_id || d.id;
-        if (lid && seenIds[lid]) return;
-        if (lid) seenIds[lid] = true;
-        var addr = d.street || d.address || d.property_address || 'Past Deal';
-        if (d.unit) addr += ', #' + d.unit;
-        _myListingsData.push({
-          id: d.id,
-          listing_id: d.trestle_listing_id || ('PD-' + d.id),
-          address: { street: addr },
-          neighborhood: d.neighborhood || '',
-          list_price: d.close_price || 0,
-          ListPrice: d.close_price || 0,
-          price: d.close_price || 0,
-          status: 'Closed',
-          property_type: d.property_type || 'Residential',
-          property_sub_type: d.property_type || '',
-          listing_type: d.deal_type || 'sale',
-          bedrooms_total: d.beds,
-          bathrooms_full: d.baths_full,
-          living_area: d.sqft,
-          cumulative_dom: 0,
-          updated_at: d.close_date || d.created_at,
-          _fromPastDeals: true,
-          _pastDealId: d.id,
-        });
-      });
-
-      // Compute per-listing flags
-      var now = new Date();
-      _myListingsData.forEach(function (l) {
-        var dom = l.cumulative_dom || l.days_on_market || 0;
-        var hasPhotos = (l.photos && l.photos.length > 0) || (l.Media && l.Media.length > 0);
-        l._isStale = dom > 60 && (l.status === 'Active' || l.status === 'active');
-        l._noPhotos = !hasPhotos;
-        l._isFeatured = l.featuredFlag || l.featured;
-
-        // Refresh tracking — REBNY requires weekly refresh
-        var lastRefresh = l.ModificationTimestamp || l.updated_at || l.updatedAt || l.syncedAt;
-        if (lastRefresh) {
-          var daysSinceRefresh = Math.floor((now - new Date(lastRefresh)) / 86400000);
-          l._daysSinceRefresh = daysSinceRefresh;
-          l._needsRefresh = daysSinceRefresh >= 7 && (l.status === 'Active' || l.status === 'active' || l.status === 'ComingSoon');
-        } else {
-          l._daysSinceRefresh = null;
-          l._needsRefresh = false;
-        }
-
-        // Listing type: listing_type is "sale" or "rent", property_type for rentals is "ResidentialLease"
-        var lt = (l.listing_type || '').toLowerCase();
-        var pt = (l.property_type || l.PropertySubType || '').toLowerCase();
-        l._isRental = lt === 'rent' || pt === 'residentiallease' || pt.indexOf('rent') !== -1 || pt.indexOf('lease') !== -1;
-      });
-
-      _renderMyListings(c);
-    }).catch(function (err) {
-      console.error('My Listings error:', err);
-      c.innerHTML = '<div class="space-y-4"><h2 class="text-lg font-bold text-gray-900">My Listings</h2>' +
-        UI.emptyState('fa-building', 'Unable to load listings') + '</div>';
-    });
-  }
-
-  function _renderMyListings(c) {
-    var listings = _myListingsData;
-    var typeTab = _myListingsType;
-    var statusTab = _myListingsStatus;
-    var now = new Date();
-
-    // Split by sale vs rental
-    var sales = listings.filter(function (l) { return !l._isRental; });
-    var rentals = listings.filter(function (l) { return l._isRental; });
-    var typeListings = typeTab === 'rental' ? rentals : sales;
-
-    // Status filter within type
-    var filtered = typeListings;
-    if (statusTab && statusTab !== 'all') {
-      filtered = typeListings.filter(function (l) { return (l.status || '') === statusTab; });
-    }
-
-    // Status counts for this type
-    var statusCounts = {};
-    var statuses = ['Draft', 'Active', 'Pending', 'ActiveUnderContract', 'Closed', 'ComingSoon', 'Hold', 'Withdrawn', 'Expired', 'Canceled'];
-    statuses.forEach(function (s) { statusCounts[s] = typeListings.filter(function (l) { return l.status === s; }).length; });
-    // Include localStorage browser drafts in Draft count — suppress if DB has the listing
-    try {
-      var _ldRaw = localStorage.getItem('mallan_draft_sale');
-      if (_ldRaw) {
-        var _ld = JSON.parse(_ldRaw);
-        var _ldId = _ld && (_ld._saleEditListingId || _ld._listingId || '');
-        var _ldDbIdMatch = _ldId && typeListings.some(function (l) { return l.listing_id === _ldId || l.id === _ldId; });
-        // Address-based match for legacy drafts saved before listing_id was attached
-        var _ldStreet = (_ld && (_ld.saleStreetAddress || _ld.saleUnparsedAddress || '')).toString().trim().toLowerCase();
-        var _ldUnit = (_ld && (_ld.saleUnitNumber || '')).toString().trim().toLowerCase().replace(/[\s-]/g, '');
-        var _ldDbAddrMatch = false;
-        // Require BOTH street AND unit present in the draft before treating an
-        // address+unit DB match as proof the draft is stale. A draft with only
-        // the building street and no unit could otherwise be wrongly auto-
-        // cleared just because another unit at the same building exists.
-        if (_ldStreet && _ldUnit) {
-          _ldDbAddrMatch = typeListings.some(function (l) {
-            var addr = l.address || {};
-            var dbStreet = (addr.UnparsedAddress || ((addr.StreetNumber || '') + ' ' + (addr.StreetDirPrefix || '') + ' ' + (addr.StreetName || '') + ' ' + (addr.StreetSuffix || ''))).toString().trim().toLowerCase().replace(/\s+/g, ' ');
-            var dbUnit = (addr.UnitNumber || '').toString().trim().toLowerCase().replace(/[\s-]/g, '');
-            var streetMatch = dbStreet && (dbStreet.indexOf(_ldStreet.replace(/\s+/g, ' ')) >= 0 || _ldStreet.indexOf(dbStreet) >= 0);
-            var unitMatch = dbUnit && dbUnit === _ldUnit;
-            return streetMatch && unitMatch;
-          });
-        }
-        var _ldDbMatch = _ldDbIdMatch || _ldDbAddrMatch;
-        // Auto-clear the stale localStorage draft so it stops re-appearing
-        if (_ldDbMatch) {
-          try { localStorage.removeItem('mallan_draft_sale'); } catch (e) {}
-        }
-        if (!_ldDbMatch && _ld && _ld._savedAt && (Date.now() - new Date(_ld._savedAt).getTime()) < 604800000) {
-          statusCounts['Draft'] = (statusCounts['Draft'] || 0) + 1;
-        }
-      }
-    } catch (e) {}
-
-    // Expiring listings
-    var expiringSoon = [];
-    typeListings.forEach(function (l) {
-      var expDate = l.ExpirationDate || l.expiration_date || l.listing_expiry;
-      if (!expDate) return;
-      var daysLeft = Math.ceil((new Date(expDate) - now) / 86400000);
-      if (daysLeft > 0 && daysLeft <= 30) { l._expiresIn = daysLeft; expiringSoon.push(l); }
-    });
-
-    var html = '<div class="space-y-4">';
-
-    // Add buttons (title comes from CRM.setPanelTitle, no duplicate)
-    html += '<div class="flex items-center justify-end gap-2 flex-wrap">' +
-      '<button class="btn btn-sm btn-gold" onclick="window.open(\'/crm/sale-listing\',\'_blank\')"><i class="fas fa-plus mr-1"></i> Add Sale</button>' +
-      '<button class="btn btn-sm btn-gold" onclick="window.open(\'/crm/rental-listing\',\'_blank\')"><i class="fas fa-plus mr-1"></i> Add Rental</button>' +
-      '<button class="btn btn-sm btn-outline" onclick="Panels._addPastDeal()"><i class="fas fa-history mr-1"></i> Add Past Deal</button>' +
-    '</div>';
-
-    // Sale / Rental tabs — primary level
-    html += '<div class="flex gap-0 border-b border-gray-200">' +
-      '<button class="px-6 py-2.5 text-sm font-semibold border-b-2 transition-all ' +
-        (typeTab === 'sale' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700') +
-        '" onclick="Panels._switchMyListingsType(\'sale\')">Sales (' + sales.length + ')</button>' +
-      '<button class="px-6 py-2.5 text-sm font-semibold border-b-2 transition-all ' +
-        (typeTab === 'rental' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-500 hover:text-gray-700') +
-        '" onclick="Panels._switchMyListingsType(\'rental\')">Rentals (' + rentals.length + ')</button>' +
-    '</div>';
-
-    // Status sub-tabs
-    html += '<div class="flex gap-1 overflow-x-auto pb-1">';
-    html += '<button class="px-3 py-1.5 rounded text-sm font-medium border transition-all ' +
-      (statusTab === 'all' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400') +
-      '" onclick="Panels._switchMyListingsStatus(\'all\')">All (' + typeListings.length + ')</button>';
-    statuses.forEach(function (s) {
-      var count = statusCounts[s] || 0;
-      var label = s;
-      if (s === 'ActiveUnderContract') label = 'In Contract';
-      else if (s === 'ComingSoon') label = 'Coming Soon';
-      else if (s === 'Hold') label = 'Temp Off Market';
-      else if (s === 'Withdrawn') label = 'Perm Off Market';
-      html += '<button class="px-3 py-1.5 rounded text-sm font-medium border transition-all whitespace-nowrap ' +
-        (statusTab === s ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400') +
-        '" onclick="Panels._switchMyListingsStatus(\'' + s + '\')">' + label + ' (' + count + ')</button>';
-    });
-    html += '</div>';
-
-    // Expiring listings alert
-    if (expiringSoon.length > 0) {
-      html += '<div class="p-3 border border-yellow-300 rounded-lg bg-yellow-50">' +
-        '<p class="text-sm font-semibold text-yellow-800"><i class="fas fa-clock mr-1"></i> ' + expiringSoon.length + ' listing' + (expiringSoon.length > 1 ? 's' : '') + ' expiring soon</p>' +
-        '<div class="mt-2 space-y-1">';
-      expiringSoon.sort(function (a, b) { return a._expiresIn - b._expiresIn; });
-      expiringSoon.forEach(function (l) {
-        var addr = _resolveAddress(l);
-        var urgency = l._expiresIn <= 7 ? 'text-red-700 font-bold' : 'text-yellow-700';
-        html += '<div class="flex items-center justify-between text-xs">' +
-          '<span class="cursor-pointer hover:underline" onclick="Router.navigate(\'/workspace/listing/' + E(l.id || l.listing_id) + '/overview\')">' + E(addr) + '</span>' +
-          '<span class="' + urgency + '">' + (l._expiresIn <= 7 ? 'Expires in ' + l._expiresIn + ' days!' : 'Expires in ' + l._expiresIn + ' days') + '</span>' +
-        '</div>';
-      });
-      html += '</div></div>';
-    }
-
-    // REBNY weekly refresh alert
-    var needsRefresh = listings.filter(function (l) { return l._needsRefresh; });
-    if (needsRefresh.length > 0) {
-      html += '<div class="p-3 border border-red-300 rounded-lg bg-red-50">' +
-        '<p class="text-sm font-semibold text-red-800"><i class="fas fa-sync-alt mr-1"></i> ' + needsRefresh.length + ' listing' + (needsRefresh.length > 1 ? 's' : '') + ' need REBNY weekly refresh</p>' +
-        '<p class="text-xs text-red-600 mt-1">REBNY RLS requires all active listings to be refreshed weekly. Click Edit to update.</p>' +
-        '<div class="mt-2 space-y-1">';
-      needsRefresh.forEach(function (l) {
-        var addr = _resolveAddress(l);
-        var isRental = l._isRental;
-        var lid = l.id || l.listing_id;
-        html += '<div class="flex items-center justify-between text-xs">' +
-          '<span>' + E(addr) + ' — <span class="text-red-700">' + l._daysSinceRefresh + ' days since last update</span></span>' +
-          '<button class="text-red-700 font-semibold hover:underline" onclick="event.stopPropagation();window.open(\'/crm/' + (isRental ? 'rental' : 'sale') + '-listing?id=' + E(lid) + '\',\'_blank\')">Edit & Refresh</button>' +
-        '</div>';
-      });
-      html += '</div></div>';
-    }
-
-    // LocalStorage draft recovery — inject as table row in Draft/All tabs
-    // Suppress + auto-clear if a matching DB listing already exists (by listing_id OR address+unit)
-    var _localDraftRow = '';
-    if (statusTab === 'Draft' || statusTab === 'all') {
-      try {
-        var localDraftRaw = localStorage.getItem('mallan_draft_sale');
-        if (localDraftRaw) {
-          var localDraft = JSON.parse(localDraftRaw);
-          var _draftListingId = localDraft && (localDraft._saleEditListingId || localDraft._listingId || '');
-          var _dbHasIdMatch = _draftListingId && filtered.some(function (l) { return l.listing_id === _draftListingId || l.id === _draftListingId; });
-          // Address-based match for legacy drafts saved before listing_id was attached
-          var _draftStreet = (localDraft && (localDraft.saleStreetAddress || localDraft.saleUnparsedAddress || '')).toString().trim().toLowerCase();
-          var _draftUnit = (localDraft && (localDraft.saleUnitNumber || '')).toString().trim().toLowerCase().replace(/[\s-]/g, '');
-          var _dbHasAddrMatch = false;
-          // Require BOTH street AND unit present in the draft (see count-block
-          // comment above) — empty draft unit must NOT collapse to "matches any
-          // unit at this building" or a new-listing draft would be wrongly
-          // cleared just because another unit at the same address exists.
-          if (_draftStreet && _draftUnit) {
-            _dbHasAddrMatch = filtered.some(function (l) {
-              var addr = l.address || {};
-              var dbStreet = (addr.UnparsedAddress || ((addr.StreetNumber || '') + ' ' + (addr.StreetDirPrefix || '') + ' ' + (addr.StreetName || '') + ' ' + (addr.StreetSuffix || ''))).toString().trim().toLowerCase().replace(/\s+/g, ' ');
-              var dbUnit = (addr.UnitNumber || '').toString().trim().toLowerCase().replace(/[\s-]/g, '');
-              var streetMatch = dbStreet && (dbStreet.indexOf(_draftStreet.replace(/\s+/g, ' ')) >= 0 || _draftStreet.indexOf(dbStreet) >= 0);
-              var unitMatch = dbUnit && dbUnit === _draftUnit;
-              return streetMatch && unitMatch;
-            });
-          }
-          var _dbHasMatch = _dbHasIdMatch || _dbHasAddrMatch;
-          // Auto-clear the stale localStorage draft so it stops re-appearing
-          if (_dbHasMatch) {
-            try { localStorage.removeItem('mallan_draft_sale'); } catch (e) {}
-          }
-          if (!_dbHasMatch && localDraft && localDraft._savedAt) {
-            var draftAge = Date.now() - new Date(localDraft._savedAt).getTime();
-            if (draftAge < 7 * 24 * 60 * 60 * 1000) {
-              var draftAddr = localDraft.saleStreetAddress || localDraft.saleUnparsedAddress || localDraft.saleBuildingSearch || localDraft.unparsedAddress || 'Untitled';
-              var draftUnit = localDraft.saleUnitNumber || '';
-              if (draftUnit) draftAddr += ', #' + draftUnit;
-              var draftPrice = localDraft.salePrice ? '$' + Number(localDraft.salePrice).toLocaleString() : '—';
-              var draftTime = new Date(localDraft._savedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-              _localDraftRow = '<tr class="border-b bg-amber-50 hover:bg-amber-100">' +
-                '<td class="px-3 py-2"><p class="text-sm font-medium text-gray-900">' + E(draftAddr) + '</p><p class="text-[10px] text-amber-600">Browser draft — ' + E(draftTime) + '</p></td>' +
-                '<td class="px-3 py-2 text-xs text-gray-500">Sale</td>' +
-                '<td class="px-3 py-2 text-sm font-semibold">' + draftPrice + '</td>' +
-                '<td class="px-3 py-2"><span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-200 text-amber-800">DRAFT (browser)</span></td>' +
-                '<td class="px-3 py-2 text-xs text-gray-400">—</td>' +
-                '<td class="px-3 py-2 text-xs text-gray-400">—</td>' +
-                '<td class="px-3 py-2 text-xs text-gray-400">—</td>' +
-                '<td class="px-3 py-2"><div class="flex gap-1" onclick="event.stopPropagation()">' +
-                '<button class="btn btn-sm btn-gold" onclick="window.open(\'/crm/sale-listing?restore=local\',\'_blank\')" title="Continue editing this draft"><i class="fas fa-edit"></i></button>' +
-                '<button class="btn btn-sm btn-outline text-red-500" onclick="if(confirm(\'Discard this unsaved draft?\')){localStorage.removeItem(\'mallan_draft_sale\');Panels.myListings();}" title="Discard draft"><i class="fas fa-trash"></i></button>' +
-                '</div></td></tr>';
-            }
-          }
-        }
-      } catch (e) { /* localStorage unavailable */ }
-    }
-
-    // Listing table
-    if (filtered.length === 0 && !_localDraftRow) {
-      html += '<div class="text-center py-12 text-gray-400">' +
-        '<i class="fas fa-building text-3xl mb-3"></i>' +
-        '<p class="text-sm">No listings to display.</p>' +
-      '</div>';
-    } else {
-      html += '<div class="data-table"><div style="overflow-x:auto"><table class="w-full"><thead class="bg-gray-50 text-xs"><tr>' +
-        '<th class="text-left px-3 py-2">Address</th>' +
-        '<th class="text-left px-3 py-2">Type</th>' +
-        '<th class="text-left px-3 py-2">Price</th>' +
-        '<th class="text-left px-3 py-2">Status</th>' +
-        '<th class="text-left px-3 py-2">DOM</th>' +
-        '<th class="text-left px-3 py-2">Expiry</th>' +
-        '<th class="text-left px-3 py-2">Last Refreshed</th>' +
-        '<th class="text-left px-3 py-2">Actions</th>' +
-      '</tr></thead><tbody>';
-      if (_localDraftRow) html += _localDraftRow;
-      filtered.forEach(function (l) {
-        var addr = _resolveAddress(l);
-        var dom = l.cumulative_dom || l.cumulative_days_on_market || l.days_on_market || 0;
-        var lid = l.id || l.listing_id;
-
-        // Price: handle different field names from API
-        var price = l.list_price || l.ListPrice || l.price || 0;
-
-        // Expiry
-        var expDate = l.ExpirationDate || l.expiration_date || l.listing_expiry;
-        var expiryHtml = '—';
-        if (expDate) {
-          var daysLeft = Math.ceil((new Date(expDate) - now) / 86400000);
-          if (daysLeft <= 0) expiryHtml = '<span class="text-xs text-red-600 font-semibold">Expired</span>';
-          else if (daysLeft <= 7) expiryHtml = '<span class="text-xs text-red-600 font-semibold">' + daysLeft + 'd left</span>';
-          else if (daysLeft <= 30) expiryHtml = '<span class="text-xs text-yellow-600">' + daysLeft + 'd left</span>';
-          else expiryHtml = '<span class="text-xs text-gray-500">' + D(expDate) + '</span>';
-        }
-
-        html += '<tr class="border-b hover:bg-gray-50 cursor-pointer" onclick="Router.navigate(\'/workspace/listing/' + E(lid) + '/overview\')">' +
-          '<td class="px-3 py-2"><p class="text-sm font-medium text-gray-900">' + E(addr) + '</p></td>' +
-          '<td class="px-3 py-2 text-xs text-gray-500">' + E(l._isRental ? 'Rental' : 'Sale') + '</td>' +
-          '<td class="px-3 py-2 text-sm font-semibold">' + $(price) + '</td>' +
-          '<td class="px-3 py-2">' + UI.statusBadge(l.status || 'Active') + '</td>' +
-          '<td class="px-3 py-2 text-xs text-gray-600">' + dom + '</td>' +
-          '<td class="px-3 py-2">' + expiryHtml + '</td>' +
-          '<td class="px-3 py-2">' + (function () {
-            if (l._daysSinceRefresh === null) return '<span class="text-xs text-gray-400">—</span>';
-            if (l._needsRefresh) return '<span class="text-xs text-red-600 font-semibold">' + l._daysSinceRefresh + 'd ago <i class="fas fa-exclamation-circle"></i></span>';
-            return '<span class="text-xs text-gray-500">' + l._daysSinceRefresh + 'd ago</span>';
-          })() + '</td>' +
-          '<td class="px-3 py-2"><div class="flex gap-1" onclick="event.stopPropagation()">' +
-            (l._fromPastDeals
-              ? '<button class="btn btn-sm btn-outline" onclick="Panels._editPastDeal(\'' + E(l._pastDealId || l.id) + '\')" title="Edit Past Deal"><i class="fas fa-edit"></i></button>' +
-                '<button class="btn btn-sm btn-outline text-red-500 hover:text-red-700" onclick="Panels._deletePastDeal(\'' + E(l._pastDealId || l.id) + '\')" title="Delete Past Deal"><i class="fas fa-trash"></i></button>'
-              : '<button class="btn btn-sm btn-gold" onclick="openListingCampaign(\'' + E(l.listing_id || lid) + '\')" title="Eblast investors — create the investor / 1031 marketing email from this listing"><i class="fas fa-paper-plane mr-1"></i>Eblast Investors</button>' +
-                '<button class="btn btn-sm btn-outline" onclick="window.open(\'/crm/' + (l._isRental ? 'rental' : 'sale') + '-listing?id=' + E(lid) + '\',\'_blank\')" title="Edit Listing"><i class="fas fa-edit"></i></button>' +
-                '<button class="btn btn-sm btn-outline" onclick="Panels._addOpenHouse(\'' + E(lid) + '\',\'' + E(addr) + '\')" title="Add Open House"><i class="fas fa-door-open"></i></button>' +
-                (!l.mls_id ? '<button class="btn btn-sm btn-outline text-red-500 hover:text-red-700" onclick="Panels._deleteListing(\'' + E(lid) + '\',\'' + E(addr) + '\')" title="Withdraw Listing"><i class="fas fa-trash"></i></button>' : '')) +
-          '</div></td>' +
-        '</tr>';
-      });
-      html += '</tbody></table></div></div>';
-    }
-
-    html += '</div>';
-    c.innerHTML = html;
-  }
-
-  function _switchMyListingsView(view) {
-    // Legacy — map to new system
-    _myListingsStatus = view;
-    _renderMyListings(_container());
-  }
-
-  function _switchMyListingsType(type) {
-    _myListingsType = type;
-    _myListingsStatus = 'all';
-    _renderMyListings(_container());
-  }
-
-  function _switchMyListingsStatus(status) {
-    _myListingsStatus = status;
-    _renderMyListings(_container());
-  }
-
-  function _deleteListing(listingId, address) {
-    if (!confirm('Withdraw listing "' + address + '"?\n\nThis sets the status to Withdrawn. The listing will no longer appear publicly.')) return;
-    MallanAPI.listings.remove(listingId).then(function () {
-      showToast('Listing withdrawn: ' + address, 'success');
-      myListings();
-    }).catch(function (err) {
-      showToast('Failed to withdraw: ' + err.message, 'error');
-    });
-  }
-
-  function _addOpenHouse(listingId, address) {
-    CRM.openModal('Schedule Open House — ' + address,
-      '<form id="openHouseForm" class="space-y-4">' +
-        '<input type="hidden" name="listing_id" value="' + E(listingId) + '">' +
-        '<div class="grid grid-cols-2 gap-4">' +
-          '<div class="form-group"><label class="form-label">Date *</label><input class="form-input" type="date" name="date" required></div>' +
-          '<div class="form-group"><label class="form-label">Start Time *</label><input class="form-input" type="time" name="start_time" required></div>' +
-        '</div>' +
-        '<div class="grid grid-cols-2 gap-4">' +
-          '<div class="form-group"><label class="form-label">End Time *</label><input class="form-input" type="time" name="end_time" required></div>' +
-          '<div class="form-group"><label class="form-label">Type</label>' +
-            '<select class="form-input form-select" name="type">' +
-              '<option value="open_house">Public Open House</option>' +
-              '<option value="broker_open">Broker Open House</option>' +
-              '<option value="virtual">Virtual Open House</option>' +
-            '</select></div>' +
-        '</div>' +
-        '<div class="form-group"><label class="form-label">Notes</label>' +
-          '<textarea class="form-input" name="notes" rows="2" placeholder="Any special instructions..."></textarea></div>' +
-      '</form>',
-      {
-        footer: '<button class="btn btn-outline" onclick="CRM.closeModal()">Cancel</button>' +
-          '<button class="btn btn-gold" onclick="Panels._submitOpenHouse()"><i class="fas fa-calendar-plus mr-1"></i> Schedule</button>',
-      }
-    );
-  }
-
-  function _submitOpenHouse() {
-    var form = document.getElementById('openHouseForm');
-    if (!form || !form.checkValidity()) { if (form) form.reportValidity(); return; }
-    var data = {};
-    new FormData(form).forEach(function (v, k) { if (v) data[k] = v; });
-
-    MallanAPI.showings.create({
-      listing_id: data.listing_id,
-      date: data.date,
-      time: data.start_time + ' - ' + data.end_time,
-      type: data.type || 'open_house',
-      notes: data.notes || '',
-    }).then(function () {
-      Events.log('showing_scheduled', 'listing', data.listing_id, { type: data.type, date: data.date });
-      CRM.closeModal();
-      CRM.toast('Open house scheduled', 'success');
-    }).catch(function (err) {
-      CRM.toast('Failed: ' + (err.message || 'Try again'), 'error');
-    });
-  }
-
-  // ─── My Clients ──────────────────────────────────────────────────────
   var _myClientsData = [];
   var _myClientsView = 'all';
   var _myClientsSearch = '';
@@ -12302,8 +11939,15 @@ var Panels = (function () {
         l._isNew = listDate >= sevenDaysAgo;
         l._isPriceChange = l.PriceChangeTimestamp ? new Date(l.PriceChangeTimestamp) >= thirtyDaysAgo : false;
         l._isStatusChange = modDate >= sevenDaysAgo && (l.StatusChangeTimestamp || l.status_changed_at);
-        l._isClosed = (l.status || '').toLowerCase() === 'closed';
-        l._isComp = l._isClosed && new Date(l.CloseDate || l.close_date || modDate) >= thirtyDaysAgo;
+        // A closing is the live Cotality `Closed` token; the legacy Mallan spellings ('Sold' / 'Rented' /
+        // 'Leased', written before the 2026-09-08 token correction) mean the same closing and stay readable.
+        var _st = String(l.status || l.StandardStatus || '').toLowerCase();
+        l._isClosed = _st === 'closed' || _st === 'sold' || _st === 'rented' || _st === 'leased';
+        // A comp is dated by its OWN CloseDate and by nothing else. ModificationTimestamp dated a closing by
+        // the day the row was last touched, so any old closing that was merely edited appeared as a recent
+        // comp (Maya, 2026-09-08). A closed row with no CloseDate is simply not a dated comparable.
+        l._closeDate = l.CloseDate || l.close_date || null;
+        l._isComp = l._isClosed && l._closeDate ? new Date(l._closeDate) >= thirtyDaysAgo : false;
         l._type = (l.property_type || l.listing_type || l.PropertySubType || '').toLowerCase();
         l._isRental = l._type.indexOf('rent') !== -1;
         l._neighborhood = l.MLSAreaMajor || l.neighborhood || l.area || '';
@@ -12393,8 +12037,9 @@ var Panels = (function () {
               '<p class="text-sm font-medium truncate">' + E(addr) + '</p>' +
               '<div class="flex items-center gap-3 text-xs text-gray-500">' +
                 '<span class="font-bold text-gray-900">' + $(price) + '</span>' +
-                UI.statusBadge(l.status || 'Active') +
+                UI.statusBadge(_rowStatus(l).token, _rowStatus(l).label) +
                 '<span>' + dom + ' DOM</span>' +
+                (_marketTab === 'comps' && l._closeDate ? '<span>Closed ' + E(String(l._closeDate).slice(0, 10)) + '</span>' : '') +
                 (l._neighborhood ? '<span>' + E(l._neighborhood) + '</span>' : '') +
               '</div>' +
             '</div>' +
@@ -13818,7 +13463,6 @@ var Panels = (function () {
     // Operations
     opsDashboard: opsDashboard,
     propertySearch: propertySearch,
-    myListings: myListings,
     myClients: myClients,
     pipeline: pipeline,
     tasks: tasks,
@@ -13985,12 +13629,6 @@ var Panels = (function () {
     _editPastDeal: _editPastDeal,
     _submitPastDeal: _submitPastDeal,
     _deletePastDeal: _deletePastDeal,
-    _switchMyListingsView: _switchMyListingsView,
-    _switchMyListingsType: _switchMyListingsType,
-    _switchMyListingsStatus: _switchMyListingsStatus,
-    _addOpenHouse: _addOpenHouse,
-    _deleteListing: _deleteListing,
-    _submitOpenHouse: _submitOpenHouse,
     _switchMyClientsView: _switchMyClientsView,
     _searchMyClients: _searchMyClients,
     _toggleSection: _toggleSection,
