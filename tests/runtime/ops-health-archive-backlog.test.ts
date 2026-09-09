@@ -71,10 +71,10 @@ describe("ops-health archive backlog predicate mirrors the #405 archiver", () =>
     );
     // The route no longer carries its own literal list: it spreads the mapper export, which is THE
     // terminal set in lib/listings/mallan-status.ts (one definition; the monitor's CommonJS copy mirrors it).
-    expect(routeSrc).toMatch(/const\s+TERMINAL_STATUSES\s*=\s*\[\.\.\.MAPPER_TERMINAL_STATUSES\]/);
-    const { MALLAN_TERMINAL_STATUSES } = require("../../lib/listings/mallan-status") as { MALLAN_TERMINAL_STATUSES: ReadonlySet<string> };
+    expect(routeSrc).toMatch(/const\s+TERMINAL_STATUSES\s*=\s*\[\.\.\.new Set\(\[\.\.\.MAPPER_TERMINAL_STATUSES, \.\.\.TERMINAL_STATUS_FILTER_VALUES\]\)\]/);
+    const { TERMINAL_STATUS_FILTER_VALUES } = require("../../lib/listings/mallan-status") as { TERMINAL_STATUS_FILTER_VALUES: readonly string[] };
     // Identical set AND order — monitoring counts exactly the cron's terminal population.
-    expect(ARCHIVE_TERMINAL_STATUSES).toEqual([...MALLAN_TERMINAL_STATUSES]);
+    expect(ARCHIVE_TERMINAL_STATUSES).toEqual([...TERMINAL_STATUS_FILTER_VALUES]);
     // The presence-fact spelling is the one constant (lib/listings/canonical-lifecycle.ts).
     const { OFF_FEED_SYNC_STATUS } = require("../../lib/listings/canonical-lifecycle") as { OFF_FEED_SYNC_STATUS: string };
     const js = require("../../scripts/archive-backlog-predicate.js") as { OFF_FEED_SYNC_STATUS: string };

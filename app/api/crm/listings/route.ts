@@ -10,6 +10,7 @@ import { assertRlsCompliantPayload, scanRecordForFairHousing } from "@/lib/compl
 import { classifyRlsEligibility } from "@/lib/compliance/rls-eligibility";
 import { normalizePayload, derivePermissionBooleans, buildPersistenceRecord } from "@/lib/compliance/normalizer";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
+import { storageStatusesFor } from "@/lib/listings/mallan-status";
 import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
 import { AGENT_TYPED_SELECT } from "@/lib/listings/agent-info-resolver";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
@@ -41,8 +42,9 @@ export async function GET(req: NextRequest) {
   // CRM My Listings shows: (1) CRM-created listings (no mls_id — SL-/RL- prefix),
   // and (2) closed/terminal Trestle-synced deals. Active/Pending Trestle listings
   // are managed via REBNY RLS directly, not through the CRM.
-  const TRESTLE_CLOSED = ["Closed", "Sold", "Leased", "Rented"];
-  const CRM_HIDDEN = ["Withdrawn", "Cancelled"];
+  // Provider tokens plus the legacy spellings written before the 2026-09-08 token correction (lib/listings/mallan-status.ts).
+  const TRESTLE_CLOSED = storageStatusesFor(["Closed"]);
+  const CRM_HIDDEN = storageStatusesFor(["Withdrawn", "Canceled"]);
   const crmCreated = { mls_id: null, listing_id: { startsWith: "SL-" }, status: { notIn: CRM_HIDDEN } };
   const crmCreatedRental = { mls_id: null, listing_id: { startsWith: "RL-" }, status: { notIn: CRM_HIDDEN } };
   const trestleClosed = { mls_id: { not: null }, status: { in: TRESTLE_CLOSED } };
@@ -194,8 +196,9 @@ export async function GET(req: NextRequest) {
   });
 }
 
-// Valid listing statuses and their allowed transitions
-const STATUS_INITIAL = "Draft";
+// A Mallan-authored listing is born in the provider's draft state — the live StandardStatus token 'Incomplete'
+// (owner ruling 2026-09-08: the stored status is always a live member; 'Draft' / 'Future' are workflow words).
+const STATUS_INITIAL = "Incomplete";
 
 /**
  * Generate a unique listing_id: SL-XXXX for sales, RL-XXXX for rentals.

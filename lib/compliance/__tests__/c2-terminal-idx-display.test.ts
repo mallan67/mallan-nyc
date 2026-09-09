@@ -30,7 +30,7 @@
  * automatically expand the cron's effective scope via this same import.
  */
 
-import { mapTrestleToPrisma, TERMINAL_STATUSES, computeGateColumns } from '../../idx/trestle-mapper';
+import { mapTrestleToPrisma, TERMINAL_STATUSES, computeGateColumns, normalizeStandardStatus } from '../../idx/trestle-mapper';
 
 const REQUIRED_MIN_FIELDS: Record<string, unknown> = {
   ListingId: 'RLS20000001',
@@ -51,24 +51,24 @@ function buildRaw(overrides: Record<string, unknown>): Record<string, unknown> {
 }
 
 describe('C2 — TERMINAL_STATUSES constant', () => {
-  it('contains exactly the 8 Mallan storage terminal statuses the cron also targets (one definition: lib/listings/mallan-status.ts)', () => {
-    expect(TERMINAL_STATUSES.size).toBe(8);
+  it('contains exactly the 5 live terminal members the cron also targets (one definition: lib/listings/mallan-status.ts)', () => {
+    expect(TERMINAL_STATUSES.size).toBe(5);
     expect(TERMINAL_STATUSES.has('Delete')).toBe(true); // the live Cotality 'Delete' member, stored as-is
     expect(TERMINAL_STATUSES.has('Delisted')).toBe(false); // departure is a presence fact (sync_status off_feed), never a status
     expect(TERMINAL_STATUSES.has('Closed')).toBe(true);
-    expect(TERMINAL_STATUSES.has('Sold')).toBe(true);
-    expect(TERMINAL_STATUSES.has('Leased')).toBe(true);
-    expect(TERMINAL_STATUSES.has('Rented')).toBe(true);
     expect(TERMINAL_STATUSES.has('Withdrawn')).toBe(true);
     expect(TERMINAL_STATUSES.has('Expired')).toBe(true);
-    expect(TERMINAL_STATUSES.has('Cancelled')).toBe(true);
+    // The stored spelling IS the live member (owner ruling 2026-09-08): single-L Canceled.
+    expect(TERMINAL_STATUSES.has('Canceled')).toBe(true);
+    // Legacy Mallan spellings are not tokens: the normalizer folds them to the live member before the guard.
+    for (const legacy of ['Sold', 'Leased', 'Rented', 'Cancelled']) {
+      expect(TERMINAL_STATUSES.has(legacy)).toBe(false);
+      expect(TERMINAL_STATUSES.has(normalizeStandardStatus(legacy))).toBe(true);
+    }
     // Active variants must NOT be in the terminal set.
     expect(TERMINAL_STATUSES.has('Active')).toBe(false);
     expect(TERMINAL_STATUSES.has('ComingSoon')).toBe(false);
     expect(TERMINAL_STATUSES.has('ActiveUnderContract')).toBe(false);
-    // The live Cotality member is single-L 'Canceled'; Mallan STORAGE spells it 'Cancelled' (the
-    // mapper parses the live member and stores the Mallan spelling), so the storage set holds only the latter.
-    expect(TERMINAL_STATUSES.has('Canceled')).toBe(false);
   });
 });
 
@@ -78,7 +78,7 @@ describe('C2 — terminal statuses force idx_display_yn=false', () => {
   // arrive from the provider; they are covered through the shared gate helper below.
   it.each([
     ['Closed', 'Closed'],
-    ['Canceled', 'Cancelled'],
+    ['Canceled', 'Canceled'],
     ['Withdrawn', 'Withdrawn'],
     ['Expired', 'Expired'],
     ['Delete', 'Delete'],

@@ -67,6 +67,11 @@ export const RAW_DATA_KEEP_FIELDS: readonly string[] = [
   'CloseDate',
   'ListingContractDate',
   'ExpirationDate',
+  // The status ↔ date associations (owner ruling 2026-09-08): Withdrawn → WithdrawnDate, Canceled →
+  // CancellationDate. Both are live Property fields (selected by the mapper) and are the retained facts the
+  // lifecycle, terminal_since and the forms read.
+  'WithdrawnDate',
+  'CancellationDate',
   // Lifecycle evidence (whole-corpus census 2026-09-08, lib/listings/canonical-lifecycle.ts): In Contract is
   // Pending + PurchaseContractDate (MajorChangeType Pending/ActiveUnderContract); Back on Market is
   // MajorChangeType BackOnMarket + BackOnMarketDate. These were selected from the feed and then stripped here,

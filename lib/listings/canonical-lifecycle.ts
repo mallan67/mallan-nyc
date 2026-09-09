@@ -75,6 +75,12 @@ export interface ContractEvents {
   backOnMarketDate: string | null;
   closeDate: string | null;
   offMarketDate: string | null;
+  /** ExpirationDate — the Expired fact (owner ruling 2026-09-08); selectable, never filterable on this feed. */
+  expirationDate: string | null;
+  /** WithdrawnDate — the Withdrawn fact. */
+  withdrawnDate: string | null;
+  /** CancellationDate — the Canceled fact; selectable, never filterable on this feed. */
+  cancellationDate: string | null;
 }
 export type LifecycleStage =
   | 'active'
@@ -145,7 +151,7 @@ const STAGE_LABEL: Readonly<Record<LifecycleStage, string>> = Object.freeze({
   unknown: '',
 });
 
-/** Live StandardStatus member → stage + Mallan storage spelling ('Canceled' is stored as 'Cancelled'). */
+/** Live StandardStatus member → stage + storage spelling (verbatim: the stored token IS the live member, 'Canceled' one L). */
 const PROVIDER_STATUS: Readonly<Record<string, { stage: LifecycleStage; storage: string }>> = Object.freeze({
   Active: { stage: 'active', storage: 'Active' },
   ComingSoon: { stage: 'coming_soon', storage: 'ComingSoon' },
@@ -154,13 +160,13 @@ const PROVIDER_STATUS: Readonly<Record<string, { stage: LifecycleStage; storage:
   Closed: { stage: 'closed', storage: 'Closed' },
   Hold: { stage: 'temp_off_market', storage: 'Hold' },
   Withdrawn: { stage: 'withdrawn', storage: 'Withdrawn' },
-  Canceled: { stage: 'cancelled', storage: 'Cancelled' },
+  Canceled: { stage: 'cancelled', storage: 'Canceled' },
   Expired: { stage: 'expired', storage: 'Expired' },
   Incomplete: { stage: 'draft', storage: 'Incomplete' },
   Delete: { stage: 'unknown', storage: 'Delete' },
 });
 
-/** Mallan storage status → stage. */
+/** Stored status → stage. Provider tokens plus the legacy spellings written before the 2026-09-08 token correction. */
 const STORED_STATUS: Readonly<Record<string, LifecycleStage>> = Object.freeze({
   Active: 'active',
   ComingSoon: 'coming_soon',
@@ -207,7 +213,8 @@ function labelFor(stage: LifecycleStage, transactionType: TransactionType | null
 }
 
 type LifecycleEvidence = Pick<CotalityRow<'Property'>, 'MajorChangeType' | 'PurchaseContractDate' | 'PendingTimestamp' | 'BackOnMarketDate' | 'CloseDate' | 'PriceChangeTimestamp'
-  | 'OnMarketDate' | 'ActivationDate' | 'ListingContractDate' | 'OriginalEntryTimestamp' | 'ContractStatusChangeDate' | 'OffMarketDate' | 'ClosePrice' | 'StandardStatus'>;
+  | 'OnMarketDate' | 'ActivationDate' | 'ListingContractDate' | 'OriginalEntryTimestamp' | 'ContractStatusChangeDate' | 'OffMarketDate' | 'ClosePrice' | 'StandardStatus'
+  | 'ExpirationDate' | 'WithdrawnDate' | 'CancellationDate'>;
 
 /** A positive provider price; null for null / zero / non-numeric. */
 function positivePrice(v: unknown): number | null {
@@ -228,6 +235,31 @@ function contractEventsOf(raw: LifecycleEvidence): ContractEvents {
     backOnMarketDate: day(raw.BackOnMarketDate),
     closeDate: day(raw.CloseDate),
     offMarketDate: day(raw.OffMarketDate),
+    expirationDate: day(raw.ExpirationDate),
+    withdrawnDate: day(raw.WithdrawnDate),
+    cancellationDate: day(raw.CancellationDate),
+  };
+}
+
+/**
+ * The status ↔ date facts a stored row carries, read HERE (inside the Cotality interpretation boundary) so a
+ * consumer such as lib/listings/terminal-since.ts never touches a raw provider key. `features` is the legacy
+ * bucket some import paths wrote instead of raw_data; both are read and the raw_data value wins.
+ *
+ * Owner ruling 2026-09-08: Closed → CloseDate; Expired → ExpirationDate (never OffMarketDate as its own date);
+ * Withdrawn → WithdrawnDate; Canceled → CancellationDate; OffMarketDate is the removal fallback.
+ */
+export function statusDateFactsFrom(rawData: unknown, features?: unknown): {
+  closeDate: unknown[]; offMarketDate: unknown[]; expirationDate: unknown[]; withdrawnDate: unknown[]; cancellationDate: unknown[];
+} {
+  const raw = (rawData && typeof rawData === 'object' ? rawData : {}) as Record<string, unknown>;
+  const feat = (features && typeof features === 'object' ? features : {}) as Record<string, unknown>;
+  return {
+    closeDate: [raw.CloseDate, feat.CloseDate],
+    offMarketDate: [raw.OffMarketDate, feat.OffMarketDate],
+    expirationDate: [raw.ExpirationDate, feat.ExpirationDate],
+    withdrawnDate: [raw.WithdrawnDate, feat.WithdrawnDate],
+    cancellationDate: [raw.CancellationDate, feat.CancellationDate],
   };
 }
 

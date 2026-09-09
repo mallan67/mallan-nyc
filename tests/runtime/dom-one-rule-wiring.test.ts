@@ -43,12 +43,20 @@ describe('one DOM rule — no consumer keeps a private clock', () => {
     expect(s).not.toMatch(/ACTIVE_SEED_STATUSES/);
     expect(s).toMatch(/marketClockStart\(/);
   });
-  it('the rules JSON mirrors the one rule (Pending does not accrue; the clocks are named)', () => {
+  it('the rules JSON mirrors the one rule (Pending accrues until the close; the clocks are named; the end is CloseDate / OffMarketDate, never PurchaseContractDate)', () => {
     const json = JSON.parse(read('compliance/rules/status-rules.json')) as { statuses?: Record<string, { domAccrues?: boolean }>; domRules: Record<string, unknown> };
     const pending = (json.statuses ?? (json as unknown as Record<string, Record<string, { domAccrues?: boolean }>>).statusRules ?? {}).Pending;
-    if (pending) expect(pending.domAccrues).toBe(false);
+    if (pending) expect(pending.domAccrues).toBe(true);
     expect(String(json.domRules.marketClock)).toMatch(/OnMarketDate/);
+    expect(String(json.domRules.marketClock)).toMatch(/CloseDate/);
+    expect(String(json.domRules.marketClock)).toMatch(/OffMarketDate/);
+    expect(String(json.domRules.marketClock)).not.toMatch(/until the contract is signed/);
     expect(String(json.domRules.comingSoonClock)).toMatch(/ContractStatusChangeDate/);
-    expect(json.domRules.accruingStatuses).toEqual(['Active', 'ActiveUnderContract']);
+    expect(json.domRules.accruingStatuses).toEqual(['Active', 'ActiveUnderContract', 'Pending']);
+    expect(json.domRules.stopsAt).toBeUndefined();
+    expect(json.domRules.endsAt).toEqual({ closed: 'CloseDate', removal: 'OffMarketDate' });
+    const rules = read('lib/compliance/rebny-ucba-rules.ts');
+    expect(rules).not.toMatch(/stopsAt: 'Pending'/);
+    expect(rules).toMatch(/endsAt: \{ closed: 'CloseDate', removal: 'OffMarketDate' \}/);
   });
 });

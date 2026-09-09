@@ -111,11 +111,12 @@ describe("Mallan status ≠ Cotality status (raw_data never carries a fake provi
       for (const k of PROVIDER_DECISION_KEYS) expect(out).not.toHaveProperty(k);
     }
   });
-  it("Mallan-only statuses exist internally and are not live members", () => {
-    for (const s of ["Draft", "Sold", "Rented", "Cancelled"]) {
-      expect(MALLAN_STORAGE_STATUSES).toContain(s);
-      expect(MALLAN_ONLY_STATUSES).toContain(s);
-      expect(isCotalityStandardStatus(s)).toBe(false);
+  it("no Mallan-only status exists: the storage vocabulary IS the live vocabulary (owner ruling 2026-09-08)", () => {
+    expect(MALLAN_ONLY_STATUSES).toEqual([]);
+    for (const s of MALLAN_STORAGE_STATUSES) expect(isCotalityStandardStatus(s)).toBe(true);
+    for (const legacy of ["Draft", "Sold", "Rented", "Cancelled"]) {
+      expect(MALLAN_STORAGE_STATUSES as readonly string[]).not.toContain(legacy);
+      expect(isCotalityStandardStatus(legacy)).toBe(false);
     }
   });
   it("a provider-shaped Mallan row carries ONLY a verified live member under StandardStatus (or none) and its Mallan status under the Mallan key", () => {
@@ -131,14 +132,15 @@ describe("Mallan status ≠ Cotality status (raw_data never carries a fake provi
       expect(rec.StandardStatus).toBe(cotalityStandardStatusForMallan(s));
       expect(rec).not.toHaveProperty("MlsStatus");
     }
-    expect(mallanRecord({ status: "Draft", listing_id: "SL-1", listing_type: "sale", address: {}, media: [], listing_media: [], updated_at: new Date(), raw_data: {} } as unknown as Parameters<typeof mallanRecord>[0]).StandardStatus).toBeNull();
+    // a legacy 'Draft' row (written before the token correction) is represented as the live draft member
+    expect(mallanRecord({ status: "Draft", listing_id: "SL-1", listing_type: "sale", address: {}, media: [], listing_media: [], updated_at: new Date(), raw_data: {} } as unknown as Parameters<typeof mallanRecord>[0]).StandardStatus).toBe("Incomplete");
   });
-  it("the canonical mapper parses a provider status against the exact live domain and stores it in Mallan vocabulary", () => {
+  it("the canonical mapper parses a provider status against the exact live domain and stores it verbatim", () => {
     const base = { ListingId: "RLS1", ListingKey: "1", PropertyType: "Residential", ListPrice: 1, ModificationTimestamp: "2026-09-01T00:00:00Z", Permission: "IDX" };
     for (const live of COTALITY_STANDARD_STATUS_MEMBERS) {
       const m = mapTrestleToPrisma({ ...base, StandardStatus: live });
       expect(MALLAN_STORAGE_STATUSES).toContain(m.status);
-      expect(m.status).toBe(live === "Canceled" ? "Cancelled" : live);
+      expect(m.status).toBe(live); // stored verbatim — one-L Canceled included
     }
     for (const bad of ["Sold", "Rented", "Cancelled", "closed", "ACTIVE", "Draft"]) {
       expect(() => mapTrestleToPrisma({ ...base, StandardStatus: bad })).toThrow(/StandardStatus/);

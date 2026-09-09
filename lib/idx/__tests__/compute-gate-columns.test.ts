@@ -111,12 +111,12 @@ describe("computeGateColumns — status normalization reaches the guard", () => 
     expect(result.idx_display_yn).toBe(false);
   });
 
-  it("accepts known alias (canceled → Cancelled) and blocks", () => {
+  it("accepts a case variant of the live member (canceled → Canceled) and blocks", () => {
     const result = computeGateColumns({
       status: "canceled",
       internetEntireListingDisplayYN: true,
     });
-    expect(result.normalized_status).toBe("Cancelled");
+    expect(result.normalized_status).toBe("Canceled");
     expect(result.idx_display_yn).toBe(false);
   });
 

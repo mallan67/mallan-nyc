@@ -1,5 +1,7 @@
 # Status — one mapping per transaction · CMA transaction separation · the real Save / load paths (2026-09-08, evening)
 
+> **Superseded (2026-09-08 evening) on the STORED vocabulary:** the owner ruled that every stored status is a live Cotality StandardStatus token (Closed, Canceled with one L, Incomplete …) with Sold / Rented / In Contract applied as transaction LABELS, and that each status carries its associated Cotality date. The per-transaction mapping principle below stands; the Mallan words it stored do not. See `../status/STATUS-PROVIDER-TOKENS.md`.
+
 Owner ruling (Maya): **"rental and sale has to have each their own mapping"** — not one shared mapping with regex /
 type guards. This note records what was wrong, what changed, and what each proof proves. Nothing was pushed;
 no schema, env, Neon, R2, cron or workflow file changed; no production write.

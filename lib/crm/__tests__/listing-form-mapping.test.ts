@@ -5,10 +5,10 @@
  * data/cotality-enums.live.json); unknown form values are refused, never defaulted; the browser's
  * former translated keys are ignored when the Mallan form keys are present.
  *
- * THREE STATUS DOMAINS: the CRM workflow value → the Mallan business status under `_mallanStatus`
- * (+ `_crmWorkflowStatus`). The provider's MlsStatus / StandardStatus / Permission are NEVER written by
- * this layer: Mallan's Draft / Sold / Rented / Cancelled are not live members and a Mallan-authored
- * listing has no provider status. The permission decision travels under `_mallanPermission`.
+ * STATUS DOMAINS: the CRM workflow value → the canonical status under `_mallanStatus` (+ `_crmWorkflowStatus`),
+ * always a live StandardStatus token (owner ruling 2026-09-08). The provider's MlsStatus / StandardStatus /
+ * Permission keys are NEVER written by this layer: a Mallan-authored listing's status lives under the Mallan
+ * key. The permission decision travels under `_mallanPermission`.
  */
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
@@ -111,12 +111,12 @@ describe('STATUS ENUM GUARD — every status / permission the write path can emi
       expect(r.errors).toHaveLength(1);
       expect(r.body._mallanStatus).toBeUndefined();
     }
-    // Mallan-only statuses exist internally (under the Mallan key) …
-    expect(emitted).toContain('Sold');
-    expect(emitted).toContain('Rented');
-    expect(emitted).toContain('Draft');
-    // … and are NOT live StandardStatus members — which is exactly why they never sit under a provider name.
-    for (const s of ['Draft', 'Sold', 'Rented', 'Cancelled']) expect(isCotalityStandardStatus(s)).toBe(false);
+    // every stored status is a live StandardStatus token (owner ruling 2026-09-08): the close is Closed on both
+    // transactions (labelled Sold / Rented at display time), the draft is Incomplete, the cancel is one-L Canceled …
+    for (const s of ['Closed', 'Incomplete', 'Pending', 'Canceled', 'Active', 'ActiveUnderContract', 'Withdrawn', 'Expired', 'Hold']) expect(emitted).toContain(s);
+    for (const s of emitted) expect(isCotalityStandardStatus(s)).toBe(true);
+    // … and the former Mallan words are never produced
+    for (const s of ['Draft', 'Sold', 'Rented', 'Leased', 'Cancelled']) expect(emitted).not.toContain(s);
   });
   it('if a provider enum field ever appears in the output, its value is a live member (currently none does)', () => {
     const r = applyServerFormMapping({ saleStatus: 'SoldThruUs', salePropertyType: 'Coop', Permission: 'OwnerOptOut' }, 'sale');
@@ -174,12 +174,15 @@ describe('classifyMallanPropertyType', () => {
 
 describe('canonicalStatusFromForm (one form\'s CRM workflow → Mallan business status, through that transaction\'s mapping)', () => {
   it('maps the sale form\'s words through the sale mapping and the rental form\'s through the rental mapping', () => {
-    expect(canonicalStatusFromForm('OfferOut', 'sale')).toBe('ActiveUnderContract');
+    // provider StandardStatus tokens only (owner ruling 2026-09-08); Offer Out / Application Out never Pending
+    expect(canonicalStatusFromForm('OfferOut', 'sale')).toBe('Active');
+    expect(canonicalStatusFromForm('OfferAccepted', 'sale')).toBe('ActiveUnderContract');
     expect(canonicalStatusFromForm('ContractSigned', 'sale')).toBe('Pending');
-    expect(canonicalStatusFromForm('SoldThruUs', 'sale')).toBe('Sold');
-    expect(canonicalStatusFromForm('AppOut', 'rent')).toBe('Pending');
+    expect(canonicalStatusFromForm('SoldThruUs', 'sale')).toBe('Closed');
+    expect(canonicalStatusFromForm('AppOut', 'rent')).toBe('Active');
+    expect(canonicalStatusFromForm('LeaseOut', 'rent')).toBe('ActiveUnderContract');
     expect(canonicalStatusFromForm('LeaseSigned', 'rent')).toBe('Pending');
-    expect(canonicalStatusFromForm('RentedThruUs', 'rent')).toBe('Rented');
+    expect(canonicalStatusFromForm('RentedThruUs', 'rent')).toBe('Closed');
   });
   it('refuses the other transaction\'s words', () => {
     expect(canonicalStatusFromForm('AppOut', 'sale')).toBeNull();
@@ -189,11 +192,13 @@ describe('canonicalStatusFromForm (one form\'s CRM workflow → Mallan business 
   });
   it('accepts an already-canonical Mallan value, the saved-state spellings, the legacy draft marker, and refuses the unknown', () => {
     expect(canonicalStatusFromForm('ActiveUnderContract', 'sale')).toBe('ActiveUnderContract');
-    expect(canonicalStatusFromForm('Rented', 'rent')).toBe('Rented');
-    expect(canonicalStatusFromForm('Closed', 'sale')).toBe('Sold');
-    expect(canonicalStatusFromForm('Closed', 'rent')).toBe('Rented');
-    expect(canonicalStatusFromForm('Canceled', 'rent')).toBe('Cancelled');
-    expect(canonicalStatusFromForm('Incomplete', 'sale')).toBe('Draft');
+    expect(canonicalStatusFromForm('Rented', 'rent')).toBe('Closed');
+    expect(canonicalStatusFromForm('Closed', 'sale')).toBe('Closed');
+    expect(canonicalStatusFromForm('Closed', 'rent')).toBe('Closed');
+    expect(canonicalStatusFromForm('Canceled', 'rent')).toBe('Canceled');
+    expect(canonicalStatusFromForm('Cancelled', 'sale')).toBe('Canceled');
+    expect(canonicalStatusFromForm('Incomplete', 'sale')).toBe('Incomplete');
+    expect(canonicalStatusFromForm('Draft', 'sale')).toBe('Incomplete');
     expect(canonicalStatusFromForm('OffMarket', 'sale')).toBeNull();
     expect(canonicalStatusFromForm('', 'sale')).toBeNull();
     expect(canonicalStatusFromForm(42, 'sale')).toBeNull();
@@ -208,7 +213,7 @@ describe('applyServerFormMapping', () => {
       MlsStatus: 'Active', StandardStatus: 'Active', PropertyType: 'Commercial', PropertySubType: 'SingleFamilyTownhouse', CommonInterest: 'Cooperative', Permission: 'OwnerOptOut',
     }, 'sale');
     expect(r.errors).toEqual([]);
-    expect(r.body._mallanStatus).toBe('ActiveUnderContract');
+    expect(r.body._mallanStatus).toBe('Active'); // an offer out leaves the listing Active on the provider
     expect(r.body._crmWorkflowStatus).toBe('OfferOut');
     expect(r.body._mallanPermission).toBe('OwnerOptOut');
     expect(r.body.PropertyType).toBe('Residential');
@@ -218,7 +223,7 @@ describe('applyServerFormMapping', () => {
     expect(r.derived).toEqual(['_mallanStatus', '_mallanPermission', 'PropertyType', 'PropertySubType', 'CommonInterest']);
   });
   it('rental form keys drive the rental vocabulary', () => {
-    const r = applyServerFormMapping({ rentalStatus: 'AppAccepted', rentalPropertyType: 'RentalBuilding', _mallanPermission: 'Private' }, 'rent');
+    const r = applyServerFormMapping({ rentalStatus: 'LeaseSigned', rentalPropertyType: 'RentalBuilding', _mallanPermission: 'Private' }, 'rent');
     expect(r.errors).toEqual([]);
     expect(r.body._mallanStatus).toBe('Pending');
     expect(r.body._mallanPermission).toBe('Private');
@@ -231,7 +236,7 @@ describe('applyServerFormMapping', () => {
     expect(r.body._mallanStatus).toBe('Active');
     expect(r.body).not.toHaveProperty('MlsStatus');
     const draft = applyServerFormMapping({ MlsStatus: 'Incomplete' }, 'sale');
-    expect(draft.body._mallanStatus).toBe('Draft');
+    expect(draft.body._mallanStatus).toBe('Incomplete');
     expect(draft.body).not.toHaveProperty('MlsStatus');
   });
   it('validates client-supplied provider values against the live enums when no form key is present', () => {

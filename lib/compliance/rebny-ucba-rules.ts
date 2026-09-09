@@ -309,9 +309,12 @@ export const REBNY_UCBA_RULES = {
       },
       requireFields: ['OnMarketDate'],
     },
+    // Status ↔ date associations (owner ruling 2026-09-08 evening; every field a live Cotality Property field).
+    // The stored status is the live StandardStatus token; the legacy spellings written before the token correction
+    // ('Sold' / 'Rented' / 'Leased' / 'Cancelled') are matched until the correction plan rewrites them.
     {
       code: 'CLOSED-001',
-      description: 'Closed requires CloseDate, ClosePrice, BuyerAgentRLSParticipantYN',
+      description: 'Closed (Sold / Rented) requires CloseDate, ClosePrice, BuyerAgentRLSParticipantYN',
       appliesWhen: {
         _mallanStatus: ['Closed', 'Sold', 'Rented', 'Leased'],
       },
@@ -323,33 +326,48 @@ export const REBNY_UCBA_RULES = {
     },
     {
       code: 'CANCELLED-001',
-      description: 'Cancelled requires CancellationDate',
+      description: 'Canceled requires CancellationDate',
       appliesWhen: {
-        _mallanStatus: ['Cancelled'],
+        _mallanStatus: ['Canceled', 'Cancelled'],
       },
       requireFields: ['CancellationDate'],
     },
     {
       code: 'WITHDRAWN-001',
-      description: 'Withdrawn requires WithdrawnDate (must equal OffMarketDate)',
+      description: 'Withdrawn requires WithdrawnDate',
       appliesWhen: {
         _mallanStatus: ['Withdrawn'],
       },
       requireFields: ['WithdrawnDate'],
     },
     {
+      code: 'EXPIRED-001',
+      description: 'Expired requires ExpirationDate (not OffMarketDate)',
+      appliesWhen: {
+        _mallanStatus: ['Expired'],
+      },
+      requireFields: ['ExpirationDate'],
+    },
+    {
+      // A sale in contract carries PurchaseContractDate. A rental in contract carries the Mallan lease-signed date
+      // (lib/crm/status-mapping.ts MALLAN_LEASE_SIGNED_DATE_KEY) — PurchaseContractDate is never collected on the
+      // rental UI; the rental rule is enforced by the status API's required-facts check, not here.
       code: 'PENDING-001',
-      description: 'Pending requires PurchaseContractDate',
+      description: 'Pending (sale) requires PurchaseContractDate',
       appliesWhen: {
         _mallanStatus: ['Pending'],
+        // Sale-only PropertyTypes. 'Land' is deliberately absent: a land LEASE is a rental, so keying on it would
+        // fire this sale rule on the rental form. The per-transaction authority is the status API's
+        // requiredFactsFor (lib/crm/status-mapping.ts) — a Pending land sale is gated there.
+        PropertyType: ['Residential', 'CommercialSale', 'ResidentialIncome', 'BusinessOpportunity'],
       },
       requireFields: ['PurchaseContractDate'],
     },
     {
       code: 'OFFMARKET-001',
-      description: 'Off-market statuses require OffMarketDate',
+      description: 'A removal from the market (Hold / Withdrawn / Canceled / Delete) requires OffMarketDate',
       appliesWhen: {
-        _mallanStatus: ['Cancelled', 'Closed', 'Sold', 'Rented', 'Leased', 'Expired', 'Hold', 'Incomplete', 'Pending', 'Withdrawn', 'Delete'],
+        _mallanStatus: ['Hold', 'Withdrawn', 'Canceled', 'Cancelled', 'Delete'],
       },
       requireFields: ['OffMarketDate'],
     },
@@ -882,14 +900,15 @@ export const REBNY_UCBA_RULES = {
   // 10. DOM (DAYS ON MARKET) — UCBA 2026 rules
   // ═══════════════════════════════════════════════════════════════════════════
 
-  // ONE rule, DERIVED from lib/compliance/dom-tracker.ts (Maya 2026-09-08): the market clock runs while Active /
-  // ActiveUnderContract (the CRM "Offer Accepted") and stops at the signed contract — the CRM "Contract Signed" is
-  // canonical Pending. REBNY's own DaysOnMarket accrues through Pending, but it is not delivered on this feed and it
-  // is not Mallan's clock. Coming Soon runs a separate clock (comingSoonDom); it never merges into market DOM.
+  // ONE rule, DERIVED from lib/compliance/dom-tracker.ts (owner ruling, Maya 2026-09-08 evening): the market clock
+  // runs while the listing is on the market — Active / ActiveUnderContract / Pending — and ends at the CloseDate of a
+  // Sold / Rented listing or at the OffMarketDate of a removal (Withdrawn / Canceled / Expired / Hold), never at
+  // PurchaseContractDate. UCBA is the compliance source only; the dates are live Cotality Property fields. Coming
+  // Soon runs a separate clock (comingSoonDom); it never merges into market DOM.
   domRules: {
     resetDays: DOM_RESET_DAYS,  // UCBA 2026 (was 90)
     accruingStatuses: [...DOM_ACCRUING_STATUSES] as readonly string[],
-    stopsAt: 'Pending' as const,  // contract signed
+    endsAt: { closed: 'CloseDate', removal: 'OffMarketDate' } as const,
     pausingStatuses: ['Hold'] as const,  // UCBA: Temporarily Off Market pauses DOM (never resets it)
     suppressingPermissions: ['OwnerOptOut', 'Private'] as const,
     suppressingStatuses: ['ComingSoon'] as const,  // its own clock

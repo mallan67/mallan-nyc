@@ -487,8 +487,10 @@ describe.each(FORMS)('$file and $tools use the same server status projection', (
       '/api/auth/me': { authenticated: true, principalType: 'agent', role: 'broker', portalRole: 'broker', user: { id: '7' } },
       ['/api/crm/listings/' + saved.id]: base,
     });
+    // the stored status is the live Cotality token; the transaction supplies the label (owner ruling 2026-09-08)
     const cases = [
-      { status: 'Closed', sync_status: 'synced', value: spec.prefix === 'sale' ? 'Sold' : 'Rented', label: spec.prefix === 'sale' ? 'Sold' : 'Rented' },
+      { status: 'Closed', sync_status: 'synced', value: 'Closed', label: spec.prefix === 'sale' ? 'Sold' : 'Rented' },
+      { status: spec.prefix === 'sale' ? 'Sold' : 'Rented', sync_status: 'synced', value: 'Closed', label: spec.prefix === 'sale' ? 'Sold' : 'Rented' }, // a legacy row still reads correctly
       { status: 'Pending', sync_status: 'synced', value: 'Pending', label: spec.prefix === 'sale' ? 'In Contract' : 'Pending' },
       { status: '', sync_status: null, value: '', label: 'Status unavailable' },
       { status: 'Active', sync_status: 'off_feed', value: '', label: 'Off Market' },
@@ -509,7 +511,12 @@ describe.each(FORMS)('$file and $tools use the same server status projection', (
         }
         await settle(); await settle();
       }
-    } finally { entry.window.close(); viewer.window.close(); }
+    } finally {
+      // let each page's in-flight async render finish before the window goes away, or its timer fires against a
+      // torn-down document and the error lands in whichever test runs next
+      await settle(); await settle();
+      entry.window.close(); viewer.window.close();
+    }
   });
 });
 
@@ -528,9 +535,10 @@ describe.each(FORMS)('$file — the page\'s own Save button and edit-mode load, 
   const editDbId = spec.prefix === 'sale' ? '_saleEditDbId' : '_rentalEditDbId';
   const editMode = spec.prefix === 'sale' ? '_saleEditMode' : '_rentalEditMode';
   // this transaction's own pipeline word, its label, and the canonical state it stores
+  // the workflow word, its label, the live token it stores, the transaction's close word and the close's label
   const pipeline = spec.prefix === 'sale'
-    ? { word: 'ContractSigned', label: 'Contract Signed', canonical: 'Pending', close: 'Sold' }
-    : { word: 'LeaseSigned', label: 'Lease Signed', canonical: 'Pending', close: 'Rented' };
+    ? { word: 'ContractSigned', label: 'Contract Signed', canonical: 'Pending', closeWord: 'Sold', closeLabel: 'Sold' }
+    : { word: 'LeaseSigned', label: 'Lease Signed', canonical: 'Pending', closeWord: 'Rented', closeLabel: 'Rented' };
   // the OTHER transaction's words — unknown to this listing, never guarded by a regex
   const foreign = spec.prefix === 'sale' ? ['Rented', 'Leased', 'LeaseSigned', 'AppOut'] : ['Sold', 'ContractSigned', 'OfferOut', 'ComingSoon'];
   const until = async (done: () => boolean) => { for (let i = 0; i < 60 && !done(); i++) await settle(); await settle(); await settle(); };
@@ -596,10 +604,13 @@ describe.each(FORMS)('$file — the page\'s own Save button and edit-mode load, 
       fire(win, select, 'change');
       expect(select.value).toBe(step.word); // the page's own change handler does not undo the agent's choice
       if (step.word === pipeline.word) {
-        // a signed contract is a fact the agent enters (REBNY PENDING-001): the signed date and the buyer's agent contact
+        // the in-contract fact the agent enters, per transaction (owner ruling 2026-09-08): a SALE signs a contract
+        // (PurchaseContractDate); a RENTAL signs a lease (the Mallan workflow fact — PurchaseContractDate is never
+        // collected on a rental). It rides in the main save and the status API then finds it stored.
         const set = (k: string, v: string) => { const el = win.document.getElementById(k); if (el) { el.value = v; fire(win, el, 'input', 'change'); } };
-        set(`${spec.prefix}ContractSignedDate`, '2026-09-15');
-        set(`${spec.prefix}PurchaseContractDate`, '2026-09-15');
+        // sale: #saleContractSignedDate is bound to PurchaseContractDate · rental: #rentalLeaseSignedDate is bound
+        // to the Mallan key _mallanLeaseSignedDate
+        set(spec.prefix === 'sale' ? 'saleContractSignedDate' : 'rentalLeaseSignedDate', '2026-09-15');
         set(`${spec.prefix}BuyerCompany`, 'MALLAN');
         set(`${spec.prefix}BuyerCompanySearch`, 'Mallan Real Estate Inc.');
       }
@@ -642,14 +653,21 @@ describe.each(FORMS)('$file — the page\'s own Save button and edit-mode load, 
       expect({ w, status: res.status, code: body.code }).toEqual({ w, status: 400, code: 'form_mapping' });
     }
     expect(store.rows.get(id)!.status).toBe(pipeline.canonical);
-    // the close needs a ClosePrice (UCBA C12) — set through the real PATCH, then close through the real status route
-    const priced = await patch(id, { ClosePrice: spec.prefix === 'sale' ? 950000 : 4500 });
-    expect(priced.status).toBe(200);
-    const closed = await patchStatus(id, { status: pipeline.close });
-    expect({ status: closed.status, body: await closed.json() }).toMatchObject({ status: 200, body: { previous_status: pipeline.canonical, status: pipeline.close } });
-    expect(store.rows.get(id)!.status).toBe(pipeline.close);
+    // the close carries its facts (owner ruling 2026-09-08): CloseDate + ClosePrice. The agent's own save already
+    // put them on this listing (the form's close controls), so clear them first to prove the refusal: without the
+    // facts the transition is refused BY NAME and nothing is stored.
+    expect(await (await patch(id, { CloseDate: '', ClosePrice: '' })).status).toBe(200);
+    const unpriced = await patchStatus(id, { status: pipeline.closeWord });
+    expect({ status: unpriced.status, body: await unpriced.json() }).toMatchObject({ status: 422, body: { code: 'STATUS_FACT_REQUIRED', field: 'CloseDate' } });
+    expect(store.rows.get(id)!.status).toBe(pipeline.canonical);
+    const closed = await patchStatus(id, { status: pipeline.closeWord, facts: { CloseDate: '2026-09-20', ClosePrice: spec.prefix === 'sale' ? 950000 : 4500 } });
+    expect({ status: closed.status, body: await closed.json() }).toMatchObject({ status: 200, body: { previous_status: pipeline.canonical, status: 'Closed' } });
+    const row = store.rows.get(id)!;
+    expect(row.status).toBe('Closed');
+    expect((row.raw_data as Rec).CloseDate).toBe('2026-09-20'); // the fact is persisted with the transition
     const after = await patchStatus(id, { status: 'Active' });
     expect(after.status).toBe(422);
-    expect(formStatusForListing(store.rows.get(id)! as Parameters<typeof formStatusForListing>[0])).toMatchObject({ value: pipeline.close, label: pipeline.close });
+    // the close reads by the transaction's own word
+    expect(formStatusForListing(row as Parameters<typeof formStatusForListing>[0])).toMatchObject({ value: 'Closed', label: pipeline.closeLabel });
   });
 });

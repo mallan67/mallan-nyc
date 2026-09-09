@@ -20,7 +20,7 @@ import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { checkFeeDisclosure, isDisplayReadyStatus } from "@/lib/crm/fee-disclosure";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import { listingCapabilities, CAPABILITY_DENIED } from "@/lib/auth/listing-capabilities";
-import { allowedCanonicalTransitions, resolveCanonicalStatusForListing } from "@/lib/crm/status-mapping";
+import { allowedCanonicalTransitions, requiredFactsFor, resolveCanonicalStatusForListing, STATUS_FACT_FIELDS } from "@/lib/crm/status-mapping";
 
 // The status state machine lives in lib/crm/status-mapping.ts, ONE PER TRANSACTION (owner ruling 2026-09-08):
 // a sale listing moves through the sale mapping (Pending → Sold) and a rental through the rental mapping
@@ -67,7 +67,10 @@ export async function PATCH(
     );
   }
 
-  let body: { status: string };
+  // `facts` carries the status's associated Cotality date (and the close price) with the transition — the
+  // Contract Signed date, the close date + price, the expiration / withdrawn / cancellation date, the
+  // Back on Market date, or the rental's Mallan lease-signed date (lib/crm/status-mapping.ts STATUS_FACT_FIELDS).
+  let body: { status: string; facts?: Record<string, unknown> };
   try {
     body = await req.json();
   } catch {
@@ -131,25 +134,44 @@ export async function PATCH(
     );
   }
 
-  // Terminal statuses (Sold/Rented) require broker approval
-  if (
-    (newStatus === "Sold" || newStatus === "Rented") &&
-    auth.role !== "BROKER"
-  ) {
+  // The close (the provider's Closed — Sold on a sale, Rented on a rental) requires broker approval
+  if (newStatus === "Closed" && auth.role !== "BROKER") {
     return NextResponse.json(
-      { error: "Sold/Rented status requires broker approval" },
+      { error: "Closing a listing (Sold / Rented) requires broker approval" },
       { status: 403 }
     );
   }
 
-  // C12: ClosePrice required when transitioning to Sold/Rented
-  const existingRaw = (listing.raw_data as Record<string, unknown>) ?? {};
-  if (newStatus === "Sold" || newStatus === "Rented") {
-    if (!existingRaw.ClosePrice) {
+  // The status's associated facts (owner ruling 2026-09-08): the request may carry them; only the declared
+  // fact fields are accepted, and each one the transition requires must be present afterwards —
+  // Pending (sale) → PurchaseContractDate; Pending (rental) → the Mallan lease-signed date; Closed → CloseDate +
+  // ClosePrice (UCBA C12); Expired → ExpirationDate; Withdrawn → WithdrawnDate; Canceled → CancellationDate;
+  // Back on Market → BackOnMarketDate; Coming Soon → ActivationDate.
+  const storedRaw = (listing.raw_data as Record<string, unknown>) ?? {};
+  const acceptedFacts: Record<string, unknown> = {};
+  if (body.facts && typeof body.facts === "object") {
+    for (const [k, v] of Object.entries(body.facts)) {
+      if (!STATUS_FACT_FIELDS.includes(k)) {
+        return NextResponse.json(
+          { error: `"${k}" is not a status fact this transition may carry`, field: k, code: "STATUS_FACT_UNKNOWN", allowed: STATUS_FACT_FIELDS },
+          { status: 400 }
+        );
+      }
+      if (v !== undefined && v !== null && v !== "") acceptedFacts[k] = v;
+    }
+  }
+  const existingRaw: Record<string, unknown> = { ...storedRaw, ...acceptedFacts };
+  const requiredFacts = requiredFactsFor(requested, listing.listing_type) ?? [];
+  for (const field of requiredFacts) {
+    const v = existingRaw[field];
+    const present = typeof v === "number" ? Number.isFinite(v) && v > 0 : v !== undefined && v !== null && String(v).trim() !== "";
+    if (!present) {
       return NextResponse.json(
         {
-          error: `ClosePrice is required before marking a listing as ${newStatus} (UCBA C12)`,
-          field: "ClosePrice",
+          error: `${field} is required before marking a listing as ${newStatus}`,
+          field,
+          code: "STATUS_FACT_REQUIRED",
+          required: requiredFacts,
         },
         { status: 422 }
       );
@@ -215,9 +237,10 @@ export async function PATCH(
     newStatus
   );
 
-  // D9: Mark listings that were Coming Soon so one-time-per-address check works
-  const updatedRaw = currentStatus === "ComingSoon" && newStatus !== "ComingSoon"
-    ? { ...existingRaw, _wasComingSoon: true }
+  // D9: Mark listings that were Coming Soon so one-time-per-address check works; persist the accepted facts.
+  const wasComingSoon = currentStatus === "ComingSoon" && newStatus !== "ComingSoon";
+  const updatedRaw = wasComingSoon || Object.keys(acceptedFacts).length > 0
+    ? { ...existingRaw, ...(wasComingSoon ? { _wasComingSoon: true } : {}) }
     : undefined;
 
   // Phase A W1 — recompute display gates against the new status.

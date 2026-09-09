@@ -23,8 +23,8 @@
 //     legacy `status_changed_at`. NEVER `updated_at` (bumped by unrelated rewrites → mis-ages backlog).
 
 // Mirror of app/api/cron/data-retention/route.ts:22 TERMINAL_STATUSES (kept in sync by test).
-// Mirror of lib/listings/mallan-status.ts MALLAN_TERMINAL_STATUSES (CommonJS copy; kept in sync by tests/runtime/ops-health-archive-backlog.test.ts).
-const ARCHIVE_TERMINAL_STATUSES = ["Closed", "Sold", "Leased", "Rented", "Withdrawn", "Expired", "Cancelled", "Delete"];
+// Mirror of lib/listings/mallan-status.ts TERMINAL_STATUS_FILTER_VALUES — the live terminal tokens plus the legacy spellings (CommonJS copy; kept in sync by tests/runtime/ops-health-archive-backlog.test.ts).
+const ARCHIVE_TERMINAL_STATUSES = ["Closed", "Sold", "Rented", "Leased", "Withdrawn", "Expired", "Canceled", "Cancelled", "Delete"];
 // Mirror of lib/listings/canonical-lifecycle.ts OFF_FEED_SYNC_STATUS (the presence fact; kept in sync by test).
 const OFF_FEED_SYNC_STATUS = "off_feed";
 

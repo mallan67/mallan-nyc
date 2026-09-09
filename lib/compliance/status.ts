@@ -31,17 +31,19 @@
  * schema diffs. The underlying string values are whatever RESO uses.
  */
 export const Status = {
+  // The eleven live Cotality StandardStatus members, verbatim (owner ruling 2026-09-08: the stored vocabulary IS
+  // the live vocabulary; Canceled with one L). Mallan's former 'Sold' / 'Rented' / 'Leased' / 'Cancelled' /
+  // 'Draft' are accepted as INPUT (legacy rows) and normalize to Closed / Closed / Closed / Canceled / Incomplete.
   ACTIVE: 'Active',
   ACTIVE_UNDER_CONTRACT: 'ActiveUnderContract',
-  CANCELLED: 'Cancelled',
+  CANCELED: 'Canceled',
   CLOSED: 'Closed',
   COMING_SOON: 'ComingSoon',
+  DELETE: 'Delete',
   EXPIRED: 'Expired',
   HOLD: 'Hold',
-  LEASED: 'Leased',
+  INCOMPLETE: 'Incomplete',
   PENDING: 'Pending',
-  RENTED: 'Rented',
-  SOLD: 'Sold',
   WITHDRAWN: 'Withdrawn',
 } as const;
 
@@ -55,26 +57,29 @@ export type StatusValue = typeof Status[keyof typeof Status];
  * `normalizeStatus()` that isn't here returns `null` (fail-closed).
  */
 const INPUT_TO_CANONICAL: Record<string, StatusValue> = {
-  // Canonical (pass-through)
+  // Canonical (pass-through) — the live members
   'Active': Status.ACTIVE,
   'ActiveUnderContract': Status.ACTIVE_UNDER_CONTRACT,
-  'Cancelled': Status.CANCELLED,
+  'Canceled': Status.CANCELED,
   'Closed': Status.CLOSED,
   'ComingSoon': Status.COMING_SOON,
+  'Delete': Status.DELETE,
   'Expired': Status.EXPIRED,
   'Hold': Status.HOLD,
-  'Leased': Status.LEASED,
+  'Incomplete': Status.INCOMPLETE,
   'Pending': Status.PENDING,
-  'Rented': Status.RENTED,
-  'Sold': Status.SOLD,
   'Withdrawn': Status.WITHDRAWN,
+
+  // Legacy Mallan storage spellings (rows written before the 2026-09-08 token correction)
+  'Cancelled': Status.CANCELED,
+  'Sold': Status.CLOSED,
+  'Rented': Status.CLOSED,
+  'Leased': Status.CLOSED,
+  'Draft': Status.INCOMPLETE,
 
   // Human display format (RESO-style with spaces — Trestle sometimes sends these)
   'Active Under Contract': Status.ACTIVE_UNDER_CONTRACT,
   'Coming Soon': Status.COMING_SOON,
-
-  // Common typo / alternate spelling
-  'Canceled': Status.CANCELLED,
 
   // URL / API-param format (rarely incoming, but defensively accepted)
   'ACTIVE': Status.ACTIVE,
@@ -82,13 +87,16 @@ const INPUT_TO_CANONICAL: Record<string, StatusValue> = {
   'COMING_SOON': Status.COMING_SOON,
   'CLOSED': Status.CLOSED,
   'PENDING': Status.PENDING,
-  'SOLD': Status.SOLD,
+  'SOLD': Status.CLOSED,
   'WITHDRAWN': Status.WITHDRAWN,
-  'CANCELLED': Status.CANCELLED,
+  'CANCELED': Status.CANCELED,
+  'CANCELLED': Status.CANCELED,
   'EXPIRED': Status.EXPIRED,
   'HOLD': Status.HOLD,
-  'LEASED': Status.LEASED,
-  'RENTED': Status.RENTED,
+  'LEASED': Status.CLOSED,
+  'RENTED': Status.CLOSED,
+  'INCOMPLETE': Status.INCOMPLETE,
+  'DRAFT': Status.INCOMPLETE,
 };
 
 /**
@@ -108,15 +116,14 @@ const INPUT_TO_CANONICAL: Record<string, StatusValue> = {
 const CANONICAL_TO_LABEL: Record<StatusValue, string> = {
   [Status.ACTIVE]: 'Active',
   [Status.ACTIVE_UNDER_CONTRACT]: 'In Contract',
-  [Status.CANCELLED]: 'Cancelled',
+  [Status.CANCELED]: 'Canceled',
   [Status.CLOSED]: 'Closed',
   [Status.COMING_SOON]: 'Coming Soon',
+  [Status.DELETE]: 'Removed',
   [Status.EXPIRED]: 'Expired',
   [Status.HOLD]: 'Temporarily Off Market',
-  [Status.LEASED]: 'Rented',
+  [Status.INCOMPLETE]: 'Draft',
   [Status.PENDING]: 'In Contract',
-  [Status.RENTED]: 'Rented',
-  [Status.SOLD]: 'Sold',
   [Status.WITHDRAWN]: 'Withdrawn',
 };
 
@@ -141,12 +148,10 @@ const ACTIVE_DISPLAY_STATUSES = new Set<StatusValue>([
  * presence fact, not on this set.)
  */
 const TERMINAL_STATUSES = new Set<StatusValue>([
-  Status.CANCELLED,
+  Status.CANCELED,
   Status.CLOSED,
+  Status.DELETE,
   Status.EXPIRED,
-  Status.LEASED,
-  Status.RENTED,
-  Status.SOLD,
   Status.WITHDRAWN,
 ]);
 
@@ -211,11 +216,9 @@ export const ACTIVE_DISPLAY_VALUES: readonly StatusValue[] = Object.freeze([
 ]);
 
 export const TERMINAL_VALUES: readonly StatusValue[] = Object.freeze([
-  Status.CANCELLED,
+  Status.CANCELED,
   Status.CLOSED,
+  Status.DELETE,
   Status.EXPIRED,
-  Status.LEASED,
-  Status.RENTED,
-  Status.SOLD,
   Status.WITHDRAWN,
 ]);

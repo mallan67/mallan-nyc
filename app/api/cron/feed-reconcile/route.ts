@@ -41,7 +41,7 @@ import { feedReconcileAbortEmail } from "@/lib/email/templates";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 import { buildingAndManifestInvalidationTags, listingCacheTag, safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
-import { MALLAN_TERMINAL_STATUSES } from "@/lib/listings/mallan-status";
+import { MALLAN_TERMINAL_STATUSES, normalizeStoredStatus } from "@/lib/listings/mallan-status";
 import { ON_MARKET_STATUSES, liveTruthFromRow, reconcileStatusDecision } from "@/lib/idx/reconcile-decision";
 import { OFF_FEED_SYNC_STATUS, lifecycleFromProviderRow } from "@/lib/listings/canonical-lifecycle";
 import { DOM_ACCRUING_STATUSES, marketClockStart } from "@/lib/compliance/dom-tracker";
@@ -240,7 +240,7 @@ export async function GET(req: NextRequest) {
     // (6 Active, 97 Pending) suppressed this exact way. Spare every id that is live
     // on-market in ANY status; only genuinely-departed ids remain ghosts.
     const ghosts = ourActive.filter(
-      (r) => !TERMINAL_STATUSES.has(r.status) && !liveOnMarketIds.has(r.listing_id),
+      (r) => !TERMINAL_STATUSES.has(normalizeStoredStatus(r.status) ?? r.status) && !liveOnMarketIds.has(r.listing_id),
     );
     // 3b. Orphans — in the Trestle ELIGIBLE set (Active/Pending/AUC, P1C6),
     // missing from our DB entirely. P1C6b: archive-excluded (an archived id

@@ -30,14 +30,16 @@ describe('CRM My Listings filter', () => {
     expect(routeSource).toMatch(/trestleClosed.*mls_id.*not.*null.*status.*in.*TRESTLE_CLOSED/s);
   });
 
-  test('closed set includes Closed, Sold, Rented, Leased — not Withdrawn/Expired', () => {
+  test('closed set = the live Closed token and its legacy spellings (Sold, Rented, Leased) — not Withdrawn/Expired', () => {
     const line = routeSource.split('\n').find(l => l.includes('TRESTLE_CLOSED') && l.includes('Closed'));
     expect(line).toBeDefined();
-    expect(line).toContain('Sold');
-    expect(line).toContain('Rented');
-    expect(line).toContain('Leased');
+    expect(line).toMatch(/storageStatusesFor\(\["Closed"\]\)/);
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { storageStatusesFor } = require('@/lib/listings/mallan-status');
+    expect(storageStatusesFor(['Closed'])).toEqual(['Closed', 'Sold', 'Rented', 'Leased']);
     expect(line).not.toContain('Withdrawn');
     expect(line).not.toContain('Expired');
-    expect(line).not.toContain('Cancelled');
+    const hidden = routeSource.split('\n').find(l => l.includes('CRM_HIDDEN') && l.includes('Withdrawn'));
+    expect(hidden).toMatch(/storageStatusesFor\(\["Withdrawn", "Canceled"\]\)/);
   });
 });

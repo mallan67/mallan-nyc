@@ -200,10 +200,11 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
   // reaches normalizeStandardStatus('') — which would default to "Active". Do
   // NOT use the FARE-specific isDisplayReadyStatus() (Active/ComingSoon-only) —
   // it would fail-OPEN on the publicly displayable ActiveUnderContract.
-  const persistedStatus = listing.status || "Draft";
+  const persistedStatus = listing.status || "Incomplete";
   const normalizedPersistedStatus = normalizeStandardStatus(persistedStatus);
+  // the provider's draft token; the legacy 'Draft' spelling normalizes to it (lib/idx/trestle-mapper.ts)
   const isDraftLike =
-    normalizedPersistedStatus === "Draft" || normalizedPersistedStatus === "Incomplete";
+    normalizedPersistedStatus === "Incomplete" || normalizedPersistedStatus === "Draft";
 
   const isCrmCreated = !listing.mls_id;
   if (effectiveRlsEligible && !isDraftLike && !isCrmCreated) {

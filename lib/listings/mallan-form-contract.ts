@@ -27,6 +27,10 @@ export const PROVIDER_DECISION_FIELDS: readonly string[] = Object.freeze(['MlsSt
 export const MALLAN_INTERNAL_KEYS: readonly string[] = [
   // Mallan decisions
   '_mallanStatus', '_crmWorkflowStatus', '_mallanPermission',
+  // the rental's lease-signed date — a Mallan internal workflow fact (owner ruling 2026-09-08): no exact Cotality
+  // rental field exists (contract 2026-09-08: no Property field named *Signed*), and PurchaseContractDate is never
+  // collected on the rental UI
+  '_mallanLeaseSignedDate',
   // the agent's syndication intent (the forms' "syndicate this listing" box). There is no provider Yes/No: the live
   // SyndicateTo multi-select carries only verified portal members — the intent is a Mallan decision.
   '_mallanSyndicationIntent',
@@ -243,6 +247,7 @@ export const MALLAN_FORM_CONTRACT = {
     // NEVER persisted for a Mallan-authored listing (the `status` column is set by the routes from `_mallanStatus`).
     _mallanStatus: { raw: true },
     _crmWorkflowStatus: { raw: true },
+    _mallanLeaseSignedDate: { raw: true },
 
     // ── Agent / Office → agentInfo bucket ──
     ListAgentMlsId: { agentInfo: true, raw: true },

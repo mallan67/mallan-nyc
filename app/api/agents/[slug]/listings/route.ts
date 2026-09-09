@@ -13,6 +13,7 @@ import { preferCrmExclusiveOverIdxDuplicate } from '@/lib/listings/dedupe-crm-vs
 import { mapAgentCardMedia } from '@/lib/idx/agent-card-media';
 import { getOpenHouseIndex, findNextOpenHouse } from '@/lib/open-houses/upcoming-open-houses';
 import { MEDIA_SELECT_FIELDS, PROPERTY_MEDIA_FILTER } from '@/lib/media/listing-media-resolver';
+import { storageStatusesFor } from '@/lib/listings/mallan-status';
 
 /**
  * GET /api/agents/[slug]/listings
@@ -313,7 +314,7 @@ async function fetchDbAgentListings(agentId: bigint): Promise<{
 
     const displayable = filterDisplayableDbListings(serialized);
     const activeStatuses = ['Active', 'ComingSoon', 'ActiveUnderContract'];
-    const closedStatuses = ['Closed', 'Sold', 'Rented'];
+    const closedStatuses = storageStatusesFor(['Closed']);
 
     // Public-surface dedupe (2026-05-28): drop Trestle-synced IDX duplicates
     // of Mallan CRM exclusives (SL-/RL-) on this agent's listings page. The

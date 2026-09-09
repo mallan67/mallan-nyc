@@ -5,12 +5,17 @@
  *      (ContractStatusChangeDate; equals the StatusChangeTimestamp day on every live Coming Soon row) to the as-of
  *      day, with the countdown to ActivationDate (REBNY's First Showing Date). Never merged into the market clock.
  *   B. Market DOM (`marketDom`) — from the day the property is on market (`marketClockStart`: the later of
- *      OnMarketDate and ActivationDate — Coming Soon days are not market days) until the contract is signed
- *      (`contractSignedDate`), else until the row left the feed (Off Market), else until the as-of day.
- *      A row with no on-market date, or a closed sale with no PurchaseContractDate, has NO market DOM: nothing is
- *      derived from ListingContractDate, the entry time, the closing, or a Mallan created_at.
+ *      OnMarketDate and ActivationDate — Coming Soon days are not market days) until the listing CLOSES (the
+ *      CloseDate of a Sold / Rented row) or is REMOVED (the OffMarketDate of a Withdrawn / Canceled / Expired / Hold
+ *      row), else until the row left the feed (Off Market), else until the as-of day while it is still on the market
+ *      (Active / ActiveUnderContract / Pending). NEVER PurchaseContractDate (owner ruling, Maya 2026-09-08 evening):
+ *      a signed contract keeps the listing on the market until it closes. A row with no on-market date, a closed row
+ *      with no CloseDate, or a removal with no OffMarketDate has NO market DOM: nothing is derived from
+ *      ListingContractDate, the entry time, the contract, or a Mallan created_at. The dates are live Cotality
+ *      Property fields (lib/cotality/generated/contract.ts); UCBA is the compliance source only.
  *
- *   Contract signed — proven live 2026-09-08 (docs/operations/evidence-2026-09-08/dom/):
+ *   Contract signed (`contractSignedDate`, `inContractSince`) — a separate FACT, never the clock's end. Proven live
+ *   2026-09-08 (docs/operations/evidence-2026-09-08/dom/):
  *     Sale   PurchaseContractDate on a Pending / Closed row. REBNY's required input for Pending is "Purchase Contract
  *            Signed Date" (data/UCBA-2026-Requirements.md); the field is on 100 % of Pending sales, equals
  *            ContractStatusChangeDate on 94 %, and precedes CloseDate by a median 83 days. On an ACTIVE row it is not
@@ -24,12 +29,12 @@
  *     CumulativeDaysOnMarket are null on every sampled row of this feed and are never read.
  *
  *   The stored-column clock (`computeDomTransition` / `getCurrentDom` without a lifecycle) applies the same rule to
- *   Mallan-authored rows that carry no provider dates: the clock runs while Active or ActiveUnderContract (the CRM
- *   "Offer Accepted" — an accepted offer is not a signed contract) and stops at Pending (the CRM "Contract Signed").
+ *   Mallan-authored rows that carry no provider dates: the clock runs while Active, ActiveUnderContract or Pending
+ *   (on the market) and freezes at a removal or resets at the close.
  *   `lib/compliance/rebny-ucba-rules.ts` domRules is DERIVED from the exports below; no second rule table exists.
  *
- * UCBA 2026 rules (Art. I, Sec. 11) carried by the stored-column clock:
- *   - DOM accrues only while listing is Active or ActiveUnderContract
+ * UCBA 2026 rules (Art. I, Sec. 11) carried by the stored-column clock (compliance source only):
+ *   - DOM accrues while the listing is on the market: Active, ActiveUnderContract, Pending
  *   - DOM does NOT accrue during ComingSoon, Withdrawn, Cancelled, Expired
  *   - DOM does NOT accrue while the listing is participant-only
  *     (even if status is Active) — UCBA 2026 explicit carve-out
@@ -62,27 +67,32 @@
  */
 
 import type { ContractEvents, ListingLifecycle } from "@/lib/listings/canonical-lifecycle";
+import { normalizeStoredStatus } from "@/lib/listings/mallan-status";
 
 /** Number of consecutive days in Withdrawn/Cancelled before DOM resets */
 export const DOM_RESET_DAYS = 30;
 
 /**
- * Statuses where the market clock runs (subject to the participant-only carve-out). ActiveUnderContract is the
- * CRM "Offer Accepted" (lib/crm/status-mapping.ts) — an accepted offer is not a signed contract; Pending is the CRM
- * "Contract Signed" and stops the clock (Maya 2026-09-08). THE accrual set — every rule table derives from it.
+ * Statuses where the market clock runs (subject to the participant-only carve-out): the listing is on the market
+ * until it closes or is removed. Pending (the CRM "Contract Signed") keeps accruing — the market clock ends at the
+ * CloseDate of a Sold / Rented listing or at the OffMarketDate of a removal, never at PurchaseContractDate (owner
+ * ruling, Maya 2026-09-08 evening). THE accrual set — every rule table derives from it.
  */
-export const DOM_ACCRUING_STATUSES: ReadonlySet<string> = new Set(["Active", "ActiveUnderContract"]);
+export const DOM_ACCRUING_STATUSES: ReadonlySet<string> = new Set(["Active", "ActiveUnderContract", "Pending"]);
 
-/** Statuses that can trigger a DOM reset after DOM_RESET_DAYS (UCBA Art. I §11: Withdrawn / Cancelled only; Hold pauses). */
-export const DOM_RESET_ELIGIBLE_STATUSES: ReadonlySet<string> = new Set(["Withdrawn", "Cancelled"]);
+/**
+ * Statuses that can trigger a DOM reset after DOM_RESET_DAYS (UCBA Art. I §11: Withdrawn / Canceled only; Hold
+ * pauses). Live StandardStatus tokens (one-L Canceled); a legacy 'Cancelled' row is normalized before the check.
+ */
+export const DOM_RESET_ELIGIBLE_STATUSES: ReadonlySet<string> = new Set(["Withdrawn", "Canceled"]);
 
 // ── The two clocks ──────────────────────────────────────────────────────────────────────────────────────────
 
 const dayStr = (v: Date | string): string => (typeof v === "string" ? v.slice(0, 10) : v.toISOString().slice(0, 10));
 /** Whole days from a to b (YYYY-MM-DD, UTC); negative when b precedes a. */
 const daysBetween = (a: string, b: string): number => Math.round((Date.parse(b) - Date.parse(a)) / 86_400_000);
-/** Provider stages whose market clock is still running when no contract-signed date is delivered. */
-const RUNNING_STAGES: ReadonlySet<string> = new Set(["active", "coming_soon"]);
+/** Provider stages whose market clock is still running (on the market until it closes or is removed). */
+const RUNNING_STAGES: ReadonlySet<string> = new Set(["active", "coming_soon", "in_contract"]);
 
 /**
  * THE contract-signed date (see the file header for the live proof). Null unless the provider stage confirms a
@@ -110,7 +120,12 @@ export function marketClockStart(ev: ContractEvents): string | null {
   return a ?? b ?? null;
 }
 
-export type MarketDomEnd = "contract_signed" | "off_feed" | "as_of";
+/**
+ * How the market clock ended: `closed` = the CloseDate of a Sold / Rented listing; `off_market` = the OffMarketDate
+ * of a removal (Withdrawn / Canceled / Expired / Hold); `off_feed` = the day the row left the feed (the Mallan Off
+ * Market state); `as_of` = still on the market (Active / ActiveUnderContract / Pending / Coming Soon activation).
+ */
+export type MarketDomEnd = "closed" | "off_market" | "off_feed" | "as_of";
 export interface MarketDom {
   start: string | null;
   end: string | null;
@@ -121,26 +136,36 @@ export interface MarketDom {
   unverified: string | null;
 }
 
-/** Market DOM: on market → contract signed (or → left the feed, or → as-of while still on market). */
+/** Provider stages that are a removal from the market: the OffMarketDate is the verified end. */
+const REMOVAL_STAGES: ReadonlySet<string> = new Set(["withdrawn", "cancelled", "expired", "temp_off_market"]);
+
+/**
+ * Market DOM (owner ruling, Maya 2026-09-08 evening): on market → the CloseDate of a Sold / Rented listing, or → the
+ * OffMarketDate of a removal, or → the day the row left the feed (Off Market), or → the as-of day while it is still on
+ * the market. NEVER PurchaseContractDate: a signed contract (Pending) keeps the listing on the market until it closes.
+ * A closed row without a CloseDate, or a removal without an OffMarketDate, has NO market DOM — nothing is guessed.
+ */
 export function marketDom(l: ListingLifecycle, asOf: Date | string): MarketDom {
   const start = marketClockStart(l.contractEvents);
   if (!start) return { start: null, end: null, endReason: null, days: null, unverified: "no on-market date delivered (OnMarketDate / ActivationDate)" };
-  const signed = contractSignedDate(l);
+  const ev = l.contractEvents;
   let end: string | null = null;
   let endReason: MarketDomEnd | null = null;
-  if (signed) {
-    end = signed; endReason = "contract_signed";
+  let why: string | null = null;
+  if (l.providerStage === "closed") {
+    if (ev.closeDate) { end = ev.closeDate; endReason = "closed"; }
+    else why = "no CloseDate delivered on a closed row";
+  } else if (REMOVAL_STAGES.has(l.providerStage)) {
+    if (ev.offMarketDate) { end = ev.offMarketDate; endReason = "off_market"; }
+    else why = `no OffMarketDate delivered on a ${l.providerStage} row`;
   } else if (l.presence === "off_feed" && l.offFeedSince) {
     end = l.offFeedSince; endReason = "off_feed";
   } else if (RUNNING_STAGES.has(l.providerStage)) {
     end = dayStr(asOf); endReason = "as_of";
+  } else {
+    why = `no verified end for stage ${l.providerStage}`;
   }
-  if (!end) {
-    const why = l.providerStage === "in_contract" || l.providerStage === "closed"
-      ? "no contract-signed date delivered (PurchaseContractDate); the closing is not the contract"
-      : `no verified end for stage ${l.providerStage}`;
-    return { start, end: null, endReason: null, days: null, unverified: why };
-  }
+  if (!end) return { start, end: null, endReason: null, days: null, unverified: why ?? `no verified end for stage ${l.providerStage}` };
   return { start, end, endReason, days: Math.max(0, daysBetween(start, end)), unverified: null };
 }
 
@@ -179,7 +204,7 @@ export function comingSoonDom(l: ListingLifecycle, asOf: Date | string): ComingS
  * member; `Sold`/`Rented` are retained because Mallan storage statuses use them
  * for CRM-authored listings.
  */
-const CLOSE_STATUSES = new Set(["Closed", "Sold", "Rented"]);
+const CLOSE_STATUSES = new Set(["Closed", "Sold", "Rented", "Leased"]); // the provider token + the legacy spellings
 
 type ListingDomFields = {
   status: string;
@@ -199,7 +224,7 @@ type ListingDomFields = {
  * and should have its DOM reset upon reactivation.
  */
 export function shouldResetDom(listing: ListingDomFields): boolean {
-  if (!DOM_RESET_ELIGIBLE_STATUSES.has(listing.status)) return false;
+  if (!DOM_RESET_ELIGIBLE_STATUSES.has(normalizeStoredStatus(listing.status) ?? listing.status)) return false;
   if (!listing.status_changed_at) return false;
 
   const now = new Date();

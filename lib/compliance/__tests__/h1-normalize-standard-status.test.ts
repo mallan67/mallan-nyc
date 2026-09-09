@@ -53,15 +53,14 @@ describe('normalizeStandardStatus — empty / non-string input is UNKNOWN (never
 });
 
 describe('normalizeStandardStatus — exact-case canonical pass-through', () => {
+  // The stored vocabulary IS the live Cotality StandardStatus vocabulary (owner ruling 2026-09-08).
   it.each([
     'Closed',
-    'Sold',
-    'Leased',
-    'Rented',
     'Withdrawn',
     'Expired',
-    'Cancelled',
-  ])('terminal canonical %s passes through unchanged', (status) => {
+    'Canceled',
+    'Delete',
+  ])('terminal live member %s passes through unchanged', (status) => {
     expect(normalizeStandardStatus(status)).toBe(status);
   });
 
@@ -69,11 +68,21 @@ describe('normalizeStandardStatus — exact-case canonical pass-through', () => 
     'Active',
     'ComingSoon',
     'ActiveUnderContract',
-    'Draft',
     'Incomplete',
     'Pending',
-  ])('non-terminal canonical %s passes through unchanged', (status) => {
+    'Hold',
+  ])('non-terminal live member %s passes through unchanged', (status) => {
     expect(normalizeStandardStatus(status)).toBe(status);
+  });
+
+  it.each([
+    ['Sold', 'Closed'],
+    ['Leased', 'Closed'],
+    ['Rented', 'Closed'],
+    ['Cancelled', 'Canceled'],
+    ['Draft', 'Incomplete'],
+  ])('legacy Mallan spelling %s (rows written before the token correction) folds to the live member %s', (legacy, token) => {
+    expect(normalizeStandardStatus(legacy)).toBe(token);
   });
 });
 
@@ -94,13 +103,14 @@ describe('normalizeStandardStatus — case-fold + trim variants', () => {
     expect(normalizeStandardStatus('  closed  ')).toBe('Closed');
   });
   it.each([
-    ['sold', 'Sold'],
-    ['leased', 'Leased'],
-    ['rented', 'Rented'],
+    ['sold', 'Closed'],
+    ['leased', 'Closed'],
+    ['rented', 'Closed'],
     ['withdrawn', 'Withdrawn'],
     ['expired', 'Expired'],
-    ['cancelled', 'Cancelled'],
-  ])('"%s" → "%s" (case-fold to canonical)', (input, expected) => {
+    ['cancelled', 'Canceled'],
+    ['canceled', 'Canceled'],
+  ])('"%s" → "%s" (case-fold to the live member)', (input, expected) => {
     expect(normalizeStandardStatus(input)).toBe(expected);
   });
   it('"ACTIVE" → "Active"', () => {
@@ -114,17 +124,19 @@ describe('normalizeStandardStatus — case-fold + trim variants', () => {
   });
 });
 
-describe('normalizeStandardStatus — known alias mapping', () => {
-  it('"Canceled" (US single-L) → "Cancelled" (RESO canonical double-L)', () => {
-    expect(normalizeStandardStatus('Canceled')).toBe('Cancelled');
-    // And the canonical form IS in TERMINAL_STATUSES, so the guard binds.
+describe('normalizeStandardStatus — known alias mapping (the live single-L Canceled is the stored spelling)', () => {
+  it('"Canceled" (the live member) passes through; the legacy double-L "Cancelled" folds to it', () => {
+    expect(normalizeStandardStatus('Canceled')).toBe('Canceled');
+    expect(normalizeStandardStatus('Cancelled')).toBe('Canceled');
+    // And the live member IS in TERMINAL_STATUSES, so the guard binds.
     expect(TERMINAL_STATUSES.has(normalizeStandardStatus('Canceled'))).toBe(true);
+    expect(TERMINAL_STATUSES.has(normalizeStandardStatus('Cancelled'))).toBe(true);
   });
-  it('"canceled" (US single-L, lowercase) → "Cancelled"', () => {
-    expect(normalizeStandardStatus('canceled')).toBe('Cancelled');
+  it('"canceled" (lowercase) → "Canceled"', () => {
+    expect(normalizeStandardStatus('canceled')).toBe('Canceled');
   });
-  it('"CANCELED" (US single-L, uppercase) → "Cancelled"', () => {
-    expect(normalizeStandardStatus('CANCELED')).toBe('Cancelled');
+  it('"CANCELED" (uppercase) → "Canceled"', () => {
+    expect(normalizeStandardStatus('CANCELED')).toBe('Canceled');
   });
 });
 
@@ -245,9 +257,16 @@ describe('integration — normalize + guard combination (the actual writer path)
     });
   });
 
-  it('body.status = "Canceled" (US) → row stored as Cancelled, idx_display_yn=false', () => {
+  it('body.status = "Canceled" (the live member) → row stored as Canceled, idx_display_yn=false', () => {
     expect(writerPipeline('Canceled')).toEqual({
-      status: 'Cancelled',
+      status: 'Canceled',
+      idx_display_yn: false,
+    });
+  });
+
+  it('body.status = "Sold" (a legacy Mallan spelling) → row stored as the live Closed, idx_display_yn=false', () => {
+    expect(writerPipeline('Sold')).toEqual({
+      status: 'Closed',
       idx_display_yn: false,
     });
   });

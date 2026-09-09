@@ -1,24 +1,36 @@
 import { lifecycleFromStoredRow } from '@/lib/listings/canonical-lifecycle';
+import { MALLAN_TERMINAL_STATUSES, normalizeStoredStatus } from '@/lib/listings/mallan-status';
 
 /**
- * Two-layer CRM status model — ONE MAPPING PER TRANSACTION.
+ * Two-layer CRM status model — ONE MAPPING PER TRANSACTION, resolved to live Cotality StandardStatus tokens.
  *
- * Owner ruling (Maya, 2026-09-08): "rental and sale has to have each their own mapping". A sale listing is
- * resolved only through the sale mapping and a rental listing only through the rental mapping. There is no
- * shared vocabulary and no type guard over one: a rental-only word ("AppAccepted", "Leased", "Rented") does
- * not exist for a sale, and a sale-only word ("OfferOut", "ContractSigned", "Sold") does not exist for a rental.
+ * Owner rulings (Maya, 2026-09-08):
+ *   - "rental and sale has to have each their own mapping": a sale listing is resolved only through the sale
+ *     mapping and a rental only through the rental mapping. No shared vocabulary, no type guard over one.
+ *   - Every status consumer works against live Cotality Property.StandardStatus. The canonical (stored) status
+ *     is one of the live members — Active, ActiveUnderContract, Canceled (one L), Closed, ComingSoon, Expired,
+ *     Hold, Incomplete, Pending, Withdrawn — never a Mallan word. Broker language (Closed → "Sold" on a sale,
+ *     "Rented" on a rental; Pending → "In Contract" on a sale) is a LABEL applied per transaction.
+ *   - A workflow word resolves to its provider status PLUS the associated Cotality date fact:
+ *       Sale Contract Signed → Pending + PurchaseContractDate · Sale Sold → Closed + CloseDate
+ *       Rental Rented / Leased → Closed + CloseDate · Expired → Expired + ExpirationDate
+ *       Withdrawn → Withdrawn + WithdrawnDate · Canceled → Canceled + CancellationDate · Hold → Hold
+ *       Back on Market → Active + BackOnMarketDate
+ *     Offer Out / Application Out / Lease Out do NOT map to Pending (an offer or application out leaves the
+ *     listing Active). The rental's "Lease Signed Date" is a Mallan internal workflow fact
+ *     (`_mallanLeaseSignedDate`) — no exact Cotality rental field exists (contract 2026-09-08); PurchaseContractDate
+ *     is never collected on the rental UI.
+ *   - UCBA is the compliance source only; every field and token here is a live Cotality contract fact.
  *
- * Layer 1 — the Mallan canonical status (the stored `listings.status` of a Mallan-authored row): controls DB
- *   status, public display, idx_display_yn, the Internet display gates, Featured / Exclusives eligibility, the
- *   REBNY listing URL, syndication / public surfaces.
+ * Layer 1 — the canonical status (the stored `listings.status`): a live StandardStatus token. Controls DB status,
+ *   public display, idx_display_yn, the Internet display gates, Featured / Exclusives eligibility, the REBNY
+ *   listing URL, syndication / public surfaces.
  * Layer 2 — the transaction's CRM workflow status (what the broker / agent sees on the sale or rental form,
- *   pipeline tracking, deal progress, internal reporting). Stored under `raw_data._crmWorkflowStatus`.
+ *   pipeline tracking, deal progress, internal reporting). Stored under `raw_data._crmWorkflowStatus`, never
+ *   under a provider-named key and never called MlsStatus.
  *
- * The provider's StandardStatus / MlsStatus are Cotality facts and are never translated here: a synced row keeps
- * its raw provider status in raw_data and the form shows it read-only ("Last Cotality Status"). The only
- * provider-shaped word each mapping accepts is the form's own hidden saved-state option "Closed", which the
- * transaction resolves to its Mallan close (sale → Sold, rental → Rented). Nothing here defines what a provider
- * status means.
+ * The provider's raw StandardStatus / MlsStatus on a synced row are Cotality facts and are never translated here;
+ * the forms show the last provider status read-only ("Last Cotality Status").
  *
  * @module lib/crm/status-mapping
  */
@@ -32,30 +44,38 @@ export function transactionTypeOf(listingType: unknown): TransactionType | null 
   return null;
 }
 
-/** Every Mallan canonical status a form can produce (the union of the two transactions' sets). */
+/** Every canonical status a form can produce (the union of the two transactions' sets) — live StandardStatus tokens. */
 export const CANONICAL_STATUSES = [
-  'Draft',
+  'Incomplete',
   'ComingSoon',
   'Active',
   'ActiveUnderContract',
   'Pending',
-  'Sold',
+  'Closed',
   'Withdrawn',
   'Expired',
   'Hold',
-  'Cancelled',
-  'Rented',
+  'Canceled',
 ] as const;
 
 export type CanonicalStatus = typeof CANONICAL_STATUSES[number];
+
+/** The rental's lease-signed date — a Mallan internal workflow fact (no exact Cotality rental field is proven). */
+export const MALLAN_LEASE_SIGNED_DATE_KEY = '_mallanLeaseSignedDate' as const;
+
+/** Every date / price fact a status transition may carry (Cotality Property fields + the one Mallan fact). */
+export const STATUS_FACT_FIELDS: readonly string[] = Object.freeze([
+  'PurchaseContractDate', 'CloseDate', 'ClosePrice', 'ExpirationDate', 'WithdrawnDate', 'CancellationDate',
+  'BackOnMarketDate', 'OffMarketDate', 'ActivationDate', MALLAN_LEASE_SIGNED_DATE_KEY,
+]);
 
 // ───────────────────────────────────────────────────────────────────────────────────────────────────────────
 // SALE
 // ───────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-/** The sale listing's canonical statuses. ComingSoon is a sales-only state (UCBA 2026 Art. I §16). */
+/** The sale listing's canonical statuses. ComingSoon is a sales-only state (UCBA 2026 Art. I §16, compliance). */
 export const SALE_CANONICAL_STATUSES = [
-  'Draft', 'ComingSoon', 'Active', 'ActiveUnderContract', 'Pending', 'Sold', 'Withdrawn', 'Expired', 'Hold', 'Cancelled',
+  'Incomplete', 'ComingSoon', 'Active', 'ActiveUnderContract', 'Pending', 'Closed', 'Withdrawn', 'Expired', 'Hold', 'Canceled',
 ] as const;
 export type SaleCanonicalStatus = typeof SALE_CANONICAL_STATUSES[number];
 
@@ -87,28 +107,28 @@ export const SALE_WORKFLOW_STATUSES = [
 export type SaleWorkflowStatus = typeof SALE_WORKFLOW_STATUSES[number];
 
 const SALE_WORKFLOW_TO_CANONICAL: Readonly<Record<SaleWorkflowStatus, SaleCanonicalStatus>> = {
-  Draft: 'Draft',
-  Future: 'Draft',
+  Draft: 'Incomplete',
+  Future: 'Incomplete',
   ComingSoon: 'ComingSoon',
   Active: 'Active',
-  BackOnMarket: 'Active',
-  OfferOut: 'ActiveUnderContract',
-  OfferThruUs: 'ActiveUnderContract',
-  OfferAccepted: 'ActiveUnderContract',
+  BackOnMarket: 'Active',              // + BackOnMarketDate
+  OfferOut: 'Active',                  // an offer out does not change the provider status (never Pending)
+  OfferThruUs: 'Active',
+  OfferAccepted: 'ActiveUnderContract', // an accepted offer, still on the market (live member)
   OAThruUs: 'ActiveUnderContract',
-  ContractOut: 'ActiveUnderContract',
+  ContractOut: 'ActiveUnderContract',   // the contract is out, not signed
   COThruUs: 'ActiveUnderContract',
-  ContractSigned: 'Pending',
+  ContractSigned: 'Pending',           // + PurchaseContractDate
   ContractSignedThruUs: 'Pending',
   BoardApproved: 'Pending',
-  Sold: 'Sold',
-  SoldThruUs: 'Sold',
+  Sold: 'Closed',                      // + CloseDate
+  SoldThruUs: 'Closed',
   TempOffMarket: 'Hold',
-  PermOffMarket: 'Withdrawn',
+  PermOffMarket: 'Withdrawn',          // + WithdrawnDate
   Withdrawn: 'Withdrawn',
-  Expired: 'Expired',
+  Expired: 'Expired',                  // + ExpirationDate
   Hold: 'Hold',
-  Cancelled: 'Cancelled',
+  Cancelled: 'Canceled',               // + CancellationDate (the provider's one-L spelling)
 };
 
 const SALE_DISPLAY_LABELS: Readonly<Record<SaleWorkflowStatus, string>> = {
@@ -133,21 +153,35 @@ const SALE_DISPLAY_LABELS: Readonly<Record<SaleWorkflowStatus, string>> = {
   Withdrawn: 'Withdrawn',
   Expired: 'Expired',
   Hold: 'Hold',
-  Cancelled: 'Cancelled',
+  Cancelled: 'Canceled',
 };
 
-/** Broker language for a sale's canonical state (the form's "Saved Listing State" labels). */
+/** Broker language for a sale's canonical (provider) state. */
 const SALE_CANONICAL_LABELS: Readonly<Record<SaleCanonicalStatus, string>> = {
-  Draft: 'Draft',
+  Incomplete: 'Incomplete',
   ComingSoon: 'Coming Soon',
   Active: 'Active',
   ActiveUnderContract: 'Active Under Contract',
   Pending: 'In Contract',
-  Sold: 'Sold',
+  Closed: 'Sold',
   Withdrawn: 'Withdrawn',
   Expired: 'Expired',
   Hold: 'Hold',
-  Cancelled: 'Cancelled',
+  Canceled: 'Canceled',
+};
+
+/** The Cotality facts a sale status carries (the associated date; the close also carries its price). */
+const SALE_STATUS_FACTS: Readonly<Record<SaleCanonicalStatus, readonly string[]>> = {
+  Incomplete: [],
+  ComingSoon: ['ActivationDate'],
+  Active: [],
+  ActiveUnderContract: [],
+  Pending: ['PurchaseContractDate'],
+  Closed: ['CloseDate', 'ClosePrice'],
+  Withdrawn: ['WithdrawnDate'],
+  Expired: ['ExpirationDate'],
+  Hold: [],
+  Canceled: ['CancellationDate'],
 };
 
 /** Sale workflow transitions (the sale pipeline: offer → contract → board → closing). */
@@ -155,8 +189,8 @@ const SALE_TRANSITIONS: Readonly<Record<SaleWorkflowStatus, readonly SaleWorkflo
   Draft: ['Future', 'Active', 'ComingSoon'],
   Future: ['Active', 'ComingSoon', 'Draft'],
   ComingSoon: ['Active', 'Withdrawn'],
-  Active: ['OfferOut', 'OfferThruUs', 'BackOnMarket', 'ContractOut', 'COThruUs', 'TempOffMarket', 'Withdrawn', 'Expired'],
-  BackOnMarket: ['OfferOut', 'OfferThruUs', 'ContractOut', 'COThruUs', 'TempOffMarket', 'Withdrawn', 'Expired'],
+  Active: ['OfferOut', 'OfferThruUs', 'BackOnMarket', 'ContractOut', 'COThruUs', 'TempOffMarket', 'Withdrawn', 'Expired', 'Cancelled'],
+  BackOnMarket: ['OfferOut', 'OfferThruUs', 'ContractOut', 'COThruUs', 'TempOffMarket', 'Withdrawn', 'Expired', 'Cancelled'],
   OfferOut: ['Active', 'OfferAccepted', 'OAThruUs', 'BackOnMarket'],
   OfferThruUs: ['Active', 'OfferAccepted', 'OAThruUs', 'BackOnMarket'],
   OfferAccepted: ['ContractOut', 'COThruUs', 'Active', 'BackOnMarket'],
@@ -178,25 +212,25 @@ const SALE_TRANSITIONS: Readonly<Record<SaleWorkflowStatus, readonly SaleWorkflo
 
 /** Sale canonical transitions — the state machine the status API enforces on a sale listing. */
 const SALE_CANONICAL_TRANSITIONS: Readonly<Record<SaleCanonicalStatus, readonly SaleCanonicalStatus[]>> = {
-  Draft: ['Active', 'ComingSoon'],
-  ComingSoon: ['Active', 'Withdrawn'],
-  Active: ['ActiveUnderContract', 'Pending', 'Hold', 'Withdrawn', 'Expired'],
-  ActiveUnderContract: ['Active', 'Pending', 'Hold', 'Withdrawn'],
-  Pending: ['Sold', 'Active', 'Withdrawn'],
-  Hold: ['Active', 'Draft'],
-  Sold: [], // terminal
-  Withdrawn: ['Active', 'Draft'],
-  Expired: ['Active', 'Draft'],
-  Cancelled: [], // terminal
+  Incomplete: ['Active', 'ComingSoon'],
+  ComingSoon: ['Active', 'Withdrawn', 'Canceled'],
+  Active: ['ActiveUnderContract', 'Pending', 'Hold', 'Withdrawn', 'Expired', 'Canceled'],
+  ActiveUnderContract: ['Active', 'Pending', 'Hold', 'Withdrawn', 'Canceled'],
+  Pending: ['Closed', 'Active', 'Withdrawn', 'Canceled'],
+  Hold: ['Active', 'Incomplete'],
+  Closed: [], // terminal
+  Withdrawn: ['Active', 'Incomplete'],
+  Expired: ['Active', 'Incomplete'],
+  Canceled: [], // terminal
 };
 
 // ───────────────────────────────────────────────────────────────────────────────────────────────────────────
 // RENTAL
 // ───────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-/** The rental listing's canonical statuses. No ComingSoon (sales only, UCBA 2026 Art. I §16); the close is Rented. */
+/** The rental listing's canonical statuses. No ComingSoon (sales only); the close is Closed, labelled Rented. */
 export const RENTAL_CANONICAL_STATUSES = [
-  'Draft', 'Active', 'ActiveUnderContract', 'Pending', 'Rented', 'Withdrawn', 'Expired', 'Hold', 'Cancelled',
+  'Incomplete', 'Active', 'ActiveUnderContract', 'Pending', 'Closed', 'Withdrawn', 'Expired', 'Hold', 'Canceled',
 ] as const;
 export type RentalCanonicalStatus = typeof RENTAL_CANONICAL_STATUSES[number];
 
@@ -229,30 +263,29 @@ export const RENTAL_WORKFLOW_STATUSES = [
 export type RentalWorkflowStatus = typeof RENTAL_WORKFLOW_STATUSES[number];
 
 const RENTAL_WORKFLOW_TO_CANONICAL: Readonly<Record<RentalWorkflowStatus, RentalCanonicalStatus>> = {
-  Draft: 'Draft',
-  Future: 'Draft',
+  Draft: 'Incomplete',
+  Future: 'Incomplete',
   Active: 'Active',
-  BackOnMarket: 'Active',
-  // An application or lease in progress is Pending; a signed-and-closed lease is the rental close, Rented.
-  AppOut: 'Pending',
-  AppThruUs: 'Pending',
-  AppAccepted: 'Pending',
-  AppAcceptedThruUs: 'Pending',
-  LeaseOut: 'Pending',
-  LeaseOutThruUs: 'Pending',
-  LeaseSigned: 'Pending',
+  BackOnMarket: 'Active',                // + BackOnMarketDate
+  AppOut: 'Active',                      // an application out does not change the provider status (never Pending)
+  AppThruUs: 'Active',
+  AppAccepted: 'ActiveUnderContract',    // an accepted application, still on the market
+  AppAcceptedThruUs: 'ActiveUnderContract',
+  LeaseOut: 'ActiveUnderContract',       // the lease is out, not signed (never Pending)
+  LeaseOutThruUs: 'ActiveUnderContract',
+  LeaseSigned: 'Pending',                // + the Mallan lease-signed date
   LeaseSignedThruUs: 'Pending',
   BoardApproved: 'Pending',
-  Rented: 'Rented',
-  RentedThruUs: 'Rented',
-  Leased: 'Rented',
-  LeasedThruUs: 'Rented',
+  Rented: 'Closed',                      // + CloseDate
+  RentedThruUs: 'Closed',
+  Leased: 'Closed',
+  LeasedThruUs: 'Closed',
   TempOffMarket: 'Hold',
-  PermOffMarket: 'Withdrawn',
+  PermOffMarket: 'Withdrawn',            // + WithdrawnDate
   Withdrawn: 'Withdrawn',
-  Expired: 'Expired',
+  Expired: 'Expired',                    // + ExpirationDate
   Hold: 'Hold',
-  Cancelled: 'Cancelled',
+  Cancelled: 'Canceled',                 // + CancellationDate
 };
 
 const RENTAL_DISPLAY_LABELS: Readonly<Record<RentalWorkflowStatus, string>> = {
@@ -278,28 +311,41 @@ const RENTAL_DISPLAY_LABELS: Readonly<Record<RentalWorkflowStatus, string>> = {
   Withdrawn: 'Withdrawn',
   Expired: 'Expired',
   Hold: 'Hold',
-  Cancelled: 'Cancelled',
+  Cancelled: 'Canceled',
 };
 
-/** Broker language for a rental's canonical state (the form's "Saved Listing State" labels). */
+/** Broker language for a rental's canonical (provider) state. */
 const RENTAL_CANONICAL_LABELS: Readonly<Record<RentalCanonicalStatus, string>> = {
-  Draft: 'Draft',
+  Incomplete: 'Incomplete',
   Active: 'Active',
   ActiveUnderContract: 'Active Under Contract',
   Pending: 'Pending',
-  Rented: 'Rented',
+  Closed: 'Rented',
   Withdrawn: 'Withdrawn',
   Expired: 'Expired',
   Hold: 'Hold',
-  Cancelled: 'Cancelled',
+  Canceled: 'Canceled',
+};
+
+/** The facts a rental status carries. Pending carries the Mallan lease-signed date, never PurchaseContractDate. */
+const RENTAL_STATUS_FACTS: Readonly<Record<RentalCanonicalStatus, readonly string[]>> = {
+  Incomplete: [],
+  Active: [],
+  ActiveUnderContract: [],
+  Pending: [MALLAN_LEASE_SIGNED_DATE_KEY],
+  Closed: ['CloseDate', 'ClosePrice'],
+  Withdrawn: ['WithdrawnDate'],
+  Expired: ['ExpirationDate'],
+  Hold: [],
+  Canceled: ['CancellationDate'],
 };
 
 /** Rental workflow transitions (the rental pipeline: application → lease → board → rented). */
 const RENTAL_TRANSITIONS: Readonly<Record<RentalWorkflowStatus, readonly RentalWorkflowStatus[]>> = {
   Draft: ['Future', 'Active'],
   Future: ['Active', 'Draft'],
-  Active: ['AppOut', 'AppThruUs', 'BackOnMarket', 'TempOffMarket', 'Withdrawn', 'Expired'],
-  BackOnMarket: ['AppOut', 'AppThruUs', 'TempOffMarket', 'Withdrawn', 'Expired'],
+  Active: ['AppOut', 'AppThruUs', 'BackOnMarket', 'TempOffMarket', 'Withdrawn', 'Expired', 'Cancelled'],
+  BackOnMarket: ['AppOut', 'AppThruUs', 'TempOffMarket', 'Withdrawn', 'Expired', 'Cancelled'],
   AppOut: ['Active', 'AppAccepted', 'AppAcceptedThruUs', 'BackOnMarket'],
   AppThruUs: ['Active', 'AppAccepted', 'AppAcceptedThruUs', 'BackOnMarket'],
   AppAccepted: ['LeaseOut', 'LeaseOutThruUs', 'LeaseSigned', 'LeaseSignedThruUs', 'Active', 'BackOnMarket'],
@@ -323,16 +369,21 @@ const RENTAL_TRANSITIONS: Readonly<Record<RentalWorkflowStatus, readonly RentalW
 
 /** Rental canonical transitions — the state machine the status API enforces on a rental listing. */
 const RENTAL_CANONICAL_TRANSITIONS: Readonly<Record<RentalCanonicalStatus, readonly RentalCanonicalStatus[]>> = {
-  Draft: ['Active'],
-  Active: ['ActiveUnderContract', 'Pending', 'Hold', 'Withdrawn', 'Expired'],
-  ActiveUnderContract: ['Active', 'Pending', 'Hold', 'Withdrawn'],
-  Pending: ['Rented', 'Active', 'Withdrawn'],
-  Hold: ['Active', 'Draft'],
-  Rented: [], // terminal
-  Withdrawn: ['Active', 'Draft'],
-  Expired: ['Active', 'Draft'],
-  Cancelled: [], // terminal
+  Incomplete: ['Active'],
+  Active: ['ActiveUnderContract', 'Pending', 'Hold', 'Withdrawn', 'Expired', 'Canceled'],
+  ActiveUnderContract: ['Active', 'Pending', 'Hold', 'Withdrawn', 'Canceled'],
+  Pending: ['Closed', 'Active', 'Withdrawn', 'Canceled'],
+  Hold: ['Active', 'Incomplete'],
+  Closed: [], // terminal
+  Withdrawn: ['Active', 'Incomplete'],
+  Expired: ['Active', 'Incomplete'],
+  Canceled: [], // terminal
 };
+
+/** A workflow word that carries a fact of its own beyond its canonical status (both transactions). */
+const WORKFLOW_FACTS: Readonly<Record<string, readonly string[]>> = Object.freeze({
+  BackOnMarket: ['BackOnMarketDate'],
+});
 
 // ───────────────────────────────────────────────────────────────────────────────────────────────────────────
 // The two mappings
@@ -349,16 +400,11 @@ export interface TransactionStatusMapping {
   readonly workflowToCanonical: Readonly<Record<string, CanonicalStatus>>;
   readonly displayLabels: Readonly<Record<string, string>>;
   readonly canonicalLabels: Readonly<Record<string, string>>;
+  /** The Cotality (or Mallan-internal) facts each canonical status carries. */
+  readonly statusFacts: Readonly<Record<string, readonly string[]>>;
   readonly transitions: Readonly<Record<string, readonly CrmWorkflowStatus[]>>;
   readonly canonicalTransitions: Readonly<Record<string, readonly CanonicalStatus[]>>;
-  /**
-   * The form's saved-state spellings that are not workflow words: the hidden "Closed" option (this
-   * transaction's close), the legacy "Canceled" spelling and the legacy draft marker "Incomplete".
-   */
-  readonly savedStateAliases: Readonly<Record<string, CanonicalStatus>>;
-  /** How the form labels each saved-state spelling (its own option text). */
-  readonly savedStateLabels: Readonly<Record<string, string>>;
-  /** This transaction's close: Sold (sale) / Rented (rental). */
+  /** This transaction's close: always the provider's Closed; its label is the transaction word. */
   readonly closedStatus: CanonicalStatus;
 }
 
@@ -370,11 +416,10 @@ export const SALE_STATUS_MAPPING: TransactionStatusMapping = Object.freeze({
   workflowToCanonical: SALE_WORKFLOW_TO_CANONICAL,
   displayLabels: SALE_DISPLAY_LABELS,
   canonicalLabels: SALE_CANONICAL_LABELS,
+  statusFacts: SALE_STATUS_FACTS,
   transitions: SALE_TRANSITIONS,
   canonicalTransitions: SALE_CANONICAL_TRANSITIONS,
-  savedStateAliases: { Closed: 'Sold', Canceled: 'Cancelled', Incomplete: 'Draft' },
-  savedStateLabels: { Closed: 'Sold', Canceled: 'Canceled', Incomplete: 'Incomplete' },
-  closedStatus: 'Sold',
+  closedStatus: 'Closed',
 } as const);
 
 export const RENTAL_STATUS_MAPPING: TransactionStatusMapping = Object.freeze({
@@ -385,11 +430,10 @@ export const RENTAL_STATUS_MAPPING: TransactionStatusMapping = Object.freeze({
   workflowToCanonical: RENTAL_WORKFLOW_TO_CANONICAL,
   displayLabels: RENTAL_DISPLAY_LABELS,
   canonicalLabels: RENTAL_CANONICAL_LABELS,
+  statusFacts: RENTAL_STATUS_FACTS,
   transitions: RENTAL_TRANSITIONS,
   canonicalTransitions: RENTAL_CANONICAL_TRANSITIONS,
-  savedStateAliases: { Closed: 'Rented', Canceled: 'Cancelled', Incomplete: 'Draft' },
-  savedStateLabels: { Closed: 'Rented', Canceled: 'Canceled', Incomplete: 'Incomplete' },
-  closedStatus: 'Rented',
+  closedStatus: 'Closed',
 } as const);
 
 /** The one mapping for a listing's transaction; null when the transaction is unknown (nothing is resolved). */
@@ -406,15 +450,34 @@ export function statusMappingFor(listingType: unknown): TransactionStatusMapping
 
 const PUBLIC_DISPLAY_STATUSES: ReadonlySet<string> = new Set(['Active', 'ComingSoon', 'ActiveUnderContract']);
 
-// Terminal = no further transitions expected. 'Closed' is the only terminal status the provider delivers
-// (374,791 closed rentals alone); it is terminal even though it is not a CRM canonical form value. Departure from
-// the feed is a presence fact (sync_status off_feed → Off Market), never a status.
-const TERMINAL_STATUSES: ReadonlySet<string> = new Set(['Sold', 'Rented', 'Withdrawn', 'Expired', 'Cancelled', 'Closed']);
-
 function findWorkflow(mapping: TransactionStatusMapping, trimmed: string): CrmWorkflowStatus | null {
   if (Object.prototype.hasOwnProperty.call(mapping.workflowToCanonical, trimmed)) return trimmed as CrmWorkflowStatus;
   const lower = trimmed.toLowerCase();
   for (const s of mapping.workflowStatuses) if (s.toLowerCase() === lower) return s;
+  return null;
+}
+
+/**
+ * The legacy stored spellings (rows written before the token correction) each transaction may carry: a sale was
+ * closed as 'Sold', a rental as 'Rented' / 'Leased'; both drafted as 'Draft' and canceled as 'Cancelled'. A rental
+ * spelling on a sale (or a sale spelling on a rental) is not this transaction's and is refused.
+ */
+const LEGACY_SPELLINGS: Readonly<Record<TransactionType, Readonly<Record<string, CanonicalStatus>>>> = Object.freeze({
+  sale: Object.freeze({ Sold: 'Closed', Cancelled: 'Canceled', Draft: 'Incomplete' }),
+  rent: Object.freeze({ Rented: 'Closed', Leased: 'Closed', Cancelled: 'Canceled', Draft: 'Incomplete' }),
+});
+
+/** A canonical token of this transaction: exact, or this transaction's legacy stored spelling of one. */
+function findCanonical(mapping: TransactionStatusMapping, trimmed: string): CanonicalStatus | null {
+  if ((mapping.canonicalStatuses as readonly string[]).includes(trimmed)) return trimmed as CanonicalStatus;
+  const legacy = LEGACY_SPELLINGS[mapping.transaction];
+  if (Object.prototype.hasOwnProperty.call(legacy, trimmed)) return legacy[trimmed];
+  const token = normalizeStoredStatus(trimmed);
+  if (token && token !== trimmed && (mapping.canonicalStatuses as readonly string[]).includes(token)) {
+    // a case variant of a live token (never a legacy spelling of the other transaction)
+    const isLegacyWord = Object.prototype.hasOwnProperty.call(LEGACY_SPELLINGS.sale, trimmed) || Object.prototype.hasOwnProperty.call(LEGACY_SPELLINGS.rent, trimmed);
+    if (!isLegacyWord && (mapping.canonicalStatuses as readonly string[]).some((c) => c.toLowerCase() === trimmed.toLowerCase())) return token as CanonicalStatus;
+  }
   return null;
 }
 
@@ -431,7 +494,7 @@ export function normalizeCrmWorkflowStatus(input: string | null | undefined, lis
   return findWorkflow(mapping, trimmed);
 }
 
-/** Workflow status → the transaction's canonical status. Null when the workflow word is not this transaction's. */
+/** Workflow status → the transaction's canonical (provider) status. Null when the word is not this transaction's. */
 export function mapCrmStatusToCanonicalStatus(input: string | null | undefined, listingType: unknown): CanonicalStatus | null {
   const mapping = statusMappingFor(listingType);
   if (!mapping) return null;
@@ -440,10 +503,10 @@ export function mapCrmStatusToCanonicalStatus(input: string | null | undefined, 
 }
 
 /**
- * Resolve a requested status for a specific listing through its transaction mapping only: an already-canonical
- * status of that transaction, a saved-state alias of that transaction (Closed → Sold / Rented, Canceled,
- * Incomplete), or a workflow word of that transaction. Everything else — including the other transaction's
- * words — is null (refuse; never default).
+ * Resolve a requested status for a specific listing through its transaction mapping only: a workflow word of that
+ * transaction, an already-canonical token of that transaction, or a legacy stored spelling of one (a row written
+ * before the token correction). Everything else — including the other transaction's words — is null (refuse;
+ * never default). A workflow word wins over a stored spelling of the same name (sale "Sold" → Closed).
  */
 export function resolveCanonicalStatusForListing(requested: unknown, listingType: unknown): CanonicalStatus | null {
   if (typeof requested !== 'string') return null;
@@ -451,10 +514,27 @@ export function resolveCanonicalStatusForListing(requested: unknown, listingType
   if (!mapping) return null;
   const trimmed = requested.trim();
   if (!trimmed) return null;
-  if ((mapping.canonicalStatuses as readonly string[]).includes(trimmed)) return trimmed as CanonicalStatus;
-  if (Object.prototype.hasOwnProperty.call(mapping.savedStateAliases, trimmed)) return mapping.savedStateAliases[trimmed];
   const workflow = findWorkflow(mapping, trimmed);
-  return workflow ? mapping.workflowToCanonical[workflow] : null;
+  if (workflow) return mapping.workflowToCanonical[workflow];
+  return findCanonical(mapping, trimmed);
+}
+
+/**
+ * The facts a status change must carry for this listing: the canonical status's associated Cotality date (+ price
+ * on a close) and the workflow word's own fact (Back on Market → BackOnMarketDate). Empty when none is required;
+ * null when the word is not this transaction's.
+ */
+export function requiredFactsFor(requested: unknown, listingType: unknown): readonly string[] | null {
+  if (typeof requested !== 'string') return null;
+  const mapping = statusMappingFor(listingType);
+  if (!mapping) return null;
+  const trimmed = requested.trim();
+  const canonical = resolveCanonicalStatusForListing(trimmed, listingType);
+  if (!canonical) return null;
+  const facts = new Set<string>(mapping.statusFacts[canonical] ?? []);
+  const workflow = findWorkflow(mapping, trimmed);
+  if (workflow) for (const f of WORKFLOW_FACTS[workflow] ?? []) facts.add(f);
+  return [...facts];
 }
 
 /**
@@ -472,7 +552,7 @@ export function formStatusForListing(row: {
   if (lifecycle.stage === 'off_market') return { value: '', label: lifecycle.label, providerStatus };
   const mapping = statusMappingFor(row.listing_type);
   if (!mapping) return { value: '', label: 'Status unavailable', providerStatus };
-  const canonical = resolveCanonicalStatusForListing(row.status, mapping.transaction);
+  const canonical = typeof row.status === 'string' ? findCanonical(mapping, row.status.trim()) : null;
   if (!canonical) return { value: '', label: 'Status unavailable', providerStatus };
   const candidate = raw._crmWorkflowStatus ?? raw[mapping.formKey];
   const word = typeof candidate === 'string' ? candidate.trim() : '';
@@ -480,11 +560,40 @@ export function formStatusForListing(row: {
   if (workflow && mapping.workflowToCanonical[workflow] === canonical) {
     return { value: workflow, label: mapping.displayLabels[workflow], providerStatus };
   }
-  // the form's own saved-state spelling (Closed / Canceled / Incomplete) is kept as the agent chose it
-  if (word && Object.prototype.hasOwnProperty.call(mapping.savedStateAliases, word) && mapping.savedStateAliases[word] === canonical) {
-    return { value: word, label: mapping.savedStateLabels[word] ?? mapping.canonicalLabels[canonical] ?? canonical, providerStatus };
-  }
   return { value: canonical, label: mapping.canonicalLabels[canonical] ?? canonical, providerStatus };
+}
+
+/**
+ * The display projection every status consumer renders (manage listings, portals, dashboards, CMA): the exact
+ * provider token the row stores (legacy spellings resolved), its transaction label (Closed → Sold / Rented,
+ * Pending → In Contract on a sale), the agent's workflow word when it agrees, and the raw provider status.
+ * Off Market (a presence fact) and an unknown state are never invented into a status.
+ */
+export function statusPresentation(row: {
+  status: unknown; listing_type?: unknown; raw_data?: unknown; sync_status?: unknown; terminal_since?: unknown;
+}): { status: CanonicalStatus | null; label: string; transaction: TransactionType | null; workflow: string | null; workflowLabel: string | null; providerStatus: string | null; offMarket: boolean } {
+  const lifecycle = lifecycleFromStoredRow(row);
+  const providerStatus = lifecycle.providerStatus;
+  const mapping = statusMappingFor(row.listing_type);
+  const transaction = mapping?.transaction ?? null;
+  const canonical = mapping && typeof row.status === 'string' ? findCanonical(mapping, row.status.trim()) : null;
+  const raw = row.raw_data && typeof row.raw_data === 'object' ? row.raw_data as Record<string, unknown> : {};
+  const word = typeof raw._crmWorkflowStatus === 'string' ? raw._crmWorkflowStatus.trim() : '';
+  const workflow = mapping && word ? findWorkflow(mapping, word) : null;
+  const agrees = !!(workflow && canonical && mapping && mapping.workflowToCanonical[workflow] === canonical);
+  if (lifecycle.stage === 'off_market') {
+    return { status: canonical, label: lifecycle.label, transaction, workflow: agrees ? workflow : null, workflowLabel: agrees && mapping && workflow ? mapping.displayLabels[workflow] : null, providerStatus, offMarket: true };
+  }
+  if (!mapping || !canonical) return { status: null, label: 'Status unavailable', transaction, workflow: null, workflowLabel: null, providerStatus, offMarket: false };
+  return {
+    status: canonical,
+    label: mapping.canonicalLabels[canonical] ?? canonical,
+    transaction,
+    workflow: agrees ? workflow : null,
+    workflowLabel: agrees && workflow ? mapping.displayLabels[workflow] : null,
+    providerStatus,
+    offMarket: false,
+  };
 }
 
 /** Whether a canonical status is publicly displayed (Active, ComingSoon, ActiveUnderContract). */
@@ -492,9 +601,10 @@ export function isPublicDisplayStatus(status: string): boolean {
   return PUBLIC_DISPLAY_STATUSES.has(status);
 }
 
-/** Whether a stored status is terminal (no further transitions expected). */
+/** Whether a stored status is terminal (no further transitions expected) — provider tokens and legacy spellings. */
 export function isTerminalStatus(status: string): boolean {
-  return TERMINAL_STATUSES.has(status);
+  const token = normalizeStoredStatus(status);
+  return token !== null && MALLAN_TERMINAL_STATUSES.has(token);
 }
 
 /**
@@ -506,7 +616,8 @@ export function getStatusDisplayLabel(status: string, listingType: unknown): str
   if (!mapping) return status;
   const workflow = findWorkflow(mapping, status.trim());
   if (workflow) return mapping.displayLabels[workflow];
-  return mapping.canonicalLabels[status.trim()] ?? status;
+  const canonical = findCanonical(mapping, status.trim());
+  return canonical ? (mapping.canonicalLabels[canonical] ?? canonical) : status;
 }
 
 /**
@@ -542,12 +653,14 @@ export function allowedCanonicalTransitions(from: unknown, listingType: unknown)
 
 /**
  * Build the full status payload for API submission from a workflow word of the listing's transaction:
- * the canonical status to store, the workflow status to persist in raw_data, and its display label.
+ * the canonical (provider) status to store, the workflow status to persist in raw_data, its display label and
+ * the facts the transition must carry.
  */
 export function buildStatusPayload(workflowStatus: string, listingType: unknown): {
   canonicalStatus: CanonicalStatus;
   workflowStatus: CrmWorkflowStatus;
   displayLabel: string;
+  requiredFacts: readonly string[];
 } | { error: string } {
   const mapping = statusMappingFor(listingType);
   if (!mapping) return { error: `Unknown transaction type: ${String(listingType)}` };
@@ -557,5 +670,6 @@ export function buildStatusPayload(workflowStatus: string, listingType: unknown)
     canonicalStatus: mapping.workflowToCanonical[normalized],
     workflowStatus: normalized,
     displayLabel: mapping.displayLabels[normalized],
+    requiredFacts: requiredFactsFor(normalized, listingType) ?? [],
   };
 }

@@ -347,7 +347,7 @@ Without Exclusive Broker's written consent, a Participant may not:
 | Cancelled | Listing cancelled | Paused (resets after 30 days) |
 | Closed | Sold or rented | Stops (resets to 0) |
 
-> Mallan's clocks (owner ruling 2026-09-08, `lib/compliance/dom-tracker.ts`): the market DOM runs from the on-market day and stops at the signed contract (Pending); Coming Soon runs a separate clock. The "DOM Accrues?" column above is REBNY's rule for its own DaysOnMarket, which the IDX Plus feed does not deliver (null on every sampled row, 2026-09-08).
+> Mallan's clocks (owner ruling 2026-09-08 evening, `lib/compliance/dom-tracker.ts`): the market DOM runs from the on-market day through Pending and ends at the CloseDate of a Sold / Rented listing or at the OffMarketDate of a removal — never at PurchaseContractDate; Coming Soon runs a separate clock. This table is compliance context only; the fields and the mapping come from the live Cotality contract. The "DOM Accrues?" column above is REBNY's rule for its own DaysOnMarket, which the IDX Plus feed does not deliver (null on every sampled row, 2026-09-08).
 
 ---
 

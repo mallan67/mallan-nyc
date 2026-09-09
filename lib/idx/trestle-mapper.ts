@@ -102,7 +102,11 @@ const B4_STATUS_DATES = cotalityFields('Property', [
   "OffMarketDate", "OffMarketTimestamp", "BackOnMarketDate",
   "BackOnMarketTimestamp", "ContractStatusChangeDate",
   "PurchaseContractDate", "CloseDate", "ClosePrice",
-  "WithdrawnDate",
+  // The status ↔ date associations (owner ruling 2026-09-08). WithdrawnDate is filterable (22 live rows);
+  // ExpirationDate and CancellationDate are selectable but NOT filterable and are populated on 0 of 600
+  // sampled live rows (docs/operations/evidence-2026-09-08/status/LIVE-STATUS-DATES-2026-09-08.md) — they are
+  // selected so a delivered value is never dropped, and retained for Mallan-authored exclusives.
+  "WithdrawnDate", "CancellationDate",
   "DaysOnMarket", "CumulativeDaysOnMarket",
   "PendingTimestamp", "ContingentDate",
   "AvailabilityDate",
@@ -570,7 +574,13 @@ const CRM_LIFECYCLE_STATUSES: ReadonlySet<string> = MALLAN_LIFECYCLE_STATUSES;
  * normalizer is a case-fold + trim operation that preserves identity.
  */
 const STATUS_ALIASES: Record<string, string> = {
-  canceled: 'Cancelled', // single-L → double-L
+  // The stored vocabulary IS the live StandardStatus vocabulary (owner ruling 2026-09-08): the legacy Mallan
+  // spellings written before the token correction fold to their provider token. Never the other direction.
+  cancelled: 'Canceled', // double-L legacy → the live single-L member
+  sold: 'Closed',        // Mallan's former sale close → the live close
+  rented: 'Closed',      // Mallan's former rental close → the live close
+  leased: 'Closed',
+  draft: 'Incomplete',   // Mallan's former draft → the live draft member
 };
 
 /**

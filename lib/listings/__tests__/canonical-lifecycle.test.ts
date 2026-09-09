@@ -91,10 +91,10 @@ describe('lifecycleFromProviderRow — the proven combinations', () => {
     expect(l.label).toBe('Coming Soon');
     expect(l.publiclyDisplayable).toBe(true);
   });
-  it('the never-delivered live members still map (Hold, Withdrawn, Canceled, Expired) — storage spelling Cancelled', () => {
+  it('the never-delivered live members still map (Hold, Withdrawn, Canceled, Expired) — stored verbatim (one-L Canceled)', () => {
     expect(lifecycleFromProviderRow({ StandardStatus: 'Hold', PropertyType: 'Residential' })!).toMatchObject({ stage: 'temp_off_market', label: 'Temporarily Off Market', storageStatus: 'Hold', publiclyDisplayable: false });
     expect(lifecycleFromProviderRow({ StandardStatus: 'Withdrawn', PropertyType: 'Residential' })!).toMatchObject({ stage: 'withdrawn', label: 'Withdrawn', storageStatus: 'Withdrawn' });
-    expect(lifecycleFromProviderRow({ StandardStatus: 'Canceled', PropertyType: 'Residential' })!).toMatchObject({ stage: 'cancelled', label: 'Cancelled', storageStatus: 'Cancelled' });
+    expect(lifecycleFromProviderRow({ StandardStatus: 'Canceled', PropertyType: 'Residential' })!).toMatchObject({ stage: 'cancelled', label: 'Cancelled', storageStatus: 'Canceled' });
     expect(lifecycleFromProviderRow({ StandardStatus: 'Expired', PropertyType: 'Residential' })!).toMatchObject({ stage: 'expired', label: 'Expired' });
   });
   it('refuses anything that is not a live StandardStatus member (never defaults to Active)', () => {

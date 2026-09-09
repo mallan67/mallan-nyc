@@ -45,7 +45,7 @@ describe('PATCH enforcement Draft/WebOnly bypass (P0 fix)', () => {
     // The PATCH route does not write the status column, so neither the request
     // payload (body.MlsStatus) nor the stale raw_data.MlsStatus is authoritative.
     // The gate must read the persisted listing.status column.
-    expect(routeSource).toMatch(/const persistedStatus\s*=\s*listing\.status\s*\|\|\s*"Draft"/);
+    expect(routeSource).toMatch(/const persistedStatus\s*=\s*listing\.status\s*\|\|\s*"Incomplete"/);
     expect(routeSource).toMatch(/const normalizedPersistedStatus\s*=\s*normalizeStandardStatus\(persistedStatus\)/);
     // The RLS gate must NOT source its draft decision from body.MlsStatus or merged.
     expect(routeSource).not.toMatch(/const isDraftLike[\s\S]{0,40}body\.MlsStatus/);

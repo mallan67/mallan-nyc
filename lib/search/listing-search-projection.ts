@@ -23,6 +23,7 @@ import { Prisma } from "@prisma/client";
 import { AMENITY_FIELD_MAP, type AmenityFilter } from "@/lib/search/types";
 import { isMallanExclusiveListing } from "@/lib/listings/exclusive-agent-assignment";
 import { lifecycleFromStoredRow } from "@/lib/listings/canonical-lifecycle";
+import { normalizeStoredStatus } from "@/lib/listings/mallan-status";
 // The canonical all-status fallback policy. Imported rather than reimplemented
 // so the projection cannot hold a second opinion about when the legacy media
 // JSON may still be read — see extractProjectionFeatureFlags.
@@ -468,7 +469,10 @@ export function buildListingSearchProjectionFromListing(
     listing_id: listing.listing_id,
     listing_key: stringFrom(features.ListingKey) ?? stringFrom(address.ListingKey) ?? null,
     source_system: stringFrom(features.SourceSystem) ?? stringFrom(features.SourceSystemKey) ?? null,
-    mls_status: stringFrom(features.MlsStatus) ?? stringFrom(listing.status),
+    // The stored status IS the live StandardStatus token (a legacy spelling resolves to it). Never the provider's
+    // MlsStatus (not filterable, null on the feed) and never a Mallan workflow word (owner ruling 2026-09-08). The
+    // column keeps its historical name; renaming it is a schema change (held).
+    mls_status: normalizeStoredStatus(listing.status) ?? stringFrom(listing.status),
     listing_type: stringFrom(listing.listing_type),
     property_type: stringFrom(listing.property_type),
     property_sub_type: propertySubType,

@@ -4,7 +4,8 @@
 import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { DOM_RESET_DAYS } from "@/lib/compliance/dom-tracker";
+import { DOM_RESET_DAYS, DOM_RESET_ELIGIBLE_STATUSES } from "@/lib/compliance/dom-tracker";
+import { storageStatusesFor } from "@/lib/listings/mallan-status";
 
 export const maxDuration = 60;
 
@@ -23,7 +24,8 @@ export async function GET(req: NextRequest) {
   // that still have days_on_market > 0 (not yet reset)
   const eligible = await prisma.listing.findMany({
     where: {
-      status: { in: ["Withdrawn", "Cancelled"] },
+      // the provider tokens (one-L Canceled) plus the legacy spellings written before the 2026-09-08 correction
+      status: { in: storageStatusesFor([...DOM_RESET_ELIGIBLE_STATUSES]) },
       status_changed_at: { lt: cutoff },
       days_on_market: { gt: 0 },
     },

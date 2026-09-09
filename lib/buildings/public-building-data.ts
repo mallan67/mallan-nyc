@@ -939,7 +939,7 @@ async function buildBuildingPayload(
     // never a sale, and must not enter the building's sale history.
     const trestleClosed = allTrestleRecords.filter((r) => {
       const status = String(r.StandardStatus || '');
-      return (status === Status.CLOSED || status === Status.SOLD) && transactionTypeFromProvider(r.PropertyType) === 'sale';
+      return status === Status.CLOSED && transactionTypeFromProvider(r.PropertyType) === 'sale';
     });
 
     // ── 3. Merge active units (Trestle + DB) ──

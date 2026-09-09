@@ -34,15 +34,16 @@ const sale = (o: Record<string, unknown>): ListingLifecycle => lifecycleFromProv
 const rent = (o: Record<string, unknown>): ListingLifecycle => lifecycleFromProviderRow({ PropertyType: 'ResidentialLease', ...o } as never)!;
 
 describe('one accrual rule — the two rule surfaces cannot disagree', () => {
-  it('the market clock runs while Active or ActiveUnderContract (the CRM "Offer Accepted") and stops at Pending (the CRM "Contract Signed")', () => {
-    expect([...DOM_ACCRUING_STATUSES].sort()).toEqual(['Active', 'ActiveUnderContract']);
-    expect(DOM_ACCRUING_STATUSES.has('Pending')).toBe(false);
-    expect([...DOM_RESET_ELIGIBLE_STATUSES].sort()).toEqual(['Cancelled', 'Withdrawn']);
+  it('the market clock runs while the listing is on the market — Active, ActiveUnderContract AND Pending (a signed contract does not end it)', () => {
+    expect([...DOM_ACCRUING_STATUSES].sort()).toEqual(['Active', 'ActiveUnderContract', 'Pending']);
+    expect(DOM_ACCRUING_STATUSES.has('Pending')).toBe(true);
+    expect([...DOM_RESET_ELIGIBLE_STATUSES].sort()).toEqual(['Canceled', 'Withdrawn']); // the live one-L member
   });
-  it('the declared UCBA rule table is DERIVED from the tracker — no second accrual set survives', () => {
+  it('the declared UCBA rule table is DERIVED from the tracker — no second accrual set survives; the clock ends at CloseDate / OffMarketDate', () => {
     expect([...REBNY_UCBA_RULES.domRules.accruingStatuses].sort()).toEqual([...DOM_ACCRUING_STATUSES].sort());
-    expect(REBNY_UCBA_RULES.domRules.accruingStatuses as readonly string[]).not.toContain('Pending');
-    expect(REBNY_UCBA_RULES.domRules.stopsAt).toBe('Pending');
+    expect(REBNY_UCBA_RULES.domRules.accruingStatuses as readonly string[]).toContain('Pending');
+    expect(REBNY_UCBA_RULES.domRules.endsAt).toEqual({ closed: 'CloseDate', removal: 'OffMarketDate' });
+    expect((REBNY_UCBA_RULES.domRules as Record<string, unknown>).stopsAt).toBeUndefined();
   });
 });
 
@@ -84,11 +85,27 @@ describe('market clock start — the day the property is on market', () => {
   });
 });
 
-describe('market DOM — listed → contract signed', () => {
-  it('a Pending sale: on market 2026-03-24, contract signed 2026-08-25 → 154 days, frozen at the contract', () => {
+describe('market DOM — listed → closed (CloseDate) or removed (OffMarketDate); never the signed contract', () => {
+  it('a Pending sale: on market 2026-03-24, contract signed 2026-08-25 — still on the market, the clock keeps running to the as-of day (168), the contract date is a separate fact', () => {
     const l = sale({ StandardStatus: 'Pending', OnMarketDate: '2026-03-24', ActivationDate: '2026-03-24', PurchaseContractDate: '2026-08-25', PendingTimestamp: '2026-08-27T13:00:00.000-00:00' });
-    expect(marketDom(l, ASOF)).toEqual({ start: '2026-03-24', end: '2026-08-25', endReason: 'contract_signed', days: 154, unverified: null });
-    expect(marketDom(l, '2027-01-01').days).toBe(154);
+    expect(marketDom(l, ASOF)).toEqual({ start: '2026-03-24', end: ASOF, endReason: 'as_of', days: 168, unverified: null });
+    expect(marketDom(l, '2026-10-08').days).toBe(198);
+    expect(l.inContractSince).toBe('2026-08-25');
+    expect(contractSignedDate(l)).toBe('2026-08-25');
+  });
+  it('a Closed sale ends at its CloseDate — never at PurchaseContractDate', () => {
+    const l = sale({ StandardStatus: 'Closed', OnMarketDate: '2026-01-10', ActivationDate: '2026-01-10', PurchaseContractDate: '2026-05-01', CloseDate: '2026-06-15' });
+    expect(marketDom(l, ASOF)).toEqual({ start: '2026-01-10', end: '2026-06-15', endReason: 'closed', days: 156, unverified: null });
+    expect(marketDom(l, '2027-01-01').days).toBe(156);
+  });
+  it('a removal ends at its OffMarketDate (Withdrawn / Canceled / Expired / Hold); without one there is NO market DOM', () => {
+    for (const StandardStatus of ['Withdrawn', 'Canceled', 'Expired', 'Hold']) {
+      const l = sale({ StandardStatus, OnMarketDate: '2026-02-01', ActivationDate: '2026-02-01', OffMarketDate: '2026-04-01', WithdrawnDate: '2026-04-01', ExpirationDate: '2026-04-01', CancellationDate: '2026-04-01' });
+      expect(marketDom(l, ASOF)).toEqual({ start: '2026-02-01', end: '2026-04-01', endReason: 'off_market', days: 59, unverified: null });
+      const bare = marketDom(sale({ StandardStatus, OnMarketDate: '2026-02-01', ActivationDate: '2026-02-01' }), ASOF);
+      expect(bare.days).toBeNull();
+      expect(bare.unverified).toMatch(/OffMarketDate/);
+    }
   });
   it('an Active sale keeps counting to the as-of day', () => {
     expect(marketDom(sale({ StandardStatus: 'Active', OnMarketDate: '2026-05-30', ActivationDate: '2026-05-30' }), ASOF)).toMatchObject({ start: '2026-05-30', end: ASOF, endReason: 'as_of', days: 101 });
@@ -100,7 +117,7 @@ describe('market DOM — listed → contract signed', () => {
     const l = sale({ StandardStatus: 'ComingSoon', OnMarketDate: '2026-09-01', ActivationDate: '2026-09-14', ContractStatusChangeDate: '2026-09-01' });
     expect(marketDom(l, ASOF)).toMatchObject({ start: '2026-09-14', days: 0, endReason: 'as_of' });
   });
-  it('back on market after a fallen contract: the stale PurchaseContractDate does not stop the clock', () => {
+  it('back on market after a fallen contract: the stale PurchaseContractDate never touches the clock', () => {
     const l = sale({ StandardStatus: 'Active', OnMarketDate: '2026-01-10', ActivationDate: '2026-01-10', PurchaseContractDate: '2026-03-01', BackOnMarketDate: '2026-04-01', MajorChangeType: 'BackOnMarket' });
     expect(l.backOnMarket).toBe(true);
     expect(marketDom(l, ASOF)).toMatchObject({ end: ASOF, endReason: 'as_of', days: 241 });
@@ -109,11 +126,14 @@ describe('market DOM — listed → contract signed', () => {
     const l = lifecycleFromStoredRow({ status: 'Active', listing_type: 'sale', sync_status: 'off_feed', terminal_since: new Date('2026-08-01T03:30:00Z'), raw_data: { OnMarketDate: '2026-05-01', ActivationDate: '2026-05-01' } });
     expect(marketDom(l, ASOF)).toEqual({ start: '2026-05-01', end: '2026-08-01', endReason: 'off_feed', days: 92, unverified: null });
   });
-  it('a Closed sale without a PurchaseContractDate has NO market DOM — nothing is guessed from the close', () => {
-    const d = marketDom(sale({ StandardStatus: 'Closed', OnMarketDate: '2026-01-10', ActivationDate: '2026-01-10', CloseDate: '2026-08-01' }), ASOF);
+  it('a Closed sale without a CloseDate has NO market DOM — nothing is guessed from the contract or the as-of day', () => {
+    const d = marketDom(sale({ StandardStatus: 'Closed', OnMarketDate: '2026-01-10', ActivationDate: '2026-01-10', PurchaseContractDate: '2026-05-01' }), ASOF);
     expect(d.days).toBeNull();
     expect(d.endReason).toBeNull();
-    expect(d.unverified).toMatch(/contract/i);
+    expect(d.unverified).toMatch(/CloseDate/);
+  });
+  it('a Closed sale with a CloseDate but no PurchaseContractDate HAS market DOM (the close is the end)', () => {
+    expect(marketDom(sale({ StandardStatus: 'Closed', OnMarketDate: '2026-01-10', ActivationDate: '2026-01-10', CloseDate: '2026-08-01' }), ASOF)).toMatchObject({ end: '2026-08-01', endReason: 'closed', days: 203 });
   });
   it('a row without an on-market date has NO market DOM (never a fabricated start)', () => {
     expect(marketDom(sale({ StandardStatus: 'Active', ListingContractDate: '2026-01-10' }), ASOF)).toMatchObject({ start: null, days: null });
@@ -172,31 +192,45 @@ describe('the two clocks, end to end — Coming Soon duration; market DOM from l
     expect(marketDom(l, '2026-09-10')).toMatchObject({ start: '2026-09-10', days: 0, endReason: 'as_of' });
     expect(marketDom(l, '2026-09-20')).toMatchObject({ start: '2026-09-10', days: 10, endReason: 'as_of' });
   });
-  it('market DOM until SOLD: a Closed sale stops at the signed contract (PurchaseContractDate) — not at the closing — and never grows afterwards', () => {
+  it('market DOM until SOLD: a Closed sale ends at its CloseDate — the signed contract (PurchaseContractDate) is a separate fact — and never grows afterwards', () => {
     const l = sale({ StandardStatus: 'Closed', OnMarketDate: '2026-01-10', ActivationDate: '2026-01-10', PurchaseContractDate: '2026-05-01', CloseDate: '2026-06-15', ClosePrice: 950000 });
     expect(l.providerStage).toBe('closed');
-    expect(marketDom(l, ASOF)).toEqual({ start: '2026-01-10', end: '2026-05-01', endReason: 'contract_signed', days: 111, unverified: null });
-    expect(marketDom(l, '2027-06-15').days).toBe(111);
+    expect(marketDom(l, ASOF)).toEqual({ start: '2026-01-10', end: '2026-06-15', endReason: 'closed', days: 156, unverified: null });
+    expect(marketDom(l, '2027-06-15').days).toBe(156);
+    expect(contractSignedDate(l)).toBe('2026-05-01');
     expect(comingSoonDom(l, ASOF)).toBeNull();
   });
-  it('market DOM until RENTED: a Closed rental stops at the signed lease (PurchaseContractDate), else at the Leased date (CloseDate)', () => {
+  it('market DOM until RENTED: a Closed rental ends at its CloseDate (the Leased date), with or without a signed-lease date', () => {
     const signed = rent({ StandardStatus: 'Closed', OnMarketDate: '2026-06-01', ActivationDate: '2026-06-01', PurchaseContractDate: '2026-06-20', CloseDate: '2026-07-01' });
-    expect(marketDom(signed, ASOF)).toEqual({ start: '2026-06-01', end: '2026-06-20', endReason: 'contract_signed', days: 19, unverified: null });
+    expect(marketDom(signed, ASOF)).toEqual({ start: '2026-06-01', end: '2026-07-01', endReason: 'closed', days: 30, unverified: null });
     const leasedOnly = rent({ StandardStatus: 'Closed', OnMarketDate: '2026-06-01', ActivationDate: '2026-06-01', CloseDate: '2026-07-01' });
-    expect(marketDom(leasedOnly, ASOF)).toEqual({ start: '2026-06-01', end: '2026-07-01', endReason: 'contract_signed', days: 30, unverified: null });
+    expect(marketDom(leasedOnly, ASOF)).toEqual({ start: '2026-06-01', end: '2026-07-01', endReason: 'closed', days: 30, unverified: null });
     expect(marketDom(leasedOnly, '2027-01-01').days).toBe(30);
   });
-  it('market DOM until OFF MARKET: a sale or a rental that left the feed stops the day it left, the last provider status preserved, no Coming Soon clock', () => {
+  it('market DOM until OFF MARKET: a removal ends at its OffMarketDate; a sale or a rental that left the feed ends the day it left — the last provider status preserved, no Coming Soon clock', () => {
     for (const listing_type of ['sale', 'rent']) {
       const l = lifecycleFromStoredRow({ status: 'Active', listing_type, sync_status: 'off_feed', terminal_since: new Date('2026-08-15T12:00:00Z'), raw_data: { StandardStatus: 'Active', OnMarketDate: '2026-06-01', ActivationDate: '2026-06-01' } });
       expect(l.stage).toBe('off_market');
       expect(marketDom(l, ASOF)).toEqual({ start: '2026-06-01', end: '2026-08-15', endReason: 'off_feed', days: 75, unverified: null });
       expect(comingSoonDom(l, ASOF)).toBeNull();
+      const withdrawn = lifecycleFromStoredRow({ status: 'Withdrawn', listing_type, sync_status: 'synced', raw_data: { StandardStatus: 'Withdrawn', OnMarketDate: '2026-06-01', ActivationDate: '2026-06-01', OffMarketDate: '2026-07-15', WithdrawnDate: '2026-07-15' } });
+      expect(marketDom(withdrawn, ASOF)).toEqual({ start: '2026-06-01', end: '2026-07-15', endReason: 'off_market', days: 44, unverified: null });
     }
   });
-  it('the two clocks never share a day: Coming Soon 2026-01-01 → activation 01-10, contract 05-01 — market DOM 111, the Coming Soon clock retired with its stage', () => {
+  it('the two clocks never share a day: Coming Soon 2026-01-01 → activation 01-10, closed 06-15 — market DOM 156, the Coming Soon clock retired with its stage', () => {
     const l = sale({ StandardStatus: 'Closed', OnMarketDate: '2026-01-01', ContractStatusChangeDate: '2026-01-01', ActivationDate: '2026-01-10', PurchaseContractDate: '2026-05-01', CloseDate: '2026-06-15' });
-    expect(marketDom(l, ASOF)).toMatchObject({ start: '2026-01-10', end: '2026-05-01', days: 111 });
+    expect(marketDom(l, ASOF)).toMatchObject({ start: '2026-01-10', end: '2026-06-15', endReason: 'closed', days: 156 });
     expect(comingSoonDom(l, ASOF)).toBeNull();
+  });
+  it('the clock NEVER ends at PurchaseContractDate: on every stage that carries one, the end is the close, the removal, the departure or the as-of day', () => {
+    const base = { OnMarketDate: '2026-01-10', ActivationDate: '2026-01-10', PurchaseContractDate: '2026-05-01' };
+    expect(marketDom(sale({ ...base, StandardStatus: 'Pending' }), ASOF).end).toBe(ASOF);
+    expect(marketDom(sale({ ...base, StandardStatus: 'ActiveUnderContract' }), ASOF).end).toBe(ASOF);
+    expect(marketDom(sale({ ...base, StandardStatus: 'Closed', CloseDate: '2026-06-15' }), ASOF).end).toBe('2026-06-15');
+    expect(marketDom(sale({ ...base, StandardStatus: 'Withdrawn', OffMarketDate: '2026-05-20' }), ASOF).end).toBe('2026-05-20');
+    expect(marketDom(rent({ ...base, StandardStatus: 'Closed', CloseDate: '2026-06-01' }), ASOF).end).toBe('2026-06-01');
+    for (const StandardStatus of ['Pending', 'ActiveUnderContract', 'Closed', 'Withdrawn']) {
+      expect(marketDom(sale({ ...base, StandardStatus, CloseDate: '2026-06-15', OffMarketDate: '2026-05-20' }), ASOF).end).not.toBe('2026-05-01');
+    }
   });
 });

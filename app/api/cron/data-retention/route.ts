@@ -14,6 +14,7 @@ import { timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { TERMINAL_STATUSES as MAPPER_TERMINAL_STATUSES } from "@/lib/idx/trestle-mapper";
+import { TERMINAL_STATUS_FILTER_VALUES } from "@/lib/listings/mallan-status";
 import { Prisma } from "@prisma/client";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 import { buildingAndManifestInvalidationTags, listingCacheTag, newRevalidationCounters, safeRevalidateTags, SEARCH_CACHE_TAG } from "@/lib/cache/public-cache";
@@ -28,8 +29,9 @@ export const maxDuration = 60;
 const T30_BATCH_CAP = 1000;
 const T180_BATCH_CAP = 500;
 
-// ONE terminal set (Mallan storage vocabulary) — lib/listings/mallan-status.ts via the mapper export.
-const TERMINAL_STATUSES = [...MAPPER_TERMINAL_STATUSES] as string[];
+// ONE terminal set (lib/listings/mallan-status.ts): the provider tokens the mapper exports, plus the legacy
+// spellings written before the 2026-09-08 token correction so no stored row escapes the §2.05 clock.
+const TERMINAL_STATUSES = [...new Set([...MAPPER_TERMINAL_STATUSES, ...TERMINAL_STATUS_FILTER_VALUES])] as string[];
 
 // (T+180 archive summary/strip helpers moved to lib/retention/archive-terminals.ts — Gate 6,
 // shared with the controlled operator drain so the two paths cannot drift.)

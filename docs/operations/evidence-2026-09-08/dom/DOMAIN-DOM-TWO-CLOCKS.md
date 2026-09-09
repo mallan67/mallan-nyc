@@ -1,5 +1,7 @@
 # DOM — two clocks, one rule each (owner ruling 2026-09-08)
 
+> **Superseded (2026-09-08 evening) on the market clock's END:** the owner ruled that market DOM ends at the CloseDate of a Sold / Rented listing or at the OffMarketDate of a removal — never at PurchaseContractDate — and that Pending keeps accruing. `lib/compliance/dom-tracker.ts` now carries that rule; the contract-signed date remains a separate fact (`inContractSince`). The Coming Soon clock and the live evidence below stand. See `../status/STATUS-PROVIDER-TOKENS.md` §1.4.
+
 Maya's ruling: DOM is two different clocks. A Coming Soon clock from the exact Cotality Coming Soon / activation facts,
 never merged into market DOM; and a market DOM from the day the property is listed / on market until the contract is
 signed. `PurchaseContractDate` is not to be used as "contract signed" automatically; the field or deterministic
