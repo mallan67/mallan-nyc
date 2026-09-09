@@ -126,9 +126,26 @@ var MallanAPI = (function () {
       }
       if (!res.ok) {
         return res.json().then(function (data) {
-          return Promise.reject(new Error(data.error || 'Request failed: ' + res.status));
-        }).catch(function () {
-          return Promise.reject(new Error('Request failed: ' + res.status));
+          // The server's REBNY/UCBA refusal is STRUCTURED: a 422 from the RLS enforcement gate carries
+          // `blockers` (the mandatory facts that are missing), and a status refusal carries `field` and
+          // `code` (STATUS_FACT_REQUIRED). Rejecting with `new Error(data.error)` alone THREW THAT AWAY,
+          // so the agent saw "Listing blocked by RLS enforcement gate" and was never told WHICH fields.
+          // These safeguards exist to prevent REBNY penalties; discarding their detail defeats them.
+          var err = new Error(data.error || 'Request failed: ' + res.status);
+          err.status = res.status;
+          err.blockers = Array.isArray(data.blockers) ? data.blockers : [];
+          err.warnings = Array.isArray(data.warnings) ? data.warnings : [];
+          if (data.field) err.field = data.field;
+          if (data.code) err.code = data.code;
+          if (data.required) err.required = data.required;
+          err.payload = data;
+          return Promise.reject(err);
+        }).catch(function (e) {
+          if (e instanceof Error && e.status) return Promise.reject(e);
+          var err2 = new Error('Request failed: ' + res.status);
+          err2.status = res.status;
+          err2.blockers = [];
+          return Promise.reject(err2);
         });
       }
       return res.json();

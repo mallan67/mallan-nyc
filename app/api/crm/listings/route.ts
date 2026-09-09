@@ -3,6 +3,7 @@
 // POST: Create a new listing (runs compliance validation + RLS enforcement gate).
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { MALLAN_LIST_OFFICE_MLS_IDS } from "@/lib/listings/mallan-source-identity";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { validateListing } from "@/lib/compliance/rebny-validator";
@@ -48,7 +49,25 @@ export async function GET(req: NextRequest) {
   const CRM_HIDDEN = storageStatusesFor(["Withdrawn", "Canceled"]);
   const crmCreated = { mls_id: null, listing_id: { startsWith: "SL-" }, status: { notIn: CRM_HIDDEN } };
   const crmCreatedRental = { mls_id: null, listing_id: { startsWith: "RL-" }, status: { notIn: CRM_HIDDEN } };
-  const trestleClosed = { mls_id: { not: null }, status: { in: TRESTLE_CLOSED } };
+  // Mallan's OWN closed REBNY listings, pulled from the Cotality-synced rows. The ownership predicate is
+  // the LIST-SIDE office identity, because that is what makes a listing Mallan's.
+  //
+  // This arm previously had NO ownership predicate at all, so it matched every closed row in the licensed
+  // feed: 2,395 closings qualified for "My Listings" when 32 are Mallan's (verified read-only 2026-09-09).
+  // That is why the screen filled with listings that were never hers.
+  //
+  // `agent_id` is deliberately NOT the signal here. syncAgentHistory stamps it from BOTH list-side and
+  // BUYER-side matches, so a Mallan agent who represented the buyer would pull another brokerage's listing
+  // into Mallan's inventory. Identity is source-field only (lib/listings/mallan-source-identity.ts).
+  const mallanOffices = [...MALLAN_LIST_OFFICE_MLS_IDS];
+  const trestleClosed = {
+    mls_id: { not: null },
+    status: { in: TRESTLE_CLOSED },
+    OR: [
+      { list_office_mls_id: { in: mallanOffices } },
+      { co_list_office_mls_id: { in: mallanOffices } },
+    ],
+  };
 
   const where: Record<string, unknown> = {
     OR: [crmCreated, crmCreatedRental, trestleClosed],

@@ -8342,22 +8342,44 @@ function submitSalesListing() {
             var lastUpdated = document.getElementById('saleLastUpdated');
             if (lastUpdated) lastUpdated.textContent = new Date().toLocaleString();
         }).catch(function(err) {
-            alert('Submission failed: ' + err.message + '\n\nDraft has been saved locally.');
-            // Fallback: save to localStorage
-            var listings = JSON.parse(localStorage.getItem('saleListings') || '[]');
-            listings.push(fullData);
-            localStorage.setItem('saleListings', JSON.stringify(listings));
+            // A REFUSED SAVE IS NOT A SAVE. This alert said "Draft has been saved locally" and the code below
+            // pushed the listing into localStorage, so a 422 from the RLS enforcement gate - the REBNY
+            // safeguard for MANDATORY facts - looked like a successful draft. The agent walked away, nothing
+            // reached the database, and the blocking fields were never named. The safeguard exists so those
+            // fields get SELECTED; the refusal now names them.
+            var _blk = (err && err.blockers) || [];
+            var _lines = ['This listing was NOT saved.', '', err.message || 'The server refused the save.'];
+            if (_blk.length) {
+                _lines.push('', 'Fill these in before saving (REBNY/UCBA mandatory):');
+                _blk.forEach(function (b) {
+                    var t = typeof b === 'string' ? b : (b.field ? b.field + ' - ' + (b.message || 'required') : (b.message || JSON.stringify(b)));
+                    _lines.push('  - ' + t);
+                });
+            }
+            if (err && err.field) _lines.push('', 'Field: ' + err.field);
+            _lines.push('', 'Your entries are kept in this browser for recovery only. They are NOT in the CRM.');
+            alert(_lines.join(String.fromCharCode(10)));
+            // Recovery copy ONLY - never a saved listing, and never under 'saleListings', which other CRM
+            // code reads as if it were real inventory.
+            try {
+                localStorage.setItem('mallan_unsent_sale', JSON.stringify({
+                    savedAt: new Date().toISOString(), reason: err.message || 'refused', blockers: _blk, data: fullData }));
+            } catch (e) { /* storage blocked - the alert already told the truth */ }
+            var _b = document.getElementById('saleStatusBadge');
+            if (_b) _b.textContent = 'NOT SAVED';
         });
     } else {
-        // Offline fallback
-        var listings = JSON.parse(localStorage.getItem('saleListings') || '[]');
-        listings.push(fullData);
-        localStorage.setItem('saleListings', JSON.stringify(listings));
-        alert('SUCCESS! Draft saved locally (offline mode).\n\nListing ID: ' + formData.listingId);
-        var idDisplay = document.getElementById('saleListingIdDisplay');
-        if (idDisplay) idDisplay.textContent = formData.listingId;
-        var lastUpdated = document.getElementById('saleLastUpdated');
-        if (lastUpdated) lastUpdated.textContent = new Date().toLocaleString();
+        // CRM unreachable: nothing can be persisted. Recovery copy under an explicit 'unsent' key.
+        try {
+            localStorage.setItem('mallan_unsent_sale', JSON.stringify({
+                savedAt: new Date().toISOString(), reason: 'crm-unreachable', blockers: [], data: fullData }));
+        } catch (e) { /* nothing further we can do */ }
+        // Never SUCCESS, and never stamp a listing id or Last Updated - both made an unsent draft look saved.
+        alert('NOT SAVED - the CRM is unreachable.' + String.fromCharCode(10,10) +
+              'Your entries are kept in this browser for recovery only. They are NOT in the CRM and this ' +
+              'listing does not exist yet. Reconnect and save again.');
+        var _bOff = document.getElementById('saleStatusBadge');
+        if (_bOff) _bOff.textContent = 'NOT SAVED';
     }
 }
 
