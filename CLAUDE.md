@@ -21,6 +21,18 @@
 
 ## A. Absolute hard rules
 
+0. **SEMANTIC AUTHORITY — read `AGENTS.md` §1A before touching any field, control, criterion or mapping.**
+   No surface control, API field, persisted fact, Search criterion, CMA field, report field or compliance
+   rule may refer directly to an **assumed** provider meaning. Every active datum resolves through **one**
+   Mallan semantic concept. A provider binding must identify the verified **resource, path, field, type and
+   entitlement** — `fieldName → yes/no` is not a provider check and produces confident wrong answers
+   (`ManagementCompanyName`: absent on Property, present on `Building`, `Building` is 403). A fact can be
+   **observed in delivered payloads without being a first-class field**. An alias is never authority.
+   Controls belong to concepts, not the reverse. Unresolved active writable concepts **fail closed**.
+   Exhaust the evidence packet before escalating a question to Maya. Runtime census, never HTML grep — a
+   validator that greps is worse than none, because it counts as coverage.
+   **Do not** hand-expand the kernel's seed concepts or repair its 16 aliases one at a time; the order is
+   runtime census → evidence graph → classification → surface manifests → compiler → delete the greps.
 1. **NEON discipline** — READ `NEON.md` before any Prisma schema, migration, `prisma migrate deploy`, `prisma db push`, `vercel.json buildCommand`, `db-keepalive` cron, or new column / FK / index / table work. Failing to read it is how the 2026-04-19 silent-drift incident happened.
 2. **Source-of-truth charter** — READ `docs/architecture/REPO-SOURCE-OF-TRUTH-CHARTER.md` before creating, renaming, moving, or editing any file in search, CRM, featured/exclusives, neighborhoods/locations, media, listings, or IDX. No parallel `*-v2`/`*-new`/`*-final` files. No editing generated files (`public/crm/index-built.html` is built via `npm run crm:build`).
 3. **Memory file mirror policy** — every file created/updated under `memory/` must also be mirrored to `C:\Users\MayaAllan\Desktop\memory\` in the same session (byte-identical). Verify with `cmp` after write. The `memory/archive/` subdirectory itself is not mirrored, only its parent file movements.

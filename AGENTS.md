@@ -51,6 +51,95 @@ website." It has downstream consumers: search, CRM, portal, media, compliance, a
    `Permission` has **no** "OwnerOptOut"; `PropertyType` is camelCase (`ResidentialLease`, never
    "Residential Lease"). Full audit: `docs/audits/cotality-status-truth-audit-2026-07-05.md`.
 
+8. **Semantic authority — no agent may invent meaning.** THE LOCKED RULE (Maya, 2026-09-09):
+   > No surface control, API field, persisted fact, Search criterion, CMA field, report field or
+   > compliance rule may refer directly to an assumed provider meaning. Every active datum must resolve
+   > through **one** Mallan semantic concept. A provider binding must identify the verified **resource,
+   > path, field, type and entitlement**. A Mallan-owned concept must identify its **canonical storage
+   > and business authority**. Every writer and reader must bind to the **same** concept. Unresolved
+   > active writable concepts **fail closed**.
+
+   See §1A. This exists because Mallan does not have a testing problem, it has a missing
+   semantic-compiler problem: agents were inferring meaning from HTML ids, aliases, provider-looking
+   names, JSON buckets, comments and old audits, so every agent reached a different conclusion.
+
+---
+
+## 1A. Semantic authority (read before touching any field, control, criterion or mapping)
+
+**Five things must stay separate. Never let one name carry more than one of them.**
+
+| # | Layer | Question it answers |
+|---|---|---|
+| 1 | Cotality raw fact | What exactly did Cotality expose? resource + path + field + type + enum + permission |
+| 2 | Mallan business concept | What does the fact mean to this brokerage? |
+| 3 | Mallan storage | Where is Mallan's version/history persisted? |
+| 4 | Surface control | Which form / search / report / workspace control reads or writes it? |
+| 5 | Business consumers | Search · CMA · CRM · Portal · Reports · Compliance · Marketing |
+
+A name like `RentingAllowedYN` was being asked to mean all five. That is the defect.
+
+**Provider identity is never `fieldName → yes/no`.** That check produces confident wrong answers.
+Worked example, verified 2026-09-09: `ManagementCompanyName` is **absent** from Property, **present** on
+the `Building` resource in the field catalogue, and `Building` returns **403 (not entitled)**. Three
+different answers to what a name-only lookup treats as one question. Always resolve resource + path +
+entitlement, and remember a fact can be **observed in delivered payloads without being a first-class
+field** (e.g. `ManagingAgencyListingYN`: 89,230 populated observations, not on the Property contract).
+
+**Semantic states** (a TypeScript discriminated union, exhaustively checked — adding a state must force
+every branch to handle it): `verified-provider` · `verified-mallan` · `derived` · `ui-only` ·
+`legacy-alias` · `unresolved` · `forbidden`.
+
+**An alias is never authority.** `SecurityDeposit → DepositAmount` means only "an old surface used this
+historical name." It must never imply the target is a Cotality field. An alias points at a *concept*;
+the concept decides source and storage.
+
+**Controls belong to concepts; concepts do not belong to controls.** Thousands of surface instances map
+to hundreds of concepts and a smaller set of canonical storage facts. Never mint one concept per control.
+
+**Exhaust system evidence before escalating to Maya.** For an unresolved concept, produce the evidence
+packet first: does Cotality expose it (live resource + exact path) · have we actually received it (raw
+sample) · is it in the runtime surface census · what does the label say · does the collector write it ·
+does the API accept it · is it persisted (exact column / JSON path) · does reload restore it · who reads
+it · does the Master Plan require it · is it governed by a compliance rule. Only what survives all of
+that is `OWNER DECISION REQUIRED`. Most cases resolve to delete-legacy-alias, map-to-existing-concept,
+Mallan-owned-fact, or provider-nested-observation.
+
+**Runtime census, not HTML grep.** Static text cannot prove what the browser creates. A behavioural
+claim needs the real page driven end to end: set value → real collector → real API → persistence →
+reload → hydrate → verify meaning survived. A validator that greps is worse than none, because it counts
+as coverage: today a REBNY gate could be satisfied by a comment, and two compliance scanners passed
+while matching zero elements.
+
+**Four different jobs. Do not collapse them.** JSON Schema = structural validity · semantic kernel =
+meaning · behavioural tests = actual execution · compliance engine = legal and business constraints.
+
+**Declare consumers.** Every concept names its producer and its consumers, so a change cannot quietly
+fix Search while breaking CMA. "What else can this damage?" must be answerable by the machine.
+
+**What "green" must mean.** Today green means the tests agree with the current implementation, which is
+not enough. The target gate: provider contract valid · all active surfaces censused at runtime · zero
+undeclared active controls · zero unresolved writable concepts · every writable concept has storage ·
+every stored concept has reload proof · every provider fact has resource/path provenance · every
+consumer declared · direct and negative tests · integration · downstream · compliance · browser proof.
+Only then may `semanticSubmissionReady` be true.
+
+**Current state, so nobody overstates it.** The authority kernel exists on branch
+`fix/cotality-authority-kernel-2026-09-09` (not merged): 5 seed concepts, `semanticSubmissionReady:
+false`, `listingWriteCapability: unavailable`, 16 unresolved alias declarations and 2 unresolved surface
+controls. The runtime census is not installed. **Do not** hand-expand the seed concepts, and **do not**
+repair the 16 aliases one by one — that would encode today's misunderstandings permanently. Order:
+runtime census → semantic evidence graph → concept classification → surface manifests → compiler →
+delete the greps. Only then populate the registry at scale.
+
+**Process rules for multi-agent work** (learned 2026-09-09, when locally-green lanes produced 41
+integration failures): file ownership prevents collisions, not semantic breakage — no lane declares done
+on its own files; the integrated suite plus the validators is the gate. State per check what it proves
+**and what it does not** (§J.8). Never loosen a test to make it pass; if you change an expectation, say
+what it still proves.
+
+---
+
 ## 2. Non-negotiable holds (require explicit Maya approval)
 
 Gate 6 `--execute` / any archive-drain execute / 20K–80K batches · manual cron trigger · Vercel env
