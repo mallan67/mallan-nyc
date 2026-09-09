@@ -22,6 +22,26 @@ website." It has downstream consumers: search, CRM, portal, media, compliance, a
 
 ## 1. Invariants (never violate)
 
+0. **ONE CRM. Never build a second one.** The CRM is `public/crm/index.html` -> built to
+   `public/crm/index-built.html`, served at **`/crm`**. It holds Property Search (sale + rental, basic +
+   advanced), Building search, Comparables/CMA, Manage Listings, Open Houses, saved searches and the
+   sale/rental form entry points. **Add every CRM feature there.** Do NOT create a new shell, a new
+   route table, a `*-v2` / `*-new` / `dashboard-*` page, or "a cleaner modular rebuild" - and do not add
+   features to `public/crm/dashboard.html`, which is the RETIRED duplicate.
+   - How this went wrong: `9716752d` "CRM v2 - modular dashboard replacing monolith" added a second CRM
+     and repointed `/crm` at it. The monolith was never retired. Both shipped for months, agents worked
+     in both, and on 2026-09-09 the owner reported *"i have no search right now"* - the real CRM was
+     deployed and healthy the whole time and simply unreachable. A census found 72 routes in the
+     duplicate: 2 already existed in the canonical app, 14 were dead stubs, 56 were unique.
+   - Owner ruling, 2026-09-09: *"do not just point the crm, remove duplicates, agents go in there and
+     create changes in that one and then they create another one... this cannot happen ever again."*
+   - Enforced, not merely written down: `tests/runtime/crm-one-application.test.ts` fails if a page
+     appears under `public/crm/` without a declared role, if any file outside the retired shell owns a
+     `Router.register` table, if the retired shell grows, or if `/crm` stops serving the canonical app.
+     `tests/runtime/crm-single-entry-point.test.ts` pins the front door.
+   - `public/crm/dashboard.html` and `public/crm/js/dashboard/**` may only SHRINK, as its 56 unique
+     capabilities are moved into the canonical CRM and it is deleted.
+
 1. **Canonical Neon production** — project `hidden-mountain-87248164` ("neon-green-school", **Vercel-managed
    org** `Vercel: maya` / `org-wild-king-99967357`) · default branch **`main` = `br-crimson-frog-adr7g9gt`**
    · endpoint **`ep-cold-waterfall-adno3ao2`**. **Stale / do-not-serve:** `morning-bread-68708332` /

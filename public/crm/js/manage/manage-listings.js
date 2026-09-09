@@ -1224,19 +1224,27 @@ function manageAutoUpdate(id) {
 }
 
 // Create / Edit Listing
+// The listing forms open by their GOVERNED ABSOLUTE routes (vercel.json), never relative.
+// A relative form filename resolves against the directory of the address in the bar, and
+// /crm -> /crm/index-built.html is a rewrite the browser cannot see. Entered at /crm/search it
+// resolved under /crm/ and worked; entered at /crm it resolved at the site root and every
+// create/edit opened a 404. Sale and rental keep separate routes, as they must.
+var CRM_SALE_FORM_ROUTE = '/crm/sale-listing';
+var CRM_RENTAL_FORM_ROUTE = '/crm/rental-listing';
+
 function manageCreateListing() {
     if (currentManageMode === 'sales') {
-        window.open('SALE-FORM-REDESIGN.html', '_blank');
+        window.open(CRM_SALE_FORM_ROUTE, '_blank');
     } else {
-        window.open('RENTAL-FORM-REDESIGN.html', '_blank');
+        window.open(CRM_RENTAL_FORM_ROUTE, '_blank');
     }
 }
 function manageEditListing(id) {
     var listing = manageFindListing(id);
     if (!listing) return;
     var dbId = listing._dbId || listing.id;
-    if (listing.category === 'sales') window.open('SALE-FORM-REDESIGN.html?id=' + encodeURIComponent(dbId), '_blank');
-    else window.open('RENTAL-FORM-REDESIGN.html?id=' + encodeURIComponent(dbId), '_blank');
+    if (listing.category === 'sales') window.open(CRM_SALE_FORM_ROUTE + '?id=' + encodeURIComponent(dbId), '_blank');
+    else window.open(CRM_RENTAL_FORM_ROUTE + '?id=' + encodeURIComponent(dbId), '_blank');
 }
 function manageExportTable() {
     // CSV export integration point \u2014 wire to /api/crm/listings/export when ready.

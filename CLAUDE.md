@@ -21,6 +21,16 @@
 
 ## A. Absolute hard rules
 
+0. **ONE CRM — `public/crm/index.html` -> `index-built.html`, served at `/crm`.** Every CRM feature goes
+   there. Never create a second shell, a second `Router.register` table, or a `*-v2` / `dashboard-*`
+   page; never add features to `public/crm/dashboard.html`, the RETIRED duplicate. `9716752d` added a
+   second CRM and repointed `/crm` at it without retiring the first; both shipped for months and the
+   owner lost access to her own Property Search. Enforced by
+   `tests/runtime/crm-one-application.test.ts` + `tests/runtime/crm-single-entry-point.test.ts`.
+   `index-built.html` INLINES all its JavaScript - a source change is not live until
+   `node public/crm/build.js` runs, and `tests/runtime/crm-build-drift.test.ts` proves it. See
+   `AGENTS.md` §1.0.
+
 0. **SEMANTIC AUTHORITY — read `AGENTS.md` §1A before touching any field, control, criterion or mapping.**
    No surface control, API field, persisted fact, Search criterion, CMA field, report field or compliance
    rule may refer directly to an **assumed** provider meaning. Every active datum resolves through **one**
