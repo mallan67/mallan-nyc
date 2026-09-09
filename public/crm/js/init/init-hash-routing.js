@@ -1,3 +1,59 @@
+    /**
+     * The explicit entry point carried by the URL, if any.
+     *
+     * A link named "Rental Advanced Search" is a promise about where you arrive. Before 2026-09-09 this
+     * file restored mode/tab/type from sessionStorage ALONE, so the CRM's six Property Search doors
+     * (built as /crm/search?tab=sale-advanced) all opened the same page in whatever state the operator
+     * last left it in - the parameter was never read.
+     *
+     * Accepts the explicit form (?mode=&tab=&type=) and the compound form (?tab=sale-advanced) that the
+     * CRM launcher and saved Recent Searches already emit, so existing history entries start working
+     * rather than staying inert. Anything unrecognised is IGNORED, never obeyed.
+     */
+    function _searchEntryFromUrl() {
+        var out = { mode: null, tab: null, type: null };
+        var q;
+        try { q = new URLSearchParams(window.location.search); } catch (e) { return out; }
+
+        var MODES = ['basic', 'advanced'];
+        var TABS = ['sale', 'rent', 'building'];
+        var TYPES = ['general', 'comparables'];
+        var pick = function (list, v) { return v && list.indexOf(v) !== -1 ? v : null; };
+
+        out.mode = pick(MODES, q.get('mode'));
+        out.tab = pick(TABS, q.get('tab'));
+        out.type = pick(TYPES, q.get('type'));
+
+        // Compound form: tab=sale-basic | rental-advanced | building-basic | comps-address | ...
+        var compound = q.get('tab');
+        if (compound && compound.indexOf('-') !== -1) {
+            var head = compound.split('-')[0];
+            var tail = compound.split('-')[1];
+            if (head === 'comps') {
+                out.type = out.type || 'comparables';
+            } else {
+                out.tab = out.tab || pick(TABS, head === 'rental' ? 'rent' : head);
+                out.mode = out.mode || pick(MODES, tail);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Consume the entry point so it applies once. Internal navigation afterwards follows what the
+     * operator does, not what the link said. Every OTHER parameter (clientContext, compareContext) is
+     * preserved untouched.
+     */
+    function _consumeSearchEntryParams() {
+        try {
+            var q = new URLSearchParams(window.location.search);
+            if (!q.has('mode') && !q.has('tab') && !q.has('type')) return;
+            ['mode', 'tab', 'type'].forEach(function (k) { q.delete(k); });
+            var rest = q.toString();
+            window.history.replaceState(null, '', window.location.pathname + (rest ? '?' + rest : '') + window.location.hash);
+        } catch (e) { /* a URL we cannot rewrite is not worth failing the page over */ }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         var hash = window.location.hash.replace('#', '');
 
@@ -40,11 +96,13 @@
             if (searchFormContainer) searchFormContainer.style.display = 'block';
             if (searchResultsSection) searchResultsSection.style.display = 'none';
 
-            // Restore saved search mode + tab + type on refresh (mode FIRST so tab sees correct state)
+            // Restore mode + tab + type (mode FIRST so tab sees correct state).
+            // An explicit entry point in the URL WINS over the previous visit - see _searchEntryFromUrl.
+            var _entry = _searchEntryFromUrl();
             try {
-                var savedMode = sessionStorage.getItem('searchMode');
-                var savedTab = sessionStorage.getItem('searchTab');
-                var savedType = sessionStorage.getItem('searchType');
+                var savedMode = _entry.mode || sessionStorage.getItem('searchMode');
+                var savedTab = _entry.tab || sessionStorage.getItem('searchTab');
+                var savedType = _entry.type || sessionStorage.getItem('searchType');
                 if (savedMode && typeof toggleSearchMode === 'function') {
                     toggleSearchMode(savedMode);
                 }
@@ -55,6 +113,7 @@
                     toggleSearchType(savedType);
                 }
             } catch(e) {}
+            _consumeSearchEntryParams();
 
         } else if (route === 'detail' && routeParam) {
             // ── STANDALONE DETAIL PAGE ──
