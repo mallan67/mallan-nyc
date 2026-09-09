@@ -43,6 +43,34 @@ var CrmCalc = (function () {
 
     var PROPERTY_TYPES = ['condo', 'coop', 'townhouse'];
 
+    // ─── Financing instrument — what the mortgage recording tax actually keys on ─────────────────
+    //
+    // MRT is a tax on RECORDING A MORTGAGE AGAINST REAL PROPERTY. The exemption on an individual
+    // co-op purchase exists because the lender's security interest is perfected by a UCC filing
+    // against the shares and the proprietary lease - personal property - not by recording a mortgage
+    // on the apartment. So the exemption keys on the INSTRUMENT, never on the word "co-op":
+    //
+    //   individual co-op unit + cooperative_share_loan   -> no MRT, UCC/lien/recognition fees instead
+    //   ANY recorded mortgage on real property           -> MRT applies
+    //
+    // A cooperative CORPORATION financing the building it owns records a real-property mortgage and
+    // owes MRT like any other borrower. Encoding this as "anything involving a co-op is exempt" would
+    // silently zero a real tax on that transaction. Owner ruling 2026-09-09.
+    var FINANCING_INSTRUMENTS = ['recorded_mortgage', 'cooperative_share_loan'];
+
+    function _requireFinancingInstrument(instrument, propertyType) {
+        var chosen = instrument === undefined || instrument === null
+            ? (propertyType === 'coop' ? 'cooperative_share_loan' : 'recorded_mortgage')
+            : String(instrument).toLowerCase();
+        if (FINANCING_INSTRUMENTS.indexOf(chosen) === -1) {
+            throw new Error('Unknown financing instrument "' + instrument + '". Expected one of: ' + FINANCING_INSTRUMENTS.join(', ') + '.');
+        }
+        if (chosen === 'cooperative_share_loan' && propertyType !== 'coop') {
+            throw new Error('A cooperative share loan secures co-op shares and a proprietary lease. It cannot finance a ' + propertyType + '.');
+        }
+        return chosen;
+    }
+
     // ─── Guards — bad input is refused, never turned into a plausible number ──
     function _num(v, fallback) {
         var n = typeof v === 'string' ? parseFloat(v.replace(/[$,\s]/g, '')) : v;
@@ -146,23 +174,62 @@ var CrmCalc = (function () {
             'NYS Tax Law §1402-a (supplemental tax, 2019 schedule)',
             band.rate === 0 ? 'Not due below $1,000,000.' : null);
 
-        // Mortgage recording tax — with the co-op exemption
+        // Mortgage recording tax — keyed on the INSTRUMENT, not on the property type
         var mrt = 0;
         var mrtNote = null;
+        var instrument = null;
+        if (financing) {
+            instrument = _requireFinancingInstrument(input.financingInstrument, propertyType);
+            _assume(A, 'financingInstrument', 'Financing instrument', instrument, null,
+                input.financingInstrument === undefined ? 'default' : 'user',
+                instrument === 'cooperative_share_loan'
+                    ? 'Security interest in the co-op shares and proprietary lease, perfected by UCC filing.'
+                    : 'Mortgage recorded against real property.');
+        }
+
         if (!financing) {
             mrtNote = 'No loan, so none is due.';
-        } else if (propertyType === 'coop') {
-            mrtNote = 'Not due on a co-op: the loan is a security interest in shares, not a recorded real-property mortgage.';
-            W.push('Co-op purchase: no NYC mortgage recording tax is due. A condo or townhouse at this loan size would owe about ' +
-                Math.round(loan * mortgageRecordingTaxRate(loan)).toLocaleString() + ' USD.');
+        } else if (instrument === 'cooperative_share_loan') {
+            mrtNote = 'Not due: a co-op share loan is perfected by a UCC filing against the shares and proprietary lease, ' +
+                'not by recording a mortgage against real property.';
+            W.push('Individual co-op purchase financed by a share loan: no NYC mortgage recording tax is due. ' +
+                'A recorded mortgage at this loan size would owe about ' +
+                Math.round(loan * mortgageRecordingTaxRate(loan)).toLocaleString('en-US') + ' USD.');
         } else {
             var mrtRate = mortgageRecordingTaxRate(loan);
             mrt = loan * mrtRate;
             _assume(A, 'mortgageRecordingTaxRate', 'Mortgage recording tax rate', mrtRate * 100, '%', 'statutory',
                 loan < 500000 ? 'Borrower share, loans under $500,000.' : 'Borrower share, loans of $500,000 or more.');
+            if (propertyType === 'coop') {
+                W.push('This models a mortgage RECORDED AGAINST REAL PROPERTY on a co-op — e.g. the cooperative ' +
+                    'corporation financing its underlying building. That is not an individual share-loan purchase, ' +
+                    'and mortgage recording tax does apply.');
+            }
         }
         _line(L, 'mortgageRecordingTax', 'NYC Mortgage Recording Tax', mrt,
-            'NYC Admin. Code §11-2601 et seq. (borrower share)', mrtNote);
+            'NYC Admin. Code §11-2601 et seq. (borrower share); tax on recording a mortgage against real property', mrtNote);
+
+        // ── Co-op share-financing costs — the UCC-side equivalents of what MRT/title cover ──
+        // Customary amounts, building- and lender-specific. Marked as defaults so nothing here reads
+        // as statute, and every one of them is editable.
+        if (instrument === 'cooperative_share_loan') {
+            var ucc = _num(input.uccFilingFee, 125);
+            _assume(A, 'uccFilingFee', 'UCC-1 filing fee', ucc, 'USD', input.uccFilingFee === undefined ? 'default' : 'user',
+                'Customary amount — confirm with the lender; filing fees vary.');
+            _line(L, 'uccFilingFee', 'UCC-1 filing fee', ucc, null, 'Perfects the lender\'s security interest in the shares.');
+
+            var lien = _num(input.coopLienSearch, 350);
+            _assume(A, 'coopLienSearch', 'Co-op lien search', lien, 'USD', input.coopLienSearch === undefined ? 'default' : 'user',
+                'Customary amount — varies by search company; confirm with counsel.');
+            _line(L, 'coopLienSearch', 'Co-op lien search', lien, null, 'The co-op equivalent of a title search.');
+
+            var recog = _num(input.recognitionAgreementFee, 200);
+            _assume(A, 'recognitionAgreementFee', 'Recognition agreement fee', recog, 'USD',
+                input.recognitionAgreementFee === undefined ? 'default' : 'user',
+                'Customary amount — set by the building or its managing agent; confirm.');
+            _line(L, 'recognitionAgreementFee', 'Recognition agreement (Aztech) fee', recog, null,
+                'Between the lender, the co-op and the purchaser.');
+        }
 
         // Negotiated / service costs — all inputs, all visible
         var attorney = _num(input.attorneyFee, 3500);

@@ -129,6 +129,99 @@ describe('mortgage recording tax — and the co-op exemption the dashboard versi
 });
 
 // ────────────────────────────────────────────────────────────────────────────────────────────────
+describe('the co-op exemption keys on the FINANCING INSTRUMENT, never on the word "co-op"', () => {
+  /**
+   * Owner ruling 2026-09-09, confirming the exemption and bounding it:
+   *
+   *   "do not encode this as 'anything involving a cooperative building has no MRT'. It should
+   *    specifically be: propertyType = individual_cooperative_unit, financing =
+   *    cooperative_share_loan -> MRT = 0. A mortgage against the cooperative corporation's
+   *    underlying building/real estate is a different transaction."
+   *
+   * The exemption exists because the lender's security interest in an individual co-op purchase is
+   * perfected by a UCC filing against the shares and proprietary lease — personal property — rather
+   * than by recording a mortgage against real property. The instrument is what matters. A co-op
+   * CORPORATION borrowing against the building it owns records a real-property mortgage and owes MRT
+   * like any other borrower, and this engine must not exempt it just because "coop" appears.
+   */
+  const base = { price: 2_000_000, downPaymentPct: 25, financing: true, mortgageRatePct: 6.5 };
+
+  it('an individual co-op unit bought with a share loan owes NO mortgage recording tax', () => {
+    const r = C.buyerClosingCosts({ ...base, propertyType: 'coop' });
+    expect(amount(r, 'mortgageRecordingTax')).toBe(0);
+    expect(assumption(r, 'financingInstrument')!.value).toBe('cooperative_share_loan');
+  });
+
+  it('a RECORDED MORTGAGE on co-op real property DOES owe it — the exemption is not blanket', () => {
+    // e.g. the cooperative corporation financing the underlying building.
+    const r = C.buyerClosingCosts({ ...base, propertyType: 'coop', financingInstrument: 'recorded_mortgage' });
+    expect(amount(r, 'mortgageRecordingTax')).toBeCloseTo(1_500_000 * 0.01925, 2);
+  });
+
+  it('a condo cannot be financed by a share loan — the instrument is refused, not silently honoured', () => {
+    expect(() => C.buyerClosingCosts({ ...base, propertyType: 'condo', financingInstrument: 'cooperative_share_loan' }))
+      .toThrow(/share loan|cooperative/i);
+  });
+
+  it('an unknown financing instrument is refused rather than defaulted to the exempt one', () => {
+    expect(() => C.buyerClosingCosts({ ...base, propertyType: 'coop', financingInstrument: 'handshake' }))
+      .toThrow(/financing instrument/i);
+  });
+
+  it('the exemption is stated on the line, with what a recorded mortgage would have cost', () => {
+    const r = C.buyerClosingCosts({ ...base, propertyType: 'coop' });
+    expect(line(r, 'mortgageRecordingTax').note).toMatch(/UCC|shares|proprietary lease/i);
+    expect(r.warnings.join(' ')).toMatch(/28,875|28875/);
+  });
+});
+
+describe('co-op share financing has its own costs, which a condo does not', () => {
+  const coop = C.buyerClosingCosts({ price: 2_000_000, downPaymentPct: 25, financing: true, propertyType: 'coop', mortgageRatePct: 6.5 });
+  const condo = C.buyerClosingCosts({ price: 2_000_000, downPaymentPct: 25, financing: true, propertyType: 'condo', mortgageRatePct: 6.5 });
+
+  it('a share loan carries a UCC-1 filing fee', () => {
+    expect(amount(coop, 'uccFilingFee')).toBeGreaterThan(0);
+    expect(line(coop, 'uccFilingFee').label).toMatch(/UCC/i);
+  });
+
+  it('and a lien search and recognition-agreement fee', () => {
+    expect(amount(coop, 'coopLienSearch')).toBeGreaterThan(0);
+    expect(amount(coop, 'recognitionAgreementFee')).toBeGreaterThan(0);
+  });
+
+  it('a condo has none of them', () => {
+    for (const key of ['uccFilingFee', 'coopLienSearch', 'recognitionAgreementFee']) {
+      expect(amount(condo, key) || 0).toBe(0);
+    }
+  });
+
+  it('they are customary amounts, marked as defaults and editable — not presented as statute', () => {
+    for (const key of ['uccFilingFee', 'coopLienSearch', 'recognitionAgreementFee']) {
+      const a = assumption(coop, key);
+      expect(a!.source).toBe('default');
+      expect(a!.note).toMatch(/customary|confirm|varies/i);
+    }
+    // An operator's own figure overrides the default and is reported as theirs.
+    const withOwn = C.buyerClosingCosts({ price: 2_000_000, downPaymentPct: 25, financing: true, propertyType: 'coop', uccFilingFee: 175 });
+    expect(assumption(withOwn, 'uccFilingFee')!.source).toBe('user');
+    expect(amount(withOwn, 'uccFilingFee')).toBe(175);
+  });
+});
+
+describe('mansion tax applies to co-ops even though MRT does not', () => {
+  it('a $3.5M co-op still owes the 1.50% mansion tax', () => {
+    const r = C.buyerClosingCosts({ price: 3_500_000, propertyType: 'coop', financing: false });
+    expect(amount(r, 'mansionTax')).toBe(52_500);
+  });
+
+  it('condo and co-op owe identical mansion tax at the same price', () => {
+    const a = C.buyerClosingCosts({ price: 6_000_000, propertyType: 'coop', financing: false });
+    const b = C.buyerClosingCosts({ price: 6_000_000, propertyType: 'condo', financing: false });
+    expect(amount(a, 'mansionTax')).toBe(amount(b, 'mansionTax'));
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────────────────────────────
 describe('seller transfer taxes', () => {
   it('NYC RPTT is 1.00% below $500,000 and 1.425% at or above it', () => {
     expect(amount(C.sellerClosingCosts({ price: 499_999 }), 'rptt')).toBeCloseTo(499_999 * 0.01, 2);
