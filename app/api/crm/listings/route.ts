@@ -44,7 +44,6 @@ export async function GET(req: NextRequest) {
   // and (2) closed/terminal Trestle-synced deals. Active/Pending Trestle listings
   // are managed via REBNY RLS directly, not through the CRM.
   // Provider tokens plus the legacy spellings written before the 2026-09-08 token correction (lib/listings/mallan-status.ts).
-  const TRESTLE_CLOSED = storageStatusesFor(["Closed"]);
   const CRM_HIDDEN = storageStatusesFor(["Withdrawn", "Canceled"]);
   const crmCreated = { mls_id: null, listing_id: { startsWith: "SL-" }, status: { notIn: CRM_HIDDEN } };
   const crmCreatedRental = { mls_id: null, listing_id: { startsWith: "RL-" }, status: { notIn: CRM_HIDDEN } };
@@ -72,10 +71,14 @@ export async function GET(req: NextRequest) {
     select: { trestle_mls_id: true },
   });
   const viewerMlsId = viewer?.trestle_mls_id?.trim() || null;
-  const trestleClosed = viewerMlsId
+  // EVERY status, not just closed. An agent's own listings belong in My Listings whatever the live
+  // Cotality StandardStatus says - Active, Pending (contract signed), ComingSoon, off-market, closed.
+  // This arm was restricted to closed rows on the assumption that "Active/Pending Trestle listings are
+  // managed via REBNY RLS directly, not through the CRM". That assumption is wrong (Maya 2026-09-09):
+  // it hid Maya's 2 Active listings while showing her 33 closings.
+  const trestleOwn = viewerMlsId
     ? {
         mls_id: { not: null },
-        status: { in: TRESTLE_CLOSED },
         OR: [
           { list_agent_mls_id: viewerMlsId },
           { co_list_agent_mls_id: viewerMlsId },
@@ -84,7 +87,7 @@ export async function GET(req: NextRequest) {
     : null;
 
   const where: Record<string, unknown> = {
-    OR: trestleClosed ? [crmCreated, crmCreatedRental, trestleClosed] : [crmCreated, crmCreatedRental],
+    OR: trestleOwn ? [crmCreated, crmCreatedRental, trestleOwn] : [crmCreated, crmCreatedRental],
   };
 
   // Ownership: agent sees only their own, broker sees all
