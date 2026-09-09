@@ -1029,10 +1029,16 @@ function renderManageSection(mode) {
 
     // Apply the filter: a token filter compares tokens, a workflow filter compares the agent's saved word.
     var listings = baseListings;
+    // A listing whose status could not be resolved is still INVENTORY. It must never be filtered away:
+    // the default status filter is 'Active', and an unresolved row matches no token, so it silently
+    // disappeared and the agent saw an empty portfolio instead of their own listings. Presentation cannot
+    // erase identity. The row is kept and rendered with an explicit "Status unavailable" warning; we still
+    // refuse to invent a Cotality status for it (fail-closed on MEANING, fail-open on EXISTENCE).
+    var _statusUnresolved = function(l) { return !l.statusToken; };
     if (currentManageWorkflowFilter) {
-        listings = listings.filter(function(l) { return l.workflowWord === currentManageWorkflowFilter; });
+        listings = listings.filter(function(l) { return l.workflowWord === currentManageWorkflowFilter || _statusUnresolved(l); });
     } else if (currentManageStatusFilter !== 'All') {
-        listings = listings.filter(function(l) { return l.statusToken === currentManageStatusFilter; });
+        listings = listings.filter(function(l) { return l.statusToken === currentManageStatusFilter || _statusUnresolved(l); });
     }
 
 
