@@ -283,8 +283,19 @@
         }, 500);
 
         // ── Handle browser back/forward buttons ──
-        window.addEventListener('hashchange', function() {
-            var newHash = window.location.hash.replace('#', '');
+        //
+        // This file used to register its own hashchange listener here. It no longer does, because the
+        // CRM is converging on ONE routing authority: js/core/crm-routing.js owns the only hashchange
+        // registration and dispatches on the leading slash - "#/ops/tasks" to the brokerage panels,
+        // "#results" / "#detail/<id>" / "#manage" to this handler. Two listeners on one bar is the
+        // trap: each router defaults an unrecognised hash to its own home route, so every brokerage
+        // navigation would ALSO be handled here as "show the search form", and every search
+        // navigation would ALSO be handled there as "go to the ops dashboard".
+        //
+        // The search behaviour below is unchanged - only who calls it has changed. If CrmRouting is
+        // not present (this file loaded standalone), it keeps its own listener so nothing regresses.
+        function _handleSearchHash(rawHash) {
+            var newHash = String(rawHash == null ? '' : rawHash).replace(/^#/, '');
             var newParts = newHash.split('/');
             var newRoute = newParts[0] || 'main';
             var newParam = newParts[1] || null;
@@ -316,7 +327,16 @@
                     }
                 }
             }
-        });
+        }
+
+        // Hand this handler to the one routing authority, or keep our own listener if it is absent.
+        if (typeof CrmRouting !== 'undefined' && CrmRouting && typeof CrmRouting.install === 'function') {
+            CrmRouting.install({ onSearchRoute: _handleSearchHash });
+        } else {
+            window.addEventListener('hashchange', function () {
+                _handleSearchHash(window.location.hash);
+            });
+        }
     });
 
     /**
