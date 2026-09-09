@@ -73,7 +73,7 @@ describe('owner DTO status_label per transaction', () => {
 
   it('a row recorded off the feed reads the Mallan presence state, not a provider status', () => {
     const out = sanitizeOwnedListingForOwner(row({ status: 'Active', listing_type: 'sale', sync_status: 'off_feed' }), 'seller');
-    expect(out.status_label).toBe('Off Market');
+    expect(out.status_label).toBe('Off Market — reason unknown');
   });
 
   it('the projection never leaks raw_data / MlsStatus into the portal payload', () => {
@@ -137,11 +137,16 @@ describe('/api/portal/comparables status_label', () => {
 
   it('serializeComp emits the token + the transaction label (Closed → Sold on a sale, Rented on a rental)', async () => {
     const { GET } = await import('@/app/api/portal/comparables/route');
-    const res = await GET(makeRequest({ method: 'GET', url: 'http://localhost/api/portal/comparables?listingId=SUBJ' }));
+    // The route reads `req.nextUrl.searchParams` (a Next.js-only property the plain Request in
+    // makeRequest does not carry), so attach it the way the other runtime specs do.
+    const url = 'http://localhost/api/portal/comparables?listingId=SUBJ';
+    const req = makeRequest({ method: 'GET', url });
+    Object.defineProperty(req, 'nextUrl', { value: new URL(url), enumerable: false });
+    const res = await GET(req);
     expect(res.status).toBe(200);
     const body = await res.json();
-    const all = [...body.building.listings, ...body.area.listings];
-    const by = Object.fromEntries(all.map((c: { listing_id: string }) => [c.listing_id, c]));
+    const all = [...body.building.listings, ...body.area.listings] as { listing_id: string; status: string; status_label: string }[];
+    const by = Object.fromEntries(all.map((c) => [c.listing_id, c]));
     expect(by['C-SALE-CLOSED']).toMatchObject({ status: 'Closed', status_label: 'Sold' });
     expect(by['C-RENT-CLOSED']).toMatchObject({ status: 'Closed', status_label: 'Rented' });
     expect(by['C-LEGACY-SOLD']).toMatchObject({ status: 'Closed', status_label: 'Sold' });

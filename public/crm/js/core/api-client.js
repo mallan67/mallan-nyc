@@ -280,10 +280,33 @@ var MallanAPI = (function () {
       });
     },
 
-    updateStatus: function (id, newStatus) {
+    /**
+     * Transition a listing's status.
+     *
+     * `newStatus` is the Mallan WORKFLOW word the agent picked on the form (a sale's
+     * ContractSigned / Sold, a rental's LeaseSigned / Rented) or an already-canonical live
+     * Cotality StandardStatus token. The SERVER resolves it through THAT listing's transaction
+     * mapping (lib/crm/status-mapping.ts) — the browser never translates.
+     *
+     * `facts` carries the Cotality date (and the close price) the status requires — a sale's
+     * PurchaseContractDate, CloseDate + ClosePrice, ExpirationDate, WithdrawnDate,
+     * CancellationDate, BackOnMarketDate; a rental's _mallanLeaseSignedDate. Omitted when the
+     * transition carries none. The server refuses a missing fact by name (422 STATUS_FACT_REQUIRED)
+     * and an unknown one (400 STATUS_FACT_UNKNOWN).
+     */
+    updateStatus: function (id, newStatus, facts) {
+      var payload = { status: newStatus };
+      if (facts && typeof facts === 'object') {
+        var carried = {};
+        Object.keys(facts).forEach(function (k) {
+          var v = facts[k];
+          if (v !== undefined && v !== null && v !== '') carried[k] = v;
+        });
+        if (Object.keys(carried).length > 0) payload.facts = carried;
+      }
       return _fetch('/api/crm/listings/' + encodeURIComponent(id) + '/status', {
         method: 'PATCH',
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify(payload),
       });
     },
 
@@ -692,7 +715,20 @@ var MallanAPI = (function () {
     /**
      * Search listings via Trestle/REBNY RLS.
      * Returns listings in CRM flat shape (same as listings).
-     * @param {object} params - { type, minPrice, maxPrice, minBeds, minBaths, neighborhood, borough, status, limit, skip, minYear, maxYear, minFloors, maxFloors, minUnits, maxUnits, buildingName }
+     *
+     * EVERY parameter named here is forwarded, and every parameter forwarded is named here. The list is
+     * exactly the executor's executable set (lib/search/engine/criteria.ts EXECUTED_PARAMS, published to
+     * the browser at GET /api/idx/search/contract). Advertising a parameter this function drops is how
+     * `backOnMarket` looked wired for the four Search panels and the Refine bar while never leaving the
+     * browser; minYear / maxYear / minFloors / maxFloors / minUnits / maxUnits were advertised the same
+     * way and are NOT executable (the executor has no YearBuilt / StoriesTotal / NumberOfUnitsTotal
+     * criterion), so they are named nowhere and are refused upstream by name rather than dropped here.
+     *
+     * @param {object} params - {
+     *   type, status, backOnMarket, minPrice, maxPrice, minBeds, maxBeds, minBaths, maxBaths,
+     *   minSqft, maxSqft, neighborhood, buildingName, borough, zip, ownership, StructureType,
+     *   listingId, sort, limit, skip
+     * }
      */
     search: function (params) {
       params = params || {};
@@ -704,9 +740,18 @@ var MallanAPI = (function () {
       if (params.maxBeds != null) qs.push('maxBeds=' + params.maxBeds);
       if (params.minBaths) qs.push('minBaths=' + params.minBaths);
       if (params.maxBaths) qs.push('maxBaths=' + params.maxBaths);
+      // LivingArea bounds — executable (Edm.Decimal, filterable live). `!= null` so an explicit 0 is sent.
+      if (params.minSqft != null && params.minSqft !== '') qs.push('minSqft=' + encodeURIComponent(params.minSqft));
+      if (params.maxSqft != null && params.maxSqft !== '') qs.push('maxSqft=' + encodeURIComponent(params.maxSqft));
       if (params.neighborhood) qs.push('neighborhood=' + encodeURIComponent(params.neighborhood));
+      // BuildingName — executable (Edm.String, filterable live); executed as tolower(BuildingName) eq.
+      if (params.buildingName) qs.push('buildingName=' + encodeURIComponent(params.buildingName));
       if (params.borough) qs.push('borough=' + encodeURIComponent(params.borough));
       if (params.status) qs.push('status=' + encodeURIComponent(params.status));
+      // Back On Market is a REFINEMENT of Active (Active + BackOnMarketDate), offered by all four Search
+      // panels and by Refine. serializeSearchCriteria sets params.backOnMarket = '1' and the executor
+      // accepts it — this line is the missing link that kept it from ever reaching the server.
+      if (params.backOnMarket) qs.push('backOnMarket=' + encodeURIComponent(params.backOnMarket));
       // Only the executor's executable parameters can leave the browser (Search Consolidation
       // Packet 1). Anything else is refused upstream by serializeSearchCriteria; it is not
       // silently forwarded here either.

@@ -325,12 +325,16 @@ describe('assertRlsCompliantPayload', () => {
       PetsAllowed: 'UnitYes',
       BuildingTaxLot: '1234',
       TaxBlock: '567',
-      ElevatorsTotal: 2,
+      // Mallan facts under their Mallan keys. Neither `ElevatorsTotal` nor `NewDevelopmentYN` is a live
+      // Cotality Property field (both proven absent from the dated contract pull), so the REBNY/UCBA
+      // mandatory list names `_mallanElevatorsTotal` / `_mallanNewDevelopmentYN` — the keys
+      // SALE-FORM-REDESIGN.html now emits. The FACTS are unchanged and still mandatory.
+      _mallanElevatorsTotal: 2,
       GarageYN: false,
       NumberOfUnitsTotal: 100,
       StoriesTotal: 20,
       NewConstructionYN: false,
-      NewDevelopmentYN: false,
+      _mallanNewDevelopmentYN: false,
       YearBuilt: 2005,
       // Unit info
       BathroomsFull: 2,
@@ -355,16 +359,19 @@ describe('assertRlsCompliantPayload', () => {
       OriginalEntryTimestamp: '2026-01-01T00:00:00Z',
       OnMarketDate: '2026-01-15',
       SourceSystemKey: 'SYS-123',
-      // Condo conditional fields (required since CommonInterest=Condominium)
+      // Condo conditional fields (required since CommonInterest=Condominium). Same rename: none of the
+      // co-op / condo financial facts is a live Cotality Property field, so CONDO-001 / COOPCONDO-001 /
+      // FLIPTAX-001 / TAXABATE-001 name them under `_mallan*`. AssociationFee, AssociationFeeFrequency,
+      // SpecialListingConditions and LivingArea ARE live fields and keep their provider names.
       AssociationFee: 1200,
       AssociationFeeFrequency: 'Monthly',
-      FlipTax: 0,
-      MaximumFinancingPercent: 90,
-      MaximumFinancingRemarks: 'Standard financing',
-      TaxAbatementYN: false,
+      _mallanFlipTax: 0,
+      _mallanMaximumFinancingPercent: 90,
+      _mallanMaximumFinancingRemarks: 'Standard financing',
+      _mallanTaxAbatementYN: false,
       SpecialListingConditions: 'Standard',
-      PercentOfCommonElements: 1.5,
-      TaxMonthlyAmount: 800,
+      _mallanPercentOfCommonElements: 1.5,
+      _mallanTaxMonthlyAmount: 800,
       LivingArea: 1200,
       LivingAreaUnits: 'SquareFeet',
       TaxLot: '1234',

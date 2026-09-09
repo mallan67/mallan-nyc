@@ -8,14 +8,33 @@
             if (window.reissueServerSearch) reissueServerSearch();
         }
 
-        // Column sort toggle
+        // ── Column sort ───────────────────────────────────────────────────────────────────────────────
+        // The executor sorts the WHOLE universe and hands back one ordered page; the browser never re-sorts
+        // a page. It can express exactly three orders (_serverSortKey: newest | price_asc | price_desc), so
+        // only the two columns behind them are sortable. Clicking any other header used to mutate
+        // searchResultsState.sortField, re-render the same page in the same order (no visible change), and
+        // then silently re-ask the executor in price_desc on the next page turn.
+        var SORTABLE_COLUMNS = { price: 1, listedDate: 1 };
+        window.SORTABLE_COLUMNS = SORTABLE_COLUMNS;
+        function isSortableColumn(field) { return !!SORTABLE_COLUMNS[field]; }
+        window.isSortableColumn = isSortableColumn;
+
         function toggleColumnSort(field) {
+            if (!isSortableColumn(field)) {
+                if (typeof showToast === 'function') {
+                    showToast('This Search can order results by price or by newest only — ' + field + ' is not a sortable column.', 'info');
+                }
+                return;
+            }
             if (searchResultsState.sortField === field) {
                 searchResultsState.sortOrder = searchResultsState.sortOrder === 'asc' ? 'desc' : 'asc';
             } else {
                 searchResultsState.sortField = field;
-                searchResultsState.sortOrder = 'asc';
+                searchResultsState.sortOrder = field === 'listedDate' ? 'desc' : 'asc';
             }
+            // Re-ask the executor for page 1 in the new order. A local re-render would show a page that is
+            // ordered differently from the universe the next page comes out of.
+            if (typeof reissueServerSearch === 'function' && reissueServerSearch()) return;
             renderSearchResults();
         }
 
@@ -94,8 +113,18 @@
             }
             var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(listing.address);
             var displayUnit = listing.addressDisplayYN !== false && listing.unit ? ', ' + escapeHtml(listing.unit) : '';
-            var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
+            // The transaction's broker word, from THE status authority. This used to print the raw internal
+            // token (and mapped only the retired 'COMING_SOON' spelling), so a rental closing read "CLOSED".
+            var statusLabel = (typeof MallanStatus !== 'undefined' && MallanStatus)
+                ? MallanStatus.label(listing)
+                : (listing.status_label || 'Status unavailable');
             var isSale = listing.listingCategory !== 'rental';
+            // Money that may legitimately be null. price / maintCC / totalMonthly are ALL nullable in the
+            // executor DTO, and calling .toLocaleString() on a null threw a TypeError that the blanket
+            // catch below swallowed — the drawer then rendered nothing at all, with no error to the user.
+            function _money(v) {
+                return (typeof v === 'number' && isFinite(v)) ? '$' + v.toLocaleString() : 'Unavailable';
+            }
             var transitScore = computeTransitScore(listing);
             var bikeScore = computeBikeScore(listing);
             var photos = listing.images || [];
@@ -113,11 +142,11 @@
 
             // Header right: status + price + financials
             document.getElementById('detailHeaderRight').innerHTML =
-                '<span class="px-2 py-0.5 ' + getStatusBadgeClasses(listing.status) + ' rounded text-xs font-semibold">' + statusLabel + '</span>'
-                + '<span class="text-lg font-bold ml-2">$' + listing.price.toLocaleString() + '</span>'
+                '<span class="px-2 py-0.5 ' + getStatusBadgeClasses(listing.status) + ' rounded text-xs font-semibold">' + escapeHtml(statusLabel) + '</span>'
+                + '<span class="text-lg font-bold ml-2">' + _money(listing.price) + '</span>'
                 + '<div class="flex items-center gap-4 ml-4 text-xs text-gray-500">'
-                + '<div class="text-right"><div class="uppercase text-[10px] text-gray-400">' + (isSale ? 'Maintenance' : 'Rent') + '</div><div class="font-semibold text-gray-700">$' + listing.maintCC.toLocaleString() + '</div></div>'
-                + '<div class="text-right"><div class="uppercase text-[10px] text-gray-400">Est. Monthly</div><div class="font-semibold text-gray-700">$' + listing.totalMonthly.toLocaleString() + ' <i class="fas fa-calculator text-gray-400"></i></div></div>'
+                + '<div class="text-right"><div class="uppercase text-[10px] text-gray-400">' + (isSale ? 'Maintenance' : 'Rent') + '</div><div class="font-semibold text-gray-700">' + _money(listing.maintCC) + '</div></div>'
+                + '<div class="text-right"><div class="uppercase text-[10px] text-gray-400">Est. Monthly</div><div class="font-semibold text-gray-700">' + _money(listing.totalMonthly) + ' <i class="fas fa-calculator text-gray-400"></i></div></div>'
                 + '</div>';
 
             // ── Helper: only show a field row if it has real data ──
@@ -1064,13 +1093,15 @@
             var nearbyListings = allListings.filter(function(l) { return l.id !== listing.id && l.neighborhood !== listing.neighborhood; }).slice(0, 3);
             var renderMiniCard = function(l) {
                 var addr = l.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(l.address);
-                var st = l.status === 'COMING_SOON' ? 'CS' : l.status;
+                var st = (typeof MallanStatus !== 'undefined' && MallanStatus)
+                    ? MallanStatus.label(l)
+                    : (l.status_label || 'Status unavailable');
                 return '<div class="border rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition-shadow" onclick="openListingInNewTab(\'' + l.id + '\')">'
                     + '<div class="h-[140px] cm-photo-wrap"><img src="' + getListingPhoto(l) + '" alt="' + addr + '" class="cm-photo" loading="lazy"></div>'
                     + '<div class="p-3"><div class="font-semibold text-sm truncate">' + addr + (l.unit ? ', ' + escapeHtml(l.unit) : '') + '</div>'
                     + '<div class="text-xs text-gray-500 mt-0.5">' + ownershipLabel(l.ownership) + ' <span class="text-gray-300">|</span> ' + escapeHtml(l.neighborhood) + '</div>'
                     + '<div class="text-xs mt-1"><strong>' + l.beds + '</strong> Beds &nbsp; <strong>' + l.baths + '</strong> Baths</div>'
-                    + '<div class="flex items-center justify-between mt-2"><div class="flex items-center gap-1.5"><span class="px-1.5 py-0.5 ' + getStatusBadgeClasses(l.status) + ' rounded text-[10px] font-semibold">' + st + '</span><span class="font-bold text-sm">$' + l.price.toLocaleString() + '</span></div>'
+                    + '<div class="flex items-center justify-between mt-2"><div class="flex items-center gap-1.5"><span class="px-1.5 py-0.5 ' + getStatusBadgeClasses(l.status) + ' rounded text-[10px] font-semibold">' + escapeHtml(st) + '</span><span class="font-bold text-sm">' + (typeof l.price === 'number' && isFinite(l.price) ? '$' + l.price.toLocaleString() : 'Price unavailable') + '</span></div>'
                     + '<div class="text-[10px] text-gray-400">Listed<br>' + l.listedDate + '</div></div></div></div>';
             };
             var nhEl = document.getElementById('detailSimilarNeighborhood');
@@ -1231,12 +1262,12 @@
             var url = 'https://mallan.nyc/' + (isSale ? 'buy' : 'rent') + '/' + slug + '-' + listing.id;
             // RLS ID = ListingId (REBNY canonical); fall back to internal id
             var rlsId = listing.lid || listing.id || '';
-            // Status — render the canonical mapped status (post-A14
-            // mapper exhaustiveness guarantees no "OFF MARKET" string).
-            var status = listing.status || 'ACTIVE';
-            var statusLabel = status === 'COMING_SOON' ? 'Coming Soon'
-                : status === 'PENDING' ? 'In Contract'
-                : status.charAt(0) + status.slice(1).toLowerCase();
+            // Status — THE status authority, in this listing's own transaction's language. This used to
+            // default a blank status to ACTIVE and then re-case the token by hand, which also labelled a
+            // RENTAL Pending "In Contract" in a message sent to another brokerage.
+            var statusLabel = (typeof MallanStatus !== 'undefined' && MallanStatus)
+                ? MallanStatus.label(listing)
+                : (listing.status_label || 'Status unavailable');
             var agent = typeof AGENT_PROFILE !== 'undefined' ? AGENT_PROFILE : {};
             var fromName = agent.name || '';
             // The designation, or nothing. This defaulted to the principal
@@ -1333,7 +1364,10 @@
                     listing_address: listing.address || '',
                     listing_unit: listing.unit || null,
                     listing_price: Number(listing.price || 0),
-                    listing_status: listing.status || 'ACTIVE',
+                    // The exact live token, or null. Never a fabricated Active.
+                    listing_status: (typeof MallanStatus !== 'undefined' && MallanStatus)
+                        ? MallanStatus.token(listing)
+                        : (listing.status || null),
                     listing_url: listingUrl,
                     listing_neighborhood: listing.neighborhood || null,
                     listing_borough: listing.borough || 'Manhattan',
@@ -1630,7 +1664,9 @@
             var isSale = listing.listingCategory !== 'rental';
             var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : listing.address;
             var displayUnit = listing.addressDisplayYN !== false && listing.unit ? ', ' + listing.unit : '';
-            var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
+            var statusLabel = (typeof MallanStatus !== 'undefined' && MallanStatus)
+                ? MallanStatus.label(listing)
+                : (listing.status_label || 'Status unavailable');
             var today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
             var primaryPhoto = listing.images && listing.images[0] ? listing.images[0].url : '';
 
@@ -2609,8 +2645,12 @@
                     detail: '$' + listing.originalPrice.toLocaleString() + ' → $' + listing.price.toLocaleString()
                 });
             }
-            if (listing.status && listing.status !== 'ACTIVE') {
-                events.push({ date: listing.updatedDate || 'N/A', label: 'Status: ' + listing.status, detail: '' });
+            var _timelineToken = (typeof MallanStatus !== 'undefined' && MallanStatus)
+                ? MallanStatus.token(listing) : (listing.status || null);
+            if (_timelineToken && _timelineToken !== 'Active') {
+                var _timelineLabel = (typeof MallanStatus !== 'undefined' && MallanStatus)
+                    ? MallanStatus.label(listing) : _timelineToken;
+                events.push({ date: listing.updatedDate || 'N/A', label: 'Status: ' + _timelineLabel, detail: '' });
             }
             events.push({ date: 'Current', label: 'DOM: ' + (listing.dom || 0) + ' | CDOM: ' + (listing.cdom || 0), detail: '$' + (listing.price || 0).toLocaleString() });
 

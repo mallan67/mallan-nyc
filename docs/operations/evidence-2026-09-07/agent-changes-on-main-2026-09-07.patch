@@ -1,0 +1,2736 @@
+diff --git a/README.md b/README.md
+index c917bb28..cfb1247a 100644
+--- a/README.md
++++ b/README.md
+@@ -47,27 +47,27 @@ Install the hooks once: `npm run hooks:install`
+ ## 📌 MLS / IDX DATA COMPLIANCE (REBNY RLS — IDX Plus)
+ 
+ ### Overview
+-This project integrates **REBNY Residential Listing Service (RLS) data via the IDX Plus feed** under a broker-direct license held by **Mallan Real Estate Inc**. The system migrated to **IDX Plus** (from standard IDX) via Trestle/Cotality, providing **902 IDX Plus fields across 7 REBNY-specified resources** (Property 527, CustomProperty 106, Member 72, Office 66, Media 46, PropertyUnitTypes 46, OpenHouse 39). Trestle exposes **12 total data resources** including 5 additional beyond the IDX Plus spec: PropertyRooms, Teams, TeamMembers, PropertyGreenVerification, and Building. All use of MLS/IDX data must comply with REBNY RLS rules, RESO standards, the Fair Housing Act, and New York State real estate advertising law.
++This project integrates **REBNY Residential Listing Service (RLS) data via the IDX Plus feed** under a broker-direct license held by **Mallan Real Estate Inc**. The system migrated to **IDX Plus** (from standard IDX) via Trestle/Cotality, providing **902 IDX Plus fields across 7 REBNY-specified resources** (Property 527, CustomProperty 106, Member 72, Office 66, Media 46, PropertyUnitTypes 46, OpenHouse 39). Trestle exposes **12 total data resources** including 5 additional beyond the IDX Plus spec: PropertyRooms, Teams, TeamMembers, PropertyGreenVerification, and Building. All use of MLS/IDX data must comply with REBNY RLS rules, Cotality standards, the Fair Housing Act, and New York State real estate advertising law.
+ 
+ Non-compliance exposes the brokerage to immediate suspension and liquidated damages up to $40,000.
+ 
+ ---
+ 
+-### Three-layer feed model — REBNY vs Cotality vs RESO (clarified 2026-05-01)
++### Three-layer feed model — REBNY vs Cotality vs Cotality (clarified 2026-05-01)
+ 
+ Three distinct layers must stay separate when reasoning about feed behavior, debugging field semantics, or planning future MLS subscriptions:
+ 
+ | Layer | What it is | Who owns it |
+ |---|---|---|
+-| **REBNY** | The MLS / RLS organization, data owner, and policy layer | Owns the runtime policy that decides which rows reach the feed and which fields are populated/suppressed per row. UOI in RESO Desktop Client: `T00000046`. |
++| **REBNY** | The MLS / RLS organization, data owner, and policy layer | Owns the runtime policy that decides which rows reach the feed and which fields are populated/suppressed per row. UOI in Cotality Desktop Client: `T00000046`. |
+ | **Cotality / Trestle** | The API / feed platform implementing and serving REBNY's data | mallan.nyc reads the live feed at `https://api.cotality.com/trestle` — **the only field/API truth**. The live `$metadata` defines which fields exist; REBNY's policy layer decides which rows/fields are populated per row. |
+-| **RESO** | The OData / field-naming model the Cotality feed exposes | The Cotality/Trestle feed returns a RESO-shaped OData model (entity types, field names, enum tokens). It does NOT tell you what REBNY's policy layer populates at runtime — verify against the live feed, not an external standard. |
++| **Cotality** | The OData / field-naming model the Cotality feed exposes | The Cotality/Trestle feed returns a Cotality-shaped OData model (entity types, field names, enum tokens). It does NOT tell you what REBNY's policy layer populates at runtime — verify against the live feed, not an external standard. |
+ 
+ **Practical consequences:**
+ 
+-1. **Field behavior is feed-specific, not RESO-spec-derived.** `InternetEntireListingDisplayYN` and `InternetAddressDisplayYN` are universally `null` AND non-OData-filterable in mallan.nyc's REBNY IDX Plus feed because REBNY pre-filters non-displayable rows out at the Cotality data-serving boundary (HTTP 400 "Results from 'RLS' has been suppressed (provider Level)"). This is REBNY policy, NOT a universal Cotality behavior. The mapper at `lib/idx/trestle-mapper.ts:680-681` treats null as displayable for these two fields specifically because of REBNY's pre-filter — see the in-file comment for the full reasoning.
+-2. **Other RESO fields behave differently because REBNY treats them differently.** `InternetAutomatedValuationDisplayYN` and `InternetConsumerCommentYN` ARE per-row populated (~97% true / ~3% false) because REBNY treats them as per-listing opt-out flags rather than pre-filter conditions. Those use fail-closed `affirmPermission()` coercion.
+-3. **Future non-REBNY feeds need independent verification.** When mallan.nyc subscribes to OneKey, NY State MLS, or other non-REBNY MLSes (per the external-inventory spec Phase 2-A), each carries its own three-layer stack and may populate the SAME RESO field names with different runtime semantics. New adapters must run their own `npm run reso:coverage` probe against the new feed before any writer-side mapping decisions are committed. **Runtime payload behavior must be verified per feed, not assumed from RESO certification alone.**
++1. **Field behavior is feed-specific, not Cotality-spec-derived.** `InternetEntireListingDisplayYN` and `InternetAddressDisplayYN` are universally `null` AND non-OData-filterable in mallan.nyc's REBNY IDX Plus feed because REBNY pre-filters non-displayable rows out at the Cotality data-serving boundary (HTTP 400 "Results from 'RLS' has been suppressed (provider Level)"). This is REBNY policy, NOT a universal Cotality behavior. The mapper at `lib/idx/trestle-mapper.ts:680-681` treats null as displayable for these two fields specifically because of REBNY's pre-filter — see the in-file comment for the full reasoning.
++2. **Other Cotality fields behave differently because REBNY treats them differently.** `InternetAutomatedValuationDisplayYN` and `InternetConsumerCommentYN` ARE per-row populated (~97% true / ~3% false) because REBNY treats them as per-listing opt-out flags rather than pre-filter conditions. Those use fail-closed `affirmPermission()` coercion.
++3. **Future non-REBNY feeds need independent verification.** When mallan.nyc subscribes to OneKey, NY State MLS, or other non-REBNY MLSes (per the external-inventory spec Phase 2-A), each carries its own three-layer stack and may populate the SAME Cotality field names with different runtime semantics. New adapters must run their own `npm run cotality:coverage` probe against the new feed before any writer-side mapping decisions are committed. **Runtime payload behavior must be verified per feed, not assumed from Cotality certification alone.**
+ 
+ This distinction was clarified after the 2026-04-30 IDX Plus display-gate incident. Full incident capture in [`memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md`](./memory/IDX-PLUS-DISPLAY-GATE-2026-04-30.md).
+ 
+@@ -204,13 +204,13 @@ Generated by: `lib/idx/mapping.ts` (`generateAttributionText()`)
+ 
+ ### Field model (live Cotality feed)
+ 
+-The live `api.cotality.com/trestle` feed exposes a RESO-shaped OData model. Field facts (verify against the live `$metadata`):
+-- **23 RESO-to-RLS field renames** handled in `lib/idx/trestle-mapper.ts`
++The live `api.cotality.com/trestle` feed exposes a Cotality-shaped OData model. Field facts (verify against the live `$metadata`):
++- **23 Cotality-to-RLS field renames** handled in `lib/idx/trestle-mapper.ts`
+ - **902 IDX Plus fields** across 7 REBNY-specified resources (Property 527, CustomProperty 106, Member 72, Office 66, Media 46, PropertyUnitTypes 46, OpenHouse 39), 41 required, 86 conditional
+ - **5 additional Trestle resources** beyond IDX Plus: PropertyRooms (39 fields), Teams (48), TeamMembers (29), PropertyGreenVerification (39), Building (key only)
+ - **Critical fields beyond IDX Plus CSV** on Trestle Property: `InternetAddressDisplayYN`, `InternetEntireListingDisplayYN`, `InternetAutomatedValuationDisplayYN`, `InternetConsumerCommentYN`, `ShowingInstructions` — all distribution gate / showing fields
+ - **2,066 picklist values** across 117 lookups
+-- **StandardStatus uses RESO enum tokens** (no spaces): `Active`, `ComingSoon`, `ActiveUnderContract`
++- **StandardStatus uses Cotality enum tokens** (no spaces): `Active`, `ComingSoon`, `ActiveUnderContract`
+ - **Recent live fields:** `OriginalMediaUrl` on Media, `MemberMls`/`OfficeMls`
+ 
+ ---
+@@ -535,7 +535,7 @@ All auth is cookie-only (Bearer token auth fully removed in Sprint 10).
+ - `Virtual Tour` → rendered as `<iframe>` with `xr-spatial-tracking` (Matterport, etc.)
+ 
+ **Virtual tour sources** (priority order):
+-1. `VirtualTourURLUnbranded` field on Property resource (RESO standard)
++1. `VirtualTourURLUnbranded` field on Property resource (Cotality standard)
+ 2. Media resource items with `MediaCategory = 'Virtual Tour'` (fallback)
+ 
+ #### ⚠️ TRESTLE MEDIA API RULES — VENDOR-CONFIRMED (2026-04-07)
+@@ -666,7 +666,7 @@ Trestle API (server-side only)
+   │
+   ├─→ /api/cron/idx-sync (every 4hrs) ─→ Prisma DB (PostgreSQL on Neon)
+   │     Pulls Property + $expand=CustomProperty,Media
+-  │     Maps via lib/idx/trestle-mapper.ts (23 RESO→RLS renames)
++  │     Maps via lib/idx/trestle-mapper.ts (23 Cotality→RLS renames)
+   │     Checks 6 distribution gates → stores in Listing model
+   │
+   ├─→ /api/idx/search (CRM, on-demand) ─→ Direct Trestle query
+@@ -690,7 +690,7 @@ The REBNY UCBA and the Trestle API use different names for some fields:
+ |--------------------|---------------|-------|
+ | `IDXEntireListingDisplayYN` | `InternetEntireListingDisplayYN` | No separate IDX field on Trestle — master gate serves both |
+ | `SyndicateYN` (boolean) | `SyndicateTo` (multi-select list) | Portal selection, not a simple boolean |
+-| `StandardStatus` | `MlsStatus` | Plus 22 other RESO→RLS renames in `trestle-mapper.ts` |
++| `StandardStatus` | `MlsStatus` | Plus 22 other Cotality→RLS renames in `trestle-mapper.ts` |
+ 
+ Internal TypeScript code uses UCBA names (mapped by normalizer before hitting Trestle). Compliance docs annotate the Trestle field name where they differ.
+ 
+diff --git a/app/api/auth/me/route.ts b/app/api/auth/me/route.ts
+index 3bbbad43..10735b31 100644
+--- a/app/api/auth/me/route.ts
++++ b/app/api/auth/me/route.ts
+@@ -115,7 +115,7 @@ export async function GET(req: NextRequest) {
+         phone: agent.phone || null,
+         license: agent.license_no || null,
+         licenseTitle: licenseTitle(agent.license_type),
+-        // Cotality/Trestle MLS member id (RESO ListAgentMlsId). This — NOT the
++        // Cotality/Trestle MLS member id (Cotality ListAgentMlsId). This — NOT the
+         // NY State `license` and NOT the internal `id` — is the authoritative
+         // cross-source agent identifier. The sale form stamps it onto
+         // agent_info.ListAgentMlsId so CRM exclusives are Cotality-matchable.
+diff --git a/app/api/crm/listings/[id]/route.ts b/app/api/crm/listings/[id]/route.ts
+index 1df45398..3e6933a4 100644
+--- a/app/api/crm/listings/[id]/route.ts
++++ b/app/api/crm/listings/[id]/route.ts
+@@ -202,7 +202,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
+   // FARE Act fee-disclosure gate (NYC LL 119/2024) — rentals becoming display-ready
+   // (Active / ComingSoon). Covers the edit-save publish path. Applies to CRM rental
+   // exclusives too. Gate on DISPLAY-READY status (not !isDraft): the CRM form saves
+-  // drafts as RESO MlsStatus "Incomplete", which is non-Draft but NOT display-ready,
++  // drafts as Cotality MlsStatus "Incomplete", which is non-Draft but NOT display-ready,
+   // so a draft save must never be gated (Codex #348).
+   //
+   // Unchanged from its #350 baseline: this gate reads `effectiveStatus`
+@@ -258,7 +258,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
+   else if (body.SubdivisionName !== undefined) update.neighborhood = String(body.SubdivisionName);
+   if (body.City !== undefined) update.city = String(body.City);
+   if (body.PostalCode !== undefined) update.postal_code = String(body.PostalCode);
+-  // Distribution gates — all use canonical RESO/RLS field names (YN suffix).
++  // Distribution gates — all use canonical Cotality/RLS field names (YN suffix).
+   //
+   // 2026-04-28 fail-closed correction: previous pattern was `body.X !== false`
+   // which coerced null/string-"false"/garbage to true (fail-OPEN). Use
+@@ -344,7 +344,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
+         : null;
+   }
+   // ParticipantOnly + OwnerOptOut: derive from Permissions enum (same as POST route),
+-  // or accept the canonical RESO field names ParticipantOnlyYN / OwnerOptOutYN as fallback.
++  // or accept the canonical Cotality field names ParticipantOnlyYN / OwnerOptOutYN as fallback.
+   const permValue = body.Permission ?? body.Permissions; // A2: accept canonical Permission + legacy Permissions
+   if (permValue !== undefined) {
+     const permBools = derivePermissionBooleans(permValue);
+@@ -364,7 +364,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
+   // ListAgentKey were never persisted post-Phase-C).
+   const existingAgentInfo: Record<string, unknown> = {};
+ 
+-  // Address bucket key allowlist. Includes both canonical RESO names AND the
++  // Address bucket key allowlist. Includes both canonical Cotality names AND the
+   // CRM-form alias keys (CityRegion/SubdivisionName/CountyOrParish/PostalCity)
+   // that collectSaleFormData emits. Before adding the aliases, those four
+   // fields landed only in raw_data on PATCH — the structured address bucket
+@@ -376,7 +376,7 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
+     "City", "StateOrProvince", "PostalCode", "Borough",
+     "Neighborhood", "BuildingName", "UnparsedAddress",
+     // Alias keys the CRM sale form emits via collectSaleFormData (these are
+-    // the same fields under different RESO/REBNY names — see
++    // the same fields under different Cotality/REBNY names — see
+     // lib/compliance/normalizer.ts aliasToCanonical).
+     "CityRegion", "SubdivisionName", "CountyOrParish", "PostalCity",
+   ];
+diff --git a/app/api/open-houses/route.ts b/app/api/open-houses/route.ts
+index b55663bf..76adc2b5 100644
+--- a/app/api/open-houses/route.ts
++++ b/app/api/open-houses/route.ts
+@@ -522,7 +522,7 @@ async function fetchLocalOpenHouses(): Promise<OpenHouseDTO[]> {
+       // open house is shown-but-unlinkable (UCBA: ComingSoon has no showings).
+       .filter(({ gate, l }) => gate.displayable && OPEN_HOUSE_ELIGIBLE_STATUSES.includes(l.status) && isMallanOwnedLocalListing(l))
+       .map(({ s, l, gate }) => {
+-      // Address is stored as JSON. CRM/local listings persist it in RESO PascalCase
++      // Address is stored as JSON. CRM/local listings persist it in Cotality PascalCase
+       // (StreetNumber/StreetName/UnitNumber…); reading only camelCase produced an EMPTY street, which
+       // the hasData filter in GET() then dropped — the SL-0007 P1 bug. pickAddressParts reads both
+       // casings (canonical, shared with the banner path).
+diff --git a/app/components/ComingSoonBadge.tsx b/app/components/ComingSoonBadge.tsx
+index af1d01ac..e426c592 100644
+--- a/app/components/ComingSoonBadge.tsx
++++ b/app/components/ComingSoonBadge.tsx
+@@ -11,7 +11,7 @@ export function isComingSoonStatus(status: string | null | undefined): boolean {
+   return s === 'comingsoon';
+ }
+ 
+-// RESO date-only fields arrive as "YYYY-MM-DD". `new Date("2026-05-01")` parses
++// Cotality date-only fields arrive as "YYYY-MM-DD". `new Date("2026-05-01")` parses
+ // as UTC midnight, so toLocaleDateString shifts to the prior calendar day in
+ // US timezones west of UTC — that misstates the compliance-facing "until [date]"
+ // copy. Construct in local time when the input is date-only; trust JS for full
+diff --git a/app/components/Header.tsx b/app/components/Header.tsx
+index 166744f6..5324c225 100644
+--- a/app/components/Header.tsx
++++ b/app/components/Header.tsx
+@@ -159,7 +159,7 @@ export default function Header() {
+     //       `propertySubType` distribution. Sample of 200 sale listings:
+     //       Condo (118), SingleFamilyResidence (43), Co-op (25), Multi-Family (6),
+     //       Condop (3), MixedUse (2), Retail (1), Duplex (1), Residential (1).
+-    //       NYC townhouses are classified `SingleFamilyResidence` per RESO
++    //       NYC townhouses are classified `SingleFamilyResidence` per Cotality
+     //       (verified: 4 E 79th St, 25 Riverside Dr, 18 E 80th St — all marked
+     //       propertyType=SingleFamilyResidence).
+     // - `?subTypes=SingleFamilyResidence` returns 483 active sale listings,
+diff --git a/app/components/SimilarListings.tsx b/app/components/SimilarListings.tsx
+index 1033de37..61fca6ba 100644
+--- a/app/components/SimilarListings.tsx
++++ b/app/components/SimilarListings.tsx
+@@ -35,7 +35,7 @@ interface SimilarListingsProps {
+   neighborhood?: string;
+   currentListingId: string;
+   /** Subject property class signals — comps are matched like-with-like (townhouse↔townhouse,
+-   *  condo↔condo, house↔house…). propertyType is the mapped display; propertySubType is the raw RESO
++   *  condo↔condo, house↔house…). propertyType is the mapped display; propertySubType is the raw Cotality
+    *  sub-type used to classify rentals/townhouses/houses the display can't. */
+   propertyType?: string;
+   propertySubType?: string | null;
+diff --git a/artifacts/reso-drift/2026-04-30T00-10-34-631Z.json b/artifacts/cotality-drift/2026-04-30T00-10-34-631Z.json
+similarity index 100%
+rename from artifacts/reso-drift/2026-04-30T00-10-34-631Z.json
+rename to artifacts/cotality-drift/2026-04-30T00-10-34-631Z.json
+diff --git a/artifacts/reso-drift/latest.json b/artifacts/cotality-drift/latest.json
+similarity index 100%
+rename from artifacts/reso-drift/latest.json
+rename to artifacts/cotality-drift/latest.json
+diff --git a/artifacts/reso-snapshots/2026-04-30-coverage-active.json b/artifacts/cotality-snapshots/2026-04-30-coverage-active.json
+similarity index 100%
+rename from artifacts/reso-snapshots/2026-04-30-coverage-active.json
+rename to artifacts/cotality-snapshots/2026-04-30-coverage-active.json
+diff --git a/artifacts/reso-snapshots/2026-04-30-coverage-closed.json b/artifacts/cotality-snapshots/2026-04-30-coverage-closed.json
+similarity index 100%
+rename from artifacts/reso-snapshots/2026-04-30-coverage-closed.json
+rename to artifacts/cotality-snapshots/2026-04-30-coverage-closed.json
+diff --git a/compliance/ATTRIBUTIONS-AND-DISCLOSURES.md b/compliance/ATTRIBUTIONS-AND-DISCLOSURES.md
+index e8e05ac8..9de91e97 100644
+--- a/compliance/ATTRIBUTIONS-AND-DISCLOSURES.md
++++ b/compliance/ATTRIBUTIONS-AND-DISCLOSURES.md
+@@ -8,7 +8,7 @@
+ 
+ > ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
+ > 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
+-> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
++> 3. **REBNY overrides Cotality/IDX.** 4. **Cotality/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+ 
+ ---
+ 
+@@ -183,8 +183,8 @@ Listing data last updated: [TIMESTAMP]
+ 
+ | Rule | Source |
+ |------|--------|
+-| Must show data freshness | RESO IDX Rules |
+-| Format: date + time | Per RESO convention |
++| Must show data freshness | Cotality IDX Rules |
++| Format: date + time | Per Cotality convention |
+ 
+ ---
+ 
+diff --git a/compliance/AUDIT-LOGGING-AND-EVIDENCE.md b/compliance/AUDIT-LOGGING-AND-EVIDENCE.md
+index 48d9305b..a78f8d74 100644
+--- a/compliance/AUDIT-LOGGING-AND-EVIDENCE.md
++++ b/compliance/AUDIT-LOGGING-AND-EVIDENCE.md
+@@ -7,7 +7,7 @@
+ 
+ > ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
+ > 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
+-> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
++> 3. **REBNY overrides Cotality/IDX.** 4. **Cotality/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+ 
+ ---
+ 
+diff --git a/compliance/BACKEND-VALIDATION-ENGINE.md b/compliance/BACKEND-VALIDATION-ENGINE.md
+index f9ab28f1..ad692883 100644
+--- a/compliance/BACKEND-VALIDATION-ENGINE.md
++++ b/compliance/BACKEND-VALIDATION-ENGINE.md
+@@ -7,7 +7,7 @@
+ 
+ > ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
+ > 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
+-> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
++> 3. **REBNY overrides Cotality/IDX.** 4. **Cotality/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+ 
+ ---
+ 
+diff --git a/compliance/CRM-AND-MESSAGING-COMPLIANCE.md b/compliance/CRM-AND-MESSAGING-COMPLIANCE.md
+index e42c421b..08c05d67 100644
+--- a/compliance/CRM-AND-MESSAGING-COMPLIANCE.md
++++ b/compliance/CRM-AND-MESSAGING-COMPLIANCE.md
+@@ -7,7 +7,7 @@
+ 
+ > ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
+ > 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
+-> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
++> 3. **REBNY overrides Cotality/IDX.** 4. **Cotality/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+ 
+ ---
+ 
+diff --git a/compliance/FORMS-AND-RLS-SUBMISSION.md b/compliance/FORMS-AND-RLS-SUBMISSION.md
+index 44168723..cf9612c6 100644
+--- a/compliance/FORMS-AND-RLS-SUBMISSION.md
++++ b/compliance/FORMS-AND-RLS-SUBMISSION.md
+@@ -7,7 +7,7 @@
+ 
+ > ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
+ > 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
+-> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
++> 3. **REBNY overrides Cotality/IDX.** 4. **Cotality/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+ 
+ ---
+ 
+diff --git a/compliance/FRONTEND-COMPLIANCE.md b/compliance/FRONTEND-COMPLIANCE.md
+index 4ed508d1..8375b53a 100644
+--- a/compliance/FRONTEND-COMPLIANCE.md
++++ b/compliance/FRONTEND-COMPLIANCE.md
+@@ -7,7 +7,7 @@
+ 
+ > ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
+ > 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
+-> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
++> 3. **REBNY overrides Cotality/IDX.** 4. **Cotality/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+ 
+ ---
+ 
+diff --git a/compliance/IDX-VOW-DISPLAY-RULES.md b/compliance/IDX-VOW-DISPLAY-RULES.md
+index 522d51d0..4d2f766d 100644
+--- a/compliance/IDX-VOW-DISPLAY-RULES.md
++++ b/compliance/IDX-VOW-DISPLAY-RULES.md
+@@ -7,7 +7,7 @@
+ 
+ > ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
+ > 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
+-> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
++> 3. **REBNY overrides Cotality/IDX.** 4. **Cotality/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+ 
+ ---
+ 
+@@ -121,7 +121,7 @@ When `InternetEntireListingDisplayYN = False`, these fields AUTO-CASCADE to Fals
+ | Requirement | Source | Implementation |
+ |-------------|--------|----------------|
+ | Listing broker attribution | Art. III, Sec. 2(C) | "Listing Courtesy of [ListOfficeName]" — font not smaller than median |
+-| Data timestamp | RESO IDX Rules | "Last updated: [date/time]" |
++| Data timestamp | Cotality IDX Rules | "Last updated: [date/time]" |
+ | Fair Housing logo/link | Federal + NYC HRL | Equal Housing Opportunity icon |
+ | Commission negotiability | Art. I, Sec. 17 | Disclosure accessible from listing |
+ 
+diff --git a/compliance/NYC-NYS-REQUIREMENTS.md b/compliance/NYC-NYS-REQUIREMENTS.md
+index f0e684ac..2f7e53c9 100644
+--- a/compliance/NYC-NYS-REQUIREMENTS.md
++++ b/compliance/NYC-NYS-REQUIREMENTS.md
+@@ -8,7 +8,7 @@
+ 
+ > ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
+ > 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
+-> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
++> 3. **REBNY overrides Cotality/IDX.** 4. **Cotality/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+ 
+ ---
+ 
+diff --git a/compliance/PORTALS-AND-RBAC.md b/compliance/PORTALS-AND-RBAC.md
+index ef4a4a1e..408a786a 100644
+--- a/compliance/PORTALS-AND-RBAC.md
++++ b/compliance/PORTALS-AND-RBAC.md
+@@ -7,7 +7,7 @@
+ 
+ > ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
+ > 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
+-> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
++> 3. **REBNY overrides Cotality/IDX.** 4. **Cotality/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+ 
+ ---
+ 
+diff --git a/compliance/README.md b/compliance/README.md
+index ff812f3b..bb9b71d1 100644
+--- a/compliance/README.md
++++ b/compliance/README.md
+@@ -15,9 +15,9 @@
+ |----------|-----------|---------|
+ | **1** | **UCBA** | Everything — contractual obligations, timing, statuses, agent conduct |
+ | **2** | **REBNY RLS rules + fields** | Permissions, timing, statuses, mapping, IDs, dissemination |
+-| **3** | **RLS overrides RESO/IDX** | If an RLS rule/field exists, it overrides all RESO/IDX schema or vendor defaults |
+-| **4** | **RESO/IDX fills gaps** | If no RLS rule/field exists, use RESO definitions for naming/types/enums |
+-| **5** | **INTERNAL-ONLY** | If neither RLS nor RESO/IDX governs, must not affect public display eligibility |
++| **3** | **RLS overrides Cotality/IDX** | If an RLS rule/field exists, it overrides all Cotality/IDX schema or vendor defaults |
++| **4** | **Cotality/IDX fills gaps** | If no RLS rule/field exists, use Cotality definitions for naming/types/enums |
++| **5** | **INTERNAL-ONLY** | If neither RLS nor Cotality/IDX governs, must not affect public display eligibility |
+ | **6** | **Fail closed** | Any uncertainty or missing permission data defaults to **NON-DISPLAY** |
+ 
+ ---
+@@ -37,7 +37,7 @@
+ | [`CRM-AND-MESSAGING-COMPLIANCE.md`](CRM-AND-MESSAGING-COMPLIANCE.md) | TCPA, CAN-SPAM, Fair Housing in comms, no agent info in descriptions | CRM, Marketing |
+ | [`AUDIT-LOGGING-AND-EVIDENCE.md`](AUDIT-LOGGING-AND-EVIDENCE.md) | NY SHIELD Act, data access logging, evidence retention, breach response | Backend, Security |
+ | [`THIRD-PARTY-AND-FEED-GOVERNANCE.md`](THIRD-PARTY-AND-FEED-GOVERNANCE.md) | Trestle/Cotality API, StreetEasy, syndication portals, data license rules | Backend, Ops |
+-| [`UPDATES.md`](UPDATES.md) | Running changelog — REBNY, RESO, Cotality, FARE Act updates with dates | All |
++| [`UPDATES.md`](UPDATES.md) | Running changelog — REBNY, Cotality, Cotality, FARE Act updates with dates | All |
+ | [`AUTH-AND-API-SECURITY.md`](AUTH-AND-API-SECURITY.md) | Sprint 9 auth architecture — dual auth (Bearer + cookie), CORS, rate limiting, session management, cross-origin security | Backend, Security |
+ 
+ ## Machine-Readable Enforcement
+@@ -57,7 +57,7 @@
+ | [`rules/active.json`](rules/active.json) | Single pointer to all enforced rule files, field data, and validator scripts | All below |
+ | [`rules/rls-required.json`](rules/rls-required.json) | 52 always-required fields + 14 conditional groups + 11 cross-field validations | UCBA 2026 Exhibit A + RLS CSV |
+ | [`rules/export-policy.json`](rules/export-policy.json) | 8 distribution profiles, 6 gates, display cascade, never-export list, close-only fields, syndication portals | UCBA 2026 + REBNY RLS Rules |
+-| [`rules/reso-rls-renames.json`](rules/reso-rls-renames.json) | 23 RESO → RLS name mappings (foreign keys, case diffs, renames, splits) | RLS CSV |
++| [`rules/reso-rls-renames.json`](rules/reso-rls-renames.json) | 23 Cotality → RLS name mappings (foreign keys, case diffs, renames, splits) | RLS CSV |
+ | [`rules/status-rules.json`](rules/status-rules.json) | 9 status definitions, valid/invalid transitions, DOM rules, 5 timing SLAs | UCBA 2026 Art. I |
+ | [`rules/content-restrictions.json`](rules/content-restrictions.json) | 11 content restriction rules + 4 scanner definitions (Fair Housing, Agent Info, Off-Market, Compensation) | UCBA 2026 Art. I, III, VIII + Exhibit C |
+ | [`rules/ucba-audit-checklist.json`](rules/ucba-audit-checklist.json) | **Machine-readable UCBA 2026 audit checklist** — 145 verifiable rules with file paths, regex patterns, and verdicts. Used by `scripts/ucba-compliance-audit.js` for regression detection. | UCBA 2026 (all sections) |
+diff --git a/compliance/THIRD-PARTY-AND-FEED-GOVERNANCE.md b/compliance/THIRD-PARTY-AND-FEED-GOVERNANCE.md
+index 30150d5f..8b87d7cf 100644
+--- a/compliance/THIRD-PARTY-AND-FEED-GOVERNANCE.md
++++ b/compliance/THIRD-PARTY-AND-FEED-GOVERNANCE.md
+@@ -7,7 +7,7 @@
+ 
+ > ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
+ > 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
+-> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
++> 3. **REBNY overrides Cotality/IDX.** 4. **Cotality/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+ 
+ ---
+ 
+@@ -23,7 +23,7 @@
+ | Auth endpoint | `api.cotality.com/trestle/oidc/connect/token` |
+ | Support | trestlesupport@cotality.com |
+ | Documentation | trestle-documentation.corelogic.com (may migrate) |
+-| Protocol | RESO Web API (OData) |
++| Protocol | Cotality Web API (OData) |
+ | Authentication | OAuth 2.0 (client credentials) |
+ 
+ ### API Migration (Deadline: March 31, 2026)
+@@ -231,7 +231,7 @@ Per UCBA Art. III and Art. VIII:
+ |----------|--------|
+ | Server-side only access | Security |
+ | Attribution on all displays | H1, F6 |
+-| Update timestamps | RESO IDX Rules |
++| Update timestamps | Cotality IDX Rules |
+ | Respect all 6 distribution gates | Gates 1-6 |
+ | Respect address suppression | H10, InternetAddressDisplayYN |
+ | Statistical data disclaimer | H8 |
+@@ -258,6 +258,6 @@ Per UCBA Art. III and Art. VIII:
+ |--------|---------|------------|
+ | Vercel | Hosting | SOC 2, GDPR |
+ | Cloudflare R2 | Image storage | SOC 2, ISO 27001 |
+-| Cotality/Trestle | RLS data feed | RESO certified, REBNY authorized |
++| Cotality/Trestle | RLS data feed | Cotality certified, REBNY authorized |
+ | mallan.nyc | IDX Plus: public display + internal CRM + reporting (NOT an LMP — does not submit to RLS). IDX-eligible inventory only, not full-market. | REBNY authorized (confirmed 2026-03-27) |
+ | PostgreSQL (managed) | Database | Per provider (e.g., Supabase, Neon) |
+diff --git a/compliance/UCBA-2026.md b/compliance/UCBA-2026.md
+index de3614b6..08626387 100644
+--- a/compliance/UCBA-2026.md
++++ b/compliance/UCBA-2026.md
+@@ -9,9 +9,9 @@
+ > ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
+ > 1. **UCBA** governs everything — contractual obligations, timing, statuses, agent conduct.
+ > 2. **REBNY RLS rules + RLS fields** — permissions, timing, statuses, mapping, IDs, dissemination. per REBNY IDX Plus registry.
+-> 3. **RLS overrides RESO/IDX** — if an RLS rule/field exists, it overrides all RESO/IDX schema or vendor defaults.
+-> 4. **RESO/IDX fills gaps** — if no RLS rule/field exists, use RESO definitions for naming/types/enums.
+-> 5. **INTERNAL-ONLY** — if neither RLS nor RESO/IDX governs, it is internal-only and must not affect public display.
++> 3. **RLS overrides Cotality/IDX** — if an RLS rule/field exists, it overrides all Cotality/IDX schema or vendor defaults.
++> 4. **Cotality/IDX fills gaps** — if no RLS rule/field exists, use Cotality definitions for naming/types/enums.
++> 5. **INTERNAL-ONLY** — if neither RLS nor Cotality/IDX governs, it is internal-only and must not affect public display.
+ > 6. **Fail closed** — any uncertainty or missing permission data defaults to **NON-DISPLAY**.
+ 
+ ---
+diff --git a/compliance/UPDATES.md b/compliance/UPDATES.md
+index 1386c4f2..89fa0cd5 100644
+--- a/compliance/UPDATES.md
++++ b/compliance/UPDATES.md
+@@ -7,13 +7,13 @@
+ 
+ > ### FIELD AUTHORITY ORDER (ENFORCED — NO EXCEPTIONS)
+ > 1. **UCBA** governs everything. 2. **REBNY IDX Plus fields (902)** — single source of truth.
+-> 3. **REBNY overrides RESO/IDX.** 4. **RESO/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
++> 3. **REBNY overrides Cotality/IDX.** 4. **Cotality/IDX fills gaps.** 5. **INTERNAL-ONLY otherwise.** 6. **Fail closed = NON-DISPLAY.**
+ 
+ ---
+ 
+ ## How to Use This File
+ 
+-This is a running changelog of compliance-affecting updates from REBNY, RESO, Cotality, NYC/NYS law, and NAR. Check this file before any production deployment or form update.
++This is a running changelog of compliance-affecting updates from REBNY, Cotality, Cotality, NYC/NYS law, and NAR. Check this file before any production deployment or form update.
+ 
+ **Monitor these sources:**
+ - https://www.rebny.com/rls-updates/ — REBNY RLS bulletins
+@@ -39,7 +39,7 @@ This is a running changelog of compliance-affecting updates from REBNY, RESO, Co
+ | Date | Source | Change | Impact | Status |
+ |------|--------|--------|--------|--------|
+ | 2026-03-01 | Internal | **Sprint 9: Wire CRM Files to Live Backend** — CORS + dual auth (Bearer token + httpOnly cookie), login page, auth gates on all files, mock data removed from production paths, `api-client.js` rewritten with Bearer auth + fail-fast, 42 API endpoints live. See `compliance/AUTH-AND-API-SECURITY.md` for full architecture. | Backend, Security, All CRM files | **Complete** |
+-| 2026-03-01 | Internal | RLS Validator v2 post-Sprint 9 verification: **0 UNKNOWN**, 10/10 sections PASS, 2 pre-existing ERRORS (cosmetic RESO→RLS renames), 2 pre-existing WARNINGS (ComingSoon rental — by design). No new issues from Sprint 9 changes. | Compliance | Verified |
++| 2026-03-01 | Internal | RLS Validator v2 post-Sprint 9 verification: **0 UNKNOWN**, 10/10 sections PASS, 2 pre-existing ERRORS (cosmetic Cotality→RLS renames), 2 pre-existing WARNINGS (ComingSoon rental — by design). No new issues from Sprint 9 changes. | Compliance | Verified |
+ 
+ ### February 2026
+ 
+@@ -50,7 +50,7 @@ This is a running changelog of compliance-affecting updates from REBNY, RESO, Co
+ | 2026-02-21 | Internal | Compliance library created (14 docs + 2 JSON) | All development | Complete |
+ | 2026-02-21 | REBNY | No post-January 2026 UCBA amendments found | No action needed | Verified |
+ | 2026-02-19 | Internal | Field Authority Order added to all memory files | Documentation | Complete |
+-| 2026-02-19 | Internal | 23 RESO→RLS name renames documented | Field mapping | Complete |
++| 2026-02-19 | Internal | 23 Cotality→RLS name renames documented | Field mapping | Complete |
+ | 2026-02-18 | Internal | Address suppression — 8 display leaks fixed in search | Frontend | Complete |
+ | 2026-02-18 | Internal | Fair Chance Housing Act pattern added to search scanner | Frontend | Complete |
+ 
+@@ -128,11 +128,11 @@ This is a running changelog of compliance-affecting updates from REBNY, RESO, Co
+ |------|--------|----------|--------|
+ | FARE Act fee fields | REBNY | TBD ("will take some time") | Rental forms — currently using PublicRemarks + MoveInCosts |
+ | FARE Act Second Circuit ruling | Courts | TBD | Could modify or uphold FARE Act requirements |
+-| RESO Building Resource | RESO | TBD | New building-level fields in feeds |
++| Cotality Building Resource | Cotality | TBD | New building-level fields in feeds |
+ | Official neighborhood picklist | REBNY | TBD | SubdivisionName validation |
+-| RESO DD 2.1 | RESO | TBD | Association Management + Offer Management |
+-| RESO DD 2.2 | RESO | TBD | webp MediaType, High-Speed Internet fields |
+-| RESO DD 3.0 | RESO | TBD | WaterBodyRestrictions fields |
++| Cotality DD 2.1 | Cotality | TBD | Association Management + Offer Management |
++| Cotality DD 2.2 | Cotality | TBD | webp MediaType, High-Speed Internet fields |
++| Cotality DD 3.0 | Cotality | TBD | WaterBodyRestrictions fields |
+ 
+ ---
+ 
+diff --git a/compliance/fields.json b/compliance/fields.json
+index 18458e4b..20beb9b6 100644
+--- a/compliance/fields.json
++++ b/compliance/fields.json
+@@ -7,9 +7,9 @@
+     "fieldAuthorityOrder": [
+       "1. UCBA governs everything (contractual obligations, timing, statuses, agent conduct)",
+       "2. REBNY RLS rules + RLS fields (permissions, timing, statuses, mapping, IDs, dissemination)",
+-      "3. RLS overrides RESO/IDX — if RLS rule/field exists, it overrides RESO/IDX schema or vendor defaults",
+-      "4. RESO/IDX fills gaps — if no RLS rule/field exists, use RESO definitions for naming/types/enums",
+-      "5. INTERNAL-ONLY — if neither RLS nor RESO/IDX governs, must not affect public display eligibility",
++      "3. RLS overrides Cotality/IDX — if RLS rule/field exists, it overrides Cotality/IDX schema or vendor defaults",
++      "4. Cotality/IDX fills gaps — if no RLS rule/field exists, use Cotality definitions for naming/types/enums",
++      "5. INTERNAL-ONLY — if neither RLS nor Cotality/IDX governs, must not affect public display eligibility",
+       "6. Fail closed — any uncertainty or missing permission data defaults to NON-DISPLAY"
+     ],
+     "stats": {
+diff --git a/compliance/lookups.json b/compliance/lookups.json
+index f172251a..698bfb5d 100644
+--- a/compliance/lookups.json
++++ b/compliance/lookups.json
+@@ -5,7 +5,7 @@
+     "generated": "2026-02-22",
+     "totalLookupFields": 114,
+     "totalValues": 1993,
+-    "fieldAuthorityOrder": "See fields.json._meta.fieldAuthorityOrder — RLS picklist values override RESO defaults"
++    "fieldAuthorityOrder": "See fields.json._meta.fieldAuthorityOrder — RLS picklist values override Cotality defaults"
+   },
+   "lookups": {
+     "LookupName (Current)": {
+diff --git a/compliance/pii-and-distribution-checklist.md b/compliance/pii-and-distribution-checklist.md
+index 4a4a69d7..03857c9a 100644
+--- a/compliance/pii-and-distribution-checklist.md
++++ b/compliance/pii-and-distribution-checklist.md
+@@ -59,7 +59,7 @@ All 6 gates are enforced at the API layer. UI may only DISPLAY gate status (read
+ | Total RLS fields | 902 |
+ | Required fields | 41 |
+ | Conditional fields | 86 |
+-| RESO-to-RLS renames | 23 |
++| Cotality-to-RLS renames | 23 |
+ | Picklist values | 2,066 across 117 lookups |
+ | Field mapping source of truth | `data/rebny-rls-property-fields.csv` (mallan-nyc) |
+ | Validator | `npm run rls:validate` — 10 sections, 0 UNKNOWN required |
+diff --git a/compliance/rules/active.json b/compliance/rules/active.json
+index b4be05cc..84ea32a4 100644
+--- a/compliance/rules/active.json
++++ b/compliance/rules/active.json
+@@ -11,8 +11,8 @@
+     "fieldAuthorityOrder": [
+       "1. UCBA governs everything",
+       "2. REBNY RLS rules + RLS fields",
+-      "3. RLS overrides RESO/IDX",
+-      "4. RESO/IDX fills gaps",
++      "3. RLS overrides Cotality/IDX",
++      "4. Cotality/IDX fills gaps",
+       "5. INTERNAL-ONLY otherwise",
+       "6. Fail closed = NON-DISPLAY"
+     ]
+diff --git a/compliance/rules/reso-rls-renames.json b/compliance/rules/reso-rls-renames.json
+index 27d21f7c..a0762d0d 100644
+--- a/compliance/rules/reso-rls-renames.json
++++ b/compliance/rules/reso-rls-renames.json
+@@ -1,11 +1,11 @@
+ {
+   "_meta": {
+-    "description": "23 fields where RESO name differs from RLS (Matrix) name. Always use the RLS name. REBNY IDX Plus is the authority.",
++    "description": "23 fields where Cotality name differs from RLS (Matrix) name. Always use the RLS name. REBNY IDX Plus is the authority.",
+     "source": "data/rebny-rls-property-fields.csv",
+     "version": "1.0.0",
+     "updated": "2026-02-25",
+     "count": 23,
+-    "rule": "If a script or form uses the RESO name, it MUST be mapped to the RLS name before RLS submission."
++    "rule": "If a script or form uses the Cotality name, it MUST be mapped to the RLS name before RLS submission."
+   },
+   "renames": {
+     "BuildingSocialMedia": { "rlsName": "BuildingSocialMediaURL", "note": "" },
+@@ -13,8 +13,8 @@
+     "BuyerOfficeKey": { "rlsName": "BuyerOfficeMlsId", "note": "Foreign key" },
+     "BuyerTeamKey": { "rlsName": "BuyerTeamMlsId", "note": "Foreign key" },
+     "CableTvExpense": { "rlsName": "CableTVExpense", "note": "Case difference" },
+-    "CeilingHeight_Feet": { "rlsName": "CeilingHeightFeet", "note": "RESO CeilingHeight split into 2 fields" },
+-    "CeilingHeight_Inches": { "rlsName": "CeilingHeightInches", "note": "RESO CeilingHeight split into 2 fields" },
++    "CeilingHeight_Feet": { "rlsName": "CeilingHeightFeet", "note": "Cotality CeilingHeight split into 2 fields" },
++    "CeilingHeight_Inches": { "rlsName": "CeilingHeightInches", "note": "Cotality CeilingHeight split into 2 fields" },
+     "CoBuyerAgentKey": { "rlsName": "CoBuyerAgentMlsId", "note": "Foreign key" },
+     "CoBuyerOfficeKey": { "rlsName": "CoBuyerOfficeMlsId", "note": "Foreign key" },
+     "CoExclusiveListingKey": { "rlsName": "DuplicateListingIDs", "note": "Renamed" },
+diff --git a/lib/address/nyc-address-normalizer.ts b/lib/address/nyc-address-normalizer.ts
+index b81f3f73..f1d51298 100644
+--- a/lib/address/nyc-address-normalizer.ts
++++ b/lib/address/nyc-address-normalizer.ts
+@@ -1,6 +1,6 @@
+ /**
+  * NYC address normalizer — parses free-form NYC address strings into
+- * canonical RESO/Trestle address components.
++ * canonical Cotality/Trestle address components.
+  *
+  * @module lib/address/nyc-address-normalizer
+  */
+@@ -86,10 +86,10 @@ function normalizeOrdinal(num: string): string {
+ }
+ 
+ /**
+- * Canonicalize an already-parsed street DIRECTION token to its RESO/Trestle
++ * Canonicalize an already-parsed street DIRECTION token to its Cotality/Trestle
+  * abbreviation: "East"/"e."/"E" → "E". Returns '' for blank; returns the
+  * trimmed input unchanged when it is not a recognized direction (so it never
+- * destroys data). Used by callers that compare RESO address COMPONENTS (not a
++ * destroys data). Used by callers that compare Cotality address COMPONENTS (not a
+  * free-form string) — e.g. building-identity matching, where one source may
+  * carry "East" and another "E" for the same building.
+  */
+@@ -101,7 +101,7 @@ export function canonicalizeDirection(token: string): string {
+ }
+ 
+ /**
+- * Canonicalize an already-parsed street SUFFIX token to its RESO/Trestle
++ * Canonicalize an already-parsed street SUFFIX token to its Cotality/Trestle
+  * abbreviation: "Street"/"st." → "St", "Avenue" → "Ave". Returns '' for blank;
+  * returns the trimmed input unchanged when not a recognized suffix.
+  */
+@@ -129,7 +129,7 @@ export function canonicalizeStreetName(name: string): string {
+ }
+ 
+ /**
+- * Parse a free-form NYC address string into canonical RESO components.
++ * Parse a free-form NYC address string into canonical Cotality components.
+  *
+  * Handles:
+  *   "333 E 46th St Apt 2G"
+diff --git a/lib/buildings/public-building-data.ts b/lib/buildings/public-building-data.ts
+index deff1990..ccec7871 100644
+--- a/lib/buildings/public-building-data.ts
++++ b/lib/buildings/public-building-data.ts
+@@ -74,7 +74,7 @@ function getPhotoUrl(record: TrestleRecord): string | null {
+  * Common $select fields for building queries.
+  * NOTE: IDXEntireListingDisplayYN, ParticipantOnlyYN, IDXParticipationYN do NOT exist
+  * on Trestle's IDX Plus feed — including them causes OData 400 errors.
+- * Trestle IDX feed pre-filters non-displayable listings, so gate fields are unnecessary.
++ * The Cotality feed pre-filters non-displayable listings, so gate fields are unnecessary.
+  */
+ const BUILDING_SELECT = [
+   // Core listing fields
+diff --git a/lib/compliance/__tests__/compliance-gates.test.ts b/lib/compliance/__tests__/compliance-gates.test.ts
+index 7696ae66..6c236c00 100644
+--- a/lib/compliance/__tests__/compliance-gates.test.ts
++++ b/lib/compliance/__tests__/compliance-gates.test.ts
+@@ -284,7 +284,7 @@ describe('toPublicDTO', () => {
+   });
+ 
+   it('sets comingSoon flag in _displayCompliance for Coming Soon listings', () => {
+-    // Canonical value — the DB stores 'ComingSoon' (no space) per RESO.
++    // Canonical value — the DB stores 'ComingSoon' (no space) per Cotality.
+     // This was previously 'Coming Soon' which never fired the badge branch
+     // because public-dto compared against the wrong format.
+     const listing = buildMockListing({ standardStatus: 'ComingSoon' });
+diff --git a/lib/compliance/__tests__/h1-normalize-standard-status.test.ts b/lib/compliance/__tests__/h1-normalize-standard-status.test.ts
+index 6556eb2c..d1c1aecc 100644
+--- a/lib/compliance/__tests__/h1-normalize-standard-status.test.ts
++++ b/lib/compliance/__tests__/h1-normalize-standard-status.test.ts
+@@ -113,7 +113,7 @@ describe('normalizeStandardStatus — case-fold + trim variants', () => {
+ });
+ 
+ describe('normalizeStandardStatus — known alias mapping', () => {
+-  it('"Canceled" (US single-L) → "Cancelled" (RESO canonical double-L)', () => {
++  it('"Canceled" (US single-L) → "Cancelled" (Cotality canonical double-L)', () => {
+     expect(normalizeStandardStatus('Canceled')).toBe('Cancelled');
+     // And the canonical form IS in TERMINAL_STATUSES, so the guard binds.
+     expect(TERMINAL_STATUSES.has(normalizeStandardStatus('Canceled'))).toBe(true);
+@@ -128,7 +128,7 @@ describe('normalizeStandardStatus — known alias mapping', () => {
+ 
+ describe('normalizeStandardStatus — unknown values preserved', () => {
+   it('unknown status string is NOT silently coerced to a known value', () => {
+-    // A new RESO status that has not yet been added to the known sets
++    // A new Cotality status that has not yet been added to the known sets
+     // must round-trip verbatim (trimmed). The normalizer never silently
+     // promotes an unknown string into a terminal value — that would be
+     // worse than the original gap.
+diff --git a/lib/compliance/__tests__/h1-secondary-writers-terminal-guard.test.ts b/lib/compliance/__tests__/h1-secondary-writers-terminal-guard.test.ts
+index 1c1752aa..30a42f4c 100644
+--- a/lib/compliance/__tests__/h1-secondary-writers-terminal-guard.test.ts
++++ b/lib/compliance/__tests__/h1-secondary-writers-terminal-guard.test.ts
+@@ -96,7 +96,7 @@ describe('H1 — secondary-writer terminal-status guard', () => {
+     });
+ 
+     it('case sensitivity — "closed" lowercase is NOT in the canonical set', () => {
+-      // The cron predicate matches exact-case RESO strings; mirroring it
++      // The cron predicate matches exact-case Cotality strings; mirroring it
+       // here keeps writer and cron in lock-step. Documents the contract,
+       // not a desired behavior — Trestle emits exact-case canonical
+       // values, and any drift would require coordinated change on both
+diff --git a/lib/compliance/dto.ts b/lib/compliance/dto.ts
+index 487730d7..37fad7f3 100644
+--- a/lib/compliance/dto.ts
++++ b/lib/compliance/dto.ts
+@@ -16,7 +16,7 @@
+  * Active — Trestle IDX Plus WebAPI provides all 1,363 fields. VOW display is
+  * authorized for registered/logged-in portal consumers per REBNY RLS rules.
+  *
+- * FIELD AUTHORITY ORDER: UCBA → RLS TRUMPS ALL → RESO/IDX fills gaps → INTERNAL-ONLY → Fail closed
++ * FIELD AUTHORITY ORDER: UCBA → RLS TRUMPS ALL → Cotality/IDX fills gaps → INTERNAL-ONLY → Fail closed
+  */
+ 
+ import { affirmPermission, isOwnerOptOut, isParticipantOnly } from "./gates";
+@@ -428,7 +428,7 @@ function formatOwnerAddressLine(address: unknown): string | null {
+   const suffix = pick("streetSuffix", "StreetSuffix");
+   const dirSuffix = pick("streetDirSuffix", "StreetDirSuffix");
+   const unit = pick("unitNumber", "UnitNumber", "unit");
+-  // Full RESO street order: number, dir-prefix, name, suffix, dir-suffix (e.g. "333 E 46th Street").
++  // Full Cotality street order: number, dir-prefix, name, suffix, dir-suffix (e.g. "333 E 46th Street").
+   const street = [streetNumber, dirPrefix, streetName, suffix, dirSuffix].filter(Boolean).join(" ").trim();
+   const full = unit ? `${street}${street ? " " : ""}#${unit}` : street;
+   if (full.trim().length > 0) return full.trim();
+diff --git a/lib/compliance/idx-display-gate.ts b/lib/compliance/idx-display-gate.ts
+index 9f62b98a..34b83e40 100644
+--- a/lib/compliance/idx-display-gate.ts
++++ b/lib/compliance/idx-display-gate.ts
+@@ -25,7 +25,7 @@ export function isDisplayableInIDX(listing: Listing): boolean {
+   // Gate 1: IDX opt-out — owner has opted out of IDX display
+   if (listing.compliance?.idxOptOut) return false;
+ 
+-  // Gate 2: Internet Entire Listing Display — RESO standard field
++  // Gate 2: Internet Entire Listing Display — Cotality standard field
+   if (listing.compliance?.internetEntireListingDisplayYN === false) return false;
+ 
+   // Gate 3: Participant Only Network — only visible to RLS participants (broker CRM)
+diff --git a/lib/compliance/index.ts b/lib/compliance/index.ts
+index 681af9ae..87c3fb4d 100644
+--- a/lib/compliance/index.ts
++++ b/lib/compliance/index.ts
+@@ -2,7 +2,7 @@
+  * REBNY RLS Compliance Module
+  *
+  * This module provides validation and compliance checking for NYC real estate listings
+- * against REBNY RLS Data Rules, RESO standards, and Fair Housing regulations.
++ * against REBNY RLS Data Rules, Cotality standards, and Fair Housing regulations.
+  *
+  * @module lib/compliance
+  */
+diff --git a/lib/compliance/prompts.ts b/lib/compliance/prompts.ts
+index 1bf6f92d..73c5ead6 100644
+--- a/lib/compliance/prompts.ts
++++ b/lib/compliance/prompts.ts
+@@ -18,12 +18,12 @@ import {
+ /**
+  * Base system prompt for REBNY RLS compliance validation
+  */
+-const BASE_SYSTEM_PROMPT = `You are a REBNY RLS compliance validator. Your job is to check real estate listings against the official REBNY RLS Data Rules and RESO Data Dictionary 2.0 standards.
++const BASE_SYSTEM_PROMPT = `You are a REBNY RLS compliance validator. Your job is to check real estate listings against the official REBNY RLS Data Rules and Cotality Data Dictionary 2.0 standards.
+ 
+ VALIDATION RULES:
+ 1. Check all required fields are present and non-empty
+ 2. Evaluate conditional requirements based on listing context
+-3. Validate data formats match RESO specifications
++3. Validate data formats match Cotality specifications
+ 4. Flag Fair Housing Act violations in descriptions
+ 5. Verify NYC-specific fields (BuildingTaxLot, borough, etc.)
+ 
+diff --git a/lib/compliance/rebny-field-tables.ts b/lib/compliance/rebny-field-tables.ts
+index 420647c3..3016d8f8 100644
+--- a/lib/compliance/rebny-field-tables.ts
++++ b/lib/compliance/rebny-field-tables.ts
+@@ -12,8 +12,8 @@
+  * FIELD AUTHORITY ORDER (from MEMORY.md):
+  *   1. UCBA governs everything
+  *   2. REBNY RLS rules + fields
+- *   3. RLS overrides RESO/IDX
+- *   4. RESO/IDX fills gaps
++ *   3. RLS overrides Cotality/IDX
++ *   4. Cotality/IDX fills gaps
+  *   5. INTERNAL-ONLY otherwise
+  *   6. Fail closed — any uncertainty defaults to NON-DISPLAY
+  */
+diff --git a/lib/compliance/rebny-validator.ts b/lib/compliance/rebny-validator.ts
+index db64a243..ff28d35d 100644
+--- a/lib/compliance/rebny-validator.ts
++++ b/lib/compliance/rebny-validator.ts
+@@ -3,7 +3,7 @@
+  *
+  * Validates listing data against:
+  * - REBNY RLS Data Rules (2025_LMP migration)
+- * - RESO standards via Trestle Web API
++ * - Cotality standards via Trestle Web API
+  * - NYC regulations (NY DOS advertising, Fair Housing Act)
+  *
+  * @see https://docs.google.com/spreadsheets/d/1OiO7SQcMrLE8yMOoePWtv-dtcf2nXc-1iBssRJaOhxQ
+@@ -204,7 +204,7 @@ export function validateListing(listing: ListingData): ValidationResult {
+   }
+   suggestions.push(...nycResult.suggestions);
+ 
+-  // 4. RESO format validation
++  // 4. Cotality format validation
+   const resoResult = validateRESOFormat(listing);
+   if (!resoResult.valid) {
+     warnings.push(...resoResult.errors);
+@@ -606,7 +606,7 @@ function validateNYCSpecific(listing: ListingData): {
+ }
+ 
+ /**
+- * RESO format validation
++ * Cotality format validation
+  */
+ function validateRESOFormat(listing: ListingData): {
+   valid: boolean;
+@@ -614,15 +614,15 @@ function validateRESOFormat(listing: ListingData): {
+ } {
+   const errors: string[] = [];
+ 
+-  // Check for RESO-compliant field naming (PascalCase)
++  // Check for Cotality-compliant field naming (PascalCase)
+   const nonResoFields = Object.keys(listing).filter((key) => {
+-    // RESO fields should be PascalCase
++    // Cotality fields should be PascalCase
+     return key !== key.charAt(0).toUpperCase() + key.slice(1) && !key.startsWith('_');
+   });
+ 
+   if (nonResoFields.length > 0) {
+     errors.push(
+-      `[RESO] Non-standard field naming detected. RESO uses PascalCase. ` +
++      `[Cotality] Non-standard field naming detected. Cotality uses PascalCase. ` +
+         `Consider renaming: ${nonResoFields.slice(0, 5).join(', ')}${nonResoFields.length > 5 ? '...' : ''}`
+     );
+   }
+@@ -633,7 +633,7 @@ function validateRESOFormat(listing: ListingData): {
+     const value = listing[field];
+     if (value && typeof value === 'string') {
+       if (!isValidDate(value)) {
+-        errors.push(`[RESO] ${field}: Should be ISO 8601 date format (YYYY-MM-DD)`);
++        errors.push(`[Cotality] ${field}: Should be ISO 8601 date format (YYYY-MM-DD)`);
+       }
+     }
+   }
+@@ -779,7 +779,7 @@ export function getRequiredFields(propertyType: string, commonInterest?: string)
+ export function generatePublicRemarks(listing: ListingData): string {
+   const parts: string[] = [];
+ 
+-  // Property type and size - handle both RESO and internal format
++  // Property type and size - handle both Cotality and internal format
+   const propertyInfo = listing.propertyInfo as Record<string, unknown> | undefined;
+   const beds = listing.BedroomsTotal || propertyInfo?.bedroomsTotal;
+   const baths = listing.BathroomsTotal || propertyInfo?.bathroomsFull;
+diff --git a/lib/compliance/reso-mapper.ts b/lib/compliance/reso-mapper.ts
+index 7b077a72..9192b999 100644
+--- a/lib/compliance/reso-mapper.ts
++++ b/lib/compliance/reso-mapper.ts
+@@ -1,14 +1,14 @@
+ /**
+- * RESO Data Dictionary Mapper
++ * Cotality Data Dictionary Mapper
+  *
+- * Maps between internal listing format and RESO Web API compliant format.
++ * Maps between internal listing format and Cotality Web API compliant format.
+  * Supports Trestle Web API for REBNY RLS integration.
+  */
+ 
+ import type { Listing } from '@/lib/types/listing';
+ 
+ /**
+- * RESO-compliant listing interface (Trestle Web API format)
++ * Cotality-compliant listing interface (Trestle Web API format)
+  */
+ export interface RESOListing {
+   // Required identification
+@@ -142,7 +142,7 @@ export interface RESOListing {
+ }
+ 
+ /**
+- * Helper to map association fee frequency to RESO format
++ * Helper to map association fee frequency to Cotality format
+  */
+ function mapAssociationFeeFrequency(
+   freq: 'Monthly' | 'Quarterly' | 'Annual' | null
+@@ -153,7 +153,7 @@ function mapAssociationFeeFrequency(
+ }
+ 
+ /**
+- * Map internal Listing to RESO-compliant format for Trestle Web API
++ * Map internal Listing to Cotality-compliant format for Trestle Web API
+  */
+ export function mapListingToRESO(listing: Listing): RESOListing {
+   const isRental = listing.listingType === 'rent';
+@@ -310,7 +310,7 @@ export function mapListingToRESO(listing: Listing): RESOListing {
+ }
+ 
+ /**
+- * Map RESO-compliant format back to internal Listing format
++ * Map Cotality-compliant format back to internal Listing format
+  */
+ export function mapRESOToListing(reso: RESOListing): Partial<Listing> {
+   const isRental = reso.PropertyType === 'ResidentialLease';
+@@ -409,7 +409,7 @@ export function mapRESOToListing(reso: RESOListing): Partial<Listing> {
+ }
+ 
+ /**
+- * Validate that a listing can be exported to RESO format
++ * Validate that a listing can be exported to Cotality format
+  */
+ export function canExportToRESO(listing: Listing): { valid: boolean; missingFields: string[] } {
+   const requiredFields = [
+diff --git a/lib/compliance/rls-eligibility.ts b/lib/compliance/rls-eligibility.ts
+index 922a26f6..bc0a5525 100644
+--- a/lib/compliance/rls-eligibility.ts
++++ b/lib/compliance/rls-eligibility.ts
+@@ -64,7 +64,7 @@ const RESIDENTIAL_SUBTYPES = new Set([
+ /**
+  * Classify a listing's RLS eligibility based on UCBA rules.
+  *
+- * @param payload - The listing payload (RESO field names)
++ * @param payload - The listing payload (Cotality field names)
+  * @param overrides - Explicit opt-out or commercial classification from the form
+  */
+ export function classifyRlsEligibility(
+diff --git a/lib/compliance/rls-enforcement.ts b/lib/compliance/rls-enforcement.ts
+index f796f197..ba56eebf 100644
+--- a/lib/compliance/rls-enforcement.ts
++++ b/lib/compliance/rls-enforcement.ts
+@@ -8,8 +8,8 @@
+  * FIELD AUTHORITY ORDER (ENFORCED):
+  *   1. UCBA governs everything
+  *   2. REBNY RLS rules + fields — RLS TRUMPS ALL
+- *   3. RLS overrides RESO/IDX
+- *   4. RESO/IDX fills gaps only
++ *   3. RLS overrides Cotality/IDX
++ *   4. Cotality/IDX fills gaps only
+  *   5. INTERNAL-ONLY otherwise
+  *   6. Fail closed = REJECT
+  *
+@@ -307,7 +307,7 @@ export function assertRlsCompliantPayload(
+   }
+ 
+   // PropertyType validation — REBNY RLS only accepts "Residential" or "ResidentialLease".
+-  // Website-only listings (commercial, rls_eligible=false) can use any RESO PropertyType.
++  // Website-only listings (commercial, rls_eligible=false) can use any Cotality PropertyType.
+   const pt = payload.PropertyType as string | undefined;
+   if (pt) {
+     const RLS_PROPERTY_TYPES = ["Residential", "ResidentialLease"];
+@@ -317,14 +317,14 @@ export function assertRlsCompliantPayload(
+       "Land", "Farm", "MultiFamily",
+     ];
+     if (ctx.rlsEligible === false) {
+-      // Website-only: accept any RESO type, warn on unknown
++      // Website-only: accept any Cotality type, warn on unknown
+       if (!RESO_PROPERTY_TYPES.includes(pt)) {
+         warnings.push({
+           code: "MF-004W",
+           severity: "WARNING",
+           field: "PropertyType",
+           message: `PropertyType "${pt}" is non-standard. Expected one of: ${RESO_PROPERTY_TYPES.join(", ")}.`,
+-          ucbaRef: "RESO Data Dictionary",
++          ucbaRef: "Cotality Data Dictionary",
+         });
+       }
+     } else {
+diff --git a/lib/compliance/rls-rules.json b/lib/compliance/rls-rules.json
+index 9b72d8f2..ddbe1ea4 100644
+--- a/lib/compliance/rls-rules.json
++++ b/lib/compliance/rls-rules.json
+@@ -2,7 +2,7 @@
+   "version": "2025-09-30-v4.0",
+   "lastUpdated": "2026-03-19",
+   "source": "REBNY RLS Data Migration 2025_LMP — data/rebny-rls-property-fields.csv (902 IDX Plus fields across 7 resources)",
+-  "note": "Generated from authoritative RLS CSV. BuyerAgentCommission/Type removed per NAR Settlement (Aug 2025). Field Authority: UCBA > RLS > RESO/IDX > Internal > Fail Closed.",
++  "note": "Generated from authoritative RLS CSV. BuyerAgentCommission/Type removed per NAR Settlement (Aug 2025). Field Authority: UCBA > RLS > Cotality/IDX > Internal > Fail Closed.",
+   "totalFields": 1015,
+   "fields": [
+     {
+@@ -1336,7 +1336,7 @@
+     {
+       "field": "City",
+       "matrixFieldName": "City",
+-      "description": "City where the property is located. RESO DD 2.0: Now a Lookup type.",
++      "description": "City where the property is located. Cotality DD 2.0: Now a Lookup type.",
+       "lmpAddEdit": "Yes",
+       "lmpSearch": "Yes",
+       "requirements": "Yes"
+@@ -2376,7 +2376,7 @@
+     {
+       "field": "CountyOrParish",
+       "matrixFieldName": "CountyOrParish",
+-      "description": "County where the property is located (NYC: New York, Kings, Queens, Bronx, Richmond). RESO DD 2.0: Now a Lookup type.",
++      "description": "County where the property is located (NYC: New York, Kings, Queens, Bronx, Richmond). Cotality DD 2.0: Now a Lookup type.",
+       "lmpAddEdit": "Yes",
+       "lmpSearch": "Yes",
+       "requirements": "Yes; CityRegion must match with CountyOrParish:\r\nKings-Brooklyn\r\nQueens- Queens\r\nNew York- Manhattan\r\nRichmond- Staten Island\r\nBronx-Bronx"
+@@ -4952,7 +4952,7 @@
+     {
+       "field": "ModificationTimestamp",
+       "matrixFieldName": "ModificationTimestamp",
+-      "description": "Timestamp of the last modification. RESO DD 2.0: Only updates for on-market listings.",
++      "description": "Timestamp of the last modification. Cotality DD 2.0: Only updates for on-market listings.",
+       "lmpAddEdit": "No",
+       "lmpSearch": "Yes",
+       "requirements": "No"
+diff --git a/lib/compliance/status.ts b/lib/compliance/status.ts
+index 248b2ddc..e82ea1b3 100644
+--- a/lib/compliance/status.ts
++++ b/lib/compliance/status.ts
+@@ -7,7 +7,7 @@
+ //
+ // Before this module, the codebase mixed three different formats for the same
+ // values across 37 files:
+-//   "ComingSoon"        (RESO internal, DB format)
++//   "ComingSoon"        (Cotality internal, DB format)
+ //   "Coming Soon"        (human display format)
+ //   "COMING_SOON"        (URL / API-param format)
+ //
+@@ -25,10 +25,10 @@
+ 
+ /**
+  * Canonical internal status values. These are exactly the strings the DB
+- * stores (matches REBNY RESO StandardStatus enum, no spaces).
++ * stores (matches REBNY Cotality StandardStatus enum, no spaces).
+  *
+  * Values ALPHABETIZED by enum key to keep the order deterministic across
+- * schema diffs. The underlying string values are whatever RESO uses.
++ * schema diffs. The underlying string values are whatever Cotality uses.
+  */
+ export const Status = {
+   ACTIVE: 'Active',
+@@ -69,7 +69,7 @@ const INPUT_TO_CANONICAL: Record<string, StatusValue> = {
+   'Sold': Status.SOLD,
+   'Withdrawn': Status.WITHDRAWN,
+ 
+-  // Human display format (RESO-style with spaces — Trestle sometimes sends these)
++  // Human display format (Cotality-style with spaces — Trestle sometimes sends these)
+   'Active Under Contract': Status.ACTIVE_UNDER_CONTRACT,
+   'Coming Soon': Status.COMING_SOON,
+ 
+@@ -95,7 +95,7 @@ const INPUT_TO_CANONICAL: Record<string, StatusValue> = {
+  * Canonical display label for a status (what a buyer sees on the listing
+  * card).
+  *
+- * Kept separate from the canonical value so the DB stays in RESO format
++ * Kept separate from the canonical value so the DB stays in Cotality format
+  * while the UI gets human-friendly text.
+  */
+ const CANONICAL_TO_LABEL: Record<StatusValue, string> = {
+@@ -117,7 +117,7 @@ const CANONICAL_TO_LABEL: Record<StatusValue, string> = {
+  * Statuses that count as "actively on market" for public search display.
+  *
+  * Coming Soon is included — it IS displayable (with the REBNY §16(C) badge)
+- * even though it's not technically "Active" per RESO. ActiveUnderContract
++ * even though it's not technically "Active" per Cotality. ActiveUnderContract
+  * is included because REBNY allows IDX display of listings that have
+  * accepted an offer but haven't closed — typically shown with an "Under
+  * Contract" badge.
+diff --git a/lib/crm/__tests__/fee-disclosure.test.ts b/lib/crm/__tests__/fee-disclosure.test.ts
+index 730f19b6..b7994c7d 100644
+--- a/lib/crm/__tests__/fee-disclosure.test.ts
++++ b/lib/crm/__tests__/fee-disclosure.test.ts
+@@ -2,7 +2,7 @@ import { checkFeeDisclosure, isDisplayReadyStatus } from '@/lib/crm/fee-disclosu
+ 
+ /**
+  * isDisplayReadyStatus — the FARE gate must fire ONLY when a rental becomes
+- * publicly displayed (Active/ComingSoon). The CRM form saves drafts as RESO
++ * publicly displayed (Active/ComingSoon). The CRM form saves drafts as Cotality
+  * MlsStatus "Incomplete" (non-Draft but non-display-ready), so draft saves must
+  * never be gated (Codex #348).
+  */
+diff --git a/lib/crm/fee-disclosure.ts b/lib/crm/fee-disclosure.ts
+index 49ed5b46..23b6ee8d 100644
+--- a/lib/crm/fee-disclosure.ts
++++ b/lib/crm/fee-disclosure.ts
+@@ -26,7 +26,7 @@ export interface FeeDisclosureResult {
+  * Display-ready = the listing is (or is becoming) publicly displayed: Active or
+  * ComingSoon. Draft / Incomplete / terminal / withdrawn are NOT display-ready.
+  *
+- * The CRM rental form maps its "Draft" UI to RESO MlsStatus "Incomplete" on save,
++ * The CRM rental form maps its "Draft" UI to Cotality MlsStatus "Incomplete" on save,
+  * so a draft save must be treated as non-display-ready — otherwise the FARE gate
+  * would 422 a normal draft save (Codex #348). Input is normalized first so
+  * "incomplete"/"Active"/etc. fold to canonical form.
+diff --git a/lib/crm/status-mapping.ts b/lib/crm/status-mapping.ts
+index 16d0b90e..8cc3ca0c 100644
+--- a/lib/crm/status-mapping.ts
++++ b/lib/crm/status-mapping.ts
+@@ -1,7 +1,7 @@
+ /**
+  * Two-layer CRM status model.
+  *
+- * Layer 1 — Canonical server/public status (RESO-safe):
++ * Layer 1 — Canonical server/public status (Cotality-safe):
+  *   Controls DB status, public display, idx_display_yn, Internet display
+  *   gates, Featured/Exclusives eligibility, RealPlus URL eligibility,
+  *   syndication/public surfaces.
+@@ -13,7 +13,7 @@
+  * @module lib/crm/status-mapping
+  */
+ 
+-/** Canonical RESO-safe statuses the server accepts */
++/** Canonical Cotality-safe statuses the server accepts */
+ export const CANONICAL_STATUSES = [
+   'Draft',
+   'ComingSoon',
+@@ -58,7 +58,7 @@ export const CRM_WORKFLOW_STATUSES = [
+ export type CrmWorkflowStatus = typeof CRM_WORKFLOW_STATUSES[number];
+ 
+ /**
+- * CRM workflow status → canonical RESO server status.
++ * CRM workflow status → canonical Cotality server status.
+  *
+  * Every workflow status MUST have a mapping. If a status is not here,
+  * it cannot be sent to the server.
+@@ -146,7 +146,7 @@ export function normalizeCrmWorkflowStatus(input: string | null | undefined): Cr
+ }
+ 
+ /**
+- * Map a CRM workflow status to its canonical RESO server status.
++ * Map a CRM workflow status to its canonical Cotality server status.
+  * Returns null if the input is not a recognized workflow status.
+  */
+ export function mapCrmStatusToCanonicalStatus(input: string | null | undefined): CanonicalStatus | null {
+diff --git a/lib/hooks/useListings.ts b/lib/hooks/useListings.ts
+index 594b0710..d3e395ef 100644
+--- a/lib/hooks/useListings.ts
++++ b/lib/hooks/useListings.ts
+@@ -365,7 +365,7 @@ export function useListings(params: UseListingsParams): UseListingsResult {
+     // routing) must re-fetch. Without this dep the effect skipped on the
+     // transition and the prior fetch's listings stayed visible, which on
+     // the OUT direction would leave the page empty and on the IN direction
+-    // would show the full RLS feed under the exclusives label. The
++    // would show the full Cotality feed under the exclusives label. The
+     // backend filter is correct (verified via curl); this closes the
+     // client-side refresh path.
+     params.exclusive,
+diff --git a/lib/idx/__tests__/media-key-write-suppression.test.ts b/lib/idx/__tests__/media-key-write-suppression.test.ts
+index 115a13af..f5afd2ce 100644
+--- a/lib/idx/__tests__/media-key-write-suppression.test.ts
++++ b/lib/idx/__tests__/media-key-write-suppression.test.ts
+@@ -3,7 +3,7 @@
+  *
+  * DEFECT THIS PINS
+  * ----------------
+- * `mediaArraysMateriallyEqual` prefers a stable RESO `mediaKey` when BOTH sides carry one and only
++ * `mediaArraysMateriallyEqual` prefers a stable Cotality `mediaKey` when BOTH sides carry one and only
+  * falls back to URL identity otherwise. The legacy Cotality media writers never selected or
+  * serialized `MediaKey`, so the authoritative branch was structurally unreachable and every photo
+  * took the URL leg.
+diff --git a/lib/idx/auth.ts b/lib/idx/auth.ts
+index ca655890..d08d0a0a 100644
+--- a/lib/idx/auth.ts
++++ b/lib/idx/auth.ts
+@@ -1,5 +1,5 @@
+ // lib/idx/auth.ts
+-// OAuth2 client credentials flow for Trestle/REBNY RLS API.
++// OAuth2 client credentials flow for the Cotality/Trestle API.
+ // Caches token until 5 minutes before expiry.
+ 
+ import { recordTokenRequest, recordTokenRefresh } from "./cotality-telemetry";
+diff --git a/lib/idx/card-fields.ts b/lib/idx/card-fields.ts
+index 683b5622..7cda4f98 100644
+--- a/lib/idx/card-fields.ts
++++ b/lib/idx/card-fields.ts
+@@ -10,7 +10,7 @@
+  *   2. Fields NOT on Trestle (ComingSoonDate, IDXParticipationYN, ParticipantOnlyYN,
+  *      IDXEntireListingDisplayYN) are excluded — Trestle rejects unknown $select fields.
+  *   3. Distribution gates that rely on excluded fields handle undefined safely
+- *      (Trestle IDX feed pre-filters non-displayable listings).
++ *      (the Cotality feed pre-filters non-displayable listings).
+  */
+ export const CARD_SELECT_FIELDS = [
+   // Address
+diff --git a/lib/idx/db-to-public-dto.ts b/lib/idx/db-to-public-dto.ts
+index f350d906..b4b16080 100644
+--- a/lib/idx/db-to-public-dto.ts
++++ b/lib/idx/db-to-public-dto.ts
+@@ -243,10 +243,10 @@ export interface DbListing {
+   _count?: { listing_media?: number } | null;
+ }
+ 
+-/** RESO StandardStatus values that are publicly displayable */
++/** Cotality StandardStatus values that are publicly displayable */
+ export const DISPLAYABLE_STATUSES = ['Active', 'ComingSoon', 'ActiveUnderContract'];
+ 
+-/** Map RESO StandardStatus to user-friendly display */
++/** Map Cotality StandardStatus to user-friendly display */
+ const STATUS_DISPLAY: Record<string, string> = {
+   Active: 'Active',
+   ComingSoon: 'Coming Soon',
+diff --git a/lib/idx/fetch.ts b/lib/idx/fetch.ts
+index 9c1643fd..5afd023b 100644
+--- a/lib/idx/fetch.ts
++++ b/lib/idx/fetch.ts
+@@ -657,7 +657,7 @@ export async function fetchListingMedia(
+     return [];
+   }
+   return records.map((m: Record<string, unknown>, i: number) => {
+-    // RESO DD: MediaCategory = content type (Photo, Floor Plan, Video, Virtual Tour)
++    // Cotality DD: MediaCategory = content type (Photo, Floor Plan, Video, Virtual Tour)
+     //          MediaType = file format (jpeg, png) — NOT content type
+     const cat = String(m.MediaCategory || "").toLowerCase();
+     const desc = String(m.ShortDescription || "").toLowerCase();
+diff --git a/lib/idx/mapping.ts b/lib/idx/mapping.ts
+index 5c3affe8..aec1907c 100644
+--- a/lib/idx/mapping.ts
++++ b/lib/idx/mapping.ts
+@@ -1,10 +1,10 @@
+ /**
+- * RESO-Aligned Field Mapping
++ * Cotality-Aligned Field Mapping
+  *
+  * COMPLIANCE NOTE:
+- * Maps RESO Data Dictionary field names to our internal canonical representation.
+- * 902 REBNY IDX Plus fields across 7 resources. 23 RESO-to-RLS renames handled.
+- * Field truth = the live api.cotality.com/trestle $metadata (RESO-shaped OData model).
++ * Maps Cotality Data Dictionary field names to our internal canonical representation.
++ * 902 REBNY IDX Plus fields across 7 resources. 23 Cotality-to-RLS renames handled.
++ * Field truth = the live api.cotality.com/trestle $metadata (Cotality-shaped OData model).
+  */
+ 
+ import type { IDXListing } from './types';
+@@ -13,7 +13,7 @@ import { normalizeStreetCase } from './normalize-street-case';
+ import { classifyTrestleMediaCategory } from '@/lib/media/media-sync-service';
+ 
+ /**
+- * RESO Data Dictionary field names — complete set.
++ * Cotality Data Dictionary field names — complete set.
+  * Organized by category per REBNY RLS structure.
+  */
+ export const RESO_FIELDS = {
+@@ -164,7 +164,7 @@ export const RESO_FIELDS = {
+ } as const;
+ 
+ /**
+- * Field mapping configuration — maps RESO field names to internal flat paths.
++ * Field mapping configuration — maps Cotality field names to internal flat paths.
+  * Complete mapping for all explicitly tracked fields.
+  */
+ export const FIELD_MAP: Record<string, string> = {
+@@ -253,8 +253,8 @@ export const FIELD_MAP: Record<string, string> = {
+ };
+ 
+ /**
+- * Map raw RESO/Trestle response to internal IDXListing type.
+- * Handles RESO-to-RLS renames and field normalization.
++ * Map raw Cotality/Trestle response to internal IDXListing type.
++ * Handles Cotality-to-RLS renames and field normalization.
+  */
+ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | null {
+   // Apply renames
+@@ -269,7 +269,7 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
+   if (!listingId) return null;
+   const listingKeyNumeric = normalized.ListingKeyNumeric ? Number(normalized.ListingKeyNumeric) : undefined;
+ 
+-  // Compose full street name from RESO address components:
++  // Compose full street name from Cotality address components:
+   // StreetDirPrefix (e.g. "East") + StreetName (e.g. "83rd") + StreetSuffix (e.g. "Street") + StreetDirSuffix
+   const streetNameParts = [
+     normalized.StreetDirPrefix,
+@@ -327,7 +327,7 @@ export function mapRESOToInternal(raw: Record<string, unknown>): IDXListing | nu
+     listOfficeName: String(normalized.ListOfficeName || ''),
+     media: Array.isArray(normalized.Media) ? normalized.Media.map((m: unknown, i: number) => {
+       const item = m as Record<string, unknown>;
+-      // RESO DD: MediaCategory = content type (Photo, Floor Plan, Video)
++      // Cotality DD: MediaCategory = content type (Photo, Floor Plan, Video)
+       //          MediaType = file format (jpeg, png, gif) — NOT content type
+       const desc = String(item.ShortDescription || '').toLowerCase();
+       const isPreferred = item.PreferredPhotoYN === true || item.PreferredPhotoYN === 'true';
+diff --git a/lib/idx/public-dto.ts b/lib/idx/public-dto.ts
+index 0238de64..ed5adfb4 100644
+--- a/lib/idx/public-dto.ts
++++ b/lib/idx/public-dto.ts
+@@ -398,7 +398,7 @@ export function toPublicDTO(listing: IDXListing): PublicListingDTO {
+         longitude: listing.address.longitude,
+       };
+ 
+-  // Use canonical helper — `listing.standardStatus` may arrive as the RESO
++  // Use canonical helper — `listing.standardStatus` may arrive as the Cotality
+   // no-space canonical ('ComingSoon') or as the legacy display form
+   // ('Coming Soon'); the helper accepts both. The old comparison here was
+   // `=== 'Coming Soon'` and silently never fired because DB values are
+diff --git a/lib/idx/reconcile-alerts.ts b/lib/idx/reconcile-alerts.ts
+index 5055a2b7..1711d156 100644
+--- a/lib/idx/reconcile-alerts.ts
++++ b/lib/idx/reconcile-alerts.ts
+@@ -5,7 +5,7 @@
+  * live listings suppressed, dead/sold listings shown, projection mirror drift, missing live
+  * inventory, sudden volume shifts, abnormal ghost transitions, and Cotality API health.
+  *
+- * Cotality/RESO source fields (authoritative): `StandardStatus`, `ListingId`, `MlsStatus`,
++ * Cotality/Cotality source fields (authoritative): `StandardStatus`, `ListingId`, `MlsStatus`,
+  * `CloseDate`, `ModificationTimestamp`. DB columns: `listings.status`, `listings.idx_display_yn`,
+  * `listing_search_projection.mls_status`, `listing_search_projection.idx_display_yn`.
+  *
+diff --git a/lib/idx/sync.ts b/lib/idx/sync.ts
+index ca4aef33..f5ad64e7 100644
+--- a/lib/idx/sync.ts
++++ b/lib/idx/sync.ts
+@@ -1325,7 +1325,7 @@ export async function syncListings(
+               // history of this bug.
+               const mediaType = classifyTrestleMediaCategory(m.MediaCategory as string | null | undefined);
+               const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
+-              // Stable RESO identity for write suppression. `mediaArraysMateriallyEqual` prefers
++              // Stable Cotality identity for write suppression. `mediaArraysMateriallyEqual` prefers
+               // `mediaKey` when BOTH sides carry one and only then falls back to URL identity.
+               // Cotality rotates a signed epoch + HMAC inside the URL *path* (not the query), so
+               // `rotatingUrlIdentity` cannot neutralize it and the URL leg reports every photo as
+@@ -2736,7 +2736,7 @@ export async function syncAgentHistory(
+               // bug this replaces.
+               const mediaType = classifyTrestleMediaCategory(m.MediaCategory as string | null | undefined);
+               const isPreferred = m.PreferredPhotoYN === true || m.PreferredPhotoYN === "true";
+-              // Same stable-identity fix as the syncListings batch above: supply the RESO MediaKey
++              // Same stable-identity fix as the syncListings batch above: supply the Cotality MediaKey
+               // so the comparator's authoritative branch is reachable instead of the URL leg, which
+               // Cotality's rotating path signature defeats on every cycle. Omitted when absent so an
+               // unknown key degrades into the existing URL fallback.
+diff --git a/lib/idx/trestle-mapper.ts b/lib/idx/trestle-mapper.ts
+index 9146db56..4469b576 100644
+--- a/lib/idx/trestle-mapper.ts
++++ b/lib/idx/trestle-mapper.ts
+@@ -1,6 +1,6 @@
+ // lib/idx/trestle-mapper.ts
+ // Trestle/REBNY RLS to Prisma Listing model mapper (902 IDX Plus fields across 7 resources).
+-// Maps ALL 29 RLS categories. Handles 23 RESO-to-RLS renames.
++// Maps ALL 29 RLS categories. Handles 23 Cotality-to-RLS renames.
+ // READ-ONLY: maps inbound data only — nothing goes back to Trestle.
+ 
+ import { affirmPermission } from "@/lib/compliance/gates";
+@@ -9,7 +9,7 @@ import { classifyMediaItem } from "@/lib/media/listing-media-resolver";
+ import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-columns";
+ 
+ // ═══════════════════════════════════════════════════════════
+-// RESO-to-RLS RENAMES (23 fields)
++// Cotality-to-RLS RENAMES (23 fields)
+ // Trestle sends the RLS name; we normalize to our canonical name.
+ // ═══════════════════════════════════════════════════════════
+ export const RESO_TO_RLS_RENAMES: Record<string, string> = {
+@@ -99,7 +99,7 @@ const B4_STATUS_DATES = [
+   "DaysOnMarket", "CumulativeDaysOnMarket",
+   "PendingTimestamp", "ContingentDate",
+   "AvailabilityDate",
+-  // PossessionDate is RESO-standard but Trestle ignores it (CLAUDE.md, verified
++  // PossessionDate is Cotality-standard but Trestle ignores it (CLAUDE.md, verified
+   // 2026-04-19). Use AvailabilityDate for rental availability and CloseDate for
+   // sale possession.
+   "ComingSoonDate", "ComingSoonTimestamp",
+@@ -337,7 +337,7 @@ export const B26_MEDIA = [
+ 
+ // B27: Rental-Specific
+ // Live-Trestle truth (verified 2026-04-19; MoveInCosts* re-verified 2026-06-04):
+-//   - PossessionDate is a RESO field that Trestle ignores (CLAUDE.md "fields
++//   - PossessionDate is a Cotality field that Trestle ignores (CLAUDE.md "fields
+ //     that DO NOT exist on Trestle"). Use AvailabilityDate.
+ //   - MoveInCostsAmount (Edm.Decimal) + MoveInCostsComments (Edm.String) ARE live
+ //     Property fields as of 2026-06-04 (the cached snapshot had lagged). Both are
+@@ -419,7 +419,7 @@ const IDX_PLUS_EXCLUDED_FIELDS = new Set([
+   "NewDevelopmentYN",
+   // Listing agreement
+   "DuplicateListingIDs", "ParticipantTypes", "ExclusiveAgency",
+-  // Status & dates (PossessionDate already removed from B4_STATUS_DATES — RESO-only)
++  // Status & dates (PossessionDate already removed from B4_STATUS_DATES — Cotality-only)
+   "SourceSystemModificationTimestamp", "ActivationTimestamp",
+   "CancelationDate",
+   "ComingSoonDate", "ComingSoonTimestamp",
+@@ -615,7 +615,7 @@ function inferBorough(raw: Record<string, unknown>): string | null {
+ }
+ 
+ /**
+- * RESO StandardStatus values that mean "no longer publicly displayable on IDX."
++ * Cotality StandardStatus values that mean "no longer publicly displayable on IDX."
+  *
+  * Mirrors the data-retention cron predicate at
+  * `app/api/cron/data-retention/route.ts:79`. Cron and writer agree on the
+@@ -640,7 +640,7 @@ export const TERMINAL_STATUSES: ReadonlySet<string> = new Set([
+ ]);
+ 
+ /**
+- * RESO StandardStatus values that are publicly displayable on IDX.
++ * Cotality StandardStatus values that are publicly displayable on IDX.
+  *
+  * Mirrors `DISPLAYABLE_STATUSES` in `lib/idx/db-to-public-dto.ts:155`. Kept
+  * here so callers of `normalizeStandardStatus` can fold input strings like
+@@ -671,7 +671,7 @@ const CRM_LIFECYCLE_STATUSES: ReadonlySet<string> = new Set([
+  * normalizer rewrites to the canonical REBNY/Trestle form. Limited to
+  * canonical-equivalent spellings — never coerces an arbitrary unknown string
+  * into a terminal value. Examples:
+- *   - "canceled" (US English single-L) → "Cancelled" (RESO canonical double-L)
++ *   - "canceled" (US English single-L) → "Cancelled" (Cotality canonical double-L)
+  *
+  * Add a new entry here only when a real-world client has been observed
+  * submitting that variant. The alias map is the only place where one status
+@@ -702,7 +702,7 @@ const STATUS_ALIASES: Record<string, string> = {
+  *   - Anything else                                 → trimmed input (preserved)
+  *
+  * Unknown statuses are NOT silently rewritten to a known value. If a new
+- * RESO status emerges, add it to the right set (TERMINAL_STATUSES,
++ * Cotality status emerges, add it to the right set (TERMINAL_STATUSES,
+  * ACTIVE_STATUSES, CRM_LIFECYCLE_STATUSES) and the normalizer picks it up
+  * automatically.
+  */
+@@ -794,7 +794,7 @@ export function normalizeStandardStatus(input: unknown): string {
+ //     of the other flags (this is the H1 fix at writer-side; the cron is
+ //     belt-and-suspenders for DB-direct mutation paths).
+ export interface ComputeGateColumnsInput {
+-  /** REBNY/RESO StandardStatus value. Normalized internally via
++  /** REBNY/Cotality StandardStatus value. Normalized internally via
+    * `normalizeStandardStatus`; safe to pass un-normalized strings. */
+   status: unknown;
+   /** Trestle / form field. null = displayable per IDX Plus pre-filter. */
+@@ -1055,7 +1055,7 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
+   // Three layers to keep separate:
+   //   REBNY  — the MLS/RLS organization, data owner, and policy layer
+   //   Cotality/Trestle — the API/feed platform that implements + serves the data
+-  //   RESO   — the certification/data-standard framework (the Property entity
++  //   Cotality   — the certification/data-standard framework (the Property entity
+   //            type, field names, and DD versions all originate here)
+   //
+   // The behavior below is SPECIFIC to mallan.nyc's REBNY IDX Plus feed served
+@@ -1067,7 +1067,7 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
+   // Under REBNY's policy layer, non-displayable rows are filtered out of the
+   // IDX Plus feed BEFORE they reach this mapper. Two consequences:
+   //   1. InternetEntireListingDisplayYN and InternetAddressDisplayYN return
+-  //      null for the vast majority of records (the field exists in the RESO
++  //      null for the vast majority of records (the field exists in the Cotality
+   //      schema and Cotality exposes it, but REBNY's policy layer leaves it
+   //      unset because the upstream filter already enforced the policy).
+   //   2. These fields are NOT OData-filterable — the feed returns HTTP 400
+@@ -1090,7 +1090,7 @@ export function mapTrestleToPrisma(rawInput: Record<string, unknown>): {
+   // writer-side gate coercion tests in
+   // lib/compliance/__tests__/compliance-gates.test.ts.
+   //
+-  // Runtime payload behavior must be verified per feed, not assumed from RESO
++  // Runtime payload behavior must be verified per feed, not assumed from Cotality
+   // certification alone. If mallan.nyc later subscribes to OneKey, NY State
+   // MLS, or another non-REBNY MLS (per the parked external-inventory spec
+   // Phase 2-A), the policy layer will be different and this null-handling
+diff --git a/lib/idx/types.ts b/lib/idx/types.ts
+index 109e5b4a..28d870e8 100644
+--- a/lib/idx/types.ts
++++ b/lib/idx/types.ts
+@@ -3,7 +3,7 @@
+  *
+  * COMPLIANCE NOTE:
+  * These types represent the internal canonical representation of listing data.
+- * They are RESO-aligned but not endpoint-specific.
++ * They are Cotality-aligned but not endpoint-specific.
+  *
+  * MLS/IDX data accessed through these types MUST:
+  * - Only be fetched server-side
+@@ -30,7 +30,7 @@ export type TrestleRawListing = Record<string, unknown>;
+ 
+ /**
+  * Canonical listing type for internal use.
+- * Aligned with RESO Data Dictionary where applicable.
++ * Aligned with Cotality Data Dictionary where applicable.
+  * Expanded to cover all field categories.
+  */
+ export interface IDXListing {
+@@ -39,7 +39,7 @@ export interface IDXListing {
+   listingKeyNumeric?: number;
+   mlsId: string;
+ 
+-  // Status — canonical RESO values (no spaces).
++  // Status — canonical Cotality values (no spaces).
+   // Previously this union used spaced forms like 'Coming Soon' and
+   // 'Active Under Contract', which DISAGREED with the actual runtime values
+   // (DB stores 'ComingSoon', 'ActiveUnderContract'). Comparisons like
+@@ -60,7 +60,7 @@ export interface IDXListing {
+     | 'Withdrawn';
+   listingType: 'sale' | 'rent';
+ 
+-  // Address (RESO-aligned)
++  // Address (Cotality-aligned)
+   address: {
+     streetNumber: string;
+     streetName: string;
+diff --git a/lib/idx/watermark.ts b/lib/idx/watermark.ts
+index 2dc24c44..c418bd3c 100644
+--- a/lib/idx/watermark.ts
++++ b/lib/idx/watermark.ts
+@@ -1,4 +1,4 @@
+-// Server-side helper to read the IDX feed's actual last-refresh time.
++// Server-side helper to read the Cotality feed's actual last-refresh time.
+ // UCBA 2026 Art. VIII §4 ("Statistical Attribution") requires the displayed
+ // "data last updated" timestamp to reflect the true data refresh time, NOT
+ // the page render time.
+diff --git a/lib/idx/write-suppression.ts b/lib/idx/write-suppression.ts
+index 577171f1..7e0f5ee0 100644
+--- a/lib/idx/write-suppression.ts
++++ b/lib/idx/write-suppression.ts
+@@ -285,7 +285,7 @@ interface LegacyMediaItem {
+   url: string;
+   mediaType: string;
+   order: number;
+-  /** Stable RESO MediaKey when the writer preserved it (authoritative identity). */
++  /** Stable Cotality MediaKey when the writer preserved it (authoritative identity). */
+   mediaKey?: string | null;
+ }
+ 
+diff --git a/lib/listing-slug.ts b/lib/listing-slug.ts
+index 52995eb2..cceb3e63 100644
+--- a/lib/listing-slug.ts
++++ b/lib/listing-slug.ts
+@@ -131,7 +131,7 @@ export function generateListingSlug(listing: {
+   const parts: string[] = [];
+ 
+   if (streetNumber) parts.push(streetNumber);
+-  // StreetDirPrefix (E, W, N, S) is a separate RESO field; include it
++  // StreetDirPrefix (E, W, N, S) is a separate Cotality field; include it
+   // explicitly so "333 E 46th St" doesn't lose the direction in the slug.
+   if (streetDirPrefix) parts.push(streetDirPrefix);
+   if (streetName) parts.push(streetName);
+diff --git a/lib/listings/agent-info-typed-columns.ts b/lib/listings/agent-info-typed-columns.ts
+index ffaf6d5e..180a18fd 100644
+--- a/lib/listings/agent-info-typed-columns.ts
++++ b/lib/listings/agent-info-typed-columns.ts
+@@ -2,13 +2,13 @@
+  * Producer-side seam for the agent_info normalization (spec #410, plan #411, Phase A).
+  *
+  * `typedAgentColumnsFromJson` derives the 8 typed agent columns (added in A1) from a
+- * RESO-shaped `agent_info` JSON object. Every WRITER (Trestle mapper, idx-sync, CRM
++ * Cotality-shaped `agent_info` JSON object. Every WRITER (Trestle mapper, idx-sync, CRM
+  * POST/PATCH, reset-sync, ensure-listing, exclusive-agent-assignment, ops scripts)
+  * uses this single function so the typed columns and the JSON stay in lock-step
+  * (same source, two destinations) — this is the "dual-write" invariant.
+  *
+  * Handles BOTH key shapes that exist in production data:
+- *   - PascalCase RESO keys (Trestle/CRM rows): ListAgentFullName, ListOfficeName, …
++ *   - PascalCase Cotality keys (Trestle/CRM rows): ListAgentFullName, ListOfficeName, …
+  *   - the lowercase manual shape written by app/api/idx/ensure-listing/route.ts:
+  *     { name, email, phone, company }
+  *
+@@ -39,7 +39,7 @@ function cleanStr(v: unknown): string | null {
+ }
+ 
+ /**
+- * Map a RESO-shaped `agent_info` JSON to the 8 typed columns.
++ * Map a Cotality-shaped `agent_info` JSON to the 8 typed columns.
+  * Empty strings and missing keys both become `null` (nullable columns, no empty strings).
+  */
+ export function typedAgentColumnsFromJson(
+diff --git a/lib/listings/similar-listing-ranking.ts b/lib/listings/similar-listing-ranking.ts
+index 1d1f50a8..ac248191 100644
+--- a/lib/listings/similar-listing-ranking.ts
++++ b/lib/listings/similar-listing-ranking.ts
+@@ -25,7 +25,7 @@ function normalize(value: string | null | undefined): string {
+  *  condos, a co-op to co-ops — different products that are NOT interchangeable comps. */
+ export type PropertyClass = '' | 'condo' | 'coop' | 'condop' | 'townhouse' | 'loft' | 'apartment';
+ 
+-/** Collapse the many ownership/type spellings (RESO enums + our display strings) to ONE class.
++/** Collapse the many ownership/type spellings (Cotality enums + our display strings) to ONE class.
+  *  Handles raw feed values (Condominium, StockCooperative, SingleFamilyResidence, MultiFamily,
+  *  Duplex…) and our mapped labels (Condo, Co-op…). Round-trips its own output.
+  *
+diff --git a/lib/market-report/generator.ts b/lib/market-report/generator.ts
+index 1f97f99c..0ceb4629 100644
+--- a/lib/market-report/generator.ts
++++ b/lib/market-report/generator.ts
+@@ -1,7 +1,7 @@
+ /**
+  * Manhattan Market Report Builder
+  *
+- * Pulls REAL listing data from Trestle RLS feed, computes market statistics,
++ * Pulls REAL listing data from the Cotality API, computes market statistics,
+  * generates AI narrative using Claude.
+  *
+  * Data source: Trestle API (same feed as IDX search)
+@@ -347,7 +347,7 @@ REQUIREMENTS:
+ 9. Do NOT make specific price predictions — describe current conditions and momentum
+ 10. End with a brief market outlook paragraph
+ 11. Do NOT include greetings, signatures, subject lines, or marketing language
+-12. This data is from the actual REBNY RLS feed — present it with confidence
++12. This data is from the Cotality API (REBNY-licensed IDX Plus data) — present it with confidence
+ 
+ Write the narrative now:`;
+ 
+diff --git a/lib/open-houses/upcoming-open-houses.ts b/lib/open-houses/upcoming-open-houses.ts
+index 33412ee3..a77c7347 100644
+--- a/lib/open-houses/upcoming-open-houses.ts
++++ b/lib/open-houses/upcoming-open-houses.ts
+@@ -145,8 +145,8 @@ export function normalizeAddressKey(parts: {
+   return key;
+ }
+ 
+-/** Case-tolerant RESO street parts from a stored listing `address` JSON. CRM/local listings persist
+- *  the address in RESO **PascalCase** (`StreetNumber`/`StreetName`/`UnitNumber`…), while some legacy
++/** Case-tolerant Cotality street parts from a stored listing `address` JSON. CRM/local listings persist
++ *  the address in Cotality **PascalCase** (`StreetNumber`/`StreetName`/`UnitNumber`…), while some legacy
+  *  rows use camelCase. Reading only one casing produced an EMPTY address for CRM listings, which the
+  *  open-house `hasData` filter then dropped — the SL-0007 P1 bug. Shared by the public open-house
+  *  route (display address) and the local banner path (address-key). Returns '' per missing part. */
+@@ -168,7 +168,7 @@ export function pickAddressParts(address: unknown): {
+     return '';
+   };
+   return {
+-    // Canonical RESO PascalCase FIRST; camelCase only as a legacy fallback. The CRM PATCH merges new
++    // Canonical Cotality PascalCase FIRST; camelCase only as a legacy fallback. The CRM PATCH merges new
+     // PascalCase keys over the existing address JSON without deleting old camelCase keys
+     // (app/api/crm/listings/[id]/route.ts), so a mixed row can carry both — the PascalCase value is
+     // the current one. camelCase-first would surface the stale value (Codex #463).
+diff --git a/lib/search/__tests__/crm-idx-filter.test.ts b/lib/search/__tests__/crm-idx-filter.test.ts
+index f7abccd2..cc1fc4dd 100644
+--- a/lib/search/__tests__/crm-idx-filter.test.ts
++++ b/lib/search/__tests__/crm-idx-filter.test.ts
+@@ -419,7 +419,7 @@ describe("buildCrmIdxODataFilter", () => {
+ 
+   it("DEAD: status sub-statuses (OfferOut / ContractSigned / etc) become uppercase strings that don't match any enum", () => {
+     // The frontend collects sub-status into criteria.statuses then maps
+-    // CRM-uppercase to RESO-PascalCase via search-engine.js:285 statusMap.
++    // CRM-uppercase to Cotality-PascalCase via search-engine.js:285 statusMap.
+     // Sub-statuses like 'OfferOut' get .toUpperCase() → 'OFFEROUT' which
+     // isn't in the statusMap, so it falls through unchanged.
+     // The resulting OData clause is:
+diff --git a/lib/search/__tests__/crm-idx-mapper.test.ts b/lib/search/__tests__/crm-idx-mapper.test.ts
+index c072dedb..937eb712 100644
+--- a/lib/search/__tests__/crm-idx-mapper.test.ts
++++ b/lib/search/__tests__/crm-idx-mapper.test.ts
+@@ -11,7 +11,7 @@ describe("crm idx mapper", () => {
+     expect(mapDisplayPropertyType({ PropertySubType: "Apartment" })).toBe("Residential");
+   });
+ 
+-  it("classifies media category using RESO content category", () => {
++  it("classifies media category using Cotality content category", () => {
+     expect(classifyMediaCategory({ MediaCategory: "Floor Plan" })).toBe("FloorPlan");
+     expect(classifyMediaCategory({ MediaCategory: "Video" })).toBe("Video");
+     expect(classifyMediaCategory({ MediaCategory: "Virtual Tour" })).toBe("VirtualTour");
+diff --git a/lib/search/crm-idx-filter.ts b/lib/search/crm-idx-filter.ts
+index fceea7ab..c98767a5 100644
+--- a/lib/search/crm-idx-filter.ts
++++ b/lib/search/crm-idx-filter.ts
+@@ -2,7 +2,7 @@ import neighborhoodAliases from "@/data/rls/geo/neighborhood-aliases.json";
+ 
+ /**
+  * Expand a canonical neighborhood name into all SubdivisionName variants
+- * found in the RLS feed. E.g. "Kips Bay" -> ["Kips Bay","KIPS",...].
++ * found in the Cotality feed. E.g. "Kips Bay" -> ["Kips Bay","KIPS",...].
+  */
+ export function expandCrmIdxNeighborhood(canonical: string): string[] {
+   const aliases = (neighborhoodAliases as Record<string, unknown>).aliases as
+diff --git a/lib/search/crm-idx-mapper.ts b/lib/search/crm-idx-mapper.ts
+index 71fece68..b3c2cb08 100644
+--- a/lib/search/crm-idx-mapper.ts
++++ b/lib/search/crm-idx-mapper.ts
+@@ -174,7 +174,7 @@ export function mapTrestleToCrmListing(
+   // the badge renderer fell back to the vague string "until active
+   // date". Pull the actual date from Trestle:
+   //   ActivationDate    — REBNY's "showings begin" timestamp
+-  //   OnMarketDate      — RESO standard fallback
++  //   OnMarketDate      — Cotality standard fallback
+   // Format as ISO YYYY-MM-DD for downstream display.
+   let comingSoonDate: string | null = null;
+   if (status === "COMING_SOON") {
+diff --git a/lib/syndication/eligibility.ts b/lib/syndication/eligibility.ts
+index fe1096f1..8e985c56 100644
+--- a/lib/syndication/eligibility.ts
++++ b/lib/syndication/eligibility.ts
+@@ -35,7 +35,7 @@ export interface ListingForEligibility {
+   source?: string | null;
+   /** Diagnostic only — NEVER used to drive the eligibility decision. */
+   agent_id?: bigint | number | null;
+-  /** RESO StandardStatus — "Active" / "ComingSoon" / terminal values */
++  /** Cotality StandardStatus — "Active" / "ComingSoon" / terminal values */
+   status?: string | null;
+   /** Free-text — used only for diagnostics in Layer 1d's reason logging */
+   list_office_name?: string | null;
+diff --git a/package.json b/package.json
+index 771aa799..e5d81edb 100644
+--- a/package.json
++++ b/package.json
+@@ -101,18 +101,18 @@
+     "ops:build-recovery-manifest": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/build-recovery-manifest.ts",
+     "ops:recover-stale-listings": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/recover-stale-property-listings.ts",
+     "ops:recover-residual-media": "node --env-file-if-exists=.env.local --env-file-if-exists=.env --import tsx scripts/recover-residual-listing-media.ts",
+-    "reso:analyze": "node scripts/reso/analyze.js",
+-    "reso:parity": "node scripts/reso/parity.js",
+-    "reso:count": "node scripts/reso/count.js",
+-    "reso:query": "node scripts/reso/query.js",
+-    "reso:lookups": "node scripts/reso/lookups.js",
+-    "reso:coverage": "node scripts/reso/coverage.js",
+-    "reso:trace": "node scripts/reso/trace.js",
+-    "reso:snapshot": "node scripts/reso/snapshot.js",
+-    "reso:gate-breakdown": "node scripts/reso/gate-breakdown.js",
+-    "reso:drift": "node scripts/reso/drift.js",
+-    "reso:route-catalog": "node scripts/reso/route-catalog.js",
+-    "reso:schema-audit": "node scripts/reso/schema-audit.js",
++    "cotality:analyze": "node scripts/cotality/analyze.js",
++    "cotality:parity": "node scripts/cotality/parity.js",
++    "cotality:count": "node scripts/cotality/count.js",
++    "cotality:query": "node scripts/cotality/query.js",
++    "cotality:lookups": "node scripts/cotality/lookups.js",
++    "cotality:coverage": "node scripts/cotality/coverage.js",
++    "cotality:trace": "node scripts/cotality/trace.js",
++    "cotality:snapshot": "node scripts/cotality/snapshot.js",
++    "cotality:gate-breakdown": "node scripts/cotality/gate-breakdown.js",
++    "cotality:drift": "node scripts/cotality/drift.js",
++    "cotality:route-catalog": "node scripts/cotality/route-catalog.js",
++    "cotality:schema-audit": "node scripts/cotality/schema-audit.js",
+     "scanner:refresh-cd-zones": "npx tsx scripts/scanner/refresh-cd-zones.ts",
+     "scanner:pluto-ingest": "npx tsx scripts/scanner/pluto-ingest.ts",
+     "scanner:acris-ingest": "npx tsx scripts/scanner/acris-ingest.ts",
+diff --git a/prisma/schema.prisma b/prisma/schema.prisma
+index d60bb0c0..9ae32a03 100644
+--- a/prisma/schema.prisma
++++ b/prisma/schema.prisma
+@@ -444,9 +444,9 @@ model Listing {
+   owner_client    Lead?   @relation("ListingOwner", fields: [owner_client_id], references: [id])
+ 
+   // --- Filter columns (indexed for queries) ---
+-  status            String   @default("Active") // RESO StandardStatus
++  status            String   @default("Active") // Cotality StandardStatus
+   listing_type      String   @map("listing_type") // "sale" | "rent"
+-  property_type     String?  @map("property_type") // RESO PropertyType
++  property_type     String?  @map("property_type") // Cotality PropertyType
+   property_sub_type String?  @map("property_sub_type")
+   list_price        Decimal  @map("list_price") @db.Decimal(14, 2)
+   bedrooms_total    Int?     @map("bedrooms_total")
+@@ -2584,7 +2584,7 @@ model ListingSearchProjection {
+   listing_id String  @unique @map("listing_id")
+   listing    Listing @relation(fields: [listing_id], references: [listing_id], onDelete: Cascade)
+ 
+-  // RESO/Trestle source tracking (filled by sync — null until PR 5B).
++  // Cotality/Trestle source tracking (filled by sync — null until PR 5B).
+   listing_key   String? @map("listing_key")
+   source_system String? @map("source_system")
+   mls_status    String? @map("mls_status")
+diff --git a/public/crm/data/validator-results.json b/public/crm/data/validator-results.json
+index 8a23fd83..078223b8 100644
+--- a/public/crm/data/validator-results.json
++++ b/public/crm/data/validator-results.json
+@@ -1,5 +1,5 @@
+ {
+-  "timestamp": "2026-08-14T02:47:33.255Z",
++  "timestamp": "2026-09-07T11:01:02.182Z",
+   "pass": 1278,
+   "critical": 0,
+   "warning": 4,
+@@ -349,7 +349,7 @@
+     },
+     {
+       "section": 39,
+-      "title": "data-field vs Trestle/RESO Validation",
++      "title": "data-field vs Trestle/Cotality Validation",
+       "category": "Search",
+       "pass": 3,
+       "critical": 0,
+diff --git a/scripts/audit-form-fields.js b/scripts/audit-form-fields.js
+index 90c1a24c..2e465fc0 100644
+--- a/scripts/audit-form-fields.js
++++ b/scripts/audit-form-fields.js
+@@ -2,7 +2,7 @@
+ // ═══════════════════════════════════════════════════════════════════════════
+ // AUDIT FORM FIELDS — RLS Binding Classifier
+ // Parses all CRM HTML files, classifies every form element as:
+-//   RLS_BOUND — mapped to a canonical RLS/RESO field
++//   RLS_BOUND — mapped to a canonical RLS/Cotality field
+ //   INTERNAL  — CRM-internal, no RLS equivalent
+ //   UNKNOWN   — cannot classify (hard error)
+ //
+@@ -27,7 +27,7 @@ const FILE_CATEGORIES = {
+   search:       { path: path.join(SEARCH_MODULAR, 'index-built.html'),            category: 'search' },
+ };
+ 
+-// ── RESO→RLS Renames ─────────────────────────────────────────────────────
++// ── Cotality→RLS Renames ─────────────────────────────────────────────────────
+ 
+ const RESO_TO_RLS_RENAMES = {
+   'BuyerAgentKey':            'BuyerAgentMlsId',
+@@ -331,7 +331,7 @@ const FIELD_ALIASES = {
+   'CorpOwnAllowed':        'BuildingFeatures',
+   'GiftsAllowed':          'BuildingFeatures',
+ 
+-  // Direct RLS/RESO fields (on Trestle Property entity, beyond IDX Plus CSV)
++  // Direct RLS/Cotality fields (on Trestle Property entity, beyond IDX Plus CSV)
+   'BathroomsTotal':           'BathroomsTotalInteger',
+   'InternetAddressDisplayYN': 'InternetAddressDisplayYN',       // Trestle Property, not in IDX Plus CSV
+   'InternetAutomatedValuationDisplayYN': 'InternetAutomatedValuationDisplayYN', // Trestle Property, not in IDX Plus CSV
+diff --git a/scripts/reso/README.md b/scripts/cotality/README.md
+similarity index 73%
+rename from scripts/reso/README.md
+rename to scripts/cotality/README.md
+index 1514de5f..1ac5cf28 100644
+--- a/scripts/reso/README.md
++++ b/scripts/cotality/README.md
+@@ -1,4 +1,4 @@
+-# RESO toolkit — read-only diagnostic kit
++# Cotality toolkit — read-only diagnostic kit
+ 
+ A small, composable set of OData-against-Trestle / Postgres / public-site
+ probes. Every tool is read-only — none of these write to the project DB,
+@@ -20,17 +20,17 @@ No new dependencies.
+ 
+ ```bash
+ # One-shot status report (Trestle + DB + public site)
+-node scripts/reso/analyze.js
++node scripts/cotality/analyze.js
+ 
+ # Same, JSON output (pipeable)
+-node scripts/reso/analyze.js --json | jq
++node scripts/cotality/analyze.js --json | jq
+ 
+ # Compare Trestle ↔ DB ↔ public for active sales
+-node scripts/reso/parity.js --status=Active --type=sale
++node scripts/cotality/parity.js --status=Active --type=sale
+ 
+ # Probe Trestle directly
+-node scripts/reso/count.js --entity=Property --filter="StandardStatus eq 'Active'"
+-node scripts/reso/query.js --entity=Property --top=3 --select="ListingId,StandardStatus,ListPrice"
++node scripts/cotality/count.js --entity=Property --filter="StandardStatus eq 'Active'"
++node scripts/cotality/query.js --entity=Property --top=3 --select="ListingId,StandardStatus,ListPrice"
+ ```
+ 
+ ## Tools
+@@ -44,11 +44,11 @@ node scripts/reso/query.js --entity=Property --top=3 --select="ListingId,Standar
+ | `lookups.js` | Distinct enum values populated for a field (catches lookup drift, multi-value fields auto-split) | Trestle |
+ | `coverage.js` | Per-field populated % across a sample (catches "advertised but not populated") | Trestle |
+ | `trace.js` | **Trace a single ListingId through every layer** — Trestle live, DB Listing, DB projection, distribution-gate evaluation, public site. Shows exactly where a listing lands or drops. | Trestle (1) + DB + public site |
+-| `snapshot.js` | Capture an `analyze` JSON snapshot to `artifacts/reso-snapshots/YYYY-MM-DDTHHmmssZ.json` + `latest.json` for cross-time diffs. | Trestle + DB + public site |
++| `snapshot.js` | Capture an `analyze` JSON snapshot to `artifacts/cotality-snapshots/YYYY-MM-DDTHHmmssZ.json` + `latest.json` for cross-time diffs. | Trestle + DB + public site |
+ | `gate-breakdown.js` | For a baseline filter, show how many listings each successive gate eliminates (drop-off per gate). Has `--dry-run` to emit queries without burning quota. | Trestle |
+-| `drift.js` | **Trestle ↔ REBNY field-set drift tracker.** Diffs Trestle's live `$metadata` (cached at `artifacts/metadata.xml`) against the REBNY IDX Plus CSV (`data/rebny-rls-property-fields.csv`). Persists dated snapshots in `artifacts/reso-drift/` and surfaces deltas vs the prior run — so when Trestle (currently certified on RESO DD 2.0; not yet on DD 2.1) catches up, or REBNY adjusts the IDX Plus subset, you see it. | metadata.xml + REBNY CSV (no Trestle calls) |
++| `drift.js` | **Trestle ↔ REBNY field-set drift tracker.** Diffs Trestle's live `$metadata` (cached at `artifacts/metadata.xml`) against the REBNY IDX Plus CSV (`data/rebny-rls-property-fields.csv`). Persists dated snapshots in `artifacts/cotality-drift/` and surfaces deltas vs the prior run — so when Trestle (currently certified on Cotality DD 2.0; not yet on DD 2.1) catches up, or REBNY adjusts the IDX Plus subset, you see it. | metadata.xml + REBNY CSV (no Trestle calls) |
+ | `route-catalog.js` | Static analysis of every `app/api/*/route.ts` — HTTP methods, auth posture (broker/agent/portal/cron/admin/public), distribution-gate signals, compliance signals (audit-event, fair-housing scan, attribution, consent capture). Output: `artifacts/api-route-catalog.md` + `.json`. | local source only |
+-| `schema-audit.js` | Column-by-column compare of `prisma/schema.prisma` Listing model vs REBNY CSV vs Trestle metadata. Names every column as `RESO+Trestle aligned`, `mallan-internal (no RESO mapping)`, or `drift`. Output: `artifacts/schema-audit.md` + `.json`. | local source only |
++| `schema-audit.js` | Column-by-column compare of `prisma/schema.prisma` Listing model vs REBNY CSV vs Trestle metadata. Names every column as `Cotality+Trestle aligned`, `mallan-internal (no Cotality mapping)`, or `drift`. Output: `artifacts/schema-audit.md` + `.json`. | local source only |
+ | `lib/trestle-client.js` | Shared OAuth + OData helpers used by the rest of the kit | — |
+ 
+ ## Examples
+@@ -56,7 +56,7 @@ node scripts/reso/query.js --entity=Property --top=3 --select="ListingId,Standar
+ ### 1. Site status snapshot
+ 
+ ```bash
+-node scripts/reso/analyze.js
++node scripts/cotality/analyze.js
+ ```
+ 
+ Single-screen view with Trestle live counts, distribution-gate breakdown,
+@@ -67,10 +67,10 @@ fastest way to see where the site stands at a moment in time.
+ 
+ ```bash
+ # Single-listing trace through Trestle → DB → projection → gates → public site:
+-npm run reso:trace -- --listing-id=RLS20059088
++npm run cotality:trace -- --listing-id=RLS20059088
+ 
+ # JSON form (good for piping into a ticket / chat message):
+-npm run reso:trace -- --listing-id=RLS20059088 --json | jq
++npm run cotality:trace -- --listing-id=RLS20059088 --json | jq
+ ```
+ 
+ `trace.js` is the operational tool for "where did this listing go?"
+@@ -82,8 +82,8 @@ suppressing the listing.
+ For broader filter-level diagnostics:
+ 
+ ```bash
+-node scripts/reso/parity.js --status=Active --type=sale --json
+-node scripts/reso/query.js --entity=Property --filter="ListingId eq '<id>'" --top=1
++node scripts/cotality/parity.js --status=Active --type=sale --json
++node scripts/cotality/query.js --entity=Property --filter="ListingId eq '<id>'" --top=1
+ ```
+ 
+ `parity.js` shows the gap between Trestle and the public site at a
+@@ -93,8 +93,8 @@ Trestle to compare what the upstream sees.
+ ### 3. Lookup drift catch
+ 
+ ```bash
+-node scripts/reso/lookups.js --entity=Property --field=PropertySubType --sample=2000
+-node scripts/reso/lookups.js --entity=Property --field=CommonInterest --filter="StandardStatus eq 'Active'"
++node scripts/cotality/lookups.js --entity=Property --field=PropertySubType --sample=2000
++node scripts/cotality/lookups.js --entity=Property --field=CommonInterest --filter="StandardStatus eq 'Active'"
+ ```
+ 
+ Compare against `data/rebny-rls-property-lookup.csv` to flag enum values
+@@ -103,7 +103,7 @@ that REBNY documents but our feed doesn't populate (or vice versa).
+ ### 4. Field-population coverage
+ 
+ ```bash
+-node scripts/reso/coverage.js --entity=Property \
++node scripts/cotality/coverage.js --entity=Property \
+   --fields="ListingId,StandardStatus,ListPrice,BedroomsTotal,BathroomsTotalInteger,LivingArea,Latitude,Longitude,YearBuilt,CommonInterest,Furnished" \
+   --sample=2000 --filter="StandardStatus eq 'Active'"
+ ```
+@@ -115,24 +115,24 @@ a projection column or saved-search criterion.
+ 
+ ```bash
+ # Run when you want a "this is the state right now" record:
+-npm run reso:snapshot
++npm run cotality:snapshot
+ 
+ # Compare to the last one:
+-diff <(jq . artifacts/reso-snapshots/latest.json) <(jq . artifacts/reso-snapshots/2026-04-29T*.json)
++diff <(jq . artifacts/cotality-snapshots/latest.json) <(jq . artifacts/cotality-snapshots/2026-04-29T*.json)
+ ```
+ 
+ `snapshot.js` runs `analyze.js --json` and persists the result to
+-`artifacts/reso-snapshots/YYYY-MM-DDTHHmmssZ.json` plus a fixed
++`artifacts/cotality-snapshots/YYYY-MM-DDTHHmmssZ.json` plus a fixed
+ `latest.json` so diffs are trivial.
+ 
+ ### 6. Per-gate drop-off
+ 
+ ```bash
+ # Plan probes without spending quota:
+-npm run reso:gate-breakdown -- --dry-run
++npm run cotality:gate-breakdown -- --dry-run
+ 
+ # Real run:
+-npm run reso:gate-breakdown -- --status=Active --type=sale --json
++npm run cotality:gate-breakdown -- --status=Active --type=sale --json
+ ```
+ 
+ Each row = one Trestle probe answering "how many of the baseline match
+@@ -140,18 +140,18 @@ this gate-blocking condition?" Notes that `OwnerOptOut` and
+ `ParticipantOnly` are NOT queryable on IDX Plus — those listings are
+ pre-filtered upstream and don't appear in the baseline at all.
+ 
+-### 7. RESO ↔ Trestle ↔ REBNY drift tracking
++### 7. Cotality ↔ Trestle ↔ REBNY drift tracking
+ 
+ ```bash
+ # Diff Trestle metadata vs REBNY IDX Plus CSV (uses cached metadata.xml — no Trestle call):
+-npm run reso:drift
++npm run cotality:drift
+ 
+ # Property-only:
+-npm run reso:drift -- --resource=Property --json | jq '.resources.Property'
++npm run cotality:drift -- --resource=Property --json | jq '.resources.Property'
+ ```
+ 
+-Trestle is currently certified on RESO Web API Core 2.0.0 + DD 2.0 +
+-DD 1.7. RESO has DD 2.1 published; Trestle has not certified there
++Trestle is currently certified on Cotality Web API Core 2.0.0 + DD 2.0 +
++DD 1.7. Cotality has DD 2.1 published; Trestle has not certified there
+ yet. REBNY ships its own IDX Plus subset on its own cadence. `drift.js`
+ persists a dated snapshot every run, so when any side moves, the next
+ run surfaces the delta.
+@@ -163,17 +163,17 @@ new $metadata): `npx tsx scripts/refresh-trestle-csv.ts`.
+ 
+ ```bash
+ # Static analysis of every API route — auth posture + gate enforcement + compliance signals:
+-npm run reso:route-catalog
++npm run cotality:route-catalog
+ 
+-# Schema column ↔ RESO PascalCase ↔ REBNY CSV ↔ Trestle metadata, three-way:
+-npm run reso:schema-audit
++# Schema column ↔ Cotality PascalCase ↔ REBNY CSV ↔ Trestle metadata, three-way:
++npm run cotality:schema-audit
+ ```
+ 
+ `route-catalog.js` outputs a single Markdown table to
+ `artifacts/api-route-catalog.md` — useful as a shareable artifact and
+ as input for future audit tools. `schema-audit.js` does the same for
+ every column on the Prisma `Listing` model so you can see which DB
+-columns are RESO-aligned vs deliberately mallan-internal vs drifting.
++columns are Cotality-aligned vs deliberately mallan-internal vs drifting.
+ 
+ Both are read-only and zero-cost to run (no Trestle calls, no DB
+ queries) — fast enough to run as a pre-commit / pre-release check.
+@@ -191,9 +191,9 @@ queries) — fast enough to run as a pre-commit / pre-release check.
+ When the master-plan migration finishes (~May 5–6), this kit is the
+ seed for:
+ 
+-- `scripts/reso/search/` — saved-search clone/replay tools (turn each
++- `scripts/cotality/search/` — saved-search clone/replay tools (turn each
+   CRM saved search into a continuously-tested regression target).
+-- `scripts/reso/snapshot/` — capture "expected count + sample IDs" for
++- `scripts/cotality/snapshot/` — capture "expected count + sample IDs" for
+   arbitrary searches and replay daily; alert on drift.
+ - A future `analyze.js --history` mode that diffs against the previous
+   run stored in R2.
+diff --git a/scripts/reso/analyze.js b/scripts/cotality/analyze.js
+similarity index 98%
+rename from scripts/reso/analyze.js
+rename to scripts/cotality/analyze.js
+index e0cbc6ed..a516c5a1 100644
+--- a/scripts/reso/analyze.js
++++ b/scripts/cotality/analyze.js
+@@ -1,6 +1,6 @@
+ #!/usr/bin/env node
+ /**
+- * scripts/reso/analyze.js — One-shot read-only "what is the current
++ * scripts/cotality/analyze.js — One-shot read-only "what is the current
+  * state of my site" report. Pulls live counts from Trestle, the
+  * project DB, and the public site, and prints a single-screen summary.
+  *
+@@ -9,8 +9,8 @@
+  * so it's still safe to run during the master-plan migration.
+  *
+  * Usage:
+- *   node scripts/reso/analyze.js
+- *   node scripts/reso/analyze.js --json
++ *   node scripts/cotality/analyze.js
++ *   node scripts/cotality/analyze.js --json
+  *
+  * Read-only. No DB writes. No Trestle writes. Safe to re-run any time.
+  */
+@@ -238,7 +238,7 @@ function ago(iso) {
+ 
+   // Human view
+   console.log('═'.repeat(72));
+-  console.log(`mallan.nyc — RESO Toolkit Analyze (${report.captured_at})`);
++  console.log(`mallan.nyc — Cotality Toolkit Analyze (${report.captured_at})`);
+   console.log('═'.repeat(72));
+ 
+   console.log('\n┌─ Trestle / Cotality (live) ────────────────────────────────────┐');
+diff --git a/scripts/reso/count.js b/scripts/cotality/count.js
+similarity index 69%
+rename from scripts/reso/count.js
+rename to scripts/cotality/count.js
+index 65f62c6f..811c708e 100644
+--- a/scripts/reso/count.js
++++ b/scripts/cotality/count.js
+@@ -1,12 +1,12 @@
+ #!/usr/bin/env node
+ /**
+- * scripts/reso/count.js — Fast `$count` against any Trestle entity, with
++ * scripts/cotality/count.js — Fast `$count` against any Trestle entity, with
+  * optional `$filter`. Prints JSON.
+  *
+  * Usage:
+- *   node scripts/reso/count.js --entity=Property
+- *   node scripts/reso/count.js --entity=Property --filter="StandardStatus eq 'Active'"
+- *   node scripts/reso/count.js --entity=Media
++ *   node scripts/cotality/count.js --entity=Property
++ *   node scripts/cotality/count.js --entity=Property --filter="StandardStatus eq 'Active'"
++ *   node scripts/cotality/count.js --entity=Media
+  *
+  * Exit code: 0 on success, 1 on error.
+  */
+@@ -23,7 +23,7 @@ function arg(name, fallback) {
+   const entity = arg('entity');
+   const filter = arg('filter');
+   if (!entity) {
+-    console.error('Usage: node scripts/reso/count.js --entity=<Resource> [--filter="..."]');
++    console.error('Usage: node scripts/cotality/count.js --entity=<Resource> [--filter="..."]');
+     process.exit(1);
+   }
+   try {
+diff --git a/scripts/reso/coverage.js b/scripts/cotality/coverage.js
+similarity index 79%
+rename from scripts/reso/coverage.js
+rename to scripts/cotality/coverage.js
+index ce942b92..b9144d56 100644
+--- a/scripts/reso/coverage.js
++++ b/scripts/cotality/coverage.js
+@@ -1,14 +1,14 @@
+ #!/usr/bin/env node
+ /**
+- * scripts/reso/coverage.js — Field-population coverage report for a
++ * scripts/cotality/coverage.js — Field-population coverage report for a
+  * Trestle entity. For each requested field, samples N records and
+  * reports what % are populated (non-null, non-empty). Useful for
+  * catching "advertised but not populated" gaps and prioritizing
+  * which fields are safe to project from.
+  *
+  * Usage:
+- *   node scripts/reso/coverage.js --entity=Property --fields=ListingId,StandardStatus,ListPrice,BedroomsTotal,BathroomsTotalInteger,LivingArea,Latitude,Longitude
+- *   node scripts/reso/coverage.js --entity=Property --fields=YearBuilt,CommonInterest,Furnished --filter="StandardStatus eq 'Active'" --sample=2000
++ *   node scripts/cotality/coverage.js --entity=Property --fields=ListingId,StandardStatus,ListPrice,BedroomsTotal,BathroomsTotalInteger,LivingArea,Latitude,Longitude
++ *   node scripts/cotality/coverage.js --entity=Property --fields=YearBuilt,CommonInterest,Furnished --filter="StandardStatus eq 'Active'" --sample=2000
+  *
+  * Output: JSON with per-field { populated, null_or_empty, populated_pct }.
+  */
+@@ -28,7 +28,7 @@ function arg(name, fallback) {
+   const sample = Math.min(Number(arg('sample') ?? 1000), 10_000);
+ 
+   if (!entity || !fieldsRaw) {
+-    console.error('Usage: node scripts/reso/coverage.js --entity=<Resource> --fields=<csv> [--filter="..."] [--sample=N]');
++    console.error('Usage: node scripts/cotality/coverage.js --entity=<Resource> --fields=<csv> [--filter="..."] [--sample=N]');
+     process.exit(1);
+   }
+ 
+diff --git a/scripts/reso/drift.js b/scripts/cotality/drift.js
+similarity index 89%
+rename from scripts/reso/drift.js
+rename to scripts/cotality/drift.js
+index 74d89d64..8f5eea5a 100644
+--- a/scripts/reso/drift.js
++++ b/scripts/cotality/drift.js
+@@ -1,24 +1,24 @@
+ #!/usr/bin/env node
+ /**
+- * scripts/reso/drift.js — Track field-set drift between three sources
++ * scripts/cotality/drift.js — Track field-set drift between three sources
+  * of truth: Trestle's live $metadata, the REBNY IDX Plus field CSV,
+  * and (optionally) a snapshot from a prior run.
+  *
+- * The "Trestle is behind on RESO updates" reality: Cotality's Trestle
+- * tier is currently certified on RESO Web API Core 2.0.0 + DD 2.0 +
+- * DD 1.7. RESO has DD 2.1 published; Trestle hasn't certified there
++ * The "Trestle is behind on Cotality updates" reality: Cotality's Trestle
++ * tier is currently certified on Cotality Web API Core 2.0.0 + DD 2.0 +
++ * DD 1.7. Cotality has DD 2.1 published; Trestle hasn't certified there
+  * yet. REBNY has its own IDX Plus subset (902 fields) which they update
+  * on their own cadence. So the three sources can drift independently:
+  *
+  *   1. Trestle live $metadata (what the feed actually exposes)
+  *   2. REBNY IDX Plus CSV (what REBNY documents we should see)
+- *   3. RESO DD reference (the canonical standard)
++ *   3. Cotality DD reference (the canonical standard)
+  *
+  * What this tool does:
+  *   - Parse Trestle's $metadata (cached at artifacts/metadata.xml)
+  *   - Parse REBNY IDX Plus field list (data/rebny-rls-property-fields.csv)
+  *   - Diff the two sets
+- *   - Save a dated snapshot to artifacts/reso-drift/YYYY-MM-DDTHHmmssZ.json
++ *   - Save a dated snapshot to artifacts/cotality-drift/YYYY-MM-DDTHHmmssZ.json
+  *   - Diff against the previous drift snapshot (if any) and surface the delta
+  *
+  * What this tool does NOT do:
+@@ -28,10 +28,10 @@
+  *     from burning IDX Plus quota on every run.
+  *
+  * Usage:
+- *   npm run reso:drift                 # produce + persist a drift snapshot
+- *   npm run reso:drift -- --json
+- *   npm run reso:drift -- --resource=Property
+- *   npm run reso:drift -- --resource=Member
++ *   npm run cotality:drift                 # produce + persist a drift snapshot
++ *   npm run cotality:drift -- --json
++ *   npm run cotality:drift -- --resource=Property
++ *   npm run cotality:drift -- --resource=Member
+  *
+  * Read-only. No DB writes. No Trestle calls.
+  */
+@@ -41,7 +41,7 @@ const path = require('path');
+ const REPO_ROOT = process.cwd();
+ const METADATA_XML = path.join(REPO_ROOT, 'artifacts', 'metadata.xml');
+ const REBNY_FIELDS_CSV = path.join(REPO_ROOT, 'data', 'rebny-rls-property-fields.csv');
+-const DRIFT_DIR = path.join(REPO_ROOT, 'artifacts', 'reso-drift');
++const DRIFT_DIR = path.join(REPO_ROOT, 'artifacts', 'cotality-drift');
+ 
+ function arg(name, fallback) {
+   const prefix = `--${name}=`;
+@@ -155,7 +155,7 @@ function ts() {
+       trestle_metadata: path.relative(REPO_ROOT, METADATA_XML),
+       rebny_field_csv: path.relative(REPO_ROOT, REBNY_FIELDS_CSV),
+     },
+-    note: 'Cotality/Trestle is currently certified on RESO Web API Core 2.0.0 + DD 2.0 + DD 1.7. RESO has DD 2.1 published; Trestle has NOT certified there yet (per the 2026-04-29 RESO Desktop Client session). REBNY publishes its own IDX Plus subset on its own cadence.',
++    note: 'Cotality/Trestle is currently certified on Cotality Web API Core 2.0.0 + DD 2.0 + DD 1.7. Cotality has DD 2.1 published; Trestle has NOT certified there yet (per the 2026-04-29 Cotality Desktop Client session). REBNY publishes its own IDX Plus subset on its own cadence.',
+     resources: {},
+   };
+ 
+diff --git a/scripts/reso/gate-breakdown.js b/scripts/cotality/gate-breakdown.js
+similarity index 92%
+rename from scripts/reso/gate-breakdown.js
+rename to scripts/cotality/gate-breakdown.js
+index 2c084cd8..90c6ff1a 100644
+--- a/scripts/reso/gate-breakdown.js
++++ b/scripts/cotality/gate-breakdown.js
+@@ -1,6 +1,6 @@
+ #!/usr/bin/env node
+ /**
+- * scripts/reso/gate-breakdown.js — For a given starting filter, show
++ * scripts/cotality/gate-breakdown.js — For a given starting filter, show
+  * how many listings are eliminated by each successive gate.
+  *
+  * Useful when "Trestle says X but our public site shows Y" — narrows
+@@ -13,13 +13,13 @@
+  * Plus tier (OwnerOptOut, ParticipantOnly).
+  *
+  * Usage:
+- *   npm run reso:gate-breakdown
+- *   npm run reso:gate-breakdown -- --status=Active --type=sale
+- *   npm run reso:gate-breakdown -- --status=Active --type=sale --json
+- *   npm run reso:gate-breakdown -- --dry-run     # emit the OData queries without running them
++ *   npm run cotality:gate-breakdown
++ *   npm run cotality:gate-breakdown -- --status=Active --type=sale
++ *   npm run cotality:gate-breakdown -- --status=Active --type=sale --json
++ *   npm run cotality:gate-breakdown -- --dry-run     # emit the OData queries without running them
+  *
+  * Flags:
+- *   --status=<RESO StandardStatus>   default 'Active'
++ *   --status=<Cotality StandardStatus>   default 'Active'
+  *   --type=<sale|rent|all>           default 'all'
+  *   --json                           emit a single JSON object
+  *   --dry-run                        list the queries without executing — useful when quota is exhausted
+diff --git a/scripts/reso/lib/trestle-client.js b/scripts/cotality/lib/trestle-client.js
+similarity index 97%
+rename from scripts/reso/lib/trestle-client.js
+rename to scripts/cotality/lib/trestle-client.js
+index 2d1eea93..27c36585 100644
+--- a/scripts/reso/lib/trestle-client.js
++++ b/scripts/cotality/lib/trestle-client.js
+@@ -1,6 +1,6 @@
+ /**
+- * scripts/reso/lib/trestle-client.js
+- * Shared OAuth + OData helpers for the read-only RESO toolkit.
++ * scripts/cotality/lib/trestle-client.js
++ * Shared OAuth + OData helpers for the read-only Cotality toolkit.
+  *
+  * Wraps the IDX_CLIENT_ID / IDX_CLIENT_SECRET pair from .env.local against
+  * Cotality's Trestle OData endpoint. Token TTL is ~12 minutes; we cache
+diff --git a/scripts/reso/lookups.js b/scripts/cotality/lookups.js
+similarity index 84%
+rename from scripts/reso/lookups.js
+rename to scripts/cotality/lookups.js
+index 06f7920e..1fb5a290 100644
+--- a/scripts/reso/lookups.js
++++ b/scripts/cotality/lookups.js
+@@ -1,13 +1,13 @@
+ #!/usr/bin/env node
+ /**
+- * scripts/reso/lookups.js — Discover the distinct enum values populated
++ * scripts/cotality/lookups.js — Discover the distinct enum values populated
+  * for a given Trestle field. Useful for catching lookup drift between
+  * REBNY's documented enum set and what's actually populated in the feed.
+  *
+  * Usage:
+- *   node scripts/reso/lookups.js --entity=Property --field=PropertySubType
+- *   node scripts/reso/lookups.js --entity=Property --field=CommonInterest --filter="StandardStatus eq 'Active'"
+- *   node scripts/reso/lookups.js --entity=Property --field=MlsStatus --sample=2000
++ *   node scripts/cotality/lookups.js --entity=Property --field=PropertySubType
++ *   node scripts/cotality/lookups.js --entity=Property --field=CommonInterest --filter="StandardStatus eq 'Active'"
++ *   node scripts/cotality/lookups.js --entity=Property --field=MlsStatus --sample=2000
+  *
+  * Notes:
+  *   - OData on Trestle does not support `$apply=groupby` reliably for
+@@ -54,7 +54,7 @@ const MULTI_VALUE_FIELDS = new Set([
+   const sample = Math.min(Number(arg('sample') ?? 1000), 10_000);
+ 
+   if (!entity || !field) {
+-    console.error('Usage: node scripts/reso/lookups.js --entity=<Resource> --field=<Field> [--filter="..."] [--sample=N]');
++    console.error('Usage: node scripts/cotality/lookups.js --entity=<Resource> --field=<Field> [--filter="..."] [--sample=N]');
+     process.exit(1);
+   }
+ 
+diff --git a/scripts/reso/parity.js b/scripts/cotality/parity.js
+similarity index 95%
+rename from scripts/reso/parity.js
+rename to scripts/cotality/parity.js
+index 2597ea2e..3e2e1904 100644
+--- a/scripts/reso/parity.js
++++ b/scripts/cotality/parity.js
+@@ -1,6 +1,6 @@
+ #!/usr/bin/env node
+ /**
+- * scripts/reso/parity.js — Compare Trestle, our DB, and the public site
++ * scripts/cotality/parity.js — Compare Trestle, our DB, and the public site
+  * for a given listing-shape filter. Useful for diagnosing "why isn't
+  * this listing showing up?" and verifying sync convergence.
+  *
+@@ -12,12 +12,12 @@
+  * Writes: nothing.
+  *
+  * Usage:
+- *   node scripts/reso/parity.js
+- *   node scripts/reso/parity.js --status=Active --type=sale
+- *   node scripts/reso/parity.js --status=Active --type=rent --json
++ *   node scripts/cotality/parity.js
++ *   node scripts/cotality/parity.js --status=Active --type=sale
++ *   node scripts/cotality/parity.js --status=Active --type=rent --json
+  *
+  * Flags:
+- *   --status=<RESO StandardStatus>   default 'Active'
++ *   --status=<Cotality StandardStatus>   default 'Active'
+  *   --type=<sale|rent|all>           default 'sale' (Residential vs ResidentialLease)
+  *   --json                           emit a single JSON object instead of the table
+  */
+diff --git a/scripts/reso/query.js b/scripts/cotality/query.js
+similarity index 75%
+rename from scripts/reso/query.js
+rename to scripts/cotality/query.js
+index e44651fa..79fc3744 100644
+--- a/scripts/reso/query.js
++++ b/scripts/cotality/query.js
+@@ -1,12 +1,12 @@
+ #!/usr/bin/env node
+ /**
+- * scripts/reso/query.js — Generic read-only OData GET against Trestle.
++ * scripts/cotality/query.js — Generic read-only OData GET against Trestle.
+  * Prints the raw OData response as JSON.
+  *
+  * Usage:
+- *   node scripts/reso/query.js --entity=Property --top=5 --select="ListingId,StandardStatus,ListPrice"
+- *   node scripts/reso/query.js --entity=Property --filter="StandardStatus eq 'Active' and BedroomsTotal eq 2" --top=10
+- *   node scripts/reso/query.js --entity=Member --top=3
++ *   node scripts/cotality/query.js --entity=Property --top=5 --select="ListingId,StandardStatus,ListPrice"
++ *   node scripts/cotality/query.js --entity=Property --filter="StandardStatus eq 'Active' and BedroomsTotal eq 2" --top=10
++ *   node scripts/cotality/query.js --entity=Member --top=3
+  *
+  * All flags map to OData params:
+  *   --filter=<odata>      $filter
+@@ -28,7 +28,7 @@ function arg(name, fallback) {
+   const entity = arg('entity');
+   if (!entity) {
+     console.error([
+-      'Usage: node scripts/reso/query.js --entity=<Resource> [flags]',
++      'Usage: node scripts/cotality/query.js --entity=<Resource> [flags]',
+       'Flags: --filter --select --top --orderby --expand',
+     ].join('\n'));
+     process.exit(1);
+diff --git a/scripts/reso/route-catalog.js b/scripts/cotality/route-catalog.js
+similarity index 97%
+rename from scripts/reso/route-catalog.js
+rename to scripts/cotality/route-catalog.js
+index 5a11c37e..fe5632c2 100644
+--- a/scripts/reso/route-catalog.js
++++ b/scripts/cotality/route-catalog.js
+@@ -1,6 +1,6 @@
+ #!/usr/bin/env node
+ /**
+- * scripts/reso/route-catalog.js — Static-analysis catalog of every
++ * scripts/cotality/route-catalog.js — Static-analysis catalog of every
+  * API route under app/api/. Emits a single Markdown table mapping
+  * each route to its HTTP methods, auth posture, distribution-gate
+  * usage, and other compliance signals.
+@@ -13,8 +13,8 @@
+  * + an input for future audit tools.
+  *
+  * Usage:
+- *   npm run reso:route-catalog
+- *   npm run reso:route-catalog -- --json
++ *   npm run cotality:route-catalog
++ *   npm run cotality:route-catalog -- --json
+  */
+ const fs = require('fs');
+ const path = require('path');
+@@ -163,7 +163,7 @@ function classifyAuth(authMatches, routePath) {
+   const lines = [];
+   lines.push('# API route catalog');
+   lines.push('');
+-  lines.push(`> Static analysis of every \`route.ts\` under \`app/api/\`. Generated by \`npm run reso:route-catalog\`.`);
++  lines.push(`> Static analysis of every \`route.ts\` under \`app/api/\`. Generated by \`npm run cotality:route-catalog\`.`);
+   lines.push(`> Captured: ${new Date().toISOString()}`);
+   lines.push('');
+   lines.push('## Stats');
+diff --git a/scripts/reso/schema-audit.js b/scripts/cotality/schema-audit.js
+similarity index 86%
+rename from scripts/reso/schema-audit.js
+rename to scripts/cotality/schema-audit.js
+index 7a6e2e1b..7cafb48a 100644
+--- a/scripts/reso/schema-audit.js
++++ b/scripts/cotality/schema-audit.js
+@@ -1,11 +1,11 @@
+ #!/usr/bin/env node
+ /**
+- * scripts/reso/schema-audit.js — Audit our Prisma `Listing` model
+- * column-by-column against the RESO Property entity (as published by
++ * scripts/cotality/schema-audit.js — Audit our Prisma `Listing` model
++ * column-by-column against the Cotality Property entity (as published by
+  * REBNY's IDX Plus CSV) and Trestle's live $metadata cache.
+  *
+  * Useful before every reader-migration PR (5F/5G/etc.) to catch
+- * naming drift between our DB columns and the upstream RESO spec.
++ * naming drift between our DB columns and the upstream Cotality spec.
+  *
+  * Output:
+  *   - artifacts/schema-audit.md  (Markdown)
+@@ -17,8 +17,8 @@
+  *   - artifacts/metadata.xml
+  *
+  * Usage:
+- *   npm run reso:schema-audit
+- *   npm run reso:schema-audit -- --json
++ *   npm run cotality:schema-audit
++ *   npm run cotality:schema-audit -- --json
+  */
+ const fs = require('fs');
+ const path = require('path');
+@@ -40,13 +40,13 @@ function snakeToReso(snake) {
+   // Special-cases that don't follow a simple rule.
+   const exceptions = {
+     listing_id: 'ListingId',
+-    mls_id: null, // mallan-internal, not a RESO field
++    mls_id: null, // mallan-internal, not a Cotality field
+     list_price: 'ListPrice',
+     bedrooms_total: 'BedroomsTotal',
+     bathrooms_full: 'BathroomsFull',
+     bathrooms_half: 'BathroomsHalf',
+     living_area: 'LivingArea',
+-    listing_type: null, // mallan-internal sale|rent (RESO uses PropertyType)
++    listing_type: null, // mallan-internal sale|rent (Cotality uses PropertyType)
+     property_type: 'PropertyType',
+     property_sub_type: 'PropertySubType',
+     postal_code: 'PostalCode',
+@@ -71,7 +71,7 @@ function snakeToReso(snake) {
+     photos_change_timestamp: 'PhotosChangeTimestamp',
+     photo_count: 'PhotosCount',
+     auction_yn: 'AuctionYN',
+-    auction_type: null, // RESO doesn't have a single-named field; UCBA composite
++    auction_type: null, // Cotality doesn't have a single-named field; UCBA composite
+     auction_start_date: null,
+     auction_end_date: null,
+     auction_terms_url: null,
+@@ -162,8 +162,8 @@ function parseTrestleMetadata(xml) {
+     const inRebny = reso ? rebny.has(reso) : false;
+     const inTrestle = reso ? trestle.has(reso) : false;
+     let verdict;
+-    if (reso === null) verdict = 'mallan-internal (no RESO mapping by design)';
+-    else if (inRebny && inTrestle) verdict = '✅ RESO+Trestle aligned';
++    if (reso === null) verdict = 'mallan-internal (no Cotality mapping by design)';
++    else if (inRebny && inTrestle) verdict = '✅ Cotality+Trestle aligned';
+     else if (inRebny && !inTrestle) verdict = '⚠ REBNY documents but Trestle does NOT expose';
+     else if (!inRebny && inTrestle) verdict = '⚠ Trestle exposes but REBNY does NOT document';
+     else verdict = '⚠ neither REBNY nor Trestle has this name — verify mapping';
+@@ -189,21 +189,21 @@ function parseTrestleMetadata(xml) {
+ 
+   // Markdown
+   const lines = [];
+-  lines.push('# Schema vs RESO DD audit');
++  lines.push('# Schema vs Cotality DD audit');
+   lines.push('');
+   lines.push(`> Column-by-column compare of \`prisma/schema.prisma\` Listing model vs REBNY IDX Plus CSV (\`data/rebny-rls-property-fields.csv\`) vs Trestle's live \`$metadata\` (\`artifacts/metadata.xml\`).`);
+-  lines.push(`> Generated by \`npm run reso:schema-audit\`. Captured: ${new Date().toISOString()}.`);
++  lines.push(`> Generated by \`npm run cotality:schema-audit\`. Captured: ${new Date().toISOString()}.`);
+   lines.push('');
+   lines.push('## Stats');
+   lines.push('');
+   lines.push(`- **Total Listing columns**: ${stats.total_columns}`);
+   lines.push(`- **Fully aligned (REBNY + Trestle)**: ${stats.aligned}`);
+-  lines.push(`- **Mallan-internal (no RESO mapping by design)**: ${stats.mallan_internal}`);
++  lines.push(`- **Mallan-internal (no Cotality mapping by design)**: ${stats.mallan_internal}`);
+   lines.push(`- **Drift / verify-mapping**: ${stats.drift}`);
+   lines.push('');
+   lines.push('## Per-column verdict');
+   lines.push('');
+-  lines.push('| Column | Type | RESO name | In REBNY | In Trestle | Verdict |');
++  lines.push('| Column | Type | Cotality name | In REBNY | In Trestle | Verdict |');
+   lines.push('|---|---|---|---|---|---|');
+   for (const f of findings) {
+     lines.push(`| \`${f.column}\` | \`${f.type}\` | \`${f.reso_name ?? '—'}\` | ${f.in_rebny_idx_plus ? '✓' : '—'} | ${f.in_trestle_metadata ? '✓' : '—'} | ${f.verdict} |`);
+@@ -211,7 +211,7 @@ function parseTrestleMetadata(xml) {
+   lines.push('');
+   lines.push('## Notes');
+   lines.push('');
+-  lines.push('- **Mallan-internal** columns are deliberately not RESO-aligned: things like `agent_id` (FK to our `Agent` model), `sync_status` (sync pipeline state), and the JSON columns (`address`, `features`, `media`, `compliance`, `agent_info`, `raw_data`) which carry RESO data inside them but are not 1:1 column-named.');
++  lines.push('- **Mallan-internal** columns are deliberately not Cotality-aligned: things like `agent_id` (FK to our `Agent` model), `sync_status` (sync pipeline state), and the JSON columns (`address`, `features`, `media`, `compliance`, `agent_info`, `raw_data`) which carry Cotality data inside them but are not 1:1 column-named.');
+   lines.push('- **REBNY-only** entries usually mean Trestle hasn\'t certified that field on the IDX Plus tier yet, or REBNY documents a field that Trestle exposes under a slightly different name.');
+   lines.push('- **Trestle-only** entries indicate fields the live feed exposes that REBNY hasn\'t formally licensed in the IDX Plus subset — useful but not contractual.');
+   lines.push('');
+diff --git a/scripts/reso/snapshot.js b/scripts/cotality/snapshot.js
+similarity index 84%
+rename from scripts/reso/snapshot.js
+rename to scripts/cotality/snapshot.js
+index 446cd82d..2b69f9ba 100644
+--- a/scripts/reso/snapshot.js
++++ b/scripts/cotality/snapshot.js
+@@ -1,25 +1,25 @@
+ #!/usr/bin/env node
+ /**
+- * scripts/reso/snapshot.js — Capture an `analyze` JSON snapshot to a
++ * scripts/cotality/snapshot.js — Capture an `analyze` JSON snapshot to a
+  * dated file so you can diff state across runs (e.g. overnight, before/
+  * after a deploy, or during a sync convergence window).
+  *
+- * Output: artifacts/reso-snapshots/YYYY-MM-DDTHHmmssZ.json
+- *         artifacts/reso-snapshots/latest.json (always overwritten)
++ * Output: artifacts/cotality-snapshots/YYYY-MM-DDTHHmmssZ.json
++ *         artifacts/cotality-snapshots/latest.json (always overwritten)
+  *
+  * The `latest.json` symlink-equivalent makes diffing trivial:
+- *   diff <(cat artifacts/reso-snapshots/2026-04-29*.json | jq) \
+- *        <(cat artifacts/reso-snapshots/latest.json | jq)
++ *   diff <(cat artifacts/cotality-snapshots/2026-04-29*.json | jq) \
++ *        <(cat artifacts/cotality-snapshots/latest.json | jq)
+  *
+  * Read-only against the project. One Trestle session worth of probes
+- * (same as `reso:analyze`).
++ * (same as `cotality:analyze`).
+  */
+ require('dotenv').config({ path: '.env.local' });
+ const path = require('path');
+ const fs = require('fs');
+ const { spawn } = require('child_process');
+ 
+-const SNAPSHOT_DIR = path.join(process.cwd(), 'artifacts', 'reso-snapshots');
++const SNAPSHOT_DIR = path.join(process.cwd(), 'artifacts', 'cotality-snapshots');
+ 
+ function ts() {
+   return new Date().toISOString().replace(/[:.]/g, '-');
+diff --git a/scripts/reso/trace.js b/scripts/cotality/trace.js
+similarity index 98%
+rename from scripts/reso/trace.js
+rename to scripts/cotality/trace.js
+index 7206a63c..539bf672 100644
+--- a/scripts/reso/trace.js
++++ b/scripts/cotality/trace.js
+@@ -1,6 +1,6 @@
+ #!/usr/bin/env node
+ /**
+- * scripts/reso/trace.js — Trace a single listing through every layer
++ * scripts/cotality/trace.js — Trace a single listing through every layer
+  * of the pipeline and report where it lands (or drops).
+  *
+  * Layers traced:
+@@ -15,8 +15,8 @@
+  * fetch. Safe to run alongside the master-plan migration.
+  *
+  * Usage:
+- *   node scripts/reso/trace.js --listing-id=RLS20059088
+- *   node scripts/reso/trace.js --listing-id=RLS20059088 --json
++ *   node scripts/cotality/trace.js --listing-id=RLS20059088
++ *   node scripts/cotality/trace.js --listing-id=RLS20059088 --json
+  *
+  * Returns exit 0 even when the listing is not displayable (the trace
+  * is still useful diagnostic data). Returns exit 1 only on hard
+@@ -242,7 +242,7 @@ function fmt(v) {
+   const listingId = arg('listing-id');
+   const json = process.argv.includes('--json');
+   if (!listingId) {
+-    console.error('Usage: node scripts/reso/trace.js --listing-id=<RLS_xxx> [--json]');
++    console.error('Usage: node scripts/cotality/trace.js --listing-id=<RLS_xxx> [--json]');
+     process.exit(1);
+   }
+ 
+diff --git a/scripts/fix-stale-form-bindings.ts b/scripts/fix-stale-form-bindings.ts
+index 4814f77d..4b1b9836 100644
+--- a/scripts/fix-stale-form-bindings.ts
++++ b/scripts/fix-stale-form-bindings.ts
+@@ -61,7 +61,7 @@ const CONFIRMED_RENAMES: Array<{ from: string; to: string | null; reason: string
+ 
+   // Video / virtual tour
+   { from: 'VideoURL', to: 'VirtualTourURLBranded',
+-    reason: 'Live Trestle has VirtualTourURLBranded/Unbranded (RESO standard); no VideoURL property exists' },
++    reason: 'Live Trestle has VirtualTourURLBranded/Unbranded (Cotality standard); no VideoURL property exists' },
+ 
+   // Speculative fields not on Trestle and not in REBNY canonical CustomFields list — remove
+   { from: 'LobbyAttendant', to: null,
+@@ -79,11 +79,11 @@ const CONFIRMED_RENAMES: Array<{ from: string; to: string | null; reason: string
+ 
+   // Final batch — confirmed via live $metadata probe
+   { from: 'NewDevelopmentYN', to: 'NewConstructionYN',
+-    reason: 'Live Trestle Property uses RESO standard NewConstructionYN' },
++    reason: 'Live Trestle Property uses Cotality standard NewConstructionYN' },
+   { from: 'MinLeaseMonths', to: 'LeaseTerm',
+-    reason: 'RESO standard LeaseTerm on Property; CustomFields canonical list does not include MinLeaseMonths' },
++    reason: 'Cotality standard LeaseTerm on Property; CustomFields canonical list does not include MinLeaseMonths' },
+   { from: 'LeaseType', to: 'AvailableLeaseType',
+-    reason: 'RESO standard AvailableLeaseType on Property; rental form is offering, not existing' },
++    reason: 'Cotality standard AvailableLeaseType on Property; rental form is offering, not existing' },
+   { from: 'FeeFrequency', to: 'AdditionalFeeFrequency',
+     reason: 'CustomProperty has AdditionalFeeFrequency; rental application/move-in fee context' },
+   { from: 'BuyerAgentRLSParticipantYN', to: null,
+@@ -97,14 +97,14 @@ const CONFIRMED_RENAMES: Array<{ from: string; to: string | null; reason: string
+ 
+   // Address typo
+   { from: 'UnParsedAddress', to: 'UnparsedAddress',
+-    reason: 'Typo — capital P should be lowercase to match RESO/Trestle field name' },
++    reason: 'Typo — capital P should be lowercase to match Cotality/Trestle field name' },
+   // Confirmed-dead fields with no Trestle replacement (remove, don't rename)
+   { from: 'MoveInCostsAmountTotal', to: null,
+     reason: 'CLAUDE.md: field does not exist on Trestle. MoveInCosts is a picklist only.' },
+   // (MoveInCostsComments removed 2026-06-04: it is a live Property field now —
+   //  Edm.String(1024); the rental forms bind it directly. Not a stale binding.)
+   { from: 'PossessionDate', to: null,
+-    reason: 'CLAUDE.md: RESO field, Trestle ignores. No replacement.' },
++    reason: 'CLAUDE.md: Cotality field, Trestle ignores. No replacement.' },
+   { from: 'YearRenovated', to: null,
+     reason: 'CLAUDE.md: field does not exist on Trestle.' },
+ ];
+diff --git a/scripts/generate-master-registry.js b/scripts/generate-master-registry.js
+index 07fdd5c2..dd638048 100644
+--- a/scripts/generate-master-registry.js
++++ b/scripts/generate-master-registry.js
+@@ -391,7 +391,7 @@ for (const [trestleField, reg] of regByTrestle) {
+   supplementCount++;
+ }
+ 
+-// Pass 3: ALL remaining Trestle fields not in REBNY (broader RESO standard)
++// Pass 3: ALL remaining Trestle fields not in REBNY (broader Cotality standard)
+ for (const trestle of trestleProps) {
+   if (fields[trestle.name]) continue; // already from REBNY or supplement
+   const displayTier = classifyDisplay(trestle.name, null);
+@@ -424,7 +424,7 @@ for (const trestle of trestleProps) {
+ console.log(C.green(`     ${Object.keys(fields).length} total fields merged`));
+ console.log(`       ${C.cyan(rebnyCount)} REBNY RLS fields (NY-specific)`);
+ console.log(`       ${C.cyan(supplementCount)} CRM supplement fields`);
+-console.log(`       ${C.cyan(trestleOnlyCount)} Trestle-only fields (broader RESO)`);
++console.log(`       ${C.cyan(trestleOnlyCount)} Trestle-only fields (broader Cotality)`);
+ 
+ // Display tier breakdown
+ const tierCounts = { idx: 0, vow: 0, internal: 0, system: 0 };
+@@ -700,7 +700,7 @@ const registry = {
+     sources: [
+       'data/rebny-rls-property-fields.csv (902 REBNY IDX Plus fields across 7 resources)',
+       'data/rebny-rls-property-lookup.csv (105 REBNY enums / 1,942 picklist values)',
+-      'data/trestle-dictionary/trestle-schema.json (744 Trestle fields — full RESO)',
++      'data/trestle-dictionary/trestle-schema.json (744 Trestle fields — full Cotality)',
+       'data/FIELD_REGISTRY.json (65 CRM canonical mappings)',
+       'data/SEARCH_CONTROL_MAP.json (search DOM mappings)',
+       'trestle-metadata.xml (OData baseline)',
+@@ -750,7 +750,7 @@ console.log(C.bold('  Stats:\n'));
+ console.log(`  Fields (total):    ${C.cyan(Object.keys(fields).length)}`);
+ console.log(`    REBNY RLS:       ${C.green(rebnyCount)} (NY-specific, what REBNY accepts)`);
+ console.log(`    CRM supplement:  ${C.cyan(supplementCount)}`);
+-console.log(`    Trestle-only:    ${C.dim(trestleOnlyCount)} (broader RESO, not in REBNY CSV)`);
++console.log(`    Trestle-only:    ${C.dim(trestleOnlyCount)} (broader Cotality, not in REBNY CSV)`);
+ console.log(`    Required:        ${C.cyan(requiredCount)}`);
+ console.log(`    Conditional:     ${C.cyan(conditionalCount)}`);
+ console.log(`    Read-only:       ${C.dim(readOnlyCount)}`);
+diff --git a/scripts/idx-validate.js b/scripts/idx-validate.js
+index e57606fa..8b1bbb18 100644
+--- a/scripts/idx-validate.js
++++ b/scripts/idx-validate.js
+@@ -66,7 +66,7 @@
+  *   36. DOM ID Cross-Reference (JS → HTML)
+  *   37. Search Flow Integrity
+  *   38. onclick/onchange Function Existence
+- *   39. data-field vs Trestle/RESO Validation
++ *   39. data-field vs Trestle/Cotality Validation
+  *   40. Duplicate HTML ID Detection
+  */
+ 
+@@ -1827,8 +1827,8 @@ function section37() {
+   }
+ 
+   // 3. Status checkbox data-values match statusMap in _serverSearch
+-  // statusMap maps CRM uppercase → RESO PascalCase. The code uses `statusMap[s] || s`
+-  // so values already in RESO format (Active, ComingSoon, etc.) pass through correctly.
++  // statusMap maps CRM uppercase → Cotality PascalCase. The code uses `statusMap[s] || s`
++  // so values already in Cotality format (Active, ComingSoon, etc.) pass through correctly.
+   // Compound values like "Withdrawn,Canceled,Expired,Hold" are split by the server
+   // (idx/search/route.ts: status.split(",")).
+   const statusMapMatch = searchEngine.match(/statusMap\s*=\s*\{([^}]+)\}/);
+@@ -1836,7 +1836,7 @@ function section37() {
+     const mapKeys = (statusMapMatch[1].match(/'([^']+)'/g) || [])
+       .filter((_, i) => i % 2 === 0) // odd indices are values
+       .map(k => k.replace(/'/g, ''));
+-    // Valid RESO StandardStatus values that pass through the `|| s` fallback correctly
++    // Valid Cotality StandardStatus values that pass through the `|| s` fallback correctly
+     const resoStandardStatuses = new Set([
+       'Active', 'ActiveUnderContract', 'Canceled', 'Closed', 'ComingSoon',
+       'Delete', 'Expired', 'Hold', 'Incomplete', 'Pending', 'Withdrawn',
+@@ -1850,17 +1850,17 @@ function section37() {
+     const unmapped = statusCheckboxes.filter(v => {
+       // In statusMap keys → mapped explicitly
+       if (mapKeys.includes(v)) return false;
+-      // Valid RESO value → passes through via || s fallback
++      // Valid Cotality value → passes through via || s fallback
+       if (resoStandardStatuses.has(v)) return false;
+-      // Compound value — check each part is valid RESO
++      // Compound value — check each part is valid Cotality
+       if (v.includes(',') && v.split(',').every(p => resoStandardStatuses.has(p.trim()))) return false;
+       return true;
+     });
+     if (unmapped.length > 0) {
+-      warning(s, `${unmapped.length} status checkbox values not in statusMap or RESO enum: ${unmapped.join(', ')}`,
+-        'These statuses will be sent as-is to Trestle and may not match any RESO StandardStatus');
++      warning(s, `${unmapped.length} status checkbox values not in statusMap or Cotality enum: ${unmapped.join(', ')}`,
++        'These statuses will be sent as-is to Trestle and may not match any Cotality StandardStatus');
+     } else if (statusCheckboxes.length > 0) {
+-      pass(s, `${statusCheckboxes.length} status checkbox values all mapped or valid RESO`);
++      pass(s, `${statusCheckboxes.length} status checkbox values all mapped or valid Cotality`);
+     }
+   }
+ 
+@@ -2015,12 +2015,12 @@ function section38() {
+ }
+ 
+ // ═══════════════════════════════════════════════════════════════════════════
+-// SECTION 39: data-field vs Trestle/RESO Field Validation
++// SECTION 39: data-field vs Trestle/Cotality Field Validation
+ // Cross-references data-field="X" in HTML against the 902-field CSV.
+ // Catches invented field names that produce silent OData failures.
+ // ═══════════════════════════════════════════════════════════════════════════
+ function section39() {
+-  const s = startSection(39, 'data-field vs Trestle/RESO Validation', 'Search');
++  const s = startSection(39, 'data-field vs Trestle/Cotality Validation', 'Search');
+ 
+   const html = readFile('public/crm/index-built.html');
+   const fieldRows = getRebnyFieldRows();
+@@ -2031,7 +2031,7 @@ function section39() {
+   const trestleFields = new Set();
+   for (const { name } of fieldRows) trestleFields.add(name);
+ 
+-  // Also add known RESO standard fields that are on Trestle but may not be in IDX Plus CSV
++  // Also add known Cotality standard fields that are on Trestle but may not be in IDX Plus CSV
+   // (distribution gates, status fields, etc.)
+   const extraTrestleFields = [
+     'MlsStatus', 'StandardStatus', 'InternetEntireListingDisplayYN', 'InternetAddressDisplayYN',
+@@ -2092,7 +2092,7 @@ function section39() {
+     }
+   }
+ 
+-  pass(s, `${validCount} data-field values match Trestle/RESO fields`);
++  pass(s, `${validCount} data-field values match Trestle/Cotality fields`);
+   if (localCount > 0) {
+     pass(s, `${localCount} data-field values are known local-only filters`);
+   }
+diff --git a/scripts/patch-master-registry.js b/scripts/patch-master-registry.js
+index c0eafd82..fc342f77 100644
+--- a/scripts/patch-master-registry.js
++++ b/scripts/patch-master-registry.js
+@@ -305,7 +305,7 @@ reg._meta.trestleArchitecture = {
+   lastUpdated: "2026-03-13",
+   mechanisms: {
+     "1_PropertyEntity": {
+-      description: "Standard RESO fields on the Trestle Property entity. Accessed directly via OData $select.",
++      description: "Standard Cotality fields on the Trestle Property entity. Accessed directly via OData $select.",
+       fieldCount: "~580 fields",
+       examples: ["ListPrice", "BedroomsTotal", "Heating", "PetsAllowed"]
+     },
+@@ -345,7 +345,7 @@ reg._meta.trestleArchitecture = {
+         "CoBrokeAgreement",
+         "Permissions"
+       ],
+-      nycContext: "These fields exist because NYC real estate has unique concepts (doorman types, co-op board rules, flip tax, rent stabilization, UCBA co-broke terms) not found in national RESO standard."
++      nycContext: "These fields exist because NYC real estate has unique concepts (doorman types, co-op board rules, flip tax, rent stabilization, UCBA co-broke terms) not found in national Cotality standard."
+     }
+   },
+   knownCsvErrors: [
+diff --git a/scripts/trestle-forbidden-fields.ts b/scripts/trestle-forbidden-fields.ts
+index 70a2deef..fd6ed020 100644
+--- a/scripts/trestle-forbidden-fields.ts
++++ b/scripts/trestle-forbidden-fields.ts
+@@ -24,7 +24,7 @@ export const FORBIDDEN_FIELDS: Record<string, string> = {
+   // $metadata exposes both as Property fields. Live feed wins over the snapshot.)
+   MoveInCostsAmountTotal: 'does not exist; MoveInCosts is a picklist only',
+   FirstShowingDate: 'use ActivationDate',
+-  PossessionDate: 'RESO field, Trestle ignores',
++  PossessionDate: 'Cotality field, Trestle ignores',
+   YearRenovated: 'does not exist',
+   // Phantom media URL fields — they look plausible but no live resource exposes
+   // them. The real model: Property carries VirtualTourURL* (tours/3D); the Media
+diff --git a/scripts/validate-rls-compliance.js b/scripts/validate-rls-compliance.js
+index b0e10394..232a1c86 100644
+--- a/scripts/validate-rls-compliance.js
++++ b/scripts/validate-rls-compliance.js
+@@ -123,7 +123,7 @@ const SALE_ONLY = new Set(['FlipTax', 'FlipTaxType', 'MaximumFinancingAmount', '
+ const results = {
+   1:  { name: 'PICKLIST VALUES',       errors: [], warnings: [] },
+   2:  { name: 'REQUIRED FIELDS',       errors: [], warnings: [] },
+-  3:  { name: 'RESO→RLS RENAMES',      errors: [], warnings: [] },
++  3:  { name: 'Cotality→RLS RENAMES',      errors: [], warnings: [] },
+   4:  { name: 'DISTRIBUTION GATES',    errors: [], warnings: [] },
+   5:  { name: 'FIELD MAP INTEGRITY',   errors: [], warnings: [] },
+   6:  { name: '(REMOVED)',             errors: [], warnings: [] },
+@@ -578,9 +578,9 @@ function validateRequiredFields(fileElements, requiredFields) {
+   }
+ }
+ 
+-// SECTION 3: RESO→RLS RENAMES
++// SECTION 3: Cotality→RLS RENAMES
+ function validateRenames() {
+-  console.log('\n  Section 3: RESO→RLS Renames (23 renames) ...');
++  console.log('\n  Section 3: Cotality→RLS Renames (23 renames) ...');
+ 
+   const allFiles = [
+     ...Object.values(FILE_CONFIG).map(c => c.path),
+diff --git a/scripts/validate-standalone.js b/scripts/validate-standalone.js
+index b2c5b543..8205a81a 100644
+--- a/scripts/validate-standalone.js
++++ b/scripts/validate-standalone.js
+@@ -279,7 +279,7 @@ function searchChecks(content) {
+     'Routes to email/print/CSV/Excel/shareableLink outputs'
+   ));
+ 
+-  // 24. Extended test suite functions (NV, AL, S, X, A11Y/RESO, R)
++  // 24. Extended test suite functions (NV, AL, S, X, A11Y/Cotality, R)
+   const extFunctions = ['NoVOWDriftTests','AllowlistLeakTests','SearchCorrectnessTests',
+     'SecurityHardeningV2Tests','AccessibilityRESOPerfTests','MutationRegressionTests'];
+   const missingExt = extFunctions.filter(f => !content.includes('function ' + f));

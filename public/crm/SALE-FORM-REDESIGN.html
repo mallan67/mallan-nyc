@@ -582,6 +582,13 @@ body { font-family: Manrope, sans-serif; }
             <div class="mb-5">
                 <label class="field-label mb-1">Status <span class="text-red-500">*</span></label>
                 <select id="saleStatus" class="field-input max-w-md" required onchange="validateStatusChange('sale'); handleSaleComingSoon(); updateSaleStatusFields()" data-mallan-ignore="true" data-mallan-field="_crmWorkflowStatus">
+                    <!-- OFFLINE FALLBACK ONLY. At load this list is REPLACED from the one server mapping
+                         (GET /api/crm/status-options?type=sale -> lib/crm/status-mapping.ts) by the
+                         "STATUS VOCABULARY" script at the end of this file; it is kept here so a required
+                         select is never empty when that endpoint is unreachable. Its option set and labels
+                         are held equal to the server's by
+                         tests/runtime/four-listing-forms-status-select-equivalence.test.ts. Never hand-edit
+                         a label here - change lib/crm/status-mapping.ts. -->
                     <option value="Draft" selected>Draft</option>
                     <option value="Future">Future</option>
                     <option value="ComingSoon">Coming Soon</option>
@@ -591,10 +598,10 @@ body { font-family: Manrope, sans-serif; }
                     <option value="OfferOut">Offer Out</option>
                     <option value="OfferThruUs">Offer Thru Us</option>
                     <option value="OfferAccepted">Offer Accepted</option>
-                    <option value="OAThruUs">Offer Accepted Thru Us</option>
+                    <option value="OAThruUs">OA Thru Us</option>
                     <option disabled>── Contract ──</option>
                     <option value="ContractOut">Contract Out</option>
-                    <option value="COThruUs">Contract Out Thru Us</option>
+                    <option value="COThruUs">CO Thru Us</option>
                     <option value="ContractSigned">Contract Signed</option>
                     <option value="ContractSignedThruUs">Contract Signed Thru Us</option>
                     <option value="BoardApproved">Board Approved</option>
@@ -602,27 +609,32 @@ body { font-family: Manrope, sans-serif; }
                     <option value="Sold">Sold</option>
                     <option value="SoldThruUs">Sold Thru Us</option>
                     <option disabled>── Off Market ──</option>
-                    <option value="Withdrawn">Withdrawn</option>
-                    <option value="Cancelled">Cancelled</option>
-                    <option value="PermOffMarket">Perm Off Market</option>
                     <option value="TempOffMarket">Temp Off Market</option>
+                    <option value="PermOffMarket">Perm Off Market</option>
+                    <option value="Withdrawn">Withdrawn</option>
                     <option value="Expired">Expired</option>
+                    <option value="Hold">Hold</option>
+                    <!-- the workflow word keeps its two-L VALUE (that is what raw_data._crmWorkflowStatus
+                         stores and what findWorkflow reads back); only the LABEL is the provider's one L -->
+                    <option value="Cancelled">Canceled</option>
                     <option disabled>── Saved Listing State ──</option>
+                    <option value="ActiveUnderContract">Active Under Contract</option>
                     <option value="Pending">In Contract</option>
                     <option value="Closed" hidden>Sold</option>
                     <option value="Canceled" hidden>Canceled</option>
-                    <option value="Hold">Hold</option>
                     <option value="Incomplete">Incomplete</option>
                 </select>
                 <!-- DOM Tracking -->
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+                    <!-- Days on Market is the SERVER market clock (GET form_dom -> applySaleServerDom). -->
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
                         <p class="text-[10px] text-gray-500 uppercase">Days on Market</p>
-                        <p class="text-sm font-bold text-gray-800" id="saleDaysOnMarket">0</p>
+                        <p class="text-sm font-bold text-gray-800" id="saleDaysOnMarket">--</p>
+                        <p class="text-[9px] text-gray-400" id="saleDomBasis">server clock</p>
                     </div>
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
                         <p class="text-[10px] text-gray-500 uppercase">Cumulative DOM</p>
-                        <p class="text-sm font-bold text-gray-800" id="saleCumulativeDaysOnMarket">0</p>
+                        <p class="text-sm font-bold text-gray-800" id="saleCumulativeDaysOnMarket">--</p>
                     </div>
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
                         <p class="text-[10px] text-gray-500 uppercase">Status Changed</p>
@@ -630,7 +642,7 @@ body { font-family: Manrope, sans-serif; }
                     </div>
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
                         <p class="text-[10px] text-gray-500 uppercase">Last Cotality Status</p>
-                        <p class="text-xs font-medium text-blue-700" id="saleCotalityStatus">set by server on save</p>
+                        <p class="text-xs font-medium text-blue-700" id="saleCotalityStatus">Not provided</p>
                     </div>
                 </div>
                 <!-- Validation Panel -->
@@ -702,9 +714,10 @@ body { font-family: Manrope, sans-serif; }
                     <!-- REBNY CLOSED-001 / CANCELLED-001 (Packet 2 convergence): closing facts the gate requires -->
                     <div class="mt-3" data-p2-block="sale-closing-facts">
                         <label class="field-label">Buyer agent is an RLS participant?</label>
-                        <div class="flex gap-4 text-sm"><label class="flex items-center gap-1"><input type="radio" name="saleBuyerAgentRLSParticipantYN" value="Yes" class="w-4 h-4" data-cotality-field="BuyerAgentRLSParticipantYN"> Yes</label><label class="flex items-center gap-1"><input type="radio" name="saleBuyerAgentRLSParticipantYN" value="No" class="w-4 h-4" data-cotality-field="BuyerAgentRLSParticipantYN"> No</label></div>
-                        <label class="field-label" style="margin-top:.5rem">Cancellation Date</label>
-                        <input type="date" id="saleCancellationDate" class="field-input" data-cotality-field="CancellationDate">
+                        <div class="flex gap-4 text-sm"><label class="flex items-center gap-1"><input type="radio" name="saleBuyerAgentRLSParticipantYN" value="Yes" class="w-4 h-4" data-mallan-ignore="true" data-removed-field="BuyerAgentRLSParticipantYN"> Yes</label><label class="flex items-center gap-1"><input type="radio" name="saleBuyerAgentRLSParticipantYN" value="No" class="w-4 h-4" data-mallan-ignore="true" data-removed-field="BuyerAgentRLSParticipantYN"> No</label></div>
+                        <!-- Cancellation Date moved 2026-09-09 to #saleStatusDatesRow: nested here it was
+                             unreachable unless the status was already Sold, so a Cancelled listing could
+                             never carry its CancellationDate. -->
                         <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2" data-p2-block="sale-buyer-agent-contact">
                             <p class="sm:col-span-2 text-[10px] text-gray-500">REBNY BUYER-NONRLS-001: when the Buyer agent is not an RLS participant, their contact details are required at close.</p>
                             <div><label class="field-label">Buyer Agent Full Name</label><input type="text" id="saleBuyerAgentFullName" class="field-input" data-cotality-field="BuyerAgentFullName"></div>
@@ -1077,7 +1090,12 @@ body { font-family: Manrope, sans-serif; }
                     <input type="text" placeholder="Enter availability comments" class="field-input">
                 </div>
             </div>
-            <!-- Status-conditional dates -->
+            <!-- Status-conditional dates — ONE control per status fact, each bound to the Cotality
+                 field that status carries (lib/crm/status-mapping.ts SALE_STATUS_FACTS + WORKFLOW_FACTS):
+                 Expired → ExpirationDate (NEVER OffMarketDate), Withdrawn → WithdrawnDate,
+                 Cancelled → CancellationDate, Back on Market → BackOnMarketDate,
+                 Contract Signed → PurchaseContractDate, Sold → CloseDate + ClosePrice.
+                 Off Market Date is the Perm/Temp Off Market removal day only. -->
             <div id="saleStatusDatesRow" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4" style="display:none;">
                 <div id="saleOffMarketDateField" style="display:none;">
                     <label class="field-label">Off Market Date <span class="text-red-500">*</span></label>
@@ -1086,6 +1104,22 @@ body { font-family: Manrope, sans-serif; }
                 <div id="saleWithdrawnDateField" style="display:none;">
                     <label class="field-label">Withdrawn Date</label>
                     <div class="relative"><input type="date" id="saleWithdrawnDate" class="field-input" data-cotality-field="WithdrawnDate"><i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i></div>
+                </div>
+                <!-- The Expired fact. The SAME Cotality ExpirationDate the exclusive agreement carries
+                     (#saleExclusiveExpires): one fact, surfaced again at the moment it becomes the
+                     status's reason. collectSaleFormData prefers whichever the agent last stated here,
+                     and SALE_FIELD_MAP restores BOTH controls from the one stored value. -->
+                <div id="saleExpirationDateField" style="display:none;">
+                    <label class="field-label">Expiration Date</label>
+                    <div class="relative"><input type="date" id="saleExpirationDate" class="field-input" data-cotality-field="ExpirationDate"><i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i></div>
+                </div>
+                <div id="saleCancellationDateField" style="display:none;">
+                    <label class="field-label">Cancellation Date</label>
+                    <div class="relative"><input type="date" id="saleCancellationDate" class="field-input" data-cotality-field="CancellationDate"><i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i></div>
+                </div>
+                <div id="saleBackOnMarketDateField" style="display:none;">
+                    <label class="field-label">Back On Market Date</label>
+                    <div class="relative"><input type="date" id="saleBackOnMarketDate" class="field-input" data-cotality-field="BackOnMarketDate"><i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i></div>
                 </div>
                 <div id="saleContractSignedDateField" style="display:none;">
                     <label class="field-label">Contract Signed Date <span class="text-red-500">*</span></label>
@@ -2363,7 +2397,7 @@ body { font-family: Manrope, sans-serif; }
             </div>
             <div class="mt-2" data-p2-block="sale-pets-comments">
                 <label class="field-label">Pet Restriction Comments</label>
-                <textarea id="salePetsAllowedComments" rows="2" placeholder="Required when a size, number or breed restriction is selected" class="field-input" data-cotality-field="PetsAllowedComments"></textarea>
+                <textarea id="salePetsAllowedComments" rows="2" placeholder="Required when a size, number or breed restriction is selected" class="field-input" data-mallan-ignore="true"></textarea>
             </div>
             <div id="salePetsAllowedLocked" class="hidden mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
                 <i class="fas fa-lock mr-1"></i> Locked to "No Pets" — Building pet policy is set to "No Pets" (BuildingNo).
@@ -4682,7 +4716,7 @@ body { font-family: Manrope, sans-serif; }
                         <p class="text-[10px] text-gray-500 mb-3">Mallan Building Profile — internal building pet policy (not in Cotality; not submitted to RLS/IDX). Select all that apply. If "No Pets" is selected, unit-level PetsAllowed will be locked to "No".</p>
                         <div class="mb-2" data-p2-block="sale-building-pets-comments">
                             <label class="field-label">Building Pet Restriction Comments</label>
-                            <textarea id="saleBuildingPetsAllowedComments" rows="2" placeholder="Required when the building limits size, number or breed" class="field-input" data-cotality-field="BuildingPetsAllowedComments"></textarea>
+                            <textarea id="saleBuildingPetsAllowedComments" rows="2" placeholder="Required when the building limits size, number or breed" class="field-input" data-mallan-ignore="true"></textarea>
                         </div>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-4" id="saleBuildingPetsAllowedGroup">
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingPetsAllowed" value="BuildingYes" class="w-4 h-4 sale-bldg-pets-cb" onchange="handleSaleBldgPetsChange(this)" data-mallan-ignore="true"> Yes (All Pets)</label>
@@ -5939,46 +5973,124 @@ function enforceSaleInternetDisplayRule() {
 // ══════════════════════════════════════════════════════
 // STATUS HANDLERS
 // ══════════════════════════════════════════════════════
+/**
+ * The status-fact control each SALE workflow word reveals — the status's OWN Cotality date
+ * (owner rulings, Maya 2026-09-08 / 2026-09-09). This is the page's mirror of the server contract in
+ * lib/crm/status-mapping.ts (SALE_STATUS_FACTS + WORKFLOW_FACTS): Expired carries ExpirationDate —
+ * NEVER OffMarketDate — Withdrawn carries WithdrawnDate, Cancelled CancellationDate, Back on Market
+ * BackOnMarketDate, Contract Signed PurchaseContractDate, Sold CloseDate (+ ClosePrice).
+ * The canonical tokens are listed too, so a row loaded by its stored token reveals the same control.
+ */
+/**
+ * The CONTROL that holds each Cotality fact a SALE status carries, keyed by the workflow word (and by
+ * the canonical token, so a row loaded by its stored status resolves too). This is the page's mirror of
+ * lib/crm/status-mapping.ts requiredFactsFor(); the server refuses a missing fact by name (422
+ * STATUS_FACT_REQUIRED), so the page sends what the agent typed rather than guessing.
+ */
+var SALE_STATUS_FACT_CONTROLS = {
+    ContractSigned:       { PurchaseContractDate: 'saleContractSignedDate' },
+    ContractSignedThruUs: { PurchaseContractDate: 'saleContractSignedDate' },
+    BoardApproved:        { PurchaseContractDate: 'saleContractSignedDate' },
+    Pending:              { PurchaseContractDate: 'saleContractSignedDate' },
+    Sold:                 { CloseDate: 'saleSoldDate', ClosePrice: 'saleSoldPrice' },
+    SoldThruUs:           { CloseDate: 'saleSoldDate', ClosePrice: 'saleSoldPrice' },
+    Closed:               { CloseDate: 'saleSoldDate', ClosePrice: 'saleSoldPrice' },
+    Expired:              { ExpirationDate: 'saleExpirationDate' },
+    Withdrawn:            { WithdrawnDate: 'saleWithdrawnDate' },
+    PermOffMarket:        { WithdrawnDate: 'saleWithdrawnDate' },
+    Cancelled:            { CancellationDate: 'saleCancellationDate' },
+    Canceled:             { CancellationDate: 'saleCancellationDate' },
+    BackOnMarket:         { BackOnMarketDate: 'saleBackOnMarketDate' },
+    ComingSoon:           { ActivationDate: 'saleActivationDate' }
+};
+/** Facts the provider types as a number, not a date string. */
+var SALE_NUMERIC_STATUS_FACTS = { ClosePrice: true };
+/** The facts to send with a status transition, or null when this status carries none the agent stated. */
+function saleStatusFactsFor(word) {
+    var spec = SALE_STATUS_FACT_CONTROLS[word];
+    if (!spec) return null;
+    var out = {};
+    Object.keys(spec).forEach(function (fact) {
+        var el = document.getElementById(spec[fact]);
+        var v = el && el.value != null ? String(el.value).trim() : '';
+        // the exclusive agreement's expiry is the SAME ExpirationDate; use it when the status control is blank
+        if (v === '' && fact === 'ExpirationDate') {
+            var fallback = document.getElementById('saleExclusiveExpires');
+            v = fallback && fallback.value ? String(fallback.value).trim() : '';
+        }
+        // ActivationDate is Edm.Date; the first-showing input is datetime-local
+        if (v === '' && fact === 'ActivationDate') {
+            var showing = document.getElementById('saleFirstShowingDate');
+            v = showing && showing.value ? String(showing.value).split('T')[0] : '';
+        }
+        if (v === '') return;
+        out[fact] = SALE_NUMERIC_STATUS_FACTS[fact] ? (parseFloat(v) || 0) : v;
+    });
+    return Object.keys(out).length ? out : null;
+}
+
 function updateSaleStatusFields() {
+    // The status-fact control each SALE workflow word reveals - the status's OWN Cotality date (owner
+    // rulings, Maya 2026-09-08 / 2026-09-09), mirroring the server contract in lib/crm/status-mapping.ts
+    // (SALE_STATUS_FACTS + WORKFLOW_FACTS): Expired reveals ExpirationDate - NEVER OffMarketDate.
+    // The canonical tokens are listed too, so a row loaded by its stored token reveals the same control.
+    // Declared INSIDE the handler so the function stays self-contained: it is extracted and run on its
+    // own (tests/runtime/sale-form-buyer-rep-removal-track1.test.ts) with only `document` in scope.
+    var SALE_STATUS_FACT_FIELDS = {
+        BackOnMarket:         'saleBackOnMarketDateField',
+        ContractSigned:       'saleContractSignedDateField',
+        ContractSignedThruUs: 'saleContractSignedDateField',
+        BoardApproved:        'saleContractSignedDateField',
+        Pending:              'saleContractSignedDateField',
+        Sold:                 'saleSoldDateField',
+        SoldThruUs:           'saleSoldDateField',
+        Closed:               'saleSoldDateField',
+        Expired:              'saleExpirationDateField',
+        Withdrawn:            'saleWithdrawnDateField',
+        PermOffMarket:        'saleWithdrawnDateField',
+        TempOffMarket:        'saleOffMarketDateField',
+        Cancelled:            'saleCancellationDateField',
+        Canceled:             'saleCancellationDateField'
+    };
     const status = (document.getElementById('saleStatus') || {}).value || '';
     const row = document.getElementById('saleStatusDatesRow');
-    const offMarket = document.getElementById('saleOffMarketDateField');
-    const withdrawn = document.getElementById('saleWithdrawnDateField');
-    const contract = document.getElementById('saleContractSignedDateField');
-    const soldDate = document.getElementById('saleSoldDateField');
-    const soldPrice = document.getElementById('saleSoldPriceField');
     // Buyer's Agent Contact — hidden during initial listing entry; shown only
     // once the deal reaches Contract/Sold (a cooperating buyer's agent exists).
     const buyerAgentSection = document.getElementById('saleBuyerAgentSection');
 
+    var ALL_FACT_FIELDS = ['saleOffMarketDateField', 'saleWithdrawnDateField', 'saleExpirationDateField',
+                           'saleCancellationDateField', 'saleBackOnMarketDateField', 'saleContractSignedDateField',
+                           'saleSoldDateField', 'saleSoldPriceField'];
+    ALL_FACT_FIELDS.forEach(function(fid) { var el = document.getElementById(fid); if (el) el.style.display = 'none'; });
     if (row) row.style.display = 'none';
-    if (offMarket) offMarket.style.display = 'none';
-    if (withdrawn) withdrawn.style.display = 'none';
-    if (contract) contract.style.display = 'none';
-    if (soldDate) soldDate.style.display = 'none';
-    if (soldPrice) soldPrice.style.display = 'none';
     if (buyerAgentSection) buyerAgentSection.style.display = 'none';
 
-    if (['PermOffMarket', 'TempOffMarket', 'Expired', 'Withdrawn', 'Cancelled'].includes(status)) {
-        if (row) row.style.display = '';
-        if (offMarket) offMarket.style.display = '';
-        if (['Withdrawn', 'Cancelled'].includes(status) && withdrawn) withdrawn.style.display = '';
+    var shown = [];
+    var primary = SALE_STATUS_FACT_FIELDS[status];
+    if (primary) shown.push(primary);
+    // Perm Off Market stores Withdrawn AND records the removal day
+    if (status === 'PermOffMarket') shown.push('saleOffMarketDateField');
+    // the close carries its price alongside its date, and the contract date stays visible through it
+    if (['Sold', 'SoldThruUs', 'Closed'].indexOf(status) !== -1) {
+        shown.push('saleSoldPriceField');
+        shown.push('saleContractSignedDateField');
     }
+    shown.forEach(function(fid) {
+        var el = document.getElementById(fid);
+        if (!el) return;
+        el.style.display = '';
+        // saleSoldPriceField lives in the Pricing grid, not the status-dates row
+        if (fid !== 'saleSoldPriceField' && row) row.style.display = '';
+    });
+
     if (['ContractSigned', 'ContractSignedThruUs', 'BoardApproved', 'Sold', 'SoldThruUs'].includes(status)) {
-        if (row) row.style.display = '';
-        if (contract) contract.style.display = '';
         // Buyer's agent is known from contract through sold — reveal the section
         // so the agent can search REBNY and auto-populate the cooperating agent.
         if (buyerAgentSection) buyerAgentSection.style.display = '';
     }
-    if (['Sold', 'SoldThruUs'].includes(status)) {
-        if (soldDate) soldDate.style.display = '';
-        if (soldPrice) soldPrice.style.display = '';
-    }
 
-    // The canonical (server) status is shown from the save response; the browser does not translate.
-    var resoDisplay = document.getElementById('saleCotalityStatus');
-    if (resoDisplay) resoDisplay.textContent = 'set by server on save';
+    // The Last Cotality Status tile is written ONLY by MallanAPI.renderListingStatus from the server
+    // projection. This page never writes it (it used to overwrite the provider status with a placeholder).
 
     // Enable/disable Commission Request tab (Tab 7)
     var commTab = document.getElementById('sidebarTab7');
@@ -7258,18 +7370,10 @@ const SALES_FIELD_VISIBILITY_RULES = {
     saleTotalMonthlyField: ['CONDO', 'CONDOP', 'LOFT', 'SINGLE_FAMILY_TOWNHOUSE', 'MULTI_FAMILY_TOWNHOUSE', 'SINGLE_FAMILY', 'MULTI_FAMILY', 'MIXED_USE', 'DUPLEX_BUILDING', 'TRIPLEX_BUILDING', 'QUADRUPLEX_BUILDING', 'LAND', 'DEEDED_PARKING', 'COMMERCIAL_CONDO', 'COMMERCIAL_BUILDING', 'OFFICE_CONDO', 'OFFICE_CONDOP', 'OFFICE_TOWNHOUSE', 'OFFICE_MIXED_USE', 'OFFICE', 'RETAIL_CONDO', 'RETAIL_CONDOP', 'RETAIL_TOWNHOUSE', 'RETAIL_MIXED_USE', 'RETAIL']
 };
 
-const STATUS_REQUIRED_FIELDS = {
-    'Active': ['saleDateListed', 'salePrice', 'saleExclusiveExpires'],
-    'Future': ['saleDateListed', 'salePrice', 'saleExclusiveExpires'],
-    'ComingSoon': ['saleDateListed', 'salePrice', 'saleExclusiveExpires'],
-    'ContractSigned': ['saleContractSignedDate'],
-    'ContractSignedThruUs': ['saleContractSignedDate'],
-    'Sold': ['saleSoldDate', 'saleSoldPrice'],
-    'SoldThruUs': ['saleSoldDate', 'saleSoldPrice'],
-    'PermOffMarket': ['saleOffMarketDate'],
-    'TempOffMarket': ['saleOffMarketDate'],
-    'Expired': ['saleOffMarketDate']
-};
+// STATUS_REQUIRED_FIELDS deleted 2026-09-09: a dead duplicate nothing read, and it encoded the
+// WRONG fact for Expired (saleOffMarketDate). The ONE status -> required-control table on this page
+// is the `statusOnly:` column of SALE_REQUIRED_FIELDS below, which mirrors the server contract
+// (lib/crm/status-mapping.ts requiredFactsFor).
 
 function applySalesFieldRules() {
     const propertyTypeEl = document.querySelector('input[name="salePropertyType"]:checked');
@@ -7458,6 +7562,18 @@ function toggleSaleRequiredFields() {
  * Used by both submit and auto-save.
  */
 function collectSaleFormData() {
+    // Zero-safe integer collection. The old `parseInt(v || '') || null` collapsed an ENTERED 0 to
+    // null and destroyed the recorded fact (a building with no elevator). Blank / non-numeric stay
+    // unknown (null); an entered 0 stays 0. The BuildingFeatures projection (Elevators /
+    // NoElevators, never FreightElevator) is the SERVER's — lib/crm/listing-form-mapping.ts
+    // elevatorProjection(). (Maya ruling 2026-09-09.)
+    function saleCountOrNull(v) {
+        var t = String(v == null ? '' : v).trim();
+        if (t === '') return null;
+        var n = Number(t);
+        return (Number.isInteger(n) && n >= 0) ? n : null;
+    }
+
     var data = { listing_type: 'sale' };
     // `add-sales-listing` was the legacy shell container — doesn't exist in
     // the redesigned form. `.flex-1` is the real container used in the shell.
@@ -7508,7 +7624,7 @@ function collectSaleFormData() {
     data.BedroomsTotal = parseInt(data.saleBedrooms || '0') || 0;
     data.BathroomsFull = parseInt(data.saleFullBaths || '0') || 0;
     data.BathroomsHalf = parseInt(data.saleHalfBaths || '0') || 0;
-    data.BathroomsTotal = (data.BathroomsFull || 0) + ((data.BathroomsHalf || 0) * 0.5);
+    data._mallanBathroomsTotal = (data.BathroomsFull || 0) + ((data.BathroomsHalf || 0) * 0.5);
     data.LivingArea = parseFloat(data.saleUnitSqFt || data.saleLivingArea || data.saleInteriorSqFt || '0') || 0;
     data.LivingAreaUnits = data.LivingArea > 0 ? (data.saleLivingAreaUnits || 'SquareFeet') : ''; // REBNY AREA-UNITS-001 (the square-footage inputs are square feet)
     data.StreetNumber = data.saleStreetNumber || '';
@@ -7522,12 +7638,16 @@ function collectSaleFormData() {
     data.PostalCode = data.saleZipCode || '';
     // A1 (Cotality-clean 2026-05-30): emit canonical lowercase-p `UnparsedAddress`
     // (the live Cotality field). Legacy capital-P rows reload via SALE_FIELD_MAP
-    // fallbackRls; the normalizer aliases any capital-P payload back to lowercase.
+    // legacyFallback; the normalizer aliases any capital-P payload back to lowercase.
     data.UnparsedAddress = data.saleUnparsedAddress || '';
     data.PublicRemarks = data.saleDescription || '';
     data.PrivateRemarks = data.saleBrokerComments || '';
     // REBNY conditional requirements the form must be able to satisfy (Packet 2 convergence round)
-    data.BuyerAgentRLSParticipantYN = data.saleBuyerAgentRLSParticipantYN === 'Yes' ? true : data.saleBuyerAgentRLSParticipantYN === 'No' ? false : undefined;
+    // Buyer-broker participation is a Mallan/REBNY compliance fact, NOT a Cotality field (proven
+    // absent from the live contract). UCBA still requires it on a closing, so the FACT is retained
+    // under a neutral Mallan key; reload stays backward compatible with the RLS-era name via the
+    // SALE_FIELD_MAP fallback. (Maya ruling 2026-09-09.)
+    data._mallanBuyerBrokerParticipantYN = data.saleBuyerAgentRLSParticipantYN === 'Yes' ? true : data.saleBuyerAgentRLSParticipantYN === 'No' ? false : undefined;
     data.BuyerAgentFullName = data.saleBuyerAgentFullName || '';
     data.BuyerAgentDirectPhone = data.saleBuyerAgentDirectPhone || '';
     data.BuyerAgentEmail = data.saleBuyerAgentEmail || '';
@@ -7535,31 +7655,31 @@ function collectSaleFormData() {
     data.BuyerOfficeName = data.saleBuyerOfficeName || '';
     data.BuyerOfficePhone = data.saleBuyerOfficePhone || '';
     data.ConcessionsComments = data.saleConcessionsComments || '';
-    data.PercentOfCommonElements = parseFloat(data.salePercentOfCommonElements || '') || null;
+    data._mallanPercentOfCommonElements = parseFloat(data.salePercentOfCommonElements || '') || null;
     // REBNY-required facts the form already collected under its own keys, now emitted under the canonical (Mallan-internal) names
-    data.ElevatorsTotal = parseInt(data.saleBldgNumElevators || '') || null;
-    data.NewDevelopmentYN = data.saleBldgNewDevelopment === true || data.saleBldgNewDevelopment === 'true';
-    data.MaximumFinancingPercent = parseFloat(String(data.saleBldgMaxFinancing || '').replace('%', '')) || null;
-    data.NumberOfShares = parseInt(data.saleUnitShares || '') || null;
-    data.TaxMonthlyAmount = parseFloat(data.saleTaxMonthly || '') || null;
-    data.TaxAbatementExpirationYear = parseInt(data.saleBldgTaxAbatementExpYear || '') || null;
+    data._mallanElevatorsTotal = saleCountOrNull(data.saleBldgNumElevators); // 0 is a RECORDED absence, not blank (Maya 2026-09-09)
+    data._mallanNewDevelopmentYN = data.saleBldgNewDevelopment === true || data.saleBldgNewDevelopment === 'true';
+    data._mallanMaximumFinancingPercent = parseFloat(String(data.saleBldgMaxFinancing || '').replace('%', '')) || null;
+    data._mallanNumberOfShares = parseInt(data.saleUnitShares || '') || null;
+    data._mallanTaxMonthlyAmount = parseFloat(data.saleTaxMonthly || '') || null;
+    data._mallanTaxAbatementExpirationYear = parseInt(data.saleBldgTaxAbatementExpYear || '') || null;
     data.PropertyCondition = data.saleCondition || '';   // live PropertyCondition members (the select offers live members only)
     data.Basement = data.saleTHBasementType || '';       // live Basement members
     data.CancellationDate = data.saleCancellationDate || '';
-    data.FlipTaxType = data.saleFlipTaxType || '';
-    data.FlipTaxRemarks = data.saleFlipTaxRemarks || '';
-    data.MaximumFinancingRemarks = data.saleMaximumFinancingRemarks || '';
+    data._mallanFlipTaxType = data.saleFlipTaxType || '';
+    data._mallanFlipTaxRemarks = data.saleFlipTaxRemarks || '';
+    data._mallanMaximumFinancingRemarks = data.saleMaximumFinancingRemarks || '';
     // Live Multi-Enum (34 members): every selected member travels as an array; nothing selected → not present
     var _slc = Array.prototype.map.call(document.querySelectorAll('#saleSpecialListingConditions option:checked'), function(o) { return o.value; }).filter(Boolean);
     data.SpecialListingConditions = _slc.length ? _slc : '';
-    data.PetsAllowedComments = data.salePetsAllowedComments || '';
-    data.BuildingPetsAllowedComments = data.saleBuildingPetsAllowedComments || '';
+    data._mallanPetsAllowedComments = data.salePetsAllowedComments || '';
+    data._mallanBuildingPetsAllowedComments = data.saleBuildingPetsAllowedComments || '';
     data.ShowingInstructions = data.saleShowingInstructions || '';
     data.YearBuilt = parseInt(data.saleBldgYearBuilt || '0') || null;
     // NewDevelopmentYN is NOT in live Cotality $metadata (phantom — verified
     // 2026-05-30). Do not emit it as a canonical field; the agent's selection
     // persists internally as saleBldgNewDevelopment (collected by the building-
-    // modal sweep) and restores via SALE_FIELD_MAP fallbackRls. (Track 1.)
+    // modal sweep) and restores via SALE_FIELD_MAP legacyFallback. (Track 1.)
 
     // ListingAgreement — INDEPENDENT from Permissions per RLS rules.
     // OwnerOptOut/ParticipantOnly set Permissions, NOT ListingAgreement.
@@ -7579,7 +7699,7 @@ function collectSaleFormData() {
     // saleListingType sent to backend for InHouse detection
     data.saleListingType = saleListType;
     // CoBrokeAgreement
-    data.CoBrokeAgreement = data.saleCoBrokeAgreementType || 'Ucba';
+    data._mallanCoBrokeAgreement = data.saleCoBrokeAgreementType || 'Ucba';
 
     // InHouse visibility distinction — stored in raw_data for future backend gating
     if (isInHouseInternal) {
@@ -7691,13 +7811,13 @@ function collectSaleFormData() {
 
     // The early canonical mapping above ran BEFORE the building modal was collected, so the modal-sourced facts it
     // named were empty ('' / null). Re-emit them now that the modal's controls are in `data` (idempotent).
-    data.MaximumFinancingRemarks = data.saleMaximumFinancingRemarks || '';
-    data.BuildingPetsAllowedComments = data.saleBuildingPetsAllowedComments || '';
-    data.MaximumFinancingPercent = parseFloat(String(data.saleBldgMaxFinancing || '').replace('%', '')) || null;
-    data.TaxAbatementExpirationYear = parseInt(data.saleBldgTaxAbatementExpYear || '') || null;
-    data.NewDevelopmentYN = data.saleBldgNewDevelopment === true || data.saleBldgNewDevelopment === 'true';
+    data._mallanMaximumFinancingRemarks = data.saleMaximumFinancingRemarks || '';
+    data._mallanBuildingPetsAllowedComments = data.saleBuildingPetsAllowedComments || '';
+    data._mallanMaximumFinancingPercent = parseFloat(String(data.saleBldgMaxFinancing || '').replace('%', '')) || null;
+    data._mallanTaxAbatementExpirationYear = parseInt(data.saleBldgTaxAbatementExpYear || '') || null;
+    data._mallanNewDevelopmentYN = data.saleBldgNewDevelopment === true || data.saleBldgNewDevelopment === 'true';
     data.SubdivisionName = data.saleBldgNeighborhood || data.saleNeighborhoodFromAddress || data.SubdivisionName || '';
-    data.ElevatorsTotal = parseInt(data.saleBldgNumElevators || '') || null;
+    data._mallanElevatorsTotal = saleCountOrNull(data.saleBldgNumElevators); // 0 is a RECORDED absence, not blank (Maya 2026-09-09)
     data.YearBuilt = parseInt(data.saleBldgYearBuilt || '0') || null;
 
     // Map building-level RLS fields from modal
@@ -7716,8 +7836,8 @@ function collectSaleFormData() {
     // Collect multi-value checkbox fields as arrays
     data.PetsAllowed = [];
     document.querySelectorAll('input[name="salePetsAllowed"]:checked').forEach(function(cb) { data.PetsAllowed.push(cb.value); });
-    data.BuildingPetsAllowed = [];
-    document.querySelectorAll('input[name="saleBuildingPetsAllowed"]:checked').forEach(function(cb) { data.BuildingPetsAllowed.push(cb.value); });
+    data._mallanBuildingPetsAllowed = [];
+    document.querySelectorAll('input[name="saleBuildingPetsAllowed"]:checked').forEach(function(cb) { data._mallanBuildingPetsAllowed.push(cb.value); });
     // BuildingFeatures — translate to canonical IDX Plus / RESO enum
     // (only 8 unambiguous mappings per BUILDING_FEATURES_LABEL_TO_CANONICAL).
     // Untranslatable labels go to Mallan internal saleBuildingFeaturesInternal
@@ -7745,11 +7865,11 @@ function collectSaleFormData() {
         if (label) data.saleBuildingFeaturesInternal.push(label);
     });
     // AttendanceType — multi-value checkbox array
-    data.AttendanceType = [];
-    document.querySelectorAll('input[name="saleAttendanceType"]:checked').forEach(function(cb) { data.AttendanceType.push(cb.value); });
+    data._mallanAttendanceType = [];
+    document.querySelectorAll('input[name="saleAttendanceType"]:checked').forEach(function(cb) { data._mallanAttendanceType.push(cb.value); });
     // BuildingLaundryFeatures — multi-value checkbox array
-    data.BuildingLaundryFeatures = [];
-    document.querySelectorAll('input[name="saleBuildingLaundryFeatures"]:checked').forEach(function(cb) { data.BuildingLaundryFeatures.push(cb.value); });
+    data._mallanBuildingLaundryFeatures = [];
+    document.querySelectorAll('input[name="saleBuildingLaundryFeatures"]:checked').forEach(function(cb) { data._mallanBuildingLaundryFeatures.push(cb.value); });
 
     // Heating + Cooling + SyndicateTo + saleCommSubtype — multi-value checkbox
     // groups (gap report 2026-05-28 §1.5, root cause C1). Before this fix,
@@ -7802,7 +7922,7 @@ function collectSaleFormData() {
     // Heating/Cooling pair already wired). Others persist under Mallan
     // internal raw keys per fail-closed rule.
     // BuildingHeating/BuildingCooling are NOT live Cotality fields — emit under
-    // internal keys (Cotality-clean 2026-05-30); legacy reload via fallbackRls.
+    // internal keys (Cotality-clean 2026-05-30); legacy reload via legacyFallback.
     data.saleBldgHeating = [];
     document.querySelectorAll('input[name="saleBldgHeating"]:checked').forEach(function(cb) { data.saleBldgHeating.push(cb.value); });
     data.saleBldgCooling = [];
@@ -7889,7 +8009,12 @@ function collectSaleFormData() {
     // sweep); do not emit canonical. (Track 1.)
     data.GarageYN = data.saleTHGarageYN === true || data.saleTHGarageYN === 'true' || data.saleTHGarageYN === 'Yes';
     data.OnMarketDate = data.saleDateListed || '';
-    data.ExpirationDate = data.saleExclusiveExpires || '';
+    // ONE Cotality ExpirationDate, two surfaces: the exclusive agreement's expiry
+    // (#saleExclusiveExpires, always visible) and the Expired status's own fact
+    // (#saleExpirationDate, revealed when the status is Expired). Whichever the agent
+    // last stated on the status control wins; SALE_FIELD_MAP restores BOTH from the
+    // one stored value, so the two can never drift across a reload.
+    data.ExpirationDate = data.saleExpirationDate || data.saleExclusiveExpires || '';
     data.ListingContractDate = data.saleExclusiveStart || '';
     // Cotality canonical field is `ActivationDate` (FirstShowingDate is NOT in
     // Cotality $metadata and was a dead-end: the Coming-Soon / RLS activation
@@ -7905,6 +8030,8 @@ function collectSaleFormData() {
     // Date fields
     data.OffMarketDate = data.saleOffMarketDate || '';
     data.WithdrawnDate = data.saleWithdrawnDate || '';
+    // Back on Market's own workflow fact (lib/crm/status-mapping.ts WORKFLOW_FACTS)
+    data.BackOnMarketDate = data.saleBackOnMarketDate || '';
     data.PurchaseContractDate = data.saleContractSignedDate || '';
     data.CloseDate = data.saleSoldDate || '';
     // Cotality `Possession` is a Multi.Possession ENUM, NOT a date — so the
@@ -7926,7 +8053,7 @@ function collectSaleFormData() {
     }
     // TaxDeductionPercent phantom emit removed (Cotality-clean 2026-05-30): not in
     // live $metadata. Value persists as internal saleTaxDeduction (SALE_FIELD_MAP, legacy fallback).
-    data.FlipTax = data.saleFlipTaxAmount || '';
+    data._mallanFlipTax = data.saleFlipTaxAmount || '';
     data.OriginalListPrice = parseFloat(data.saleOriginalPrice || '0') || 0;
     data.ClosePrice = parseFloat(data.saleSoldPrice || '0') || 0;
     data.AssociationFee = parseFloat(data.saleMaintCC || '0') || 0;
@@ -7954,9 +8081,9 @@ function collectSaleFormData() {
     // Building fields
     // YearRenovated phantom emit removed (Cotality-clean 2026-05-30): not in live
     // $metadata. Value persists as internal saleBldgYearRenovated (SALE_FIELD_MAP, legacy fallback).
-    data.SponsorUnitYN = data.saleBldgSponsorUnits === true || data.saleBldgSponsorUnits === 'true';
-    data.TaxAbatementYN = data.saleBldgTaxAbatementYN === true || data.saleBldgTaxAbatementYN === 'true' || data.saleBldgTaxAbatementYN === 'Yes';
-    data.TaxAbatementComments = data.saleBldgTaxAbatementComments || '';
+    data._mallanSponsorUnitYN = data.saleBldgSponsorUnits === true || data.saleBldgSponsorUnits === 'true';
+    data._mallanTaxAbatementYN = data.saleBldgTaxAbatementYN === true || data.saleBldgTaxAbatementYN === 'true' || data.saleBldgTaxAbatementYN === 'Yes';
+    data._mallanTaxAbatementComments = data.saleBldgTaxAbatementComments || '';
     // RentingAllowedYN phantom emit removed (Cotality-clean 2026-05-30): not in live
     // $metadata. Value persists as internal saleBldgSublettingAllowed (SALE_FIELD_MAP, legacy fallback).
 
@@ -8162,7 +8289,9 @@ function submitSalesListing() {
             // status as a no-op; the browser sends the Mallan workflow value only.
             if (dbId && !isInternalOnly && formWorkflowStatus !== 'Draft' && formWorkflowStatus !== 'Future') {
                 try {
-                    statusResult = await MallanAPI.listings.updateStatus(dbId, formWorkflowStatus);
+                    // the status's own Cotality fact(s) travel WITH the transition; the server
+                    // refuses a missing one by name (422 STATUS_FACT_REQUIRED)
+                    statusResult = await MallanAPI.listings.updateStatus(dbId, formWorkflowStatus, saleStatusFactsFor(formWorkflowStatus));
                     finalStatus = statusResult.status || currentCanonical;
                 } catch (statusErr) {
                     console.warn('[Submit] Status transition failed:', statusErr.message);
@@ -8496,8 +8625,16 @@ const SALE_REQUIRED_FIELDS = [
     { id: 'saleExclusiveStart', label: 'Exclusive Start Date', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
     { id: 'saleExclusiveExpires', label: 'Exclusive Expires', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
     { id: 'saleFirstCoBroke', label: 'First Date To Co-Broke', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
-    { id: 'saleOffMarketDate', label: 'Off Market Date', type: 'input', tab: 1, section: 'Listing Information/Essentials', statusOnly: ['PermOffMarket','TempOffMarket','Expired','Withdrawn'] },
+    // Each status's OWN Cotality fact (mirror of lib/crm/status-mapping.ts requiredFactsFor):
+    // Off Market Date is the Perm/Temp Off Market removal day ONLY - it is NOT the Expired fact.
+    { id: 'saleOffMarketDate', label: 'Off Market Date', type: 'input', tab: 1, section: 'Listing Information/Essentials', statusOnly: ['PermOffMarket','TempOffMarket'] },
+    { id: 'saleExpirationDate', label: 'Expiration Date', type: 'input', tab: 1, section: 'Listing Information/Essentials', statusOnly: ['Expired'] },
+    { id: 'saleWithdrawnDate', label: 'Withdrawn Date', type: 'input', tab: 1, section: 'Listing Information/Essentials', statusOnly: ['Withdrawn','PermOffMarket'] },
+    { id: 'saleCancellationDate', label: 'Cancellation Date', type: 'input', tab: 1, section: 'Listing Information/Essentials', statusOnly: ['Cancelled'] },
+    { id: 'saleBackOnMarketDate', label: 'Back On Market Date', type: 'input', tab: 1, section: 'Listing Information/Essentials', statusOnly: ['BackOnMarket'] },
     { id: 'saleContractSignedDate', label: 'Contract Signed Date', type: 'input', tab: 1, section: 'Listing Information/Essentials', statusOnly: ['ContractSigned','ContractSignedThruUs','Sold','SoldThruUs'] },
+    { id: 'saleSoldDate', label: 'Sold Date', type: 'input', tab: 1, section: 'Listing Information/Essentials', statusOnly: ['Sold','SoldThruUs'] },
+    { id: 'saleSoldPrice', label: 'Sold Price', type: 'input', tab: 1, section: 'Listing Information/Essentials', statusOnly: ['Sold','SoldThruUs'] },
     { id: 'salePrice', label: 'Price', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
     { id: 'saleMaintCC', label: 'Maint/CC', type: 'input', tab: 1, section: 'Listing Information/Essentials', conditional: ['COOP','CONDO','CONDOP','COMMERCIAL_CONDO','COMMERCIAL_COOP'] },
     { id: 'saleUnitShares', label: 'Shares', type: 'input', tab: 1, section: 'Listing Information/Essentials', conditional: ['COOP','CONDOP','COMMERCIAL_COOP'] },
@@ -8873,22 +9010,44 @@ function updateStatusTracking() {
     const tsEl = document.getElementById('saleStatusChangeTimestamp');
     if (tsEl) tsEl.textContent = timestamp;
 
-    // The canonical (server) status is shown from the save response; the browser does not translate.
-    const statusEl = document.getElementById('saleStatus');
-    const resoEl = document.getElementById('saleCotalityStatus');
-    if (statusEl && resoEl) resoEl.textContent = 'set by server on save';
+    // The Last Cotality Status tile is written ONLY by MallanAPI.renderListingStatus from the server
+    // projection. This page never writes it.
 
-    // Compute DOM (days since first Active)
-    const statusVal = statusEl?.value || '';
-    if (['Active', 'BackOnMarket'].includes(statusVal) && !window._saleFirstActiveDate) {
-        window._saleFirstActiveDate = now;
+    // Days on Market is NOT computed here. It is the SERVER market clock — the GET body `form_dom`
+    // (lib/compliance/dom-tracker.ts marketDom) — applied by applySaleServerDom on load. The old
+    // per-session window._saleFirstActiveDate counter measured how long this tab had been open.
+}
+
+/**
+ * Render the SERVER market clock into the DOM tiles (owner ruling, Maya 2026-09-09).
+ * form_dom = { days, endReason, estimated, start, end, unverified } from GET /api/crm/listings/[id].
+ * An off_feed_detected end is a DETECTION day, not a proven removal — it is labelled as an estimate.
+ * days: null means no verified clock: show "--", never a guess.
+ */
+function applySaleServerDom(listing) {
+    var dom = (listing && listing.form_dom) || null;
+    var daysEl = document.getElementById('saleDaysOnMarket');
+    var basisEl = document.getElementById('saleDomBasis');
+    var cdomEl = document.getElementById('saleCumulativeDaysOnMarket');
+    var days = dom && dom.days !== null && dom.days !== undefined ? Number(dom.days) : null;
+    if (daysEl) daysEl.textContent = days === null ? '--' : String(days) + (dom && dom.estimated ? ' est.' : '');
+    if (basisEl) {
+        var reason = dom ? dom.endReason : null;
+        basisEl.textContent = days === null
+            ? ((dom && dom.unverified) ? 'not verified' : 'server clock')
+            : (dom && dom.estimated
+                ? 'estimated — detected off feed ' + (dom.end || '')
+                : reason === 'closed' ? 'to close date'
+                : reason === 'off_market' ? 'to removal date'
+                : reason === 'as_of' ? 'still on market'
+                : 'server clock');
+        basisEl.title = dom && dom.estimated
+            ? 'The provider delivered no removal or close date. This end is the day Mallan DETECTED the listing had left the feed - the real removal happened on or before it.'
+            : '';
     }
-    if (window._saleFirstActiveDate) {
-        const days = Math.floor((now - window._saleFirstActiveDate) / (1000 * 60 * 60 * 24));
-        const domEl = document.getElementById('saleDaysOnMarket');
-        if (domEl) domEl.textContent = days;
-        const cdomEl = document.getElementById('saleCumulativeDaysOnMarket');
-        if (cdomEl) cdomEl.textContent = days;
+    if (cdomEl) {
+        var cdom = listing && listing.cumulative_days_on_market;
+        cdomEl.textContent = (cdom === null || cdom === undefined || cdom === '') ? '--' : String(cdom);
     }
 }
 
@@ -9221,112 +9380,123 @@ function _checkSaleEditMode() {
 
 // ══════════════════════════════════════════════════════
 // FIELD MAP — single source of truth for save ↔ load
-// Each entry: { rls: 'RLSFieldName', form: 'formElementId', type: 'text'|'number'|'bool'|'radio'|'date'|'checked', src: 'raw'|'listing'|'addr'|'features'|'agentInfo' }
+// Boundary resolver. Every binding entry declares which side of the Mallan/Cotality boundary it is
+// on: `cotality:` is an EXACT live Cotality Property field; `mallan:` is a Mallan-owned fact (a
+// `_mallan*` key, or a form-local `sale*` control). `legacyFallback:` is the PRE-MIGRATION name and
+// is READ-ONLY - it exists so rows written before the rename still reload, and is never written
+// again. (Maya ruling 2026-09-09.)
+function saleBindKey(entry) { return entry.cotality || entry.mallan; }
+// Each entry: { cotality: 'LiveCotalityField' } | { mallan: '_mallanFact', legacyFallback: 'OldName' }
+//             + form: 'formElementId', type: 'text'|'number'|'bool'|'radio'|'date'|'checked', src: 'raw'|'listing'|'addr'|'features'|'agentInfo'
 // 'src' tells _populateSaleFormFromApi where to read the value from the API response.
 // ══════════════════════════════════════════════════════
 var SALE_FIELD_MAP = [
   // ── Address ──
-  { rls: 'StreetNumber', form: 'saleStreetNumber', type: 'text', src: 'addr' },
-  { rls: 'StreetName', form: 'saleStreetName', type: 'text', src: 'addr' },
-  { rls: 'StreetSuffix', form: 'saleStreetSuffix', type: 'text', src: 'addr' },
-  { rls: 'StreetDirPrefix', form: 'saleStreetDirPrefix', type: 'text', src: 'addr' },
-  { rls: 'UnitNumber', form: 'saleUnitNumber', type: 'text', src: 'addr' },
-  { rls: 'City', form: 'saleCity', type: 'text', src: 'addr' },
-  { rls: 'CityRegion', form: 'saleBorough', type: 'text', src: 'addr' },
-  { rls: 'StateOrProvince', form: 'saleStateOrProvince', type: 'text', src: 'addr' },
-  { rls: 'PostalCode', form: 'saleZipCode', type: 'text', src: 'addr' },
-  { rls: 'PostalCity', form: 'salePostalCity', type: 'text', src: 'addr' },
-  { rls: 'CountyOrParish', form: 'saleCountyOrParish', type: 'text', src: 'addr' },
-  { rls: 'SubdivisionName', form: 'saleBldgNeighborhood', type: 'text', src: 'raw' },
-  { rls: 'UnparsedAddress', form: 'saleUnparsedAddress', type: 'text', src: 'addr', fallbackRls: 'UnParsedAddress' },
+  { cotality: 'StreetNumber', form: 'saleStreetNumber', type: 'text', src: 'addr' },
+  { cotality: 'StreetName', form: 'saleStreetName', type: 'text', src: 'addr' },
+  { cotality: 'StreetSuffix', form: 'saleStreetSuffix', type: 'text', src: 'addr' },
+  { cotality: 'StreetDirPrefix', form: 'saleStreetDirPrefix', type: 'text', src: 'addr' },
+  { cotality: 'UnitNumber', form: 'saleUnitNumber', type: 'text', src: 'addr' },
+  { cotality: 'City', form: 'saleCity', type: 'text', src: 'addr' },
+  { cotality: 'CityRegion', form: 'saleBorough', type: 'text', src: 'addr' },
+  { cotality: 'StateOrProvince', form: 'saleStateOrProvince', type: 'text', src: 'addr' },
+  { cotality: 'PostalCode', form: 'saleZipCode', type: 'text', src: 'addr' },
+  { cotality: 'PostalCity', form: 'salePostalCity', type: 'text', src: 'addr' },
+  { cotality: 'CountyOrParish', form: 'saleCountyOrParish', type: 'text', src: 'addr' },
+  { cotality: 'SubdivisionName', form: 'saleBldgNeighborhood', type: 'text', src: 'raw' },
+  { cotality: 'UnparsedAddress', form: 'saleUnparsedAddress', type: 'text', src: 'addr', legacyFallback: 'UnParsedAddress' },
 
   // ── Unit Details ──
-  { rls: 'ListPrice', form: 'salePrice', type: 'number', src: 'listing', listingKey: 'list_price' },
-  { rls: 'OriginalListPrice', form: 'saleOriginalPrice', type: 'number', src: 'raw' },
-  { rls: 'BedroomsTotal', form: 'saleBedrooms', type: 'number', src: 'listing', listingKey: 'bedrooms_total' },
-  { rls: 'BathroomsFull', form: 'saleFullBaths', type: 'number', src: 'listing', listingKey: 'bathrooms_full' },
-  { rls: 'BathroomsHalf', form: 'saleHalfBaths', type: 'number', src: 'listing', listingKey: 'bathrooms_half' },
-  { rls: 'LivingArea', form: 'saleUnitSqFt', type: 'number', src: 'listing', listingKey: 'living_area' },
-  { rls: 'RoomsTotal', form: 'saleTotalRooms', type: 'number', src: 'raw' },
-  { rls: 'EntryLevel', form: 'saleFloorInBuilding', type: 'text', src: 'raw' },
+  { cotality: 'ListPrice', form: 'salePrice', type: 'number', src: 'listing', listingKey: 'list_price' },
+  { cotality: 'OriginalListPrice', form: 'saleOriginalPrice', type: 'number', src: 'raw' },
+  { cotality: 'BedroomsTotal', form: 'saleBedrooms', type: 'number', src: 'listing', listingKey: 'bedrooms_total' },
+  { cotality: 'BathroomsFull', form: 'saleFullBaths', type: 'number', src: 'listing', listingKey: 'bathrooms_full' },
+  { cotality: 'BathroomsHalf', form: 'saleHalfBaths', type: 'number', src: 'listing', listingKey: 'bathrooms_half' },
+  { cotality: 'LivingArea', form: 'saleUnitSqFt', type: 'number', src: 'listing', listingKey: 'living_area' },
+  { cotality: 'RoomsTotal', form: 'saleTotalRooms', type: 'number', src: 'raw' },
+  { cotality: 'EntryLevel', form: 'saleFloorInBuilding', type: 'text', src: 'raw' },
 
   // ── Description ──
-  { rls: 'PublicRemarks', form: 'saleDescription', type: 'text', src: 'raw' },
-  { rls: 'PrivateRemarks', form: 'saleBrokerComments', type: 'text', src: 'raw' },
-  { rls: 'ShowingInstructions', form: 'saleShowingInstructions', type: 'text', src: 'raw' },
+  { cotality: 'PublicRemarks', form: 'saleDescription', type: 'text', src: 'raw' },
+  { cotality: 'PrivateRemarks', form: 'saleBrokerComments', type: 'text', src: 'raw' },
+  { cotality: 'ShowingInstructions', form: 'saleShowingInstructions', type: 'text', src: 'raw' },
 
   // ── Financials ──
   // Unit annual real-estate tax. Hydrate features-first (features.TaxAnnualAmount — the
   // canonical bucket the public DTO + Trestle mapper write), raw_data fallback. NOT building
   // tax (saleBldgAnnualTaxes is building-level and must never fill this unit field). The real
   // Cotality field name `TaxAnnualAmount` is confirmed live (lib/cotality/live-contract.ts). (2026-06-23)
-  { rls: 'TaxAnnualAmount', form: 'saleRETaxes', type: 'number', src: 'features' },
-  { rls: 'saleTaxDeduction', form: 'saleTaxDeduction', type: 'number', src: 'raw', fallbackRls: 'TaxDeductionPercent' }, // internal; TaxDeductionPercent not in Cotality
-  { rls: 'FlipTax', form: 'saleFlipTaxAmount', type: 'text', src: 'raw' },
-  { rls: 'AssociationFee', form: 'saleMaintCC', type: 'number', src: 'raw' },
-  { rls: 'AssociationFeeFrequency', form: 'saleMaintCCFreq', type: 'text', src: 'raw' },
-  { rls: 'ClosePrice', form: 'saleSoldPrice', type: 'number', src: 'raw' },
-  { rls: 'Concessions', form: 'saleConcessions', type: 'text', src: 'raw' },
+  { cotality: 'TaxAnnualAmount', form: 'saleRETaxes', type: 'number', src: 'features' },
+  { mallan: 'saleTaxDeduction', form: 'saleTaxDeduction', type: 'number', src: 'raw', legacyFallback: 'TaxDeductionPercent' }, // internal; TaxDeductionPercent not in Cotality
+  { mallan: '_mallanFlipTax', legacyFallback: 'FlipTax', form: 'saleFlipTaxAmount', type: 'text', src: 'raw' },
+  { cotality: 'AssociationFee', form: 'saleMaintCC', type: 'number', src: 'raw' },
+  { cotality: 'AssociationFeeFrequency', form: 'saleMaintCCFreq', type: 'text', src: 'raw' },
+  { cotality: 'ClosePrice', form: 'saleSoldPrice', type: 'number', src: 'raw' },
+  { cotality: 'Concessions', form: 'saleConcessions', type: 'text', src: 'raw' },
 
   // ── Dates ──
-  { rls: 'OnMarketDate', form: 'saleDateListed', type: 'date', src: 'raw' },
-  { rls: 'ExpirationDate', form: 'saleExclusiveExpires', type: 'date', src: 'raw' },
-  { rls: 'ListingContractDate', form: 'saleExclusiveStart', type: 'date', src: 'raw' },
-  { rls: 'ActivationDate', form: 'saleFirstShowingDate', type: 'date', src: 'raw', rawKey: 'saleFirstShowingDate', fallbackRls: 'FirstShowingDate' }, // the form key keeps the time (rawKey); ActivationDate is Edm.Date (date-only); FirstShowingDate = legacy phantom rows
-  { rls: 'OffMarketDate', form: 'saleOffMarketDate', type: 'date', src: 'raw' },
-  { rls: 'WithdrawnDate', form: 'saleWithdrawnDate', type: 'date', src: 'raw' },
-  { rls: 'PurchaseContractDate', form: 'saleContractSignedDate', type: 'date', src: 'raw' },
-  { rls: 'CloseDate', form: 'saleSoldDate', type: 'date', src: 'raw' },
-  { rls: 'CancellationDate', form: 'saleCancellationDate', type: 'date', src: 'raw' },
-  { rls: 'BuyerAgentFullName', form: 'saleBuyerAgentFullName', type: 'text', src: 'raw' },
-  { rls: 'BuyerAgentDirectPhone', form: 'saleBuyerAgentDirectPhone', type: 'text', src: 'raw' },
-  { rls: 'BuyerAgentEmail', form: 'saleBuyerAgentEmail', type: 'text', src: 'raw' },
-  { rls: 'BuyerAgentStateLicense', form: 'saleBuyerAgentStateLicense', type: 'text', src: 'raw' },
-  { rls: 'BuyerOfficeName', form: 'saleBuyerOfficeName', type: 'text', src: 'raw' },
-  { rls: 'BuyerOfficePhone', form: 'saleBuyerOfficePhone', type: 'text', src: 'raw' },
-  { rls: 'ConcessionsComments', form: 'saleConcessionsComments', type: 'text', src: 'raw' },
-  { rls: 'PercentOfCommonElements', form: 'salePercentOfCommonElements', type: 'number', src: 'raw' },
-  { rls: 'ElevatorsTotal', form: 'saleBldgNumElevators', type: 'number', src: 'raw' },
-  { rls: 'NewDevelopmentYN', form: 'saleBldgNewDevelopment', type: 'bool', src: 'raw' },
-  { rls: 'MaximumFinancingPercent', form: 'saleBldgMaxFinancing', type: 'text', src: 'raw' },
-  { rls: 'NumberOfShares', form: 'saleUnitShares', type: 'number', src: 'raw' },
-  { rls: 'TaxMonthlyAmount', form: 'saleTaxMonthly', type: 'number', src: 'raw' },
-  { rls: 'TaxAbatementExpirationYear', form: 'saleBldgTaxAbatementExpYear', type: 'text', src: 'raw' },
-  { rls: 'PropertyCondition', form: 'saleCondition', type: 'text', src: 'raw' },
-  { rls: 'Basement', form: 'saleTHBasementType', type: 'text', src: 'raw' },
-  { rls: 'FlipTaxType', form: 'saleFlipTaxType', type: 'text', src: 'raw' },
-  { rls: 'FlipTaxRemarks', form: 'saleFlipTaxRemarks', type: 'text', src: 'raw' },
-  { rls: 'MaximumFinancingRemarks', form: 'saleMaximumFinancingRemarks', type: 'text', src: 'raw' },
-  { rls: 'FireplacesTotal', form: 'saleFireplacesTotal', type: 'number', src: 'features' },
-  { rls: 'FireplaceFeatures', form: 'saleFireplaceFeatures', type: 'multi', src: 'features' },
-  { rls: 'SpecialListingConditions', form: 'saleSpecialListingConditions', type: 'multi', src: 'raw' }, // live Multi-Enum: array round-trip
-  { rls: 'PetsAllowedComments', form: 'salePetsAllowedComments', type: 'text', src: 'raw' },
-  { rls: 'BuildingPetsAllowedComments', form: 'saleBuildingPetsAllowedComments', type: 'text', src: 'raw' },
-  { rls: 'Possession', form: 'saleAvailableOccupancy', type: 'date', src: 'raw', fallbackRls: 'PossessionDate' },
+  { cotality: 'OnMarketDate', form: 'saleDateListed', type: 'date', src: 'raw' },
+  { cotality: 'ExpirationDate', form: 'saleExclusiveExpires', type: 'date', src: 'raw' },
+  { cotality: 'ListingContractDate', form: 'saleExclusiveStart', type: 'date', src: 'raw' },
+  { cotality: 'ActivationDate', form: 'saleFirstShowingDate', type: 'date', src: 'raw', rawKey: 'saleFirstShowingDate', legacyFallback: 'FirstShowingDate' }, // the form key keeps the time (rawKey); ActivationDate is Edm.Date (date-only); FirstShowingDate = legacy phantom rows
+  { cotality: 'OffMarketDate', form: 'saleOffMarketDate', type: 'date', src: 'raw' },
+  { cotality: 'WithdrawnDate', form: 'saleWithdrawnDate', type: 'date', src: 'raw' },
+  { cotality: 'PurchaseContractDate', form: 'saleContractSignedDate', type: 'date', src: 'raw' },
+  { cotality: 'CloseDate', form: 'saleSoldDate', type: 'date', src: 'raw' },
+  { cotality: 'CancellationDate', form: 'saleCancellationDate', type: 'date', src: 'raw' },
+  // The Expired status's surface of the SAME stored ExpirationDate as saleExclusiveExpires above:
+  // both controls are restored from the one value, so the two can never drift across a reload.
+  { cotality: 'ExpirationDate', form: 'saleExpirationDate', type: 'date', src: 'raw' },
+  { cotality: 'BackOnMarketDate', form: 'saleBackOnMarketDate', type: 'date', src: 'raw' },
+  { cotality: 'BuyerAgentFullName', form: 'saleBuyerAgentFullName', type: 'text', src: 'raw' },
+  { cotality: 'BuyerAgentDirectPhone', form: 'saleBuyerAgentDirectPhone', type: 'text', src: 'raw' },
+  { cotality: 'BuyerAgentEmail', form: 'saleBuyerAgentEmail', type: 'text', src: 'raw' },
+  { cotality: 'BuyerAgentStateLicense', form: 'saleBuyerAgentStateLicense', type: 'text', src: 'raw' },
+  { cotality: 'BuyerOfficeName', form: 'saleBuyerOfficeName', type: 'text', src: 'raw' },
+  { cotality: 'BuyerOfficePhone', form: 'saleBuyerOfficePhone', type: 'text', src: 'raw' },
+  { cotality: 'ConcessionsComments', form: 'saleConcessionsComments', type: 'text', src: 'raw' },
+  { mallan: '_mallanPercentOfCommonElements', legacyFallback: 'PercentOfCommonElements', form: 'salePercentOfCommonElements', type: 'number', src: 'raw' },
+  { mallan: '_mallanElevatorsTotal', legacyFallback: 'ElevatorsTotal', form: 'saleBldgNumElevators', type: 'number', src: 'raw' },
+  { mallan: '_mallanNewDevelopmentYN', legacyFallback: 'NewDevelopmentYN', form: 'saleBldgNewDevelopment', type: 'bool', src: 'raw' },
+  { mallan: '_mallanMaximumFinancingPercent', legacyFallback: 'MaximumFinancingPercent', form: 'saleBldgMaxFinancing', type: 'text', src: 'raw' },
+  { mallan: '_mallanNumberOfShares', legacyFallback: 'NumberOfShares', form: 'saleUnitShares', type: 'number', src: 'raw' },
+  { mallan: '_mallanTaxMonthlyAmount', legacyFallback: 'TaxMonthlyAmount', form: 'saleTaxMonthly', type: 'number', src: 'raw' },
+  { mallan: '_mallanTaxAbatementExpirationYear', legacyFallback: 'TaxAbatementExpirationYear', form: 'saleBldgTaxAbatementExpYear', type: 'text', src: 'raw' },
+  { cotality: 'PropertyCondition', form: 'saleCondition', type: 'text', src: 'raw' },
+  { cotality: 'Basement', form: 'saleTHBasementType', type: 'text', src: 'raw' },
+  { mallan: '_mallanFlipTaxType', legacyFallback: 'FlipTaxType', form: 'saleFlipTaxType', type: 'text', src: 'raw' },
+  { mallan: '_mallanFlipTaxRemarks', legacyFallback: 'FlipTaxRemarks', form: 'saleFlipTaxRemarks', type: 'text', src: 'raw' },
+  { mallan: '_mallanMaximumFinancingRemarks', legacyFallback: 'MaximumFinancingRemarks', form: 'saleMaximumFinancingRemarks', type: 'text', src: 'raw' },
+  { cotality: 'FireplacesTotal', form: 'saleFireplacesTotal', type: 'number', src: 'features' },
+  { cotality: 'FireplaceFeatures', form: 'saleFireplaceFeatures', type: 'multi', src: 'features' },
+  { cotality: 'SpecialListingConditions', form: 'saleSpecialListingConditions', type: 'multi', src: 'raw' }, // live Multi-Enum: array round-trip
+  { mallan: '_mallanPetsAllowedComments', legacyFallback: 'PetsAllowedComments', form: 'salePetsAllowedComments', type: 'text', src: 'raw' },
+  { mallan: '_mallanBuildingPetsAllowedComments', legacyFallback: 'BuildingPetsAllowedComments', form: 'saleBuildingPetsAllowedComments', type: 'text', src: 'raw' },
+  { cotality: 'Possession', form: 'saleAvailableOccupancy', type: 'date', src: 'raw', legacyFallback: 'PossessionDate' },
 
   // ── Building ──
-  { rls: 'BuildingName', form: 'saleBldgName', type: 'text', src: 'raw' },
-  { rls: 'saleBldgType', form: 'saleBldgType', type: 'text', src: 'raw', fallbackRls: 'StructureType' }, // Mallan form key first; StructureType is server-derived
-  { rls: 'YearBuilt', form: 'saleBldgYearBuilt', type: 'number', src: 'raw' },
-  { rls: 'saleBldgYearRenovated', form: 'saleBldgYearRenovated', type: 'number', src: 'raw', fallbackRls: 'YearRenovated' }, // internal; YearRenovated not in Cotality
-  { rls: 'StoriesTotal', form: 'saleBldgTotalFloors', type: 'number', src: 'raw' },
-  { rls: 'NumberOfUnitsTotal', form: 'saleBldgTotalUnits', type: 'number', src: 'raw' },
-  { rls: 'saleBldgNumElevators', form: 'saleBldgNumElevators', type: 'number', src: 'raw', fallbackRls: 'ElevatorsTotal' }, // internal; ElevatorsTotal not in Cotality
-  { rls: 'CrossStreet', form: 'saleBldgCrossStreet1', type: 'text', src: 'raw' },
-  { rls: 'TaxBlock', form: 'saleBldgTaxBlock', type: 'text', src: 'raw' },
-  { rls: 'TaxLot', form: 'saleBldgTaxLot', type: 'text', src: 'raw', fallbackRls: 'BuildingTaxLot' },
-  { rls: 'AssociationName', form: 'saleBldgAssociationName', type: 'text', src: 'raw' },
-  { rls: 'NewConstructionYN', form: 'saleBldgNewConstruction', type: 'bool', src: 'raw' },
-  { rls: 'saleBldgNewDevelopment', form: 'saleBldgNewDevelopment', type: 'bool', src: 'raw', fallbackRls: 'NewDevelopmentYN' }, // internal; NewDevelopmentYN not in Cotality
-  { rls: 'SponsorUnitYN', form: 'saleBldgSponsorUnits', type: 'bool', src: 'raw' },
-  { rls: 'TaxAbatementYN', form: 'saleBldgTaxAbatementYN', type: 'bool', src: 'raw' },
-  { rls: 'TaxAbatementComments', form: 'saleBldgTaxAbatementComments', type: 'text', src: 'raw' },
-  { rls: 'saleBldgSublettingAllowed', form: 'saleBldgSublettingAllowed', type: 'text', src: 'raw', fallbackRls: 'RentingAllowedYN' }, // internal select; RentingAllowedYN not in Cotality
+  { cotality: 'BuildingName', form: 'saleBldgName', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgType', form: 'saleBldgType', type: 'text', src: 'raw', legacyFallback: 'StructureType' }, // Mallan form key first; StructureType is server-derived
+  { cotality: 'YearBuilt', form: 'saleBldgYearBuilt', type: 'number', src: 'raw' },
+  { mallan: 'saleBldgYearRenovated', form: 'saleBldgYearRenovated', type: 'number', src: 'raw', legacyFallback: 'YearRenovated' }, // internal; YearRenovated not in Cotality
+  { cotality: 'StoriesTotal', form: 'saleBldgTotalFloors', type: 'number', src: 'raw' },
+  { cotality: 'NumberOfUnitsTotal', form: 'saleBldgTotalUnits', type: 'number', src: 'raw' },
+  { mallan: 'saleBldgNumElevators', form: 'saleBldgNumElevators', type: 'number', src: 'raw', legacyFallback: 'ElevatorsTotal' }, // internal; ElevatorsTotal not in Cotality
+  { cotality: 'CrossStreet', form: 'saleBldgCrossStreet1', type: 'text', src: 'raw' },
+  { cotality: 'TaxBlock', form: 'saleBldgTaxBlock', type: 'text', src: 'raw' },
+  { cotality: 'TaxLot', form: 'saleBldgTaxLot', type: 'text', src: 'raw', legacyFallback: 'BuildingTaxLot' },
+  { cotality: 'AssociationName', form: 'saleBldgAssociationName', type: 'text', src: 'raw' },
+  { cotality: 'NewConstructionYN', form: 'saleBldgNewConstruction', type: 'bool', src: 'raw' },
+  { mallan: 'saleBldgNewDevelopment', form: 'saleBldgNewDevelopment', type: 'bool', src: 'raw', legacyFallback: 'NewDevelopmentYN' }, // internal; NewDevelopmentYN not in Cotality
+  { mallan: '_mallanSponsorUnitYN', legacyFallback: 'SponsorUnitYN', form: 'saleBldgSponsorUnits', type: 'bool', src: 'raw' },
+  { mallan: '_mallanTaxAbatementYN', legacyFallback: 'TaxAbatementYN', form: 'saleBldgTaxAbatementYN', type: 'bool', src: 'raw' },
+  { mallan: '_mallanTaxAbatementComments', legacyFallback: 'TaxAbatementComments', form: 'saleBldgTaxAbatementComments', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgSublettingAllowed', form: 'saleBldgSublettingAllowed', type: 'text', src: 'raw', legacyFallback: 'RentingAllowedYN' }, // internal select; RentingAllowedYN not in Cotality
 
   // ── Distribution ──
-  { rls: 'saleIdxDisplayYN', form: 'saleDist_IDX', type: 'checked', src: 'listing', listingKey: 'idx_display_yn', rawKey: 'saleDist_IDX' }, // internal IDX-display control (idx_display_yn); no provider field exists for the IDX-display decision
-  { rls: 'InternetEntireListingDisplayYN', form: 'saleInternetEntireListingDisplayYN', type: 'checked', src: 'listing', listingKey: 'internet_entire_listing_display_yn', rawKey: 'saleInternetEntireListingDisplayYN' },
-  { rls: 'InternetAddressDisplayYN', form: 'saleInternetAddressDisplayYN', type: 'checked', src: 'listing', listingKey: 'internet_address_display_yn', rawKey: 'saleInternetAddressDisplayYN' },
+  { mallan: 'saleIdxDisplayYN', form: 'saleDist_IDX', type: 'checked', src: 'listing', listingKey: 'idx_display_yn', rawKey: 'saleDist_IDX' }, // internal IDX-display control (idx_display_yn); no provider field exists for the IDX-display decision
+  { cotality: 'InternetEntireListingDisplayYN', form: 'saleInternetEntireListingDisplayYN', type: 'checked', src: 'listing', listingKey: 'internet_entire_listing_display_yn', rawKey: 'saleInternetEntireListingDisplayYN' },
+  { cotality: 'InternetAddressDisplayYN', form: 'saleInternetAddressDisplayYN', type: 'checked', src: 'listing', listingKey: 'internet_address_display_yn', rawKey: 'saleInternetAddressDisplayYN' },
 
   // ── Agent (hidden fields populated by initLoggedInAgent) ──
   // Phase C: typedKey is the promoted typed column read FIRST (agent_info JSON is fallback).
@@ -9335,153 +9505,153 @@ var SALE_FIELD_MAP = [
   // separately by initLoggedInAgent; targeting it here meant the saved Cotality MLS id never
   // reached the submitted field, so a no-op edit re-sent the editor's session MLS id and
   // corrupted list_agent_mls_id on save. (Codex #420.)
-  { rls: 'ListAgentMlsId', form: 'saleUpdatingAgentMlsId', type: 'text', src: 'agentInfo', agentKey: 'ListAgentMlsId', typedKey: 'list_agent_mls_id' },
-  { rls: 'ListAgentFullName', form: 'saleUpdatingAgentName', type: 'text', src: 'agentInfo', agentKey: 'ListAgentFullName', typedKey: 'list_agent_full_name' },
-  { rls: 'ListAgentEmail', form: 'saleUpdatingAgentEmail', type: 'text', src: 'agentInfo', agentKey: 'ListAgentEmail', typedKey: 'list_agent_email' },
-  { rls: 'ListAgentDirectPhone', form: 'saleUpdatingAgentPhone', type: 'text', src: 'agentInfo', agentKey: 'ListAgentDirectPhone', typedKey: 'list_agent_direct_phone' },
-  { rls: 'ListOfficeName', form: 'saleUpdatingAgentCompanyName', type: 'text', src: 'agentInfo', agentKey: 'ListOfficeName', typedKey: 'list_office_name' },
-  { rls: 'ListOfficeKey', form: 'saleUpdatingAgentCompanyKey', type: 'text', src: 'agentInfo', agentKey: 'ListOfficeKey' },
+  { cotality: 'ListAgentMlsId', form: 'saleUpdatingAgentMlsId', type: 'text', src: 'agentInfo', agentKey: 'ListAgentMlsId', typedKey: 'list_agent_mls_id' },
+  { cotality: 'ListAgentFullName', form: 'saleUpdatingAgentName', type: 'text', src: 'agentInfo', agentKey: 'ListAgentFullName', typedKey: 'list_agent_full_name' },
+  { cotality: 'ListAgentEmail', form: 'saleUpdatingAgentEmail', type: 'text', src: 'agentInfo', agentKey: 'ListAgentEmail', typedKey: 'list_agent_email' },
+  { cotality: 'ListAgentDirectPhone', form: 'saleUpdatingAgentPhone', type: 'text', src: 'agentInfo', agentKey: 'ListAgentDirectPhone', typedKey: 'list_agent_direct_phone' },
+  { cotality: 'ListOfficeName', form: 'saleUpdatingAgentCompanyName', type: 'text', src: 'agentInfo', agentKey: 'ListOfficeName', typedKey: 'list_office_name' },
+  { cotality: 'ListOfficeKey', form: 'saleUpdatingAgentCompanyKey', type: 'text', src: 'agentInfo', agentKey: 'ListOfficeKey' },
 
   // ── Team ──
-  { rls: 'ListTeamName', form: 'saleListTeamName', type: 'text', src: 'raw' },
-  { rls: 'ListTeamMlsId', form: 'saleListTeamMlsId', type: 'text', src: 'raw' },
+  { cotality: 'ListTeamName', form: 'saleListTeamName', type: 'text', src: 'raw' },
+  { cotality: 'ListTeamMlsId', form: 'saleListTeamMlsId', type: 'text', src: 'raw' },
 
   // ── Townhouse ──
-  { rls: 'Stories', form: 'saleTHStories', type: 'number', src: 'raw' },
-  { rls: 'BuildingAreaTotal', form: 'saleTHBuildingArea', type: 'number', src: 'raw' },
-  { rls: 'Levels', form: 'saleTHLevels', type: 'text', src: 'raw' },
-  { rls: 'ZoningDescription', form: 'saleTHZoning', type: 'text', src: 'raw' },
-  { rls: 'GarageYN', form: 'saleTHGarageYN', type: 'bool', src: 'raw' },
-  { rls: 'GarageSpaces', form: 'saleTHGarageSpaces', type: 'number', src: 'raw' },
-  { rls: 'ParkingTotal', form: 'saleTHParkingTotal', type: 'number', src: 'raw' },
-  { rls: 'FoundationArea', form: 'saleTHFoundationArea', type: 'number', src: 'raw' },
-  { rls: 'BasementYN', form: 'saleTHBasementYN', type: 'bool', src: 'raw' },
-  { rls: 'LotSizeArea', form: 'saleTHLotSize', type: 'number', src: 'raw' },
+  { cotality: 'Stories', form: 'saleTHStories', type: 'number', src: 'raw' },
+  { cotality: 'BuildingAreaTotal', form: 'saleTHBuildingArea', type: 'number', src: 'raw' },
+  { cotality: 'Levels', form: 'saleTHLevels', type: 'text', src: 'raw' },
+  { cotality: 'ZoningDescription', form: 'saleTHZoning', type: 'text', src: 'raw' },
+  { cotality: 'GarageYN', form: 'saleTHGarageYN', type: 'bool', src: 'raw' },
+  { cotality: 'GarageSpaces', form: 'saleTHGarageSpaces', type: 'number', src: 'raw' },
+  { cotality: 'ParkingTotal', form: 'saleTHParkingTotal', type: 'number', src: 'raw' },
+  { cotality: 'FoundationArea', form: 'saleTHFoundationArea', type: 'number', src: 'raw' },
+  { cotality: 'BasementYN', form: 'saleTHBasementYN', type: 'bool', src: 'raw' },
+  { cotality: 'LotSizeArea', form: 'saleTHLotSize', type: 'number', src: 'raw' },
 
   // ── Townhouse additional ──
-  { rls: 'saleTHDescription', form: 'saleTHDescription', type: 'text', src: 'raw' },
-  { rls: 'saleTHLayout', form: 'saleTHLayout', type: 'text', src: 'raw' },
-  { rls: 'saleTHFinancing', form: 'saleTHFinancing', type: 'text', src: 'raw' },
-  { rls: 'saleTHNotes', form: 'saleTHNotes', type: 'text', src: 'raw' },
-  { rls: 'saleTHUnitsTotal', form: 'saleTHUnitsTotal', type: 'number', src: 'raw' },
-  { rls: 'saleTHNumBuildings', form: 'saleTHNumBuildings', type: 'number', src: 'raw' },
-  { rls: 'saleTHLotDimensions', form: 'saleTHLotDimensions', type: 'text', src: 'raw' },
-  { rls: 'saleTHLotFeatures', form: 'saleTHLotFeatures', type: 'text', src: 'raw' },
-  { rls: 'saleTHLotSizeUnits', form: 'saleTHLotSizeUnits', type: 'text', src: 'raw' },
-  { rls: 'saleTHLotSizeSource', form: 'saleTHLotSizeSource', type: 'text', src: 'raw' },
-  { rls: 'saleTHGrossSqFt', form: 'saleTHGrossSqFt', type: 'number', src: 'raw' },
-  { rls: 'saleTHNetSqFt', form: 'saleTHNetSqFt', type: 'number', src: 'raw' },
-  { rls: 'saleTHFoundation', form: 'saleTHFoundation', type: 'text', src: 'raw' },
-  { rls: 'saleTHOverFAR', form: 'saleTHOverFAR', type: 'text', src: 'raw' },
-  { rls: 'saleTHUnderFAR', form: 'saleTHUnderFAR', type: 'text', src: 'raw' },
-  { rls: 'saleTHLandLeaseYN', form: 'saleTHLandLeaseYN', type: 'text', src: 'raw' },
-  { rls: 'saleTHLandLeaseAmt', form: 'saleTHLandLeaseAmt', type: 'number', src: 'raw' },
-  { rls: 'saleTHLandLeaseFreq', form: 'saleTHLandLeaseFreq', type: 'text', src: 'raw' },
-  { rls: 'saleTHLandLeaseExp', form: 'saleTHLandLeaseExp', type: 'date', src: 'raw' },
-  { rls: 'saleTHAttachedGarage', form: 'saleTHAttachedGarage', type: 'text', src: 'raw' },
-  { rls: 'saleTHOpenParkingYN', form: 'saleTHOpenParkingYN', type: 'text', src: 'raw' },
-  { rls: 'saleTHOpenSpaces', form: 'saleTHOpenSpaces', type: 'number', src: 'raw' },
-  { rls: 'saleTHLandmark', form: 'saleTHLandmark', type: 'text', src: 'raw' },
-  { rls: 'saleTHBuildingAreaUnits', form: 'saleTHBuildingAreaUnits', type: 'text', src: 'raw' },
-  { rls: 'saleTHCommercialYN', form: 'saleTHCommercialYN', type: 'text', src: 'raw' },
-  { rls: 'saleTHDevStatus', form: 'saleTHDevStatus', type: 'text', src: 'raw' },
-  { rls: 'saleTHCapRate', form: 'saleTHCapRate', type: 'number', src: 'raw' },
-  { rls: 'saleTHProfUnits', form: 'saleTHProfUnits', type: 'number', src: 'raw' },
-  { rls: 'saleTHRetailUnits', form: 'saleTHRetailUnits', type: 'number', src: 'raw' },
-  { rls: 'saleTHVacantUnits', form: 'saleTHVacantUnits', type: 'number', src: 'raw' },
+  { mallan: 'saleTHDescription', form: 'saleTHDescription', type: 'text', src: 'raw' },
+  { mallan: 'saleTHLayout', form: 'saleTHLayout', type: 'text', src: 'raw' },
+  { mallan: 'saleTHFinancing', form: 'saleTHFinancing', type: 'text', src: 'raw' },
+  { mallan: 'saleTHNotes', form: 'saleTHNotes', type: 'text', src: 'raw' },
+  { mallan: 'saleTHUnitsTotal', form: 'saleTHUnitsTotal', type: 'number', src: 'raw' },
+  { mallan: 'saleTHNumBuildings', form: 'saleTHNumBuildings', type: 'number', src: 'raw' },
+  { mallan: 'saleTHLotDimensions', form: 'saleTHLotDimensions', type: 'text', src: 'raw' },
+  { mallan: 'saleTHLotFeatures', form: 'saleTHLotFeatures', type: 'text', src: 'raw' },
+  { mallan: 'saleTHLotSizeUnits', form: 'saleTHLotSizeUnits', type: 'text', src: 'raw' },
+  { mallan: 'saleTHLotSizeSource', form: 'saleTHLotSizeSource', type: 'text', src: 'raw' },
+  { mallan: 'saleTHGrossSqFt', form: 'saleTHGrossSqFt', type: 'number', src: 'raw' },
+  { mallan: 'saleTHNetSqFt', form: 'saleTHNetSqFt', type: 'number', src: 'raw' },
+  { mallan: 'saleTHFoundation', form: 'saleTHFoundation', type: 'text', src: 'raw' },
+  { mallan: 'saleTHOverFAR', form: 'saleTHOverFAR', type: 'text', src: 'raw' },
+  { mallan: 'saleTHUnderFAR', form: 'saleTHUnderFAR', type: 'text', src: 'raw' },
+  { mallan: 'saleTHLandLeaseYN', form: 'saleTHLandLeaseYN', type: 'text', src: 'raw' },
+  { mallan: 'saleTHLandLeaseAmt', form: 'saleTHLandLeaseAmt', type: 'number', src: 'raw' },
+  { mallan: 'saleTHLandLeaseFreq', form: 'saleTHLandLeaseFreq', type: 'text', src: 'raw' },
+  { mallan: 'saleTHLandLeaseExp', form: 'saleTHLandLeaseExp', type: 'date', src: 'raw' },
+  { mallan: 'saleTHAttachedGarage', form: 'saleTHAttachedGarage', type: 'text', src: 'raw' },
+  { mallan: 'saleTHOpenParkingYN', form: 'saleTHOpenParkingYN', type: 'text', src: 'raw' },
+  { mallan: 'saleTHOpenSpaces', form: 'saleTHOpenSpaces', type: 'number', src: 'raw' },
+  { mallan: 'saleTHLandmark', form: 'saleTHLandmark', type: 'text', src: 'raw' },
+  { mallan: 'saleTHBuildingAreaUnits', form: 'saleTHBuildingAreaUnits', type: 'text', src: 'raw' },
+  { mallan: 'saleTHCommercialYN', form: 'saleTHCommercialYN', type: 'text', src: 'raw' },
+  { mallan: 'saleTHDevStatus', form: 'saleTHDevStatus', type: 'text', src: 'raw' },
+  { mallan: 'saleTHCapRate', form: 'saleTHCapRate', type: 'number', src: 'raw' },
+  { mallan: 'saleTHProfUnits', form: 'saleTHProfUnits', type: 'number', src: 'raw' },
+  { mallan: 'saleTHRetailUnits', form: 'saleTHRetailUnits', type: 'number', src: 'raw' },
+  { mallan: 'saleTHVacantUnits', form: 'saleTHVacantUnits', type: 'number', src: 'raw' },
 
   // ── Unit additional ──
-  { rls: 'saleCondition', form: 'saleCondition', type: 'text', src: 'raw' },
-  { rls: 'saleInteriorSqFt', form: 'saleInteriorSqFt', type: 'number', src: 'raw' },
-  { rls: 'saleExteriorSqFt', form: 'saleExteriorSqFt', type: 'number', src: 'raw' },
-  { rls: 'saleLineInBuilding', form: 'saleLineInBuilding', type: 'text', src: 'raw' },
-  { rls: 'saleUnitShares', form: 'saleUnitShares', type: 'number', src: 'raw' },
-  { rls: 'salePercentCommon', form: 'salePercentCommon', type: 'number', src: 'raw' },
-  { rls: 'LivingAreaUnits', form: 'saleLivingAreaUnits', type: 'text', src: 'raw', rawKey: 'saleLivingAreaUnits' }, // the form key first; the live LivingAreaUnits member (AREA-UNITS-001) for legacy rows
+  { mallan: 'saleCondition', form: 'saleCondition', type: 'text', src: 'raw' },
+  { mallan: 'saleInteriorSqFt', form: 'saleInteriorSqFt', type: 'number', src: 'raw' },
+  { mallan: 'saleExteriorSqFt', form: 'saleExteriorSqFt', type: 'number', src: 'raw' },
+  { mallan: 'saleLineInBuilding', form: 'saleLineInBuilding', type: 'text', src: 'raw' },
+  { mallan: 'saleUnitShares', form: 'saleUnitShares', type: 'number', src: 'raw' },
+  { mallan: 'salePercentCommon', form: 'salePercentCommon', type: 'number', src: 'raw' },
+  { cotality: 'LivingAreaUnits', form: 'saleLivingAreaUnits', type: 'text', src: 'raw', rawKey: 'saleLivingAreaUnits' }, // the form key first; the live LivingAreaUnits member (AREA-UNITS-001) for legacy rows
 
   // ── Selects not yet mapped ──
-  { rls: 'saleStructureType', form: 'saleStructureType', type: 'text', src: 'raw' },
-  { rls: 'saleCommonInterest', form: 'saleCommonInterest', type: 'text', src: 'raw', fallbackRls: 'CommonInterest' },
+  { mallan: 'saleStructureType', form: 'saleStructureType', type: 'text', src: 'raw' },
+  { mallan: 'saleCommonInterest', form: 'saleCommonInterest', type: 'text', src: 'raw', legacyFallback: 'CommonInterest' },
 
   // ── Financial additional ──
-  { rls: 'saleConcessionAmount', form: 'saleConcessionAmount', type: 'number', src: 'raw' },
-  { rls: 'saleConcessionComments', form: 'saleConcessionComments', type: 'text', src: 'raw' },
-  { rls: 'saleExclusiveCommission', form: 'saleExclusiveCommission', type: 'text', src: 'raw' },
+  { mallan: 'saleConcessionAmount', form: 'saleConcessionAmount', type: 'number', src: 'raw' },
+  { mallan: 'saleConcessionComments', form: 'saleConcessionComments', type: 'text', src: 'raw' },
+  { mallan: 'saleExclusiveCommission', form: 'saleExclusiveCommission', type: 'text', src: 'raw' },
   // %/$ type select — Cotality CompensationType enum (Percent/Dollars), internal.
   // Renamed from saleCommissionType (which collided with the payer radios and
   // was clobbered), so there is no usable legacy value to fall back to; new
   // rows default to Percent via the <option selected>. (Track 1 commission fix.)
-  { rls: 'saleExclusiveCommissionType', form: 'saleExclusiveCommissionType', type: 'text', src: 'raw' },
+  { mallan: 'saleExclusiveCommissionType', form: 'saleExclusiveCommissionType', type: 'text', src: 'raw' },
 
   // ── Distribution additional ──
-  { rls: 'saleListingUrl', form: 'saleListingUrl', type: 'text', src: 'raw' },
-  { rls: 'saleWebDisplayAddress', form: 'saleWebDisplayAddress', type: 'text', src: 'raw' },
-  { rls: 'saleWebHeadline', form: 'saleWebHeadline', type: 'text', src: 'raw' },
+  { mallan: 'saleListingUrl', form: 'saleListingUrl', type: 'text', src: 'raw' },
+  { mallan: 'saleWebDisplayAddress', form: 'saleWebDisplayAddress', type: 'text', src: 'raw' },
+  { mallan: 'saleWebHeadline', form: 'saleWebHeadline', type: 'text', src: 'raw' },
 
   // ── Building additional ──
-  { rls: 'saleBldgBorough', form: 'saleBldgBorough', type: 'text', src: 'raw' },
-  { rls: 'saleBldgCity', form: 'saleBldgCity', type: 'text', src: 'raw' },
-  { rls: 'saleBldgState', form: 'saleBldgState', type: 'text', src: 'raw' },
-  { rls: 'saleBldgZip', form: 'saleBldgZip', type: 'text', src: 'raw' },
-  { rls: 'saleBldgCrossStreet2', form: 'saleBldgCrossStreet2', type: 'text', src: 'raw' },
-  { rls: 'saleBldgResidentialUnits', form: 'saleBldgResidentialUnits', type: 'number', src: 'raw' },
-  { rls: 'saleBldgCommercialUnits', form: 'saleBldgCommercialUnits', type: 'number', src: 'raw' },
-  { rls: 'saleBldgParkingSpaces', form: 'saleBldgParkingSpaces', type: 'number', src: 'raw' },
-  { rls: 'saleBldgTotalShares', form: 'saleBldgTotalShares', type: 'number', src: 'raw' },
-  { rls: 'saleBldgUnderlyingMortgage', form: 'saleBldgUnderlyingMortgage', type: 'text', src: 'raw' },
-  { rls: 'saleBldgCapitalReserves', form: 'saleBldgCapitalReserves', type: 'text', src: 'raw' },
-  { rls: 'saleBldgAnnualTaxes', form: 'saleBldgAnnualTaxes', type: 'number', src: 'raw' },
-  { rls: 'saleBldgTaxAbatementExpYear', form: 'saleBldgTaxAbatementExpYear', type: 'text', src: 'raw' },
-  { rls: 'saleBldgDescription', form: 'saleBldgDescription', type: 'text', src: 'raw' },
-  { rls: 'saleBldgWebsite', form: 'saleBldgWebsite', type: 'text', src: 'raw' },
-  { rls: 'saleBldgMaxSubletYears', form: 'saleBldgMaxSubletYears', type: 'number', src: 'raw' },
-  { rls: 'saleBldgSubletFee', form: 'saleBldgSubletFee', type: 'text', src: 'raw' },
-  { rls: 'saleBldgMaxFinancing', form: 'saleBldgMaxFinancing', type: 'text', src: 'raw' },
-  { rls: 'saleBldgMinDownPayment', form: 'saleBldgMinDownPayment', type: 'text', src: 'raw' },
-  { rls: 'saleBldgDTIRatio', form: 'saleBldgDTIRatio', type: 'text', src: 'raw' },
-  { rls: 'saleBldgPostCloseLiquidity', form: 'saleBldgPostCloseLiquidity', type: 'text', src: 'raw' },
-  { rls: 'saleBldgBoardApproval', form: 'saleBldgBoardApproval', type: 'text', src: 'raw' },
-  { rls: 'saleBldgPetWeightLimit', form: 'saleBldgPetWeightLimit', type: 'number', src: 'raw' },
-  { rls: 'saleBldgPetNotes', form: 'saleBldgPetNotes', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgBorough', form: 'saleBldgBorough', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgCity', form: 'saleBldgCity', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgState', form: 'saleBldgState', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgZip', form: 'saleBldgZip', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgCrossStreet2', form: 'saleBldgCrossStreet2', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgResidentialUnits', form: 'saleBldgResidentialUnits', type: 'number', src: 'raw' },
+  { mallan: 'saleBldgCommercialUnits', form: 'saleBldgCommercialUnits', type: 'number', src: 'raw' },
+  { mallan: 'saleBldgParkingSpaces', form: 'saleBldgParkingSpaces', type: 'number', src: 'raw' },
+  { mallan: 'saleBldgTotalShares', form: 'saleBldgTotalShares', type: 'number', src: 'raw' },
+  { mallan: 'saleBldgUnderlyingMortgage', form: 'saleBldgUnderlyingMortgage', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgCapitalReserves', form: 'saleBldgCapitalReserves', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgAnnualTaxes', form: 'saleBldgAnnualTaxes', type: 'number', src: 'raw' },
+  { mallan: 'saleBldgTaxAbatementExpYear', form: 'saleBldgTaxAbatementExpYear', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgDescription', form: 'saleBldgDescription', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgWebsite', form: 'saleBldgWebsite', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgMaxSubletYears', form: 'saleBldgMaxSubletYears', type: 'number', src: 'raw' },
+  { mallan: 'saleBldgSubletFee', form: 'saleBldgSubletFee', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgMaxFinancing', form: 'saleBldgMaxFinancing', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgMinDownPayment', form: 'saleBldgMinDownPayment', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgDTIRatio', form: 'saleBldgDTIRatio', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgPostCloseLiquidity', form: 'saleBldgPostCloseLiquidity', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgBoardApproval', form: 'saleBldgBoardApproval', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgPetWeightLimit', form: 'saleBldgPetWeightLimit', type: 'number', src: 'raw' },
+  { mallan: 'saleBldgPetNotes', form: 'saleBldgPetNotes', type: 'text', src: 'raw' },
   // ── Mallan Building Profile — internal personnel & contacts ──────────────
   // Management company, building staff (super / resident manager) and board
   // contact. NOT Cotality (the feed has no such fields); collected via the
   // building-modal sweep and persisted in raw_data. They previously had NO
   // restore entry, so they vanished on edit-load — these reload them. Never
   // emitted to IDX/feed. (2026-05-31 building-profile stabilization.)
-  { rls: 'saleBldgMgmtCompany', form: 'saleBldgMgmtCompany', type: 'text', src: 'raw' },
-  { rls: 'saleBldgMgmtPhone', form: 'saleBldgMgmtPhone', type: 'text', src: 'raw' },
-  { rls: 'saleBldgMgmtEmail', form: 'saleBldgMgmtEmail', type: 'text', src: 'raw' },
-  { rls: 'saleBldgMgmtAddress', form: 'saleBldgMgmtAddress', type: 'text', src: 'raw' },
-  { rls: 'saleBldgSuperName', form: 'saleBldgSuperName', type: 'text', src: 'raw' },
-  { rls: 'saleBldgSuperPhone', form: 'saleBldgSuperPhone', type: 'text', src: 'raw' },
-  { rls: 'saleBldgSuperEmail', form: 'saleBldgSuperEmail', type: 'text', src: 'raw' },
-  { rls: 'saleBldgManagerName', form: 'saleBldgManagerName', type: 'text', src: 'raw' },
-  { rls: 'saleBldgManagerPhone', form: 'saleBldgManagerPhone', type: 'text', src: 'raw' },
-  { rls: 'saleBldgManagerEmail', form: 'saleBldgManagerEmail', type: 'text', src: 'raw' },
-  { rls: 'saleBldgBoardPresident', form: 'saleBldgBoardPresident', type: 'text', src: 'raw' },
-  { rls: 'saleBldgBoardEmail', form: 'saleBldgBoardEmail', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgMgmtCompany', form: 'saleBldgMgmtCompany', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgMgmtPhone', form: 'saleBldgMgmtPhone', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgMgmtEmail', form: 'saleBldgMgmtEmail', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgMgmtAddress', form: 'saleBldgMgmtAddress', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgSuperName', form: 'saleBldgSuperName', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgSuperPhone', form: 'saleBldgSuperPhone', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgSuperEmail', form: 'saleBldgSuperEmail', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgManagerName', form: 'saleBldgManagerName', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgManagerPhone', form: 'saleBldgManagerPhone', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgManagerEmail', form: 'saleBldgManagerEmail', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgBoardPresident', form: 'saleBldgBoardPresident', type: 'text', src: 'raw' },
+  { mallan: 'saleBldgBoardEmail', form: 'saleBldgBoardEmail', type: 'text', src: 'raw' },
 
   // ── Dates additional ──
-  { rls: 'saleFirstCoBroke', form: 'saleFirstCoBroke', type: 'date', src: 'raw' },
-  { rls: 'saleAvailableOccupancy', form: 'saleAvailableOccupancy', type: 'date', src: 'raw' },
+  { mallan: 'saleFirstCoBroke', form: 'saleFirstCoBroke', type: 'date', src: 'raw' },
+  { mallan: 'saleAvailableOccupancy', form: 'saleAvailableOccupancy', type: 'date', src: 'raw' },
 
   // ── Media / Virtual Tours ──
-  { rls: 'VirtualTourURLUnbranded', form: 'saleVirtualTourUnbranded', type: 'text', src: 'raw' },
-  { rls: 'saleVirtualTourUnbranded2', form: 'saleVirtualTourUnbranded2', type: 'text', src: 'raw' },
-  { rls: 'saleVirtualTourUnbranded3', form: 'saleVirtualTourUnbranded3', type: 'text', src: 'raw' },
-  { rls: 'saleVideoUrl', form: 'saleVideoUrl', type: 'text', src: 'raw' },
-  { rls: 'saleVideoTourUrl', form: 'saleVideoTourUrl', type: 'text', src: 'raw' },
-  { rls: 'saleMatterportUrl', form: 'saleMatterportUrl', type: 'text', src: 'raw' },
+  { cotality: 'VirtualTourURLUnbranded', form: 'saleVirtualTourUnbranded', type: 'text', src: 'raw' },
+  { mallan: 'saleVirtualTourUnbranded2', form: 'saleVirtualTourUnbranded2', type: 'text', src: 'raw' },
+  { mallan: 'saleVirtualTourUnbranded3', form: 'saleVirtualTourUnbranded3', type: 'text', src: 'raw' },
+  { mallan: 'saleVideoUrl', form: 'saleVideoUrl', type: 'text', src: 'raw' },
+  { mallan: 'saleVideoTourUrl', form: 'saleVideoTourUrl', type: 'text', src: 'raw' },
+  { mallan: 'saleMatterportUrl', form: 'saleMatterportUrl', type: 'text', src: 'raw' },
 
   // ── Commercial ──
-  { rls: 'commercial_sub_type', form: 'saleCommSubtype', type: 'text', src: 'raw' },
-  { rls: 'commercial_ownership', form: 'saleCommercialOwnership', type: 'text', src: 'raw' },
-  { rls: 'LivingAreaSource', form: 'saleLivingAreaSource', type: 'text', src: 'raw' },
+  { mallan: 'commercial_sub_type', form: 'saleCommSubtype', type: 'text', src: 'raw' },
+  { mallan: 'commercial_ownership', form: 'saleCommercialOwnership', type: 'text', src: 'raw' },
+  { cotality: 'LivingAreaSource', form: 'saleLivingAreaSource', type: 'text', src: 'raw' },
 
   // ── Auction ──
-  { rls: 'auction_type', form: 'saleAuctionType', type: 'text', src: 'raw' },
-  { rls: 'auction_terms_url', form: 'saleAuctionTermsUrl', type: 'text', src: 'raw' },
+  { mallan: 'auction_type', form: 'saleAuctionType', type: 'text', src: 'raw' },
+  { mallan: 'auction_terms_url', form: 'saleAuctionTermsUrl', type: 'text', src: 'raw' },
 
   // ── Class C single-id booleans (2026-05-28) ──
   // Five checkboxes that were previously unnamed are now single-id
@@ -9492,11 +9662,11 @@ var SALE_FIELD_MAP = [
   // existing SyndicateTo/IDXEntireListingDisplayYN distribution flags —
   // flagged in the audit for follow-up unification, persist for now to
   // avoid data loss.
-  { rls: 'saleAlsoAvailableForRent', form: 'saleAlsoAvailableForRent', type: 'bool', src: 'raw' },
-  { rls: 'saleSendToRls', form: 'saleSendToRls', type: 'bool', src: 'raw' },
-  { rls: 'saleSendToWebsite', form: 'saleSendToWebsite', type: 'bool', src: 'raw' },
-  { rls: 'saleWasherDryerHookups', form: 'saleWasherDryerHookups', type: 'bool', src: 'raw' },
-  { rls: 'saleWasherDryerInUnit', form: 'saleWasherDryerInUnit', type: 'bool', src: 'raw' },
+  { mallan: 'saleAlsoAvailableForRent', form: 'saleAlsoAvailableForRent', type: 'bool', src: 'raw' },
+  { mallan: 'saleSendToRls', form: 'saleSendToRls', type: 'bool', src: 'raw' },
+  { mallan: 'saleSendToWebsite', form: 'saleSendToWebsite', type: 'bool', src: 'raw' },
+  { mallan: 'saleWasherDryerHookups', form: 'saleWasherDryerHookups', type: 'bool', src: 'raw' },
+  { mallan: 'saleWasherDryerInUnit', form: 'saleWasherDryerInUnit', type: 'bool', src: 'raw' },
 
   // ── 2026-05-28 — single-id boolean checkboxes surfaced by the
   // full-coverage parametrized test that had no restore wiring before.
@@ -9504,47 +9674,47 @@ var SALE_FIELD_MAP = [
   // saleInternetConsumerCommentYN (RESO canonical, per-row opt-out,
   // fail-CLOSED per REBNY compliance §7 — the canonical write is in
   // collectSaleFormData below mirroring the AVM pattern).
-  { rls: 'saleCommNegotiabilityAck', form: 'saleCommNegotiabilityAck', type: 'bool', src: 'raw' },
-  { rls: 'saleFairHousingAck', form: 'saleFairHousingAck', type: 'bool', src: 'raw' },
+  { mallan: 'saleCommNegotiabilityAck', form: 'saleCommNegotiabilityAck', type: 'bool', src: 'raw' },
+  { mallan: 'saleFairHousingAck', form: 'saleFairHousingAck', type: 'bool', src: 'raw' },
   // saleInternetConsumerCommentYN: form key. Canonical RESO is
   // `InternetConsumerCommentYN` (per-row opt-out, fail-CLOSED per
   // compliance index §7). Restore reads CRM raw first, falls back to
   // canonical so a Trestle-sync write still restores.
-  { rls: 'saleInternetConsumerCommentYN', form: 'saleInternetConsumerCommentYN', type: 'bool', src: 'raw', fallbackRls: 'InternetConsumerCommentYN' },
-  { rls: 'saleVOWOptOutYN', form: 'saleVOWOptOutYN', type: 'bool', src: 'raw' },
+  { mallan: 'saleInternetConsumerCommentYN', form: 'saleInternetConsumerCommentYN', type: 'bool', src: 'raw', legacyFallback: 'InternetConsumerCommentYN' },
+  { mallan: 'saleVOWOptOutYN', form: 'saleVOWOptOutYN', type: 'bool', src: 'raw' },
   // Building-modal flags (real persistence, Mallan-internal — no RESO
   // mapping for purchasing policies like "Pied-a-Terre Allowed").
-  { rls: 'saleBldgLandmark', form: 'saleBldgLandmark', type: 'bool', src: 'raw' },
-  { rls: 'saleBldgHistoric', form: 'saleBldgHistoric', type: 'bool', src: 'raw' },
-  { rls: 'saleBldgLEED', form: 'saleBldgLEED', type: 'bool', src: 'raw' },
-  { rls: 'saleBldgConversion', form: 'saleBldgConversion', type: 'bool', src: 'raw' },
-  { rls: 'saleBldgCapitalReservesYN', form: 'saleBldgCapitalReservesYN', type: 'bool', src: 'raw' },
-  { rls: 'saleBldgWasherDryerAllowed', form: 'saleBldgWasherDryerAllowed', type: 'bool', src: 'raw' },
-  { rls: 'saleBldgPiedATerre', form: 'saleBldgPiedATerre', type: 'bool', src: 'raw' },
-  { rls: 'saleBldgParentsAllowed', form: 'saleBldgParentsAllowed', type: 'bool', src: 'raw' },
-  { rls: 'saleBldgCoBuyersAllowed', form: 'saleBldgCoBuyersAllowed', type: 'bool', src: 'raw' },
-  { rls: 'saleBldgCorpOwnAllowed', form: 'saleBldgCorpOwnAllowed', type: 'bool', src: 'raw' },
-  { rls: 'saleBldgGiftsAllowed', form: 'saleBldgGiftsAllowed', type: 'bool', src: 'raw' },
-  { rls: 'saleBldgBoardInterview', form: 'saleBldgBoardInterview', type: 'bool', src: 'raw' },
+  { mallan: 'saleBldgLandmark', form: 'saleBldgLandmark', type: 'bool', src: 'raw' },
+  { mallan: 'saleBldgHistoric', form: 'saleBldgHistoric', type: 'bool', src: 'raw' },
+  { mallan: 'saleBldgLEED', form: 'saleBldgLEED', type: 'bool', src: 'raw' },
+  { mallan: 'saleBldgConversion', form: 'saleBldgConversion', type: 'bool', src: 'raw' },
+  { mallan: 'saleBldgCapitalReservesYN', form: 'saleBldgCapitalReservesYN', type: 'bool', src: 'raw' },
+  { mallan: 'saleBldgWasherDryerAllowed', form: 'saleBldgWasherDryerAllowed', type: 'bool', src: 'raw' },
+  { mallan: 'saleBldgPiedATerre', form: 'saleBldgPiedATerre', type: 'bool', src: 'raw' },
+  { mallan: 'saleBldgParentsAllowed', form: 'saleBldgParentsAllowed', type: 'bool', src: 'raw' },
+  { mallan: 'saleBldgCoBuyersAllowed', form: 'saleBldgCoBuyersAllowed', type: 'bool', src: 'raw' },
+  { mallan: 'saleBldgCorpOwnAllowed', form: 'saleBldgCorpOwnAllowed', type: 'bool', src: 'raw' },
+  { mallan: 'saleBldgGiftsAllowed', form: 'saleBldgGiftsAllowed', type: 'bool', src: 'raw' },
+  { mallan: 'saleBldgBoardInterview', form: 'saleBldgBoardInterview', type: 'bool', src: 'raw' },
 ];
 
 // Checkbox-array fields (name-based groups)
 var SALE_CHECKBOX_ARRAY_MAP = [
-  { rls: 'PetsAllowed', name: 'salePetsAllowed' },
-  { rls: 'BuildingPetsAllowed', name: 'saleBuildingPetsAllowed' },
-  { rls: 'AttendanceType', name: 'saleAttendanceType' },
-  { rls: 'BuildingLaundryFeatures', name: 'saleBuildingLaundryFeatures' },
-  { rls: 'Heating', name: 'saleHeating' },
-  { rls: 'Cooling', name: 'saleCooling' },
-  { rls: 'saleCommSubtype', name: 'saleCommSubtype' },
+  { cotality: 'PetsAllowed', name: 'salePetsAllowed' },
+  { mallan: '_mallanBuildingPetsAllowed', legacyFallback: 'BuildingPetsAllowed', name: 'saleBuildingPetsAllowed' },
+  { mallan: '_mallanAttendanceType', legacyFallback: 'AttendanceType', name: 'saleAttendanceType' },
+  { mallan: '_mallanBuildingLaundryFeatures', legacyFallback: 'BuildingLaundryFeatures', name: 'saleBuildingLaundryFeatures' },
+  { cotality: 'Heating', name: 'saleHeating' },
+  { cotality: 'Cooling', name: 'saleCooling' },
+  { mallan: 'saleCommSubtype', name: 'saleCommSubtype' },
   // ── Class B (2026-05-28) ──
   // 5 named checkbox groups whose data was lost at save time (no array
   // collection in collect, no entry here). See audit §2.
-  { rls: 'saleBldgHeating', name: 'saleBldgHeating', fallbackRls: 'BuildingHeating' }, // internal; BuildingHeating not in Cotality
-  { rls: 'saleBldgCooling', name: 'saleBldgCooling', fallbackRls: 'BuildingCooling' }, // internal; BuildingCooling not in Cotality
-  { rls: 'saleBldgDocsAvailable', name: 'saleBldgDocsAvailable' },
-  { rls: 'saleTHDocsAvailable', name: 'saleTHDocsAvailable' },
-  { rls: 'saleBusinessType', name: 'saleBusinessType' },
+  { mallan: 'saleBldgHeating', name: 'saleBldgHeating', legacyFallback: 'BuildingHeating' }, // internal; BuildingHeating not in Cotality
+  { mallan: 'saleBldgCooling', name: 'saleBldgCooling', legacyFallback: 'BuildingCooling' }, // internal; BuildingCooling not in Cotality
+  { mallan: 'saleBldgDocsAvailable', name: 'saleBldgDocsAvailable' },
+  { mallan: 'saleTHDocsAvailable', name: 'saleTHDocsAvailable' },
+  { mallan: 'saleBusinessType', name: 'saleBusinessType' },
   // ── Class C (2026-05-28) ──
   // 17 newly-named checkbox groups, previously unnamed <input>s. The HTML
   // codemod in this same PR adds the name+value attributes; these entries
@@ -9552,24 +9722,24 @@ var SALE_CHECKBOX_ARRAY_MAP = [
   // (Pricing, Important Dates, Washer/Dryer hookups/in-unit — those 4
   // entries are single-id booleans and go through SALE_FIELD_MAP instead,
   // not here.)
-  { rls: 'saleResidentialType', name: 'saleResidentialType' },
-  { rls: 'saleCommercialFeatures', name: 'saleCommercialFeatures' },
-  { rls: 'salePrivateOutdoorSpace', name: 'salePrivateOutdoorSpace' },
-  { rls: 'saleExposure', name: 'saleExposure' },
-  { rls: 'saleViewList', name: 'saleViewList' },
-  { rls: 'saleAdditionalRooms', name: 'saleAdditionalRooms' },
-  { rls: 'saleKitchenType', name: 'saleKitchenType' },
-  { rls: 'saleKitchenFeatures', name: 'saleKitchenFeatures' },
-  { rls: 'saleDining', name: 'saleDining' },
-  { rls: 'saleBathroomFeatures', name: 'saleBathroomFeatures' },
-  { rls: 'saleFeatureDetails', name: 'saleFeatureDetails' },
-  { rls: 'saleWindows', name: 'saleWindows' },
-  { rls: 'saleCeilings', name: 'saleCeilings' },
-  { rls: 'saleFlooring', name: 'saleFlooring' }, // Mallan internal — RESO Flooring enum doesn't include "Herringbone" (Codex PR #270 review). Future migration in separate PR.
-  { rls: 'saleStorage', name: 'saleStorage' },
-  { rls: 'saleWasherDryerBrand', name: 'saleWasherDryerBrand' },
-  { rls: 'saleFreshAirSystem', name: 'saleFreshAirSystem' },
-  { rls: 'saleHvacSystem', name: 'saleHvacSystem' },
+  { mallan: 'saleResidentialType', name: 'saleResidentialType' },
+  { mallan: 'saleCommercialFeatures', name: 'saleCommercialFeatures' },
+  { mallan: 'salePrivateOutdoorSpace', name: 'salePrivateOutdoorSpace' },
+  { mallan: 'saleExposure', name: 'saleExposure' },
+  { mallan: 'saleViewList', name: 'saleViewList' },
+  { mallan: 'saleAdditionalRooms', name: 'saleAdditionalRooms' },
+  { mallan: 'saleKitchenType', name: 'saleKitchenType' },
+  { mallan: 'saleKitchenFeatures', name: 'saleKitchenFeatures' },
+  { mallan: 'saleDining', name: 'saleDining' },
+  { mallan: 'saleBathroomFeatures', name: 'saleBathroomFeatures' },
+  { mallan: 'saleFeatureDetails', name: 'saleFeatureDetails' },
+  { mallan: 'saleWindows', name: 'saleWindows' },
+  { mallan: 'saleCeilings', name: 'saleCeilings' },
+  { mallan: 'saleFlooring', name: 'saleFlooring' }, // Mallan internal — RESO Flooring enum doesn't include "Herringbone" (Codex PR #270 review). Future migration in separate PR.
+  { mallan: 'saleStorage', name: 'saleStorage' },
+  { mallan: 'saleWasherDryerBrand', name: 'saleWasherDryerBrand' },
+  { mallan: 'saleFreshAirSystem', name: 'saleFreshAirSystem' },
+  { mallan: 'saleHvacSystem', name: 'saleHvacSystem' },
 ];
 
 // Rows saved before the unit-level pet checkboxes carried the live PetsAllowed members (Packet 2 closure).
@@ -9639,44 +9809,44 @@ var SALE_SYNDICATION_MAP = [
 
 // Radio-button fields
 var SALE_RADIO_MAP = [
-  { rls: 'BuyerAgentRLSParticipantYN', name: 'saleBuyerAgentRLSParticipantYN', src: 'raw', rawKey: 'saleBuyerAgentRLSParticipantYN', fallback: 'BuyerAgentRLSParticipantYN', valueMap: { true: 'Yes', false: 'No' } },
-  { rls: 'saleListingType', name: 'saleListingType', src: 'raw', rawKey: 'saleListingType', fallback: 'ListingAgreement' },
+  { mallan: '_mallanBuyerBrokerParticipantYN', name: 'saleBuyerAgentRLSParticipantYN', src: 'raw', rawKey: '_mallanBuyerBrokerParticipantYN', fallback: 'BuyerAgentRLSParticipantYN', valueMap: { true: 'Yes', false: 'No' } },
+  { mallan: 'saleListingType', name: 'saleListingType', src: 'raw', rawKey: 'saleListingType', fallback: 'ListingAgreement' },
   // Buyer-agent payer radios (OwnerPays/BuyerPays). Renamed from saleCommissionType
   // to break the key collision with the %/$ type select. Legacy rows stored the
   // payer under the old saleCommissionType key (the radio clobbered the type), so
   // fall back to it on reload. Internal — never emitted to the IDX/feed. (Track 1.)
-  { rls: 'saleBuyerAgentPays', name: 'saleBuyerAgentPays', src: 'raw', rawKey: 'saleBuyerAgentPays', fallback: 'saleCommissionType' },
+  { mallan: 'saleBuyerAgentPays', name: 'saleBuyerAgentPays', src: 'raw', rawKey: 'saleBuyerAgentPays', fallback: 'saleCommissionType' },
   // PropertyType radio uses CRM-specific values (Condo/Coop/Condop/...) that
   // do NOT match RESO PropertySubType ("Apartment" for all three). Restore
   // from the form's own saved salePropertyType field first, falling back to
   // CommonInterest (Condominium/StockCooperative/Condop) → CRM radio value.
-  { rls: 'salePropertyType', name: 'salePropertyType', src: 'raw', rawKey: 'salePropertyType', fallback: 'CommonInterest', valueMap: { Condominium: 'Condo', StockCooperative: 'Coop', Condop: 'Condop' } },
-  { rls: 'saleBuildingStatus', name: 'saleBuildingStatus', src: 'raw' },
-  { rls: 'saleCoolingYN', name: 'saleCoolingYN', src: 'raw' },
-  { rls: 'saleWasherDryerAllowed', name: 'saleWasherDryerAllowed', src: 'raw' },
-  { rls: 'saleHasViews', name: 'saleHasViews', src: 'raw' },
-  { rls: 'saleGarageSpaces', name: 'saleGarageSpaces', src: 'raw' },
-  { rls: 'FireplaceYN', name: 'fireplace', src: 'raw', rawKey: 'FireplaceYN', fallback: 'fireplace', valueMap: { true: 'Yes', false: 'No', 'true': 'Yes', 'false': 'No' } }, // live Boolean → the Yes/No radio
-  { rls: 'saleCommercialOwnership', name: 'saleCommercialOwnership', src: 'raw' },
+  { mallan: 'salePropertyType', name: 'salePropertyType', src: 'raw', rawKey: 'salePropertyType', fallback: 'CommonInterest', valueMap: { Condominium: 'Condo', StockCooperative: 'Coop', Condop: 'Condop' } },
+  { mallan: 'saleBuildingStatus', name: 'saleBuildingStatus', src: 'raw' },
+  { mallan: 'saleCoolingYN', name: 'saleCoolingYN', src: 'raw' },
+  { mallan: 'saleWasherDryerAllowed', name: 'saleWasherDryerAllowed', src: 'raw' },
+  { mallan: 'saleHasViews', name: 'saleHasViews', src: 'raw' },
+  { mallan: 'saleGarageSpaces', name: 'saleGarageSpaces', src: 'raw' },
+  { cotality: 'FireplaceYN', name: 'fireplace', src: 'raw', rawKey: 'FireplaceYN', fallback: 'fireplace', valueMap: { true: 'Yes', false: 'No', 'true': 'Yes', 'false': 'No' } }, // live Boolean → the Yes/No radio
+  { mallan: 'saleCommercialOwnership', name: 'saleCommercialOwnership', src: 'raw' },
   // ── Class A additions (2026-05-28) — see
   // docs/crm/sales-form-radio-checkbox-roundtrip-audit-2026-05-28.md §1.
   // All 25 had `name` and were saved by the generic collector, but populate
   // had no restore entry → edit-load reverted them to HTML-default.
   // Comprehensive coverage: every radio group on the sales form now has
   // a restore mapping. Per fail-closed: src='raw' uses CRM raw key first.
-  { rls: 'commSalePayMethod', name: 'commSalePayMethod', src: 'raw' },
-  { rls: 'saleBoardApplication', name: 'saleBoardApplication', src: 'raw' },
-  { rls: 'saleBoardApproval', name: 'saleBoardApproval', src: 'raw' },
-  { rls: 'saleBoardInterview', name: 'saleBoardInterview', src: 'raw' },
-  { rls: 'saleCertOccupancy', name: 'saleCertOccupancy', src: 'raw' },
-  { rls: 'saleCoPurchasing', name: 'saleCoPurchasing', src: 'raw' },
-  { rls: 'CurrentUse', name: 'saleCurrentUse', src: 'raw', rawKey: 'CurrentUse', fallback: 'saleCurrentUse', valueMap: { Healthcare: 'MedicalDental', Professional: 'Office' } }, // live multi (first member) → the radio; legacy Mallan values remapped
-  { rls: 'saleDirectDeal', name: 'saleDirectDeal', src: 'raw' },
-  { rls: 'saleFilmLocation', name: 'saleFilmLocation', src: 'raw' },
-  { rls: 'saleFirstRefusal', name: 'saleFirstRefusal', src: 'raw' },
-  { rls: 'saleGuarantors', name: 'saleGuarantors', src: 'raw' },
-  { rls: 'saleHeatingYN', name: 'saleHeatingYN', src: 'raw' },
-  { rls: 'saleHistoryType', name: 'saleHistoryType', src: 'raw' },
+  { mallan: 'commSalePayMethod', name: 'commSalePayMethod', src: 'raw' },
+  { mallan: 'saleBoardApplication', name: 'saleBoardApplication', src: 'raw' },
+  { mallan: 'saleBoardApproval', name: 'saleBoardApproval', src: 'raw' },
+  { mallan: 'saleBoardInterview', name: 'saleBoardInterview', src: 'raw' },
+  { mallan: 'saleCertOccupancy', name: 'saleCertOccupancy', src: 'raw' },
+  { mallan: 'saleCoPurchasing', name: 'saleCoPurchasing', src: 'raw' },
+  { cotality: 'CurrentUse', name: 'saleCurrentUse', src: 'raw', rawKey: 'CurrentUse', fallback: 'saleCurrentUse', valueMap: { Healthcare: 'MedicalDental', Professional: 'Office' } }, // live multi (first member) → the radio; legacy Mallan values remapped
+  { mallan: 'saleDirectDeal', name: 'saleDirectDeal', src: 'raw' },
+  { mallan: 'saleFilmLocation', name: 'saleFilmLocation', src: 'raw' },
+  { mallan: 'saleFirstRefusal', name: 'saleFirstRefusal', src: 'raw' },
+  { mallan: 'saleGuarantors', name: 'saleGuarantors', src: 'raw' },
+  { mallan: 'saleHeatingYN', name: 'saleHeatingYN', src: 'raw' },
+  { mallan: 'saleHistoryType', name: 'saleHistoryType', src: 'raw' },
   // saleInternetAVMDisplayYN: the FORM key. The canonical RESO key is
   // `InternetAutomatedValuationDisplayYN` (per-row opt-out, fail-CLOSED
   // semantics per REBNY compliance index §7). Restore reads the CRM raw
@@ -9685,18 +9855,18 @@ var SALE_RADIO_MAP = [
   // valueMap translates both literal booleans (Trestle write) and
   // stringified 'true'/'false' (JSON serialization edge case) to the
   // radio's 'Yes'/'No' option values.
-  { rls: 'saleInternetAVMDisplayYN', name: 'saleInternetAVMDisplayYN', src: 'raw', rawKey: 'saleInternetAVMDisplayYN', fallback: 'InternetAutomatedValuationDisplayYN', valueMap: { true: 'Yes', false: 'No', 'true': 'Yes', 'false': 'No' } },
-  { rls: 'saleLandLease', name: 'saleLandLease', src: 'raw' },
-  { rls: 'saleLight', name: 'saleLight', src: 'raw' },
-  { rls: 'saleLiveWorkAllowed', name: 'saleLiveWorkAllowed', src: 'raw' },
-  { rls: 'saleMeetAndGreet', name: 'saleMeetAndGreet', src: 'raw' },
-  { rls: 'saleNumFloors', name: 'saleNumFloors', src: 'raw' },
-  { rls: 'saleOfficeRetailOwnership', name: 'saleOfficeRetailOwnership', src: 'raw' },
-  { rls: 'saleParentsBuying', name: 'saleParentsBuying', src: 'raw' },
-  { rls: 'salePiedATerre', name: 'salePiedATerre', src: 'raw' },
-  { rls: 'saleSubletting', name: 'saleSubletting', src: 'raw' },
-  { rls: 'saleTenantConfig', name: 'saleTenantConfig', src: 'raw' },
-  { rls: 'saleUnitType2', name: 'saleUnitType2', src: 'raw' },
+  { mallan: 'saleInternetAVMDisplayYN', name: 'saleInternetAVMDisplayYN', src: 'raw', rawKey: 'saleInternetAVMDisplayYN', fallback: 'InternetAutomatedValuationDisplayYN', valueMap: { true: 'Yes', false: 'No', 'true': 'Yes', 'false': 'No' } },
+  { mallan: 'saleLandLease', name: 'saleLandLease', src: 'raw' },
+  { mallan: 'saleLight', name: 'saleLight', src: 'raw' },
+  { mallan: 'saleLiveWorkAllowed', name: 'saleLiveWorkAllowed', src: 'raw' },
+  { mallan: 'saleMeetAndGreet', name: 'saleMeetAndGreet', src: 'raw' },
+  { mallan: 'saleNumFloors', name: 'saleNumFloors', src: 'raw' },
+  { mallan: 'saleOfficeRetailOwnership', name: 'saleOfficeRetailOwnership', src: 'raw' },
+  { mallan: 'saleParentsBuying', name: 'saleParentsBuying', src: 'raw' },
+  { mallan: 'salePiedATerre', name: 'salePiedATerre', src: 'raw' },
+  { mallan: 'saleSubletting', name: 'saleSubletting', src: 'raw' },
+  { mallan: 'saleTenantConfig', name: 'saleTenantConfig', src: 'raw' },
+  { mallan: 'saleUnitType2', name: 'saleUnitType2', src: 'raw' },
 ];
 
 // 2026-05-29 hotfix: auto-set a Yes/No radio to "Yes" when the agent selects a
@@ -9904,6 +10074,10 @@ function _populateSaleFormFromApi(listing) {
       'Draft';
     setVal('saleStatus', restoredWorkflowStatus);
     MallanAPI.renderListingStatus('saleStatus', listing);
+    // reveal the status-fact controls for the status this listing actually carries
+    if (typeof updateSaleStatusFields === 'function') updateSaleStatusFields();
+    // Days on Market / Cumulative DOM come from the SERVER market clock in the GET body
+    if (typeof applySaleServerDom === 'function') applySaleServerDom(listing);
     // CoBrokeAgreement
     if (raw.CoBrokeAgreement) setVal('saleCoBrokeAgreementType', raw.CoBrokeAgreement);
 
@@ -9919,26 +10093,26 @@ function _populateSaleFormFromApi(listing) {
         } else if (f.src === 'agentInfo' && f.agentKey) {
             // Phase C: prefer the promoted TYPED column (source of truth post-Phase-C),
             // then agent_info JSON, then raw_data. ListOfficeKey has no typed column.
-            val = (f.typedKey ? listing[f.typedKey] : null) || agentInfo[f.agentKey] || raw[f.rls];
+            val = (f.typedKey ? listing[f.typedKey] : null) || agentInfo[f.agentKey] || raw[saleBindKey(f)];
         } else if (f.src === 'addr') {
-            val = addr[f.rls] || raw[f.rls];
+            val = addr[saleBindKey(f)] || raw[saleBindKey(f)];
         } else if (f.src === 'features') {
             // Hydrate from the `features` JSON FIRST — the canonical bucket the public
             // DTO (lib/idx/db-to-public-dto.ts) and the Trestle mapper both write, e.g. a
             // Cotality-synced `features.TaxAnnualAmount`. Fall back to `raw_data` for legacy
             // rows that only persisted the value under raw_data. Unit-specific; this branch
             // never reads building-level fields. (Tax features-first, 2026-06-23.)
-            val = (features[f.rls] !== undefined && features[f.rls] !== null && features[f.rls] !== '')
-                ? features[f.rls]
-                : raw[f.rls];
+            val = (features[saleBindKey(f)] !== undefined && features[saleBindKey(f)] !== null && features[saleBindKey(f)] !== '')
+                ? features[saleBindKey(f)]
+                : raw[saleBindKey(f)];
         } else {
             // the Mallan form key first when the entry names one (rawKey), then the canonical name
             val = f.rawKey ? raw[f.rawKey] : undefined;
-            if (val === undefined || val === null || val === '') val = raw[f.rls];
+            if (val === undefined || val === null || val === '') val = raw[saleBindKey(f)];
         }
-        // Fall back to fallbackRls if primary key is missing
-        if ((val === undefined || val === null || val === '') && f.fallbackRls) {
-            val = raw[f.fallbackRls];
+        // Fall back to legacyFallback if primary key is missing
+        if ((val === undefined || val === null || val === '') && f.legacyFallback) {
+            val = raw[f.legacyFallback];
         }
         if (val === undefined || val === null) return;
 
@@ -9989,7 +10163,7 @@ function _populateSaleFormFromApi(listing) {
         // check so booleans survive, and apply valueMap from String(val) too
         // so {true:'Yes',false:'No'} maps both literal booleans and string
         // 'true'/'false' (Trestle sync can write either shape).
-        var val = raw[r.rawKey || r.rls];
+        var val = raw[r.rawKey || saleBindKey(r)];
         if ((val === undefined || val === null) && r.fallback) {
             val = raw[r.fallback];
         }
@@ -10006,10 +10180,10 @@ function _populateSaleFormFromApi(listing) {
 
     // ── Checkbox arrays ──
     SALE_CHECKBOX_ARRAY_MAP.forEach(function(ca) {
-        var vals = raw[ca.rls];
-        if (!Array.isArray(vals) && ca.fallbackRls) vals = raw[ca.fallbackRls]; // legacy phantom-key reload (Cotality-clean 2026-05-30)
+        var vals = raw[saleBindKey(ca)];
+        if (!Array.isArray(vals) && ca.legacyFallback) vals = raw[ca.legacyFallback]; // legacy phantom-key reload (Cotality-clean 2026-05-30)
         if (!Array.isArray(vals)) return;
-        if (ca.rls === 'PetsAllowed') vals = vals.map(function(v) { return LEGACY_UNIT_PET_VALUES[v] || v; }); // rows saved before the live-member values
+        if (saleBindKey(ca) === 'PetsAllowed') vals = vals.map(function(v) { return LEGACY_UNIT_PET_VALUES[v] || v; }); // rows saved before the live-member values
         document.querySelectorAll('input[name="' + ca.name + '"]').forEach(function(cb) {
             cb.checked = vals.includes(cb.value);
         });
@@ -11219,6 +11393,123 @@ function computeSaleBathroomsTotal() {
     var half = parseInt(document.getElementById('saleHalfBaths').value) || 0;
     document.getElementById('saleBathroomsTotal').value = full + half;
 }
+</script>
+
+<!-- ══ STATUS VOCABULARY — built from the ONE server mapping ═════════════════════════
+     GET /api/crm/status-options?type=sale projects lib/crm/status-mapping.ts (ONE mapping per
+     transaction). Manage Listings, the dashboard panels and the sales / rentals CRM panels already build
+     their status UIs from it; this page now does too, so the vocabulary lives in ONE place instead of five.
+     The markup above is the OFFLINE FALLBACK only - a required select is never emptied.
+       Ratchet:     tests/runtime/four-listing-forms-status-select-equivalence.test.ts
+       Write proof: tests/runtime/listing-forms-status-write-roundtrip.test.ts
+     ════════════════════════════════════════════════════════════════════════ -->
+<script>
+(function () {
+    var FORM_KEY = 'saleStatus';
+    var TRANSACTION = 'sale';
+
+    // Presentation only. Walking the SERVER's order and opening a group when its first word arrives means a
+    // word the server adds later is never dropped - it lands in the group already open. The vocabulary is
+    // the server's; only these headings are the page's.
+    var GROUPS = [
+        { at: 'OfferOut', header: '── Offer ──' },
+        { at: 'ContractOut', header: '── Contract ──' },
+        { at: 'Sold', header: '── Closed ──' },
+        { at: 'TempOffMarket', header: '── Off Market ──' }
+    ];
+    var SAVED_HEADER = '── Saved Listing State ──';
+    // Values this page refuses to render whatever the payload says.
+    var DENY = [];
+
+    window.__mallanStatusOptions = { settled: false, source: null, error: null };
+    function done(source, error) {
+        window.__mallanStatusOptions = { settled: true, source: source, error: error || null };
+        try { window.dispatchEvent(new CustomEvent('mallan:status-options', { detail: { source: source } })); } catch (e) { /* ok */ }
+    }
+    function denied(v) { return DENY.indexOf(v) !== -1; }
+
+    function apply(payload) {
+        var select = document.getElementById(FORM_KEY);
+        if (!select) return done('no-select');
+        // Fail closed on a payload that is not a mapping: keep the markup rather than empty a required select.
+        if (!payload || !Array.isArray(payload.workflow) || !Array.isArray(payload.canonical) || payload.workflow.length === 0) {
+            return done('fallback', 'malformed payload');
+        }
+        var previous = select.value;
+        var words = {};
+        payload.workflow.forEach(function (w) { if (w && w.word) words[w.word] = w.label || w.word; });
+
+        var frag = document.createDocumentFragment();
+        function separator(text) {
+            var o = document.createElement('option');
+            o.disabled = true;
+            o.textContent = text;
+            frag.appendChild(o);
+        }
+        function option(value, label, hidden) {
+            var o = document.createElement('option');
+            o.value = value;
+            o.textContent = label;
+            if (hidden) o.setAttribute('hidden', 'hidden');
+            frag.appendChild(o);
+        }
+
+        var pending = GROUPS.slice();
+        payload.workflow.forEach(function (w) {
+            if (!w || !w.word || denied(w.word) || denied(w.label)) return;
+            while (pending.length && pending[0].at === w.word) separator(pending.shift().header);
+            option(w.word, w.label || w.word, false);
+        });
+
+        // The canonical (stored) tokens no workflow word already covers. A token whose transaction label
+        // duplicates a workflow word's label (a sale's Closed reads "Sold", Canceled reads "Canceled") is
+        // rendered HIDDEN: the select must be able to HOLD it when a saved row carries the bare token, but
+        // it is never a choice the agent makes instead of the workflow word.
+        var extras = payload.canonical.filter(function (c) {
+            return c && c.token && !words[c.token] && !denied(c.token) && !denied(c.label);
+        });
+        if (extras.length) {
+            separator(SAVED_HEADER);
+            extras.forEach(function (c) {
+                var label = c.label || c.token;
+                var duplicate = Object.keys(words).some(function (k) { return words[k] === label; });
+                option(c.token, label, duplicate);
+            });
+        }
+
+        select.innerHTML = '';
+        select.appendChild(frag);
+
+        // Read-compatibility: whatever the select already held survives the rebuild, including a legacy
+        // value the server no longer lists. The rebuild never silently changes the agent's (or the loaded
+        // listing's) selection.
+        if (previous) {
+            select.value = previous;
+            if (select.value !== previous && !denied(previous)) {
+                var keep = document.createElement('option');
+                keep.value = previous;
+                keep.textContent = previous;
+                keep.setAttribute('hidden', 'hidden');
+                select.appendChild(keep);
+                select.value = previous;
+            }
+        }
+        if (!select.value && select.options.length) select.selectedIndex = 0;
+        done('server');
+    }
+
+    function boot() {
+        if (typeof MallanAPI === 'undefined' || typeof MallanAPI._fetch !== 'function') return done('fallback', 'no api client');
+        MallanAPI._fetch('/api/crm/status-options?type=' + TRANSACTION)
+            .then(apply)
+            .catch(function (err) {
+                if (typeof console !== 'undefined') console.warn('[StatusOptions] keeping the page fallback list:', err && err.message);
+                done('fallback', (err && err.message) || 'fetch failed');
+            });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+    else boot();
+})();
 </script>
 
 </body>

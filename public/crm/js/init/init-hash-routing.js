@@ -356,6 +356,11 @@
                     if (typeof searchResultsState !== 'undefined' && searchResultsState.filteredListings && searchResultsState.filteredListings.length > 0) {
                         if (typeof initializeSearchResults === 'function') initializeSearchResults();
                         if (typeof updateResultsCount === 'function') updateResultsCount();
+                        // Parity with the two sibling restore paths (:346 and :391). Without this a refresh at
+                        // #results that has to WAIT for listing data lands with no sticky-nav highlight and no
+                        // count — the two paths that already have cached data highlight correctly, so the nav
+                        // silently disagreed with itself depending on cache state.
+                        if (typeof updateStickyNavActive === 'function') updateStickyNavActive();
                     } else {
                         // No saved search state — go back to search form
                         // (don't dump all 500 unfiltered listings)

@@ -205,7 +205,7 @@
             tokens.forEach(function(tok) {
                 var want = String(tok).replace(/"/g, '\\"');
                 var cb = null;
-                for (var i = 0; i < selectors.length && !cb; i++) cb = scope.querySelector(selectors[i] + '[data-value="' + want + '"]:not([data-sub-status])');
+                for (var i = 0; i < selectors.length && !cb; i++) cb = scope.querySelector(selectors[i] + '[data-value="' + want + '"]:not([data-refine])');
                 if (!cb) { issues.push(label + ' = ' + tok + ': no control for this value'); return; }
                 if (cb.disabled) { issues.push(label + ' = ' + tok + ': control is disabled'); return; }
                 cb.checked = true;
@@ -216,6 +216,9 @@
             var issues = [];
             if (!p) return ['no parameters'];
             var tab = p.type === 'rental' ? 'rent' : 'sale';
+            // A saved search is a GENERAL search. Without this it was restored into a form the Comparables
+            // tab was covering, and then run.
+            if (typeof toggleSearchType === 'function') toggleSearchType('general');
             if (typeof toggleSearchTab === 'function') toggleSearchTab(tab); else currentSearchTab = tab;
             var prefix = tab === 'rent' ? 'rental' : 'sale';
             _setSelectValue(prefix === 'rental' ? 'rentalMinRent' : 'saleMinPrice', p.minPrice);
@@ -239,9 +242,21 @@
                     });
                 }
             }
-            var statusScope = document.getElementById(prefix + 'StatusOptions') || document.getElementById('searchBasicMode');
-            _checkTokens(statusScope, ['[data-field="MlsStatus"]'], _splitCsv(p.status), 'status', issues);
-            var basicForm = document.getElementById('searchBasicMode');
+            // The status panel of THIS transaction, in whichever mode is showing (all four render from the
+            // executor contract's statusChoices — owner ruling 2026-09-08/09). Tokens are exact StandardStatus.
+            var advOpen = document.getElementById('searchAdvancedMode');
+            var mode = (advOpen && advOpen.style.display !== 'none') ? 'advanced' : 'basic';
+            var statusScope = document.querySelector('[data-status-mount="' + mode + '-' + (prefix === 'rental' ? 'rental' : 'sale') + '"]')
+                || document.querySelector('[data-status-mount="basic-' + (prefix === 'rental' ? 'rental' : 'sale') + '"]');
+            _checkTokens(statusScope, ['[data-field="StandardStatus"]'], _splitCsv(p.status), 'status', issues);
+            if (String(p.backOnMarket) === '1' || p.backOnMarket === true) {
+                var bom = statusScope && statusScope.querySelector('[data-refine="backOnMarket"]');
+                if (bom) bom.checked = true; else issues.push('backOnMarket: no control');
+            }
+            // The basic panel of THIS transaction — each tab owns its own panel, so a rental search must
+            // restore its ownership tokens into the RENTAL panel, not the sale one.
+            var basicForm = document.getElementById(
+                typeof _basicPanelIdFor === 'function' ? _basicPanelIdFor(tab) : 'searchBasicMode');
             var typeTokens = _splitCsv(p.ownership).concat(_splitCsv(p.StructureType));
             _checkTokens(basicForm, ['[data-field="CommonInterest"]', '[data-criterion="StructureType"]', '[data-field="StructureType"]'], typeTokens, 'ownership / building type', issues);
             if (p.sort) {
@@ -348,3 +363,7 @@
         function reviseSearch() {
             backToSearch();
         }
+        // Exposed so the restore path can be exercised directly (and asserted on) without a network round
+        // trip through MallanAPI.savedSearches.
+        window._paramsToFormFields = _paramsToFormFields;
+        window._restoreParity = _restoreParity;

@@ -56,7 +56,7 @@ describe('SpecialListingConditions keeps its live Multi-Enum cardinality', () =>
   });
 
   it('reload: SALE_FIELD_MAP marks the field multi and populate restores every stored member', () => {
-    expect(form).toMatch(/\{ rls: 'SpecialListingConditions', form: 'saleSpecialListingConditions', type: 'multi', src: 'raw' \}/);
+    expect(form).toMatch(/\{ cotality: 'SpecialListingConditions', form: 'saleSpecialListingConditions', type: 'multi', src: 'raw' \}/);
     expect(form).toMatch(/f\.type === 'multi'/);
     expect(form).toMatch(/Array\.isArray\(val\) \? val\.map\(String\) : String\(val\)\.split\(','\)/);
     expect(form).toMatch(/o\.selected = _members\.indexOf\(o\.value\) !== -1/);

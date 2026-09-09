@@ -15,6 +15,7 @@ import { typedAgentColumnsFromJson } from "@/lib/listings/agent-info-typed-colum
 import { AGENT_TYPED_SELECT } from "@/lib/listings/agent-info-resolver";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
 import { lifecycleFromStoredRow } from "@/lib/listings/canonical-lifecycle";
+import { statusPresentation, STATUS_FACT_FIELDS } from "@/lib/crm/status-mapping";
 import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { buildPublishContract } from "@/lib/crm/listing-publish-contract";
 import { applyServerFormMapping } from "@/lib/crm/listing-form-mapping";
@@ -85,6 +86,11 @@ export async function GET(req: NextRequest) {
         neighborhood: true,
         address: true,
         features: true,
+        // Status-projection input ONLY (owner ruling 2026-09-08): the agent's saved workflow word
+        // (`_crmWorkflowStatus`) and the Cotality date / price facts the status carries. It is destructured out
+        // of the response below, so the wire contract gains `status_presentation` + `status_facts` and NOT the
+        // raw provider blob.
+        raw_data: true,
         // Legacy `Listing.media` JSON — the composer's fallback input only.
         // Never serialized raw (see the media composition below).
         media: true,
@@ -163,7 +169,7 @@ export async function GET(req: NextRequest) {
   // `listing_media` and `_count` are query inputs, not response fields — they
   // are destructured out so the response contract stays exactly as it was.
   const serialized = listings.map((l) => {
-    const { listing_media, _count, ...rest } = l;
+    const { listing_media, _count, raw_data: _rawData, ...rest } = l;
     const { media } = composeDbPublicMedia({
       listingId: l.listing_id,
       rlsEligible: l.rls_eligible,
@@ -176,8 +182,34 @@ export async function GET(req: NextRequest) {
     // The broker-facing lifecycle state (lib/listings/canonical-lifecycle.ts): `status` stays the last verified
     // provider status; a row recorded off the current feed reads "Off Market" here (Maya 2026-09-08).
     const lifecycle = lifecycleFromStoredRow({ status: l.status, listing_type: l.listing_type, sync_status: l.sync_status, terminal_since: l.terminal_since });
+    // The ONE status projection every CRM reader renders (owner ruling, Maya 2026-09-08): the live Cotality
+    // StandardStatus token the row stores (legacy Mallan spellings resolved), its label IN THIS TRANSACTION
+    // (a sale's Closed reads "Sold", a rental's Closed reads "Rented", a sale's Pending reads "In Contract"),
+    // and the agent's workflow word when it agrees. Manage Listings and the dashboards RENDER `label`; they
+    // never re-derive it and never read a provider status field.
+    const presentation = statusPresentation({ status: l.status, listing_type: l.listing_type, raw_data: l.raw_data, sync_status: l.sync_status, terminal_since: l.terminal_since });
+    // The Cotality date / price facts the row's status carries, projected out of raw_data so a reader shows
+    // the fact itself (PurchaseContractDate / _mallanLeaseSignedDate / CloseDate) and never a local timestamp.
+    const rawData = l.raw_data && typeof l.raw_data === "object" && !Array.isArray(l.raw_data)
+      ? (l.raw_data as Record<string, unknown>)
+      : {};
+    const statusFacts: Record<string, unknown> = {};
+    for (const field of STATUS_FACT_FIELDS) {
+      const v = rawData[field];
+      if (v !== undefined && v !== null && v !== "") statusFacts[field] = v;
+    }
     return {
       ...rest,
+      status_presentation: {
+        token: presentation.status,
+        label: presentation.label,
+        transaction: presentation.transaction,
+        workflow: presentation.workflow,
+        workflowLabel: presentation.workflowLabel,
+        providerStatus: presentation.providerStatus,
+        offMarket: presentation.offMarket,
+      },
+      status_facts: statusFacts,
       id: l.id.toString(),
       agent_id: l.agent_id?.toString() ?? null,
       assigned_agent_id: l.agent_id?.toString() ?? null,

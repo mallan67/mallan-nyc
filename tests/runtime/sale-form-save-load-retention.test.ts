@@ -163,11 +163,11 @@ describe('Sale form save/load retention — PR-D checkbox-array collector', () =
 
   it('SALE_CHECKBOX_ARRAY_MAP populate-side mapping still reads `Heating` and `Cooling` as arrays (round-trip parity)', () => {
     // Populate-side restore was already correct (SALE_CHECKBOX_ARRAY_MAP at
-    // line ~8487 maps { rls: 'Heating', name: 'saleHeating' }). This test
+    // line ~8487 maps { cotality: 'Heating', name: 'saleHeating' }). This test
     // pins the restore side so a refactor cannot break round-trip parity
     // even after the collect side now actually emits the array.
-    expect(formHtml).toMatch(/\{\s*rls:\s*['"]Heating['"]\s*,\s*name:\s*['"]saleHeating['"]\s*\}/);
-    expect(formHtml).toMatch(/\{\s*rls:\s*['"]Cooling['"]\s*,\s*name:\s*['"]saleCooling['"]\s*\}/);
+    expect(formHtml).toMatch(/\{\s*cotality:\s*['"]Heating['"]\s*,\s*name:\s*['"]saleHeating['"]\s*\}/);
+    expect(formHtml).toMatch(/\{\s*cotality:\s*['"]Cooling['"]\s*,\s*name:\s*['"]saleCooling['"]\s*\}/);
   });
 });
 
@@ -239,7 +239,11 @@ describe('Sale form save/load retention — collect/populate shape parity (cross
   it('every checkbox-array group collect emits has a populate-side restorer in SALE_CHECKBOX_ARRAY_MAP', () => {
     // Heating/Cooling/saleCommSubtype groups newly added by PR-D must have
     // their corresponding SALE_CHECKBOX_ARRAY_MAP entries.
-    const arrayGroups = ['PetsAllowed', 'BuildingPetsAllowed', 'AttendanceType', 'BuildingLaundryFeatures', 'Heating', 'Cooling', 'saleCommSubtype'];
+    // PetsAllowed / Heating / Cooling are EXACT live Cotality Property fields and keep their provider
+    // names. The three building-profile groups have no live counterpart, so they are emitted under
+    // their _mallan* keys (Maya ruling 2026-09-09); SALE_CHECKBOX_ARRAY_MAP restores them from that
+    // key with the pre-migration name as a READ-ONLY legacyFallback.
+    const arrayGroups = ['PetsAllowed', '_mallanBuildingPetsAllowed', '_mallanAttendanceType', '_mallanBuildingLaundryFeatures', 'Heating', 'Cooling', 'saleCommSubtype'];
     for (const group of arrayGroups) {
       const collectEmits = new RegExp(`data\\.${group}\\s*=\\s*\\[\\]`).test(collectBody);
       expect({ group, emittedByCollect: collectEmits }).toEqual({ group, emittedByCollect: true });
@@ -282,13 +286,13 @@ describe('Sale form save/load retention — collect/populate shape parity (cross
   it('F1: collect emits canonical ActivationDate (not phantom FirstShowingDate); restore has legacy fallback', () => {
     expect(fullCollect).toMatch(/data\.ActivationDate\s*=/);
     expect(fullCollect).not.toMatch(/data\.FirstShowingDate\s*=/);
-    expect(formHtml).toMatch(/rls:\s*'ActivationDate',\s*form:\s*'saleFirstShowingDate'[^}]*fallbackRls:\s*'FirstShowingDate'/);
+    expect(formHtml).toMatch(/cotality:\s*'ActivationDate',\s*form:\s*'saleFirstShowingDate'[^}]*legacyFallback:\s*'FirstShowingDate'/);
   });
 
   it('F2: collect emits canonical TaxLot (not BuildingTaxLot); restore has legacy fallback', () => {
     expect(fullCollect).toMatch(/data\.TaxLot\s*=/);
     expect(fullCollect).not.toMatch(/data\.BuildingTaxLot\s*=/);
-    expect(formHtml).toMatch(/rls:\s*'TaxLot',\s*form:\s*'saleBldgTaxLot'[^}]*fallbackRls:\s*'BuildingTaxLot'/);
+    expect(formHtml).toMatch(/cotality:\s*'TaxLot',\s*form:\s*'saleBldgTaxLot'[^}]*legacyFallback:\s*'BuildingTaxLot'/);
   });
 
   it('F3 (revised by Cotality-clean sweep): collect does NOT write a date into the Cotality enum Possession; legacy reload retained', () => {
@@ -297,7 +301,7 @@ describe('Sale form save/load retention — collect/populate shape parity (cross
     // legacy Possession/PossessionDate rows still reload via the SALE_FIELD_MAP fallback.
     expect(fullCollect).not.toMatch(/data\.Possession\s*=/);
     expect(fullCollect).not.toMatch(/data\.PossessionDate\s*=/);
-    expect(formHtml).toMatch(/rls:\s*'Possession',\s*form:\s*'saleAvailableOccupancy'[^}]*fallbackRls:\s*'PossessionDate'/);
+    expect(formHtml).toMatch(/cotality:\s*'Possession',\s*form:\s*'saleAvailableOccupancy'[^}]*legacyFallback:\s*'PossessionDate'/);
   });
 });
 
@@ -598,7 +602,7 @@ describe('Sale form save/update hotfix — wiring guards (static)', () => {
   it('no regression: Heating/Cooling array collect + SALE_CHECKBOX_ARRAY_MAP restore intact', () => {
     expect(formHtml).toMatch(/data\.Heating\s*=\s*\[\]/);
     expect(formHtml).toMatch(/data\.Cooling\s*=\s*\[\]/);
-    expect(formHtml).toMatch(/\{\s*rls:\s*['"]Heating['"]\s*,\s*name:\s*['"]saleHeating['"]\s*\}/);
-    expect(formHtml).toMatch(/\{\s*rls:\s*['"]Cooling['"]\s*,\s*name:\s*['"]saleCooling['"]\s*\}/);
+    expect(formHtml).toMatch(/\{\s*cotality:\s*['"]Heating['"]\s*,\s*name:\s*['"]saleHeating['"]\s*\}/);
+    expect(formHtml).toMatch(/\{\s*cotality:\s*['"]Cooling['"]\s*,\s*name:\s*['"]saleCooling['"]\s*\}/);
   });
 });

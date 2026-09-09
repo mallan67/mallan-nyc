@@ -37,6 +37,37 @@ export const MALLAN_INTERNAL_KEYS: readonly string[] = [
   // the agent's IDX-display control → the idx_display_yn column (there is NO provider field for it:
   // IDXEntireListingDisplayYN was never on the live resource — verified 400 "Could not find a property")
   '_mallanIdxDisplay',
+  // buyer-broker participation on a closing. UCBA still requires the FACT (CLOSED-001); the RLS-era
+  // name `BuyerAgentRLSParticipantYN` is not a live Cotality field (proven absent 2026-09-09), so the
+  // fact moves to a neutral Mallan key. The legacy name stays declared below for backward-compatible
+  // reload of rows written before the rename. (Maya ruling 2026-09-09.)
+  '_mallanBuyerBrokerParticipantYN',
+  // ── Sale-form Mallan facts under their OWN keys (Maya ruling 2026-09-09) ──────────────────────
+  // These facts have NO live Cotality counterpart (proven against the 2026-09-09 contract pull). They
+  // used to be emitted under provider-SHAPED names, which made a Mallan write look like a provider
+  // write and forced every reader to know a private exception. Each now carries a `_mallan*` key.
+  // The pre-migration names remain declared below as READ-ONLY legacy reload targets.
+  '_mallanPetsAllowedComments',
+  '_mallanBuildingPetsAllowedComments',
+  '_mallanBuildingPetsAllowed',
+  '_mallanBuildingLaundryFeatures',
+  '_mallanElevatorsTotal',
+  '_mallanNewDevelopmentYN',
+  '_mallanAttendanceType',
+  '_mallanBathroomsTotal',
+  '_mallanCoBrokeAgreement',
+  '_mallanFlipTax',
+  '_mallanFlipTaxType',
+  '_mallanFlipTaxRemarks',
+  '_mallanMaximumFinancingPercent',
+  '_mallanMaximumFinancingRemarks',
+  '_mallanNumberOfShares',
+  '_mallanPercentOfCommonElements',
+  '_mallanSponsorUnitYN',
+  '_mallanTaxAbatementYN',
+  '_mallanTaxAbatementComments',
+  '_mallanTaxAbatementExpirationYear',
+  '_mallanTaxMonthlyAmount',
   // REBNY submission-form / Mallan facts kept under their submission names (not on the live Property resource)
   'RLSListingID', 'CoBrokeAgreement', 'BathroomsTotal', 'AttendanceType', 'BuildingLaundryFeatures',
   'BuildingPetsAllowed', 'BuildingPetsAllowedComments', 'PetsAllowedComments', 'BuildingTaxLot',

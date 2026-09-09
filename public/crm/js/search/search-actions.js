@@ -2,44 +2,11 @@
         // CLIENT DELIVERY SYSTEM - Search Results Functions
         // ═══════════════════════════════════════════════════════════════════════════════
 
-        // Toggle results view (grid/list/map)
-        // Legacy view toggle - kept for backwards compatibility, superseded by setViewMode()
-        // DEPRECATED: Superseded by setViewMode() in render-dispatcher.js. Kept for onclick compatibility.
-        function toggleResultsView(view) {
-            var grid = document.getElementById('resultsGrid');
-            var viewGrid = document.getElementById('viewGrid');
-            var viewList = document.getElementById('viewList');
-            var viewMap = document.getElementById('viewMap');
-
-            if (!grid || !viewGrid || !viewList || !viewMap) return;
-
-            // Reset button styles
-            [viewGrid, viewList, viewMap].forEach(btn => {
-                if (btn) {
-                    btn.classList.remove('bg-gray-900', 'text-white');
-                    btn.classList.add('bg-white', 'text-gray-600');
-                }
-            });
-
-            // Apply active style
-            var activeBtn = document.getElementById('view' + view.charAt(0).toUpperCase() + view.slice(1));
-            if (activeBtn) {
-                activeBtn.classList.remove('bg-white', 'text-gray-600');
-                activeBtn.classList.add('bg-gray-900', 'text-white');
-            }
-
-            // Change grid layout
-            if (view === 'grid') {
-                grid.classList.remove('grid-cols-1', 'grid-cols-2');
-                grid.classList.add('grid-cols-3');
-            } else if (view === 'list') {
-                grid.classList.remove('grid-cols-2', 'grid-cols-3');
-                grid.classList.add('grid-cols-1');
-            } else if (view === 'map') {
-                grid.classList.remove('grid-cols-1', 'grid-cols-3');
-                grid.classList.add('grid-cols-2');
-            }
-        }
+        // toggleResultsView(grid|list|map) was DELETED 2026-09-09. It targeted #viewGrid / #viewList /
+        // #viewMap and #resultsGrid — none of which exists on this page — so it could only ever no-op, and
+        // its three view WORDS are not view modes: setViewMode (render-dispatcher.js) owns the five real
+        // ones (grid | gallery | shortSummary | summary | masterDetail). A stale 'list' or 'map' left in
+        // localStorage by the old function used to hide every container and render a blank results page.
 
         // Client delivery — route through Reports modal
         function toggleClientDeliveryMenu() {
@@ -56,8 +23,16 @@
         }
 
         function closeDeliveryModal() {
+            // MUST hide by the same mechanism openReportsModal() reverses. This used to set an inline
+            // style.display='none' on #reportsModal while the modal is toggled by the `hidden` CLASS
+            // (reports.js openReportsModal/closeReportsModal). The Escape handler below calls this on every
+            // press, and an inline style beats a class — so a single Escape press permanently killed the
+            // reports modal for the rest of the session: `classList.remove('hidden')` ran, and nothing
+            // rendered. Any leftover inline value from an older session is cleared too.
             var modal = document.getElementById('reportsModal');
-            if (modal) modal.style.display = 'none';
+            if (!modal) return;
+            if (modal.style.display) modal.style.display = '';
+            modal.classList.add('hidden');
         }
 
         // Select all results
@@ -129,6 +104,13 @@
                 var parsed = JSON.parse(data);
                 // Show search section if on a different tab
                 showSearchSection('main');
+                // ── Restore the TRANSACTION and the SEARCH TYPE before anything renders ──────────────
+                // A recalled rental search used to be labelled "Sales · Basic" and refined as a sale,
+                // because currentSearchTab was never set from the stored criteria; and if the Comparables
+                // tab was showing, the recalled results appeared over the comparables form.
+                var _tab = (parsed.criteria && parsed.criteria.searchTab) || 'sale';
+                if (typeof toggleSearchType === 'function') toggleSearchType('general');
+                if (typeof toggleSearchTab === 'function') toggleSearchTab(_tab);
                 // Hide form, show results
                 var searchFormContainer = document.getElementById('searchFormContainer');
                 if (searchFormContainer) searchFormContainer.style.display = 'none';

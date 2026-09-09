@@ -129,17 +129,39 @@ describe('Mallan form facts → the live members among them (server-derived prov
     expect(rent.body.BuildingFeatures).toEqual(['FitnessCenter']);
   });
 
-  it('FARE fee lists: the free text is a Mallan fact; the live multi-select receives only live members', () => {
-    const typed = applyServerFormMapping({ MoveInCostsDescription: 'Application Fee, Move-In Fee, Credit Check', OngoingFeesDescription: 'Storage, Parking', TenantPaysList: 'Electric, Gas' }, 'rent');
+  // The FARE Act fee facts travel under the CURRENT Mallan keys the rental form emits
+  // (`_mallanMoveInCostsDescription` / `_mallanOngoingFeesDescription` / `_mallanTenantPaysList`) AND
+  // under the pre-rename provider-shaped names, which the form contract still declares, still routes
+  // through persistenceMap and the public DTO still reads back. Both must derive the live multi-select
+  // or a re-saved legacy rental silently loses its fee members.
+  const FARE_KEYS = [
+    ['current Mallan keys', { moveIn: '_mallanMoveInCostsDescription', ongoing: '_mallanOngoingFeesDescription', tenant: '_mallanTenantPaysList' }],
+    ['pre-rename legacy keys', { moveIn: 'MoveInCostsDescription', ongoing: 'OngoingFeesDescription', tenant: 'TenantPaysList' }],
+  ] as const;
+
+  it.each(FARE_KEYS)('FARE fee lists (%s): the free text is a Mallan fact; the live multi-select receives only live members', (_label, k) => {
+    const typed = applyServerFormMapping({ [k.moveIn]: 'Application Fee, Move-In Fee, Credit Check', [k.ongoing]: 'Storage, Parking', [k.tenant]: 'Electric, Gas' }, 'rent');
     expect(typed.errors).toEqual([]);
     expect(typed.body.MoveInCosts).toEqual([]);
     expect(typed.body.OngoingFees).toEqual([]);
     expect(typed.body.TenantPays).toEqual(['Gas']);
-    expect(typed.body.MoveInCostsDescription).toBe('Application Fee, Move-In Fee, Credit Check');
-    const members = applyServerFormMapping({ MoveInCostsDescription: 'ApplicationFee, CreditCheck', OngoingFeesDescription: 'ParkingFee', TenantPaysList: 'Electricity, Gas' }, 'rent');
+    // the agent's free text is kept verbatim under the key it arrived on — never rewritten, never dropped
+    expect(typed.body[k.moveIn]).toBe('Application Fee, Move-In Fee, Credit Check');
+    expect(typed.body[k.ongoing]).toBe('Storage, Parking');
+    expect(typed.body[k.tenant]).toBe('Electric, Gas');
+    const members = applyServerFormMapping({ [k.moveIn]: 'ApplicationFee, CreditCheck', [k.ongoing]: 'ParkingFee', [k.tenant]: 'Electricity, Gas' }, 'rent');
     expect(members.body.MoveInCosts).toEqual(['ApplicationFee', 'CreditCheck']);
     expect(members.body.OngoingFees).toEqual(['ParkingFee']);
     expect(members.body.TenantPays).toEqual(['Electricity', 'Gas']);
+  });
+
+  it('FARE fee lists: a body carrying both the current and the legacy key unions the live members it names', () => {
+    const r = applyServerFormMapping({
+      _mallanTenantPaysList: 'Electricity',   // what the form emits today
+      TenantPaysList: 'Gas',                  // what a body rebuilt from a pre-rename stored row carries
+    }, 'rent');
+    expect(r.errors).toEqual([]);
+    expect((r.body.TenantPays as string[]).slice().sort()).toEqual(['Electricity', 'Gas']);
   });
 
   it('when a Mallan fact key is present the client-supplied provider value is not consulted', () => {

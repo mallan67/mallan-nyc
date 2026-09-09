@@ -105,9 +105,15 @@ describe('9: nullable numerics never become fabricated zero', () => {
 });
 
 describe('10–12: no invented status, borough or property type', () => {
-  test('10. missing status → UNKNOWN, never Active', () => {
+  test('10. missing status → null, never Active and never an invented UNKNOWN sentinel', () => {
     const l = mapTrestleToCrmListing({ ListingKey: 'k', PropertyType: 'Residential' }, 0);
-    expect(l.status).toBe('UNKNOWN');
+    // A status is a Cotality fact. Absent means absent: `status` is an exact live StandardStatus member or
+    // null. The retired 'UNKNOWN' was a Mallan word in no contract that every renderer had to special-case.
+    expect(l.status).toBeNull();
+    expect(l.status).not.toBe('UNKNOWN');
+    expect(l.status).not.toBe('Active');
+    // Never advertised as live inventory — the fail-closed presentation, shared with the server projection.
+    expect(l.status_label).toBe('Status unavailable');
     expect(l.mlsStatus).toBe('');
   });
   test('11. missing borough → null, never Manhattan; CountyOrParish is not a borough', () => {

@@ -171,14 +171,14 @@
             return url ? url.replace('w=800', 'w=400') : '';
         }
 
+        // Badge classes for a listing status. THE decision lives in ONE place —
+        // public/crm/js/core/status-presentation.js — and this is a thin alias kept for the call sites that
+        // already use the name. It accepts a listing OR a bare status string.
+        //
+        // It used to be a five-case switch over the retired uppercase presentation words, so a real status
+        // the feed delivers — Canceled, Expired, Hold, ActiveUnderContract, Incomplete, Delete — fell to the
+        // grey "unknown" default and rendered identically to a row with no status at all.
         function getStatusBadgeClasses(status) {
-            switch(status) {
-                case 'ACTIVE': return 'bg-green-100 text-green-700';
-                case 'PENDING': return 'bg-orange-100 text-orange-700';
-                case 'CLOSED': return 'bg-gray-200 text-gray-600';
-                case 'COMING_SOON': case 'ComingSoon': return 'bg-purple-100 text-purple-700';
-                case 'WITHDRAWN': case 'Withdrawn': return 'bg-red-100 text-red-600';
-                default: return 'bg-gray-100 text-gray-600';
-            }
+            return MallanStatus.classes(status);
         }
 

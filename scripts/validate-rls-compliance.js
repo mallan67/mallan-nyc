@@ -177,6 +177,57 @@ function resolveElement(el) {
   return { unknown: true, identifier, layer: 4 };
 }
 
+
+// == WHAT A SUBMISSION FORM ACTUALLY COLLECTS ================================================================
+// This replaces a whole-file regex that decided whether a REBNY requirement was collectable. 20 rule-field
+// satisfactions across the two submission forms rested on that grep alone, and it was wrong five ways:
+//   * it searched the ENTIRE file - 94.5% of the rental form is not the collect function, so an assignment in a
+//     hydrate path, a modal handler or a dead script counted;
+//   * its "[ \t]*=" is satisfied by the first "=" of "===", so a COMPARISON counted as a write (2 live cases);
+//   * it ran over un-stripped source, so a comment or a string literal counted;
+//   * it was left-unanchored, so "metadata.LeaseType =" counted;
+//   * it never looked at the value, so "data.X = undefined" counted.
+// It also produced FALSE FAILURES, which did the real damage: the correct home for a REBNY fact that has NO live
+// Cotality field is the Mallan quarantine bucket data._unresolvedCotalityFacts.X, and the grep could not see it.
+// That drove five duplicate provider-SHAPED top-level keys into the rental form purely to feed the pattern - the
+// exact shape Maya's 2026-09-09 ruling removed.
+//
+// The set below is built from the collect function ONLY, comments stripped, "===" excluded, Mallan buckets
+// recognised. It is still STATIC, and this reporter stays dependency-light on purpose. The BEHAVIOURAL proof
+// that these keys actually reach the payload is tests/runtime/crm-form-dom-roundtrip.test.ts, which loads each
+// form in a real DOM and calls collectSaleFormData() / collectRentalFormData() for real. This static set is the
+// cheap mirror of that; if the two ever disagree, the executing test is the authority.
+const COLLECT_FN = { sale: 'collectSaleFormData', rental: 'collectRentalFormData' };
+
+function extractFunctionBody(src, name) {
+  const start = src.indexOf('function ' + name + '(');
+  if (start < 0) return null;
+  let depth = 0;
+  for (let i = src.indexOf('{', start); i < src.length; i++) {
+    if (src[i] === '{') depth++;
+    else if (src[i] === '}') { depth--; if (depth === 0) return src.slice(start, i + 1); }
+  }
+  return null;
+}
+
+function stripJsComments(src) {
+  return src.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+}
+
+/** Every key the form's collect function WRITES onto its payload, including the Mallan quarantine buckets. */
+function collectedKeys(raw, type) {
+  const fnName = COLLECT_FN[type];
+  const body = fnName ? extractFunctionBody(raw, fnName) : null;
+  if (!body) return null; // caller fails closed - never treated as "collects nothing"
+  const code = stripJsComments(body);
+  const keys = new Set();
+  for (const m of code.matchAll(/\bdata\.([A-Za-z_$][\w$]*)\s*=(?!=)/g)) keys.add(m[1]);
+  for (const m of code.matchAll(/\bdata\[\s*['"]([^'"]+)['"]\s*\]\s*=(?!=)/g)) keys.add(m[1]);
+  for (const m of code.matchAll(/\bdata\.(_[\w$]+)\.([A-Za-z_$][\w$]*)\s*=(?!=)/g)) keys.add(m[2]);
+  for (const m of code.matchAll(/\bdata\.(_[\w$]+)\[\s*['"]([^'"]+)['"]\s*\]\s*=(?!=)/g)) keys.add(m[2]);
+  return keys;
+}
+
 function passA_Discovery() {
   console.log('\n  PASS A: Discovery — classifying all form controls against the canonical universe...');
   const fileElements = {};
@@ -210,7 +261,11 @@ function passA_Discovery() {
       else if (result.unknown) { stats.unknown++; stats.unknownIds.push(identifier); classification.unknown++; }
     }
     classification.byFile[fname] = stats;
-    fileElements[fileKey] = { elements, dom, raw, fname, config };
+    const collected = config.category === 'submission' ? collectedKeys(raw, config.type) : null;
+    if (config.category === 'submission' && collected === null) {
+      error(2, `${fname}: could not locate ${COLLECT_FN[config.type]}() - collectability cannot be proved, failing closed`);
+    }
+    fileElements[fileKey] = { elements, dom, raw, fname, config, collected };
     log(`${fname}: ${elements.length} controls — ${stats.rlsBound} bound, ${stats.internal} Mallan-internal, ${stats.unknown} unknown`);
   }
   return fileElements;
@@ -334,7 +389,7 @@ function validateRequiredFields(fileElements) {
       if (systemGenerated.has(fieldName) || skip.has(fieldName)) continue;
       if (isMallanDecisionKey(fieldName) || SERVER_DERIVED.has(fieldName)) continue; // derived by the server from the Mallan form keys
       if (covered.has(fieldName)) continue;
-      const inJS = new RegExp('data[.]' + fieldName + '[ \\t]*=').test(raw); // the form emits it
+      const inJS = (collectedKeys(raw, config.type) || new Set()).has(fieldName); // the collect function emits it
       if (CLOSING_ONLY_FIELDS.has(fieldName)) { if (!inJS) warn(2, `${fname}: closing-only field "${fieldName}" not found (OK if only at closing)`); }
       else if (inJS) log(`${fname}: "${fieldName}" — no bound control but referenced in the form script`);
       else error(2, `${fname}: REBNY required field "${fieldName}" — no bound control and no script reference`);
@@ -479,7 +534,8 @@ function validateConditionalRules(fileElements) {
   }
   /** How a submission form can supply a field: bound control, form-contract alias, script reference, server derivation, or the status decision. */
   // a script reference counts only when the form actually EMITS the field (data.<Field> = …), never a mere mention
-  const collectableBy = (data, bound, f) => f.startsWith('_') || SERVER_DERIVED.has(f) || bound.has(f) || new RegExp('data[.]' + f + '[ \\t]*=').test(data.raw);
+  const collectableBy = (data, bound, f) =>
+    f.startsWith('_') || SERVER_DERIVED.has(f) || bound.has(f) || (data.collected ? data.collected.has(f) : false);
   for (const data of Object.values(fileElements)) {
     if (data.config.category !== 'submission') continue;
     const type = data.config.type;

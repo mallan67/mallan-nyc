@@ -1,0 +1,884 @@
+Yes. After going deeper, I think there **is** a substantially stronger solution than continuing to improve individual Search tests.
+
+The permanent answer is to build a **Mallan Continuous Contract & Closure System** around the application. It would not become another product authority; `MALLAN-PLATFORM-MASTER-PLAN.md` remains the business/system authority and live Cotality remains provider authority. The new layer only **proves that the implementation still agrees with both**.
+
+The important distinction is this:
+
+> We cannot truthfully guarantee that Cotality will never change or that no programmer will ever introduce a defect.
+>
+> We **can** guarantee that an unverified Cotality change, an unproven Search change, a stale Claude assumption, or a modified implementation cannot silently be called fixed and promoted through the normal release path.
+
+That is the standard I would build toward.
+
+## The architecture I would trust
+
+| Layer                              | Permanent responsibility                                                              | Failure behavior                        |
+| ---------------------------------- | ------------------------------------------------------------------------------------- | --------------------------------------- |
+| **1. Cotality Contract Watcher**   | Continuously discover what your authorized Cotality feed actually supports            | Missing/live-unavailable = `UNVERIFIED` |
+| **2. Verified Mallan Mapping**     | One canonical mapping from provider facts to Mallan criteria/business facts           | Unknown semantics cannot become active  |
+| **3. Mallan Closure Gate**         | Prove Search/data/business behavior on the exact commit/deployment                    | Anything incomplete = block             |
+| **4. Claude Execution Harness**    | Let Claude investigate, repair, test and continue until the deterministic gate passes | Claude cannot declare itself finished   |
+| **5. GitHub + Vercel Enforcement** | Prevent uncertified code from main/production                                         | No required status = no promotion       |
+
+This is necessary because Cotality's own release history proves provider evolution is routine. In 2026 alone it has added and removed fields, changed fields, introduced a resource, and repeatedly changed lookup vocabularies; the August 19 patch was already Content Patch #194. ([Trestle Documentation][1]) Cotality also explicitly tells large integrations to implement **initial load + incremental updates + reconciliation**, and specifically warns them to prepare for **mass updates**. ([Trestle Documentation][2])
+
+### 1. Recover the good Cotality work instead of building it again
+
+The stranded d19 implementation should become the starting point.
+
+`live-client.mjs` already has the right fundamental rule: one live acquisition path, no snapshot pretending to be current truth, retries/pagination, and `UNVERIFIED` when Cotality cannot be proven.
+
+`compile-live-contract.mjs` already collects `$metadata`, service document, Field, Lookup, Model, Enumeration, resources, relationships and runtime probes, and refuses incomplete required evidence.
+
+`verify-search-live.mjs` already takes the next important step: it discovers what Search actually uses and probes those fields for select/filter/order/operator behavior instead of merely asking whether a field name exists.
+
+And the d19 `FIELD_REGISTRY` is already described as the canonical Search mapping authority and is incrementally wired into runtime, whereas current main still contains the earlier skeleton.
+
+So **no new Cotality client, no second field registry, no mapping manifest, no second Search engine.**
+
+---
+
+## 2. Turn Cotality itself into a monitored contract
+
+This is a major addition.
+
+The permanent system should fingerprint:
+
+```text
+service document
+$metadata
+Field
+Lookup
+Model
+resources/entity sets
+relationships/navigation
+runtime capabilities
+critical-field population
+```
+
+and compare the new verified fingerprint with the previous verified fingerprint.
+
+The output should be machine-classified:
+
+```text
+SAFE_ADDITIVE
+SEMANTIC_REVIEW_REQUIRED
+BREAKING
+PROVIDER_ANOMALY
+UNVERIFIED
+```
+
+A new harmless field might be `SAFE_ADDITIVE`.
+
+A new `Permission` value should be `SEMANTIC_REVIEW_REQUIRED`.
+
+A field Search depends upon disappearing should be `BREAKING`.
+
+Cotality being unreachable should be `UNVERIFIED`.
+
+A sudden 90% feed-population collapse should be `PROVIDER_ANOMALY`, not “delete 90% of Mallan.”
+
+That last distinction is crucial.
+
+---
+
+## 3. Eliminate the current false-live Cotality path
+
+Current main's `trestle-fields` MCP has a serious contradiction.
+
+Its documentation says it uses live Cotality, but also says it falls back to `artifacts/metadata.xml` when live retrieval fails.  The implementation confirms that fallback.
+
+A historical snapshot is useful for regression testing.
+
+It is **not live provider truth**.
+
+The authoritative path needs only:
+
+```text
+live succeeded          -> VERIFIED
+live rejected operation -> PROVIDER_REJECTED
+live unavailable        -> UNVERIFIED
+```
+
+Never:
+
+```text
+live unavailable
+    ↓
+old metadata.xml
+    ↓
+"current"
+```
+
+There is a second problem: `.mcp.json` runs `dist/index.js`, not the TypeScript source.  The MCP documentation admits `dist/` is gitignored and must be manually rebuilt/reloaded after source changes.
+
+So the future verifier must report and prove its own **source/build SHA**. A stale compiled verifier cannot certify a newer source tree.
+
+---
+
+# 4. Build `mallan-closure` — one deterministic definition of “finished”
+
+This is the center of the solution.
+
+Claude should ultimately execute one command conceptually like:
+
+```text
+npm run mallan:closure -- --domain=search
+```
+
+It returns only:
+
+```text
+PASS
+BLOCKED
+UNVERIFIED
+```
+
+It should produce a cryptographically fingerprinted proof bundle containing at least:
+
+```text
+git SHA
+branch
+dirty-state
+Vercel deployment ID
+Vercel target
+Node/runtime fingerprint
+relevant config hashes
+Cotality contract hash
+Cotality feed/client fingerprint — non-secret
+mapping/registry hash
+DB schema fingerprint
+test versions/seeds
+Preview URL
+proof timestamps
+```
+
+Then it proves:
+
+```text
+Cotality contract
+       ↓
+mapping
+       ↓
+criteria
+       ↓
+provider + Mallan inventory
+       ↓
+settled universe
+       ↓
+sorting
+       ↓
+count
+       ↓
+pagination
+       ↓
+hydration
+       ↓
+Saved Search
+       ↓
+client/workbench
+       ↓
+CMA
+       ↓
+compliance
+       ↓
+browser
+```
+
+A new commit automatically invalidates the old evidence.
+
+That eliminates one of the primary causes of the four-month loop: **proof from SHA A cannot be carried over to SHA B.**
+
+---
+
+## 5. Search needs accounting, not just tests
+
+This remains one of the strongest ideas from the previous investigation.
+
+Every listing entering Search should have to end somewhere identifiable:
+
+```text
+provider eligible
++ Mallan eligible
+=
+final universe
++ provider-return suppression
++ dedupe
++ workflow/type exclusion
++ compliance exclusion
++ criteria exclusion
++ explicit other exclusion
+```
+
+Then:
+
+```text
+all pages union = final universe
+
+page A ∩ page B = empty
+
+reported total = final universe size
+```
+
+That catches the defects Mallan repeatedly suffered from: filtering after slicing, missing rows, duplicate pages, incorrect totals, suppressed rows reappearing, and incomplete hydration.
+
+This is stronger than a collection of examples because it proves a mathematical property of Search.
+
+---
+
+# 6. The missing piece is **proof of the proof system**
+
+Before I would trust `mallan-closure`, Claude must deliberately break things and prove the gate catches them.
+
+For example, in isolated tests intentionally introduce:
+
+```text
+remove a live Cotality field
+remove an enum value
+invent an enum value
+make filtering return 400
+make Cotality unavailable
+substitute stale metadata snapshot
+simulate stale MCP build
+return empty page + nextLink
+duplicate a pagination page
+change total without membership
+reintroduce post-slice filtering
+break bathroom monotonicity
+return provider 429
+return provider 500
+change exact SHA after proof
+modify closure script to "exit 0"
+```
+
+Every one must make certification fail.
+
+Then restore the correct implementation and require the same exact-head gate to pass.
+
+This changes the question from:
+
+> “Does our verification look comprehensive?”
+
+to:
+
+> **“Can we demonstrate that our verification detects the failures it claims to prevent?”**
+
+That is much stronger.
+
+---
+
+# 7. Claude Code now has exactly the mechanisms needed
+
+This part is better than I expected.
+
+Claude Code's current official hook system provides `PreToolUse`, `PostToolBatch`, `TaskCompleted`, `Stop`, `ConfigChange`, `FileChanged`, and even `WorktreeCreate` lifecycle hooks. `PreToolUse` can block a tool call, and project hooks can be committed in `.claude/settings.json`. ([Claude][3])
+
+Its permission system is also useful because **deny rules win over allow rules**, even across different settings scopes, and Claude's own hook decision cannot override a matching deny. Claude can also be prevented from using `bypassPermissions` or automatic permission mode. ([Claude][4])
+
+That means we do not have to trust a paragraph saying:
+
+> “Do not touch production.”
+
+We can actually block the operation.
+
+### I would give Mallan these Claude controls
+
+The project would eventually have:
+
+```text
+.claude/
+    settings.json
+
+    rules/
+        cotality.md
+        search.md
+        compliance.md
+        architecture.md
+
+    skills/
+        search-repair/
+            SKILL.md
+
+        mallan-closure/
+            SKILL.md
+
+        cotality-contract-change/
+            SKILL.md
+
+    agents/
+        cotality-contract-verifier.md
+        search-lineage-verifier.md
+        search-differential-verifier.md
+        preview-e2e-verifier.md
+        closure-red-team.md
+
+    hooks/
+        guard-tool-use.*
+        guard-config-change.*
+        closure-task-completed.*
+        closure-stop.*
+```
+
+Claude's official skill system can inject live context such as the current diff before the task starts, run a skill in an isolated subagent with `context: fork`, and make sensitive skills user-only with `disable-model-invocation: true`. ([Claude][5])
+
+Importantly, the docs explicitly distinguish skill tool grants from hard restrictions: `allowed-tools` does **not** restrict the other tools Claude can call; permission deny rules are needed for persistent blocking. ([Claude][5])
+
+That is exactly the distinction Mallan needs.
+
+---
+
+# 8. The Claude `Stop` hook is the answer to “keep working until it is actually finished”
+
+This is probably the single most useful Claude capability for your situation.
+
+Instead of telling Claude:
+
+> “Please continue until everything is fixed,”
+
+the `Stop` hook can inspect the exact current state.
+
+If no valid exact-head closure bundle exists:
+
+```text
+Claude attempts to finish
+        ↓
+Stop hook runs
+        ↓
+closure PASS for current SHA?
+       /       \
+     yes       no
+      │         │
+ finish     reject Stop
+                 │
+       return exact missing evidence
+                 │
+        Claude continues work
+```
+
+Likewise, `TaskCompleted` can stop a task being marked complete before the deterministic verification passes. Claude documents both events specifically as decision points. ([Claude][3])
+
+That solves the recurring problem where an agent says “done” after green unit tests while Preview, Cotality, downstream consumers, or production remains unproven.
+
+---
+
+# 9. Independent Claude agents should review; they should not write
+
+Claude's current custom subagents can have real tool allowlists. For example, an agent can be restricted to `Read`, `Grep`, `Glob`, and selected Bash operations and therefore cannot edit files. ([Claude][6])
+
+That is ideal for Mallan.
+
+The builder can modify code.
+
+The Cotality verifier cannot.
+
+The lineage verifier cannot.
+
+The differential verifier cannot.
+
+The browser verifier gets Playwright, but not application file writes.
+
+They separately return evidence.
+
+**Claude does not review its own answer in the same context and call that independence.**
+
+Microsoft's Playwright MCP is available through Claude's official plugin marketplace for browser automation and E2E testing.
+
+Anthropic's Code Review plugin also launches multiple independent reviewers—including guideline, bug and history reviewers—so I would use it as a **secondary adversarial reviewer**, not the certification authority.
+
+---
+
+# 10. I found a useful Claude development package — but I would not install it blindly
+
+Anthropic's official plugin marketplace now lists **Superpowers**, sourced from `obra/superpowers`. It contains systematic debugging, red/green TDD, verification-before-completion and other development methodology skills.
+
+Its `systematic-debugging` skill requires root-cause investigation before attempting a fix and explicitly says that after repeated failed fixes the architecture should be questioned rather than continuing the patch loop.
+
+Its TDD skill requires witnessing the test fail before implementing the change.
+
+Its verification-before-completion skill says agent success reports are insufficient and specifically describes verifying red → green → revert → red → restore → green.
+
+Those ideas fit Mallan exceptionally well.
+
+But Superpowers also contains worktree-oriented skills.
+
+**I would not install the whole methodology unmodified.**
+
+I would take the useful principles:
+
+```text
+systematic debugging
+TDD
+verification before completion
+independent code review
+```
+
+and make them part of Mallan's own closure workflow while **explicitly blocking worktree creation**.
+
+---
+
+# 11. GitHub must become an actual gate
+
+This remains a current structural weakness.
+
+I rechecked the live ruleset. Main presently requires exactly one status:
+
+**`pr-check`**.
+
+Required approving reviews remain `0`.
+
+After we have proved the new closure system itself, main should require:
+
+```text
+pr-check
+mallan-closure
+```
+
+And changes to the **verification machinery itself** need a stronger rule.
+
+That means changes to things such as:
+
+```text
+.github/workflows/mallan-closure*
+scripts/closure/**
+scripts/cotality/live-client*
+.claude/**
+independent oracle/test infrastructure
+```
+
+cannot simply alter the verifier and then let the altered verifier certify itself.
+
+I would call this the **two-key trust rule**:
+
+```text
+normal product change
+    ↓
+mallan-closure
+
+closure/verifier change
+    ↓
+mallan-closure
+    +
+trusted external certification / explicit Maya-controlled approval
+```
+
+This is the strongest missing protection I see.
+
+---
+
+# 12. Vercel should be the second key
+
+Vercel Deployment Checks are designed precisely for this situation: a production build can exist, but Vercel withholds the production domain until required checks pass. ([Vercel][7])
+
+So the long-term flow becomes:
+
+```text
+PR
+ ↓
+GitHub pr-check
+ ↓
+mallan-closure
+ ↓
+merge
+ ↓
+exact Vercel production candidate
+ ↓
+Deployment Check
+ ↓
+exact-deployment browser/API verification
+ ↓
+release-truth identity confirmation
+ ↓
+mallan.nyc alias
+```
+
+That is substantially safer than merge → production → discover breakage.
+
+Your existing `release-truth` mechanism already provides much of the exact SHA/deployment identity logic, so this should extend it rather than replace it.
+
+Rolling Releases can later add another containment layer, although I would not make passive user traffic the primary verifier because Mallan's traffic volume may be too low to expose defects quickly. Vercel supports staged releases and abort/rollback. ([Vercel][8])
+
+---
+
+# 13. Continuous Cotality protection should not hammer the API
+
+I would run three different depths.
+
+**On every relevant PR and every production release:** verify the exact Cotality contract that changed code depends upon, plus affected capability probes.
+
+**Daily:** inexpensive schema/Field/Lookup/service-document fingerprint and differential check.
+
+**Weekly, and whenever significant provider drift is detected:** deeper field/relationship/population probes.
+
+The thousands-of-request full compiler should not run every few minutes. Cotality itself tells integrators to throttle and use exponential retry and explicitly warns about mass updates. ([Trestle Documentation][2])
+
+---
+
+# 14. When Cotality changes, Claude can repair it—but only inside the cage
+
+This becomes the continuous loop:
+
+```text
+Cotality changed
+       ↓
+watcher detects fingerprint delta
+       ↓
+classifies exact changed provider facts
+       ↓
+impact graph finds affected Mallan consumers
+       ↓
+SAFE_ADDITIVE?
+   yes ───────► record evidence, no code change
+    no
+    ↓
+mark affected capability UNVERIFIED
+    ↓
+Claude receives exact evidence + affected files
+    ↓
+systematic root-cause analysis
+    ↓
+red failing test
+    ↓
+minimal repair
+    ↓
+independent verifiers
+    ↓
+mallan-closure
+    ↓
+Preview browser proof
+    ↓
+GitHub/Vercel gates
+```
+
+That is how this becomes **continuous without becoming an uncontrolled autonomous patch machine**.
+
+Claude can prepare a correction.
+
+Claude cannot silently invent what a new Cotality token means.
+
+---
+
+# 15. It then generalizes to the entire brokerage
+
+Once Search passes this model, `mallan-closure` becomes domain-driven rather than Search-specific.
+
+The same verifier can load a different closure profile for Listing Writer, Seller/Landlord workflow, Buyer/Tenant workflow, Identity, Media, Communications, CMA, Agent Lifecycle and Post-deal.
+
+The central principle stays:
+
+```text
+raw authority
+→ verified mapping
+→ persistence
+→ business rule
+→ all consumers
+→ behavioral proof
+```
+
+So this work isn't disposable Search infrastructure.
+
+It becomes how Mallan engineering operates.
+
+---
+
+## The implementation order I recommend
+
+1. **Do the read-only convergence first.** Compare current main, `b49`, `d19`, PR #618 ancestry and Claude's local-only refs. Produce KEEP / ADAPT / SUPERSEDED / WRONG / MISSING. No merge or cherry-pick yet.
+
+2. **Recover the Cotality spine.** Converge `live-client`, `compile-live-contract`, `verify-search-live`, and the wired canonical registry. Remove authoritative snapshot fallback and solve the stale-MCP-build problem.
+
+3. **Build the deterministic closure system and `.claude` enforcement.** Add path rules, repair/closure skills, read-only verifier subagents, hard permission denies, `PreToolUse`, `TaskCompleted`, `Stop`, `ConfigChange`, and `WorktreeCreate` enforcement.
+
+4. **Finish Search through that system.** Conservation accounting, independent oracle, property/state/fault tests, existing Playwright flows, Saved Search, client/workbench and CMA downstream proof.
+
+5. **Red-team the verifier itself.** Deliberately inject the known defect classes and prove every one causes closure failure. Only after this should `mallan-closure` be trusted as a required status.
+
+6. **With your separate authorization**, add `mallan-closure` to main's required checks and activate the Vercel Deployment Check. Then generalize closure profiles to the rest of Mallan.
+
+That avoids another “build a framework first and never finish Search” derailment. **Search itself is the first acceptance test of the permanent system.**
+
+---
+
+## What I would give Claude now
+
+This supersedes the earlier closure prompt.
+
+You are to finish the Mallan Search/Cotality convergence by building the minimum permanent verification and execution system required to make this class of failure non-recurring.
+
+AUTHORITIES
+
+1. Repository: `mallan67/mallan-nyc` only.
+2. Local checkout: `C:\Users\MayaAllan\Desktop\mallan-nyc` only.
+3. Product/system authority: `MALLAN-PLATFORM-MASTER-PLAN.md`.
+4. Execution state: `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md`.
+5. Provider authority: the currently authenticated live Cotality/Trestle contract.
+6. Architecture:
+   `COTALITY RAW CONTRACT -> VERIFIED MAPPING -> MALLAN STORAGE -> MALLAN BUSINESS RULE -> PUBLIC/CRM CONSUMER`.
+7. Do not create a second Search engine, second provider client, second field registry, second mapping manifest, parallel canonical object, or replacement master plan.
+8. Do not treat old chats, old evidence artifacts, static metadata, comments, or previous SHA verification as current provider/runtime proof.
+9. Missing live evidence is `UNVERIFIED`, never PASS.
+10. No schema, migration, Neon, R2, environment, production deploy, GitHub ruleset, Vercel production/alias, agents, skills, `.github/workflows/**`, or other currently held mutation without Maya's explicit authorization.
+
+FIRST: READ-ONLY CONVERGENCE
+
+Before implementation, reconcile exact current state across:
+
+* current `main`;
+* current Search working head;
+* `fix/neon-p0-event-driven-wake-2026-08-16` / d19 ancestry;
+* PR #618 ancestry;
+* any locally present `fix/backend-agent-search-geography-2026-08-24` ref or other local-only Search/Cotality work.
+
+For every relevant component classify:
+`KEEP EXACTLY | KEEP+ADAPT | SUPERSEDED | DUPLICATE | WRONG | UNPROVEN | MISSING`.
+
+Specifically reconcile:
+
+* `scripts/cotality/live-client.mjs`;
+* `query-live.mjs`;
+* `compile-live-contract.mjs`;
+* `verify-search-live.mjs`;
+* `pull-contract.mjs`;
+* the current `trestle-fields` MCP source and built runtime;
+* `lib/search/canonical/field-registry.ts`;
+* final-universe/conservation logic;
+* canonical Saved Search;
+* Search criteria/executor;
+* Search Playwright tests;
+* release-truth;
+* current Cotality live audits.
+
+Do not implement another replacement for an existing superior component.
+
+PERMANENT COTALITY CONTRACT
+
+Converge one authoritative live-only acquisition path.
+
+For certification:
+
+* live success = VERIFIED;
+* explicit provider rejection = PROVIDER_REJECTED;
+* unavailable credentials/network/provider = UNVERIFIED;
+* static metadata/snapshots may be regression evidence only and must never become current provider authority.
+
+Create a reproducible provider-contract fingerprint from the live service document, `$metadata`, Field, Lookup, Model, resource/entity-set inventory, relationships and required runtime probes.
+
+Detect contract changes and classify them as:
+`SAFE_ADDITIVE | SEMANTIC_REVIEW_REQUIRED | BREAKING | PROVIDER_ANOMALY | UNVERIFIED`.
+
+Never automatically assign Mallan meaning to a new provider field or lookup token.
+
+Add critical-field population/capability checks so a declared field that stops being populated, filterable, sortable or expandable cannot remain falsely VERIFIED.
+
+Reconciliation must have a catastrophic-change brake. A major unexpected provider-population decrease must quarantine destructive action and become PROVIDER_ANOMALY/UNVERIFIED, never mass-delete Mallan state automatically.
+
+MCP/TRUST CORRECTIONS
+
+Resolve the current contradiction where `trestle-fields` can use `artifacts/metadata.xml` while describing results as current/live.
+
+Resolve the source-vs-runtime problem where `.mcp.json` executes gitignored `dist/index.js`. Authoritative verification must prove the verifier source/build identity. A stale compiled verifier cannot certify a newer source.
+
+MALLAN CLOSURE
+
+Build one deterministic domain-aware closure orchestrator subordinate to the Master Plan.
+
+For Search it must bind proof to:
+
+* exact git SHA;
+* branch/dirty state;
+* exact Vercel deployment when applicable;
+* non-secret environment/config fingerprint;
+* current live Cotality contract hash;
+* Cotality feed/client non-secret fingerprint;
+* canonical mapping/registry hash;
+* DB schema fingerprint;
+* verifier version/hash;
+* test seeds/replay information.
+
+A new commit invalidates prior closure evidence.
+
+The only final certification states are:
+`PASS | BLOCKED | UNVERIFIED`.
+
+A Search closure cannot PASS if any required provider fact is UNVERIFIED, any required criterion is unsupported, count is not proven exact where exactness is required, browser proof is missing, or downstream affected consumers remain untested.
+
+SEARCH ACCOUNTING
+
+Prove conservation of inventory:
+
+`provider eligible + Mallan eligible =
+final universe
+
+* every explicitly classified exclusion`.
+
+Prove:
+
+* every eligible row is accounted for;
+* pages are pairwise disjoint;
+* union of pages equals final universe;
+* total equals final universe size;
+* sorting changes ordering, not membership;
+* unsupported criteria fail loud;
+* provider errors never become successful empty results.
+
+INDEPENDENT ORACLE
+
+Do not allow the production Search executor to verify itself.
+
+Build/read an independent read-only oracle that does not import the production executor or duplicate its mapping implementation.
+
+Where appropriate compare:
+A. direct live Cotality result;
+B. independent raw-row expected evaluation;
+C. canonical Mallan Search result.
+
+If live Cotality changes during the comparison window, detect that condition and classify the comparison BLOCKED/UNVERIFIED rather than manufacture a false mismatch or false pass.
+
+TESTING
+
+Use failing-first behavioral tests for every correction.
+
+Add property/model tests for Search invariants, fault injection for provider/network/cache/database failure modes, and targeted mutation testing of critical Search/mapping/count/pagination/compliance code.
+
+Use existing Playwright Search work rather than creating a second browser suite. Prove authenticated professional Search on the exact Preview deployment across the required desktop/tablet/mobile workflows and downstream Saved Search/client/CMA paths.
+
+Do not call source-string assertions end-to-end proof.
+
+CLAUDE EXECUTION HARNESS
+
+After Maya explicitly authorizes creation/modification of `.claude` assets, implement project-level Claude controls rather than relying on prose in CLAUDE.md.
+
+Use:
+
+* path-scoped `.claude/rules` for Cotality/Search/compliance architecture;
+* a `search-repair` skill that dynamically injects exact branch, SHA, dirty state, diff, Master Plan checkpoint and current closure failures;
+* a user-controlled `mallan-closure` skill that runs the deterministic certifier;
+* read-only custom subagents for Cotality contract verification, Search lineage, Search differential verification, Preview E2E, and closure red-team review;
+* hard project permission denies for prohibited operations;
+* `PreToolUse` deterministic guard;
+* `TaskCompleted` deterministic closure guard;
+* `Stop` deterministic closure guard;
+* `ConfigChange` guard for verification settings;
+* `WorktreeCreate` guard because Mallan does not permit new worktrees.
+
+The builder may write.
+The independent verifiers may not write application code.
+
+Claude does not decide whether Claude succeeded. Deterministic evidence decides.
+
+Use Anthropic's Code Review plugin and Microsoft Playwright integration as secondary review/testing tools where useful. They are not canonical truth.
+
+You may borrow the useful concepts from Superpowers systematic-debugging, TDD and verification-before-completion, but do not adopt its worktree-based workflow or any behavior that conflicts with Mallan governance.
+
+PROOF OF THE PROOF SYSTEM
+
+Before trusting the closure gate, deliberately inject controlled isolated defects and prove closure rejects them.
+
+The red-team corpus must include at least:
+
+* provider field removal;
+* enum addition/removal/unknown token;
+* filter or order operation rejected;
+* Cotality unavailable;
+* stale static metadata substituted;
+* stale verifier build;
+* incomplete/duplicate pagination;
+* total/universe mismatch;
+* post-slice filtering;
+* a known Search criterion regression;
+* 429;
+* 500;
+* timeout;
+* exact SHA changing after proof;
+* attempted weakening of the closure verifier itself.
+
+For each:
+
+1. inject the defect;
+2. prove closure fails for the intended reason;
+3. restore the correct implementation;
+4. prove closure passes;
+5. preserve the defect as a permanent regression/mutation case where applicable.
+
+SELF-PROTECTION
+
+The verifier must not be able to certify a weakened version of itself.
+
+Identify all trust-root files. A PR changing the closure workflow, closure scripts, Cotality acquisition/verifier, independent oracle, `.claude` enforcement or other trust-root component must enter a stricter `GUARD_CHANGE` path and cannot rely solely on the modified verifier for approval.
+
+Design the second independent gate using the existing GitHub/Vercel release architecture. Do not activate GitHub ruleset or Vercel production changes without Maya's explicit authorization.
+
+CONTINUOUS OPERATION
+
+Design three depths:
+
+* every relevant PR/release: exact affected-contract + domain closure;
+* daily: lightweight Cotality contract/schema/Field/Lookup diff;
+* weekly or provider-drift-triggered: deeper live capability/population/relationship verification.
+
+Throttle and retry according to current Cotality behavior. Do not put the full thousands-of-request compiler on a normal Search request path.
+
+Provider drift must create a durable, deduplicated engineering signal identifying:
+
+* exact changed provider fact;
+* previous and current contract fingerprints;
+* affected canonical Mallan fact;
+* all known consumers;
+* classification;
+* evidence;
+* required response.
+
+A safe additive provider change should require no application patch.
+A semantically significant or breaking change must fail closed until verified.
+
+RELEASE ENFORCEMENT
+
+Prepare, but do not activate without Maya's authorization:
+
+* required GitHub `mallan-closure` status alongside existing `pr-check`;
+* protection for trust-root verification files;
+* Vercel Deployment Check blocking production alias assignment until exact-deployment closure succeeds.
+
+Reuse and extend existing `release-truth`; do not replace it.
+
+Add a low-cost, read-only post-deploy Search synthetic because absence of natural production traffic is not proof.
+
+NO ENDLESS PATCH LOOP
+
+For every defect:
+`Proven Defect -> Root Cause -> All Affected Readers/Writers -> Correction -> Direct/Negative Tests -> Integration -> Downstream -> Compliance -> Preview -> Production`.
+
+If a proposed correction exposes another reader/writer affected by the same root cause, add it to the current impact graph before declaring closure. Do not create a sequence of unrelated one-test patches.
+
+FIRST RESPONSE BEFORE LARGE IMPLEMENTATION
+
+Return:
+
+* exact current branch/SHA facts;
+* exact reusable components and where they live;
+* exact duplicate/stale components;
+* current false-green paths;
+* proposed minimal file changes;
+* generated impact/dependency graph;
+* trust-root files;
+* proof-of-proof plan;
+* which actions are read-only and may proceed now;
+* which held mutations require Maya authorization.
+
+Do not claim Search, Cotality, or the closure system is complete until the exact-head deterministic closure gate itself has survived the red-team proof-of-proof and the required downstream browser/runtime evidence.
+
+That is the directive I would use now. It is deliberately designed so Claude cannot spend another week building a parallel framework and losing the actual Search work.
+
+One important procedural point: your current `CLAUDE.md` explicitly places **agents, skills and `.github/workflows/**` under an authorization hold.  So Claude can do the **read-only convergence and produce the exact implementation plan immediately**, but it should not create those enforcement files until you explicitly authorize that mutation.
+
+I have made **no repository, Vercel, Cotality, ruleset, deployment, Neon, R2 or environment changes** in this investigation.
+
+Separately, I can monitor Cotality's release timeline and alert you whenever a new content patch is published; that would be an advisory early-warning layer, not a substitute for Mallan's own live contract gate.
+
+[1]: https://trestle-documentation.corelogic.com/home/release-timeline/ "Release Timeline - Trestle Documentation"
+[2]: https://trestle-documentation.corelogic.com/web-api/at-scale/ "Growing to Scale - Trestle Documentation"
+[3]: https://code.claude.com/docs/en/hooks "Hooks reference - Claude Code Docs"
+[4]: https://code.claude.com/docs/en/permissions "Configure permissions - Claude Code Docs"
+[5]: https://code.claude.com/docs/en/skills "Extend Claude with skills - Claude Code Docs"
+[6]: https://code.claude.com/docs/en/sub-agents "Create custom subagents - Claude Code Docs"
+[7]: https://vercel.com/docs/deployment-checks?utm_source=chatgpt.com "Deployment Checks"
+[8]: https://vercel.com/docs/rolling-releases?utm_source=chatgpt.com "Rolling Releases"

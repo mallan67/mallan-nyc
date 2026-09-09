@@ -1,0 +1,2035 @@
+DO NOT REPLACE THIS WITH THE ORIGINAL 595 only do differentiate, if something is missing in the main that is on here add to the main... so read the original, then read this. If the original 595 branch is missing information that it is on this list add from here to the original in the appropriate section. Do not jut dump information, add where appropriate. # PR #595 — ADDITIVE BUSINESS-COMPLETENESS INTEGRATION DIRECTIVE
+
+## HARD RULE: DO NOT RECREATE THE MASTER PLAN
+
+Use the existing:
+
+`MALLAN-PLATFORM-MASTER-PLAN.md`
+
+on PR #595 as the sole base document.
+
+Do **not**:
+
+* rewrite the Master Plan from scratch;
+* create a “better” second Master Plan;
+* replace the current 27-section structure merely for formatting preference;
+* condense existing requirements;
+* remove detail already captured;
+* restart another full business audit;
+* turn current PR/branch work into the business architecture;
+* create duplicate business concepts under new names.
+
+The existing Master Plan contains substantial valid architecture and business requirements. Preserve them.
+
+The task is:
+
+```text
+EXISTING #595 MASTER PLAN
++
+MISSING BUSINESS REQUIREMENTS IDENTIFIED BY MAYA
++
+PRECISE CROSS-SYSTEM CONNECTIONS
++
+CONTRADICTION / GAP RESOLUTION
+=
+MORE COMPLETE SINGLE MASTER PLAN
+```
+
+Every addition below is to be **integrated into the existing relevant section(s)**.
+
+If an existing section already contains the concept, deepen it there.
+
+If the requirement crosses multiple sections, define the business truth once and cross-reference it rather than creating duplicate authorities.
+
+---
+
+# EXISTING §1 — ONE MALLAN OPERATING SYSTEM
+
+## KEEP EXISTING CONTENT.
+
+Add the complete brokerage relationship lifecycle to the opening operating model.
+
+Mallan's operating chain is not supposed to begin at Search or Listing.
+
+Add:
+
+```text
+LEAD / INQUIRY
+↓
+PARTY IDENTITY
+↓
+OPPORTUNITY
+↓
+REPRESENTATION / CLIENT RELATIONSHIP
+↓
+PROPERTY / SEARCH / LISTING
+↓
+CMA / DECISION SUPPORT
+↓
+MARKETING / COMMUNICATION
+↓
+SHOWING / ENGAGEMENT
+↓
+OFFER / APPLICATION
+↓
+ACCEPTED DEAL
+↓
+BROKERAGE DEAL PROGRESSION
+↓
+CLOSED / RENTED
+↓
+COMMISSION / REFERRAL CLOSEOUT
+↓
+POST-DEAL RELATIONSHIP
+↓
+FUTURE OPPORTUNITY / REFERRAL
+```
+
+The system must preserve the same Party throughout changing business roles.
+
+Example:
+
+```text
+RENTER
+→ BUYER
+→ OWNER
+→ LANDLORD
+→ SELLER
+→ BUYER AGAIN
+```
+
+Do not create a new person because the person's relationship to Mallan changes.
+
+---
+
+# EXISTING §2 — SIMPLE BROKERAGE / AGENT OPERATING MODEL
+
+## KEEP EXISTING BROKER / AGENT / ASSOCIATE BROKER RULES.
+
+Clarify that Mallan operates through:
+
+```text
+BROKERAGE VIEW
+MY BUSINESS / AGENT WORKSPACE
+CLIENT EXPERIENCE / PORTAL
+PUBLIC WEB
+```
+
+These are permissioned views over shared canonical business records.
+
+They are not separate systems.
+
+Do not add a Manager/Office Manager architecture unless Maya later expressly requires one.
+
+---
+
+# EXISTING §3 — CANONICAL SHARED FOUNDATION
+
+## KEEP EXISTING CANONICAL OBJECTS.
+
+Expand the shared foundation to make Lead and relationship lifecycle explicit.
+
+Canonical business objects must include or explicitly map:
+
+```text
+Lead / Inquiry
+Lead Source
+Party
+Party Role Relationship
+Opportunity
+Client Relationship
+Property
+Building
+Unit
+Listing Episode
+Source Observation
+Saved Search
+Client × Property / Listing History
+Showing / Open House
+CMA
+Decision Scenario
+Communication
+Comment
+Marketing / Campaign
+Document / Agreement / Disclosure
+Offer
+Application
+Deal Progression
+Commission
+Referral
+Task / Reminder
+Audit / Provenance
+```
+
+### Explicit relationship rule
+
+A Lead is not a competing identity to Party.
+
+A Lead represents business acquisition/intake context.
+
+Once identity is resolved:
+
+```text
+LEAD
+→ CANONICAL PARTY
+→ ONE OR MORE OPPORTUNITIES
+```
+
+An existing Party receiving another inquiry gets another Lead/activity/Opportunity where appropriate, not another person.
+
+### Client understanding layers
+
+Add separate concepts for:
+
+```text
+EXPLICIT CLIENT REQUIREMENTS
+OBSERVED CLIENT BEHAVIOR
+AGENT NOTES / INTERPRETATION
+SYSTEM-GENERATED BUSINESS OBSERVATION
+```
+
+These are related but not interchangeable.
+
+Observed behavior may not silently overwrite explicit client instructions.
+
+---
+
+# EXISTING §4 — LISTING SOURCE, IDENTITY, EDIT AUTHORITY AND VISIBILITY
+
+## KEEP EXISTING SOURCE AND AUTHORITY ARCHITECTURE.
+
+Do not change the fundamental rule:
+
+```text
+IDENTITY
+≠
+SOURCE
+≠
+EDIT AUTHORITY
+≠
+VISIBILITY
+```
+
+Strengthen the relationship to Media/Web:
+
+a Listing or source being visible internally does **not** by itself authorize:
+
+* public advertising;
+* client redistribution;
+* media reuse;
+* email marketing;
+* social advertising;
+* website publication;
+* SEO/indexation.
+
+Those decisions pass the compliance/publication layer defined in §21.
+
+---
+
+# EXISTING §5 — SEARCH
+
+## KEEP EXISTING PROFESSIONAL SEARCH ARCHITECTURE.
+
+Do not reduce professional criteria.
+
+Add stronger connections to Lead/Client Intelligence.
+
+Search must participate in:
+
+```text
+LEAD / CLIENT
+↓
+OPPORTUNITY
+↓
+SAVED SEARCH
+↓
+EXPLICIT REQUIREMENTS
+↓
+CURRENT SEARCH
+↓
+CLIENT × PROPERTY HISTORY
+↓
+OBSERVED INTERACTIONS
+↓
+AGENT INTELLIGENCE
+```
+
+Search answers:
+
+> Does this property satisfy these criteria?
+
+Intelligence may separately answer:
+
+> Why might this near-match deserve Agent review?
+
+The intelligence layer may not silently widen Search.
+
+---
+
+# EXISTING §6 — CMA / PROPERTY INTELLIGENCE
+
+## KEEP EXISTING CMA FOUNDATION.
+
+Deepen CMA from comp selection into market understanding.
+
+CMA / Property Intelligence must be able to contextualize the subject across:
+
+```text
+BUILDING
+OWNERSHIP TYPE
+PROPERTY TYPE
+BEDROOM / SIZE SEGMENT
+PRICE BAND
+MICRO-NEIGHBORHOOD
+NEIGHBORHOOD
+CURRENT COMPETITION
+PENDING / CONTRACT ACTIVITY
+CLOSED EVIDENCE
+EXPIRED / FAILED-MARKET CONTEXT WHEN AUTHORIZED
+PRICE CHANGES
+CARRYING COST
+DOM / MARKET VELOCITY WHERE SUPPORTED
+```
+
+CMA Intelligence should help the Agent understand:
+
+* why a comp is relevant;
+* why another comp is weaker;
+* same-building behavior;
+* ownership-type differences;
+* price-segment differences;
+* micro-neighborhood differences;
+* carrying-cost sensitivity;
+* active competition;
+* where the market appears resistant;
+* what has materially changed since the prior CMA.
+
+Keep clear separation between:
+
+```text
+SOURCE FACT
+DETERMINISTIC CALCULATION
+SYSTEM ANALYSIS
+AGENT PROFESSIONAL CONCLUSION
+```
+
+---
+
+# EXISTING §7 — BACKEND LISTING WORKSPACE
+
+## KEEP EXISTING FULL WORKSPACE REQUIREMENT.
+
+Strengthen its role as the central working record.
+
+The Workspace should connect, where applicable:
+
+```text
+PROPERTY / LISTING
+OWNER / CLIENT
+LEAD / OPPORTUNITY
+SOURCE / PROVENANCE
+MEDIA
+DOCUMENTS
+MARKETING
+OPEN HOUSES
+SHOWINGS
+FEEDBACK
+CLIENT HISTORY
+CMA
+REPORTING
+OFFER / APPLICATION
+ACCEPTED DEAL
+DEAL PROGRESSION
+COMMISSION CLOSEOUT
+```
+
+Do not build these as disconnected tabs with separate truths.
+
+---
+
+# EXISTING §8 — DECISION & CALCULATOR ENGINE
+
+## KEEP EXISTING CALCULATORS.
+
+Connect the calculator layer to Intelligence.
+
+Saved scenarios can help identify business decisions such as:
+
+* rent versus buy;
+* hold versus sell;
+* sell versus re-rent;
+* financing effect;
+* carrying-cost sensitivity;
+* investment return;
+* 1031 opportunity.
+
+Do not infer client motivation merely because a calculator was opened.
+
+It becomes one evidence point among others.
+
+---
+
+# EXISTING §9 — MARKETING / E-BLAST / SHARE
+
+## EXPAND THIS SECTION SIGNIFICANTLY.
+
+Marketing is not just E-blast.
+
+Define one Mallan **Marketing Toolkit**.
+
+### Listing marketing tools
+
+Support governed creation/use of:
+
+* listing descriptions;
+* short/long property copy;
+* headlines;
+* new-listing announcements;
+* price-change announcements;
+* open-house marketing;
+* email;
+* e-blast;
+* property share pages;
+* website listing content;
+* social content;
+* approved digital collateral;
+* approved printable collateral;
+* photo/media selection;
+* video/visual marketing;
+* seller/landlord marketing plans;
+* market-update content.
+
+### Client/prospect marketing
+
+Support:
+
+* Buyer matching;
+* Tenant matching;
+* Seller prospecting;
+* Landlord prospecting;
+* Investor/1031 communication;
+* past-client follow-up;
+* referral follow-up;
+* market updates;
+* approved CRM campaigns.
+
+### Brokerage marketing
+
+Support:
+
+* brokerage identity;
+* Agent professional profile;
+* signatures;
+* approved templates;
+* newsletters;
+* market reports;
+* Agent announcements;
+* other Broker-approved business materials.
+
+### Canonical content rule
+
+Do not manually retype facts into multiple marketing tools.
+
+Marketing should derive from:
+
+```text
+CANONICAL LISTING / PROPERTY
++
+CANONICAL AGENT IDENTITY
++
+APPROVED MEDIA
++
+AUDIENCE
++
+PURPOSE
++
+COMPLIANCE / RIGHTS
+```
+
+Then:
+
+```text
+PREVIEW
+→ APPROVAL WHERE REQUIRED
+→ SEND / PUBLISH
+→ TRACK ACTUAL ACTIVITY
+→ CLIENT / LISTING HISTORY
+→ REPORTING
+```
+
+### Compliance rule
+
+Every public or client-directed marketing output routes through §21 advertising/Fair Housing/media/web compliance.
+
+---
+
+# EXISTING §10 — LISTINGS REPORTING SYSTEM
+
+## KEEP SELLER / LANDLORD REPORTING SEPARATE.
+
+Connect Reporting more explicitly to Marketing and Intelligence.
+
+Reports can use actual:
+
+* website activity;
+* client matching;
+* marketing;
+* e-blast;
+* inquiries;
+* sends;
+* saves;
+* showings;
+* open houses;
+* feedback;
+* offers/applications;
+* competitor changes;
+* CMA updates;
+* market-segment changes.
+
+System Intelligence may draft an analysis.
+
+The Agent approves the professional recommendation.
+
+Unknown remains unknown.
+
+---
+
+# EXISTING §11 — COMMUNICATIONS / COMMENTS / SHARE / DOCUMENTS / AGREEMENTS / MEDIA
+
+## THIS SECTION NEEDS MAJOR ADDITIVE EXPANSION, NOT REPLACEMENT.
+
+The existing document architecture is valuable. Keep it.
+
+## Add: Brokerage ↔ Agent operating documents
+
+The Agent/Associate Broker lifecycle needs governed business documents such as, where applicable:
+
+* Independent Contractor Agreement;
+* Agent/Associate Broker Policy;
+* Policy Acknowledgment;
+* confidentiality;
+* technology/trade-secret protections;
+* commission/split terms;
+* referral policy;
+* E&O requirement/proof;
+* license records;
+* CE records;
+* REBNY records;
+* W-9/tax records;
+* onboarding documents;
+* offboarding/deactivation records;
+* policy amendments/acknowledgments.
+
+These are not client transaction documents.
+
+They attach to the canonical Agent lifecycle.
+
+## Expand: Client brokerage agreements
+
+Do not design:
+
+```text
+ONE SELLER FORM
+ONE LANDLORD FORM
+ONE BUYER FORM
+ONE TENANT FORM
+```
+
+The applicable agreement depends on business context.
+
+The document/form engine must consider:
+
+```text
+CLIENT ROLE
++
+SALE / RENTAL
++
+PROPERTY TYPE
++
+BUILDING / OWNERSHIP TYPE
++
+AGENCY / REPRESENTATION TYPE
++
+EXCLUSIVE / NON-EXCLUSIVE / LIMITED STRUCTURE WHERE APPLICABLE
++
+NEGOTIATED COMPENSATION
++
+CURRENT GOVERNING RULES
+```
+
+Examples requiring differentiated applicability may include:
+
+Seller-side:
+
+* co-op;
+* condo;
+* townhouse / 1–4 family;
+* other applicable residential/investment property;
+* applicable representation structures;
+* amendments/extensions.
+
+Landlord-side:
+
+* co-op rental;
+* condo rental;
+* rental building/unit;
+* other applicable property types;
+* amendments/extensions.
+
+Buyer-side:
+
+* buyer representation;
+* applicable Touring/limited arrangement;
+* applicable property/transaction contexts;
+* amendments.
+
+Tenant-side:
+
+* tenant representation;
+* applicable rental contexts;
+* amendments.
+
+Do not guess the actual legal form set. The current required forms/templates must be verified from authoritative NY/DOS/REBNY/RLS/UCBA sources before implementation.
+
+## Disclosure categories remain separate
+
+Do not collapse:
+
+```text
+REPRESENTATION AGREEMENT
+AGENCY DISCLOSURE
+FAIR HOUSING / ANTI-DISCRIMINATION DISCLOSURE
+PROPERTY-SPECIFIC DISCLOSURE
+RLS / DISTRIBUTION DOCUMENT
+DEAL DOCUMENT
+```
+
+into one “agreement.”
+
+The document engine must determine:
+
+```text
+REQUIRED
+CONDITIONALLY REQUIRED
+BROKER POLICY
+OPTIONAL
+NOT APPLICABLE
+SUPERSEDED
+```
+
+based on current verified authority.
+
+## Forms must control workflow
+
+Do not create a file folder with PDFs and call it complete.
+
+The system should answer:
+
+> For this client role, property, representation structure and business stage, what documents are required now?
+
+Documents should then drive appropriate workflow gates/status where required.
+
+## Media expansion
+
+The existing Media subsection must additionally require:
+
+```text
+MEDIA IDENTITY
+SOURCE
+RIGHTS
+PROPERTY / BUILDING / UNIT RELATIONSHIP
+ACCURACY
+CURRENTNESS
+STORAGE RIGHT
+AGENT-USE RIGHT
+CLIENT-USE RIGHT
+PUBLIC-USE RIGHT
+ATTRIBUTION
+ADVERTISING / FAIR-HOUSING COMPLIANCE
+```
+
+---
+
+# EXISTING §12 — SELLER OPERATING JOURNEY
+
+## KEEP EXISTING JOURNEY.
+
+Expand its beginning and document steps:
+
+```text
+SELLER LEAD
+→ PARTY RESOLUTION
+→ SELLER OPPORTUNITY
+→ PROPERTY / OWNERSHIP / AUTHORITY
+→ CONSULTATION
+→ CMA
+→ NET / DECISION ANALYSIS
+→ CORRECT REPRESENTATION AGREEMENT
+→ REQUIRED DISCLOSURES
+→ NEGOTIATED TERMS
+→ EXECUTION
+→ LISTING INTAKE
+...
+```
+
+Keep the existing later Listing/Marketing/Offer/Closing flow.
+
+Post-close must return to ongoing Party relationship.
+
+---
+
+# EXISTING §13 — LANDLORD OPERATING JOURNEY
+
+## EXPAND SUBSTANTIALLY.
+
+Landlord is a recurring relationship.
+
+Add after `Lease / Move-in`:
+
+```text
+TENANCY PERIOD
+↓
+LEASE EXPIRATION MONITORING
+↓
+RENEW?
+├── YES → RENEWAL / NEW TERMS / NEW RECORD
+├── NO → RE-RENT
+├── SELL → SELLER OPPORTUNITY
+└── OTHER BUSINESS DECISION
+```
+
+Retain:
+
+* lease start;
+* lease expiration;
+* current rent;
+* rent history;
+* renewal state;
+* vacancy expectation;
+* current Tenant relationship;
+* prior rental Listing Episodes;
+* next Landlord follow-up.
+
+The same Property/Unit remains canonical across rental cycles.
+
+---
+
+# EXISTING §14 — BUYER OPERATING JOURNEY
+
+## KEEP EXISTING BUYER JOURNEY.
+
+Strengthen connection between:
+
+```text
+BUYER OPPORTUNITY
+→ REPRESENTATION / DISCLOSURES
+→ SAVED SEARCH
+→ SELECTED PROPERTY
+→ OFFER
+→ ACCEPTED OFFER
+→ DEAL PROGRESSION
+```
+
+The accepted offer is not a detached Transaction record.
+
+It remains connected to the specific:
+
+* Buyer Opportunity;
+* Property;
+* Listing/source;
+* representation agreement;
+* Offer.
+
+After close:
+
+```text
+BUYER
+→ OWNER
+→ POSSIBLE FUTURE LANDLORD / SELLER / INVESTOR
+```
+
+on the same Party and Property identities.
+
+---
+
+# EXISTING §15 — TENANT OPERATING JOURNEY
+
+## EXPAND SUBSTANTIALLY.
+
+Add complete recurring lifecycle:
+
+```text
+TENANT LEAD
+→ TENANT OPPORTUNITY
+→ QUALIFICATION
+→ REPRESENTATION / DISCLOSURES
+→ SEARCH
+→ SHOWINGS
+→ APPLICATION
+→ APPROVAL
+→ LEASE
+→ MOVE-IN
+→ RENTED
+→ LEASE TERM
+→ LEASE EXPIRATION
+↓
+RENEW?
+├── YES → RENEW
+├── NO → NEW TENANT SEARCH
+└── BUY → BUYER OPPORTUNITY
+```
+
+Tenant business does not end at Move-in.
+
+Mallan should preserve the relationship for renewal/relocation/homeownership opportunities.
+
+---
+
+# EXISTING §16 — INVESTOR / 1031
+
+## KEEP.
+
+Connect Investor Intelligence to:
+
+* Property;
+* Seller/Landlord;
+* Buyer;
+* current ownership;
+* rent;
+* valuation;
+* financing;
+* exit;
+* 1031 analysis.
+
+No separate CRM or property universe.
+
+---
+
+# EXISTING §17 — AGENT SUPPORT / PROFESSIONAL OBLIGATIONS / MY PROFILE
+
+## KEEP EXISTING PROFESSIONAL REQUIREMENTS.
+
+Add full Agent lifecycle linkage:
+
+```text
+RECRUIT / ADD AGENT
+→ IDENTITY
+→ LICENSE / PROFESSIONAL DATA
+→ BROKERAGE AGREEMENTS / POLICIES
+→ REQUIRED ACKNOWLEDGMENTS
+→ ACCOUNT / INVITATION
+→ LOGIN
+→ MY BUSINESS
+→ PUBLIC PROFILE / DIRECTORY
+→ LISTING / CLIENT / DEAL ACTIVITY
+→ COMMISSION / REFERRAL
+→ PROFESSIONAL REQUIREMENTS
+→ DEACTIVATE / OFFBOARD
+```
+
+Agent documents defined in §11 should surface here contextually.
+
+---
+
+# EXISTING §18 — BROKERAGE VIEW
+
+## KEEP EXISTING FIRM-WIDE EXCEPTION MODEL.
+
+Expand Brokerage View to include:
+
+* Lead intake/distribution exceptions;
+* uncontacted/high-priority Leads;
+* stalled Opportunities;
+* Seller/Landlord Listing exceptions;
+* Tenant/Buyer active-decision signals;
+* lease expirations;
+* Agent professional requirements;
+* form/document exceptions;
+* advertising/compliance issues;
+* Media/Web compliance flags;
+* marketing/reporting gaps;
+* Commission/Referral exceptions;
+* provider/data drift;
+* Business Intelligence requiring Broker attention.
+
+Brokerage View uses the same canonical records as Agent My Business.
+
+---
+
+# EXISTING §19 — LEADS / PERFORMANCE / MONEY / COMMISSIONS / REFERRALS
+
+## THIS SECTION MUST NOT START WITH MONEY.
+
+### Expand Lead Management into a full first-class lifecycle.
+
+Add:
+
+```text
+LEAD SOURCE
+↓
+INQUIRY / LEAD
+↓
+PARTY RESOLUTION
+↓
+ASSIGNMENT / OWNERSHIP
+↓
+CONTACT
+↓
+QUALIFICATION
+↓
+ROLE / INTENT
+↓
+OPPORTUNITY
+↓
+FOLLOW-UP
+↓
+REPRESENTATION
+↓
+ACTIVE CLIENT
+↓
+CONVERTED / LOST / NURTURE / FUTURE
+```
+
+Lead sources include, where available/authorized:
+
+* web inquiries;
+* Listing inquiries;
+* showing requests;
+* open houses;
+* email;
+* phone;
+* manual entry;
+* Agent-originated business;
+* brokerage leads;
+* referrals;
+* prior clients;
+* marketing/e-blast;
+* approved campaigns;
+* Saved Search/registration activity;
+* authorized prospecting sources.
+
+Every Lead keeps:
+
+* source;
+* timestamp;
+* Listing/Property context where relevant;
+* Campaign context where relevant;
+* original inquiry;
+* Party resolution;
+* assigned Agent;
+* status;
+* next action;
+* follow-up;
+* conversion/loss outcome.
+
+### Durable web inquiry
+
+Hard requirement:
+
+```text
+PUBLIC INQUIRY
+→ CRM RECORD
+```
+
+Email delivery alone is not durable CRM capture.
+
+### Performance
+
+Agent/business performance should measure business outcomes from truthful canonical activity, not superficial activity counts.
+
+The purpose is to help Agent/Broker improve service, not gamify behavior.
+
+### Keep existing Money/Commission/Referral rules.
+
+Do not conflate these with Lead lifecycle.
+
+---
+
+# EXISTING §20 — TRANSACTIONS / DEAL SUPPORT / PAYMENT READINESS
+
+## CORRECT THE BUSINESS MEANING OF THIS SECTION.
+
+Mallan does **not** operate escrow or client-funds handling.
+
+Mallan does not:
+
+* hold deposits;
+* hold purchase funds;
+* hold seller proceeds;
+* act as attorney escrow;
+* transfer closing funds;
+* replace attorneys;
+* act as closing agent.
+
+For purposes of Mallan, this section is:
+
+# BROKERAGE DEAL PROGRESSION + COMMISSION CLOSEOUT
+
+### Sale-side brokerage progression
+
+```text
+OPPORTUNITY
+→ REPRESENTATION / EXCLUSIVE
+→ PROPERTY / LISTING
+→ OFFER
+→ ACCEPTED OFFER
+→ ATTORNEY / CONTRACT INDICATORS
+→ CASH / FINANCING INDICATORS
+→ CO-OP / CONDO / BUILDING PROCESS INDICATORS
+→ WALKTHROUGH INDICATOR
+→ CLOSING CONFIRMED
+→ COMMISSION CLOSEOUT
+```
+
+### Rental progression
+
+```text
+OPPORTUNITY
+→ REPRESENTATION / EXCLUSIVE WHERE APPLICABLE
+→ PROPERTY / LISTING
+→ APPLICATION
+→ REVIEW
+→ APPROVAL
+→ BUILDING PROCESS
+→ LEASE EXECUTION
+→ RENTED / MOVE-IN
+→ COMMISSION CLOSEOUT
+```
+
+Mallan tracks the brokerage-facing status, documents, milestones and next actions.
+
+It does not perform attorney or escrow functions.
+
+### Financing indicators
+
+Mallan may record appropriate business status such as:
+
+* cash;
+* preapproval;
+* mortgage application;
+* appraisal;
+* commitment/approval;
+* financing contingency status;
+
+where known and relevant.
+
+These are status indicators, not financial custody.
+
+### No orphan Transaction
+
+Offer/Application/Accepted Deal must remain anchored to:
+
+```text
+PARTY
+→ OPPORTUNITY
+→ REPRESENTATION
+→ PROPERTY / LISTING
+→ OFFER / APPLICATION
+→ ACCEPTED DEAL
+```
+
+Do not create a new disconnected truth at acceptance.
+
+---
+
+# EXISTING §21 — TECHNOLOGY / REBNY / RLS / PROVIDER + SUPPLEMENTAL SOURCE GOVERNANCE
+
+## EXPAND AND RENAME CONCEPTUALLY.
+
+This section needs to govern:
+
+# REGULATORY, FAIR HOUSING, ADVERTISING, DATA, MEDIA, WEB & TECHNOLOGY AUTHORITY
+
+The governing authority stack must reconcile current applicable:
+
+```text
+NEW YORK LAW
++
+NYS DEPARTMENT OF STATE / LICENSING
++
+FAIR HOUSING
++
+NYS / NYC HUMAN-RIGHTS / ANTI-DISCRIMINATION LAW
++
+REAL-ESTATE ADVERTISING LAW / RULES
++
+REBNY
++
+RLS
++
+UCBA
++
+REBNY TECHNOLOGY / DATA / DISPLAY REQUIREMENTS
++
+TRESTLE / COTALITY CONTRACT
++
+TRESTLE / COTALITY API RULES
++
+MEDIA COPYRIGHT / LICENSE / USE RIGHTS
++
+WEB / DIGITAL PUBLICATION REQUIREMENTS
++
+PRIVACY / CONSENT
+```
+
+Exact rule language and implementation must be verified from current authoritative sources.
+
+### Media is a regulated advertising surface
+
+Before use:
+
+```text
+MEDIA
+→ IDENTITY
+→ SOURCE
+→ RIGHTS
+→ ACCURACY
+→ PROPERTY / BUILDING / UNIT RELATIONSHIP
+→ AUDIENCE
+→ ADVERTISING / FAIR-HOUSING CHECK
+→ ATTRIBUTION
+→ ELIGIBILITY
+```
+
+Media used on:
+
+* public web;
+* social;
+* email;
+* e-blast;
+* share;
+* reports;
+* listing presentations;
+
+must obey applicable advertising, Fair Housing, human-rights, source and provider rules.
+
+### Web is a regulated publication surface
+
+Every public Listing publication should pass:
+
+```text
+CANONICAL LISTING
+→ AUTHORITY
+→ CURRENT STATUS
+→ DISPLAY ELIGIBILITY
+→ ADDRESS DISPLAY
+→ MEDIA ELIGIBILITY
+→ ATTRIBUTION
+→ FAIR-HOUSING / ADVERTISING CHECK
+→ INTERNAL / CLIENT PII STRIP
+→ PUBLIC DTO
+→ SEARCH / PAGE / SEO / AEO / STRUCTURED DATA
+```
+
+### Fair Housing applies to algorithms too
+
+Search recommendations, matching, ranking, marketing audiences, personalization and AI must not use prohibited protected-class characteristics or prohibited proxies to steer housing opportunities.
+
+Legitimate business/property facts may be used.
+
+Protected/sensitive characteristics may not become hidden housing-selection criteria.
+
+### Provider rules
+
+Continue the existing hard chain:
+
+```text
+COTALITY RAW CONTRACT
+→ VERIFIED MAPPING
+→ MALLAN STORAGE / PROJECTION
+→ MALLAN BUSINESS RULE
+→ PUBLIC / CRM CONSUMER
+```
+
+Never infer Trestle/Cotality fields, meanings, rights, caching, media permissions or attribution rules.
+
+Verify them.
+
+---
+
+# EXISTING §22 — SYSTEM INTELLIGENCE / CONTEXTUAL AI
+
+## THIS SECTION REQUIRES MAJOR EXPANSION.
+
+Rename conceptually:
+
+# HUMAN, CLIENT, PROPERTY, MARKET & AGENT INTELLIGENCE
+
+Business Intelligence is not a generic alert system.
+
+Its purpose is to help the Agent understand:
+
+```text
+WHAT DOES THE CLIENT SAY?
+WHAT DOES THE CLIENT ACTUALLY RESPOND TO?
+WHAT APPEARS TO MATTER MOST?
+WHAT TRADEOFFS DO THEY MAKE?
+WHAT HAVE THEY REJECTED?
+WHAT ARE THEY REPEATEDLY VIEWING?
+WHAT ARE THEY NOT EXPLICITLY SAYING BUT THEIR PROPERTY BEHAVIOR SUGGESTS?
+WHAT HAS CHANGED?
+HOW CLOSE MAY THEY BE TO A BUSINESS DECISION?
+WHAT INFORMATION WOULD HELP THEM?
+WHAT IS THE PROPERTY / MARKET DOING?
+WHAT SHOULD THE AGENT INVESTIGATE OR ASK NEXT?
+```
+
+### A. Client Intelligence
+
+Use truthful activity such as:
+
+* explicit requirements;
+* Saved Search;
+* Searches performed;
+* properties viewed;
+* repeat views;
+* properties saved;
+* properties passed/rejected;
+* rejection reasons;
+* comments;
+* showing activity;
+* showing feedback;
+* email/share engagement;
+* CMA activity;
+* calculator scenarios;
+* offers/applications;
+* Agent notes;
+* lease/ownership timing.
+
+Keep separate:
+
+```text
+WHAT CLIENT SAID
+WHAT CLIENT DID
+WHAT SYSTEM OBSERVED
+WHAT AGENT CONCLUDED
+```
+
+Do not silently modify requirements.
+
+### B. Unexpressed preference signals
+
+The system can identify evidence-backed patterns.
+
+Examples:
+
+```text
+7 OF 9 SAVED PROPERTIES HAVE OUTDOOR SPACE
+
+→ Agent prompt:
+"Confirm whether outdoor space should become a required criterion."
+```
+
+```text
+CLIENT REPEATEDLY REJECTS HIGH-CARRYING-COST UNITS
+
+→ Agent prompt:
+"Carrying cost may matter more than originally stated. Confirm threshold."
+```
+
+Do not infer race, religion, family status, disability or other protected/sensitive traits.
+
+Do not perform unlawful steering.
+
+### C. Decision-readiness Intelligence
+
+Use evidence such as:
+
+* narrowing criteria;
+* increasing Search frequency;
+* repeat property views;
+* showing volume;
+* CMA requests;
+* calculator use;
+* financing readiness information provided;
+* attorney readiness;
+* Offer discussions;
+* lease expiration;
+* rent changes;
+* Seller valuation questions.
+
+Present evidence.
+
+Do not invent unsupported probability scores.
+
+### D. Renter → Buyer Intelligence
+
+Combine legitimate signals:
+
+```text
+LEASE EXPIRATION
++
+CURRENT / EXPECTED RENT
++
+BUY-SEARCH ACTIVITY
++
+CLIENT-PROVIDED FINANCIAL READINESS
++
+RENT-v-BUY ANALYSIS
+↓
+AGENT REVIEW
+```
+
+### E. Buyer → Owner → Landlord / Seller Intelligence
+
+Closed Buyer clients remain ongoing relationships.
+
+The system may surface future opportunities based on legitimate business history such as:
+
+* ownership duration;
+* rental activity;
+* valuation/CMA request;
+* market questions;
+* new investment analysis;
+* explicit owner plans.
+
+### F. Landlord → Seller Intelligence
+
+Use:
+
+* lease expiration;
+* vacancy;
+* rental economics;
+* current carrying costs;
+* sale-market changes;
+* hold-v-sell analyses;
+* owner questions.
+
+Do not invent intent.
+
+### G. Property Match Intelligence
+
+Search remains exact criteria execution.
+
+Intelligence can separately surface:
+
+> Why might this property deserve Agent review?
+
+Use:
+
+* explicit criteria;
+* client behavior;
+* prior rejections;
+* preferred buildings/types;
+* carrying costs;
+* location;
+* listing changes;
+* market/CMA context.
+
+Near-match suggestions go to the Agent.
+
+They do not silently broaden Saved Search.
+
+### H. CMA / Valuation Intelligence
+
+The system should understand:
+
+* Building;
+* neighborhood;
+* micro-market;
+* property type;
+* ownership;
+* price segment;
+* bedroom/size segment;
+* active competition;
+* pending/in-contract;
+* closed evidence;
+* failed-market context;
+* price movement;
+* carrying costs;
+* market velocity.
+
+It should explain:
+
+* why comps matter;
+* which characteristics drive difference;
+* building-vs-neighborhood effects;
+* segment differences;
+* market resistance;
+* market movement.
+
+### I. Seller / Landlord Listing Intelligence
+
+Use actual:
+
+* views;
+* matching clients;
+* sends;
+* opens;
+* saves;
+* inquiries;
+* showings;
+* feedback;
+* repeat interest;
+* offers/applications;
+* competitor changes;
+* price changes;
+* CMA changes.
+
+Help Agent investigate:
+
+```text
+EXPOSURE?
+PRESENTATION?
+PRICE?
+PROPERTY-SPECIFIC OBJECTION?
+MARKET SEGMENT?
+INSUFFICIENT EVIDENCE?
+```
+
+Do not fabricate causation.
+
+### J. Agent Intelligence
+
+The purpose is to help the Agent provide better service.
+
+Surface things the Agent may overlook:
+
+* missed follow-up;
+* high-interest Client went quiet;
+* apparent preference change;
+* strong new property match;
+* materially changed rejected property;
+* renter may be ready to consider buying;
+* owner may need Seller/Landlord conversation;
+* CMA needs refresh;
+* report due;
+* market changed;
+* document missing;
+* referral follow-up;
+* commission blocker;
+* professional requirement;
+* client activity needing response;
+* multiple Clients matching a new Mallan Listing;
+* Agent repeatedly sending properties inconsistent with observed rejection patterns.
+
+### K. Agent preparation intelligence
+
+Before contacting a Client, Mallan should summarize:
+
+* original goal;
+* current stated requirements;
+* observed patterns;
+* recent property activity;
+* rejection reasons;
+* showing feedback;
+* market changes;
+* CMA changes;
+* current scenarios;
+* important timing;
+* unanswered questions;
+* missing information;
+* relevant current opportunities;
+* why those opportunities may matter;
+* suggested questions for Agent verification;
+* next business action.
+
+### L. Intelligence model
+
+Hard distinction:
+
+```text
+DATA
+= sourced facts
+
+ANALYTICS
+= deterministic measurements
+
+INTELLIGENCE
+= evidence interpreted in business context
+
+AI
+= helps explain, synthesize, draft and investigate
+
+HUMAN AGENT / BROKER
+= decides
+```
+
+AI is not authority.
+
+---
+
+# EXISTING §23 — PRODUCT EXPERIENCE / NAVIGATION / ROLE WORKSPACES
+
+## EXPAND.
+
+Mallan has four role surfaces:
+
+```text
+BROKERAGE VIEW
+AGENT / MY BUSINESS
+CLIENT PORTAL / CLIENT EXPERIENCE
+PUBLIC WEB
+```
+
+### Brokerage View
+
+Include:
+
+* Overview;
+* Agents;
+* Leads;
+* Clients;
+* Listings;
+* Deals;
+* Money;
+* Compliance;
+* Technology;
+* Intelligence / exceptions.
+
+### Agent / My Business
+
+Include contextual access to:
+
+* Home / Attention;
+* Leads;
+* Clients;
+* Search;
+* Listings;
+* CMA / Analysis;
+* Showings;
+* Marketing;
+* Reports;
+* Deals;
+* Money;
+* Tasks;
+* My Profile.
+
+### Client experience
+
+Buyer/Tenant:
+
+* property recommendations;
+* shared listings;
+* Save/Pass/Interested;
+* comments;
+* showing requests;
+* CMA/analysis shared;
+* Offering Plans/documents where appropriate;
+* Offer/Application progress;
+* Deal progress;
+* documents;
+* timeline.
+
+Seller/Landlord:
+
+* Listing;
+* Marketing;
+* tracked activity;
+* inquiries;
+* showings;
+* feedback;
+* reports;
+* CMA/market updates;
+* Offers/Applications;
+* Deal progress;
+* documents;
+* timeline.
+
+### Public Web
+
+* brokerage identity;
+* Agent profiles;
+* eligible listings;
+* Consumer Search;
+* Listing pages;
+* appropriate Property content;
+* compliant media;
+* inquiry;
+* showing/info request;
+* SEO;
+* AEO;
+* structured data.
+
+### Mobile/tablet/desktop
+
+These must be usable presentations of the same workflow.
+
+Do not create a low-capability mobile truth that destroys professional data.
+
+---
+
+# EXISTING §24 — REQUIREMENT / DOCUMENT GOVERNANCE AND CURRENT-TO-TARGET MAP
+
+## ADD A BUSINESS-COMPLETENESS MATRIX.
+
+This prevents the repeated cycle of forgetting an entire business area.
+
+Every major capability must be represented as:
+
+```text
+CAPABILITY
+BUSINESS OUTCOME
+ACTOR
+CANONICAL OBJECTS
+AUTHORITATIVE FACTS
+WRITERS
+READERS
+LIFECYCLE
+DOWNSTREAM CONSUMERS
+COMPLIANCE / RIGHTS
+INTELLIGENCE
+ROLE EXPERIENCE
+DEFINITION OF DONE
+MASTER-PLAN SECTION
+CURRENT IMPLEMENTATION
+GAP / CONTRADICTION
+```
+
+Required capability families include at minimum:
+
+```text
+Lead intake
+Lead lifecycle
+Party / CRM
+Seller
+Landlord
+Buyer
+Tenant
+Investor / 1031
+Property
+Building
+Unit
+Listing
+Listing intake
+Search
+Saved Search
+Client history
+CMA
+Calculators
+Open Houses
+Showings
+Feedback
+Marketing toolkit
+E-blast
+Media
+Public Web
+SEO / AEO
+Listing Reporting
+Client Portals
+Communications
+Tasks / Calendar / Reminders
+Agent onboarding
+Agent professional requirements
+Broker / Agent operating documents
+Seller agreements
+Landlord agreements
+Buyer agreements
+Tenant agreements
+Disclosures
+Offering Plans / Schedule A
+Offers
+Applications
+Deal progression
+Commissions
+Referrals
+Brokerage View
+Compliance
+Fair Housing
+Advertising
+REBNY / RLS / UCBA
+Trestle / Cotality
+Provider mapping
+Media rights
+Web publication
+Business Intelligence
+Client Intelligence
+Property Match Intelligence
+CMA Intelligence
+Agent Intelligence
+Post-deal relationship
+Repeat business
+```
+
+A missing business capability is an identified Master Plan gap.
+
+It does **not** justify another Master Plan.
+
+It gets reconciled into this one.
+
+---
+
+# EXISTING §25 — DEVELOPMENT SEQUENCE
+
+## KEEP THE EXISTING EXECUTION SEQUENCE, BUT ADD THE GOVERNING RULE.
+
+Engineering sequence is subordinate to business architecture.
+
+```text
+BUSINESS REQUIREMENT
+↓
+CANONICAL ARCHITECTURE
+↓
+DEPENDENCY / IMPACT GRAPH
+↓
+COMPLIANCE
+↓
+PRODUCT EXPERIENCE
+↓
+CURRENT IMPLEMENTATION
+↓
+GAP
+↓
+CORRECTION
+↓
+PROOF
+```
+
+Not:
+
+```text
+ACTIVE PR
+↓
+BUSINESS ARCHITECTURE
+```
+
+Do not restart Search or other work from zero.
+
+Use the existing closed/proven contracts where valid.
+
+Newly discovered business requirements reopen only their affected dependencies.
+
+---
+
+# EXISTING §26 — GLOBAL DEFINITION OF DONE
+
+## EXPAND THE DoD TO COVER THE NEW LAYERS.
+
+Add explicit completion standards for:
+
+### Lead / CRM
+
+Not complete until:
+
+```text
+INQUIRY
+→ DURABLE LEAD
+→ PARTY
+→ OPPORTUNITY
+→ FOLLOW-UP
+→ CONVERSION / NURTURE / LOSS
+```
+
+works without duplicate identity or lost activity.
+
+### Landlord / Tenant lifecycle
+
+Not complete at `Rented`.
+
+Must preserve:
+
+```text
+LEASE
+→ TENANCY
+→ EXPIRATION
+→ RENEW / RE-RENT / BUY / SELL
+```
+
+business continuity.
+
+### Forms/Documents
+
+Not complete until the correct current form can be selected by actual business context, populated, saved, signed/tracked, versioned, amended and reopened without confusing agreements with disclosures.
+
+### Marketing Toolkit
+
+Not complete until marketing uses canonical Listing/Agent/Party facts and compliance/rights boundaries across channels.
+
+### Media/Web
+
+Not complete until advertising, Fair Housing, human-rights, REBNY/RLS/UCBA, provider, attribution, rights and publication rules are enforced before rendering/sending/publishing.
+
+### Intelligence
+
+Not complete until Intelligence uses real canonical evidence, distinguishes fact/analytics/inference, improves Agent decisions, respects Fair Housing/privacy boundaries and never silently mutates business truth.
+
+### Product experience
+
+Not complete until Broker, Agent, Client and Public surfaces resolve consistently to one canonical business history.
+
+---
+
+# EXISTING §27 — PRODUCTION RECOVERY AND EXECUTION CONTROL
+
+## KEEP THIS SECTION AS EXECUTION CONTROL.
+
+Do not let §27 redefine the business architecture.
+
+It governs:
+
+* how changes are repaired;
+* how proof is collected;
+* how branches/PRs converge;
+* what Production mutations require authorization;
+* how regressions are prevented.
+
+Architecture comes from the preceding Master Plan.
+
+Execution must conform to it.
+
+---
+
+# FINAL INTEGRATION STANDARD
+
+The objective is **not** to declare the Master Plan complete because this amendment has been inserted.
+
+The objective is to make #595 capable of becoming progressively complete without repeated resets.
+
+For every newly identified business requirement:
+
+```text
+NEW REQUIREMENT
+↓
+SEARCH EXISTING #595
+↓
+ALREADY REPRESENTED?
+├── YES
+│   → strengthen / clarify existing requirement
+│
+└── NO
+    → identify correct existing business layer
+    → add requirement surgically
+    → trace affected canonical objects
+    → trace readers/writers
+    → trace downstream workflows
+    → trace compliance/intelligence/UI impacts
+    → update requirement map
+```
+
+Only create a new canonical object or major new architecture when existing canonical models demonstrably cannot represent the real-world business requirement.
+
+Do not start over.
+
+Do not discard the accumulated business logic.
+
+Do not create another authority.
+
+**#595 remains the single growing reconciled business/system authority.**
+
+
+### Disclosure / Required-Form Library — expandable governed catalog
+
+Mallan must maintain a governed library of current brokerage disclosures and required/approved client forms.
+
+The library is **not limited to the forms known when this Master Plan is written**. Maya/Broker must be able to add additional approved forms later as:
+
+* uploaded documents;
+* stored files;
+* authoritative external links;
+* approved template records;
+* tracked external signing/form workflows.
+
+Initial disclosure/form families include at minimum:
+
+```text
+ANTI-DISCRIMINATION DISCLOSURE / NOTICE
+
+FAIR HOUSING DISCLOSURE / NOTICE
+
+SELLER / BUYER AGENCY DISCLOSURE
+
+LANDLORD / TENANT AGENCY DISCLOSURE
+
+TOURING DISCLOSURE / TOURING-RELATED FORM
+
+OTHER CURRENT NYS / DOS / REBNY / RLS / UCBA
+BROKER-APPROVED DISCLOSURES OR FORMS
+AS THEY BECOME APPLICABLE
+```
+
+The exact official form name, version, applicability and source authority must be verified before a form is marked current/required.
+
+Do not assume that every form applies to every client or transaction.
+
+The applicability engine must determine the correct forms based on context such as:
+
+```text
+CLIENT ROLE
+├── SELLER
+├── BUYER
+├── LANDLORD
+└── TENANT
+
+REPRESENTATION / RELATIONSHIP
+PROPERTY / TRANSACTION TYPE
+WORKFLOW STAGE
+CURRENT LAW / DOS REQUIREMENT
+CURRENT REBNY / RLS / UCBA REQUIREMENT
+BROKER POLICY
+```
+
+Each governed disclosure/form record should retain:
+
+```text
+FORM ID
+OFFICIAL / APPROVED NAME
+FORM FAMILY
+AUTHORITY / SOURCE
+SOURCE URL, IF APPLICABLE
+UPLOADED FILE, IF APPLICABLE
+VERSION / REVISION DATE
+EFFECTIVE DATE
+SUPERSEDED DATE, IF ANY
+SELLER / BUYER / LANDLORD / TENANT APPLICABILITY
+PROPERTY / TRANSACTION APPLICABILITY
+WORKFLOW STAGE
+REQUIRED / CONDITIONAL / OPTIONAL / BROKER POLICY
+SIGNATURE / ACKNOWLEDGMENT REQUIREMENT
+DELIVERY REQUIREMENT
+BROKER APPROVAL REQUIREMENT, IF ANY
+CURRENT / SUPERSEDED STATUS
+```
+
+### Form source types
+
+Mallan must support more than one document-delivery model:
+
+```text
+UPLOADED GOVERNED DOCUMENT
+→ Mallan retains the approved file/version
+
+AUTHORITATIVE LINK
+→ Mallan retains the authoritative URL and form metadata
+
+MALLAN TEMPLATE
+→ Mallan generates/prefills an approved governed form
+
+EXTERNAL SIGNING / FORM WORKFLOW
+→ Mallan records the link/workflow and completion evidence
+```
+
+An external link is not a substitute for governance.
+
+Mallan must still know:
+
+* what form it is;
+* why it applies;
+* its current version;
+* when it was supplied;
+* whether acknowledgment/signature was required;
+* whether it was completed;
+* what client/opportunity/property/deal it belonged to.
+
+### Agreements and disclosures remain distinct
+
+Do not collapse all paperwork into one `Document` meaning.
+
+Architecturally distinguish at least:
+
+```text
+BROKERAGE / AGENT OPERATING DOCUMENT
+
+CLIENT REPRESENTATION / EXCLUSIVE AGREEMENT
+
+AGENCY DISCLOSURE
+
+ANTI-DISCRIMINATION / FAIR-HOUSING DISCLOSURE
+
+TOURING-RELATED FORM / AGREEMENT
+
+PROPERTY-SPECIFIC DISCLOSURE
+
+RLS / DISTRIBUTION / OWNER AUTHORIZATION FORM
+
+OFFER / APPLICATION DOCUMENT
+
+TRANSACTION / DEAL DOCUMENT
+
+COMMISSION / REFERRAL DOCUMENT
+
+BUILDING / OFFERING PLAN DOCUMENT
+```
+
+They may share one canonical document infrastructure while retaining their different business meanings.
+
+### Client workflow
+
+The Agent should not have to remember every required document manually.
+
+For an actual client relationship Mallan should be able to produce:
+
+```text
+CLIENT / OPPORTUNITY
+↓
+ROLE + REPRESENTATION + PROPERTY / TRANSACTION CONTEXT
+↓
+CURRENT GOVERNED FORM RULES
+↓
+DOCUMENT CHECKLIST
+├── REQUIRED NOW
+├── REQUIRED LATER
+├── CONDITIONALLY REQUIRED
+├── COMPLETED
+├── DECLINED / REFUSED, WHERE RELEVANT
+├── EXPIRED / SUPERSEDED
+└── NOT APPLICABLE
+```
+
+Examples:
+
+```text
+SELLER
+→ applicable Seller/Buyer agency disclosure
+→ Anti-Discrimination / Fair Housing material
+→ appropriate Seller representation/exclusive agreement
+→ additional property/RLS forms as applicable
+```
+
+```text
+BUYER
+→ applicable Seller/Buyer agency disclosure
+→ Anti-Discrimination / Fair Housing material
+→ Touring-related or Buyer representation form as applicable
+→ additional deal/property forms as the relationship progresses
+```
+
+```text
+LANDLORD
+→ applicable Landlord/Tenant agency disclosure
+→ Anti-Discrimination / Fair Housing material
+→ appropriate Landlord representation/exclusive agreement
+→ property/rental/RLS forms as applicable
+```
+
+```text
+TENANT
+→ applicable Landlord/Tenant agency disclosure
+→ Anti-Discrimination / Fair Housing material
+→ Touring/representation-related form as applicable
+→ application/deal forms as the relationship progresses
+```
+
+These examples define the system structure only. The current authoritative rules determine the exact required form set.
+
+### Broker-maintained form library
+
+Maya/Broker must be able to:
+
+```text
+ADD FORM
+ADD AUTHORITATIVE LINK
+UPLOAD REPLACEMENT VERSION
+MARK FORM SUPERSEDED
+SET / CHANGE APPLICABILITY
+SET REQUIRED / CONDITIONAL / OPTIONAL STATUS
+ASSIGN ROLE / WORKFLOW
+REVIEW CURRENT FORM INVENTORY
+SEE WHICH ACTIVE CLIENTS USE AN OLD VERSION
+```
+
+Updating the form catalog must not require rebuilding Seller, Buyer, Landlord or Tenant workflows.
+
+### Historical integrity
+
+Once a disclosure/agreement has been delivered, acknowledged or signed:
+
+```text
+CURRENT FORM VERSION CHANGES
+≠
+HISTORICAL CLIENT RECORD CHANGES
+```
+
+The historical record retains the exact version/link/document used at that time, delivery/completion evidence, parties, Agent and timestamp.
+
+A newer form version governs future use according to its effective/applicability rules.
+

@@ -252,6 +252,41 @@ var Portals = (function () {
   }
 
 
+  /**
+   * The status a portal prints for a listing (owner ruling, Maya 2026-09-08).
+   *
+   * The server computes it per TRANSACTION and sends it as `status_label`: a sale's Closed reads "Sold", a
+   * rental's Closed reads "Rented", a sale's Pending reads "In Contract", and a row recorded off the feed
+   * reads the Mallan presence state "Off Market". The portal RENDERS that string. It never re-derives a label
+   * from the token, never reads a provider status field, and never falls back to a fabricated "Active" - an
+   * unresolvable state reads "Status unavailable".
+   *
+   * The transaction is the LISTING's own `listing_type`, never the viewer's portal role: a landlord may be
+   * shown a sale comp and a buyer a rental.
+   */
+  function _statusLabel(l) {
+    if (!l) return 'Status unavailable';
+    if (l.status_label) return l.status_label;
+    if (l.status_presentation && l.status_presentation.label) return l.status_presentation.label;
+    return 'Status unavailable';
+  }
+
+  /** The live Cotality StandardStatus token, for styling only - never printed. */
+  function _statusToken(l) {
+    if (!l) return '';
+    if (l.status_presentation && (l.status_presentation.token || l.status_presentation.status)) {
+      return l.status_presentation.token || l.status_presentation.status;
+    }
+    return l.status || '';
+  }
+
+  // Chip colors keyed by the provider token. Canceled carries the provider's one-L spelling.
+  var _STATUS_TOKEN_COLORS = {
+    Active: '#3B82F6', ComingSoon: '#F59E0B', ActiveUnderContract: '#8B5CF6', Pending: '#8B5CF6',
+    Closed: '#059669', Hold: '#6B7280', Withdrawn: '#6B7280', Canceled: '#6B7280',
+    Expired: '#DC2626', Incomplete: '#9CA3AF'
+  };
+
   function _buildListingCard(l, isRental) {
     var id = l.id || l.listing_id || l.ListingId;
     var photo = _getPhoto(l);
@@ -260,10 +295,9 @@ var Portals = (function () {
       : (l.address || l.UnparsedAddress || 'Address not available');
     var price = l.ListPrice || l.price || l.list_price;
     var reaction = l.reaction || null;
-    var status = (l.status || l.MlsStatus || 'active').toLowerCase();
-
-    var statusColors = { active: '#3B82F6', pending: '#F59E0B', contract: '#8B5CF6' };
-    var statusColor = statusColors[status] || '#6B7280';
+    var statusLabel = _statusLabel(l);
+    var statusToken = _statusToken(l);
+    var statusColor = _STATUS_TOKEN_COLORS[statusToken] || '#6B7280';
 
     return '<div class="portal-listing-card" data-reaction="' + E(reaction || '') + '" data-new="' + (l.is_new ? 'true' : '') + '">' +
       // Photo
@@ -272,7 +306,7 @@ var Portals = (function () {
             '<img src="' + E(photo) + '" class="portal-listing-photo" alt="Property photo" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
             '<div class="portal-listing-photo items-center justify-center bg-gray-100" style="display:none"><i class="fas fa-image text-3xl text-gray-300"></i></div>' +
             (l.is_new ? '<span style="position:absolute;top:8px;left:8px;background:#3B82F6;color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;">NEW</span>' : '') +
-            '<span style="position:absolute;top:8px;right:8px;background:' + statusColor + ';color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;text-transform:capitalize;">' + E(status) + '</span>' +
+            '<span style="position:absolute;top:8px;right:8px;background:' + statusColor + ';color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;" data-status-token="' + E(statusToken) + '">' + E(statusLabel) + '</span>' +
           '</div>'
         : '<div class="portal-listing-photo flex items-center justify-center bg-gray-100 relative">' +
             '<i class="fas fa-image text-3xl text-gray-300"></i>' +
@@ -648,7 +682,8 @@ var Portals = (function () {
       listings.forEach(function (l, idx) {
         var address = l.address || l.UnparsedAddress || 'Your Listing';
         var price = l.ListPrice || l.price || l.list_price;
-        var status = l.status || l.MlsStatus || 'Active';
+        var statusLabel = _statusLabel(l);
+        var statusToken = _statusToken(l);
         var photo = _getPhoto(l);
         var dom = l.cumulative_dom || l.days_on_market || 0;
 
@@ -666,7 +701,7 @@ var Portals = (function () {
 
         html += '<div class="card-header">' +
           (!photo ? '<h3>' + E(address) + '</h3>' : '<h3>Listing Details</h3>') +
-          '<span style="display:inline-flex;align-items:center;padding:3px 10px;font-size:11px;font-weight:700;border-radius:6px;background:#3B82F615;color:#3B82F6;text-transform:capitalize;">' + E(status) + '</span>' +
+          '<span style="display:inline-flex;align-items:center;padding:3px 10px;font-size:11px;font-weight:700;border-radius:6px;background:' + (_STATUS_TOKEN_COLORS[statusToken] || '#6B7280') + '15;color:' + (_STATUS_TOKEN_COLORS[statusToken] || '#6B7280') + ';" data-status-token="' + E(statusToken) + '">' + E(statusLabel) + '</span>' +
         '</div>';
 
         // Key stats

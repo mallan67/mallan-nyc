@@ -53,7 +53,7 @@ describe("Phase C — SALE form hydrates agent fields typed-first", () => {
   // collectSaleFormData() actually SUBMITS as ListAgentMlsId — NOT the internal-id field
   // `saleUpdatingAgent` (else a no-op edit re-sends the editor's session MLS id). (Codex #420.)
   it("ListAgentMlsId hydrates saleUpdatingAgentMlsId (the submitted field), not saleUpdatingAgent", () => {
-    expect(sale).toContain("{ rls: 'ListAgentMlsId', form: 'saleUpdatingAgentMlsId', type: 'text', src: 'agentInfo', agentKey: 'ListAgentMlsId', typedKey: 'list_agent_mls_id' }");
+    expect(sale).toContain("{ cotality: 'ListAgentMlsId', form: 'saleUpdatingAgentMlsId', type: 'text', src: 'agentInfo', agentKey: 'ListAgentMlsId', typedKey: 'list_agent_mls_id' }");
     // and collectSaleFormData submits ListAgentMlsId from that same field
     expect(sale).toMatch(/data\.ListAgentMlsId\s*=\s*data\.saleUpdatingAgentMlsId/);
   });

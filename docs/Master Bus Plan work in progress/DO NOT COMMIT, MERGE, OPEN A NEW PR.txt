@@ -1,0 +1,1621 @@
+DO NOT COMMIT, MERGE, OPEN A NEW PR, OR LAND THE INTEGRATED MASTER PLAN YET.
+
+Keep working only in:
+
+`docs/Master Bus Plan work in progress/`
+
+The current integrated file is a WORKING MASTER CANDIDATE, not the final #595 authority yet.
+
+Preserve:
+
+* `_BASE-595-MALLAN-PLATFORM-MASTER-PLAN.md` as comparison evidence while this work is active;
+* the integrated `MALLAN-PLATFORM-MASTER-PLAN.md`;
+* `INTEGRATION-CHANGELOG.md`.
+
+Do not create another master plan.
+
+Do not replace the PR #595 original.
+
+Do not switch branches or mutate #595 yet.
+
+The additive proof you produced is good:
+
+* 27 sections preserved;
+* 112 edits additive;
+* zero original content lost;
+* duplicate requirements were not blindly recreated.
+
+Continue with the same methodology.
+
+## FIRST — RESOLVE THE FOUR CONTRADICTIONS YOU SURFACED AS FOLLOWS
+
+### 1. §17 — “Mallan is not an HR system” vs Agent documents
+
+KEEP the existing boundary that Mallan is not an HR system.
+
+NARROW/CLARIFY its meaning.
+
+Mallan DOES govern the business records necessary to operate licensed independent-contractor Agents and Associate Brokers, including as applicable:
+
+* Independent Contractor Agreement;
+* Brokerage policies;
+* policy acknowledgments;
+* confidentiality / technology protections;
+* W-9;
+* applicable 1099 annual tax records;
+* license records;
+* CE;
+* REBNY information;
+* E&O proof where required;
+* commission/split plan;
+* referral terms;
+* onboarding;
+* account/invitation state;
+* professional profile;
+* offboarding/deactivation;
+* historical Brokerage/Agent agreements.
+
+That does NOT turn Mallan into an employee HR/payroll/benefits system.
+
+Mallan is not building:
+
+* employee payroll;
+* benefits administration;
+* vacation/time-off management;
+* employee HR files unrelated to brokerage operation;
+* employee disciplinary/performance-management bureaucracy.
+
+Agent production/business intelligence may help the Agent and Broker operate the brokerage, but it is not an employee-HR performance system.
+
+So preserve the independent-contractor boundary while governing the contractual, licensing, regulatory, tax and brokerage documents Mallan actually needs.
+
+### 2. §20.3 — Transaction documents vs documents that exist before a Transaction
+
+DO NOT make every document belong to Transaction.
+
+The correct canonical rule is:
+
+```text
+DOCUMENT
+must always have BUSINESS CONTEXT
+but that context depends on its lifecycle stage.
+```
+
+Examples:
+
+```text
+AGENCY / FAIR HOUSING / ANTI-DISCRIMINATION DISCLOSURE
+→ Party + Opportunity + Agent
+→ Property where applicable
+
+TOURING / BUYER / TENANT REPRESENTATION
+→ Party + Buyer/Tenant Opportunity + Agent
+→ Property/tour context where applicable
+
+SELLER / LANDLORD EXCLUSIVE
+→ Party/Owner + Seller/Landlord Opportunity + Property + Agent
+
+LISTING AMENDMENT
+→ Listing + Opportunity + Property
+
+OFFER / APPLICATION
+→ Opportunity + Property/Listing
+
+SIGNED CONTRACT / LEASE / DEAL SHEET
+→ canonical accepted Deal / Transaction
+
+COMMISSION CLOSEOUT DOCUMENTS
+→ Deal / Transaction + Commission
+```
+
+Therefore revise the meaning of §20.3 to:
+
+> Transaction-specific documents attach to the canonical Transaction once a Transaction exists. Earlier brokerage agreements, disclosures and workflow documents attach to their actual canonical Party/Opportunity/Property/Listing context. No document belongs in a miscellaneous contextless upload bucket.
+
+When a later Transaction exists, link the earlier relevant records to the Deal context where needed.
+
+Do not copy them into a second document truth.
+
+### 3. §21.1 — Cotality/Trestle is NOT a peer legal authority
+
+KEEP the existing hierarchy.
+
+Cotality/Trestle must NOT be promoted to the same authority level as law.
+
+The business/compliance authority boundary is conceptually:
+
+```text
+NEW YORK / FEDERAL APPLICABLE LAW
++
+NYS DOS / LICENSING
++
+FAIR HOUSING
++
+NYS / NYC HUMAN-RIGHTS / ANTI-DISCRIMINATION
++
+REAL-ESTATE ADVERTISING REQUIREMENTS
++
+REBNY
++
+RLS
++
+UCBA
++
+SOURCE / COPYRIGHT / MEDIA RIGHTS
++
+PRIVACY / CONSENT
+↓
+MALLAN BUSINESS / COMPLIANCE RULES
+```
+
+Trestle/Cotality sits below that as the CURRENT PROVIDER IMPLEMENTATION CONTRACT:
+
+```text
+COTALITY / TRESTLE RAW CONTRACT
+↓
+VERIFIED FIELD / PERMISSION / DISPLAY / MEDIA / API MAPPING
+↓
+MALLAN STORAGE / PROJECTION
+↓
+MALLAN BUSINESS / COMPLIANCE RULE
+↓
+PUBLIC / CRM / AGENT CONSUMER
+```
+
+However, Web and Media must comply with BOTH:
+
+1. applicable legal/business/advertising/Fair-Housing/REBNY/RLS/UCBA requirements; and
+2. the verified Trestle/Cotality technical/use/display/attribution/API contract where provider data is involved.
+
+Provider replacement must not require rewriting Mallan's business architecture.
+
+### 4. §19.1 — “Do not overbuild lead routing” vs complete Lead lifecycle
+
+CONFIRMED: these are NOT contradictory.
+
+Preserve:
+
+> Do not overbuild lead routing when simple explicit assignment works.
+
+That statement governs the ROUTING MECHANISM.
+
+The expanded Lead lifecycle governs the BUSINESS RELATIONSHIP.
+
+Mallan needs:
+
+```text
+LEAD GENERATED / RECEIVED
+→ identity resolution
+→ Party
+→ source/provenance
+→ Agent ownership / assignment
+→ first contact
+→ qualification
+→ role / intent
+→ Opportunity
+→ follow-up
+→ representation
+→ active business
+→ converted / nurture / lost
+→ future relationship
+```
+
+Lead distribution itself should remain simple, explicit and auditable.
+
+Every Agent manages the Agent's own:
+
+* Leads;
+* Buyers;
+* Sellers;
+* Landlords;
+* Tenants/Renters;
+* Investors/1031;
+* Listings;
+* Saved Searches;
+* referrals;
+* Deals;
+* follow-ups;
+* post-deal/future opportunities.
+
+Brokerage View sees the same canonical records firm-wide.
+
+Before a new Brokerage-generated Lead is assigned, reconcile:
+
+```text
+NEW INQUIRY
+→ existing Party?
+→ existing active Agent relationship?
+```
+
+Do not casually assign an existing Client to another Agent.
+
+Reassignment/transfer must be deliberate and retain history.
+
+## SECOND — SHOW ME ALL 18 CONTRADICTIONS
+
+Your response only surfaced four of the eighteen.
+
+Do NOT resolve the remaining fourteen silently.
+
+Before making contradiction-driven edits, return a table:
+
+| # | Existing § / exact rule | New requirement | Real contradiction or reconcilable? | Proposed resolution | Deletes/rewords existing authority? |
+| - | ----------------------- | --------------- | ----------------------------------- | ------------------- | ----------------------------------- |
+
+Classify every one as:
+
+* `NO CONFLICT — ALREADY COMPATIBLE`
+* `CLARIFICATION`
+* `SCOPE NARROWING`
+* `TRUE BUSINESS DECISION REQUIRED`
+* `DUPLICATE — DO NOT ADD`
+* `SUPERSEDED — MAY NOT CHANGE WITHOUT MAYA`
+
+Do not use “contradiction” merely because new detail is more specific.
+
+## THIRD — THE CURRENT INTEGRATION IS STILL MISSING LATER MAYA REQUIREMENTS
+
+The integration you completed predates additional business requirements Maya identified afterward.
+
+Reconcile these ADDITIVELY before the Master Plan can be considered final.
+
+### A. Agent tax lifecycle
+
+Add:
+
+```text
+W-9
+→ canonical actual Agent payments
+→ tax year
+→ applicable annual 1099 tax record
+→ Agent access
+→ Brokerage/accountant access
+→ corrected/replacement history
+```
+
+Do not create an independent 1099 payment truth.
+
+Use actual canonical payment records.
+
+Current IRS form/rules/thresholds/dates must be current-source governed, not hard-coded forever.
+
+### B. Full Lead generation + distribution
+
+Add Lead generation from:
+
+* Website;
+* Consumer Search;
+* Listing inquiry;
+* Showing request;
+* Open House;
+* Marketing;
+* E-blast;
+* past clients;
+* referrals;
+* Agent-generated business;
+* Brokerage-generated business;
+* approved campaigns;
+* approved prospecting sources.
+
+Every Lead retains:
+
+* origin;
+* Listing/Property/Campaign context;
+* original inquiry;
+* Party reconciliation;
+* Agent ownership;
+* contact/follow-up;
+* Opportunity;
+* conversion/nurture/loss history.
+
+Public web inquiry must become durable CRM activity — email alone is insufficient.
+
+### C. Lease lifecycle — this is core recurring brokerage business
+
+Landlord and Tenant relationships do NOT end when a property is rented.
+
+Store the canonical lease relationship:
+
+```text
+LANDLORD PARTY
++
+TENANT PARTY
++
+PROPERTY / UNIT
++
+LEASE
++
+START DATE
++
+EXPIRATION DATE
++
+CURRENT RENT
+```
+
+Approximately SIX MONTHS before lease expiration, create Agent attention for two separate relationships.
+
+#### Landlord / Owner review
+
+Prepare:
+
+* current property pricing/value/CMA;
+* recent relevant sales;
+* current sale market;
+* current rental market;
+* estimated market rent;
+* current rent;
+* carrying costs where known;
+* rental history;
+* hold-v-sell;
+* renew-v-re-rent;
+* investment context.
+
+Discuss:
+
+```text
+RENEW CURRENT TENANT?
+RE-RENT?
+SELL?
+HOLD?
+BUY ANOTHER INVESTMENT PROPERTY?
+SELL + REINVEST?
+1031 ANALYSIS WHERE APPLICABLE?
+```
+
+Possible results:
+
+```text
+LANDLORD → SELLER OPPORTUNITY
+
+LANDLORD → NEW RENTAL / RE-RENT OPPORTUNITY
+
+LANDLORD → INVESTOR / BUYER OPPORTUNITY
+
+LANDLORD → SELLER + INVESTOR / 1031 OPPORTUNITIES
+```
+
+Same Party.
+Same Property.
+Same responsible Agent unless deliberately reassigned.
+
+#### Tenant review
+
+Prepare:
+
+* current rent;
+* expected renewal cost when known;
+* current rental alternatives;
+* rent-v-buy;
+* estimated purchase range;
+* cost to become an owner;
+* down payment assumptions;
+* cash-to-close;
+* monthly ownership cost;
+* current matching sale inventory.
+
+Discuss:
+
+```text
+RENEW?
+MOVE / RENT ELSEWHERE?
+BUY?
+NOT READY?
+```
+
+Possible result:
+
+```text
+TENANT PARTY
+→ BUYER OPPORTUNITY
+```
+
+without creating another Party.
+
+### D. Lease follow-up cadence
+
+Default checkpoints:
+
+```text
+6 MONTHS
+→ early education / decision conversation
+
+90 DAYS
+→ decision-status follow-up
+
+60 DAYS
+→ active planning
+
+30 DAYS
+→ execution / urgency
+```
+
+These are RESPONSE-DRIVEN.
+
+The client's response controls the next task.
+
+Do not create blind automated nagging.
+
+If Landlord says “renewing,” suppress unnecessary Seller prompts.
+
+If Landlord says “call me in 90 days about selling,” create the appropriate follow-up and refresh market analysis before contact.
+
+If Tenant says “I want to buy in three months,” create/activate Buyer Opportunity and appropriate Search/analysis.
+
+### E. Each Agent owns their own book of business
+
+Explicitly preserve:
+
+```text
+ONE MALLAN CANONICAL SYSTEM
++
+ONE CANONICAL PARTY IDENTITY
++
+AGENT-OWNED OPPORTUNITIES / BUSINESS
+```
+
+Agent My Business includes:
+
+```text
+MY LEADS
+MY BUYERS
+MY SELLERS
+MY LANDLORDS
+MY TENANTS
+MY INVESTORS / 1031
+MY PAST CLIENTS
+MY LISTINGS
+MY SEARCHES
+MY SHOWINGS
+MY DEALS
+MY REFERRALS
+MY MONEY
+MY TASKS
+MY FUTURE OPPORTUNITIES
+```
+
+Brokerage View sees the entire firm over those SAME records.
+
+### F. Human / Client / Property / Market / Agent Intelligence
+
+§22 cannot remain only an alert-code system.
+
+Preserve the existing attention/signals layer and ADD a deeper intelligence layer.
+
+Maintain separately:
+
+```text
+WHAT CLIENT SAID
+WHAT CLIENT DID
+WHAT SYSTEM OBSERVED
+WHAT AGENT CONCLUDED
+```
+
+Use legitimate evidence such as:
+
+* searches;
+* saved properties;
+* repeated views;
+* passed/rejected properties;
+* comments;
+* showings;
+* feedback;
+* CMA;
+* calculators;
+* offer/application activity;
+* lease/ownership timing;
+* client-provided readiness information.
+
+Examples:
+
+```text
+7 of 9 saved properties have outdoor space
+→ ask Agent to verify whether outdoor space is actually required
+```
+
+```text
+Tenant lease approaching expiration
++ Buyer Search activity
++ rent-v-buy use
+→ potential Buyer conversation
+```
+
+```text
+Landlord lease approaching expiration
++ value questions
++ sale market movement
+→ potential sell/hold/reinvest conversation
+```
+
+No protected-class inference.
+No unlawful steering.
+No invented psychological certainty.
+
+### G. CMA / Market Intelligence
+
+Deepen CMA intelligence across:
+
+* Building;
+* Unit;
+* micro-neighborhood;
+* neighborhood;
+* ownership type;
+* property type;
+* size/bedroom segment;
+* price band;
+* closed evidence;
+* current competition;
+* pending/in-contract context;
+* market-resistance evidence;
+* carrying costs;
+* market movement.
+
+Help the Agent understand WHY a property/comp matters, not just return a similarity score.
+
+### H. Agent Intelligence
+
+System purpose:
+
+> help the Agent see what the Agent may miss.
+
+Examples:
+
+* client preferences appear to shift;
+* high-interest client becomes quiet;
+* new Listing strongly matches a client;
+* rejected property materially changed;
+* renter may become Buyer;
+* Landlord may sell/reinvest;
+* Seller CMA should refresh;
+* report due;
+* important follow-up missed;
+* several clients match a new Mallan listing;
+* documents missing;
+* referral follow-up due.
+
+Agent augmentation, not employee surveillance.
+
+### I. Media/Web + advertising/Fair-Housing compliance
+
+Media and Web are REGULATED PUBLICATION SURFACES.
+
+They must comply with applicable:
+
+* NY/Federal law;
+* NYS DOS;
+* Fair Housing;
+* NYS/NYC Human Rights / anti-discrimination;
+* real-estate advertising rules;
+* REBNY;
+* RLS;
+* UCBA;
+* verified Trestle/Cotality use/display/API rules;
+* media copyright/license/use rights;
+* privacy/consent.
+
+This applies not only to the footer or listing page.
+
+It applies to:
+
+* descriptions;
+* neighborhood copy;
+* AI copy;
+* Search/recommendation ranking;
+* marketing audiences;
+* images;
+* floor plans;
+* video;
+* virtual staging;
+* captions;
+* emails;
+* e-blasts;
+* social;
+* reports;
+* SEO/AEO;
+* structured data;
+* lead-generation pages.
+
+Compliance happens BEFORE publication.
+
+### J. Contextual Rendering Contract
+
+The public-site review proved that a component should not render merely because the DTO technically supports it.
+
+Require:
+
+```text
+CANONICAL PROPERTY / LISTING / BUSINESS TYPE
+→ AUDIENCE
+→ BUSINESS RULE
+→ COMPLIANCE / RIGHTS
+→ COMPONENT ELIGIBILITY
+→ RENDER
+```
+
+This applies to:
+
+* Rent-v-Buy;
+* schools;
+* investment analysis;
+* closing-cost calculators;
+* application controls;
+* offer controls;
+* neighborhood content;
+* Open House;
+* CMA;
+* media;
+* disclosures;
+* CTAs.
+
+Commercial/residential/sale/rental/new-development contexts may not blindly reuse inappropriate modules.
+
+### K. New Development / Schedule A — Buyer-representation strategy
+
+Maya is NOT trying to become a developer marketing/sponsor-sales operation.
+
+Current business strategy:
+
+```text
+NEW DEVELOPMENT / SCHEDULE A
+=
+BUYER-REPRESENTATION INTELLIGENCE
+```
+
+Mallan uses:
+
+* Offering Plans;
+* Schedule A;
+* amendments;
+* canonical Building/Unit;
+* current Cotality reconciliation;
+* availability verification;
+* permitted source facts;
+* Buyer matching;
+* Compare;
+* CMA;
+* building/unit intelligence;
+
+to give Mallan Buyers and Investors an informational advantage.
+
+Do not automatically treat Schedule A units as active listings.
+
+Do not automatically publish Schedule A inventory publicly.
+
+Do not imply Mallan is sponsor/developer/listing broker unless it actually holds that authority.
+
+Core position:
+
+> Mallan does not need to be the developer's broker. Mallan should be the Buyer's better-informed broker.
+
+### L. Forms/disclosures library
+
+Keep the expanded form catalog and explicitly preserve initial families including:
+
+* Anti-Discrimination;
+* Fair Housing;
+* Seller/Buyer Agency Disclosure;
+* Landlord/Tenant Agency Disclosure;
+* Touring-related disclosure/form;
+* Seller agreements;
+* Landlord agreements;
+* Buyer agreements;
+* Tenant agreements;
+* property/building-specific agreements as applicable;
+* RLS/distribution/owner authorization forms;
+* additional Maya-added links/files over time.
+
+The architecture must allow Maya/Broker to add authoritative links or documents later without code redesign.
+
+## FOURTH — DO NOT ASSUME THE MASTER IS COMPLETE AFTER THIS PASS
+
+Create/maintain the Business-Completeness Matrix.
+
+Every new Maya requirement is:
+
+```text
+SEARCH EXISTING MASTER
+→ already present?
+   YES → map/clarify; do not duplicate
+   NO → add surgically to the correct existing layer
+→ trace canonical object
+→ trace writer
+→ trace reader
+→ trace downstream impacts
+→ trace compliance
+→ trace Intelligence/UI
+→ update matrix
+```
+
+A missing requirement does not trigger another Master Plan rewrite.
+
+## FIFTH — DO NOT LAND YET
+
+Current disposition:
+
+```text
+_BASE
+= comparison evidence
+
+INTEGRATED MASTER
+= working candidate
+
+PR #595 MASTER
+= still the unmodified draft authority branch until Maya approves final integration
+```
+
+Do NOT:
+
+* commit the work-in-progress Master into #595;
+* create another PR;
+* mark #595 Ready;
+* merge;
+* delete the base;
+* restack Search;
+* change Production/schema/Neon/R2/env.
+
+After the new requirements are integrated and all 18 contradiction decisions are classified, return:
+
+1. full 18-row contradiction matrix;
+2. all newly integrated requirements;
+3. requirements deliberately NOT added because already present;
+4. exact base → integrated additive proof;
+5. section-by-section change summary;
+6. outstanding business-completeness gaps;
+7. confirmation that 27-section structure and all original content remain;
+8. recommendation on whether it is actually ready for Maya's final business review.
+
+Do not ask for landing instructions again until that review is complete.
+
+
+
+ANOTHER CONTINUED ADDITION TO MASTER PLAN MAKE SURE THIS IS NOT DUPLICATING THIS SHOULD NOT REPLACE THE ORIGINAL. # PR #595 — ADDITIVE CONCLUSIONS FROM BROKERAGE / PUBLIC-SITE REVIEW
+
+These requirements are additive to the existing Master Plan.
+
+Do not rewrite the Master Plan.
+
+Do not create a new product plan.
+
+Do not expand Mallan merely because larger brokerage firms offer a service.
+
+Mallan must deliberately distinguish:
+
+```text
+WHAT MALLAN MUST DO EXCEPTIONALLY WELL
+
+from
+
+WHAT MALLAN DOES NOT NEED TO BECOME
+```
+
+---
+
+# ADD TO §1 — ONE MALLAN OPERATING SYSTEM
+
+## Strategic brokerage focus
+
+Mallan is an independent NYC brokerage operating system.
+
+It does not need to duplicate every business line of a national brokerage, developer-marketing company, media company, property-management company or listing portal.
+
+Mallan's competitive product focus is:
+
+```text
+STRONG AGENT / BROKER RELATIONSHIP
++
+DEEP CLIENT UNDERSTANDING
++
+PROFESSIONAL PROPERTY SEARCH
++
+PROPERTY / BUILDING / MARKET INTELLIGENCE
++
+CMA / DECISION SUPPORT
++
+OWNER / LANDLORD INTELLIGENCE
++
+BUYER / TENANT REPRESENTATION
++
+NEW-DEVELOPMENT BUYER INTELLIGENCE
++
+MARKETING FOR MALLAN BUSINESS
++
+DEAL / RELATIONSHIP CONTINUITY
++
+POST-DEAL / FUTURE-OPPORTUNITY INTELLIGENCE
+```
+
+Mallan should not build a capability merely because a large competitor has it.
+
+Every major capability must answer:
+
+1. Does it materially improve Mallan's ability to represent a client?
+2. Does it help an Agent understand or serve a client better?
+3. Does it improve listing/property/market intelligence?
+4. Does it help Mallan generate, convert or retain legitimate brokerage business?
+5. Does it reuse Mallan's canonical Party, Property, Listing and history?
+6. Is the compliance/source-rights boundary clear?
+7. Does it produce a meaningful advantage that justifies maintaining it?
+
+If not, it is not automatically part of Mallan's scope.
+
+---
+
+# ADD TO §4.5 — PRIVATE SUPPLEMENTAL / SCHEDULE A / NEW-DEVELOPMENT INVENTORY
+
+## Business purpose of Schedule A / new-development intelligence
+
+Mallan's current new-development strategy is primarily a **Buyer-representation capability**.
+
+Mallan is not assuming the role of sponsor, developer, developer sales office or listing broker merely because Mallan has Offering Plan or Schedule A information.
+
+The purpose is:
+
+```text
+MALLAN BUYER
+↓
+FULLER NEW-DEVELOPMENT INTELLIGENCE
+↓
+BUILDING / OFFERING PLAN
+↓
+SCHEDULE A UNIT UNIVERSE
+↓
+CURRENT COTALITY / MARKET LISTINGS
+↓
+AUTHORIZED SUPPLEMENTAL INFORMATION
+↓
+CURRENT AVAILABILITY VERIFICATION
+↓
+PROPERTY / UNIT COMPARISON
+↓
+BUYER DECISION SUPPORT
+```
+
+This gives Mallan's Buyer clients access to a more complete understanding of the building and potential unit opportunities than a conventional active-listing-only Search.
+
+---
+
+## Schedule A is not automatically active inventory
+
+A Schedule A unit means:
+
+```text
+UNIT EXISTS IN THE APPLICABLE OFFERING-PLAN / SCHEDULE-A SOURCE
+```
+
+It does not by itself mean:
+
+```text
+CURRENTLY AVAILABLE
+ACTIVELY OFFERED
+CURRENT ASKING PRICE VERIFIED
+CLIENT-SHARE ELIGIBLE
+PUBLICLY ADVERTISABLE BY MALLAN
+```
+
+Maintain distinct availability states such as:
+
+```text
+PLAN UNIT — AVAILABILITY UNKNOWN
+
+AGENT VERIFICATION REQUIRED
+
+CONFIRMED AVAILABLE
+
+CURRENT MARKET LISTING FOUND
+
+NOT CURRENTLY AVAILABLE
+
+SOLD / CLOSED WHERE VERIFIED
+
+WITHDRAWN / NO LONGER OFFERED WHERE VERIFIED
+
+STALE — REVERIFY
+
+SUPERSEDED BY NEW PLAN / AMENDMENT INFORMATION
+```
+
+Exact enums may be refined during implementation.
+
+The semantic distinction must remain.
+
+---
+
+## Cotality reconciliation remains mandatory
+
+For every Schedule A/new-development candidate:
+
+```text
+SCHEDULE A UNIT
+↓
+CANONICAL BUILDING
+↓
+CANONICAL UNIT
+↓
+CHECK CURRENT COTALITY
+├── CURRENT MATCH FOUND
+│   → LINK CURRENT COTALITY LISTING
+│   → DO NOT CREATE SECOND PROPERTY / SEARCH RESULT
+│
+└── NO CURRENT COTALITY MATCH
+    → RETAIN SCHEDULE A OPPORTUNITY
+    → AVAILABILITY REQUIRES SEPARATE VERIFICATION
+```
+
+If a Schedule A opportunity later appears in Cotality:
+
+```text
+SAME UNIT
+SAME PROPERTY HISTORY
+SAME CLIENT HISTORY
+NEW / CURRENT SOURCE OBSERVATION
+```
+
+Do not create another canonical unit.
+
+---
+
+## Amendment / version intelligence
+
+New-development intelligence must understand that Offering Plans change.
+
+Retain:
+
+```text
+ORIGINAL OFFERING PLAN
+SCHEDULE A
+AMENDMENTS
+SUPPLEMENTS
+VERSION / EFFECTIVE DATE
+SOURCE
+DATE ACQUIRED
+LAST VERIFIED
+CURRENTNESS / COMPLETENESS
+```
+
+A later amendment may change a fact.
+
+The system must not silently overwrite historical source truth without preserving provenance.
+
+---
+
+# ADD TO §5 — BACKEND PROFESSIONAL SEARCH
+
+## New Development / Schedule A mode is a Buyer-representation Search mode
+
+Backend Agent Search should include a professional:
+
+```text
+NEW DEVELOPMENT / SCHEDULE A
+```
+
+mode.
+
+Its purpose is to help an Agent representing a Buyer find:
+
+* active new-development listings;
+* Schedule A units;
+* sponsor/new-development opportunities;
+* units not currently represented in the active Cotality Search when legitimately available as authorized source observations;
+* building/unit relationships;
+* current availability state;
+* Offering Plan context;
+* applicable charges/economics from correctly interpreted source fields;
+* current market listing when one exists.
+
+This mode remains part of the same canonical Search foundation.
+
+Do not build another new-development Search engine.
+
+---
+
+## Buyer-side new-development result intelligence
+
+Where sourced and applicable, Agent-facing results can expose:
+
+```text
+BUILDING
+UNIT
+SCHEDULE A / PLAN VERSION
+UNIT TYPE
+BED / BATH / ROOMS
+SIZE
+OFFERING-PLAN PRICE / SOURCE PRICE
+CURRENT MARKET ASK IF A CURRENT LISTING EXISTS
+COMMON CHARGES / MAINTENANCE
+TAX / PROJECTED TAX INFORMATION
+SPONSOR / SELLING PROFESSIONAL INFORMATION WHERE AUTHORIZED
+AVAILABILITY STATE
+CURRENT COTALITY MATCH
+SOURCE / LAST VERIFIED
+FLOOR PLAN WHEN RIGHTS PERMIT
+BUILDING MEDIA WHEN RIGHTS PERMIT
+```
+
+Do not merge:
+
+```text
+OFFERING-PLAN PRICE
+
+with
+
+CURRENT MARKET ASK
+```
+
+as though they are necessarily the same fact.
+
+---
+
+# ADD TO §6 — CMA / PROPERTY INTELLIGENCE
+
+## New-development Buyer analysis
+
+Schedule A/new-development information should improve Buyer advice.
+
+It may provide:
+
+* building/unit comparison;
+* price-per-area analysis where meaningful;
+* unit-line comparison;
+* floor/exposure comparisons where sourced;
+* carrying-cost comparison;
+* current active competition;
+* resale competition;
+* closed resale evidence;
+* current sponsor/new-development opportunities;
+* Offering Plan context;
+* current market positioning.
+
+Schedule A units with unconfirmed availability may appear as clearly labeled opportunity/context records.
+
+They are not automatically Closed comps.
+
+They are not automatically verified Active listings.
+
+---
+
+## Building-level intelligence
+
+For a Buyer considering new development, Mallan should help answer:
+
+```text
+HOW DOES THIS UNIT COMPARE TO OTHER UNITS IN THE BUILDING?
+
+HOW DOES THE OFFERING COMPARE TO CURRENT RESALE INVENTORY?
+
+HOW DOES THIS BUILDING COMPARE TO COMPETING NEW DEVELOPMENTS?
+
+WHAT DOES THE CURRENT MARKET SEGMENT LOOK LIKE?
+
+WHAT COST DIFFERENCES MATTER?
+
+WHAT FACTS COME FROM THE OFFERING PLAN?
+
+WHAT FACTS COME FROM A CURRENT LISTING?
+
+WHAT REMAINS UNVERIFIED?
+```
+
+---
+
+# ADD TO §7 — BACKEND LISTING / OPPORTUNITY WORKSPACE
+
+## New-development Buyer Opportunity Workspace
+
+A Schedule A/new-development unit should open as a professional opportunity record for the Agent.
+
+It should be able to show:
+
+```text
+CANONICAL BUILDING / UNIT
+OFFERING PLAN
+SCHEDULE A
+AMENDMENTS
+SOURCE / VERSION
+CURRENTNESS
+CURRENT AVAILABILITY STATE
+CURRENT COTALITY MATCH
+AUTHORIZED CURRENT MARKET LISTING
+BUILDING INFORMATION
+AUTHORIZED BUILDING MEDIA
+AUTHORIZED FLOOR PLAN
+UNIT ECONOMICS
+SOURCE PROFESSIONAL / SPONSOR CONTACT WHERE AUTHORIZED
+BUYER HISTORY
+COMMENTS
+COMPARE
+CMA / ANALYSIS
+VERIFY AVAILABILITY
+SHARE ELIGIBILITY
+SHOWING / SALES-OFFICE COORDINATION
+```
+
+Primary actions:
+
+```text
+VERIFY AVAILABILITY
+
+CHECK CURRENT COTALITY
+
+VIEW OFFERING PLAN / SCHEDULE A
+
+COMPARE UNITS
+
+ADD TO BUYER
+
+ADD TO CMA / ANALYSIS
+
+CONTACT SOURCE / SALES PROFESSIONAL
+
+SHARE WITH BUYER — IF ELIGIBLE
+
+SCHEDULE / COORDINATE APPOINTMENT
+
+REVERIFY
+```
+
+Mallan does not display `Edit Listing` merely because the unit exists in Schedule A.
+
+---
+
+# ADD TO §9 — MARKETING / E-BLAST / PUBLIC POSITIONING
+
+## Mallan new-development marketing position
+
+Mallan should market:
+
+```text
+NEW-DEVELOPMENT BUYER REPRESENTATION
+```
+
+not falsely present itself as the sponsor/developer/listing brokerage when it is not.
+
+Public educational/service content may explain that Mallan can help Buyers:
+
+* research new developments;
+* understand Offering Plans;
+* compare units;
+* analyze Schedule A;
+* evaluate sponsor/new-development inventory;
+* compare new development with resale;
+* understand carrying costs;
+* evaluate purchase scenarios;
+* identify appropriate opportunities;
+* coordinate with the appropriate listing/sales professionals;
+* independently represent the Buyer's interests.
+
+This is a **brokerage service proposition**, not a claim of listing authority.
+
+---
+
+## Public Schedule A publication boundary
+
+Schedule A intelligence may be richer internally than publicly.
+
+Do not automatically convert every Schedule A unit into a public Mallan listing page.
+
+Before any unit is publicly marketed as available, verify:
+
+```text
+CURRENT AVAILABILITY
++
+MALLAN ADVERTISING / SHARE AUTHORITY
++
+SOURCE RIGHTS
++
+ATTRIBUTION REQUIREMENTS
++
+MEDIA RIGHTS
++
+CURRENT PRICE / STATUS
++
+APPLICABLE REBNY / RLS / COTALITY / ADVERTISING RULES
+```
+
+If those conditions are not proven, keep it:
+
+```text
+AGENT RESEARCH / BUYER-REPRESENTATION INTELLIGENCE
+```
+
+rather than public inventory.
+
+---
+
+# ADD TO §14 — BUYER OPERATING JOURNEY
+
+Expand the existing Buyer Search branch.
+
+Current Buyer journey should explicitly include:
+
+```text
+BUYER OPPORTUNITY
+↓
+BUYER REQUIREMENTS
+↓
+PROFESSIONAL SEARCH
+
+├── CURRENT MALLAN INVENTORY
+├── CURRENT COTALITY INVENTORY
+├── AUTHORIZED PRIVATE SUPPLEMENTAL SALE OPPORTUNITIES
+└── NEW DEVELOPMENT / SCHEDULE A OPPORTUNITIES
+
+↓
+AGENT REVIEW
+↓
+AVAILABILITY / SOURCE / SHARE VERIFICATION
+↓
+BUYER PRESENTATION
+↓
+BUILDING / PROPERTY / CMA INTELLIGENCE
+↓
+COMPARE
+↓
+SHOWING / SALES-OFFICE APPOINTMENT
+↓
+OFFER
+↓
+DEAL PROGRESSION
+```
+
+The Buyer should not need to understand which technical source found the property.
+
+The Agent needs that information internally to advise correctly.
+
+---
+
+# ADD TO §16 — INVESTOR / 1031
+
+A new-development unit may also become relevant to an Investor/1031 Buyer.
+
+The same Schedule A/new-development foundation may feed an Investor Opportunity when appropriate.
+
+Add:
+
+```text
+NEW-DEVELOPMENT OPPORTUNITY
+↓
+INVESTOR CRITERIA
+↓
+RENT / CARRYING-COST / NOI / RETURN ANALYSIS
+↓
+PROPERTY / BUILDING / MARKET INTELLIGENCE
+↓
+BUYER / INVESTOR DECISION
+```
+
+Do not build a separate Investor new-development database.
+
+---
+
+# ADD TO §21 — REGULATORY / SOURCE / MEDIA / WEB GOVERNANCE
+
+## New-development publication/source rule
+
+Offering Plan and Schedule A information is source data.
+
+For every field used from these documents, retain:
+
+```text
+SOURCE DOCUMENT
+SOURCE VERSION / AMENDMENT
+FIELD MEANING
+AS-OF / EFFECTIVE DATE
+CURRENTNESS
+CLIENT / AGENT / PUBLIC ELIGIBILITY
+```
+
+Do not infer current availability solely from plan existence.
+
+Do not infer public advertising rights from access to the document.
+
+Do not infer media-reuse rights from presence of an image/floor plan in a source.
+
+---
+
+# ADD TO §22 — HUMAN / CLIENT / PROPERTY / MARKET / AGENT INTELLIGENCE
+
+## New-development Buyer Intelligence
+
+Mallan should help the Agent identify new-development opportunities a Buyer might otherwise miss.
+
+Possible intelligence includes:
+
+```text
+BUYER SEARCH MATCHES A SCHEDULE A UNIT
+BUT NO CURRENT COTALITY LISTING EXISTS
+
+→ VERIFY AVAILABILITY
+```
+
+```text
+BUYER VIEWED MULTIPLE UNITS IN ONE DEVELOPMENT
+
+→ COMPARE AVAILABLE UNIT LINES / COSTS / FLOOR / SIZE
+```
+
+```text
+CURRENT RESALE IN THE BUILDING IS PRICED DIFFERENTLY
+FROM SPONSOR / NEW-DEVELOPMENT OFFERING
+
+→ SHOW BUYER COMPARATIVE CONTEXT
+```
+
+```text
+NEW PLAN AMENDMENT CHANGED A MATERIAL UNIT / BUILDING FACT
+
+→ FLAG AFFECTED BUYERS / ANALYSES
+```
+
+```text
+A PREVIOUSLY UNCONFIRMED SCHEDULE A UNIT
+NOW HAS A CURRENT VERIFIED LISTING
+
+→ RECONCILE
+→ ALERT APPROPRIATE AGENT / BUYER OPPORTUNITY
+```
+
+This is a meaningful Buyer-service advantage.
+
+---
+
+# ADD TO §23 — CLIENT EXPERIENCE
+
+## Buyer new-development experience
+
+Where permitted, a Buyer client should be able to receive a clean client-safe presentation containing:
+
+* property/building;
+* unit;
+* relevant price information with source labels;
+* current availability state;
+* current market listing where applicable;
+* approved building/unit media;
+* approved floor plan;
+* carrying costs;
+* selected Offering Plan information/documents where appropriate;
+* Agent analysis;
+* Compare/CMA;
+* comments;
+* showing/appointment request.
+
+Do not expose internal source/professional/rights metadata unless appropriate for the client presentation.
+
+---
+
+# ADD TO §24 — CURRENT → TARGET MAP
+
+## New Development / Schedule A
+
+Replace any implication that Mallan is trying to become a developer marketing platform.
+
+Target:
+
+```text
+MALLAN NEW-DEVELOPMENT CAPABILITY
+=
+BUYER-REPRESENTATION INTELLIGENCE
+
+CURRENT / AUTHORIZED MARKET LISTINGS
++
+SCHEDULE A / OFFERING PLAN UNIT INTELLIGENCE
++
+AMENDMENT / VERSION INTELLIGENCE
++
+BUILDING / UNIT CANONICAL IDENTITY
++
+COTALITY RECONCILIATION
++
+AVAILABILITY VERIFICATION
++
+BUYER MATCHING
++
+CMA / PROPERTY ANALYSIS
++
+COMPARE
++
+CLIENT-SAFE SHARE
+```
+
+This capability exists to strengthen Mallan's representation of Buyers and Investors.
+
+Developer/sponsor representation, project marketing and developer sales operations are outside current scope unless Maya explicitly adds them later.
+
+---
+
+# ADD TO §26 — DEFINITION OF DONE
+
+New-development Buyer Intelligence is not complete until:
+
+```text
+SCHEDULE A / OFFERING PLAN
+↓
+CANONICAL BUILDING / UNIT
+↓
+VERSION / AMENDMENT PROVENANCE
+↓
+CURRENT COTALITY RECONCILIATION
+↓
+AVAILABILITY STATE
+↓
+AGENT SEARCH
+↓
+BUYER MATCH
+↓
+VERIFY AVAILABILITY
+↓
+CLIENT-SAFE PRESENTATION
+↓
+COMPARE / CMA / ANALYSIS
+↓
+SHOWING / APPOINTMENT
+↓
+OFFER / BUYER WORKFLOW
+```
+
+works without:
+
+* duplicate Property/Unit identities;
+* falsely representing a plan unit as Active;
+* confusing plan price with current market price;
+* unauthorized public advertising;
+* unauthorized media reuse;
+* leaking internal source data;
+* creating a separate new-development Search/CMA/CRM universe.
+
+---
+
+# ADD TO §24 — PUBLIC-SITE / BROKERAGE-FOCUS CONCLUSIONS
+
+The public-site review identified a broader product requirement:
+
+Mallan's public site must expose the brokerage relationship, not only property inventory.
+
+The public product should clearly support entry paths for:
+
+```text
+BUY
+SELL
+RENT
+LANDLORD / OWNER
+INVEST / 1031
+NEW-DEVELOPMENT BUYER REPRESENTATION
+```
+
+Each path should create or reconcile:
+
+```text
+LEAD
+→ PARTY
+→ OPPORTUNITY
+→ RESPONSIBLE AGENT
+```
+
+rather than exist only as generic contact-form activity.
+
+---
+
+# ADD TO §23 / §21 — CONTEXTUAL RENDERING CONTRACT
+
+A technically available component may not automatically render on every property.
+
+Every public/backend component must prove contextual eligibility before rendering.
+
+Examples include:
+
+```text
+RENT-v-BUY
+SCHOOLS
+INVESTMENT ANALYSIS
+CLOSING-COST CALCULATOR
+OPEN HOUSE
+CMA
+RENTAL APPLICATION
+SALE OFFER
+BUILDING AMENITIES
+NEIGHBORHOOD COPY
+MEDIA
+DISCLOSURES
+MARKETING CTA
+```
+
+Required chain:
+
+```text
+CANONICAL PROPERTY / LISTING / BUSINESS TYPE
+↓
+AUDIENCE
+↓
+CONTEXTUAL BUSINESS RULE
+↓
+COMPLIANCE / RIGHTS
+↓
+RENDER COMPONENT
+```
+
+Do not display a residential module merely because its data structure technically accepts the record.
+
+---
+
+# ADD TO §21 — PUBLIC CONTENT COMPLIANCE CONTRACT
+
+Fair Housing, anti-discrimination, advertising, REBNY/RLS/UCBA and applicable verified source/provider rules govern the entire public-content system, including:
+
+```text
+LISTING DESCRIPTION
+NEIGHBORHOOD CONTENT
+SEO CONTENT
+AEO CONTENT
+AI-GENERATED COPY
+MEDIA CAPTIONS
+EMAIL
+E-BLAST
+SOCIAL
+MARKET REPORTS
+SEARCH RANKING
+PROPERTY RECOMMENDATIONS
+LEAD-GENERATION PAGES
+PUBLIC STRUCTURED DATA
+```
+
+Compliance is therefore:
+
+```text
+CONTENT CREATION
+→ COMPLIANCE / RIGHTS
+→ AUDIENCE TRANSFORMATION
+→ PUBLICATION
+```
+
+not:
+
+```text
+PUBLICATION
+→ FOOTER DISCLAIMER
+```
+
+---
+
+# PRODUCT CONCLUSION
+
+Mallan's advantage should not be:
+
+```text
+WE HAVE MORE FEATURES THAN COMPASS
+```
+
+or:
+
+```text
+WE MARKET DEVELOPMENTS LIKE A DEVELOPER SALES COMPANY
+```
+
+The advantage should be:
+
+```text
+WE KNOW THE CLIENT
+
+WE KNOW THE PROPERTY
+
+WE KNOW THE BUILDING
+
+WE KNOW THE MARKET
+
+WE REMEMBER THE CLIENT'S HISTORY
+
+WE NOTICE WHAT CHANGED
+
+WE FIND OPPORTUNITIES OTHERS MAY MISS
+
+WE HELP THE AGENT EXPLAIN WHY THEY MATTER
+
+WE HELP THE CLIENT MAKE A BETTER REAL-ESTATE DECISION
+```
+
+For new development specifically:
+
+```text
+MALLAN DOES NOT NEED TO BE THE DEVELOPER'S BROKER.
+
+MALLAN SHOULD BE THE BUYER'S BETTER-INFORMED BROKER.
+```
+
+That is the current product strategy unless Maya later explicitly changes it.

@@ -38,21 +38,21 @@ describe('sale form — condo shows the unit RE-Taxes field', () => {
 describe('sale form — unit tax hydrates features-first, raw_data fallback', () => {
   it('the TaxAnnualAmount field-map entry uses src: features (not raw)', () => {
     expect(FORM).toMatch(
-      /\{\s*rls:\s*'TaxAnnualAmount',\s*form:\s*'saleRETaxes',\s*type:\s*'number',\s*src:\s*'features'\s*\}/,
+      /\{\s*cotality:\s*'TaxAnnualAmount',\s*form:\s*'saleRETaxes',\s*type:\s*'number',\s*src:\s*'features'\s*\}/,
     );
     // and it is NOT the old raw-only mapping
-    expect(FORM).not.toMatch(/rls:\s*'TaxAnnualAmount',\s*form:\s*'saleRETaxes',\s*type:\s*'number',\s*src:\s*'raw'/);
+    expect(FORM).not.toMatch(/cotality:\s*'TaxAnnualAmount',\s*form:\s*'saleRETaxes',\s*type:\s*'number',\s*src:\s*'raw'/);
   });
 
-  it('the hydration loop has a features branch that reads features[f.rls] BEFORE raw[f.rls]', () => {
+  it('the hydration loop has a features branch that reads features[saleBindKey(f)] BEFORE raw[saleBindKey(f)]', () => {
     const i = FORM.indexOf("} else if (f.src === 'features') {");
     expect(i).toBeGreaterThan(-1);
     const branch = FORM.slice(i, i + 900);
     // features first...
-    expect(branch).toContain('features[f.rls] !== undefined');
-    expect(branch).toContain('? features[f.rls]');
+    expect(branch).toContain('features[saleBindKey(f)] !== undefined');
+    expect(branch).toContain('? features[saleBindKey(f)]');
     // ...raw_data fallback
-    expect(branch).toContain(': raw[f.rls];');
+    expect(branch).toContain(': raw[saleBindKey(f)];');
   });
 });
 
@@ -76,6 +76,6 @@ describe('sale form — saved manual tax round-trips (save <-> load on the same 
   });
 
   it('LOAD: the TaxAnnualAmount field-map entry restores into saleRETaxes', () => {
-    expect(FORM).toMatch(/rls:\s*'TaxAnnualAmount',\s*form:\s*'saleRETaxes'/);
+    expect(FORM).toMatch(/cotality:\s*'TaxAnnualAmount',\s*form:\s*'saleRETaxes'/);
   });
 });

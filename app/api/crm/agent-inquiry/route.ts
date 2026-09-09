@@ -49,6 +49,7 @@ import { escapeHtml } from '@/lib/sanitize';
 import { checkRouteRateLimit, extractClientIp } from '@/lib/middleware/rate-limiter';
 import { hashIp } from '@/lib/inquiries/create';
 import { professionalTitle } from '@/lib/agents/professional-title';
+import { statusDisplayLabelFor } from '@/lib/compliance/status';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,6 +61,8 @@ interface AgentInquiryBody {
   message: string;
   listing_price?: number | string | null;
   listing_status?: string | null;
+  /** 'sale' | 'rent' | 'rental' — the transaction the status label is resolved in. */
+  listing_type?: string | null;
   listing_unit?: string | null;
   listing_url?: string | null;
   listing_neighborhood?: string | null;
@@ -76,16 +79,15 @@ function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-function statusLabel(raw: string | null | undefined): string {
-  if (!raw) return 'Active';
-  if (raw === 'COMING_SOON') return 'Coming Soon';
-  if (raw === 'PENDING') return 'In Contract';
-  if (raw === 'CLOSED') return 'Closed';
-  if (raw === 'WITHDRAWN') return 'Withdrawn';
-  if (raw === 'ACTIVE') return 'Active';
-  // For non-canonical/unmapped values, lowercase-and-capitalize for safety
-  // (post-A14 mapper guarantees canonical input, but defensive here).
-  return raw.charAt(0) + raw.slice(1).toLowerCase().replace(/_/g, ' ');
+/**
+ * The status line in the inquiry email is a LABEL, resolved per transaction from the live StandardStatus token
+ * (owner ruling, Maya 2026-09-08): a sale's Closed reads "Sold", a rental's Closed reads "Rented", Pending reads
+ * "In Contract". Legacy Mallan spellings and the old UPPERCASE param vocabulary normalize through
+ * `statusDisplayLabelFor`. FAIL-CLOSED: an absent or unrecognized status is "Status unavailable" — an
+ * agent-to-agent email never advertises a fabricated "Active".
+ */
+function statusLabel(raw: string | null | undefined, listingType?: string | null): string {
+  return statusDisplayLabelFor(raw, listingType) || 'Status unavailable';
 }
 
 function buildAgentInquiryHtml(opts: {
@@ -251,7 +253,7 @@ export async function POST(req: NextRequest) {
     listingAddress: body.listing_address,
     listingUnit: body.listing_unit ?? '',
     listingPrice: Number(body.listing_price ?? 0) || 0,
-    listingStatus: statusLabel(body.listing_status),
+    listingStatus: statusLabel(body.listing_status, body.listing_type),
     listingNeighborhood: body.listing_neighborhood ?? '',
     listingBorough: body.listing_borough ?? '',
     listingZip: body.listing_zip ?? '',

@@ -1,0 +1,353 @@
+{
+ "generated": "2026-09-07T12:06:58.370Z",
+ "selectRequested": 339,
+ "selectNotLive": [],
+ "allRequested": 413,
+ "corrections": [
+  {
+   "field": "UnParsedAddress",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "AlternateStreetName",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "AlternateStreetNumber",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "AlternateStreetDirPrefix",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "AlternateStreetDirSuffix",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "AlternateStreetSuffix",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "NewDevelopmentYN",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "DuplicateListingIDs",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "ParticipantTypes",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "ExclusiveAgency",
+   "why": "is a VALUE of enum ListingAgreement, not a field",
+   "fix": [
+    "ListingAgreement eq 'ExclusiveAgency'"
+   ]
+  },
+  {
+   "field": "SourceSystemModificationTimestamp",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "ActivationTimestamp",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "CancelationDate",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "ComingSoonDate",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "ComingSoonTimestamp",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "ActiveOpenHouseCount",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "LastChangeType",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "LastChangeTimestamp",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "SaleType",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "AuctionType",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "CoListAgent2MLSID",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "CoListAgent3MLSID",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "CoListTeamKey",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "CoListTeamName",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "CoBuyerTeamKey",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "CoBuyerTeamName",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "BathroomsTotal",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "NumberOfDiningAreas",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "NumberOfMasterBathrooms",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "CeilingHeightFeet",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "CeilingHeightInches",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "TotalLegalRooms",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "ArchitectName",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "Foundation",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "FloorNumber",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "FloorNumberInBuilding",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "BuildingAccessibilityFeatures",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "AttendanceType",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "ElevatorYN",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "GymYN",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "DoormanYN",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "StorageYN",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "BicycleStorageYN",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "TransitScore",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "BikeScore",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "GrossRentMultiplier",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "PricePerUnit",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "CableTVExpense",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "FrontageLengthUnits",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "BathroomCondition",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "KitchenCondition",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "AreaOverFAR",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "AreaUnderFAR",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "GardenYN",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "GardenDescription",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "DeckYN",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "DeckDescription",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "PatioYN",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "PatioDescription",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "PetRestrictions",
+   "why": "is a VALUE of enum AssociationAmenities, not a field",
+   "fix": [
+    "AssociationAmenities eq 'PetRestrictions'"
+   ]
+  },
+  {
+   "field": "GreenCertification",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "LeaseConsideredTerms",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "FurnishedDescription",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "RentalApplicationRequired",
+   "why": "does not exist as any live field, type or enum member",
+   "fix": []
+  },
+  {
+   "field": "KeyDeposit",
+   "why": "is a VALUE of enum TenantPays, not a field",
+   "fix": [
+    "TenantPays eq 'KeyDeposit'"
+   ]
+  },
+  {
+   "field": "FeeFrequency",
+   "why": "is an ENUM TYPE, not a field",
+   "fix": [
+    "AssociationFee2Frequency",
+    "AssociationFee3Frequency",
+    "AssociationFeeFrequency",
+    "LandLeaseAmountFrequency",
+    "LeaseAmountFrequency",
+    "AdditionalFeeFrequency",
+    "AssociationFeeTotalFrequency",
+    "MembershipFeeFrequency"
+   ]
+  }
+ ]
+}

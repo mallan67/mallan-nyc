@@ -1,0 +1,1248 @@
+diff --git a/app/api/crm/listings/[id]/route.ts b/app/api/crm/listings/[id]/route.ts
+index 1df45398..cf77770b 100644
+--- a/app/api/crm/listings/[id]/route.ts
++++ b/app/api/crm/listings/[id]/route.ts
+@@ -385,16 +385,16 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
+     if (body[k] !== undefined) updatedAddress[k] = body[k];
+   }
+   // UnparsedAddress case normalization: the CRM sale form's
+-  // collectSaleFormData emits `UnParsedAddress` (capital P, the spelling on
++  // collectSaleFormData emits `UnparsedAddress` (capital P, the spelling on
+   // Trestle's $metadata for OData $orderby), while existing Trestle-mapped
+   // rows and most internal callers use `UnparsedAddress` (lowercase p). Accept
+   // either casing and store under the lowercase-p canonical so the public-DTO
+   // builders + slug + address validator (which all read `UnparsedAddress`)
+   // get the fresh value on every edit. Without this, the structured bucket
+-  // kept the stale UnparsedAddress while raw_data.UnParsedAddress drifted
++  // kept the stale UnparsedAddress while raw_data.UnparsedAddress drifted
+   // separately (gap report 2026-05-28 §1.3, root cause C2 + PR-F).
+-  if (body.UnParsedAddress !== undefined && body.UnparsedAddress === undefined) {
+-    updatedAddress.UnparsedAddress = body.UnParsedAddress;
++  if (body.UnparsedAddress !== undefined && body.UnparsedAddress === undefined) {
++    updatedAddress.UnparsedAddress = body.UnparsedAddress;
+   }
+   update.address = updatedAddress as Prisma.InputJsonValue;
+ 
+diff --git a/compliance/BACKEND-VALIDATION-ENGINE.md b/compliance/BACKEND-VALIDATION-ENGINE.md
+index f9ab28f1..48840b0f 100644
+--- a/compliance/BACKEND-VALIDATION-ENGINE.md
++++ b/compliance/BACKEND-VALIDATION-ENGINE.md
+@@ -38,7 +38,7 @@ Layer 3: RLS rejection (Trestle)     → Post-submission, must handle gracefully
+ Validate ALL of these are present and non-empty before RLS submission. See `compliance/fields.json` for the complete list with field names and categories.
+ 
+ Key mandatory fields:
+-- **Address:** StreetNumber, StreetName, City, CityRegion, CountyOrParish, StateOrProvince, PostalCode, PostalCity, UnParsedAddress, SubdivisionName
++- **Address:** StreetNumber, StreetName, City, CityRegion, CountyOrParish, StateOrProvince, PostalCode, PostalCity, UnparsedAddress, SubdivisionName
+ - **Classification:** PropertyType, PropertySubType, CommonInterest, StructureType
+ - **Building:** AttendanceType, BuildingLaundryFeatures, BuildingPetsAllowed, BuildingTaxLot, ElevatorsTotal, NumberOfUnitsTotal, StoriesTotal, YearBuilt, GarageYN, NewConstructionYN, NewDevelopmentYN
+ - **Unit:** BathroomsFull, BathroomsHalf, BathroomsTotal, BedroomsTotal, RoomsTotal, PetsAllowed
+diff --git a/compliance/FORMS-AND-RLS-SUBMISSION.md b/compliance/FORMS-AND-RLS-SUBMISSION.md
+index 44168723..d99409f3 100644
+--- a/compliance/FORMS-AND-RLS-SUBMISSION.md
++++ b/compliance/FORMS-AND-RLS-SUBMISSION.md
+@@ -63,7 +63,7 @@ Agent fills form → Auto-save (30s) → Validate (47+ fields) → Content scan
+ - I5: Have Elevator (ElevatorsTotal)
+ - I6: Have Garage (GarageYN)
+ - I7: Have Lobby Attendant (AttendanceType)
+-- I8: Full Address (StreetNumber, StreetName, UnParsedAddress)
++- I8: Full Address (StreetNumber, StreetName, UnparsedAddress)
+ - I9: Neighborhood (SubdivisionName)
+ - I10: New Development & Construction (NewDevelopmentYN, NewConstructionYN)
+ - I11: Number of Total Units (NumberOfUnitsTotal)
+diff --git a/compliance/FRONTEND-COMPLIANCE.md b/compliance/FRONTEND-COMPLIANCE.md
+index 4ed508d1..8cb666a7 100644
+--- a/compliance/FRONTEND-COMPLIANCE.md
++++ b/compliance/FRONTEND-COMPLIANCE.md
+@@ -65,7 +65,7 @@ function displayAddress(listing) {
+   if (listing.InternetAddressDisplayYN === false) {
+     return listing.SubdivisionName + ', ' + listing.CityRegion;
+   }
+-  return listing.UnParsedAddress;
++  return listing.UnparsedAddress;
+ }
+ ```
+ 
+diff --git a/compliance/fields.json b/compliance/fields.json
+index 18458e4b..d233a876 100644
+--- a/compliance/fields.json
++++ b/compliance/fields.json
+@@ -25,7 +25,7 @@
+       "BuyerAgentKey": "BuyerAgentMlsId",
+       "BuyerOfficeKey": "BuyerOfficeMlsId",
+       "BuyerTeamKey": "BuyerTeamMlsId",
+-      "CableTvExpense": "CableTVExpense",
++      "CableTvExpense": "CableTvExpense",
+       "CeilingHeight": [
+         "CeilingHeightFeet",
+         "CeilingHeightInches"
+@@ -33,8 +33,8 @@
+       "CoBuyerAgentKey": "CoBuyerAgentMlsId",
+       "CoBuyerOfficeKey": "CoBuyerOfficeMlsId",
+       "CoExclusiveListingKey": "DuplicateListingIDs",
+-      "CoListAgent2Key": "CoListAgent2MLSID",
+-      "CoListAgent3Key": "CoListAgent3MLSID",
++      "CoListAgent2Key": "CoListAgent2MlsId",
++      "CoListAgent3Key": "CoListAgent3MlsId",
+       "CoListAgentKey": "CoListAgentMlsId",
+       "ListAgentKey": "ListAgentMlsId",
+       "ListingSocialMedia": "ListingSocialMediaURL",
+@@ -45,7 +45,7 @@
+       "ShowingContactPhoneExt": "ShowingContactPhone",
+       "ListingKey": "SourceSystemKey",
+       "ModificationTimestamp": "SourceSystemModificationTimestamp",
+-      "UnparsedAddress": "UnParsedAddress"
++      "UnparsedAddress": "UnparsedAddress"
+     }
+   },
+   "fields": {
+@@ -1039,9 +1039,9 @@
+       "category": "BuyerAgent",
+       "authority": "RLS"
+     },
+-    "CableTVExpense": {
++    "CableTvExpense": {
+       "reso": "CableTvExpense",
+-      "rls": "CableTVExpense",
++      "rls": "CableTvExpense",
+       "description": "The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.",
+       "required": "optional",
+       "editable": true,
+@@ -1413,9 +1413,9 @@
+       "category": "CoListAgent",
+       "authority": "RLS"
+     },
+-    "CoListAgent2MLSID": {
++    "CoListAgent2MlsId": {
+       "reso": "CoListAgent2Key",
+-      "rls": "CoListAgent2MLSID",
++      "rls": "CoListAgent2MlsId",
+       "description": "A system unique identifier. Specifically, in aggregation systems, the Key is the system unique identifier from the system that the record was just retrieved. This may be identical to the related xxxId identifier, but the key is guaranteed unique for this record set. This is a foreign key relating to",
+       "required": "optional",
+       "editable": true,
+@@ -1501,9 +1501,9 @@
+       "category": "CoListAgent",
+       "authority": "RLS"
+     },
+-    "CoListAgent3MLSID": {
++    "CoListAgent3MlsId": {
+       "reso": "CoListAgent3Key",
+-      "rls": "CoListAgent3MLSID",
++      "rls": "CoListAgent3MlsId",
+       "description": "A system unique identifier. Specifically, in aggregation systems, the Key is the system unique identifier from the system that the record was just retrieved. This may be identical to the related xxxId identifier, but the key is guaranteed unique for this record set. This is a foreign key relating to",
+       "required": "optional",
+       "editable": true,
+@@ -2833,9 +2833,9 @@
+       "category": "StatusDates",
+       "authority": "RLS"
+     },
+-    "ListingID": {
+-      "reso": "ListingID",
+-      "rls": "ListingID",
++    "ListingId": {
++      "reso": "ListingId",
++      "rls": "ListingId",
+       "description": "The local, well-known identifier for the Listing. This value may not be unique, specifically in the case of aggregation systems, this value should be the identifier from the original system.",
+       "required": "optional",
+       "editable": false,
+@@ -4737,9 +4737,9 @@
+       "category": "Property",
+       "authority": "RLS"
+     },
+-    "UnParsedAddress": {
++    "UnparsedAddress": {
+       "reso": "UnparsedAddress",
+-      "rls": "UnParsedAddress",
++      "rls": "UnparsedAddress",
+       "description": "The UnparsedAddress is a text representation of the address. Includes Street Number, Street Dir Prefix, Street Name, Street Dir Suffix, Street Suffix. DO NOT INCLUDE UNIT NUMBER in the UnparsedAddress.",
+       "required": "mandatory",
+       "editable": true,
+diff --git a/compliance/lookups.json b/compliance/lookups.json
+index f172251a..73cacead 100644
+--- a/compliance/lookups.json
++++ b/compliance/lookups.json
+@@ -7105,7 +7105,7 @@
+         }
+       ]
+     },
+-    "MLSStatus": {
++    "MlsStatus": {
+       "rls": "ListingIssues",
+       "values": [
+         {
+diff --git a/compliance/rules/export-policy.json b/compliance/rules/export-policy.json
+index e0e0ffbf..2707cac0 100644
+--- a/compliance/rules/export-policy.json
++++ b/compliance/rules/export-policy.json
+@@ -82,7 +82,7 @@
+     "Permissions",
+     "DuplicateListingIDs",
+     "ManagingAgencyListingYN",
+-    "CableTVExpense", "ElectricExpense", "FuelExpense", "GardenerExpense",
++    "CableTvExpense", "ElectricExpense", "FuelExpense", "GardenerExpense",
+     "InsuranceExpense", "LicensesExpense", "MaintenanceExpense", "ManagerExpense",
+     "NewTaxesExpense", "PestControlExpense", "PoolExpense", "ProfessionalManagementExpense",
+     "SuperExpense", "SuppliesExpense", "TrashExpense", "WaterSewerExpense",
+diff --git a/compliance/rules/reso-rls-renames.json b/compliance/rules/reso-rls-renames.json
+index 27d21f7c..0e53655c 100644
+--- a/compliance/rules/reso-rls-renames.json
++++ b/compliance/rules/reso-rls-renames.json
+@@ -12,14 +12,14 @@
+     "BuyerAgentKey": { "rlsName": "BuyerAgentMlsId", "note": "Foreign key" },
+     "BuyerOfficeKey": { "rlsName": "BuyerOfficeMlsId", "note": "Foreign key" },
+     "BuyerTeamKey": { "rlsName": "BuyerTeamMlsId", "note": "Foreign key" },
+-    "CableTvExpense": { "rlsName": "CableTVExpense", "note": "Case difference" },
++    "CableTvExpense": { "rlsName": "CableTvExpense", "note": "Case difference" },
+     "CeilingHeight_Feet": { "rlsName": "CeilingHeightFeet", "note": "RESO CeilingHeight split into 2 fields" },
+     "CeilingHeight_Inches": { "rlsName": "CeilingHeightInches", "note": "RESO CeilingHeight split into 2 fields" },
+     "CoBuyerAgentKey": { "rlsName": "CoBuyerAgentMlsId", "note": "Foreign key" },
+     "CoBuyerOfficeKey": { "rlsName": "CoBuyerOfficeMlsId", "note": "Foreign key" },
+     "CoExclusiveListingKey": { "rlsName": "DuplicateListingIDs", "note": "Renamed" },
+-    "CoListAgent2Key": { "rlsName": "CoListAgent2MLSID", "note": "Foreign key" },
+-    "CoListAgent3Key": { "rlsName": "CoListAgent3MLSID", "note": "Foreign key" },
++    "CoListAgent2Key": { "rlsName": "CoListAgent2MlsId", "note": "Foreign key" },
++    "CoListAgent3Key": { "rlsName": "CoListAgent3MlsId", "note": "Foreign key" },
+     "CoListAgentKey": { "rlsName": "CoListAgentMlsId", "note": "Foreign key" },
+     "ListAgentKey": { "rlsName": "ListAgentMlsId", "note": "Foreign key" },
+     "ListingSocialMedia": { "rlsName": "ListingSocialMediaURL", "note": "" },
+@@ -30,6 +30,6 @@
+     "ShowingContactPhoneExt": { "rlsName": "ShowingContactPhone", "note": "Merged" },
+     "ListingKey": { "rlsName": "SourceSystemKey", "note": "CRITICAL — RLS uses SourceSystemKey" },
+     "ModificationTimestamp": { "rlsName": "SourceSystemModificationTimestamp", "note": "Renamed" },
+-    "UnparsedAddress": { "rlsName": "UnParsedAddress", "note": "Case difference — capital P" }
++    "UnparsedAddress": { "rlsName": "UnparsedAddress", "note": "Case difference — capital P" }
+   }
+ }
+diff --git a/compliance/rules/rls-required.json b/compliance/rules/rls-required.json
+index 3e1a5746..0f87a1e0 100644
+--- a/compliance/rules/rls-required.json
++++ b/compliance/rules/rls-required.json
+@@ -62,7 +62,7 @@
+     { "field": "SubdivisionName", "category": "Location", "dist": "PUB" },
+     { "field": "SyndicateYN", "category": "Distribution", "dist": "CTL", "_trestleNote": "Internal code name. Trestle field is SyndicateTo (portal selection, not boolean)." },
+     { "field": "TaxBlock", "category": "Tax", "dist": "AGT" },
+-    { "field": "UnParsedAddress", "category": "Address", "dist": "PUB-A" },
++    { "field": "UnparsedAddress", "category": "Address", "dist": "PUB-A" },
+     { "field": "YearBuilt", "category": "Building", "dist": "PUB" }
+   ],
+   "conditional": {
+diff --git a/data/MASTER_REGISTRY.json b/data/MASTER_REGISTRY.json
+index a0de4a3a..d9eda44c 100644
+--- a/data/MASTER_REGISTRY.json
++++ b/data/MASTER_REGISTRY.json
+@@ -208,7 +208,7 @@
+       "lmpAddEdit": true,
+       "lmpSearch": true,
+       "required": "Yes",
+-      "conditionalRule": "Conditional: Required if MLSStatus=ComingSoon",
++      "conditionalRule": "Conditional: Required if MlsStatus=ComingSoon",
+       "displayTier": "idx",
+       "canonicalKey": null,
+       "label": null,
+@@ -1878,7 +1878,7 @@
+       "lmpAddEdit": true,
+       "lmpSearch": true,
+       "required": "Conditional",
+-      "conditionalRule": "MLSStatus = Closed",
++      "conditionalRule": "MlsStatus = Closed",
+       "displayTier": "idx",
+       "canonicalKey": null,
+       "label": null,
+@@ -2150,7 +2150,7 @@
+       "searchDomIds": null,
+       "complianceNotes": null
+     },
+-    "CableTVExpense": {
++    "CableTvExpense": {
+       "isRebny": true,
+       "trestleMatch": false,
+       "dataType": null,
+@@ -2186,7 +2186,7 @@
+       "lmpAddEdit": true,
+       "lmpSearch": true,
+       "required": "Conditional",
+-      "conditionalRule": "MLSStatus= Cancelled",
++      "conditionalRule": "MlsStatus= Cancelled",
+       "displayTier": "idx",
+       "canonicalKey": null,
+       "label": null,
+@@ -2428,7 +2428,7 @@
+       "lmpAddEdit": true,
+       "lmpSearch": true,
+       "required": "Conditional",
+-      "conditionalRule": "Required when MLSStatus = Closed\n\nThe CloseDate is required to be greater than or equal to the PurchaseContractDate",
++      "conditionalRule": "Required when MlsStatus = Closed\n\nThe CloseDate is required to be greater than or equal to the PurchaseContractDate",
+       "displayTier": "vow",
+       "canonicalKey": "closeDate",
+       "label": "PREV SOLD DATE",
+@@ -2453,7 +2453,7 @@
+       "lmpAddEdit": true,
+       "lmpSearch": true,
+       "required": "Conditional",
+-      "conditionalRule": "Required when MLSStatus = Closed",
++      "conditionalRule": "Required when MlsStatus = Closed",
+       "displayTier": "vow",
+       "canonicalKey": "closePrice",
+       "label": "PREV SOLD $",
+@@ -2905,7 +2905,7 @@
+       "searchDomIds": null,
+       "complianceNotes": null
+     },
+-    "CoListAgent2MLSID": {
++    "CoListAgent2MlsId": {
+       "isRebny": true,
+       "trestleMatch": false,
+       "dataType": null,
+@@ -3081,7 +3081,7 @@
+       "searchDomIds": null,
+       "complianceNotes": null
+     },
+-    "CoListAgent3MLSID": {
++    "CoListAgent3MlsId": {
+       "isRebny": true,
+       "trestleMatch": false,
+       "dataType": null,
+@@ -3476,7 +3476,7 @@
+       "lmpAddEdit": true,
+       "lmpSearch": true,
+       "required": "No",
+-      "conditionalRule": "No; Data entered only when MLSStatus is changed to Closed",
++      "conditionalRule": "No; Data entered only when MlsStatus is changed to Closed",
+       "displayTier": "idx",
+       "canonicalKey": null,
+       "label": null,
+@@ -3498,7 +3498,7 @@
+       "lmpAddEdit": true,
+       "lmpSearch": true,
+       "required": "No",
+-      "conditionalRule": "No; Data entered only when MLSStatus is changed to Closed",
++      "conditionalRule": "No; Data entered only when MlsStatus is changed to Closed",
+       "displayTier": "idx",
+       "canonicalKey": null,
+       "label": null,
+@@ -3542,7 +3542,7 @@
+       "lmpAddEdit": true,
+       "lmpSearch": true,
+       "required": "No",
+-      "conditionalRule": "No; Data entered only when MLSStatus is changed to Closed",
++      "conditionalRule": "No; Data entered only when MlsStatus is changed to Closed",
+       "displayTier": "idx",
+       "canonicalKey": null,
+       "label": null,
+@@ -3564,7 +3564,7 @@
+       "lmpAddEdit": true,
+       "lmpSearch": true,
+       "required": "No",
+-      "conditionalRule": "No; Data entered only when MLSStatus is changed to Closed",
++      "conditionalRule": "No; Data entered only when MlsStatus is changed to Closed",
+       "displayTier": "idx",
+       "canonicalKey": null,
+       "label": null,
+@@ -5807,7 +5807,7 @@
+       "searchDomIds": null,
+       "complianceNotes": null
+     },
+-    "ListingID": {
++    "ListingId": {
+       "isRebny": true,
+       "trestleMatch": false,
+       "dataType": null,
+@@ -7155,7 +7155,7 @@
+       "lmpAddEdit": true,
+       "lmpSearch": true,
+       "required": "Conditional",
+-      "conditionalRule": "If MLSStatus DOES NOT EQUAL Active or ComingSoon then require OffMarketDate",
++      "conditionalRule": "If MlsStatus DOES NOT EQUAL Active or ComingSoon then require OffMarketDate",
+       "displayTier": "idx",
+       "canonicalKey": null,
+       "label": null,
+@@ -7199,7 +7199,7 @@
+       "lmpAddEdit": true,
+       "lmpSearch": true,
+       "required": "Yes",
+-      "conditionalRule": "; Conditional: If the MLSStatus=Active",
++      "conditionalRule": "; Conditional: If the MlsStatus=Active",
+       "displayTier": "idx",
+       "canonicalKey": "listedDate",
+       "label": "LISTED",
+@@ -8344,7 +8344,7 @@
+       "lmpAddEdit": true,
+       "lmpSearch": true,
+       "required": "Conditional",
+-      "conditionalRule": "MLSStatus = Pending;  The PurchaseContractDate is required to be greater than or equal to the ListingContractDate attribute.",
++      "conditionalRule": "MlsStatus = Pending;  The PurchaseContractDate is required to be greater than or equal to the ListingContractDate attribute.",
+       "displayTier": "idx",
+       "canonicalKey": null,
+       "label": null,
+@@ -8685,7 +8685,7 @@
+       "nullable": true,
+       "isEnum": false,
+       "isMultiEnum": false,
+-      "rebnyDescription": "A unique identifier for this record from the immediate source. This is a string that can include URI or other forms. Alternatively use the ListingKeyNumeric for a numeric only key field. This is the local key of the system. When records are received from other systems, a local key is commonly applied. If conveying the original keys from the source or originating systems, see SourceSystemKey and OriginatingSystemKey. This is the LMP's ListingID",
++      "rebnyDescription": "A unique identifier for this record from the immediate source. This is a string that can include URI or other forms. Alternatively use the ListingKeyNumeric for a numeric only key field. This is the local key of the system. When records are received from other systems, a local key is commonly applied. If conveying the original keys from the source or originating systems, see SourceSystemKey and OriginatingSystemKey. This is the LMP's ListingId",
+       "lmpAddEdit": true,
+       "lmpSearch": false,
+       "required": "Yes",
+@@ -9729,7 +9729,7 @@
+       "searchDomIds": null,
+       "complianceNotes": null
+     },
+-    "UnParsedAddress": {
++    "UnparsedAddress": {
+       "isRebny": true,
+       "trestleMatch": false,
+       "dataType": null,
+@@ -10125,7 +10125,7 @@
+       "lmpAddEdit": true,
+       "lmpSearch": true,
+       "required": "Conditional",
+-      "conditionalRule": "MLSStatus = Withdrawn and WithdrawnDate must = OffMarketDate",
++      "conditionalRule": "MlsStatus = Withdrawn and WithdrawnDate must = OffMarketDate",
+       "displayTier": "idx",
+       "canonicalKey": null,
+       "label": null,
+diff --git a/data/rebny-all-fields.txt b/data/rebny-all-fields.txt
+index 352d659a..5a6a739f 100644
+--- a/data/rebny-all-fields.txt
++++ b/data/rebny-all-fields.txt
+@@ -88,7 +88,7 @@ BuyerOfficeURL
+ BuyerTeamKeyNumeric
+ BuyerTeamMlsId
+ BuyerTeamName
+-CableTVExpense
++CableTvExpense
+ CancellationDate
+ CapRate
+ CapitalReservesTotal
+@@ -122,7 +122,7 @@ CoListAgent2DirectPhone
+ CoListAgent2Email
+ CoListAgent2FullName
+ CoListAgent2KeyNumeric
+-CoListAgent2MLSID
++CoListAgent2MlsId
+ CoListAgent2Nickname
+ CoListAgent2StateLicense
+ CoListAgent2URL
+@@ -130,7 +130,7 @@ CoListAgent3DirectPhone
+ CoListAgent3Email
+ CoListAgent3FullName
+ CoListAgent3KeyNumeric
+-CoListAgent3MLSID
++CoListAgent3MlsId
+ CoListAgent3Nickname
+ CoListAgent3StateLicense
+ CoListAgent3URL
+@@ -261,7 +261,7 @@ ListTeamMlsId
+ ListTeamName
+ ListingAgreement
+ ListingContractDate
+-ListingID
++ListingId
+ ListingIssues
+ ListingKeyNumeric
+ ListingSocialMediaURL
+@@ -418,7 +418,7 @@ TransferredFromKey
+ TransferredFromSystemName
+ TransferredToSystemName
+ TrashExpense
+-UnParsedAddress
++UnparsedAddress
+ UnitCount
+ UnitLine
+ UnitNumber
+diff --git a/data/rebny-rls-property-lookup.csv b/data/rebny-rls-property-lookup.csv
+index dd79c88f..f2d9e922 100644
+--- a/data/rebny-rls-property-lookup.csv
++++ b/data/rebny-rls-property-lookup.csv
+@@ -1365,8 +1365,8 @@
+ ,Property,ListingAgreement,ExclusiveRightToLease,,ListingAgreement,ExclusiveRightToLease,"A contract giving the broker the right to collect commission if the property is leased by anyone, including the owner, during the term of the agreement.",Yes,Yes,PropertyType cannot be equal to Residential.
+ ,Property,ListingAgreement,ExclusiveRightToSell,,ListingAgreement,ExclusiveRightToSell,"A contract giving the broker the right to collect commission if the property is sold by anyone, including the owner, during the term of the agreement.",Yes,Yes,PropertyType cannot be equal to Residential Lease.
+ ,Property,ListingAgreement,ExclusiveRightWithException,,ListingAgreement,ExclusiveRightWithException,"A contract giving the broker the right to collect commission if the property is sold by anyone, including the owner, during the term of the agreement unless some specified exceptions to the agreement occur.",Yes,Yes,
+-,Property,MLSStatus,InactiveAgent,,ListingIssues,InactiveAgent,"Indicates the ListAgent, CoListAgent, CoListAgent2, or CoListAgent3 are no longer active RLS Participants. This listing is no longer being shared/distributed in the RLS. The agent should reach out to REBNY Membership at rebnymembership@rebny.com.",No,Source Specific,
+-,,MLSStatus,Mismatched Agent Office,,ListingIssues,MismatchedOffice,"Indicates the ListAgent, CoListAgent, CoListAgent2, or CoListAgent3 no longer matches with the ListOffice.ListOffice details are pulled from REBNY Member Directory. Please have the agent reach out to REBNY Membership at rebnymembership@rebny.com to update their record.",No,Source Specific,
++,Property,MlsStatus,InactiveAgent,,ListingIssues,InactiveAgent,"Indicates the ListAgent, CoListAgent, CoListAgent2, or CoListAgent3 are no longer active RLS Participants. This listing is no longer being shared/distributed in the RLS. The agent should reach out to REBNY Membership at rebnymembership@rebny.com.",No,Source Specific,
++,,MlsStatus,Mismatched Agent Office,,ListingIssues,MismatchedOffice,"Indicates the ListAgent, CoListAgent, CoListAgent2, or CoListAgent3 no longer matches with the ListOffice.ListOffice details are pulled from REBNY Member Directory. Please have the agent reach out to REBNY Membership at rebnymembership@rebny.com to update their record.",No,Source Specific,
+ ,Property,ListingTerms,Exchange1031,,ListingTerms,Exchange1031,The seller may be interested in a 1031 exchange as part of the sale.,Yes,Yes,
+ ,Property,ListingTerms,AllInclusiveTrustDeed,,ListingTerms,AllInclusiveTrustDeed,The property is under an all-inclusive trust deed.,Yes,Yes,
+ ,Property,ListingTerms,Assumable,,ListingTerms,Assumable,The seller is interested in assumable financing.,Yes,Yes,
+@@ -1450,18 +1450,18 @@
+ ,Property,MlsStatus,Active,,MlsStatus,Active,The listing is on market and an offer has not been accepted.,Yes,Yes,
+ ,Property,MlsStatus,Canceled,,MlsStatus,Canceled,The listing contract has been terminated.,Yes,Yes,"After 90 days, require to submit new listing key if putting back on market."
+ ,Property,MlsStatus,Closed,,MlsStatus,Closed,The purchase agreement has been fulfilled or the lease agreement has been executed.,Yes,Yes,"When is Closed, if StatusChangeDateTime is greater than 3 days ago, then:
+-1. MLSStatus cannot be changed
++1. MlsStatus cannot be changed
+ 2. PublicRemarks and all address fields cannot be changed
+ 3. RESO Member and Office associations cannot be changed (the data will remain frozen so if the Member or Office details changes the details will remain as is)
+ 4. Any API request including changes to the relevant attributes will be rejected
+ 5. Any API request including changes to other attributes (i.e. BuyerAgent) will be accepted, assuming other validations are satisfied
+ 
+ Listings must be Pending prior to changing status to Closed."
+-,Property,MlsStatus,ComingSoon,,MlsStatus,ComingSoon,"This is a listing that has not yet been on market but will be on market soon. A listing contract has been executed. Coming Soon is different from Hold and Withdrawn, as the property, under the current listing contract only, has not been previously on market.",Yes,Yes,"-ListingContractDate is the indicated date when the Property Record will be changed to MLSStatus = Active
+--Submission of a Property Record where MLSStatus = ComingSoon requires a Media Record where SupplementType = ComingSoonOwnerAuthorization
+--Acceptance of a Property Record where MLSStatus = ComingSoon triggers an auto generation timestamp in the ComingSoonTimestamp field
+--Acceptance of a Property Record where MLSStatus= ComingSoon will set utilize the MajorChangeType field as ComingSoon is now an acceptable field in the RESO data model
+--Submission of Property Record where MLSStatus = ComingSoon are rejected if
++,Property,MlsStatus,ComingSoon,,MlsStatus,ComingSoon,"This is a listing that has not yet been on market but will be on market soon. A listing contract has been executed. Coming Soon is different from Hold and Withdrawn, as the property, under the current listing contract only, has not been previously on market.",Yes,Yes,"-ListingContractDate is the indicated date when the Property Record will be changed to MlsStatus = Active
++-Submission of a Property Record where MlsStatus = ComingSoon requires a Media Record where SupplementType = ComingSoonOwnerAuthorization
++-Acceptance of a Property Record where MlsStatus = ComingSoon triggers an auto generation timestamp in the ComingSoonTimestamp field
++-Acceptance of a Property Record where MlsStatus= ComingSoon will set utilize the MajorChangeType field as ComingSoon is now an acceptable field in the RESO data model
++-Submission of Property Record where MlsStatus = ComingSoon are rejected if
+    -NewDevelopmentYN = true
+    -PropertyType = ResidentialLease
+ An existing Property Record cannot be changed to ComingSoon if
+@@ -1470,15 +1470,15 @@ An existing Property Record cannot be changed to ComingSoon if
+    -NewDevelopmentYN = true
+    -PropertyType = ResidentialLease
+    -An Open House Record exists and the OpenHouseStartTime is before the ListingContractDate
+--Changing an existing listing to MLSStatus = ComingSoon triggers an auto generation timestamp in the ComingSoonTimestamp field
++-Changing an existing listing to MlsStatus = ComingSoon triggers an auto generation timestamp in the ComingSoonTimestamp field
+ -Open House Records can be created while StandardStatus = ComingSoon if
+    -The OpenHouseStartTime is on or after the ListingContractDate
+--A Property Record where MLSStatus= ComingSoon cannot be changed to Closed or Pending
++-A Property Record where MlsStatus= ComingSoon cannot be changed to Closed or Pending
+ -If ShowingStartTime is included with a listing the ShowingStartTime value must be greater than or equal to the ListingContractDate"
+ ,Property,MlsStatus,Expired,,MlsStatus,Expired,"The listing contract has expired.  Update from Expired to Active, Pending, Cancelled or Withdrawn allowed if within 90 days of ExpirationDate.",Yes,Yes,"After 90 days, require to submit new listing key if putting back on market."
+ ,Property,MlsStatus,Hold,,MlsStatus,Hold,"A contract exists between the seller and the listing member. The listing may be completely off market, not allowing any showings and/or not taking any further offers.",Yes,Yes,"TOM30 status is allowed for 30 days, it is renewable 2 times. TOM30 Status is allowed a Maximum of 90 days, after consecutive 90 days, the listing can be displayed as new. New listing key is required to be submitted after 90 days.
+ 
+-The MLSStatus is allowed to change from Hold to Canceled, Expired, or Withdrawn even after 90 days of an Off Market status of Hold.
++The MlsStatus is allowed to change from Hold to Canceled, Expired, or Withdrawn even after 90 days of an Off Market status of Hold.
+ 
+ Listing marked hold are required to submit as Pending prior to marking status as Closed."
+ ,Property,MlsStatus,Incomplete,,MlsStatus,Incomplete,The listing has not yet been completely entered and is not yet published in the MLS.,Yes,No,Listing marked Incomplete are required to submit status as Active prior to marking status as Pending.
+diff --git a/data/rls-form-bindings.json b/data/rls-form-bindings.json
+index 51da1d0d..a25e68cb 100644
+--- a/data/rls-form-bindings.json
++++ b/data/rls-form-bindings.json
+@@ -96,7 +96,7 @@
+           "elementType": "hidden"
+         },
+         "saleUnparsedAddress": {
+-          "rlsField": "UnParsedAddress",
++          "rlsField": "UnparsedAddress",
+           "elementType": "hidden"
+         },
+         "saleUpdatingAgentDisplay": {
+@@ -1535,7 +1535,7 @@
+           "elementType": "hidden"
+         },
+         "rentalUnparsedAddress": {
+-          "rlsField": "UnParsedAddress",
++          "rlsField": "UnparsedAddress",
+           "elementType": "hidden"
+         },
+         "rentalUpdatingAgentDisplay": {
+diff --git a/lib/compliance/data-loader.ts b/lib/compliance/data-loader.ts
+index 68c390fa..fe9681f2 100644
+--- a/lib/compliance/data-loader.ts
++++ b/lib/compliance/data-loader.ts
+@@ -138,7 +138,7 @@ export function isFieldRequired(fieldName: string, listing: ListingData): boolea
+  * Examples:
+  * - "Conditional: Required if PropertyType = Residential"
+  * - "Conditional: Required if CommonInterest IN (StockCooperative, Condop)"
+- * - "Conditional: Required if MLSStatus = ComingSoon"
++ * - "Conditional: Required if MlsStatus = ComingSoon"
+  */
+ export function evaluateCondition(requirement: string, listing: ListingData): boolean {
+   // Extract the condition part after "Conditional:"
+diff --git a/lib/compliance/dto.ts b/lib/compliance/dto.ts
+index 487730d7..1eabd9ca 100644
+--- a/lib/compliance/dto.ts
++++ b/lib/compliance/dto.ts
+@@ -194,7 +194,7 @@ export function sanitizeForPublic(listing: Record<string, unknown>): Record<stri
+     delete result.streetName;
+     delete result.UnitNumber;
+     delete result.unitNumber;
+-    delete result.UnParsedAddress;
++    delete result.UnparsedAddress;
+     delete result.unParsedAddress;
+     delete result.Latitude;
+     delete result.latitude;
+diff --git a/lib/compliance/prompts.ts b/lib/compliance/prompts.ts
+index 1bf6f92d..7bec19a8 100644
+--- a/lib/compliance/prompts.ts
++++ b/lib/compliance/prompts.ts
+@@ -145,7 +145,7 @@ OUTPUT FORMAT (JSON only):
+ Listing context:
+ - PropertyType: ${listing.PropertyType || listing.propertyType || 'unknown'}
+ - CommonInterest: ${listing.CommonInterest || listing.coopCondo || 'unknown'}
+-- MLSStatus: ${listing.MLSStatus || listing.mlsStatus || 'unknown'}
++- MlsStatus: ${listing.MlsStatus || listing.mlsStatus || 'unknown'}
+ 
+ Return ONLY the validation JSON.`;
+ 
+diff --git a/lib/compliance/rebny-field-tables.ts b/lib/compliance/rebny-field-tables.ts
+index 420647c3..2cb3a6b7 100644
+--- a/lib/compliance/rebny-field-tables.ts
++++ b/lib/compliance/rebny-field-tables.ts
+@@ -49,7 +49,7 @@ export const REBNY_FIELD_TABLES = {
+       // Phantom fields cannot be mandatory (authority = live $metadata).
+       'Concessions',
+ 
+-      // Address (RLS canonical names — note CityRegion NOT Borough, UnParsedAddress NOT UnparsedAddress)
++      // Address (RLS canonical names — note CityRegion NOT Borough, UnparsedAddress NOT UnparsedAddress)
+       'StreetNumber',
+       'StreetName',
+       'City',
+@@ -60,7 +60,7 @@ export const REBNY_FIELD_TABLES = {
+       'CountyOrParish',
+       'SubdivisionName',
+       // A1 (Cotality-clean 2026-05-30): live Cotality field is `UnparsedAddress`
+-      // (lowercase p). `UnParsedAddress` (capital P) was a stale spelling; it is
++      // (lowercase p). `UnparsedAddress` (capital P) was a stale spelling; it is
+       // now a legacy alias only. All readers (slug/DTO/validator) use lowercase.
+       'UnparsedAddress',
+ 
+@@ -263,7 +263,7 @@ export const REBNY_FIELD_TABLES = {
+     cityRegion: 'CityRegion',           // camelCase variant
+     Neighborhood: 'SubdivisionName',    // Common name → RLS canonical
+     neighborhood: 'SubdivisionName',    // camelCase variant
+-    UnParsedAddress: 'UnparsedAddress',  // A1: legacy capital-P → canonical Cotality UnparsedAddress (lowercase p, live $metadata)
++    UnparsedAddress: 'UnparsedAddress',  // A1: legacy capital-P → canonical Cotality UnparsedAddress (lowercase p, live $metadata)
+     unparsedAddress: 'UnparsedAddress',
+     address: 'UnparsedAddress',
+     streetName: 'StreetName',
+@@ -969,7 +969,7 @@ export const REBNY_FIELD_TABLES = {
+   persistenceMap: {
+     // ── IDs (system-managed) ──
+     SourceSystemKey: { raw: true },
+-    RLSListingID: { raw: true },  // Application convention; CSV calls this ListingID
++    RLSListingID: { raw: true },  // Application convention; CSV calls this ListingId
+     ListingId: { raw: true },
+     ListingKey: { raw: true },
+ 
+@@ -1017,7 +1017,7 @@ export const REBNY_FIELD_TABLES = {
+     PostalCode: { address: true, db: 'postal_code', raw: true },
+     PostalCity: { address: true, raw: true },
+     CountyOrParish: { address: true, raw: true },
+-    UnparsedAddress: { address: true, raw: true }, // A1: canonical Cotality key (lowercase p); legacy UnParsedAddress normalizes here via aliasToCanonical
++    UnparsedAddress: { address: true, raw: true }, // A1: canonical Cotality key (lowercase p); legacy UnparsedAddress normalizes here via aliasToCanonical
+     BuildingName: { address: true, raw: true },
+ 
+     // ── Content → features bucket ──
+@@ -1200,7 +1200,7 @@ export const REBNY_FIELD_TABLES = {
+ 
+     addressSuppression: {
+       field: 'InternetAddressDisplayYN',
+-      whenFalse: ['StreetNumber', 'StreetName', 'UnitNumber', 'UnParsedAddress'],
++      whenFalse: ['StreetNumber', 'StreetName', 'UnitNumber', 'UnparsedAddress'],
+       note: 'Hide street-level address from public DTO; retain borough/zip/neighborhood',
+     },
+ 
+diff --git a/lib/compliance/reso-mapper.ts b/lib/compliance/reso-mapper.ts
+index 7b077a72..18810e6b 100644
+--- a/lib/compliance/reso-mapper.ts
++++ b/lib/compliance/reso-mapper.ts
+@@ -15,7 +15,7 @@ export interface RESOListing {
+   ListingKey: string;
+   ListingId: string;
+   PropertyType: 'Residential' | 'ResidentialLease' | 'Commercial' | 'Land';
+-  MLSStatus: 'Active' | 'ActiveUnderContract' | 'ComingSoon' | 'Pending' | 'Sold' | 'Rented' | 'Withdrawn' | 'Expired' | 'Cancelled';
++  MlsStatus: 'Active' | 'ActiveUnderContract' | 'ComingSoon' | 'Pending' | 'Sold' | 'Rented' | 'Withdrawn' | 'Expired' | 'Cancelled';
+ 
+   // Address
+   StreetNumber: string;
+@@ -166,7 +166,7 @@ export function mapListingToRESO(listing: Listing): RESOListing {
+   const propertyType: RESOListing['PropertyType'] = isRental ? 'ResidentialLease' : 'Residential';
+ 
+   // Map MLS status
+-  const statusMap: Record<string, RESOListing['MLSStatus']> = {
++  const statusMap: Record<string, RESOListing['MlsStatus']> = {
+     Active: 'Active',
+     Pending: 'Pending',
+     Sold: 'Sold',
+@@ -187,7 +187,7 @@ export function mapListingToRESO(listing: Listing): RESOListing {
+     ListingKey: listing.id,
+     ListingId: listing.mlsId,
+     PropertyType: propertyType,
+-    MLSStatus: statusMap[listing.mlsStatus] || 'Active',
++    MlsStatus: statusMap[listing.mlsStatus] || 'Active',
+ 
+     // Address
+     StreetNumber: listing.address.streetNumber,
+@@ -338,9 +338,9 @@ export function mapRESOToListing(reso: RESOListing): Partial<Listing> {
+   return {
+     id: reso.ListingKey,
+     mlsId: reso.ListingId,
+-    mlsStatus: statusReverseMap[reso.MLSStatus] || 'Active',
++    mlsStatus: statusReverseMap[reso.MlsStatus] || 'Active',
+     listingType: isRental ? 'rent' : 'sale',
+-    status: reso.MLSStatus === 'Active' ? 'active' : 'inactive',
++    status: reso.MlsStatus === 'Active' ? 'active' : 'inactive',
+ 
+     address: {
+       streetNumber: reso.StreetNumber,
+diff --git a/lib/compliance/rls-rules.json b/lib/compliance/rls-rules.json
+index 9b72d8f2..ce9c0f8d 100644
+--- a/lib/compliance/rls-rules.json
++++ b/lib/compliance/rls-rules.json
+@@ -123,7 +123,7 @@
+       "description": "Date a Coming Soon listing is expected to become Active in the Source System",
+       "lmpAddEdit": "Yes",
+       "lmpSearch": "Yes",
+-      "requirements": "Yes, Conditional: Required if MLSStatus=ComingSoon"
++      "requirements": "Yes, Conditional: Required if MlsStatus=ComingSoon"
+     },
+     {
+       "field": "ActivationTimestamp",
+@@ -1099,7 +1099,7 @@
+       "description": "Indicate whether the buyer agent is a RLS Participant.",
+       "lmpAddEdit": "Yes",
+       "lmpSearch": "Yes",
+-      "requirements": "Conditional: MLSStatus = Closed"
++      "requirements": "Conditional: MlsStatus = Closed"
+     },
+     {
+       "field": "BuyerAgentStateLicense",
+@@ -1222,8 +1222,8 @@
+       "requirements": "No"
+     },
+     {
+-      "field": "CableTVExpense",
+-      "matrixFieldName": "CableTVExpense",
++      "field": "CableTvExpense",
++      "matrixFieldName": "CableTvExpense",
+       "description": "The annual expense that is not paid directly by the tenant and is included in the Operating Expense calculations.",
+       "lmpAddEdit": "Yes",
+       "lmpSearch": "Yes",
+@@ -1235,7 +1235,7 @@
+       "description": "Date the listing contract between the seller and listing agent was cancelled. This is the date entered by the agent reflecting when the change occurred contractually, not a timestamp of when the change was made in the RLS.",
+       "lmpAddEdit": "Yes",
+       "lmpSearch": "Yes",
+-      "requirements": "Conditional: MLSStatus= Cancelled"
++      "requirements": "Conditional: MlsStatus= Cancelled"
+     },
+     {
+       "field": "CapitalReservesTotal",
+@@ -1371,7 +1371,7 @@
+       "description": "The date the sale of the property closed",
+       "lmpAddEdit": "Yes",
+       "lmpSearch": "Yes",
+-      "requirements": "Conditional: Required when MLSStatus = Closed\r\n\r\nThe CloseDate is required to be greater than or equal to the PurchaseContractDate"
++      "requirements": "Conditional: Required when MlsStatus = Closed\r\n\r\nThe CloseDate is required to be greater than or equal to the PurchaseContractDate"
+     },
+     {
+       "field": "ClosePrice",
+@@ -1379,7 +1379,7 @@
+       "description": "The final price at which the property was sold",
+       "lmpAddEdit": "Yes",
+       "lmpSearch": "Yes",
+-      "requirements": "Conditional: Required when MLSStatus = Closed"
++      "requirements": "Conditional: Required when MlsStatus = Closed"
+     },
+     {
+       "field": "ClosetsTotal",
+@@ -1614,8 +1614,8 @@
+       "requirements": "No"
+     },
+     {
+-      "field": "CoListAgent2MLSID",
+-      "matrixFieldName": "CoListAgent2MLSID",
++      "field": "CoListAgent2MlsId",
++      "matrixFieldName": "CoListAgent2MlsId",
+       "description": "A system unique identifier. Specifically, in aggregation systems, the Key is the system unique identifier from the system that the record was just retrieved. This may be identical to the related xxxId identifier, but the key is guaranteed unique for this record set. This is a foreign key relating to the Member resource MemberKey.",
+       "lmpAddEdit": "Yes",
+       "lmpSearch": "Yes",
+@@ -1766,8 +1766,8 @@
+       "requirements": "No"
+     },
+     {
+-      "field": "CoListAgent3MLSID",
+-      "matrixFieldName": "CoListAgent3MLSID",
++      "field": "CoListAgent3MlsId",
++      "matrixFieldName": "CoListAgent3MlsId",
+       "description": "A system unique identifier. Specifically, in aggregation systems, the Key is the system unique identifier from the system that the record was just retrieved. This may be identical to the related xxxId identifier, but the key is guaranteed unique for this record set. This is a foreign key relating to the Member resource MemberKey.",
+       "lmpAddEdit": "Yes",
+       "lmpSearch": "Yes",
+@@ -2251,7 +2251,7 @@
+       "description": "The dollar amount of the concession agreed upon at closing for the buyer broker fee.  Accepted for Closed status listings only.",
+       "lmpAddEdit": "Yes",
+       "lmpSearch": "Yes",
+-      "requirements": "No; Data entered only when MLSStatus is changed to Closed"
++      "requirements": "No; Data entered only when MlsStatus is changed to Closed"
+     },
+     {
+       "field": "ConcessionsClosingCosts",
+@@ -2259,7 +2259,7 @@
+       "description": "The dollar amount of the concession agreed upon at closing for the closing costs.",
+       "lmpAddEdit": "Yes",
+       "lmpSearch": "Yes",
+-      "requirements": "No; Data entered only when MLSStatus is changed to Closed"
++      "requirements": "No; Data entered only when MlsStatus is changed to Closed"
+     },
+     {
+       "field": "ConcessionsComments",
+@@ -2275,7 +2275,7 @@
+       "description": "The dollar amount of the concession agreed upon at closing for the other costs.  Accepted for Closed status listings only.",
+       "lmpAddEdit": "Yes",
+       "lmpSearch": "Yes",
+-      "requirements": "No; Data entered only when MLSStatus is changed to Closed"
++      "requirements": "No; Data entered only when MlsStatus is changed to Closed"
+     },
+     {
+       "field": "ConcessionsPropertyImprovementCosts",
+@@ -2283,7 +2283,7 @@
+       "description": "The dollar amount of the concession agreed upon at closing for the property improvements. Accepted for Closed status listings only.",
+       "lmpAddEdit": "Yes",
+       "lmpSearch": "Yes",
+-      "requirements": "No; Data entered only when MLSStatus is changed to Closed"
++      "requirements": "No; Data entered only when MlsStatus is changed to Closed"
+     },
+     {
+       "field": "ConstructionMaterials",
+@@ -3814,8 +3814,8 @@
+       "requirements": "No"
+     },
+     {
+-      "field": "ListingID",
+-      "matrixFieldName": "ListingID",
++      "field": "ListingId",
++      "matrixFieldName": "ListingId",
+       "description": "The local, well-known identifier for the Listing. This value may not be unique, specifically in the case of aggregation systems, this value should be the identifier from the original system.",
+       "lmpAddEdit": "No",
+       "lmpSearch": "Yes",
+@@ -5587,7 +5587,7 @@
+       "description": "The date the listing was taken off market in the Source System. Where possible, this date is reflective of the date entered by the agent reflecting when the change occurred contractually, not a timestamp of when the change was made in the RLS.",
+       "lmpAddEdit": "Yes",
+       "lmpSearch": "Yes",
+-      "requirements": "Conditional: If MLSStatus DOES NOT EQUAL Active or ComingSoon then require OffMarketDate"
++      "requirements": "Conditional: If MlsStatus DOES NOT EQUAL Active or ComingSoon then require OffMarketDate"
+     },
+     {
+       "field": "OffMarketTimestamp",
+@@ -5611,7 +5611,7 @@
+       "description": "Date the listing went on market",
+       "lmpAddEdit": "Yes",
+       "lmpSearch": "Yes",
+-      "requirements": "Yes; Conditional: If the MLSStatus=Active"
++      "requirements": "Yes; Conditional: If the MlsStatus=Active"
+     },
+     {
+       "field": "OnMarketTimestamp",
+@@ -6499,7 +6499,7 @@
+       "description": "This is the date of when the offer was accepted and contract was fully executed. This contract date should match what is recorded under public records. This is not to be confused with the CloseDate which is a separate attribute.",
+       "lmpAddEdit": "Yes",
+       "lmpSearch": "Yes",
+-      "requirements": "Conditional: MLSStatus = Pending;  The PurchaseContractDate is required to be greater than or equal to the ListingContractDate attribute."
++      "requirements": "Conditional: MlsStatus = Pending;  The PurchaseContractDate is required to be greater than or equal to the ListingContractDate attribute."
+     },
+     {
+       "field": "RecordSignature",
+@@ -6896,7 +6896,7 @@
+     {
+       "field": "SourceSystemKey",
+       "matrixFieldName": "SourceSystemKey",
+-      "description": "A unique identifier for this record from the immediate source. This is a string that can include URI or other forms. Alternatively use the ListingKeyNumeric for a numeric only key field. This is the local key of the system. When records are received from other systems, a local key is commonly applied. If conveying the original keys from the source or originating systems, see SourceSystemKey and OriginatingSystemKey. This is the LMP's ListingID",
++      "description": "A unique identifier for this record from the immediate source. This is a string that can include URI or other forms. Alternatively use the ListingKeyNumeric for a numeric only key field. This is the local key of the system. When records are received from other systems, a local key is commonly applied. If conveying the original keys from the source or originating systems, see SourceSystemKey and OriginatingSystemKey. This is the LMP's ListingId",
+       "lmpAddEdit": "Yes",
+       "lmpSearch": "Yes - TEMPORARY",
+       "requirements": "Yes"
+@@ -7774,8 +7774,8 @@
+       "requirements": "No"
+     },
+     {
+-      "field": "UnParsedAddress",
+-      "matrixFieldName": "UnParsedAddress",
++      "field": "UnparsedAddress",
++      "matrixFieldName": "UnparsedAddress",
+       "description": "The UnparsedAddress is a text representation of the address. Includes Street Number, Street Dir Prefix, Street Name, Street Dir Suffix, Street Suffix. DO NOT INCLUDE UNIT NUMBER in the UnparsedAddress.",
+       "lmpAddEdit": "Yes",
+       "lmpSearch": "Yes",
+@@ -8027,7 +8027,7 @@
+       "description": "Date the listing was withdrawn from the market in the Source System. This is not when a listing contract was cancelled or closed, but a withdrawal from the market while the contract between the seller and listing agent is still in effect and an offer has not been accepted. This is the date entered by the agent reflecting when the change occurred contractually, not a timestamp of when the change was made in the RLS. \r\n\r\nThe date that the agents wish to no longer place it on market may be a different date from when they withdrew from RLS.",
+       "lmpAddEdit": "Yes",
+       "lmpSearch": "Yes",
+-      "requirements": "Conditional: MLSStatus = Withdrawn and WithdrawnDate must = OffMarketDate"
++      "requirements": "Conditional: MlsStatus = Withdrawn and WithdrawnDate must = OffMarketDate"
+     },
+     {
+       "field": "WoodedArea",
+diff --git a/lib/compliance/test-validation.ts b/lib/compliance/test-validation.ts
+index 226ee3e2..f70c88b8 100644
+--- a/lib/compliance/test-validation.ts
++++ b/lib/compliance/test-validation.ts
+@@ -20,7 +20,7 @@ const sampleListingMissingTaxBlock = {
+   ListingKey: 'test-001',
+   ListingId: 'MAL-2026-001',
+   PropertyType: 'Residential',
+-  MLSStatus: 'Active',
++  MlsStatus: 'Active',
+ 
+   // Address - missing BuildingTaxLot (required field)
+   StreetNumber: '123',
+diff --git a/lib/idx/mapping.ts b/lib/idx/mapping.ts
+index 5c3affe8..26f41978 100644
+--- a/lib/idx/mapping.ts
++++ b/lib/idx/mapping.ts
+@@ -42,7 +42,7 @@ export const RESO_FIELDS = {
+   Directions: 'Directions',
+   Latitude: 'Latitude',
+   Longitude: 'Longitude',
+-  UnParsedAddress: 'UnParsedAddress',
++  UnparsedAddress: 'UnparsedAddress',
+ 
+   // Price
+   ListPrice: 'ListPrice',
+diff --git a/lib/idx/trestle-mapper.ts b/lib/idx/trestle-mapper.ts
+index 9146db56..49b997cd 100644
+--- a/lib/idx/trestle-mapper.ts
++++ b/lib/idx/trestle-mapper.ts
+@@ -19,19 +19,19 @@ export const RESO_TO_RLS_RENAMES: Record<string, string> = {
+   BuyerAgentMlsId: "BuyerAgentKey",
+   BuyerOfficeMlsId: "BuyerOfficeKey",
+   BuyerTeamMlsId: "BuyerTeamKey",
+-  CableTVExpense: "CableTvExpense",
++  CableTvExpense: "CableTvExpense",
+   CoBuyerAgentMlsId: "CoBuyerAgentKey",
+   CoBuyerOfficeMlsId: "CoBuyerOfficeKey",
+   DuplicateListingIDs: "CoExclusiveListingKey",
+-  CoListAgent2MLSID: "CoListAgent2Key",
+-  CoListAgent3MLSID: "CoListAgent3Key",
++  CoListAgent2MlsId: "CoListAgent2Key",
++  CoListAgent3MlsId: "CoListAgent3Key",
+   CoListAgentMlsId: "CoListAgentKey",
+   ListAgentMlsId: "ListAgentKey",
+   ListOfficeMlsId: "ListOfficeKey",
+   ListTeamMlsId: "ListTeamKey",
+   LotSizeSource: "LotDimensionsSource",
+   ShowingContactPhone: "ShowingContactPhoneExt",
+-  UnParsedAddress: "UnparsedAddress",
++  UnparsedAddress: "UnparsedAddress",
+ };
+ 
+ // CeilingHeightFeet + CeilingHeightInches → CeilingHeight (split into 2)
+@@ -48,7 +48,7 @@ const B1_ADDRESS = [
+   "StreetSuffix", "UnitNumber", "City", "CityRegion", "SubdivisionName", "PostalCity",
+   "PostalCode", "StateOrProvince", "CountyOrParish", "Country",
+   "CrossStreet", "Directions", "Latitude", "Longitude",
+-  "UnParsedAddress", "AlternateStreetName", "AlternateStreetNumber",
++  "UnparsedAddress", "AlternateStreetName", "AlternateStreetNumber",
+   "AlternateStreetDirPrefix", "AlternateStreetDirSuffix",
+   "AlternateStreetSuffix", "MapCoordinate",
+ ];
+@@ -153,9 +153,9 @@ const B9_COLIST_AGENT = [
+   "CoListAgentDirectPhone", "CoListAgentURL",
+   "CoListOfficeMlsId", "CoListOfficeKey", "CoListOfficeName",
+   "CoListOfficePhone",
+-  "CoListAgent2MLSID", "CoListAgent2Key", "CoListAgent2FirstName",
++  "CoListAgent2MlsId", "CoListAgent2Key", "CoListAgent2FirstName",
+   "CoListAgent2LastName", "CoListAgent2FullName",
+-  "CoListAgent3MLSID", "CoListAgent3Key", "CoListAgent3FirstName",
++  "CoListAgent3MlsId", "CoListAgent3Key", "CoListAgent3FirstName",
+   "CoListAgent3LastName", "CoListAgent3FullName",
+   "CoListTeamKey", "CoListTeamName",
+ ];
+@@ -251,7 +251,7 @@ const B17_EXPENSES = [
+   "NewTaxesExpense", "OtherExpense", "PestControlExpense",
+   "ProfessionalManagementExpense", "SuppliesExpense",
+   "TrashExpense", "VacancyAllowance", "WaterSewerExpense",
+-  "WorkmansCompensationExpense", "CableTVExpense",
++  "WorkmansCompensationExpense", "CableTvExpense",
+ ];
+ 
+ // B18: Concessions (4 fields)
+@@ -413,7 +413,7 @@ const IDX_PLUS_EXCLUDED_FIELDS = new Set([
+   // not present in any of the canonical B-category arrays anymore; they do not
+   // exist on live Trestle — the gate model uses the `Permission` enum.)
+   // Address alternates
+-  "UnParsedAddress", "AlternateStreetName", "AlternateStreetNumber",
++  "UnparsedAddress", "AlternateStreetName", "AlternateStreetNumber",
+   "AlternateStreetDirPrefix", "AlternateStreetDirSuffix", "AlternateStreetSuffix",
+   // Classification
+   "NewDevelopmentYN",
+@@ -428,7 +428,7 @@ const IDX_PLUS_EXCLUDED_FIELDS = new Set([
+   "SaleType", "AuctionType",
+   // Agent/team
+   "ListTeamMlsId", "BuyerTeamMlsId",
+-  "CoListAgent2MLSID", "CoListAgent3MLSID",
++  "CoListAgent2MlsId", "CoListAgent3MlsId",
+   "CoListTeamKey", "CoListTeamName",
+   "CoBuyerTeamKey", "CoBuyerTeamName",
+   // Unit rooms
+@@ -443,7 +443,7 @@ const IDX_PLUS_EXCLUDED_FIELDS = new Set([
+   "StorageYN", "BicycleStorageYN",
+   "TransitScore", "BikeScore",
+   // Financial
+-  "GrossRentMultiplier", "PricePerUnit", "CableTVExpense",
++  "GrossRentMultiplier", "PricePerUnit", "CableTvExpense",
+   // Lot & land
+   "FrontageLengthUnits",
+   // Unit features
+diff --git a/lib/types/listing.ts b/lib/types/listing.ts
+index b25f3f0e..e73fa4d2 100644
+--- a/lib/types/listing.ts
++++ b/lib/types/listing.ts
+@@ -4,7 +4,7 @@
+  */
+ 
+ export type ListingType = 'sale' | 'rent';
+-export type MLSStatus = 'Active' | 'Pending' | 'Sold' | 'Rented' | 'Withdrawn' | 'Expired' | 'Closed';
++export type MlsStatus = 'Active' | 'Pending' | 'Sold' | 'Rented' | 'Withdrawn' | 'Expired' | 'Closed';
+ export type PropertyType = 'Condo' | 'Co-op' | 'Condop' | 'Townhouse' | 'Multi-Family' | 'Mixed-Use' | 'Land';
+ export type Borough = 'Manhattan' | 'Brooklyn' | 'Queens' | 'Bronx' | 'Staten Island';
+ 
+@@ -388,7 +388,7 @@ export interface ListingCompliance {
+ export interface Listing {
+   id: string;
+   mlsId: string;
+-  mlsStatus: MLSStatus;
++  mlsStatus: MlsStatus;
+   listingType: ListingType;
+   status: string;
+   address: ListingAddress;
+diff --git a/public/crm/RENTAL-FORM-REDESIGN.html b/public/crm/RENTAL-FORM-REDESIGN.html
+index 702b4f56..682cc007 100644
+--- a/public/crm/RENTAL-FORM-REDESIGN.html
++++ b/public/crm/RENTAL-FORM-REDESIGN.html
+@@ -5693,7 +5693,7 @@ function collectRentalFormData() {
+     data.SubdivisionName = data.rentalNeighborhood || data.rentalNeighborhoodFromAddress || '';
+     data.StateOrProvince = data.rentalStateOrProvince || 'NY';
+     data.PostalCode = data.rentalZipCode || '';
+-    data.UnParsedAddress = data.rentalUnparsedAddress || '';
++    data.UnparsedAddress = data.rentalUnparsedAddress || '';
+     data.PublicRemarks = data.rentalDescription || '';
+     data.PrivateRemarks = data.rentalAgentRemarks || '';
+     data.ShowingInstructions = data.rentalShowingInstructions || '';
+diff --git a/public/crm/SALE-FORM-REDESIGN.html b/public/crm/SALE-FORM-REDESIGN.html
+index 454beea2..9dcf55db 100644
+--- a/public/crm/SALE-FORM-REDESIGN.html
++++ b/public/crm/SALE-FORM-REDESIGN.html
+@@ -7102,7 +7102,7 @@ function generateListingUrl(formType) {
+     var city = document.getElementById(prefix + 'City');
+     var state = document.getElementById(prefix + 'StateOrProvince');
+     var zip = document.getElementById(prefix + 'ZipCode');
+-    var urlField = document.getElementById(prefix + 'ListingUrl');
++    var urlField = document.getElementById(prefix + 'ListingURL');
+     if (!urlField) return;
+ 
+     var parts = [];
+@@ -9184,7 +9184,7 @@ var SALE_FIELD_MAP = [
+   { rls: 'PostalCity', form: 'salePostalCity', type: 'text', src: 'addr' },
+   { rls: 'CountyOrParish', form: 'saleCountyOrParish', type: 'text', src: 'addr' },
+   { rls: 'SubdivisionName', form: 'saleBldgNeighborhood', type: 'text', src: 'raw' },
+-  { rls: 'UnparsedAddress', form: 'saleUnparsedAddress', type: 'text', src: 'addr', fallbackRls: 'UnParsedAddress' },
++  { rls: 'UnparsedAddress', form: 'saleUnparsedAddress', type: 'text', src: 'addr', fallbackRls: 'UnparsedAddress' },
+ 
+   // ── Unit Details ──
+   { rls: 'ListPrice', form: 'salePrice', type: 'number', src: 'listing', listingKey: 'list_price' },
+@@ -9937,7 +9937,7 @@ function _populateSaleFormFromApi(listing) {
+     // ── Composite address field (the main input the user sees) ──
+     // Fallback MUST include StreetDirPrefix (E/W/N/S) or "333 E 46th St" would
+     // restore as "333 46th St" — the exact bug that broke RealPlus URL lookup.
+-    var streetAddr = addr.UnparsedAddress || raw.UnParsedAddress || raw.UnparsedAddress || '';
++    var streetAddr = addr.UnparsedAddress || raw.UnparsedAddress || raw.UnparsedAddress || '';
+     if (!streetAddr) {
+         var parts = [
+             addr.StreetNumber || raw.StreetNumber,
+diff --git a/public/crm/SALE-FORM-WITH-TOOLS.html b/public/crm/SALE-FORM-WITH-TOOLS.html
+index f7cc157b..b5b04665 100644
+--- a/public/crm/SALE-FORM-WITH-TOOLS.html
++++ b/public/crm/SALE-FORM-WITH-TOOLS.html
+@@ -5894,7 +5894,7 @@ function saveSaleBuilding() {
+ function generateListingUrl(formType) {
+     const street = document.getElementById(formType + 'StreetAddress');
+     const unit = document.getElementById(formType + 'UnitNumber');
+-    const urlField = document.getElementById(formType + 'ListingUrl');
++    const urlField = document.getElementById(formType + 'ListingURL');
+     if (!urlField || !street || !street.value) return;
+     let slug = street.value.trim().toLowerCase()
+         .replace(/[^a-z0-9\s-]/g, '')
+diff --git a/public/crm/data/validator-results.json b/public/crm/data/validator-results.json
+index 8a23fd83..634c747c 100644
+--- a/public/crm/data/validator-results.json
++++ b/public/crm/data/validator-results.json
+@@ -1,8 +1,8 @@
+ {
+-  "timestamp": "2026-08-14T02:47:33.255Z",
+-  "pass": 1278,
++  "timestamp": "2026-09-07T12:24:52.524Z",
++  "pass": 1277,
+   "critical": 0,
+-  "warning": 4,
++  "warning": 5,
+   "info": 37,
+   "sections": [
+     {
+@@ -27,9 +27,9 @@
+       "section": 3,
+       "title": "Field Count Verification",
+       "category": "IDX Pipeline",
+-      "pass": 21,
++      "pass": 20,
+       "critical": 0,
+-      "warning": 1,
++      "warning": 2,
+       "info": 0
+     },
+     {
+diff --git a/public/crm/js/core/reso-field-map.js b/public/crm/js/core/reso-field-map.js
+index 3052ecab..8d4fec2a 100644
+--- a/public/crm/js/core/reso-field-map.js
++++ b/public/crm/js/core/reso-field-map.js
+@@ -22,7 +22,7 @@
+         // ═══════════════════════════════════════════════════════════════════════════
+         var RESO_FIELD_MAP = {
+             // ── Address & Location ──
+-            address:        'UnparsedAddress',           // RLS: UnparsedAddress → UnParsedAddress (Matrix). Trestle OData: UnparsedAddress
++            address:        'UnparsedAddress',           // RLS: UnparsedAddress → UnparsedAddress (Matrix). Trestle OData: UnparsedAddress
+             unit:           'UnitNumber',                // RLS: UnitNumber. Conditional required by PropertySubType
+             zip:            'PostalCode',                // RLS: PostalCode
+             neighborhood:   'SubdivisionName',           // RLS: SubdivisionName (REBNY attr). Trestle also has MLSAreaMinor (system-generated)
+@@ -38,7 +38,7 @@
+             originalPrice:  'OriginalListPrice',         // RLS: OriginalListPrice (read-only)
+             previousPrice:  'PreviousListPrice',         // RLS: PreviousListPrice (auto-updated)
+             priceChangeTs:  'PriceChangeTimestamp',      // RLS: PriceChangeTimestamp (system)
+-            closePrice:     'ClosePrice',                // RLS: ClosePrice. Required when MLSStatus=Closed
++            closePrice:     'ClosePrice',                // RLS: ClosePrice. Required when MlsStatus=Closed
+             closeDate:      'CloseDate',                 // RLS: CloseDate. Must >= PurchaseContractDate
+             closedDate:     'CloseDate',                 // alias — cached data uses closedDate, RESO uses CloseDate
+ 
+@@ -73,7 +73,7 @@
+             // ── Dates & DOM ──
+             dom:            'DaysOnMarket',              // RLS: DaysOnMarket (system). Reset after 30 days W/C (UCBA 2026)
+             cdom:           'CumulativeDaysOnMarket',    // RLS: CumulativeDaysOnMarket (system)
+-            listedDate:     'OnMarketDate',              // RLS: OnMarketDate. Required if MLSStatus=Active
++            listedDate:     'OnMarketDate',              // RLS: OnMarketDate. Required if MlsStatus=Active
+             updatedDate:    'SourceSystemModificationTimestamp', // RLS: SourceSystemModificationTimestamp. RESO "ModificationTimestamp" renamed by RLS
+ 
+             // ── Agent & Office ──
+@@ -111,7 +111,7 @@
+             syndicateTo:            'SyndicateTo',                    // Trestle: SyndicateTo (multi-enum)
+ 
+             // ── Coming Soon (REBNY-specific) ──
+-            comingSoonDate:       'ActivationDate',                   // RLS: ActivationDate (date Coming Soon becomes Active). Required if MLSStatus=ComingSoon
++            comingSoonDate:       'ActivationDate',                   // RLS: ActivationDate (date Coming Soon becomes Active). Required if MlsStatus=ComingSoon
+             comingSoonTimestamp:   'ComingSoonTimestamp',              // RLS: ComingSoonTimestamp (system — when listing first entered Coming Soon)
+ 
+             // ── REMOVED from RLS (NAR Settlement Aug 2025) — kept for reference only ──
+diff --git a/public/crm/js/dashboard/panels.js b/public/crm/js/dashboard/panels.js
+index 2671e9f4..eb7e55b0 100644
+--- a/public/crm/js/dashboard/panels.js
++++ b/public/crm/js/dashboard/panels.js
+@@ -9254,8 +9254,8 @@ var Panels = (function () {
+         return l.address.street;
+       }
+       // 2. Trestle UnparsedAddress
+-      if (l.address.UnparsedAddress || l.address.UnParsedAddress) {
+-        var unparsed = l.address.UnparsedAddress || l.address.UnParsedAddress;
++      if (l.address.UnparsedAddress || l.address.UnparsedAddress) {
++        var unparsed = l.address.UnparsedAddress || l.address.UnparsedAddress;
+         if (l.address.UnitNumber && unparsed.indexOf(l.address.UnitNumber) === -1) {
+           unparsed += ', #' + l.address.UnitNumber;
+         }
+diff --git a/public/crm/js/dashboard/workspace.js b/public/crm/js/dashboard/workspace.js
+index dff570c8..497b154b 100644
+--- a/public/crm/js/dashboard/workspace.js
++++ b/public/crm/js/dashboard/workspace.js
+@@ -12,8 +12,8 @@ var Workspace = (function () {
+   function _resolveAddr(a) {
+     if (!a || typeof a !== 'object') return typeof a === 'string' ? a : '';
+     if (a.street) return a.street;
+-    if (a.UnparsedAddress || a.UnParsedAddress) {
+-      var u = a.UnparsedAddress || a.UnParsedAddress;
++    if (a.UnparsedAddress || a.UnparsedAddress) {
++      var u = a.UnparsedAddress || a.UnparsedAddress;
+       if (a.UnitNumber && u.indexOf(a.UnitNumber) === -1) u += ', #' + a.UnitNumber;
+       return u;
+     }
+diff --git a/scripts/audit-form-fields.js b/scripts/audit-form-fields.js
+index 90c1a24c..97b7542b 100644
+--- a/scripts/audit-form-fields.js
++++ b/scripts/audit-form-fields.js
+@@ -33,13 +33,13 @@ const RESO_TO_RLS_RENAMES = {
+   'BuyerAgentKey':            'BuyerAgentMlsId',
+   'BuyerOfficeKey':           'BuyerOfficeMlsId',
+   'BuyerTeamKey':             'BuyerTeamMlsId',
+-  'CableTvExpense':           'CableTVExpense',
++  'CableTvExpense':           'CableTvExpense',
+   'CeilingHeight':            'CeilingHeightFeet',
+   'CoBuyerAgentKey':          'CoBuyerAgentMlsId',
+   'CoBuyerOfficeKey':         'CoBuyerOfficeMlsId',
+   'CoExclusiveListingKey':    'DuplicateListingIDs',
+-  'CoListAgent2Key':          'CoListAgent2MLSID',
+-  'CoListAgent3Key':          'CoListAgent3MLSID',
++  'CoListAgent2Key':          'CoListAgent2MlsId',
++  'CoListAgent3Key':          'CoListAgent3MlsId',
+   'CoListAgentKey':           'CoListAgentMlsId',
+   'ListAgentKey':             'ListAgentMlsId',
+   'ListOfficeKey':            'ListOfficeMlsId',
+@@ -49,7 +49,7 @@ const RESO_TO_RLS_RENAMES = {
+   'ShowingContactPhoneExt':   'ShowingContactPhone',
+   'ListingKey':               'SourceSystemKey',
+   'ModificationTimestamp':    'SourceSystemModificationTimestamp',
+-  'UnparsedAddress':          'UnParsedAddress',
++  'UnparsedAddress':          'UnparsedAddress',
+ };
+ 
+ // ── Comprehensive Field Aliases ──────────────────────────────────────────
+diff --git a/scripts/compliance-test.js b/scripts/compliance-test.js
+index 4f792ab4..90e5a4bd 100644
+--- a/scripts/compliance-test.js
++++ b/scripts/compliance-test.js
+@@ -315,7 +315,7 @@ function main() {
+     'PropertyType', 'PropertySubType', 'CommonInterest', 'MlsStatus',
+     'ListPrice', 'BedroomsTotal', 'BathroomsFull', 'BathroomsHalf', 'BathroomsTotal', 'LivingArea',
+     'StreetNumber', 'StreetName', 'StreetSuffix', 'UnitNumber', 'City', 'CityRegion',
+-    'SubdivisionName', 'StateOrProvince', 'PostalCode', 'UnParsedAddress',
++    'SubdivisionName', 'StateOrProvince', 'PostalCode', 'UnparsedAddress',
+     'PublicRemarks', 'PrivateRemarks', 'ShowingInstructions',
+     'YearBuilt', 'NewDevelopmentYN', 'ListingAgreement', 'CoBrokeAgreement', 'Permissions',
+     'IDXEntireListingDisplayYN', 'InternetEntireListingDisplayYN', 'InternetAddressDisplayYN', 'SyndicateYN',
+@@ -496,7 +496,7 @@ function main() {
+     'PropertyType', 'PropertySubType', 'CommonInterest', 'MlsStatus',
+     'ListPrice', 'NetMonthlyRent', 'BedroomsTotal', 'BathroomsFull', 'BathroomsHalf', 'BathroomsTotal', 'LivingArea',
+     'StreetNumber', 'StreetName', 'StreetSuffix', 'UnitNumber', 'City', 'CityRegion',
+-    'SubdivisionName', 'StateOrProvince', 'PostalCode', 'UnParsedAddress',
++    'SubdivisionName', 'StateOrProvince', 'PostalCode', 'UnparsedAddress',
+     'PublicRemarks', 'PrivateRemarks', 'ShowingInstructions',
+     'YearBuilt', 'NewDevelopmentYN', 'ListingAgreement', 'CoBrokeAgreement', 'Permissions',
+     'IDXEntireListingDisplayYN', 'InternetEntireListingDisplayYN', 'InternetAddressDisplayYN', 'SyndicateYN',
+diff --git a/scripts/fix-stale-form-bindings.ts b/scripts/fix-stale-form-bindings.ts
+index 4814f77d..da228fb7 100644
+--- a/scripts/fix-stale-form-bindings.ts
++++ b/scripts/fix-stale-form-bindings.ts
+@@ -96,7 +96,7 @@ const CONFIRMED_RENAMES: Array<{ from: string; to: string | null; reason: string
+     reason: 'No live Trestle match — speculative net-of-fees concept' },
+ 
+   // Address typo
+-  { from: 'UnParsedAddress', to: 'UnparsedAddress',
++  { from: 'UnparsedAddress', to: 'UnparsedAddress',
+     reason: 'Typo — capital P should be lowercase to match RESO/Trestle field name' },
+   // Confirmed-dead fields with no Trestle replacement (remove, don't rename)
+   { from: 'MoveInCostsAmountTotal', to: null,
+diff --git a/scripts/validate-rls-compliance.js b/scripts/validate-rls-compliance.js
+index b0e10394..996cfb8f 100644
+--- a/scripts/validate-rls-compliance.js
++++ b/scripts/validate-rls-compliance.js
+@@ -71,13 +71,11 @@ const RESO_TO_RLS_RENAMES = {
+   'BuyerAgentKey':            'BuyerAgentMlsId',
+   'BuyerOfficeKey':           'BuyerOfficeMlsId',
+   'BuyerTeamKey':             'BuyerTeamMlsId',
+-  'CableTvExpense':           'CableTVExpense',
+-  'CeilingHeight':            'CeilingHeightFeet',
++  'CableTvExpense':           'CableTvExpense',
+   'CoBuyerAgentKey':          'CoBuyerAgentMlsId',
+   'CoBuyerOfficeKey':         'CoBuyerOfficeMlsId',
+-  'CoExclusiveListingKey':    'DuplicateListingIDs',
+-  'CoListAgent2Key':          'CoListAgent2MLSID',
+-  'CoListAgent3Key':          'CoListAgent3MLSID',
++  'CoListAgent2Key':          'CoListAgent2MlsId',
++  'CoListAgent3Key':          'CoListAgent3MlsId',
+   'CoListAgentKey':           'CoListAgentMlsId',
+   'ListAgentKey':             'ListAgentMlsId',
+   'ListOfficeKey':            'ListOfficeMlsId',
+@@ -86,14 +84,13 @@ const RESO_TO_RLS_RENAMES = {
+   'StandardStatus':           'MlsStatus',
+   'ShowingContactPhoneExt':   'ShowingContactPhone',
+   'ListingKey':               'SourceSystemKey',
+-  'ModificationTimestamp':    'SourceSystemModificationTimestamp',
+-  'UnparsedAddress':          'UnParsedAddress',
++  'UnparsedAddress':          'UnparsedAddress',
+ };
+ 
+ const CRITICAL_RENAMES = {
+   status:      'MlsStatus',
+   wid:         'SourceSystemKey',
+-  updatedDate: 'SourceSystemModificationTimestamp',
++  updatedDate: 'ModificationTimestamp',   // SourceSystemModificationTimestamp is NOT a live Cotality field (verified 2026-09-07)
+ };
+ 
+ const PICKLIST_SKIP_CONTEXTS = new Set(['PropertyType']);

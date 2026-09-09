@@ -559,6 +559,13 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
             <div class="mb-5">
                 <label class="field-label mb-1">Status <span class="text-red-500">*</span></label>
                 <select id="saleStatus" class="field-input max-w-md" required onchange="validateStatusChange('sale'); handleSaleComingSoon(); updateSaleStatusFields()" data-mallan-ignore="true" data-mallan-field="_crmWorkflowStatus">
+                    <!-- OFFLINE FALLBACK ONLY. At load this list is REPLACED from the one server mapping
+                         (GET /api/crm/status-options?type=sale -> lib/crm/status-mapping.ts) by the
+                         "STATUS VOCABULARY" script at the end of this file; it is kept here so a required
+                         select is never empty when that endpoint is unreachable. Its option set and labels
+                         are held equal to the server's by
+                         tests/runtime/four-listing-forms-status-select-equivalence.test.ts. Never hand-edit
+                         a label here - change lib/crm/status-mapping.ts. -->
                     <option value="Draft" selected>Draft</option>
                     <option value="Future">Future</option>
                     <option value="ComingSoon">Coming Soon</option>
@@ -568,10 +575,10 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                     <option value="OfferOut">Offer Out</option>
                     <option value="OfferThruUs">Offer Thru Us</option>
                     <option value="OfferAccepted">Offer Accepted</option>
-                    <option value="OAThruUs">Offer Accepted Thru Us</option>
+                    <option value="OAThruUs">OA Thru Us</option>
                     <option disabled>── Contract ──</option>
                     <option value="ContractOut">Contract Out</option>
-                    <option value="COThruUs">Contract Out Thru Us</option>
+                    <option value="COThruUs">CO Thru Us</option>
                     <option value="ContractSigned">Contract Signed</option>
                     <option value="ContractSignedThruUs">Contract Signed Thru Us</option>
                     <option value="BoardApproved">Board Approved</option>
@@ -579,35 +586,41 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                     <option value="Sold">Sold</option>
                     <option value="SoldThruUs">Sold Thru Us</option>
                     <option disabled>── Off Market ──</option>
-                    <option value="Withdrawn">Withdrawn</option>
-                    <option value="Cancelled">Cancelled</option>
-                    <option value="PermOffMarket">Perm Off Market</option>
                     <option value="TempOffMarket">Temp Off Market</option>
+                    <option value="PermOffMarket">Perm Off Market</option>
+                    <option value="Withdrawn">Withdrawn</option>
                     <option value="Expired">Expired</option>
+                    <option value="Hold">Hold</option>
+                    <!-- the workflow word keeps its two-L VALUE (that is what raw_data._crmWorkflowStatus
+                         stores and what findWorkflow reads back); only the LABEL is the provider's one L -->
+                    <option value="Cancelled">Canceled</option>
                     <option disabled>── Saved Listing State ──</option>
+                    <option value="ActiveUnderContract">Active Under Contract</option>
                     <option value="Pending">In Contract</option>
                     <option value="Closed" hidden>Sold</option>
                     <option value="Canceled" hidden>Canceled</option>
-                    <option value="Hold">Hold</option>
                     <option value="Incomplete">Incomplete</option>
                 </select>
                 <!-- DOM Tracking -->
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+                    <!-- Days on Market is the SERVER market clock (GET form_dom -> applySaleServerDom). -->
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
                         <p class="text-[10px] text-gray-500 uppercase">Days on Market</p>
-                        <p class="text-sm font-bold text-gray-800" id="saleDaysOnMarket">0</p>
+                        <p class="text-sm font-bold text-gray-800" id="saleDaysOnMarket">--</p>
+                        <p class="text-[9px] text-gray-400" id="saleDomBasis">server clock</p>
                     </div>
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
                         <p class="text-[10px] text-gray-500 uppercase">Cumulative DOM</p>
-                        <p class="text-sm font-bold text-gray-800" id="saleCumulativeDaysOnMarket">0</p>
+                        <p class="text-sm font-bold text-gray-800" id="saleCumulativeDaysOnMarket">--</p>
                     </div>
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
                         <p class="text-[10px] text-gray-500 uppercase">Status Changed</p>
                         <p class="text-xs font-medium text-gray-700" id="saleStatusChangeTimestamp">--</p>
                     </div>
+                    <!-- Written ONLY by MallanAPI.renderListingStatus (the server providerStatus). -->
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
                         <p class="text-[10px] text-gray-500 uppercase">Last Cotality Status</p>
-                        <p class="text-xs font-medium text-blue-700" id="saleCotalityStatus">set by server on save</p>
+                        <p class="text-xs font-medium text-blue-700" id="saleCotalityStatus">Not provided</p>
                     </div>
                 </div>
                 <!-- Validation Panel -->
@@ -961,7 +974,10 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                     <input type="text" placeholder="Enter availability comments" class="field-input">
                 </div>
             </div>
-            <!-- Status-conditional dates -->
+            <!-- Status-conditional dates - a read-only mirror of the entry form status facts, so a saved
+                 fact DISPLAYS here: Expired -> ExpirationDate (never OffMarketDate), Withdrawn ->
+                 WithdrawnDate, Canceled -> CancellationDate, Back on Market -> BackOnMarketDate,
+                 Contract Signed -> PurchaseContractDate, Sold -> CloseDate + ClosePrice. -->
             <div id="saleStatusDatesRow" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4" style="display:none;">
                 <div id="saleOffMarketDateField" style="display:none;">
                     <label class="field-label">Off Market Date <span class="text-red-500">*</span></label>
@@ -970,6 +986,18 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                 <div id="saleWithdrawnDateField" style="display:none;">
                     <label class="field-label">Withdrawn Date</label>
                     <div class="relative"><input type="date" id="saleWithdrawnDate" class="field-input" data-cotality-field="WithdrawnDate"><i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i></div>
+                </div>
+                <div id="saleExpirationDateField" style="display:none;">
+                    <label class="field-label">Expiration Date</label>
+                    <div class="relative"><input type="date" id="saleExpirationDate" class="field-input" data-cotality-field="ExpirationDate"><i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i></div>
+                </div>
+                <div id="saleCancellationDateField" style="display:none;">
+                    <label class="field-label">Cancellation Date</label>
+                    <div class="relative"><input type="date" id="saleCancellationDate" class="field-input" data-cotality-field="CancellationDate"><i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i></div>
+                </div>
+                <div id="saleBackOnMarketDateField" style="display:none;">
+                    <label class="field-label">Back On Market Date</label>
+                    <div class="relative"><input type="date" id="saleBackOnMarketDate" class="field-input" data-cotality-field="BackOnMarketDate"><i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i></div>
                 </div>
                 <div id="saleContractSignedDateField" style="display:none;">
                     <label class="field-label">Contract Signed Date <span class="text-red-500">*</span></label>
@@ -4279,7 +4307,7 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                             </div>
                             <div>
                                 <label class="field-label">Number of Elevators</label>
-                                <input type="number" id="saleBldgNumElevators" placeholder="2" class="field-input" data-cotality-field="ElevatorsTotal">
+                                <input type="number" id="saleBldgNumElevators" placeholder="2" class="field-input" data-mallan-ignore="true" data-removed-field="ElevatorsTotal">
                             </div>
                         </div>
                         <!-- RLS/RESO/IDX: BuildingHeating (multi-select, building-level) -->
@@ -4497,10 +4525,10 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
 
                 <!-- Sub-tab 2.1: General -->
                 <div id="saleBldgSubTabContent2_1" class="sale-bldg-sub-tab-content">
-                    <!-- RLS: BuildingPetsAllowed — REQUIRED, Multi-Select Picklist (7 values) -->
+                    <!-- Mallan Building Profile - building pet policy. Translated to live Cotality PetsAllowed Building* members on save (not its own field). -->
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-paw"></i> Building Pet Policy <span class="text-red-500">*</span></div>
-                        <p class="text-[10px] text-gray-500 mb-3">RLS: BuildingPetsAllowed — Select all that apply. If "No Pets", unit-level PetsAllowed locks to "No".</p>
+                        <p class="text-[10px] text-gray-500 mb-3">Building pet policy - select all that apply. If "No Pets", unit-level PetsAllowed locks to "No".</p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-4" id="saleBuildingPetsAllowedGroup">
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingPetsAllowed" value="BuildingYes" class="w-4 h-4 sale-bldg-pets-cb" data-mallan-ignore="true"> Yes (All Pets)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="saleBuildingPetsAllowed" value="BuildingCatsOK" class="w-4 h-4 sale-bldg-pets-cb"> Cats OK</label>
@@ -5215,13 +5243,38 @@ function loadSaleListingData(listingId) {
         var r = d._raw.raw_data || {}; var f = d._raw.features || {};
         _restoreFormKeys(document, r, ['saleBuildingModal', 'saleMediaModal']);
         [['saleHeating', f.Heating || r.Heating], ['saleCooling', f.Cooling || r.Cooling], ['salePetsAllowed', f.PetsAllowed || r.PetsAllowed],
-         ['saleBuildingPetsAllowed', f.BuildingPetsAllowed || r.BuildingPetsAllowed], ['saleAttendanceType', f.AttendanceType || r.AttendanceType],
-         ['saleBuildingLaundryFeatures', f.BuildingLaundryFeatures || r.BuildingLaundryFeatures], ['saleCommSubtype', r.saleCommSubtype],
+         // Mallan-owned facts read their _mallan* key FIRST; the pre-migration names are a READ-ONLY
+         // fallback so rows written before the 2026-09-09 rename still reload. Never written again.
+         ['saleBuildingPetsAllowed', r._mallanBuildingPetsAllowed || f.BuildingPetsAllowed || r.BuildingPetsAllowed],
+         ['saleAttendanceType', r._mallanAttendanceType || f.AttendanceType || r.AttendanceType],
+         ['saleBuildingLaundryFeatures', r._mallanBuildingLaundryFeatures || f.BuildingLaundryFeatures || r.BuildingLaundryFeatures], ['saleCommSubtype', r.saleCommSubtype],
          ['saleBldgHeating', r.saleBldgHeating], ['saleBldgCooling', r.saleBldgCooling], ['saleBldgDocsAvailable', r.saleBldgDocsAvailable], ['saleTHDocsAvailable', r.saleTHDocsAvailable],
          ['saleViewList', r.saleViewList], ['saleBusinessType', r.saleBusinessType || f.BusinessType || r.BusinessType]].forEach(function(pair) { _restoreCheckboxGroup(document, pair[0], pair[1]); });
     }
 
-    if (d._raw) MallanAPI.renderListingStatus('saleStatus', d._raw);
+    if (d._raw) {
+        // Mallan-owned scalar facts (not Cotality fields): _mallan* first, pre-migration name as a
+        // READ-ONLY fallback. The viewer showed nothing for these before. (Maya ruling 2026-09-09.)
+        var _mr = d._raw.raw_data || {};
+        [['saleBldgNumElevators', '_mallanElevatorsTotal', 'ElevatorsTotal'],
+         ['salePetsAllowedComments', '_mallanPetsAllowedComments', 'PetsAllowedComments'],
+         ['saleBuildingPetsAllowedComments', '_mallanBuildingPetsAllowedComments', 'BuildingPetsAllowedComments']
+        ].forEach(function(t) {
+            var el = document.getElementById(t[0]);
+            if (!el) return;
+            var v = _mr[t[1]];
+            if (v === undefined || v === null || v === '') v = _mr[t[2]];   // legacy, read-only
+            if (v !== undefined && v !== null) el.value = v;
+        });
+    }
+
+    if (d._raw) {
+        MallanAPI.renderListingStatus('saleStatus', d._raw);
+        // reveal the status fact controls for the status the server actually reports
+        if (typeof updateSaleStatusFields === 'function') updateSaleStatusFields();
+        // Days on Market / Cumulative DOM come from the SERVER market clock in the GET body
+        applySaleServerDom(d._raw);
+    }
     return d;
 }
 
@@ -6002,18 +6055,78 @@ const SALES_FIELD_VISIBILITY_RULES = {
     saleTotalMonthlyField: ['CONDO', 'CONDOP', 'LOFT', 'SINGLE_FAMILY_TOWNHOUSE', 'MULTI_FAMILY_TOWNHOUSE', 'SINGLE_FAMILY', 'MULTI_FAMILY', 'MIXED_USE', 'DUPLEX_BUILDING', 'TRIPLEX_BUILDING', 'QUADRUPLEX_BUILDING', 'LAND', 'DEEDED_PARKING', 'COMMERCIAL_CONDO', 'COMMERCIAL_BUILDING', 'OFFICE_CONDO', 'OFFICE_CONDOP', 'OFFICE_TOWNHOUSE', 'OFFICE_MIXED_USE', 'OFFICE', 'RETAIL_CONDO', 'RETAIL_CONDOP', 'RETAIL_TOWNHOUSE', 'RETAIL_MIXED_USE', 'RETAIL']
 };
 
-const STATUS_REQUIRED_FIELDS = {
-    'Active': ['saleDateListed', 'salePrice', 'saleExclusiveExpires'],
-    'Future': ['saleDateListed', 'salePrice', 'saleExclusiveExpires'],
-    'ComingSoon': ['saleDateListed', 'salePrice', 'saleExclusiveExpires'],
-    'ContractSigned': ['saleContractSignedDate'],
-    'ContractSignedThruUs': ['saleContractSignedDate'],
-    'Sold': ['saleSoldDate', 'saleSoldPrice'],
-    'SoldThruUs': ['saleSoldDate', 'saleSoldPrice'],
-    'PermOffMarket': ['saleOffMarketDate'],
-    'TempOffMarket': ['saleOffMarketDate'],
-    'Expired': ['saleOffMarketDate']
+// STATUS_REQUIRED_FIELDS deleted 2026-09-09: a dead duplicate nothing read, and it encoded the
+// WRONG fact for Expired (saleOffMarketDate). This page is a VIEWER - it submits no status - and
+// the status -> fact table it mirrors is SALE_STATUS_FACT_FIELDS below.
+
+/**
+ * Which status-fact control each SALE workflow word reveals - the status OWN Cotality date
+ * (owner ruling, Maya 2026-09-08). The viewer reveals the same controls the entry form does so a
+ * saved fact is visible here; it never writes one.
+ */
+var SALE_STATUS_FACT_FIELDS = {
+    BackOnMarket:         'saleBackOnMarketDateField',
+    ContractSigned:       'saleContractSignedDateField',
+    ContractSignedThruUs: 'saleContractSignedDateField',
+    BoardApproved:        'saleContractSignedDateField',
+    Pending:              'saleContractSignedDateField',
+    Sold:                 'saleSoldDateField',
+    SoldThruUs:           'saleSoldDateField',
+    Closed:               'saleSoldDateField',
+    Expired:              'saleExpirationDateField',
+    Withdrawn:            'saleWithdrawnDateField',
+    PermOffMarket:        'saleWithdrawnDateField',
+    TempOffMarket:        'saleOffMarketDateField',
+    Cancelled:            'saleCancellationDateField',
+    Canceled:             'saleCancellationDateField'
 };
+
+/**
+ * The sale status select calls handleSaleComingSoon() and updateSaleStatusFields() from its
+ * onchange. Neither existed on this page, so every change event threw a ReferenceError and the
+ * rest of the handler chain (the Cotality status render, the field reveal) never ran. Both are
+ * defined here as the VIEWER versions: reveal the status fact controls read-only, never gate entry.
+ */
+function updateSaleStatusFields() {
+    var status = (document.getElementById('saleStatus') || {}).value || '';
+    var row = document.getElementById('saleStatusDatesRow');
+    var all = ['saleOffMarketDateField', 'saleWithdrawnDateField', 'saleExpirationDateField',
+               'saleCancellationDateField', 'saleBackOnMarketDateField', 'saleContractSignedDateField',
+               'saleSoldDateField', 'saleSoldPriceField'];
+    all.forEach(function(fid) { var el = document.getElementById(fid); if (el) el.style.display = 'none'; });
+    if (row) row.style.display = 'none';
+
+    var shown = [];
+    var primary = SALE_STATUS_FACT_FIELDS[status];
+    if (primary) shown.push(primary);
+    // Perm Off Market stores Withdrawn AND records the removal day
+    if (status === 'PermOffMarket') shown.push('saleOffMarketDateField');
+    // the close carries its price alongside its date
+    if (['Sold', 'SoldThruUs', 'Closed'].indexOf(status) !== -1) shown.push('saleSoldPriceField');
+    // the contract date stays visible through the close
+    if (['Sold', 'SoldThruUs', 'Closed'].indexOf(status) !== -1) shown.push('saleContractSignedDateField');
+
+    shown.forEach(function(fid) {
+        var el = document.getElementById(fid);
+        if (!el) return;
+        el.style.display = '';
+        if (fid !== 'saleSoldPriceField' && row) row.style.display = '';
+    });
+}
+
+/** Viewer version: Coming Soon allows no open houses (UCBA Art. I Sec. 16) - shown, never enforced. */
+function handleSaleComingSoon() {
+    var status = (document.getElementById('saleStatus') || {}).value || '';
+    var openHouseTab = document.getElementById('saleSubTab1_4');
+    if (!openHouseTab) return;
+    if (status === 'ComingSoon') {
+        openHouseTab.classList.add('opacity-50');
+        openHouseTab.title = 'Open Houses not allowed for Coming Soon';
+    } else {
+        openHouseTab.classList.remove('opacity-50');
+        openHouseTab.title = '';
+    }
+}
 
 function applySalesFieldRules() {
     const propertyTypeEl = document.querySelector('input[name="salePropertyType"]:checked');
@@ -6357,22 +6470,45 @@ function updateStatusTracking() {
     const tsEl = document.getElementById('saleStatusChangeTimestamp');
     if (tsEl) tsEl.textContent = timestamp;
 
-    // Update Last Cotality Status display
-    const statusEl = document.getElementById('saleStatus');
-    const resoEl = document.getElementById('saleCotalityStatus');
-    if (statusEl && resoEl) resoEl.textContent = 'set by server on save';
+    // The Last Cotality Status tile is written ONLY by MallanAPI.renderListingStatus from the
+    // server projection. This page never writes it (it used to overwrite the provider status with
+    // a placeholder).
 
-    // Compute DOM (days since first Active)
-    const statusVal = statusEl?.value || '';
-    if (['Active', 'BackOnMarket'].includes(statusVal) && !window._saleFirstActiveDate) {
-        window._saleFirstActiveDate = now;
+    // Days on Market is NOT computed here. It is the SERVER market clock - the GET body form_dom
+    // (lib/compliance/dom-tracker.ts marketDom) - applied by applySaleServerDom on load. The old
+    // per-session window._saleFirstActiveDate counter measured how long this tab had been open.
+}
+
+/**
+ * Render the SERVER market clock into the DOM tiles (owner ruling, Maya 2026-09-09).
+ * form_dom = { days, endReason, estimated, start, end, unverified } from GET /api/crm/listings/[id].
+ * An off_feed_detected end is a DETECTION day, not a proven removal - it is labelled as an estimate.
+ * days: null means no verified clock: show "--", never a guess.
+ */
+function applySaleServerDom(listing) {
+    var dom = (listing && listing.form_dom) || null;
+    var daysEl = document.getElementById('saleDaysOnMarket');
+    var basisEl = document.getElementById('saleDomBasis');
+    var cdomEl = document.getElementById('saleCumulativeDaysOnMarket');
+    var days = dom && dom.days !== null && dom.days !== undefined ? Number(dom.days) : null;
+    if (daysEl) daysEl.textContent = days === null ? '--' : String(days) + (dom && dom.estimated ? ' est.' : '');
+    if (basisEl) {
+        var reason = dom ? dom.endReason : null;
+        basisEl.textContent = days === null
+            ? ((dom && dom.unverified) ? 'not verified' : 'server clock')
+            : (dom && dom.estimated
+                ? 'estimated — detected off feed ' + (dom.end || '')
+                : reason === 'closed' ? 'to close date'
+                : reason === 'off_market' ? 'to removal date'
+                : reason === 'as_of' ? 'still on market'
+                : 'server clock');
+        basisEl.title = dom && dom.estimated
+            ? 'The provider delivered no removal or close date. This end is the day Mallan DETECTED the listing had left the feed - the real removal happened on or before it.'
+            : '';
     }
-    if (window._saleFirstActiveDate) {
-        const days = Math.floor((now - window._saleFirstActiveDate) / (1000 * 60 * 60 * 24));
-        const domEl = document.getElementById('saleDaysOnMarket');
-        if (domEl) domEl.textContent = days;
-        const cdomEl = document.getElementById('saleCumulativeDaysOnMarket');
-        if (cdomEl) cdomEl.textContent = days;
+    if (cdomEl) {
+        var cdom = listing && listing.cumulative_days_on_market;
+        cdomEl.textContent = (cdom === null || cdom === undefined || cdom === '') ? '--' : String(cdom);
     }
 }
 
@@ -7778,6 +7914,123 @@ function updateSaleBuyVsSell() {
         </div>
     </div>
 </div>
+
+<!-- ══ STATUS VOCABULARY — built from the ONE server mapping ═════════════════════════
+     GET /api/crm/status-options?type=sale projects lib/crm/status-mapping.ts (ONE mapping per
+     transaction). Manage Listings, the dashboard panels and the sales / rentals CRM panels already build
+     their status UIs from it; this page now does too, so the vocabulary lives in ONE place instead of five.
+     The markup above is the OFFLINE FALLBACK only - a required select is never emptied.
+       Ratchet:     tests/runtime/four-listing-forms-status-select-equivalence.test.ts
+       Write proof: tests/runtime/listing-forms-status-write-roundtrip.test.ts
+     ════════════════════════════════════════════════════════════════════════ -->
+<script>
+(function () {
+    var FORM_KEY = 'saleStatus';
+    var TRANSACTION = 'sale';
+
+    // Presentation only. Walking the SERVER's order and opening a group when its first word arrives means a
+    // word the server adds later is never dropped - it lands in the group already open. The vocabulary is
+    // the server's; only these headings are the page's.
+    var GROUPS = [
+        { at: 'OfferOut', header: '── Offer ──' },
+        { at: 'ContractOut', header: '── Contract ──' },
+        { at: 'Sold', header: '── Closed ──' },
+        { at: 'TempOffMarket', header: '── Off Market ──' }
+    ];
+    var SAVED_HEADER = '── Saved Listing State ──';
+    // Values this page refuses to render whatever the payload says.
+    var DENY = [];
+
+    window.__mallanStatusOptions = { settled: false, source: null, error: null };
+    function done(source, error) {
+        window.__mallanStatusOptions = { settled: true, source: source, error: error || null };
+        try { window.dispatchEvent(new CustomEvent('mallan:status-options', { detail: { source: source } })); } catch (e) { /* ok */ }
+    }
+    function denied(v) { return DENY.indexOf(v) !== -1; }
+
+    function apply(payload) {
+        var select = document.getElementById(FORM_KEY);
+        if (!select) return done('no-select');
+        // Fail closed on a payload that is not a mapping: keep the markup rather than empty a required select.
+        if (!payload || !Array.isArray(payload.workflow) || !Array.isArray(payload.canonical) || payload.workflow.length === 0) {
+            return done('fallback', 'malformed payload');
+        }
+        var previous = select.value;
+        var words = {};
+        payload.workflow.forEach(function (w) { if (w && w.word) words[w.word] = w.label || w.word; });
+
+        var frag = document.createDocumentFragment();
+        function separator(text) {
+            var o = document.createElement('option');
+            o.disabled = true;
+            o.textContent = text;
+            frag.appendChild(o);
+        }
+        function option(value, label, hidden) {
+            var o = document.createElement('option');
+            o.value = value;
+            o.textContent = label;
+            if (hidden) o.setAttribute('hidden', 'hidden');
+            frag.appendChild(o);
+        }
+
+        var pending = GROUPS.slice();
+        payload.workflow.forEach(function (w) {
+            if (!w || !w.word || denied(w.word) || denied(w.label)) return;
+            while (pending.length && pending[0].at === w.word) separator(pending.shift().header);
+            option(w.word, w.label || w.word, false);
+        });
+
+        // The canonical (stored) tokens no workflow word already covers. A token whose transaction label
+        // duplicates a workflow word's label (a sale's Closed reads "Sold", Canceled reads "Canceled") is
+        // rendered HIDDEN: the select must be able to HOLD it when a saved row carries the bare token, but
+        // it is never a choice the agent makes instead of the workflow word.
+        var extras = payload.canonical.filter(function (c) {
+            return c && c.token && !words[c.token] && !denied(c.token) && !denied(c.label);
+        });
+        if (extras.length) {
+            separator(SAVED_HEADER);
+            extras.forEach(function (c) {
+                var label = c.label || c.token;
+                var duplicate = Object.keys(words).some(function (k) { return words[k] === label; });
+                option(c.token, label, duplicate);
+            });
+        }
+
+        select.innerHTML = '';
+        select.appendChild(frag);
+
+        // Read-compatibility: whatever the select already held survives the rebuild, including a legacy
+        // value the server no longer lists. The rebuild never silently changes the agent's (or the loaded
+        // listing's) selection.
+        if (previous) {
+            select.value = previous;
+            if (select.value !== previous && !denied(previous)) {
+                var keep = document.createElement('option');
+                keep.value = previous;
+                keep.textContent = previous;
+                keep.setAttribute('hidden', 'hidden');
+                select.appendChild(keep);
+                select.value = previous;
+            }
+        }
+        if (!select.value && select.options.length) select.selectedIndex = 0;
+        done('server');
+    }
+
+    function boot() {
+        if (typeof MallanAPI === 'undefined' || typeof MallanAPI._fetch !== 'function') return done('fallback', 'no api client');
+        MallanAPI._fetch('/api/crm/status-options?type=' + TRANSACTION)
+            .then(apply)
+            .catch(function (err) {
+                if (typeof console !== 'undefined') console.warn('[StatusOptions] keeping the page fallback list:', err && err.message);
+                done('fallback', (err && err.message) || 'fetch failed');
+            });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+    else boot();
+})();
+</script>
 
 </body>
 </html>

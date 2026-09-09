@@ -1,3 +1,8 @@
+        // Status text, badge classes and the StandardStatus token in all three badges below (the master-list
+        // row, the detail header and the STATUS cell) come from THE ONE browser authority,
+        // public/crm/js/core/status-presentation.js. They used to interpolate the raw `listing.status`, so
+        // after the DTO started shipping exact Cotality tokens a sale's Closed read "Closed" instead of
+        // "Sold", a rental's read "Closed" instead of "Rented", and a status-less row rendered an empty badge.
         function renderMasterDetailView() {
             var listPanel = document.getElementById('masterListPanel');
             listPanel.innerHTML = getFilteredListings().map(listing => {
@@ -23,7 +28,7 @@
                         <div class="flex items-start justify-between gap-1">
                             <h4 class="font-bold text-xs truncate">${displayAddress}${listing.addressDisplayYN !== false && listing.unit ? ', ' + escapeHtml(listing.unit) : ''}</h4>
                             ${syndicationBadgeCompact(listing)}
-                            <span class="px-1.5 py-0.5 ${getStatusBadgeClasses(listing.status)} rounded text-[10px] font-semibold flex-shrink-0">${listing.status === 'COMING_SOON' ? 'CS' : listing.status}</span>
+                            <span class="px-1.5 py-0.5 ${MallanStatus.classes(listing)} rounded text-[10px] font-semibold flex-shrink-0" data-status-badge${resoData('status', MallanStatus.token(listing))}>${escapeHtml(MallanStatus.label(listing))}</span>
                         </div>
                         <div class="flex items-center justify-between mt-0.5">
                             <div class="flex items-center gap-1 text-[10px] text-gray-500">
@@ -81,7 +86,7 @@
                         <button class="text-gray-400 text-xs"><i class="fas fa-external-link-alt"></i></button>
                     </div>
                     <div class="flex items-center gap-2">
-                        <span class="px-2 py-0.5 ${getStatusBadgeClasses(listing.status)} rounded text-xs font-semibold">${listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status}</span>
+                        <span class="px-2 py-0.5 ${MallanStatus.classes(listing)} rounded text-xs font-semibold" data-status-badge${resoData('status', MallanStatus.token(listing))}>${escapeHtml(MallanStatus.label(listing))}</span>
                         ${comingSoonBadgeCompact(listing)}
                         ${participantOnlyBadge(listing)}
                         ${syndicationBadge(listing)}
@@ -150,7 +155,7 @@
                 <!-- Status / Dates grid -->
                 <div class="bg-gray-50 rounded-lg p-3 mb-3">
                     <div class="grid grid-cols-4 gap-3 text-xs">
-                        <div><span class="text-gray-500 block text-[10px]">STATUS</span><span class="px-1.5 py-0.5 ${getStatusBadgeClasses(listing.status)} rounded font-semibold text-[11px]">${listing.status}</span></div>
+                        <div><span class="text-gray-500 block text-[10px]">STATUS</span><span class="px-1.5 py-0.5 ${MallanStatus.classes(listing)} rounded font-semibold text-[11px]" data-status-badge${resoData('status', MallanStatus.token(listing))}>${escapeHtml(MallanStatus.label(listing))}</span></div>
                         <div><span class="text-gray-500 block text-[10px]">UPDATED</span><span class="font-semibold">${escapeHtml(listing.updatedDate || '--')}</span> ${listingFreshness(listing)}</div>
                         <div><span class="text-gray-500 block text-[10px]">LISTED</span><span class="font-semibold">${escapeHtml(listing.listedDate)}</span></div>
                         <div><span class="text-gray-500 block text-[10px]">DOM</span><span class="font-semibold">${listing.dom}</span></div>

@@ -1191,11 +1191,14 @@ function REBNYComplianceDoctor(options) {
     // ─── Test 3: Status Accuracy ───────────────────────────────────────────
     (function test3_Status() {
         // RESO StandardStatus values — both underscore and camelCase forms accepted
+        // The ELEVEN live Cotality StandardStatus members, plus the legacy STORAGE spellings a cached row may
+        // still carry. The retired uppercase invention (ACTIVE / COMING_SOON / ACTIVE_UNDER_CONTRACT) is gone:
+        // no renderer can produce it any more, so accepting it would only mask a regression.
         var validStatuses = [
-            'ACTIVE', 'PENDING', 'CLOSED', 'COMING_SOON', 'COMINGSOON',
-            'WITHDRAWN', 'EXPIRED', 'CANCELED', 'HOLD', 'INCOMPLETE'
+            'Active','ActiveUnderContract','Canceled','Closed','ComingSoon','Delete','Expired','Hold','Incomplete','Pending','Withdrawn',
+            'Cancelled','Coming Soon','Sold','Rented','Leased','Draft'
         ];
-        var statusElements = document.querySelectorAll('[data-reso-field="MlsStatus"]');
+        var statusElements = document.querySelectorAll('[data-reso-field="StandardStatus"]');
         var invalidCount = 0;
         var totalChecked = 0;
         var invalidValues = [];
@@ -1207,7 +1210,9 @@ function REBNYComplianceDoctor(options) {
             val = val.trim().toUpperCase();
             if (validStatuses.indexOf(val) === -1) { invalidCount++; invalidValues.push(val); }
         });
-        var statusCheckboxes = document.querySelectorAll('input[data-field="MlsStatus"]');
+        // Search filters provider inventory on StandardStatus, never MlsStatus (not filterable on this feed) —
+        // owner ruling 2026-09-08/09. The four Search status panels render data-field="StandardStatus".
+        var statusCheckboxes = document.querySelectorAll('input[data-field="StandardStatus"]');
         statusCheckboxes.forEach(function(cb) {
             var rawVal = (cb.getAttribute('data-value') || '');
             var vals = rawVal.split(',');
@@ -1560,8 +1565,8 @@ function REBNYWiringTest(options) {
     // ── W2: Enum Integrity Test ────────────────────────────────────────
     (function() {
         var issues = [];
-        var VS = ['Active','Pending','Closed','ComingSoon','Coming Soon','COMING_SOON','COMINGSOON','Withdrawn','Expired','Canceled','Hold','Incomplete','ActiveUnderContract','ACTIVE','PENDING','CLOSED','WITHDRAWN','EXPIRED','CANCELED','HOLD','INCOMPLETE','ACTIVE_UNDER_CONTRACT'];
-        document.querySelectorAll('[data-reso-field="MlsStatus"][data-reso-value]').forEach(function(el) {
+        var VS = ['Active','ActiveUnderContract','Canceled','Closed','ComingSoon','Delete','Expired','Hold','Incomplete','Pending','Withdrawn','Cancelled','Coming Soon','Sold','Rented','Leased','Draft'];
+        document.querySelectorAll('[data-reso-field="StandardStatus"][data-reso-value]').forEach(function(el) {
             var val = el.getAttribute('data-reso-value');
             if (!val) return;
             val.split(',').forEach(function(v) { v = v.trim(); if (v && VS.indexOf(v) === -1) issues.push('Status:"' + v + '"'); });
@@ -2435,7 +2440,7 @@ function SourceIntegrityTests(options) {
     // SRC-02: Unknown / invalid enum tokens → FAIL
     (function() {
         if (typeof listings === 'undefined') { addResult('SRC-02', 'Enum Token Validity', 'FAIL', 'listings undefined'); return; }
-        var VS = ['Active','Pending','Closed','ComingSoon','Coming Soon','Withdrawn','Expired','Canceled','Hold','Incomplete','ActiveUnderContract','ACTIVE','PENDING','CLOSED','COMING_SOON','COMINGSOON','WITHDRAWN','EXPIRED','CANCELED','HOLD','INCOMPLETE','ACTIVE_UNDER_CONTRACT'];
+        var VS = ['Active','ActiveUnderContract','Canceled','Closed','ComingSoon','Delete','Expired','Hold','Incomplete','Pending','Withdrawn','Cancelled','Coming Soon','Sold','Rented','Leased','Draft'];
         var VB = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island','The Bronx'];
         var VC = ['sale','rental','Sale','Rental'];
         var violations = [];
@@ -2916,8 +2921,10 @@ function AccessibilityRESOPerfTests(options) {
     // RESO3: Enumeration enforcement
     (function() {
         if (typeof listings === 'undefined') { addResult('RESO3', 'Enum Enforcement', 'FAIL', 'listings undefined — required test data missing'); return; }
-        var validStatuses = ['Active','Pending','Closed','ComingSoon','Coming Soon','Withdrawn','Expired','Canceled','Hold','Incomplete','ActiveUnderContract',
-            'ACTIVE','PENDING','CLOSED','COMING_SOON','COMINGSOON','WITHDRAWN','EXPIRED','CANCELED','HOLD','INCOMPLETE','ACTIVE_UNDER_CONTRACT'];
+        var validStatuses = [
+            'Active','ActiveUnderContract','Canceled','Closed','ComingSoon','Delete','Expired','Hold','Incomplete','Pending','Withdrawn',
+            'Cancelled','Coming Soon','Sold','Rented','Leased','Draft'
+        ];
         var validBoroughs = ['Manhattan','Brooklyn','Queens','Bronx','Staten Island','The Bronx'];
         var validCategories = ['sale','rental','Sale','Rental'];
         var issues = [];

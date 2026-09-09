@@ -280,7 +280,7 @@ describe('formStatusForListing — the server projection the four forms / viewer
     expect(formStatusForListing(row({ status: 'Active', listing_type: null }))).toMatchObject({ value: '', label: 'Status unavailable' });
     expect(formStatusForListing(row({ status: '', listing_type: 'sale' }))).toMatchObject({ value: '', label: 'Status unavailable' });
     expect(formStatusForListing(row({ status: 'Active', listing_type: 'sale', sync_status: 'off_feed', terminal_since: new Date('2026-08-01T00:00:00Z'), raw_data: { StandardStatus: 'Active' } })))
-      .toEqual({ value: '', label: 'Off Market', providerStatus: 'Active' });
+      .toEqual({ value: '', label: 'Off Market — reason unknown', providerStatus: 'Active' });
   });
 });
 
@@ -294,7 +294,7 @@ describe('statusPresentation — what manage listings, portals, dashboards and C
     expect(statusPresentation(row({ status: 'Draft', listing_type: 'sale' }))).toMatchObject({ status: 'Incomplete', label: 'Incomplete' });
   });
   test('Off Market is the presence fact, never a status; an unknown state is unavailable', () => {
-    expect(statusPresentation(row({ status: 'Active', listing_type: 'sale', sync_status: 'off_feed', terminal_since: new Date('2026-08-01T00:00:00Z') }))).toMatchObject({ status: 'Active', label: 'Off Market', offMarket: true });
+    expect(statusPresentation(row({ status: 'Active', listing_type: 'sale', sync_status: 'off_feed', terminal_since: new Date('2026-08-01T00:00:00Z') }))).toMatchObject({ status: 'Active', label: 'Off Market — reason unknown', offMarket: true });
     expect(statusPresentation(row({ status: 'Bogus', listing_type: 'sale' }))).toMatchObject({ status: null, label: 'Status unavailable' });
     expect(statusPresentation(row({ status: 'Active', listing_type: 'commercial' }))).toMatchObject({ status: null, label: 'Status unavailable', transaction: null });
   });

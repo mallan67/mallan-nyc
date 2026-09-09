@@ -1,0 +1,926 @@
+The system should not merely be “correct against Cotality today.” It should be designed so that a future Cotality change is detected, classified, contained, and either absorbed safely or blocked before it can corrupt Search, CMA, CRM, listings, media, or compliance.
+
+And Cotality changes often enough that this cannot be treated as an exceptional event. As of September 7, 2026, Cotality's timeline shows Content Patch #194 on August 19; #193 on July 28 added fields and 32 lookup values; #192 changed fields; #191 removed fields and added others; #190 added an entirely new resource; and #189 contained 30 field changes. This is normal provider evolution.
+
+The most important new conclusion
+
+Mallan needs two independent continuity systems:
+
+CONTROL PLANE — what does Cotality mean today?
+─────────────────────────────────────────────
+
+Cotality service document
+        +
+$metadata
+        +
+Field
+        +
+Lookup
+        +
+relationships/resources
+        +
+actual query behavior
+        ↓
+LIVE PROVIDER CONTRACT
+        ↓
+CONTRACT DIFF
+        ↓
+VERIFIED MAPPING
+        ↓
+IMPACT GRAPH
+        ↓
+RELEASE GATE
+
+
+DATA PLANE — what records does Cotality contain today?
+───────────────────────────────────────────────────────
+
+Initial replication
+        ↓
+Incremental Property updates
+        ↓
+Incremental Media updates
+        ↓
+Full key reconciliation
+        ↓
+Mallan canonical storage
+        ↓
+Business rules
+        ↓
+Search / CMA / CRM / public / reports
+
+The stranded Mallan work built significant parts of both systems, but they have never been converged into one permanent operating architecture.
+
+1. Cotality metadata itself needs incremental sync + reconciliation
+
+This is the biggest additional finding.
+
+Cotality gives its Field resource a ModificationTimestamp specifically so consumers can update metadata caches without downloading and processing the entire metadata universe every time. The same thing exists for Lookup entries.
+
+That means Mallan should operate a metadata lifecycle almost exactly like its listing lifecycle:
+
+FIELD / LOOKUP CONTRACT
+
+last_verified_metadata_timestamp
+        ↓
+fetch changed Field records
+fetch changed Lookup records
+        ↓
+detect additions/changes
+        ↓
+update contract evidence
+
+
+PERIODICALLY
+
+retrieve COMPLETE metadata inventory
+        ↓
+compare IDs/names against last verified inventory
+        ↓
+detect removals
+        ↓
+reconcile
+
+Why both?
+
+Because an incremental request can tell Mallan:
+
+Something changed.
+
+But a record that has been completely removed may no longer appear in the current changed-resource population.
+
+So the safe model is:
+
+metadata incremental update + metadata full reconciliation.
+
+That is the same principle Cotality recommends for listing records.
+
+2. “Field exists” is nowhere near enough
+
+This is where many integrations fail.
+
+For every Cotality fact Mallan uses, we need to know separately:
+
+Capability	Question
+Declared	Does the field exist?
+Selectable	Can Mallan request it with $select?
+Populated	Does your authorized feed actually contain values?
+Filterable	Does Cotality permit $filter on it?
+Operator-compatible	Does eq, has, ge, contains, etc. work?
+Sortable	Can it be used in $orderby?
+Expandable	Is the relationship/navigation actually usable?
+Stable identity	Is it appropriate as an identity/key?
+Semantic meaning	What does it mean for Mallan?
+Audience permission	Can public/client/agent consumers see it?
+Compliance role	Does it change suppression/distribution/display?
+
+That distinction is essential.
+
+A field can exist in $metadata but be useless as a Search criterion.
+
+That is why the stranded live-client.mjs is significantly better than the current simpler audits: it probes select, non-null filter, ordering, operator behavior and relationships instead of assuming metadata existence equals runtime support. The stranded verify-search-live.mjs then applies that specifically to the fields Search actually consumes.
+
+That architecture should be recovered.
+
+3. Lookup changes are more dangerous than they initially appear
+
+A new lookup member is not merely “another dropdown option.”
+
+Look at a real recent example.
+
+Cotality's July 28, 2026 Content Patch #193 introduced two Property fields and numerous lookup values. Among those additions were new values involving Permission / ListingPermission as well as several new MlsStatus values.
+
+That is important because a Permission change can potentially affect:
+
+public visibility
+address visibility
+listing eligibility
+Search membership
+saved-search results
+email/report visibility
+client portal visibility
+compliance
+
+Therefore Mallan cannot do this:
+
+NEW COTALITY ENUM
+        ↓
+automatically accept
+        ↓
+business rule
+
+Instead:
+
+NEW COTALITY ENUM
+        ↓
+automatically detect
+        ↓
+classify field
+        ↓
+
+presentation-only field?
+        ↓
+possibly safe additive
+
+OR
+
+identity/status/permission/compliance field?
+        ↓
+SEMANTIC REVIEW REQUIRED
+        ↓
+Mallan mapping explicitly updated
+
+Detection should be automatic.
+
+Meaning must not be guessed.
+
+4. We have proof that much bigger changes actually happen
+
+Cotality's September 30, 2024 patch is a good stress test for the architecture.
+
+That one patch included:
+
+new fields;
+removed fields;
+field-width changes;
+actual data-type changes;
+fields changing from strings to lookup-backed values;
+removed lookup values;
+more than one thousand lookup replacements.
+
+That tells me Mallan has to be designed for more than additive changes.
+
+A future patch could effectively do this:
+
+Yesterday
+
+Field X: String
+Field Y: Enum [A,B,C]
+Field Z: exists
+
+
+Tomorrow
+
+Field X: Enum
+Field Y: Enum [A,B,D]
+Field Z: REMOVED
+Field New: added
+
+A static mapping file cannot safely absorb that.
+
+5. This is the change matrix Mallan needs
+Cotality change	Detection	Mallan behavior
+New field	Contract diff	Record as available; do not automatically add DB column/UI
+New optional resource	Service/$metadata diff	Record; no consumer automatically created
+Removed field	Full contract reconciliation	Mark dependent mapping unavailable; block affected capability
+Field renamed/replaced	Contract diff + release information	New mapping explicitly verified; old name retained only for historical compatibility where needed
+Type changed	Contract diff	Hard break until parser/mapping verified
+Length/precision changed	Contract diff	Validate storage/API compatibility
+New enum value	Lookup delta	Capture; semantic classification required when business-sensitive
+Removed enum value	Full lookup reconciliation	Stop producing current queries with it; preserve historical meaning
+Enum replacement	Lookup reconciliation	Versioned compatibility translation where proven
+Filterability change	Runtime probe	Disable affected criterion/fail loud
+Sortability change	Runtime probe	Disable sort/fail loud
+Relationship change	$expand probe	Disable dependent hydration
+Field population collapses	Population monitoring	Treat as provider/feed drift, not “empty data”
+Permission population changes	Full census	Compliance review/block
+Provider rows disappear	Key reconciliation	Quarantine before destructive retirement
+Massive source remap	ModificationTimestamp surge	Backpressure + safe no-op suppression
+Quota changes	Response headers	Adaptive throttle
+Endpoint/auth change	Transport health check	UNVERIFIED, never snapshot-as-live
+Parser/metadata-shape change	Contract compiler self-test	Block verification system itself
+
+This is what future-readiness actually looks like.
+
+6. There must also be a population contract
+
+This is not in the earlier architecture strongly enough.
+
+Cotality can leave a field in metadata while changing the underlying mapping for your particular feed.
+
+So Mallan needs a population profile for critical fields.
+
+Not hardcoded listing counts.
+
+Something more like:
+
+ListingKey
+required non-null
+expected: ~100%
+
+StandardStatus
+required population
+allowed/current values recorded
+
+PropertyType
+required population
+known workflow semantics
+
+Permission
+compliance-sensitive
+value-set + population monitored
+
+ListPrice
+required for active sale/rental Search where applicable
+
+SubdivisionName
+optional, but Search capability depends on actual population
+
+Latitude / Longitude
+optional
+population degradation must not masquerade as "map has no listings"
+
+For critical fields Mallan should track:
+
+row population
+non-null %
+distinct token set
+unknown token count
+filter success
+orderby success
+recent distribution change
+
+That detects the particularly nasty failure:
+
+“The API still returns 200 and the field still exists, but Cotality stopped populating it for our feed.”
+
+A normal schema validator will say everything is fine.
+
+Mallan must not.
+
+7. Reconciliation needs a catastrophic-change brake
+
+This is important.
+
+Cotality correctly recommends full-key reconciliation because records can disappear when they are deleted, off-market, or no longer distributed.
+
+But blindly implementing:
+
+missing from provider
+    ↓
+DELETE locally
+
+would be dangerous.
+
+Imagine:
+
+Yesterday:
+600,000 authorized records
+
+Today:
+Cotality entitlement/configuration incident
+6,000 records returned
+
+A naive reconciliation job could conclude:
+
+594,000 listings were deleted.
+
+That would be catastrophic.
+
+So Mallan's reconciliation should instead behave like:
+
+COMPLETE PROVIDER CENSUS
+        ↓
+prove acquisition complete
+        ↓
+compare population shape
+        ↓
+normal delta?
+      /       \
+    yes       no
+     │         │
+reconcile    QUARANTINE
+              │
+        do not mass-delete
+              │
+      re-query / investigate
+
+For extreme population drops, destructive reconciliation should fail closed.
+
+History should remain durable even when a provider record is no longer distributed.
+
+8. Mass updates must not wake Neon into the ground
+
+Cotality specifically warns developers to prepare for mass updates, including changes caused by provider mapping/enumeration work. ModificationTimestamp can advance because Cotality itself changed mappings, not only because an agent edited a listing.
+
+This directly affects the Neon problem you've been fighting.
+
+Suppose Cotality updates a mapping affecting 300,000 records.
+
+Mallan could receive:
+
+300,000 ModificationTimestamp changes
+
+But perhaps only:
+
+5,000 changes matter to Mallan canonical facts
+
+The architecture must allow:
+
+provider update
+    ↓
+read
+    ↓
+normalize
+    ↓
+compare material Mallan state
+    ↓
+UNCHANGED ──► advance provider cursor, NO DB rewrite
+    │
+ CHANGED
+    ↓
+write
+
+The critical requirement is that cursor progression is independent from whether a physical listing row was rewritten.
+
+Some of the August Mallan work discovered exactly this.
+
+That pattern is correct for long-term scalability.
+
+9. Quotas should be learned, not hardcoded
+
+Cotality documents baseline quota numbers, but it also says actual quotas are calculated per product/feed combination and exposes quota information in response headers.
+
+So Mallan should not design around:
+
+180 requests/minute forever
+
+It should read the provider's current quota headers and manage itself.
+
+That lets a future Cotality entitlement or quota change happen without a code deployment.
+
+The client should dynamically control:
+
+request concurrency
+page frequency
+retry delay
+full-contract probe concurrency
+background reconciliation speed
+media fetching speed
+
+while still imposing Mallan's own conservative maximum ceiling.
+
+10. Saved Search must never store Cotality architecture
+
+This is one of the best ways to make the brokerage resistant to future provider changes.
+
+Saved Search should store:
+
+Mallan criterion
+
+not:
+
+Cotality field name
+
+For example:
+
+Mallan:
+price_min = 1000000
+
+The mapping currently might be:
+
+price_min
+    ↓
+ListPrice ge 1000000
+
+If Cotality ever changed the underlying implementation, only the verified mapping layer changes.
+
+The client's Saved Search remains:
+
+price_min = 1000000
+
+Same principle for:
+
+borough
+neighborhood
+bathrooms
+status
+ownership
+amenities
+property class
+
+That is why the canonical Search criterion layer is so important.
+
+It insulates the business from the provider.
+
+11. CMA must have the same protection
+
+This is exactly why CMA cannot independently query Cotality.
+
+Correct:
+
+Cotality
+   ↓
+verified mapping
+   ↓
+canonical Search
+   ↓
+candidate universe
+   ↓
+CMA
+
+Wrong:
+
+Search ─── Cotality mapping A
+
+CMA ────── Cotality mapping B
+
+The second design means the next provider change causes two different interpretations.
+
+Then three.
+
+Then ten.
+
+That is exactly how system fragmentation happens.
+
+12. New Cotality fields must NOT automatically cause schema growth
+
+This matters given your Neon/storage rules.
+
+If Cotality adds 30 fields tomorrow, Mallan should not create 30 database columns.
+
+The correct sequence remains:
+
+Cotality field appears
+        ↓
+contract detects it
+        ↓
+is Mallan interested?
+      /             \
+    no              yes
+    │                │
+record only      verify semantics
+                     ↓
+             find existing canonical storage
+                     ↓
+              existing JSON/field?
+                  /       \
+                yes        no
+                │           │
+              reuse     schema change requires
+                         explicit authorization
+
+This keeps provider evolution from becoming database bloat.
+
+13. Historical provider facts should not be rewritten when vocabulary changes
+
+Another subtle future problem:
+
+Suppose a provider lookup changes from:
+
+OldToken
+
+to:
+
+NewToken
+
+Historical records should not necessarily be destructively rewritten as though they had always arrived as NewToken.
+
+Better:
+
+RAW PROVIDER FACT
+OldToken
+provider_contract_version = ABC
+received_at = ...
+
+and interpretation can become:
+
+Mallan canonical meaning
+    ↓
+MappedMeaning
+
+This gives the brokerage an auditable history.
+
+The current meaning can evolve without falsifying the historical provider event.
+
+14. The provider contract itself needs a fingerprint
+
+Every successful provider verification should produce something like:
+
+provider: Cotality
+endpoint: api.cotality.com/trestle
+
+acquired_at
+feed/client fingerprint — non-secret
+service_document_sha256
+metadata_sha256
+field_catalog_sha256
+lookup_catalog_sha256
+
+resource_count
+field_count
+lookup_count
+relationship_count
+
+repo_git_sha
+mapping_sha
+verifier_source_sha
+verifier_build_sha
+
+result:
+VERIFIED
+
+Then Search telemetry can carry:
+
+provider_contract_sha
+mapping_sha
+git_sha
+
+Now when something breaks in production, the question stops being:
+
+“Which Cotality information was the developer using?”
+
+It becomes mechanically answerable.
+
+15. This exposes a serious weakness in the current Mallan MCP
+
+This deserves correction.
+
+Current mcp/trestle-fields documentation says its source of truth is live Cotality but that when live retrieval fails it falls back to artifacts/metadata.xml.
+
+The implementation confirms that fallback.
+
+Yet the MCP's tool description says:
+
+data is always current.
+
+The two claims are incompatible.
+
+That means this can occur:
+
+Cotality unavailable
+        ↓
+local old metadata.xml loaded
+        ↓
+developer asks:
+"Does Field X currently exist?"
+        ↓
+MCP answers from snapshot
+        ↓
+appears LIVE
+
+That is precisely the false-green condition Mallan cannot tolerate.
+
+For authoritative verification:
+
+LIVE SUCCESS        → VERIFIED
+LIVE REJECTION      → PROVIDER_REJECTED
+LIVE UNAVAILABLE    → UNVERIFIED
+
+Never:
+
+LIVE UNAVAILABLE
+        ↓
+old snapshot
+        ↓
+VERIFIED
+
+The snapshot is useful as historical evidence and for regression testing.
+
+It is not provider authority.
+
+The stranded live-client.mjs already gets this rule right. Its header explicitly says there is no snapshot fallback and inability to reach Cotality means UNVERIFIED.
+
+16. There is another dangerous MCP issue: source ≠ runtime
+
+Current .mcp.json executes:
+
+mcp/trestle-fields/dist/index.js
+
+And the MCP documentation explicitly says dist/ is gitignored and edits do nothing until someone manually rebuilds and reloads the MCP.
+
+That means:
+
+Git source = corrected
+
+running MCP = old build
+
+is a supported state today.
+
+That should not be possible for the authoritative verification path.
+
+I would require the verifier to prove:
+
+source SHA
+        =
+build/input SHA
+        =
+reported runtime SHA
+
+before it can produce VERIFIED.
+
+How that is implemented can be decided during convergence—build on startup, reproducible checked build, or another mechanism—but an unidentifiable stale binary must never be the authority.
+
+17. The current daily audit also has a false-green state
+
+The daily trestle-live-audit explicitly skips all live checking and exits successfully when Cotality credentials are unavailable.
+
+That behavior is understandable for avoiding noisy scheduled failures.
+
+But for certification:
+
+no credentials
+
+must mean:
+
+UNVERIFIED
+
+not:
+
+PASS
+
+So I would separate:
+
+DAILY MONITOR
+credentials unavailable
+→ SKIPPED / informational
+
+from:
+
+RELEASE CERTIFICATION
+credentials unavailable
+→ BLOCK RELEASE
+18. The current audit catches only one class of drift
+
+The server audit is useful, but its core job is scanning source code for field-like names and verifying their existence in live metadata. It also has manually defined critical-field lists and legacy/forbidden-field knowledge.
+
+That can catch:
+
+code says SomeOldField
+Cotality no longer has SomeOldField
+
+Good.
+
+It does not by itself prove:
+
+field is actually populated
+filter works
+operator works
+ordering works
+relationship expands
+mapping meaning remains correct
+permission behavior remains correct
+
+That is why it should become a consumer of the stronger live-client contract rather than remaining another independent provider interpretation.
+
+19. The static operational document is also proving why static truth is dangerous
+
+The current COTALITY-TRESTLE-OPERATIONAL-CONTRACT.md manually describes routes, fields, consumers, current behavior and change-control rules.
+
+It is useful documentation.
+
+But it already contains things that can become obsolete, and it still contains RealPlus references despite the later Mallan rule that RealPlus has no place in this system.
+
+That is exactly why:
+
+documentation
+
+cannot be the provider truth.
+
+The permanent relationship should be:
+
+LIVE PROVIDER FACT
+        ↓
+machine verification
+        ↓
+canonical mapping
+        ↓
+generated/current documentation where possible
+
+rather than:
+
+someone wrote a "complete reference"
+        ↓
+future developers trust it
+
+The Master Plan remains the business/system authority.
+
+Cotality live remains provider authority.
+
+Documents explain them.
+
+20. The stranded compiler is actually a very good foundation
+
+I reviewed compile-live-contract.mjs more closely.
+
+It already does much of what I would have designed:
+
+live $metadata
+service document
+DataSystem
+Field
+Lookup
+Model
+Enumeration
+all declared resources
+all fields
+relationships/navigation
+full field probes
+relationship probes
+SUPPORTED
+PROVIDER_REJECTED
+UNVERIFIED
+
+It also refuses to call incomplete required catalogs successful.
+
+That is excellent.
+
+I would recover this rather than write another contract compiler.
+
+But it needs another layer above it.
+
+21. What is still missing even from the stranded implementation
+
+The permanent system should add these capabilities around that compiler:
+
+Missing piece	Why
+Contract-to-contract diff	Know exactly what changed since last VERIFIED provider state
+Semantic classification	Distinguish harmless addition from status/permission breaking change
+Dependency impact graph	Know which Mallan consumers depend on changed fact
+Population drift	Catch declared-but-no-longer-populated fields
+Metadata reconciliation	Detect removed fields/lookups/resources
+Release-note watch	Receive early warning before/when patch lands
+Capability probes	Select/filter/operator/order/expand, not merely existence
+Query semantics tests	Prove actual Search behavior
+Source/build fingerprint	Prevent stale MCP binary from certifying anything
+Feed identity fingerprint	Don't transfer evidence between different credentials/feed products
+Exact Git SHA binding	Don't transfer proof across code versions
+Environment fingerprint	Don't transfer Preview proof to different config
+Provider anomaly quarantine	Prevent mass deletions from transient entitlement/provider problems
+Update backpressure	Survive Cotality mass updates without Neon churn explosion
+Contract-change simulator	Prove Mallan survives changes before Cotality actually makes them
+
+That last one is especially important.
+
+22. We should deliberately test future Cotality changes
+
+This is how I would prove the architecture rather than merely trust it.
+
+Take a known verified Cotality contract and simulate:
+
+Field removed
+Field renamed
+String → enum
+Enum → string
+Enum value added
+Enum value removed
+Enum value replaced
+Filter starts returning HTTP 400
+OrderBy starts returning HTTP 400
+Resource disappears
+New resource appears
+Navigation disappears
+Critical field becomes 95% null
+Permission gets new unknown token
+StandardStatus gets new token
+provider returns 90% fewer records
+429 burst
+500 burst
+30-second timeout
+empty page + nextLink
+duplicate nextLink page
+nextLink to unexpected host
+mass ModificationTimestamp update
+
+Then run Mallan.
+
+Expected result should not always be:
+
+PASS
+
+Correct outcomes include:
+
+SAFE_ADDITIVE
+REVIEW_REQUIRED
+UNVERIFIED
+CAPABILITY_DISABLED
+RELEASE_BLOCKED
+PROVIDER_ANOMALY
+
+The guarantee becomes:
+
+An unclassified provider change cannot silently reach a Mallan consumer.
+
+That is an achievable guarantee.
+
+23. This is the final architecture I think Mallan should target
+              COTALITY RAW CONTRACT
+                       │
+       ┌───────────────┼─────────────────┐
+       │               │                 │
+   $metadata          Field             Lookup
+       │               │                 │
+       ├──────────── service/resources ──┤
+       │               │                 │
+       └──────── ACTUAL QUERY PROBES ────┘
+                       │
+                       ▼
+              CONTRACT FINGERPRINT
+                       │
+                       ▼
+                CONTRACT DIFF
+                       │
+             ┌─────────┼─────────┐
+             │         │         │
+          additive   semantic   breaking
+             │         │         │
+             ▼         ▼         ▼
+          accept     review     block
+             │         │         │
+             └─────────┼─────────┘
+                       ▼
+               VERIFIED MAPPING
+               FIELD_REGISTRY
+                       │
+                       ▼
+             CANONICAL CRITERIA
+                       │
+          ┌────────────┼────────────┐
+          ▼            ▼            ▼
+       SEARCH       SAVED SEARCH    CMA
+          │
+          ▼
+             MALLAN STORAGE
+                       │
+                 BUSINESS RULES
+                       │
+       ┌───────────────┼────────────────┐
+       ▼               ▼                ▼
+     CRM           CLIENT PORTAL       PUBLIC
+
+Surrounding that:
+
+incremental data sync
++ full reconciliation
++ population drift detection
++ release certification
++ contract-change simulation
++ production observability
+What I would do next
+
+I would not merge those stranded commits wholesale, and I would not allow Claude to build another Cotality abstraction.
+
+The next step should be one read-only convergence exercise:
+
+current main + current Search head + d19 stranded Cotality/Search implementation + any local-only branch Claude found, component by component.
+
+The output should establish exactly:
+
+permanent component
+current SHA
+best implementation
+duplicate implementations
+stale implementations
+missing future-change capability
+consumers
+tests
+proof
+recovery method
+
+Then the permanent Cotality spine can be recovered once, and all future work goes through it.
+
+One more transparency point: I attempted a fresh subscription-specific Cotality MCP probe during this review, but the connector returned a 429. I therefore did not use that failed call to assert any new Mallan-feed-specific field value. The Cotality claims above come from Cotality's current published documentation; the Mallan architectural findings come from the exact GitHub files cited above.
+
+The core conclusion is now much stronger: we do not need more Cotality code scattered through Mallan. We need to converge the good code already built into one versioned provider-contract boundary, and then make every future Cotality change pass through detection → classification → mapping impact → certification before any consumer can rely on it.
+
+I can also monitor Cotality's release timeline and alert you whenever a new field, lookup, resource, removal, or field change is published.

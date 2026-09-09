@@ -69,9 +69,29 @@ describe('numbers and baths', () => {
   });
 });
 
+describe('BuildingName and LivingArea are inside the checkpoint (live + filterable, verified in data/cotality-contract/**)', () => {
+  test('buildingName is carried verbatim; minSqft / maxSqft become the LivingArea bounds', () => {
+    const c = ok('type=sale&buildingName=The Apthorp,One57&minSqft=900&maxSqft=2500');
+    expect(c.buildingName).toEqual(['The Apthorp', 'One57']);
+    expect(c.sqftMin).toBe(900);
+    expect(c.sqftMax).toBe(2500);
+  });
+  test('executable does NOT mean unvalidated: a negative or inverted size bound is still refused by name', () => {
+    expect(refused('type=sale&minSqft=-1').invalid[0]).toMatchObject({ param: 'minSqft', reason: 'must be a non-negative number' });
+    expect(refused('type=sale&maxSqft=big').invalid[0].param).toBe('maxSqft');
+    expect(refused('type=sale&minSqft=2500&maxSqft=900').invalid[0]).toMatchObject({ param: 'minSqft', reason: 'minimum square feet exceeds maximum' });
+  });
+});
+
 describe('criteria outside the checkpoint are refused by name, never ignored', () => {
   test('a present, non-blank unsupported parameter', () => {
-    expect(refused('type=sale&minSqft=800').unsupported).toEqual(['minSqft']);
+    // `keyword` has no executable meaning: the provider accepts an unknown parameter silently, so the
+    // executor must name it rather than drop it (a dropped criterion is a silent widening).
+    expect(refused('type=sale&keyword=doorman').unsupported).toEqual(['keyword']);
+  });
+  test('EVERY unsupported parameter is named — the refusal is a list, not a first-failure', () => {
+    expect(refused('type=sale&keyword=doorman&address=100 W 72&checkboxFilters={\"View\":[\"City\"]}').unsupported.sort())
+      .toEqual(['address', 'checkboxFilters', 'keyword']);
   });
   test('blank or empty-object values do not count', () => {
     expect(ok('type=sale&checkboxFilters={}&keyword=').workflow).toBe('sale');

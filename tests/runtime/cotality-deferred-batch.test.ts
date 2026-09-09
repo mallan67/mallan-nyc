@@ -21,7 +21,7 @@ describe('A1 — UnparsedAddress canonical (lowercase p), legacy fallback', () =
   });
   it('SALE_FIELD_MAP restores UnparsedAddress with legacy UnParsedAddress fallback', () => {
     expect(formHtml).toMatch(
-      /rls:\s*'UnparsedAddress',\s*form:\s*'saleUnparsedAddress'[^}]*fallbackRls:\s*'UnParsedAddress'/,
+      /cotality:\s*'UnparsedAddress',\s*form:\s*'saleUnparsedAddress'[^}]*legacyFallback:\s*'UnParsedAddress'/,
     );
   });
   it('normalizer aliases legacy UnParsedAddress + variants → canonical UnparsedAddress', () => {

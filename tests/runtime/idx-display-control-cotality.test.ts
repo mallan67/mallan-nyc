@@ -24,7 +24,7 @@ describe('IDX-display control — internal saleIdxDisplayYN; §2.05 guard preser
 
   it('SALE_FIELD_MAP restores the control from the idx_display_yn column under the internal key', () => {
     expect(formHtml).toMatch(
-      /rls:\s*'saleIdxDisplayYN',\s*form:\s*'saleDist_IDX'[^}]*listingKey:\s*'idx_display_yn'/,
+      /mallan:\s*'saleIdxDisplayYN',\s*form:\s*'saleDist_IDX'[^}]*listingKey:\s*'idx_display_yn'/,
     );
   });
 

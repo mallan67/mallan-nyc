@@ -51,8 +51,13 @@ function toggleOHOverviewForm() {
 
 function populateOHOverviewListing() {
     var modeListings = myManagementListings.filter(function(l) { return l.category === currentManageMode; });
-    var closedStatuses = ['Sold', 'Leased', 'Expired', 'Perm Off Market'];
-    var eligible = modeListings.filter(function(l) { return closedStatuses.indexOf(l.status) === -1; });
+    // A listing that has left the market cannot take a new open house. The gate is the live Cotality
+    // StandardStatus token the row stores (MANAGE_TERMINAL_TOKENS in manage-listings.js) - never the broker word
+    // printed on the chip, which reads "Sold" on a sale and "Rented" on a rental for the SAME token. A row with
+    // no resolvable token is refused fail-closed.
+    var eligible = modeListings.filter(function(l) {
+        return !!l.statusToken && MANAGE_TERMINAL_TOKENS.indexOf(l.statusToken) === -1;
+    });
     var sel = document.getElementById('ohOverviewListing');
     sel.innerHTML = '<option value="">\u2014 Select listing \u2014</option>';
     eligible.forEach(function(l) {

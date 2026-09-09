@@ -12,7 +12,7 @@
 import * as live from '@/lib/search/canonical/live-truth';
 import {
   STANDARD_STATUS_MEMBERS, PROPERTY_TYPE_MEMBERS, COMMON_INTEREST_MEMBERS, STRUCTURE_TYPE_MEMBERS,
-  CITY_REGION_VALUES, EXECUTED_PARAMS, displayOf, resolveMember,
+  CITY_REGION_VALUES, EXECUTED_PARAMS, criteriaFromParams, displayOf, resolveMember,
 } from '@/lib/search/engine/criteria';
 import { searchContract } from '@/lib/search/engine/contract';
 
@@ -51,6 +51,12 @@ describe('canonical live-truth → executor (no hand-maintained copy)', () => {
   });
 });
 
+/**
+ * Parameters the browser's older dialects still know how to send and the executor CANNOT reproduce.
+ * Each must be absent from the published contract AND refused by name by the executor.
+ */
+const UNSUPPORTED_PARAMS = ['address', 'keyword', 'propertySubType', 'dateFrom', 'checkboxFilters', 'minUnits', 'floorsMin'] as const;
+
 describe('executor → contract payload (verbatim)', () => {
   const c = searchContract();
   test('members and parameters are the executor\'s, unchanged', () => {
@@ -63,11 +69,49 @@ describe('executor → contract payload (verbatim)', () => {
     expect(c.vocabularyPulledAt).toBe(FILE.pulled_at);
   });
   test('the contract names every parameter the browser is allowed to send, and only those', () => {
-    for (const p of ['type', 'status', 'minPrice', 'maxPrice', 'minBeds', 'maxBeds', 'minBaths', 'maxBaths', 'borough', 'neighborhood', 'ownership', 'StructureType', 'zip', 'listingId', 'sort', 'limit', 'skip']) {
+    for (const p of [
+      'type', 'status', 'minPrice', 'maxPrice', 'minBeds', 'maxBeds', 'minBaths', 'maxBaths', 'borough',
+      'neighborhood', 'ownership', 'StructureType', 'zip', 'listingId', 'sort', 'limit', 'skip',
+      // Executable since live Cotality Property.BuildingName (Edm.String) and Property.LivingArea
+      // (Edm.Decimal) were both confirmed filterable in data/cotality-contract/**. They are executed —
+      // `tolower(BuildingName) eq` and `LivingArea ge/le` — not refused, and not silently dropped.
+      'buildingName', 'BuildingName', 'minSqft', 'maxSqft',
+    ]) {
       expect(c.executableParams).toContain(p);
     }
-    for (const p of ['address', 'keyword', 'minSqft', 'propertySubType', 'dateFrom', 'checkboxFilters']) {
+    for (const p of UNSUPPORTED_PARAMS) {
       expect(c.executableParams).not.toContain(p);
+    }
+  });
+
+  // The two halves of "and only those", proven against the EXECUTOR rather than against the list alone.
+  // The provider accepts an unknown parameter and silently returns an empty page, so a parameter the
+  // contract omits must come back as a NAMED refusal; one the contract names must never be reported
+  // unsupported. Together these make the published contract the exact executable surface.
+  test('a parameter the contract does not name is refused BY NAME, never silently dropped', () => {
+    for (const p of UNSUPPORTED_PARAMS) {
+      const r = criteriaFromParams(new URLSearchParams(`type=sale&${p}=x`));
+      expect(r.ok).toBe(false);
+      expect(r.ok ? [] : r.refusal.unsupported).toContain(p);
+    }
+  });
+
+  test('no parameter the contract names is treated as unsupported by the executor', () => {
+    const rentalOnly = new Set(c.rentalOnlyParams);
+    for (const p of c.executableParams) {
+      // A rental-only parameter IS executable — on a rental search; on a sale search it is refused by
+      // name as a rental-only criterion (an `invalid` entry), which is a refusal, not a silent drop.
+      const workflow = rentalOnly.has(p) ? 'rental' : 'sale';
+      const r = criteriaFromParams(new URLSearchParams(`type=${workflow}&${p}=1`));
+      expect(r.ok ? [] : r.refusal.unsupported).not.toContain(p);
+    }
+  });
+
+  test('a rental-only parameter on a sale search is refused by name, not ignored', () => {
+    for (const p of c.rentalOnlyParams) {
+      const r = criteriaFromParams(new URLSearchParams(`type=sale&${p}=1`));
+      expect(r.ok).toBe(false);
+      expect(r.ok ? [] : r.refusal.invalid.map((i) => i.param)).toContain(p);
     }
   });
 });

@@ -15,6 +15,17 @@
  *
  * Provider facts used here are the committed live contract (lib/cotality/generated/contract.ts): PropertyType
  * members 'Residential' / 'ResidentialLease'; StandardStatus members incl. 'Closed', 'Pending', 'Active'.
+ *
+ * RESTORED 2026-09-09 from docs/operations/evidence-2026-09-08/status/pending-surface-specs/. Two adjustments
+ * to the parked text, both from the later owner rulings:
+ *   - the DB-engine cases now state a `neighborhood`. A CMA is a LOCATED comparison and the engine refuses a
+ *     subject with neither neighborhood nor borough rather than searching the whole city (Maya, 2026-09-09);
+ *   - the closed-rental cases assert CloseDate + ClosePrice, because a closed ResidentialLease carries both
+ *     (verified live 2026-09-09: 200/200 closed lease rows). There is no rental-specific close field - only a
+ *     different LABEL ("Rented" against a sale's "Sold").
+ * Market DOM is not asserted here; the DOM ruling is proved in lib/compliance/__tests__ and its dedicated
+ * runtime suites. Everything else is the parked intent verbatim: exact tokens, per-transaction labels, real
+ * close facts, and no sale/rental mixing on any of the three CMA paths.
  */
 import * as fs from 'fs';
 import * as path from 'path';
@@ -249,7 +260,7 @@ describe('the DB CMA engine stores exact tokens (legacy spellings normalized) wi
       row('rent', { listing_id: 'WRONG-TYPE', status: 'Rented' }),
     ]);
     const { findComps } = require('@/lib/cma/engine');
-    const comps = await findComps({ property_address: 'Subject', listing_type: 'sale', bedrooms: 2, bathrooms: 1 });
+    const comps = await findComps({ property_address: 'Subject', neighborhood: 'Yorkville', listing_type: 'sale', bedrooms: 2, bathrooms: 1 });
     const byId = Object.fromEntries(comps.map((c: { listing_id: string }) => [c.listing_id, c]));
     expect(Object.keys(byId).sort()).toEqual(['ACTIVE', 'LEGACY-SOLD', 'PENDING']);
     for (const c of comps) { expect(LIVE_TOKENS).toContain(c.status); expect(c.transaction).toBe('sale'); }
@@ -259,7 +270,7 @@ describe('the DB CMA engine stores exact tokens (legacy spellings normalized) wi
     // the DB filter keeps reading the legacy spellings (never writes them)
     const where = listingFindMany.mock.calls.at(-1)![0] as { where: { OR: Array<{ status?: { in?: string[] } }> } };
     const closedClause = where.where.OR.find((c) => c.status && typeof c.status === 'object')!;
-    expect(closedClause.status.in).toEqual(expect.arrayContaining(['Closed', 'Sold', 'Rented', 'Leased']));
+    expect(closedClause.status!.in).toEqual(expect.arrayContaining(['Closed', 'Sold', 'Rented', 'Leased']));
   });
 
   it('rental: legacy Rented / Leased rows become Closed / Rented; a sale row never enters', async () => {
@@ -270,7 +281,7 @@ describe('the DB CMA engine stores exact tokens (legacy spellings normalized) wi
       row('sale', { listing_id: 'WRONG-TYPE', status: 'Sold' }),
     ]);
     const { findComps, estimateValue } = require('@/lib/cma/engine');
-    const comps = await findComps({ property_address: 'Subject', listing_type: 'rental', bedrooms: 2, bathrooms: 1 });
+    const comps = await findComps({ property_address: 'Subject', neighborhood: 'Yorkville', listing_type: 'rental', bedrooms: 2, bathrooms: 1 });
     const byId = Object.fromEntries(comps.map((c: { listing_id: string }) => [c.listing_id, c]));
     expect(Object.keys(byId).sort()).toEqual(['ACTIVE', 'LEGACY-LEASED', 'LEGACY-RENTED']);
     expect(byId['LEGACY-RENTED']).toMatchObject({ status: 'Closed', status_label: 'Rented', close_price: 4500, close_date: closeDate, transaction: 'rental' });

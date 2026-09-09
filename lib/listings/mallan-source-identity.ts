@@ -36,6 +36,8 @@
  * that constant here would couple a read-side display decision to a held
  * distribution gate and could activate syndication. Do not merge them.
  */
+import { isMallanAuthoredListing } from '@/lib/listings/exclusive-agent-assignment';
+
 export const MALLAN_LIST_OFFICE_MLS_IDS = ['7041'] as const;
 
 /** The source fields required to classify a row's list-side identity. */
@@ -43,18 +45,19 @@ export interface MallanSourceIdentityRow {
   listing_id?: string | null;
   /** Typed column, populated by the Trestle mapper from `ListOfficeMlsId`. */
   list_office_mls_id?: string | null;
-  /** Mallan-authored local rows are `false`; feed rows are true/null. */
+  /** Commercial / website-only rows are `false`; feed rows are true/null. NOT an ownership fact on its own. */
   rls_eligible?: boolean | null;
+  /** Provider-provenance columns — any one populated means the feed sent this row. */
+  last_synced_from_trestle?: Date | string | null;
+  mls_id?: string | null;
 }
-
-/** CRM prefixes that mark a Mallan-AUTHORED local listing. */
-const LOCAL_PREFIXES = ['SL-', 'RL-'] as const;
 
 /** TRUE when the row is a Mallan-authored LOCAL listing (canonical publicly). */
 export function isMallanLocalListing(row: MallanSourceIdentityRow): boolean {
-  const id = String(row.listing_id ?? '');
-  if (LOCAL_PREFIXES.some((p) => id.startsWith(p))) return true;
-  return row.rls_eligible === false;
+  // Delegates to THE canonical source-ownership rule so this file cannot drift from the other two
+  // implementations. The `rls_eligible === false` arm requires the absence of provider provenance: that flag
+  // means "commercial / website-only", not "Mallan owns it".
+  return isMallanAuthoredListing(row);
 }
 
 /**

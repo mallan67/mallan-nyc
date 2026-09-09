@@ -7,6 +7,7 @@ import { sanitizeForPublic } from "@/lib/compliance/dto";
 import { SEARCH_DISPLAY_GATE } from "@/lib/search/listing-access-decision";
 import { canAccessOwnerListing, isOwnerLead } from "@/lib/portal/listing-ownership";
 import { storageStatusesFor } from '@/lib/listings/mallan-status';
+import { statusPresentation } from '@/lib/crm/status-mapping';
 
 export async function GET(req: NextRequest) {
   // requireWorkspace (not requirePortalRole) with "buyer" retained: buyers get public comps, and a
@@ -93,12 +94,18 @@ export async function GET(req: NextRequest) {
       address: c.address,
       internet_address_display_yn: c.internet_address_display_yn,
     });
+    // The comp's stored live StandardStatus token plus THIS comp's transaction label (a Closed sale reads
+    // "Sold", a Closed rental reads "Rented" — owner ruling 2026-09-08). Legacy stored spellings normalize to
+    // their token; an unresolvable state is "Status unavailable", never a fabricated "Active". The transaction
+    // comes from the comp's own listing_type, never from the viewer's portal role.
+    const presentation = statusPresentation({ status: c.status, listing_type: c.listing_type });
     return {
       listing_id: c.listing_id,
       address: sanitized.address || `${ca.streetNumber || ''} ${ca.streetName || ''}`.trim(),
       unit: ca.unitNumber || null,
       price: Number(c.list_price),
-      status: c.status,
+      status: presentation.status ?? c.status,
+      status_label: presentation.label,
       property_type: c.property_type,
       bedrooms: c.bedrooms_total,
       bathrooms: c.bathrooms_full,

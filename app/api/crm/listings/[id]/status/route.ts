@@ -21,6 +21,7 @@ import { checkFeeDisclosure, isDisplayReadyStatus } from "@/lib/crm/fee-disclosu
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import { listingCapabilities, CAPABILITY_DENIED } from "@/lib/auth/listing-capabilities";
 import { allowedCanonicalTransitions, requiredFactsFor, resolveCanonicalStatusForListing, STATUS_FACT_FIELDS } from "@/lib/crm/status-mapping";
+import type { Prisma } from "@prisma/client";
 
 // The status state machine lives in lib/crm/status-mapping.ts, ONE PER TRANSACTION (owner ruling 2026-09-08):
 // a sale listing moves through the sale mapping (Pending → Sold) and a rental through the rental mapping
@@ -98,15 +99,74 @@ export async function PATCH(
   }
 
   const currentStatus = listing.status;
-  // Idempotent submit: the form re-sends its workflow status on every save; an unchanged
-  // canonical status is a no-op (no write, no transition check, no cache bust).
+
+  // The status's associated facts are read BEFORE the idempotent-status short-circuit below: an agent who
+  // re-submits the same status with a CORRECTED date or price (a re-keyed CloseDate, a fixed ClosePrice) must have
+  // that correction persisted. Returning early on an unchanged status used to discard it silently.
+  const storedRaw = (listing.raw_data as Record<string, unknown>) ?? {};
+  const acceptedFacts: Record<string, unknown> = {};
+  if (body.facts && typeof body.facts === "object") {
+    for (const [k, v] of Object.entries(body.facts)) {
+      if (!STATUS_FACT_FIELDS.includes(k)) {
+        return NextResponse.json(
+          { error: `"${k}" is not a status fact this transition may carry`, field: k, code: "STATUS_FACT_UNKNOWN", allowed: STATUS_FACT_FIELDS },
+          { status: 400 }
+        );
+      }
+      if (v !== undefined && v !== null && v !== "") acceptedFacts[k] = v;
+    }
+  }
+  const existingRaw: Record<string, unknown> = { ...storedRaw, ...acceptedFacts };
+  const requiredFacts = requiredFactsFor(requested, listing.listing_type) ?? [];
+  for (const field of requiredFacts) {
+    const v = existingRaw[field];
+    const present = typeof v === "number" ? Number.isFinite(v) && v > 0 : v !== undefined && v !== null && String(v).trim() !== "";
+    if (!present) {
+      return NextResponse.json(
+        {
+          error: `${field} is required before marking a listing as ${newStatus}`,
+          field,
+          code: "STATUS_FACT_REQUIRED",
+          required: requiredFacts,
+        },
+        { status: 422 }
+      );
+    }
+  }
+
+  // Idempotent submit: the form re-sends its workflow status on every save. An unchanged canonical status skips the
+  // transition check and the DOM/gate recompute — but any CORRECTED fact it carried is still written.
   if (newStatus === currentStatus) {
+    const correctedFacts = Object.keys(acceptedFacts).filter((k) => storedRaw[k] !== acceptedFacts[k]);
+    if (correctedFacts.length > 0) {
+      await prisma.listing.update({
+        where: { id: listing.id },
+        data: { raw_data: existingRaw as Prisma.InputJsonValue, modification_timestamp: new Date() },
+      });
+      await logAuditEvent(
+        "status_facts_corrected",
+        "listing",
+        listing.id.toString(),
+        auth,
+        { status: currentStatus, corrected: correctedFacts, values: Object.fromEntries(correctedFacts.map((k) => [k, acceptedFacts[k]])) },
+        req.headers.get("x-forwarded-for") ?? undefined
+      );
+      safeRevalidateTags([
+        listingCacheTag(listing.listing_id),
+        ...buildingAndManifestInvalidationTags(listing.address),
+        SEARCH_CACHE_TAG,
+      ]);
+      try {
+        await dualWriteProjectionForListingId(prisma, listing.listing_id);
+      } catch { /* the projection cron is the belt-and-suspenders; a correction must not fail on it */ }
+    }
     return NextResponse.json({
       id: listing.id.toString(),
       listing_id: listing.listing_id,
       previous_status: currentStatus,
       status: currentStatus,
       unchanged: true,
+      facts_updated: correctedFacts,
     });
   }
 
@@ -142,41 +202,8 @@ export async function PATCH(
     );
   }
 
-  // The status's associated facts (owner ruling 2026-09-08): the request may carry them; only the declared
-  // fact fields are accepted, and each one the transition requires must be present afterwards —
-  // Pending (sale) → PurchaseContractDate; Pending (rental) → the Mallan lease-signed date; Closed → CloseDate +
-  // ClosePrice (UCBA C12); Expired → ExpirationDate; Withdrawn → WithdrawnDate; Canceled → CancellationDate;
-  // Back on Market → BackOnMarketDate; Coming Soon → ActivationDate.
-  const storedRaw = (listing.raw_data as Record<string, unknown>) ?? {};
-  const acceptedFacts: Record<string, unknown> = {};
-  if (body.facts && typeof body.facts === "object") {
-    for (const [k, v] of Object.entries(body.facts)) {
-      if (!STATUS_FACT_FIELDS.includes(k)) {
-        return NextResponse.json(
-          { error: `"${k}" is not a status fact this transition may carry`, field: k, code: "STATUS_FACT_UNKNOWN", allowed: STATUS_FACT_FIELDS },
-          { status: 400 }
-        );
-      }
-      if (v !== undefined && v !== null && v !== "") acceptedFacts[k] = v;
-    }
-  }
-  const existingRaw: Record<string, unknown> = { ...storedRaw, ...acceptedFacts };
-  const requiredFacts = requiredFactsFor(requested, listing.listing_type) ?? [];
-  for (const field of requiredFacts) {
-    const v = existingRaw[field];
-    const present = typeof v === "number" ? Number.isFinite(v) && v > 0 : v !== undefined && v !== null && String(v).trim() !== "";
-    if (!present) {
-      return NextResponse.json(
-        {
-          error: `${field} is required before marking a listing as ${newStatus}`,
-          field,
-          code: "STATUS_FACT_REQUIRED",
-          required: requiredFacts,
-        },
-        { status: 422 }
-      );
-    }
-  }
+  // (the status's associated facts were read and enforced above, before the idempotent short-circuit, so a
+  //  correction submitted with an unchanged status is never discarded)
 
   // FARE Act fee-disclosure gate (NYC LL 119/2024) — rentals going display-ready
   // (Active / ComingSoon). Applies to CRM rental exclusives too (NOT skipped like

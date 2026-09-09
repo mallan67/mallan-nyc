@@ -19,6 +19,17 @@ var SalesCRM = (function () {
   // All stub routes redirect via Router. Active Sellers is standalone.
   function _subnav() { return ''; }
 
+  // The SALE transaction's status vocabulary, from the server mapping (GET /api/crm/status-options?type=sale).
+  // Owner ruling (Maya, 2026-09-08): the filter's VALUE is the live Cotality StandardStatus token the row
+  // stores and its TEXT is the sale's broker word ("Sold" for Closed, "In Contract" for Pending). A rental
+  // word never appears in a sale filter, and this panel holds no status list of its own.
+  var _saleStatusOptions = null;
+
+  function _saleStatusFilterOptions() {
+    if (!_saleStatusOptions || !_saleStatusOptions.canonical) return [];
+    return _saleStatusOptions.canonical.map(function (c) { return { value: c.token, label: c.label }; });
+  }
+
   // ─── KPI ──────────────────────────────────────────────────────────────
   function _kpi(cards) {
     var h = '<div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">';
@@ -56,7 +67,14 @@ var SalesCRM = (function () {
     var c = CRM.getContent();
     c.innerHTML = _subnav('sellers') + '<div class="flex items-center justify-center h-40"><i class="fas fa-spinner fa-spin text-2xl text-gold"></i></div>';
 
-    MallanAPI._fetch('/api/crm/sales/sellers').then(function (data) {
+    Promise.all([
+      MallanAPI._fetch('/api/crm/sales/sellers'),
+      _saleStatusOptions
+        ? Promise.resolve(_saleStatusOptions)
+        : MallanAPI._fetch('/api/crm/status-options?type=sale').catch(function () { return null; }),
+    ]).then(function (res) {
+      var data = res[0];
+      if (res[1]) _saleStatusOptions = res[1];
       _s.sellers.data = (data.sellers || data.clients || []).map(function (r) {
         if (typeof ClientNormalizer !== 'undefined') r = ClientNormalizer.normalize(r);
         r.name = r.name || ((r.first_name || '') + ' ' + (r.last_name || '')).trim();
@@ -94,10 +112,7 @@ var SalesCRM = (function () {
       id: 'sellers', placeholder: 'Search by name, address, email...', onSearch: 'SalesCRM._searchSellers',
       filters: [
         { key: 'stage', label: 'Stage', options: Object.keys(STAGES).map(function (k) { return { value: k, label: STAGES[k].label }; }) },
-        { key: 'status', label: 'Listing Status', options: [
-          { value: 'Active', label: 'Active' }, { value: 'Coming Soon', label: 'Coming Soon' },
-          { value: 'Under Contract', label: 'Under Contract' }, { value: 'Closed', label: 'Closed' },
-        ]},
+        { key: 'status', label: 'Listing Status', options: _saleStatusFilterOptions() },
       ],
       onFilter: 'SalesCRM._filterSellers',
       quickActions: [{ label: 'New Seller', icon: 'fa-plus', onclick: 'SalesCRM._newSeller()' }],
@@ -529,6 +544,19 @@ var SalesCRM = (function () {
 
   // ── COMPS TAB ────────────────────────────────────────────────────────
   var _compsData = null; // cached comp results
+  // The SUBJECT transaction the server resolved from the listing's live PropertyType. Comp criteria are live
+  // Cotality StandardStatus TOKENS; the broker word beside each one is a per-transaction LABEL (a sale's Closed
+  // reads "Sold", a rental's reads "Rented"; a sale's Pending reads "In Contract"). Never a shared list.
+  var _compsTransaction = 'sale';
+  var COMP_STATUS_TOKENS = ['Active', 'ActiveUnderContract', 'Pending', 'Closed', 'Expired', 'Withdrawn'];
+  var COMP_STATUS_LABELS = {
+    sale: { Active: 'Active', ActiveUnderContract: 'Active Under Contract', Pending: 'In Contract', Closed: 'Sold', Expired: 'Expired', Withdrawn: 'Withdrawn' },
+    rental: { Active: 'Active', ActiveUnderContract: 'Active Under Contract', Pending: 'Pending', Closed: 'Rented', Expired: 'Expired', Withdrawn: 'Withdrawn' },
+  };
+  function _compStatusLabel(token) {
+    var m = COMP_STATUS_LABELS[_compsTransaction] || COMP_STATUS_LABELS.sale;
+    return m[token] || token;
+  }
   function _wsComps(el, cl) {
     var listingId = cl.listing_id || (cl.listing && cl.listing.listing_id);
     if (!listingId) {
@@ -549,6 +577,7 @@ var SalesCRM = (function () {
   }
 
   function _renderCompsTab(el, data, listingId) {
+    _compsTransaction = data.transaction === 'rental' ? 'rental' : 'sale';
     var c = data.criteria || {};
     var bc = c.building || {};
     var ac = c.area || {};
@@ -656,14 +685,16 @@ var SalesCRM = (function () {
     return h;
   }
 
-  // Helper: status checkboxes
+  // Helper: status checkboxes — the VALUE is always the live Cotality StandardStatus token that will be
+  // queried; the visible word is this transaction's broker label. The server refuses any other value.
   function _statusCheckboxes(prefix, selected) {
-    var all = ['Active', 'Under Contract', 'Closed', 'Expired'];
+    var sel = selected || [];
     var h = '<div class="flex flex-wrap gap-3 mb-2">';
-    all.forEach(function (s) {
-      var checked = selected.indexOf(s) !== -1 ? ' checked' : '';
+    COMP_STATUS_TOKENS.forEach(function (token) {
+      var checked = sel.indexOf(token) !== -1 ? ' checked' : '';
       h += '<label class="flex items-center gap-1 text-xs text-gray-600 cursor-pointer">' +
-        '<input type="checkbox" class="crit-status-' + prefix + '" value="' + E(s) + '"' + checked + '> ' + E(s) + '</label>';
+        '<input type="checkbox" class="crit-status-' + prefix + '" value="' + E(token) + '"' + checked + '> ' +
+        E(_compStatusLabel(token)) + '</label>';
     });
     h += '</div>';
     return h;
@@ -703,7 +734,8 @@ var SalesCRM = (function () {
       comps.forEach(function (c) {
         var addr = c.address + (c.unit ? ' #' + c.unit : '');
         var sClr = statusColors[c.status] || '#6B7280';
-        var sLabel = c.status === 'ActiveUnderContract' ? 'In Contract' : c.status;
+        // the exact token stays the fact; the broker word is the server-supplied per-transaction label
+        var sLabel = c.status_label || c.status;
         h += '<tr class="border-b border-gray-50 hover:bg-gray-50">';
         h += '<td class="px-3 py-2 font-medium text-gray-900 max-w-[180px] truncate" title="' + E(addr) + '">' + E(addr) + '</td>';
         h += '<td class="px-3 py-2"><span style="color:' + sClr + ';font-weight:700;font-size:10px;">' + E(sLabel) + '</span></td>';
@@ -1348,13 +1380,32 @@ var SalesCRM = (function () {
     }
   }
 
+  // A CMA is a LOCATED, TYPED comparison: the subject's transaction, its neighborhood or borough, its property
+  // type and its beds/baths all travel with the request. Sending only an address let the engine select comps
+  // from unrelated locations and property types (Maya, 2026-09-09); a subject with no location is refused here
+  // rather than widened to the whole city by the server.
   function _generateCMA() {
     var cl = _s.ws.client;
     if (!cl) return;
-    CRM.toast('Generating CMA for ' + (cl.property_address || cl.name) + '...', 'info');
-    MallanAPI._fetch('/api/crm/cma', { method: 'POST', body: JSON.stringify({ property_address: cl.property_address }) })
-      .then(function (data) { CRM.toast('CMA generated!', 'success'); })
-      .catch(function () { CRM.toast('CMA generation failed — check property address', 'error'); });
+    var prefs = cl.preferences || {};
+    var neighborhood = cl.neighborhood || (prefs.neighborhoods || [])[0] || '';
+    var borough = cl.borough || '';
+    if (!cl.property_address) { CRM.toast('Add the property address before running a CMA', 'error'); return; }
+    if (!neighborhood && !borough) { CRM.toast('Add the neighborhood or borough before running a CMA', 'error'); return; }
+    var subject = {
+      property_address: cl.property_address,
+      neighborhood: neighborhood,
+      borough: borough,
+      listing_type: 'sale',
+      property_type: cl.property_type || prefs.propertyType || '',
+      bedrooms: cl.bedrooms != null ? Number(cl.bedrooms) : (prefs.minBeds != null ? Number(prefs.minBeds) : undefined),
+      bathrooms: cl.bathrooms != null ? Number(cl.bathrooms) : (prefs.minBaths != null ? Number(prefs.minBaths) : undefined),
+      living_area: cl.sqft ? Number(cl.sqft) : undefined,
+    };
+    CRM.toast('Generating CMA for ' + cl.property_address + '...', 'info');
+    MallanAPI._fetch('/api/crm/cma', { method: 'POST', body: JSON.stringify(subject), headers: { 'Content-Type': 'application/json' } })
+      .then(function () { CRM.toast('CMA generated — comparable sales', 'success'); })
+      .catch(function (err) { CRM.toast('CMA failed: ' + ((err && err.message) || 'check the subject address, location and type'), 'error'); });
   }
 
   function _generateMarketReport() {

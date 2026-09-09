@@ -1,0 +1,555 @@
+Yes. I found something materially useful, and it changes how I would approach Mallan.
+
+There **are developers who have built production systems around Trestle/Cotality**, and Cotality itself documents the operating model needed to survive provider changes. The strongest public implementation I found is **OpenRESync**, and the strongest guidance comes directly from Cotality's **Growing to Scale**, Web API, metadata, and change-log documentation.
+
+The important conclusion is:
+
+> **Mallan should not require a developer to manually “fix the Cotality integration” whenever Cotality adds a field, changes a lookup, changes a mapping, or mass-updates records.**
+>
+> The provider contract should be continuously discovered and compared automatically. Mallan's semantic/business mapping remains controlled separately.
+
+That is a much more mature architecture.
+
+## 1. A real production Trestle implementation exists: OpenRESync
+
+The best example I found is **OpenRESync**, created by developer Tyler Collier.
+
+It is specifically a system for replicating RESO Web API data from platforms including **Trestle** into local databases/search systems. The author states that he has actually used it in production with **REcolorado and CRMLS through Trestle**.
+
+What interests me is not their application code. It is their operating architecture.
+
+OpenRESync separates MLS synchronization into three independent processes:
+
+| Process       | Purpose                                                             |
+| ------------- | ------------------------------------------------------------------- |
+| **Sync**      | Continuously obtain new/changed records                             |
+| **Purge**     | Discover records the MLS stopped distributing                       |
+| **Reconcile** | Compare source and destination and repair missing/different records |
+
+It also persists synchronization state so an interrupted process resumes rather than restarting from scratch, records synchronization statistics, uses structured logging, supports multiple resources such as Property/Member/Media, and separates provider-specific configuration from destination processing.
+
+That separation is extremely relevant to Mallan.
+
+### They also thought about schema changes
+
+Their MySQL adapter can synchronize destination table structure when provider metadata adds or removes fields. Their configuration explicitly describes this as useful when fields are added or removed over time.
+
+Their configuration also separates:
+
+```text
+metadata endpoint
+resource endpoint
+replication endpoint
+provider adapter
+resource definitions
+transform/mapping
+destination
+```
+
+rather than scattering Trestle assumptions throughout the application. Their Trestle adapter constructs the replication endpoint separately and adds the Trestle replication mode there.
+
+I would **not copy OpenRESync's endpoint strings** because some of that code still references the old CoreLogic hostname. Its architecture is useful; Cotality's current API is the authority.
+
+---
+
+# 2. More importantly: Cotality itself tells developers how to do this
+
+Cotality's current documentation isn't just API syntax. Its **Growing to Scale** guidance describes the lifecycle that a serious integration should implement.
+
+Cotality describes three major replication phases:
+
+**initial load → incremental updates → reconciliation**, and explicitly tells developers to be prepared for **mass updates originating from source systems**. ([trestle-documentation.corelogic.com][1])
+
+That maps almost perfectly to the architecture Mallan has been struggling toward.
+
+### Incremental changes
+
+For Property, Cotality tells integrations to use `ModificationTimestamp`.
+
+But here is the important part:
+
+**`ModificationTimestamp` may change because either the MLS changed the listing OR because Cotality changed mappings/enumerations.**
+
+That means Cotality already designed the feed so mapping/data changes can propagate through the normal incremental mechanism. ([trestle-documentation.corelogic.com][1])
+
+For Media, the guidance is different: use `PhotosChangeTimestamp`, and when it changes, retrieve the listing's media again. ([trestle-documentation.corelogic.com][1])
+
+That validates something Mallan discovered the hard way: **Property and Media are different source clocks. They should not share one timestamp cursor.**
+
+### Never use your own clock
+
+Cotality recommends saving the latest modification timestamp **received from Trestle**, rather than using the application's current time.
+
+That avoids clock skew and lost updates. ([Trestle Documentation][1])
+
+Mallan's earlier work around getting rid of wall-clock cursor writes was therefore moving toward exactly the right production pattern.
+
+---
+
+# 3. Incremental sync alone is explicitly NOT sufficient
+
+This is critical.
+
+Cotality says incremental updates will not tell you that a record:
+
+* disappeared;
+* is no longer distributed to you;
+* otherwise fell outside your authorized dataset.
+
+Their solution is **reconciliation**: periodically retrieve the complete set of keys and compare it with your local state. ([Trestle Documentation][1])
+
+This gives Mallan the proper model:
+
+```text
+Continuous:
+ModificationTimestamp
+        ↓
+new / changed Property
+
+PhotosChangeTimestamp
+        ↓
+changed Media
+
+
+Periodic:
+complete provider key inventory
+        ↓
+compare against Mallan
+        ↓
+missing / stale / unauthorized / removed
+        ↓
+reconcile
+```
+
+That is much safer than assuming that the last successful sync means Mallan remains identical to Cotality.
+
+---
+
+# 4. Cotality has a specific large-dataset mechanism
+
+Trestle supports its `Replication=true` extension for large replication jobs and normal OData continuation through `@odata.nextLink`.
+
+Its API documentation distinguishes ordinary `$top/$skip` querying from replication workflows intended for large datasets. ([Trestle Documentation][2])
+
+Cotality also documents quota headers and `429` behavior. Their scaling guidance recommends throttling and exponential retry/backoff rather than hammering the service after a limit is reached. ([Trestle Documentation][3])
+
+So the permanent client needs:
+
+```text
+nextLink traversal
++ checkpoint
++ bounded retries
++ Retry-After
++ exponential backoff
++ 401 token renewal
++ safe resume
++ completeness proof
+```
+
+Not dozens of separate fetch helpers.
+
+And this is particularly interesting because **the stranded Mallan `live-client.mjs` already implements much of this.**
+
+---
+
+# 5. Cotality expects its schema to change
+
+This is where the answer becomes especially relevant to your question.
+
+Cotality publishes ongoing **Content Patches** covering:
+
+```text
+new fields
+removed fields
+changed fields
+new lookup values
+removed lookup values
+new resources
+mapping changes
+```
+
+The public documentation currently shows this continuing through 2026. For example, the documentation index reports **Content Patch #193 dated July 28, 2026**, while earlier 2026 patches contain field additions, field changes, resource additions, lookup additions and removals. ([Trestle Documentation][4])
+
+This means **hardcoding today's Cotality contract as permanent is architecturally wrong**.
+
+The right system must expect this:
+
+```text
+TODAY
+
+Property
+  FieldA
+  FieldB
+  Lookup X = A,B,C
+
+              ↓ Cotality Content Patch
+
+TOMORROW
+
+Property
+  FieldA
+  FieldB changed
+  FieldC added
+  Lookup X = A,B,C,D
+```
+
+without automatically breaking Search.
+
+---
+
+# 6. Cotality provides the machinery to discover these changes
+
+Trestle exposes not just `Property`.
+
+Its developer surface includes the live service metadata and resources such as:
+
+```text
+$metadata
+Field
+Lookup
+Model
+DataSystem
+Property
+Media
+Member
+Office
+OpenHouse
+...
+```
+
+Cotality also exposes individual resource metadata documentation. For Property, for example, its metadata identifies `ListingKey` as the primary key and identifies fields usable in its large key-index queries, including `ModificationTimestamp`, `PhotosChangeTimestamp`, `PostalCode` and `StandardStatus`. ([Cotality][5])
+
+So instead of storing a giant static Cotality spreadsheet as the application's truth:
+
+```text
+Cotality live
+     ↓
+$metadata
+Field
+Lookup
+Service document
+     ↓
+contract compiler
+```
+
+can continuously describe what the account is actually authorized to see.
+
+That is exactly what Mallan should do.
+
+---
+
+# 7. The architecture I would use for Mallan is now clearer
+
+The provider side should become:
+
+```text
+                         COTALITY
+                            │
+       ┌────────────────────┼────────────────────┐
+       │                    │                    │
+   $metadata              Field                Lookup
+       │                    │                    │
+       └────────────────────┼────────────────────┘
+                            │
+                  LIVE CONTRACT READER
+                            │
+                            ▼
+                    CONTRACT FINGERPRINT
+                            │
+                     compare previous
+                            │
+          ┌─────────────────┼──────────────────┐
+          │                 │                  │
+       ADDITIVE          SEMANTIC           BREAKING
+          │                 │                  │
+      record it       needs mapping       block capability
+          │             decision             / alert
+          └─────────────────┼──────────────────┘
+                            ▼
+                    VERIFIED MAPPING
+                     FIELD_REGISTRY
+                            │
+                            ▼
+                     MALLAN STORAGE
+                            │
+                            ▼
+                    BUSINESS RULES
+                            │
+                            ▼
+                   Search / CMA / CRM
+```
+
+The extremely important distinction is:
+
+### Structural changes can be automatic.
+
+A new field appears? Detect it automatically.
+
+A new lookup member appears? Detect it automatically.
+
+A resource disappears? Detect it immediately.
+
+A field changes from string to enum? Block affected assumptions.
+
+### Semantic decisions must NOT be automatic.
+
+If Cotality suddenly adds:
+
+```text
+BuildingFeatures = "VirtualDoorman"
+```
+
+Mallan must **not automatically decide**:
+
+```text
+VirtualDoorman == Doorman
+```
+
+Detection is automatic.
+
+Meaning is governed.
+
+That separation is what gives you both adaptability **and correctness**.
+
+---
+
+# 8. Updates should therefore become uneventful
+
+A normal Cotality content patch should produce something like:
+
+```text
+COTALITY CONTRACT CHANGE
+2026-XX-XX
+
+Added fields:       4
+Removed fields:     0
+Changed types:      0
+Added lookups:      17
+Removed lookups:    0
+
+Mallan-used facts affected: 0
+Search affected:           0
+CMA affected:              0
+Listing forms affected:    0
+Compliance affected:       0
+
+Result:
+SAFE ADDITIVE PROVIDER CHANGE
+No Mallan application modification required.
+```
+
+If something Mallan actually consumes changes:
+
+```text
+COTALITY CONTRACT CHANGE
+
+Removed:
+Property.SomeField
+
+Mallan dependencies:
+FIELD_REGISTRY criterion: ...
+Sale Search: YES
+Rental Search: NO
+Saved Search: YES
+CMA: YES
+
+Result:
+BREAKING PROVIDER CONTRACT CHANGE
+Affected capabilities disabled / UNVERIFIED.
+Human correction required.
+```
+
+That is what I would call **seamless**.
+
+Not silently swallowing changes.
+
+Automatically containing them.
+
+---
+
+# 9. This changes how I read Claude's “stranded component” finding
+
+Claude found a very important problem, but I would sharpen one part of the conclusion.
+
+I checked GitHub now. I **cannot currently find the remote branch named**:
+
+`fix/backend-agent-search-geography-2026-08-24`
+
+among the current remote branch inventory. So I would not yet describe that exact branch as a current GitHub branch without reconciling Claude's local refs/history.
+
+But the larger finding is absolutely real.
+
+I independently found `scripts/cotality/live-client.mjs` on:
+
+**`fix/neon-p0-event-driven-wake-2026-08-16`**
+
+and its design is extremely close to what a mature Cotality integration should look like.
+
+Its header explicitly says:
+
+* one read-only acquisition path;
+* common authentication;
+* common pagination;
+* common retry behavior;
+* no snapshot fallback;
+* inability to read Cotality = `UNVERIFIED`.
+
+And the implementation does much more:
+
+```text
+metadata parsing
+field types
+nullable
+maxLength
+precision
+enum detection
+navigation relationships
+entity sets
+
+401 token refresh
+429 handling
+5xx retry
+Retry-After
+
+@odata.nextLink traversal
+pagination completeness
+
+Field catalog
+Lookup catalog
+Model catalog
+DataSystem
+
+select probe
+filter probe
+orderby probe
+operator probe
+```
+
+**That is not disposable prototype code.**
+
+It is the beginning of precisely the Cotality contract adapter Mallan needs.
+
+---
+
+# 10. So I would NOT tell Claude to build the Cotality layer again
+
+This is the biggest correction to my previous recommendation.
+
+Before Claude builds another capability-contract system, I would first perform a **read-only Cotality/Search recovery matrix**.
+
+It should compare the exact current heads of:
+
+| Source                                                                                      | Purpose                                                           |
+| ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `main @ 2a83952a...`                                                                        | production Git baseline                                           |
+| `search/browser-integration-2026-09-05 @ b49a30c...`                                        | current Search convergence lane                                   |
+| `fix/neon-p0-event-driven-wake-2026-08-16 @ d19c03c...`                                     | branch where verified Cotality/Search components definitely exist |
+| Claude's local `fix/backend-agent-search-geography-2026-08-24`, if it really exists locally | recover anything not GitHub-visible                               |
+| PR #618 ancestry                                                                            | determine which Search work is already represented                |
+
+Then classify every useful component:
+
+```text
+KEEP EXACTLY
+KEEP + ADAPT
+SUPERSEDED
+DUPLICATE
+STALE
+WRONG
+UNPROVEN
+MISSING
+```
+
+**No merge. No cherry-pick. No code change yet.**
+
+That should happen before another Search implementation step.
+
+---
+
+# 11. There is also a human source worth using: the Trestle developer community
+
+Cotality's developer documentation explicitly points developers to **Trestle Support** and says access to a Trestle Support **Slack channel** is available through support. ([Trestle Documentation][4])
+
+That is probably worth pursuing.
+
+Because the public documentation tells us the API contract, but Slack/support may contain years of accumulated integrator experience around:
+
+* mass-update events;
+* unusual replication behavior;
+* MLS-specific restrictions;
+* field/lookup transitions;
+* rate limiting;
+* synchronization strategies;
+* Content Patch migration issues.
+
+I would treat anything learned there as engineering guidance—not as Mallan's field truth until confirmed against your authorized live feed.
+
+---
+
+# The strongest model I now recommend
+
+After looking at how Cotality tells developers to operate and how OpenRESync solved it in production, I would refine Mallan's architecture to:
+
+```text
+COTALITY LIVE CONTRACT
+    │
+    ├── $metadata
+    ├── Field
+    ├── Lookup
+    ├── service/resources
+    └── Content Patch monitoring
+              │
+              ▼
+     CONTRACT WATCHER / DIFF
+              │
+              ▼
+       VERIFIED MAPPING
+        FIELD_REGISTRY
+              │
+              ▼
+────────────────────────────────────
+DATA CONTINUITY
+────────────────────────────────────
+              │
+     initial replication
+              │
+     incremental Property
+      ModificationTimestamp
+              │
+     incremental Media
+      PhotosChangeTimestamp
+              │
+       periodic key census
+              │
+        reconciliation
+              │
+              ▼
+        MALLAN STORAGE
+              │
+              ▼
+       BUSINESS RULES
+              │
+    ┌─────────┼──────────┐
+    ▼         ▼          ▼
+ Search     CMA        CRM
+```
+
+And **then** place the Mallan Closure system around it.
+
+That is considerably stronger than trying to make Search itself responsible for understanding provider changes.
+
+### Bottom line
+
+**Yes, there is established developer precedent.** OpenRESync is the most useful production example I found, and Cotality's own documentation describes essentially the same sync/reconciliation lifecycle. The parts Claude found stranded in Mallan are not random—they are already moving in this established direction.
+
+The problem now is much more specific:
+
+> **Mallan has already built significant pieces of the right Cotality architecture, but they have not been converged into one durable, current branch and made the mandatory provider boundary for the rest of the platform.**
+
+I would therefore make the **read-only recovery/convergence matrix the immediate next step**, before Claude writes any more Search/Cotality foundation code. After that matrix, we can tell Claude exactly which existing pieces become the permanent Cotality adapter and which stranded pieces should never be revived.
+
+[1]: https://trestle-documentation.corelogic.com/web-api/at-scale/ "https://trestle-documentation.corelogic.com/web-api/at-scale/"
+[2]: https://trestle-documentation.corelogic.com/web-api/reference/ "https://trestle-documentation.corelogic.com/web-api/reference/"
+[3]: https://trestle-documentation.corelogic.com/web-api/ "https://trestle-documentation.corelogic.com/web-api/"
+[4]: https://trestle-documentation.corelogic.com/index.html "https://trestle-documentation.corelogic.com/index.html"
+[5]: https://api.cotality.com/trestle/Documentation/MetaData/Resource/Property "https://api.cotality.com/trestle/Documentation/MetaData/Resource/Property"

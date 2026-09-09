@@ -48,8 +48,18 @@ import { contractSignedDate } from '@/lib/compliance/dom-tracker';
  * the provider delivered no verified reason. The provider status column is NOT rewritten.
  */
 export const OFF_FEED_SYNC_STATUS = 'off_feed' as const;
-/** Broker-facing Mallan display state for an off-feed listing (Maya's terminology). Not a status, not a provider value. */
-export const OFF_MARKET_LABEL = 'Off Market' as const;
+/**
+ * Broker-facing Mallan display state for an off-feed listing (Maya's terminology). Not a status, not a provider value.
+ *
+ * The reason is named as UNKNOWN in the label itself, by owner ruling 2026-09-09: *"A disappeared listing must
+ * display `Off Market — reason unknown`."* Disappearance from the licensed feed carries no reason — the feed never
+ * delivers Withdrawn / Expired / Canceled / Hold on this entitlement (whole-corpus census 2026-09-08), and
+ * `terminal_since` is only the day Mallan DETECTED the absence. Labelling it "Off Market" alone invited the reader
+ * to supply a reason that no evidence supports; that inference is exactly what produced 6,949 wrongly-Withdrawn
+ * rows. A departure with a PROVEN reason (a provider status, or a Mallan agent's own Withdrawn / Expired /
+ * Canceled with its date) never reaches this stage and keeps its own label.
+ */
+export const OFF_MARKET_LABEL = 'Off Market — reason unknown' as const;
 /** Is the row on the current feed? `unknown` when the stored row carries no usable sync_status (e.g. a Mallan-authored draft). */
 export type FeedPresence = 'on_feed' | 'off_feed' | 'unknown';
 
