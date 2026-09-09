@@ -396,8 +396,11 @@
         }).catch(function () { /* not logged in */ });
 
         // ── Redirect target ──
-        // Always redirect to /crm/dashboard. The server-authenticated portalRole
-        // drives portal initialization in app.js — no hash needed.
+        // Sign-in lands on /crm, which serves the CANONICAL CRM (public/crm/index-built.html):
+        // Property Search, Building search, Comparables, Manage Listings, Open Houses.
+        // It used to land on /crm/dashboard, the duplicate "CRM v2" shell introduced by 9716752d,
+        // which contains no Property Search at all — the reason the owner reported having no search
+        // on 2026-09-09 while the canonical app was deployed and healthy the entire time.
         function getRedirectTarget() {
             var params = new URLSearchParams(window.location.search);
             var explicit = params.get('redirect');
@@ -405,7 +408,7 @@
             if (explicit && /^\/(?:crm|admin)(?:\/|$|\?|#)/.test(explicit)) {
                 return explicit;
             }
-            return '/crm/dashboard';
+            return '/crm';
         }
 
         function redirectAfterLogin() {
