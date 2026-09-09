@@ -925,11 +925,25 @@ function cardOHSave(listingId) {
     if (brokerEl && brokerEl.checked) types.push('Broker Only');
     var virtualTour = virtualEl ? virtualEl.checked : false;
     if (types.length === 0 && !virtualTour) { showToast('Please select at least one showing type.', 'warning'); return; }
-    myOpenHouses.push({ id: 'OH-' + ohNextId++, listingId: listingId, types: types, virtualTour: virtualTour, date: date.value, start: start.value, end: end.value, repeat: 'none', link: '', notes: '' });
+    // Through the ONE Open House writer (js/manage/open-houses.js). This used to push straight onto
+    // myOpenHouses and toast "scheduled" without ever contacting the server, so the open house was
+    // gone on reload and REBNY had no record of a showing the agent believed was published.
+    if (typeof saveOpenHouse !== 'function') {
+        manageShowToast('Open house NOT saved - the open-house module is unavailable.', 'error');
+        return;
+    }
     var displayTypes = types.map(function(t) { if (t === 'Public') return 'Open House'; if (t === 'By Appointment') return 'Open House By Appointment Only'; if (t === 'Broker Only') return 'Broker Open House'; return t; });
     if (virtualTour) displayTypes.push('Virtual Tour');
-    manageShowToast(displayTypes.join(', ') + ' scheduled for ' + listing.address + ' ' + listing.unit);
-    renderManageSection(currentManageMode);
+    saveOpenHouse({
+        listingId: listingId, date: date.value, start: start.value, end: end.value,
+        types: types, virtualTour: virtualTour, repeat: 'none', link: '',
+    }).then(function () {
+        manageShowToast(displayTypes.join(', ') + ' scheduled for ' + listing.address + ' ' + listing.unit);
+        renderManageSection(currentManageMode);
+    }).catch(function (err) {
+        if (typeof console !== 'undefined') console.error('[OpenHouses] cardOHSave failed:', err);
+        manageShowToast('Open house NOT saved to the server - ' + (err && err.message ? err.message : 'please try again'), 'error');
+    });
 }
 
 function cardDeleteOH(ohId, listingId) {
