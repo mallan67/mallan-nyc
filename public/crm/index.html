@@ -92,6 +92,11 @@ function toggleSection(header) {
      handler to it instead of registering a second listener. Brokerage panels migrating out of the
      retired dashboard shell register here too, so the CRM never runs two routers over one address bar. -->
 <script src="js/core/crm-routing.js"></script>
+<!-- Calculation core: pure functions, no DOM. The same objects a CMA, a net-sheet or a buy-vs-rent
+     report renders, so those never grow a second engine. The UI is one generic renderer over the
+     contract, and registers /tools/* on CrmRouting - it installs no listener of its own. -->
+<script src="js/calc/transaction-costs.js"></script>
+<script src="js/calc/calculator-ui.js"></script>
 <script src="js/core/api-client.js"></script>
 <script src="js/core/agent-context.js"></script>
 <script src="js/core/email-service.js"></script>

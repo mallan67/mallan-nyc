@@ -203,7 +203,15 @@ describe('navigation helpers keep both namespaces addressable', () => {
     await t.go('#results');
     await t.go('#/ops/tasks');
     t.win.history.back();
-    await new Promise((r) => setTimeout(r, 20));
+
+    // Wait for the navigation to actually be PROCESSED, not for a fixed number of milliseconds.
+    // A fixed wait is fine alone and insufficient when ~60 suites compete for CPU - which is exactly
+    // the flake this repo just fixed in crm-designation-no-fabrication. Poll, bounded, so a genuinely
+    // broken back-navigation still fails fast rather than hanging.
+    for (let i = 0; i < 200 && t.searchCalls().length < 2; i++) {
+      await new Promise((r) => setTimeout(r, 5));
+    }
+
     expect(t.searchCalls()).toEqual(['results', 'results']);
     expect(t.panelCalls()).toEqual(['/ops/tasks']);
     t.close();
