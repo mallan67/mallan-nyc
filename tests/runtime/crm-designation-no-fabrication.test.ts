@@ -89,8 +89,6 @@ const PANELS = P('js/dashboard/panels.js');
 const PANELS_UTILS = P('js/dashboard/utils.js');
 const PANELS_UI = P('js/dashboard/ui-components.js');
 const REPORT_PREVIEW = P('html/modals/report-preview.html');
-const SALE_FORM = P('SALE-FORM-WITH-TOOLS.html');
-const RENTAL_FORM = P('RENTAL-FORM-WITH-TOOLS.html');
 
 const src = (f: string) => readFileSync(f, 'utf8');
 
@@ -838,56 +836,22 @@ describe('the static CRM surfaces assert no designation of their own', () => {
     expect(ALL_DESIGNATIONS).not.toContain((el as RegExpExecArray)[1].trim());
   });
 
-  it('the sale and rental tool forms print no designation for the updating agent', () => {
-    for (const f of [SALE_FORM, RENTAL_FORM]) {
-      const live = stripComments(src(f));
-      for (const d of ALL_DESIGNATIONS) {
-        // The BROKERAGE's own designation ("Licensed Real Estate Brokerage")
-        // is a different fact and is untouched — it is not in this list.
-        expect(live).not.toContain('>' + d + '<');
-        expect(live).not.toContain("'" + d + "'");
-        expect(live).not.toContain('"' + d + '"');
-      }
-    }
-  });
+  // ── THREE TESTS REMOVED 2026-09-09, WITH THEIR SUBJECT ────────────────────────────────────
+  // They asserted against SALE-FORM-WITH-TOOLS.html / RENTAL-FORM-WITH-TOOLS.html and their
+  // buildSaleEmailCardHTML / buildRentalEmailCardHTML email-card builders. Those files were
+  // DELETED: they were stale forks of the REDESIGN forms (92% / 96% identical field ids) that had
+  // diverged into carrying wrong NY mansion-tax bands, an undisclosed 6% commission assumption
+  // rendered as "Sell Now Net", an unreviewed shorter IDX disclaimer, and attribution fields the
+  // canonical forms had deliberately removed.
+  //
+  // The email-card builders existed ONLY in those forks and were not migrated - the migration audit
+  // found the card hardcodes the brokerage line and prints a free-text form field as the agent's
+  // name, with no licence-class line (NY DOS 19 NYCRR 175.25). If an email card is rebuilt inside a
+  // canonical form, restore an equivalent executable assertion here against the new builder.
+  //
+  // The designation authority itself is unchanged and still proven above against panels.js,
+  // utils.js, ui-components.js and report-preview.html.
 
-  it('and the email card they BUILD renders the name straight into the brokerage line', () => {
-    // Executable, not source-grep: these two builders were the surfaces that
-    // actually printed the fabricated line into an outbound email, so the
-    // proof is the rendered fragment, not the absence of a literal.
-    const cases: Array<[string, string]> = [
-      [SALE_FORM, 'buildSaleEmailCardHTML'],
-      [RENTAL_FORM, 'buildRentalEmailCardHTML'],
-    ];
-    for (const [file, fnName] of cases) {
-      const body = extractFunction(src(file), fnName);
-      expect(body).not.toBeNull();
-      const build = new Function(
-        'getListingPhotoUrls',
-        'fmtMoney',
-        `${body}; return ${fnName};`,
-      )(() => [], (v: unknown) => String(v)) as (d: Record<string, unknown>) => string;
-
-      const rendered = build({
-        updatingAgent: 'Unknown Class',
-        streetAddress: '400 East 90th Street',
-        neighborhood: 'Yorkville',
-        price: '1250000',
-      });
-      expectNoDesignation(rendered, `${path.basename(file)} ${fnName}()`);
-      // The agent's name is still there — this removed a false claim, not the
-      // attribution itself.
-      expect(rendered).toContain('Unknown Class');
-      expect(rendered).toContain('Mallan Real Estate Inc.');
-    }
-  });
-
-  it('but the BROKERAGE designation is left intact — it is not an individual licence', () => {
-    // Guard against over-correction: Mallan Real Estate Inc. IS a licensed
-    // real estate brokerage, and saying so is required, not fabricated.
-    expect(src(SALE_FORM)).toContain('Licensed Real Estate Brokerage');
-    expect(src(RENTAL_FORM)).toContain('Licensed Real Estate Brokerage');
-  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════

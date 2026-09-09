@@ -82,7 +82,8 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   });
 
   // Phase D step 3 safety net (Codex #429 P2): the reachable WITH-TOOLS viewers
-  // (/crm/sale-view → SALE-FORM-WITH-TOOLS.html, /crm/rental-view → RENTAL-FORM-WITH-TOOLS.html)
+  // (the sale/rental viewer forks were deleted 2026-09-09; the canonical editors are
+  //  /crm/sale-listing -> SALE-FORM-REDESIGN.html and /crm/rental-listing -> RENTAL-FORM-REDESIGN.html)
   // hydrate listing agent/company attribution TYPED-FIRST now that `agent_info` is gone from the
   // Prisma client. These typed columns already flow through the no-select findUnique +
   // sanitizeForCRM spread above; pin them explicitly so a future `select` narrowing on

@@ -58,9 +58,6 @@ const FORM_FILES = [
   // Submission forms
   'public/crm/SALE-FORM-REDESIGN.html',
   'public/crm/RENTAL-FORM-REDESIGN.html',
-  // Read-only viewer forms (should mirror submission bindings)
-  'public/crm/SALE-FORM-WITH-TOOLS.html',
-  'public/crm/RENTAL-FORM-WITH-TOOLS.html',
   // Search forms (basic + advanced + buildings) — currently unbound
   'public/crm/html/search-form-and-results.html',
   // Other CRM pages with form inputs

@@ -30,7 +30,7 @@
  * person makes, in review, on purpose.
  */
 export {};
-import { readdirSync, readFileSync } from 'fs';
+import { existsSync, readdirSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 
 const ROOT = resolve(__dirname, '../..');
@@ -56,19 +56,13 @@ const PAGES: Record<string, 'application-shell' | 'generated' | 'standalone-form
   'BUYER-DEAL-FORM.html': 'standalone-form',
   'TENANT-DEAL-FORM.html': 'standalone-form',
 
-  // COPIES of the two forms above, not separate features. Measured 2026-09-09:
-  //   SALE-FORM-WITH-TOOLS   shares 545 of 594 field ids with SALE-FORM-REDESIGN   (92%)
-  //   RENTAL-FORM-WITH-TOOLS shares 605 of 629 field ids with RENTAL-FORM-REDESIGN (96%)
-  // They diverge in behaviour, which is exactly the damage duplication does: the draft-loss fix
-  // (cd4f8aec - a refused save is no longer called a save) landed in the REDESIGN copies only, so
-  // mallan_unsent_sale / "NOT SAVED" appear there and are absent from the WITH-TOOLS copies, which
-  // still lose drafts silently. Both are published (/crm/sale-listing vs /crm/sale-view), and each CRM
-  // shell opens a different one - so which behaviour an operator got depended on which CRM they came
-  // from. Owner report: "one when i save draft fields do not survive the save ... in the second one
-  // when i saved draft or updated when i went back in everything was saved. so i do not know what is
-  // happening."
-  'SALE-FORM-WITH-TOOLS.html': 'retired',
-  'RENTAL-FORM-WITH-TOOLS.html': 'retired',
+  // SALE-FORM-WITH-TOOLS.html and RENTAL-FORM-WITH-TOOLS.html were DELETED 2026-09-09.
+  // They were stale FORKS of the two forms above, not separate products - 545/594 (92%) and
+  // 605/629 (96%) identical field ids - which had diverged into carrying wrong NY mansion-tax
+  // bands (understating a $3.5M buyer's liability by $8,750), an undisclosed 6% commission
+  // assumption rendered as "Sell Now Net", an unreviewed shorter IDX disclaimer competing with
+  // the reviewed one, and attribution fields the canonical forms had deliberately removed.
+  // Git history is the archive. They must never come back: see the suite below.
 
   'login.html': 'auth',
   'dev.html': 'dev-only',
@@ -159,25 +153,33 @@ describe('the retired shell may only shrink', () => {
 
 describe('there is exactly one Sale editor and one Rental editor', () => {
   const vercel = JSON.parse(read('vercel.json')) as { rewrites: { source: string; destination: string }[] };
+  const FORKS = ['SALE-FORM-WITH-TOOLS.html', 'RENTAL-FORM-WITH-TOOLS.html'];
 
-  it('no URL reaches the stale WITH-TOOLS fork', () => {
-    const reachable = vercel.rewrites.filter((r) => /FORM-WITH-TOOLS\.html$/.test(r.destination));
+  it('the forked forms are GONE from the tree, not merely unrouted', () => {
+    // Routing around a duplicate leaves it for the next agent to find and revive. Deletion does not.
+    const present = FORKS.filter((f) => existsSync(resolve(CRM, f)));
     expect({
-      reachable: reachable.map((r) => `${r.source} -> ${r.destination}`),
-      why: 'The WITH-TOOLS forms are a stale fork: they lack the draft-retention fix and the REBNY/RLS compliance fields. Their unique tools are being migrated into the REDESIGN forms; until then no route may serve them.',
-    }).toEqual({ reachable: [], why: expect.any(String) });
+      present,
+      why: 'These are deleted stale forks. Do not restore them. Rebuild any wanted tool inside the canonical form, from verified requirements - the fork versions carry wrong NY tax math and an undisclosed commission assumption.',
+    }).toEqual({ present: [], why: expect.any(String) });
   });
 
-  it('every sale form route serves the maintained sale editor', () => {
-    for (const src of ['/crm/sale-listing', '/crm/sale-view']) {
-      expect(vercel.rewrites.find((r) => r.source === src)!.destination).toBe('/crm/SALE-FORM-REDESIGN.html');
+  it('no rewrite mentions a forked form, as a source or a destination', () => {
+    const touching = vercel.rewrites
+      .filter((r) => FORKS.some((f) => r.source.includes(f) || r.destination.includes(f)))
+      .map((r) => `${r.source} -> ${r.destination}`);
+    expect(touching).toEqual([]);
+  });
+
+  it('the viewer routes are gone too', () => {
+    for (const dead of ['/crm/sale-view', '/crm/rental-view']) {
+      expect(vercel.rewrites.find((r) => r.source === dead)).toBeUndefined();
     }
   });
 
-  it('every rental form route serves the maintained rental editor', () => {
-    for (const src of ['/crm/rental-listing', '/crm/rental-view']) {
-      expect(vercel.rewrites.find((r) => r.source === src)!.destination).toBe('/crm/RENTAL-FORM-REDESIGN.html');
-    }
+  it('one route serves the sale editor, one serves the rental editor', () => {
+    expect(vercel.rewrites.find((r) => r.source === '/crm/sale-listing')!.destination).toBe('/crm/SALE-FORM-REDESIGN.html');
+    expect(vercel.rewrites.find((r) => r.source === '/crm/rental-listing')!.destination).toBe('/crm/RENTAL-FORM-REDESIGN.html');
   });
 
   it('sale and rental never collapse into one shared editor', () => {
@@ -186,10 +188,19 @@ describe('there is exactly one Sale editor and one Rental editor', () => {
     expect(sale).not.toBe(rental);
   });
 
-  it('the maintained editors carry the draft-retention fix and the fork does not', () => {
-    // The fork is retained on disk only so its tools can be migrated. This asserts WHY it is retired.
-    expect(read('public/crm/SALE-FORM-REDESIGN.html')).toContain('mallan_unsent_sale');
-    expect(read('public/crm/SALE-FORM-WITH-TOOLS.html')).not.toContain('mallan_unsent_sale');
+  it('no shipped CRM source references a forked form', () => {
+    const offenders: string[] = [];
+    const walk = (dir: string, rel: string) => {
+      for (const e of readdirSync(resolve(CRM, dir), { withFileTypes: true })) {
+        const childRel = rel ? `${rel}/${e.name}` : e.name;
+        if (e.isDirectory()) { walk(`${dir}/${e.name}`, childRel); continue; }
+        if (!/\.(js|html)$/.test(e.name)) continue;
+        const src = readFileSync(resolve(CRM, dir, e.name), 'utf8');
+        if (FORKS.some((f) => src.includes(f)) || src.includes('/crm/sale-view') || src.includes('/crm/rental-view')) offenders.push(childRel);
+      }
+    };
+    walk('.', '');
+    expect(offenders).toEqual([]);
   });
 });
 

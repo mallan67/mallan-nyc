@@ -147,17 +147,18 @@ describe('4. the MCP field tool is live-only', () => {
 });
 
 describe('5. the forms carry the current binding names only', () => {
-  const forms = ['SALE-FORM-REDESIGN.html', 'RENTAL-FORM-REDESIGN.html', 'SALE-FORM-WITH-TOOLS.html', 'RENTAL-FORM-WITH-TOOLS.html', 'html/search-form-and-results.html', 'index-built.html'];
+  // The two WITH-TOOLS forks were deleted 2026-09-09; the canonical forms are the only listing forms.
+  const forms = ['SALE-FORM-REDESIGN.html', 'RENTAL-FORM-REDESIGN.html', 'html/search-form-and-results.html', 'index-built.html'];
   it.each(forms)('public/crm/%s has no data-rls-field / data-rls-ignore', (f) => {
     const html = read(`public/crm/${f}`);
     expect(html.includes('data-rls-field=')).toBe(false);
     expect(html.includes('data-rls-ignore=')).toBe(false);
   });
-  it('the entry forms bind ≥ 150 / ≥ 200 controls with data-cotality-field; the viewers keep data-rls-viewer (pinned by the held workflow)', () => {
+  it('the entry forms bind ≥ 150 / ≥ 200 controls with data-cotality-field', () => {
+    // The viewer assertions went with the WITH-TOOLS forks, deleted 2026-09-09. There are no
+    // viewer surfaces any more: the canonical editors are the only listing forms.
     expect((read('public/crm/SALE-FORM-REDESIGN.html').match(/data-cotality-field="/g) || []).length).toBeGreaterThanOrEqual(150);
     expect((read('public/crm/RENTAL-FORM-REDESIGN.html').match(/data-cotality-field="/g) || []).length).toBeGreaterThanOrEqual(200);
-    expect(read('public/crm/SALE-FORM-WITH-TOOLS.html')).toContain('data-rls-viewer="true"');
-    expect(read('.github/workflows/crm-validate.yml')).toContain('data-rls-viewer="true"');
   });
   it('the validator refuses the legacy spelling', () => {
     expect(read('scripts/validate-rls-compliance.js')).toMatch(/legacy "\$\{legacy\.slice\(0, -1\)\}" attribute/);

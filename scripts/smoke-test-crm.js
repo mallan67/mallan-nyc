@@ -59,18 +59,6 @@ const HTML_FILES = {
     ],
     mustContain: ['data-cotality-field', 'Fair Housing'],
   },
-  'SALE-FORM-WITH-TOOLS.html': {
-    role: 'Sale Listing Viewer',
-    requiredIds: [],
-    gateIds: [],
-    mustContain: ['data-rls-viewer', 'readonly'],
-  },
-  'RENTAL-FORM-WITH-TOOLS.html': {
-    role: 'Rental Listing Viewer',
-    requiredIds: [],
-    gateIds: [],
-    mustContain: ['data-rls-viewer', 'readonly'],
-  },
   'index-built.html': {
     role: 'IDX Search',
     requiredIds: [

@@ -9,7 +9,7 @@
  * lib/listings/mallan-form-contract.ts and lib/compliance/legacy-form-keys.ts).
  */
 import { existsSync, readFileSync } from 'fs';
-import { join } from 'path';
+import { basename, join } from 'path';
 import { parse } from 'node-html-parser';
 
 const ROOT = join(__dirname, '../..');
@@ -104,15 +104,16 @@ describe('Mallan UI configuration stays configuration', () => {
   it('mallan-form-ui-only-ids.json has 400+ UI-control ids', () => {
     expect(reporter.INTERNAL_ONLY_IDS.size).toBeGreaterThanOrEqual(400);
   });
-  it('viewer surfaces are viewers; submission surfaces are not', () => {
-    const cats = Object.fromEntries(Object.values(reporter.FILE_CONFIG).map((c) => [c.path.split(/[\\/]/).pop(), c.category]));
-    expect(cats['SALE-FORM-WITH-TOOLS.html']).toBe('viewer');
-    expect(cats['RENTAL-FORM-WITH-TOOLS.html']).toBe('viewer');
+  it('there are no viewer surfaces left - the submission forms are the only listing forms', () => {
+    // The read-only viewer forks were DELETED 2026-09-09: stale copies of the submission forms
+    // (92% / 96% identical field ids) that had diverged into wrong NY mansion-tax bands, an
+    // undisclosed 6% commission assumption, and attribution fields the canonical forms had
+    // deliberately removed. The reporter must not carry a category with no file behind it.
+    const cats = Object.fromEntries(Object.values(reporter.FILE_CONFIG).map((c) => [basename(String(c.path)), c.category]));
     expect(cats['SALE-FORM-REDESIGN.html']).toBe('submission');
     expect(cats['RENTAL-FORM-REDESIGN.html']).toBe('submission');
-    for (const v of ['SALE-FORM-WITH-TOOLS.html', 'RENTAL-FORM-WITH-TOOLS.html']) {
-      expect(readFileSync(join(ROOT, 'public/crm', v), 'utf8')).toContain('data-rls-viewer="true"');
-    }
+    expect(Object.values(cats)).not.toContain('viewer');
+    expect(Object.keys(cats).filter((f) => String(f).includes('WITH-TOOLS'))).toEqual([]);
   });
   it('both submission forms carry bound controls at the expected scale', () => {
     const sale = readFileSync(join(ROOT, 'public/crm/SALE-FORM-REDESIGN.html'), 'utf8');

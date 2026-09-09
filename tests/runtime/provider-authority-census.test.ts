@@ -196,7 +196,7 @@ describe("the SERVER owns the Mallan form → Cotality vocabulary conversion (no
     expect(read("public/crm/index-built.html")).not.toMatch(/CRM_TO_RESO_STATUS|function getResoMlsStatus|function getResoPropertyFields/);
   });
   it("the forms never assign provider-vocabulary status / type fields into the payload", () => {
-    const forms = ["public/crm/SALE-FORM-REDESIGN.html", "public/crm/RENTAL-FORM-REDESIGN.html", "public/crm/SALE-FORM-WITH-TOOLS.html", "public/crm/RENTAL-FORM-WITH-TOOLS.html"];
+    const forms = ["public/crm/SALE-FORM-REDESIGN.html", "public/crm/RENTAL-FORM-REDESIGN.html"];
     expect(offenders(forms, /data\.(MlsStatus|StandardStatus|PropertyType|PropertySubType|CommonInterest)\s*=/)).toEqual([]);
   });
   it("the CRM create / update / status routes derive and validate through lib/crm/listing-form-mapping.ts", () => {

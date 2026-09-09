@@ -67,8 +67,6 @@ for (const [id, target] of Object.entries(RAW_ALIASES)) {
 const FILE_CONFIG = {
   saleForm:     { path: path.join(CRM, 'SALE-FORM-REDESIGN.html'),     category: 'submission', type: 'sale' },
   rentalForm:   { path: path.join(CRM, 'RENTAL-FORM-REDESIGN.html'),   category: 'submission', type: 'rental' },
-  saleViewer:   { path: path.join(CRM, 'SALE-FORM-WITH-TOOLS.html'),   category: 'viewer' },
-  rentalViewer: { path: path.join(CRM, 'RENTAL-FORM-WITH-TOOLS.html'), category: 'viewer' },
   search:       { path: path.join(CRM, 'index-built.html'),            category: 'search' },
 };
 const EXTRA_FILES = {
@@ -573,9 +571,23 @@ function validateRoleMasking(fileElements) {
   const viewerChecks = [
     { key: 'saleViewer',   maskFn: 'applySaleRoleMasking',   defaultRole: 'buyer' },
     { key: 'rentalViewer', maskFn: 'applyRentalRoleMasking', defaultRole: 'tenant' },
-  ];
+  ].filter(({ key }) => fileElements[key]);
+
+  // There are no viewer surfaces any more: SALE/RENTAL-FORM-WITH-TOOLS.html were DELETED 2026-09-09
+  // as stale forks. Say so out loud rather than passing silently on an empty loop — a section that
+  // reports PASS while checking nothing is worse than no section at all. This is NOT a dropped
+  // protection: agent-PII masking for buyer/tenant/seller/landlord portals is enforced SERVER-SIDE
+  // by the DTO tiers (lib/compliance/dto.ts sanitizeForPortal), never by a browser form. If a viewer
+  // surface is ever added back, register it in FILE_CONFIG with category 'viewer' and these checks
+  // arm themselves again automatically.
+  if (viewerChecks.length === 0) {
+    console.log('    no viewer surfaces configured — the WITH-TOOLS forks were deleted 2026-09-09;');
+    console.log('    portal PII masking is enforced server-side by the DTO tiers, not by a form.');
+    return;
+  }
+
   for (const { key, maskFn, defaultRole } of viewerChecks) {
-    const data = fileElements[key]; if (!data) { error(8, `Cannot load ${key}`); continue; }
+    const data = fileElements[key];
     const { raw, fname } = data;
     if (!raw.includes(`function ${maskFn}`)) error(8, `${fname}: ${maskFn}() function NOT FOUND`);
     if (!raw.includes('VIEWER_VALID_ROLES')) error(8, `${fname}: VIEWER_VALID_ROLES not found`);
@@ -617,8 +629,13 @@ function validateCanonicalCoverage(fileElements) {
 // ═══════════════════════════════════════════════════════════════════════════
 function validateViewerLockdown(fileElements) {
   console.log('\n  Section 10: Viewer lockdown ...');
-  for (const data of Object.values(fileElements)) {
-    if (data.config.category !== 'viewer') continue;
+  const viewers = Object.values(fileElements).filter((d) => d.config.category === 'viewer');
+  if (viewers.length === 0) {
+    // Explicit, not silent: an empty loop that prints PASS is coverage that proves nothing.
+    console.log('    no viewer surfaces configured — nothing to lock down (forks deleted 2026-09-09).');
+    return;
+  }
+  for (const data of viewers) {
     const { raw, fname } = data;
     if (!raw.includes('data-rls-viewer="true"')) error(10, `${fname}: <body> missing data-rls-viewer="true" attribute`);
     const formActions = raw.match(/<form[^>]*action=["'][^"']*["'][^>]*>/gi);

@@ -396,11 +396,11 @@ function lost(before: Rec, after: Rec, keys: Set<string>): string[] {
   return out;
 }
 
-interface FormSpec { file: string; tools: string; viewerLoad: string; prefix: 'sale' | 'rental'; collect: string; populate: string; listingType: 'rent' | 'sale'; before?: (win: unknown) => void; after?: (win: unknown) => void }
+interface FormSpec { file: string; prefix: 'sale' | 'rental'; collect: string; populate: string; listingType: 'rent' | 'sale'; before?: (win: unknown) => void; after?: (win: unknown) => void }
 const FORMS: FormSpec[] = [
-  { file: 'RENTAL-FORM-REDESIGN.html', tools: 'RENTAL-FORM-WITH-TOOLS.html', viewerLoad: 'loadRentalListingData', prefix: 'rental', collect: 'collectRentalFormData', populate: '_populateRentalFormFromApi', listingType: 'rent' },
+  { file: 'RENTAL-FORM-REDESIGN.html', prefix: 'rental', collect: 'collectRentalFormData', populate: '_populateRentalFormFromApi', listingType: 'rent' },
   {
-    file: 'SALE-FORM-REDESIGN.html', tools: 'SALE-FORM-WITH-TOOLS.html', viewerLoad: 'loadSaleListingData', prefix: 'sale', collect: 'collectSaleFormData', populate: '_populateSaleFormFromApi', listingType: 'sale',
+    file: 'SALE-FORM-REDESIGN.html', prefix: 'sale', collect: 'collectSaleFormData', populate: '_populateSaleFormFromApi', listingType: 'sale',
     // the page suppresses change-event cascades while it hydrates (root cause C9, 2026-05-28)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     before: (win: any) => { win._salePopulateInProgress = true; },
@@ -478,84 +478,18 @@ describe.each(FORMS)('$file — create → save → reload → edit → save →
     expect(lost(edited, reloaded, keys)).toEqual([]);
   });
 
-  it('the tools viewer shows every saved fact on the controls it shares with the entry form', async () => {
-    const body = await (await get(id)).json();
-    // opened the way the CRM opens it: with the listing id in the URL (without one the viewer fails closed and blanks the page)
-    const page = await loadPage(`${spec.tools}?id=${encodeURIComponent(id)}`, {
-      '/api/auth/me': { authenticated: true, principalType: 'agent', role: 'broker', portalRole: 'broker', user: { id: '7', name: 'Maya Allan' } },
-      [`/api/crm/listings/${id}`]: body,
-    });
-    const win = page.window;
-    await settle(); await settle();
-    expect(typeof win.viewerListingFromApi).toBe('function');
-    // the page's own boot (api-client → viewerListingFromApi → the loader) has run; load once more explicitly so the
-    // proof does not depend on the auth handshake timing
-    win.VIEWER_LISTINGS[id] = win.viewerListingFromApi(body, id);
-    win[spec.viewerLoad](id);
-    await settle();
-    // a fail-closed boot replaces the whole body with the 'Listing Not Available' card (no controls survive)
-    expect(win.document.querySelectorAll('input, select, textarea').length).toBeGreaterThan(100);
-    const wrong: string[] = [];
-    let present = 0;
-    for (const k of [...keys].sort()) {
-      const v = viewerValue(win, k);
-      if (v === undefined) continue; // the viewer has no such control (a private surface, not a copy of the entry form)
-      present++;
-      if (!(k in latest)) { if (!RADIO_KEYS.has(k)) wrong.push(`${k}: never collected`); continue; }
-      const want = savedFact(latest, k);
-      if (!sameValue(want, v)) wrong.push(`${k}: ${JSON.stringify(want)} → ${JSON.stringify(v)}`);
-    }
-    page.window.close();
-    // the viewers carry 293 (sale) / 372 (rental) of the entry forms' controls — every one of them is compared
-    expect(present).toBeGreaterThan(250);
-    expect(wrong).toEqual([]);
-  });
+  // The read-only WITH-TOOLS viewer forms were DELETED 2026-09-09: stale forks of the REDESIGN
+  // forms (92% / 96% identical field ids) that had diverged into wrong NY mansion-tax bands, an
+  // undisclosed 6% commission assumption rendered as "Sell Now Net", an unreviewed shorter IDX
+  // disclaimer, and attribution fields the canonical forms had deliberately removed. Assertions
+  // whose SUBJECT was the viewer are removed with it; every entry-form assertion is untouched.
 });
 
-
-describe.each(FORMS)('$file and $tools use the same server status projection', (spec) => {
-  jest.setTimeout(120_000);
-  it('distinguishes closed sale/rental, preserves Pending, and shows unknown/off-feed without inventing Active', async () => {
-    const saved = [...store.rows.values()].find((row) => row.listing_type === spec.listingType)!;
-    const base = await (await get(String(saved.id))).json();
-    const entry = await loadPage(spec.file);
-    const viewer = await loadPage(spec.tools + '?id=' + saved.id, {
-      '/api/auth/me': { authenticated: true, principalType: 'agent', role: 'broker', portalRole: 'broker', user: { id: '7' } },
-      ['/api/crm/listings/' + saved.id]: base,
-    });
-    // the stored status is the live Cotality token; the transaction supplies the label (owner ruling 2026-09-08)
-    const cases = [
-      { status: 'Closed', sync_status: 'synced', value: 'Closed', label: spec.prefix === 'sale' ? 'Sold' : 'Rented' },
-      { status: spec.prefix === 'sale' ? 'Sold' : 'Rented', sync_status: 'synced', value: 'Closed', label: spec.prefix === 'sale' ? 'Sold' : 'Rented' }, // a legacy row still reads correctly
-      { status: 'Pending', sync_status: 'synced', value: 'Pending', label: spec.prefix === 'sale' ? 'In Contract' : 'Pending' },
-      { status: '', sync_status: null, value: '', label: 'Status unavailable' },
-      { status: 'Active', sync_status: 'off_feed', value: '', label: 'Off Market — reason unknown' },
-    ];
-    try {
-      for (const c of cases) {
-        const raw = { ...base.raw_data, _crmWorkflowStatus: undefined, saleStatus: undefined, rentalStatus: undefined };
-        const listing = { ...base, ...c, raw_data: raw };
-        listing.form_status = formStatusForListing(listing);
-        spec.before?.(entry.window);
-        entry.window[spec.populate](listing);
-        spec.after?.(entry.window);
-        viewer.window.VIEWER_LISTINGS[String(saved.id)] = viewer.window.viewerListingFromApi(listing, String(saved.id));
-        viewer.window[spec.viewerLoad](String(saved.id));
-        for (const win of [entry.window, viewer.window]) {
-          const select = win.document.getElementById(spec.prefix + 'Status');
-          expect({ value: select.value, label: select.options[select.selectedIndex]?.textContent }).toEqual({ value: c.value, label: c.label });
-        }
-        await settle(); await settle();
-      }
-    } finally {
-      // let each page's in-flight async render finish before the window goes away, or its timer fires against a
-      // torn-down document and the error lands in whichever test runs next
-      await settle(); await settle();
-      entry.window.close(); viewer.window.close();
-    }
-  });
-});
-
+// The read-only WITH-TOOLS viewer forms were DELETED 2026-09-09: stale forks of the REDESIGN
+// forms (92% / 96% identical field ids) that had diverged into wrong NY mansion-tax bands, an
+// undisclosed 6% commission assumption rendered as "Sell Now Net", an unreviewed shorter IDX
+// disclaimer, and attribution fields the canonical forms had deliberately removed. Assertions
+// whose SUBJECT was the viewer are removed with it; every entry-form assertion is untouched.
 
 /**
  * The page's OWN Save button and edit-mode load, through the REAL handlers — not the collector / loader called
@@ -674,12 +608,6 @@ describe.each(FORMS)('$file — the page\'s own Save button and edit-mode load, 
     const entrySelect = again.window.document.getElementById(`${spec.prefix}Status`);
     expect({ value: entrySelect.value, label: entrySelect.options[entrySelect.selectedIndex]?.textContent }).toEqual({ value: pipeline.word, label: pipeline.label });
     again.window.close();
-    // … and the tools viewer, booted the way the CRM opens it
-    const viewer = await loadPage(`${spec.tools}?id=${id}`, {}, []);
-    await until(() => viewer.window.document.getElementById(`${spec.prefix}Status`)?.value === pipeline.word);
-    const viewerSelect = viewer.window.document.getElementById(`${spec.prefix}Status`);
-    expect({ value: viewerSelect?.value, label: viewerSelect?.options[viewerSelect.selectedIndex]?.textContent }).toEqual({ value: pipeline.word, label: pipeline.label });
-    viewer.window.close();
   });
 
   it('the status API resolves through THIS listing\'s transaction only: the other transaction\'s words are refused, its own close is accepted and terminal', async () => {
@@ -729,7 +657,6 @@ describe.each(FORMS)('$file — the page\'s own Save button and edit-mode load, 
 describe("SALE-FORM-REDESIGN.html — the sale pipeline through the page's own Save button, with each status's Cotality fact", () => {
   jest.setTimeout(300_000);
   const FILE = 'SALE-FORM-REDESIGN.html';
-  const TOOLS = 'SALE-FORM-WITH-TOOLS.html';
   const until = async (done: () => boolean) => { for (let i = 0; i < 120 && !done(); i++) await settle(); await settle(); await settle(); };
 
   /** The form control that carries each status's Cotality fact, and the key it must reach in raw_data. */
@@ -743,7 +670,7 @@ describe("SALE-FORM-REDESIGN.html — the sale pipeline through the page's own S
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let entry: any; let viewer: any;
+  let entry: any;
   /** Anything the page itself refused with (its own validation alerts) — a save must never be blocked here. */
   const pageAlerts: string[] = [];
 
@@ -796,19 +723,17 @@ describe("SALE-FORM-REDESIGN.html — the sale pipeline through the page's own S
   }
 
   /** What the entry form and the tools viewer read back for a stored row — both from the ONE server projection. */
-  async function labelsFor(id: string): Promise<{ entry: { value: string; label: string }; viewer: { value: string; label: string } }> {
+  async function labelsFor(id: string): Promise<{ entry: { value: string; label: string } }> {
     const body = await (await get(id)).json();
     entry.window._salePopulateInProgress = true;
     entry.window._populateSaleFormFromApi(body);
     entry.window._salePopulateInProgress = false;
-    viewer.window.VIEWER_LISTINGS[id] = viewer.window.viewerListingFromApi(body, id);
-    viewer.window.loadSaleListingData(id);
     await settle();
     const read = (win: { document: Document }) => {
       const sel = win.document.getElementById('saleStatus') as HTMLSelectElement;
       return { value: sel.value, label: sel.options[sel.selectedIndex]?.textContent ?? '' };
     };
-    return { entry: read(entry.window), viewer: read(viewer.window) };
+    return { entry: read(entry.window) };
   }
 
   /** The transition WITHOUT its fact: refused by name, and nothing stored. */
@@ -832,13 +757,11 @@ describe("SALE-FORM-REDESIGN.html — the sale pipeline through the page's own S
 
   beforeAll(async () => {
     entry = await loadPage(FILE);
-    viewer = await loadPage(TOOLS + '?id=0', { '/api/auth/me': AUTH_ME });
     await settle();
   });
   afterAll(async () => {
     await settle();
     try { entry?.window.close(); } catch { /* the window is already gone */ }
-    try { viewer?.window.close(); } catch { /* the window is already gone */ }
     try { pageA?.window.close(); } catch { /* the window is already gone */ }
   });
 
@@ -857,7 +780,7 @@ describe("SALE-FORM-REDESIGN.html — the sale pipeline through the page's own S
     const transition = await saveWithStatus(win, liveA, 'Active');
     expect({ status: transition?.status, sent: transition?.body?.status }).toEqual({ status: 200, sent: 'Active' });
     expect(store.rows.get(idA)!.status).toBe('Active');
-    expect(await labelsFor(idA)).toEqual({ entry: { value: 'Active', label: 'Active' }, viewer: { value: 'Active', label: 'Active' } });
+    expect(await labelsFor(idA)).toEqual({ entry: { value: 'Active', label: 'Active' } });
   });
 
   it('Offer Out leaves the listing Active (an offer out is never Pending) and reads back as "Offer Out"', async () => {
@@ -866,7 +789,7 @@ describe("SALE-FORM-REDESIGN.html — the sale pipeline through the page's own S
     const row = store.rows.get(idA)!;
     expect(row.status).toBe('Active'); // the STORED token is the live Cotality member, not the workflow word
     expect((row.raw_data as Rec)._crmWorkflowStatus).toBe('OfferOut');
-    expect(await labelsFor(idA)).toEqual({ entry: { value: 'OfferOut', label: 'Offer Out' }, viewer: { value: 'OfferOut', label: 'Offer Out' } });
+    expect(await labelsFor(idA)).toEqual({ entry: { value: 'OfferOut', label: 'Offer Out' } });
   });
 
   it('Expired requires ExpirationDate — NEVER OffMarketDate — and stores Expired with that date', async () => {
@@ -877,7 +800,7 @@ describe("SALE-FORM-REDESIGN.html — the sale pipeline through the page's own S
     const row = store.rows.get(idA)!;
     expect(row.status).toBe('Expired');
     expect((row.raw_data as Rec).ExpirationDate).toBe('2026-11-01');
-    expect(await labelsFor(idA)).toEqual({ entry: { value: 'Expired', label: 'Expired' }, viewer: { value: 'Expired', label: 'Expired' } });
+    expect(await labelsFor(idA)).toEqual({ entry: { value: 'Expired', label: 'Expired' } });
   });
 
   it('Withdrawn requires WithdrawnDate and stores Withdrawn with that date', async () => {
@@ -889,7 +812,7 @@ describe("SALE-FORM-REDESIGN.html — the sale pipeline through the page's own S
     const row = store.rows.get(idA)!;
     expect(row.status).toBe('Withdrawn');
     expect((row.raw_data as Rec).WithdrawnDate).toBe('2026-11-05');
-    expect(await labelsFor(idA)).toEqual({ entry: { value: 'Withdrawn', label: 'Withdrawn' }, viewer: { value: 'Withdrawn', label: 'Withdrawn' } });
+    expect(await labelsFor(idA)).toEqual({ entry: { value: 'Withdrawn', label: 'Withdrawn' } });
   });
 
   it('Back on Market stores Active and carries BackOnMarketDate (its own workflow fact)', async () => {
@@ -900,7 +823,7 @@ describe("SALE-FORM-REDESIGN.html — the sale pipeline through the page's own S
     const row = store.rows.get(idA)!;
     expect(row.status).toBe('Active'); // Back on Market IS Active + the date
     expect((row.raw_data as Rec).BackOnMarketDate).toBe('2026-11-12');
-    expect(await labelsFor(idA)).toEqual({ entry: { value: 'BackOnMarket', label: 'Back On Market' }, viewer: { value: 'BackOnMarket', label: 'Back On Market' } });
+    expect(await labelsFor(idA)).toEqual({ entry: { value: 'BackOnMarket', label: 'Back On Market' } });
   });
 
   it('Contract Signed requires PurchaseContractDate, stores Pending, and reads back as "In Contract" on both pages', async () => {
@@ -911,7 +834,7 @@ describe("SALE-FORM-REDESIGN.html — the sale pipeline through the page's own S
     expect(row.status).toBe('Pending'); // the live Cotality token
     expect((row.raw_data as Rec).PurchaseContractDate).toBe('2026-09-15');
     // the agent's workflow word wins while it agrees with the stored token …
-    expect(await labelsFor(idA)).toEqual({ entry: { value: 'ContractSigned', label: 'Contract Signed' }, viewer: { value: 'ContractSigned', label: 'Contract Signed' } });
+    expect(await labelsFor(idA)).toEqual({ entry: { value: 'ContractSigned', label: 'Contract Signed' } });
     // … and the canonical Pending on a SALE is broker language "In Contract" (never on a rental)
     expect(formStatusForListing({ ...row, raw_data: { ...(row.raw_data as Rec), _crmWorkflowStatus: undefined, saleStatus: undefined } } as Parameters<typeof formStatusForListing>[0]))
       .toMatchObject({ value: 'Pending', label: 'In Contract' });
@@ -925,7 +848,7 @@ describe("SALE-FORM-REDESIGN.html — the sale pipeline through the page's own S
     expect(row.status).toBe('Closed'); // the live Cotality token — both transactions close as Closed
     expect((row.raw_data as Rec).CloseDate).toBe('2026-09-20');
     expect((row.raw_data as Rec).ClosePrice).toBe(950000);
-    expect(await labelsFor(idA)).toEqual({ entry: { value: 'Sold', label: 'Sold' }, viewer: { value: 'Sold', label: 'Sold' } });
+    expect(await labelsFor(idA)).toEqual({ entry: { value: 'Sold', label: 'Sold' } });
     // the canonical close on a SALE is "Sold" (a rental's is "Rented") — a LABEL, never a stored token
     expect(formStatusForListing({ ...row, raw_data: { ...(row.raw_data as Rec), _crmWorkflowStatus: undefined, saleStatus: undefined } } as Parameters<typeof formStatusForListing>[0]))
       .toMatchObject({ value: 'Closed', label: 'Sold' });
@@ -941,13 +864,13 @@ describe("SALE-FORM-REDESIGN.html — the sale pipeline through the page's own S
     expect({ start: server.start, end: server.end, days: server.days }).toEqual({ start: '2026-09-15', end: '2026-09-20', days: 5 });
 
     await labelsFor(idA);
-    for (const [where, win] of [['entry form', entry.window], ['tools viewer', viewer.window]] as const) {
+    for (const [where, win] of [['entry form', entry.window]] as const) {
       expect({ where, dom: win.document.getElementById('saleDaysOnMarket').textContent }).toEqual({ where, dom: '5' });
       expect({ where, basis: win.document.getElementById('saleDomBasis').textContent }).toEqual({ where, basis: 'to close date' });
     }
 
     // an end the provider never proved (the day Mallan DETECTED the row had left the feed) is LABELLED as an estimate
-    for (const [where, win] of [['entry form', entry.window], ['tools viewer', viewer.window]] as const) {
+    for (const [where, win] of [['entry form', entry.window]] as const) {
       win.applySaleServerDom({ form_dom: { days: 12, endReason: 'off_feed_detected', estimated: true, start: '2026-07-20', end: '2026-08-01', unverified: null }, cumulative_days_on_market: 30 });
       expect({ where, dom: win.document.getElementById('saleDaysOnMarket').textContent, basis: win.document.getElementById('saleDomBasis').textContent, cdom: win.document.getElementById('saleCumulativeDaysOnMarket').textContent })
         .toEqual({ where, dom: '12 est.', basis: 'estimated — detected off feed 2026-08-01', cdom: '30' });
@@ -973,7 +896,7 @@ describe("SALE-FORM-REDESIGN.html — the sale pipeline through the page's own S
     const row = store.rows.get(idB)!;
     expect(row.status).toBe('Canceled'); // one L — the live Cotality spelling
     expect((row.raw_data as Rec).CancellationDate).toBe('2026-11-09');
-    expect(await labelsFor(idB)).toEqual({ entry: { value: 'Cancelled', label: 'Canceled' }, viewer: { value: 'Cancelled', label: 'Canceled' } });
+    expect(await labelsFor(idB)).toEqual({ entry: { value: 'Cancelled', label: 'Canceled' } });
     win.close();
   });
 });
@@ -986,7 +909,7 @@ describe('status-fact ratchets on the four CRM listing pages', () => {
   const read = (f: string) => readFileSync(resolve(ROOT, 'public/crm', f), 'utf8');
 
   it('neither rental page binds PurchaseContractDate — a rental\'s Pending fact is the Mallan lease-signed date', () => {
-    for (const f of ['RENTAL-FORM-REDESIGN.html', 'RENTAL-FORM-WITH-TOOLS.html']) {
+    for (const f of ['RENTAL-FORM-REDESIGN.html']) {
       const src = read(f);
       expect({ page: f, purchaseContractDateBound: /data-cotality-field="PurchaseContractDate"/.test(src) })
         .toEqual({ page: f, purchaseContractDateBound: false });
@@ -1002,7 +925,7 @@ describe('status-fact ratchets on the four CRM listing pages', () => {
   });
 
   it('the sale pages carry ONE control for each status fact, including the Expired and Back-on-Market facts', () => {
-    for (const f of ['SALE-FORM-REDESIGN.html', 'SALE-FORM-WITH-TOOLS.html']) {
+    for (const f of ['SALE-FORM-REDESIGN.html']) {
       const src = read(f);
       for (const field of ['ExpirationDate', 'WithdrawnDate', 'CancellationDate', 'BackOnMarketDate', 'PurchaseContractDate', 'CloseDate', 'ClosePrice']) {
         expect({ page: f, field, bound: src.includes(`data-cotality-field="${field}"`) }).toEqual({ page: f, field, bound: true });
@@ -1018,7 +941,7 @@ describe('status-fact ratchets on the four CRM listing pages', () => {
     expect(sale).toMatch(/id: 'saleExpirationDate',[^}]*statusOnly: \['Expired'\]/);
     // Off Market Date is the Perm/Temp Off Market fact only — it must not be the Expired requirement
     expect(sale).toMatch(/id: 'saleOffMarketDate',[^}]*statusOnly: \['PermOffMarket','TempOffMarket'\]/);
-    for (const f of ['SALE-FORM-REDESIGN.html', 'SALE-FORM-WITH-TOOLS.html']) {
+    for (const f of ['SALE-FORM-REDESIGN.html']) {
       expect({ page: f, deadTable: read(f).includes('const STATUS_REQUIRED_FIELDS') }).toEqual({ page: f, deadTable: false });
     }
     // and the required-fact contract the form mirrors is the server's own
@@ -1049,23 +972,6 @@ describe('status-fact ratchets on the four CRM listing pages', () => {
     page.window.close();
   });
 
-  it('the WITH-TOOLS viewers define every handler their status select calls (a change event must not throw)', async () => {
-    for (const [file, prefix] of [['SALE-FORM-WITH-TOOLS.html', 'sale'], ['RENTAL-FORM-WITH-TOOLS.html', 'rental']] as const) {
-      const page = await loadPage(`${file}?id=0`, { '/api/auth/me': AUTH_ME });
-      const win = page.window;
-      const select = win.document.getElementById(`${prefix}Status`);
-      const handler = select.getAttribute('onchange') || '';
-      for (const name of handler.match(/([A-Za-z_$][\w$]*)\s*\(/g)?.map((m: string) => m.slice(0, -1).trim()) ?? []) {
-        expect({ file, name, defined: typeof win[name] }).toEqual({ file, name, defined: 'function' });
-      }
-      const errors: string[] = [];
-      win.addEventListener('error', (e: { message: string }) => errors.push(e.message));
-      select.disabled = false;
-      select.value = prefix === 'sale' ? 'Expired' : 'Rented';
-      fire(win, select, 'change');
-      expect({ file, errors }).toEqual({ file, errors: [] });
-      await settle();
-      page.window.close();
-    }
-  });
+  // Removed with its subject: the WITH-TOOLS viewers no longer exist (see note above).
+
 });

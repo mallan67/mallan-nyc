@@ -177,9 +177,7 @@ function renderedOptions(dom: any, formKey: string): { value: string; label: str
 
 const PAGES: { file: string; formKey: string; type: 'sale' | 'rental'; query?: string }[] = [
   { file: 'SALE-FORM-REDESIGN.html', formKey: 'saleStatus', type: 'sale' },
-  { file: 'SALE-FORM-WITH-TOOLS.html', formKey: 'saleStatus', type: 'sale', query: '?id=SL-0901' },
   { file: 'RENTAL-FORM-REDESIGN.html', formKey: 'rentalStatus', type: 'rental' },
-  { file: 'RENTAL-FORM-WITH-TOOLS.html', formKey: 'rentalStatus', type: 'rental', query: '?id=RL-0901' },
 ];
 
 /**

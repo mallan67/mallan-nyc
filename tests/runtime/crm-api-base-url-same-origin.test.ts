@@ -48,8 +48,9 @@ const CRM_ROOT = path.resolve(__dirname, '../../public/crm');
 const API_CLIENT_PATH = path.join(CRM_ROOT, 'js/core/api-client.js');
 const AGENT_CONTEXT_PATH = path.join(CRM_ROOT, 'js/core/agent-context.js');
 const LOGIN_HTML_PATH = path.join(CRM_ROOT, 'login.html');
-const RENTAL_FORM_PATH = path.join(CRM_ROOT, 'RENTAL-FORM-WITH-TOOLS.html');
-const SALE_FORM_PATH = path.join(CRM_ROOT, 'SALE-FORM-WITH-TOOLS.html');
+// The WITH-TOOLS forks were deleted 2026-09-09; the canonical editors carry this guarantee now.
+const RENTAL_FORM_PATH = path.join(CRM_ROOT, 'RENTAL-FORM-REDESIGN.html');
+const SALE_FORM_PATH = path.join(CRM_ROOT, 'SALE-FORM-REDESIGN.html');
 const INDEX_BUILT_PATH = path.join(CRM_ROOT, 'index-built.html');
 const SECURITY_HEADERS_PATH = path.resolve(
   __dirname,
