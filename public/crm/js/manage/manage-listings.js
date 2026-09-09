@@ -131,6 +131,10 @@ function _mapApiListingToManage(api) {
     return {
         id: api.listing_id || api.id,
         _dbId: api.id,
+        // The provider's own id, carried through so the UI can tell a Mallan-authored listing from a
+        // row that came out of the licensed Cotality feed. Without it the withdraw guard cannot be
+        // evaluated in the browser at all - which is how the control ended up offered on feed rows.
+        mlsId: api.mls_id || null,
         category: isSale ? 'sales' : 'rentals',
         dealType: dealType,
         // `status` is the broker-facing LABEL; `statusToken` is the live Cotality StandardStatus token the row
@@ -1137,6 +1141,10 @@ function renderManageSection(mode) {
         rows += '<button onclick="event.stopPropagation();switchToCardAction(\'' + l.id + '\',\'oh\')" class="px-3 py-1.5 bg-white border rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-1.5"><i class="fas fa-door-open text-gray-500"></i> Open House</button>';
         rows += '<button onclick="event.stopPropagation();manageAutoUpdate(\'' + l.id + '\')" class="px-3 py-1.5 bg-white border rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-1.5"><i class="fas fa-sync-alt text-amber-400"></i> Refresh Listing</button>';
         rows += '<button onclick="event.stopPropagation();manageEditListing(\'' + l.id + '\')" class="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold hover:bg-blue-700 flex items-center gap-1.5"><i class="fas fa-pen"></i> Edit Listing</button>';
+        // Offered ONLY on a Mallan-authored listing. A Cotality-sourced row is not Mallan's to withdraw.
+        if (manageCanWithdraw(l)) {
+            rows += '<button onclick="event.stopPropagation();manageWithdrawListing(\'' + l.id + '\')" class="px-3 py-1.5 bg-white border border-red-200 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-50 flex items-center gap-1.5" title="Withdraw Listing"><i class="fas fa-trash"></i> Withdraw Listing</button>';
+        }
         rows += '</div></td></tr>';
     });
     tbody.innerHTML = rows;
@@ -1253,6 +1261,54 @@ function manageCreateListing() {
         window.open(CRM_RENTAL_FORM_ROUTE, '_blank');
     }
 }
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// WITHDRAW — Mallan-authored listings only
+//
+// A row that came from the licensed Cotality feed is not Mallan's to withdraw: doing so would assert
+// a status change Mallan has no authority to make. The server enforces this (409, "Only CRM-created
+// listings can be withdrawn from this dashboard") and the UI must not offer the control either.
+//
+// This capability used to live in the duplicate My Listings screen in js/dashboard/panels.js and was
+// lost when that duplicate was deleted (da8e3046) - the canonical manager had no withdraw at all, and
+// its listing model did not carry mls_id, so the guard could not even be evaluated. Restored here, on
+// the one canonical manager, guarded in the browser AND on the server.
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+/** True only for a listing Mallan authored - i.e. one carrying no provider id. */
+function manageCanWithdraw(l) {
+    if (!l) return false;
+    var mls = l.mlsId;
+    return mls === null || mls === undefined || String(mls).trim() === '';
+}
+
+function manageWithdrawListing(id) {
+    var listing = manageFindListing(id);
+    if (!listing) return;
+
+    if (!manageCanWithdraw(listing)) {
+        // Fail closed, and say why rather than silently doing nothing.
+        manageShowToast('This listing comes from the Cotality feed — it cannot be withdrawn from the CRM.', 'error');
+        return;
+    }
+    var label = (listing.address || 'this listing') + (listing.unit ? ' ' + listing.unit : '');
+    if (typeof confirm === 'function' && !confirm('Withdraw ' + label + '? It will be marked Withdrawn.')) return;
+
+    if (typeof MallanAPI === 'undefined' || !MallanAPI.listings || typeof MallanAPI.listings.remove !== 'function') {
+        manageShowToast('Listing NOT withdrawn — the CRM API is unavailable.', 'error');
+        return;
+    }
+
+    MallanAPI.listings.remove(listing._dbId || listing.id).then(function () {
+        manageShowToast(label + ' withdrawn.');
+        _manageListingsLoaded = false;
+        loadMyListingsFromAPI(function () { renderManageSection(currentManageMode); });
+    }).catch(function (err) {
+        // A refusal is a refusal. Never report a withdrawal the server did not make.
+        if (typeof console !== 'undefined') console.error('[Manage] withdraw failed:', err);
+        manageShowToast('Listing NOT withdrawn — ' + ((err && err.message) ? err.message : 'the server refused.'), 'error');
+    });
+}
+
 function manageEditListing(id) {
     var listing = manageFindListing(id);
     if (!listing) return;
