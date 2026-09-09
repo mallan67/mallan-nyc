@@ -607,10 +607,10 @@ body { font-family: Manrope, sans-serif; }
                     <option value="PermOffMarket">Perm Off Market</option>
                     <option value="TempOffMarket">Temp Off Market</option>
                     <option value="Expired">Expired</option>
-                    <option disabled>── RLS System ──</option>
-                    <option value="Pending">Pending</option>
-                    <option value="Closed">Closed</option>
-                    <option value="Canceled">Canceled</option>
+                    <option disabled>── Saved Listing State ──</option>
+                    <option value="Pending">In Contract</option>
+                    <option value="Closed" hidden>Sold</option>
+                    <option value="Canceled" hidden>Canceled</option>
                     <option value="Hold">Hold</option>
                     <option value="Incomplete">Incomplete</option>
                 </select>
@@ -629,8 +629,8 @@ body { font-family: Manrope, sans-serif; }
                         <p class="text-xs font-medium text-gray-700" id="saleStatusChangeTimestamp">--</p>
                     </div>
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
-                        <p class="text-[10px] text-gray-500 uppercase">RESO MlsStatus</p>
-                        <p class="text-xs font-medium text-blue-700" id="saleResoMlsStatus">set by server on save</p>
+                        <p class="text-[10px] text-gray-500 uppercase">Last Cotality Status</p>
+                        <p class="text-xs font-medium text-blue-700" id="saleCotalityStatus">set by server on save</p>
                     </div>
                 </div>
                 <!-- Validation Panel -->
@@ -5977,7 +5977,7 @@ function updateSaleStatusFields() {
     }
 
     // The canonical (server) status is shown from the save response; the browser does not translate.
-    var resoDisplay = document.getElementById('saleResoMlsStatus');
+    var resoDisplay = document.getElementById('saleCotalityStatus');
     if (resoDisplay) resoDisplay.textContent = 'set by server on save';
 
     // Enable/disable Commission Request tab (Tab 7)
@@ -8875,7 +8875,7 @@ function updateStatusTracking() {
 
     // The canonical (server) status is shown from the save response; the browser does not translate.
     const statusEl = document.getElementById('saleStatus');
-    const resoEl = document.getElementById('saleResoMlsStatus');
+    const resoEl = document.getElementById('saleCotalityStatus');
     if (statusEl && resoEl) resoEl.textContent = 'set by server on save';
 
     // Compute DOM (days since first Active)
@@ -9903,6 +9903,7 @@ function _populateSaleFormFromApi(listing) {
       raw.StandardStatus ||
       'Draft';
     setVal('saleStatus', restoredWorkflowStatus);
+    MallanAPI.renderListingStatus('saleStatus', listing);
     // CoBrokeAgreement
     if (raw.CoBrokeAgreement) setVal('saleCoBrokeAgreementType', raw.CoBrokeAgreement);
 

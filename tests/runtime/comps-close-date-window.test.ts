@@ -25,8 +25,8 @@ describe('the provider clause windows closed comps by CloseDate and leaves on-ma
   it('closed only', () => {
     expect(compsStatusWindowFilter(['Closed'], 6, ASOF)).toBe("(StandardStatus eq 'Closed' and CloseDate ge 2026-03-08)");
   });
-  it('display names map to live members (Under Contract → ActiveUnderContract, Coming Soon → ComingSoon)', () => {
-    expect(compsStatusWindowFilter(['Under Contract', 'Coming Soon'], 6, ASOF)).toBe("(StandardStatus eq 'ActiveUnderContract' or StandardStatus eq 'ComingSoon')");
+  it('display names map to live members (Under Contract → Pending, Coming Soon → ComingSoon)', () => {
+    expect(compsStatusWindowFilter(['Under Contract', 'Coming Soon'], 6, ASOF)).toBe("(StandardStatus eq 'Pending' or StandardStatus eq 'ComingSoon')");
   });
   it('no statuses → no clause', () => {
     expect(compsStatusWindowFilter([], 6, ASOF)).toBe('');
@@ -75,7 +75,87 @@ describe('the DB-side CMA engine windows closed comps by the stable closing date
   it('never filters Listing by contract_closed (a Deal column the Listing model does not declare)', () => {
     expect(src).not.toMatch(/contract_closed: \{/);
   });
-  it('uses terminal_since (= OffMarketDate = CloseDate on every Closed row, whole-corpus census 2026-09-08)', () => {
-    expect(src).toMatch(/\{ status: 'Closed', terminal_since: \{ gte: since \} \}/);
+  it('uses the retained CloseDate rather than reconciliation/archive timing', () => {
+    expect(src).toContain("path: ['CloseDate']");
+    expect(src).not.toMatch(/terminal_since: \{ gte/);
+  });
+  it('windows the JSON CloseDate with Prisma ordered comparisons, never the non-existent string_gte / string_lte operators', () => {
+    expect(src).not.toMatch(/string_gte|string_lte/);
+    expect(src).toMatch(/raw_data: \{ path: \['CloseDate'\], gte: /);
+  });
+});
+
+describe('CMA uses the subject transaction on both comp paths', () => {
+  test('In Contract uses the canonical search Pending query', () => {
+    expect(compsStatusWindowFilter(['In Contract'], 6, ASOF)).toBe("StandardStatus eq 'Pending'");
+  });
+
+  test.each(['Residential', 'ResidentialLease'])('building and area comps stay in %s', async (propertyType) => {
+    const { fetchComps } = require('@/lib/comps/fetch-comps');
+    const spy = jest.spyOn(require('@/lib/idx/fetch'), 'fetchFromTrestle').mockResolvedValue({ records: [] });
+    const range = { statuses: ['Closed'], months_back: 6, beds_min: 1, beds_max: 2, baths_min: 1, baths_max: 2, sqft_min: null, sqft_max: null, sqft_enabled: false };
+    try {
+      await fetchComps({
+        listing_id: 'SUBJECT', building_name: 'Test Building', street_number: null, street_name: null,
+        borough: 'Manhattan', postal_code: '10128', neighborhood: null, property_type: propertyType,
+        listing_type: propertyType === 'ResidentialLease' ? 'rent' : 'sale',
+      }, { building: range, area: { ...range, neighborhoods: [], price_min: null, price_max: null } });
+      expect(spy).toHaveBeenCalledTimes(2);
+      for (const [request] of spy.mock.calls as Array<[{ filter: string }]>) {
+        expect(request.filter).toContain("PropertyType eq '" + propertyType + "'");
+      }
+    } finally { spy.mockRestore(); }
+  });
+});
+
+jest.mock('@/lib/prisma', () => ({
+  __esModule: true,
+  default: { listing: { findMany: jest.fn() } },
+}));
+
+describe('database CMA keeps transaction, closing facts, and valuation evidence consistent', () => {
+  test.each(['sale', 'rent'])('%s uses real close prices and excludes active prices from valuation', async (listingType) => {
+    const prisma = require('@/lib/prisma').default;
+    const { findComps, estimateValue } = require('@/lib/cma/engine');
+    const closeDate = new Date(Date.now() - 86400000 * 30).toISOString().slice(0, 10);
+    const row = {
+      listing_id: 'CLOSED', listing_type: listingType, address: { StreetNumber: '400', StreetName: 'East 90th Street' },
+      list_price: listingType === 'sale' ? 1000000 : 5000, bedrooms_total: 2, bathrooms_full: 1,
+      living_area: null, status: 'Closed', days_on_market: 0, sync_status: 'synced',
+      terminal_since: new Date(), internet_address_display_yn: true, internet_entire_listing_display_yn: true,
+      raw_data: { CloseDate: closeDate, ClosePrice: listingType === 'sale' ? 900000 : 4500 },
+    };
+    prisma.listing.findMany.mockResolvedValue([
+      row,
+      { ...row, listing_id: 'ASKING', status: 'Active', list_price: row.list_price * 3, raw_data: {} },
+      { ...row, listing_id: 'WRONG-TYPE', listing_type: listingType === 'sale' ? 'rent' : 'sale' },
+      { ...row, listing_id: 'UNDATED', raw_data: { ClosePrice: row.raw_data.ClosePrice } },
+      { ...row, listing_id: 'OFF-FEED', status: 'Active', sync_status: 'off_feed' },
+    ]);
+    const comps = await findComps({ property_address: 'Subject', listing_type: listingType, bedrooms: 2, bathrooms: 1 });
+    expect(comps.map((c: { listing_id: string }) => c.listing_id).sort()).toEqual(['ASKING', 'CLOSED']);
+    const closed = comps.find((c: { listing_id: string }) => c.listing_id === 'CLOSED');
+    expect(closed.status_label).toBe(listingType === 'sale' ? 'Sold' : 'Rented');
+    expect(closed.adjusted_price).toBe(row.raw_data.ClosePrice);
+    expect(estimateValue(comps).estimated).toBe(row.raw_data.ClosePrice);
+    const where = prisma.listing.findMany.mock.calls.at(-1)[0].where;
+    expect(where.listing_type).toBe(listingType);
+    const historical = where.OR.find((clause: { raw_data?: unknown }) => clause.raw_data);
+    expect(historical.idx_display_yn).toBeUndefined();
+    expect(historical.owner_opt_out).toBe(false);
+    expect(historical.participant_only).toBe(false);
+    expect(historical.raw_data.path).toEqual(['CloseDate']);
+    // the window is the ISO day (the provider's Edm.Date shape), lower bound inclusive, upper bound the day after as-of
+    const today = new Date().toISOString().slice(0, 10);
+    expect(historical.raw_data.gte).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(historical.raw_data.gte < today).toBe(true);
+    expect(historical.raw_data.lt > today).toBe(true);
+    expect(historical.raw_data.string_gte).toBeUndefined();
+    expect(historical.raw_data.lte).toBeUndefined();
+  });
+
+  test('active-only evidence yields no valuation', () => {
+    const { estimateValue } = require('@/lib/cma/engine');
+    expect(estimateValue([{ status: 'Active', adjusted_price: 1000000, similarity_score: 90 }]).estimated).toBe(0);
   });
 });

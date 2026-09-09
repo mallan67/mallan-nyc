@@ -538,10 +538,10 @@ body { font-family: Manrope, sans-serif; }
                     <option value="PermOffMarket">Perm Off Market</option>
                     <option value="TempOffMarket">Temp Off Market</option>
                     <option value="Expired">Expired</option>
-                    <option disabled>── RLS System ──</option>
+                    <option disabled>── Saved Listing State ──</option>
                     <option value="Pending">Pending</option>
-                    <option value="Closed">Closed</option>
-                    <option value="Canceled">Canceled</option>
+                    <option value="Closed" hidden>Rented</option>
+                    <option value="Canceled" hidden>Canceled</option>
                     <!-- ComingSoon REMOVED — prohibited for rentals per REBNY RLS Sec. 2.05(d) / UCBA D1 -->
                     <option value="Hold">Hold</option>
                     <option value="Incomplete">Incomplete</option>
@@ -580,8 +580,8 @@ body { font-family: Manrope, sans-serif; }
                         <p class="text-xs font-medium text-gray-700" id="rentalStatusChangeTimestamp">--</p>
                     </div>
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
-                        <p class="text-[10px] text-gray-500 uppercase">RESO MlsStatus</p>
-                        <p class="text-xs font-medium text-blue-700" id="rentalResoMlsStatus">set by server on save</p>
+                        <p class="text-[10px] text-gray-500 uppercase">Last Cotality Status</p>
+                        <p class="text-xs font-medium text-blue-700" id="rentalCotalityStatus">set by server on save</p>
                     </div>
                 </div>
                 <!-- Validation Panel -->
@@ -4646,7 +4646,7 @@ function updateRentalStatusFields() {
     }
 
     // The canonical (server) status is shown from the save response; the browser does not translate.
-    var resoDisplay = document.getElementById('rentalResoMlsStatus');
+    var resoDisplay = document.getElementById('rentalCotalityStatus');
     if (resoDisplay) resoDisplay.textContent = 'set by server on save';
 
     // Enable/disable Commission Request tab (Tab 7)
@@ -5956,21 +5956,44 @@ function submitRentalListing() {
             apiCall = MallanAPI.listings.create(formData);
         }
 
-        apiCall.then(function(result) {
+        apiCall.then(async function(result) {
             var lid = result.listing_id || _rentalEditListingId || 'RL-' + Date.now();
-            if (_rentalEditMode) {
-                alert('SUCCESS! Listing updated.\n\nListing ID: ' + lid);
-            } else {
-                alert('SUCCESS! Your rental listing has been submitted.\n\nListing ID: ' + lid + '\nStatus: ' + result.status);
+            var wasEditMode = _rentalEditMode;
+            if (!_rentalEditMode) {
                 _rentalEditMode = true;
                 _rentalEditDbId = result.id || _rentalEditDbId;
                 _rentalEditListingId = lid;
+            }
+            // Status transition (owner ruling 2026-09-08 — one mapping per transaction): create always stores
+            // Draft and update never changes the status column, so the selected rental workflow word is
+            // submitted to the status API here, exactly as the sale form does. The SERVER resolves it through
+            // the RENTAL mapping (AppOut / LeaseSigned → Pending, Rented → Rented); the browser sends the
+            // Mallan workflow word only. Draft / Future / Incomplete stay where create left them.
+            var dbId = result.id || _rentalEditDbId;
+            var statusEl = document.getElementById('rentalStatus');
+            var formWorkflowStatus = statusEl ? statusEl.value : '';
+            var finalStatus = result.status || 'Draft';
+            if (dbId && formWorkflowStatus && formWorkflowStatus !== 'Draft' && formWorkflowStatus !== 'Future' && formWorkflowStatus !== 'Incomplete') {
+                try {
+                    var statusResult = await MallanAPI.listings.updateStatus(dbId, formWorkflowStatus);
+                    finalStatus = (statusResult && statusResult.status) || finalStatus;
+                } catch (statusErr) {
+                    console.warn('[Submit] Status transition failed:', statusErr.message);
+                    showToast('Saved. Status change failed: ' + statusErr.message, 'warning');
+                }
+            }
+            if (wasEditMode) {
+                alert('SUCCESS! Listing updated.\n\nListing ID: ' + lid + '\nStatus: ' + finalStatus);
+            } else {
+                alert('SUCCESS! Your rental listing has been submitted.\n\nListing ID: ' + lid + '\nStatus: ' + finalStatus);
             }
             if (result.warnings && result.warnings.length > 0) {
                 console.warn('[Submit] Warnings:', result.warnings);
             }
             var idDisplay = document.getElementById('rentalListingIdDisplay');
             if (idDisplay) idDisplay.textContent = lid;
+            var statusBadge = document.getElementById('rentalStatusBadge');
+            if (statusBadge) statusBadge.textContent = finalStatus;
             var lastUpdated = document.getElementById('rentalLastUpdated');
             if (lastUpdated) lastUpdated.textContent = new Date().toLocaleString();
         }).catch(function(err) {
@@ -6985,7 +7008,7 @@ function _populateRentalFormFromApi(listing) {
     if (raw.rentalSyndicateYN === undefined && raw._mallanSyndicationIntent !== undefined) setChecked('rentalSyndicateYN', raw._mallanSyndicationIntent);
 
     // Status — the CRM workflow value the agent picked, then the Mallan form key, then the stored status (mirrors the sale form)
-    setVal('rentalStatus', raw._crmWorkflowStatus || raw.rentalStatus || listing.status || raw.StandardStatus || 'Active');
+    MallanAPI.renderListingStatus('rentalStatus', listing);
 
     // Address
     setVal('rentalUnparsedAddress', addr.UnparsedAddress || raw.UnparsedAddress || '');

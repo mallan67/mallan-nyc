@@ -29,11 +29,7 @@
 import { liveEnumMembers, liveEnumViolations } from '@/lib/cotality/live-contract';
 import { PROVIDER_DECISION_FIELDS } from '@/lib/listings/mallan-form-contract';
 import { normalizePayload } from '@/lib/compliance/normalizer';
-import {
-  mapCrmStatusToCanonicalStatus,
-  CANONICAL_STATUSES,
-  type CanonicalStatus,
-} from './status-mapping';
+import { resolveCanonicalStatusForListing, type CanonicalStatus } from './status-mapping';
 
 export { PROVIDER_DECISION_FIELDS };
 
@@ -127,21 +123,15 @@ export const WRITABLE_PROPERTY_SUB_TYPES: readonly string[] = Object.freeze(Obje
 export const WRITABLE_COMMON_INTERESTS: readonly string[] = Object.freeze(['Condominium', 'StockCooperative', 'Condop', 'RentalBuilding', 'None']);
 export const MALLAN_FORM_PROPERTY_TYPE_VALUES: readonly string[] = Object.freeze(Object.keys(FORM_PROPERTY_TYPES));
 
-const CANONICAL_STATUS_SET = new Set<string>(CANONICAL_STATUSES as readonly string[]);
-
 /**
- * Mallan status input (workflow value such as "OfferOut", or an already-canonical value such as
- * "ActiveUnderContract") → canonical Mallan status. Null when unrecognized (refuse; never default).
+ * Mallan status input of ONE form (a workflow value such as "OfferOut" on the sale form or "AppOut" on the
+ * rental form, an already-canonical value such as "ActiveUnderContract", the form's hidden saved-state
+ * "Closed" / "Canceled", or the legacy draft marker "Incomplete") → canonical Mallan status, resolved through
+ * that form's transaction mapping only (lib/crm/status-mapping.ts). Null when unrecognized for that
+ * transaction (refuse; never default): a rental word on the sale form is not a sale status.
  */
-export function canonicalStatusFromForm(input: unknown): CanonicalStatus | null {
-  if (typeof input !== 'string') return null;
-  const trimmed = input.trim();
-  if (!trimmed) return null;
-  if (CANONICAL_STATUS_SET.has(trimmed)) return trimmed as CanonicalStatus;
-  // Legacy CRM draft marker: older clients and stored rows carry 'Incomplete' (the rental form used to
-  // write it for Draft/Future). It is a live StandardStatus member but Mallan's canonical draft is 'Draft'.
-  if (trimmed === 'Incomplete') return 'Draft';
-  return mapCrmStatusToCanonicalStatus(trimmed);
+export function canonicalStatusFromForm(input: unknown, formType: ListingFormType | 'rental'): CanonicalStatus | null {
+  return resolveCanonicalStatusForListing(input, formType);
 }
 
 /** Mallan permission decisions (UCBA owner opt-out = signed Exhibit B; participant-only). Stored under `_mallanPermission`. */
@@ -256,17 +246,17 @@ export function applyServerFormMapping(
   const workflowStatus = body[`${prefix}Status`] ?? body._crmWorkflowStatus;
   const legacyProviderNamed = body.MlsStatus ?? body.StandardStatus ?? body.status;
   if (typeof workflowStatus === 'string' && workflowStatus.trim() !== '') {
-    const canonical = canonicalStatusFromForm(workflowStatus);
+    const canonical = resolveCanonicalStatusForListing(workflowStatus, formType);
     if (!canonical) errors.push(`${prefix}Status "${workflowStatus}" is not a recognized Mallan workflow status`);
     else { body._mallanStatus = canonical; body._crmWorkflowStatus = workflowStatus.trim(); derived.push('_mallanStatus'); }
   } else if (legacyProviderNamed !== undefined && legacyProviderNamed !== null && legacyProviderNamed !== '') {
     // A legacy client sent the Mallan status under a provider field name: it is a Mallan status and is
     // stored under the Mallan key; the provider-named key is removed below.
-    const canonical = canonicalStatusFromForm(legacyProviderNamed);
+    const canonical = resolveCanonicalStatusForListing(legacyProviderNamed, formType);
     if (!canonical) errors.push(`status "${String(legacyProviderNamed)}" is not a Mallan canonical status`);
     else { body._mallanStatus = canonical; derived.push('_mallanStatus'); }
   } else if (typeof body._mallanStatus === 'string' && body._mallanStatus !== '') {
-    const canonical = canonicalStatusFromForm(body._mallanStatus);
+    const canonical = resolveCanonicalStatusForListing(body._mallanStatus, formType);
     if (!canonical) errors.push(`_mallanStatus "${String(body._mallanStatus)}" is not a Mallan canonical status`);
     else body._mallanStatus = canonical;
   }

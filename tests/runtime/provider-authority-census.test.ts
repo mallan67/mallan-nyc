@@ -202,7 +202,8 @@ describe("the SERVER owns the Mallan form → Cotality vocabulary conversion (no
   it("the CRM create / update / status routes derive and validate through lib/crm/listing-form-mapping.ts", () => {
     expect(codeOnly(read("app/api/crm/listings/route.ts"))).toMatch(/applyServerFormMapping\(body/);
     expect(codeOnly(read("app/api/crm/listings/[id]/route.ts"))).toMatch(/applyServerFormMapping\(body/);
-    expect(codeOnly(read("app/api/crm/listings/[id]/status/route.ts"))).toMatch(/canonicalStatusFromForm\(requested\)/);
+    // the status route resolves the requested word through the LISTING'S transaction mapping (sale / rental), never a shared one
+    expect(codeOnly(read("app/api/crm/listings/[id]/status/route.ts"))).toMatch(/resolveCanonicalStatusForListing\(requested, listing\.listing_type\)/);
     const mapping = codeOnly(read("lib/crm/listing-form-mapping.ts"));
     expect(mapping).toMatch(/@\/lib\/cotality\/live-contract/); // the live contract module reads the dated pull
     expect(read("lib/cotality/live-contract.ts")).toMatch(/cotality-enums.live.json/);

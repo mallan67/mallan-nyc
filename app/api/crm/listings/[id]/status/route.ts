@@ -20,24 +20,11 @@ import { buildListingUrls } from "@/lib/crm/listing-urls";
 import { checkFeeDisclosure, isDisplayReadyStatus } from "@/lib/crm/fee-disclosure";
 import { computeTerminalSincePatch } from "@/lib/listings/terminal-since";
 import { listingCapabilities, CAPABILITY_DENIED } from "@/lib/auth/listing-capabilities";
-import { canonicalStatusFromForm } from "@/lib/crm/listing-form-mapping";
-import { resolveCanonicalStatusForListing } from "@/lib/crm/status-mapping";
+import { allowedCanonicalTransitions, resolveCanonicalStatusForListing } from "@/lib/crm/status-mapping";
 
-// REBNY RLS status state machine
-// Valid transitions map: current → allowed next statuses
-const STATUS_TRANSITIONS: Record<string, string[]> = {
-  Draft: ["Active", "ComingSoon"],
-  ComingSoon: ["Active", "Withdrawn"],
-  Active: ["ActiveUnderContract", "Pending", "Hold", "Withdrawn", "Expired"],
-  ActiveUnderContract: ["Active", "Pending", "Hold", "Withdrawn"],
-  Pending: ["Sold", "Rented", "Active", "Withdrawn"],
-  Hold: ["Active", "Draft"],
-  Sold: [], // Terminal
-  Rented: [], // Terminal
-  Withdrawn: ["Active", "Draft"],
-  Expired: ["Active", "Draft"],
-  Cancelled: [], // Terminal
-};
+// The status state machine lives in lib/crm/status-mapping.ts, ONE PER TRANSACTION (owner ruling 2026-09-08):
+// a sale listing moves through the sale mapping (Pending → Sold) and a rental through the rental mapping
+// (Pending → Rented). This route never holds a shared table.
 
 export async function PATCH(
   req: NextRequest,
@@ -96,10 +83,10 @@ export async function PATCH(
   }
 
   // SERVER-OWNED conversion (Packet 2 closure): the client sends the Mallan workflow value
-  // (e.g. "OfferOut") or an already-canonical status; the server maps it. The provider's terminal name
-  // 'Closed' (and legacy 'Leased') resolve by this listing's transaction type: sale → Sold, rent → Rented.
-  // Unknown → 400.
-  const newStatus = resolveCanonicalStatusForListing(requested, listing.listing_type) ?? canonicalStatusFromForm(requested);
+  // (e.g. "OfferOut" on a sale, "AppOut" on a rental) or an already-canonical status; the server resolves it
+  // through THIS listing's transaction mapping only. The form's saved-state "Closed" resolves to the
+  // transaction close (sale → Sold, rent → Rented); the other transaction's words are unknown → 400.
+  const newStatus = resolveCanonicalStatusForListing(requested, listing.listing_type);
   if (!newStatus) {
     return NextResponse.json(
       { error: `Unrecognized status: ${String(requested)}`, code: "form_mapping" },
@@ -120,8 +107,8 @@ export async function PATCH(
     });
   }
 
-  // Validate transition
-  const allowed = STATUS_TRANSITIONS[currentStatus];
+  // Validate the transition on this listing's transaction state machine (sale or rental — never both).
+  const allowed = allowedCanonicalTransitions(currentStatus, listing.listing_type);
 
   if (!allowed) {
     return NextResponse.json(

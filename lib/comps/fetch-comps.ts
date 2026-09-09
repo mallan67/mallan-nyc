@@ -16,7 +16,7 @@ import { cityRegionForBorough } from "@/lib/listings/canonical-location";
 // designated consumer (Domain 7, 2026-09-08; the authority's header named the CMA close-price fix as the
 // consumer). The vocabulary chain guard lists this importer explicitly.
 import { compEligibility } from "@/lib/search/canonical/comp-eligibility";
-import { statusGroup } from "@/lib/search/canonical/status";
+import { statusGroup, queryStatusesFor } from "@/lib/search/canonical/status";
 import { ownershipClass, commonInterestOf } from "@/lib/search/canonical/ownership";
 import { lifecycleFromProviderRow } from "@/lib/listings/canonical-lifecycle";
 import { marketDom } from "@/lib/compliance/dom-tracker";
@@ -26,7 +26,8 @@ import type { CompCriteria, CompListing, CompResults, BuildingCompCriteria, Area
 // Trestle status values mapped from our display names
 const STATUS_MAP: Record<string, string> = {
   "Active": "Active",
-  "Under Contract": "ActiveUnderContract",
+  "Under Contract": queryStatusesFor("pending_contract")[0],
+  "In Contract": queryStatusesFor("pending_contract")[0],
   "Closed": "Closed",
   "Expired": "Expired",
   "Coming Soon": "ComingSoon",
@@ -70,26 +71,40 @@ export function compsOrderBy(statuses: string[]): string {
  * (a mismatch cannot be proven). Agent-selected off-market statuses (Expired …) are market observations, not
  * valuation comps, and pass subject to the same ownership rule.
  */
-export function applyCompEligibility(
-  comps: CompListing[],
-  o: { asOf?: Date; monthsBack: number; subjectCommonInterest?: string | null },
-): CompListing[] {
+export interface CompEligibilityOptions {
+  asOf?: Date;
+  monthsBack: number;
+  subjectCommonInterest?: string | null;
+  /** The SUBJECT's transaction — a sale is compared with sales, a rental with rentals (never mixed). Default sale. */
+  transactionType?: "sale" | "rental";
+}
+
+/** One comp's eligibility facts: its stored status, its CloseDate (if closed) and its ownership class evidence. */
+export type CompEligibilityFacts = Pick<CompListing, "status" | "close_date" | "common_interest">;
+
+/**
+ * The comp-eligibility authority for ONE comp (this module is the canonical package's designated consumer —
+ * lib/cma/engine.ts and the provider comp fetch both come through here, never through a second reader).
+ */
+export function isEligibleComp(c: CompEligibilityFacts, o: CompEligibilityOptions): boolean {
   const asOf = o.asOf ?? new Date();
   const target = ownershipClass(o.subjectCommonInterest);
   const segment = target !== "unknown";
   const closedWindowDays = Math.round(o.monthsBack * 30.4375);
-  return comps.filter((c) => {
-    const group = statusGroup(c.status, "sale");
-    const ownership = ownershipClass(c.common_interest);
-    const mixOwnership = !segment || ownership === "unknown";
-    if (group === "closed_recent" || group === "active_on_market" || group === "pending_contract") {
-      return compEligibility(
-        { group, ownership, closeDate: c.close_date },
-        { targetOwnership: target, asOf, closedWindowDays, mixOwnership },
-      ) !== "excluded";
-    }
-    return mixOwnership || ownership === target;
-  });
+  const group = statusGroup(c.status, o.transactionType ?? "sale");
+  const ownership = ownershipClass(c.common_interest);
+  const mixOwnership = !segment || ownership === "unknown";
+  if (group === "closed_recent" || group === "active_on_market" || group === "pending_contract") {
+    return compEligibility(
+      { group, ownership, closeDate: c.close_date },
+      { targetOwnership: target, asOf, closedWindowDays, mixOwnership },
+    ) !== "excluded";
+  }
+  return mixOwnership || ownership === target;
+}
+
+export function applyCompEligibility(comps: CompListing[], o: CompEligibilityOptions): CompListing[] {
+  return comps.filter((c) => isEligibleComp(c, o));
 }
 
 function bedsFilter(min: number, max: number): string {
@@ -179,6 +194,7 @@ async function fetchBuildingComps(
 
   const filters = [
     ...buildingFilters,
+    ctx.property_type ? `PropertyType eq '${esc(ctx.property_type)}'` : "",
     compsStatusWindowFilter(criteria.statuses, criteria.months_back),
     bedsFilter(criteria.beds_min, criteria.beds_max),
     bathsFilter(criteria.baths_min, criteria.baths_max),
@@ -279,14 +295,17 @@ export async function fetchComps(
   ctx: ListingContext,
   criteria: CompCriteria,
 ): Promise<CompResults> {
+  if (!ctx.property_type) throw new Error("CMA requires the subject's verified Cotality PropertyType");
   const [building, area] = await Promise.all([
     fetchBuildingComps(ctx, criteria.building),
     fetchAreaComps(ctx, criteria.area),
   ]);
 
+  // Defense in depth: never mix a sale and a rental if a provider response violates the query.
+  const sameType = (rows: CompListing[]) => rows.filter((row) => row.property_type === ctx.property_type);
   return {
-    building,
-    area,
+    building: sameType(building),
+    area: sameType(area),
     criteria,
     listing_id: ctx.listing_id,
     fetched_at: new Date().toISOString(),

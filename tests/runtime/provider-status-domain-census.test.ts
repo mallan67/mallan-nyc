@@ -18,7 +18,7 @@ import { MALLAN_STORAGE_STATUSES, MALLAN_ONLY_STATUSES, cotalityStandardStatusFo
 import { LIVE_PROPERTY_FIELDS, COTALITY_STANDARD_STATUS_MEMBERS, liveEnumMembers, isCotalityStandardStatus } from "@/lib/cotality/live-contract";
 import { mallanRecord } from "@/lib/search/engine/hydrate";
 import { mapTrestleToPrisma } from "@/lib/idx/trestle-mapper";
-import { CANONICAL_STATUSES, CRM_WORKFLOW_STATUSES } from "@/lib/crm/status-mapping";
+import { CANONICAL_STATUSES, SALE_WORKFLOW_STATUSES, RENTAL_WORKFLOW_STATUSES } from "@/lib/crm/status-mapping";
 import { applyServerFormMapping } from "@/lib/crm/listing-form-mapping";
 
 const ROOT = path.resolve(__dirname, "../..");
@@ -103,7 +103,7 @@ describe("Mallan status ≠ Cotality status (raw_data never carries a fake provi
   });
   it("the write path (server form mapping) never emits a provider-named status / permission for any workflow or canonical input", () => {
     const inputs: Record<string, unknown>[] = [];
-    for (const w of CRM_WORKFLOW_STATUSES) inputs.push({ saleStatus: w }, { rentalStatus: w });
+    for (const w of [...SALE_WORKFLOW_STATUSES, ...RENTAL_WORKFLOW_STATUSES]) inputs.push({ saleStatus: w }, { rentalStatus: w });
     for (const c of CANONICAL_STATUSES) inputs.push({ MlsStatus: c }, { StandardStatus: c }, { status: c });
     inputs.push({ Permission: "OwnerOptOut" }, { Permissions: "RLS-Participant" });
     for (const input of inputs) for (const ft of ["sale", "rent"] as const) {

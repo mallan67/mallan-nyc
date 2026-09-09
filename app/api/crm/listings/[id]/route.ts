@@ -16,6 +16,7 @@ import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { sanitizeForCRM } from "@/lib/compliance/dto";
 import { derivePermissionBooleans, normalizePayload, buildPersistenceRecord } from "@/lib/compliance/normalizer";
 import { applyServerFormMapping } from "@/lib/crm/listing-form-mapping";
+import { formStatusForListing } from "@/lib/crm/status-mapping";
 import { coerceStrictBool } from "@/lib/compliance/gates";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
@@ -88,6 +89,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   // the existing CRM-tier PII boundary in sanitizeForCRM is unchanged.
   sanitized.list_agent_full_name = listing.list_agent_full_name ?? null;
   sanitized.list_office_name = listing.list_office_name ?? null;
+  sanitized.form_status = formStatusForListing(listing);
 
   return NextResponse.json(sanitized);
 }

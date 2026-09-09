@@ -14059,6 +14059,27 @@ var MallanAPI = (function () {
       };
     },
 
+    // Render the server's status projection; never translate provider/workflow values in the browser.
+    renderListingStatus: function (id, listing) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      var raw = listing.raw_data || {};
+      var projection = listing.form_status;
+      var value = projection ? projection.value : (raw._crmWorkflowStatus || raw[id] || listing.status || '');
+      var label = projection ? projection.label : (value || 'Status unavailable');
+      var option = Array.prototype.find.call(el.options, function (o) { return o.value === value; });
+      if (!option) {
+        option = document.createElement('option');
+        option.value = value;
+        option.disabled = !value;
+        el.appendChild(option);
+      }
+      option.textContent = label;
+      el.value = value;
+      var provider = document.getElementById(id.replace(/Status$/, 'CotalityStatus'));
+      if (provider) provider.textContent = (projection ? projection.providerStatus : raw.StandardStatus) || 'Not provided';
+    },
+
     // Internal fetch — exposed for CRM modules (featured-config, analytics, etc.)
     _fetch: _fetch,
 

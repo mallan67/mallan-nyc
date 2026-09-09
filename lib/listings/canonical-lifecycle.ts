@@ -110,6 +110,16 @@ export interface ListingLifecycle {
   backOnMarket: boolean;
   backOnMarketDate: string | null;
   closedDate: string | null;
+  /**
+   * The provider's ClosePrice (REBNY's Sold / Leased price) on a closed row, when it is a positive number; null
+   * otherwise. Read here, inside the Cotality boundary, so a valuation consumer never touches the raw key.
+   */
+  closePrice: number | null;
+  /**
+   * The provider's StandardStatus retained verbatim in raw_data (the "Last Cotality Status" a form shows read-only);
+   * null when the row carries none — a Mallan-authored listing has no provider status.
+   */
+  providerStatus: string | null;
   /** Active with a PurchaseContractDate — an accepted offer not yet marked Pending by the provider. */
   acceptedOfferSignal: boolean;
   /** PriceChangeTimestamp verbatim (the provider dates the last price change; 361,678 rows carry it); null when none. */
@@ -197,7 +207,13 @@ function labelFor(stage: LifecycleStage, transactionType: TransactionType | null
 }
 
 type LifecycleEvidence = Pick<CotalityRow<'Property'>, 'MajorChangeType' | 'PurchaseContractDate' | 'PendingTimestamp' | 'BackOnMarketDate' | 'CloseDate' | 'PriceChangeTimestamp'
-  | 'OnMarketDate' | 'ActivationDate' | 'ListingContractDate' | 'OriginalEntryTimestamp' | 'ContractStatusChangeDate' | 'OffMarketDate'>;
+  | 'OnMarketDate' | 'ActivationDate' | 'ListingContractDate' | 'OriginalEntryTimestamp' | 'ContractStatusChangeDate' | 'OffMarketDate' | 'ClosePrice' | 'StandardStatus'>;
+
+/** A positive provider price; null for null / zero / non-numeric. */
+function positivePrice(v: unknown): number | null {
+  const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' ? Number(v) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
 
 /** The raw contract-event dates, verbatim days; nothing derived. */
 function contractEventsOf(raw: LifecycleEvidence): ContractEvents {
@@ -215,7 +231,7 @@ function contractEventsOf(raw: LifecycleEvidence): ContractEvents {
   };
 }
 
-function signals(stage: LifecycleStage, raw: LifecycleEvidence, transactionType: TransactionType | null): Pick<ListingLifecycle, 'inContract' | 'inContractSince' | 'backOnMarket' | 'backOnMarketDate' | 'closedDate' | 'acceptedOfferSignal' | 'priceChangeTimestamp' | 'contractEvents'> {
+function signals(stage: LifecycleStage, raw: LifecycleEvidence, transactionType: TransactionType | null): Pick<ListingLifecycle, 'inContract' | 'inContractSince' | 'backOnMarket' | 'backOnMarketDate' | 'closedDate' | 'closePrice' | 'providerStatus' | 'acceptedOfferSignal' | 'priceChangeTimestamp' | 'contractEvents'> {
   const contractEvents = contractEventsOf(raw);
   const inContract = stage === 'in_contract';
   const backOnMarket = stage === 'active' && raw.MajorChangeType === 'BackOnMarket';
@@ -225,6 +241,8 @@ function signals(stage: LifecycleStage, raw: LifecycleEvidence, transactionType:
     backOnMarket,
     backOnMarketDate: backOnMarket ? contractEvents.backOnMarketDate : null,
     closedDate: stage === 'closed' ? contractEvents.closeDate : null,
+    closePrice: stage === 'closed' ? positivePrice(raw.ClosePrice) : null,
+    providerStatus: str(raw.StandardStatus),
     acceptedOfferSignal: stage === 'active' && contractEvents.purchaseContractDate !== null,
     priceChangeTimestamp: str(raw.PriceChangeTimestamp),
     contractEvents,

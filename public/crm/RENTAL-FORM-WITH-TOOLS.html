@@ -545,10 +545,10 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                     <option value="PermOffMarket">Perm Off Market</option>
                     <option value="TempOffMarket">Temp Off Market</option>
                     <option value="Expired">Expired</option>
-                    <option disabled>── RLS System ──</option>
+                    <option disabled>── Saved Listing State ──</option>
                     <option value="Pending">Pending</option>
-                    <option value="Closed">Closed</option>
-                    <option value="Canceled">Canceled</option>
+                    <option value="Closed" hidden>Rented</option>
+                    <option value="Canceled" hidden>Canceled</option>
                     <!-- ComingSoon REMOVED — prohibited for rentals per REBNY RLS Sec. 2.05(d) / UCBA D1 -->
                     <option value="Hold">Hold</option>
                     <option value="Incomplete">Incomplete</option>
@@ -569,8 +569,8 @@ body.viewer-mode select.field-input { pointer-events: none; appearance: none; -w
                         <p class="text-xs font-medium text-gray-700" id="rentalStatusChangeTimestamp">--</p>
                     </div>
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
-                        <p class="text-[10px] text-gray-500 uppercase">RESO MlsStatus</p>
-                        <p class="text-xs font-medium text-blue-700" id="rentalResoMlsStatus">set by server on save</p>
+                        <p class="text-[10px] text-gray-500 uppercase">Last Cotality Status</p>
+                        <p class="text-xs font-medium text-blue-700" id="rentalCotalityStatus">set by server on save</p>
                     </div>
                 </div>
                 <!-- Validation Panel -->
@@ -4381,7 +4381,8 @@ window.addEventListener('message', function(event) {
 function viewerListingFromApi(apiData, id) {
     return {
         listingId: apiData.listing_id || id,
-        status: apiData.status || 'Active',
+        status: apiData.form_status ? apiData.form_status.value : (apiData.status || ''),
+        statusLabel: apiData.form_status ? apiData.form_status.label : (apiData.status || 'Status unavailable'),
         address: ((apiData.address || {}).StreetNumber || '') + ' ' + ((apiData.address || {}).StreetName || ''),
         unit: (apiData.address || {}).UnitNumber || '',
         city: apiData.city || 'New York',
@@ -4620,6 +4621,7 @@ function loadRentalListingData(listingId) {
          ['rentalAttendanceType', f.AttendanceType || r.AttendanceType], ['rentalBuildingLaundryFeatures', f.BuildingLaundryFeatures || r.BuildingLaundryFeatures]].forEach(function(pair) { _restoreCheckboxGroup(document, pair[0], pair[1]); });
     }
 
+    if (d._raw) MallanAPI.renderListingStatus('rentalStatus', d._raw);
     return d;
 }
 
@@ -4691,7 +4693,7 @@ function updateRentalHeaderForViewer(listingData) {
         };
         var sc = statusColors[listingData.status] || 'bg-gray-100 text-gray-600 border-gray-300';
         draftBadge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ' + sc;
-        draftBadge.innerHTML = '<i class="fas fa-circle" style="font-size:6px;"></i> ' + (listingData.status || 'Unknown').replace(/([A-Z])/g, ' $1').trim();
+        draftBadge.innerHTML = '<i class="fas fa-circle" style="font-size:6px;"></i> ' + (listingData.statusLabel || listingData.status || 'Status unavailable').replace(/([A-Z])/g, ' $1').trim();
     }
 
     // Sticky bar buttons already set to viewer tools in HTML
@@ -5036,8 +5038,8 @@ function updateRentalStatusFields() {
         if (rentedPrice) rentedPrice.style.display = '';
     }
 
-    // Update RESO MlsStatus display
-    var resoDisplay = document.getElementById('rentalResoMlsStatus');
+    // Update Last Cotality Status display
+    var resoDisplay = document.getElementById('rentalCotalityStatus');
     if (resoDisplay) resoDisplay.textContent = 'set by server on save';
 
     // Enable/disable Commission Request tab (Tab 7)
@@ -7347,7 +7349,7 @@ function buildRentalPrintHTML(data, sections, options) {
     if (sections.indexOf('agentInfo') !== -1) {
         html += makeSection('Listing Type & Agent Info', [
             ['Updating Agent', data.updatingAgent], ['Company', data.updatingCompany],
-            ['Listing Type', data.listingType], ['Status', data.status],
+            ['Listing Type', data.listingType], ['Status', data.statusLabel || data.status],
             ['Date Listed', data.dateListed], ['Exclusive Start', data.exclusiveStart],
             ['Exclusive Expires', data.exclusiveExpires]
         ]);

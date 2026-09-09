@@ -156,3 +156,47 @@ describe('the stored-column clock is the fallback for rows without provider date
     expect(getCurrentDom({ status: 'Active', participant_only: false, status_changed_at: daysAgo(3), first_active_date: daysAgo(3), days_on_market: 50 }, { lifecycle, asOf: ASOF })).toBe(53);
   });
 });
+
+describe('the two clocks, end to end — Coming Soon duration; market DOM from listing start until sold / rented / off-market', () => {
+  const csRow = { StandardStatus: 'ComingSoon', OnMarketDate: '2026-08-20', ContractStatusChangeDate: '2026-09-01', ActivationDate: '2026-09-10' };
+  it('Coming Soon DURATION accrues day by day on its own clock while the market clock stays at zero', () => {
+    const l = sale(csRow);
+    expect(comingSoonDom(l, '2026-09-01')).toEqual({ start: '2026-09-01', activation: '2026-09-10', days: 0, daysUntilActivation: 9, exceedsFourteenDays: false });
+    expect(comingSoonDom(l, '2026-09-08')).toMatchObject({ days: 7, daysUntilActivation: 2, exceedsFourteenDays: false });
+    expect(comingSoonDom(l, '2026-09-16')).toMatchObject({ days: 15, daysUntilActivation: -6, exceedsFourteenDays: true });
+    for (const day of ['2026-09-01', '2026-09-08']) expect(marketDom(l, day).days).toBe(0);
+  });
+  it('once activated the Coming Soon clock is gone and the market clock starts at the First Showing Date, never at the Coming Soon day', () => {
+    const l = sale({ ...csRow, StandardStatus: 'Active' });
+    expect(comingSoonDom(l, '2026-09-20')).toBeNull();
+    expect(marketDom(l, '2026-09-10')).toMatchObject({ start: '2026-09-10', days: 0, endReason: 'as_of' });
+    expect(marketDom(l, '2026-09-20')).toMatchObject({ start: '2026-09-10', days: 10, endReason: 'as_of' });
+  });
+  it('market DOM until SOLD: a Closed sale stops at the signed contract (PurchaseContractDate) — not at the closing — and never grows afterwards', () => {
+    const l = sale({ StandardStatus: 'Closed', OnMarketDate: '2026-01-10', ActivationDate: '2026-01-10', PurchaseContractDate: '2026-05-01', CloseDate: '2026-06-15', ClosePrice: 950000 });
+    expect(l.providerStage).toBe('closed');
+    expect(marketDom(l, ASOF)).toEqual({ start: '2026-01-10', end: '2026-05-01', endReason: 'contract_signed', days: 111, unverified: null });
+    expect(marketDom(l, '2027-06-15').days).toBe(111);
+    expect(comingSoonDom(l, ASOF)).toBeNull();
+  });
+  it('market DOM until RENTED: a Closed rental stops at the signed lease (PurchaseContractDate), else at the Leased date (CloseDate)', () => {
+    const signed = rent({ StandardStatus: 'Closed', OnMarketDate: '2026-06-01', ActivationDate: '2026-06-01', PurchaseContractDate: '2026-06-20', CloseDate: '2026-07-01' });
+    expect(marketDom(signed, ASOF)).toEqual({ start: '2026-06-01', end: '2026-06-20', endReason: 'contract_signed', days: 19, unverified: null });
+    const leasedOnly = rent({ StandardStatus: 'Closed', OnMarketDate: '2026-06-01', ActivationDate: '2026-06-01', CloseDate: '2026-07-01' });
+    expect(marketDom(leasedOnly, ASOF)).toEqual({ start: '2026-06-01', end: '2026-07-01', endReason: 'contract_signed', days: 30, unverified: null });
+    expect(marketDom(leasedOnly, '2027-01-01').days).toBe(30);
+  });
+  it('market DOM until OFF MARKET: a sale or a rental that left the feed stops the day it left, the last provider status preserved, no Coming Soon clock', () => {
+    for (const listing_type of ['sale', 'rent']) {
+      const l = lifecycleFromStoredRow({ status: 'Active', listing_type, sync_status: 'off_feed', terminal_since: new Date('2026-08-15T12:00:00Z'), raw_data: { StandardStatus: 'Active', OnMarketDate: '2026-06-01', ActivationDate: '2026-06-01' } });
+      expect(l.stage).toBe('off_market');
+      expect(marketDom(l, ASOF)).toEqual({ start: '2026-06-01', end: '2026-08-15', endReason: 'off_feed', days: 75, unverified: null });
+      expect(comingSoonDom(l, ASOF)).toBeNull();
+    }
+  });
+  it('the two clocks never share a day: Coming Soon 2026-01-01 → activation 01-10, contract 05-01 — market DOM 111, the Coming Soon clock retired with its stage', () => {
+    const l = sale({ StandardStatus: 'Closed', OnMarketDate: '2026-01-01', ContractStatusChangeDate: '2026-01-01', ActivationDate: '2026-01-10', PurchaseContractDate: '2026-05-01', CloseDate: '2026-06-15' });
+    expect(marketDom(l, ASOF)).toMatchObject({ start: '2026-01-10', end: '2026-05-01', days: 111 });
+    expect(comingSoonDom(l, ASOF)).toBeNull();
+  });
+});

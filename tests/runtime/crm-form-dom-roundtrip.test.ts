@@ -24,6 +24,7 @@ export {};
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { MALLAN_FORM_CONTRACT } from '@/lib/listings/mallan-form-contract';
+import { formStatusForListing } from '@/lib/crm/status-mapping';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-explicit-any
 const jsdom: any = require('jsdom');
@@ -112,7 +113,40 @@ class LocalOnly extends jsdom.ResourceLoader {
 }
 /** `api` serves JSON bodies to the page's own fetches by URL prefix (the CRM API the viewer boots against). */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function loadPage(file: string, api: Record<string, unknown> = {}): Promise<any> {
+// ── The page's OWN save / load wiring, routed to the REAL handlers ────────────────────────────────────
+const AUTH_ME = { authenticated: true, principalType: 'agent', role: 'broker', portalRole: 'broker', user: { id: '7', name: 'Maya Allan' } };
+async function patchStatus(id: string, body: Rec) {
+  const { PATCH } = await import('@/app/api/crm/listings/[id]/status/route');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (PATCH as any)(json(body, 'PATCH', `http://localhost/api/crm/listings/${id}/status`), { params: Promise.resolve({ id }) });
+}
+type Sent = { method: string; path: string; body: Rec | null; status: number };
+const respond = (status: number, data: unknown) =>
+  ({ ok: status >= 200 && status < 300, status, json: async () => data, text: async () => JSON.stringify(data), headers: new Map([['content-type', 'application/json']]) });
+/**
+ * When a page is loaded with a `live` log, its api-client fetches go to the REAL CRM handlers (POST / GET / PATCH
+ * / status PATCH) and the session probe answers as Maya; every call the page made is recorded in `live`.
+ */
+async function liveApi(url: string, method: string, body: string | undefined, live: Sent[]) {
+  const path = url.replace(/^https?:\/\/[^/]+/, '').split('?')[0];
+  if (path === '/api/auth/me') return respond(200, AUTH_ME);
+  const m = path.match(/^\/api\/crm\/listings(?:\/([^/]+))?(\/status)?$/);
+  if (!m) return null;
+  const [, id, isStatus] = m;
+  const payload: Rec | null = body ? (JSON.parse(body) as Rec) : null;
+  let res: Response | null = null;
+  if (isStatus && id && method === 'PATCH') res = await patchStatus(id, payload ?? {});
+  else if (!id && method === 'POST') res = await post(payload ?? {});
+  else if (id && !isStatus && method === 'GET') res = await get(id);
+  else if (id && !isStatus && method === 'PATCH') res = await patch(id, payload ?? {});
+  if (!res) return null;
+  const data = JSON.parse(await res.text());
+  live.push({ method, path, body: payload, status: res.status });
+  return respond(res.status, data);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function loadPage(file: string, api: Record<string, unknown> = {}, live?: Sent[]): Promise<any> {
   const html = readFileSync(resolve(ROOT, 'public/crm', file.split('?')[0]), 'utf8');
   const virtualConsole = new jsdom.VirtualConsole(); // page-side errors are the page's business, not this proof's
   virtualConsole.on('jsdomError', () => undefined);
@@ -124,8 +158,12 @@ async function loadPage(file: string, api: Record<string, unknown> = {}): Promis
     virtualConsole,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     beforeParse(window: any) {
-      window.fetch = async (input: unknown) => {
+      window.fetch = async (input: unknown, init?: { method?: string; body?: string }) => {
         const url = String(typeof input === 'string' ? input : (input as { url?: string })?.url ?? '');
+        if (live) {
+          const routed = await liveApi(url, (init?.method ?? 'GET').toUpperCase(), init?.body, live);
+          if (routed) return routed;
+        }
         const hit = Object.keys(api).find((k) => url.includes(k));
         const body = hit ? api[hit] : {};
         return { ok: true, status: 200, json: async () => body, text: async () => JSON.stringify(body), headers: new Map([['content-type', 'application/json']]) };
@@ -438,3 +476,180 @@ describe.each(FORMS)('$file — create → save → reload → edit → save →
   });
 });
 
+
+describe.each(FORMS)('$file and $tools use the same server status projection', (spec) => {
+  jest.setTimeout(120_000);
+  it('distinguishes closed sale/rental, preserves Pending, and shows unknown/off-feed without inventing Active', async () => {
+    const saved = [...store.rows.values()].find((row) => row.listing_type === spec.listingType)!;
+    const base = await (await get(String(saved.id))).json();
+    const entry = await loadPage(spec.file);
+    const viewer = await loadPage(spec.tools + '?id=' + saved.id, {
+      '/api/auth/me': { authenticated: true, principalType: 'agent', role: 'broker', portalRole: 'broker', user: { id: '7' } },
+      ['/api/crm/listings/' + saved.id]: base,
+    });
+    const cases = [
+      { status: 'Closed', sync_status: 'synced', value: spec.prefix === 'sale' ? 'Sold' : 'Rented', label: spec.prefix === 'sale' ? 'Sold' : 'Rented' },
+      { status: 'Pending', sync_status: 'synced', value: 'Pending', label: spec.prefix === 'sale' ? 'In Contract' : 'Pending' },
+      { status: '', sync_status: null, value: '', label: 'Status unavailable' },
+      { status: 'Active', sync_status: 'off_feed', value: '', label: 'Off Market' },
+    ];
+    try {
+      for (const c of cases) {
+        const raw = { ...base.raw_data, _crmWorkflowStatus: undefined, saleStatus: undefined, rentalStatus: undefined };
+        const listing = { ...base, ...c, raw_data: raw };
+        listing.form_status = formStatusForListing(listing);
+        spec.before?.(entry.window);
+        entry.window[spec.populate](listing);
+        spec.after?.(entry.window);
+        viewer.window.VIEWER_LISTINGS[String(saved.id)] = viewer.window.viewerListingFromApi(listing, String(saved.id));
+        viewer.window[spec.viewerLoad](String(saved.id));
+        for (const win of [entry.window, viewer.window]) {
+          const select = win.document.getElementById(spec.prefix + 'Status');
+          expect({ value: select.value, label: select.options[select.selectedIndex]?.textContent }).toEqual({ value: c.value, label: c.label });
+        }
+        await settle(); await settle();
+      }
+    } finally { entry.window.close(); viewer.window.close(); }
+  });
+});
+
+
+/**
+ * The page's OWN Save button and edit-mode load, through the REAL handlers — not the collector / loader called
+ * by hand. The Save button's handler (submitSalesListing / submitRentalListing) runs the page's validation,
+ * the collector, MallanAPI.listings.create / update → fetch → the real POST / PATCH (RLS enforcement gate
+ * included) and, on the sale form, the real status PATCH. The edit-mode boot (`?id=`) runs
+ * _checkSaleEditMode / _checkRentalEditMode → MallanAPI.listings.get → the real GET → the page's own loader.
+ * The status shown on every page is the server projection of THAT listing's transaction mapping.
+ */
+describe.each(FORMS)('$file — the page\'s own Save button and edit-mode load, through the real handlers', (spec) => {
+  jest.setTimeout(180_000);
+  const submit = spec.prefix === 'sale' ? 'submitSalesListing' : 'submitRentalListing';
+  const editDbId = spec.prefix === 'sale' ? '_saleEditDbId' : '_rentalEditDbId';
+  const editMode = spec.prefix === 'sale' ? '_saleEditMode' : '_rentalEditMode';
+  // this transaction's own pipeline word, its label, and the canonical state it stores
+  const pipeline = spec.prefix === 'sale'
+    ? { word: 'ContractSigned', label: 'Contract Signed', canonical: 'Pending', close: 'Sold' }
+    : { word: 'LeaseSigned', label: 'Lease Signed', canonical: 'Pending', close: 'Rented' };
+  // the OTHER transaction's words — unknown to this listing, never guarded by a regex
+  const foreign = spec.prefix === 'sale' ? ['Rented', 'Leased', 'LeaseSigned', 'AppOut'] : ['Sold', 'ContractSigned', 'OfferOut', 'ComingSoon'];
+  const until = async (done: () => boolean) => { for (let i = 0; i < 60 && !done(); i++) await settle(); await settle(); await settle(); };
+  let id = '';
+  let sentOnCreate: Rec = {};
+  let keys = new Set<string>();
+
+  it('Save on a new form: the page\'s submit → MallanAPI.listings.create → the real POST (201) → the page enters edit mode with the new id', async () => {
+    const live: Sent[] = [];
+    const page = await loadPage(spec.file, {}, live);
+    const win = page.window;
+    await until(() => win.MallanAPI?.isReady === true); // the auth handshake (MallanAPI.init → /api/auth/me) — the page saves offline otherwise
+    expect(win.MallanAPI.isReady).toBe(true);
+    keys = controlKeys(win);
+    fillEverything(win, 1);
+    realistic(win, spec.prefix);
+    for (const k of [`${spec.prefix}THLotSize`, `${spec.prefix}THBuildingArea`]) { const el = win.document.getElementById(k); if (el) { el.value = ''; fire(win, el, 'input', 'change'); } }
+    await settle();
+    const alerts: string[] = [];
+    win.alert = (m: unknown) => alerts.push(String(m));
+    expect(typeof win[submit]).toBe('function');
+    win[submit]();
+    await until(() => live.some((s) => s.method === 'POST'));
+    const created = live.find((s) => s.method === 'POST');
+    expect({ created: created && { status: created.status }, refused: alerts.filter((a) => !/SUCCESS/.test(a)) }).toEqual({ created: { status: 201 }, refused: [] });
+    id = String(win[editDbId]);
+    expect(store.rows.has(id)).toBe(true);
+    expect(win[editMode]).toBe(true);
+    sentOnCreate = created!.body as Rec;
+    expect(sentOnCreate[`${spec.prefix}Status`]).toBeDefined();
+    page.window.close();
+  });
+
+  it('the edit-mode boot (?id=): MallanAPI.listings.get → the real GET → the page\'s own loader — nothing saved is lost and the status select shows the server projection', async () => {
+    const live: Sent[] = [];
+    const page = await loadPage(`${spec.file}?id=${id}`, {}, live);
+    const win = page.window;
+    await until(() => live.some((s) => s.method === 'GET' && s.path.endsWith('/' + id)));
+    expect(live.find((s) => s.method === 'GET')?.status).toBe(200);
+    expect(win[editMode]).toBe(true);
+    expect(String(win[editDbId])).toBe(id);
+    const reloaded = win[spec.collect]() as Rec;
+    expect(lost(sentOnCreate, reloaded, keys)).toEqual([]);
+    const select = win.document.getElementById(`${spec.prefix}Status`);
+    const projection = formStatusForListing(store.rows.get(id)! as Parameters<typeof formStatusForListing>[0]);
+    expect({ value: select.value, label: select.options[select.selectedIndex]?.textContent }).toEqual({ value: projection.value, label: projection.label });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect([...win.document.querySelectorAll(`[onclick*="${submit}"]`)].some((b: any) => /Update/.test(b.textContent))).toBe(true);
+    page.window.close();
+  });
+
+  it('Save in edit mode walks THIS transaction\'s pipeline through the real PATCH + status API (Active, then the pipeline word): stored as this transaction\'s canonical, reloaded by this transaction\'s label on the entry form and the tools viewer', async () => {
+    // create stores Draft (the POST route's STATUS_INITIAL); the page's Save then submits the selected workflow
+    // word to the status API, which walks the transaction's own state machine: Draft → Active → Pending.
+    const steps = [{ word: 'Active', canonical: 'Active' }, { word: pipeline.word, canonical: pipeline.canonical }];
+    for (const step of steps) {
+      const live: Sent[] = [];
+      const page = await loadPage(`${spec.file}?id=${id}`, {}, live);
+      const win = page.window;
+      await until(() => live.some((s) => s.method === 'GET'));
+      const select = win.document.getElementById(`${spec.prefix}Status`);
+      select.value = step.word;
+      fire(win, select, 'change');
+      expect(select.value).toBe(step.word); // the page's own change handler does not undo the agent's choice
+      if (step.word === pipeline.word) {
+        // a signed contract is a fact the agent enters (REBNY PENDING-001): the signed date and the buyer's agent contact
+        const set = (k: string, v: string) => { const el = win.document.getElementById(k); if (el) { el.value = v; fire(win, el, 'input', 'change'); } };
+        set(`${spec.prefix}ContractSignedDate`, '2026-09-15');
+        set(`${spec.prefix}PurchaseContractDate`, '2026-09-15');
+        set(`${spec.prefix}BuyerCompany`, 'MALLAN');
+        set(`${spec.prefix}BuyerCompanySearch`, 'Mallan Real Estate Inc.');
+      }
+      const alerts: string[] = [];
+      win.alert = (m: unknown) => alerts.push(String(m));
+      win[submit]();
+      await until(() => live.some((s) => s.path.endsWith('/status')));
+      const saved = live.find((s) => s.method === 'PATCH' && s.body?.[`${spec.prefix}Status`] !== undefined);
+      const transition = live.find((s) => s.path.endsWith('/status'));
+      expect({
+        saved: saved && { status: saved.status, sent: saved.body?.[`${spec.prefix}Status`] },
+        transition: transition && { status: transition.status, sent: transition.body?.status },
+        refused: alerts.filter((a) => !/SUCCESS/.test(a)),
+      }).toEqual({ saved: { status: 200, sent: step.word }, transition: { status: 200, sent: step.word }, refused: [] });
+      const row = store.rows.get(id)!;
+      expect(row.status).toBe(step.canonical);
+      expect((row.raw_data as Rec)._crmWorkflowStatus).toBe(step.word);
+      expect((row.raw_data as Rec).StandardStatus).toBeUndefined(); // a Mallan-authored row carries no provider status; nothing invents one
+      page.window.close();
+    }
+
+    // the entry form, booted again with ?id= …
+    const again = await loadPage(`${spec.file}?id=${id}`, {}, []);
+    await until(() => again.window[editMode] === true && again.window.document.getElementById(`${spec.prefix}Status`).value === pipeline.word);
+    const entrySelect = again.window.document.getElementById(`${spec.prefix}Status`);
+    expect({ value: entrySelect.value, label: entrySelect.options[entrySelect.selectedIndex]?.textContent }).toEqual({ value: pipeline.word, label: pipeline.label });
+    again.window.close();
+    // … and the tools viewer, booted the way the CRM opens it
+    const viewer = await loadPage(`${spec.tools}?id=${id}`, {}, []);
+    await until(() => viewer.window.document.getElementById(`${spec.prefix}Status`)?.value === pipeline.word);
+    const viewerSelect = viewer.window.document.getElementById(`${spec.prefix}Status`);
+    expect({ value: viewerSelect?.value, label: viewerSelect?.options[viewerSelect.selectedIndex]?.textContent }).toEqual({ value: pipeline.word, label: pipeline.label });
+    viewer.window.close();
+  });
+
+  it('the status API resolves through THIS listing\'s transaction only: the other transaction\'s words are refused, its own close is accepted and terminal', async () => {
+    for (const w of foreign) {
+      const res = await patchStatus(id, { status: w });
+      const body = await res.json();
+      expect({ w, status: res.status, code: body.code }).toEqual({ w, status: 400, code: 'form_mapping' });
+    }
+    expect(store.rows.get(id)!.status).toBe(pipeline.canonical);
+    // the close needs a ClosePrice (UCBA C12) — set through the real PATCH, then close through the real status route
+    const priced = await patch(id, { ClosePrice: spec.prefix === 'sale' ? 950000 : 4500 });
+    expect(priced.status).toBe(200);
+    const closed = await patchStatus(id, { status: pipeline.close });
+    expect({ status: closed.status, body: await closed.json() }).toMatchObject({ status: 200, body: { previous_status: pipeline.canonical, status: pipeline.close } });
+    expect(store.rows.get(id)!.status).toBe(pipeline.close);
+    const after = await patchStatus(id, { status: 'Active' });
+    expect(after.status).toBe(422);
+    expect(formStatusForListing(store.rows.get(id)! as Parameters<typeof formStatusForListing>[0])).toMatchObject({ value: pipeline.close, label: pipeline.close });
+  });
+});

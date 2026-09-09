@@ -176,3 +176,22 @@ describe('price change timestamp — the provider dates the last price change (P
     expect(l?.priceChangeTimestamp).toBe('2026-08-30T14:02:11Z');
   });
 });
+
+describe('close price and provider status — read inside the boundary so valuation and the forms never touch the raw keys', () => {
+  it('a closed row carries its positive ClosePrice; an unpriced or zero closing carries none', () => {
+    expect(lifecycleFromStoredRow({ status: 'Closed', listing_type: 'sale', sync_status: 'synced', raw_data: { CloseDate: '2026-06-15', ClosePrice: 950000 } }).closePrice).toBe(950000);
+    expect(lifecycleFromStoredRow({ status: 'Closed', listing_type: 'rent', sync_status: 'synced', raw_data: { CloseDate: '2026-06-15', ClosePrice: '4500' } }).closePrice).toBe(4500);
+    expect(lifecycleFromStoredRow({ status: 'Closed', listing_type: 'sale', sync_status: 'synced', raw_data: { CloseDate: '2026-06-15' } }).closePrice).toBeNull();
+    expect(lifecycleFromStoredRow({ status: 'Closed', listing_type: 'sale', sync_status: 'synced', raw_data: { CloseDate: '2026-06-15', ClosePrice: 0 } }).closePrice).toBeNull();
+    expect(lifecycleFromProviderRow({ StandardStatus: 'Closed', PropertyType: 'ResidentialLease', CloseDate: '2026-06-15', ClosePrice: 4200 })?.closePrice).toBe(4200);
+  });
+  it('a price on a row that is not closed is never a close price', () => {
+    expect(lifecycleFromStoredRow({ status: 'Active', listing_type: 'sale', sync_status: 'synced', raw_data: { ClosePrice: 950000 } }).closePrice).toBeNull();
+    expect(lifecycleFromProviderRow({ StandardStatus: 'Pending', PropertyType: 'Residential', ClosePrice: 950000 })?.closePrice).toBeNull();
+  });
+  it('the provider status is the retained StandardStatus verbatim; a Mallan-authored row has none', () => {
+    expect(lifecycleFromStoredRow({ status: 'Active', listing_type: 'sale', sync_status: 'off_feed', terminal_since: new Date('2026-08-01T00:00:00Z'), raw_data: { StandardStatus: 'Active' } }).providerStatus).toBe('Active');
+    expect(lifecycleFromProviderRow({ StandardStatus: 'ComingSoon', PropertyType: 'Residential' })?.providerStatus).toBe('ComingSoon');
+    expect(lifecycleFromStoredRow({ status: 'Draft', listing_type: 'rent', sync_status: null, raw_data: {} }).providerStatus).toBeNull();
+  });
+});

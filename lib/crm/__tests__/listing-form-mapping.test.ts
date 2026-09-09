@@ -24,7 +24,7 @@ import {
   WRITABLE_PROPERTY_SUB_TYPES,
   WRITABLE_PROPERTY_TYPES,
 } from '../listing-form-mapping';
-import { CANONICAL_STATUSES, CRM_WORKFLOW_STATUSES } from '../status-mapping';
+import { CANONICAL_STATUSES, SALE_WORKFLOW_STATUSES, RENTAL_WORKFLOW_STATUSES } from '../status-mapping';
 import { isCotalityStandardStatus } from '@/lib/cotality/live-contract';
 
 const live = JSON.parse(readFileSync(resolve(__dirname, '../../../data/cotality-enums.live.json'), 'utf8')) as {
@@ -73,7 +73,8 @@ describe('every writable provider value is a live Cotality enum member', () => {
 describe('STATUS ENUM GUARD — every status / permission the write path can emit', () => {
   it('the write path NEVER emits a provider-named status or permission key (for any workflow value, canonical value or legacy provider-named input)', () => {
     const inputs: Record<string, unknown>[] = [];
-    for (const w of CRM_WORKFLOW_STATUSES) inputs.push({ saleStatus: w }, { rentalStatus: w }, { _crmWorkflowStatus: w });
+    // every word of BOTH transactions, under both form keys (a rental word under saleStatus is refused, never leaked)
+    for (const w of [...SALE_WORKFLOW_STATUSES, ...RENTAL_WORKFLOW_STATUSES]) inputs.push({ saleStatus: w }, { rentalStatus: w }, { _crmWorkflowStatus: w });
     for (const c of CANONICAL_STATUSES) inputs.push({ MlsStatus: c }, { StandardStatus: c }, { status: c }, { _mallanStatus: c });
     inputs.push({ MlsStatus: 'Incomplete' }, { Permission: 'OwnerOptOut' }, { Permissions: 'Private' }, { Permission: 'RLS-Owner-OptOut' }, { _mallanPermission: 'Private' });
     for (const input of inputs) {
@@ -86,13 +87,30 @@ describe('STATUS ENUM GUARD — every status / permission the write path can emi
   });
   it('every Mallan status the write path can produce is a Mallan canonical status, and Mallan-only values never appear under provider names', () => {
     const emitted = new Set<string>();
-    for (const w of CRM_WORKFLOW_STATUSES) {
+    for (const w of SALE_WORKFLOW_STATUSES) {
       const r = applyServerFormMapping({ saleStatus: w }, 'sale');
       expect(r.errors).toEqual([]);
       emitted.add(String(r.body._mallanStatus));
       expect(r.body._crmWorkflowStatus).toBe(w);
     }
+    for (const w of RENTAL_WORKFLOW_STATUSES) {
+      const r = applyServerFormMapping({ rentalStatus: w }, 'rent');
+      expect(r.errors).toEqual([]);
+      emitted.add(String(r.body._mallanStatus));
+      expect(r.body._crmWorkflowStatus).toBe(w);
+    }
     for (const s of emitted) expect(CANONICAL_STATUSES).toContain(s);
+    // the other transaction's word is refused by the write path — sale never stores a rental state and vice versa
+    for (const w of ['AppOut', 'LeaseSigned', 'Rented', 'Leased']) {
+      const r = applyServerFormMapping({ saleStatus: w }, 'sale');
+      expect(r.errors).toHaveLength(1);
+      expect(r.body._mallanStatus).toBeUndefined();
+    }
+    for (const w of ['OfferOut', 'ContractSigned', 'Sold', 'ComingSoon']) {
+      const r = applyServerFormMapping({ rentalStatus: w }, 'rent');
+      expect(r.errors).toHaveLength(1);
+      expect(r.body._mallanStatus).toBeUndefined();
+    }
     // Mallan-only statuses exist internally (under the Mallan key) …
     expect(emitted).toContain('Sold');
     expect(emitted).toContain('Rented');
@@ -154,22 +172,31 @@ describe('classifyMallanPropertyType', () => {
   });
 });
 
-describe('canonicalStatusFromForm (CRM workflow → Mallan business status)', () => {
-  it('maps workflow values through the Mallan status map', () => {
-    expect(canonicalStatusFromForm('OfferOut')).toBe('ActiveUnderContract');
-    expect(canonicalStatusFromForm('ContractSigned')).toBe('Pending');
-    expect(canonicalStatusFromForm('SoldThruUs')).toBe('Sold');
-    expect(canonicalStatusFromForm('AppOut')).toBe('Pending');
-    expect(canonicalStatusFromForm('LeaseSigned')).toBe('Pending');
-    expect(canonicalStatusFromForm('RentedThruUs')).toBe('Rented');
+describe('canonicalStatusFromForm (one form\'s CRM workflow → Mallan business status, through that transaction\'s mapping)', () => {
+  it('maps the sale form\'s words through the sale mapping and the rental form\'s through the rental mapping', () => {
+    expect(canonicalStatusFromForm('OfferOut', 'sale')).toBe('ActiveUnderContract');
+    expect(canonicalStatusFromForm('ContractSigned', 'sale')).toBe('Pending');
+    expect(canonicalStatusFromForm('SoldThruUs', 'sale')).toBe('Sold');
+    expect(canonicalStatusFromForm('AppOut', 'rent')).toBe('Pending');
+    expect(canonicalStatusFromForm('LeaseSigned', 'rent')).toBe('Pending');
+    expect(canonicalStatusFromForm('RentedThruUs', 'rent')).toBe('Rented');
   });
-  it('accepts an already-canonical Mallan value, the legacy draft marker, and refuses the unknown', () => {
-    expect(canonicalStatusFromForm('ActiveUnderContract')).toBe('ActiveUnderContract');
-    expect(canonicalStatusFromForm('Rented')).toBe('Rented');
-    expect(canonicalStatusFromForm('Incomplete')).toBe('Draft');
-    expect(canonicalStatusFromForm('OffMarket')).toBeNull();
-    expect(canonicalStatusFromForm('')).toBeNull();
-    expect(canonicalStatusFromForm(42)).toBeNull();
+  it('refuses the other transaction\'s words', () => {
+    expect(canonicalStatusFromForm('AppOut', 'sale')).toBeNull();
+    expect(canonicalStatusFromForm('RentedThruUs', 'sale')).toBeNull();
+    expect(canonicalStatusFromForm('OfferOut', 'rent')).toBeNull();
+    expect(canonicalStatusFromForm('SoldThruUs', 'rent')).toBeNull();
+  });
+  it('accepts an already-canonical Mallan value, the saved-state spellings, the legacy draft marker, and refuses the unknown', () => {
+    expect(canonicalStatusFromForm('ActiveUnderContract', 'sale')).toBe('ActiveUnderContract');
+    expect(canonicalStatusFromForm('Rented', 'rent')).toBe('Rented');
+    expect(canonicalStatusFromForm('Closed', 'sale')).toBe('Sold');
+    expect(canonicalStatusFromForm('Closed', 'rent')).toBe('Rented');
+    expect(canonicalStatusFromForm('Canceled', 'rent')).toBe('Cancelled');
+    expect(canonicalStatusFromForm('Incomplete', 'sale')).toBe('Draft');
+    expect(canonicalStatusFromForm('OffMarket', 'sale')).toBeNull();
+    expect(canonicalStatusFromForm('', 'sale')).toBeNull();
+    expect(canonicalStatusFromForm(42, 'sale')).toBeNull();
   });
 });
 

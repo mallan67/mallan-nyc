@@ -61,6 +61,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "property_address is required" }, { status: 400 });
   }
 
+  if (listing_type && !['sale', 'rent', 'rental'].includes(listing_type)) {
+    return NextResponse.json({ error: "listing_type must be sale or rental" }, { status: 400 });
+  }
+
   // Find comps
   const comps = await findComps({
     property_address, borough, neighborhood, listing_type: listing_type || "sale",
@@ -85,6 +89,12 @@ export async function POST(req: NextRequest) {
   }
 
   const valuation = estimateValue(comps);
+  if (!Number.isFinite(valuation.estimated) || valuation.estimated <= 0) {
+    return NextResponse.json({
+      error: "No verified closed comparables with closing prices. Active asking prices are market context.",
+      code: "INSUFFICIENT_VALUATION_COMPS",
+    }, { status: 422 });
+  }
 
   const report = await prisma.cmaReport.create({
     data: {
