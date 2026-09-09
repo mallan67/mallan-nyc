@@ -45,12 +45,16 @@ function townhouseForm(formValue: 'SingleFamilyTownhouse' | 'MultiFamilyTownhous
     PetsAllowed: ['Yes'],
     TaxLot: '1234',
     TaxBlock: '567',
-    ElevatorsTotal: 0,
+    // Mallan facts under their Mallan keys: neither `ElevatorsTotal` nor `NewDevelopmentYN` is a live
+    // Cotality Property field, so both moved to `_mallan*` (rebny-ucba-rules requiredFields.agentSubmitted,
+    // and what SALE-FORM-REDESIGN.html now emits). `0` elevators is a RECORDED fact, not an absence —
+    // the gate's empty test is undefined / null / "" only, so a townhouse with no elevator still passes.
+    _mallanElevatorsTotal: 0,
     GarageYN: false,
     NumberOfUnitsTotal: 1,
     StoriesTotal: 4,
     NewConstructionYN: false,
-    NewDevelopmentYN: false,
+    _mallanNewDevelopmentYN: false,
     YearBuilt: 1899,
     BathroomsFull: 3,
     BathroomsHalf: 1,

@@ -131,8 +131,18 @@
             { id: 'saleExclusiveStart', label: 'Exclusive Start Date', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
             { id: 'saleExclusiveExpires', label: 'Exclusive Expires', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
             { id: 'saleFirstCoBroke', label: 'First Date To Co-Broke Listing', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
-            { id: 'saleOffMarketDate', label: 'Off Market Date', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
-            { id: 'saleContractSignedDate', label: 'Contract Signed Date', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
+            // Each status requires ITS OWN Cotality date (owner ruling, Maya 2026-09-08) - the same
+            // field the status API refuses the transition by name for (422 STATUS_FACT_REQUIRED).
+            // Expired is ExpirationDate, never OffMarketDate; Withdrawn is WithdrawnDate; Canceled is
+            // CancellationDate; Back on Market is BackOnMarketDate; the close is CloseDate+ClosePrice.
+            { id: 'saleOffMarketDate', label: 'Off Market Date', type: 'input', tab: 1, section: 'Listing Information/Essentials', statusOnly: ['PermOffMarket','TempOffMarket'] },
+            { id: 'saleWithdrawnDate', label: 'Withdrawn Date', type: 'input', tab: 1, section: 'Listing Information/Essentials', statusOnly: ['Withdrawn','PermOffMarket'] },
+            { id: 'saleExpirationDate', label: 'Expiration Date', type: 'input', tab: 1, section: 'Listing Information/Essentials', statusOnly: ['Expired'] },
+            { id: 'saleCancellationDate', label: 'Cancellation Date', type: 'input', tab: 1, section: 'Listing Information/Essentials', statusOnly: ['Cancelled','Canceled'] },
+            { id: 'saleBackOnMarketDate', label: 'Back On Market Date', type: 'input', tab: 1, section: 'Listing Information/Essentials', statusOnly: ['BackOnMarket'] },
+            { id: 'saleSoldDate', label: 'Sold Date', type: 'input', tab: 1, section: 'Listing Information/Essentials', statusOnly: ['Sold','SoldThruUs'] },
+            { id: 'saleSoldPrice', label: 'Sold Price', type: 'input', tab: 1, section: 'Listing Information/Essentials', statusOnly: ['Sold','SoldThruUs'] },
+            { id: 'saleContractSignedDate', label: 'Contract Signed Date', type: 'input', tab: 1, section: 'Listing Information/Essentials', statusOnly: ['ContractSigned','ContractSignedThruUs','BoardApproved','Sold','SoldThruUs'] },
             { id: 'salePrice', label: 'Price', type: 'input', tab: 1, section: 'Listing Information/Essentials' },
             { id: 'saleMaintCC', label: 'Maint/CC', type: 'input', tab: 1, section: 'Listing Information/Essentials', conditional: ['COOP','CONDO','CONDOP','COMMERCIAL_CONDO','COMMERCIAL_COOP'] },
             { id: 'saleUnitShares', label: 'Shares', type: 'input', tab: 1, section: 'Listing Information/Essentials', conditional: ['COOP','CONDOP','COMMERCIAL_COOP'] },

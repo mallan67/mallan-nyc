@@ -18,12 +18,32 @@ import {
   STRUCTURE_TYPE_MEMBERS, CITY_REGION_VALUES, DEFAULT_SORT, DEFAULT_PAGE, MAX_PAGE, type Member,
   FURNISHED_MEMBERS, PETS_ALLOWED_MEMBERS, RENTAL_ONLY_PARAMS,
 } from './criteria';
+// The ONE status authority, per transaction (owner ruling 2026-09-08). Search renders the same sale / rental
+// mappings the CRM forms and the status API use, so the four Search panels cannot drift from them.
+import { SALE_STATUS_MAPPING, RENTAL_STATUS_MAPPING, type TransactionStatusMapping } from '@/lib/crm/status-mapping';
 
 export interface ContractMember { token: string; label: string }
+
+/**
+ * ONE status choice a Search panel may offer, per transaction. `token` is ALWAYS an exact live Cotality
+ * StandardStatus member — Search filters provider inventory on StandardStatus and never on MlsStatus (not
+ * filterable on this feed) and never on a Mallan workflow word. `label` is the transaction's broker language
+ * (a sale's Closed reads "Sold", a rental's reads "Rented"; a sale's Pending reads "In Contract").
+ * `refine` names an extra executable narrowing applied on top of the token (today only `backOnMarket`,
+ * executed as BackOnMarketDate present on an Active row).
+ */
+export interface StatusChoice { token: string; label: string; refine?: 'backOnMarket' }
+
 export interface SearchContract {
   version: 1;
   vocabularyPulledAt: string;
   executableParams: string[];
+  /**
+   * The status panel each Search mode renders — sale and rental have their OWN list and cannot drift into each
+   * other (owner ruling 2026-09-08: one mapping per transaction). Derived from lib/crm/status-mapping.ts, so a
+   * vocabulary change moves both the CRM forms and Search together.
+   */
+  statusChoices: { sale: StatusChoice[]; rental: StatusChoice[] };
   members: {
     StandardStatus: ContractMember[];
     PropertyType: ContractMember[];
@@ -46,11 +66,36 @@ export interface SearchContract {
 
 const toMembers = (m: readonly Member[]): ContractMember[] => m.map(([token, label]) => ({ token, label }));
 
+/**
+ * Statuses a Search panel offers, in display order. Drafts and removals-from-the-system are not inventory:
+ * `Incomplete` (a draft) and `Delete` (a removed record) are never searchable. Every other canonical status of the
+ * transaction is, labelled by that transaction.
+ */
+const SEARCHABLE_ORDER = ['Active', 'ComingSoon', 'ActiveUnderContract', 'Pending', 'Closed', 'Hold', 'Withdrawn', 'Expired', 'Canceled'] as const;
+const NOT_SEARCHABLE: ReadonlySet<string> = new Set(['Incomplete', 'Delete']);
+
+function statusChoicesFor(mapping: TransactionStatusMapping): StatusChoice[] {
+  const canonical = new Set<string>(mapping.canonicalStatuses as readonly string[]);
+  const out: StatusChoice[] = [];
+  for (const token of SEARCHABLE_ORDER) {
+    if (!canonical.has(token) || NOT_SEARCHABLE.has(token)) continue;
+    out.push({ token, label: mapping.canonicalLabels[token] ?? token });
+    // Back on Market is a refinement OF Active (owner ruling: Back on Market → Active + BackOnMarketDate), not a
+    // status of its own — the executor narrows Active by the presence of that date.
+    if (token === 'Active') out.push({ token: 'Active', label: 'Back On Market', refine: 'backOnMarket' });
+  }
+  return out;
+}
+
 export function searchContract(): SearchContract {
   return {
     version: 1,
     vocabularyPulledAt: LIVE_AUTHORITY.verifiedAgainstPull,
     executableParams: [...EXECUTED_PARAMS].sort(),
+    statusChoices: {
+      sale: statusChoicesFor(SALE_STATUS_MAPPING),
+      rental: statusChoicesFor(RENTAL_STATUS_MAPPING),
+    },
     members: {
       StandardStatus: toMembers(STANDARD_STATUS_MEMBERS),
       PropertyType: toMembers(PROPERTY_TYPE_MEMBERS),

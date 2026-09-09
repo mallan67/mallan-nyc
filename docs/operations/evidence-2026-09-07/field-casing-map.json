@@ -1,0 +1,114 @@
+{
+ "generated": "2026-09-07T12:21:26.586Z",
+ "scannedFiles": 1588,
+ "map": {
+  "MLSStatus": {
+   "live": "MlsStatus",
+   "refs": 52,
+   "files": [
+    "lib\\compliance\\data-loader.ts",
+    "lib\\compliance\\prompts.ts",
+    "lib\\compliance\\reso-mapper.ts",
+    "lib\\compliance\\rls-rules.json",
+    "lib\\compliance\\test-validation.ts",
+    "lib\\types\\listing.ts",
+    "compliance\\lookups.json",
+    "public\\crm\\js\\core\\reso-field-map.js",
+    "data\\MASTER_REGISTRY.json",
+    "data\\rebny-rls-property-lookup.csv"
+   ]
+  },
+  "UnParsedAddress": {
+   "live": "UnparsedAddress",
+   "refs": 42,
+   "files": [
+    "lib\\compliance\\dto.ts",
+    "lib\\compliance\\rebny-field-tables.ts",
+    "lib\\compliance\\rls-rules.json",
+    "lib\\idx\\mapping.ts",
+    "lib\\idx\\trestle-mapper.ts",
+    "app\\api\\crm\\listings\\[id]\\route.ts",
+    "scripts\\audit-form-fields.js",
+    "scripts\\compliance-test.js",
+    "scripts\\fix-stale-form-bindings.ts",
+    "scripts\\validate-rls-compliance.js",
+    "compliance\\BACKEND-VALIDATION-ENGINE.md",
+    "compliance\\fields.json",
+    "compliance\\FORMS-AND-RLS-SUBMISSION.md",
+    "compliance\\FRONTEND-COMPLIANCE.md",
+    "compliance\\rules\\reso-rls-renames.json",
+    "compliance\\rules\\rls-required.json",
+    "public\\crm\\js\\core\\reso-field-map.js",
+    "public\\crm\\js\\dashboard\\panels.js",
+    "public\\crm\\js\\dashboard\\workspace.js",
+    "public\\crm\\RENTAL-FORM-REDESIGN.html",
+    "public\\crm\\SALE-FORM-REDESIGN.html",
+    "data\\MASTER_REGISTRY.json",
+    "data\\rebny-all-fields.txt",
+    "data\\rls-form-bindings.json"
+   ]
+  },
+  "CableTVExpense": {
+   "live": "CableTvExpense",
+   "refs": 14,
+   "files": [
+    "lib\\compliance\\rls-rules.json",
+    "lib\\idx\\trestle-mapper.ts",
+    "scripts\\audit-form-fields.js",
+    "scripts\\validate-rls-compliance.js",
+    "compliance\\fields.json",
+    "compliance\\rules\\export-policy.json",
+    "compliance\\rules\\reso-rls-renames.json",
+    "data\\MASTER_REGISTRY.json",
+    "data\\rebny-all-fields.txt"
+   ]
+  },
+  "CoListAgent2MLSID": {
+   "live": "CoListAgent2MlsId",
+   "refs": 13,
+   "files": [
+    "lib\\compliance\\rls-rules.json",
+    "lib\\idx\\trestle-mapper.ts",
+    "scripts\\audit-form-fields.js",
+    "scripts\\validate-rls-compliance.js",
+    "compliance\\fields.json",
+    "compliance\\rules\\reso-rls-renames.json",
+    "data\\MASTER_REGISTRY.json",
+    "data\\rebny-all-fields.txt"
+   ]
+  },
+  "CoListAgent3MLSID": {
+   "live": "CoListAgent3MlsId",
+   "refs": 13,
+   "files": [
+    "lib\\compliance\\rls-rules.json",
+    "lib\\idx\\trestle-mapper.ts",
+    "scripts\\audit-form-fields.js",
+    "scripts\\validate-rls-compliance.js",
+    "compliance\\fields.json",
+    "compliance\\rules\\reso-rls-renames.json",
+    "data\\MASTER_REGISTRY.json",
+    "data\\rebny-all-fields.txt"
+   ]
+  },
+  "ListingID": {
+   "live": "ListingId",
+   "refs": 10,
+   "files": [
+    "lib\\compliance\\rebny-field-tables.ts",
+    "lib\\compliance\\rls-rules.json",
+    "compliance\\fields.json",
+    "data\\MASTER_REGISTRY.json",
+    "data\\rebny-all-fields.txt"
+   ]
+  },
+  "ListingUrl": {
+   "live": "ListingURL",
+   "refs": 2,
+   "files": [
+    "public\\crm\\SALE-FORM-REDESIGN.html",
+    "public\\crm\\SALE-FORM-WITH-TOOLS.html"
+   ]
+  }
+ }
+}

@@ -158,7 +158,7 @@ describe('filter pills per transaction (from the server mapping)', () => {
     const w = boot();
     w.renderManageSection('sales'); await flush();
     const pills = w.document.getElementById('manageStatusPills');
-    const tokens = Array.from(pills.querySelectorAll('button[data-status-token]')).map((b: Element) => b.getAttribute('data-status-token'));
+    const tokens = (Array.from(pills.querySelectorAll('button[data-status-token]')) as Element[]).map((b) => b.getAttribute('data-status-token'));
     expect(tokens).toEqual(['Active', 'Pending', 'Closed', 'Hold', 'Withdrawn', 'Expired', 'Canceled', 'ComingSoon']);
     const text = pills.textContent;
     expect(text).toContain('In Contract (1)');
@@ -175,7 +175,7 @@ describe('filter pills per transaction (from the server mapping)', () => {
     const w = boot();
     w.renderManageSection('rentals'); await flush();
     const pills = w.document.getElementById('manageStatusPills');
-    const tokens = Array.from(pills.querySelectorAll('button[data-status-token]')).map((b: Element) => b.getAttribute('data-status-token'));
+    const tokens = (Array.from(pills.querySelectorAll('button[data-status-token]')) as Element[]).map((b) => b.getAttribute('data-status-token'));
     expect(tokens).toEqual(['Active', 'Pending', 'Closed', 'Hold', 'Withdrawn', 'Expired', 'Canceled']);
     const text = pills.textContent;
     expect(text).toContain('Rented (2)');
@@ -219,7 +219,7 @@ describe('status panels are built from the transaction mapping', () => {
     w.toggleCardAction('SL-0001', 'status'); await flush();
     const panel = w.document.getElementById('cardPanel-SL-0001');
     expect(panel).not.toBeNull();
-    const words = Array.from(panel.querySelectorAll('button[data-workflow-word]')).map((b: Element) => b.getAttribute('data-workflow-word'));
+    const words = (Array.from(panel.querySelectorAll('button[data-workflow-word]')) as Element[]).map((b) => b.getAttribute('data-workflow-word'));
     expect(words).toEqual(expect.arrayContaining(['ContractSigned', 'Sold', 'OfferOut', 'BackOnMarket', 'TempOffMarket', 'Expired', 'Cancelled']));
     expect(words).not.toContain('LeaseSigned');
     expect(words).not.toContain('Rented');
@@ -234,14 +234,14 @@ describe('status panels are built from the transaction mapping', () => {
     w.renderManageSection('rentals'); await flush();
     w.toggleCardAction('RL-0011', 'status'); await flush();
     const panel = w.document.getElementById('cardPanel-RL-0011');
-    const words = Array.from(panel.querySelectorAll('button[data-workflow-word]')).map((b: Element) => b.getAttribute('data-workflow-word'));
+    const words = (Array.from(panel.querySelectorAll('button[data-workflow-word]')) as Element[]).map((b) => b.getAttribute('data-workflow-word'));
     expect(words).toEqual(expect.arrayContaining(['LeaseSigned', 'Rented', 'AppOut', 'LeaseOut']));
     expect(words).not.toContain('ContractSigned');
     expect(words).not.toContain('Sold');
     expect(words).not.toContain('ComingSoon');
     w.manageQuickStatus('RL-0011'); await flush();
     const modal = w.document.getElementById('manageStatusOptions');
-    const modalWords = Array.from(modal.querySelectorAll('button[data-workflow-word]')).map((b: Element) => b.getAttribute('data-workflow-word'));
+    const modalWords = (Array.from(modal.querySelectorAll('button[data-workflow-word]')) as Element[]).map((b) => b.getAttribute('data-workflow-word'));
     expect(modalWords).toContain('LeaseSigned');
     expect(modalWords).not.toContain('ContractSigned');
     expect(modal.innerHTML).not.toContain('MlsStatus');
@@ -334,5 +334,51 @@ describe('open-house gating uses the provider token', () => {
     expect(w.renderCardOHPanel(w.manageFindListing('SL-0001'))).not.toContain('Cannot schedule');
     expect(OH_SRC).not.toContain("'Perm Off Market'");
     expect(OH_SRC).not.toContain("'Leased'");
+  });
+});
+
+// ── Source ratchets ─────────────────────────────────────────────────────────────────────────────────────────
+// The surfaces this correction touched must not grow a status map of their own again. Owner ruling (Maya,
+// 2026-09-08 / 2026-09-09): the stored status IS the live Cotality StandardStatus token, the broker word is a
+// per-transaction LABEL the server computes, and MlsStatus is a provider field these readers never touch.
+const OWNED_STATUS_SURFACES = [
+  'public/crm/js/manage/manage-listings.js',
+  'public/crm/js/manage/open-houses.js',
+  'public/crm/html/modals/status-change.html',
+  'public/crm/js/dashboard/portals.js',
+  'public/crm/js/dashboard/panels.js',
+  'public/crm/js/dashboard/workspace.js',
+  'public/crm/js/dashboard/ui-components.js',
+  'public/crm/js/dashboard/panels/sales-crm/index.js',
+  'public/crm/js/dashboard/panels/rentals-crm/index.js',
+  'public/crm/js/render/shared-badges.js',
+  'app/portal/buyer/page.tsx',
+  'app/portal/landlord/page.tsx',
+  'app/portal/seller/page.tsx',
+  'lib/compliance/dto.ts',
+  'app/api/crm/status-options/route.ts',
+];
+
+describe('status source ratchets', () => {
+  const sources = OWNED_STATUS_SURFACES.map((f) => [f, readFileSync(resolve(ROOT, f), 'utf8')] as const);
+
+  it.each(sources)('%s carries no data-reso-field="MlsStatus" attribute', (_file, src) => {
+    expect(src).not.toMatch(/data-reso-field\s*=\s*["']MlsStatus["']/);
+  });
+
+  it.each(sources)('%s never reads MlsStatus as a status fallback', (_file, src) => {
+    expect(src).not.toMatch(/\.MlsStatus\b/);
+    expect(src).not.toMatch(/MlsStatus\s*\|\|/);
+    expect(src).not.toMatch(/\[\s*["']MlsStatus["']\s*\]/);
+  });
+
+  it.each(sources)('%s holds no hard-coded Sold / Leased status map', (_file, src) => {
+    // a token mapped to a broker word (e.g. `'Closed': isSale ? 'Sold' : 'Leased'`)
+    expect(src).not.toMatch(/["'](?:Closed|Pending)["']\s*:\s*[^,\n}]*["'](?:Sold|Leased|Rented|In Contract)["']/);
+    // a map KEYED by a broker word (e.g. `Sold: {...}` / `'Leased': '...'`)
+    expect(src).not.toMatch(/["'](?:Sold|Leased|Perm Off Market|Temp Off Market)["']\s*:/);
+    expect(src).not.toMatch(/\b(?:Sold|Leased)\s*:\s*\{/);
+    // the retired double-L spelling as a map key / printed label
+    expect(src).not.toMatch(/["']Cancelled["']\s*:/);
   });
 });

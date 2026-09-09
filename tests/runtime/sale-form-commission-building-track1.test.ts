@@ -64,10 +64,10 @@ describe('Commission collision fix', () => {
     expect(formHtml).not.toMatch(/name="saleCommissionType"/);
   });
   it('restore maps both type and payer (payer falls back to legacy saleCommissionType)', () => {
-    expect(formHtml).toMatch(/rls:\s*'saleExclusiveCommissionType',\s*form:\s*'saleExclusiveCommissionType'/);
-    expect(formHtml).toMatch(/rls:\s*'saleExclusiveCommission',\s*form:\s*'saleExclusiveCommission'/);
+    expect(formHtml).toMatch(/mallan:\s*'saleExclusiveCommissionType',\s*form:\s*'saleExclusiveCommissionType'/);
+    expect(formHtml).toMatch(/mallan:\s*'saleExclusiveCommission',\s*form:\s*'saleExclusiveCommission'/);
     expect(formHtml).toMatch(
-      /rls:\s*'saleBuyerAgentPays',\s*name:\s*'saleBuyerAgentPays'[^}]*fallback:\s*'saleCommissionType'/,
+      /mallan:\s*'saleBuyerAgentPays',\s*name:\s*'saleBuyerAgentPays'[^}]*fallback:\s*'saleCommissionType'/,
     );
   });
 });
@@ -88,15 +88,19 @@ describe('Building — phantom fields reclassified internal (match Cotality)', (
     const { MALLAN_INTERNAL_KEYS } = require('@/lib/listings/mallan-form-contract') as { MALLAN_INTERNAL_KEYS: string[] };
     expect(MALLAN_INTERNAL_KEYS).toEqual(expect.arrayContaining(['ElevatorsTotal', 'NewDevelopmentYN']));
     const collect = extractFn(formHtml, 'collectSaleFormData');
-    expect(collect).toMatch(/data[.]NewDevelopmentYN[ ]*=[ ]*data[.]saleBldgNewDevelopment/);
-    expect(collect).toMatch(/data[.]ElevatorsTotal[ ]*=[ ]*parseInt[(]data[.]saleBldgNumElevators/);
+    expect(collect).toMatch(/data[.]_mallanNewDevelopmentYN[ ]*=[ ]*data[.]saleBldgNewDevelopment/);
+    // Maya ruling 2026-09-09: the old `parseInt(v || '') || null` collapsed an ENTERED 0 to null and
+    // destroyed a recorded fact (a building with no elevator). Collection is now zero-safe; the
+    // BuildingFeatures projection (Elevators / NoElevators, never FreightElevator) is the server's.
+    expect(collect).toMatch(/data[.]_mallanElevatorsTotal[ ]*=[ ]*saleCountOrNull[(]data[.]saleBldgNumElevators/);
+    expect(collect).not.toMatch(/data[.]_mallanElevatorsTotal[ ]*=[ ]*parseInt[(][^)]*[)][ ]*[|][|][ ]*null/);
     expect(collect).toMatch(/data[.]NewConstructionYN[ ]*=/);
   });
   it('restore keeps the values internal with legacy fallback', () => {
-    expect(formHtml).toMatch(/rls:\s*'saleBldgNumElevators',\s*form:\s*'saleBldgNumElevators'[^}]*fallbackRls:\s*'ElevatorsTotal'/);
-    expect(formHtml).toMatch(/rls:\s*'saleBldgNewDevelopment',\s*form:\s*'saleBldgNewDevelopment'[^}]*fallbackRls:\s*'NewDevelopmentYN'/);
+    expect(formHtml).toMatch(/mallan:\s*'saleBldgNumElevators',\s*form:\s*'saleBldgNumElevators'[^}]*legacyFallback:\s*'ElevatorsTotal'/);
+    expect(formHtml).toMatch(/mallan:\s*'saleBldgNewDevelopment',\s*form:\s*'saleBldgNewDevelopment'[^}]*legacyFallback:\s*'NewDevelopmentYN'/);
     // saleBldgNewConstruction stays mapped to the REAL NewConstructionYN
-    expect(formHtml).toMatch(/rls:\s*'NewConstructionYN',\s*form:\s*'saleBldgNewConstruction'/);
+    expect(formHtml).toMatch(/cotality:\s*'NewConstructionYN',\s*form:\s*'saleBldgNewConstruction'/);
   });
 });
 

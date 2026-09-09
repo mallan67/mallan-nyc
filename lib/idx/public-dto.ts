@@ -153,7 +153,9 @@ export interface PublicListingDTO {
     /** The contract-signed date per the one DOM rule (lib/compliance/dom-tracker.ts); null when not delivered. */
     contractSignedDate: string | null;
     /** Market DOM — on market → CloseDate (Sold / Rented) or OffMarketDate (a removal) or the day it left the feed; never PurchaseContractDate (Mallan's clock, never the provider's DaysOnMarket). */
-    marketDom: { start: string | null; end: string | null; endReason: 'closed' | 'off_market' | 'off_feed' | 'as_of' | null; days: number | null; unverified: string | null };
+    marketDom: { start: string | null; end: string | null; endReason: 'closed' | 'off_market' | 'off_feed_detected' | 'as_of' | null; days: number | null; estimated: boolean; unverified: string | null };
+    /** Days to contract — a SEPARATE measure (the signed contract), never the market clock's end. */
+    daysToContract: number | null;
     /** Coming Soon DOM — the separate pre-market clock; null unless the row is Coming Soon. */
     comingSoonDom: { start: string | null; activation: string | null; days: number | null; daysUntilActivation: number | null; exceedsFourteenDays: boolean } | null;
     /** The provider's contract-event dates, verbatim (YYYY-MM-DD) and separate from every clock. */

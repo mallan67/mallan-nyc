@@ -37,7 +37,7 @@ describe('public DTO — status label and lifecycle', () => {
     expect(filterDisplayableDbListings([{ ...BASE, sync_status: 'off_feed' } as DbListing])).toEqual([]);
     expect(filterDisplayableDbListings([{ ...BASE, sync_status: 'synced' } as DbListing])).toHaveLength(1);
     const dto = dbListingToPublicDTO({ ...BASE, sync_status: 'off_feed', terminal_since: new Date('2026-09-02T03:30:00Z') } as DbListing)!;
-    expect(dto.status).toBe('Off Market');
+    expect(dto.status).toBe('Off Market — reason unknown');
     expect(dto.lifecycle).toMatchObject({ stage: 'off_market', providerStage: 'active', offFeedSince: '2026-09-02' });
   });
 });

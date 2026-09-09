@@ -21,7 +21,7 @@ import { mapPropertyTypeToDisplay, buildAuctionPublic } from './public-dto';
 import { publicListOfficeName } from './public-attribution';
 import { locationFromStoredRow } from '@/lib/listings/canonical-location';
 import { lifecycleFromStoredRow } from '@/lib/listings/canonical-lifecycle';
-import { comingSoonDom, contractSignedDate, marketDom } from '@/lib/compliance/dom-tracker';
+import { comingSoonDom, contractSignedDate, daysToContract, marketDom } from '@/lib/compliance/dom-tracker';
 import { ACTIVE_DISPLAY_VALUES, statusDisplayLabelFor } from '@/lib/compliance/status';
 import { toPublicMediaUrl } from '@/lib/media/proxy-url-policy';
 import { composeDbPublicMedia } from '@/lib/media/db-media-composition';
@@ -37,7 +37,7 @@ import {
 
 import { normalizeStreetCase } from './normalize-street-case';
 import { resolveListingAgentInfo } from '@/lib/listings/agent-info-resolver';
-import { isMallanExclusiveListing } from '@/lib/listings/exclusive-agent-assignment';
+import { isMallanExclusiveListing, isMallanAuthoredListing } from '@/lib/listings/exclusive-agent-assignment';
 
 interface DbAddress {
   /** Provider county (CountyOrParish) — its own fact, never a borough source. */
@@ -296,10 +296,22 @@ export type DbListingProvenance =
  * consumer can reuse the same predicate.
  */
 export function classifyDbListing(listing: Pick<DbListing,
-  'agent_id' | 'owner_client_id' | 'rls_eligible' | 'listing_id'>): DbListingProvenance {
-  // Website-only check first: commercial rows opt out of RLS entirely and
-  // are tagged exclusive (Mallan-owned) by definition.
-  if (listing.rls_eligible === false) return 'website-only';
+  'agent_id' | 'owner_client_id' | 'rls_eligible' | 'listing_id'>
+  // Provenance columns are OPTIONAL: several callers do not select them (see the note below).
+  & { mls_id?: string | null; last_synced_from_trestle?: Date | string | null; list_office_mls_id?: string | null }): DbListingProvenance {
+  // Website-only: a commercial row opts out of RLS entirely and is Mallan-owned by definition — but ONLY when it
+  // is genuinely Mallan-authored. `rls_eligible === false` alone means "not RLS inventory", not "Mallan owns it"
+  // (owner review 2026-09-09), and this branch runs BEFORE the canonical check below, so without the guard a
+  // third-party COMMERCIAL row would be classified `website-only` -> `_source: 'exclusive'` and would carry the
+  // "Mallan Exclusive" badge on the homepage. That is a 19 NYCRR 175.25 / UCBA Art. III §2(A) advertising claim
+  // about another brokerage's listing.
+  //
+  // ON ABSENT COLUMNS: several callers (e.g. app/api/listings) do not select the provenance columns, so they
+  // read `undefined` and the guard passes — identical to the previous behaviour, never stricter. That direction
+  // is deliberate: for media authority the fail-closed answer is "Mallan-owned" (a Mallan listing whose photos an
+  // agent deleted must never resurrect from the legacy JSON). Where the columns ARE selected, the answer is now
+  // correct. Do not "fix" this into a throw or a fail-open default without widening every caller's select first.
+  if (listing.rls_eligible === false && isMallanAuthoredListing(listing)) return 'website-only';
   // The canonical Mallan identity (a CRM-authored SL-/RL- id) or a Mallan client owner. Never `agent_id`
   // alone: a synced third-party row carries it when a Mallan agent was the buyer, and reading that as
   // ownership would publish a false claim of brokerage AND the third-party list agent's contact card
@@ -506,7 +518,7 @@ export function dbListingToPublicDTO(
     // Off Market state when the row is off the feed (its preserved provider status is not the display label).
     status: (lifecycle.stage === 'off_market' ? lifecycle.label : statusDisplayLabelFor(listing.status, listing.listing_type)) || listing.status,
     // The two Mallan clocks (lib/compliance/dom-tracker.ts) beside the preserved provider contract events.
-    lifecycle: { providerStage: lifecycle.providerStage, presence: lifecycle.presence, offFeedSince: lifecycle.offFeedSince, contractSignedDate: contractSignedDate(lifecycle), marketDom: marketDom(lifecycle, new Date()), comingSoonDom: comingSoonDom(lifecycle, new Date()), contractEvents: lifecycle.contractEvents, stage: lifecycle.stage, inContractSince: lifecycle.inContractSince, backOnMarket: lifecycle.backOnMarket, backOnMarketDate: lifecycle.backOnMarketDate, closedDate: lifecycle.closedDate, priceChangeTimestamp: lifecycle.priceChangeTimestamp },
+    lifecycle: { providerStage: lifecycle.providerStage, presence: lifecycle.presence, offFeedSince: lifecycle.offFeedSince, contractSignedDate: contractSignedDate(lifecycle), daysToContract: daysToContract(lifecycle), marketDom: marketDom(lifecycle, new Date()), comingSoonDom: comingSoonDom(lifecycle, new Date()), contractEvents: lifecycle.contractEvents, stage: lifecycle.stage, inContractSince: lifecycle.inContractSince, backOnMarket: lifecycle.backOnMarket, backOnMarketDate: lifecycle.backOnMarketDate, closedDate: lifecycle.closedDate, priceChangeTimestamp: lifecycle.priceChangeTimestamp },
     listingType: listing.listing_type as 'sale' | 'rent',
     address: suppressAddress
       ? {

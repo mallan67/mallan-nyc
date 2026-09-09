@@ -85,6 +85,7 @@ import { CRM_MEDIA_KEY_PREFIX, isCrmMediaKey } from "@/lib/media/crm-media";
 import {
   isMallanExclusiveListing,
   MALLAN_EXCLUSIVE_LISTING_ID_PREFIXES,
+  mallanAuthoredListingWhere,
 } from "@/lib/listings/exclusive-agent-assignment";
 import {
   buildSearchDisplayWhere,
@@ -2155,14 +2156,11 @@ export function decideMirrorAdmissionScope(
  * prefix list the canonical helper uses, so the two cannot drift silently.
  */
 export function buildMallanOwnedListingWhere(): Prisma.ListingWhereInput {
-  return {
-    OR: [
-      ...MALLAN_EXCLUSIVE_LISTING_ID_PREFIXES.map((p) => ({
-        listing_id: { startsWith: p },
-      })),
-      { rls_eligible: false },
-    ],
-  };
+  // Delegates to THE canonical source-ownership rule (lib/listings/exclusive-agent-assignment.ts). It previously
+  // inlined `{ rls_eligible: false }` as a second arm, which classified any commercial / website-only row as
+  // Mallan-owned even when the feed had sent it — see that module's header for why that was wrong and what it
+  // would have let the listing-expiration cron write onto another brokerage's listing.
+  return mallanAuthoredListingWhere() as Prisma.ListingWhereInput;
 }
 
 /**

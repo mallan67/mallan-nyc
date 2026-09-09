@@ -1,4 +1,15 @@
-// /api/crm/cma — GET: list CMA reports, POST: create new CMA
+/**
+ * /api/crm/cma - GET: list CMA reports, POST: COMPUTE a CMA (the one calculated path).
+ *
+ * This is the COMPUTED CMA (agent/broker only). It selects comparables through lib/cma/engine.ts - one
+ * transaction- and PropertyType-aware comp authority - stores the exact live Cotality StandardStatus token on
+ * each comp with the broker LABEL for the subject transaction (a sale Closed reads "Sold", a rental Closed
+ * reads "Rented", a sale Pending reads "In Contract"), values only from verified closings (CloseDate +
+ * ClosePrice), and refuses a subject with neither neighborhood nor borough.
+ *
+ * Do not confuse it with POST /api/cma, which is the PUBLIC lead form: a valuation REQUEST that computes
+ * nothing (see that file header).
+ */
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
@@ -65,11 +76,32 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "listing_type must be sale or rental" }, { status: 400 });
   }
 
+  // A CMA is a LOCATED comparison. Without a neighborhood or a borough the engine would compare the subject
+  // against the whole city and value it from unrelated evidence, so the request is refused rather than widened
+  // (Maya, 2026-09-09). Every caller sends the subject it already holds: transaction, location, type, beds/baths.
+  if (!neighborhood && !borough) {
+    return NextResponse.json({
+      error: "neighborhood or borough is required - a CMA is never widened to the whole city",
+      code: "CMA_SUBJECT_INCOMPLETE",
+      field: "neighborhood",
+    }, { status: 400 });
+  }
+
   // Find comps
-  const comps = await findComps({
-    property_address, borough, neighborhood, listing_type: listing_type || "sale",
-    property_type, bedrooms, bathrooms, living_area, floor,
-  });
+  let comps;
+  try {
+    comps = await findComps({
+      property_address, borough, neighborhood, listing_type: listing_type || "sale",
+      property_type, bedrooms, bathrooms, living_area, floor,
+    });
+  } catch (err) {
+    // The engine refuses a subject it cannot locate / type (CmaSubjectError). Surface it as a 400 naming the
+    // problem; every other failure keeps its existing behaviour.
+    if (err && typeof err === "object" && (err as { code?: unknown }).code === "CMA_SUBJECT_INCOMPLETE") {
+      return NextResponse.json({ error: (err as Error).message, code: "CMA_SUBJECT_INCOMPLETE" }, { status: 400 });
+    }
+    throw err;
+  }
 
   // Reports/CMA Tier A P0 — empty-pool fail-loud.
   // Previously a zero-comp result silently produced a $0 CmaReport

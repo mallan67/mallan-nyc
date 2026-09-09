@@ -8,6 +8,8 @@ import { join } from 'path';
 import { validateListing, validateField, getRequiredFields, NYC_BOROUGHS } from '../rebny-validator';
 import { assertRlsCompliantPayload } from '../rls-enforcement';
 import { REBNY_UCBA_RULES } from '../rebny-ucba-rules';
+import { isLiveCotalityField } from '@/lib/cotality/live-contract';
+import { MALLAN_INTERNAL_KEYS } from '@/lib/listings/mallan-form-contract';
 
 const ROOT = join(__dirname, '../../..');
 function walk(dir: string): string[] {
@@ -65,8 +67,18 @@ describe('required / conditional findings come from the ONE evaluator', () => {
   it('getRequiredFields derives from REBNY_UCBA_RULES only', () => {
     const fields = getRequiredFields('Residential', 'Condominium');
     for (const f of REBNY_UCBA_RULES.requiredFields.agentSubmitted) expect(fields).toContain(f);
-    expect(fields).toContain('PercentOfCommonElements'); // CONDO conditional rule
+    // CONDO conditional rule. The FACT is still required; only its KEY moved. `PercentOfCommonElements`
+    // is not a live Cotality Property field (proven absent from the dated pull), so the fact is carried
+    // under its Mallan key — and the retired provider-SHAPED spelling must not be required alongside it,
+    // or a form that never emits it again would be blocked forever.
+    expect(fields).toContain('_mallanPercentOfCommonElements');
+    expect(fields).not.toContain('PercentOfCommonElements');
     expect(getRequiredFields('ResidentialLease')).toContain('AvailabilityDate'); // RENTAL-001
+    // No required field may be a Mallan-internal fact wearing a provider-shaped name: every required key
+    // is either a live Cotality Property field or an explicit `_mallan*` key.
+    for (const f of getRequiredFields('Residential', 'Condominium')) {
+      expect({ f, ok: f.startsWith('_mallan') || isLiveCotalityField(f) || MALLAN_INTERNAL_KEYS.includes(f) }).toEqual({ f, ok: true });
+    }
   });
 });
 

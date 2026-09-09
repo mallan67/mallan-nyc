@@ -3,7 +3,12 @@
             container.innerHTML = getFilteredListings().map(listing => {
                 var displayAddress = listing.addressDisplayYN === false ? 'Address Available Upon Request' : escapeHtml(listing.address);
                 var displayUnit = listing.addressDisplayYN === false ? '' : (listing.unit ? ', ' + escapeHtml(listing.unit) : '');
-                var statusLabel = listing.status === 'COMING_SOON' ? 'COMING SOON' : listing.status;
+                // Status presentation — badge classes AND the broker label come from THE ONE authority
+                // (public/crm/js/core/status-presentation.js), and the label is asked of the LISTING so the
+                // helper can read the transaction: a sale's Closed reads "Sold", a rental's "Rented".
+                var statusToken = MallanStatus.token(listing);
+                var statusClasses = MallanStatus.classes(listing);
+                var statusLabel = escapeHtml(MallanStatus.label(listing));
                 return `
                 <div class="border-b hover:bg-gray-50 cursor-pointer ${searchResultsState.selectedListings.includes(listing.id) ? 'bg-blue-50' : ''}" data-source="${listing._source === 'mallan' ? 'MALLAN-LOCAL' : 'COTALITY-API'}" data-listing-id="${listing.id}" onclick="openListingInNewTab('${listing.id}'); if (typeof isResultsMapOpen === 'function' && isResultsMapOpen()) { if (typeof panToListing === 'function') panToListing('${listing.id}'); }">
                     ${comingSoonBadge(listing)}
@@ -25,7 +30,7 @@
                                 <button class="text-gray-400 text-xs"><i class="fas fa-ellipsis-v"></i></button>
                             </div>
                             <div class="flex items-center gap-1.5 flex-shrink-0">
-                                <span class="px-1.5 py-0.5 ${getStatusBadgeClasses(listing.status)} rounded text-[10px] font-semibold">${statusLabel}</span>
+                                <span class="px-1.5 py-0.5 ${statusClasses} rounded text-[10px] font-semibold" data-status-badge${resoData('status', statusToken)}>${statusLabel}</span>
                                 ${participantOnlyBadge(listing)}
                                 ${syndicationBadge(listing)}
                             </div>

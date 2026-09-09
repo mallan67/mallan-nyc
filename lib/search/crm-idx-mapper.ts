@@ -4,6 +4,11 @@ import { computeGateColumns, derivePermissionGates, inferListingType, normalizeS
 import { derivePermissionBooleans } from "@/lib/compliance/normalizer";
 import { displayPropertyType } from "@/lib/idx/display-property-type";
 import { lifecycleFromProviderRow } from "@/lib/listings/canonical-lifecycle";
+import { normalizeStoredStatus } from "@/lib/listings/mallan-status";
+// THE status authority, per transaction (owner ruling 2026-09-08): the same sale / rental mappings the
+// Search contract (lib/search/engine/contract.ts) and the CRM status API project, so the DTO's broker
+// language cannot drift from the panels and forms that offer it.
+import { RENTAL_STATUS_MAPPING, SALE_STATUS_MAPPING } from "@/lib/crm/status-mapping";
 import { comingSoonDom, marketDom } from "@/lib/compliance/dom-tracker";
 import type { CotalityRow } from "@/lib/cotality/contract";
 
@@ -27,6 +32,14 @@ function str(value: unknown): string | null {
   const s = String(value);
   return s === "" ? null : s;
 }
+
+/**
+ * Fail-closed display text for a row whose status cannot be resolved to this transaction's canonical set.
+ * The same string the server projection uses (lib/crm/status-mapping.ts `statusPresentation`) and the same
+ * one the browser helper falls back to (public/crm/js/core/status-presentation.js), so one row reads the
+ * same everywhere. It is NEVER "Active".
+ */
+const STATUS_UNAVAILABLE = "Status unavailable";
 
 /** Display property type for a raw record — THE implementation lives in lib/idx/display-property-type.ts. */
 export function mapDisplayPropertyType(raw: Record<string, unknown>): string | null {
@@ -155,6 +168,15 @@ export function mapTrestleToCrmListing(
     }
   }
 
+  // ClosePrice — the provider's own ACHIEVED figure, and the only honest price for a comp. It is already
+  // selected (lib/search/engine/select.ts) and the DTO already carried `closedDate`, but no `closePrice`,
+  // so the Comparables "Sold Price" / "Rented Price" column read `l.closePrice ?? l.close_price`, found
+  // neither, and rendered an em-dash on every closed row — a CMA priced at the ask. Only a POSITIVE number
+  // is a closing; absent, unparsable, zero and negative are all "the provider published none" → null, which
+  // is exactly what the column's own dash means. It is NEVER derived from ListPrice.
+  const closePriceRaw = num(raw.ClosePrice);
+  const closePrice = closePriceRaw !== null && closePriceRaw > 0 ? closePriceRaw : null;
+
   const originalPrice = num(raw.OriginalListPrice);
   let priceChange: string | null = null;
   if (originalPrice !== null && price !== null && originalPrice !== price) {
@@ -168,52 +190,49 @@ export function mapTrestleToCrmListing(
     else era = "Pre-War";
   }
 
-  // A missing status is UNKNOWN — never Active by default. (Provider status text still goes
-  // through the UCBA-safe map below; unmapped/absent → "UNKNOWN".)
-  // Provider status text goes through THE normalizer first (canonical spelling); the map below
-  // is Mallan's CRM display vocabulary for that canonical value.
-  // Provider rows: the live StandardStatus normalized into Mallan's storage vocabulary. MlsStatus is
-  // provider-suppressed (null on all 591,597 rows, census 2026-09-08) and can never carry a provider fact;
-  // it is read LAST only for legacy Mallan-authored raw_data written before Packet 2 (7 production rows).
-  // Mallan rows: their Mallan business status under the Mallan key.
-  const mlsStatus = normalizeStandardStatus(str(raw._mallanStatus) ?? str(raw.StandardStatus) ?? str(raw.MlsStatus) ?? "");
-  const statusMap: Record<string, string> = {
-    Active: "ACTIVE",
-    ComingSoon: "COMING_SOON",
-    "Coming Soon": "COMING_SOON",
-    ActiveUnderContract: "PENDING",
-    "Active Under Contract": "PENDING",
-    Pending: "PENDING",
-    Closed: "CLOSED",
-    Expired: "EXPIRED",
-    Withdrawn: "WITHDRAWN",
-    Hold: "HOLD",
-    Incomplete: "INCOMPLETE",
-    Canceled: "CANCELLED",
-    Cancelled: "CANCELLED",
-    // Mallan-only business statuses (never provider values)
-    Draft: "DRAFT",
-    Sold: "SOLD",
-    Rented: "RENTED",
-    Leased: "RENTED",
-    Delete: "DELETED",
-    // The Mallan presence state (lib/listings/canonical-lifecycle.ts): off the current feed with no verified
-    // reason, broker-facing "Off Market" (Maya 2026-09-08). A stale spelling from an older data source maps to the
-    // same CRM token — never to a fabricated Withdrawn and never to raw uppercase free text (the prior
-    // `mlsStatus.toUpperCase()` fallback produced "OFF MARKET").
-    "Off Market": "OFF_MARKET",
-    "Off-Market": "OFF_MARKET",
-    OffMarket: "OFF_MARKET",
-    offMarket: "OFF_MARKET",
-    "off market": "OFF_MARKET",
-  };
-  // Unmapped values fall through to "UNKNOWN" — a SAFE default that
-  // never accidentally surfaces non-canonical status text in UCBA-
-  // sensitive contexts. Renderers should treat UNKNOWN as a non-active
-  // sentinel and either suppress badges or show a neutral indicator.
-  // (Was: `mlsStatus.toUpperCase()` which could produce "OFF MARKET",
-  // "FUTURE", or any other vendor-specific string in the UI.)
-  const status = statusMap[mlsStatus] || "UNKNOWN";
+  // ── STATUS: the exact live Cotality StandardStatus token, plus its per-transaction broker label ──
+  //
+  // Owner rulings (Maya, 2026-09-08 / 2026-09-09). This block used to invent a Mallan uppercase
+  // presentation vocabulary ("ACTIVE", "COMING_SOON", "CANCELLED", "OFF_MARKET", "UNKNOWN") and hand it to
+  // the browser as `status`. That was the origin of four shipped defects: it collapsed the two distinct
+  // live members ActiveUnderContract and Pending into one word, it manufactured the two-L "CANCELLED" the
+  // project bans (which then missed the REBNY off-market photo key 'CANCELED' and failed the browser
+  // status validators), it left every renderer to re-derive a label from a word that is in no contract,
+  // and it carried no transaction, so a rental's Closed could not be told from a sale's.
+  //
+  //   `status`             — an exact live StandardStatus member, or null. NEVER a Mallan word, never a
+  //                          sentinel, never "Active" by default: a status is a Cotality fact and
+  //                          defaulting it advertises an off-market or unknown row as live inventory.
+  //   `status_label`       — broker language for THAT token in THIS transaction (a sale's Closed reads
+  //                          "Sold", a rental's "Rented"; a sale's Pending reads "In Contract", a
+  //                          rental's "Pending"), from THE status authority lib/crm/status-mapping.ts —
+  //                          the same `canonicalLabels` the Search contract and the CRM forms render.
+  //                          A token outside this transaction's canonical set (a rental cannot be
+  //                          ComingSoon; Delete is not a marketable state) reads "Status unavailable"
+  //                          rather than being relabelled into the other transaction's language.
+  //   `status_transaction` — 'sale' | 'rent', so a browser consumer never has to guess the language.
+  //
+  // Wire-compatible with the server projection every other surface already ships
+  // (lib/compliance/dto.ts `statusProjection`, app/api/crm/listings `status_presentation`).
+  //
+  // Provider rows: the live StandardStatus. MlsStatus is provider-suppressed (null on all 591,597 rows,
+  // census 2026-09-08) and can never carry a provider fact; it is read LAST only for legacy Mallan-authored
+  // raw_data written before Packet 2 (7 production rows). Mallan rows: their business status under the
+  // Mallan key. `normalizeStoredStatus` resolves the legacy Mallan spellings ('Sold' / 'Rented' / 'Leased' /
+  // 'Cancelled' / 'Draft') to their token and refuses everything else — it never defaults.
+  const rawStatus = str(raw._mallanStatus) ?? str(raw.StandardStatus) ?? str(raw.MlsStatus);
+  const status: string | null = normalizeStoredStatus(rawStatus);
+  const statusTransaction: "sale" | "rent" = isRental ? "rent" : "sale";
+  const statusMapping = isRental ? RENTAL_STATUS_MAPPING : SALE_STATUS_MAPPING;
+  const statusLabel =
+    status && (statusMapping.canonicalStatuses as readonly string[]).includes(status)
+      ? statusMapping.canonicalLabels[status] ?? status
+      : STATUS_UNAVAILABLE;
+
+  // `mlsStatus` keeps its existing Mallan-storage-normalizer contract for the ensure-listing boundary
+  // (lib/listings/ensure-local-listing.ts reads `dto.mlsStatus || dto.status` and validates it against the
+  // live enum). It is NOT a display value and no renderer reads it.
+  const mlsStatus = normalizeStandardStatus(rawStatus ?? "");
 
   // ── Coming Soon date (UCBA Art. I §16(C)) ──────────────────────────
   // UCBA requires "No Showings or Open House until [date]" disclosure
@@ -225,7 +244,7 @@ export function mapTrestleToCrmListing(
   //   OnMarketDate      — RESO standard fallback
   // Format as ISO YYYY-MM-DD for downstream display.
   let comingSoonDate: string | null = null;
-  if (status === "COMING_SOON") {
+  if (status === "ComingSoon") {
     const dateRaw = raw.ActivationDate ?? raw.OnMarketDate;
     if (dateRaw) {
       comingSoonDate = String(dateRaw).split("T")[0];
@@ -276,6 +295,8 @@ export function mapTrestleToCrmListing(
     associationFeeFrequency,
     intSqft: raw.LivingArea != null ? Number(raw.LivingArea) : null,
     status,
+    status_label: statusLabel,
+    status_transaction: statusTransaction,
     mlsStatus,
     ownership: String(raw.CommonInterest || raw.OwnershipType || ""),
     propertyType: mapDisplayPropertyType(raw),
@@ -295,7 +316,8 @@ export function mapTrestleToCrmListing(
     wid: raw.SourceSystemKey ? String(raw.SourceSystemKey) : null,
     dom: market?.days ?? num(raw._mallanDaysOnMarket),
     cdom: num(raw._mallanCumulativeDaysOnMarket),
-    domClock: market ? { start: market.start, end: market.end, endReason: market.endReason, unverified: market.unverified } : null,
+    // `estimated` rides with the clock: an off-feed end is Mallan's DETECTION day, not a proven removal date.
+    domClock: market ? { start: market.start, end: market.end, endReason: market.endReason, estimated: market.estimated, unverified: market.unverified } : null,
     comingSoonDom: lifecycle ? comingSoonDom(lifecycle, asOf) : null,
     listedDate: raw.ListingContractDate
       ? new Date(String(raw.ListingContractDate)).toLocaleDateString("en-US")
@@ -325,6 +347,7 @@ export function mapTrestleToCrmListing(
     addressDisplayYN,
     listingCategory: isRental ? "rental" : undefined,
     closedDate: raw.CloseDate ? String(raw.CloseDate) : null,
+    closePrice,
     contractDate: raw.ListingContractDate ? String(raw.ListingContractDate) : null,
     comingSoonDate,
     downPaymentAssistanceAmount: dpaAmount,

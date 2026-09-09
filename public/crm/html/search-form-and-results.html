@@ -96,100 +96,15 @@
                         <div class="border rounded-lg p-3 overflow-hidden order-3">
                             <p class="text-xs font-semibold text-gray-700 mb-2">Status</p>
                             <div class="text-xs space-y-1">
-                                <!-- Active -->
-                                <label class="flex items-center gap-1.5 cursor-pointer font-semibold text-blue-600">
-                                    <input type="checkbox" checked class="w-3 h-3" data-field="MlsStatus" data-value="Active">
-                                    <span>Active</span>
-                                </label>
-                                <!-- Back On Market -->
-                                <label class="flex items-center gap-1.5 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Active" data-sub-status="BackOnMarket">
-                                    <span>Back On Market</span>
-                                </label>
-                                <!-- Coming Soon -->
-                                <label class="flex items-center gap-1.5 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="ComingSoon">
-                                    <span>Coming Soon</span>
-                                </label>
-                                <!-- Future -->
-                                <label class="flex items-center gap-1.5 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Incomplete" data-sub-status="Future">
-                                    <span>Future</span>
-                                </label>
-                                <!-- Offer -->
-                                <div>
-                                    <div class="flex items-center gap-1 cursor-pointer font-semibold text-orange-600" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-right')">
-                                        <i class="fas fa-chevron-right text-xs w-3"></i>
-                                        <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="Offer" onclick="event.stopPropagation()">
-                                        <span>Offer</span>
-                                    </div>
-                                    <div class="ml-5 mt-1 space-y-0.5 text-gray-700 hidden">
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="OfferOut"> Offer Out</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="OfferThruUs"> Offer Thru Us</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="OfferAccepted"> Offer Accepted</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="OfferAcceptedThruUs"> Offer Accepted Thru Us</label>
-                                    </div>
-                                </div>
-                                <!-- Contract -->
-                                <div>
-                                    <div class="flex items-center gap-1 cursor-pointer font-semibold text-purple-600" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-right')">
-                                        <i class="fas fa-chevron-right text-xs w-3"></i>
-                                        <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="Contract" onclick="event.stopPropagation()">
-                                        <span>Contract</span>
-                                    </div>
-                                    <div class="ml-5 mt-1 space-y-0.5 text-gray-700 hidden">
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="ContractOut"> Contract Out</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="ContractOutThruUs"> Contract Out Thru Us</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="AllContractSigned"> All Contract Signed</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="ContractSigned"> Contract Signed</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="ContractSignedThruUs"> Contract Signed Thru Us</label>
-                                    </div>
-                                </div>
-                                <!-- Board Approved -->
-                                <label class="flex items-center gap-1.5 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="BoardApproved">
-                                    <span>Board Approved</span>
-                                </label>
-                                <!-- Sold -->
-                                <div>
-                                    <div class="flex items-center gap-1 cursor-pointer font-semibold text-green-600" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-right')">
-                                        <i class="fas fa-chevron-right text-xs w-3"></i>
-                                        <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="Sold" onclick="event.stopPropagation()">
-                                        <span>Sold</span>
-                                    </div>
-                                    <div class="ml-5 mt-1 space-y-0.5 text-gray-700 hidden">
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed"> All Sold</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="Sold"> Sold</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="SoldThruUs"> Sold Thru Us</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="ACRISVerified"> ACRIS Verified</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="Financed"> Financed</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="NoFinancing"> No Financing</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="NominalSales"> Nominal Sales</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="OtherACRIS"> Other ACRIS</label>
-                                    </div>
-                                </div>
-                                <!-- Not Active -->
-                                <div>
-                                    <div class="flex items-center gap-1 cursor-pointer font-semibold text-gray-500" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-right')">
-                                        <i class="fas fa-chevron-right text-xs w-3"></i>
-                                        <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Withdrawn,Canceled,Expired,Hold" onclick="event.stopPropagation()">
-                                        <span>Not Active</span>
-                                    </div>
-                                    <div class="ml-5 mt-1 space-y-0.5 text-gray-700 hidden">
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Withdrawn,Canceled,Expired,Hold"> All Not Active</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Withdrawn"> Permanently Off</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Hold"> Temporarily Off</label>
-                                        <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Expired"> Expired</label>
-                                    </div>
-                                </div>
-                                <!-- Listed for Rent -->
-                                <div class="border-t border-gray-200 pt-1 mt-1">
-                                    <label class="flex items-center gap-1.5 cursor-pointer font-semibold text-gray-600">
-                                        <input type="checkbox" class="w-3 h-3" data-local-field="CrossListing" data-value="ListedForRent">
-                                        <span>Listed for Rent</span>
-                                    </label>
-                                </div>
-                            </div>
+<!-- Status panel — RENDERED FROM THE EXECUTOR CONTRACT (owner ruling 2026-09-08/09).
+     The choices come from lib/crm/status-mapping.ts via GET /api/idx/search/contract statusChoices.sale,
+     so this panel cannot drift from the CRM forms or the status API. Every input is
+     data-field="StandardStatus" with an exact live Cotality token — never MlsStatus (not filterable on
+     this feed) and never a Mallan workflow word. The former sub-status boxes (Offer Out, Contract Signed,
+     Lease Signed, Sold Thru Us, ACRIS Verified …) are GONE: the executor has no workflow criterion, so
+     they were dead controls that could only mislead. -->
+<div class="crm-status-panel" data-status-mount="basic-sale" data-transaction="sale"></div>
+</div>
                         </div>
 
                         <!-- Price / Rooms -->
@@ -910,15 +825,11 @@
                     <!-- Row 4: Building Financing, Resale/New Dev, Keyword, Management + Save -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
 
-                        <!-- Building Financing -->
+                        <!-- Building Financing was removed 2026-09-09: MaximumFinancingPercent does not
+                             exist on live Cotality Property and the executor has no financing criterion, so
+                             the pair could only be dropped in silence or refuse the whole search. -->
                         <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Building Financing</p>
-                            <div class="flex gap-1 items-center">
-                                <input type="text" placeholder="Min %" class="flex-1 border rounded px-2 py-1 text-xs" id="saleBuildingFinancingMin">
-                                <span class="text-gray-400 text-xs">—</span>
-                                <input type="text" placeholder="Max %" class="flex-1 border rounded px-2 py-1 text-xs" id="saleBuildingFinancingMax">
-                            </div>
-                            <p class="text-xs font-semibold text-gray-700 mb-2 mt-3">Resale / New Development</p>
+                            <p class="text-xs font-semibold text-gray-700 mb-2">Resale / New Development</p>
                             <div class="space-y-1 text-xs">
                                 <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="NewConstruction" data-value="false"> Resale Building</label>
                                 <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="NewConstruction" data-value="true"> New Development</label>
@@ -969,75 +880,15 @@
                         <div class="border rounded-lg p-3 overflow-hidden order-3">
                             <p class="text-xs font-semibold text-gray-700 mb-2">Status</p>
                             <div class="space-y-1 text-xs max-h-64 overflow-y-auto">
-                                <label class="flex items-center gap-2 cursor-pointer font-semibold text-blue-600">
-                                    <input type="checkbox" checked class="w-3 h-3" data-field="MlsStatus" data-value="Active"> All Active
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Active"> Active
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Active" data-sub-status="BackOnMarket"> Back On Market
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-orange-600">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="ApplicationIn"> Application In
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="ApplicationAccepted"> Application Accepted
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="LeaseOut"> Lease Out
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="LeaseOutThruUs"> Lease Out Thru Us
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="AppAcceptedThruUs"> App Accepted Thru Us
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="AppInThruUs"> App In Thru Us
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-purple-600">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="AllLeaseSigned"> All Lease Signed
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="LeaseSigned"> Lease Signed
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="LeaseSignedThruUs"> Lease Signed Thru Us
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="BoardApproved"> Board Approved
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer font-semibold text-green-600">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed"> All Rented
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="Rented"> Rented
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="RentedThruUs"> Rented Thru Us
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer font-semibold text-gray-500">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Withdrawn,Canceled,Expired,Hold"> All Not Active
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Withdrawn"> Withdrawn
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Hold"> Hold
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Expired"> Expired
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Incomplete" data-sub-status="Future"> Future
-                                </label>
-                                <div class="border-t pt-1 mt-1">
-                                    <label class="flex items-center gap-2 cursor-pointer font-semibold text-gray-600">
-                                        <input type="checkbox" class="w-3 h-3" data-local-field="CrossListing" data-value="AlsoForSale"> Include Also for Sale
-                                    </label>
-                                </div>
-                            </div>
+<!-- Status panel — RENDERED FROM THE EXECUTOR CONTRACT (owner ruling 2026-09-08/09).
+     The choices come from lib/crm/status-mapping.ts via GET /api/idx/search/contract statusChoices.rental,
+     so this panel cannot drift from the CRM forms or the status API. Every input is
+     data-field="StandardStatus" with an exact live Cotality token — never MlsStatus (not filterable on
+     this feed) and never a Mallan workflow word. The former sub-status boxes (Offer Out, Contract Signed,
+     Lease Signed, Sold Thru Us, ACRIS Verified …) are GONE: the executor has no workflow criterion, so
+     they were dead controls that could only mislead. -->
+<div class="crm-status-panel" data-status-mount="basic-rental" data-transaction="rental"></div>
+</div>
                         </div>
 
                         <!-- Rent / Rooms -->
@@ -1743,15 +1594,11 @@
                     <!-- Row 4: Building Financing, Resale/New Dev, Keyword, Management + Save -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
 
-                        <!-- Building Financing -->
+                        <!-- Building Financing was removed 2026-09-09: MaximumFinancingPercent does not
+                             exist on live Cotality Property and the executor has no financing criterion, so
+                             the pair could only be dropped in silence or refuse the whole search. -->
                         <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Building Financing</p>
-                            <div class="flex gap-1 items-center">
-                                <input type="text" placeholder="Min %" class="flex-1 border rounded px-2 py-1 text-xs" id="rentalBuildingFinancingMin">
-                                <span class="text-gray-400 text-xs">—</span>
-                                <input type="text" placeholder="Max %" class="flex-1 border rounded px-2 py-1 text-xs" id="rentalBuildingFinancingMax">
-                            </div>
-                            <p class="text-xs font-semibold text-gray-700 mb-2 mt-3">Resale / New Development</p>
+                            <p class="text-xs font-semibold text-gray-700 mb-2">Resale / New Development</p>
                             <div class="space-y-1 text-xs">
                                 <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="NewConstruction" data-value="false"> Resale Building</label>
                                 <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="NewConstruction" data-value="true"> New Development</label>
@@ -1793,6 +1640,25 @@
                 <!-- ============================================== -->
                 <!-- BASIC SEARCH MODE - BUILDING SEARCH -->
                 <!-- ============================================== -->
+                <!-- ══════════════════════════════════════════════════════════════════════════════
+                     BUILDINGS TAB (rebuilt 2026-09-09)
+
+                     There is NO entitled Cotality `Building` resource on this subscription: it is declared
+                     in $metadata and returns HTTP 403, both of its navigations are provider-rejected, and
+                     `BuildingKeyNumeric` is SUPPRESSED (null on every row). `Latitude`/`Longitude` are
+                     suppressed the same way, so the former "Manhattan Grid" could never have executed.
+
+                     A Mallan Building search is therefore a PROPERTY query, narrowed by criteria the
+                     executor actually executes, and GROUPED IN MALLAN CODE by the building identity the
+                     returned rows carry (BuildingName, else the street address).
+
+                     Every control below names a live, filterable Cotality Property field AND is an
+                     executable parameter of GET /api/idx/search. Controls that were neither — BuildingRules,
+                     AttendanceType, BuildingPetsAllowed, BuildingLaundryFeatures, BuildingPoolFeatures,
+                     BuildingSecurityFeatures, MaximumFinancingPercent, RentingAllowedYN, a "CRM" field, the
+                     Loft / WalkUp / Brownstone / RoofDeck / WheelchairAccessible tokens, and the whole
+                     lat/lng grid — are GONE rather than visible and dead.
+                     ══════════════════════════════════════════════════════════════════════════════ -->
                 <div id="searchBasicModeBuilding" class="bg-white rounded-xl shadow-sm border p-5" style="display: none;">
 
                     <!-- Quick Search -->
@@ -1807,7 +1673,7 @@
                                 <input type="text" id="buildingQuickZip" inputmode="numeric" placeholder="Zip" class="w-full border rounded px-2 py-1.5 text-xs text-center" maxlength="5">
                             </div>
                         </div>
-                        <!-- 2. Neighborhood + Map icon + Transit icon -->
+                        <!-- 2. Neighborhood + Map -->
                         <div class="mb-2">
                             <div class="flex gap-1.5 items-center">
                                 <div class="relative flex-1">
@@ -1818,95 +1684,20 @@
                                 <button type="button" onclick="openNeighborhoodMapForSearch()" class="w-9 h-9 flex items-center justify-center rounded-lg border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors" title="Neighborhood Map">
                                     <i class="fas fa-map-marked-alt text-sm"></i>
                                 </button>
-                                <button type="button" onclick="document.getElementById('buildingTransitExpand').classList.toggle('hidden')" class="w-9 h-9 flex items-center justify-center rounded-lg border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors" title="Nearby Transit">
-                                    <i class="fas fa-subway text-sm"></i>
-                                </button>
                             </div>
                             <div id="buildingNeighborhoodTags" class="flex flex-wrap gap-1 mt-1.5"></div>
-                            <!-- Transit expandable -->
-                            <div id="buildingTransitExpand" class="hidden mt-2 pt-2 border-t border-gray-100">
-                                <p class="text-[10px] text-gray-400 uppercase tracking-wide mb-1.5">Subway Lines</p>
-                                <div class="flex flex-wrap gap-1 mb-2">
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">1</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">2</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-red-300" style="background:#EE352E;">3</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-green-300" style="background:#00933C;">4</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-green-300" style="background:#00933C;">5</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-green-300" style="background:#00933C;">6</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-purple-300" style="background:#B933AD;">7</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">A</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">C</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-blue-300" style="background:#0039A6;">E</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">B</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">D</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">F</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-orange-300" style="background:#FF6319;">M</button>
-                                    <button class="w-5 h-5 rounded-full text-[10px] font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">N</button>
-                                    <button class="w-5 h-5 rounded-full text-[10px] font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">Q</button>
-                                    <button class="w-5 h-5 rounded-full text-[10px] font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">R</button>
-                                    <button class="w-5 h-5 rounded-full text-[10px] font-bold hover:ring-2 ring-yellow-300" style="background:#FCCC0A;color:#000;">W</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-lime-300" style="background:#6CBE45;">G</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-amber-300" style="background:#996633;">J</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-amber-300" style="background:#996633;">Z</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-gray-300" style="background:#A7A9AC;">L</button>
-                                    <button class="w-5 h-5 rounded-full text-white text-[10px] font-bold hover:ring-2 ring-gray-300" style="background:#808183;">S</button>
-                                </div>
-                                <div class="flex gap-2 flex-wrap">
-                                    <label class="flex items-center gap-1 px-2 py-0.5 border border-gray-300 rounded text-[10px] cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition">
-                                        <input type="checkbox" class="w-3 h-3"> <i class="fas fa-train text-blue-700" style="font-size:8px"></i> LIRR
-                                    </label>
-                                    <label class="flex items-center gap-1 px-2 py-0.5 border border-gray-300 rounded text-[10px] cursor-pointer hover:bg-cyan-50 hover:border-cyan-300 transition">
-                                        <input type="checkbox" class="w-3 h-3"> <i class="fas fa-ship text-cyan-600" style="font-size:8px"></i> Ferry
-                                    </label>
-                                    <label class="flex items-center gap-1 px-2 py-0.5 border border-gray-300 rounded text-[10px] cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition">
-                                        <input type="checkbox" class="w-3 h-3"> <i class="fas fa-bus text-blue-600" style="font-size:8px"></i> Bus
-                                    </label>
-                                </div>
-                            </div>
                         </div>
-                        <!-- 3. Address -->
-                        <div class="mb-1.5 relative">
-                            <input type="text" id="buildingSearchAddress" placeholder="Address or Building Name" class="w-full border rounded px-2 py-1.5 text-xs" oninput="searchAddressAutocomplete(this.value, 'buildingSearchAddrResults')" autocomplete="off">
-                            <div id="buildingSearchAddrResults" class="hidden absolute z-50 w-full bg-white border border-gray-300 rounded shadow-lg mt-0.5 max-h-48 overflow-y-auto text-xs"></div>
-                        </div>
-                        <!-- 4. Unit (optional) -->
-                        <div class="mb-2">
-                            <input type="text" id="buildingQuickUnit" placeholder="Unit # (optional)" class="w-full border rounded px-2 py-1.5 text-xs">
-                        </div>
-                        <!-- 5. Search -->
+                        <!-- 3. Search -->
                         <button type="button" onclick="quickSearch(this)" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1.5 rounded text-xs transition">
                             <i class="fas fa-search mr-1"></i> Search
                         </button>
+                        <p class="text-[10px] text-gray-400 mt-2 leading-snug">
+                            Results are grouped into buildings from the listings the Search returns. This feed publishes no
+                            building record and no building key, so a building is identified by its name or its street address.
+                        </p>
                     </div>
 
-                    <!-- Manhattan Grid Selections -->
-                    <div class="border rounded-lg p-3 mb-5">
-                        <div class="flex items-center justify-between mb-3">
-                            <p class="text-xs font-semibold text-gray-700">Manhattan Grid Selections above 14th Street</p>
-                            <button onclick="clearManhattanGrid()" class="text-xs text-gray-500 hover:text-gray-700">Clear</button>
-                        </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div class="space-y-2">
-                                <select id="bldg-grid-north" class="w-full border rounded px-2 py-1.5 text-xs"><option>North</option></select>
-                                <div class="grid grid-cols-2 gap-2">
-                                    <select id="bldg-grid-west" class="border rounded px-2 py-1.5 text-xs"><option>West</option></select>
-                                    <select id="bldg-grid-east" class="border rounded px-2 py-1.5 text-xs"><option>East</option></select>
-                                </div>
-                                <select id="bldg-grid-south" class="w-full border rounded px-2 py-1.5 text-xs"><option>South</option></select>
-                            </div>
-                            <div class="space-y-2">
-                                <select class="w-full border rounded px-2 py-1.5 text-xs"><option>North</option></select>
-                                <div class="grid grid-cols-2 gap-2">
-                                    <select class="border rounded px-2 py-1.5 text-xs"><option>West</option></select>
-                                    <select class="border rounded px-2 py-1.5 text-xs"><option>East</option></select>
-                                </div>
-                                <select class="w-full border rounded px-2 py-1.5 text-xs"><option>South</option></select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Row 2: Ownership, Building Allows, Building Does Not Allow -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         <!-- Ownership -->
                         <div class="border rounded-lg p-3">
                             <p class="text-xs font-semibold text-gray-700 mb-2">Ownership</p>
@@ -1917,293 +1708,24 @@
                                 <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="CommonInterest" data-value="Condop"> Condop</label>
                                 <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="PropertySubType" data-value="Townhouse"> Townhouse</label>
                             </div>
-                            <p class="text-xs font-semibold text-gray-700 mb-1 mt-3">Land-Lease Buildings</p>
-                            <div class="flex gap-3 text-xs">
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="landLease" class="w-3 h-3" value="any" checked data-field="LandLeaseYN"> Any</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="landLease" class="w-3 h-3" value="include" data-field="LandLeaseYN" data-value="true"> Include Only</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="radio" name="landLease" class="w-3 h-3" value="exclude" data-field="LandLeaseYN" data-value="false"> Exclude</label>
-                            </div>
                         </div>
 
-                        <!-- Building Allows -->
+                        <!-- Building Form — live StructureType members only -->
                         <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Building Allows</p>
-                            <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="CRM" data-value="AdvertisingAllowed"> Advertising <span class="text-gray-400 text-[8px]">(CRM)</span></label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingPetsAllowed" data-value="BuildingYes,BuildingCatsOK,BuildingDogsOK"> Pets</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-value="CorporateOwnerAllowed"> Corporate Own.</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-value="PiedATerreAllowed"> Pied-A-Terre</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-value="GuarantorsAccepted"> Guarantors</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MaximumFinancingPercent" data-value="gt:0"> Financing</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="RentingAllowedYN" data-value="true"> Subletting</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-value="LiveWorkAllowed"> Live/Work</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingLaundryFeatures" data-value="WasherDryerInstallAllowed"> Washer/Dryer Install</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-value="CopurchasersAllowed"> Co-Purchasers</label>
-                            </div>
-                        </div>
-
-                        <!-- Building Does Not Allow -->
-                        <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Building Does Not Allow</p>
-                            <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingPetsAllowed" data-value="BuildingNo"> Pets</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-not="CorporateOwnerAllowed"> Corporate Own.</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-not="PiedATerreAllowed"> Pied-A-Terre</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-not="GuarantorsAccepted"> Guarantors</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MaximumFinancingPercent" data-value="eq:0"> Financing</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="RentingAllowedYN" data-value="false"> Subletting</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-not="LiveWorkAllowed"> Live/Work</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingLaundryFeatures" data-not="WasherDryerInstallAllowed"> Washer/Dryer Install</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingRules" data-not="CopurchasersAllowed"> Co-Purchasers</label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Row 3: Attended Lobby, Features, Building Period, Resale/New Development -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                        <!-- Attended Lobby -->
-                        <div class="border rounded-lg p-3">
-                            <div class="flex items-center justify-between mb-2">
-                                <p class="text-xs font-semibold text-gray-700">Attended Lobby</p>
-                                <div class="flex items-center gap-1 text-xs">
-                                    <span>And</span>
-                                    <div class="w-8 h-4 bg-blue-500 rounded-full relative cursor-pointer and-or-toggle" onclick="toggleAndOr(this)" role="switch" aria-checked="true" aria-label="Toggle And/Or filter" tabindex="0" onkeydown="if(event.key===' '||event.key==='Enter'){event.preventDefault();toggleAndOr(this)}"><div class="w-3 h-3 bg-white rounded-full absolute top-0.5 right-0.5 transition-all"></div></div>
-                                    <span>Or</span>
-                                </div>
-                            </div>
-                            <div class="space-y-1 text-xs">
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="AttendanceType" data-value="Any"> Any Attended</label>
-                                <label class="flex items-center gap-2 cursor-pointer pl-3"><input type="checkbox" class="w-3 h-3" data-field="AttendanceType" data-value="DoormanYes"> Doorman</label>
-                                <label class="flex items-center gap-2 cursor-pointer pl-3"><input type="checkbox" class="w-3 h-3" data-field="AttendanceType" data-value="ConciergeYes"> Concierge</label>
-                                <label class="flex items-center gap-2 cursor-pointer pl-3"><input type="checkbox" class="w-3 h-3" data-field="AttendanceType" data-value="ElevatorAttendanceYes"> Elevator Attendant</label>
-                                <label class="flex items-center gap-2 cursor-pointer pl-3"><input type="checkbox" class="w-3 h-3" data-field="AttendanceType" data-value="VideoDoormanYes"> Video Doorman</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="AttendanceType" data-value="None"> Unattended</label>
-                            </div>
-                        </div>
-
-                        <!-- Features -->
-                        <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Features</p>
-                            <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="CoolingYN" data-value="true"> Cooling</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingPoolFeatures" data-value="Any"> Pool</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingFeatures" data-value="FitnessCenter,HealthClub"> Health Club</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingSecurityFeatures" data-value="Any"> Security</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingLaundryFeatures" data-value="Any"> Laundry</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="BuildingFeatures" data-value="Storage"> Storage</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="GarageYN" data-value="true"> Parking</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="AccessibilityFeatures" data-value="WheelchairAccessible"> Accessible</label>
-                                <label class="flex items-center gap-1 cursor-pointer col-span-2"><input type="checkbox" class="w-3 h-3" data-field="BuildingFeatures" data-value="Elevators"> Elevator</label>
-                            </div>
-                        </div>
-
-                        <!-- Building Period -->
-                        <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Building Period</p>
-                            <div class="space-y-1 text-xs">
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="YearBuilt" data-value="lte:1946"> Pre-War</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="YearBuilt" data-value="gte:1947"> Post-War</label>
-                            </div>
-                            <p class="text-xs font-semibold text-gray-700 mb-2 mt-3">Resale / New Development</p>
-                            <div class="space-y-1 text-xs">
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="NewConstructionYN" data-value="false"> Resale Building</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="NewConstructionYN" data-value="true"> New Development</label>
-                                <label class="flex items-center gap-2 cursor-pointer pl-3"><input type="checkbox" class="w-3 h-3" data-local-field="Conversion" data-value="true"> Conversion</label>
-                                <label class="flex items-center gap-2 cursor-pointer pl-3"><input type="checkbox" class="w-3 h-3" data-local-field="ConstructionType" data-value="NewConstruction"> New Construction</label>
-                            </div>
-                        </div>
-
-                        <!-- Common Outdoor Space + Building Style -->
-                        <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Common Outdoor Space</p>
-                            <div class="space-y-1 text-xs mb-3">
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ExteriorFeatures" data-value="Courtyard"> Courtyard</label>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ExteriorFeatures" data-value="RoofDeck"> Roof Deck</label>
-                            </div>
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Building Style</p>
+                            <p class="text-xs font-semibold text-gray-700 mb-2">Building Form</p>
                             <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
                                 <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StructureType" data-value="HighRise"> High-Rise</label>
-                                <label class="flex items-center gap-1 cursor-pointer" title="StoriesTotal ≤ 6"><input type="checkbox" class="w-3 h-3" data-field="StoriesTotal" data-value="lte:6"> Low-Rise</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StructureType" data-value="Loft"> Loft</label>
+                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StructureType" data-value="MidRise"> Mid-Rise</label>
+                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StructureType" data-value="LowRise"> Low-Rise</label>
                                 <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StructureType" data-value="Townhouse"> Townhouse</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="ArchitecturalStyle" data-value="Brownstone"> Brownstone</label>
-                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StructureType" data-value="WalkUp"> Walk-Up</label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Row 4: Building Age/Size, Building Financing, Keyword Search, Management -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <!-- Building Age/Size -->
-                        <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Building Age/Size</p>
-                            <div class="space-y-2">
-                                <div class="flex gap-1 items-center">
-                                    <select class="flex-1 border rounded px-2 py-1 text-xs" id="buildingMinYear">
-                                        <option value="">Min Year</option>
-                                        <option value="custom">Custom</option>
-                                        <option value="1900">1900</option>
-                                        <option value="1910">1910</option>
-                                        <option value="1920">1920</option>
-                                        <option value="1930">1930</option>
-                                        <option value="1940">1940</option>
-                                        <option value="1950">1950</option>
-                                        <option value="1960">1960</option>
-                                        <option value="1970">1970</option>
-                                        <option value="1980">1980</option>
-                                        <option value="1990">1990</option>
-                                        <option value="2000">2000</option>
-                                        <option value="2005">2005</option>
-                                        <option value="2010">2010</option>
-                                        <option value="2015">2015</option>
-                                        <option value="2020">2020</option>
-                                        <option value="2024">2024</option>
-                                        <option value="2025">2025</option>
-                                        <option value="2026">2026</option>
-                                    </select>
-                                    <span class="text-gray-400 text-xs">—</span>
-                                    <select class="flex-1 border rounded px-2 py-1 text-xs" id="buildingMaxYear">
-                                        <option value="">Max Year</option>
-                                        <option value="custom">Custom</option>
-                                        <option value="1910">1910</option>
-                                        <option value="1920">1920</option>
-                                        <option value="1930">1930</option>
-                                        <option value="1940">1940</option>
-                                        <option value="1950">1950</option>
-                                        <option value="1960">1960</option>
-                                        <option value="1970">1970</option>
-                                        <option value="1980">1980</option>
-                                        <option value="1990">1990</option>
-                                        <option value="2000">2000</option>
-                                        <option value="2005">2005</option>
-                                        <option value="2010">2010</option>
-                                        <option value="2015">2015</option>
-                                        <option value="2020">2020</option>
-                                        <option value="2024">2024</option>
-                                        <option value="2026">2026</option>
-                                    </select>
-                                </div>
-                                <div class="flex gap-1 items-center">
-                                    <select class="flex-1 border rounded px-2 py-1 text-xs" id="buildingMinUnits">
-                                        <option value="">Min Units</option>
-                                        <option value="custom">Custom</option>
-                                        <option value="1">1</option>
-                                        <option value="5">5</option>
-                                        <option value="10">10</option>
-                                        <option value="20">20</option>
-                                        <option value="30">30</option>
-                                        <option value="50">50</option>
-                                        <option value="75">75</option>
-                                        <option value="100">100</option>
-                                        <option value="150">150</option>
-                                        <option value="200">200</option>
-                                        <option value="300">300</option>
-                                        <option value="400">400</option>
-                                        <option value="500">500+</option>
-                                    </select>
-                                    <span class="text-gray-400 text-xs">—</span>
-                                    <select class="flex-1 border rounded px-2 py-1 text-xs" id="buildingMaxUnits">
-                                        <option value="">Max Units</option>
-                                        <option value="custom">Custom</option>
-                                        <option value="5">5</option>
-                                        <option value="10">10</option>
-                                        <option value="20">20</option>
-                                        <option value="30">30</option>
-                                        <option value="50">50</option>
-                                        <option value="75">75</option>
-                                        <option value="100">100</option>
-                                        <option value="150">150</option>
-                                        <option value="200">200</option>
-                                        <option value="300">300</option>
-                                        <option value="400">400</option>
-                                        <option value="500">500</option>
-                                        <option value="1000">1000+</option>
-                                    </select>
-                                </div>
-                                <div class="flex gap-1 items-center">
-                                    <select class="flex-1 border rounded px-2 py-1 text-xs" id="buildingMinFloors">
-                                        <option value="">Min Floors</option>
-                                        <option value="custom">Custom</option>
-                                        <option value="1">1</option>
-                                        <option value="2">2</option>
-                                        <option value="3">3</option>
-                                        <option value="4">4</option>
-                                        <option value="5">5</option>
-                                        <option value="6">6</option>
-                                        <option value="7">7</option>
-                                        <option value="8">8</option>
-                                        <option value="9">9</option>
-                                        <option value="10">10</option>
-                                        <option value="12">12</option>
-                                        <option value="15">15</option>
-                                        <option value="20">20</option>
-                                        <option value="25">25</option>
-                                        <option value="30">30</option>
-                                        <option value="35">35</option>
-                                        <option value="40">40</option>
-                                        <option value="45">45</option>
-                                        <option value="50">50</option>
-                                        <option value="55">55</option>
-                                        <option value="60">60</option>
-                                        <option value="70">70</option>
-                                        <option value="80">80</option>
-                                        <option value="90">90</option>
-                                        <option value="100">100</option>
-                                    </select>
-                                    <span class="text-gray-400 text-xs">—</span>
-                                    <select class="flex-1 border rounded px-2 py-1 text-xs" id="buildingMaxFloors">
-                                        <option value="">Max Floors</option>
-                                        <option value="custom">Custom</option>
-                                        <option value="1">1</option>
-                                        <option value="2">2</option>
-                                        <option value="3">3</option>
-                                        <option value="4">4</option>
-                                        <option value="5">5</option>
-                                        <option value="6">6</option>
-                                        <option value="7">7</option>
-                                        <option value="8">8</option>
-                                        <option value="9">9</option>
-                                        <option value="10">10</option>
-                                        <option value="12">12</option>
-                                        <option value="15">15</option>
-                                        <option value="20">20</option>
-                                        <option value="25">25</option>
-                                        <option value="30">30</option>
-                                        <option value="35">35</option>
-                                        <option value="40">40</option>
-                                        <option value="45">45</option>
-                                        <option value="50">50</option>
-                                        <option value="55">55</option>
-                                        <option value="60">60</option>
-                                        <option value="70">70</option>
-                                        <option value="80">80</option>
-                                        <option value="90">90</option>
-                                        <option value="100">100</option>
-                                    </select>
-                                </div>
+                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StructureType" data-value="MultiFamily"> Multi-Family</label>
+                                <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="StructureType" data-value="MixedUse"> Mixed Use</label>
                             </div>
                         </div>
 
-                        <!-- Building Financing -->
+                        <!-- Status — the SAME contract mount the four other Search panels use -->
                         <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Building Financing</p>
-                            <div class="flex gap-1 items-center">
-                                <input type="number" id="buildingFinancingMin" placeholder="Financing Allowed % Min" class="flex-1 border rounded px-2 py-1 text-xs" min="0" max="100" step="1">
-                                <span class="text-gray-400 text-xs">—</span>
-                                <input type="number" id="buildingFinancingMax" placeholder="% Max" class="flex-1 border rounded px-2 py-1 text-xs" min="0" max="100" step="1">
-                            </div>
-                        </div>
-
-                        <!-- Keyword Search -->
-                        <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Keyword Search</p>
-                            <input type="text" id="buildingKeywordSearch" placeholder="Enter keywords..." class="w-full border rounded px-2 py-1.5 text-xs">
-                        </div>
-
-                        <!-- Management Companies -->
-                        <div class="border rounded-lg p-3">
-                            <p class="text-xs font-semibold text-gray-700 mb-2">Management Companies</p>
-                            <input type="text" id="buildingManagementCompany" placeholder="Enter Building Management Company / Owner / Landlord" class="w-full border rounded px-2 py-1.5 text-xs">
+                            <div class="crm-status-panel" data-status-mount="basic-building" data-transaction="sale"></div>
                         </div>
                     </div>
                 </div>
@@ -4052,185 +3574,26 @@
                         <div class="section-content">
                             <!-- Sale Status -->
                             <div id="saleStatusOptions" class="text-xs space-y-1">
-                                <!-- Active -->
-                                <label class="flex items-center gap-2 cursor-pointer font-semibold text-blue-600">
-                                    <input type="checkbox" checked class="w-3 h-3" data-field="MlsStatus" data-value="Active">
-                                    <span>Active</span>
-                                </label>
-                                <!-- Back On Market -->
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Active" data-sub-status="BackOnMarket">
-                                    <span>Back On Market</span>
-                                </label>
-                                <!-- Coming Soon -->
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="ComingSoon">
-                                    <span>Coming Soon</span>
-                                </label>
-                                <!-- Future -->
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Incomplete" data-sub-status="Future">
-                                    <span>Future</span>
-                                </label>
-                                <!-- Offer -->
-                                <div>
-                                    <div class="flex items-center gap-2 cursor-pointer font-semibold text-orange-600" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-right')">
-                                        <i class="fas fa-chevron-right text-xs w-3"></i>
-                                        <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="Offer" onclick="event.stopPropagation()">
-                                        <span>Offer</span>
-                                    </div>
-                                    <div class="ml-6 mt-1 space-y-0.5 text-gray-700 hidden">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="OfferOut"> Offer Out</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="OfferThruUs"> Offer Thru Us</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="OfferAccepted"> Offer Accepted</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="OfferAcceptedThruUs"> Offer Accepted Thru Us</label>
-                                    </div>
-                                </div>
-                                <!-- Contract -->
-                                <div>
-                                    <div class="flex items-center gap-2 cursor-pointer font-semibold text-purple-600" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-right')">
-                                        <i class="fas fa-chevron-right text-xs w-3"></i>
-                                        <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="Contract" onclick="event.stopPropagation()">
-                                        <span>Contract</span>
-                                    </div>
-                                    <div class="ml-6 mt-1 space-y-0.5 text-gray-700 hidden">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="ContractOut"> Contract Out</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="ContractOutThruUs"> Contract Out Thru Us</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="AllContractSigned"> All Contract Signed</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="ContractSigned"> Contract Signed</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="ContractSignedThruUs"> Contract Signed Thru Us</label>
-                                    </div>
-                                </div>
-                                <!-- Board Approved -->
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="BoardApproved">
-                                    <span>Board Approved</span>
-                                </label>
-                                <!-- Sold -->
-                                <div>
-                                    <div class="flex items-center gap-2 cursor-pointer font-semibold text-green-600" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-right')">
-                                        <i class="fas fa-chevron-right text-xs w-3"></i>
-                                        <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="Sold" onclick="event.stopPropagation()">
-                                        <span>Sold</span>
-                                    </div>
-                                    <div class="ml-6 mt-1 space-y-0.5 text-gray-700 hidden">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed"> All Sold</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="Sold"> Sold</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="SoldThruUs"> Sold Thru Us</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="ACRISVerified"> ACRIS Verified</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="Financed"> Financed</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="NoFinancing"> No Financing</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="NominalSales"> Nominal Sales</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="OtherACRIS"> Other ACRIS</label>
-                                    </div>
-                                </div>
-                                <!-- Not Active -->
-                                <div>
-                                    <div class="flex items-center gap-2 cursor-pointer font-semibold text-gray-500" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-right')">
-                                        <i class="fas fa-chevron-right text-xs w-3"></i>
-                                        <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Withdrawn,Canceled,Expired,Hold" onclick="event.stopPropagation()">
-                                        <span>Not Active</span>
-                                    </div>
-                                    <div class="ml-6 mt-1 space-y-0.5 text-gray-700 hidden">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Withdrawn,Canceled,Expired,Hold"> All Not Active</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Withdrawn"> Permanently Off</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Hold"> Temporarily Off</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Expired"> Expired</label>
-                                    </div>
-                                </div>
-                                <!-- Listed for Rent -->
-                                <div class="border-t border-gray-200 pt-2 mt-2">
-                                    <label class="flex items-center gap-2 cursor-pointer font-semibold text-gray-600">
-                                        <input type="checkbox" class="w-3 h-3" data-local-field="CrossListing" data-value="ListedForRent">
-                                        <span>Listed for Rent</span>
-                                    </label>
-                                </div>
-                            </div>
+<!-- Status panel — RENDERED FROM THE EXECUTOR CONTRACT (owner ruling 2026-09-08/09).
+     The choices come from lib/crm/status-mapping.ts via GET /api/idx/search/contract statusChoices.sale,
+     so this panel cannot drift from the CRM forms or the status API. Every input is
+     data-field="StandardStatus" with an exact live Cotality token — never MlsStatus (not filterable on
+     this feed) and never a Mallan workflow word. The former sub-status boxes (Offer Out, Contract Signed,
+     Lease Signed, Sold Thru Us, ACRIS Verified …) are GONE: the executor has no workflow criterion, so
+     they were dead controls that could only mislead. -->
+<div class="crm-status-panel" data-status-mount="advanced-sale" data-transaction="sale"></div>
+</div>
                             <!-- Rental Status -->
                             <div id="rentalStatusOptions" class="text-xs space-y-1" style="display: none;">
-                                <!-- Active -->
-                                <label class="flex items-center gap-2 cursor-pointer font-semibold text-blue-600">
-                                    <input type="checkbox" checked class="w-3 h-3" data-field="MlsStatus" data-value="Active">
-                                    <span>Active</span>
-                                </label>
-                                <!-- Back On Market -->
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Active" data-sub-status="BackOnMarket">
-                                    <span>Back On Market</span>
-                                </label>
-                                <!-- Application -->
-                                <div>
-                                    <div class="flex items-center gap-2 cursor-pointer font-semibold text-orange-600" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-right')">
-                                        <i class="fas fa-chevron-right text-xs w-3"></i>
-                                        <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="Application" onclick="event.stopPropagation()">
-                                        <span>Application</span>
-                                    </div>
-                                    <div class="ml-6 mt-1 space-y-0.5 text-gray-700 hidden">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="ApplicationIn"> Application In</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="AppInThruUs"> App In Thru Us</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="ApplicationAccepted"> Application Accepted</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="AppAcceptedThruUs"> App Accepted Thru Us</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="LeaseOut"> Lease Out</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="LeaseOutThruUs"> Lease Out Thru Us</label>
-                                    </div>
-                                </div>
-                                <!-- All Lease Signed -->
-                                <div>
-                                    <div class="flex items-center gap-2 cursor-pointer font-semibold text-purple-600" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-right')">
-                                        <i class="fas fa-chevron-right text-xs w-3"></i>
-                                        <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="LeaseSigned" onclick="event.stopPropagation()">
-                                        <span>All Lease Signed</span>
-                                    </div>
-                                    <div class="ml-6 mt-1 space-y-0.5 text-gray-700 hidden">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="LeaseSigned"> Lease Signed</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="LeaseSignedThruUs"> Lease Signed Thru Us</label>
-                                    </div>
-                                </div>
-                                <!-- Board Approved -->
-                                <label class="flex items-center gap-2 cursor-pointer text-gray-700">
-                                    <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Pending" data-sub-status="BoardApproved">
-                                    <span>Board Approved</span>
-                                </label>
-                                <!-- All Rented -->
-                                <div>
-                                    <div class="flex items-center gap-2 cursor-pointer font-semibold text-green-600" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-right')">
-                                        <i class="fas fa-chevron-right text-xs w-3"></i>
-                                        <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="Rented" onclick="event.stopPropagation()">
-                                        <span>All Rented</span>
-                                    </div>
-                                    <div class="ml-6 mt-1 space-y-0.5 text-gray-700 hidden">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="Rented"> Rented</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Closed" data-sub-status="RentedThruUs"> Rented Thru Us</label>
-                                    </div>
-                                </div>
-                                <!-- All Not Active -->
-                                <div>
-                                    <div class="flex items-center gap-2 cursor-pointer font-semibold text-gray-500" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('i').classList.toggle('fa-chevron-down'); this.querySelector('i').classList.toggle('fa-chevron-right')">
-                                        <i class="fas fa-chevron-right text-xs w-3"></i>
-                                        <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Withdrawn,Canceled,Expired,Hold" onclick="event.stopPropagation()">
-                                        <span>All Not Active</span>
-                                    </div>
-                                    <div class="ml-6 mt-1 space-y-0.5 text-gray-700 hidden">
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Withdrawn"> Withdrawn</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Hold"> Hold</label>
-                                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Expired"> Expired</label>
-                                    </div>
-                                </div>
-                                <!-- Future -->
-                                <div>
-                                    <label class="flex items-center gap-2 cursor-pointer font-semibold text-gray-600">
-                                        <input type="checkbox" class="w-3 h-3" data-field="MlsStatus" data-value="Incomplete" data-sub-status="Future">
-                                        <span>Future</span>
-                                    </label>
-                                </div>
-                                <!-- Include Also for Sale -->
-                                <div class="border-t border-gray-200 pt-2 mt-2">
-                                    <label class="flex items-center gap-2 cursor-pointer font-semibold text-indigo-600">
-                                        <input type="checkbox" class="w-3 h-3" data-local-field="CrossListing" data-value="AlsoForSale">
-                                        <span>Include Also for Sale</span>
-                                    </label>
-                                </div>
-                            </div>
+<!-- Status panel — RENDERED FROM THE EXECUTOR CONTRACT (owner ruling 2026-09-08/09).
+     The choices come from lib/crm/status-mapping.ts via GET /api/idx/search/contract statusChoices.rental,
+     so this panel cannot drift from the CRM forms or the status API. Every input is
+     data-field="StandardStatus" with an exact live Cotality token — never MlsStatus (not filterable on
+     this feed) and never a Mallan workflow word. The former sub-status boxes (Offer Out, Contract Signed,
+     Lease Signed, Sold Thru Us, ACRIS Verified …) are GONE: the executor has no workflow criterion, so
+     they were dead controls that could only mislead. -->
+<div class="crm-status-panel" data-status-mount="advanced-rental" data-transaction="rental"></div>
+</div>
                         </div>
                     </div>
 
@@ -5598,33 +4961,48 @@
                 </div>
 
                 <!-- COMPARABLE REPORTS SECTION -->
+                <!-- ══════════════════════════════════════════════════════════════════════════════
+                     COMPARABLES (rebuilt 2026-09-09)
+
+                     Every criterion here is an EXECUTABLE parameter of GET /api/idx/search. The controls
+                     that were removed could not execute and were being dropped in the browser, which
+                     silently widened a CMA to the whole city:
+                       · free-text address / building name  — not an executable criterion of this Search
+                       · Min/Max SqFt                       — not an executable criterion of this Search
+                       · 18 read-only "Last 90 Days (…)" windows — never read, never sent, and frozen in 2026
+                       · 54 status checkboxes with no id, no data-field and no reader, 12 of whose labels were
+                         Mallan WORKFLOW words (Offer Out, Contract Signed, Sold Thru Us …) the executor
+                         refuses by name
+                       · fabricated "12 / 18 / 24 Results Found" counts and placeholder result blocks
+                     Status is rendered from the executor contract, per transaction, by the same
+                     renderStatusPanels the four Search panels use.
+                     ══════════════════════════════════════════════════════════════════════════════ -->
                 <div id="comparablesSection" class="search-type-section" style="display: none;">
 
                     <!-- Comparables Selection Page -->
                     <div id="comparablesSelectionPage" class="comparables-page">
-                        <div class="mb-4 flex items-center justify-between">
+                        <div class="mb-4 flex items-center justify-between flex-wrap gap-2">
                             <div class="flex gap-2">
                                 <button id="btnCompSale" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold" onclick="toggleCompSaleRent('sale')">Sales</button>
                                 <button id="btnCompRent" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-semibold" onclick="toggleCompSaleRent('rent')">Rentals</button>
                             </div>
                             <div class="flex gap-2">
-                                <button class="px-3 py-2 border rounded text-sm hover:bg-gray-50">
+                                <button onclick="loadCompCriteria()" class="px-3 py-2 border rounded text-sm hover:bg-gray-50">
                                     <i class="fas fa-download mr-2"></i> Load Comp Criteria
                                 </button>
-                                <button class="px-3 py-2 border rounded text-sm hover:bg-gray-50">
+                                <button onclick="saveCompCriteria()" class="px-3 py-2 border rounded text-sm hover:bg-gray-50">
                                     <i class="fas fa-save mr-2"></i> Save Comp Criteria
                                 </button>
-                                <button class="px-3 py-2 border rounded text-sm hover:bg-gray-50">
+                                <button onclick="openCompReport()" class="px-3 py-2 border rounded text-sm hover:bg-gray-50">
                                     <i class="fas fa-print mr-2"></i> Generate Report
                                 </button>
-                                <button class="px-4 py-2 border rounded text-sm hover:bg-gray-50">Clear Criteria</button>
+                                <button onclick="clearCompCriteria()" class="px-4 py-2 border rounded text-sm hover:bg-gray-50">Clear Criteria</button>
                             </div>
                         </div>
 
                         <div class="grid lg:grid-cols-2 gap-6">
                             <!-- Left: Search Options -->
                             <div class="space-y-4">
-                                <!-- Search Comparables Based on Subject Property -->
                                 <button onclick="openCompPage('property')" class="w-full bg-white rounded-xl shadow-sm border p-6 hover:shadow-lg hover:border-blue-500 transition-all text-left group">
                                     <div class="flex items-start gap-4">
                                         <div class="w-16 h-16 bg-blue-50 rounded-lg flex items-center justify-center group-hover:bg-blue-100 transition-colors flex-shrink-0">
@@ -5641,7 +5019,6 @@
 
                                 <p class="text-center text-gray-500 text-sm font-medium">Or</p>
 
-                                <!-- Search Comparables Based on Subject Buildings -->
                                 <button onclick="openCompPage('building')" class="w-full bg-white rounded-xl shadow-sm border p-6 hover:shadow-lg hover:border-purple-500 transition-all text-left group">
                                     <div class="flex items-start gap-4">
                                         <div class="w-16 h-16 bg-purple-50 rounded-lg flex items-center justify-center group-hover:bg-purple-100 transition-colors flex-shrink-0">
@@ -5658,7 +5035,6 @@
 
                                 <p class="text-center text-gray-500 text-sm font-medium">Or</p>
 
-                                <!-- Search Comparables Using General Criteria -->
                                 <button onclick="openCompPage('general')" class="w-full bg-white rounded-xl shadow-sm border p-6 hover:shadow-lg hover:border-green-500 transition-all text-left group">
                                     <div class="flex items-start gap-4">
                                         <div class="w-16 h-16 bg-blue-50 rounded-lg flex items-center justify-center group-hover:bg-blue-100 transition-colors flex-shrink-0">
@@ -5674,72 +5050,18 @@
                                 </button>
                             </div>
 
-                            <!-- Right: Comparables Within -->
+                            <!-- Right: what a comp set is here -->
                             <div class="bg-white rounded-xl shadow-sm border p-6">
-                                <h3 class="font-semibold text-gray-900 mb-4">Comparables Within</h3>
-
-                                <div class="space-y-4">
-                                    <!-- Sale/Rent specific date labels -->
-                                    <div id="compSaleDates">
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-2">On Market Listings From</label>
-                                            <div class="relative">
-                                                <input type="text" value="Last 90 Days (11/03/2025 - 02/01/2026)"
-                                                       class="w-full border rounded-lg px-4 py-2 pr-10 text-sm" readonly>
-                                                <i class="fas fa-calendar-alt absolute right-3 top-3 text-gray-400"></i>
-                                            </div>
-                                        </div>
-                                        <div class="mt-4">
-                                            <label class="block text-sm font-medium text-gray-700 mb-2">In Contract Listings From</label>
-                                            <div class="relative">
-                                                <input type="text" value="Last 90 Days (11/03/2025 - 02/01/2026)"
-                                                       class="w-full border rounded-lg px-4 py-2 pr-10 text-sm" readonly>
-                                                <i class="fas fa-calendar-alt absolute right-3 top-3 text-gray-400"></i>
-                                            </div>
-                                        </div>
-                                        <div class="mt-4">
-                                            <label class="block text-sm font-medium text-gray-700 mb-2">Sold Listings From</label>
-                                            <div class="relative">
-                                                <input type="text" value="Last 60 Days (12/03/2025 - 02/01/2026)"
-                                                       class="w-full border rounded-lg px-4 py-2 pr-10 text-sm" readonly>
-                                                <i class="fas fa-calendar-alt absolute right-3 top-3 text-gray-400"></i>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div id="compRentalDates" style="display: none;">
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-2">On Market Listings From</label>
-                                            <div class="relative">
-                                                <input type="text" value="Last 90 Days (11/03/2025 - 02/01/2026)"
-                                                       class="w-full border rounded-lg px-4 py-2 pr-10 text-sm" readonly>
-                                                <i class="fas fa-calendar-alt absolute right-3 top-3 text-gray-400"></i>
-                                            </div>
-                                        </div>
-                                        <div class="mt-4">
-                                            <label class="block text-sm font-medium text-gray-700 mb-2">Leased Listings From</label>
-                                            <div class="relative">
-                                                <input type="text" value="Last 90 Days (11/03/2025 - 02/01/2026)"
-                                                       class="w-full border rounded-lg px-4 py-2 pr-10 text-sm" readonly>
-                                                <i class="fas fa-calendar-alt absolute right-3 top-3 text-gray-400"></i>
-                                            </div>
-                                        </div>
-                                        <div class="mt-4">
-                                            <label class="block text-sm font-medium text-gray-700 mb-2">Rented Listings From</label>
-                                            <div class="relative">
-                                                <input type="text" value="Last 90 Days (11/03/2025 - 02/01/2026)"
-                                                       class="w-full border rounded-lg px-4 py-2 pr-10 text-sm" readonly>
-                                                <i class="fas fa-calendar-alt absolute right-3 top-3 text-gray-400"></i>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                                    <p class="text-sm text-blue-900">
-                                        <i class="fas fa-info-circle mr-2"></i>
-                                        Select a search method to find comparable properties for analysis
-                                    </p>
+                                <h3 class="font-semibold text-gray-900 mb-4">How these comparables are assembled</h3>
+                                <ul class="text-sm text-gray-600 space-y-2 list-disc pl-5">
+                                    <li>Comps are drawn from the same Search executor the rest of this page uses, so a comp set can only carry criteria that Search can execute.</li>
+                                    <li>Sale and rental never mix: a comp set is one transaction, and a closing reads <span class="font-semibold">Sold</span> on a sale and <span class="font-semibold">Rented</span> on a rental.</li>
+                                    <li>A closed comp is shown with the provider's own close date and close price. A closed row that carries neither is not shown as a closing at all.</li>
+                                </ul>
+                                <div class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-900">
+                                    <i class="fas fa-info-circle mr-1"></i>
+                                    This Search has no close-date window criterion, so a comp set is not limited to a
+                                    trailing period. Read the close date on each row.
                                 </div>
                             </div>
                         </div>
@@ -5754,7 +5076,7 @@
                                 </button>
                                 <div>
                                     <h3 class="text-lg font-semibold text-gray-900">Comparables - Subject Property</h3>
-                                    <p class="text-sm text-gray-600">Search comparables based on a specific property</p>
+                                    <p class="text-sm text-gray-600">Comps drawn from the subject listing's own area and unit profile</p>
                                 </div>
                             </div>
                             <div class="flex gap-2">
@@ -5765,35 +5087,27 @@
                         <div class="bg-white rounded-xl shadow-sm border p-6">
                             <h3 class="font-semibold text-gray-900 mb-4">Subject Property</h3>
                             <div class="mb-4">
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Location</label>
-                                <input type="text" id="compPropertyAddress" placeholder="Enter Address or Building Name"
-                                       class="w-full border rounded-lg px-4 py-2 text-sm">
-                                <p class="text-xs text-gray-500 mt-1">* Required for Apartments</p>
+                                <label class="block text-sm font-medium text-gray-700 mb-2" for="compPropertyListingId">Subject listing ID</label>
+                                <input type="text" id="compPropertyListingId" placeholder="RLS ID / Web ID (e.g. RLS20078109)"
+                                       class="w-full border rounded-lg px-4 py-2 text-sm font-mono" data-mallan-ignore="true">
+                                <p class="text-xs text-gray-500 mt-1">
+                                    The subject is looked up on the feed, then its neighborhood, bedroom and bathroom
+                                    profile and price band drive the comp search. A free-typed address cannot be sent:
+                                    this Search executes no address criterion.
+                                </p>
                             </div>
+                            <div id="compPropertySubject" class="mb-4 text-sm text-gray-700" style="display:none;"></div>
                             <div class="flex gap-2">
                                 <button onclick="showCompResults('property')" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">
                                     <i class="fas fa-search mr-2"></i> Search Comparables
                                 </button>
-                                <button class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">
+                                <button onclick="openCompReport('property')" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">
                                     <i class="fas fa-print mr-2"></i> Generate Report
                                 </button>
                             </div>
                         </div>
 
-                        <!-- Sample Results Section -->
-                        <div id="compPropertyResults" class="mt-6 bg-white rounded-xl shadow-sm border p-6" style="display: none;">
-                            <div class="flex items-center justify-between mb-4">
-                                <h3 class="text-lg font-semibold text-gray-900">
-                                    <span id="compPropertyResultsType">Comps for Sale</span>
-                                </h3>
-                                <span class="text-sm text-gray-600">12 Results Found</span>
-                            </div>
-                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-                                <i class="fas fa-chart-line text-4xl text-blue-600 mb-2"></i>
-                                <p class="text-sm text-gray-700">Comparable properties will be displayed here</p>
-                                <p class="text-xs text-gray-500 mt-1">Results based on your search criteria</p>
-                            </div>
-                        </div>
+                        <div id="compPropertyResults" class="mt-6 bg-white rounded-xl shadow-sm border p-6" style="display: none;"></div>
                     </div>
 
                     <!-- SUBJECT BUILDINGS PAGE -->
@@ -5805,7 +5119,7 @@
                                 </button>
                                 <div>
                                     <h3 class="text-lg font-semibold text-gray-900">Comparables - Subject Buildings</h3>
-                                    <p class="text-sm text-gray-600">Search comparables based on a building</p>
+                                    <p class="text-sm text-gray-600">Comps from one area, narrowed to a unit profile</p>
                                 </div>
                             </div>
                             <div class="flex gap-2">
@@ -5814,318 +5128,143 @@
                             </div>
                         </div>
                         <div class="grid lg:grid-cols-2 gap-6">
-                            <!-- Left: Subject Buildings -->
+                            <!-- Left: where -->
                             <div class="bg-white rounded-xl shadow-sm border p-6">
-                                <h3 class="font-semibold text-gray-900 mb-4">Subject Buildings</h3>
-                                <div class="relative">
-                                    <input type="text" id="compBuildingAddress" placeholder="Enter Address or Building Name"
-                                           class="w-full border rounded-lg px-4 py-2 pr-10 text-sm">
-                                    <i class="fas fa-search absolute right-3 top-3 text-gray-400"></i>
+                                <h3 class="font-semibold text-gray-900 mb-4">Where</h3>
+                                <label class="block text-sm font-medium text-gray-700 mb-2" for="compBuildingNeighborhood">Neighborhood</label>
+                                <input type="text" id="compBuildingNeighborhood" placeholder="e.g. Carnegie Hill"
+                                       class="w-full border rounded-lg px-4 py-2 text-sm mb-4" data-mallan-ignore="true">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Borough</label>
+                                <div id="compBuildingBoroughs" class="grid grid-cols-2 gap-2 mb-4 text-sm">
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-field="CityRegion" data-value="Bronx"> Bronx</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-field="CityRegion" data-value="Brooklyn"> Brooklyn</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-field="CityRegion" data-value="Manhattan"> Manhattan</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-field="CityRegion" data-value="Queens"> Queens</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-field="CityRegion" data-value="StatenIsland"> Staten Island</label>
                                 </div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2" for="compBuildingZip">Zip</label>
+                                <input type="text" id="compBuildingZip" inputmode="numeric" maxlength="5" placeholder="10128"
+                                       class="w-full border rounded-lg px-4 py-2 text-sm" data-mallan-ignore="true">
+                                <p class="text-xs text-gray-500 mt-3">
+                                    A neighborhood, a borough or a zip is required — a comp set is never widened to the
+                                    whole city.
+                                </p>
                             </div>
 
                             <!-- Right: Units Within -->
                             <div class="bg-white rounded-xl shadow-sm border p-6">
                                 <h3 class="font-semibold text-gray-900 mb-4">Units Within</h3>
                                 <div class="space-y-4">
-                                    <!-- Price/Rent (Dynamic) -->
                                     <div>
                                         <label id="compBuildingPriceLabel" class="block text-sm font-medium text-gray-700 mb-2">Price</label>
                                         <div class="grid grid-cols-2 gap-2">
                                             <select id="compBuildingMinPrice" class="border rounded-lg px-3 py-2 text-sm">
-                                                <option>Any Min</option>
-                                                <option value="custom">Custom</option>
+                                                <option value="">Any Min</option>
                                                 <option value="100000">$100K</option>
-                                                <option value="200000">$200K</option>
-                                                <option value="300000">$300K</option>
-                                                <option value="400000">$400K</option>
-                                                <option value="500000">$500K</option>
-                                                <option value="600000">$600K</option>
-                                                <option value="700000">$700K</option>
-                                                <option value="800000">$800K</option>
-                                                <option value="900000">$900K</option>
-                                                <option value="1000000">$1M</option>
-                                                <option value="1250000">$1.25M</option>
-                                                <option value="1500000">$1.5M</option>
-                                                <option value="1750000">$1.75M</option>
-                                                <option value="2000000">$2M</option>
-                                                <option value="2500000">$2.5M</option>
-                                                <option value="3000000">$3M</option>
-                                                <option value="3500000">$3.5M</option>
-                                                <option value="4000000">$4M</option>
-                                                <option value="5000000">$5M</option>
-                                                <option value="6000000">$6M</option>
-                                                <option value="7000000">$7M</option>
-                                                <option value="8000000">$8M</option>
-                                                <option value="10000000">$10M</option>
-                                                <option value="15000000">$15M</option>
-                                                <option value="20000000">$20M</option>
-                                                <option value="25000000">$25M</option>
-                                                <option value="30000000">$30M</option>
-                                                <option value="40000000">$40M</option>
-                                                <option value="50000000">$50M</option>
-                                            </select>
-                                            <select id="compBuildingMaxPrice" class="border rounded-lg px-3 py-2 text-sm">
-                                                <option>Any Max</option>
-                                                <option value="custom">Custom</option>
                                                 <option value="250000">$250K</option>
                                                 <option value="500000">$500K</option>
                                                 <option value="750000">$750K</option>
                                                 <option value="1000000">$1M</option>
-                                                <option value="1250000">$1.25M</option>
                                                 <option value="1500000">$1.5M</option>
-                                                <option value="1750000">$1.75M</option>
                                                 <option value="2000000">$2M</option>
-                                                <option value="2500000">$2.5M</option>
                                                 <option value="3000000">$3M</option>
-                                                <option value="3500000">$3.5M</option>
-                                                <option value="4000000">$4M</option>
                                                 <option value="5000000">$5M</option>
-                                                <option value="6000000">$6M</option>
-                                                <option value="7000000">$7M</option>
-                                                <option value="8000000">$8M</option>
                                                 <option value="10000000">$10M</option>
-                                                <option value="15000000">$15M</option>
                                                 <option value="20000000">$20M</option>
-                                                <option value="25000000">$25M</option>
-                                                <option value="30000000">$30M</option>
-                                                <option value="40000000">$40M</option>
+                                            </select>
+                                            <select id="compBuildingMaxPrice" class="border rounded-lg px-3 py-2 text-sm">
+                                                <option value="">Any Max</option>
+                                                <option value="250000">$250K</option>
+                                                <option value="500000">$500K</option>
+                                                <option value="750000">$750K</option>
+                                                <option value="1000000">$1M</option>
+                                                <option value="1500000">$1.5M</option>
+                                                <option value="2000000">$2M</option>
+                                                <option value="3000000">$3M</option>
+                                                <option value="5000000">$5M</option>
+                                                <option value="10000000">$10M</option>
+                                                <option value="20000000">$20M</option>
                                                 <option value="50000000">$50M</option>
-                                                <option value="75000000">$75M</option>
-                                                <option value="100000000">$100M+</option>
                                             </select>
                                         </div>
                                     </div>
 
-                                    <!-- Bedrooms -->
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Bedrooms</label>
                                         <div class="grid grid-cols-2 gap-2">
                                             <select id="compBuildingMinBeds" class="border rounded-lg px-3 py-2 text-sm">
-                                                <option>Any Min</option>
-                                                <option value="custom">Custom</option>
+                                                <option value="">Any Min</option>
                                                 <option value="0">Studio</option>
                                                 <option value="1">1 BR</option>
                                                 <option value="2">2 BR</option>
                                                 <option value="3">3 BR</option>
                                                 <option value="4">4 BR</option>
                                                 <option value="5">5 BR</option>
-                                                <option value="6">6 BR</option>
-                                                <option value="7">7 BR</option>
-                                                <option value="8">8+ BR</option>
+                                                <option value="6">6+ BR</option>
                                             </select>
                                             <select id="compBuildingMaxBeds" class="border rounded-lg px-3 py-2 text-sm">
-                                                <option>Any Max</option>
-                                                <option value="custom">Custom</option>
+                                                <option value="">Any Max</option>
                                                 <option value="0">Studio</option>
                                                 <option value="1">1 BR</option>
                                                 <option value="2">2 BR</option>
                                                 <option value="3">3 BR</option>
                                                 <option value="4">4 BR</option>
                                                 <option value="5">5 BR</option>
-                                                <option value="6">6 BR</option>
-                                                <option value="7">7 BR</option>
-                                                <option value="8">8+ BR</option>
+                                                <option value="6">6+ BR</option>
                                             </select>
                                         </div>
                                     </div>
 
-                                    <!-- Bathrooms -->
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Bathrooms</label>
                                         <div class="grid grid-cols-2 gap-2">
                                             <select id="compBuildingMinBaths" class="border rounded-lg px-3 py-2 text-sm">
-                                                <option>Any Min</option>
-                                                <option value="custom">Custom</option>
+                                                <option value="">Any Min</option>
                                                 <option value="1">1 BA</option>
                                                 <option value="1.5">1.5 BA</option>
                                                 <option value="2">2 BA</option>
                                                 <option value="2.5">2.5 BA</option>
                                                 <option value="3">3 BA</option>
-                                                <option value="3.5">3.5 BA</option>
-                                                <option value="4">4 BA</option>
-                                                <option value="4.5">4.5 BA</option>
-                                                <option value="5">5 BA</option>
-                                                <option value="6">6+ BA</option>
+                                                <option value="4">4+ BA</option>
                                             </select>
                                             <select id="compBuildingMaxBaths" class="border rounded-lg px-3 py-2 text-sm">
-                                                <option>Any Max</option>
-                                                <option value="custom">Custom</option>
+                                                <option value="">Any Max</option>
                                                 <option value="1">1 BA</option>
                                                 <option value="1.5">1.5 BA</option>
                                                 <option value="2">2 BA</option>
                                                 <option value="2.5">2.5 BA</option>
                                                 <option value="3">3 BA</option>
-                                                <option value="3.5">3.5 BA</option>
-                                                <option value="4">4 BA</option>
-                                                <option value="4.5">4.5 BA</option>
-                                                <option value="5">5 BA</option>
-                                                <option value="6">6+ BA</option>
+                                                <option value="4">4+ BA</option>
                                             </select>
                                         </div>
                                     </div>
 
-                                    <!-- Square Footage -->
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">Square Footage</label>
-                                        <div class="grid grid-cols-2 gap-2">
-                                            <select id="compBuildingMinSqft" class="border rounded-lg px-3 py-2 text-sm">
-                                                <option>Any Min</option>
-                                                <option value="custom">Custom</option>
-                                                <option value="300">300 SF</option>
-                                                <option value="400">400 SF</option>
-                                                <option value="500">500 SF</option>
-                                                <option value="600">600 SF</option>
-                                                <option value="700">700 SF</option>
-                                                <option value="800">800 SF</option>
-                                                <option value="900">900 SF</option>
-                                                <option value="1000">1,000 SF</option>
-                                                <option value="1200">1,200 SF</option>
-                                                <option value="1500">1,500 SF</option>
-                                                <option value="1800">1,800 SF</option>
-                                                <option value="2000">2,000 SF</option>
-                                                <option value="2500">2,500 SF</option>
-                                                <option value="3000">3,000 SF</option>
-                                                <option value="4000">4,000 SF</option>
-                                                <option value="5000">5,000 SF</option>
-                                                <option value="7500">7,500 SF</option>
-                                                <option value="10000">10,000 SF</option>
-                                            </select>
-                                            <select id="compBuildingMaxSqft" class="border rounded-lg px-3 py-2 text-sm">
-                                                <option>Any Max</option>
-                                                <option value="custom">Custom</option>
-                                                <option value="500">500 SF</option>
-                                                <option value="600">600 SF</option>
-                                                <option value="700">700 SF</option>
-                                                <option value="800">800 SF</option>
-                                                <option value="900">900 SF</option>
-                                                <option value="1000">1,000 SF</option>
-                                                <option value="1200">1,200 SF</option>
-                                                <option value="1500">1,500 SF</option>
-                                                <option value="1800">1,800 SF</option>
-                                                <option value="2000">2,000 SF</option>
-                                                <option value="2500">2,500 SF</option>
-                                                <option value="3000">3,000 SF</option>
-                                                <option value="4000">4,000 SF</option>
-                                                <option value="5000">5,000 SF</option>
-                                                <option value="7500">7,500 SF</option>
-                                                <option value="10000">10,000 SF</option>
-                                                <option value="15000">15,000 SF</option>
-                                                <option value="20000">20,000+ SF</option>
-                                            </select>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Ownership</label>
+                                        <div id="compBuildingOwnership" class="grid grid-cols-2 gap-2 text-sm">
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-field="CommonInterest" data-value="RentalBuilding"> Rental</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-field="CommonInterest" data-value="StockCooperative"> Co-op</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-field="CommonInterest" data-value="Condominium"> Condo</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-field="CommonInterest" data-value="Condop"> Condop</label>
                                         </div>
                                     </div>
 
-                                    <label class="flex items-center gap-2 text-sm cursor-pointer">
-                                        <input type="checkbox" class="w-4 h-4">
-                                        <span>Include listings with no SqFt</span>
-                                    </label>
-
-                                    <!-- Status (Subject Buildings) -->
-                                    <div id="compBuildingStatusSection" class="pt-3 border-t">
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                                        <div class="border rounded-lg p-3 max-h-48 overflow-y-auto bg-gray-50">
-                                            <!-- Active Status -->
-                                            <p class="text-xs font-semibold text-gray-500 mb-1">ACTIVE</p>
-                                            <div class="grid grid-cols-2 gap-1 mb-2 text-xs">
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked class="w-3 h-3"> Active</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Back On Market</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Coming Soon</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Future</label>
-                                            </div>
-                                            <!-- Offer Status -->
-                                            <p class="text-xs font-semibold text-gray-500 mb-1">OFFER</p>
-                                            <div class="grid grid-cols-2 gap-1 mb-2 text-xs">
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Offer Out</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Offer Thru Us</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Offer Accepted</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Offer Accepted Thru Us</label>
-                                            </div>
-                                            <!-- Contract Status -->
-                                            <p class="text-xs font-semibold text-gray-500 mb-1">CONTRACT</p>
-                                            <div class="grid grid-cols-2 gap-1 mb-2 text-xs">
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Contract Out</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Contract Out Thru Us</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> All Contract Signed</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Contract Signed</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Contract Signed Thru Us</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Board Approved</label>
-                                            </div>
-                                            <!-- Sold Status -->
-                                            <p class="text-xs font-semibold text-gray-500 mb-1">SOLD</p>
-                                            <div class="grid grid-cols-2 gap-1 mb-2 text-xs">
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> All Sold</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Sold</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Sold Thru Us</label>
-                                            </div>
-                                            <!-- Not Active Status -->
-                                            <p class="text-xs font-semibold text-gray-500 mb-1">NOT ACTIVE</p>
-                                            <div class="grid grid-cols-2 gap-1 mb-2 text-xs">
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> All Not Active</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Withdrawn</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Hold</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Expired</label>
-                                            </div>
-                                            <!-- Additional Filters -->
-                                            <p class="text-xs font-semibold text-gray-500 mb-1">ADDITIONAL</p>
-                                            <div class="grid grid-cols-2 gap-1 text-xs">
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Include Also for Rent</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Verified ACRIS Sales Only</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Financed Deals</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Deals Without Financing</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Include Nominal Sales</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Include Other ACRIS Records</label>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Date Ranges (Dynamic Sale/Rent) -->
+                                    <!-- Status — contract-driven, per transaction. Closed is the comp default. -->
                                     <div class="pt-3 border-t">
-                                        <!-- Sale Date Ranges -->
-                                        <div id="compBuildingSaleDates" class="space-y-3">
-                                            <div>
-                                                <label class="block text-xs font-medium text-gray-700 mb-1">On Market Listings From</label>
-                                                <input type="text" value="Last 90 Days (11/03/2025 - 02/01/2026)" readonly
-                                                       class="w-full border rounded-lg px-3 py-2 text-xs bg-gray-50">
-                                            </div>
-                                            <div>
-                                                <label class="block text-xs font-medium text-gray-700 mb-1">In Contract Listings From</label>
-                                                <input type="text" value="Last 90 Days (11/03/2025 - 02/01/2026)" readonly
-                                                       class="w-full border rounded-lg px-3 py-2 text-xs bg-gray-50">
-                                            </div>
-                                            <div>
-                                                <label class="block text-xs font-medium text-gray-700 mb-1">Sold Listings From</label>
-                                                <input type="text" value="Last 60 Days (12/03/2025 - 02/01/2026)" readonly
-                                                       class="w-full border rounded-lg px-3 py-2 text-xs bg-gray-50">
-                                            </div>
+                                        <div id="compBuildingStatusSale">
+                                            <div class="crm-status-panel" data-status-mount="comps-building-sale" data-transaction="sale" data-status-default="Closed"></div>
                                         </div>
-                                        <!-- Rental Date Ranges -->
-                                        <div id="compBuildingRentalDates" class="space-y-3" style="display: none;">
-                                            <div>
-                                                <label class="block text-xs font-medium text-gray-700 mb-1">On Market Listings From</label>
-                                                <input type="text" value="Last 90 Days (11/03/2025 - 02/01/2026)" readonly
-                                                       class="w-full border rounded-lg px-3 py-2 text-xs bg-gray-50">
-                                            </div>
-                                            <div>
-                                                <label class="block text-xs font-medium text-gray-700 mb-1">Leased Listings From</label>
-                                                <input type="text" value="Last 90 Days (11/03/2025 - 02/01/2026)" readonly
-                                                       class="w-full border rounded-lg px-3 py-2 text-xs bg-gray-50">
-                                            </div>
-                                            <div>
-                                                <label class="block text-xs font-medium text-gray-700 mb-1">Rented Listings From</label>
-                                                <input type="text" value="Last 90 Days (11/03/2025 - 02/01/2026)" readonly
-                                                       class="w-full border rounded-lg px-3 py-2 text-xs bg-gray-50">
-                                            </div>
+                                        <div id="compBuildingStatusRental" style="display:none;">
+                                            <div class="crm-status-panel" data-status-mount="comps-building-rental" data-transaction="rental" data-status-default="Closed"></div>
                                         </div>
                                     </div>
 
-                                    <!-- Search Buttons -->
                                     <div class="pt-4 border-t">
                                         <div class="flex gap-2">
                                             <button onclick="showCompResults('building')" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">
                                                 <i class="fas fa-search mr-2"></i> Search Comparables
                                             </button>
-                                            <button class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">
+                                            <button onclick="openCompReport('building')" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">
                                                 <i class="fas fa-print mr-2"></i> Generate Report
                                             </button>
                                         </div>
@@ -6134,20 +5273,7 @@
                             </div>
                         </div>
 
-                        <!-- Sample Results Section -->
-                        <div id="compBuildingResults" class="mt-6 bg-white rounded-xl shadow-sm border p-6" style="display: none;">
-                            <div class="flex items-center justify-between mb-4">
-                                <h3 class="text-lg font-semibold text-gray-900">
-                                    <span id="compBuildingResultsType">Comps for Sale</span>
-                                </h3>
-                                <span class="text-sm text-gray-600">18 Results Found</span>
-                            </div>
-                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-                                <i class="fas fa-chart-line text-4xl text-blue-600 mb-2"></i>
-                                <p class="text-sm text-gray-700">Comparable properties will be displayed here</p>
-                                <p class="text-xs text-gray-500 mt-1">Results based on your search criteria</p>
-                            </div>
-                        </div>
+                        <div id="compBuildingResults" class="mt-6 bg-white rounded-xl shadow-sm border p-6" style="display: none;"></div>
                     </div>
 
                     <!-- GENERAL CRITERIA PAGE -->
@@ -6172,64 +5298,27 @@
                             <div class="bg-white rounded-xl shadow-sm border p-6">
                                 <h3 class="font-semibold text-gray-900 mb-4">General Location</h3>
 
-                                <!-- Neighborhoods -->
-                                <div class="mb-4">
-                                    <label class="block text-sm font-semibold text-gray-700 mb-2">Neighborhoods</label>
-                                    <button type="button" onclick="openNeighborhoodMapForSearch()" class="w-full py-2.5 mb-2 rounded-lg bg-blue-50 hover:bg-blue-100 border-2 border-blue-300 text-blue-800 font-bold text-sm flex items-center justify-center gap-2 transition-colors">
-                                        <i class="fas fa-map-marked-alt"></i> Open Neighborhood Map
-                                    </button>
-                                    <div class="border rounded-lg p-3 max-h-64 overflow-y-auto neighborhood-tree">
-                                        <details open class="text-sm">
-                                            <summary class="font-semibold cursor-pointer hover:bg-gray-50 p-1">
-                                                <i class="fas fa-chevron-down text-xs mr-1"></i> NYC
-                                            </summary>
-                                            <div class="ml-4 mt-2 space-y-1">
-                                                <label class="flex items-center gap-2 cursor-pointer hover:bg-blue-50 p-1">
-                                                    <input type="checkbox" class="w-3 h-3"> Bronx
-                                                </label>
-                                                <label class="flex items-center gap-2 cursor-pointer hover:bg-blue-50 p-1">
-                                                    <input type="checkbox" class="w-3 h-3"> Brooklyn
-                                                </label>
-                                                <label class="flex items-center gap-2 cursor-pointer hover:bg-blue-50 p-1">
-                                                    <input type="checkbox" class="w-3 h-3"> Manhattan
-                                                </label>
-                                                <label class="flex items-center gap-2 cursor-pointer hover:bg-blue-50 p-1">
-                                                    <input type="checkbox" class="w-3 h-3"> Queens
-                                                </label>
-                                                <label class="flex items-center gap-2 cursor-pointer hover:bg-blue-50 p-1">
-                                                    <input type="checkbox" class="w-3 h-3"> Staten Island
-                                                </label>
-                                            </div>
-                                        </details>
-                                    </div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2" for="compGeneralNeighborhood">Neighborhood</label>
+                                <input type="text" id="compGeneralNeighborhood" placeholder="e.g. Tribeca — comma-separated for multiple"
+                                       class="w-full border rounded-lg px-4 py-2 text-sm mb-4" data-mallan-ignore="true">
+
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Borough</label>
+                                <div id="compGeneralBoroughs" class="grid grid-cols-2 gap-2 mb-4 text-sm">
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-field="CityRegion" data-value="Bronx"> Bronx</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-field="CityRegion" data-value="Brooklyn"> Brooklyn</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-field="CityRegion" data-value="Manhattan"> Manhattan</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-field="CityRegion" data-value="Queens"> Queens</label>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-field="CityRegion" data-value="StatenIsland"> Staten Island</label>
                                 </div>
 
+                                <label class="block text-sm font-semibold text-gray-700 mb-2" for="compGeneralZip">Zip</label>
+                                <input type="text" id="compGeneralZip" inputmode="numeric" maxlength="5" placeholder="10013"
+                                       class="w-full border rounded-lg px-4 py-2 text-sm" data-mallan-ignore="true">
 
-                                <!-- Transit -->
-                                <div>
-                                    <p class="text-xs font-semibold text-gray-700 mb-2">Transit</p>
-                                    <div class="flex gap-1 flex-wrap">
-                                        <span class="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs cursor-pointer">1</span>
-                                        <span class="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs cursor-pointer">2</span>
-                                        <span class="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs cursor-pointer">3</span>
-                                        <span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs cursor-pointer">4</span>
-                                        <span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs cursor-pointer">5</span>
-                                        <span class="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs cursor-pointer">6</span>
-                                        <span class="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs cursor-pointer">7</span>
-                                        <span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs cursor-pointer">A</span>
-                                        <span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs cursor-pointer">C</span>
-                                        <span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs cursor-pointer">E</span>
-                                        <span class="w-6 h-6 rounded-full bg-orange-500 text-white flex items-center justify-center text-xs cursor-pointer">B</span>
-                                        <span class="w-6 h-6 rounded-full bg-orange-400 text-white flex items-center justify-center text-xs cursor-pointer">D</span>
-                                        <span class="w-6 h-6 rounded-full bg-orange-300 text-white flex items-center justify-center text-xs cursor-pointer">F</span>
-                                        <span class="w-6 h-6 rounded-full bg-orange-200 text-gray-800 flex items-center justify-center text-xs cursor-pointer">M</span>
-                                        <span class="w-6 h-6 rounded-full bg-yellow-400 text-gray-800 flex items-center justify-center text-xs cursor-pointer">N</span>
-                                        <span class="w-6 h-6 rounded-full bg-yellow-500 text-white flex items-center justify-center text-xs cursor-pointer">Q</span>
-                                        <span class="w-6 h-6 rounded-full bg-yellow-400 text-gray-800 flex items-center justify-center text-xs cursor-pointer">R</span>
-                                        <span class="w-6 h-6 rounded-full bg-gray-700 text-white flex items-center justify-center text-xs cursor-pointer">L</span>
-                                        <span class="w-6 h-6 rounded-full bg-lime-400 text-gray-800 flex items-center justify-center text-xs cursor-pointer">G</span>
-                                    </div>
-                                </div>
+                                <p class="text-xs text-gray-500 mt-3">
+                                    A neighborhood, a borough or a zip is required — a comp set is never widened to the
+                                    whole city.
+                                </p>
                             </div>
 
                             <!-- Right: Additional Criteria -->
@@ -6237,354 +5326,129 @@
                                 <h3 class="font-semibold text-gray-900 mb-4">Additional Criteria</h3>
 
                                 <div class="space-y-4">
-                                    <!-- Price/Rent (Dynamic) -->
                                     <div>
                                         <label id="compGeneralPriceLabel" class="block text-sm font-medium text-gray-700 mb-2">Price</label>
                                         <div class="grid grid-cols-2 gap-2">
                                             <select id="compGeneralMinPrice" class="border rounded-lg px-3 py-2 text-sm">
-                                                <option>Any Min</option>
-                                                <option value="custom">Custom</option>
+                                                <option value="">Any Min</option>
                                                 <option value="100000">$100K</option>
-                                                <option value="200000">$200K</option>
-                                                <option value="300000">$300K</option>
-                                                <option value="400000">$400K</option>
-                                                <option value="500000">$500K</option>
-                                                <option value="600000">$600K</option>
-                                                <option value="700000">$700K</option>
-                                                <option value="800000">$800K</option>
-                                                <option value="900000">$900K</option>
-                                                <option value="1000000">$1M</option>
-                                                <option value="1250000">$1.25M</option>
-                                                <option value="1500000">$1.5M</option>
-                                                <option value="1750000">$1.75M</option>
-                                                <option value="2000000">$2M</option>
-                                                <option value="2500000">$2.5M</option>
-                                                <option value="3000000">$3M</option>
-                                                <option value="3500000">$3.5M</option>
-                                                <option value="4000000">$4M</option>
-                                                <option value="5000000">$5M</option>
-                                                <option value="6000000">$6M</option>
-                                                <option value="7000000">$7M</option>
-                                                <option value="8000000">$8M</option>
-                                                <option value="10000000">$10M</option>
-                                                <option value="15000000">$15M</option>
-                                                <option value="20000000">$20M</option>
-                                                <option value="25000000">$25M</option>
-                                                <option value="30000000">$30M</option>
-                                                <option value="40000000">$40M</option>
-                                                <option value="50000000">$50M</option>
-                                            </select>
-                                            <select id="compGeneralMaxPrice" class="border rounded-lg px-3 py-2 text-sm">
-                                                <option>Any Max</option>
-                                                <option value="custom">Custom</option>
                                                 <option value="250000">$250K</option>
                                                 <option value="500000">$500K</option>
                                                 <option value="750000">$750K</option>
                                                 <option value="1000000">$1M</option>
-                                                <option value="1250000">$1.25M</option>
                                                 <option value="1500000">$1.5M</option>
-                                                <option value="1750000">$1.75M</option>
                                                 <option value="2000000">$2M</option>
-                                                <option value="2500000">$2.5M</option>
                                                 <option value="3000000">$3M</option>
-                                                <option value="3500000">$3.5M</option>
-                                                <option value="4000000">$4M</option>
                                                 <option value="5000000">$5M</option>
-                                                <option value="6000000">$6M</option>
-                                                <option value="7000000">$7M</option>
-                                                <option value="8000000">$8M</option>
                                                 <option value="10000000">$10M</option>
-                                                <option value="15000000">$15M</option>
                                                 <option value="20000000">$20M</option>
-                                                <option value="25000000">$25M</option>
-                                                <option value="30000000">$30M</option>
-                                                <option value="40000000">$40M</option>
+                                            </select>
+                                            <select id="compGeneralMaxPrice" class="border rounded-lg px-3 py-2 text-sm">
+                                                <option value="">Any Max</option>
+                                                <option value="250000">$250K</option>
+                                                <option value="500000">$500K</option>
+                                                <option value="750000">$750K</option>
+                                                <option value="1000000">$1M</option>
+                                                <option value="1500000">$1.5M</option>
+                                                <option value="2000000">$2M</option>
+                                                <option value="3000000">$3M</option>
+                                                <option value="5000000">$5M</option>
+                                                <option value="10000000">$10M</option>
+                                                <option value="20000000">$20M</option>
                                                 <option value="50000000">$50M</option>
-                                                <option value="75000000">$75M</option>
-                                                <option value="100000000">$100M+</option>
                                             </select>
                                         </div>
                                     </div>
 
-                                    <!-- Ownership -->
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-2">Ownership</label>
-                                        <div class="grid grid-cols-2 gap-2">
-                                            <label class="flex items-center gap-2 text-sm cursor-pointer">
-                                                <input type="checkbox" class="w-4 h-4"> Rental
-                                            </label>
-                                            <label class="flex items-center gap-2 text-sm cursor-pointer">
-                                                <input type="checkbox" class="w-4 h-4"> Coop
-                                            </label>
-                                            <label class="flex items-center gap-2 text-sm cursor-pointer">
-                                                <input type="checkbox" class="w-4 h-4"> Condo
-                                            </label>
-                                            <label class="flex items-center gap-2 text-sm cursor-pointer">
-                                                <input type="checkbox" class="w-4 h-4"> Townhouse
-                                            </label>
+                                        <div id="compGeneralOwnership" class="grid grid-cols-2 gap-2 text-sm">
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-field="CommonInterest" data-value="RentalBuilding"> Rental</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-field="CommonInterest" data-value="StockCooperative"> Co-op</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-field="CommonInterest" data-value="Condominium"> Condo</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-field="CommonInterest" data-value="Condop"> Condop</label>
                                         </div>
                                     </div>
 
-                                    <!-- Bedrooms/Bathrooms -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Building Form</label>
+                                        <div id="compGeneralStructure" class="grid grid-cols-2 gap-2 text-sm">
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-field="StructureType" data-value="HighRise"> High-Rise</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-field="StructureType" data-value="MidRise"> Mid-Rise</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-field="StructureType" data-value="LowRise"> Low-Rise</label>
+                                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-4 h-4" data-field="StructureType" data-value="Townhouse"> Townhouse</label>
+                                        </div>
+                                    </div>
+
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-2">Bedrooms</label>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">Min Bedrooms</label>
                                             <select id="compGeneralMinBeds" class="w-full border rounded-lg px-3 py-2 text-sm">
-                                                <option>Any Min</option>
-                                                <option value="custom">Custom</option>
+                                                <option value="">Any Min</option>
                                                 <option value="0">Studio</option>
                                                 <option value="1">1 BR</option>
                                                 <option value="2">2 BR</option>
                                                 <option value="3">3 BR</option>
                                                 <option value="4">4 BR</option>
                                                 <option value="5">5 BR</option>
-                                                <option value="6">6 BR</option>
-                                                <option value="7">7 BR</option>
-                                                <option value="8">8+ BR</option>
+                                                <option value="6">6+ BR</option>
                                             </select>
                                         </div>
                                         <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-2">Bathrooms</label>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">Max Bedrooms</label>
+                                            <select id="compGeneralMaxBeds" class="w-full border rounded-lg px-3 py-2 text-sm" data-mallan-ignore="true">
+                                                <option value="">Any Max</option>
+                                                <option value="0">Studio</option>
+                                                <option value="1">1 BR</option>
+                                                <option value="2">2 BR</option>
+                                                <option value="3">3 BR</option>
+                                                <option value="4">4 BR</option>
+                                                <option value="5">5 BR</option>
+                                                <option value="6">6+ BR</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">Min Bathrooms</label>
                                             <select id="compGeneralMinBaths" class="w-full border rounded-lg px-3 py-2 text-sm">
-                                                <option>Any Min</option>
-                                                <option value="custom">Custom</option>
+                                                <option value="">Any Min</option>
                                                 <option value="1">1 BA</option>
                                                 <option value="1.5">1.5 BA</option>
                                                 <option value="2">2 BA</option>
                                                 <option value="2.5">2.5 BA</option>
                                                 <option value="3">3 BA</option>
-                                                <option value="3.5">3.5 BA</option>
-                                                <option value="4">4 BA</option>
-                                                <option value="4.5">4.5 BA</option>
-                                                <option value="5">5 BA</option>
-                                                <option value="6">6+ BA</option>
+                                                <option value="4">4+ BA</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-2">Max Bathrooms</label>
+                                            <select id="compGeneralMaxBaths" class="w-full border rounded-lg px-3 py-2 text-sm" data-mallan-ignore="true">
+                                                <option value="">Any Max</option>
+                                                <option value="1">1 BA</option>
+                                                <option value="1.5">1.5 BA</option>
+                                                <option value="2">2 BA</option>
+                                                <option value="2.5">2.5 BA</option>
+                                                <option value="3">3 BA</option>
+                                                <option value="4">4+ BA</option>
                                             </select>
                                         </div>
                                     </div>
 
-                                    <!-- Square Footage -->
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">Square Footage</label>
-                                        <div class="grid grid-cols-2 gap-2">
-                                            <select id="compGeneralMinSqft" class="border rounded-lg px-3 py-2 text-sm">
-                                                <option>Any Min</option>
-                                                <option value="custom">Custom</option>
-                                                <option value="300">300 SF</option>
-                                                <option value="400">400 SF</option>
-                                                <option value="500">500 SF</option>
-                                                <option value="600">600 SF</option>
-                                                <option value="700">700 SF</option>
-                                                <option value="800">800 SF</option>
-                                                <option value="900">900 SF</option>
-                                                <option value="1000">1,000 SF</option>
-                                                <option value="1200">1,200 SF</option>
-                                                <option value="1500">1,500 SF</option>
-                                                <option value="1800">1,800 SF</option>
-                                                <option value="2000">2,000 SF</option>
-                                                <option value="2500">2,500 SF</option>
-                                                <option value="3000">3,000 SF</option>
-                                                <option value="4000">4,000 SF</option>
-                                                <option value="5000">5,000 SF</option>
-                                                <option value="7500">7,500 SF</option>
-                                                <option value="10000">10,000 SF</option>
-                                            </select>
-                                            <select id="compGeneralMaxSqft" class="border rounded-lg px-3 py-2 text-sm">
-                                                <option>Any Max</option>
-                                                <option value="custom">Custom</option>
-                                                <option value="500">500 SF</option>
-                                                <option value="600">600 SF</option>
-                                                <option value="700">700 SF</option>
-                                                <option value="800">800 SF</option>
-                                                <option value="900">900 SF</option>
-                                                <option value="1000">1,000 SF</option>
-                                                <option value="1200">1,200 SF</option>
-                                                <option value="1500">1,500 SF</option>
-                                                <option value="1800">1,800 SF</option>
-                                                <option value="2000">2,000 SF</option>
-                                                <option value="2500">2,500 SF</option>
-                                                <option value="3000">3,000 SF</option>
-                                                <option value="4000">4,000 SF</option>
-                                                <option value="5000">5,000 SF</option>
-                                                <option value="7500">7,500 SF</option>
-                                                <option value="10000">10,000 SF</option>
-                                                <option value="15000">15,000 SF</option>
-                                                <option value="20000">20,000+ SF</option>
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                    <!-- Apartment Type -->
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">Apartment Type</label>
-                                        <div class="grid grid-cols-2 gap-2">
-                                            <label class="flex items-center gap-2 text-sm cursor-pointer">
-                                                <input type="checkbox" class="w-4 h-4"> Residential
-                                            </label>
-                                            <label class="flex items-center gap-2 text-sm cursor-pointer">
-                                                <input type="checkbox" class="w-4 h-4"> Commercial
-                                            </label>
-                                            <label class="flex items-center gap-2 text-sm cursor-pointer">
-                                                <input type="checkbox" class="w-4 h-4"> Professional
-                                            </label>
-                                            <label class="flex items-center gap-2 text-sm cursor-pointer">
-                                                <input type="checkbox" class="w-4 h-4"> Investment
-                                            </label>
-                                        </div>
-                                    </div>
-
-                                    <!-- Status (Comparables) -->
-                                    <div id="compGeneralStatusSection">
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                                        <div class="border rounded-lg p-3 max-h-64 overflow-y-auto bg-gray-50">
-                                            <!-- Active Status -->
-                                            <p class="text-xs font-semibold text-gray-500 mb-1">ACTIVE</p>
-                                            <div class="grid grid-cols-2 gap-1 mb-2 text-xs">
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked class="w-3 h-3"> Active</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Back On Market</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Coming Soon</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Future</label>
-                                            </div>
-                                            <!-- Offer Status -->
-                                            <p class="text-xs font-semibold text-gray-500 mb-1">OFFER</p>
-                                            <div class="grid grid-cols-2 gap-1 mb-2 text-xs">
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Offer Out</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Offer Thru Us</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Offer Accepted</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Offer Accepted Thru Us</label>
-                                            </div>
-                                            <!-- Contract Status -->
-                                            <p class="text-xs font-semibold text-gray-500 mb-1">CONTRACT</p>
-                                            <div class="grid grid-cols-2 gap-1 mb-2 text-xs">
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Contract Out</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Contract Out Thru Us</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> All Contract Signed</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Contract Signed</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Contract Signed Thru Us</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Board Approved</label>
-                                            </div>
-                                            <!-- Sold Status -->
-                                            <p class="text-xs font-semibold text-gray-500 mb-1">SOLD</p>
-                                            <div class="grid grid-cols-2 gap-1 mb-2 text-xs">
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> All Sold</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Sold</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Sold Thru Us</label>
-                                            </div>
-                                            <!-- Not Active Status -->
-                                            <p class="text-xs font-semibold text-gray-500 mb-1">NOT ACTIVE</p>
-                                            <div class="grid grid-cols-2 gap-1 mb-2 text-xs">
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> All Not Active</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Withdrawn</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Hold</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Expired</label>
-                                            </div>
-                                            <!-- Additional Filters -->
-                                            <p class="text-xs font-semibold text-gray-500 mb-1">ADDITIONAL</p>
-                                            <div class="grid grid-cols-2 gap-1 text-xs">
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Include Also for Rent</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Verified ACRIS Sales Only</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Financed Deals</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Deals Without Financing</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Include Nominal Sales</label>
-                                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="w-3 h-3"> Include Other ACRIS Records</label>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Private Outdoor Space -->
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-2">Private Outdoor Space</label>
-                                        <div class="flex items-center gap-3 text-sm">
-                                            <label class="flex items-center gap-2 cursor-pointer">
-                                                <input type="radio" name="outdoor" class="w-4 h-4"> And
-                                            </label>
-                                            <label class="flex items-center gap-2 cursor-pointer">
-                                                <input type="radio" name="outdoor" class="w-4 h-4" checked> Or
-                                            </label>
-                                        </div>
-                                        <div class="grid grid-cols-2 gap-2 mt-2">
-                                            <label class="flex items-center gap-2 text-sm cursor-pointer">
-                                                <input type="checkbox" class="w-4 h-4"> Any
-                                            </label>
-                                            <label class="flex items-center gap-2 text-sm cursor-pointer">
-                                                <input type="checkbox" class="w-4 h-4"> None
-                                            </label>
-                                            <label class="flex items-center gap-2 text-sm cursor-pointer">
-                                                <input type="checkbox" class="w-4 h-4"> Balcony
-                                            </label>
-                                            <label class="flex items-center gap-2 text-sm cursor-pointer">
-                                                <input type="checkbox" class="w-4 h-4"> Deck
-                                            </label>
-                                            <label class="flex items-center gap-2 text-sm cursor-pointer">
-                                                <input type="checkbox" class="w-4 h-4"> Garden
-                                            </label>
-                                            <label class="flex items-center gap-2 text-sm cursor-pointer">
-                                                <input type="checkbox" class="w-4 h-4"> Greenhouse
-                                            </label>
-                                            <label class="flex items-center gap-2 text-sm cursor-pointer">
-                                                <input type="checkbox" class="w-4 h-4"> Patio
-                                            </label>
-                                            <label class="flex items-center gap-2 text-sm cursor-pointer">
-                                                <input type="checkbox" class="w-4 h-4"> Private Roof Access
-                                            </label>
-                                            <label class="flex items-center gap-2 text-sm cursor-pointer">
-                                                <input type="checkbox" class="w-4 h-4"> Roof Deck
-                                            </label>
-                                            <label class="flex items-center gap-2 text-sm cursor-pointer">
-                                                <input type="checkbox" class="w-4 h-4"> Roof Rights
-                                            </label>
-                                            <label class="flex items-center gap-2 text-sm cursor-pointer">
-                                                <input type="checkbox" class="w-4 h-4"> Terrace
-                                            </label>
-                                        </div>
-                                    </div>
-
-                                    <!-- Date Ranges (Dynamic Sale/Rent) -->
+                                    <!-- Status — contract-driven, per transaction. Closed is the comp default. -->
                                     <div class="pt-3 border-t">
-                                        <!-- Sale Date Ranges -->
-                                        <div id="compGeneralSaleDates" class="space-y-3">
-                                            <div>
-                                                <label class="block text-xs font-medium text-gray-700 mb-1">On Market Listings From</label>
-                                                <input type="text" value="Last 90 Days (11/03/2025 - 02/01/2026)" readonly
-                                                       class="w-full border rounded-lg px-3 py-2 text-xs bg-gray-50">
-                                            </div>
-                                            <div>
-                                                <label class="block text-xs font-medium text-gray-700 mb-1">In Contract Listings From</label>
-                                                <input type="text" value="Last 90 Days (11/03/2025 - 02/01/2026)" readonly
-                                                       class="w-full border rounded-lg px-3 py-2 text-xs bg-gray-50">
-                                            </div>
-                                            <div>
-                                                <label class="block text-xs font-medium text-gray-700 mb-1">Sold Listings From</label>
-                                                <input type="text" value="Last 60 Days (12/03/2025 - 02/01/2026)" readonly
-                                                       class="w-full border rounded-lg px-3 py-2 text-xs bg-gray-50">
-                                            </div>
+                                        <div id="compGeneralStatusSale">
+                                            <div class="crm-status-panel" data-status-mount="comps-general-sale" data-transaction="sale" data-status-default="Closed"></div>
                                         </div>
-                                        <!-- Rental Date Ranges -->
-                                        <div id="compGeneralRentalDates" class="space-y-3" style="display: none;">
-                                            <div>
-                                                <label class="block text-xs font-medium text-gray-700 mb-1">On Market Listings From</label>
-                                                <input type="text" value="Last 90 Days (11/03/2025 - 02/01/2026)" readonly
-                                                       class="w-full border rounded-lg px-3 py-2 text-xs bg-gray-50">
-                                            </div>
-                                            <div>
-                                                <label class="block text-xs font-medium text-gray-700 mb-1">Leased Listings From</label>
-                                                <input type="text" value="Last 90 Days (11/03/2025 - 02/01/2026)" readonly
-                                                       class="w-full border rounded-lg px-3 py-2 text-xs bg-gray-50">
-                                            </div>
-                                            <div>
-                                                <label class="block text-xs font-medium text-gray-700 mb-1">Rented Listings From</label>
-                                                <input type="text" value="Last 90 Days (11/03/2025 - 02/01/2026)" readonly
-                                                       class="w-full border rounded-lg px-3 py-2 text-xs bg-gray-50">
-                                            </div>
+                                        <div id="compGeneralStatusRental" style="display:none;">
+                                            <div class="crm-status-panel" data-status-mount="comps-general-rental" data-transaction="rental" data-status-default="Closed"></div>
                                         </div>
                                     </div>
 
-                                    <!-- Search Buttons -->
                                     <div class="pt-4 border-t">
                                         <div class="flex gap-2">
                                             <button onclick="showCompResults('general')" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">
                                                 <i class="fas fa-search mr-2"></i> Search Comparables
                                             </button>
-                                            <button class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">
+                                            <button onclick="openCompReport('general')" class="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">
                                                 <i class="fas fa-print mr-2"></i> Generate Report
                                             </button>
                                         </div>
@@ -6593,25 +5457,12 @@
                             </div>
                         </div>
 
-                        <!-- Sample Results Section -->
-                        <div id="compGeneralResults" class="mt-6 bg-white rounded-xl shadow-sm border p-6" style="display: none;">
-                            <div class="flex items-center justify-between mb-4">
-                                <h3 class="text-lg font-semibold text-gray-900">
-                                    <span id="compGeneralResultsType">Comps for Sale</span>
-                                </h3>
-                                <span class="text-sm text-gray-600">24 Results Found</span>
-                            </div>
-                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-                                <i class="fas fa-chart-line text-4xl text-blue-600 mb-2"></i>
-                                <p class="text-sm text-gray-700">Comparable properties will be displayed here</p>
-                                <p class="text-xs text-gray-500 mt-1">Results based on your search criteria</p>
-                            </div>
-                        </div>
+                        <div id="compGeneralResults" class="mt-6 bg-white rounded-xl shadow-sm border p-6" style="display: none;"></div>
                     </div>
                 </div>
                     <!-- Sticky search actions — always visible at bottom of form -->
                     <!-- mb-12 adds space above REBNY badge which is fixed at bottom-right -->
-                    <div class="sticky bottom-0 bg-white border-t shadow-[0_-4px_12px_rgba(0,0,0,0.08)] px-4 py-3 flex items-center justify-between z-30 -mx-5 mt-4 mb-12 rounded-b-xl">
+                    <div id="searchStickyActions" class="sticky bottom-0 bg-white border-t shadow-[0_-4px_12px_rgba(0,0,0,0.08)] px-4 py-3 flex items-center justify-between z-30 -mx-5 mt-4 mb-12 rounded-b-xl">
                         <div class="flex items-center gap-2 text-xs text-gray-400">
                             <button onclick="recallLastSearch()" class="hover:text-blue-600 transition-colors" title="Recall last search criteria">
                                 <i class="fas fa-history mr-1"></i>Last Search
@@ -6638,7 +5489,7 @@
                     <div id="stickySearchNav" class="sticky top-0 z-40 bg-[#1a1a1a] shadow-lg mb-3 px-4 py-2 flex items-center justify-between flex-wrap gap-2" style="border-radius:0;">
                         <!-- Left: Back + New Search -->
                         <div class="flex items-center gap-2">
-                            <button onclick="jumpToSearch(currentSearchTab||'sale', (document.getElementById('btnSearchBasic')&&document.getElementById('btnSearchBasic').classList.contains('bg-gray-900'))?'basic':'advanced')" class="px-3 py-1.5 text-xs font-semibold rounded-md bg-white/10 text-gray-300 hover:bg-white/20 hover:text-white transition flex items-center gap-1.5" title="Back to search form">
+                            <button onclick="backToSearchForm()" class="px-3 py-1.5 text-xs font-semibold rounded-md bg-white/10 text-gray-300 hover:bg-white/20 hover:text-white transition flex items-center gap-1.5" title="Back to search form">
                                 <i class="fas fa-arrow-left text-[10px]"></i>
                                 <span class="hidden sm:inline">Back</span>
                             </button>
@@ -6657,11 +5508,11 @@
                                 <i class="fas fa-sliders-h mr-1 text-[10px]"></i>Rentals Adv
                             </button>
                             <div class="w-px h-4 bg-gray-600"></div>
-                            <button onclick="jumpToSearch('building','basic')" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-gray-400 hover:bg-white/10 hover:text-white transition">
+                            <button onclick="jumpToSearch('building','basic')" id="stickyNavBuilding" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-gray-400 hover:bg-white/10 hover:text-white transition">
                                 <i class="fas fa-city mr-1 text-[10px]"></i>Buildings
                             </button>
                             <div class="w-px h-4 bg-gray-600"></div>
-                            <button onclick="jumpToComparables()" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-amber-400/80 hover:bg-amber-500/20 hover:text-amber-300 transition">
+                            <button onclick="jumpToComparables()" id="stickyNavComps" class="px-2.5 py-1.5 text-[11px] font-semibold rounded-md text-amber-400/80 hover:bg-amber-500/20 hover:text-amber-300 transition">
                                 <i class="fas fa-chart-bar mr-1 text-[10px]"></i>Comps
                             </button>
                         </div>
@@ -7016,29 +5867,22 @@
                                     </select>
                                 </div>
                             </div>
-                            <!-- Status quick-toggles -->
-                            <div class="mt-3 flex items-center gap-3 flex-wrap">
-                                <span class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Status:</span>
-                                <label class="flex items-center gap-1.5 text-xs cursor-pointer">
-                                    <input type="checkbox" id="refineStatusActive" class="w-3 h-3 rounded" checked>
-                                    <span class="font-semibold text-blue-600">Active</span>
-                                </label>
-                                <label class="flex items-center gap-1.5 text-xs cursor-pointer">
-                                    <input type="checkbox" id="refineStatusComingSoon" class="w-3 h-3 rounded">
-                                    <span class="text-gray-600">Coming Soon</span>
-                                </label>
-                                <label class="flex items-center gap-1.5 text-xs cursor-pointer">
-                                    <input type="checkbox" id="refineStatusPending" class="w-3 h-3 rounded">
-                                    <span class="text-orange-600">Offer/Pending</span>
-                                </label>
-                                <label class="flex items-center gap-1.5 text-xs cursor-pointer">
-                                    <input type="checkbox" id="refineStatusContract" class="w-3 h-3 rounded">
-                                    <span class="text-purple-600">Contract</span>
-                                </label>
-                                <label class="flex items-center gap-1.5 text-xs cursor-pointer">
-                                    <input type="checkbox" id="refineStatusClosed" class="w-3 h-3 rounded">
-                                    <span class="text-green-600">Closed</span>
-                                </label>
+                            <!-- ────────────────────────────────────────────────────────────────────
+                                 Status — the SAME per-transaction contract mount the four initial Search
+                                 panels use. The old hand-written row wrote ACTIVE / COMING_SOON / PENDING /
+                                 CONTRACT / UNDER_CONTRACT / CLOSED, none of which is a live Cotality
+                                 StandardStatus member, so every Apply, every pill removal and every Clear
+                                 was refused by the serializer and the whole panel was dead. It also spoke
+                                 sale language on a rental search. One mount per transaction; only the
+                                 active transaction's mount is shown.
+                                 ──────────────────────────────────────────────────────────────────── -->
+                            <div class="mt-3">
+                                <div id="refineStatusSale" class="flex items-start gap-3 flex-wrap">
+                                    <div class="crm-status-panel crm-refine-status" data-status-mount="refine-sale" data-transaction="sale"></div>
+                                </div>
+                                <div id="refineStatusRental" class="flex items-start gap-3 flex-wrap" style="display:none;">
+                                    <div class="crm-status-panel crm-refine-status" data-status-mount="refine-rental" data-transaction="rental"></div>
+                                </div>
                             </div>
                             <!-- Apply button -->
                             <div class="mt-3 flex items-center justify-between">
@@ -7055,6 +5899,12 @@
                     <div id="resultsSplitWrapper">
                     <!-- Results Container - Changes based on view mode -->
                     <div id="resultsContainer" class="bg-white rounded-xl shadow-sm border overflow-hidden">
+                        <!-- Building View Container — the Buildings tab groups the returned listings into
+                             buildings in Mallan code. There is no entitled Cotality Building resource
+                             (HTTP 403) and BuildingKeyNumeric is suppressed, so the grouping key is the
+                             building name, else the street address. -->
+                        <div id="buildingResultsContainer" style="display:none" class="p-4"></div>
+
                         <!-- Grid View Container -->
                         <div id="gridViewContainer" class="overflow-x-auto">
                             <table class="w-full text-sm border-collapse" id="resultsTable" style="display:table;table-layout:auto;">

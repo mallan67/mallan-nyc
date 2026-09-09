@@ -10,7 +10,13 @@
             reTaxes:          { label: 'RE TAXES',       reso: 'TaxAnnualAmount',         render: function(l) { return '<span' + resoData('reTaxes', l.reTaxes) + '>' + (l.reTaxes == null ? '—' : '$' + l.reTaxes.toLocaleString()) + '</span>'; } },
             maintCC:          { label: 'MAINT/CC',       reso: 'AssociationFee',          render: function(l) { return '<span' + resoData('maintCC', l.maintCC) + '>' + (l.maintCC == null ? '—' : '$' + l.maintCC.toLocaleString()) + '</span>'; } },
             intSqft:          { label: 'INT SQFT',       reso: 'LivingArea',              render: function(l) { return '<span' + resoData('intSqft', l.intSqft) + '>' + (l.intSqft || '--') + '</span>'; } },
-            status:           { label: 'STATUS',         reso: 'MlsStatus',          render: function(l) { var c = l.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : l.status === 'PENDING' ? 'bg-orange-100 text-orange-700' : l.status === 'COMING_SOON' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'; var label = l.status === 'COMING_SOON' ? 'COMING SOON' : l.status; var badge = '<span class="px-1.5 py-0.5 ' + c + ' rounded text-[10px] font-semibold"' + resoData('status', l.status) + '>' + label + '</span>'; badge += comingSoonBadgeCompact(l) + participantOnlyBadge(l); return badge; } },
+            // STATUS — the live Cotality StandardStatus token, presented by THE ONE browser authority
+            // (public/crm/js/core/status-presentation.js). This column used to hold its own three-case colour
+            // ternary over the retired uppercase presentation words and print the raw token as the label, so
+            // every other live status fell to grey and a sale's Closed read "Closed" instead of "Sold".
+            // `reso` is StandardStatus: the provider suppresses its own MLS-status field and does not allow
+            // filtering on it, so no node in this CRM may name it.
+            status:           { label: 'STATUS',         reso: 'StandardStatus',     render: function(l) { var badge = '<span class="px-1.5 py-0.5 ' + MallanStatus.classes(l) + ' rounded text-[10px] font-semibold" data-status-badge' + resoData('status', MallanStatus.token(l)) + '>' + escapeHtml(MallanStatus.label(l)) + '</span>'; badge += comingSoonBadgeCompact(l) + participantOnlyBadge(l); return badge; } },
             ownership:        { label: 'OWNERSHIP',      reso: 'CommonInterest',          render: function(l) { return '<span' + resoData('ownership', l.ownership) + '>' + ownershipLabel(l.ownership) + '</span>'; } },
             openHouse:        { label: 'OPEN HOUSE',     reso: 'OpenHouseDate',           render: function(l) { return '--'; } },
             // REBNY: "Market time will not accrue when permission is set to Participant Only."

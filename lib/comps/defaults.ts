@@ -1,6 +1,12 @@
 /**
  * Generate default comp criteria from a listing's specs.
  * Agent can override any of these from the CRM.
+ *
+ * Owner ruling (Maya, 2026-09-08): the criteria vocabulary is the live Cotality StandardStatus TOKEN set —
+ * Active / ActiveUnderContract / Pending / Closed / Expired — never a display name ("Under Contract") and
+ * never broker language ("Sold", "Rented", "In Contract"), which is a per-transaction LABEL applied at
+ * render time (lib/comps/status-criteria.ts). The defaults are transaction-agnostic because every token here
+ * is a member of BOTH transactions' canonical sets.
  */
 
 import type { CompCriteria } from "./types";
@@ -30,7 +36,7 @@ export function buildDefaultCriteria(specs: ListingSpecs): CompCriteria {
       sqft_min: hasSqft ? Math.round(sqft * 0.85) : null,
       sqft_max: hasSqft ? Math.round(sqft * 1.15) : null,
       sqft_enabled: hasSqft,
-      statuses: ["Active", "Under Contract", "Closed"],
+      statuses: ["Active", "ActiveUnderContract", "Pending", "Closed"],
       months_back: 12,
     },
     area: {
@@ -43,7 +49,7 @@ export function buildDefaultCriteria(specs: ListingSpecs): CompCriteria {
       sqft_enabled: hasSqft,
       price_min: Math.round(price * 0.75),
       price_max: Math.round(price * 1.25),
-      statuses: ["Active", "Under Contract", "Closed", "Expired"],
+      statuses: ["Active", "ActiveUnderContract", "Pending", "Closed", "Expired"],
       neighborhoods: specs.neighborhood ? [specs.neighborhood] : [],
       months_back: 12,
     },

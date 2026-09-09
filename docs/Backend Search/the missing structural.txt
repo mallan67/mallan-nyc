@@ -1,0 +1,427 @@
+Yes. That is the missing structural fact, and it materially changes the Search diagnosis. The pasted exchange shows exactly how the error happened: Property.Permission was being reasoned about as though Property were a flat record and as though a same-named permission concept on another resource proved its semantics. It does not.
+
+I checked the current pushed Search branch again. The branch is search/browser-integration-2026-09-05, currently at b49a30cb07dd9af11941b97d1da68db7fa4455ee. I also attempted fresh reads from the authorized Cotality API. Those calls are currently returning HTTP 429, so I will not represent the exact current live enum definitions as independently verified. What I can prove from the branch's committed Cotality metadata is already enough to expose a much larger Search problem.
+
+Cotality Property is an entity graph
+
+The committed Cotality metadata does not describe Property as one giant flat collection of fields. Property has top-level scalar fields plus navigation relationships into other Cotality entities.
+
+The current metadata contains these 14 navigation relationships from Property:
+
+Property subsection / relationship	Cotality target
+Media	collection of Media
+OpenHouse	collection of OpenHouse
+BuyerAgent	Member
+CoBuyerAgent	Member
+CoListAgent	Member
+ListAgent	Member
+BuyerOffice	Office
+CoBuyerOffice	Office
+CoListOffice	Office
+ListOffice	Office
+CustomProperty	CustomProperty
+Rooms	collection of PropertyRooms
+UnitTypes	collection of PropertyUnitTypes
+Building	Building
+
+That is a fundamentally different architecture from:
+
+Property
+  Field
+  Field
+  Field
+  Field
+
+It is closer to:
+
+                         Property
+                            │
+          ┌─────────────────┼─────────────────┐
+          │                 │                 │
+       scalar           relationships       related
+       fields                │              resources
+                              │
+        ┌─────────────┬───────┼────────────┬─────────────┐
+        │             │       │            │             │
+      Building      Media   OpenHouse    Agents        Offices
+        │                     │
+        ├─ Media              ├─ dates
+        └─ Property           └─ appointment/etc.
+
+                    Property
+                       │
+          ┌────────────┼────────────┐
+          │            │            │
+      CustomProperty  Rooms      UnitTypes
+
+And there are other separate Cotality resources such as HistoryTransactional and PropertyGreenVerification. I am deliberately not calling those Property subsections because the committed metadata does not identify them as NavigationProperty relationships from Property.
+
+That distinction is precisely the diligence that was missing.
+
+The Permission discussion exposed the problem
+
+This is particularly important.
+
+The committed Cotality metadata says:
+
+Property.Permission
+    = Collection(Multi.ListingPermission)
+
+while:
+
+Media.Permission
+    = Collection(Multi.Permission)
+
+Those are different enum types.
+
+So taking Cotality documentation describing a Media permission such as:
+
+image/document has limited distribution
+
+and using that to question what Property.Permission means is not valid evidence.
+
+The correct verification chain has to be:
+
+Cotality RESOURCE
+    ↓
+exact FIELD
+    ↓
+exact EDM TYPE
+    ↓
+exact ENUM/LOOKUP TYPE
+    ↓
+exact MEMBER + provider meaning
+    ↓
+Mallan mapping
+
+Not:
+
+same word "Permission"
+    ↓
+probably same thing
+
+That exact shortcut could corrupt Search.
+
+I therefore reject Claude's earlier media-permission inference as proof of Property.Permission semantics.
+
+I have not independently re-proven the live ListingPermission member definitions today because the authorized Cotality calls are rate-limited. We should wait for live provider evidence rather than substitute another inference.
+
+The deeper Search problem is bigger
+
+I then traced what the current "canonical" Search engine actually knows how to retrieve.
+
+Current provider client
+
+lib/search/engine/provider-client.ts supports:
+
+Property
+Media
+OpenHouse
+
+and query options corresponding to:
+
+$filter
+$select
+$orderby
+$top
+$skip
+$count
+
+It currently has no $expand capability.
+
+That is significant.
+
+Because without expansion or a deliberate second-phase hydration strategy, Search cannot obtain most of those Property subsections.
+
+Current hydration
+
+lib/search/engine/hydrate.ts presently does approximately this:
+
+query Property top-level fields
+          ↓
+query Media separately
+          ↓
+map result
+
+It does not currently hydrate the complete Property graph.
+
+It does not hydrate:
+
+Building
+OpenHouse
+BuyerAgent
+CoBuyerAgent
+CoListAgent
+ListAgent
+BuyerOffice
+CoBuyerOffice
+CoListOffice
+ListOffice
+CustomProperty
+Rooms
+UnitTypes
+
+Only Media receives the separate hydration treatment.
+
+So the current "canonical Search engine" is much more accurately described as:
+
+a flattened Property Search core with Media hydration
+
+It is not yet a complete Cotality brokerage Search foundation.
+
+That is a major correction to my understanding.
+
+And there is direct evidence of missing data inside the mapper
+
+This is even more concerning.
+
+lib/search/crm-idx-mapper.ts expects:
+
+raw.CustomProperty
+
+and uses it for things including Sponsor Unit and other special-property data.
+
+But the canonical Search hydrator does not load CustomProperty, and its provider client cannot $expand it.
+
+That creates this impossible path:
+
+crm-idx-mapper
+expects:
+raw.CustomProperty.SponsorUnitYN
+
+             ↑
+
+Search hydrator
+never loads CustomProperty
+
+So those mapper branches can exist and tests can potentially exercise them using fabricated/enriched objects, while real canonical Search execution never supplies the data.
+
+That is exactly the sort of situation that creates months of:
+
+field exists → mapping exists → test passes → feature still does not work.
+
+This is a proven Search-contract defect.
+
+It also explains why so many brokerage Search criteria are still not executable
+
+I inspected the approval-held CRM Search JS read-only.
+
+It has a substantial _NOT_EXECUTABLE set and correctly fails closed rather than inventing Cotality queries.
+
+Among the criteria currently rejected are concepts around:
+
+Building Search
+building
+building type
+building name
+year built
+floors
+residential/commercial unit counts
+
+open-house dates
+open-house appointment
+open-house time
+
+rooms
+square footage ranges
+
+management company
+
+transit
+map grid
+
+contracted dates
+unavailable dates
+
+Some of those may ultimately use top-level Property fields. Some clearly correspond naturally to the related Cotality resources.
+
+But we now have to prove every one individually.
+
+For example, I am not going to casually say:
+
+"Open-house date must use OpenHouse.X"
+
+until the exact Cotality OpenHouse fields are verified.
+
+The architectural direction is obvious; the provider mapping must still be exact.
+
+There is an even more dangerous issue in authenticated Search
+
+lib/search/engine/provider-query.ts currently adds:
+
+StandardStatus eq 'Active'
+
+and also:
+
+Permission has 'IDX'
+
+to the provider query.
+
+That means the supposed backend/agent Search is applying an IDX-oriented provider filter before the record even reaches Mallan's mapping/business-rule layer.
+
+Conceptually it is doing:
+
+Cotality
+   ↓
+ONLY retrieve IDX-permitted Property
+   ↓
+Mallan Search
+
+rather than:
+
+Cotality authorized brokerage inventory
+   ↓
+preserve provider permission facts
+   ↓
+verified mapping
+   ↓
+Mallan determines visibility for THIS consumer:
+       public?
+       authenticated agent?
+       participant/member?
+       CRM?
+       CMA?
+
+That can be an architectural disaster for an agent Search.
+
+Even without asserting the still-unverified live meaning of every ListingPermission member, the design problem is clear:
+
+an authenticated brokerage Search should not silently become an IDX inventory search merely because the underlying entitlement is called IDX Plus.
+
+IDX is a distribution/display entitlement.
+
+It is not automatically the definition of what an authorized Mallan broker/agent is allowed to research.
+
+And once Permission has 'IDX' is put in the provider query, a record excluded there can never be rescued later by correct Mallan participant/private/compliance logic.
+
+That's the wrong boundary.
+
+The blast radius is large because this engine is reused
+
+This isn't isolated to one Search button.
+
+lib/search/engine/executor.ts exposes the same foundation to functionality including:
+
+executeSearch
+executeSavedSearch
+countSearchMatches
+executePropertyAlerts
+executeSearchApi
+
+So an incorrect provider filter or missing subsection can cause different symptoms across:
+
+Agent Search
+Saved Searches
+match counts
+property alerts
+client matching
+downstream CRM behavior
+
+This is why I agree with your concern that an incorrect understanding could derail the system.
+
+Search needs to understand the Cotality graph without becoming inefficient
+
+The answer is not to $expand=* on every Property.
+
+That could be slow, wasteful and expensive.
+
+The correct architecture is to classify each Cotality relationship according to how Search actually needs it.
+
+For instance:
+
+PROPERTY SCALAR DATA
+    retrieve in first Property query
+
+FILTER-TIME SUBSECTION
+    query/expand only when criterion requires it
+
+RESULT-CARD DATA
+    hydrate bounded fields needed for visible results
+
+DETAIL / CMA / REPORT DATA
+    hydrate after selection, not across the entire result population
+
+COMPLIANCE DATA
+    retrieve early enough that no unauthorized result can escape
+
+BUILDING SEARCH
+    operate against actual Building authority where appropriate,
+    then connect its Property inventory
+
+OPEN HOUSE
+    use actual OpenHouse relationship/resource rather than trying
+    to reconstruct everything from Property strings
+
+MEDIA
+    retain dedicated optimized hydration when appropriate
+
+That preserves speed and the provider model.
+
+This is what the Search correction actually needs
+
+Before Claude changes more Search behavior, the work should produce one verified contract matrix for the backend Search.
+
+For every searchable concept, it needs to prove:
+
+Agent criterion
+      ↓
+Mallan canonical criterion
+      ↓
+Cotality RESOURCE
+      ↓
+Property scalar OR subsection/resource
+      ↓
+exact Cotality FIELD
+      ↓
+exact TYPE
+      ↓
+exact enum/lookup values where applicable
+      ↓
+query strategy
+      ↓
+result mapper
+      ↓
+Saved Search representation
+      ↓
+CMA/report/CRM consumer
+      ↓
+display/compliance consequence
+
+That isn't another "master audit." It is the missing executable Search contract.
+
+It immediately answers questions such as:
+
+Is Building really searched through Property fields, through Building, or both?
+
+When does Search need Rooms rather than RoomsTotal?
+
+Which sponsor-unit facts really come from CustomProperty?
+
+Which agent/office data should use scalar references versus Member/Office subsection hydration?
+
+Does an OpenHouse criterion query Property or OpenHouse first?
+
+What does Property ListingPermission actually mean versus Media Permission?
+
+Which permissions affect provider retrieval versus public presentation?
+
+Those questions cannot be answered correctly by scanning field names.
+
+What I would stop Claude from doing right now
+
+I would not allow another broad RLS cleanup, another permission semantic rewrite, or another declaration that backend Search is canonical/complete yet.
+
+The evidence now shows:
+
+Property modeling is incomplete in Search.
+Subsection hydration is incomplete.
+The mapper expects data the executor does not provide.
+Backend Search has an IDX filter embedded too early.
+Large parts of brokerage-grade Search remain intentionally non-executable.
+And the exact current live Cotality permission semantics need to be re-read once the authorized API stops returning 429.
+
+Also, CMA convergence is not yet proven. I located app/api/cma/route.ts, but that route is CMA lead/intake functionality—not evidence that the actual comparable-selection engine uses this Search executor. I will not claim CMA is unified until its real comp path is traced.
+
+So your correction—“Cotality Property has layers/subsections”—isn't a small clarification. It changes how we should evaluate the entire Search implementation.
+
+The next correction should be based on the Cotality entity graph, not on a flat list of 700+ Property fields. That is the architecture I would use from here forward.

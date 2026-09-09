@@ -22,6 +22,8 @@ interface PortalListing {
   list_price: string;
   listing_type: string;
   status?: string;
+  /** The SERVER's per-transaction broker label for `status` (a sale's Closed reads "Sold"). */
+  status_label?: string | null;
   reactions: Record<string, boolean>;
 }
 
@@ -125,19 +127,50 @@ function fmtTime(t: string | null | undefined): string {
   return t;
 }
 
+/**
+ * Colors for a SHOWING or DOCUMENT state (this portal's own workflow enums). Listing statuses do NOT come
+ * through here: they are live Cotality StandardStatus tokens with a per-transaction broker label, handled by
+ * `listingStatusColor` / `listingStatusText` below.
+ */
 function statusColor(s: string): string {
   switch (s?.toLowerCase()) {
-    case 'active': return 'bg-blue-100 text-blue-800';
-    case 'pending': case 'offer': return 'bg-orange-100 text-orange-800';
-    case 'contract': return 'bg-purple-100 text-purple-800';
-    case 'sold': case 'closed': case 'leased': return 'bg-green-100 text-green-800';
-    case 'coming soon': case 'comingsoon': return 'bg-yellow-100 text-yellow-800';
+    case 'pending': return 'bg-orange-100 text-orange-800';
     case 'scheduled': case 'confirmed': return 'bg-blue-100 text-blue-800';
-    case 'completed': return 'bg-green-100 text-green-800';
+    case 'completed': case 'signed': case 'approved': return 'bg-green-100 text-green-800';
     case 'requested': return 'bg-yellow-100 text-yellow-800';
-    case 'cancelled': return 'bg-red-100 text-red-800';
+    case 'cancelled': case 'rejected': return 'bg-red-100 text-red-800';
     default: return 'bg-gray-100 text-gray-700';
   }
+}
+
+/**
+ * Listing status on the seller portal (owner ruling, Maya 2026-09-08).
+ *
+ * The stored value is a live Cotality StandardStatus token; the printed word is the SERVER's per-transaction
+ * label, which arrives as `status_label` - a sale's Closed reads "Sold", a rental comp's Closed reads
+ * "Rented", a sale's Pending reads "In Contract". Only the COLOR is decided here, keyed by the token
+ * (Canceled with the provider's one L). An unresolved state reads "Status unavailable", never "Active".
+ * The transaction is each row's OWN listing_type, never the seller's portal role.
+ */
+const LISTING_STATUS_COLOR: Record<string, string> = {
+  Active: 'bg-blue-100 text-blue-800',
+  ComingSoon: 'bg-yellow-100 text-yellow-800',
+  ActiveUnderContract: 'bg-purple-100 text-purple-800',
+  Pending: 'bg-purple-100 text-purple-800',
+  Closed: 'bg-green-100 text-green-800',
+  Hold: 'bg-gray-100 text-gray-600',
+  Withdrawn: 'bg-gray-100 text-gray-600',
+  Canceled: 'bg-gray-100 text-gray-600',
+  Expired: 'bg-gray-100 text-gray-600',
+  Incomplete: 'bg-gray-100 text-gray-600',
+};
+
+function listingStatusColor(token: string | null | undefined): string {
+  return (token && LISTING_STATUS_COLOR[token]) || 'bg-gray-100 text-gray-700';
+}
+
+function listingStatusText(row: { status_label?: string | null }): string {
+  return row.status_label && row.status_label.trim().length > 0 ? row.status_label : 'Status unavailable';
 }
 
 function demandColor(level: string): string {
@@ -1011,7 +1044,7 @@ export default function SellerPortalPage() {
                               </div>
                               <div className="text-right">
                                 <div className="text-sm font-bold text-gray-900">{fmt$(c.price)}</div>
-                                <span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(c.status)}`}>{c.status}</span>
+                                <span className={`text-xs px-2 py-0.5 rounded-full ${listingStatusColor(c.status)}`} data-status-token={c.status}>{listingStatusText(c)}</span>
                               </div>
                             </div>
                           ))}
@@ -1036,7 +1069,7 @@ export default function SellerPortalPage() {
                               </div>
                               <div className="text-right">
                                 <div className="text-sm font-bold text-gray-900">{fmt$(c.price)}</div>
-                                <span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(c.status)}`}>{c.status}</span>
+                                <span className={`text-xs px-2 py-0.5 rounded-full ${listingStatusColor(c.status)}`} data-status-token={c.status}>{listingStatusText(c)}</span>
                               </div>
                             </div>
                           ))}
@@ -1244,8 +1277,8 @@ export default function SellerPortalPage() {
                     <div className="text-right">
                       <div className="text-lg font-bold text-gray-900">{fmt$(listing.list_price)}</div>
                       {listing.status && (
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${statusColor(listing.status)}`}>
-                          {listing.status}
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${listingStatusColor(listing.status)}`} data-status-token={listing.status}>
+                          {listingStatusText(listing)}
                         </span>
                       )}
                     </div>

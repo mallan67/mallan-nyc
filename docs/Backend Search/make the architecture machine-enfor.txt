@@ -1,0 +1,959 @@
+make the architecture machine-enforced so an agent cannot successfully introduce an unverified field, enum, mapping, query, or form binding.
+
+The repo already has the beginning of this. lib/cotality/live-contract.ts is a good foundation because it reads generated live Cotality pulls and treats them as the provider authority rather than hand-maintained lists. But today that authority does not yet control the whole system. Search still hard-codes query semantics, the form contract still contains legacy/internal vocabulary mixed with provider mappings, and the provider executor only understands a portion of the Cotality resource graph.
+
+What I would build is this one enforcement stack:
+
+Cotality Contract Compiler — the absolute provider boundary. Extend the existing live pull so it compiles not just field names and enums, but the complete authorized graph: resource, field, exact type, nullability, single/multi value, published values, $select, $filter, $orderby, navigation relationships, relation keys and whether a field can actually be queried under your subscription. Generate immutable TypeScript + JSON with a contract hash and verification timestamp. No human or agent is allowed to type a Cotality field name into business code unless it exists in this generated contract. The existing cotality:pull/cotality:verify machinery gives you a starting point.
+Full Cotality Resource Graph, not “Property = one flat object.” Generate a graph describing Property and every verified navigation/subsection available to your subscription—Media, OpenHouse, Building, Rooms, UnitTypes, agent/office relations, CustomProperty and whatever else the authorized live metadata actually proves. The current provider client only accepts Property | Media | OpenHouse and has no $expand capability. Current hydration explicitly retrieves Property and Media only. That is too small a foundation for the brokerage Search you are trying to build.
+One machine-readable Cotality → Mallan Mapping Manifest. Every mapping should be one record containing something like: provider resource/path, type, enum/multi rules, Mallan canonical fact, storage destination, Sale applicability, Rental applicability, input form bindings, output/display binding, Search/filter behavior, CMA behavior, transformation, provenance and REBNY/UCBA rule IDs. From that manifest, generate the mapper, validation tables, form options and Search field registry. Do not maintain five separate handwritten mappings. MALLAN_FORM_CONTRACT is moving toward this idea, but it still contains provider mappings, Mallan decisions and legacy terminology in one large hand-maintained object.
+Generated Search Query Compiler. Search criteria should compile from the mapping manifest—not from humans writing OData strings. Today the Search contract supports a relatively small explicit set of status, price, beds, baths, borough, neighborhood, ownership, structure, ZIP and ID criteria. The query builder then manually emits those OData expressions and currently injects Permission has 'IDX' into every provider query. A generated query compiler should know, for every Search criterion, the actual resource/path, operator support, enum type, multi-value semantics and authorization context. Unsupported queries must refuse loudly—not silently widen or narrow results.
+Sale/Rental Round-Trip Compiler and Tests. SL- and RL- remain Mallan Sale/Rental identities. Every field present on the Sale form and every field on the Rental form needs a generated trace: FORM CONTROL → NORMALIZATION → CANONICAL MALLAN FACT → STORAGE → RELOAD → EDIT → SAVE → RELOAD → SEARCH RESULT. The test should compare values, types, null semantics and enum membership—not merely assert that an HTTP request returned 200. This directly enforces your “no silent data loss” rule.
+Live Differential Search Harness. This is extremely important. For each supported Search criterion, the harness should execute the canonical Search engine and independently execute the equivalent direct authorized Cotality query, then compare identities, counts, sorting and pagination. That catches problems a unit test cannot catch: unsupported provider operators, provider behavior changes, missing navigation data, silent empty results, pagination gaps and accidental filters. Add metamorphic invariants too: a stricter filter cannot increase the result set; pages cannot overlap; page N + N+1 must equal the corresponding unsliced universe; Sale and Rental cannot bleed into one another; sorting must remain deterministic.
+Recorded Cotality Replay Corpus. Live Cotality changes continuously, so direct-live tests alone are not reproducible. Build a privacy-safe replay corpus containing verified edge-case shapes: Sale, Rental, Coming Soon, Pending, closed history, null-heavy records, multi-value enums, participant/member-only visibility, Mallan office listings, Building, Rooms, UnitTypes, OpenHouse, Media, agent/office relationships and malformed/rare values. Then every PR replays those provider shapes through mapping → Search → CMA → compliance. Live testing proves current compatibility; replay testing prevents regression.
+Separate REBNY/UCBA Rule Engine. Do not put REBNY rules into the Cotality contract. The compliance engine should consume already-mapped facts and return explicit decisions such as publicDisplayAllowed, memberVisible, addressDisplayAllowed, submissionComplete, comingSoonAllowed, etc. Every rule should carry its REBNY/UCBA source section and tests. No invented provider fields and no RLS architecture. The chain stays: Cotality fact → Mallan fact → REBNY/UCBA rule → consumer decision.
+Architecture Guard using the TypeScript AST. This is how you stop future agents from undoing the work. Write a CI scanner using the existing TypeScript compiler that fails if it sees direct Cotality HTTP calls outside the canonical provider layer, provider field literals outside generated contract/mapping files, alternate provider clients, hand-written enum arrays, Search OData assembled outside the canonical compiler, CMA directly querying Cotality, or Sale/Rental forms bypassing the form-mapping contract. Also enforce the active-tree forbidden vocabulary you have established. This should be a hard error, not a warning.
+Dynamic Search Orchestrator. Build one program—something like scripts/search/search-closure-orchestrator.ts—that agents must run. It determines the impact graph from the changed mapping/resources and automatically performs the correct sequence: branch/head/clean-tree preflight → Cotality contract verification → contract compile → mapping compile → resource/subsection coverage → Sale/Rental round trip → targeted Search tests → differential Cotality tests → CMA/Saved Search downstream tests → REBNY/UCBA tests → Preview proof. It should output one machine-readable closure report. No agent decides which tests seem sufficient.
+Agent Preflight/Postflight Gate. Every Claude/Codex/other agent begins with something like npm run search:agent-preflight. That program prints the current branch/head, contract hash, Cotality verification timestamp, mapping hash, supported resources, dirty-tree state and forbidden-authority counts. If those are wrong, it exits non-zero. At completion, search:agent-postflight calculates what the changed code could affect and refuses closure if required readers/writers/tests were not exercised. The agent gets to write code; the orchestrator decides whether the work is valid.
+Required GitHub merge gate. Local hooks are not enough because they can be bypassed. The current Search branch itself reports protected:false. Once the foundation is trustworthy, main should require the contract/mapping/Search-closure checks before merging. An agent should literally be unable to merge a field that does not exist in the verified contract or a form change that fails round-trip proof.
+
+There are two additional techniques I would add because Search is mission-critical. Mutation tests should deliberately change a valid Cotality field name, enum token, mapping destination and query operator and prove that the contract gate rejects each corruption. And runtime provenance tracing should attach a contract hash and query-plan ID to Search diagnostics so when an agent says “this result came from Cotality,” you can prove exactly which contract, mapping and filters produced it without logging credentials or sensitive data.
+
+The final architecture becomes:
+
+AUTHORIZED COTALITY/TRESTLE
+        ↓
+LIVE CONTRACT PULL
+        ↓
+CONTRACT COMPILER + CONTRACT HASH
+        ↓
+COMPLETE RESOURCE/NAVIGATION GRAPH
+        ↓
+ONE COTALITY → MALLAN MAPPING MANIFEST
+        ↓
+ ┌─────────────┬──────────────┬─────────────┐
+ SALE FORM     RENTAL FORM    PROVIDER READ
+ SL-*          RL-*           Cotality
+ └─────────────┴──────────────┴─────────────┘
+        ↓
+CANONICAL MALLAN FACTS
+        ↓
+REBNY / UCBA DECISION ENGINE
+        ↓
+ONE SEARCH QUERY + RESULT ENGINE
+        ↓
+ ┌──────────┬───────────┬─────────┬──────────┐
+ Agent      Saved       CMA       Building/
+ Search     Search                 Research
+ └──────────┴───────────┴─────────┴──────────┘
+        ↓
+PUBLIC / CRM / PORTALS / REPORTING
+
+And surrounding the whole thing:
+
+AST AUTHORITY GUARD
++ CONTRACT DRIFT GATE
++ FORM ROUND-TRIP TESTER
++ LIVE DIFFERENTIAL TESTER
++ REPLAY CORPUS
++ COMPLIANCE TESTER
++ AGENT PREFLIGHT/POSTFLIGHT
++ REQUIRED MERGE CHECK
+
+That is what changes this from “Claude understands Cotality today” into “the repository itself knows the contract and refuses incorrect work.”
+
+I would build this foundation before attempting the broad Search correction. Once it exists, fixing Search becomes systematic: each criterion, field, subsection, Sale/Rental mapping and consumer can be migrated through the same verified machine instead of being rediscovered by each agent.
+
+
+Yes. The missing piece is a control plane around Search: one system that educates the coding agent, limits what it may change, independently verifies what it changed, and removes the obsolete path as soon as the replacement is proven.
+
+No code can guarantee that Cotality will never change in the future. What we can do is make a wrong field, wrong enum, wrong mapping, duplicate engine, unsupported subsection, or incomplete cleanup fail mechanically before merge. That is the closest thing to a guarantee.
+
+Your current evidence shows why this is necessary. The live Cotality surface is much larger and more complicated than the repo historically assumed: 18 entity sets, hundreds of field vocabularies, multi-valued fields, and a critical distinction between $metadata types and Lookup values. The current convergence state also records multiple competing clients, query builders, mappings, status definitions, and Search surfaces rather than one authority. And the structural trace found that the canonical executor currently hydrates mostly Property + Media while related Property sections such as CustomProperty and other relationships are not comprehensively brought into the result graph.
+
+The system I would build
+
+I would create five cooperating pieces, but only one of them becomes application runtime code. The others are controller/verifier tooling so they do not become new architectural truths.
+
+Component	Purpose	Critical rule
+1. Cotality Contract Builder	Learns the authorized Cotality/Trestle contract	Live provider only
+2. Mallan Mapping Compiler	Defines Cotality → canonical Mallan semantics	One mapping authority
+3. Search Controller	Orchestrates every repair and agent task	No uncontrolled edits
+4. Independent Verifier	Tries to disprove the implementation	Must not import Search/mapping implementation
+5. Convergence Cleaner	Removes replaced code, mappings, terminology and duplicate paths	Replacement and deletion happen together
+
+The operating chain becomes:
+
+LIVE COTALITY
+        ↓
+CONTRACT BUILDER
+        ↓
+VERIFIED CONTRACT LOCK
+        ↓
+MAPPING COMPILER
+        ↓
+ONE MALLAN FIELD/MAPPING CONTRACT
+        ↓
+ONE SEARCH ENGINE
+        ↓
+SALE / RENTAL / SAVED SEARCH / CMA / REPORTS
+        ↓
+REBNY + UCBA BUSINESS/COMPLIANCE DECISIONS
+
+Alongside it:
+
+                 SEARCH CONTROLLER
+                       │
+        ┌──────────────┼──────────────┐
+        ↓              ↓              ↓
+     BUILDER        VERIFIER       CLEANER
+        │              │              │
+        └────── PASS / FAIL ──────────┘
+1. The Cotality Contract Builder
+
+This should be executable code, not a document somebody manually maintains.
+
+It should interrogate the authorized API and produce a locked, dated contract containing, for every resource and field:
+
+Resource
+FieldName
+Type
+Nullable
+Length / Precision
+NumOccurrences / cardinality
+LookupName
+published values
+selectable?
+filterable?
+sortable?
+expandable?
+pagination behavior
+entitlement/result status
+navigation relationships
+observed population statistics
+last verified timestamp
+contract SHA
+
+That distinction matters because the current work already proved that type metadata alone does not reliably tell Mallan the valid field vocabulary; the live Field/Lookup information has to be reconciled correctly.
+
+It must discover Property's relationships/subsections dynamically from Cotality rather than maintaining another hand-written list. Media, OpenHouse, offices, members/agents, CustomProperty, room/unit structures, Building and any future relationships all enter the capability matrix through discovery.
+
+And importantly:
+
+HTTP 200 with rows
+HTTP 200 with zero rows
+HTTP 400
+HTTP 403
+HTTP 404
+
+are different facts.
+
+The contract must record them separately.
+
+No agent should ever conclude:
+
+"Building exists in metadata, therefore Mallan can query Building."
+
+The contract tells the agent what this Mallan subscription can actually use.
+
+2. One mapping compiler — not mapping scattered around the repo
+
+This is probably the most important piece after the provider contract.
+
+Every relevant listing/search field gets one row conceptually like:
+
+MALLAN FIELD:
+bedrooms
+
+COTALITY:
+Resource: Property
+Field: BedroomsTotal
+
+Direction:
+Cotality → Mallan
+
+Applies:
+Sale + Rental
+
+Type:
+number
+
+Searchable:
+yes
+
+Filter behavior:
+verified
+
+Form:
+Sale input
+Rental input
+
+Storage:
+Listing.bedrooms
+
+Search criterion:
+bedroomsMin / bedroomsMax
+
+Viewer:
+Sale tools
+Rental tools
+
+CMA:
+eligible
+
+Compliance:
+none
+
+Null policy:
+explicit
+
+Transform:
+verified mapping function
+
+For a Mallan-only concept:
+
+MALLAN FIELD:
+rentStabilized
+
+COTALITY:
+NONE
+
+Authority:
+Mallan
+
+Applies:
+Rental
+
+Searchable:
+yes
+
+Provider query:
+NONE
+
+Execution:
+Mallan-side criterion
+
+That immediately prevents someone from inventing a fake Cotality field because the form needs a business concept.
+
+The same mapping contract needs to cover:
+
+Cotality raw
+→ Mallan storage
+→ Sale form
+→ Rental form
+→ Search criterion
+→ result projection
+→ Save/reload
+→ Viewer/tools
+→ Saved Search
+→ CMA
+→ Reports
+→ compliance
+
+One line of lineage, end to end.
+
+Forms must stop being provider maps
+
+The forms should not directly contain hundreds of provider-mapping declarations.
+
+The canonical inputs are already established as:
+
+SALE-FORM-REDESIGN.html
+RENTAL-FORM-REDESIGN.html
+
+while the *-WITH-TOOLS files are distinct viewer/agent-tool consumers and must remain distinct.
+
+I would ultimately have controls bind to the Mallan canonical field, not directly to a Cotality field:
+
+data-mallan-field="bedrooms"
+
+Then the mapping compiler knows:
+
+bedrooms
+→ Property.BedroomsTotal
+
+That is far safer than:
+
+data-cotality-field="BedroomsTotal"
+
+because a form is a Mallan business surface, not a Cotality client.
+
+The legacy data-rls-* mapping scheme is particularly dangerous because it mixes provider mapping with an obsolete authority name; the current convergence work found that convention spread heavily across all four CRM form/tool surfaces.
+
+3. The Search Controller
+
+This is the dynamic workflow code you were asking about.
+
+I would not introduce Temporal, another hosted workflow service, or another database.
+
+A deterministic TypeScript/Node state machine inside the repo is enough.
+
+For example:
+
+scripts/control/search-controller.mjs
+
+It runs a DAG:
+
+VERIFY REPO STATE
+       ↓
+BUILD LIVE COTALITY CONTRACT
+       ↓
+INDEPENDENTLY VERIFY CONTRACT
+       ↓
+BUILD IMPACT GRAPH
+       ↓
+ISSUE AGENT TASK
+       ↓
+AGENT PATCH
+       ↓
+SCOPE CHECK
+       ↓
+MAPPING VERIFICATION
+       ↓
+DIRECT TESTS
+       ↓
+DIFFERENTIAL TESTS
+       ↓
+FORM ROUNDTRIP
+       ↓
+SEARCH INTEGRATION
+       ↓
+DOWNSTREAM / CMA
+       ↓
+COMPLIANCE
+       ↓
+CLEAN OLD IMPLEMENTATION
+       ↓
+NEGATIVE TEST OLD PATH IS GONE
+       ↓
+PREVIEW PROOF
+
+Every state has:
+
+requires
+allowed_files
+forbidden_files
+contract_sha
+expected_head
+readers
+writers
+required_tests
+cleanup_targets
+failure_conditions
+
+Nothing advances automatically simply because tests are green.
+
+4. Every AI agent gets a generated task packet
+
+This addresses your concern about educating every agent.
+
+Claude, ChatGPT, Codex or any other coding agent should not begin with:
+
+"Fix bedrooms."
+
+It should receive something generated by the controller like:
+
+TASK: SEARCH-CRITERION-024
+
+Contract SHA:
+b31e...
+
+Canonical Mallan criterion:
+bedroomsMin
+
+Cotality resource:
+Property
+
+Cotality field:
+BedroomsTotal
+
+Verified type:
+...
+
+Verified filter:
+...
+
+Sale:
+supported
+
+Rental:
+supported
+
+Forms using concept:
+...
+
+Current readers:
+...
+
+Current writers:
+...
+
+Current duplicate implementations:
+...
+
+Allowed files:
+...
+
+Forbidden files:
+...
+
+Required positive tests:
+...
+
+Required negative tests:
+...
+
+Cleanup required:
+...
+
+REBNY/UCBA implications:
+none
+
+Then there is virtually no room for an agent to invent:
+
+BedroomCount
+TotalBedrooms
+RESOBedrooms
+RLSBedrooms
+
+because the task itself contains the verified contract.
+
+And if the controller cannot prove the Cotality fact, the task status is:
+
+BLOCKED_PROVIDER_VERIFICATION
+
+not "agent makes best guess."
+
+5. Independent verifier — genuinely independent
+
+This is essential.
+
+The verifier must not import:
+
+lib/search/engine/**
+the production mapper
+the production field registry
+the production query compiler
+
+Otherwise the same defect exists in the implementation and the test.
+
+I would create a separate read-only verifier, for example:
+
+scripts/verify/cotality-independent.mjs
+scripts/verify/search-differential.mjs
+scripts/verify/form-lineage.mjs
+
+Its inputs are:
+
+live Cotality API
+raw contract lock
+Mallan mapping specification
+HTTP responses
+Git diff
+database reads where authorized
+
+Its job is to try to prove the production implementation wrong.
+
+Example:
+
+Production Search:
+
+Manhattan
+Rental
+2+ bedrooms
+$5,000–$8,000
+Doorman
+Active
+
+Production engine returns:
+
+381 IDs
+
+The independent verifier builds the equivalent query separately from the verified contract, walks all provider pagination independently, applies the independently defined Mallan decisions, and compares:
+
+expected IDs
+vs
+Search IDs
+
+Difference:
+
+missing: 6
+extra: 19
+
+FAIL
+
+That is much more meaningful than 2,000 unit tests testing their own mocks.
+
+6. Add differential testing
+
+This is one of the strongest tools you can use.
+
+For hundreds of representative searches:
+
+CANONICAL MALLAN SEARCH
+        VS
+INDEPENDENT RAW COTALITY EXECUTION
+
+Compare:
+
+universe
+IDs
+count
+sort
+pagination
+field values
+mapped result
+
+Test Sale and Rental separately.
+
+Also use property-based testing. A tool such as fast-check can generate combinations of valid criteria from the verified contract:
+
+borough
+price
+beds
+baths
+property subtype
+common interest
+status
+amenities
+office
+agent
+open house
+dates
+etc.
+
+Then prove invariants such as:
+
+page1 ∩ page2 = empty
+
+count never changes merely because page changes
+
+saved-search criteria normalize identically to interactive search
+
+mobile basic criteria + hidden advanced criteria
+= original advanced criteria
+
+sorting does not alter membership
+
+CMA universe does not depend on client rejection history
+
+This will find combinations humans will never think to test.
+
+7. Add mutation testing for the dangerous code
+
+This is an additional layer I would use for mapping, status and compliance.
+
+A mutation-testing tool such as Stryker intentionally changes things like:
+
+>= → >
+true → false
+Active → Pending
+BedroomsTotal → BathroomsTotal
+AND → OR
+
+If the test suite still passes, the tests are not good enough.
+
+For the critical Search/mapping layer, that is extremely valuable.
+
+8. Enforce architecture with code, not instructions
+
+A major problem today is that an agent can bypass Search and directly call Cotality.
+
+The controller needs architecture guards.
+
+Use the TypeScript compiler API, AST scanning, ESLint custom rules, or a dependency-boundary tool to enforce:
+
+ONLY Cotality access layer
+may make Cotality HTTP requests.
+
+ONLY canonical query compiler
+may construct OData filters.
+
+ONLY verified mapping layer
+may map Cotality → Mallan.
+
+Consumers may NOT import provider-client directly.
+
+CMA may NOT query Cotality independently.
+
+Saved Search may NOT implement another interpreter.
+
+Forms may NOT maintain a second provider enum catalogue.
+
+Browser JavaScript may NOT hold provider vocabularies.
+
+No second terminal-status list.
+
+No second borough list.
+
+No second amenity translation.
+
+No second pagination implementation.
+
+A PR violating one simply cannot pass.
+
+Your convergence material already shows why: there have been multiple provider clients, query builders, status definitions and Search surfaces, and CMA/other consumers have historically bypassed the canonical engine.
+
+9. Search must become graph-aware
+
+This addresses the important point you raised earlier: Property has layers/subsections.
+
+The Search engine should no longer think:
+
+Property row
++
+Media
+=
+listing
+
+Instead:
+
+Property
+│
+├── related Media
+├── OpenHouse
+├── CustomProperty
+├── Office relationships
+├── Member/agent relationships
+├── Rooms where available
+├── UnitTypes where available
+├── Building where licensed/available
+└── future relationships discovered from contract
+
+But it should not blindly $expand everything.
+
+The contract tells Search:
+
+available?
+licensed?
+queryable?
+expandable?
+join key?
+cardinality?
+worth hydrating?
+
+Then the Search hydration plan is generated from the requested criteria/result fields.
+
+For example:
+
+Search asks only price + beds
+→ Property only.
+
+Search asks open house this weekend
+→ Property + OpenHouse.
+
+Search asks listing-agent office
+→ Property + relevant Member/Office relationship.
+
+Search asks a CustomProperty criterion
+→ Property + CustomProperty.
+
+Search asks Building criterion
+→ use the verified available architecture,
+not an imaginary Building query if the subscription cannot access it.
+
+The structural trace you supplied already showed the present problem: the Search provider client could not comprehensively represent these relationships and the current hydrator was largely Property + Media.
+
+10. Cleanup happens in the same workflow
+
+This is very important.
+
+Do not do:
+
+add new canonical implementation
+→ leave old implementation for later
+
+That is how you got multiple Search engines.
+
+Every controller task has a cleanup phase:
+
+NEW AUTHORITY
+     ↓
+MIGRATE ALL READERS
+     ↓
+MIGRATE ALL WRITERS
+     ↓
+INDEPENDENT VERIFIER PASSES
+     ↓
+PROVE OLD PATH HAS ZERO CONSUMERS
+     ↓
+DELETE OLD PATH
+     ↓
+NEGATIVE TEST OLD PATH CANNOT RETURN
+     ↓
+GLOBAL CENSUS
+
+So one unit of work is not:
+
+"New Cotality query builder implemented."
+
+It is:
+
+"New query builder implemented, every backend consumer migrated, all alternative query builders deleted or explicitly retained as proven specialized paths, direct-OData AST gate passes, differential tests pass."
+
+That closes the loop.
+
+11. The cleaner needs more than grep
+
+Use three forms of proof simultaneously:
+
+LEXICAL
+grep/string census
+
+STRUCTURAL
+AST import/call graph
+
+BEHAVIORAL
+negative test
+
+Because:
+
+grep says 0 consumers
+
+does not prove:
+
+dynamic import
+string reference
+generated browser reference
+route lookup
+
+is gone.
+
+The cleaner should create a deletion candidate only when all three agree.
+
+12. Your banned-authority cleanup should be a hard gate
+
+Given your latest direction, active Mallan tracked code should converge to:
+
+RESO = 0
+RealPlus variants = 0
+legacy RLS architectural/mapping identifiers = 0
+
+while preserving:
+
+SL- = Sale Listing
+RL- = Rental Listing
+
+External values Cotality happens to return are treated as opaque provider payload values, not Mallan architecture.
+
+The cleanup verifier should refuse the build if those prohibited concepts reappear as:
+
+file names
+symbols
+mapping attributes
+comments
+scripts
+test authority
+generated provider registry
+documentation claiming system authority
+
+And it must distinguish RL- from the legacy three-letter term so rental identity can never again be damaged.
+
+13. REBNY / UCBA needs its own verified rule contract
+
+It should not be mixed with the provider contract.
+
+For each business/compliance rule:
+
+Rule ID
+effective date
+authoritative REBNY/UCBA source
+exact business condition
+input Mallan facts
+input Cotality facts, if any
+decision
+public effect
+agent effect
+private-client effect
+submission effect
+DOM effect
+required attribution
+tests
+
+For example, if REBNY says a certain market event changes DOM treatment, the compliance layer consumes the verified Cotality fact such as the appropriate date/status event and applies the rule.
+
+It does not invent another provider field.
+
+And the compliance module names should say what they actually are:
+
+rebny-ucba
+display-policy
+distribution-policy
+dom-policy
+
+—not resurrect the obsolete RLS abstraction you have told us to eliminate.
+
+14. Sale/Rental parity becomes machine-checkable
+
+For every canonical listing concept, generate a matrix:
+
+Concept	Sale input	Rental input	Sale tools	Rental tools	Cotality	Mallan-only	Search	Saved Search	CMA
+Price	✓	✓	✓	✓	verified		✓	✓	✓
+Rent		✓		✓	verified		✓	✓	
+Common interest	✓	maybe	✓	✓	verified		✓	✓	✓
+Rent stabilization		✓		✓		✓	✓	✓	
+Open house	✓	✓	✓	✓	related resource		✓	✓	
+etc.									
+
+The controller rejects any orphan:
+
+FORM FIELD WITH NO MAPPING
+SEARCH CRITERION WITH NO EXECUTOR
+MAPPED FIELD WITH NO PERSISTENCE
+PERSISTED FIELD WITH NO RELOAD
+ENUM CONTROL WITH HAND-WRITTEN PROVIDER VALUES
+VIEWER FIELD WITH NO CANONICAL SOURCE
+15. Mandatory round-trip proof
+
+For every Sale/Rental editable field:
+
+FORM INPUT
+→ API VALIDATION
+→ NORMALIZATION
+→ STORAGE
+→ RELOAD
+→ FORM REHYDRATION
+→ EDIT
+→ SAVE
+→ RELOAD
+
+The verifier compares exact values.
+
+For Cotality-derived values:
+
+RAW COTALITY
+→ MAPPING
+→ SEARCH RESULT
+→ DETAIL
+→ CMA
+
+No silent loss.
+
+16. One count, one universe, one pagination mechanism
+
+This deserves a dedicated controller invariant.
+
+For a given normalized criterion:
+
+Search result IDs
+count
+map pins
+pagination
+saved-search execution
+alert execution
+
+must all derive from the same settled universe.
+
+Not:
+
+badge count from one query
+results from another
+map from a third
+alerts from a fourth
+
+The controller should refuse closure unless:
+
+union(all pages) == canonical universe
+page intersections == ∅
+count == universe size
+sort order deterministic
+re-run stable absent provider changes
+17. CMA has to be physically prevented from becoming another Search
+
+Use the dependency rule:
+
+CMA
+   ↓
+Search foundation
+
+and explicitly prohibit:
+
+CMA
+   ↓
+Cotality client
+
+CMA may add its valuation rules, but not its own provider filtering engine.
+
+Likewise:
+
+Saved Search
+Reports
+Client matching
+Building research
+Agent search
+
+consume the same Search foundation.
+
+That is how you stop the system from drifting again.
+
+The controller's definition of DONE
+
+A Search task can only close when:
+
+CONTRACT VERIFIED
++
+MAPPING VERIFIED
++
+ALL READERS/WRITERS TRACED
++
+IMPLEMENTATION CORRECTED
++
+INDEPENDENT DIFFERENTIAL CHECK PASSED
++
+DIRECT TESTS
++
+NEGATIVE TESTS
++
+SALE/RENTAL ROUNDTRIP
++
+SAVED SEARCH PARITY
++
+CMA DOWNSTREAM TEST
++
+REBNY/UCBA TEST
++
+OLD IMPLEMENTATION REMOVED
++
+BANNED AUTHORITY CENSUS PASSED
++
+PREVIEW PROOF
+
+If one is absent:
+
+TASK = OPEN
+
+not “mostly done.”
+
+The separation of duties I would enforce
+
+Coding agent: may make the narrowly authorized repair.
+
+Controller: decides what the agent is allowed to touch and whether prerequisites are satisfied.
+
+Independent verifier: has no write permission and does not reuse production Search/mapping code.
+
+Cleaner: removes only things whose readers/writers have been migrated and independently proven dead.
+
+GitHub CI: repeats the independent verifier from a clean environment so an agent cannot manipulate its own proof.
+
+That final point matters because you've already seen "read-only" agents mutate the checkout. The independent acceptance step should therefore ultimately run outside the coding agent's working directory, on the pushed SHA.
+
+I would build this before allowing broad Search correction to resume
+
+The order is:
+
+1. Controller
+2. Independent verifier
+3. Live contract builder
+4. Mapping compiler / lineage registry
+5. Architecture guards
+6. Search graph hydrator/query compiler convergence
+7. Sale + Rental field-by-field convergence
+8. Saved Search
+9. CMA / reports / research consumers
+10. Cleanup to zero parallel authority
+11. Full behavioral verification
+
+The difference from the previous work is crucial: the controller, not Claude or any individual chat, remembers what is true. The live Cotality contract, not an agent, decides what fields exist. The independent verifier, not the coding agent's own tests, decides whether the repair is correct. And the cleaner prevents the repaired code from coexisting with its obsolete predecessor.
+
+That is the foundation I would trust for an end-to-end Search rebuild.

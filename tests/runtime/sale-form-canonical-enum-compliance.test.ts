@@ -83,15 +83,16 @@ describe('Canonical-array writes that match the REBNY enum directly', () => {
   ];
 
   // Mallan-internal multi-selects — Mallan storage, never sent to Cotality (BuildingHeating,
-  // BuildingCooling, BuildingPetsAllowed, AttendanceType, BuildingLaundryFeatures are NOT live fields).
+  // BuildingCooling, BuildingPetsAllowed, AttendanceType, BuildingLaundryFeatures are NOT live fields,
+  // so they are written under their _mallan* keys - a Mallan fact never wears a provider-shaped name.)
   // Their vocabulary is Mallan's own; where the values mirror a live Cotality vocabulary (building
   // heating / cooling mirror the live Heating / Cooling members) they must stay live members.
   const mallanInternal: Array<{ formName: string; key: string; declared: boolean; liveMirror: string | null }> = [
     { formName: 'saleBldgHeating', key: 'saleBldgHeating', declared: false, liveMirror: 'Heating' },
     { formName: 'saleBldgCooling', key: 'saleBldgCooling', declared: false, liveMirror: 'Cooling' },
-    { formName: 'saleBuildingPetsAllowed', key: 'BuildingPetsAllowed', declared: true, liveMirror: null },
-    { formName: 'saleAttendanceType', key: 'AttendanceType', declared: true, liveMirror: null },
-    { formName: 'saleBuildingLaundryFeatures', key: 'BuildingLaundryFeatures', declared: true, liveMirror: null },
+    { formName: 'saleBuildingPetsAllowed', key: '_mallanBuildingPetsAllowed', declared: true, liveMirror: null },
+    { formName: 'saleAttendanceType', key: '_mallanAttendanceType', declared: true, liveMirror: null },
+    { formName: 'saleBuildingLaundryFeatures', key: '_mallanBuildingLaundryFeatures', declared: true, liveMirror: null },
   ];
   it.each(mallanInternal.map((m) => [m.formName, m.key, m.declared, m.liveMirror]))(
     'name="%s" is a Mallan-internal write to "%s" (declared internal: %s; live mirror: %s)',
@@ -247,9 +248,9 @@ describe('Flooring — demoted to Mallan internal (Codex PR #270 review)', () =>
   });
 
   it('SALE_CHECKBOX_ARRAY_MAP entry for saleFlooring uses Mallan internal rls key', () => {
-    expect(formHtml).toMatch(/\{\s*rls:\s*'saleFlooring'\s*,\s*name:\s*'saleFlooring'/);
-    // The old RESO-canonical mapping `{ rls: 'Flooring', name: 'saleFlooring' }`
+    expect(formHtml).toMatch(/\{\s*mallan:\s*'saleFlooring'\s*,\s*name:\s*'saleFlooring'/);
+    // The old RESO-canonical mapping `{ cotality: 'Flooring', name: 'saleFlooring' }`
     // should no longer be present.
-    expect(formHtml).not.toMatch(/\{\s*rls:\s*'Flooring'\s*,\s*name:\s*'saleFlooring'/);
+    expect(formHtml).not.toMatch(/\{\s*cotality:\s*'Flooring'\s*,\s*name:\s*'saleFlooring'/);
   });
 });

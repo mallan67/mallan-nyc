@@ -9,8 +9,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError } from "@/lib/auth";
-import { fetchComps, buildDefaultCriteria } from "@/lib/comps";
+import { fetchComps, buildDefaultCriteria, validateCompCriteria, compTransactionOf, isCompCriteriaError } from "@/lib/comps";
 import type { CompCriteria } from "@/lib/comps";
+import { transactionTypeFromProvider } from "@/lib/listings/canonical-lifecycle";
 import type { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
@@ -27,6 +28,7 @@ export async function GET(req: NextRequest) {
     where: { listing_id: listingId },
     select: {
       listing_id: true,
+      listing_type: true,
       bedrooms_total: true,
       bathrooms_full: true,
       bathrooms_half: true,
@@ -47,6 +49,26 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
+  // ── The subject transaction, agreed by BOTH facts ────────────────────────────────────────────────────────
+  // The live PropertyType is the provider transaction (Residential... = sale, *Lease = rental); listing_type is
+  // the Mallan transaction. A comp set is assembled only when they agree - a subject stored as a rental whose
+  // PropertyType is a sale is a data fault, not a search to widen (Maya, 2026-09-09: sale and rental never mix).
+  const providerTransaction = transactionTypeFromProvider(listing.property_type);
+  if (!providerTransaction) {
+    return NextResponse.json({
+      error: `Listing ${listingId} has no comparable transaction: PropertyType ${listing.property_type ?? "(none)"} is neither a sale nor a rental`,
+      code: "COMP_TRANSACTION_UNKNOWN",
+    }, { status: 400 });
+  }
+  const storedTransaction = compTransactionOf(listing.listing_type);
+  if (storedTransaction && storedTransaction !== providerTransaction) {
+    return NextResponse.json({
+      error: `Listing ${listingId} transaction mismatch: listing_type ${String(listing.listing_type)} but PropertyType ${String(listing.property_type)}`,
+      code: "COMP_TRANSACTION_MISMATCH",
+    }, { status: 400 });
+  }
+  const transaction = providerTransaction;
+
   // Parse address JSON for building identification
   const addr = (listing.address || {}) as Record<string, string>;
   const buildingName = addr.BuildingName || addr.building_name || null;
@@ -61,7 +83,17 @@ export async function GET(req: NextRequest) {
 
   let criteria: CompCriteria;
   if (listing.comp_criteria && typeof listing.comp_criteria === "object") {
-    criteria = listing.comp_criteria as unknown as CompCriteria;
+    // Stored criteria are validated against THIS transaction before anything reaches OData: rows written
+    // before the token correction hold display names ("Under Contract") that are not a live StandardStatus
+    // member and would have been passed straight into the provider filter. Refuse, naming the value.
+    try {
+      criteria = validateCompCriteria(listing.comp_criteria as unknown as CompCriteria, transaction);
+    } catch (err) {
+      if (isCompCriteriaError(err)) {
+        return NextResponse.json({ error: err.message, code: err.code, value: err.value, scope: err.scope, transaction }, { status: 400 });
+      }
+      throw err;
+    }
   } else {
     criteria = buildDefaultCriteria({
       beds,
@@ -78,7 +110,9 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  const results = await fetchComps(
+  let results;
+  try {
+    results = await fetchComps(
     {
       listing_id: listing.listing_id,
       building_name: buildingName,
@@ -93,10 +127,17 @@ export async function GET(req: NextRequest) {
       subject: { features: listing.features, raw_data: listing.raw_data },
     },
     criteria,
-  );
+    );
+  } catch (err) {
+    if (isCompCriteriaError(err)) {
+      return NextResponse.json({ error: err.message, code: err.code, value: err.value, scope: err.scope, transaction }, { status: 400 });
+    }
+    throw err;
+  }
 
   return NextResponse.json({
     ...results,
+    transaction,
     listing_specs: { beds, baths, sqft, price },
     sqft_note: !sqft ? "No sqft on file — comps matched by beds/baths/price only" : null,
   });

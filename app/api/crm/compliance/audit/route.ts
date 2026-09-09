@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { validateListing } from "@/lib/compliance/rebny-validator";
+import { OFF_FEED_SYNC_STATUS } from "@/lib/listings/canonical-lifecycle";
 
 interface AuditFinding {
   listingId: string;
@@ -26,11 +27,25 @@ export async function POST(req: NextRequest) {
   const auth = await requireBroker(req);
   if (isAuthError(auth)) return auth;
 
-  // Fetch all active RLS-eligible listings
+  // Fetch all active RLS-eligible listings that are STILL IN THE FEED.
+  //
+  // The presence clause is load-bearing, not defensive. A listing that disappears from the licensed feed keeps its
+  // last observed provider status (owner ruling 2026-09-09: absence is a presence fact, never a manufactured
+  // Withdrawn) — so after the historical correction, ~6,949 departed rows will legitimately read Active or Pending
+  // again. Filtering on status alone would pull every one of them into this audit and report thousands of
+  // compliance findings against inventory Mallan does not have and cannot fix. Verified read-only 2026-09-09:
+  // this route was the ONLY current-inventory consumer without a presence or display gate.
+  //
+  // Written null-tolerantly on purpose. `sync_status` is nullable, and a bare `not` would drop NULL rows in SQL —
+  // an over-suppression in the same shape as the 2026-04-30 display-gate incident (7,594 rows hidden).
   const listings = await prisma.listing.findMany({
     where: {
       status: { in: ["Active", "Pending", "ActiveUnderContract", "ComingSoon", "Hold"] },
       rls_eligible: { not: false },
+      OR: [
+        { sync_status: null },
+        { sync_status: { not: OFF_FEED_SYNC_STATUS } },
+      ],
     },
     select: {
       id: true,

@@ -195,8 +195,22 @@ export const MALLAN_FACT_DERIVATIONS: readonly MallanFactDerivation[] = Object.f
   { form: 'rentalStructureType', field: 'StructureType', kind: 'single' },
   // FARE Act fee lists: the agent's free text is a Mallan fact (displayed as typed); the provider
   // multi-select receives the live members it names, if any.
+  //
+  // BOTH the current Mallan key and the pre-rename provider-SHAPED name are accepted as sources. The
+  // rental form now emits `_mallanMoveInCostsDescription` / `_mallanOngoingFeesDescription` /
+  // `_mallanTenantPaysList` (RENTAL-FORM-REDESIGN.html), but `MoveInCostsDescription` /
+  // `OngoingFeesDescription` / `TenantPaysList` are still declared Mallan-internal keys in the form
+  // contract, still routed by its persistenceMap, and still read back by the public DTO — so a body
+  // rebuilt from a stored row (a PATCH, a re-save of a listing created before the rename) still
+  // carries them. Dropping the legacy source silently stopped deriving the live MoveInCosts /
+  // OngoingFees / TenantPays members for those bodies, which is a FARE Act fee-disclosure gap, not a
+  // cosmetic one. Both keys map to the same live multi-select; when both are present the live members
+  // they name are unioned. No new vocabulary is introduced and nothing is defaulted.
+  { form: '_mallanMoveInCostsDescription', field: 'MoveInCosts', kind: 'text' },
   { form: 'MoveInCostsDescription', field: 'MoveInCosts', kind: 'text' },
+  { form: '_mallanOngoingFeesDescription', field: 'OngoingFees', kind: 'text' },
   { form: 'OngoingFeesDescription', field: 'OngoingFees', kind: 'text' },
+  { form: '_mallanTenantPaysList', field: 'TenantPays', kind: 'text' },
   { form: 'TenantPaysList', field: 'TenantPays', kind: 'text' },
 ]);
 
@@ -322,4 +336,161 @@ export function applyServerFormMapping(
   }
 
   return { body, derived, retained, errors };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+// SALE BUILDING-PROFILE TRANSLATION (Maya rulings, 2026-09-09)
+//
+// The Sale form was authored against the OLD pre-Cotality reference system, where building pets
+// and building laundry were their OWN fields. On the live Cotality contract they are not: the
+// building-level facts are ENUM MEMBERS of the same Property fields (`PetsAllowed`,
+// `LaundryFeatures`), and two of the form's laundry values belong to a different field entirely
+// (`BuildingFeatures`). The form's controls, sections and interactions are UNCHANGED — only this
+// translation is. Tables are keyed by the form's CURRENT values so already-saved rows keep reading
+// correctly and no data migration is required.
+//
+// Every destination below is verified against the live contract by
+// tests/runtime/sale-form-cotality-field-attribution.test.ts. Nothing is defaulted: an unrecognised
+// value is REJECTED and reported, never guessed into a member.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Building pet policy → live `PetsAllowed` members. Categorical, so it DOES map (Maya ruling).
+ * The old feed tolerated `...OK`; the live enum spells it `...Ok`. Reading stays backward
+ * compatible because the OLD spelling is the KEY.
+ */
+export const BUILDING_PETS_TO_COTALITY: Readonly<Record<string, string>> = Object.freeze({
+  BuildingYes: 'BuildingYes',
+  BuildingCatsOK: 'BuildingCatsOk',   // case fix — live member is BuildingCatsOk
+  BuildingDogsOK: 'BuildingDogsOk',   // case fix — live member is BuildingDogsOk
+  BuildingBreedRestrictions: 'BuildingBreedRestrictions',
+  BuildingSizeLimit: 'BuildingSizeLimit',
+  BuildingNumberLimit: 'BuildingNumberLimit',
+  BuildingNo: 'BuildingNo',
+});
+
+/**
+ * Class A — building-level laundry → live `LaundryFeatures` members (the `Building*` half of the
+ * enum). `OnCommonFloor` is deliberately ABSENT: its live spelling `CommonOnFloor` carries no
+ * `Building` prefix, making it the same non-building family as `CommonArea`, which Maya ruled
+ * Mallan-only. It is listed in BUILDING_LAUNDRY_MALLAN_ONLY instead.
+ */
+export const BUILDING_LAUNDRY_TO_LAUNDRY_FEATURES: Readonly<Record<string, string>> = Object.freeze({
+  WasherDryerInstallAllowed: 'BuildingWasherDryerInstallAllowed',
+  InBasement: 'BuildingInBasement',
+  CoinOperated: 'BuildingCoinOperated',
+  Inside: 'BuildingInside',
+  InHall: 'BuildingInHall',
+  Outside: 'BuildingOutside',
+  MainLevel: 'BuildingMainLevel',
+  UpperLevel: 'BuildingUpperLevel',
+  LowerLevel: 'BuildingLowerLevel',
+  MultipleLocations: 'BuildingMultipleLocations',
+  Other: 'BuildingOther',
+  None: 'BuildingNone',
+});
+
+/**
+ * Class C — two laundry checkboxes are live `BuildingFeatures` members, NOT `LaundryFeatures`.
+ * They MERGE into any existing BuildingFeatures selection and never overwrite it (Maya ruling).
+ */
+export const BUILDING_LAUNDRY_TO_BUILDING_FEATURES: Readonly<Record<string, string>> = Object.freeze({
+  LaundryDropOffService: 'LaundryDropOffService',
+  DryCleaningService: 'DryCleaningService',
+});
+
+/**
+ * Class D — live `LaundryFeatures` members that are UNIT-level and have no `Building*` counterpart,
+ * plus `OnCommonFloor` (see Class A note). A building-level control does not prove the individual
+ * unit has the feature, so these are Mallan-only building-profile facts and are NEVER sent to
+ * Cotality (Maya ruling). In particular `InUnit` is NOT `BuildingWasherDryerInstallAllowed` —
+ * having in-unit laundry and permitting installation are different facts.
+ *
+ * If matching UNIT-level controls exist elsewhere on the form, only those may populate the
+ * corresponding live LaundryFeatures members.
+ */
+export const BUILDING_LAUNDRY_MALLAN_ONLY: readonly string[] = Object.freeze([
+  'InUnit',
+  'WasherHookup',
+  'ElectricDryerHookup',
+  'GasDryerHookup',
+  'CommonArea',
+  'InGarage',
+  'InCarport',
+  'SeeRemarks',
+  'OnCommonFloor',
+]);
+
+/** Building pet selections → live members. Unknown values are dropped, never defaulted. */
+export function translateBuildingPets(selected: readonly string[] | null | undefined): string[] {
+  const out: string[] = [];
+  for (const v of selected ?? []) {
+    const live = BUILDING_PETS_TO_COTALITY[String(v)];
+    if (live && !out.includes(live)) out.push(live);
+  }
+  return out;
+}
+
+export interface BuildingLaundryTranslation {
+  /** live LaundryFeatures members (Class A) */
+  laundryFeatures: string[];
+  /** live BuildingFeatures members, MERGED with what was already selected (Class C) */
+  buildingFeatures: string[];
+  /** Mallan-only building-profile facts, persisted under a Mallan key (Class D) */
+  mallanOnly: string[];
+  /** values in no class — refused, never sent */
+  rejected: string[];
+}
+
+/**
+ * Building laundry selections → the three destinations, by explicit table only.
+ * `existingBuildingFeatures` is merged, never replaced.
+ */
+export function translateBuildingLaundry(
+  selected: readonly string[] | null | undefined,
+  opts: { existingBuildingFeatures?: readonly string[] | null } = {},
+): BuildingLaundryTranslation {
+  const laundryFeatures: string[] = [];
+  const buildingFeatures: string[] = [...(opts.existingBuildingFeatures ?? [])];
+  const mallanOnly: string[] = [];
+  const rejected: string[] = [];
+
+  for (const raw of selected ?? []) {
+    const v = String(raw);
+    const lf = BUILDING_LAUNDRY_TO_LAUNDRY_FEATURES[v];
+    if (lf) { if (!laundryFeatures.includes(lf)) laundryFeatures.push(lf); continue; }
+    const bf = BUILDING_LAUNDRY_TO_BUILDING_FEATURES[v];
+    if (bf) { if (!buildingFeatures.includes(bf)) buildingFeatures.push(bf); continue; }
+    if (BUILDING_LAUNDRY_MALLAN_ONLY.includes(v)) { if (!mallanOnly.includes(v)) mallanOnly.push(v); continue; }
+    rejected.push(v);
+  }
+
+  return { laundryFeatures, buildingFeatures, mallanOnly, rejected };
+}
+
+export interface ElevatorProjection {
+  /** Mallan-only numeric count — 0 is a RECORDED value, not an absence */
+  count: number | null;
+  /** live BuildingFeatures member, or null when the count is unknown */
+  buildingFeature: 'Elevators' | 'NoElevators' | null;
+}
+
+/**
+ * Elevator count → Mallan count + an EXPLICIT BuildingFeatures projection (Maya ruling).
+ *
+ *   blank / non-numeric → null count, NO projection (unknown, not zero)
+ *   entered 0           → count 0 and NoElevators (an intentionally recorded absence)
+ *   entered > 0         → the count and Elevators
+ *
+ * `FreightElevator` is NEVER inferred from a count — it is a different fact.
+ *
+ * NOTE: the previous form code was `parseInt(v || '') || null`, which collapsed an entered `0` to
+ * `null` and destroyed the recorded fact. That is the bug this function replaces.
+ */
+export function elevatorProjection(raw: string | number | null | undefined): ElevatorProjection {
+  const s = String(raw ?? '').trim();
+  if (s === '') return { count: null, buildingFeature: null };
+  const n = Number(s);
+  if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0) return { count: null, buildingFeature: null };
+  return { count: n, buildingFeature: n === 0 ? 'NoElevators' : 'Elevators' };
 }

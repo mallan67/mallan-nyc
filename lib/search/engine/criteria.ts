@@ -70,6 +70,11 @@ export interface SearchCriteria {
   workflow: SearchWorkflow;
   /** StandardStatus LookupValues. */
   standardStatus: readonly string[];
+  /**
+   * Back on Market — a refinement OF Active, not a status (owner ruling 2026-09-08: Back on Market → Active +
+   * BackOnMarketDate). When true the executor narrows the result to rows that carry a BackOnMarketDate.
+   */
+  backOnMarket?: boolean;
   /** ListPrice bounds. For rentals this is the provider's rent figure carried on ListPrice. */
   priceMin?: number;
   priceMax?: number;
@@ -81,6 +86,21 @@ export interface SearchCriteria {
   cityRegion: readonly CityRegionValue[];
   /** Entered names; executed case-insensitively against SubdivisionName at the provider. */
   subdivisionName: readonly string[];
+  /**
+   * Entered building names; executed case-insensitively against the provider's BuildingName.
+   * Live Cotality Property.BuildingName is Edm.String, `filterable: true`, 221,140 populated rows
+   * (committed contract data/cotality-contract/contract.compact.json, probeHttp 200) — so it is
+   * EXECUTED, not refused. It was previously refused by name in the browser serializer.
+   */
+  buildingName: readonly string[];
+  /**
+   * LivingArea (interior square feet) bounds. Live Cotality Property.LivingArea is Edm.Decimal,
+   * `filterable: true`, 417,652 populated rows (same committed contract, probeHttp 200).
+   * A row with no LivingArea does not satisfy `ge`/`le` at the provider, so the bound NARROWS —
+   * it never admits an unknown-size row.
+   */
+  sqftMin?: number;
+  sqftMax?: number;
   /** CommonInterest LookupValues. */
   commonInterest: readonly string[];
   /** StructureType LookupValues (multi-value field; executed with `has`). */
@@ -112,9 +132,11 @@ export type CriteriaResult =
 
 /** Wire names the CRM already sends, plus the provider field names themselves. */
 export const EXECUTED_PARAMS = new Set([
-  'type', 'status', 'StandardStatus', 'minPrice', 'maxPrice', 'beds', 'minBeds', 'maxBeds', 'minBaths', 'maxBaths',
+  'type', 'status', 'StandardStatus', 'backOnMarket', 'minPrice', 'maxPrice', 'beds', 'minBeds', 'maxBeds', 'minBaths', 'maxBaths',
   'borough', 'CityRegion', 'neighborhood', 'SubdivisionName', 'ownership', 'CommonInterest', 'StructureType',
   'zip', 'PostalCode', 'listingId', 'ListingId', 'sort', 'limit', 'skip', 'offset',
+  // Building name + interior size: both live and filterable on Cotality Property (see SearchCriteria above).
+  'buildingName', 'BuildingName', 'minSqft', 'maxSqft',
   // rental-only (Domain 6): refused by name on a sale search
   'furnished', 'Furnished', 'pets', 'PetsAllowed', 'availableBy', 'AvailabilityDate', 'maxDeposit', 'SecurityDeposit',
 ]);
@@ -189,13 +211,26 @@ export function criteriaFromParams(params: URLSearchParams): CriteriaResult {
     if (t) { if (!standardStatus.includes(t)) standardStatus.push(t); } else bad('status', s, 'not a live StandardStatus member');
   }
 
+  // Back on Market: a narrowing of Active by the presence of the provider's BackOnMarketDate (filterable; 4,427
+  // live rows). Accepted as 1/true/yes; anything else is refused by name rather than silently ignored.
+  let backOnMarket = false;
+  const bomRaw = params.get('backOnMarket');
+  if (!isBlank(bomRaw)) {
+    const v = String(bomRaw).trim().toLowerCase();
+    if (v === '1' || v === 'true' || v === 'yes') backOnMarket = true;
+    else if (v === '0' || v === 'false' || v === 'no') backOnMarket = false;
+    else bad('backOnMarket', String(bomRaw), 'must be 1/true/yes or 0/false/no');
+  }
+
   const priceMin = num(params.get('minPrice'));
   const priceMax = num(params.get('maxPrice'));
   const bedsMin = num(params.get('minBeds') ?? params.get('beds'));
   const bedsMax = num(params.get('maxBeds'));
   const bathsMinRaw = num(params.get('minBaths'));
   const bathsMaxRaw = num(params.get('maxBaths'));
-  for (const [p, v] of [['minPrice', priceMin], ['maxPrice', priceMax], ['beds', bedsMin], ['maxBeds', bedsMax], ['minBaths', bathsMinRaw], ['maxBaths', bathsMaxRaw]] as const) {
+  const sqftMin = num(params.get('minSqft'));
+  const sqftMax = num(params.get('maxSqft'));
+  for (const [p, v] of [['minPrice', priceMin], ['maxPrice', priceMax], ['beds', bedsMin], ['maxBeds', bedsMax], ['minBaths', bathsMinRaw], ['maxBaths', bathsMaxRaw], ['minSqft', sqftMin], ['maxSqft', sqftMax]] as const) {
     if (typeof v === 'number' && (Number.isNaN(v) || v < 0)) bad(p, String(params.get(p === 'beds' ? 'beds' : p) ?? ''), 'must be a non-negative number');
   }
   const ok = (v: number | undefined): v is number => v != null && !Number.isNaN(v);
@@ -204,6 +239,7 @@ export function criteriaFromParams(params: URLSearchParams): CriteriaResult {
   const bathsMin = ok(bathsMinRaw) ? halfSteps(bathsMinRaw) : undefined;
   const bathsMax = ok(bathsMaxRaw) ? halfSteps(bathsMaxRaw) : undefined;
   if (ok(bathsMin) && ok(bathsMax) && bathsMin > bathsMax) bad('minBaths', String(bathsMin), 'minimum baths exceeds maximum');
+  if (ok(sqftMin) && ok(sqftMax) && sqftMin > sqftMax) bad('minSqft', String(sqftMin), 'minimum square feet exceeds maximum');
 
   const cityRegion: CityRegionValue[] = [];
   for (const b of list(params.get('borough'), params.get('CityRegion'))) {
@@ -212,6 +248,9 @@ export function criteriaFromParams(params: URLSearchParams): CriteriaResult {
   }
 
   const subdivisionName = list(params.get('neighborhood'), params.get('SubdivisionName'));
+  // A building name is free text the provider stores verbatim; there is no lookup to resolve it against, so the
+  // only thing to refuse is an empty entry (which `list` already drops). It is executed, not ignored.
+  const buildingName = list(params.get('buildingName'), params.get('BuildingName'));
 
   const commonInterest: string[] = [];
   const structureType: string[] = [];
@@ -276,8 +315,9 @@ export function criteriaFromParams(params: URLSearchParams): CriteriaResult {
   if (unsupported.length || invalid.length) return { ok: false, refusal: { unsupported, invalid } };
 
   const criteria: SearchCriteria = {
-    workflow, standardStatus, priceMin, priceMax, bedsMin, bedsMax, bathsMin, bathsMax,
-    cityRegion, subdivisionName, commonInterest, structureType, postalCode, listingId,
+    workflow, standardStatus, backOnMarket, priceMin, priceMax, bedsMin, bedsMax, bathsMin, bathsMax,
+    sqftMin, sqftMax,
+    cityRegion, subdivisionName, buildingName, commonInterest, structureType, postalCode, listingId,
     furnished, petsAllowed, availableBy, securityDepositMax, sort, limit, offset,
   };
   return { ok: true, criteria: criteria as SaleCriteria | RentalCriteria };

@@ -13,9 +13,10 @@ import { mallanStorageStatusesForCotality } from '@/lib/listings/mallan-status';
  */
 
 import prisma from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { MALLAN_LIST_OFFICE_MLS_IDS } from '@/lib/listings/mallan-source-identity';
 import { COMMON_INTEREST_MEMBERS, STRUCTURE_TYPE_MEMBERS, resolveMember, type SearchCriteria, type SortKey } from './criteria';
-import { buildProviderQuery, UNIVERSE_SELECT, PROVIDER_PAGE_CAP } from './provider-query';
+import { buildProviderQuery, buildingNameKeys, storedBuildingNameKey, UNIVERSE_SELECT, PROVIDER_PAGE_CAP } from './provider-query';
 import { walkProvider } from './provider-client';
 
 export interface UniverseRow {
@@ -68,6 +69,9 @@ async function mallanRowsFor(c: SearchCriteria): Promise<{ rows: UniverseRow[]; 
   // The criterion is a live StandardStatus member; Mallan rows are stored in Mallan's status vocabulary
   // (e.g. a live 'Closed' covers Mallan Closed / Sold / Rented / Leased; 'Canceled' covers 'Cancelled').
   const where: Record<string, unknown> = { mls_id: null, listing_id: { startsWith: prefix }, status: { in: mallanStorageStatusesForCotality(c.standardStatus) } };
+  // Back on Market narrows Active by the retained BackOnMarketDate — the same fact the provider clause uses
+  // (owner ruling 2026-09-08). A Mallan row keeps it in raw_data; `not: Prisma.DbNull` is "the JSON key is present".
+  if (c.backOnMarket) where.raw_data = { path: ['BackOnMarketDate'], not: Prisma.DbNull };
   const price: Record<string, number> = {};
   if (c.priceMin != null && c.priceMin > 0) price.gte = c.priceMin;
   if (c.priceMax != null && c.priceMax > 0) price.lte = c.priceMax;
@@ -76,6 +80,13 @@ async function mallanRowsFor(c: SearchCriteria): Promise<{ rows: UniverseRow[]; 
   if (c.bedsMin != null) beds.gte = c.bedsMin;
   if (c.bedsMax != null) beds.lte = c.bedsMax;
   if (Object.keys(beds).length) where.bedrooms_total = beds;
+  // Interior size — the Mallan column that carries the provider's LivingArea (lib/search/engine/hydrate.ts
+  // maps living_area → LivingArea). A Mallan row with a null living_area fails the range in Postgres exactly
+  // as it fails `LivingArea ge/le` at the provider, so a size bound narrows both sources identically.
+  const sqft: Record<string, number> = {};
+  if (c.sqftMin != null) sqft.gte = c.sqftMin;
+  if (c.sqftMax != null) sqft.lte = c.sqftMax;
+  if (Object.keys(sqft).length) where.living_area = sqft;
   if (c.cityRegion.length) where.borough = { in: c.cityRegion.flatMap((v) => CITY_REGION_STORAGE[v] ?? [v]) };
   if (c.subdivisionName.length) where.OR = c.subdivisionName.map((n) => ({ neighborhood: { equals: n, mode: 'insensitive' } }));
   if (c.postalCode.length) where.postal_code = { in: [...c.postalCode] };
@@ -85,8 +96,17 @@ async function mallanRowsFor(c: SearchCriteria): Promise<{ rows: UniverseRow[]; 
 
   const rows = await prisma.listing.findMany({
     where,
-    select: { listing_id: true, list_price: true, listing_contract_date: true, bathrooms_full: true, bathrooms_half: true, property_sub_type: true, updated_at: true },
+    // `address` carries the Mallan-authored building name: the sale/rental form contract writes it into the
+    // address bucket (lib/listings/mallan-form-contract.ts) and hydrate spreads that bucket into the
+    // provider-shaped record, so it is the SAME value the DTO emits as `buildingName`. No second storage.
+    // The provider key inside that bucket is named only by storedBuildingNameKey(), inside the boundary.
+    select: { listing_id: true, list_price: true, listing_contract_date: true, bathrooms_full: true, bathrooms_half: true, property_sub_type: true, address: true, updated_at: true },
   });
+
+  // Matched the way the provider clause matches — the SAME rule object, not a second copy of it:
+  // exact equality on the trimmed, lower-cased name, never a substring. Both keys come from
+  // provider-query.ts, the boundary module that owns the provider field name.
+  const wantedBuildings = buildingNameKeys(c.buildingName);
 
   const out: UniverseRow[] = [];
   let excludedUnresolvedType = 0;
@@ -94,6 +114,11 @@ async function mallanRowsFor(c: SearchCriteria): Promise<{ rows: UniverseRow[]; 
     const baths = bathValue(r.bathrooms_full, r.bathrooms_half);
     if (c.bathsMin != null && (baths == null || baths < c.bathsMin)) continue;
     if (c.bathsMax != null && (baths == null || baths > c.bathsMax)) continue;
+    if (wantedBuildings.size) {
+      // A Mallan row with no stored building name is excluded, as a provider row with a null one fails `eq`.
+      const stored = storedBuildingNameKey(r.address);
+      if (stored == null || !wantedBuildings.has(stored)) continue;
+    }
     if (c.commonInterest.length || c.structureType.length) {
       // A Mallan-authored row states its type in Mallan storage; it is matched only when
       // that stored value resolves to a live provider member. Unresolvable → excluded, reported.

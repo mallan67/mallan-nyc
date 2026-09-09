@@ -6,11 +6,12 @@
  *      day, with the countdown to ActivationDate (REBNY's First Showing Date). Never merged into the market clock.
  *   B. Market DOM (`marketDom`) — from the day the property is on market (`marketClockStart`: the later of
  *      OnMarketDate and ActivationDate — Coming Soon days are not market days) until the listing CLOSES (the
- *      CloseDate of a Sold / Rented row) or is REMOVED (the OffMarketDate of a Withdrawn / Canceled / Expired / Hold
- *      row), else until the row left the feed (Off Market), else until the as-of day while it is still on the market
+ *      CloseDate of a Sold / Rented row) or is REMOVED (the removal's OWN date — Expired → ExpirationDate,
+ *      Withdrawn → WithdrawnDate, Canceled → CancellationDate — else OffMarketDate for any removal incl. Hold),
+ *      else until the row left the feed (Off Market), else until the as-of day while it is still on the market
  *      (Active / ActiveUnderContract / Pending). NEVER PurchaseContractDate (owner ruling, Maya 2026-09-08 evening):
  *      a signed contract keeps the listing on the market until it closes. A row with no on-market date, a closed row
- *      with no CloseDate, or a removal with no OffMarketDate has NO market DOM: nothing is derived from
+ *      with no CloseDate, or a removal with neither its own date nor an OffMarketDate has NO market DOM: nothing is derived from
  *      ListingContractDate, the entry time, the contract, or a Mallan created_at. The dates are live Cotality
  *      Property fields (lib/cotality/generated/contract.ts); UCBA is the compliance source only.
  *
@@ -125,19 +126,49 @@ export function marketClockStart(ev: ContractEvents): string | null {
  * of a removal (Withdrawn / Canceled / Expired / Hold); `off_feed` = the day the row left the feed (the Mallan Off
  * Market state); `as_of` = still on the market (Active / ActiveUnderContract / Pending / Coming Soon activation).
  */
-export type MarketDomEnd = "closed" | "off_market" | "off_feed" | "as_of";
+export type MarketDomEnd = "closed" | "off_market" | "off_feed_detected" | "as_of";
 export interface MarketDom {
   start: string | null;
   end: string | null;
   endReason: MarketDomEnd | null;
   /** Whole days from start to end, clamped at 0; null when either end is not verified. */
   days: number | null;
+  /**
+   * TRUE when the end is not a provider-proven date: `off_feed_detected` uses `terminal_since`, which is only the
+   * day MALLAN DETECTED the row had disappeared — the provider delivered no OffMarketDate and no CloseDate, so the
+   * real removal happened on or before that day (owner ruling, Maya 2026-09-09). Every consumer that shows this
+   * number must label it as a detection estimate, never as a measured market span.
+   */
+  estimated: boolean;
   /** Why no clock could be computed; null when `days` is a number. */
   unverified: string | null;
 }
 
-/** Provider stages that are a removal from the market: the OffMarketDate is the verified end. */
-const REMOVAL_STAGES: ReadonlySet<string> = new Set(["withdrawn", "cancelled", "expired", "temp_off_market"]);
+/**
+ * Days to contract — a SEPARATE measure from market DOM (owner ruling, Maya 2026-09-09): the on-market day to the
+ * signed contract (`contractSignedDate`; a sale's PurchaseContractDate). It never ends the market clock, which runs
+ * to the close or the removal. Null when either end is not delivered.
+ */
+export function daysToContract(l: ListingLifecycle): number | null {
+  const start = marketClockStart(l.contractEvents);
+  const signed = contractSignedDate(l);
+  if (!start || !signed) return null;
+  return Math.max(0, daysBetween(start, signed));
+}
+
+/**
+ * Provider stages that are a removal from the market, and the date that PROVES each one's end. The status's own
+ * date comes first — Expired ends on its ExpirationDate, Withdrawn on its WithdrawnDate, Canceled on its
+ * CancellationDate — and OffMarketDate is the fallback for any removal (owner ruling 2026-09-08: a status carries
+ * its own Cotality date, and the market clock ends at a removal's verified date). This precedence is the same one
+ * `lib/listings/terminal-since.ts` applies, so the archive clock and the market clock can never disagree.
+ */
+const REMOVAL_END_FIELD: Readonly<Record<string, keyof ContractEvents | null>> = Object.freeze({
+  expired: "expirationDate",
+  withdrawn: "withdrawnDate",
+  cancelled: "cancellationDate",
+  temp_off_market: null, // Hold has no date of its own; only OffMarketDate can prove it
+});
 
 /**
  * Market DOM (owner ruling, Maya 2026-09-08 evening): on market → the CloseDate of a Sold / Rented listing, or → the
@@ -147,7 +178,7 @@ const REMOVAL_STAGES: ReadonlySet<string> = new Set(["withdrawn", "cancelled", "
  */
 export function marketDom(l: ListingLifecycle, asOf: Date | string): MarketDom {
   const start = marketClockStart(l.contractEvents);
-  if (!start) return { start: null, end: null, endReason: null, days: null, unverified: "no on-market date delivered (OnMarketDate / ActivationDate)" };
+  if (!start) return { start: null, end: null, endReason: null, days: null, estimated: false, unverified: "no on-market date delivered (OnMarketDate / ActivationDate)" };
   const ev = l.contractEvents;
   let end: string | null = null;
   let endReason: MarketDomEnd | null = null;
@@ -155,18 +186,25 @@ export function marketDom(l: ListingLifecycle, asOf: Date | string): MarketDom {
   if (l.providerStage === "closed") {
     if (ev.closeDate) { end = ev.closeDate; endReason = "closed"; }
     else why = "no CloseDate delivered on a closed row";
-  } else if (REMOVAL_STAGES.has(l.providerStage)) {
-    if (ev.offMarketDate) { end = ev.offMarketDate; endReason = "off_market"; }
-    else why = `no OffMarketDate delivered on a ${l.providerStage} row`;
+  } else if (Object.prototype.hasOwnProperty.call(REMOVAL_END_FIELD, l.providerStage)) {
+    // the removal's OWN date proves it (Expired → ExpirationDate, Withdrawn → WithdrawnDate, Canceled →
+    // CancellationDate); OffMarketDate is the fallback. Neither present → no market DOM; nothing is guessed.
+    const ownField = REMOVAL_END_FIELD[l.providerStage];
+    const own = ownField ? (ev[ownField] as string | null) : null;
+    const removalEnd = own ?? ev.offMarketDate;
+    if (removalEnd) { end = removalEnd; endReason = "off_market"; }
+    else why = `no ${ownField ? `${ownField.replace(/Date$/, "Date")} or ` : ""}OffMarketDate delivered on a ${l.providerStage} row`;
   } else if (l.presence === "off_feed" && l.offFeedSince) {
-    end = l.offFeedSince; endReason = "off_feed";
+    // NOT a proven removal date: terminal_since is the day Mallan DETECTED the disappearance. The real removal
+    // happened on or before it, so this end is an ESTIMATE and is flagged as one.
+    end = l.offFeedSince; endReason = "off_feed_detected";
   } else if (RUNNING_STAGES.has(l.providerStage)) {
     end = dayStr(asOf); endReason = "as_of";
   } else {
     why = `no verified end for stage ${l.providerStage}`;
   }
-  if (!end) return { start, end: null, endReason: null, days: null, unverified: why ?? `no verified end for stage ${l.providerStage}` };
-  return { start, end, endReason, days: Math.max(0, daysBetween(start, end)), unverified: null };
+  if (!end) return { start, end: null, endReason: null, days: null, estimated: false, unverified: why ?? `no verified end for stage ${l.providerStage}` };
+  return { start, end, endReason, days: Math.max(0, daysBetween(start, end)), estimated: endReason === "off_feed_detected", unverified: null };
 }
 
 export interface ComingSoonDom {
@@ -217,6 +255,12 @@ type ListingDomFields = {
   status_changed_at: Date | null;
   first_active_date: Date | null;
   days_on_market: number;
+  /**
+   * The retained market exposure. `computeDomTransition` resets `days_on_market` to zero on a close (UCBA Art. I
+   * §11) and moves the accrued value here, so this is what the DISPLAY reads for a sold / rented listing
+   * (`getCurrentDom`). Optional: a caller that does not select it simply gets the stored column.
+   */
+  cumulative_days_on_market?: number | null;
 };
 
 /**
@@ -359,6 +403,14 @@ export function getCurrentDom(listing: ListingDomFields, opts?: { lifecycle?: Li
     if (m.days !== null) return m.days;
   }
   const stored = listing.days_on_market || 0;
+
+  // A CLOSED row's stored clock was reset to zero by the UCBA Art. I §11 reset (computeDomTransition), which moved
+  // the listing's real market exposure to `cumulative_days_on_market`. The DISPLAY contract is the list-to-close
+  // span, so read the retained value here rather than the zeroed column — otherwise every sold / rented listing
+  // reads "0 days on market". Storage keeps the REBNY reset; display keeps the truth.
+  if (CLOSE_STATUSES.has(normalizeStoredStatus(listing.status) ?? listing.status)) {
+    return Math.max(stored, listing.cumulative_days_on_market ?? 0);
+  }
 
   // Not accruing → return stored snapshot
   if (!DOM_ACCRUING_STATUSES.has(listing.status)) return stored;

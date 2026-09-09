@@ -1,15 +1,15 @@
 {
-  "timestamp": "2026-08-14T02:47:33.255Z",
-  "pass": 1278,
+  "timestamp": "2026-09-09T10:45:01.732Z",
+  "pass": 1207,
   "critical": 0,
-  "warning": 4,
-  "info": 37,
+  "warning": 6,
+  "info": 27,
   "sections": [
     {
       "section": 1,
       "title": "$select Field Completeness",
       "category": "IDX Pipeline",
-      "pass": 375,
+      "pass": 322,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -27,16 +27,16 @@
       "section": 3,
       "title": "Field Count Verification",
       "category": "IDX Pipeline",
-      "pass": 21,
+      "pass": 12,
       "critical": 0,
-      "warning": 1,
+      "warning": 2,
       "info": 0
     },
     {
       "section": 4,
       "title": "REQUIRED vs IDX Plus Availability",
       "category": "IDX Pipeline",
-      "pass": 12,
+      "pass": 11,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -54,10 +54,10 @@
       "section": 6,
       "title": "Picklist / Value Canonicalization",
       "category": "IDX Pipeline",
-      "pass": 14,
+      "pass": 8,
       "critical": 0,
       "warning": 0,
-      "info": 8
+      "info": 0
     },
     {
       "section": 7,
@@ -72,7 +72,7 @@
       "section": 8,
       "title": "Response Field Consistency",
       "category": "CRM & API",
-      "pass": 156,
+      "pass": 157,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -81,7 +81,7 @@
       "section": 9,
       "title": "req.json() Safety",
       "category": "CRM & API",
-      "pass": 113,
+      "pass": 112,
       "critical": 0,
       "warning": 0,
       "info": 0
@@ -252,9 +252,9 @@
       "section": 28,
       "title": "Search Filter Integrity",
       "category": "Search",
-      "pass": 7,
+      "pass": 6,
       "critical": 0,
-      "warning": 0,
+      "warning": 1,
       "info": 2
     },
     {
@@ -273,7 +273,7 @@
       "pass": 8,
       "critical": 0,
       "warning": 0,
-      "info": 2
+      "info": 1
     },
     {
       "section": 31,
@@ -333,10 +333,10 @@
       "section": 37,
       "title": "Search Flow Integrity",
       "category": "Search",
-      "pass": 6,
+      "pass": 5,
       "critical": 0,
       "warning": 0,
-      "info": 2
+      "info": 1
     },
     {
       "section": 38,

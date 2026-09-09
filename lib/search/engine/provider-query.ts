@@ -13,8 +13,10 @@
  *   beds            BedroomsTotal ge | le
  *   baths           disjunction over BathroomsFull / BathroomsHalf equivalent to
  *                   2·Full + Half ≥ 2·min and ≤ 2·max (arithmetic in $filter returns 500)
+ *   size            LivingArea ge | le
  *   CityRegion      CityRegion eq '<value>'
  *   SubdivisionName tolower(SubdivisionName) eq '<lowercased>'   (tolower SUPPORTED, count-exact)
+ *   BuildingName    tolower(BuildingName) eq '<lowercased>'      (same Edm.String tolower form)
  *   CommonInterest  CommonInterest eq '<LookupValue>'
  *   StructureType   StructureType has '<LookupValue>'  (bare-string has form SUPPORTED)
  *   PostalCode      PostalCode eq
@@ -73,6 +75,37 @@ export function bathsAtMostFilter(maxBaths: number): string | null {
   return or(terms);
 }
 
+/**
+ * ONE BuildingName equality rule, used by BOTH halves of a building search.
+ *
+ * `buildingNameKeys` is the comparison form the provider clause executes:
+ * `tolower(BuildingName) eq '<trimmed, lower-cased>'` — equality, never a substring. Blank entries
+ * are dropped and casing duplicates collapse, so `buildingName=One57,ONE57` emits one clause.
+ */
+export function buildingNameKeys(names: readonly string[]): Set<string> {
+  return new Set(names.map((n) => n.trim().toLowerCase()).filter((n) => n !== ''));
+}
+
+/**
+ * The same key for a MALLAN-AUTHORED row: the name the sale/rental form contract stores in the row's
+ * `address` bucket (`BuildingName: { address: true, raw: true }` in lib/listings/mallan-form-contract.ts
+ * — the same bucket lib/search/engine/hydrate.ts spreads into the provider-shaped record, so membership
+ * and the hydrated row read one value). A row with no stored name returns null and is EXCLUDED, exactly
+ * as a provider row with a null BuildingName fails `eq`; anything looser would widen the merged universe
+ * with Mallan rows the provider half of the same search would not have returned.
+ *
+ * The provider field name is read HERE because this module is inside the Cotality interpretation
+ * boundary (data/cotality-contract/boundary.json); lib/search/engine/universe.ts is not, and must not
+ * name a provider field itself.
+ */
+export function storedBuildingNameKey(addressBucket: unknown): string | null {
+  if (!addressBucket || typeof addressBucket !== 'object' || Array.isArray(addressBucket)) return null;
+  const value = (addressBucket as Record<string, unknown>).BuildingName;
+  if (typeof value !== 'string') return null;
+  const key = value.trim().toLowerCase();
+  return key === '' ? null : key;
+}
+
 export interface ProviderQuery {
   filter: string;
   orderby: string;
@@ -83,6 +116,9 @@ export function buildProviderQuery(c: SearchCriteria): ProviderQuery {
   const parts: string[] = [];
   parts.push(`PropertyType eq '${PROPERTY_TYPE_FOR_WORKFLOW[c.workflow]}'`);
   parts.push(or(c.standardStatus.map((s) => `StandardStatus eq '${escapeOData(s)}'`)) as string);
+  // Back on Market is a narrowing of the status, executed on the provider's own filterable date (owner ruling
+  // 2026-09-08: Back on Market → Active + BackOnMarketDate). Never a status token of its own.
+  if (c.backOnMarket) parts.push('BackOnMarketDate ne null');
   parts.push("Permission has 'IDX'");
   for (const office of MALLAN_LIST_OFFICE_MLS_IDS) parts.push(`ListOfficeMlsId ne '${escapeOData(office)}'`);
 
@@ -96,10 +132,22 @@ export function buildProviderQuery(c: SearchCriteria): ProviderQuery {
   const bMax = c.bathsMax != null ? bathsAtMostFilter(c.bathsMax) : null;
   if (bMax) parts.push(bMax);
 
+  // LivingArea — Edm.Decimal, filterable on live Cotality Property (committed contract, probeHttp 200).
+  // A row with no LivingArea fails both comparisons at the provider, so a size bound only narrows.
+  if (c.sqftMin != null) parts.push(`LivingArea ge ${c.sqftMin}`);
+  if (c.sqftMax != null) parts.push(`LivingArea le ${c.sqftMax}`);
+
   const region = or(c.cityRegion.map((v) => `CityRegion eq '${escapeOData(v)}'`));
   if (region) parts.push(region);
   const subdivision = or(c.subdivisionName.map((n) => `tolower(SubdivisionName) eq '${escapeOData(n.trim().toLowerCase())}'`));
   if (subdivision) parts.push(subdivision);
+  // BuildingName — Edm.String, filterable on live Cotality Property (committed contract, probeHttp 200).
+  // Same `tolower(field) eq '<lowercased>'` form the SubdivisionName clause already executes, so a
+  // building typed in any casing matches, and a row with no BuildingName is excluded rather than admitted.
+  // The comparison keys come from buildingNameKeys() — the SAME rule the Mallan half of the universe
+  // applies through storedBuildingNameKey(), so the two halves cannot drift apart.
+  const buildings = or([...buildingNameKeys(c.buildingName)].map((k) => `tolower(BuildingName) eq '${escapeOData(k)}'`));
+  if (buildings) parts.push(buildings);
   const common = or(c.commonInterest.map((t) => `CommonInterest eq '${escapeOData(t)}'`));
   if (common) parts.push(common);
   const structure = or(c.structureType.map((t) => `StructureType has '${escapeOData(t)}'`));

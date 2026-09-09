@@ -78,12 +78,12 @@ export const REBNY_UCBA_RULES = {
       // fallbackRls; it is NOT the mandatory authority.
       'TaxLot',
       'TaxBlock',
-      'ElevatorsTotal',
+      '_mallanElevatorsTotal',
       'GarageYN',
       'NumberOfUnitsTotal',
       'StoriesTotal',
       'NewConstructionYN',
-      'NewDevelopmentYN',
+      '_mallanNewDevelopmentYN',
       'YearBuilt',
 
       // Unit info
@@ -139,7 +139,7 @@ export const REBNY_UCBA_RULES = {
       InternetEntireListingDisplayYN: { defaultTo: true, note: 'LMPs required to default True' },
       // SyndicateYN was removed (does not exist on live Trestle 2026-04-19); use SyndicateTo (multi-select).
       SyndicateTo: { defaultTo: 'AllOptedIn', note: 'LMPs default to opt-in to all approved vendors' },
-      NewDevelopmentYN: { rejectWhen: { _mallanStatus: 'ComingSoon', value: true }, note: 'Cannot be true on Coming Soon' },
+      _mallanNewDevelopmentYN: { rejectWhen: { _mallanStatus: 'ComingSoon', value: true }, note: 'Cannot be true on Coming Soon' },
       CityRegion: {
         mustMatchCounty: {
           'Bronx': 'Bronx',
@@ -201,10 +201,10 @@ export const REBNY_UCBA_RULES = {
       },
       requireFields: [
         'AssociationFee',
-        'FlipTax',
-        'MaximumFinancingPercent',
-        'MaximumFinancingRemarks',
-        'TaxAbatementYN',
+        '_mallanFlipTax',
+        '_mallanMaximumFinancingPercent',
+        '_mallanMaximumFinancingRemarks',
+        '_mallanTaxAbatementYN',
         'SpecialListingConditions',
       ],
     },
@@ -227,7 +227,7 @@ export const REBNY_UCBA_RULES = {
         PropertyType: ['Residential'],
         CommonInterest: ['StockCooperative', 'Condop'],
       },
-      requireFields: ['NumberOfShares'],
+      requireFields: ['_mallanNumberOfShares'],
     },
 
     // ── Condo only ──
@@ -239,8 +239,8 @@ export const REBNY_UCBA_RULES = {
         CommonInterest: ['Condominium'],
       },
       requireFields: [
-        'PercentOfCommonElements',
-        'TaxMonthlyAmount',
+        '_mallanPercentOfCommonElements',
+        '_mallanTaxMonthlyAmount',
         'LivingArea',
         'TaxLot',
       ],
@@ -314,14 +314,18 @@ export const REBNY_UCBA_RULES = {
     // ('Sold' / 'Rented' / 'Leased' / 'Cancelled') are matched until the correction plan rewrites them.
     {
       code: 'CLOSED-001',
-      description: 'Closed (Sold / Rented) requires CloseDate, ClosePrice, BuyerAgentRLSParticipantYN',
+      description: 'Closed (Sold / Rented) requires CloseDate, ClosePrice, buyer-broker participation',
       appliesWhen: {
         _mallanStatus: ['Closed', 'Sold', 'Rented', 'Leased'],
       },
       requireFields: [
         'CloseDate',
         'ClosePrice',
-        'BuyerAgentRLSParticipantYN',
+        // Buyer-broker participation is a Mallan/REBNY compliance fact, NOT a Cotality field (proven
+        // absent from the live contract 2026-09-09). The FACT is still required on a closing; only the
+        // RLS-era NAME is retired. Both entry forms collect it under a Mallan-internal key
+        // (sale: _mallanBuyerBrokerParticipantYN), and legacy rows still reload from the old name.
+        '_mallanBuyerBrokerParticipantYN',
       ],
     },
     {
@@ -394,11 +398,11 @@ export const REBNY_UCBA_RULES = {
       code: 'TAXABATE-001',
       description: 'Tax abatement details required if TaxAbatementYN = true',
       appliesWhen: {
-        TaxAbatementYN: [true],
+        _mallanTaxAbatementYN: [true],
       },
       requireFields: [
-        'TaxAbatementComments',
-        'TaxAbatementExpirationYear',
+        '_mallanTaxAbatementComments',
+        '_mallanTaxAbatementExpirationYear',
       ],
     },
 
@@ -407,11 +411,11 @@ export const REBNY_UCBA_RULES = {
       code: 'FLIPTAX-001',
       description: 'FlipTax details required if FlipTax > 0',
       appliesWhen: {
-        FlipTax: { gt: 0 },
+        _mallanFlipTax: { gt: 0 },
       },
       requireFields: [
-        'FlipTaxType',
-        'FlipTaxRemarks',
+        '_mallanFlipTaxType',
+        '_mallanFlipTaxRemarks',
       ],
     },
 
@@ -495,9 +499,9 @@ export const REBNY_UCBA_RULES = {
       description: 'SponsorUnitYN required for new development/construction',
       appliesWhen: {
         PropertyType: ['Residential'],
-        NewDevelopmentYN: [true],
+        _mallanNewDevelopmentYN: [true],
       },
-      requireFields: ['SponsorUnitYN'],
+      requireFields: ['_mallanSponsorUnitYN'],
     },
     {
       code: 'SPONSOR-002',
@@ -506,7 +510,7 @@ export const REBNY_UCBA_RULES = {
         PropertyType: ['Residential'],
         NewConstructionYN: [true],
       },
-      requireFields: ['SponsorUnitYN'],
+      requireFields: ['_mallanSponsorUnitYN'],
     },
 
     // ── Co-Ownership ──
@@ -538,9 +542,9 @@ export const REBNY_UCBA_RULES = {
       code: 'BLDGPETS-001',
       description: 'BuildingPetsAllowedComments required if size/number/breed restrictions',
       appliesWhen: {
-        BuildingPetsAllowed: ['BuildingSizeLimit', 'BuildingNumberLimit', 'BuildingBreedRestrictions'],
+        _mallanBuildingPetsAllowed: ['BuildingSizeLimit', 'BuildingNumberLimit', 'BuildingBreedRestrictions'],
       },
-      requireFields: ['BuildingPetsAllowedComments'],
+      requireFields: ['_mallanBuildingPetsAllowedComments'],
     },
     {
       code: 'UNITPETS-001',
@@ -550,7 +554,7 @@ export const REBNY_UCBA_RULES = {
         // the retired Unit* spellings are aliased to them before any rule runs)
         PetsAllowed: ['BreedRestrictions', 'NumberLimit', 'SizeLimit'],
       },
-      requireFields: ['PetsAllowedComments'],
+      requireFields: ['_mallanPetsAllowedComments'],
     },
 
     // ── Heating/Cooling follow-ups ──

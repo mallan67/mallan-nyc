@@ -236,7 +236,17 @@
                 reTaxes: parseFloat(feat.RealEstateTax || 0) / 12,
                 maintCC: parseFloat(feat.AssociationFee || 0),
                 intSqft: parseFloat(apiListing.living_area) || null,
-                status: (apiListing.status || 'ACTIVE').toUpperCase(),
+                // Status is a Cotality fact, carried verbatim as the live StandardStatus token with its
+                // per-transaction broker label — the same shape lib/search/crm-idx-mapper.ts ships, so a row
+                // from this path and a row from Search render identically.
+                //
+                // This was `(apiListing.status || 'ACTIVE').toUpperCase()`: it uppercased 'Active' into the
+                // retired presentation word AND fabricated a live status for a row that had none, which
+                // advertises an unknown or off-market listing as live inventory. A blank status now reads
+                // "Status unavailable" everywhere.
+                status: MallanStatus.token(apiListing.status),
+                status_label: MallanStatus.label({ status: apiListing.status, listing_type: apiListing.listing_type }),
+                status_transaction: isRental ? 'rent' : 'sale',
                 ownership: feat.CommonInterest || apiListing.property_type || '',
                 propertyType: apiListing.property_type || 'Residential',
                 propertySubType: apiListing.property_sub_type || '',

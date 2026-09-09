@@ -257,7 +257,7 @@ body { font-family: Manrope, sans-serif; }
         <!-- IDX Address Search -->
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-search-location"></i> Property Address — IDX Lookup</div>
-            <p class="text-xs text-gray-500 mb-3">Search by address to auto-detect property type and populate building data from IDX/RLS.</p>
+            <p class="text-xs text-gray-500 mb-3">Search by address to auto-detect property type and populate building data from Cotality.</p>
             <div class="mb-3 relative">
                 <input type="text" id="rentalBuildingSearch"
                        placeholder="Start typing address (e.g., 200 East 66th, 15 Central Park West)..."
@@ -279,12 +279,12 @@ body { font-family: Manrope, sans-serif; }
                 <div class="sm:col-span-2">
                     <label class="field-label">Street Address <span class="text-red-500">*</span></label>
                     <input type="text" id="rentalStreetAddress" placeholder="e.g., 200 East 66th Street" oninput="updateListingHeaderBar('rental')" onblur="rentalAddressBlurLookup()" class="field-input" required data-cotality-field="StreetName">
-                    <p class="text-[10px] text-gray-400">RLS: UnparsedAddress — auto-parsed into StreetNumber, StreetName, StreetSuffix, StreetDirPrefix</p>
+                    <p class="text-[10px] text-gray-400">Cotality: UnparsedAddress — auto-parsed into StreetNumber, StreetName, StreetSuffix, StreetDirPrefix</p>
                 </div>
                 <div>
                     <label class="field-label">Unit / Apt</label>
                     <input type="text" id="rentalUnitNumber" placeholder="e.g., 15A" oninput="updateListingHeaderBar('rental')" class="field-input" data-cotality-field="UnitNumber">
-                    <p class="text-[10px] text-gray-400">RLS: UnitNumber</p>
+                    <p class="text-[10px] text-gray-400">Cotality: UnitNumber</p>
                 </div>
                 <div>
                     <label class="field-label">Borough <span class="text-red-500">*</span></label>
@@ -296,7 +296,7 @@ body { font-family: Manrope, sans-serif; }
                         <option value="Bronx">Bronx</option>
                         <option value="StatenIsland">Staten Island</option>
                     </select>
-                    <p class="text-[10px] text-gray-400">RLS: CityRegion</p>
+                    <p class="text-[10px] text-gray-400">Cotality: CityRegion</p>
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-3">
@@ -307,7 +307,7 @@ body { font-family: Manrope, sans-serif; }
                 <div>
                     <label class="field-label">Postal City <span class="text-red-500">*</span></label>
                     <input type="text" id="rentalPostalCity" placeholder="e.g., New York" class="field-input" data-cotality-field="PostalCity">
-                    <p class="text-[10px] text-gray-400">RLS: PostalCity — USPS city (may differ from borough)</p>
+                    <p class="text-[10px] text-gray-400">Cotality: PostalCity — USPS city (may differ from borough)</p>
                 </div>
                 <div>
                     <label class="field-label">Neighborhood</label>
@@ -316,10 +316,10 @@ body { font-family: Manrope, sans-serif; }
                 <div>
                     <label class="field-label">County</label>
                     <input type="text" id="rentalCountyOrParish" placeholder="Auto from borough" class="field-input bg-gray-50" readonly data-cotality-field="CountyOrParish">
-                    <p class="text-[10px] text-gray-400">RLS: CountyOrParish — auto-derived</p>
+                    <p class="text-[10px] text-gray-400">Cotality: CountyOrParish — auto-derived</p>
                 </div>
             </div>
-            <!-- RLS auto-set hidden fields -->
+            <!-- Cotality auto-set hidden fields -->
             <input type="hidden" id="rentalCity" value="New York" data-cotality-field="City">
             <input type="hidden" id="rentalStateOrProvince" value="NY" data-cotality-field="StateOrProvince">
             <input type="hidden" id="rentalStreetNumber" value="" data-cotality-field="StreetNumber">
@@ -363,7 +363,7 @@ body { font-family: Manrope, sans-serif; }
                     <button type="button" onclick="document.getElementById('rentalListingTypeInfoModal').style.display=''" class="ml-2 text-blue-500 hover:text-blue-700" title="What do these mean?"><i class="fas fa-info-circle"></i></button>
                 </label>
                 <div class="flex flex-wrap gap-x-5 gap-y-2 items-start">
-                    <!-- RLS Listing Agreement Types -->
+                    <!-- Listing Agreement Types -->
                     <label class="flex items-center gap-2 cursor-pointer text-sm">
                         <input type="radio" name="rentalListingType" value="ExclusiveRightToLease" class="w-4 h-4" checked onchange="handleRentalListingTypeChange(this.value)" data-mallan-ignore="true"> <span class="font-semibold">Exclusive Right to Lease</span>
                         <span class="text-[9px] text-gray-400">(ExclusiveRightToLease)</span>
@@ -377,10 +377,10 @@ body { font-family: Manrope, sans-serif; }
                         <span class="text-[9px] text-gray-400">(ExclusiveRightWithException)</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer text-sm">
-                        <input type="radio" name="rentalListingType" value="CoExclusive" class="w-4 h-4" onchange="handleRentalListingTypeChange(this.value)"> Co-Exclusive
+                        <input type="radio" name="rentalListingType" value="CoExclusiveAgency" class="w-4 h-4" onchange="handleRentalListingTypeChange(this.value)"> Co-Exclusive
                         <span class="text-[9px] text-gray-400">(CoExclusive)</span>
                     </label>
-                    <!-- Non-RLS / Permission-based -->
+                    <!-- Permission-based (Cotality Permission members) -->
                     <div class="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5">
                         <label class="flex items-center gap-2 cursor-pointer text-sm">
                             <input type="radio" name="rentalListingType" value="InHouse" class="w-4 h-4" onchange="handleRentalListingTypeChange(this.value)"> <span class="font-medium text-blue-700">In-House</span>
@@ -388,11 +388,11 @@ body { font-family: Manrope, sans-serif; }
                         </label>
                     </div>
                     <label class="flex items-center gap-2 cursor-pointer text-sm">
-                        <input type="radio" name="rentalListingType" value="RLS-Owner-OptOut" class="w-4 h-4" onchange="handleRentalListingTypeChange(this.value)"> Owner Opt-Out
+                        <input type="radio" name="rentalListingType" value="OwnerOptOut" class="w-4 h-4" onchange="handleRentalListingTypeChange(this.value)"> Owner Opt-Out
                         <span class="text-[9px] text-gray-400">(Permissions=OwnerOptOut)</span>
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer text-sm">
-                        <input type="radio" name="rentalListingType" value="RLS-Participant" class="w-4 h-4" onchange="handleRentalListingTypeChange(this.value)"> Participant Only
+                        <input type="radio" name="rentalListingType" value="ParticipantOnly" class="w-4 h-4" onchange="handleRentalListingTypeChange(this.value)"> Participant Only
                         <span class="text-[9px] text-gray-400">(Permissions=Private)</span>
                     </label>
                 </div>
@@ -408,41 +408,41 @@ body { font-family: Manrope, sans-serif; }
                             <div class="border-l-4 border-blue-500 pl-3">
                                 <p class="font-bold text-gray-900">Exclusive Right to Lease <span class="text-[10px] text-gray-400 font-normal">(ExclusiveRightToLease)</span></p>
                                 <p class="text-gray-600 mt-1">The broker earns commission <strong>no matter who leases the property</strong> — even if the landlord finds the tenant themselves. This is the most common and most protective rental listing agreement.</p>
-                                <p class="text-green-700 text-xs mt-1"><i class="fas fa-check-circle mr-1"></i>Full RLS distribution. Full commission protection.</p>
+                                <p class="text-green-700 text-xs mt-1"><i class="fas fa-check-circle mr-1"></i>Full syndication. Full commission protection.</p>
                             </div>
                             <div class="border-l-4 border-amber-500 pl-3">
                                 <p class="font-bold text-gray-900">Exclusive Agency <span class="text-[10px] text-gray-400 font-normal">(ExclusiveAgency)</span></p>
                                 <p class="text-gray-600 mt-1">One broker is the exclusive agent, <strong>but if the landlord leases the property themselves (no broker involved), they do NOT owe commission.</strong> The broker only earns commission if the lease goes through the brokerage.</p>
-                                <p class="text-amber-700 text-xs mt-1"><i class="fas fa-exclamation-triangle mr-1"></i>RLS eligible, but less commission protection for the agent.</p>
+                                <p class="text-amber-700 text-xs mt-1"><i class="fas fa-exclamation-triangle mr-1"></i>Syndication eligible, but less commission protection for the agent.</p>
                             </div>
                             <div class="border-l-4 border-purple-500 pl-3">
                                 <p class="font-bold text-gray-900">Exclusive Right w/ Exception <span class="text-[10px] text-gray-400 font-normal">(ExclusiveRightWithException)</span></p>
                                 <p class="text-gray-600 mt-1">Same as Exclusive Right to Lease, <strong>except for specific named exceptions</strong> listed in the agreement (e.g., "If tenant is John Smith, no commission owed"). Commission is owed on all other leases.</p>
-                                <p class="text-purple-700 text-xs mt-1"><i class="fas fa-file-contract mr-1"></i>RLS eligible. Document the exceptions in the listing agreement.</p>
+                                <p class="text-purple-700 text-xs mt-1"><i class="fas fa-file-contract mr-1"></i>Syndication eligible. Document the exceptions in the listing agreement.</p>
                             </div>
                             <div class="border-l-4 border-teal-500 pl-3">
                                 <p class="font-bold text-gray-900">Co-Exclusive <span class="text-[10px] text-gray-400 font-normal">(CoExclusive)</span></p>
                                 <p class="text-gray-600 mt-1"><strong>Two brokers share the exclusive right.</strong> Either broker can lease the property. Commission is owed regardless of who finds the tenant. Co-brokering terms must be in writing.</p>
-                                <p class="text-teal-700 text-xs mt-1"><i class="fas fa-handshake mr-1"></i>RLS eligible. Both firms named on listing.</p>
+                                <p class="text-teal-700 text-xs mt-1"><i class="fas fa-handshake mr-1"></i>Syndication eligible. Both firms named on listing.</p>
                             </div>
                             <hr class="border-gray-200">
                             <div class="border-l-4 border-blue-400 pl-3 bg-blue-50 py-2 pr-2 rounded-r">
-                                <p class="font-bold text-blue-800">In-House (Company Private) <span class="text-[10px] text-red-500 font-semibold">NOT ON RLS</span></p>
-                                <p class="text-gray-600 mt-1">A <strong>company-only private listing</strong> kept exclusively within Mallan Real Estate. Not submitted to REBNY RLS, not distributed to any portal. Only visible on mallan.nyc and marketed by our agents directly.</p>
-                                <p class="text-red-600 text-xs mt-1"><i class="fas fa-lock mr-1"></i>No RLS, no IDX, no syndication. Internal use only.</p>
+                                <p class="font-bold text-blue-800">In-House (Company Private) <span class="text-[10px] text-red-500 font-semibold">NOT SYNDICATED</span></p>
+                                <p class="text-gray-600 mt-1">A <strong>company-only private listing</strong> kept exclusively within Mallan Real Estate. Not syndicated to Cotality, not distributed to any portal. Only visible on mallan.nyc and marketed by our agents directly.</p>
+                                <p class="text-red-600 text-xs mt-1"><i class="fas fa-lock mr-1"></i>No syndication, no IDX, no public distribution. Internal use only.</p>
                             </div>
                             <hr class="border-gray-200">
                             <div class="border-l-4 border-gray-400 pl-3">
                                 <p class="font-bold text-gray-900">Owner Opt-Out <span class="text-[10px] text-gray-400 font-normal">(Permissions=OwnerOptOut)</span></p>
-                                <p class="text-gray-600 mt-1">Landlord has signed Exhibit B opting out of public distribution. Listing goes to RLS <strong>but is hidden from all public channels</strong> (IDX, syndication, portals). Only visible to RLS Participants directly.</p>
+                                <p class="text-gray-600 mt-1">Landlord has signed Exhibit B opting out of public distribution. Listing is syndicated <strong>but is hidden from all public channels</strong> (IDX, syndication, portals). Only visible to authorized participants directly.</p>
                             </div>
                             <div class="border-l-4 border-gray-400 pl-3">
                                 <p class="font-bold text-gray-900">Participant Only <span class="text-[10px] text-gray-400 font-normal">(Permissions=Private)</span></p>
-                                <p class="text-gray-600 mt-1">Similar to Owner Opt-Out but <strong>set by the broker</strong>. Listing is on RLS but not displayed publicly. Visible only to authorized RLS Participants.</p>
+                                <p class="text-gray-600 mt-1">Similar to Owner Opt-Out but <strong>set by the broker</strong>. Listing is syndicated but not displayed publicly. Visible only to authorized participants.</p>
                             </div>
                         </div>
                         <div class="border-t px-5 py-3 bg-gray-50 rounded-b-xl">
-                            <p class="text-[10px] text-gray-500"><i class="fas fa-info-circle mr-1"></i>Per UCBA: Only exclusive listings are eligible for RLS. The <strong>ListingAgreement</strong> field maps to RESO standard. In-House listings are internal only and are never submitted to REBNY.</p>
+                            <p class="text-[10px] text-gray-500"><i class="fas fa-info-circle mr-1"></i>Per UCBA: Only exclusive listings may be co-brokered under UCBA. In-House listings are company-private and never reach the Cotality feed.</p>
                         </div>
                     </div>
                 </div>
@@ -452,7 +452,7 @@ body { font-family: Manrope, sans-serif; }
                     <i class="fas fa-exclamation-triangle text-amber-500 mt-0.5"></i>
                     <div class="text-xs text-gray-700">
                         <p class="font-semibold mb-1">Owner Opt-Out / Participant Only Selected</p>
-                        <p>Per REBNY UCBA: IDX, VOW, Syndication, Listhub, NY MLS, Realtor, and RPX will be <strong>disabled</strong>. Listing will remain visible on <strong>WWW (your website)</strong> and shared with <strong>RLS Participants</strong> only.</p>
+                        <p>Per REBNY UCBA: IDX, VOW, Syndication, Listhub and Realtor will be <strong>disabled</strong>. Listing will remain visible on <strong>WWW (your website)</strong> and shared with <strong>authorized participants</strong> only.</p>
                         <p class="mt-1">Owner Opt-Out form must be signed within 48 hours and kept on file.</p>
                     </div>
                 </div>
@@ -461,7 +461,7 @@ body { font-family: Manrope, sans-serif; }
                     <i class="fas fa-building text-blue-500 mt-0.5"></i>
                     <div class="text-xs text-gray-700">
                         <p class="font-semibold mb-1 text-blue-900">In-House — Company Private Listing</p>
-                        <p>Not submitted to REBNY RLS or any external channel. Only visible on <strong>mallan.nyc</strong> and marketed directly by Mallan agents.</p>
+                        <p>Not syndicated to Cotality or any external channel. Only visible on <strong>mallan.nyc</strong> and marketed directly by Mallan agents.</p>
                     </div>
                 </div>
                 <div class="mt-2">
@@ -480,7 +480,7 @@ body { font-family: Manrope, sans-serif; }
                 <label class="field-label mb-1">CoBroke Agreement <span class="text-red-500">*</span></label>
                 <div class="flex flex-wrap gap-4">
                     <label class="flex items-center gap-2 cursor-pointer text-sm">
-                        <input type="radio" name="rentalCoBrokeAgreement" value="Ucba" class="w-4 h-4" checked data-mallan-ignore="true" data-removed-field="CoBrokeAgreement"> UCBA (Universal Co-Brokerage)
+                        <input type="radio" name="rentalCoBrokeAgreement" value="Ucba" class="w-4 h-4" checked data-mallan-ignore="true" data-unresolved-cotality-field="CoBrokeAgreement"> UCBA (Universal Co-Brokerage)
                     </label>
                     <label class="flex items-center gap-2 cursor-pointer text-sm">
                         <input type="radio" name="rentalCoBrokeAgreement" value="Rundba" class="w-4 h-4"> RUNDBA
@@ -514,6 +514,13 @@ body { font-family: Manrope, sans-serif; }
             <div class="mb-5">
                 <label class="field-label mb-1">Status <span class="text-red-500">*</span></label>
                 <select id="rentalStatus" class="field-input max-w-md" required onchange="validateStatusChange('rental'); updateRentalStatusFields()" data-mallan-ignore="true" data-mallan-field="_crmWorkflowStatus">
+                    <!-- OFFLINE FALLBACK ONLY. At load this list is REPLACED from the one server mapping
+                         (GET /api/crm/status-options?type=rental -> lib/crm/status-mapping.ts) by the
+                         "STATUS VOCABULARY" script at the end of this file; it is kept here so a required
+                         select is never empty when that endpoint is unreachable. Its option set and labels
+                         are held equal to the server's by
+                         tests/runtime/four-listing-forms-status-select-equivalence.test.ts. Never hand-edit
+                         a label here - change lib/crm/status-mapping.ts. -->
                     <option value="Draft" selected>Draft</option>
                     <option value="Future">Future</option>
                     <option value="Active">Active</option>
@@ -532,32 +539,41 @@ body { font-family: Manrope, sans-serif; }
                     <option disabled>── Closed ──</option>
                     <option value="Rented">Rented</option>
                     <option value="RentedThruUs">Rented Thru Us</option>
+                    <option value="Leased">Leased</option>
+                    <option value="LeasedThruUs">Leased Thru Us</option>
                     <option disabled>── Off Market ──</option>
-                    <option value="Withdrawn">Withdrawn</option>
-                    <option value="Cancelled">Cancelled</option>
-                    <option value="PermOffMarket">Perm Off Market</option>
                     <option value="TempOffMarket">Temp Off Market</option>
+                    <option value="PermOffMarket">Perm Off Market</option>
+                    <option value="Withdrawn">Withdrawn</option>
                     <option value="Expired">Expired</option>
+                    <option value="Hold">Hold</option>
+                    <!-- the workflow word keeps its two-L VALUE (that is what raw_data._crmWorkflowStatus
+                         stores and what findWorkflow reads back); only the LABEL is the provider's one L -->
+                    <option value="Cancelled">Canceled</option>
+                    <!-- ComingSoon REMOVED — prohibited for rentals per REBNY RLS Sec. 2.05(d) / UCBA D1.
+                         The rental mapping carries none, and the rebuild below refuses it even if some
+                         future payload offered one. -->
                     <option disabled>── Saved Listing State ──</option>
+                    <option value="ActiveUnderContract">Active Under Contract</option>
                     <option value="Pending">Pending</option>
                     <option value="Closed" hidden>Rented</option>
                     <option value="Canceled" hidden>Canceled</option>
-                    <!-- ComingSoon REMOVED — prohibited for rentals per REBNY RLS Sec. 2.05(d) / UCBA D1 -->
-                    <option value="Hold">Hold</option>
                     <option value="Incomplete">Incomplete</option>
                 </select>
                 <!-- REBNY CLOSED-001 / PENDING-001 / CANCELLED-001 (Packet 2 convergence): status facts the gate requires -->
                 <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3" data-p2-block="rental-status-facts">
                     <!-- Owner ruling 2026-09-08: PurchaseContractDate is NOT collected on a rental. The lease-signed
                          date is a Mallan internal workflow fact (no exact Cotality rental field is proven). -->
-                    <div><label class="field-label">Lease Signed Date <span class="text-[10px] text-gray-500">(Mallan workflow)</span></label><input type="date" id="rentalLeaseSignedDate" class="field-input" data-cotality-field="_mallanLeaseSignedDate"></div>
-                    <div><label class="field-label">Close Date</label><input type="date" id="rentalCloseDate" class="field-input" data-cotality-field="CloseDate"></div>
-                    <div><label class="field-label">Close Price (final rent)</label><input type="number" id="rentalClosePrice" placeholder="$0" class="field-input" data-cotality-field="ClosePrice"></div>
+                    <div><label class="field-label">Lease Signed Date <span class="text-[10px] text-gray-500">(Mallan workflow)</span></label><input type="date" id="rentalLeaseSignedDate" class="field-input" data-mallan-field="_mallanLeaseSignedDate"></div>
+                    <!-- The rental close date/price are the status-gated "Rented Date" / "Rented Price" controls
+                         (shown when the status is Rented) — ONE set, bound to the live Cotality CloseDate /
+                         ClosePrice. The duplicate always-visible pair that used to sit here was removed: the agent
+                         filled the Rented controls and the value went nowhere (they were data-mallan-ignore). -->
                     <div><label class="field-label">Cancellation Date</label><input type="date" id="rentalCancellationDate" class="field-input" data-cotality-field="CancellationDate"></div>
-                    <div class="sm:col-span-2"><label class="field-label">Tenant agent is an RLS participant?</label>
-                        <div class="flex gap-4 text-sm"><label class="flex items-center gap-1"><input type="radio" name="rentalBuyerAgentRLSParticipantYN" value="Yes" class="w-4 h-4" data-cotality-field="BuyerAgentRLSParticipantYN"> Yes</label><label class="flex items-center gap-1"><input type="radio" name="rentalBuyerAgentRLSParticipantYN" value="No" class="w-4 h-4" data-cotality-field="BuyerAgentRLSParticipantYN"> No</label></div></div>
+                    <div class="sm:col-span-2"><label class="field-label">Is the tenant's broker a UCBA participant?</label>
+                        <div class="flex gap-4 text-sm"><label class="flex items-center gap-1"><input type="radio" name="rentalTenantBrokerParticipantYN" value="Yes" class="w-4 h-4" data-mallan-ignore="true" data-mallan-field="_mallanTenantBrokerParticipantYN"> Yes</label><label class="flex items-center gap-1"><input type="radio" name="rentalTenantBrokerParticipantYN" value="No" class="w-4 h-4" data-mallan-ignore="true" data-mallan-field="_mallanTenantBrokerParticipantYN"> No</label></div></div>
                         <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2" data-p2-block="rental-buyer-agent-contact">
-                            <p class="sm:col-span-2 text-[10px] text-gray-500">REBNY BUYER-NONRLS-001: when the Tenant agent is not an RLS participant, their contact details are required at close.</p>
+                            <p class="sm:col-span-2 text-[10px] text-gray-500">UCBA BUYER-NONPARTICIPANT-001: when the tenant’s broker is not a UCBA participant, their contact details are required at close.</p>
                             <div><label class="field-label">Tenant Agent Full Name</label><input type="text" id="rentalBuyerAgentFullName" class="field-input" data-cotality-field="BuyerAgentFullName"></div>
                             <div><label class="field-label">Tenant Agent Direct Phone</label><input type="tel" id="rentalBuyerAgentDirectPhone" class="field-input" data-cotality-field="BuyerAgentDirectPhone"></div>
                             <div><label class="field-label">Tenant Agent Email</label><input type="email" id="rentalBuyerAgentEmail" class="field-input" data-cotality-field="BuyerAgentEmail"></div>
@@ -583,7 +599,7 @@ body { font-family: Manrope, sans-serif; }
                     </div>
                     <div class="bg-gray-50 border rounded-lg p-2 text-center">
                         <p class="text-[10px] text-gray-500 uppercase">Last Cotality Status</p>
-                        <p class="text-xs font-medium text-blue-700" id="rentalCotalityStatus">set by server on save</p>
+                        <p class="text-xs font-medium text-blue-700" id="rentalCotalityStatus">Not provided</p>
                     </div>
                 </div>
                 <!-- Validation Panel -->
@@ -592,7 +608,7 @@ body { font-family: Manrope, sans-serif; }
                         <i class="fas fa-exclamation-triangle text-red-600"></i>
                         <span class="text-sm font-bold text-red-700">REBNY Required Fields Missing</span>
                     </div>
-                    <p class="text-xs text-red-600 mb-2">The following fields are required by REBNY RLS before this listing can be set to Active:</p>
+                    <p class="text-xs text-red-600 mb-2">The following fields are required by UCBA before this listing can be set to Active:</p>
                     <ul id="rentalMissingFieldsList" class="text-xs text-red-700 space-y-1 ml-4 list-disc"></ul>
                     <p class="text-xs text-gray-600 mt-2 italic">Status has been reverted to Draft. Complete all required fields to activate.</p>
                 </div>
@@ -603,7 +619,7 @@ body { font-family: Manrope, sans-serif; }
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                 <div>
                     <label class="field-label">Monthly Rent <span class="text-red-500">*</span></label>
-                    <input type="number" id="rentalMonthlyRent" placeholder="$0" class="field-input" required data-mallan-ignore="true" data-removed-field="NetMonthlyRent">
+                    <input type="number" id="rentalMonthlyRent" placeholder="$0" class="field-input" required data-mallan-ignore="true" data-unresolved-cotality-field="NetMonthlyRent">
                 </div>
                 <div>
                     <label class="field-label">Net Effective Rent</label>
@@ -615,7 +631,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div id="rentalRentedPriceField" style="display:none;">
                     <label class="field-label">Rented Price <span class="text-red-500">*</span></label>
-                    <input type="number" id="rentalRentedPrice" placeholder="$0" class="field-input" data-mallan-ignore="true">
+                    <input type="number" id="rentalRentedPrice" placeholder="$0" class="field-input" data-cotality-field="ClosePrice">
                 </div>
             </div>
 
@@ -634,7 +650,7 @@ body { font-family: Manrope, sans-serif; }
                         </label>
                     </div>
                 </div>
-                <p class="text-xs text-gray-500">RLS/RESO/IDX: InternetAutomatedValuationDisplayYN — Controls whether sites like Zillow, Redfin can show their AVM estimates alongside this listing</p>
+                <p class="text-xs text-gray-500">Cotality: InternetAutomatedValuationDisplayYN — Controls whether sites like Zillow, Redfin can show their AVM estimates alongside this listing</p>
             </div>
         </div>
 
@@ -672,7 +688,7 @@ body { font-family: Manrope, sans-serif; }
                                 <label class="radio-card flex items-center gap-2 text-sm"><input data-mallan-ignore="true" data-mallan-field="PropertyType" type="radio" name="rentalPropertyType" value="Triplex" class="w-4 h-4" onchange="applyRentalFieldRules()"> Triplex (3 Unit)</label>
                                 <label class="radio-card flex items-center gap-2 text-sm"><input data-mallan-ignore="true" data-mallan-field="PropertyType" type="radio" name="rentalPropertyType" value="Quadruplex" class="w-4 h-4" onchange="applyRentalFieldRules()"> Quadruplex (4 Unit)</label>
                             </div>
-                            <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Commercial (RLS-eligible)</p>
+                            <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Commercial (Cotality-bound)</p>
                             <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 mb-2">
                                 <label class="radio-card flex items-center gap-2 text-sm"><input data-mallan-ignore="true" data-mallan-field="PropertyType" type="radio" name="rentalPropertyType" value="Office" class="w-4 h-4" onchange="applyRentalFieldRules()"> Office</label>
                                 <label class="radio-card flex items-center gap-2 text-sm"><input data-mallan-ignore="true" data-mallan-field="PropertyType" type="radio" name="rentalPropertyType" value="Retail" class="w-4 h-4" onchange="applyRentalFieldRules()"> Retail</label>
@@ -700,10 +716,10 @@ body { font-family: Manrope, sans-serif; }
                             </div>
                         </div>
 
-                        <!-- RLS: StructureType — REQUIRED, Single-Select Picklist (13 values) -->
+                        <!-- Cotality: StructureType — REQUIRED, Single-Select Picklist (13 values) -->
                         <div class="mt-4 pt-3 border-t">
                             <label class="field-label mb-2">Structure Type <span class="text-red-500">*</span></label>
-                            <p class="text-[10px] text-gray-500 mb-2">RLS Field: StructureType — Auto-set from IDX/RLS building data or property type. Override if needed.</p>
+                            <p class="text-[10px] text-gray-500 mb-2">Cotality: StructureType — Auto-set from Cotality building data or property type. Override if needed.</p>
                             <select id="rentalStructureType" class="field-input" data-mallan-ignore="true" data-mallan-field="StructureType">
                                 <option value="">Select...</option>
                                 <option value="Duplex">Duplex</option>
@@ -722,10 +738,10 @@ body { font-family: Manrope, sans-serif; }
                             </select>
                         </div>
 
-                        <!-- RLS: CommonInterest — REQUIRED, Single-Select Picklist (8 values) -->
+                        <!-- Cotality: CommonInterest — REQUIRED, Single-Select Picklist (8 values) -->
                         <div class="mt-4 pt-3 border-t">
                             <label class="field-label mb-2">Ownership Structure (CommonInterest) <span class="text-red-500">*</span></label>
-                            <p class="text-[10px] text-gray-500 mb-2">RLS Field: CommonInterest — Auto-set from property type, or override manually.</p>
+                            <p class="text-[10px] text-gray-500 mb-2">Cotality: CommonInterest — Auto-set from property type, or override manually.</p>
                             <select id="rentalCommonInterest" class="field-input" onchange="onRentalCommonInterestChange()" data-cotality-field="CommonInterest">
                                 <option value="">Select...</option>
                                 <option value="Condominium">Condominium</option>
@@ -746,7 +762,7 @@ body { font-family: Manrope, sans-serif; }
             <div class="border border-gray-200 rounded-lg" id="rentalCommercialMasterSection">
                 <div class="section-collapse flex items-center gap-2 px-4 py-3 bg-gray-50 rounded-t-lg" onclick="toggleFormSection(this)">
                     <i class="fas fa-building text-purple-600 text-sm"></i>
-                    <span class="text-xs font-bold text-gray-800 uppercase tracking-wide">Commercial (Non-RLS)</span>
+                    <span class="text-xs font-bold text-gray-800 uppercase tracking-wide">Commercial (Website-only)</span>
                     <span class="text-xs text-gray-400 ml-1">(Click to expand)</span>
                     <i class="fas fa-chevron-down chevron text-gray-400 text-xs ml-auto"></i>
                 </div>
@@ -761,10 +777,10 @@ body { font-family: Manrope, sans-serif; }
                     <div class="bg-yellow-50 border border-yellow-300 rounded-lg p-3 mb-4">
                         <div class="flex items-start gap-2">
                             <i class="fas fa-globe text-yellow-600 mt-0.5"></i>
-                            <p class="text-xs text-yellow-800 font-medium">These listings display on <strong>mallan.nyc only</strong>. Not distributed to REBNY RLS/IDX feeds.</p>
+                            <p class="text-xs text-yellow-800 font-medium">These listings display on <strong>mallan.nyc only</strong>. Not syndicated to any Cotality channel.</p>
                         </div>
                     </div>
-                    <p class="text-xs font-bold text-gray-600 uppercase tracking-wide mb-2">Non-RLS Commercial Types</p>
+                    <p class="text-xs font-bold text-gray-600 uppercase tracking-wide mb-2">Website-only Commercial Types</p>
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                         <div class="bg-white border rounded-lg p-3">
                             <p class="text-xs font-bold text-blue-700 mb-2 uppercase"><i class="fas fa-briefcase mr-1"></i> Professional Office</p>
@@ -827,7 +843,7 @@ body { font-family: Manrope, sans-serif; }
                         </div>
                     </div>
                     <!-- Business Types -->
-                    <p class="text-xs font-bold text-gray-600 uppercase tracking-wide mb-2">Business Types <span class="text-gray-400 font-normal normal-case">(Trestle: BusinessType)</span></p>
+                    <p class="text-xs font-bold text-gray-600 uppercase tracking-wide mb-2">Business Types <span class="text-gray-400 font-normal normal-case">(Cotality: BusinessType)</span></p>
                     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
                         <div class="bg-white border rounded-lg p-3">
                             <p class="text-xs font-bold text-red-700 mb-2 uppercase"><i class="fas fa-heartbeat mr-1"></i> Healthcare</p>
@@ -939,8 +955,8 @@ body { font-family: Manrope, sans-serif; }
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-4">
                 <div id="rentalBoardApprovalField" class="flex items-center gap-3">
                     <span class="text-[13px] font-semibold text-gray-600 whitespace-nowrap">Board Approval</span>
-                    <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalBoardApproval" value="Yes" class="w-4 h-4" data-mallan-ignore="true" data-mallan-field="BoardApproval"> Y</label>
-                    <label class="flex items-center gap-1 text-sm"><input data-mallan-ignore="true" data-mallan-field="BoardApproval" type="radio" name="rentalBoardApproval" value="No" class="w-4 h-4"> N</label>
+                    <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalBoardApproval" value="Yes" class="w-4 h-4" data-mallan-ignore="true" data-mallan-field="_mallanBoardApproval"> Y</label>
+                    <label class="flex items-center gap-1 text-sm"><input data-mallan-ignore="true" data-mallan-field="_mallanBoardApproval" type="radio" name="rentalBoardApproval" value="No" class="w-4 h-4"> N</label>
                 </div>
                 <div id="rentalBoardInterviewField" class="flex items-center gap-3">
                     <span class="text-[13px] font-semibold text-gray-600 whitespace-nowrap">Board Interview</span>
@@ -974,7 +990,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div id="rentalSubleaseAllowedField" class="flex items-center gap-3">
                     <span class="text-[13px] font-semibold text-gray-600 whitespace-nowrap">Sublease Allowed</span>
-                    <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalSubleaseAllowed" value="Yes" class="w-4 h-4" data-mallan-ignore="true" data-removed-field="RentingAllowedYN"> Y</label>
+                    <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalSubleaseAllowed" value="Yes" class="w-4 h-4" data-mallan-ignore="true" data-unresolved-cotality-field="RentingAllowedYN"> Y</label>
                     <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalSubleaseAllowed" value="No" class="w-4 h-4"> N</label>
                 </div>
             </div>
@@ -987,7 +1003,7 @@ body { font-family: Manrope, sans-serif; }
                 <div>
                     <label class="field-label mb-2">Guarantors Allowed</label>
                     <div class="flex gap-4">
-                        <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalGuarantors" value="Yes" class="w-4 h-4" data-cotality-field="GuarantorsAcceptedYN"> Yes</label>
+                        <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalGuarantors" value="Yes" class="w-4 h-4" data-mallan-ignore="true" data-unresolved-cotality-field="GuarantorsAcceptedYN"> Yes</label>
                         <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalGuarantors" value="No" class="w-4 h-4"> No</label>
                     </div>
                 </div>
@@ -1000,7 +1016,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div>
                     <label class="field-label mb-2">Unit Pet Policy <span class="text-red-500">*</span></label>
-                    <p class="text-[10px] text-gray-500 mb-2">RLS Field: PetsAllowed — Unit-level policy. Locked if building says "No Pets".</p>
+                    <p class="text-[10px] text-gray-500 mb-2">Cotality: PetsAllowed — Unit-level policy. Locked if building says "No Pets".</p>
                     <div class="grid grid-cols-2 gap-2" id="rentalPetsAllowedGroup">
                         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="Yes" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)" data-cotality-field="PetsAllowed"> Yes</label>
                         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalPetsAllowed" value="CatsOk" class="w-4 h-4 rental-unit-pets-cb" onchange="handleRentalUnitPetsChange(this)"> Cats OK</label>
@@ -1012,7 +1028,7 @@ body { font-family: Manrope, sans-serif; }
                     </div>
                     <div class="mt-2" data-p2-block="rental-pets-comments">
                         <label class="field-label">Pet Restriction Comments</label>
-                        <textarea id="rentalPetsAllowedComments" rows="2" placeholder="Required when a size, number or breed restriction is selected" class="field-input" data-cotality-field="PetsAllowedComments"></textarea>
+                        <textarea id="rentalPetsAllowedComments" rows="2" placeholder="Required when a size, number or breed restriction is selected" class="field-input" data-cotality-field="PetsComments"></textarea>
                     </div>
                     <div id="rentalPetsAllowedLocked" class="hidden mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
                         <i class="fas fa-lock mr-1"></i> Locked to "No Pets" — Building pet policy is "No Pets" (BuildingNo).
@@ -1021,7 +1037,7 @@ body { font-family: Manrope, sans-serif; }
                 <div>
                     <label class="field-label mb-2">Smoking Allowed</label>
                     <div class="flex gap-4">
-                        <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalSmoking" value="Yes" class="w-4 h-4" data-cotality-field="BuildingSmokeFreeYN"> Yes</label>
+                        <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalSmoking" value="Yes" class="w-4 h-4" data-mallan-ignore="true" data-unresolved-cotality-field="BuildingSmokeFreeYN"> Yes</label>
                         <label class="flex items-center gap-1 text-sm"><input type="radio" name="rentalSmoking" value="No" class="w-4 h-4"> No</label>
                     </div>
                 </div>
@@ -1067,7 +1083,7 @@ body { font-family: Manrope, sans-serif; }
                         <input type="date" id="rentalExclusiveExpires" class="field-input" data-cotality-field="ExpirationDate">
                         <i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
                     </div>
-                    <p class="text-[10px] text-gray-400">RLS: ExpirationDate — Confidential. Max 10 years from today.</p>
+                    <p class="text-[10px] text-gray-400">Cotality: ExpirationDate — Confidential. Max 10 years from today.</p>
                 </div>
                 <div>
                     <label class="field-label">First Date To CoBroke</label>
@@ -1079,7 +1095,7 @@ body { font-family: Manrope, sans-serif; }
                 <div>
                     <label class="field-label">First Showing Date</label>
                     <div class="relative"><input type="datetime-local" id="rentalFirstShowingDate" class="field-input" data-cotality-field="ActivationDate"><i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i></div>
-                    <p class="text-[10px] text-gray-400">RLS: FirstShowingDate — Date/time of first allowed showing.</p>
+                    <p class="text-[10px] text-gray-400">Mallan: FirstShowingDate — Date/time of first allowed showing.</p>
                 </div>
                 <div id="rentalOffMarketDateField" style="display:none;">
                     <label class="field-label">Off Market Date</label>
@@ -1091,27 +1107,27 @@ body { font-family: Manrope, sans-serif; }
                 <div id="rentalRentedDateField" style="display:none;">
                     <label class="field-label">Rented Date <span class="text-red-500">*</span></label>
                     <div class="relative">
-                        <input type="date" id="rentalRentedDate" class="field-input" data-mallan-ignore="true">
+                        <input type="date" id="rentalRentedDate" class="field-input" data-cotality-field="CloseDate">
                         <i class="fas fa-calendar absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- FARE Act Fee Fields (RLS/Trestle — LIVE March 2026) -->
+        <!-- FARE Act Fee Fields (NYC LL 119/2024) -->
         <div class="form-card border-l-4 border-l-blue-500" id="rentalFareActFieldsSection">
             <div class="form-card-header"><i class="fas fa-receipt"></i> Fee Disclosure <span class="text-xs font-normal text-purple-600 ml-2 normal-case">(FARE Act — NYC LL 119/2024)</span></div>
-            <p class="text-xs text-gray-500 mb-3">Required: All fees must be disclosed before showing. These fields are submitted to REBNY RLS via Trestle.</p>
+            <p class="text-xs text-gray-500 mb-3">Required: All fees must be disclosed before showing. These fees must be disclosed before showing (NYC FARE Act, LL 119/2024).</p>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div>
                     <label class="field-label">Move-In Costs</label>
                     <input type="text" id="rentalMoveInCosts" placeholder="e.g., Application Fee, Move-In Fee, Credit Check" class="field-input" data-cotality-field="MoveInCosts">
-                    <p class="text-[10px] text-gray-400 mt-1">RLS: MoveInCosts — comma-separated list of move-in cost types</p>
+                    <p class="text-[10px] text-gray-400 mt-1">Cotality: MoveInCosts — comma-separated list of move-in cost types</p>
                 </div>
                 <div>
                     <label class="field-label">Move-In Cost Amount ($)</label>
                     <input type="number" id="rentalMoveInCostsAmount" placeholder="$0.00" step="0.01" class="field-input" data-cotality-field="MoveInCostsAmount">
-                    <p class="text-[10px] text-gray-400 mt-1">RLS: MoveInCostsAmount — dollar amount</p>
+                    <p class="text-[10px] text-gray-400 mt-1">Cotality: MoveInCostsAmount — dollar amount</p>
                 </div>
             </div>
             <div class="mb-4">
@@ -1122,11 +1138,11 @@ body { font-family: Manrope, sans-serif; }
                 <div>
                     <label class="field-label">Ongoing Fees</label>
                     <input type="text" id="rentalOngoingFees" placeholder="e.g., Storage, Parking, Gym, Pet" class="field-input" data-cotality-field="OngoingFees">
-                    <p class="text-[10px] text-gray-400 mt-1">RLS: OngoingFees — recurring fees beyond rent</p>
+                    <p class="text-[10px] text-gray-400 mt-1">Cotality: OngoingFees — recurring fees beyond rent</p>
                 </div>
                 <div>
                     <label class="field-label">Fee Frequency</label>
-                    <select id="rentalFeeFrequency" class="field-input" data-cotality-field="AdditionalFeeFrequency">
+                    <select id="rentalFeeFrequency" class="field-input" data-mallan-ignore="true" data-mallan-field="_mallanOngoingFeesFrequency">
                         <option value="">Select</option>
                         <option value="Monthly">Monthly</option>
                         <option value="BiMonthly">Bi-Monthly</option>
@@ -1140,25 +1156,25 @@ body { font-family: Manrope, sans-serif; }
                         <option value="Seasonal">Seasonal</option>
                         <option value="OneTime">One Time</option>
                     </select>
-                    <p class="text-[10px] text-gray-400 mt-1">RLS: FeeFrequency — how often ongoing fees are charged</p>
+                    <p class="text-[10px] text-gray-400 mt-1">Mallan: _mallanOngoingFeesFrequency — cadence of the ongoing fees above (no Cotality scalar exists for it)</p>
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div>
                     <label class="field-label">Tenant Pays</label>
                     <input type="text" id="rentalTenantPays" placeholder="e.g., Electric, Gas, Water, Cable, Internet" class="field-input" data-cotality-field="TenantPays">
-                    <p class="text-[10px] text-gray-400 mt-1">RLS: TenantPays — utilities/services paid by tenant</p>
+                    <p class="text-[10px] text-gray-400 mt-1">Cotality: TenantPays — utilities/services paid by tenant</p>
                 </div>
                 <div>
                     <label class="field-label">Tenant Pays Description</label>
                     <input type="text" id="rentalTenantPaysDescription" placeholder="Additional details about what tenant pays..." class="field-input" data-cotality-field="TenantPaysDescription">
-                    <p class="text-[10px] text-gray-400 mt-1">RLS: TenantPaysDescription</p>
+                    <p class="text-[10px] text-gray-400 mt-1">Cotality: TenantPaysDescription</p>
                 </div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                     <label class="field-label">Additional Fees?</label>
-                    <select id="rentalAdditionalFeeYN" class="field-input" data-cotality-field="AdditionalFeeYN">
+                    <select id="rentalAdditionalFeeYN" class="field-input" data-cotality-field="AdditionalFeeYN" data-cotality-resource="CustomProperty">
                         <option value="">Select</option>
                         <option value="true">Yes</option>
                         <option value="false">No</option>
@@ -1166,11 +1182,11 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div>
                     <label class="field-label">Additional Fee Amount ($)</label>
-                    <input type="number" id="rentalAdditionalFee" placeholder="$0.00" step="0.01" class="field-input" data-cotality-field="AdditionalFee">
+                    <input type="number" id="rentalAdditionalFee" placeholder="$0.00" step="0.01" class="field-input" data-cotality-field="AdditionalFee" data-cotality-resource="CustomProperty">
                 </div>
                 <div>
                     <label class="field-label">Additional Fee Frequency</label>
-                    <select id="rentalAdditionalFeeFrequency" class="field-input" data-cotality-field="AdditionalFeeFrequency">
+                    <select id="rentalAdditionalFeeFrequency" class="field-input" data-cotality-field="AdditionalFeeFrequency" data-cotality-resource="CustomProperty">
                         <option value="">Select</option>
                         <option value="Monthly">Monthly</option>
                         <option value="BiMonthly">Bi-Monthly</option>
@@ -1184,11 +1200,11 @@ body { font-family: Manrope, sans-serif; }
                         <option value="Seasonal">Seasonal</option>
                         <option value="OneTime">One Time</option>
                     </select>
-                    <p class="text-[10px] text-gray-400 mt-1">RLS: AdditionalFeeFrequency</p>
+                    <p class="text-[10px] text-gray-400 mt-1">Cotality (CustomProperty): AdditionalFeeFrequency</p>
                 </div>
                 <div>
                     <label class="field-label">Additional Fee Description</label>
-                    <input type="text" id="rentalAdditionalFeeDescription" placeholder="Describe additional fee..." class="field-input" data-cotality-field="AdditionalFeeDescription">
+                    <input type="text" id="rentalAdditionalFeeDescription" placeholder="Describe additional fee..." class="field-input" data-cotality-field="AdditionalFeeDescription" data-cotality-resource="CustomProperty">
                 </div>
             </div>
         </div>
@@ -1232,7 +1248,7 @@ body { font-family: Manrope, sans-serif; }
             <div class="form-card-header"><i class="fas fa-percentage"></i> Concessions</div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                 <div>
-                    <label class="field-label">Concessions <span class="text-xs text-gray-400">(RLS/RESO/IDX)</span></label>
+                    <label class="field-label">Concessions <span class="text-xs text-gray-400">(Cotality)</span></label>
                     <select id="rentalConcessions" class="field-input" data-cotality-field="Concessions">
                         <option value="">Select</option>
                         <option value="Yes">Yes</option>
@@ -1295,7 +1311,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div>
                     <label class="field-label">Max Lease (Months)</label>
-                    <input type="number" id="rentalMaxLease" placeholder="24" class="field-input" data-cotality-field="MaxLeaseMonths">
+                    <input type="number" id="rentalMaxLease" placeholder="24" class="field-input" data-mallan-ignore="true" data-unresolved-cotality-field="MaxLeaseMonths">
                 </div>
                 <div>
                     <label class="field-label mb-2">Lease Renewal Option</label>
@@ -1395,7 +1411,7 @@ body { font-family: Manrope, sans-serif; }
                     <li>InternetConsumerCommentYN → False (no comments)</li>
                     <li>IDX, VOW, syndication, and auto-alerts — all disabled</li>
                 </ul>
-                <p class="text-xs text-red-600 mt-2">The listing will only be visible to RLS Authorized Participants.</p>
+                <p class="text-xs text-red-600 mt-2">The listing will only be visible to authorized participants.</p>
             </div>
         </div>
 
@@ -1407,21 +1423,21 @@ body { font-family: Manrope, sans-serif; }
                         <input type="checkbox" name="rentalInternetEntireListingDisplayYN" id="rentalInternetEntireListingDisplayYN" class="w-4 h-4" checked data-cotality-field="InternetEntireListingDisplayYN">
                         <span class="text-sm font-semibold text-gray-700">Display Entire Listing</span>
                     </label>
-                    <p class="text-[10px] text-gray-500">RLS/RESO/IDX: InternetEntireListingDisplayYN</p>
+                    <p class="text-[10px] text-gray-500">Cotality: InternetEntireListingDisplayYN</p>
                 </div>
                 <div class="border rounded-lg p-4">
                     <label class="flex items-center gap-2 cursor-pointer mb-2">
                         <input type="checkbox" name="rentalInternetAddressDisplayYN" id="rentalInternetAddressDisplayYN" class="w-4 h-4" checked data-cotality-field="InternetAddressDisplayYN">
                         <span class="text-sm font-semibold text-gray-700">Display Address</span>
                     </label>
-                    <p class="text-[10px] text-gray-500">RLS/RESO/IDX: InternetAddressDisplayYN</p>
+                    <p class="text-[10px] text-gray-500">Cotality: InternetAddressDisplayYN</p>
                 </div>
                 <div class="border rounded-lg p-4">
                     <label class="flex items-center gap-2 cursor-pointer mb-2">
                         <input type="checkbox" id="rentalInternetConsumerCommentYN" class="w-4 h-4" data-cotality-field="InternetConsumerCommentYN">
                         <span class="text-sm font-semibold text-gray-700">Allow Consumer Comments</span>
                     </label>
-                    <p class="text-[10px] text-gray-500">RLS/RESO/IDX: InternetConsumerCommentYN (VOW only)</p>
+                    <p class="text-[10px] text-gray-500">Cotality: InternetConsumerCommentYN (VOW only)</p>
                 </div>
             </div>
         </div>
@@ -1485,7 +1501,7 @@ body { font-family: Manrope, sans-serif; }
     <div id="rentalSubTabContent1_3" class="rental-sub-tab" style="display:none;">
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-info-circle"></i> REBNY Notice</div>
-            <p class="text-xs text-blue-800 bg-blue-50 border border-blue-200 rounded-lg p-3">Agent and company information is pulled from the REBNY RLS database. Search by company name or agent name to auto-populate contact details.</p>
+            <p class="text-xs text-blue-800 bg-blue-50 border border-blue-200 rounded-lg p-3">Agent and company information is pulled from Cotality (Member / Office). Search by company name or agent name to auto-populate contact details.</p>
         </div>
 
         <!-- Listing Agent -->
@@ -1556,8 +1572,8 @@ body { font-family: Manrope, sans-serif; }
                 </div>
             </div>
             <div class="mt-3 flex items-center gap-3">
-                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalBuyerAgentRLSParticipantYN" class="w-4 h-4" data-mallan-ignore="true" data-removed-field="BuyerAgentRLSParticipantYN"> Tenant's Agent is RLS Participant</label>
-                <span class="text-xs text-gray-500">(RLS/RESO/IDX: BuyerAgentRLSParticipantYN)</span>
+                <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalTenantBrokerParticipantYN" class="w-4 h-4" data-mallan-ignore="true" data-mallan-field="_mallanTenantBrokerParticipantYN"> Tenant's broker is a UCBA participant</label>
+                <span class="text-xs text-gray-500">(Mallan: _mallanTenantBrokerParticipantYN)</span>
             </div>
         </div>
 
@@ -1581,18 +1597,18 @@ body { font-family: Manrope, sans-serif; }
             </div>
         </div>
 
-        <!-- Team Information (RLS/RESO/IDX: ListTeamName, ListTeamMlsId) -->
+        <!-- Team Information (Cotality: ListTeamName, ListTeamMlsId) -->
         <div class="form-card">
             <div class="form-card-header"><i class="fas fa-people-group"></i> Team Information</div>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                    <!-- RLS/RESO/IDX: ListTeamName (Optional — PUB distribution) -->
-                    <label class="field-label">Listing Team Name <span class="text-xs text-gray-400">(RLS/RESO/IDX: ListTeamName)</span></label>
+                    <!-- Cotality: ListTeamName (Optional — PUB distribution) -->
+                    <label class="field-label">Listing Team Name <span class="text-xs text-gray-400">(Cotality: ListTeamName)</span></label>
                     <input type="text" id="rentalListTeamName" placeholder="e.g., The Allan Team" class="field-input" data-cotality-field="ListTeamName">
                 </div>
                 <div>
-                    <!-- RLS/RESO/IDX: ListTeamMlsId (Optional — PUB distribution) -->
-                    <label class="field-label">Listing Team MLS ID <span class="text-xs text-gray-400">(RLS/RESO/IDX: ListTeamMlsId)</span></label>
+                    <!-- Cotality: ListTeamMlsId (Optional — PUB distribution) -->
+                    <label class="field-label">Listing Team MLS ID <span class="text-xs text-gray-400">(Cotality: ListTeamMlsId)</span></label>
                     <input type="text" id="rentalListTeamMlsId" placeholder="Team MLS ID" class="field-input" data-cotality-field="ListTeamKey">
                 </div>
             </div>
@@ -1650,7 +1666,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
             </div>
             <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p class="text-xs text-blue-800"><i class="fas fa-info-circle mr-2"></i> Open house information will be syndicated to REBNY RLS and partner sites.</p>
+                <p class="text-xs text-blue-800"><i class="fas fa-info-circle mr-2"></i> Open house information will be syndicated to Cotality and partner sites.</p>
             </div>
         </div>
 
@@ -1879,15 +1895,15 @@ body { font-family: Manrope, sans-serif; }
     <div id="rentalFurnishedDetails" class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3" style="display:none;">
         <div>
             <label class="field-label">Furnished Monthly Rent</label>
-            <input type="number" id="rentalFurnishedRent" placeholder="$0" class="field-input" data-cotality-field="FurnishedListPrice">
+            <input type="number" id="rentalFurnishedRent" placeholder="$0" class="field-input" data-mallan-ignore="true" data-unresolved-cotality-field="FurnishedListPrice">
         </div>
         <div>
             <label class="field-label">Min Furnished Term (months)</label>
-            <input type="number" id="rentalFurnishedMinMonths" placeholder="1" min="1" class="field-input" data-cotality-field="FurnishedMinLeaseMonths">
+            <input type="number" id="rentalFurnishedMinMonths" placeholder="1" min="1" class="field-input" data-mallan-ignore="true" data-unresolved-cotality-field="FurnishedMinLeaseMonths">
         </div>
         <div>
             <label class="field-label">Max Furnished Term (months)</label>
-            <input type="number" id="rentalFurnishedMaxMonths" placeholder="12" min="1" class="field-input" data-cotality-field="FurnishedMaxLeaseMonths">
+            <input type="number" id="rentalFurnishedMaxMonths" placeholder="12" min="1" class="field-input" data-mallan-ignore="true" data-unresolved-cotality-field="FurnishedMaxLeaseMonths">
         </div>
     </div>
 </div>
@@ -2054,14 +2070,14 @@ body { font-family: Manrope, sans-serif; }
     </div>
 </div>
 
-<!-- Heating — RLS/RESO/IDX: HeatingYN + Heating multi-select -->
+<!-- Heating — Cotality: HeatingYN + Heating multi-select -->
 <div class="form-card">
     <div class="form-card-header"><i class="fas fa-fire"></i> Heating</div>
     <div class="flex gap-4 mb-3">
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalHeatingYN" value="Yes" class="w-4 h-4" data-cotality-field="HeatingYN"> Yes</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalHeatingYN" value="No" class="w-4 h-4"> No</label>
     </div>
-    <p class="text-xs text-gray-500 mb-2">Heating Type (RESO multi-select)</p>
+    <p class="text-xs text-gray-500 mb-2">Heating Type (Cotality multi-select)</p>
     <div id="rentalHeatingTypes" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1">
         <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="rentalHeating" value="Steam" class="w-3 h-3" data-cotality-field="Heating"> Steam</label>
         <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="rentalHeating" value="HotWater" class="w-3 h-3"> Hot Water</label>
@@ -2109,14 +2125,14 @@ body { font-family: Manrope, sans-serif; }
     </div>
 </div>
 
-<!-- Cooling — RLS/RESO/IDX: CoolingYN + Cooling multi-select -->
+<!-- Cooling — Cotality: CoolingYN + Cooling multi-select -->
 <div class="form-card">
     <div class="form-card-header"><i class="fas fa-snowflake"></i> Cooling</div>
     <div class="flex gap-4 mb-3">
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalCoolingYN" value="Yes" class="w-4 h-4" data-cotality-field="CoolingYN"> Yes</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="radio" name="rentalCoolingYN" value="No" class="w-4 h-4"> No</label>
     </div>
-    <p class="text-xs text-gray-500 mb-2">Cooling Type (RESO multi-select)</p>
+    <p class="text-xs text-gray-500 mb-2">Cooling Type (Cotality multi-select)</p>
     <div id="rentalCoolingTypes" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1">
         <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="rentalCooling" value="CentralAir" class="w-3 h-3" data-cotality-field="Cooling"> Central Air</label>
         <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="rentalCooling" value="Ductless" class="w-3 h-3"> Ductless</label>
@@ -2152,7 +2168,7 @@ body { font-family: Manrope, sans-serif; }
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
         <div>
             <p class="field-label mb-2">Pets Policy</p>
-            <p class="text-xs text-gray-500">Unit-level pet policy is set in Tab 1 → Unit Info using RLS field <code>PetsAllowed</code>. Building-level pet policy is set in the Building modal using RLS field <code>BuildingPetsAllowed</code>.</p>
+            <p class="text-xs text-gray-500">Unit-level pet policy is set in Tab 1 → Unit Info using Cotality field <code>PetsAllowed</code>. Building-level pet policy is set in the Building modal using Mallan field <code>BuildingPetsAllowed</code>.</p>
         </div>
         <div>
             <p class="field-label mb-2">Guarantors</p>
@@ -2217,7 +2233,7 @@ body { font-family: Manrope, sans-serif; }
         </div>
         <div>
             <label class="field-label">Commercial Units?</label>
-            <select id="rentalTHCommercialYN" class="field-input" data-cotality-field="CommercialUnitsYN"><option value="">Select</option><option value="Yes">Yes</option><option value="No">No</option></select>
+            <select id="rentalTHCommercialYN" class="field-input" data-mallan-ignore="true" data-unresolved-cotality-field="CommercialUnitsYN"><option value="">Select</option><option value="Yes">Yes</option><option value="No">No</option></select>
         </div>
         <div>
             <label class="field-label">Development Status</label>
@@ -2262,7 +2278,7 @@ body { font-family: Manrope, sans-serif; }
         </div>
         <div>
             <label class="field-label">Landmark Status</label>
-            <select id="rentalTHLandmark" class="field-input" data-cotality-field="LandmarkStatusYN"><option value="">Select</option><option value="Yes">Yes</option><option value="No">No</option></select>
+            <select id="rentalTHLandmark" class="field-input" data-mallan-ignore="true" data-unresolved-cotality-field="LandmarkStatusYN"><option value="">Select</option><option value="Yes">Yes</option><option value="No">No</option></select>
         </div>
         <div>
             <label class="field-label">Lot Features</label>
@@ -2413,7 +2429,7 @@ body { font-family: Manrope, sans-serif; }
     </div>
 </div>
 
-<!-- RLS/RESO/IDX: DocumentsAvailable — building docs available upon request -->
+<!-- Cotality: DocumentsAvailable — building docs available upon request -->
 <div class="form-card">
     <div class="form-card-header"><i class="fas fa-folder-open"></i> Documents Available (Upon Request)</div>
     <p class="text-xs text-gray-500 mb-3">Select which building/property documents are available for prospective tenants or their representatives.</p>
@@ -2425,7 +2441,7 @@ body { font-family: Manrope, sans-serif; }
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input data-mallan-ignore="true" data-mallan-field="DocumentsAvailable" type="checkbox" name="rentalTHDocsAvailable" value="ResaleBoardPackageTemplate" class="w-4 h-4"> Board Package Template</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input data-mallan-ignore="true" data-mallan-field="DocumentsAvailable" type="checkbox" name="rentalTHDocsAvailable" value="ScheduleA" class="w-4 h-4"> Schedule A</label>
     </div>
-    <p class="text-[10px] text-gray-400 mt-2">RLS/RESO/IDX: DocumentsAvailable (multi-select)</p>
+    <p class="text-[10px] text-gray-400 mt-2">Cotality: DocumentsAvailable (multi-select)</p>
 </div>
 
 <div class="flex justify-between pt-2">
@@ -2594,12 +2610,12 @@ body { font-family: Manrope, sans-serif; }
 <!-- TAB 4: LISTING DISTRIBUTION -->
 <div id="rentalMainTab4" class="rental-main-tab" style="display:none;">
 
-<!-- WWW-Only Warning (shown for non-RLS commercial types) -->
+<!-- WWW-Only Warning (shown for website-only commercial types) -->
 <div id="rentalWWWOnlyWarning" class="warning-banner bg-yellow-50 border border-yellow-300 mb-4" style="display:none;">
     <i class="fas fa-exclamation-triangle text-yellow-600 mt-0.5"></i>
     <div>
-        <p class="text-sm font-semibold text-yellow-800">Non-RLS Commercial Listing</p>
-        <p class="text-xs text-yellow-700 mt-1">This listing type is not eligible for REBNY RLS distribution. It will only appear on <strong>mallan.nyc (WWW)</strong>.</p>
+        <p class="text-sm font-semibold text-yellow-800">Website-only Commercial Listing</p>
+        <p class="text-xs text-yellow-700 mt-1">This listing type is not eligible for Cotality syndication. It will only appear on <strong>mallan.nyc (WWW)</strong>.</p>
     </div>
 </div>
 
@@ -2608,8 +2624,8 @@ body { font-family: Manrope, sans-serif; }
     <div class="flex items-start gap-2">
         <i class="fas fa-info-circle text-blue-600 mt-0.5"></i>
         <div>
-            <p class="text-sm font-semibold text-blue-800">Mixed-Use: Full RLS Rules Apply</p>
-            <p class="text-xs text-blue-700 mt-1">Per UCBA Art. I, Sec. 5(F), professional/retail units within residential properties of <strong>5 units or fewer</strong> are subject to all REBNY RLS rules, including mandatory fields, distribution gates, and compliance validation.</p>
+            <p class="text-sm font-semibold text-blue-800">Mixed-Use: UCBA compliance requirements apply</p>
+            <p class="text-xs text-blue-700 mt-1">Per UCBA Art. I, Sec. 5(F), professional/retail units within residential properties of <strong>5 units or fewer</strong> are subject to all UCBA compliance requirements, including mandatory fields, distribution gates, and compliance validation.</p>
         </div>
     </div>
 </div>
@@ -2617,7 +2633,7 @@ body { font-family: Manrope, sans-serif; }
 <!-- Landlord Authorization Notice -->
 <div class="warning-banner bg-amber-50 border border-amber-200 mb-4">
     <i class="fas fa-exclamation-triangle text-amber-500 mt-0.5"></i>
-    <p class="text-xs text-gray-700"><strong>Landlord Authorization Required:</strong> Per REBNY RLS rules, changes to syndication settings must be authorized by the listing principal (landlord) in writing.</p>
+    <p class="text-xs text-gray-700"><strong>Landlord Authorization Required:</strong> Per UCBA, changes to syndication settings must be authorized by the listing principal (landlord) in writing.</p>
 </div>
 
 <div class="form-card">
@@ -2644,10 +2660,10 @@ body { font-family: Manrope, sans-serif; }
                 </label>
                 <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-200 text-gray-500"><i class="fas fa-lock text-[10px] mr-1"></i>Not Activated</span>
             </div>
-            <p class="text-xs text-gray-400">RLS: InternetEntireListingDisplayYN (controls VOW + IDX + Web)</p>
+            <p class="text-xs text-gray-400">Cotality: InternetEntireListingDisplayYN (controls VOW + IDX + Web)</p>
             <p class="text-xs text-amber-600 mt-1"><i class="fas fa-info-circle mr-1"></i>VOW feed not yet activated. When active, unchecking removes listing from all internet display.</p>
         </div>
-        <!-- RLS: SyndicateYN — defaults to TRUE (syndicate by default per RLS rules) -->
+        <!-- Mallan: SyndicateYN — defaults to TRUE (syndicate by default) -->
         <div class="border rounded-lg p-4">
             <div class="flex items-center justify-between mb-2">
                 <label class="flex items-center gap-2 cursor-pointer">
@@ -2674,11 +2690,8 @@ body { font-family: Manrope, sans-serif; }
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDist_IDX" class="w-4 h-4" checked data-cotality-field="InternetEntireListingDisplayYN"> IDX</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDist_VOW" class="w-4 h-4" checked data-cotality-field="InternetEntireListingDisplayYN"> VOW</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDist_Listhub" class="w-4 h-4" checked data-cotality-field="SyndicateTo"> Listhub</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDist_NYMLS" class="w-4 h-4" checked data-cotality-field="SyndicateTo"> NY MLS</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDist_Realtor" class="w-4 h-4" checked data-cotality-field="SyndicateTo"> Realtor</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDist_RPX" class="w-4 h-4" data-cotality-field="SyndicateTo"> RPeXchange</label>
         <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDist_WWW" class="w-4 h-4" data-cotality-field="InternetEntireListingDisplayYN"> Web (WWW)</label>
-        <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="rentalDist_RLS" class="w-4 h-4" data-cotality-field="SyndicateTo"> RLS Participants</label>
     </div>
 </div>
 
@@ -2828,7 +2841,7 @@ body { font-family: Manrope, sans-serif; }
                 </div>
                 <div class="text-right text-xs text-gray-400">
                     <p>Listing ID: <span id="previewListingId">New</span></p>
-                    <p>Source: REBNY RLS</p>
+                    <p>Source: Cotality</p>
                 </div>
             </div>
         </div>
@@ -2923,7 +2936,7 @@ body { font-family: Manrope, sans-serif; }
             </div>
             <!-- Listing Disclaimer -->
             <div class="mt-6 pt-4 border-t">
-                <p class="text-[9px] text-gray-400 leading-relaxed">Information is deemed reliable but not guaranteed. No warranty or representation is made as to the accuracy, completeness, or reliability of any listing information, including descriptions, measurements, square footage, pricing, availability, or property condition. All information should be independently verified. Mallan Real Estate Inc., its subsidiaries, affiliates, agents, and associated third parties disclaim any liability arising from reliance on this information. Photos may be virtually staged and/or digitally enhanced and may not reflect actual conditions. Offers of compensation are subject to change at the seller's discretion and are made to other RLS Participants only. No financial, legal, or tax advice is provided. Equal Housing Opportunity.</p>
+                <p class="text-[9px] text-gray-400 leading-relaxed">Information is deemed reliable but not guaranteed. No warranty or representation is made as to the accuracy, completeness, or reliability of any listing information, including descriptions, measurements, square footage, pricing, availability, or property condition. All information should be independently verified. Mallan Real Estate Inc., its subsidiaries, affiliates, agents, and associated third parties disclaim any liability arising from reliance on this information. Photos may be virtually staged and/or digitally enhanced and may not reflect actual conditions. Offers of compensation are subject to change at the seller's discretion and are made to other authorized participants only. No financial, legal, or tax advice is provided. Equal Housing Opportunity.</p>
                 <p class="text-[9px] text-gray-400 leading-relaxed mt-1.5">This information is not verified for authenticity or accuracy and is not guaranteed and may not reflect all real estate activity in the market. &copy;2026 The Real Estate Board of New York, Inc., All rights reserved.</p>
             </div>
         </div>
@@ -2973,8 +2986,8 @@ body { font-family: Manrope, sans-serif; }
     <div class="bg-red-50 border border-red-300 rounded-xl p-3 mb-3 flex items-center gap-3">
         <i class="fas fa-lock text-red-500 text-lg flex-shrink-0"></i>
         <div>
-            <p class="text-xs font-bold text-red-800">INTERNAL ONLY — NOT DISTRIBUTED TO RLS / IDX / SYNDICATION</p>
-            <p class="text-[10px] text-red-600">This tab contains confidential commission data. It is never submitted to REBNY RLS, IDX feeds, or any third-party portal. Company use only.</p>
+            <p class="text-xs font-bold text-red-800">INTERNAL ONLY — NOT DISTRIBUTED TO COTALITY / IDX / SYNDICATION</p>
+            <p class="text-[10px] text-red-600">This tab contains confidential commission data. It is never syndicated to Cotality, IDX feeds, or any third-party portal. Company use only.</p>
         </div>
     </div>
 
@@ -2994,8 +3007,8 @@ body { font-family: Manrope, sans-serif; }
         <div class="form-card-header"><i class="fas fa-building"></i> Property Information <span class="text-[10px] font-normal text-gray-400 ml-2">Auto-populated from listing</span></div>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-                <label class="field-label">RLS / Listing ID</label>
-                <input type="text" id="commRentalRlsId" class="field-input bg-gray-50" readonly data-mallan-ignore="true">
+                <label class="field-label">Cotality ListingId</label>
+                <input type="text" id="commRentalListingId" class="field-input bg-gray-50" readonly data-mallan-ignore="true">
             </div>
             <div class="sm:col-span-2">
                 <label class="field-label">Full Property Address</label>
@@ -3272,7 +3285,7 @@ body { font-family: Manrope, sans-serif; }
                 <p class="text-xs text-amber-600 mt-2"><i class="fas fa-star mr-1"></i> <strong>Primary Photo:</strong> First photo = hero image on StreetEasy, Zillow, Realtor.com, and all syndicated sites. Drag to reorder.</p>
                 <!-- Photo quality guidelines -->
                 <div class="mt-2 p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-[10px] text-blue-700 space-y-1">
-                    <div class="font-bold text-blue-800"><i class="fas fa-info-circle mr-1"></i> Photo Requirements (Trestle / REBNY RLS)</div>
+                    <div class="font-bold text-blue-800"><i class="fas fa-info-circle mr-1"></i> Photo Requirements</div>
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-0.5">
                         <span><strong>Min:</strong> 1024 x 768 px</span>
                         <span><strong>Rec:</strong> 2048 x 1365 px</span>
@@ -3283,7 +3296,7 @@ body { font-family: Manrope, sans-serif; }
                         <span><strong>Optimal:</strong> 22–27 photos</span>
                         <span><strong>Min rec:</strong> 10–15 photos</span>
                     </div>
-                    <div class="text-blue-600 mt-1">Each photo must be assigned a Room/Category (RESO ImageOf) and sort order. Photos under 1024x768 will be flagged for rejection.</div>
+                    <div class="text-blue-600 mt-1">Each photo must be assigned a Room/Category (Cotality ImageOf) and sort order. Photos under 1024x768 will be flagged for rejection.</div>
                 </div>
                 <div id="rentalPhotoPreview" class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4" style="cursor: grab;"></div>
             </div>
@@ -3295,12 +3308,12 @@ body { font-family: Manrope, sans-serif; }
                     <div>
                         <label class="field-label">Video URL</label>
                         <input type="url" id="rentalVideoUrl" placeholder="https://youtube.com/watch?v=..." class="field-input" data-cotality-field="VirtualTourURLBranded">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: VideoURL</p>
+                        <p class="text-[10px] text-gray-400 mt-1">Mallan: VideoURL</p>
                     </div>
                     <div>
                         <label class="field-label">Video Tour URL</label>
                         <input type="url" id="rentalVideoTourUrl" placeholder="https://vimeo.com/..." class="field-input" data-cotality-field="VirtualTourURLUnbranded">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: Video2URL</p>
+                        <p class="text-[10px] text-gray-400 mt-1">Mallan: Video2URL</p>
                     </div>
                 </div>
                 <p class="text-[10px] text-amber-600 mt-2"><i class="fas fa-ban mr-1"></i> No agent name, contact, or on-screen appearance in videos (UCBA Art. I Sec. 5(C))</p>
@@ -3317,29 +3330,29 @@ body { font-family: Manrope, sans-serif; }
                 </div>
             </div>
 
-            <!-- 3D Virtual Tours (RLS/RESO/IDX: VirtualTourURL) -->
+            <!-- 3D Virtual Tours (Mallan: VirtualTourURL) -->
             <div class="mb-8">
                 <h4 class="font-semibold text-gray-900 mb-3">3D Virtual Tours</h4>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="field-label">Branded Tour URL <span class="text-[10px] text-gray-400 font-normal">(with broker branding)</span></label>
                         <input type="url" id="rentalMatterportUrl" placeholder="https://my.matterport.com/show/?m=..." class="field-input" data-cotality-field="VirtualTourURLUnbranded2">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: VirtualTourURLBranded</p>
+                        <p class="text-[10px] text-gray-400 mt-1">Cotality: VirtualTourURLBranded</p>
                     </div>
                     <div>
                         <label class="field-label">Unbranded Tour URL <span class="text-[10px] text-gray-400 font-normal">(no watermark)</span></label>
                         <input type="url" id="rentalVirtualTourUnbranded" placeholder="https://my.matterport.com/show/?m=..." class="field-input" data-cotality-field="VirtualTourURLUnbranded">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: VirtualTourURLUnbranded</p>
+                        <p class="text-[10px] text-gray-400 mt-1">Cotality: VirtualTourURLUnbranded</p>
                     </div>
                     <div>
                         <label class="field-label">Unbranded Tour URL 2</label>
                         <input type="url" id="rentalVirtualTourUnbranded2" placeholder="https://..." class="field-input" data-cotality-field="VirtualTourURLUnbranded2">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: VirtualTourURLUnbranded2</p>
+                        <p class="text-[10px] text-gray-400 mt-1">Cotality: VirtualTourURLUnbranded2</p>
                     </div>
                     <div>
                         <label class="field-label">Unbranded Tour URL 3</label>
                         <input type="url" id="rentalVirtualTourUnbranded3" placeholder="https://..." class="field-input" data-cotality-field="VirtualTourURLUnbranded3">
-                        <p class="text-[10px] text-gray-400 mt-1">RLS/RESO/IDX: VirtualTourURLUnbranded3</p>
+                        <p class="text-[10px] text-gray-400 mt-1">Cotality: VirtualTourURLUnbranded3</p>
                     </div>
                 </div>
             </div>
@@ -3374,7 +3387,7 @@ body { font-family: Manrope, sans-serif; }
         <div class="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between z-10">
             <div>
                 <h3 class="text-lg font-semibold">Building Information</h3>
-                <p class="text-xs text-gray-500">Complete building details for REBNY RLS compliance</p>
+                <p class="text-xs text-gray-500">Complete building details for UCBA compliance</p>
             </div>
             <button onclick="closeRentalBuildingInfo()" class="text-gray-500 hover:text-gray-700" aria-label="Close"><i class="fas fa-times text-xl"></i></button>
         </div>
@@ -3393,7 +3406,7 @@ body { font-family: Manrope, sans-serif; }
                     <i class="fas fa-search mr-1"></i> Search
                 </button>
             </div>
-            <p class="text-xs text-amber-700 mt-2"><i class="fas fa-info-circle mr-1"></i> Building data from Trestle/REBNY RLS will auto-populate if available</p>
+            <p class="text-xs text-amber-700 mt-2"><i class="fas fa-info-circle mr-1"></i> Building data from Cotality will auto-populate if available</p>
             <div id="bldgSearchResults" class="mt-2 hidden"></div>
         </div>
 
@@ -3598,7 +3611,7 @@ body { font-family: Manrope, sans-serif; }
                             </div>
                             <div>
                                 <label class="field-label">Year Renovated</label>
-                                <input type="number" id="bldgYearRenovated" placeholder="2020" class="field-input" data-mallan-ignore="true" data-removed-field="YearRenovated">
+                                <input type="number" id="bldgYearRenovated" placeholder="2020" class="field-input" data-mallan-ignore="true" data-unresolved-cotality-field="YearRenovated">
                             </div>
                             <div>
                                 <label class="field-label">Architectural Style</label>
@@ -3659,7 +3672,7 @@ body { font-family: Manrope, sans-serif; }
                                     <option value="Condop">Condop</option>
                                     <option value="RentalBuilding">Rental Building</option>
                                 </select>
-                                <p class="text-[10px] text-gray-400 mt-1">RLS: OwnershipType</p>
+                                <p class="text-[10px] text-gray-400 mt-1">Cotality: OwnershipType</p>
                             </div>
                         </div>
                     </div>
@@ -3667,13 +3680,13 @@ body { font-family: Manrope, sans-serif; }
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-certificate"></i> Building Status</div>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgLandmark" class="w-4 h-4" data-cotality-field="LandmarkStatusYN"> Landmark Building</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgLandmark" class="w-4 h-4" data-mallan-ignore="true" data-unresolved-cotality-field="LandmarkStatusYN"> Landmark Building</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgHistoric" class="w-4 h-4" data-cotality-field="BuildingFeatures"> Historic District</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgLEED" class="w-4 h-4" data-cotality-field="BuildingFeatures"> LEED Certified</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgNewConstruction" class="w-4 h-4" data-cotality-field="NewConstructionYN"> New Construction</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgNewDevelopment" class="w-4 h-4" data-cotality-field="NewConstructionYN"> New Development</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgConversion" class="w-4 h-4" data-cotality-field="BuildingFeatures"> Conversion</label>
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgSponsorUnits" class="w-4 h-4" data-cotality-field="SponsorUnitYN"> Has Sponsor Units</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" id="bldgSponsorUnits" class="w-4 h-4" data-mallan-ignore="true" data-unresolved-cotality-field="SponsorUnitYN"> Has Sponsor Units</label>
                         </div>
                     </div>
 
@@ -3685,12 +3698,12 @@ body { font-family: Manrope, sans-serif; }
 
                 <!-- Sub-tab 1.3: Features -->
                 <div id="bldgSubTabContent1_3" class="bldg-sub-tab-content" style="display: none;">
-                    <!-- RLS: AttendanceType — REQUIRED, Multi-Select Picklist (16 values) -->
+                    <!-- Mallan: AttendanceType — REQUIRED, Multi-Select Picklist (16 values) -->
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-concierge-bell"></i> Building Attendance Type <span class="text-red-500">*</span></div>
-                        <p class="text-[10px] text-gray-500 mb-3">RLS Field: AttendanceType — Select all that apply. At least one required.</p>
+                        <p class="text-[10px] text-gray-500 mb-3">Mallan: AttendanceType — Select all that apply. At least one required.</p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-3" id="rentalAttendanceTypeGroup">
-                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="DoormanFullTime" class="w-4 h-4 rental-attendance-cb" onchange="handleRentalAttendanceChange(this)" data-cotality-field="AttendanceType"> Doorman (Full-Time)</label>
+                            <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="DoormanFullTime" class="w-4 h-4 rental-attendance-cb" onchange="handleRentalAttendanceChange(this)" data-mallan-ignore="true" data-unresolved-cotality-field="AttendanceType"> Doorman (Full-Time)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="DoormanPartTime" class="w-4 h-4 rental-attendance-cb" onchange="handleRentalAttendanceChange(this)"> Doorman (Part-Time)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="DoormanYes" class="w-4 h-4 rental-attendance-cb" onchange="handleRentalAttendanceChange(this)"> Doorman (Yes)</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalAttendanceType" value="ConciergeFullTime" class="w-4 h-4 rental-attendance-cb" onchange="handleRentalAttendanceChange(this)"> Concierge (Full-Time)</label>
@@ -3709,10 +3722,10 @@ body { font-family: Manrope, sans-serif; }
                         </div>
                     </div>
 
-                    <!-- RLS I7: LobbyAttendant — Dedicated lobby attendant field -->
+                    <!-- Mallan: LobbyAttendant — Dedicated lobby attendant field -->
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-user-shield"></i> Lobby Attendant</div>
-                        <p class="text-[10px] text-gray-500 mb-3">RLS Field: LobbyAttendant — Specify lobby attendant coverage type.</p>
+                        <p class="text-[10px] text-gray-500 mb-3">Mallan: LobbyAttendant — Specify lobby attendant coverage type.</p>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label class="field-label">Lobby Attendant</label>
@@ -3723,7 +3736,7 @@ body { font-family: Manrope, sans-serif; }
                                     <option value="Virtual">Virtual</option>
                                     <option value="None">None</option>
                                 </select>
-                                <p class="text-[10px] text-gray-400 mt-1">RLS: LobbyAttendant</p>
+                                <p class="text-[10px] text-gray-400 mt-1">Mallan: LobbyAttendant</p>
                             </div>
                         </div>
                     </div>
@@ -3754,10 +3767,10 @@ body { font-family: Manrope, sans-serif; }
                         </div>
                     </div>
 
-                    <!-- RLS: BuildingLaundryFeatures — REQUIRED, Multi-Select Picklist (23 values) -->
+                    <!-- Mallan: BuildingLaundryFeatures — REQUIRED, Multi-Select Picklist (23 values) -->
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-tshirt"></i> Building Laundry Features <span class="text-red-500">*</span></div>
-                        <p class="text-[10px] text-gray-500 mb-2">RLS: BuildingLaundryFeatures — Select all that apply. "None" deselects all others.</p>
+                        <p class="text-[10px] text-gray-500 mb-2">Mallan: BuildingLaundryFeatures — Select all that apply. "None" deselects all others.</p>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="InUnit" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)" data-mallan-ignore="true"> In Unit</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingLaundryFeatures" value="WasherDryerInstallAllowed" class="w-4 h-4 rental-laundry-cb" onchange="handleRentalLaundryChange(this)"> W/D Install Allowed</label>
@@ -3799,12 +3812,12 @@ body { font-family: Manrope, sans-serif; }
                             </div>
                             <div>
                                 <label class="field-label">Number of Elevators</label>
-                                <input type="number" id="bldgNumElevators" placeholder="2" class="field-input" data-cotality-field="ElevatorsTotal">
+                                <input type="number" id="bldgNumElevators" placeholder="2" class="field-input" data-mallan-ignore="true" data-unresolved-cotality-field="ElevatorsTotal">
                             </div>
                         </div>
-                        <!-- RLS/RESO/IDX: BuildingHeating (multi-select, building-level) -->
+                        <!-- Mallan: BuildingHeating (multi-select, building-level) -->
                         <div class="mb-4">
-                            <label class="field-label mb-2">Building Heating <!-- RLS/RESO/IDX: BuildingHeating --></label>
+                            <label class="field-label mb-2">Building Heating <!-- Mallan: BuildingHeating --></label>
                             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1">
                                 <!-- Building-Prefixed Primary (7) -->
                                 <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="bldgHeating" value="BuildingSteam" class="w-3 h-3" data-mallan-ignore="true"> Bldg Steam</label>
@@ -3849,9 +3862,9 @@ body { font-family: Manrope, sans-serif; }
                                 <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="bldgHeating" value="Other" class="w-3 h-3"> Other</label>
                             </div>
                         </div>
-                        <!-- RLS/RESO/IDX: BuildingCooling (multi-select, building-level) -->
+                        <!-- Mallan: BuildingCooling (multi-select, building-level) -->
                         <div class="mb-4">
-                            <label class="field-label mb-2">Building Cooling <!-- RLS/RESO/IDX: BuildingCooling --></label>
+                            <label class="field-label mb-2">Building Cooling <!-- Mallan: BuildingCooling --></label>
                             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1">
                                 <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="bldgCooling" value="CentralAir" class="w-3 h-3" data-mallan-ignore="true"> Central Air</label>
                                 <label class="flex items-center gap-1 cursor-pointer text-xs"><input type="checkbox" name="bldgCooling" value="Ductless" class="w-3 h-3"> Ductless</label>
@@ -3907,16 +3920,16 @@ body { font-family: Manrope, sans-serif; }
                             </div>
                             <div>
                                 <label class="field-label">Capital Reserves</label>
-                                <input type="text" id="bldgCapitalReserves" placeholder="$2,000,000" class="field-input" data-cotality-field="CapitalReservesTotal">
+                                <input type="text" id="bldgCapitalReserves" placeholder="$2,000,000" class="field-input" data-mallan-ignore="true" data-unresolved-cotality-field="CapitalReservesTotal">
                             </div>
                             <div>
                                 <label class="flex items-center gap-2 cursor-pointer text-sm mt-6">
-                                    <input type="checkbox" id="bldgCapitalReservesYN" class="w-4 h-4" data-cotality-field="CapitalReservesYN"> Has Capital Reserves
+                                    <input type="checkbox" id="bldgCapitalReservesYN" class="w-4 h-4" data-mallan-ignore="true" data-unresolved-cotality-field="CapitalReservesYN"> Has Capital Reserves
                                 </label>
                             </div>
                             <div>
                                 <label class="field-label">Reserve Fund</label>
-                                <input type="text" id="bldgReserveFund" placeholder="$2,000,000" class="field-input" data-cotality-field="CapitalReservesTotal">
+                                <input type="text" id="bldgReserveFund" placeholder="$2,000,000" class="field-input" data-mallan-ignore="true" data-unresolved-cotality-field="CapitalReservesTotal">
                             </div>
                             <div>
                                 <label class="field-label">Common Charges/Maint (Avg)</label>
@@ -3935,7 +3948,7 @@ body { font-family: Manrope, sans-serif; }
                             </div>
                             <div>
                                 <label class="field-label">Tax Lot</label>
-                                <input type="text" id="bldgTaxLot" placeholder="56" class="field-input" data-cotality-field="BuildingTaxLot">
+                                <input type="text" id="bldgTaxLot" placeholder="56" class="field-input" data-mallan-ignore="true" data-removed-field="BuildingTaxLot">
                             </div>
                             <div>
                                 <label class="field-label">Annual RE Taxes</label>
@@ -3950,7 +3963,7 @@ body { font-family: Manrope, sans-serif; }
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-3">
                             <div>
                                 <label class="field-label">Has Tax Abatement</label>
-                                <select id="bldgTaxAbatementYN" class="field-input" onchange="document.getElementById('bldgTaxAbatementDetails').style.display = this.value === 'Yes' ? 'grid' : 'none'" data-cotality-field="TaxAbatementYN">
+                                <select id="bldgTaxAbatementYN" class="field-input" onchange="document.getElementById('bldgTaxAbatementDetails').style.display = this.value === 'Yes' ? 'grid' : 'none'" data-mallan-ignore="true" data-unresolved-cotality-field="TaxAbatementYN">
                                     <option value="">Select</option>
                                     <option value="Yes">Yes</option>
                                     <option value="No">No</option>
@@ -3964,7 +3977,7 @@ body { font-family: Manrope, sans-serif; }
                             </div>
                             <div class="sm:col-span-2">
                                 <label class="field-label">Abatement Comments</label>
-                                <input type="text" id="bldgTaxAbatementComments" placeholder="e.g., 421-a expires 2035, saves $1,200/mo" class="field-input" data-cotality-field="TaxAbatementComments">
+                                <input type="text" id="bldgTaxAbatementComments" placeholder="e.g., 421-a expires 2035, saves $1,200/mo" class="field-input" data-mallan-ignore="true" data-unresolved-cotality-field="TaxAbatementComments">
                             </div>
                         </div>
                     </div>
@@ -3974,7 +3987,7 @@ body { font-family: Manrope, sans-serif; }
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div>
                                 <label class="field-label">Flip Tax</label>
-                                <select id="bldgFlipTax" class="field-input" data-cotality-field="FlipTax">
+                                <select id="bldgFlipTax" class="field-input" data-mallan-ignore="true" data-unresolved-cotality-field="FlipTax">
                                     <option value="">Select</option>
                                     <option value="None">None</option>
                                     <option value="Percentage">Percentage</option>
@@ -3984,7 +3997,7 @@ body { font-family: Manrope, sans-serif; }
                             </div>
                             <div>
                                 <label class="field-label">Flip Tax Amount</label>
-                                <input type="text" id="bldgFlipTaxAmount" placeholder="2% or $25/share" class="field-input" data-cotality-field="FlipTax">
+                                <input type="text" id="bldgFlipTaxAmount" placeholder="2% or $25/share" class="field-input" data-mallan-ignore="true" data-unresolved-cotality-field="FlipTax">
                             </div>
                             <div>
                                 <label class="field-label">Paid By</label>
@@ -3998,7 +4011,7 @@ body { font-family: Manrope, sans-serif; }
                         </div>
                     </div>
 
-                    <!-- RLS/RESO/IDX: DocumentsAvailable — building docs available upon request -->
+                    <!-- Cotality: DocumentsAvailable — building docs available upon request -->
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-folder-open"></i> Documents Available (Upon Request)</div>
                         <p class="text-xs text-gray-500 mb-3">Select which building documents are available for prospective tenants or their representatives.</p>
@@ -4010,7 +4023,7 @@ body { font-family: Manrope, sans-serif; }
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input data-mallan-ignore="true" data-mallan-field="DocumentsAvailable" type="checkbox" name="bldgDocsAvailable" value="ResaleBoardPackageTemplate" class="w-4 h-4"> Board Package Template</label>
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input data-mallan-ignore="true" data-mallan-field="DocumentsAvailable" type="checkbox" name="bldgDocsAvailable" value="ScheduleA" class="w-4 h-4"> Schedule A</label>
                         </div>
-                        <p class="text-[10px] text-gray-400 mt-2">RLS/RESO/IDX: DocumentsAvailable (multi-select)</p>
+                        <p class="text-[10px] text-gray-400 mt-2">Cotality: DocumentsAvailable (multi-select)</p>
                     </div>
 
                     <div class="flex justify-between mt-4">
@@ -4052,13 +4065,13 @@ body { font-family: Manrope, sans-serif; }
 
                 <!-- Sub-tab 2.1: General -->
                 <div id="bldgSubTabContent2_1" class="bldg-sub-tab-content">
-                    <!-- RLS: BuildingPetsAllowed — REQUIRED, Multi-Select Picklist (7 values) -->
+                    <!-- Mallan: BuildingPetsAllowed — REQUIRED, Multi-Select Picklist (7 values) -->
                     <div class="form-card">
                         <div class="form-card-header"><i class="fas fa-paw"></i> Building Pet Policy <span class="text-red-500">*</span></div>
-                        <p class="text-[10px] text-gray-500 mb-3">RLS Field: BuildingPetsAllowed — Select all that apply. If "No Pets" is selected, unit-level PetsAllowed will be locked to "No".</p>
+                        <p class="text-[10px] text-gray-500 mb-3">Mallan: BuildingPetsAllowed — Select all that apply. If "No Pets" is selected, unit-level PetsAllowed will be locked to "No".</p>
                         <div class="mb-2" data-p2-block="rental-building-pets-comments">
                             <label class="field-label">Building Pet Restriction Comments</label>
-                            <textarea id="rentalBuildingPetsAllowedComments" rows="2" placeholder="Required when the building limits size, number or breed" class="field-input" data-cotality-field="BuildingPetsAllowedComments"></textarea>
+                            <textarea id="rentalBuildingPetsAllowedComments" rows="2" placeholder="Required when the building limits size, number or breed" class="field-input" data-mallan-ignore="true" data-unresolved-cotality-field="BuildingPetsAllowedComments"></textarea>
                         </div>
                         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-4" id="rentalBuildingPetsAllowedGroup">
                             <label class="flex items-center gap-2 cursor-pointer text-sm"><input type="checkbox" name="rentalBuildingPetsAllowed" value="BuildingYes" class="w-4 h-4 rental-bldg-pets-cb" onchange="handleRentalBldgPetsChange(this)" data-mallan-ignore="true"> Yes (All Pets)</label>
@@ -4105,7 +4118,7 @@ body { font-family: Manrope, sans-serif; }
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div>
                                 <label class="field-label">Subletting Allowed</label>
-                                <select id="bldgSublettingAllowed" class="field-input" data-mallan-ignore="true" data-removed-field="RentingAllowedYN">
+                                <select id="bldgSublettingAllowed" class="field-input" data-mallan-ignore="true" data-unresolved-cotality-field="RentingAllowedYN">
                                     <option value="">Select</option>
                                     <option value="Yes">Yes</option>
                                     <option value="No">No</option>
@@ -4137,7 +4150,7 @@ body { font-family: Manrope, sans-serif; }
                             </div>
                             <div>
                                 <label class="field-label">Guarantors</label>
-                                <select id="bldgGuarantors" class="field-input" data-cotality-field="GuarantorsAcceptedYN">
+                                <select id="bldgGuarantors" class="field-input" data-mallan-ignore="true" data-unresolved-cotality-field="GuarantorsAcceptedYN">
                                     <option value="">Select</option>
                                     <option value="Allowed">Allowed</option>
                                     <option value="Required">Required</option>
@@ -4165,7 +4178,7 @@ body { font-family: Manrope, sans-serif; }
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             <div>
                                 <label class="field-label">Max Financing Allowed</label>
-                                <input type="text" id="bldgMaxFinancing" placeholder="80%" class="field-input" data-cotality-field="MaximumFinancingAmount">
+                                <input type="text" id="bldgMaxFinancing" placeholder="80%" class="field-input" data-mallan-ignore="true" data-unresolved-cotality-field="MaximumFinancingAmount">
                             </div>
                             <div>
                                 <label class="field-label">Min Down Payment</label>
@@ -4294,7 +4307,7 @@ body { font-family: Manrope, sans-serif; }
 // NAVIGATION — Main tabs + Sub-tabs
 // ══════════════════════════════════════════════════════
 function showRentalMainTab(num) {
-    // Block Tab 7 if not Rented (RLS/RESO/IDX: Closed)
+    // Block Tab 7 if not Rented (Mallan: Closed)
     if (num === 7) {
         var st = (document.getElementById('rentalStatus') || {}).value || '';
         if (st !== 'Rented' && st !== 'RentedThruUs') return;
@@ -4353,6 +4366,88 @@ let buildingDatabase = [];
 let _buildingSearchTimeout = null;
 
 // Fetch buildings from API by address query
+// ══════════════════════════════════════════════════════
+// COMMON INTEREST — the live Cotality building layer
+//
+// CommonInterest is the provider's building-model discriminator. Live members ($metadata 2026-09-09,
+// 13 total): BareLandCondominium, CommunityApartment, Condominium, Condop, CoOwnership, Freehold,
+// Leasehold, None, Other, PlannedDevelopment, RentalBuilding, StockCooperative, Timeshare.
+//
+// "Condo" and "Coop" are NOT live members and must never be emitted — they appear only as legacy
+// spellings on older stored rows and are folded to their live member on read.
+// ══════════════════════════════════════════════════════
+var LIVE_COMMON_INTEREST = {
+    BareLandCondominium: 'Bare Land Condominium',
+    CommunityApartment: 'Community Apartment',
+    Condominium: 'Condominium',
+    Condop: 'Condop',
+    CoOwnership: 'Co-Ownership',
+    Freehold: 'Freehold',
+    Leasehold: 'Leasehold',
+    None: 'None',
+    Other: 'Other',
+    PlannedDevelopment: 'Planned Development',
+    RentalBuilding: 'Rental Building',
+    StockCooperative: 'Stock Cooperative',
+    Timeshare: 'Timeshare'
+};
+// Legacy / feed spellings → live member. Never the reverse.
+var LEGACY_COMMON_INTEREST = { Condo: 'Condominium', Coop: 'StockCooperative', 'Co-op': 'StockCooperative', CoOp: 'StockCooperative' };
+
+function normalizeCommonInterest(v) {
+    var s = (v == null ? '' : String(v)).trim();
+    if (!s) return '';
+    if (LIVE_COMMON_INTEREST[s]) return s;
+    if (LEGACY_COMMON_INTEREST[s]) return LEGACY_COMMON_INTEREST[s];
+    return '';   // not a live member — fail closed, never guess
+}
+function COMMON_INTEREST_LABEL(v) {
+    var m = normalizeCommonInterest(v);
+    return m ? LIVE_COMMON_INTEREST[m] : (v ? String(v) : 'Unknown');
+}
+function COMMON_INTEREST_BADGE(v) {
+    switch (normalizeCommonInterest(v)) {
+        case 'StockCooperative': return 'bg-purple-100 text-purple-700';
+        case 'Condominium':      return 'bg-blue-100 text-blue-700';
+        case 'Condop':           return 'bg-indigo-100 text-indigo-700';
+        case 'RentalBuilding':   return 'bg-amber-100 text-amber-700';
+        default:                 return 'bg-green-100 text-green-700';
+    }
+}
+
+// The building models that have a co-op / condo BOARD. Board approval, board interview, board
+// application and first right of refusal are board concepts — they do not apply to a rental building.
+var BOARD_COMMON_INTERESTS = ['Condominium', 'StockCooperative', 'Condop', 'CommunityApartment', 'PlannedDevelopment'];
+
+/**
+ * Apply the building layer's requirement set. Driven by the live CommonInterest member so a
+ * Condominium address populates condo requirements and a RentalBuilding address populates rental
+ * building requirements. Called on manual change and whenever a building is selected.
+ */
+function applyCommonInterestLayer(commonInterest) {
+    var ci = normalizeCommonInterest(commonInterest);
+    if (!ci) return;
+    var hasBoard = BOARD_COMMON_INTERESTS.indexOf(ci) !== -1;
+    ['rentalBoardApprovalField', 'rentalBoardInterviewField', 'rentalBoardApplicationField', 'rentalFirstRefusalField']
+        .forEach(function (id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            el.classList.toggle('hidden', !hasBoard);
+            if (!hasBoard) {
+                // a hidden layer must not carry a stale answer into the payload
+                el.querySelectorAll('input[type="radio"]:checked').forEach(function (r) { r.checked = false; });
+            }
+        });
+    var section = document.getElementById('rentalBuildingRequirementsSection');
+    if (section) {
+        var header = section.querySelector('.form-card-header');
+        if (header) {
+            header.innerHTML = '<i class="fas fa-clipboard-check"></i> ' +
+                (hasBoard ? COMMON_INTEREST_LABEL(ci) + ' Requirements' : 'Rental Building Requirements');
+        }
+    }
+}
+
 async function fetchBuildingsFromAPI(query) {
     if (!query || query.length < 3) return [];
     try {
@@ -4414,11 +4509,8 @@ function searchBuildingForListing(query, prefix) {
                 '<p class="font-semibold text-sm text-gray-800">' + b.address + '</p>' +
                 '<p class="text-xs text-gray-500">' + b.name + ' | ' + b.neighborhood + ', ' + b.borough + '</p>' +
                 '</div><span class="px-2 py-0.5 text-[10px] font-bold rounded-full ' +
-                (b.model === 'Coop' || b.model === 'StockCooperative' ? 'bg-purple-100 text-purple-700' :
-                 b.model === 'Condo' || b.model === 'Condominium' ? 'bg-blue-100 text-blue-700' :
-                 b.model === 'Condop' ? 'bg-indigo-100 text-indigo-700' :
-                 'bg-green-100 text-green-700') +
-                '">' + b.model + '</span></div></div>';
+                COMMON_INTEREST_BADGE(b.model) + '">' + COMMON_INTEREST_LABEL(b.model) +
+                '</span></div></div>';
         }).join('');
     }, 300);
 }
@@ -4504,7 +4596,7 @@ function rentalAddressBlurLookup() {
 }
 
 // ══════════════════════════════════════════════════════
-// RLS ADDRESS FIELD DERIVATION (Rental)
+// COTALITY ADDRESS FIELD DERIVATION (Rental)
 // ══════════════════════════════════════════════════════
 
 var BOROUGH_TO_COUNTY = BOROUGH_TO_COUNTY || {
@@ -4620,10 +4712,10 @@ function handleRentalListingTypeChange(value) {
     const warning = document.getElementById('rentalOwnerOptOutWarning');
     const inHouse = document.getElementById('rentalInHouseWarning');
     const optOutSection = document.getElementById('rentalOptOutFormSection');
-    const isOptOut = (value === 'RLS-Owner-OptOut' || value === 'RLS-Participant');
+    const isOptOut = (value === 'OwnerOptOut' || value === 'ParticipantOnly');
     if (warning) warning.style.display = isOptOut ? '' : 'none';
     if (inHouse) inHouse.style.display = value === 'InHouse' ? '' : 'none';
-    if (optOutSection) optOutSection.style.display = value === 'RLS-Owner-OptOut' ? '' : 'none';
+    if (optOutSection) optOutSection.style.display = value === 'OwnerOptOut' ? '' : 'none';
 }
 
 // ══════════════════════════════════════════════════════
@@ -4642,14 +4734,16 @@ function updateRentalStatusFields() {
     if (['PermOffMarket', 'TempOffMarket', 'Expired', 'Withdrawn', 'Cancelled'].includes(status)) {
         if (offMarket) offMarket.style.display = '';
     }
-    if (['Rented', 'RentedThruUs'].includes(status)) {
+    // Every rental close reveals its CloseDate / ClosePrice controls: Leased / Leased Thru Us store
+    // the same canonical Closed as Rented / Rented Thru Us (lib/crm/status-mapping.ts
+    // RENTAL_WORKFLOW_TO_CANONICAL), and a saved row can arrive holding the bare token.
+    if (['Rented', 'RentedThruUs', 'Leased', 'LeasedThruUs', 'Closed'].includes(status)) {
         if (rentedDate) rentedDate.style.display = '';
         if (rentedPrice) rentedPrice.style.display = '';
     }
 
-    // The canonical (server) status is shown from the save response; the browser does not translate.
-    var resoDisplay = document.getElementById('rentalCotalityStatus');
-    if (resoDisplay) resoDisplay.textContent = 'set by server on save';
+    // The Last Cotality Status tile is written ONLY by MallanAPI.renderListingStatus from the server
+    // projection. This page never writes it (it used to overwrite the provider status with a placeholder).
 
     // Enable/disable Commission Request tab (Tab 7)
     var commTab = document.getElementById('sidebarTab7');
@@ -4676,7 +4770,7 @@ function updateRentalStatusFields() {
  * (Co-op, Condo, Townhouse, Mixed-Use) and hide irrelevant fields.
  */
 function resolveRentalListingSubtype(propertyType) {
-    // Non-RLS Commercial with ownership sub-type
+    // Website-only Commercial with ownership sub-type
     if (propertyType === 'Commercial') {
         const ownershipEl = document.querySelector('input[name="rentalCommercialOwnership"]:checked');
         const val = ownershipEl ? ownershipEl.value : '';
@@ -4686,7 +4780,7 @@ function resolveRentalListingSubtype(propertyType) {
             case 'WholeBuilding': default: return 'COMMERCIAL_BUILDING';
         }
     }
-    // Office/Retail (RLS-eligible) with building type sub-selector
+    // Office/Retail (Cotality-bound) with building type sub-selector
     if (propertyType === 'Office' || propertyType === 'Retail') {
         const buildingType = document.querySelector('input[name="rentalOfficeRetailOwnership"]:checked')?.value || '';
         const prefix = propertyType === 'Office' ? 'OFFICE' : 'RETAIL';
@@ -4759,11 +4853,11 @@ function toggleOfficeRetailBuildingType(formType) {
 }
 
 /**
- * Lock distribution to WWW-only for non-RLS commercial types
+ * Lock distribution to WWW-only for website-only commercial types
  */
 function applyCommercialDistribution(formType) {
     const prefix = formType + 'Dist_';
-    ['IDX', 'VOW', 'Syndication', 'Listhub', 'NYMLS', 'Realtor', 'RPX', 'RLS'].forEach(ch => {
+    ['IDX', 'VOW', 'Syndication', 'Listhub', 'Realtor'].forEach(ch => {
         const el = document.getElementById(prefix + ch);
         if (el) { el.checked = false; el.disabled = true; }
     });
@@ -4775,7 +4869,7 @@ function applyCommercialDistribution(formType) {
 
 function clearCommercialDistribution(formType) {
     const prefix = formType + 'Dist_';
-    ['IDX', 'VOW', 'Syndication', 'Listhub', 'NYMLS', 'Realtor', 'RPX', 'RLS', 'WWW'].forEach(ch => {
+    ['IDX', 'VOW', 'Syndication', 'Listhub', 'Realtor', 'WWW'].forEach(ch => {
         const el = document.getElementById(prefix + ch);
         if (el) el.disabled = false;
     });
@@ -4887,7 +4981,7 @@ function applyRentalFieldRules() {
     toggleOfficeRetailBuildingType('rental');
 
     // Handle Commercial/Mixed-Use distribution logic
-    // UCBA Art. I, Sec. 5(F): Mixed-use in ≤5 unit buildings → RLS-eligible
+    // UCBA Art. I, Sec. 5(F): Mixed-use in ≤5 unit buildings → co-brokerage eligible
     const isMixedUseSubtype = propertyType === 'MixedUse';
     const totalUnits = parseInt(document.getElementById('rentalTHUnitsTotal')?.value || document.getElementById('rentalBldgTotalUnits')?.value || '0') || 0;
     const mixedUseSmallBuilding = isMixedUseSubtype && totalUnits > 0 && totalUnits <= 5;
@@ -4937,10 +5031,10 @@ function applyRentalFieldRules() {
         tab3Mobile.style.pointerEvents = skipTab3 ? 'none' : '';
     }
 
-    // RLS: Auto-sync CommonInterest from property type mapping
+    // Mallan: Auto-sync CommonInterest from property type mapping
     syncRentalCommonInterest(propertyType);
 
-    // RLS: Auto-derive StructureType from property type (if not already set by IDX)
+    // Mallan: Auto-derive StructureType from property type (if not already set by IDX)
     autoDeriveRentalStructureType();
 }
 
@@ -5192,7 +5286,7 @@ function validateAndNextRentalTab(currentTab, nextTab) {
 // ══════════════════════════════════════════════════════
 // DATA COLLECTION — Legacy structured serializer (SUPERSEDED)
 // The authoritative collectRentalFormData() is defined below (~line 5585)
-// with generic DOM iteration + explicit RLS field mappings.
+// with generic DOM iteration + explicit Cotality field mappings.
 // This version is kept as _collectRentalFormDataLegacy for reference.
 // ══════════════════════════════════════════════════════
 function _collectRentalFormDataLegacy() {
@@ -5213,13 +5307,13 @@ function _collectRentalFormDataLegacy() {
         commercialOwnership: radioVal('rentalCommercialOwnership'),
         officeRetailOwnership: radioVal('rentalOfficeRetailOwnership'),
 
-        // Address — parse into RLS components before collecting
+        // Address — parse into Cotality components before collecting
         streetAddress: (function() { parseRentalAddress(); updateRentalAddressDerived(); return val('rentalStreetAddress'); })(),
         unitNumber: val('rentalUnitNumber'),
         borough: val('rentalBorough'),
         zipCode: val('rentalZipCode'),
         neighborhoodFromAddress: val('rentalNeighborhoodFromAddress'),
-        // RLS Address Fields
+        // Cotality Address Fields
         unparsedAddress: val('rentalUnparsedAddress'),
         streetNumber: val('rentalStreetNumber'),
         streetDirPrefix: val('rentalStreetDirPrefix'),
@@ -5293,7 +5387,7 @@ function _collectRentalFormDataLegacy() {
         // FARE Act
         fareActLandlordPays: radioVal('rentalFareActLandlordPays'),
 
-        // Display Permissions (RLS/RESO/IDX Internet fields)
+        // Display Permissions (Cotality Internet display fields)
         internetEntireListingDisplayYN: checked('rentalInternetEntireListingDisplayYN'),
         internetAddressDisplayYN: checked('rentalInternetAddressDisplayYN'),
         internetConsumerCommentYN: checked('rentalInternetConsumerCommentYN'),
@@ -5302,7 +5396,7 @@ function _collectRentalFormDataLegacy() {
         distVOW: checked('rentalDist_VOW'),
         syndicateYN: checked('rentalSyndicateYN'),
 
-        // Team (RLS/RESO/IDX: ListTeamName, ListTeamMlsId)
+        // Team (Cotality: ListTeamName, ListTeamMlsId)
         listTeamName: val('rentalListTeamName'),
         listTeamMlsId: val('rentalListTeamMlsId'),
 
@@ -5320,7 +5414,7 @@ function _collectRentalFormDataLegacy() {
         listingAgent: val('rentalListingAgent'),
         tenantCompany: val('rentalTenantCompany'),
         tenantAgent: val('rentalTenantAgent'),
-        buyerAgentRLSParticipantYN: checked('rentalBuyerAgentRLSParticipantYN'),
+        tenantBrokerParticipantYN: checked('rentalTenantBrokerParticipantYN'),
         ownerName: val('rentalOwnerName'),
         ownerPhone: val('rentalOwnerPhone'),
         ownerEmail: val('rentalOwnerEmail'),
@@ -5456,11 +5550,8 @@ function _collectRentalFormDataLegacy() {
         sendToAll: checked('rentalSendToAll'),
         dist_IDX: checked('rentalDist_IDX'),
         dist_Listhub: checked('rentalDist_Listhub'),
-        dist_NYMLS: checked('rentalDist_NYMLS'),
         dist_Realtor: checked('rentalDist_Realtor'),
-        dist_RPX: checked('rentalDist_RPX'),
         dist_WWW: checked('rentalDist_WWW'),
-        dist_RLS: checked('rentalDist_RLS'),
 
         // ── Metadata ──
         _savedAt: new Date().toISOString(),
@@ -5615,11 +5706,30 @@ function showToast(message, type) {
 window.alert = function(msg) { showToast(String(msg)); };
 
 /**
- * Collect all rental form fields into a flat object with RESO field names.
+ * Collect all rental form fields into a flat object with Cotality field names.
  * Used by both submit and auto-save.
  */
 function collectRentalFormData() {
+    /** A non-negative whole count, or null when the agent stated nothing. 0 is a RECORDED absence. */
+    function rentalCountOrNull(v) {
+        var t = String(v == null ? '' : v).trim();
+        if (t === '') return null;
+        var n = Number(t);
+        return (Number.isInteger(n) && n >= 0) ? n : null;
+    }
     var data = { listing_type: 'rent' };
+    // ── UNRESOLVED COTALITY FACTS ────────────────────────────────────────────────────────────────
+    // Historical field names whose CURRENT Cotality field has NOT YET been resolved.
+    //
+    // These are NOT Mallan-owned, and NOT proven absent from Cotality. They are UNRESOLVED: the
+    // concept is real and the agent's entry must never be lost, but the correct provider field,
+    // resource, datatype and enum have not been attributed yet. Attribution requires Cotality
+    // definitions/samples — never name similarity.
+    //
+    // Contract: preserved verbatim through create -> save -> reload -> edit, restored to the same
+    // controls, and EXCLUDED from every Cotality projection (the leading underscore keeps it out of
+    // the provider vocabulary the server maps).
+    data._unresolvedCotalityFacts = {};
     // `add-rental-listing` was the legacy shell container — doesn't exist in
     // the redesigned form. `.flex-1` is the real container used in the shell.
     var container = document.querySelector('.flex-1');
@@ -5636,8 +5746,26 @@ function collectRentalFormData() {
             data[key] = field.value;
         }
     });
+
+    // Sweep every control whose historical Cotality field is UNRESOLVED into the quarantine object.
+    //
+    // Keyed by CONTROL IDENTITY (id, else name+value for a grouped input), NOT by concept — one
+    // concept can legitimately have several controls (FlipTax has a type select AND an amount input),
+    // and concept-keying would silently drop all but one. Control-keying makes save/restore symmetric
+    // by construction. The concept travels alongside the value so later attribution can find them.
+    document.querySelectorAll('[data-unresolved-cotality-field]').forEach(function(el) {
+        var concept = el.getAttribute('data-unresolved-cotality-field');
+        if (!concept) return;
+        var key = el.id || (el.name ? el.name + ':' + el.value : null);
+        if (!key) return;
+        var v;
+        if (el.type === 'radio' || el.type === 'checkbox') v = el.checked;
+        else v = el.value;
+        if (v === '' || v === undefined || v === null) return;
+        data._unresolvedCotalityFacts[key] = { concept: concept, value: v };
+    });
     // The session identity lives in hidden inputs OUTSIDE the form container (the page header), so the generic loop
-    // never saw them: ListAgentMlsId and the agent contact were EMPTY on every save (the RLS gate blocks on it).
+    // never saw them: ListAgentMlsId and the agent contact were EMPTY on every save (the compliance gate blocks on it).
     ['rentalUpdatingAgent', 'rentalUpdatingAgentMlsId', 'rentalUpdatingAgentName', 'rentalUpdatingAgentEmail', 'rentalUpdatingAgentPhone', 'rentalUpdatingAgentLicense', 'rentalUpdatingAgentCompanyName', 'rentalUpdatingAgentCompanyKey'].forEach(function(id) {
         if (data[id] === undefined) { var el = document.getElementById(id); if (el && el.value !== undefined) data[id] = el.value; }
     });
@@ -5646,13 +5774,18 @@ function collectRentalFormData() {
     // rentalPropertyType, rentalOfficeRetailOwnership and rentalStatus (lib/crm/listing-form-mapping.ts).
     // The browser never decides the provider representation (Packet 2 closure).
 
-    // Map key fields to RLS names — using CORRECT element IDs
+    // Map key fields to Cotality names — using CORRECT element IDs
     data.ListPrice = parseFloat(data.rentalMonthlyRent || '0') || 0;
-    data.NetMonthlyRent = parseFloat(data.rentalMonthlyRent || '0') || 0;
+    // "NetMonthlyRent" is not a Cotality field (live $metadata 2026-09-09) — Mallan rent fact.
+    data._unresolvedCotalityFacts.NetMonthlyRent = parseFloat(data.rentalMonthlyRent || '0') || 0;
     data.BedroomsTotal = parseInt(data.rentalBedrooms || '0') || 0;
     data.BathroomsFull = parseInt(data.rentalFullBathrooms || '0') || 0;
     data.BathroomsHalf = parseInt(data.rentalHalfBathrooms || '0') || 0;
-    data.BathroomsTotal = (data.BathroomsFull || 0) + ((data.BathroomsHalf || 0) * 0.5);
+    // Live Cotality: BathroomsTotalInteger (Int32) — the COUNT of bathrooms, full + half.
+    // "BathroomsTotal" does not exist on Trestle (live $metadata 2026-09-09), and the 2.5-style
+    // decimal is a Mallan display convention, not a provider value — it keeps its Mallan key.
+    data.BathroomsTotalInteger = (data.BathroomsFull || 0) + (data.BathroomsHalf || 0);
+    data._mallanBathroomsDecimal = (data.BathroomsFull || 0) + ((data.BathroomsHalf || 0) * 0.5);
     data.LivingArea = parseFloat(data.rentalSqFt || '0') || 0;
     data.StreetNumber = data.rentalStreetNumber || '';
     data.StreetName = data.rentalStreetName || '';
@@ -5670,10 +5803,15 @@ function collectRentalFormData() {
     // The rental's lease-signed date is a Mallan internal workflow fact; PurchaseContractDate is a SALE field and is
     // never sent from a rental (owner ruling 2026-09-08).
     data._mallanLeaseSignedDate = data.rentalLeaseSignedDate || '';
-    data.CloseDate = data.rentalCloseDate || '';
-    data.ClosePrice = parseFloat(data.rentalClosePrice || '0') || 0;
+    // The rental close is the agent's "Rented Date" / "Rented Price" — the SAME live Cotality CloseDate / ClosePrice
+    // the sale uses (verified live 2026-09-09: CloseDate + ClosePrice populated on 200/200 closed ResidentialLease
+    // rows; no rental-specific close field exists on any Cotality resource). Only the LABEL differs by transaction.
+    data.CloseDate = data.rentalRentedDate || '';
+    data.ClosePrice = parseFloat(data.rentalRentedPrice || '0') || 0;
     data.CancellationDate = data.rentalCancellationDate || '';
-    data.BuyerAgentRLSParticipantYN = data.rentalBuyerAgentRLSParticipantYN === 'Yes' ? true : data.rentalBuyerAgentRLSParticipantYN === 'No' ? false : undefined;
+    // UCBA co-brokerage participation is a Mallan compliance fact — no Cotality field exists for it
+    // compliance fact, and REBNY is compliance only, never a field authority (compliance index §0).
+    data._mallanTenantBrokerParticipantYN = data.rentalTenantBrokerParticipantYN === 'Yes' ? true : data.rentalTenantBrokerParticipantYN === 'No' ? false : undefined;
     data.BuyerAgentFullName = data.rentalBuyerAgentFullName || '';
     data.BuyerAgentDirectPhone = data.rentalBuyerAgentDirectPhone || '';
     data.BuyerAgentEmail = data.rentalBuyerAgentEmail || '';
@@ -5683,32 +5821,70 @@ function collectRentalFormData() {
     // REBNY-required facts the form already collected under its own keys, now emitted under the canonical names
     data.TaxLot = data.bldgTaxLot || '';
     data.Furnished = data.rentalFurnished || '';          // live Furnished members (select)
-    // Furnished terms (REBNY FURNISHED-001 when Furnished / Partially / Negotiable) — Mallan-internal keys
+    // Furnished terms (REBNY FURNISHED-001 when Furnished / Partially / Negotiable). None of
+    // FurnishedListPrice / FurnishedMinLeaseMonths / FurnishedMaxLeaseMonths / MaxLeaseMonths /
+    // MinLeaseMonths / LeaseType / TaxAbatementExpirationYear exists on Trestle (live $metadata
+    // 2026-09-09). The comment already called them Mallan-internal; they are now NAMED that way so
+    // they cannot be mistaken for provider fields as they spread into the stored body.
+    data._unresolvedCotalityFacts.FurnishedListPrice = parseFloat(data.rentalFurnishedRent || '') || null;
+    // Declared in MALLAN_INTERNAL_KEYS under its SUBMISSION name (lib/listings/mallan-form-contract.ts,
+    // "REBNY submission-form / Mallan facts kept under their submission names"). It is NOT one of the
+    // facts Maya's 2026-09-09 ruling renamed to a _mallan* key, so the flat key IS its home: the server's
+    // conditional evaluator reads it off the payload for RENTAL-001 / RENTAL-002 / FURNISHED-001.
     data.FurnishedListPrice = parseFloat(data.rentalFurnishedRent || '') || null;
+    data._unresolvedCotalityFacts.FurnishedMinLeaseMonths = parseInt(data.rentalFurnishedMinMonths || '') || null;
+    // Declared in MALLAN_INTERNAL_KEYS under its SUBMISSION name (lib/listings/mallan-form-contract.ts,
+    // "REBNY submission-form / Mallan facts kept under their submission names"). It is NOT one of the
+    // facts Maya's 2026-09-09 ruling renamed to a _mallan* key, so the flat key IS its home: the server's
+    // conditional evaluator reads it off the payload for RENTAL-001 / RENTAL-002 / FURNISHED-001.
     data.FurnishedMinLeaseMonths = parseInt(data.rentalFurnishedMinMonths || '') || null;
+    data._unresolvedCotalityFacts.FurnishedMaxLeaseMonths = parseInt(data.rentalFurnishedMaxMonths || '') || null;
+    // Declared in MALLAN_INTERNAL_KEYS under its SUBMISSION name (lib/listings/mallan-form-contract.ts,
+    // "REBNY submission-form / Mallan facts kept under their submission names"). It is NOT one of the
+    // facts Maya's 2026-09-09 ruling renamed to a _mallan* key, so the flat key IS its home: the server's
+    // conditional evaluator reads it off the payload for RENTAL-001 / RENTAL-002 / FURNISHED-001.
     data.FurnishedMaxLeaseMonths = parseInt(data.rentalFurnishedMaxMonths || '') || null;
-    data.MaxLeaseMonths = parseInt(data.rentalMaxLease || '') || null;
+    data._unresolvedCotalityFacts.MaxLeaseMonths = parseInt(data.rentalMaxLease || '') || null;
     data.ActivationDate = data.rentalFirstShowingDate || '';
+    data._unresolvedCotalityFacts.MinLeaseMonths = parseInt(data.rentalMinLease || '') || null;
+    // Declared in MALLAN_INTERNAL_KEYS under its SUBMISSION name (lib/listings/mallan-form-contract.ts,
+    // "REBNY submission-form / Mallan facts kept under their submission names"). It is NOT one of the
+    // facts Maya's 2026-09-09 ruling renamed to a _mallan* key, so the flat key IS its home: the server's
+    // conditional evaluator reads it off the payload for RENTAL-001 / RENTAL-002 / FURNISHED-001.
     data.MinLeaseMonths = parseInt(data.rentalMinLease || '') || null;
-    data.LeaseType = data.rentalLeaseType || '';          // Mallan-internal lease type (REBNY submission fact)
-    data.TaxAbatementExpirationYear = parseInt(data.bldgTaxAbatementExpYear || '') || null;
+    data._unresolvedCotalityFacts.LeaseType = data.rentalLeaseType || '';   // Mallan-internal lease type (REBNY submission fact)
+    // Declared in MALLAN_INTERNAL_KEYS under its SUBMISSION name (lib/listings/mallan-form-contract.ts,
+    // "REBNY submission-form / Mallan facts kept under their submission names"). NOT one of the facts the
+    // 2026-09-09 ruling renamed to a _mallan* key, so the flat key IS its home: the server's conditional
+    // evaluator reads it off the payload for RENTAL-002.
+    data.LeaseType = data.rentalLeaseType || '';
+    data._unresolvedCotalityFacts.TaxAbatementExpirationYear = parseInt(data.bldgTaxAbatementExpYear || '') || null;
     data.Basement = data.rentalTHBasementType || '';      // live Basement members
     data.PropertyCondition = data.rentalCondition || '';  // live PropertyCondition members
     data.ConcessionsComments = data.rentalConcessionsComments || '';
     data.LivingAreaUnits = data.LivingArea > 0 ? 'SquareFeet' : ''; // the square-footage input is square feet by construction
-    data.PetsAllowedComments = data.rentalPetsAllowedComments || '';
-    data.BuildingPetsAllowedComments = data.rentalBuildingPetsAllowedComments || '';
+    // Live Cotality: PetsComments (String[500]). "PetsAllowedComments" does not exist on Trestle
+    // (live $metadata 2026-09-09). There is no building-level pet COMMENT field — building pet
+    // policy is expressed as Building*-prefixed MEMBERS of the PetsAllowed multi-enum — so the
+    // building pet note stays a Mallan fact under its own key.
+    data.PetsComments = data.rentalPetsAllowedComments || '';
     data.ShowingInstructions = data.rentalShowingInstructions || '';
     data.YearBuilt = parseInt(data.bldgYearBuilt || '0') || null;
-    data.NewDevelopmentYN = data.bldgNewDevelopment === true || data.bldgNewDevelopment === 'true';
+    // NewDevelopmentYN is NOT a Trestle field (live $metadata 2026-09-09); NewConstructionYN IS live.
+    data._unresolvedCotalityFacts.NewDevelopmentYN = data.bldgNewDevelopment === true || data.bldgNewDevelopment === 'true';
+    // The fact itself is REBNY-mandatory (lib/compliance/rebny-ucba-rules.ts MANDATORY_FIELDS), and it
+    // is carried under its Mallan key because no live Cotality field exists for it — the same key the
+    // sale form emits (Maya ruling 2026-09-09). The `_unresolvedCotalityFacts` line above records that
+    // no provider field is proven; this line is the fact the enforcement gate reads. Both are true.
+    data._mallanNewDevelopmentYN = data.bldgNewDevelopment === true || data.bldgNewDevelopment === 'true';
     data.NewConstructionYN = data.bldgNewConstruction === true || data.bldgNewConstruction === 'true';
 
-    // ListingAgreement — INDEPENDENT from Permissions per RLS rules.
+    // ListingAgreement — INDEPENDENT from Permissions.
     // OwnerOptOut/ParticipantOnly set Permissions, NOT ListingAgreement.
-    // Listing is still on RLS for participants, just blocked from public display.
+    // Listing is still syndicated for participants, just blocked from public display.
     var rentalListType = data.rentalListingType || '';
-    var isOwnerOptOut = rentalListType === 'RLS-Owner-OptOut';
-    var isParticipantOnly = rentalListType === 'RLS-Participant';
+    var isOwnerOptOut = rentalListType === 'OwnerOptOut';
+    var isParticipantOnly = rentalListType === 'ParticipantOnly';
     var isInHouse = rentalListType === 'InHouse';
     if (isOwnerOptOut || isParticipantOnly || isInHouse) {
         // These are permission flags, not agreement types — default to ExclusiveRightToLease
@@ -5717,10 +5893,12 @@ function collectRentalFormData() {
         data.ListingAgreement = rentalListType || 'ExclusiveRightToLease';
     }
     // CoBrokeAgreement
-    data.CoBrokeAgreement = data.rentalCoBrokeAgreement || 'Ucba';
+    // "CoBrokeAgreement" is not a Cotality field — the UCBA co-brokerage agreement is a REBNY
+    // compliance fact, stored under a Mallan key.
+    data._unresolvedCotalityFacts.CoBrokeAgreement = data.rentalCoBrokeAgreement || 'Ucba';
 
-    // Permissions: OwnerOptOut = owner signed Exhibit B, listing on RLS but NOT public.
-    // Private (Participant Only) = broker-initiated, listing on RLS but NOT public.
+    // Permissions: OwnerOptOut = owner signed Exhibit B (UCBA Art. I §5(A)) — never publicly disseminated.
+    // ParticipantOnly = broker-initiated — submitted, but withheld from every public channel.
     // Mallan decision (UCBA owner opt-out / participant-only) under the Mallan key — never the provider Permission enum.
     data._mallanPermission = isOwnerOptOut ? 'OwnerOptOut' : isParticipantOnly ? 'Private' : null;
 
@@ -5781,26 +5959,44 @@ function collectRentalFormData() {
     // named were empty (TaxLot and YearBuilt are REBNY-mandatory). Re-emit them now that the modal is in `data` (idempotent).
     data.TaxLot = data.bldgTaxLot || '';
     data.YearBuilt = parseInt(data.bldgYearBuilt || '0') || null;
-    data.TaxAbatementExpirationYear = parseInt(data.bldgTaxAbatementExpYear || '') || null;
-    data.BuildingPetsAllowedComments = data.rentalBuildingPetsAllowedComments || '';
-    data.NewDevelopmentYN = data.bldgNewDevelopment === true || data.bldgNewDevelopment === 'true';
+    data._unresolvedCotalityFacts.TaxAbatementExpirationYear = parseInt(data.bldgTaxAbatementExpYear || '') || null;
+    // NewDevelopmentYN is NOT a Trestle field (live $metadata 2026-09-09; the same conclusion
+    // recorded at app/api/buildings/search/route.ts:779-788). NewConstructionYN IS live.
+    data._unresolvedCotalityFacts.NewDevelopmentYN = data.bldgNewDevelopment === true || data.bldgNewDevelopment === 'true';
+    data._mallanNewDevelopmentYN = data.bldgNewDevelopment === true || data.bldgNewDevelopment === 'true';
     data.NewConstructionYN = data.bldgNewConstruction === true || data.bldgNewConstruction === 'true';
 
-    // Map building-level RLS fields from modal
+    // Map building-level Cotality fields from modal
     data.BuildingName = data.bldgName || '';
     // StructureType is DERIVED BY THE SERVER from bldgType / rentalStructureType (live members only) — lib/crm/listing-form-mapping.ts.
     data.StoriesTotal = parseInt(data.bldgTotalFloors || '0') || null;
     data.NumberOfUnitsTotal = parseInt(data.bldgTotalUnits || '0') || null;
     data.CrossStreet = data.bldgCrossStreet1 || '';
     data.TaxBlock = data.bldgTaxBlock || '';
-    data.BuildingTaxLot = data.bldgTaxLot || '';
+    // "BuildingTaxLot" is NOT a Trestle field (live: TaxLot, String[25]). This line was a duplicate
+    // emission of the same source already written to data.TaxLot above — removed, not renamed.
     data.AssociationName = data.bldgAssociationName || '';
 
     // Collect multi-value checkbox fields as arrays
+    // PetsAllowed is ONE live multi-enum carrying BOTH layers: unit-level members (Yes / No / CatsOk /
+    // DogsOk / BreedRestrictions / SizeLimit / NumberLimit) and building-level members under a
+    // Building* PREFIX (BuildingYes / BuildingCatsOk / …). "BuildingPetsAllowed" is NOT a Trestle
+    // field (live $metadata 2026-09-09) — the building policy belongs in this same array.
+    // Live member spelling is BuildingCatsOk / BuildingDogsOk (lower-case "k"); the form's historic
+    // BuildingCatsOK / BuildingDogsOK are corrected here so a non-live member is never emitted.
+    var LIVE_BUILDING_PET_MEMBER = {
+        BuildingYes: 'BuildingYes', BuildingNo: 'BuildingNo',
+        BuildingCatsOK: 'BuildingCatsOk', BuildingCatsOk: 'BuildingCatsOk',
+        BuildingDogsOK: 'BuildingDogsOk', BuildingDogsOk: 'BuildingDogsOk',
+        BuildingBreedRestrictions: 'BuildingBreedRestrictions',
+        BuildingSizeLimit: 'BuildingSizeLimit', BuildingNumberLimit: 'BuildingNumberLimit'
+    };
     data.PetsAllowed = [];
     document.querySelectorAll('input[name="rentalPetsAllowed"]:checked').forEach(function(cb) { data.PetsAllowed.push(cb.value); });
-    data.BuildingPetsAllowed = [];
-    document.querySelectorAll('input[name="rentalBuildingPetsAllowed"]:checked').forEach(function(cb) { data.BuildingPetsAllowed.push(cb.value); });
+    document.querySelectorAll('input[name="rentalBuildingPetsAllowed"]:checked').forEach(function(cb) {
+        var member = LIVE_BUILDING_PET_MEMBER[cb.value];
+        if (member && data.PetsAllowed.indexOf(member) === -1) data.PetsAllowed.push(member);
+    });
     // The agent's amenity LABELS are a Mallan fact (rentalBuildingFeaturesInternal); the live
     // BuildingFeatures members among them are DERIVED BY THE SERVER (lib/crm/listing-form-mapping.ts).
     data.rentalBuildingFeaturesInternal = [];
@@ -5808,12 +6004,40 @@ function collectRentalFormData() {
         var label = cb.parentElement ? cb.parentElement.textContent.trim() : cb.value;
         if (label) data.rentalBuildingFeaturesInternal.push(label);
     });
-    // AttendanceType — multi-value checkbox array
-    data.AttendanceType = [];
-    document.querySelectorAll('input[name="rentalAttendanceType"]:checked').forEach(function(cb) { data.AttendanceType.push(cb.value); });
-    // BuildingLaundryFeatures — multi-value checkbox array
-    data.BuildingLaundryFeatures = [];
-    document.querySelectorAll('input[name="rentalBuildingLaundryFeatures"]:checked').forEach(function(cb) { data.BuildingLaundryFeatures.push(cb.value); });
+    // AttendanceType is NOT a Trestle field (live $metadata 2026-09-09) — confirmed independently by
+    // app/api/buildings/search/route.ts:779-788, where including it made Trestle reject the whole
+    // $select with HTTP 400. Doorman / concierge / live-in-super have no live Cotality member, so the
+    // agent's selection stays a Mallan fact under a Mallan key and never claims to be a provider field.
+    data._unresolvedCotalityFacts.AttendanceType = [];
+    document.querySelectorAll('input[name="rentalAttendanceType"]:checked').forEach(function(cb) { data._unresolvedCotalityFacts.AttendanceType.push(cb.value); });
+    // The fact itself under its DECLARED Mallan key (lib/listings/mallan-form-contract.ts
+    // MALLAN_INTERNAL_KEYS `_mallanAttendanceType`) — the same key the sale form emits. The
+    // `_unresolvedCotalityFacts` line above records that no live Cotality field is proven for the
+    // concept; this line is the fact itself. The two say different things and both are true.
+    data._mallanAttendanceType = data._unresolvedCotalityFacts.AttendanceType.slice();
+
+    // LaundryFeatures is ONE live multi-enum carrying both layers, building-level members under a
+    // Building* PREFIX. "BuildingLaundryFeatures" is NOT a Trestle field. Only these 12 building-level
+    // members exist live; the rest of the building-laundry group has no Building* counterpart and
+    // stays a Mallan fact rather than being emitted as a non-live member.
+    var LIVE_BUILDING_LAUNDRY = {
+        CoinOperated: 'BuildingCoinOperated', InBasement: 'BuildingInBasement',
+        InHall: 'BuildingInHall', Inside: 'BuildingInside',
+        LowerLevel: 'BuildingLowerLevel', MainLevel: 'BuildingMainLevel',
+        MultipleLocations: 'BuildingMultipleLocations', None: 'BuildingNone',
+        Other: 'BuildingOther', Outside: 'BuildingOutside',
+        UpperLevel: 'BuildingUpperLevel', WasherDryerInstallAllowed: 'BuildingWasherDryerInstallAllowed'
+    };
+    if (!Array.isArray(data.LaundryFeatures)) data.LaundryFeatures = [];
+    data._unresolvedCotalityFacts.BuildingLaundryFeatures = [];
+    document.querySelectorAll('input[name="rentalBuildingLaundryFeatures"]:checked').forEach(function(cb) {
+        var member = LIVE_BUILDING_LAUNDRY[cb.value];
+        if (member) {
+            if (data.LaundryFeatures.indexOf(member) === -1) data.LaundryFeatures.push(member);
+        } else {
+            data._unresolvedCotalityFacts.BuildingLaundryFeatures.push(cb.value);
+        }
+    });
     // Checkbox GROUPS share a name — the generic collector above collapses each to the last box's boolean, so the
     // selections are collected as arrays here (mirrors the sale form). Heating / Cooling / BusinessType are live
     // Cotality multi-selects (every form value is a live member); bldgHeating / bldgCooling / rentalCommSubtype are Mallan facts.
@@ -5828,12 +6052,17 @@ function collectRentalFormData() {
     var ownerPaysEl = document.getElementById('rentalOwnerPays');
     data.rentalOwnerPays = !!(ownerPaysEl && ownerPaysEl.checked);
 
-    // Map remaining RLS field names from CRM element IDs
+    // Map remaining Cotality field names from CRM element IDs
     data.CountyOrParish = data.rentalCountyOrParish || '';
     data.PostalCity = data.rentalPostalCity || '';
     data.RoomsTotal = parseInt(data.rentalTotalRooms || '0') || null;
     data.Concessions = data.rentalConcessions || '';
-    data.ElevatorsTotal = parseInt(data.bldgNumElevators || '0') || null;
+    // "ElevatorsTotal" is NOT a Trestle field (live $metadata 2026-09-09). Elevator presence is a
+    // BuildingFeatures member; an elevator COUNT has no live counterpart — Mallan fact.
+    data._unresolvedCotalityFacts.ElevatorsTotal = parseInt(data.bldgNumElevators || '0') || null;
+    // REBNY-mandatory fact under its Mallan key (the sale form's `_mallanElevatorsTotal`). 0 is a
+    // RECORDED absence — "no elevator" — not a blank, so it must survive as 0, never null.
+    data._mallanElevatorsTotal = rentalCountOrNull(data.bldgNumElevators);
     data.GarageYN = data.rentalTHGarageYN === true || data.rentalTHGarageYN === 'true' || data.rentalTHGarageYN === 'Yes';
     data.OnMarketDate = data.rentalDateListed || '';
     data.ExpirationDate = data.rentalExclusiveExpires || '';
@@ -5883,10 +6112,13 @@ function collectRentalFormData() {
     data.LotSizeUnits = data.LotSizeArea ? (data.rentalTHLotSizeUnits || 'SquareFeet') : '';
 
     // Building fields
-    data.YearRenovated = parseInt(data.bldgYearRenovated || '0') || null;
-    data.TaxAbatementYN = data.bldgTaxAbatementYN === true || data.bldgTaxAbatementYN === 'true' || data.bldgTaxAbatementYN === 'Yes';
-    data.TaxAbatementComments = data.bldgTaxAbatementComments || '';
-    data.RentingAllowedYN = data.bldgSublettingAllowed === true || data.bldgSublettingAllowed === 'true';
+    // None of YearRenovated / TaxAbatementYN / TaxAbatementComments / RentingAllowedYN exists on
+    // Trestle (live $metadata 2026-09-09). YearRenovated and RentingAllowedYN are also recorded as
+    // non-live at app/api/buildings/search/route.ts:779-788. All four are Mallan building facts.
+    data._unresolvedCotalityFacts.YearRenovated = parseInt(data.bldgYearRenovated || '0') || null;
+    data._unresolvedCotalityFacts.TaxAbatementYN = data.bldgTaxAbatementYN === true || data.bldgTaxAbatementYN === 'true' || data.bldgTaxAbatementYN === 'Yes';
+    data._unresolvedCotalityFacts.TaxAbatementComments = data.bldgTaxAbatementComments || '';
+    data._unresolvedCotalityFacts.RentingAllowedYN = data.bldgSublettingAllowed === true || data.bldgSublettingAllowed === 'true';
 
     // Media fields
     data.VirtualTourURLUnbranded = data.rentalVirtualTourUnbranded || '';
@@ -5900,11 +6132,15 @@ function collectRentalFormData() {
     // FARE Act (NYC LL 119/2024) field mappings
     // FARE Act fee lists as typed = Mallan facts; the live multi-selects TenantPays / OngoingFees /
     // MoveInCosts receive only the live members the server finds in them (lib/crm/listing-form-mapping.ts).
-    data.TenantPaysList = data.rentalTenantPays || '';
+    data._mallanTenantPaysList = data.rentalTenantPays || '';
     data.TenantPaysDescription = data.rentalTenantPaysDescription || '';
-    data.OngoingFeesDescription = data.rentalOngoingFees || '';
-    data.FeeFrequency = data.rentalFeeFrequency || '';
-    data.MoveInCostsDescription = data.rentalMoveInCosts || '';
+    data._mallanOngoingFeesDescription = data.rentalOngoingFees || '';
+    // "FeeFrequency" is an enum TYPE, not a field — selecting it returns HTTP 400. The live FIELDS
+    // are AssociationFeeFrequency (Property) and AdditionalFeeFrequency (CustomProperty), both of
+    // enum type FeeFrequency. This control is the FARE Act additional-fee cadence, which lives on
+    // CustomProperty and reaches the provider via $expand — kept as a Mallan fact here.
+    data._unresolvedCotalityFacts.FeeFrequency = data.rentalFeeFrequency || '';
+    data._mallanMoveInCostsDescription = data.rentalMoveInCosts || '';
     data.MoveInCostsAmount = parseFloat(data.rentalMoveInCostsAmount || '0') || 0;
     data.MoveInCostsComments = data.rentalMoveInCostsComments || '';
     data.AdditionalFeeYN = data.rentalAdditionalFeeYN || '';
@@ -6197,11 +6433,20 @@ function addRentalOpenHouse() {
             </div>
             <div>
                 <label class="field-label">Type</label>
-                <select class="field-input">
+                <!-- Live Cotality OpenHouseType members ($metadata 2026-09-09). "BrokerOnly",
+                     "ByAppointment" and "Virtual" are NOT members and were rejected values.
+                     By Appointment = Private (pair with AppointmentRequiredYN); Virtual = the
+                     Livestream* family (pair with LivestreamOpenHouseURL). -->
+                <select class="field-input rental-oh-type" data-cotality-field="OpenHouseType" data-cotality-resource="OpenHouse">
                     <option value="Public">Public</option>
-                    <option value="BrokerOnly">Broker Only</option>
-                    <option value="ByAppointment">By Appointment</option>
-                    <option value="Virtual">Virtual</option>
+                    <option value="Broker">Broker Only</option>
+                    <option value="Office">Office Only</option>
+                    <option value="Private">By Appointment (Private)</option>
+                    <option value="LivestreamPublic">Virtual — Public</option>
+                    <option value="LivestreamBroker">Virtual — Broker</option>
+                    <option value="LivestreamOffice">Virtual — Office</option>
+                    <option value="InPersonAndLivestreamPublic">In Person + Virtual — Public</option>
+                    <option value="InPersonAndLivestreamBroker">In Person + Virtual — Broker</option>
                 </select>
             </div>
         </div>
@@ -6725,7 +6970,7 @@ function updateRentalPreview() {
     setText('rentalPreviewSiteAgentLicense', agentLicenseVal);
     setText('rentalPreviewSiteCompanyName', companyNameVal);
     var listingTypeRadio = document.querySelector('input[name="rentalListingType"]:checked');
-    var ltMap = { ExclusiveRightToLease: 'Exclusive Right to Lease', ExclusiveAgency: 'Exclusive Agency', ExclusiveRightWithException: 'Exclusive w/ Exception', CoExclusive: 'Co-Exclusive', InHouse: 'In-House', 'RLS-Owner-OptOut': 'Owner Opt-Out', 'RLS-Participant': 'Participant Only' };
+    var ltMap = { ExclusiveRightToLease: 'Exclusive Right to Lease', ExclusiveAgency: 'Exclusive Agency', ExclusiveRightWithException: 'Exclusive w/ Exception', CoExclusive: 'Co-Exclusive', InHouse: 'In-House', 'OwnerOptOut': 'Owner Opt-Out', 'ParticipantOnly': 'Participant Only' };
     setText('rentalPreviewListingType', ltMap[listingTypeRadio ? listingTypeRadio.value : 'ExclusiveRightToLease'] || 'Exclusive Right to Lease');
     const status = document.getElementById('rentalStatus');
     setText('rentalPreviewStatus', status ? status.value : 'Draft');
@@ -6992,17 +7237,47 @@ function _populateRentalFormFromApi(listing) {
         if (el) el.checked = !!val;
     }
 
+    // ── Unresolved Cotality facts come back to the same controls ──
+    // Control-keyed, so every control of a multi-control concept is restored. Runs BEFORE the
+    // canonical restores so a later proven Cotality mapping always wins.
+    var _unresolved = raw._unresolvedCotalityFacts || {};
+    Object.keys(_unresolved).forEach(function(key) {
+        var entry = _unresolved[key];
+        if (entry === null || entry === undefined) return;
+        var v = (typeof entry === 'object' && 'value' in entry) ? entry.value : entry;   // tolerate legacy shape
+        var el = document.getElementById(key);
+        if (!el && key.indexOf(':') !== -1) {
+            var parts = key.split(':');
+            el = document.querySelector('[name="' + parts[0] + '"][value="' + parts.slice(1).join(':') + '"]');
+        }
+        if (!el) return;
+        if (el.type === 'radio' || el.type === 'checkbox') { el.checked = !!v; el.dispatchEvent(new Event('change', { bubbles: true })); }
+        else { el.value = String(v); el.dispatchEvent(new Event('change', { bubbles: true })); }
+    });
+
     // ── Every saved Mallan form key comes back first ──
     // collectRentalFormData saves EVERY control under its id / name into raw_data. Restore the same way so
     // create → save → reload → edit is symmetric by construction; the canonical restores below run after
     // this pass and win wherever they exist (typed columns, live features, legacy rows without form keys).
     _restoreFormKeys(document, raw, ['rentalBuildingModal', 'rentalMediaModal']);
+    // The live PetsAllowed multi-enum carries BOTH layers and the building layer arrives under the
+    // Building* prefix (live members verified: BuildingYes / BuildingNo / BuildingCatsOk / BuildingDogsOk
+    // / BuildingBreedRestrictions / BuildingSizeLimit / BuildingNumberLimit). The collector folds the
+    // building boxes INTO PetsAllowed, so the reload must read them back out of it — reading a
+    // `BuildingPetsAllowed` key nothing writes any more silently dropped the building pet policy on
+    // every reload. Two control values are spelled with a capital K historically; map them back.
+    var LIVE_TO_FORM_BUILDING_PET = { BuildingCatsOk: 'BuildingCatsOK', BuildingDogsOk: 'BuildingDogsOK' };
+    var _savedPetsAllowed = features.PetsAllowed || raw.PetsAllowed;
+    var _savedBuildingPets = Array.isArray(_savedPetsAllowed)
+        ? _savedPetsAllowed.filter(function(m) { return String(m).indexOf('Building') === 0; })
+                           .map(function(m) { return LIVE_TO_FORM_BUILDING_PET[m] || m; })
+        : (features.BuildingPetsAllowed || raw.BuildingPetsAllowed);   // legacy rows written before the fold
     // Checkbox groups → the arrays the collector saves for them (live features first, then raw)
     [['rentalHeating', features.Heating || raw.Heating], ['rentalCooling', features.Cooling || raw.Cooling],
      ['rentalBusinessType', features.BusinessType || raw.BusinessType], ['bldgHeating', raw.bldgHeating], ['bldgCooling', raw.bldgCooling],
      ['rentalCommSubtype', raw.rentalCommSubtype], ['rentalPetsAllowed', features.PetsAllowed || raw.PetsAllowed],
-     ['rentalBuildingPetsAllowed', features.BuildingPetsAllowed || raw.BuildingPetsAllowed],
-     ['rentalAttendanceType', features.AttendanceType || raw.AttendanceType],
+     ['rentalBuildingPetsAllowed', _savedBuildingPets],
+     ['rentalAttendanceType', raw._mallanAttendanceType || features.AttendanceType || raw.AttendanceType],
      ['bldgDocsAvailable', raw.bldgDocsAvailable], ['rentalTHDocsAvailable', raw.rentalTHDocsAvailable],
      ['rentalBuildingLaundryFeatures', features.BuildingLaundryFeatures || raw.BuildingLaundryFeatures]].forEach(function(pair) {
         _restoreCheckboxGroup(document, pair[0], pair[1]);
@@ -7051,10 +7326,14 @@ function _populateRentalFormFromApi(listing) {
     setVal('rentalAgentRemarks', raw.PrivateRemarks || '');
     // Packet 2 convergence: the status / closing / concession / pet facts round-trip
     setVal('rentalLeaseSignedDate', (raw._mallanLeaseSignedDate || '').split('T')[0]);
-    setVal('rentalCloseDate', (raw.CloseDate || '').split('T')[0]);
-    setVal('rentalClosePrice', raw.ClosePrice || '');
+    setVal('rentalRentedDate', (raw.CloseDate || '').split('T')[0]);
+    setVal('rentalRentedPrice', raw.ClosePrice || '');
     setVal('rentalCancellationDate', (raw.CancellationDate || '').split('T')[0]);
-    setRadio('rentalBuyerAgentRLSParticipantYN', raw.BuyerAgentRLSParticipantYN === true ? 'Yes' : raw.BuyerAgentRLSParticipantYN === false ? 'No' : '');
+    var _tbp = raw._mallanTenantBrokerParticipantYN;
+    // quarantined read-time fallback for rows written before the rename — never written back
+    if (_tbp === undefined) _tbp = raw._mallanBuyerAgentRLSParticipantYN;
+    if (_tbp === undefined) _tbp = raw.BuyerAgentRLSParticipantYN;
+    setRadio('rentalTenantBrokerParticipantYN', _tbp === true ? 'Yes' : _tbp === false ? 'No' : '');
     setVal('rentalConcessionsComments', raw.ConcessionsComments || '');
     setVal('rentalPetsAllowedComments', raw.rentalPetsAllowedComments !== undefined ? raw.rentalPetsAllowedComments : (features.PetsAllowedComments || raw.PetsAllowedComments || ''));
     setVal('rentalBuildingPetsAllowedComments', raw.rentalBuildingPetsAllowedComments !== undefined ? raw.rentalBuildingPetsAllowedComments : (features.BuildingPetsAllowedComments || raw.BuildingPetsAllowedComments || ''));
@@ -7071,7 +7350,7 @@ function _populateRentalFormFromApi(listing) {
     // Listing agreement
     // The Mallan listing-type choice (incl. the owner-opt-out / participant-only decisions) restores from its own key;
     // the provider agreement + the Mallan permission decision rebuild it for legacy rows.
-    setRadio('rentalListingType', raw.rentalListingType || (raw._mallanPermission === 'Private' ? 'RLS-Participant' : raw._mallanPermission === 'OwnerOptOut' ? 'RLS-Owner-OptOut' : raw.ListingAgreement) || '');
+    setRadio('rentalListingType', raw.rentalListingType || (raw._mallanPermission === 'Private' ? 'ParticipantOnly' : raw._mallanPermission === 'OwnerOptOut' ? 'OwnerOptOut' : raw.ListingAgreement) || '');
 
     // Agent info — Phase C: TYPED columns are the source of truth (agent_info JSON is
     // frozen/empty post-Phase-C). Hydrate typed-first, then agent_info, then raw_data.
@@ -7106,11 +7385,11 @@ function _populateRentalFormFromApi(listing) {
 
     // FARE Act fields
     var _feeText = function(v) { return Array.isArray(v) ? v.join(', ') : (v || ''); };
-    setVal('rentalTenantPays', raw.TenantPaysList || _feeText(raw.TenantPays));
+    setVal('rentalTenantPays', raw._mallanTenantPaysList || _feeText(raw.TenantPays));
     setVal('rentalTenantPaysDescription', raw.TenantPaysDescription || '');
-    setVal('rentalOngoingFees', raw.OngoingFeesDescription || _feeText(raw.OngoingFees));
-    setVal('rentalFeeFrequency', raw.FeeFrequency || '');
-    setVal('rentalMoveInCosts', raw.MoveInCostsDescription || _feeText(raw.MoveInCosts));
+    setVal('rentalOngoingFees', raw._mallanOngoingFeesDescription || _feeText(raw.OngoingFees));
+    setVal('rentalFeeFrequency', (raw._unresolvedCotalityFacts||{}).FeeFrequency || raw.FeeFrequency || '');  // legacy raw.FeeFrequency: quarantined read-time fallback only
+    setVal('rentalMoveInCosts', raw._mallanMoveInCostsDescription || _feeText(raw.MoveInCosts));
     // Legacy fallback: rentals saved before 2026-06-04 stored the amount under
     // the (phantom) MoveInCostsAmountTotal key in raw_data. Read the live field
     // first, fall back to the legacy key so existing listings keep their value
@@ -7252,9 +7531,9 @@ function populateRentalCommissionFields() {
         return (v === 'Custom' || v === 'Select' || v === '') ? '' : v;
     };
 
-    // RLS / Listing ID
-    var rlsId = val('rentalListingIdDisplay');
-    set('commRentalRlsId', rlsId && rlsId !== 'New' ? rlsId : '–');
+    // Cotality ListingId
+    var listingId = val('rentalListingIdDisplay');
+    set('commRentalListingId', listingId && listingId !== 'New' ? listingId : '–');
 
     // Full Address — build from parts, skip empty/default
     var addr = val('rentalStreetAddress');
@@ -7357,7 +7636,7 @@ function submitRentalCommissionRequest() {
     var companyShare = document.getElementById('commRentalCompanyShare')?.textContent || '$0';
 
     alert('Commission Request Submitted!\n\n' +
-        'Listing: ' + (document.getElementById('commRentalRlsId')?.value || 'N/A') + '\n' +
+        'Listing: ' + (document.getElementById('commRentalListingId')?.value || 'N/A') + '\n' +
         'Monthly Rent: $' + parseFloat(rent).toLocaleString() + '\n' +
         'Agent Payout: ' + agentPayout + '\n' +
         'Company Share: ' + companyShare + '\n' +
@@ -7374,7 +7653,7 @@ function submitRentalCommissionRequest() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// RLS FIELD HANDLERS — AttendanceType, PetsAllowed,
+// COTALITY FIELD HANDLERS — AttendanceType, PetsAllowed,
 // BuildingPetsAllowed, CommonInterest
 // COTALITY LIVE CONTRACT — every value= attribute below is an exact live enum member; the server
 // re-validates every provider enum value against lib/cotality/live-contract.ts on save.
@@ -7428,7 +7707,7 @@ function enforceRentalPetsConditional() {
     }
 }
 
-// RLS: BuildingLaundryFeatures — "None" deselects all others and vice versa
+// Mallan: BuildingLaundryFeatures — "None" deselects all others and vice versa
 function handleRentalLaundryChange(cb) {
     var cbs = document.querySelectorAll('.rental-laundry-cb');
     if (cb.value === 'None' && cb.checked) {
@@ -7455,10 +7734,17 @@ function syncRentalCommonInterest(propertyType) {
         'SingleFamily': 'None', 'MultiFamily': 'None', 'MixedUse': 'None',
         'Loft': 'None', 'Duplex': 'None', 'Triplex': 'None', 'Quadruplex': 'None'
     };
-    if (map[propertyType]) el.value = map[propertyType];
+    if (map[propertyType]) {
+        el.value = map[propertyType];
+        applyCommonInterestLayer(el.value);
+    }
 }
 
-function onRentalCommonInterestChange() { /* manual override allowed */ }
+function onRentalCommonInterestChange() {
+    // manual override allowed — the chosen layer still drives the requirement set
+    var el = document.getElementById('rentalCommonInterest');
+    if (el) applyCommonInterestLayer(el.value);
+}
 
 // ── Conditional Enforcement Rules (RLS compliance) ───────────────────────
 
@@ -7581,6 +7867,123 @@ function computeRentalBathroomsTotal() {
             this.value = this.dataset.prevStatus || 'Draft';
         }
     });
+})();
+</script>
+
+<!-- ══ STATUS VOCABULARY — built from the ONE server mapping ═════════════════════════
+     GET /api/crm/status-options?type=rental projects lib/crm/status-mapping.ts (ONE mapping per
+     transaction). Manage Listings, the dashboard panels and the sales / rentals CRM panels already build
+     their status UIs from it; this page now does too, so the vocabulary lives in ONE place instead of five.
+     The markup above is the OFFLINE FALLBACK only - a required select is never emptied.
+       Ratchet:     tests/runtime/four-listing-forms-status-select-equivalence.test.ts
+       Write proof: tests/runtime/listing-forms-status-write-roundtrip.test.ts
+     ════════════════════════════════════════════════════════════════════════ -->
+<script>
+(function () {
+    var FORM_KEY = 'rentalStatus';
+    var TRANSACTION = 'rental';
+
+    // Presentation only. Walking the SERVER's order and opening a group when its first word arrives means a
+    // word the server adds later is never dropped - it lands in the group already open. The vocabulary is
+    // the server's; only these headings are the page's.
+    var GROUPS = [
+        { at: 'AppOut', header: '── Application ──' },
+        { at: 'LeaseOut', header: '── Lease ──' },
+        { at: 'Rented', header: '── Closed ──' },
+        { at: 'TempOffMarket', header: '── Off Market ──' }
+    ];
+    var SAVED_HEADER = '── Saved Listing State ──';
+    // Values this page refuses to render whatever the payload says.
+    var DENY = ['ComingSoon', 'Coming Soon'];
+
+    window.__mallanStatusOptions = { settled: false, source: null, error: null };
+    function done(source, error) {
+        window.__mallanStatusOptions = { settled: true, source: source, error: error || null };
+        try { window.dispatchEvent(new CustomEvent('mallan:status-options', { detail: { source: source } })); } catch (e) { /* ok */ }
+    }
+    function denied(v) { return DENY.indexOf(v) !== -1; }
+
+    function apply(payload) {
+        var select = document.getElementById(FORM_KEY);
+        if (!select) return done('no-select');
+        // Fail closed on a payload that is not a mapping: keep the markup rather than empty a required select.
+        if (!payload || !Array.isArray(payload.workflow) || !Array.isArray(payload.canonical) || payload.workflow.length === 0) {
+            return done('fallback', 'malformed payload');
+        }
+        var previous = select.value;
+        var words = {};
+        payload.workflow.forEach(function (w) { if (w && w.word) words[w.word] = w.label || w.word; });
+
+        var frag = document.createDocumentFragment();
+        function separator(text) {
+            var o = document.createElement('option');
+            o.disabled = true;
+            o.textContent = text;
+            frag.appendChild(o);
+        }
+        function option(value, label, hidden) {
+            var o = document.createElement('option');
+            o.value = value;
+            o.textContent = label;
+            if (hidden) o.setAttribute('hidden', 'hidden');
+            frag.appendChild(o);
+        }
+
+        var pending = GROUPS.slice();
+        payload.workflow.forEach(function (w) {
+            if (!w || !w.word || denied(w.word) || denied(w.label)) return;
+            while (pending.length && pending[0].at === w.word) separator(pending.shift().header);
+            option(w.word, w.label || w.word, false);
+        });
+
+        // The canonical (stored) tokens no workflow word already covers. A token whose transaction label
+        // duplicates a workflow word's label (a sale's Closed reads "Sold", Canceled reads "Canceled") is
+        // rendered HIDDEN: the select must be able to HOLD it when a saved row carries the bare token, but
+        // it is never a choice the agent makes instead of the workflow word.
+        var extras = payload.canonical.filter(function (c) {
+            return c && c.token && !words[c.token] && !denied(c.token) && !denied(c.label);
+        });
+        if (extras.length) {
+            separator(SAVED_HEADER);
+            extras.forEach(function (c) {
+                var label = c.label || c.token;
+                var duplicate = Object.keys(words).some(function (k) { return words[k] === label; });
+                option(c.token, label, duplicate);
+            });
+        }
+
+        select.innerHTML = '';
+        select.appendChild(frag);
+
+        // Read-compatibility: whatever the select already held survives the rebuild, including a legacy
+        // value the server no longer lists. The rebuild never silently changes the agent's (or the loaded
+        // listing's) selection.
+        if (previous) {
+            select.value = previous;
+            if (select.value !== previous && !denied(previous)) {
+                var keep = document.createElement('option');
+                keep.value = previous;
+                keep.textContent = previous;
+                keep.setAttribute('hidden', 'hidden');
+                select.appendChild(keep);
+                select.value = previous;
+            }
+        }
+        if (!select.value && select.options.length) select.selectedIndex = 0;
+        done('server');
+    }
+
+    function boot() {
+        if (typeof MallanAPI === 'undefined' || typeof MallanAPI._fetch !== 'function') return done('fallback', 'no api client');
+        MallanAPI._fetch('/api/crm/status-options?type=' + TRANSACTION)
+            .then(apply)
+            .catch(function (err) {
+                if (typeof console !== 'undefined') console.warn('[StatusOptions] keeping the page fallback list:', err && err.message);
+                done('fallback', (err && err.message) || 'fetch failed');
+            });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+    else boot();
 })();
 </script>
 

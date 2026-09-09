@@ -90,7 +90,7 @@ describe('Persistence — Mallan Building Profile fields reload after save', () 
      'saleBldgSuperName', 'saleBldgSuperPhone', 'saleBldgSuperEmail',
      'saleBldgManagerName', 'saleBldgManagerPhone', 'saleBldgManagerEmail',
      'saleBldgBoardPresident', 'saleBldgBoardEmail']
-      .forEach((id) => expect(FORM).toMatch(new RegExp(`rls: '${id}', form: '${id}'`)));
+      .forEach((id) => expect(FORM).toMatch(new RegExp(`mallan: '${id}', form: '${id}'`)));
   });
   it('purchase-policy fields keep their restore entries', () => {
     ['saleBldgMaxFinancing', 'saleBldgMinDownPayment', 'saleBldgDTIRatio', 'saleBldgPostCloseLiquidity']

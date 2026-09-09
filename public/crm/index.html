@@ -85,6 +85,9 @@ function toggleSection(header) {
 </script>
 
 <!-- Core -->
+<!-- THE browser status presentation authority. Loads FIRST: every renderer, output builder and compliance
+     gate below turns a status into display text through it, and nothing else may. -->
+<script src="js/core/status-presentation.js"></script>
 <script src="js/core/api-client.js"></script>
 <script src="js/core/agent-context.js"></script>
 <script src="js/core/email-service.js"></script>

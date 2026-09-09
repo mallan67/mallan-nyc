@@ -40,7 +40,9 @@ var PitchPacket = (function () {
       '<i class="fas fa-spinner fa-spin text-gold text-xl"></i>' +
       '<span class="text-sm text-gray-500 ml-2">Loading comps...</span></div>';
 
-    MallanAPI._fetch('/api/crm/sales/prospects/' + id + '/comps')
+    // A sale pitch packet compares SALES: the transaction travels with the request so the server filters
+    // PropertyType eq 'Residential' and StandardStatus eq 'Closed' (Maya, 2026-09-08 — sale and rental never mix).
+    MallanAPI._fetch('/api/crm/sales/prospects/' + id + '/comps?transaction=sale')
       .then(function (data) {
         _comps = data.comps || [];
         _overrides = data.overrides || {};
@@ -150,6 +152,8 @@ var PitchPacket = (function () {
         h += '<span>' + (r.beds || '-') + 'bd/' + (r.baths || '-') + 'ba</span>';
         h += '<span>' + (r.sqft ? Number(r.sqft).toLocaleString() + ' sqft' : '-') + '</span>';
         h += '<span>' + (r.close_date ? D(r.close_date) : '-') + '</span>';
+        // the broker word for this comp's transaction, supplied by the server ("Sold" on a sale)
+        h += '<span class="text-green-700 font-semibold">' + E(r.status_label || r.status || '') + '</span>';
         if (r.mls_id) h += '<span class="text-gray-400">' + E(r.mls_id) + '</span>';
         h += '</div></div>';
         if (alreadyAdded) {
@@ -436,7 +440,7 @@ var PitchPacket = (function () {
     var id = _prospect.id;
     CRM.toast('Searching comps...', 'info');
 
-    MallanAPI._fetch('/api/crm/sales/prospects/' + id + '/comps?q=' + encodeURIComponent(q))
+    MallanAPI._fetch('/api/crm/sales/prospects/' + id + '/comps?transaction=sale&q=' + encodeURIComponent(q))
       .then(function (data) {
         _searchResults = data.results || [];
         if (_searchResults.length === 0) {
@@ -456,6 +460,12 @@ var PitchPacket = (function () {
     var comp = _searchResults[idx];
     if (!comp) return;
 
+    // Fail closed: the server only returns dated, priced closings, but a comp is never added on trust.
+    if (comp.status !== 'Closed' || !comp.close_date || !(Number(comp.close_price) > 0)) {
+      CRM.toast('Only closed sales with a closing date and price can be used as comps', 'error');
+      return;
+    }
+
     // Prevent duplicates
     var exists = _comps.some(function (c) { return c.mls_id === comp.mls_id; });
     if (exists) {
@@ -463,6 +473,7 @@ var PitchPacket = (function () {
       return;
     }
 
+    comp.transaction = 'sale';
     comp.added_at = new Date().toISOString();
     _comps.push(comp);
     CRM.toast('Added: ' + (comp.address || comp.mls_id), 'success');
@@ -495,7 +506,7 @@ var PitchPacket = (function () {
     MallanAPI._fetch('/api/crm/sales/prospects/' + id + '/comps', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ comps: _comps, overrides: _overrides })
+      body: JSON.stringify({ transaction: 'sale', comps: _comps, overrides: _overrides })
     })
       .then(function () {
         CRM.toast('Comps saved', 'success');
@@ -554,8 +565,14 @@ var PitchPacket = (function () {
         if (data.property_intel && data.property_intel.recent_sales) {
           var newComps = data.property_intel.recent_sales;
           newComps.forEach(function (nc) {
+            // Only a proven CLOSED sale with its own closing date and price is a comparable. An active asking
+            // price is market context, and a closing is never dated by anything but its CloseDate.
+            var isClosedSale = nc.status === 'Closed' && !!nc.close_date && Number(nc.close_price) > 0;
+            if (!isClosedSale) return;
             var exists = _comps.some(function (c) { return c.mls_id === nc.mls_id; });
             if (!exists) {
+              nc.transaction = 'sale';
+              nc.status_label = 'Sold';
               nc.added_at = new Date().toISOString();
               _comps.push(nc);
             }

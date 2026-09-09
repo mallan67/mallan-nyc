@@ -11,6 +11,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { compsStatusWindowFilter, compsOrderBy, applyCompEligibility } from '@/lib/comps/fetch-comps';
+import { CompCriteriaError } from '@/lib/comps/status-criteria';
 import type { CompListing } from '@/lib/comps/types';
 
 const ROOT = path.resolve(__dirname, '../..');
@@ -25,20 +26,33 @@ describe('the provider clause windows closed comps by CloseDate and leaves on-ma
   it('closed only', () => {
     expect(compsStatusWindowFilter(['Closed'], 6, ASOF)).toBe("(StandardStatus eq 'Closed' and CloseDate ge 2026-03-08)");
   });
-  it('display names map to live members (Under Contract → Pending, Coming Soon → ComingSoon)', () => {
-    expect(compsStatusWindowFilter(['Under Contract', 'Coming Soon'], 6, ASOF)).toBe("(StandardStatus eq 'Pending' or StandardStatus eq 'ComingSoon')");
+  it("this transaction's canonical labels map to live tokens (a sale's In Contract → Pending, Coming Soon → ComingSoon)", () => {
+    expect(compsStatusWindowFilter(['In Contract', 'Coming Soon'], 6, ASOF, 'sale')).toBe("(StandardStatus eq 'Pending' or StandardStatus eq 'ComingSoon')");
+  });
+  it("a sale's Sold and a rental's Rented are both the Closed token, windowed by CloseDate", () => {
+    expect(compsStatusWindowFilter(['Sold'], 6, ASOF, 'sale')).toBe("(StandardStatus eq 'Closed' and CloseDate ge 2026-03-08)");
+    expect(compsStatusWindowFilter(['Rented'], 6, ASOF, 'rental')).toBe("(StandardStatus eq 'Closed' and CloseDate ge 2026-03-08)");
+  });
+  it('an unvalidated criterion never reaches OData — old display names, legacy spellings and the other transaction are refused', () => {
+    expect(() => compsStatusWindowFilter(['Under Contract'], 6, ASOF, 'sale')).toThrow(CompCriteriaError);
+    expect(() => compsStatusWindowFilter(['Cancelled'], 6, ASOF, 'sale')).toThrow(CompCriteriaError);
+    expect(() => compsStatusWindowFilter(['Rented'], 6, ASOF, 'sale')).toThrow(/Rented/);
+    expect(() => compsStatusWindowFilter(['Sold'], 6, ASOF, 'rental')).toThrow(/Sold/);
+    expect(() => compsOrderBy(['Under Contract'], 'sale')).toThrow(CompCriteriaError);
   });
   it('no statuses → no clause', () => {
     expect(compsStatusWindowFilter([], 6, ASOF)).toBe('');
   });
   it('closed-only comps are ordered by the closing date; mixed sets keep the modification order', () => {
     expect(compsOrderBy(['Closed'])).toBe('CloseDate desc');
+    expect(compsOrderBy(['Sold'], 'sale')).toBe('CloseDate desc');
     expect(compsOrderBy(['Closed', 'Active'])).toBe('ModificationTimestamp desc');
   });
 });
 
 const comp = (over: Partial<CompListing>): CompListing => ({
-  listing_id: 'RLS1', address: '400 East 90th Street', unit: '17C', status: 'Closed', property_type: 'Residential',
+  listing_id: 'RLS1', address: '400 East 90th Street', unit: '17C', status: 'Closed',
+  status_label: 'Sold', transaction: 'sale', property_type: 'Residential',
   beds: 2, baths: 1, sqft: 900, list_price: 1_000_000, close_price: 980_000, close_date: '2026-06-01', days_on_market: 30,
   price_per_sqft: 1089, building_name: '', listing_agent: '', listing_office: 'Compass', photo_count: 5, common_interest: 'StockCooperative',
   ...over,
@@ -86,8 +100,8 @@ describe('the DB-side CMA engine windows closed comps by the stable closing date
 });
 
 describe('CMA uses the subject transaction on both comp paths', () => {
-  test('In Contract uses the canonical search Pending query', () => {
-    expect(compsStatusWindowFilter(['In Contract'], 6, ASOF)).toBe("StandardStatus eq 'Pending'");
+  test("a sale's In Contract label queries the Pending token", () => {
+    expect(compsStatusWindowFilter(['In Contract'], 6, ASOF, 'sale')).toBe("StandardStatus eq 'Pending'");
   });
 
   test.each(['Residential', 'ResidentialLease'])('building and area comps stay in %s', async (propertyType) => {
@@ -104,6 +118,12 @@ describe('CMA uses the subject transaction on both comp paths', () => {
       for (const [request] of spy.mock.calls as Array<[{ filter: string }]>) {
         expect(request.filter).toContain("PropertyType eq '" + propertyType + "'");
       }
+      // the subject transaction is the live PropertyType, never a guess
+      const res = await fetchComps({
+        listing_id: 'SUBJECT', building_name: 'Test Building', street_number: null, street_name: null,
+        borough: 'Manhattan', postal_code: '10128', neighborhood: null, property_type: propertyType,
+      }, { building: range, area: { ...range, neighborhoods: [], price_min: null, price_max: null } });
+      expect(res.transaction).toBe(propertyType === 'ResidentialLease' ? 'rental' : 'sale');
     } finally { spy.mockRestore(); }
   });
 });
@@ -132,14 +152,17 @@ describe('database CMA keeps transaction, closing facts, and valuation evidence 
       { ...row, listing_id: 'UNDATED', raw_data: { ClosePrice: row.raw_data.ClosePrice } },
       { ...row, listing_id: 'OFF-FEED', status: 'Active', sync_status: 'off_feed' },
     ]);
-    const comps = await findComps({ property_address: 'Subject', listing_type: listingType, bedrooms: 2, bathrooms: 1 });
+    const comps = await findComps({ property_address: 'Subject', neighborhood: 'Yorkville', listing_type: listingType, bedrooms: 2, bathrooms: 1 });
     expect(comps.map((c: { listing_id: string }) => c.listing_id).sort()).toEqual(['ASKING', 'CLOSED']);
     const closed = comps.find((c: { listing_id: string }) => c.listing_id === 'CLOSED');
+    expect(closed.status).toBe('Closed');
     expect(closed.status_label).toBe(listingType === 'sale' ? 'Sold' : 'Rented');
+    expect(closed.transaction).toBe(listingType === 'sale' ? 'sale' : 'rental');
     expect(closed.adjusted_price).toBe(row.raw_data.ClosePrice);
     expect(estimateValue(comps).estimated).toBe(row.raw_data.ClosePrice);
     const where = prisma.listing.findMany.mock.calls.at(-1)[0].where;
     expect(where.listing_type).toBe(listingType);
+    expect(where.neighborhood).toBe('Yorkville');
     const historical = where.OR.find((clause: { raw_data?: unknown }) => clause.raw_data);
     expect(historical.idx_display_yn).toBeUndefined();
     expect(historical.owner_opt_out).toBe(false);
@@ -157,5 +180,16 @@ describe('database CMA keeps transaction, closing facts, and valuation evidence 
   test('active-only evidence yields no valuation', () => {
     const { estimateValue } = require('@/lib/cma/engine');
     expect(estimateValue([{ status: 'Active', adjusted_price: 1000000, similarity_score: 90 }]).estimated).toBe(0);
+  });
+
+  // Owner ruling (Maya, 2026-09-09): a CMA is a LOCATED comparison. Without a neighborhood or a borough the
+  // engine would compare the subject against the whole city — refused, never widened.
+  test('a subject with neither neighborhood nor borough is refused, and no query is issued', async () => {
+    const prisma = require('@/lib/prisma').default;
+    const { findComps } = require('@/lib/cma/engine');
+    prisma.listing.findMany.mockClear();
+    await expect(findComps({ property_address: 'Subject', listing_type: 'sale', bedrooms: 2 }))
+      .rejects.toThrow(/neighborhood or borough/i);
+    expect(prisma.listing.findMany).not.toHaveBeenCalled();
   });
 });

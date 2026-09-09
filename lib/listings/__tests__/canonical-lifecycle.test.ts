@@ -107,10 +107,10 @@ describe('lifecycleFromProviderRow — the proven combinations', () => {
 describe('lifecycleFromStoredRow — Mallan storage vocabulary, sale/rental aware', () => {
   it('off the feed with no verified reason: the last provider status is preserved, the Mallan state is Off Market, hidden', () => {
     expect(OFF_FEED_SYNC_STATUS).toBe('off_feed');
-    expect(OFF_MARKET_LABEL).toBe('Off Market');
+    expect(OFF_MARKET_LABEL).toBe('Off Market — reason unknown');
     const l = lifecycleFromStoredRow({ status: 'Active', listing_type: 'rent', sync_status: 'off_feed', terminal_since: new Date('2026-09-01T03:30:00Z') });
     expect(l.stage).toBe('off_market');
-    expect(l.label).toBe('Off Market');
+    expect(l.label).toBe('Off Market — reason unknown');
     expect(l.publiclyDisplayable).toBe(false);
     expect(l.storageStatus).toBe('Active'); // the raw provider fact is never rewritten
     expect(l.providerStage).toBe('active');

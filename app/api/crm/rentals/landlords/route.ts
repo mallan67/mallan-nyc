@@ -4,6 +4,8 @@ import prisma from "@/lib/prisma";
 import { requireAgentOrBroker, isAuthError, logAuditEvent } from "@/lib/auth";
 import { assertWriteAllowed } from "@/lib/auth/readonly-guard";
 import { safeJson } from "@/lib/api/safe-json";
+import { getCurrentDom } from "@/lib/compliance/dom-tracker";
+import { lifecycleFromStoredRow } from "@/lib/listings/canonical-lifecycle";
 
 export async function GET(req: NextRequest) {
   const auth = await requireAgentOrBroker(req);
@@ -35,12 +37,16 @@ export async function GET(req: NextRequest) {
       if (l.active_rental_listing_id) {
         const listing = await prisma.listing.findFirst({
           where: { listing_id: l.active_rental_listing_id },
-          select: { status: true, list_price: true, days_on_market: true },
+          select: { status: true, list_price: true, days_on_market: true, cumulative_days_on_market: true, participant_only: true, status_changed_at: true, first_active_date: true, listing_type: true, sync_status: true, terminal_since: true, raw_data: true },
         });
         if (listing) {
           listing_status = listing.status;
           list_price = listing.list_price ? Number(listing.list_price) : null;
-          dom = listing.days_on_market || 0;
+          // The DISPLAY clock, never the raw column: a closed row's `days_on_market` was reset to zero by the
+          // UCBA Art. I §11 reset, so reading it directly showed "0 days" for every sold / rented listing.
+          // getCurrentDom prefers the provider-dated market clock (on market → CloseDate / OffMarketDate) and
+          // falls back to the retained cumulative value. Owner ruling 2026-09-09.
+          dom = getCurrentDom(listing, { lifecycle: lifecycleFromStoredRow(listing) });
         }
       }
 

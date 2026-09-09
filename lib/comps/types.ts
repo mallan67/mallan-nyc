@@ -14,7 +14,13 @@ export interface CompRange {
   sqft_min: number | null;
   sqft_max: number | null;
   sqft_enabled: boolean;
-  statuses: string[];   // "Active" | "Under Contract" | "Closed" | "Expired"
+  /**
+   * Live Cotality StandardStatus TOKENS (Active, Pending, Closed, Expired …). An agent may type this
+   * transaction's canonical label (a sale's "Sold", a rental's "Rented", a sale's "In Contract") in the UI;
+   * lib/comps/status-criteria.ts resolves it to a token before anything reaches OData, and refuses anything
+   * else. A display name ("Under Contract") or a legacy spelling ("Cancelled", "Leased") is never stored here.
+   */
+  statuses: string[];
   months_back: number;  // 6, 12, 24
 }
 
@@ -35,7 +41,12 @@ export interface CompListing {
   listing_id: string;
   address: string;
   unit: string;
+  /** The exact live StandardStatus token the provider delivered. */
   status: string;
+  /** Broker language for that token on THIS comp's transaction (Closed → Sold / Rented; Pending → In Contract on a sale). */
+  status_label: string;
+  /** The comp's transaction, from its live PropertyType — a sale comp never appears in a rental set. */
+  transaction: "sale" | "rental";
   property_type: string;
   beds: number | null;
   baths: number | null;
@@ -58,5 +69,7 @@ export interface CompResults {
   area: CompListing[];
   criteria: CompCriteria;
   listing_id: string;
+  /** The SUBJECT's transaction (from its live PropertyType). Sale and rental comps are never mixed. */
+  transaction: "sale" | "rental";
   fetched_at: string;
 }

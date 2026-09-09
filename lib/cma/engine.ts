@@ -9,9 +9,26 @@ import { marketDom } from '@/lib/compliance/dom-tracker';
 // The comp-eligibility authority (CloseDate window, ownership segmentation) is consumed through its ONE designated
 // consumer, lib/comps/fetch-comps.ts — this engine is not a second reader of the canonical status vocabulary.
 import { isEligibleComp } from '@/lib/comps/fetch-comps';
-import { mallanStorageStatusesForCotality } from '@/lib/listings/mallan-status';
+// The comp status vocabulary: the exact live token to store on a comp record plus the broker LABEL for that
+// token on THIS transaction (owner ruling 2026-09-08 -- Closed reads "Sold" on a sale and "Rented" on a rental,
+// Pending reads "In Contract" on a sale; a label is never a stored value and the two transactions never mix).
+import { compStatusLabel } from '@/lib/comps/status-criteria';
+import { mallanStorageStatusesForCotality, normalizeStoredStatus } from '@/lib/listings/mallan-status';
 import type { Prisma } from '@prisma/client';
 import { canDisplayListingAddress, SEARCH_DISPLAY_GATE } from '@/lib/search/listing-access-decision';
+
+/** The subject is not sufficient to assemble a comp set (the caller must fix the request, not widen the search). */
+export class CmaSubjectError extends Error {
+  readonly code = 'CMA_SUBJECT_INCOMPLETE' as const;
+  constructor(message: string) {
+    super(message);
+    this.name = 'CmaSubjectError';
+  }
+}
+
+export function isCmaSubjectError(e: unknown): e is CmaSubjectError {
+  return e instanceof CmaSubjectError;
+}
 
 export interface CmaInput {
   property_address: string;
@@ -33,8 +50,12 @@ export interface CompResult {
   bedrooms: number | null;
   bathrooms: number | null;
   living_area: number | null;
+  /** The exact live StandardStatus token (a legacy stored 'Sold' / 'Rented' / 'Leased' row normalizes to Closed). */
   status: string;
-  status_label?: string;
+  /** Broker language for that token on the SUBJECT transaction (Closed -> Sold / Rented; Pending -> In Contract on a sale). */
+  status_label: string;
+  /** The comp transaction; a sale comp never appears in a rental CMA and vice versa. */
+  transaction: 'sale' | 'rental';
   close_price?: number | null;
   close_date?: string | null;
   days_on_market: number | null;
@@ -74,11 +95,15 @@ export async function findComps(
 
   const where: Prisma.ListingWhereInput = {};
 
-  // Match neighborhood or borough
+  // Match neighborhood or borough. A CMA with NEITHER would silently compare the subject against the whole
+  // city (every borough, every neighborhood) and value it from unrelated evidence -- refused, never widened
+  // (Maya, 2026-09-09: a comp set is a location, and a caller that cannot state one has no comp set).
   if (subject.neighborhood) {
     where.neighborhood = subject.neighborhood;
   } else if (subject.borough) {
     where.borough = subject.borough;
+  } else {
+    throw new CmaSubjectError('CMA requires the subject neighborhood or borough - a comp search is never widened to the whole city');
   }
 
   // Match listing type
@@ -149,6 +174,9 @@ export async function findComps(
   const transactionType = listingType === 'rent' ? 'rental' : 'sale';
   const candidates = listings.filter(l => {
     if (l.listing_type !== listingType) return false;
+    // The stored spelling resolves to its live token first: a legacy 'Sold' / 'Rented' / 'Leased' row IS a
+    // Closed comp, and a row whose status resolves to no live token is refused (never defaulted).
+    if (normalizeStoredStatus(l.status) === null) return false;
     const lifecycle = lifecycleFromStoredRow(l);
     if (lifecycle.stage !== 'closed' && !lifecycle.publiclyDisplayable) return false;
     if (lifecycle.stage === 'closed' && lifecycle.closePrice === null) return false;
@@ -160,6 +188,8 @@ export async function findComps(
   const comps: CompResult[] = candidates.map(l => {
     const adjustments: Adjustment[] = [];
     const lifecycle = lifecycleFromStoredRow(l);
+    // never the raw stored spelling: the comp record carries the live token the row means
+    const token = normalizeStoredStatus(l.status) as string;
     const closePrice = lifecycle.closePrice;
     const basePrice = closePrice ?? Number(l.list_price);
     let adjustedPrice = basePrice;
@@ -235,8 +265,11 @@ export async function findComps(
       bedrooms: l.bedrooms_total,
       bathrooms: l.bathrooms_full,
       living_area: l.living_area ? Number(l.living_area) : null,
-      status: l.status,
-      status_label: lifecycle.label,
+      // the EXACT live token (a legacy 'Sold' / 'Rented' / 'Leased' row is stored back as Closed) ...
+      status: token,
+      // ... and the broker word for it on THIS transaction, applied at render time only
+      status_label: compStatusLabel(token, transactionType),
+      transaction: transactionType,
       close_price: closePrice,
       close_date: lifecycle.closedDate,
       // ONE DOM rule: the market clock from the provider's contract-event dates; the stored accrual only when the row

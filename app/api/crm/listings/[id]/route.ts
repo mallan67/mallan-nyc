@@ -17,6 +17,8 @@ import { sanitizeForCRM } from "@/lib/compliance/dto";
 import { derivePermissionBooleans, normalizePayload, buildPersistenceRecord } from "@/lib/compliance/normalizer";
 import { applyServerFormMapping } from "@/lib/crm/listing-form-mapping";
 import { formStatusForListing } from "@/lib/crm/status-mapping";
+import { lifecycleFromStoredRow } from "@/lib/listings/canonical-lifecycle";
+import { marketDom } from "@/lib/compliance/dom-tracker";
 import { coerceStrictBool } from "@/lib/compliance/gates";
 import { TERMINAL_STATUSES, normalizeStandardStatus } from "@/lib/idx/trestle-mapper";
 import { dualWriteProjectionForListingId } from "@/lib/search/listing-search-projection";
@@ -90,6 +92,22 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   sanitized.list_agent_full_name = listing.list_agent_full_name ?? null;
   sanitized.list_office_name = listing.list_office_name ?? null;
   sanitized.form_status = formStatusForListing(listing);
+  // The market clock the FORMS and the WITH-TOOLS viewers show (owner ruling, Maya 2026-09-09):
+  // the SERVER computes it from the listing's own lifecycle — the later of OnMarketDate /
+  // ActivationDate to the CloseDate of a closed row, the removal's own date (Expired →
+  // ExpirationDate, Withdrawn → WithdrawnDate, Canceled → CancellationDate, else OffMarketDate),
+  // the day the row left the feed (a DETECTION day: `estimated`), else the as-of day. Never
+  // PurchaseContractDate. The browser used to count from a per-session timestamp, which showed a
+  // fresh "0" on every page load; it now renders these numbers and labels an estimated end.
+  const _dom = marketDom(lifecycleFromStoredRow(listing), new Date());
+  sanitized.form_dom = {
+    days: _dom.days,
+    endReason: _dom.endReason,
+    estimated: _dom.estimated,
+    start: _dom.start,
+    end: _dom.end,
+    unverified: _dom.unverified,
+  };
 
   return NextResponse.json(sanitized);
 }

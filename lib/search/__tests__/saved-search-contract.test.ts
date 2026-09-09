@@ -33,10 +33,25 @@ describe('save what actually executed', () => {
     expect(isSavedSearchCriteria(r.criteria)).toBe(true);
   });
   test('an unsupported parameter is refused by name, never dropped into a broader search', () => {
-    const r = savedCriteriaFromExecuted({ type: 'sale', address: '100 W 72', minSqft: 900 });
+    // Both names are still outside the executor's checkpoint, and BOTH are reported: a saved search
+    // that silently dropped one would run for ever against a wider universe than the agent saved.
+    const r = savedCriteriaFromExecuted({ type: 'sale', address: '100 W 72', keyword: 'doorman' });
     expect(r.ok).toBe(false);
     if (r.ok) return;
-    expect(r.refusal.unsupported.sort()).toEqual(['address', 'minSqft']);
+    expect(r.refusal.unsupported.sort()).toEqual(['address', 'keyword']);
+  });
+  test('the newly executable building / size criteria are stored and re-execute from storage', () => {
+    const r = savedCriteriaFromExecuted({ type: 'sale', buildingName: 'The Apthorp', minSqft: 900, maxSqft: 2500 });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.criteria).toEqual({ criteria_version: 2, params: { type: 'sale', buildingName: 'The Apthorp', minSqft: '900', maxSqft: '2500' } });
+    expect(r.executed.buildingName).toEqual(['The Apthorp']);
+    expect(r.executed.sqftMin).toBe(900);
+    expect(r.executed.sqftMax).toBe(2500);
+    const back = resolveStoredCriteria(r.criteria);
+    expect(back.state).toBe('current');
+    expect(back.state === 'current' && back.criteria.buildingName).toEqual(['The Apthorp']);
+    expect(back.state === 'current' && back.criteria.sqftMin).toBe(900);
   });
   test('an invalid value is refused by name', () => {
     const r = savedCriteriaFromExecuted({ type: 'sale', borough: 'Yonkers' });
@@ -142,6 +157,10 @@ describe('legacy census — deterministic, meaning-preserving, or refused', () =
     const btn = legacyToParams({ type: 'sale', beds: 2, minPrice: 500000, maxPrice: 1500000, propertyType: 'Condo', neighborhood: 'Tribeca', borough: 'Manhattan' });
     expect(btn.ok).toBe(true);
     if (btn.ok) expect(btn.params).toEqual({ type: 'sale', minBeds: '2', minPrice: '500000', maxPrice: '1500000', ownership: 'Condominium', neighborhood: 'Tribeca', borough: 'Manhattan', status: LEGACY_DEFAULT_STATUS });
+    // Still refused on the LEGACY path, deliberately. `minSqft` is executable TODAY (LivingArea ge),
+    // and a search executed today is stored through savedCriteriaFromExecuted, which accepts it — but a
+    // legacy blob's sqft meant the retired projection's own square-footage column, which is NOT proven
+    // to be Cotality LivingArea. Fail-closed until that equivalence is proven; never guessed.
     expect(legacyToParams({ type: 'sale', minSqft: 800 }).ok).toBe(false);
   });
   test('describeSavedParams names a public alert from its parameters', () => {

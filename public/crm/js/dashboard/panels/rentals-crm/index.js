@@ -20,6 +20,25 @@ var RentalsCRM = (function () {
   // TABS removed — Rentals CRM consolidated into CLIENTS sidebar (Lease Tracker).
   // Legacy routes redirect. Landlords/Tenants/Leases now in Lease Tracker.
 
+  // The RENTAL transaction's status vocabulary, from the server mapping
+  // (GET /api/crm/status-options?type=rental). Owner ruling (Maya, 2026-09-08): a landlord's listing is a
+  // rental, so its Closed reads "Rented" - never "Sold", and never a word this panel made up.
+  var _rentalStatusOptions = null;
+
+  function _rentalStatusLabel(token) {
+    if (!token || !_rentalStatusOptions || !_rentalStatusOptions.canonical) return null;
+    for (var i = 0; i < _rentalStatusOptions.canonical.length; i++) {
+      if (_rentalStatusOptions.canonical[i].token === token) return _rentalStatusOptions.canonical[i].label;
+    }
+    return null;
+  }
+
+  // Chip colors keyed by the provider token (Canceled with the provider's one L).
+  var RENTAL_STATUS_TOKEN_COLORS = {
+    Active: '#3B82F6', ActiveUnderContract: '#8B5CF6', Pending: '#7C3AED', Closed: '#059669',
+    Hold: '#6B7280', Withdrawn: '#6B7280', Canceled: '#6B7280', Expired: '#DC2626', Incomplete: '#9CA3AF'
+  };
+
   var LANDLORD_STAGES = {
     prospect:         { label: 'Prospect',          color: '#6366F1', bg: '#EEF2FF' },
     pitching:         { label: 'Pitching',           color: '#F59E0B', bg: '#FFFBEB' },
@@ -77,7 +96,14 @@ var RentalsCRM = (function () {
     var c = CRM.getContent();
     c.innerHTML = _subnav('landlords') + '<div class="flex items-center justify-center h-40"><i class="fas fa-spinner fa-spin text-2xl text-gold"></i></div>';
 
-    MallanAPI._fetch('/api/crm/rentals/landlords').then(function (data) {
+    Promise.all([
+      MallanAPI._fetch('/api/crm/rentals/landlords'),
+      _rentalStatusOptions
+        ? Promise.resolve(_rentalStatusOptions)
+        : MallanAPI._fetch('/api/crm/status-options?type=rental').catch(function () { return null; }),
+    ]).then(function (_res) {
+      var data = _res[0];
+      if (_res[1]) _rentalStatusOptions = _res[1];
       _s.landlords.data = (data.landlords || data.clients || []).map(function (r) {
         r.name = r.name || ((r.first_name || '') + ' ' + (r.last_name || '')).trim();
         r.stage = r.pipeline_stage || 'prospect';
@@ -134,9 +160,17 @@ var RentalsCRM = (function () {
         }},
         { key: 'stage', label: 'Stage', render: function (r) { return _stageBadge(r.stage, LANDLORD_STAGES); } },
         { key: 'listing_status', label: 'Listing', render: function (r) {
-          var s = r.listing_status || 'No Listing';
-          var clr = { Active: '#3B82F6', 'Rented': '#059669', 'Lease Signed': '#7C3AED' }[s] || '#9CA3AF';
-          return '<span style="font-size:10px;font-weight:700;color:' + clr + ';">' + E(s) + '</span>';
+          // The stored value is a live Cotality StandardStatus token; the printed word is the RENTAL
+          // mapping's label for it (Closed -> "Rented"). A token this mapping does not carry reads
+          // "Status unavailable" - never a fabricated "Active".
+          var token = r.listing_status;
+          if (!token || token === 'No Listing') {
+            return '<span style="font-size:10px;font-weight:700;color:#9CA3AF;">No Listing</span>';
+          }
+          var label = r.listing_status_label || _rentalStatusLabel(token);
+          var clr = RENTAL_STATUS_TOKEN_COLORS[token] || '#9CA3AF';
+          return '<span style="font-size:10px;font-weight:700;color:' + clr + ';" data-status-token="' + E(token) + '">'
+            + E(label || 'Status unavailable') + '</span>';
         }},
         { key: 'last_login_at', label: 'Last Login', render: function (r) { return r.last_login_at ? '<span class="text-xs text-gray-600">' + _ago(r.last_login_at) + '</span>' : '<span class="text-xs text-gray-400">Never</span>'; } },
         { key: 'showings_count', label: 'Showings', render: function (r) { var n = Number(r.showings_count || 0); return n > 0 ? '<span class="font-bold">' + n + '</span>' : '<span class="text-gray-400">0</span>'; } },
@@ -519,7 +553,9 @@ var RentalsCRM = (function () {
     if (cl.active_rental_listing_id) {
       h += '<div class="grid grid-cols-2 gap-3">';
       h += _f('Listing ID', cl.active_rental_listing_id);
-      h += _f('Status', cl.listing_status || 'Active');
+      // The RENTAL mapping's label for the stored live StandardStatus token (Closed reads "Rented");
+      // an unresolved state reads "Status unavailable", never a fabricated "Active".
+      h += _f('Status', cl.listing_status_label || _rentalStatusLabel(cl.listing_status) || 'Status unavailable');
       h += _f('Listed Rent', cl.rent_per_month ? $(Number(cl.rent_per_month)) + '/mo' : '-');
       h += _f('Days on Market', cl.dom || '0');
       h += '</div>';

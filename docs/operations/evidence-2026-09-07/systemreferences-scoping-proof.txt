@@ -1,0 +1,20 @@
+RESOURCE.FIELD                        ROWS  GLOBAL   RLS  DUP?
+----------------------------------------------------------------------
+  Property.Permission                   18      18     3  no
+  Property.StandardStatus               11      11     9  no
+  Property.MlsStatus                    26      26     9  no
+  Property.InteriorFeatures            299     299    55  no
+  Property.CurrentUse                   66      66    10  no
+  Property.AvailableLeaseType           23      23     0  no
+  Property.PropertySubType              76      76    10  no
+  Property.PropertyType                 13      13     3  no
+  Media.Permission                       7       7     2  no
+  Media.MediaCategory                   18      18     8  no
+  OpenHouse.OpenHouseType                9       9     2  no
+  OpenHouse.OpenHouseStatus              3       3     3  no
+
+Property.Permission RLS -> ['IDX', 'Private', 'SyndicateOptOut']
+Property.StandardStatus RLS -> ['Active', 'Canceled', 'Closed', 'ComingSoon', 'Delete', 'Expired', 'Hold', 'Pending', 'Withdrawn']
+Property.AvailableLeaseType RLS -> []
+Media.Permission RLS -> ['Private', 'Public']
+OpenHouse.OpenHouseType RLS -> ['Broker', 'Public']
