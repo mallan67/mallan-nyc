@@ -55,27 +55,35 @@ var BreakevenCalc = (function () {
     var moving = _val('be-moving');
     var repairs = _val('be-repairs');
 
-    // Break-even formula:
-    // Price = Mortgage + FixedCosts + Commission + TransferTaxes
-    // Price = M + F + P*C + P*TransferRate
-    // P - P*C - P*T = M + F
-    // P * (1 - C - T) = M + F
-    // P = (M + F) / (1 - C - T)
-
-    // NYC transfer tax rate: ~1.425% for >500k, NYS: 0.4%
-    var transferRate = 0.01425 + 0.004; // ~1.825% total transfer taxes
-
-    var fixedCosts = attorney + flipTax + moving + repairs;
-    var denominator = 1 - commissionPct - transferRate;
-
-    if (denominator <= 0) {
-      var el = document.getElementById('be-results');
-      if (el) el.innerHTML = '<div class="text-red-500 text-xs">Commission + transfer tax rates exceed 100%.</div>';
+    // ── SOLVED BY THE ONE AUTHORITY, NOT BY A FLAT RATE ──────────────────────────────────────
+    // This used to solve P = (M + F) / (1 - C - T) with T pinned at 0.01425 + 0.004. T is not a
+    // constant: NYC RPTT is 1.00% below $500,000 and 1.425% at or above; NYS transfer is 0.40%
+    // below $3,000,000 and 0.65% at or above. Worse, it SOLVED with the flat rate and DISPLAYED
+    // with the band-aware helpers, so the price it returned did not settle against its own net
+    // line - at a $2.8M payoff it returned $3,009,000 and showed net proceeds of -$6,887.
+    // Now solved against CrmCalc.netProceeds, so the answer settles by construction.
+    if (typeof CrmCalc === 'undefined' || !CrmCalc.breakEvenSalePrice) {
+      var missing = document.getElementById('be-results');
+      if (missing) missing.innerHTML = '<div class="text-red-500 text-xs">Calculation core not loaded.</div>';
       return;
     }
 
-    var breakeven = (mortgage + fixedCosts) / denominator;
-    breakeven = Math.ceil(breakeven / 1000) * 1000; // Round up to nearest $1K
+    var fixedCosts = attorney + flipTax + moving + repairs;
+    var solved;
+    try {
+      solved = CrmCalc.breakEvenSalePrice({
+        mortgagePayoff: mortgage,
+        commissionPct: commissionPct * 100,
+        attorneyFee: attorney,
+        otherCosts: flipTax + moving + repairs,
+      });
+    } catch (err) {
+      var elx = document.getElementById('be-results');
+      if (elx) elx.innerHTML = '<div class="text-red-500 text-xs">' + (err && err.message ? err.message : 'Cannot reach a break-even price.') + '</div>';
+      return;
+    }
+
+    var breakeven = Math.ceil(solved.totals.breakEvenPrice / 1000) * 1000; // round up to nearest $1K
 
     var commission = breakeven * commissionPct;
     var nycTransfer = _getNYCTransferTax(breakeven);
