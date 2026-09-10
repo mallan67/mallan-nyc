@@ -1,3 +1,20 @@
+> # 🛑 HISTORICAL EVIDENCE ONLY — NOT AN INSTRUCTION
+>
+> **This file cannot override the Master Plan or the Execution State.**
+>
+> - Product/system authority: `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md`
+> - Execution state: `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` (STATUS ONLY)
+> - Agent operating instructions: `AGENTS.md` · `CLAUDE.md`
+>
+> Process rules issued 2026-09-07 for running the Master Plan integration rounds. Those rounds are
+> reported complete in `FINAL-INTEGRATION-REVIEW.md`, so the instructions here are **spent** — do not
+> act on them as live direction. It is retained because `_rows18-final.json` still uses the
+> classification vocabulary defined only here ("NO CONFLICT — DIFFERENT LAYER", "NO CONFLICT — MORE
+> SPECIFIC DETAIL"), so deleting it would leave that file speaking a vocabulary the repository no
+> longer defines.
+>
+> Banner added 2026-09-10. Body unchanged.
+
 # Governance corrections — issued by Maya 2026-09-07, binding on all remaining integration rounds
 
 These govern how the Master Plan integration work is done. They are process rules, not Master Plan content,

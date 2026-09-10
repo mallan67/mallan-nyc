@@ -1,3 +1,19 @@
+> # 🛑 HISTORICAL EVIDENCE ONLY — NOT AN INSTRUCTION
+>
+> **This file cannot override the Master Plan or the Execution State.**
+>
+> - Product/system authority: `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md`
+> - Execution state: `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` (STATUS ONLY)
+> - Agent operating instructions: `AGENTS.md` · `CLAUDE.md`
+>
+> The round-1 contradiction matrix. Its title says "require Maya" — that is **no longer true**; the 18
+> rows were classified and integrated during rounds 1-3. This file is byte-identical to
+> `INTEGRATION-CHANGELOG.md` lines 438-549, so it holds nothing unique. It is a deletion candidate,
+> held pending the owner's decision because this entire directory has never reached `main` — see the
+> archive note in the recovery commit.
+>
+> Banner added 2026-09-10. Body unchanged.
+
 ## Contradictions — require Maya
 
 The directive conflicts with existing plan text in these places. Nothing was silently resolved; where an addition was unavoidable it was written without deleting the conflicting text.

@@ -1,3 +1,22 @@
+> # 🛑 HISTORICAL BASE SNAPSHOT — NOT CURRENT AUTHORITY
+>
+> ## DO NOT IMPLEMENT FROM THIS FILE
+>
+> **CURRENT AUTHORITY:** `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md`
+>
+> This is the frozen INPUT to Master Plan integration round 3 (5,962 lines — 93% of the current plan, the easiest to mistake for it), kept as diff evidence. It is not the
+> plan. The heading and the "Single repository authority" line immediately below are the ones this
+> file was copied WITH — they describe the Master Plan, not this snapshot.
+>
+> **Specifically dangerous here:** this snapshot's §5.1 is byte-identical to the other two snapshots' §5.1 and does **not** contain the decided
+> Consumer Search / Backend Agent Search compliance separation. Read as current it would permit
+> exactly the consolidation the platform forbids. Architecture comes from the current Master Plan and
+> from `CLAUDE.md` §A.0 / `AGENTS.md` §1.0 — never from this file.
+>
+> Retained, not deleted: `DO NOT COMMIT, MERGE, OPEN A NEW PR.txt` preserves `_BASE` as comparison
+> evidence while this work is active, and lists "delete the base" under **Do NOT**. Deletion is the
+> owner's decision. Banner added 2026-09-10.
+
 # MALLAN BUSINESS & INTELLIGENCE OPERATING SYSTEM — MASTER PLAN
 
 > **Single repository authority for the Mallan brokerage, agent, listing, search, CMA, marketing, reporting, transaction and technology operating system.**

@@ -1,3 +1,20 @@
+> # 🛑 HISTORICAL EVIDENCE ONLY — NOT AN INSTRUCTION
+>
+> **This file cannot override the Master Plan or the Execution State.**
+>
+> - Product/system authority: `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md`
+> - Execution state: `docs/operations/MALLAN-CONTINUOUS-EXECUTION-STATE.md` (STATUS ONLY)
+> - Agent operating instructions: `AGENTS.md` · `CLAUDE.md`
+>
+> The closing report for integration rounds 1-3. Its line-2 status, "WORKING CANDIDATE. Not landed.
+> PR #595 untouched", was true when written and is **now overtaken**: `CLAUDE.md` and `AGENTS.md`
+> (commit `6a977a8e`, 2026-09-10) name `MALLAN-PLATFORM-MASTER-PLAN.md` the ONLY product/system
+> authority. Retained because it is the only copy of the three-lens escalation block, the rounds-2/3
+> tallies and the quarantine count. Its `L####` citations resolve against a 6,334-line snapshot, not
+> against the current plan.
+>
+> Banner added 2026-09-10. Body unchanged.
+
 # Master Plan integration — combined review after rounds 1, 2 and 3
 
 **Status: WORKING CANDIDATE. Not landed. PR #595 untouched.**
