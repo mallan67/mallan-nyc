@@ -680,7 +680,7 @@ body { font-family: Manrope, sans-serif; }
                                 <label class="radio-card flex items-center gap-2 text-sm"><input data-mallan-ignore="true" data-mallan-field="PropertyType" type="radio" name="rentalPropertyType" value="MultiFamily" class="w-4 h-4" onchange="applyRentalFieldRules()"> Multi-Family</label>
                                 <label class="radio-card flex items-center gap-2 text-sm"><input data-mallan-ignore="true" data-mallan-field="PropertyType" type="radio" name="rentalPropertyType" value="MixedUse" class="w-4 h-4" onchange="applyRentalFieldRules()"> Mixed Use</label>
                                 <label class="radio-card flex items-center gap-2 text-sm"><input data-mallan-ignore="true" data-mallan-field="PropertyType" type="radio" name="rentalPropertyType" value="Loft" class="w-4 h-4" onchange="applyRentalFieldRules()"> Loft</label>
-                                <label class="radio-card flex items-center gap-2 text-sm border-blue-300 bg-blue-50"><input data-mallan-ignore="true" data-mallan-field="PropertyType" type="radio" name="rentalPropertyType" value="RentalBuilding" class="w-4 h-4" onchange="applyRentalFieldRules()" checked> Rental Building</label>
+                                <label class="radio-card flex items-center gap-2 text-sm border-blue-300 bg-blue-50"><input data-mallan-ignore="true" data-mallan-field="PropertyType" type="radio" name="rentalPropertyType" value="RentalBuilding" class="w-4 h-4" onchange="applyRentalFieldRules()"> Rental Building</label>
                             </div>
                             <p class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Small Multi-Family (Whole Building)</p>
                             <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 mb-3">
@@ -743,14 +743,14 @@ body { font-family: Manrope, sans-serif; }
                             <label class="field-label mb-2">Ownership Structure (CommonInterest) <span class="text-red-500">*</span></label>
                             <p class="text-[10px] text-gray-500 mb-2">Cotality: CommonInterest — Auto-set from property type, or override manually.</p>
                             <select id="rentalCommonInterest" class="field-input" onchange="onRentalCommonInterestChange()" data-cotality-field="CommonInterest">
-                                <option value="">Select...</option>
+                                <option value="" selected>Select...</option>
                                 <option value="Condominium">Condominium</option>
                                 <option value="StockCooperative">Stock Cooperative (Co-op)</option>
                                 <option value="Condop">Condop</option>
                                 <option value="CommunityApartment">Community Apartment</option>
                                 <option value="PlannedDevelopment">Planned Development</option>
                                 <option value="None">None (Fee Simple / Townhouse)</option>
-                                <option value="RentalBuilding" selected>Rental Building</option>
+                                <option value="RentalBuilding">Rental Building</option>
                                 <option value="Timeshare">Timeshare</option>
                             </select>
                         </div>
@@ -4424,10 +4424,31 @@ var BOARD_COMMON_INTERESTS = ['Condominium', 'StockCooperative', 'Condop', 'Comm
  * Condominium address populates condo requirements and a RentalBuilding address populates rental
  * building requirements. Called on manual change and whenever a building is selected.
  */
+/**
+ * Put the PROVIDER's building model on the form.
+ *
+ * normalizeCommonInterest() was already correct - it accepts the live members, folds the legacy
+ * spellings (Condo -> Condominium, Coop / Co-op -> StockCooperative) and returns '' for anything it
+ * does not recognise. It was simply never called on the way in: hydration set the PropertyType
+ * radio and never touched #rentalCommonInterest, so a condominium loaded and the field sat on its
+ * hardcoded `selected` default of Rental Building. The agent then saved a listing telling REBNY the
+ * building was a rental building. Reported 2026-09-10.
+ *
+ * Unresolved means UNSET. A required provider-sourced field must not assert the most common case.
+ */
+function applyProviderCommonInterest(value) {
+    var el = document.getElementById('rentalCommonInterest');
+    if (!el) return '';
+    var ci = normalizeCommonInterest(value);
+    el.value = ci;                 // '' when unresolved - fail closed, never guess
+    applyCommonInterestLayer(ci);
+    return ci;
+}
+
 function applyCommonInterestLayer(commonInterest) {
     var ci = normalizeCommonInterest(commonInterest);
-    if (!ci) return;
-    var hasBoard = BOARD_COMMON_INTERESTS.indexOf(ci) !== -1;
+    // An unresolved model clears the board layer rather than leaving the previous listing's on screen.
+    var hasBoard = !!ci && BOARD_COMMON_INTERESTS.indexOf(ci) !== -1;
     ['rentalBoardApprovalField', 'rentalBoardInterviewField', 'rentalBoardApplicationField', 'rentalFirstRefusalField']
         .forEach(function (id) {
             var el = document.getElementById(id);
@@ -4461,6 +4482,7 @@ async function fetchBuildingsFromAPI(query) {
                 borough: b.borough || b.city_region || '',
                 zip: b.zip || b.postal_code || '',
                 neighborhood: b.neighborhood || b.subdivision_name || '',
+                postalCity: b.city || b.postal_city || '',
                 type: b.common_interest || b.property_type || '',
                 model: b.common_interest || '',
                 structureType: b.structure_type || '',
@@ -4523,6 +4545,10 @@ function selectBuildingFromIDX(prefix, address) {
     setVal(prefix + 'Borough', building.borough);
     setVal(prefix + 'ZipCode', building.zip);
     setVal(prefix + 'NeighborhoodFromAddress', building.neighborhood);
+    // PostalCity (the USPS city, which differs from the borough) and the SubdivisionName select
+    // were never populated by this path. Only fill what the provider actually returned, and never
+    // overwrite something the operator has already typed.
+    _applyProviderLocality(prefix, building);
 
     // Auto-detect property type from IDX
     const typeRadio = document.querySelector(`input[name="${prefix}PropertyType"][value="${building.type}"]`);
@@ -4587,12 +4613,77 @@ function autoDeriveRentalStructureType() {
 }
 
 // Address field onblur — exact-match auto-populate from IDX
-function rentalAddressBlurLookup() {
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// ADDRESS -> COTALITY LOCALITY FACTS
+//
+// This used to be:
+//     const match = buildingDatabase.find(b => b.address.toLowerCase() === addr.toLowerCase());
+//
+// `buildingDatabase` is NOT a database. It is a cache of the last building-search DROPDOWN results
+// (`let buildingDatabase = []`), so an agent who TYPES an address leaves it empty and the exact
+// string match always misses. parseRentalAddress() then split the street and stopped, leaving
+// PostalCity, CityRegion, PostalCode and SubdivisionName blank. Reported 2026-09-10 against
+// 145 E 48th Street, which must give New York / Manhattan / 10017 / Turtle Bay.
+//
+// Now: use the cache if it holds the address, otherwise ASK, and apply only what came back.
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+/** Write provider locality facts onto the form. Empty facts stay empty; operator entries stand. */
+function _applyProviderLocality(prefix, building) {
+    if (!building) return;
+    var setIfEmpty = function (id, value) {
+        if (value === null || value === undefined || value === '') return;
+        var el = document.getElementById(id);
+        if (!el) return;
+        // An operator's own entry is theirs. A lookup fills blanks; it does not overrule a person.
+        if (el.value && String(el.value).trim() !== '') return;
+        el.value = value;
+        if (typeof el.dispatchEvent === 'function') el.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    setIfEmpty(prefix + 'PostalCity', building.postalCity);
+    setIfEmpty(prefix + 'Borough', building.borough);
+    setIfEmpty(prefix + 'ZipCode', building.zip);
+    setIfEmpty(prefix + 'NeighborhoodFromAddress', building.neighborhood);
+    setIfEmpty(prefix + 'Neighborhood', building.neighborhood);
+}
+
+/** The provider row whose address best matches what was typed, or null. */
+function _bestAddressMatch(rows, typed) {
+    if (!rows || !rows.length) return null;
+    var norm = function (v) {
+        return String(v || '').toLowerCase()
+            .replace(/[.,]/g, ' ')
+            .replace(/\beast\b/g, 'e').replace(/\bwest\b/g, 'w')
+            .replace(/\bnorth\b/g, 'n').replace(/\bsouth\b/g, 's')
+            .replace(/\bstreet\b/g, 'st').replace(/\bavenue\b/g, 'ave')
+            .replace(/\bboulevard\b/g, 'blvd').replace(/\bplace\b/g, 'pl')
+            .replace(/\s+/g, ' ').trim();
+    };
+    var want = norm(typed);
+    for (var i = 0; i < rows.length; i++) if (norm(rows[i].address) === want) return rows[i];
+    // The provider was asked for this address; if it answered at all, its best row is the answer.
+    return rows[0];
+}
+
+async function rentalAddressBlurLookup() {
     const addr = document.getElementById('rentalStreetAddress')?.value?.trim();
     if (!addr || addr.length < 5) return;
-    const match = buildingDatabase.find(b => b.address.toLowerCase() === addr.toLowerCase());
-    if (match) selectBuildingFromIDX('rental', match.address);
+
     parseRentalAddress();
+
+    var match = _bestAddressMatch(buildingDatabase, addr);
+    if (!match) {
+        try {
+            var rows = await fetchBuildingsFromAPI(addr);
+            match = _bestAddressMatch(rows, addr);
+        } catch (e) {
+            // A lookup that could not run must leave the form alone rather than invent locality.
+            if (typeof console !== 'undefined') console.warn('[Address lookup] unavailable:', e && e.message);
+            return;
+        }
+    }
+    if (!match) return;
+    _applyProviderLocality('rental', match);
 }
 
 // ══════════════════════════════════════════════════════
@@ -7307,6 +7398,12 @@ function _populateRentalFormFromApi(listing) {
     // Property type
     // The Mallan form value is the restore key; the provider sub-type is a legacy fallback only.
     setRadio('rentalPropertyType', raw.rentalPropertyType || raw.PropertySubType || listing.property_sub_type || '');
+
+    // The provider's building model, through the one normaliser. Without this the CommonInterest
+    // field kept its markup default and a condominium was saved as a rental building.
+    applyProviderCommonInterest(
+        raw.CommonInterest || raw.rentalCommonInterest || listing.common_interest || ''
+    );
 
     // Price (rent). A3: real save control is rentalMonthlyRent (collectRentalFormData
     // reads val('rentalMonthlyRent')); the old rentalListPrice id does not exist.
