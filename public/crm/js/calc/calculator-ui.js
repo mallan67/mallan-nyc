@@ -39,6 +39,46 @@ var CrmCalcUI = (function () {
             seed: { price: 1500000, propertyType: 'condo', commissionPct: 5, mortgagePayoff: 0 },
             headline: [['netProceeds', 'Net proceeds to seller'], ['sellingCosts', 'Selling costs'], ['salePrice', 'Sale price']],
         },
+
+        'cap-rate': {
+            label: 'Cap Rate',
+            group: 'Investment',
+            run: function (i) { return CrmCalc.capRate(i); },
+            seed: { price: 2000000, grossAnnualRent: 180000, vacancyRatePct: 5, operatingExpenses: 60000 },
+            headline: [['capRatePct', 'Cap rate', 'percent'], ['noi', 'Net operating income'], ['effectiveGrossIncome', 'Effective gross income']],
+        },
+        'cash-on-cash': {
+            label: 'Cash-on-Cash Return',
+            group: 'Investment',
+            run: function (i) { return CrmCalc.cashOnCash(i); },
+            seed: {
+                purchasePrice: 1000000, downPayment: 250000, closingCosts: 30000, initialCapex: 0,
+                annualRent: 84000, propertyTaxes: 12000, insurance: 3000, maintenance: 6000,
+                managementFees: 4200, vacancyAllowance: 4200, annualDebtService: 48000,
+            },
+            headline: [['cashOnCashPct', 'Cash-on-cash', 'percent'], ['annualCashFlow', 'Annual cash flow'], ['cashInvested', 'Cash invested']],
+        },
+        'roi': {
+            label: 'Return on Investment',
+            group: 'Investment',
+            run: function (i) { return CrmCalc.roi(i); },
+            seed: {
+                purchasePrice: 1000000, currentValue: 1400000, downPayment: 250000, closingCosts: 30000,
+                totalRentalIncome: 300000, totalOperatingExpenses: 120000, principalPaidDown: 0,
+                holdingYears: 5, propertyType: 'condo', includeSaleCosts: true, commissionPct: 5,
+            },
+            headline: [['totalRoiPct', 'Total ROI', 'percent'], ['annualisedRoiPct', 'Annualised', 'percent'], ['totalProfit', 'Total profit']],
+        },
+        'exchange-1031': {
+            label: '1031 Exchange',
+            group: 'Investment',
+            run: function (i) { return CrmCalc.exchange1031(i); },
+            seed: {
+                saleClosingDate: '2026-03-02', salePrice: 3000000, adjustedBasis: 1200000,
+                sellingCosts: 200000, replacementPrice: 3500000, bootReceived: 0,
+            },
+            headline: [['potentiallyDeferredGain', 'Potentially deferred gain'], ['recognisedGain', 'Recognisable on boot'], ['realisedGain', 'Realised gain']],
+        },
     };
 
     var _state = {}; // calculatorKey -> current inputs
@@ -111,11 +151,48 @@ var CrmCalcUI = (function () {
         def.headline.forEach(function (pair) {
             var v = result.totals[pair[0]];
             if (v === undefined) return;
+            var shown = pair[2] === 'percent' ? (Math.round(Number(v) * 100) / 100).toFixed(2) + '%' : _money(v);
             h += '<div class="border rounded-xl p-3 bg-gray-50" data-total="' + _esc(pair[0]) + '">' +
                 '<p class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">' + _esc(pair[1]) + '</p>' +
-                '<p class="text-xl font-bold ' + (Number(v) < 0 ? 'text-red-600' : 'text-gray-900') + '">' + _money(v) + '</p></div>';
+                '<p class="text-xl font-bold ' + (Number(v) < 0 ? 'text-red-600' : 'text-gray-900') + '">' + shown + '</p></div>';
         });
         h += '</div>';
+
+        // ── Optional contract sections, rendered when a calculation supplies them ──
+        // Still contract-driven: the renderer knows "a result may carry a statutory clock, an
+        // eligibility position and requirements", not anything about §1031 in particular.
+        if (result.eligibility && result.eligibility.determined === false) {
+            h += '<div class="border border-amber-300 bg-amber-50 rounded-xl p-3" data-eligibility="undetermined">' +
+                '<p class="text-xs font-bold text-amber-900 uppercase tracking-wide mb-1">Not an eligibility determination</p>' +
+                '<p class="text-xs text-amber-800">' + _esc(result.eligibility.note) + '</p></div>';
+        }
+        if (result.timeline) {
+            h += '<div class="border rounded-xl p-4" data-timeline="1"><h3 class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Statutory clock</h3>' +
+                '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">';
+            [['identifyBy', 'Identify by'], ['exchangeBy', 'Exchange by'],
+             ['daysToIdentify', 'Days to identify'], ['daysToExchange', 'Days to exchange']].forEach(function (p) {
+                var v = result.timeline[p[0]];
+                if (v === undefined) return;
+                var late = (p[0] === 'daysToIdentify' && result.timeline.identificationPassed) ||
+                           (p[0] === 'daysToExchange' && result.timeline.exchangePassed);
+                h += '<div data-clock="' + _esc(p[0]) + '"><p class="text-[11px] text-gray-500">' + _esc(p[1]) + '</p>' +
+                    '<p class="font-semibold ' + (late ? 'text-red-600' : 'text-gray-900') + '">' + _esc(v) + '</p></div>';
+            });
+            h += '</div></div>';
+        }
+        if (result.requirements && result.requirements.length) {
+            h += '<div class="border rounded-xl p-4" data-requirements="1">' +
+                '<h3 class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Requirements — assessed on the facts, not by this tool</h3><ul class="space-y-1">';
+            result.requirements.forEach(function (q) {
+                // `satisfied: null` means the calculator has no basis to assert either way. It renders
+                // as "not assessed" — never as a tick, which would read as a legal conclusion.
+                var mark = q.satisfied === null ? 'Not assessed' : (q.satisfied ? 'Met' : 'Not met');
+                h += '<li class="text-xs text-gray-700 flex gap-2" data-requirement="' + _esc(q.key) + '">' +
+                    '<span class="text-[10px] font-semibold uppercase text-gray-400 shrink-0 w-24" data-satisfied="' + _esc(String(q.satisfied)) + '">' + _esc(mark) + '</span>' +
+                    '<span>' + _esc(q.label) + '</span></li>';
+            });
+            h += '</ul></div>';
+        }
 
         // Every variable that moved the number
         h += '<div class="border rounded-xl p-4"><h3 class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Assumptions</h3>';

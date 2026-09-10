@@ -5,38 +5,54 @@
 
 // ── NYC Tax Tables ──────────────────────────────────────────
 
-var MANSION_TAX_RATES = [
-    { min: 1000000, max: 1999999, rate: 0.01 },
-    { min: 2000000, max: 2999999, rate: 0.0125 },
-    { min: 3000000, max: 4999999, rate: 0.015 },
-    { min: 5000000, max: 9999999, rate: 0.025 },
-    { min: 10000000, max: 14999999, rate: 0.0325 },
-    { min: 15000000, max: 19999999, rate: 0.035 },
-    { min: 20000000, max: 24999999, rate: 0.0375 },
-    { min: 25000000, max: Infinity, rate: 0.039 }
-];
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+// NEW YORK TRANSACTION TAXES — DELEGATED, NOT DUPLICATED
+//
+// This file used to carry its own MANSION_TAX_RATES table and its own transfer-tax rates. On
+// 2026-09-09 the CRM held FOUR copies of these tables, with three different sets of defects, and
+// this one shipped a real overcharge in the canonical CRM:
+//
+//     { min: 5000000, max: 9999999, rate: 0.025 }        <-- statutory rate is 0.0225
+//
+// A $7,000,000 purchase was quoted $175,000 instead of $157,500 — $17,500 too much, against the
+// buyer. (The deleted SALE-FORM-WITH-TOOLS fork had the opposite bug, missing three bands
+// entirely.) That is what four copies buys you: the same purchase quoted three different numbers
+// depending on which screen the agent opened.
+//
+// The tables now live ONCE, in js/calc/transaction-costs.js, verified band by band and pinned by
+// tests/runtime/crm-calc-one-tax-authority.test.ts. These functions stay as thin adapters so their
+// callers here are untouched.
+//
+// FAIL CLOSED: if the core is not loaded, throw. A silent fallback would be a fifth copy.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+function _calcCore() {
+    if (typeof CrmCalc === 'undefined' || !CrmCalc) {
+        throw new Error('js/output/calculators.js requires js/calc/transaction-costs.js to load first — ' +
+            'New York transaction-tax rates have one home and this file is not it.');
+    }
+    return CrmCalc;
+}
 
 function getMansionTax(price) {
-    if (price < 1000000) return 0;
-    for (var i = 0; i < MANSION_TAX_RATES.length; i++) {
-        if (price >= MANSION_TAX_RATES[i].min && price <= MANSION_TAX_RATES[i].max) {
-            return price * MANSION_TAX_RATES[i].rate;
-        }
-    }
-    return 0;
+    if (!(price >= 1000000)) return 0;
+    return price * _calcCore().mansionTaxBand(price).rate;
 }
 
 function getNYCTransferTax(price) {
-    return price < 500000 ? price * 0.01 : price * 0.01425;
+    return price * _calcCore().rpttRate(price);
 }
 
 function getNYSTransferTax(price) {
-    return price < 3000000 ? price * 0.004 : price * 0.0065;
+    return price * _calcCore().nysTransferRate(price);
 }
 
 function getMortgageRecordingTax(loanAmt, isCoop) {
+    // The exemption is on the INSTRUMENT: an individual co-op purchase is financed by a share loan
+    // perfected through a UCC filing against the shares, not by recording a mortgage against real
+    // property. Callers here pass the co-op flag they already had; the core owns the rates.
     if (isCoop) return 0;
-    return loanAmt < 500000 ? loanAmt * 0.018 : loanAmt * 0.01925;
+    if (!(loanAmt > 0)) return 0;
+    return loanAmt * _calcCore().mortgageRecordingTaxRate(loanAmt);
 }
 
 function monthlyMortgagePayment(principal, annualRate, years) {
