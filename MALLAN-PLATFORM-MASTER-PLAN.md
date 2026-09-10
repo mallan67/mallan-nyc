@@ -440,6 +440,10 @@ Search is infrastructure for professional work, not an isolated page.
 
 Frontend Consumer Search and Backend Agent Search are distinct products over shared lower-level identity/provider infrastructure.
 
+The separation is intentional and may not be simplified away. The two products serve different audiences with different legal and provider display rights. Shared lower-level provider, mapping, identity and media infrastructure is expected; separate DTOs, permissions, filter contracts, caches and tests are required. A refactor may remove duplicated implementation; it may not collapse the audience, permission, DTO or display boundary into one Search surface.
+
+URL namespace does not establish application ownership. A professional Search may remain under a historical path for compatibility where the application behind it is independent and the permission boundary holds. Professional Search is never collapsed into public Consumer Search.
+
 ## 5.1 Consumer Search
 
 Public Search includes only inventory eligible for public display:
@@ -453,6 +457,8 @@ VERIFIED RETURN-COPY DUPLICATES
 ```
 
 Private/supplemental opportunity research never becomes public merely because Agents can search it.
+
+Consumer payloads exclude internal/professional-only fields before serialization.
 
 ## 5.2 Agent Search
 
@@ -471,6 +477,8 @@ VERIFIED DUPLICATES
 ```
 
 Source and availability state must remain visible.
+
+Agent Search may consume canonical CRM records and APIs; it may not depend on the CRM application shell to run. CRM may launch and use Agent Search. The dependency is `CRM → BACKEND SEARCH / LISTINGS`, never the reverse.
 
 ## 5.3 One criteria contract
 
@@ -656,6 +664,8 @@ For sale CMA:
 - Pending/In Contract listings are current-market context;
 - Expired/Withdrawn/TOM/Hold may be separately labeled market-resistance/history evidence when verified;
 - asking price never becomes closing price because close price is missing.
+
+Source-reported `Withdrawn`, `Temporarily Off Market` or `Hold` is not representation truth. It does not prove that an exclusive ended, that the owner is unrepresented, or that solicitation is appropriate.
 
 Authorized secondary historical evidence may be used when necessary, but must remain source-attributed and reconciled to canonical identity.
 
@@ -971,6 +981,8 @@ Important families include, as applicable:
 - transaction checklists;
 - commission closeout documents.
 
+Documents between Mallan and its licensees are a governed class of their own — independent-contractor agreement, brokerage policy acknowledgement and errors-and-omissions evidence — held against the canonical Agent identity.
+
 Forms are configurable/versioned. No fixed commission, exclusivity or legal clause is hard-wired into application logic.
 
 Mallan is not a generic legal-document authoring system for attorney-drafted sale contracts or other instruments outside the brokerage's authority.
@@ -998,6 +1010,8 @@ Each generated/signed record retains, as applicable:
 - delivery/signature state;
 - effective/expiration dates;
 - audit history.
+
+A required document attaches to the canonical context that created the obligation — Party/Opportunity, and Property/Listing where one applies — from the point the obligation arises, not only at signature.
 
 Retention requirements are governed by current authoritative law/rules and Mallan policy, not guessed in product code.
 
@@ -1052,7 +1066,10 @@ Every media record retains:
 - rights/permission;
 - media category/type;
 - ordering where applicable;
-- audience eligibility.
+- audience eligibility;
+- capture/as-of date;
+- last verification;
+- whether the media is still believed to depict current condition.
 
 Do not copy/rehost external media merely because it is publicly viewable.
 
@@ -1136,7 +1153,7 @@ Investor/1031 reuses the Buyer/Seller/Landlord systems with specialized acquisit
 
 # 17. AGENT SUPPORT / PROFESSIONAL OBLIGATIONS / MY PROFILE
 
-Mallan supports professional compliance and administration without becoming an HR system.
+Mallan supports professional compliance and administration without becoming an HR system. The boundary is narrow: Mallan governs the contractual, licensing, regulatory, tax and brokerage documents required to operate licensed independent contractors, and does not govern employment, payroll, benefits or personnel management.
 
 ## 17.1 Professional record
 
@@ -1172,6 +1189,10 @@ Normal offboarding preserves history and deactivates access.
 
 Permanent deletion is a mistake-rollback exception for an erroneous/never-used identity and must fail closed when legitimate brokerage history exists.
 
+The Broker opens an Agent with business terms only — name, email and the agreed sale, rental and referral splits. A secure invitation opens onboarding-only access on that same canonical account; the Agent completes their own onboarding package, and the governed agreement draws canonical identity, verified license type/number and the agreed splits from the record rather than from re-entry. There is no second Agent record, no second onboarding account and no Broker re-key path.
+
+Completion does not activate. The signed package returns to the Broker, the Broker performs the NYS DOS association, and only authoritative active status opens normal platform access and the public profile. Verified Cotality Member linkage follows the same canonical identity. Offboarding deactivates that account while preserving governed history.
+
 ## 17.3 W-9 / 1099 administration
 
 Mallan should support the independent-contractor tax administration chain:
@@ -1187,6 +1208,8 @@ AGENT W-9
 ```
 
 Tax forms and sensitive tax identifiers require strict access and privacy controls.
+
+Submitted taxpayer-identification content is not redisplayed in ordinary Agent surfaces; completion state and date may show.
 
 Mallan supports recordkeeping/export; it does not replace the accountant or tax professional.
 
