@@ -2,7 +2,7 @@
 
 > **STATUS ONLY.** This file does not define product/business/system architecture. `MALLAN-PLATFORM-MASTER-PLAN.md` is the sole durable authority. This file records the freshest verified execution state needed to continue work without restarting audits or relying on stale chat/PR prose.
 
-**Checkpoint:** 2026-09-08  
+**Checkpoint:** 2026-09-10  
 **Repository:** `mallan67/mallan-nyc` only  
 **Authorized local checkout:** `C:\Users\MayaAllan\Desktop\mallan-nyc`
 
@@ -12,9 +12,9 @@
 
 Read in this order:
 
-1. `AI-START-HERE.md`;
-2. affected Master sections, or the full Master for cross-system work;
-3. this execution-state file;
+1. `MALLAN-PLATFORM-MASTER-PLAN.md` (repo root, this branch) — affected sections, or the full
+   Master for cross-system work;
+2. this execution-state file;
 4. fresh Git/PR/runtime/provider state;
 5. `AGENTS.md`, `CLAUDE.md`, `NEON.md` and the Compliance Canonical Index as applicable.
 
@@ -40,6 +40,14 @@ Branch:
 
 `agent/publish-mallan-platform-master-plan-2026-08-04`
 
+
+**Master amended 2026-09-10** (`d9169cda`, parent `14459f21`): a +24 / -1 surgical reconciliation
+carrying the decided Search compliance boundary, the decided Agent onboarding/activation lifecycle,
+the representation-truth rule for provider Withdrawn/TOM/Hold, the brokerage/licensee document
+class, document-obligation context, and media capture/verification/currentness. 2,110 → 2,133 lines.
+The 6,388-line integration working copy was NOT merged; it remains reconciliation evidence only.
+Owner ruling: "Size is not authority."
+
 The Master/governance branch was consolidated on 2026-09-08 and then corrected for the current Cotality lifecycle/media rulings:
 
 - Master remains 27 stable durable top-level sections;
@@ -63,6 +71,27 @@ No documentation change in #595 authorizes Production/schema/Neon/R2/env/provide
 ---
 
 # 3. Current implementation-lane pointers
+
+## PR #630 — CRM / Search implementation lane
+
+Branch `converge/crm-listing-workflow-2026-09-09`, head `2fda56fb` at this checkpoint.
+State: `OPEN · DRAFT · UNMERGED`. **Implementation only — it is not product authority.**
+
+CI green at that head: `pr-check`, `guardrails`, `build`, `validate`, `geo-validate`,
+`target-platform-build`, `release-truth`, `claude-review` and the Vercel deployment all pass.
+
+Closed on that lane: the routing ownership correction (`/crm` serves the brokerage CRM, `/crm/search`
+serves Backend Agent Search); the deal-form client auth gate; a cross-platform build-drift guard;
+agent-instruction correction in `CLAUDE.md` and `AGENTS.md`; the legacy-provider ratchet; removal of
+the "dashboard is retired" premise from the guards that still enforced it; `idx-validate` output
+truncation; 38 agent-facing documents; and guards for doc proliferation and Search/CRM independence.
+
+**BLOCKED:** authenticated Preview behavioural proof. Preview-scoped `DATABASE_URL` and
+`DATABASE_URL_UNPOOLED` are not set, so every `/crm*` Preview route redirects to login. This is also
+the only non-passing CI row (`release-truth` deploy-runtime, fail-closed). Owner action.
+
+Also outstanding on that lane: rotate `neondb_owner`; delete the preview Neon branch
+`br-damp-forest-ad5kko85` at acceptance.
 
 These are lane pointers, not architecture.
 
@@ -338,28 +367,41 @@ A held mutation freezes only that mutation. Safe independent design, read-only v
 
 # 7. Next exact governance actions
 
-For #595:
+Rewritten 2026-09-10. The 2026-09-08 list is superseded; git history holds it.
 
-1. complete exact-head CI/review after the documentation consolidation and today's Cotality lifecycle correction;
-2. do not mark Ready/merge while checks are still in progress or while branch/main divergence is unreconciled;
-3. reconcile #595 once against then-current `main` without reintroducing old competing authority files/prose;
-4. verify the resulting tree still changes governance/docs only and retains all 27 Master sections;
-5. obtain Maya's final business review before merge.
+## Blocked on the owner
 
-For the local 2026-09-08 Cotality convergence work:
+1. Set Preview-scoped `DATABASE_URL` / `DATABASE_URL_UNPOOLED` from the Neon console and redeploy.
+   Nothing on the #630 behavioural-proof list can start until this is done.
+2. Rotate `neondb_owner`.
+3. Delete the preview Neon branch `br-damp-forest-ad5kko85` when acceptance completes.
+4. Decide the disposition of the integration working copy
+   `docs/Master Bus Plan work in progress/MALLAN-PLATFORM-MASTER-PLAN.md` — archive with a
+   not-authority banner, or delete once proven to hold zero unique requirements. It must not remain
+   an unlabelled competing Master.
 
-1. do not push based on the prior "all nine domains done" conclusion;
-2. re-run the affected status/lifecycle/DOM/Media/form policy against the corrected Master;
-3. classify all 20 reported form bindings by current Cotality vs legitimate REBNY/RLS compliance vs Mallan business field vs obsolete binding;
-4. prove no canonical `Delisted` state and no disappearance→Withdrawn inference survives;
-5. prove separate Coming Soon and market DOM owners/endpoints;
-6. prove Member/Property/Building Media ownership end to end;
-7. regenerate the final audit/coverage matrix after those corrections;
-8. only then decide whether the local branch is fit to push for review.
+## Next, once unblocked
 
-For other implementation lanes:
+1. Authenticated Preview proof of which application answers at each address.
+2. My Listings against the verified Cotality ListAgent identity (`trestle_mls_id = 39361`,
+   36 listings): those present, unrelated closed records absent.
+3. Search media and geography — real Cotality Media on cards; correct borough and neighborhood;
+   remove fabricated geographic fallbacks, Bike Score and transit/commute figures.
+4. Sale-form hydration proof, equivalent to the rental one already landed.
+5. Saved Search, selection, client distribution, reporting and CMA.
 
-1. continue already-owned Search/Agent/Neon work from fresh branch state rather than this docs branch;
-2. incorporate the Master impact gaps above into the appropriate existing implementation lane/dependency graph;
-3. do not open standalone duplicate projects for legacy URL cleanup, Lead identity, lease workflow, tax administration or idempotency until the complete readers/writers and canonical owner are established;
-4. never treat updating #595 as proof that the corresponding runtime behavior has been implemented.
+## Standing
+
+1. #595 and #630 both stay DRAFT and unmerged without explicit owner authorization.
+2. Reconcile #595 once against then-current `main` without reintroducing competing authority files.
+3. Never treat updating a documentation PR as proof that runtime behaviour exists.
+4. No documentation change authorizes Production, schema, Neon, R2, env or provider-publishing
+   mutation.
+
+## Open governance items
+
+- Neither this file nor the Master has ever reached `main`. Both live on this governance lineage.
+- `C:\Users\MayaAllan\Desktop\memory\`, mandated as a byte-identical mirror by `CLAUDE.md` §A.3,
+  does not exist. Either create it or retire the rule.
+- `.claude/skills/rebny-compliance/SKILL.md` is named canonical by `CLAUDE.md` §H and `AGENTS.md`
+  §3 but is excluded from every checkout by `.gitignore:155`. Owner's call; §A.7 holds "skills".
