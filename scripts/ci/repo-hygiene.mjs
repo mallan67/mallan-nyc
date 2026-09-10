@@ -71,12 +71,28 @@ const PR4_PATHS = [
 const TELEMETRY_FILE = "app/api/idx/search/route.ts";
 const TELEMETRY_KEYWORD = "idx_search_telemetry";
 
+// ─── What actually feeds the Backend Search bundle ───────────────────
+//
+// public/crm holds TWO applications (Master Plan §5.1, corrected 2026-09-10):
+//   index.html -> index-built.html   Backend Agent Search / Listings, served at /crm/search.
+//                                    build.js INLINES its sources, so a source edit is not live
+//                                    until the bundle is regenerated. That is what this rule is for.
+//   dashboard.html + js/dashboard/** the brokerage CRM, served at /crm. dashboard.html loads
+//                                    js/dashboard/** as 46 separate <script src> tags. NOTHING
+//                                    under js/dashboard/ is inlined into the bundle.
+//
+// The pattern used to be a bare /^public\/crm\/js\//, which swallowed js/dashboard/** — the CRM's
+// own source. Any CRM-only change therefore failed with "CRM bundle stale ... no bypass", and the
+// only way to satisfy it was to commit an unrelated bundle rebuild. Commits d471162a, 8da42f34,
+// 77fbfcc6, 41d7839e and 67b13219 all changed js/dashboard/** with no bundle and would have
+// tripped it.
 const CRM_BUNDLE = "public/crm/index-built.html";
 const CRM_SOURCE_PATTERNS = [
   /^public\/crm\/index\.html$/,
   /^public\/crm\/html\//,
   /^public\/crm\/css\//,
-  /^public\/crm\/js\//,
+  // js/** EXCEPT js/dashboard/**, which belongs to the CRM and is never bundled.
+  /^public\/crm\/js\/(?!dashboard\/)/,
   /^public\/crm\/build\.js$/,
 ];
 

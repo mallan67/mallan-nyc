@@ -90,6 +90,21 @@ var PitchPacket = (function () {
   // =====================================================================
   // SECTION A: COMP MANAGER
   // =====================================================================
+  /**
+   * Seller transfer tax for a NYC residential sale: NYC RPTT + NYS transfer tax, both from the
+   * ONE authority in js/calc/transaction-costs.js.
+   *
+   * FAILS CLOSED. If the core is not loaded this throws rather than falling back to a local rate —
+   * a silent fallback is how the fifth copy of these tables got written in the first place.
+   */
+  function _sellerTransferTax(price) {
+    if (typeof CrmCalc === 'undefined' || !CrmCalc) {
+      throw new Error('PitchPacket requires js/calc/transaction-costs.js — refusing to quote a seller net with a local tax rate.');
+    }
+    var p = Number(price) || 0;
+    return Math.round(p * CrmCalc.rpttRate(p)) + Math.round(p * CrmCalc.nysTransferRate(p));
+  }
+
   function _renderCompManager() {
     var pid = E(String(_prospect.id));
     var h = '<div class="bg-white border border-gray-200 rounded-xl p-5">';
@@ -239,11 +254,16 @@ var PitchPacket = (function () {
     var commRate = _overrides.commission_rate != null ? Number(_overrides.commission_rate) : 0.06;
     var attFees  = _overrides.attorney_fees != null ? Number(_overrides.attorney_fees) : 3000;
 
-    // Calculate transfer tax (NYC rules)
-    var transferTaxRate = estValue >= 500000 ? 0.01425 : 0.01;
+    // Transfer tax comes from the ONE New York transaction-tax authority.
+    //
+    // This used to be `estValue >= 500000 ? 0.01425 : 0.01` — NYC RPTT only. It silently omitted
+    // the NYS transfer tax (0.40% below $3M, 0.65% at or above), so every seller pitch overstated
+    // net proceeds by 0.4% of the asking price: $8,000 on a $2M listing, $22,750 on a $3.5M one.
+    // It survived because the one-tax-authority guard exempted js/dashboard/** as "the retired
+    // shell". The CRM is not retired; the exemption is gone and so is this copy.
     var commission = Math.round(estValue * commRate);
-    var transferTax = Math.round(estValue * transferTaxRate);
     var mortgagePayoff = Number(_prospect.mortgage_amount) || 0;
+    var transferTax = _sellerTransferTax(estValue);
     var netProceeds = estValue - commission - transferTax - attFees - mortgagePayoff;
     var lastPurchase = Number(_prospect.last_purchase_price) || 0;
     var equityGain = lastPurchase > 0 ? (estValue - lastPurchase) : 0;

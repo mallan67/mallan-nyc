@@ -166,13 +166,30 @@ describe('there is no second tax table anywhere in the shipped CRM', () => {
     return out.sort();
   })();
 
-  it('only the core defines them', () => {
-    // js/dashboard/** is the retired shell; its copies go when it does. Everything else must
-    // delegate — a rate literal outside the core is a second table waiting to drift.
-    const outsideRetiredShell = offenders.filter((f) => !f.startsWith('js/dashboard/'));
+  it('only the core defines them — EVERY application, with no exemption', () => {
+    // THE EXEMPTION THAT USED TO BE HERE, and why it was a hole:
+    //
+    //     const outsideRetiredShell = offenders.filter((f) => !f.startsWith('js/dashboard/'));
+    //     // js/dashboard/** is the retired shell; its copies go when it does.
+    //
+    // js/dashboard/** is the BROKERAGE CRM. It is a permanent application, not a retired shell —
+    // proven 2026-09-10, corrected in 928f31c4. So "its copies go when it does" exempted the CRM
+    // from the one-tax-authority rule FOREVER, on a premise that is false.
+    //
+    // The exemption was not theoretical. It was hiding two live defects, both in seller- and
+    // buyer-facing money:
+    //   pitch-packet.js  charged NYC RPTT only and omitted NYS transfer tax entirely, overstating
+    //                    a seller's net proceeds by 0.4% of the price ($8,000 on a $2M pitch).
+    //   workspace.js     the same omission, PLUS a flat 1% mansion tax against the statutory eight
+    //                    bands — $50,000 instead of $112,500 at $5M, $250,000 instead of $975,000
+    //                    at $25M.
+    //
+    // A guard that exempts an application because it is "going away" stops being a guard the moment
+    // that turns out to be wrong. There is no exemption now: every shipped source under
+    // public/crm delegates to the core, or it is an offender.
     expect({
-      outsideRetiredShell,
-      why: 'New York transaction-tax rates live ONCE, in js/calc/transaction-costs.js. Call CrmCalc instead of writing a rate literal — four copies is how the same purchase got quoted three different numbers.',
-    }).toEqual({ outsideRetiredShell: ['js/calc/transaction-costs.js'], why: expect.any(String) });
+      offenders,
+      why: 'New York transaction-tax rates live ONCE, in js/calc/transaction-costs.js. Call CrmCalc instead of writing a rate literal — four copies is how the same purchase got quoted three different numbers, and a fifth was hiding behind an exemption.',
+    }).toEqual({ offenders: ['js/calc/transaction-costs.js'], why: expect.any(String) });
   });
 });

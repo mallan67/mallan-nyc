@@ -1,33 +1,49 @@
 /// <reference types="jest" />
 /**
- * THERE IS EXACTLY ONE CRM APPLICATION, AND A SECOND ONE CANNOT BE ADDED QUIETLY.
+ * EVERY PAGE UNDER public/crm/ DECLARES WHAT IT IS, AND A NEW APPLICATION CANNOT APPEAR QUIETLY.
  *
  * ── WHAT HAPPENED ───────────────────────────────────────────────────────────────────────────────
  *
- * Commit 9716752d, "CRM v2 - modular dashboard replacing monolith", added a second CRM application
- * (public/crm/dashboard.html + public/crm/js/dashboard/**) and repointed /crm at it. The monolith it
- * claimed to replace was never retired. Both shipped for months. The consequence, reported by the
- * owner on 2026-09-09: "i have no search right now" - the canonical CRM was deployed and healthy the
- * entire time, and simply unreachable, because /crm served a shell that has no Property Search in it.
+ * On 2026-09-09 the owner reported "i have no search right now" and "seriously how it can be that
+ * there are two crms?". A browser at /crm reached one thing and the installed PWA reached another.
  *
- * Worse, work was then done in BOTH. A route census on 2026-09-09 found 72 routes in the duplicate:
- * 2 already existed in the canonical app (Property Search, My Listings - the two most actively worked
- * on), 14 were dead stubs, and 56 were capabilities that exist ONLY in the duplicate.
+ * The first diagnosis was WRONG, and this file's header used to carry it: that commit 9716752d had
+ * added a "second CRM" (dashboard.html) duplicating a "canonical CRM" (index-built.html), and that
+ * the duplicate should be emptied and deleted.
  *
- * The owner's instruction, verbatim: "do not just point the crm, remove duplicates, agents go in there
- * and create changes in that one and then they create another one... this cannot happen ever again."
+ * A forensic census on 2026-09-10 disproved it. The two files are not two copies of one product —
+ * they are two different products:
+ *
+ *   public/crm/dashboard.html      71 Router.register routes, broker/agent panels, NO search engine
+ *                                  -> the BROKERAGE CRM, at /crm
+ *   public/crm/index.html
+ *     -> index-built.html          search form, executor, renderer, NO CRM panels
+ *                                  -> BACKEND AGENT SEARCH / LISTINGS, at /crm/search
+ *
+ * The real defect was application-ownership and routing confusion: /crm had been repointed at
+ * Backend Search, so the professional Search application answered at the CRM's address. Corrected
+ * in 928f31c4. Neither application is retired and neither is going away.
+ *
+ * What WAS a genuine duplicate — a second My Listings implementation inside panels.js — was deleted
+ * in da8e3046 and stays deleted. The CRM's Property Search control is a LAUNCHER into Backend
+ * Search; a launcher is not a duplicate Search, and it remains.
+ *
+ * The owner's instruction, verbatim, which is about DUPLICATES and still stands: "do not just point
+ * the crm, remove duplicates, agents go in there and create changes in that one and then they create
+ * another one... this cannot happen ever again."
  *
  * ── WHAT THIS FILE ENFORCES ─────────────────────────────────────────────────────────────────────
  *
- * A guard, not a description. It fails closed on the three moves that created this situation:
+ * A guard, not a description. It fails closed on the moves that let a third application appear, or
+ * let the two that exist bleed into each other:
  *
- *   1. adding a new page under public/crm/ without declaring what it is;
- *   2. giving a second page its own route table, which is what makes a page an APPLICATION;
- *   3. letting the retired shell grow instead of shrink.
+ *   1. adding a page under public/crm/ without declaring what it is;
+ *   2. a second hashchange owner, which is what silently steals another application's routes;
+ *   3. a runtime module addressing the CRM by build artifact instead of by route, which couples one
+ *      application to a filename inside the other's build output.
  *
- * An agent that adds "dashboard-v3.html", or a second Router.register table, turns this red. There is
- * no way to satisfy it except by declaring the file's role in PAGES below - which is a decision a
- * person makes, in review, on purpose.
+ * An agent that adds "dashboard-v3.html" turns this red. There is no way to satisfy it except by
+ * declaring the file's role in PAGES below — a decision a person makes, in review, on purpose.
  */
 export {};
 import { existsSync, readdirSync, readFileSync } from 'fs';
@@ -54,7 +70,9 @@ const read = (rel: string) => readFileSync(resolve(ROOT, rel), 'utf8');
  *   generated            build output of an application. Never hand-edited.
  *   standalone-form      a single-purpose editor, launched by an application. Owns no routes.
  *   auth                 the sign-in page.
- *   retired              superseded and being removed. May only shrink.
+ *   retired              superseded and being removed. NOTE: no page carries this role today, and
+ *                        dashboard.html must never be given it — it is the CRM. The role is kept
+ *                        only so a genuinely dead page can be labelled honestly in future.
  *   dev-only             never served in production.
  */
 const PAGES: Record<string, 'crm-application' | 'search-application' | 'generated' | 'standalone-form' | 'auth' | 'retired' | 'dev-only'> = {
@@ -159,12 +177,18 @@ describe('one routing authority — a second hashchange owner cannot appear', ()
     return out.sort();
   })();
 
-  it('only the authority, its standalone fallback, and the retired shell own a hashchange listener', () => {
-    // js/core/crm-routing.js        THE authority - the only registration in the canonical app.
-    // js/init/init-hash-routing.js  keeps a fallback for loading standalone; it registers nothing
-    //                               when the authority is present (proven behaviourally in
+  it('each application has exactly one hashchange owner, and they never share a page', () => {
+    // Three registrations exist across TWO applications. That is correct, and it is not two routers
+    // over one address bar:
+    //
+    // js/core/crm-routing.js        THE authority inside Backend Agent Search (index.html).
+    // js/init/init-hash-routing.js  Search's standalone fallback; it registers nothing when the
+    //                               authority is present (proven behaviourally in
     //                               crm-single-routing-authority.test.ts).
-    // js/dashboard/router.js        the retired shell's own router; it goes when the shell does.
+    // js/dashboard/router.js        the BROKERAGE CRM's own router, loaded only by dashboard.html.
+    //                               It is a permanent part of a permanent application. It used to
+    //                               say 'it goes when the shell does' — the shell is the CRM and it
+    //                               is not going anywhere.
     expect(hashOwners).toEqual([
       'js/core/crm-routing.js',
       'js/dashboard/router.js',

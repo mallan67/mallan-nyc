@@ -3670,10 +3670,25 @@ var Workspace = (function () {
 
   function _calcClosing() {
     var price = parseFloat(document.getElementById('closingPrice').value) || 0;
+    // New York transaction taxes come from the ONE authority. FAIL CLOSED: no local fallback.
+    //
+    // What this used to be, and what it cost:
+    //   mansionTax  = price >= 1000000 ? price * 0.01 : 0
+    //                 A FLAT 1%, against the eight statutory bands of NYS Tax Law §1402-a.
+    //                 $5,000,000 quoted $50,000 instead of $112,500 — $62,500 low.
+    //                 $25,000,000 quoted $250,000 instead of $975,000 — $725,000 low.
+    //   transferTax = NYC RPTT only, omitting NYS transfer tax (0.40% / 0.65% at $3M+).
+    //
+    // Both survived because the one-tax-authority guard exempted js/dashboard/** as "the retired
+    // shell". It is the CRM, it is permanent, and the exemption is gone.
+    if (typeof CrmCalc === 'undefined' || !CrmCalc) {
+      throw new Error('Workspace closing-cost estimator requires js/calc/transaction-costs.js — refusing to quote a buyer with a local tax rate.');
+    }
     var titleIns = Math.round(price * 0.005);
     var attorney = 3500;
-    var mansionTax = price >= 1000000 ? Math.round(price * 0.01) : 0;
-    var transferTax = price >= 500000 ? Math.round(price * 0.01425) : Math.round(price * 0.01);
+    var mansionBand = CrmCalc.mansionTaxBand(price);
+    var mansionTax = Math.round(price * mansionBand.rate);
+    var transferTax = Math.round(price * CrmCalc.rpttRate(price)) + Math.round(price * CrmCalc.nysTransferRate(price));
     var recording = 500;
     var total = titleIns + attorney + mansionTax + transferTax + recording;
 
@@ -3682,8 +3697,8 @@ var Workspace = (function () {
     resEl.innerHTML = '<div class="space-y-2 text-sm">' +
       '<div class="flex justify-between"><span>Title Insurance</span><span class="font-bold">' + $(titleIns) + '</span></div>' +
       '<div class="flex justify-between"><span>Attorney Fees</span><span class="font-bold">' + $(attorney) + '</span></div>' +
-      '<div class="flex justify-between"><span>Mansion Tax' + (price >= 1000000 ? ' (1%)' : ' (N/A)') + '</span><span class="font-bold">' + $(mansionTax) + '</span></div>' +
-      '<div class="flex justify-between"><span>Transfer Tax (' + (price >= 500000 ? '1.425%' : '1%') + ')</span><span class="font-bold">' + $(transferTax) + '</span></div>' +
+      '<div class="flex justify-between"><span>Mansion Tax (' + mansionBand.label + ')</span><span class="font-bold">' + $(mansionTax) + '</span></div>' +
+      '<div class="flex justify-between"><span>Transfer Tax (NYC ' + (CrmCalc.rpttRate(price) * 100).toFixed(3).replace(/0+$/, '').replace(/\.$/, '') + '% + NYS ' + (CrmCalc.nysTransferRate(price) * 100).toFixed(2) + '%)</span><span class="font-bold">' + $(transferTax) + '</span></div>' +
       '<div class="flex justify-between"><span>Recording Fees</span><span class="font-bold">' + $(recording) + '</span></div>' +
       '<div class="flex justify-between border-t pt-2 mt-2"><span class="font-bold">Estimated Total</span><span class="font-bold text-gold">' + $(total) + '</span></div>' +
       '<p class="text-xs text-gray-400 mt-2">NYC estimate. Co-op vs condo differences apply.</p>' +
