@@ -291,6 +291,104 @@ var CrmCalcUI = (function () {
         }
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════════════════════
+    // CLIENT CONTEXT — the calculators are callable from a client, not only from a Tools page
+    //
+    // The retired shell's Sales CRM workspace had a Calculators tab that rendered twelve hand-built
+    // modules into twelve #calc-<id> divs and prefilled them from the client record. That tab was
+    // the only reason those twelve modules could not be deleted.
+    //
+    // Here the arithmetic is the shared engines and only the PREFILL is client-specific. A prefilled
+    // value becomes an ordinary input, so it appears in `assumptions` with source 'user' and stays
+    // editable — owner instruction: "treat user-editable assumptions as assumptions rather than
+    // hidden facts". Absent data is OMITTED rather than defaulted to zero, because a zero would
+    // render as a fact the CRM does not actually hold.
+    // ═══════════════════════════════════════════════════════════════════════════════════════════
+
+    var CLIENT_PROPERTY_TYPES = { coop: 'coop', 'co-op': 'coop', condo: 'condo', condop: 'condo', townhouse: 'townhouse', house: 'townhouse' };
+
+    function _pick(target, key, value) {
+        var n = typeof value === 'string' ? parseFloat(value.replace(/[$,\s]/g, '')) : value;
+        if (typeof n === 'number' && isFinite(n)) target[key] = n;
+    }
+
+    /** Map a CRM client record onto calculator inputs. Verified data only; nothing invented. */
+    function inputsFromClient(client) {
+        client = client || {};
+        var out = {};
+        var strategy = client.marketing_strategy || {};
+
+        _pick(out, 'price', client.list_price != null ? client.list_price : strategy.target_price);
+        _pick(out, 'purchasePrice', client.purchase_price != null ? client.purchase_price : client.list_price);
+        _pick(out, 'currentValue', client.estimated_value != null ? client.estimated_value : client.list_price);
+        _pick(out, 'marketValue', client.estimated_value != null ? client.estimated_value : client.list_price);
+        _pick(out, 'propertyValue', client.estimated_value != null ? client.estimated_value : client.list_price);
+        _pick(out, 'mortgagePayoff', client.mortgage_balance);
+        _pick(out, 'mortgageBalance', client.mortgage_balance);
+        _pick(out, 'monthlyRent', client.monthly_rent);
+        _pick(out, 'annualExpenses', client.annual_operating_expenses);
+        _pick(out, 'operatingExpenses', client.annual_operating_expenses);
+
+        var pt = CLIENT_PROPERTY_TYPES[String(client.property_type || '').toLowerCase()];
+        if (pt) out.propertyType = pt;
+
+        return out;
+    }
+
+    /** Which calculators suit this client. Every key returned is a registered calculator. */
+    function calculatorsForClient(client) {
+        client = client || {};
+        var type = String(client.client_type || '').toLowerCase();
+        var stage = String(client.stage || '').toLowerCase();
+        var keys = ['net-proceeds', 'seller-closing-costs', 'equity', 'carrying-cost', 'break-even-price'];
+
+        if (type === 'buyer' || stage === 'exclusive' || stage === 'listed') keys.push('buyer-closing-costs');
+        if (type === 'investor') keys = keys.concat(['cap-rate', 'cash-on-cash', 'roi', 'rental-yield', 'exchange-1031']);
+        keys.push('vacancy-cost');
+
+        var seen = {};
+        return keys.filter(function (k) {
+            if (seen[k] || !REGISTRY[k]) return false;
+            seen[k] = true;
+            return true;
+        });
+    }
+
+    var _clientCtx = null; // { host, inputs, keys }
+
+    function showForClient(key) {
+        if (!_clientCtx || !REGISTRY[key]) return null;
+        var buttons = _clientCtx.host.querySelectorAll('[data-calc-pick]');
+        for (var i = 0; i < buttons.length; i++) {
+            var on = buttons[i].getAttribute('data-calc-pick') === key;
+            buttons[i].className = 'flex items-center gap-1.5 px-3 py-2 border rounded-lg text-xs font-semibold transition-colors ' +
+                (on ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400');
+        }
+        var area = _clientCtx.host.querySelector('[data-calc-area]');
+        return mount(area, key, _clientCtx.inputs);
+    }
+
+    /** Mount the client's calculator set: a picker plus the mounted calculator, prefilled. */
+    function mountForClient(container, client, key) {
+        if (!container) return null;
+        var keys = calculatorsForClient(client);
+        if (!keys.length) return null;
+        var chosen = key && REGISTRY[key] ? key : keys[0];
+
+        var h = '<div class="space-y-4" data-client-calculators="1">';
+        h += '<div class="flex flex-wrap gap-2">';
+        keys.forEach(function (k) {
+            h += '<button data-calc-pick="' + _esc(k) + '" onclick="CrmCalcUI.showForClient(\'' + _esc(k) + '\')" ' +
+                'class="flex items-center gap-1.5 px-3 py-2 border rounded-lg text-xs font-semibold transition-colors bg-white text-gray-600 border-gray-200 hover:border-gray-400">' +
+                _esc(REGISTRY[k].label) + '</button>';
+        });
+        h += '</div><div data-calc-area></div></div>';
+        container.innerHTML = h;
+
+        _clientCtx = { host: container, inputs: inputsFromClient(client), keys: keys };
+        return showForClient(chosen);
+    }
+
     /** Mount a calculator into a container. Returns the first result, for callers that want the data. */
     function mount(container, key, inputs) {
         if (!container || !REGISTRY[key]) return null;
@@ -324,7 +422,11 @@ var CrmCalcUI = (function () {
         });
     }
 
-    return { mount: mount, registerRoutes: registerRoutes, list: list, REGISTRY: REGISTRY };
+    return {
+        mount: mount, registerRoutes: registerRoutes, list: list, REGISTRY: REGISTRY,
+        inputsFromClient: inputsFromClient, calculatorsForClient: calculatorsForClient,
+        mountForClient: mountForClient, showForClient: showForClient,
+    };
 })();
 
 if (typeof window !== 'undefined') {
